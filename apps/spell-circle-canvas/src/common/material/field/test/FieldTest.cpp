@@ -26,6 +26,7 @@
 
 #include "ShaderTable.h"
 #include "support/Shade.h"
+#include "support/SlangSurface.h"
 
 using namespace sigil::material;
 using sigil::material::test::render;
@@ -163,32 +164,44 @@ TEST(Field, CellularNoiseIsZeroAtASeedAndRisesAwayFromIt) {
 // The device body is the same field: it compiles as a surface whose
 // parameters and frame inputs the compiler reports.
 TEST(Field, CellularNoiseHasASlangSurface) {
-  const auto& recipe = *field::cellularRecipe();
-  ASSERT_TRUE(recipe.has(Target::Slang));
-  const std::string source = recipe.source(Target::Slang) + R"SLANG(
-struct VSOut { float4 position : SV_Position; float2 uv : TEXCOORD0; };
-
-[shader("vertex")]
-VSOut vsCellular(uint id : SV_VertexID) {
-  VSOut out;
-  out.position = float4(float(id), 0, 0, 1);
-  out.uv = float2(0.5, 0.5);
-  return out;
-}
-
-[shader("fragment")]
-float4 fsCellular(VSOut input) : SV_Target {
-  return surface(input.uv);
-}
-)SLANG";
   slang::Compiled built;
   std::string error;
-  ASSERT_TRUE(slang::compileModule(source, "vsCellular", "fsCellular",
-                                   /*lit=*/false, &built, &error))
+  ASSERT_TRUE(sigil::material::test::compilesAsSurface(*field::cellularRecipe(),
+                                                       &built, &error))
       << error;
   EXPECT_NE(built.uniform("uFrequency"), nullptr);
   EXPECT_NE(built.uniform("uJitter"), nullptr);
   EXPECT_NE(built.uniform("uResolution"), nullptr);
+}
+
+// The noise, the halftone ramp and the ripple are the same fields on a
+// device: each compiles as a surface reading the numbers the page's body
+// reads, at the region's size.
+TEST(Field, NoiseHalftoneAndRippleHaveSlangSurfaces) {
+  const struct {
+    const char* name;
+    Material material;
+    std::vector<const char*> uniforms;
+  } cases[] = {
+      {"noise",
+       field::noise(0.05f, 3, 2.0f, true),
+       {"uFrequency", "uOctaves", "uSeed", "uTurbulence", "uResolution"}},
+      {"halftone",
+       field::halftoneRamp(8, 1, 3, Color{0, 0, 0, 1}, 30),
+       {"uSpacing", "uRMin", "uRMax", "uColor", "uResolution"}},
+      {"ripple",
+       field::ripple(3, 20, 0.5f),
+       {"uAmp", "uFreq", "uPhase", "uResolution"}},
+  };
+  for (const auto& each : cases) {
+    slang::Compiled built;
+    std::string error;
+    ASSERT_TRUE(sigil::material::test::compilesAsSurface(each.material.recipe(),
+                                                         &built, &error))
+        << each.name << ": " << error;
+    for (const char* uniform : each.uniforms)
+      EXPECT_NE(built.uniform(uniform), nullptr) << each.name << " " << uniform;
+  }
 }
 
 TEST(Field, RippleDisplacesTheContent) {

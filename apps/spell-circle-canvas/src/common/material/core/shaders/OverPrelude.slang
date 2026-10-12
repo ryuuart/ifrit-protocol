@@ -29,6 +29,7 @@ struct OverTerms {
   float transmission;
   float ior;
   float thickness;
+  float flatBack;
   float3 attenuationColor;
   float attenuationDistance;
   float dispersion;
@@ -76,6 +77,7 @@ void overClear() {
   gSurfaceTransmission = 0.0;
   gSurfaceIor = 1.5;
   gSurfaceThickness = 0.0;
+  gSurfaceFlatBack = 0.0;
   gSurfaceAttenuationColor = float3(1.0, 1.0, 1.0);
   gSurfaceAttenuationDistance = 0.0;
   gSurfaceDispersion = 0.0;
@@ -117,6 +119,7 @@ OverTerms overTaken() {
   out.transmission = gSurfaceTransmission;
   out.ior = gSurfaceIor;
   out.thickness = gSurfaceThickness;
+  out.flatBack = gSurfaceFlatBack;
   out.attenuationColor = gSurfaceAttenuationColor;
   out.attenuationDistance = gSurfaceAttenuationDistance;
   out.dispersion = gSurfaceDispersion;
@@ -187,6 +190,8 @@ void overSay(OverTerms a, OverTerms b, float t) {
   gSurfaceTransmission = overBetween(a.transmission, b.transmission, t);
   gSurfaceIor = overBetween(a.ior, b.ior, t);
   gSurfaceThickness = overBetween(a.thickness, b.thickness, t);
+  // A back is flat or it is not: whichever operand shows more decides.
+  gSurfaceFlatBack = t < 0.5 ? a.flatBack : b.flatBack;
   gSurfaceAttenuationColor =
       overBetween(a.attenuationColor, b.attenuationColor, t);
   gSurfaceAttenuationDistance =

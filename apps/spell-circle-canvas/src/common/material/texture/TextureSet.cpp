@@ -151,6 +151,15 @@ bool isImageExtension(const std::filesystem::path& p) {
          ext == ".avif" || ext == ".gif" || ext == ".bmp" || ext == ".tga";
 }
 
+/** What a file's colour-space word says an image holds; nothing for a word
+ *  that is neither, and the role the map fills decides. */
+std::optional<media::ColorSpace> colorSpaceNamed(std::string_view word) {
+  const std::string spelled = lower(word);
+  if (spelled == "raw" || spelled == "data") return media::ColorSpace::Data;
+  if (spelled == "srgb") return media::ColorSpace::Srgb;
+  return std::nullopt;
+}
+
 }  // namespace
 
 std::string_view name(Role role) {
@@ -197,6 +206,10 @@ std::string_view name(Role role) {
       return "thickness";
     case Role::Distortion:
       return "distortion";
+    case Role::Volume:
+      return "volume";
+    case Role::Attenuation:
+      return "attenuation";
   }
   return "?";
 }
@@ -271,14 +284,22 @@ TextureMaps fromFiles(const TextureSet& set, const Decoder& decode) {
 
 TextureMaps fromUsageMap(
     const std::map<std::string, media::PixelSource>& byUsage,
-    bool normalDirectX) {
+    bool normalDirectX,
+    const std::map<std::string, std::string>& statedColorSpaces) {
   TextureMaps out;
   out.normalDirectX = normalDirectX;
   for (const auto& [usage, image] : byUsage) {
     const Role role = roleForUsage(usage);
     if (role == Role::Unknown || out.maps.count(role)) continue;
-    if (Texture map(image); hasPixels(map))
-      out.maps.emplace(role, std::move(map.tile(Repeat::Repeat)));
+    Texture map(image);
+    if (!hasPixels(map)) continue;
+    map.tile(Repeat::Repeat);
+    if (auto stated = statedColorSpaces.find(usage);
+        stated != statedColorSpaces.end())
+      if (std::optional<media::ColorSpace> space =
+              colorSpaceNamed(stated->second))
+        map.colorSpace(*space);
+    out.maps.emplace(role, std::move(map));
   }
   return out;
 }

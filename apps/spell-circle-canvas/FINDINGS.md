@@ -40,63 +40,13 @@ plates should hold the chosen radius, strength and order.
 
 ## A stack's programs cannot be stood up before the sketch wearing it is read
 
-Grimoire stands its device programs up before the canvas draws: every
-stock body is declared before the first Graphite context exists, the
-programs a run builds are written down under the platform cache
-location, and the next launch replays that set on a worker while the
-canvas holds its frames. A headless `--gpu` sweep declares and records
-the same way and fills a store that stands empty, so a machine that has
-swept arrives at its first interactive open with something to replay.
-
-How much of that first open it pays for is unmeasured, and the case it
-is written for is the one nothing has measured. The written set is cut
-at `kMostKeysWrittenDown`, and what survives the cut is what the run
-recorded first, so a sweep of the whole registry leaves a set chosen by
-the order the selection was drawn in rather than by the sketch someone
-opens next — while the canvas holds its frames for every key in it.
-`sketch_pipeline_cold_store` sweeps one sketch and then another, which
-is the shape that cannot reach the ceiling. A test should sweep the
-whole selection on the device, then open one sketch over the set it
-left, and assert that the open builds fewer programs for a draw than
-the same open over an empty store and holds no more frames for the
-replay than it saves.
-
-What is left is a store that is cold for the STACK a sketch wears, which
-is what an effect pass hits after every shader edit. Nothing can be
-replayed then, and what stands up instead is only the effect bodies that
-declare no child: a described paint is expanded into every combination
-it allows, so offering a child as an image makes a two-child body
-hundreds of programs — the device is asked to hold hundreds it may never
-draw, the driver stops compiling once its compiled variants no longer
-fit, and the warm-up never returns. A composed stack, which is what the
-MAGI studies wear and what costs the most, cannot be described ahead
-from the catalogue at all: the backend inlines the whole chain into one
-program and which chain a sketch wears is not known until the sketch has
-been read.
-
-One route reaches it and has not been taken. A sketch declares what it
-draws before it draws it, so the host could describe the stacks a
-SELECTED sketch wears — from its own description rather than from the
-catalogue — and precompile those. It is the same route the browser
-flipping between sketches needs, where each new sketch brings a stack
-the context has never built. A second open of the SAME sketch inside one
-process is not that case and is nothing to remove: the programs are
-already standing in the context's own in-memory cache, which is what the
-tally counts as found, so it builds nothing whether a recorded set
-exists or not.
-
-`--frame` is not a way in and is not the missing half: a capture
-photographs a scene2d sketch on a raster surface so the picture is reproducible,
-and a scene3d sketch is drawn by the device's own renderer, so the lane builds no
-Graphite program at all and has nothing to record. Only the `--gpu`
-sweep and the window build them.
-
-A test should open a sketch in the window with a cold store and assert
-that its stack's programs are standing before its first frame, and that
-the set a headless sweep left is the one that open replays —
-`sketch_pipeline_cold_store` asserts what the sweep leaves and
-`sketch_pipeline_warmup` what a second launch replays, but nothing yet
-joins the two lanes end to end.
+Grimoire's warm-up (`apps/grimoire/src/PipelineWarm.cpp`) describes a
+selected sketch's stacks to Graphite's precompile only once the sketch is
+read, and cuts the keys it writes down at a fixed count, so a stack's
+programs are built on first draw rather than ahead of it. The host's
+sketch description should be enough to stand a stack's programs up before
+the sketch opens. A test should warm a sketch wearing a stack and find
+its first frame building no program.
 
 ## A zoom that settles re-rasterises everything at once, and varied glyphs grow with the scale
 
@@ -364,17 +314,6 @@ coverage above and below the scale where individual cells are resolvable.
 The unresolved screen should not form large alternating islands.
 
 
-## Renderer gap: a material channel with no Slang body is not bound by World
-
-World's device binder writes a child material in a surface slot into the
-body that reads it, so a recipe with a Slang body plays as a channel and
-one without is reported once and reads as empty. `field.noise`,
-`field.ripple`, `field.halftoneRamp`, `pattern.scanlines` and
-`pattern.stipple`, and the OCIO `color.lut3d` and `color.response1d`
-recipes, carry SkSL bodies only. Each wants a Slang body. A test should
-put each on a World card's base colour or normal and find it varying
-across the card as the page draws it.
-
 ## Authoring gap: material strokes separate cap and join control from surface relief
 
 `Element::stroke(Material, StrokeOptions)` states width and placement, but
@@ -478,15 +417,6 @@ clipping occurs on both executors. Keep comparing the two executors at a
 matching clock; do not rebase away sparse edge differences as ordinary
 antialiasing.
 
-## `texture::fromUsageMap` ignores a texture's stated colour space
-
-The decoded part carries each texture's colour space, read from a USD
-`sourceColorSpace` and from the glTF file, but the texture-set door in
-`material/texture` still decides colour or data by the role a map fills.
-A texture authored `raw` in a colour role should lower as data. A test
-should lower a part whose base colour is stated `raw` to a `Texture`
-whose `colorSpace()` is `Data`.
-
 ## A sized light's highlight is a representative point's, not the lobe's integral
 
 `src/common/world/diligent/shaders/Surface.slang` lights the specular side
@@ -534,35 +464,18 @@ samples, a resolve and reload of the multisampled target around the
 fence. The bench arm `BM_Draw_Ribbons_Scrolling` and the console's
 `--bench --gpu` hold the numbers it must move.
 
-## Performance: a transmissive pixel costs several times an opaque lit one
+## A casting light's shadow filter and tint cost a lit pixel in proportion to its program's size
 
-In `wet_glass_console` the full-screen cover glass, the beads, and the
-thin rivulets, heads and wipe ridges each cost a comparable share of the
-device frame, the thin bodies out of proportion to the pixels they cover.
-Seen-through shading should cost a small multiple of an opaque lit pixel.
-A test should time the seen phase of a full-frame pane against the laid
-phase of an opaque card on the device and find the ratio within a stated
-bound.
-
-## Contract limit: a page carries one volume
-
-A page states a range or learns one, but carries the first transmitting
-material's index, attenuation and dispersion for the whole page and
-reports a second once. A test should paint two transmitting regions with
-different indices and find each region's volume in its own maps.
-
-## Limit: a lens's back mirrors its front
-
-The refraction lens assumes a body's back mirrors the front's curvature,
-so a drop resting flat on glass, or any plano-convex body, cannot be
-stated. A body should state a flat back: `SurfaceOptions::flatBack` in
-material core, meaning the back is the plane at the body's own zero
-depth; `Lower.cpp` copies it into the surface parameters as a uniform,
-`Surface.slang` and its over prelude carry it, World's vertex stage
-passes the body's back plane in view space, and the passage intersects
-the bent ray with that plane and refracts out through its normal. A test
-should put a thick slab with a flat far face over a grid and measure the
-grid's displacement across the slab.
+The lens, the layered refraction and the environment cost a transmitting
+pixel little, and dispersion's three readings are the cost of the
+picture; the disproportion is the casting light. The shadow filter and
+the tint read cost a transmitting or every-lobe surface about three times
+what they cost an opaque one, following the program's size rather than
+any transmission work, so a pane under a casting light pays more for its
+shadow than for its glass. A test should time the seen phase of a
+full-frame pane under a casting light against the same pane under a light
+that casts nothing, and find the shadow's share within a stated bound of
+the opaque card's.
 
 ## Design question: the window's endpoint has no client clock or session access
 
@@ -586,3 +499,20 @@ are spread to a pixel before they reach this, so sprite runs no longer
 show it; other raster draws still do. A test should draw a 32 pixel disc
 at 0.35 pixels with linear mipmap sampling and find about three quarters
 of its area laid as alpha at every placement.
+
+## Python and USD lack a flat back
+
+`material::SurfaceOptions::flatBack` and `surface::SurfaceParameters::flatBack`
+exist, but `python/material/Core.cpp` and `python/material/Environment.cpp`
+bind neither and `usd/write/Material.cpp` does not keep it. Every surface
+option should reach Python and survive USD export. A test should build a
+surface in Python with `flatBack=True` and read it back from its
+parameters, and write a flat-backed surface to USD and read it back set.
+
+## Luminance grain has no Slang body
+
+`field.grain` (`material/field/shaders/Grain.sksl`, whose octave count is
+written into the body) has no Slang body, so on a World body it reads as
+empty and is reported once. Grain is a channel a body can wear, like the
+other fields. A test should put `field::grain` on a World card's base
+colour and find it varying across the card.

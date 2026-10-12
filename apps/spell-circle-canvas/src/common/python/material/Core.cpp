@@ -141,6 +141,7 @@ void bindMaterialBuilder(py::module_& module) {
                                  ior,
                                  std::move(thickness),
                                  std::move(thicknessAttribute),
+                                 false,
                                  attenuationColor,
                                  attenuationDistance,
                                  dispersion,

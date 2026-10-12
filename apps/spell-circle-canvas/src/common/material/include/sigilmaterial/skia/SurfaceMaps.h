@@ -66,12 +66,12 @@ class SurfaceMaps {
 /** Whether `asMap` answers a map for @p role: base colour, normal,
  *  roughness, metallic, occlusion, emissive, packed and clearcoat, the
  *  coat's own normal, and the optional lobes' sheen, sheen-and-specular,
- *  specular colour, anisotropy and iridescence. */
+ *  specular colour, anisotropy, iridescence, transmission, thickness,
+ *  distortion, volume and attenuation. */
 bool isSurfaceMapRole(texture::Role role);
 
-/** WHAT THE SURFACES READ AS MAPS STATE BEYOND WHAT A MAP HOLDS AT WHITE,
- *  and the numbers of a volume no map holds — what a page painted as maps
- *  reads its maps against. */
+/** WHAT THE SURFACES READ AS MAPS STATE BEYOND WHAT A MAP HOLDS AT WHITE —
+ *  what a page painted as maps reads its maps against. */
 struct MapReach {
   /** The brightest emission stated: the largest channel of an emission
    *  colour times its strength; zero where none glows. */
@@ -81,11 +81,6 @@ struct MapReach {
   float thickness = 0;
   /** The largest distortion strength stated with a map, in scene units. */
   float distortion = 0;
-  /** The volume of the first transmitting surface heard. */
-  std::optional<texture::Volume> volume;
-  /** Whether a transmitting surface heard after the first states another
-   *  volume, which a page carrying one volume cannot keep. */
-  bool volumesDiffer = false;
 };
 
 /** WHICH OPTIONAL LOBES THE SURFACES READ AS MAPS STATE, heard while one
@@ -146,9 +141,11 @@ class LobeListener {
  *  `Anisotropy` as the direction the highlight stretches along, turned by
  *  `anisotropyRotation`, encoded in red and green as a normal map is, and
  *  its strength in blue; `Iridescence` as the film's weight in red and
- *  its thickness in green over `texture::kIridescenceThicknessRange`; and
+ *  its thickness in green over `texture::kIridescenceThicknessRange`;
  *  `ClearcoatNormal` as the coat's own normal, encoded as the normal is and
- *  facing the viewer where the surface states none.
+ *  facing the viewer where the surface states none; and `Volume` and
+ *  `Attenuation` as the surface's index, dispersion, attenuation distance
+ *  and attenuation colour, encoded as those roles say.
  *
  *  A material that states no surface answers the stock `SurfaceOptions`:
  *  its colour stack is its base colour and it takes the renderer's light.

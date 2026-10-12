@@ -91,13 +91,17 @@ std::optional<size_t> surfaceMapIndex(texture::Role role) {
       return 15;
     case texture::Role::Distortion:
       return 16;
+    case texture::Role::Volume:
+      return 17;
+    case texture::Role::Attenuation:
+      return 18;
     default:
       return std::nullopt;
   }
 }
 
 /** The number of roles a surface map pass answers. */
-constexpr size_t kSurfaceMapRoles = 17;
+constexpr size_t kSurfaceMapRoles = 19;
 
 /** The listener standing on this thread, innermost first. */
 thread_local LobeListener* tCurrentListener = nullptr;
@@ -141,11 +145,6 @@ MapReach reachOf(const SurfaceOptions& surface, const Lobes& stated) {
   if (stated.transmission) {
     const float* thickness = std::get_if<float>(&surface.thickness);
     reach.thickness = thickness ? std::max(*thickness, 0.0f) : 1.0f;
-    reach.volume =
-        texture::Volume{.ior = surface.ior,
-                        .attenuationColor = surface.attenuationColor,
-                        .attenuationDistance = surface.attenuationDistance,
-                        .dispersion = surface.dispersion};
   }
   if (stated.distortion)
     reach.distortion = std::abs(surface.distortionStrength);
@@ -247,11 +246,6 @@ void LobeListener::hearReach(const MapReach& reach) {
     heard.emission = std::max(heard.emission, reach.emission);
     heard.thickness = std::max(heard.thickness, reach.thickness);
     heard.distortion = std::max(heard.distortion, reach.distortion);
-    if (!reach.volume) continue;
-    if (!heard.volume)
-      heard.volume = reach.volume;
-    else if (*heard.volume != *reach.volume)
-      heard.volumesDiffer = true;
   }
 }
 
@@ -408,6 +402,12 @@ Color surfaceMapGround(texture::Role role) {
       return {0, 0, 0, 1};
     case texture::Role::Distortion:
       return {0.5f, 0.5f, 0, 1};
+    // The stock volume: an index of one and a half, no spread, nothing
+    // taken, and light passing through it untinted.
+    case texture::Role::Volume:
+      return {1.0f / 3.0f, 0, 0, 1};
+    case texture::Role::Attenuation:
+      return {1, 1, 1, 1};
     default:
       return {0, 0, 0, 0};
   }
@@ -528,6 +528,12 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
                             surface.distortionStrength);
   if (m_inputs->distortion)
     PaintAccess::storeSlot(pass, "uDistortionMap", *m_inputs->distortion);
+  PaintAccess::storeUniform(pass, "uIor", surface.ior);
+  PaintAccess::storeUniform(pass, "uDispersion", surface.dispersion);
+  PaintAccess::storeUniform(pass, "uAttenuationDistance",
+                            surface.attenuationDistance);
+  PaintAccess::storeUniform(pass, "uAttenuationColor",
+                            surface.attenuationColor);
   const std::lock_guard lock(m_maps->mutex);
   std::optional<Paint>& held = m_maps->maps[*index];
   if (!held) held = std::move(pass);

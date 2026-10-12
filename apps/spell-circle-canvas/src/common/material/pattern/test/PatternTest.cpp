@@ -15,9 +15,12 @@
 #include <sigilshaders/MaterialPattern.h>
 
 #include <bit>
+#include <string>
+#include <vector>
 
 #include "ShaderTable.h"
 #include "support/Shade.h"
+#include "support/SlangSurface.h"
 
 using namespace sigil::material;
 
@@ -38,8 +41,8 @@ SkBitmap fill(const Texture& t, int w, int h) {
 
 TEST(Tile, BakesOnceAndCopiesShareTheBake) {
   int draws = 0;
-  pattern::Tile t =
-      pattern::Tile::of({4, 4}, skia::painted([&](SkCanvas& c, SkSize, uint32_t) {
+  pattern::Tile t = pattern::Tile::of(
+      {4, 4}, skia::painted([&](SkCanvas& c, SkSize, uint32_t) {
         ++draws;
         c.clear(SK_ColorRED);
       }));
@@ -66,8 +69,8 @@ TEST(Tile, BakesOnceAndCopiesShareTheBake) {
 
 TEST(Tile, MappingIsPerObjectAndNeverRebakes) {
   int draws = 0;
-  pattern::Tile t =
-      pattern::Tile::of({4, 4}, skia::painted([&](SkCanvas& c, SkSize, uint32_t) {
+  pattern::Tile t = pattern::Tile::of(
+      {4, 4}, skia::painted([&](SkCanvas& c, SkSize, uint32_t) {
         ++draws;
         c.clear(SK_ColorRED);
       }));
@@ -98,8 +101,7 @@ TEST(StockTiles, SequencePaintsRunsInOrderAndPhaseSlides) {
   const pattern::Tile runs = pattern::sequence(
       {{2, {1, 0, 0, 1}}, {3, {0, 1, 0, 1}}, {1, {0, 0, 1, 1}}});
   EXPECT_EQ(runs.size(), glm::vec2(6, 8));
-  const SkBitmap bm =
-      fill(runs.texture().sampling(Sampling::Nearest), 12, 2);
+  const SkBitmap bm = fill(runs.texture().sampling(Sampling::Nearest), 12, 2);
   EXPECT_EQ(bm.getColor(0, 0), SK_ColorRED);
   EXPECT_EQ(bm.getColor(2, 0), SK_ColorGREEN);
   EXPECT_EQ(bm.getColor(5, 0), SK_ColorBLUE);
@@ -135,8 +137,7 @@ TEST(StockTiles, SequencePaintsRunsInOrderAndPhaseSlides) {
 TEST(StockTiles, GridLinesTakeATwoAxisPitchAndSpeckleReseeds) {
   const pattern::Tile grid = pattern::gridLines(8, 4, 1, {1, 1, 1, 1});
   EXPECT_EQ(grid.size(), glm::vec2(8, 4));
-  const SkBitmap bm =
-      fill(grid.texture().sampling(Sampling::Nearest), 16, 8);
+  const SkBitmap bm = fill(grid.texture().sampling(Sampling::Nearest), 16, 8);
   EXPECT_EQ(bm.getColor(0, 2) & 0xff000000, 0xff000000u);  // the vertical
   EXPECT_EQ(bm.getColor(3, 0) & 0xff000000, 0xff000000u);  // the horizontal
   EXPECT_EQ(bm.getColor(3, 2) & 0xff000000, 0u);
@@ -154,11 +155,13 @@ TEST(PatternLattice, ScanlinesPaintTheFirstPixelsOfEveryPeriod) {
   const SkBitmap rows = test::render(
       pattern::scanlines({.color = {1, 0, 0, 1}, .period = 4, .on = 2}), 4, 8);
   for (int y = 0; y < 8; ++y)
-    EXPECT_EQ(rows.getColor(1, y), y % 4 < 2 ? SK_ColorRED : SK_ColorTRANSPARENT)
+    EXPECT_EQ(rows.getColor(1, y),
+              y % 4 < 2 ? SK_ColorRED : SK_ColorTRANSPARENT)
         << "row " << y;
   // The phase slides the rows down.
   const SkBitmap slid = test::render(
-      pattern::scanlines({.color = {1, 0, 0, 1}, .period = 4, .on = 2, .phase = 1}),
+      pattern::scanlines(
+          {.color = {1, 0, 0, 1}, .period = 4, .on = 2, .phase = 1}),
       4, 8);
   EXPECT_EQ(slid.getColor(1, 0), SK_ColorTRANSPARENT);
   EXPECT_EQ(slid.getColor(1, 1), SK_ColorRED);
@@ -167,20 +170,51 @@ TEST(PatternLattice, ScanlinesPaintTheFirstPixelsOfEveryPeriod) {
 }
 
 TEST(PatternLattice, AStippleLaysItsColourThroughTheBits) {
-  const SkBitmap checker = test::render(pattern::stipple({.color = {1, 0, 0, 1}}), 4, 4);
+  const SkBitmap checker =
+      test::render(pattern::stipple({.color = {1, 0, 0, 1}}), 4, 4);
   for (int y = 0; y < 4; ++y)
     for (int x = 0; x < 4; ++x)
       EXPECT_EQ(checker.getColor(x, y),
                 (x + y) % 2 == 0 ? SK_ColorRED : SK_ColorTRANSPARENT)
           << x << "," << y;
   // A bit in the last word, read at a cell two px wide: only cell (7, 7).
-  const SkBitmap corner = test::render(
-      pattern::stipple({.color = {1, 0, 0, 1}, .bits = uint64_t{1} << 63, .size = 8, .cell = 2}),
-      16, 16);
+  const SkBitmap corner =
+      test::render(pattern::stipple({.color = {1, 0, 0, 1},
+                                     .bits = uint64_t{1} << 63,
+                                     .size = 8,
+                                     .cell = 2}),
+                   16, 16);
   EXPECT_EQ(corner.getColor(15, 15), SK_ColorRED);
   EXPECT_EQ(corner.getColor(14, 14), SK_ColorRED);
   EXPECT_EQ(corner.getColor(13, 15), SK_ColorTRANSPARENT);
   EXPECT_EQ(corner.getColor(0, 0), SK_ColorTRANSPARENT);
+}
+
+// The two lattice sources are the same programs on a device: each
+// compiles as a surface reading the numbers the page's body reads, at the
+// region's size.
+TEST(PatternLattice, ScanlinesAndTheStippleHaveSlangSurfaces) {
+  const struct {
+    const char* name;
+    Material material;
+    std::vector<const char*> uniforms;
+  } cases[] = {
+      {"scanlines",
+       pattern::scanlines({.period = 6, .on = 2, .phase = 1}),
+       {"ink", "period", "on", "phase", "uResolution"}},
+      {"stipple",
+       pattern::stipple({.bits = 0b0110, .size = 2, .cell = 2}),
+       {"ink", "words", "size", "cell", "uResolution"}},
+  };
+  for (const auto& each : cases) {
+    slang::Compiled built;
+    std::string error;
+    ASSERT_TRUE(sigil::material::test::compilesAsSurface(each.material.recipe(),
+                                                         &built, &error))
+        << each.name << ": " << error;
+    for (const char* uniform : each.uniforms)
+      EXPECT_NE(built.uniform(uniform), nullptr) << each.name << " " << uniform;
+  }
 }
 
 TEST(PatternLattice, TheDitherMaskHoldsTheCellsItIsAskedFor) {
@@ -192,7 +226,8 @@ TEST(PatternLattice, TheDitherMaskHoldsTheCellsItIsAskedFor) {
   // Two equal sources are one material; a differing one is another.
   EXPECT_EQ(pattern::stipple({.bits = pattern::ditherBits(8)}),
             pattern::stipple({.bits = pattern::ditherBits(8)}));
-  EXPECT_FALSE(pattern::scanlines({.period = 3}) == pattern::scanlines({.period = 4}));
+  EXPECT_FALSE(pattern::scanlines({.period = 3}) ==
+               pattern::scanlines({.period = 4}));
 }
 
 TEST(PatternLattice, TheShaderTableHoldsEveryFileTheDirectoryDoes) {

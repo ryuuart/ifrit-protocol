@@ -541,12 +541,12 @@ Texture texel(int key) {
 TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
   registerCompiler(Target::Slang, slangStandIn);
 
-  // An undressed surface fills all twenty of its slots so no body ever
+  // An undressed surface fills all twenty-two of its slots so no body ever
   // evaluates an unbound child, and the SkSL body samples two of them.
-  // The eighteen it never reads are not declared to that program and so
+  // The twenty it never reads are not declared to that program and so
   // cost it no sampler.
   const Material unlit = surface::unlit();
-  EXPECT_EQ(unlit.slots().size(), 20u);
+  EXPECT_EQ(unlit.slots().size(), 22u);
   EXPECT_EQ(declaredSlots(unlit), 2u);
   EXPECT_EQ(skia::samplerCount(unlit), 2);
 

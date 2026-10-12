@@ -7,8 +7,6 @@
 
 #include "sigilmaterial/ocio/Ocio.h"
 
-#include "LutRecipe.h"
-
 #include <OpenColorIO/OpenColorIO.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
@@ -23,6 +21,8 @@
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "LutRecipe.h"
 
 namespace OCIO = OCIO_NAMESPACE;
 
@@ -149,17 +149,26 @@ std::optional<std::vector<float>> bakeResponse(
   return row;
 }
 
+/** A bake as the texture its recipe reads: numbers, kept exactly as
+ *  stored and at their own precision, with no smaller copies — a copy would
+ *  average neighbouring slices or entries of the table. */
+Texture bakedTable(sk_sp<SkImage> table) {
+  Texture texture(std::move(table));
+  texture.colorSpace(media::ColorSpace::Data).mipmaps(false);
+  return texture;
+}
+
 Material lutMaterial(sk_sp<SkImage> lutImage, int n) {
   if (!lutImage) return Material(lutRecipe());
   Material m(lutRecipe(), LutParameters{(float)n});
-  m.slot("lut", Texture(std::move(lutImage)));
+  m.slot("lut", bakedTable(std::move(lutImage)));
   return m;
 }
 
 Material responseMaterial(sk_sp<SkImage> rowImage) {
   if (!rowImage) return Material(lutRecipe());
   Material m(responseRecipe(), LutParameters{(float)kResponseSize});
-  m.slot("lut", Texture(std::move(rowImage)));
+  m.slot("lut", bakedTable(std::move(rowImage)));
   return m;
 }
 

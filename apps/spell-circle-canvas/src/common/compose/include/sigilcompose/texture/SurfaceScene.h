@@ -19,7 +19,6 @@
 #include <cstdint>
 #include <map>
 #include <memory>
-#include <optional>
 #include <tuple>
 
 namespace sigil::weave {
@@ -55,19 +54,18 @@ namespace sigil::compose {
  *  paints those five maps only; the first render that paints a material
  *  stating one adds the maps that lobe needs — `Sheen` and `SheenSpecular`
  *  for a sheen, `SpecularColor` and `SheenSpecular` for a specular,
- *  `Anisotropy`, `Iridescence`, `Transmission` with `Thickness` for a
- *  transmission, `Distortion` — paints them in that same render, and keeps
- *  them from then on. A coat's own normal is the same: the first material
- *  stating one adds the `ClearcoatNormal` map.
+ *  `Anisotropy`, `Iridescence`, `Transmission` with `Thickness`, `Volume`
+ *  and `Attenuation` for a transmission, `Distortion` — paints them in that
+ * same render, and keeps them from then on. A coat's own normal is the same:
+ * the first material stating one adds the `ClearcoatNormal` map.
  *
  *  A TRANSMITTING REGION SEES THROUGH THE BODY WEARING THE PAGE. The
  *  transmission map is the weight in red, the thickness map the depth of
  *  the volume over the deepest any material on the page states, and the
  *  distortion map the displacement, red across and green up, over the
- *  strongest stated; `maps()` states those two, and the index,
- *  attenuation and dispersion of the first transmitting material painted,
- *  which the whole page carries — a second stating another is reported
- *  once.
+ *  strongest stated, and `maps()` states those two. Each region's own
+ *  index, dispersion and attenuation are its volume and attenuation maps',
+ *  so two transmitting regions on one page bend and tint by their own.
  *
  *  AN EMISSION PAST WHITE KEEPS ITS LIGHT. The emissive map's white stands
  *  for the brightest emission the page's materials have stated, one at
@@ -168,8 +166,6 @@ class SurfaceScene {
    *  the ones stated, in scene units; zero before either says one. */
   float m_thicknessScale = 0;
   float m_distortionScale = 0;
-  /** The first transmitting material's volume. */
-  std::optional<material::texture::Volume> m_volume;
   /** What the author stated the maps stand for. */
   SurfaceRange m_range;
 };

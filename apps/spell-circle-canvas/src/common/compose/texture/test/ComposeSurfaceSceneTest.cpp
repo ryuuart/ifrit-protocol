@@ -19,6 +19,7 @@
 #include <sigilmedia/core/PixelSource.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <memory>
@@ -825,12 +826,13 @@ TEST(ComposeSurfaceScene, ATransmittingRegionPaintsItsWeightDepthAndVolume) {
   ASSERT_NE(maps.map(Role::Thickness), nullptr);
   ASSERT_NE(maps.map(Role::Distortion), nullptr);
   // The deepest volume stated is what the thickness map's white stands
-  // for; the strongest distortion what its full swing does; the first
-  // transmitting material's volume is the page's.
+  // for, and the strongest distortion what its full swing does; the
+  // volume itself is each region's own, in its maps.
   EXPECT_EQ(maps.thickness, 20);
   EXPECT_EQ(maps.distortionStrength, 2);
-  ASSERT_TRUE(maps.volume.has_value());
-  EXPECT_FLOAT_EQ(maps.volume->ior, 1.33f);
+  EXPECT_FALSE(maps.volume.has_value());
+  ASSERT_NE(maps.map(Role::Volume), nullptr);
+  ASSERT_NE(maps.map(Role::Attenuation), nullptr);
 
   const SkBitmap weight = pixelsOf(*scene, Role::Transmission);
   expectNear(weight.getColor4f(32, 28), 1, 1, 1);
@@ -845,6 +847,59 @@ TEST(ComposeSurfaceScene, ATransmittingRegionPaintsItsWeightDepthAndVolume) {
   expectNear(moved.getColor4f(96, 28), 1, .25f, 0);
   expectNear(moved.getColor4f(32, 28), .5f, .5f, 0);
   expectNear(moved.getColor4f(96, 84), .5f, .5f, 0);
+}
+
+TEST(ComposeSurfaceScene, TwoTransmittingRegionsCarryTheirOwnVolumes) {
+  const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+  ASSERT_NE(scene, nullptr);
+  // Water on the left, a dense flint glass on the right: different
+  // indices, spreads, tints and distances.
+  const material::Material water =
+      material::from(material::Color{1, 1, 1, 1})
+          .surface({.transmission = 1.0f,
+                    .ior = 1.33f,
+                    .attenuationColor = {0.2f, 0.6f, 0.9f, 1},
+                    .attenuationDistance = 3.0f});
+  const material::Material flint =
+      material::from(material::Color{1, 1, 1, 1})
+          .surface({.transmission = 1.0f,
+                    .ior = 1.9f,
+                    .attenuationColor = {0.9f, 0.8f, 0.3f, 1},
+                    .attenuationDistance = 0.5f,
+                    .dispersion = 0.25f});
+  scene->render(box().width(kWidth).height(kHeight).children({
+      box().absolute().rect(0, 0, 64, kHeight).fill(water),
+      box().absolute().rect(64, 0, 64, kHeight).fill(flint),
+  }));
+  ASSERT_TRUE(scene->lobes().transmission);
+  const material::texture::TextureMaps maps = scene->maps();
+  EXPECT_FALSE(maps.volume.has_value()) << "no one volume stands for the page";
+  ASSERT_NE(maps.map(Role::Volume), nullptr);
+  ASSERT_NE(maps.map(Role::Attenuation), nullptr);
+
+  // The index as 1 - 1 / index, the spread and the distance each as
+  // value / (value + 1).
+  const auto volumeOf = [](float index, float spread, float distance) {
+    return std::array<float, 3>{1 - 1 / index, spread / (spread + 1),
+                                distance / (distance + 1)};
+  };
+  const SkBitmap volume = pixelsOf(*scene, Role::Volume);
+  const auto left = volumeOf(1.33f, 0, 3);
+  const auto right = volumeOf(1.9f, 0.25f, 0.5f);
+  expectNear(volume.getColor4f(32, 56), left[0], left[1], left[2]);
+  expectNear(volume.getColor4f(96, 56), right[0], right[1], right[2]);
+  const SkBitmap tint = pixelsOf(*scene, Role::Attenuation);
+  expectNear(tint.getColor4f(32, 56), 0.2f, 0.6f, 0.9f);
+  expectNear(tint.getColor4f(96, 56), 0.9f, 0.8f, 0.3f);
+
+  // A body dressed with the page's maps reads each region's volume from
+  // them rather than one volume for the whole page.
+  const material::Material dressed = material::surface::program(maps);
+  EXPECT_NE(material::surface::map(dressed, material::surface::kVolumeSlot),
+            nullptr);
+  EXPECT_NE(
+      material::surface::map(dressed, material::surface::kAttenuationSlot),
+      nullptr);
 }
 
 TEST(ComposeSurfaceScene, AStatedRangeHoldsAnEmissionPastTheBrightestPainted) {

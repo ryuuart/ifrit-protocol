@@ -43,6 +43,10 @@ so a crackle or a cell network is a fill read through
 `material::channel(cells, ColorChannel::Blue)`. Its body exists for Skia and
 for Slang, so the same value plays on a page and on a 3D body;
 `material::field::cellular(frequency, jitter, seed)` is the same field.
+Fractal noise, the halftone ramp, the ripple, scanlines, the stipple and
+the OpenColorIO bakes also carry Slang bodies; the device's fractal noise
+sums gradients hashed from the seed, so it keeps the page's frequency,
+octaves and character but not Skia's exact values.
 
 The four parts have distinct jobs:
 
@@ -144,6 +148,8 @@ The texture feature also provides:
 
 - `texture::classify`, `texture::discover` and `texture::fromFiles` for
   texture sets exported by tools. The caller supplies the pixel decoder.
+- `texture::fromUsageMap` for images keyed by usage word, with the colour
+  space a file states for each.
 - `EnvironmentMap` for equirectangular panoramas, cube faces or packed cube
   maps. Specular levels, diffuse irradiance and their shared caches are
   derived from the same panorama; calculations preserve floating-point
@@ -280,11 +286,13 @@ without them, said by name.
 What a renderer makes of the last two is its own: SigilWorld reads a copy
 of the scene behind the surface, copied again for a transmitting body that
 stands in front of another, and carries the eye's ray through the body to a
-back the thickness behind before it reads it. A page's surface maps
-carry both, per pixel: the transmission's weight, its thickness over the
-deepest the page states and its distortion over the strongest, with the
-volume — index, attenuation, dispersion — of the first transmitting
-material the page paints standing for the whole page.
+back the thickness behind, or, for a surface stating
+`SurfaceOptions::flatBack`, to the plane at the body's own zero depth,
+before it reads it. A page's surface maps carry both, per pixel: the
+transmission's weight, its thickness over the deepest the page states and
+its distortion over the strongest, and each region's volume, its index,
+dispersion, attenuation distance and colour, in its own `Volume` and
+`Attenuation` maps.
 
 Emission above white is `emissionStrength` past one: the colour decoded
 into light and multiplied, and a page's emissive map's white stands for the

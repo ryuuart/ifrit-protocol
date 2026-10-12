@@ -369,7 +369,8 @@ antialiased edge composites each map by its coverage, normals included as
 their encoding. Normals are encoded green up the picture. A material that
 states a normal of its clear coat's own adds a `ClearcoatNormal` map, as a
 stated optional lobe adds its maps: a sheen, a specular, a brushing, a thin
-film, a transmission with the thickness of its volume, a distortion.
+film, a transmission with the thickness, index, dispersion and attenuation
+of its volume, a distortion.
 
 **A page keeps the range its content states, or the one stated.** The maps are eight bits, so
 the emissive map's white stands for the brightest emission any material on
@@ -378,8 +379,7 @@ content at or below one paints exactly as stated, and an emission of four
 paints white and is read back as four, so it reaches a bloom's threshold.
 The thickness map's white stands for the deepest volume stated and the
 distortion map's full swing for the strongest distortion, both in scene
-units, and the index, attenuation and dispersion of the first transmitting
-material painted are the whole page's. A `SurfaceRange` handed to
+units, and each region's volume is in its own maps. A `SurfaceRange` handed to
 `SurfaceScene::make` states those readings from the first paint instead —
 a page whose emission moves on the clock states the brightest it will
 reach, nothing below it clips, and the page never repaints because its

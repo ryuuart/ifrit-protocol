@@ -19,6 +19,8 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/ocio/Ocio.h>
+#include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
@@ -273,7 +275,7 @@ TEST(SurfaceSlots, AChannelThatIsAMaterialReadsAsEmptyAndSaysSo) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
-  // A normal given as a turbulence is a material the device has no body
+  // A normal given as luminance grain is a material the device has no body
   // for, so its slot binds the same white texel an undressed one does —
   // the card is the plain card exactly — and the slot is named once on
   // the diagnostic stream, because the picture alone would show a flat
@@ -281,7 +283,7 @@ TEST(SurfaceSlots, AChannelThatIsAMaterialReadsAsEmptyAndSaysSo) {
   const material::Color grey{0.8f, 0.8f, 0.8f, 1.0f};
   const material::Material plain = material::from(grey).surface({});
   const material::Material derived =
-      material::from(grey).surface({.normal = material::field::noise(0.05f)});
+      material::from(grey).surface({.normal = material::field::grain(0.05f)});
 
   const SkBitmap bare = cardOn(plain, on.runtime);
   testing::internal::CaptureStderr();
@@ -648,6 +650,70 @@ TEST(SurfaceSlots, ANormalDerivedFromAHeightDressesADeviceBody) {
       material::field::cellular(6.0f), {.depth = 16.0f}));
   EXPECT_LT(plain, 0.01);
   EXPECT_GT(dressed, plain + 0.03) << "the relief turns the shading across it";
+}
+
+TEST(SurfaceSlots, EveryFieldPatternAndBakeVariesAcrossADeviceBody) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  constexpr glm::ivec2 kSide{96, 96};
+  // How far the picture strays from its mean across the middle of a card
+  // whose base colour is @p base.
+  const auto spread = [&](const material::Material& base) {
+    const SkBitmap plate = diligent::photograph(
+        diligent::card(material::Material(base).surface({.roughness = 0.6f}),
+                       kSide),
+        on.runtime, kSide);
+    double sum = 0;
+    double squares = 0;
+    int count = 0;
+    for (int y = 24; y < 72; ++y)
+      for (int x = 24; x < 72; ++x) {
+        const double grey = luma(plate.getColor4f(x, y));
+        sum += grey;
+        squares += grey * grey;
+        ++count;
+      }
+    const double mean = sum / count;
+    return std::sqrt(std::max(squares / count - mean * mean, 0.0));
+  };
+  // A body's region is one unit across, so every length below is a
+  // fraction of the card.
+  const material::Material cells = material::field::cellular(6.0f);
+  std::vector<std::pair<std::string, material::Material>> cards = {
+      {"field.noise", material::field::noise(6.0f, 3, 2.0f)},
+      {"field.ripple",
+       material::field::ripple(0.08f, 0.3f).slot("content", cells)},
+      {"field.halftoneRamp",
+       material::field::halftoneRamp(0.5f, 0.05f, 0.22f,
+                                     material::Color{0.9f, 0.9f, 0.9f, 1})},
+      {"pattern.scanlines",
+       material::pattern::scanlines(
+           {.color = {0.9f, 0.9f, 0.9f, 1}, .period = 0.2f, .on = 0.1f})},
+      {"pattern.stipple",
+       material::pattern::stipple(
+           {.color = {0.9f, 0.9f, 0.9f, 1}, .cell = 0.125f})},
+  };
+  if (material::ocio::available()) {
+    cards.emplace_back("color.response1d",
+                       material::ocio::exponent(2.2f).slot("content", cells));
+    material::Material volume =
+        material::ocio::convert("ocio://default", "ACEScg", "sRGB - Texture");
+    if (volume.leaf("lut") != nullptr)
+      cards.emplace_back("color.lut3d", volume.slot("content", cells));
+  }
+  const double plain =
+      spread(material::from(material::Color{0.7f, 0.7f, 0.7f, 1}));
+  EXPECT_LT(plain, 0.01);
+  for (const auto& [name, base] : cards) {
+    EXPECT_EQ(base.recipe().name(), name);
+    testing::internal::CaptureStderr();
+    const double varied = spread(base);
+    const std::string said = testing::internal::GetCapturedStderr();
+    RecordProperty(name, std::to_string(varied));
+    EXPECT_GT(varied, plain + 0.02) << name << " varies across the card";
+    EXPECT_EQ(said.find("no body the device can compile"), std::string::npos)
+        << name << ": " << said;
+  }
 }
 
 TEST(SurfaceSlots,

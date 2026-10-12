@@ -5,9 +5,9 @@
  * found it.
  */
 
-#include <sigilshaders/MaterialOcio.h>
-
 #include "LutRecipe.h"
+
+#include <sigilshaders/MaterialOcio.h>
 
 namespace sigil::material::ocio {
 
@@ -16,7 +16,8 @@ const std::shared_ptr<const Recipe>& lutRecipe() {
       Recipe::of<LutParameters>("color.lut3d")
           .slot("content")
           .slot("lut")
-          .body(Target::SkSL, std::string(shaderSource("Lut3d.sksl"))));
+          .body(Target::SkSL, std::string(shaderSource("Lut3d.sksl")))
+          .body(Target::Slang, std::string(shaderSource("Lut3d.slang"))));
   return recipe;
 }
 
@@ -26,7 +27,8 @@ const std::shared_ptr<const Recipe>& responseRecipe() {
           .slot("content")
           .slot("lut")
           .channelwise("lut")
-          .body(Target::SkSL, std::string(shaderSource("Response1d.sksl"))));
+          .body(Target::SkSL, std::string(shaderSource("Response1d.sksl")))
+          .body(Target::Slang, std::string(shaderSource("Response1d.slang"))));
   return recipe;
 }
 

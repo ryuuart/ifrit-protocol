@@ -107,6 +107,8 @@ Recipe define(std::string name, std::string_view bodyFile,
       .slot(std::string(kTransmissionSlot))
       .slot(std::string(kThicknessSlot))
       .slot(std::string(kDistortionSlot))
+      .slot(std::string(kVolumeSlot))
+      .slot(std::string(kAttenuationSlot))
       .body(Target::SkSL, std::string(shaderSource("SurfacePrelude.sksl"))
                               .append(shaderSource(bodyFile)))
       // THE TERMS ARE NOT PREPENDED HERE. A Slang renderer loads them
@@ -156,7 +158,8 @@ Material dress(Material m) {
   for (std::string_view slot :
        {kSheenColorSlot, kSheenRoughnessSlot, kAnisotropySlot, kIridescenceSlot,
         kIridescenceThicknessSlot, kSpecularSlot, kSpecularColorSlot,
-        kTransmissionSlot, kThicknessSlot, kDistortionSlot})
+        kTransmissionSlot, kThicknessSlot, kDistortionSlot, kVolumeSlot,
+        kAttenuationSlot})
     m.slot(slot, white);
   return m;
 }
@@ -548,6 +551,10 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
   if (transmission) {
     data(kTransmissionSlot, transmission);
     data(kThicknessSlot, thickness);
+    // The volume point by point, where the set paints one: each region
+    // bends and tints by its own.
+    data(kVolumeSlot, maps.map(Role::Volume));
+    place(kAttenuationSlot, maps.map(Role::Attenuation));
   }
   if (carried.distortion) data(kDistortionSlot, distortion);
   return m;

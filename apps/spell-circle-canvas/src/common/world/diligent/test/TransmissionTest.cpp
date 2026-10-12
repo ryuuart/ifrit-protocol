@@ -23,11 +23,13 @@
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
+#include <sigilmaterial/texture/TextureSet.h>
 #include <sigilworld/World.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/matrix_transform.hpp>
 #include <optional>
 #include <string>
 #include <utility>
@@ -142,6 +144,96 @@ TEST(Transmission, AGlassSlabShiftsTheEdgeByItsThicknessAndIndex) {
       << "a thicker slab moves it further";
   EXPECT_GT(std::abs(denser - bare), std::abs(thick - bare) + 0.5f)
       << "a higher index moves it further";
+}
+
+TEST(Transmission, AFlatBackedSlabBendsAcrossTheDepthItsOwnPlaneLeaves) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A card whose front stands @p raised in front of its own zero depth,
+  // turned so the eye meets it obliquely.
+  const auto raisedSlab = [](const material::SurfaceOptions& options,
+                             float raised) {
+    gm::Mesh front = gm::quad(90, 90);
+    front.transform(glm::translate(glm::mat4(1.0f), {0.0f, 0.0f, raised}));
+    return mesh(std::move(front))
+        .key("glass")
+        .rotateY(35)
+        .fill(material::from(material::Color{1, 1, 1, 1}).surface(options));
+  };
+  const auto edge = [&](std::vector<Node> content) {
+    const std::optional<float> found =
+        edgeAt(photographed(std::move(content), on.runtime));
+    EXPECT_TRUE(found.has_value());
+    return found.value_or(0.0f);
+  };
+  const auto flatBacked = [](float ior) {
+    material::SurfaceOptions options = glass(ior, 0.0f);
+    options.flatBack = true;
+    return options;
+  };
+  const float bare = edge({});
+  // A front forty units in front of its own plane, with a flat back: the
+  // light crosses those forty units as through a slab forty thick — the
+  // same front over the same back, stated as a mirrored back the
+  // thickness behind it.
+  const float deep = edge({raisedSlab(flatBacked(1.5f), 40)});
+  const float stated = edge({raisedSlab(glass(1.5f, 40), 40)});
+  // Stated thin and not flat-backed, the same card bends nothing; flat-
+  // backed, a nearer plane bends less and an index of one not at all.
+  const float thinWall = edge({raisedSlab(glass(1.5f, 0), 40)});
+  const float shallow = edge({raisedSlab(flatBacked(1.5f), 15)});
+  const float indexOne = edge({raisedSlab(flatBacked(1.0f), 40)});
+  RecordProperty("deep", std::to_string(deep - bare));
+  RecordProperty("stated", std::to_string(stated - bare));
+  RecordProperty("shallow", std::to_string(shallow - bare));
+  EXPECT_GT(std::abs(deep - bare), 2.0f) << "the flat back moves the edge";
+  EXPECT_NEAR(deep, stated, 0.75f) << "a flat back is the slab its depth makes";
+  EXPECT_NEAR(thinWall, bare, 0.5f) << "a thin wall bends nothing";
+  EXPECT_LT(std::abs(shallow - bare), std::abs(deep - bare) - 1.0f)
+      << "a nearer plane is a thinner slab";
+  EXPECT_NEAR(indexOne, bare, 0.5f) << "an index of one bends nothing";
+}
+
+TEST(Transmission, AVolumeMapBendsByTheIndexItHolds) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // One texel of @p colour, as a set's map holds it.
+  const auto texel = [](SkColor4f colour) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
+    surface->getCanvas()->clear(colour);
+    return material::Texture(surface->makeImageSnapshot());
+  };
+  // A clear slab forty deep, its index stated by a volume map — red as
+  // one less one over the index — rather than by the surface's number.
+  const auto mapped = [&](float index) {
+    material::texture::TextureMaps maps;
+    maps.maps.emplace(material::texture::Role::Transmission,
+                      texel({1, 1, 1, 1}));
+    maps.maps.emplace(material::texture::Role::Thickness, texel({1, 1, 1, 1}));
+    maps.maps.emplace(material::texture::Role::Volume,
+                      texel({1 - 1 / index, 0, 0, 1}));
+    maps.thickness = 40;
+    return mesh(gm::quad(90, 90))
+        .key("glass")
+        .rotateY(35)
+        .fill(material::surface::program(
+            maps, {.baseColor = {1, 1, 1, 1}, .roughness = 0.0f}));
+  };
+  const auto edge = [&](std::vector<Node> content) {
+    const std::optional<float> found =
+        edgeAt(photographed(std::move(content), on.runtime));
+    EXPECT_TRUE(found.has_value());
+    return found.value_or(0.0f);
+  };
+  const float bare = edge({});
+  const float indexOne = edge({mapped(1.0f)});
+  const float dense = edge({mapped(1.9f)});
+  const float stated = edge({slab(glass(1.9f, 40))});
+  EXPECT_NEAR(indexOne, bare, 0.5f) << "a map holding an index of one";
+  EXPECT_GT(std::abs(dense - bare), 2.0f) << "a denser index bends";
+  EXPECT_NEAR(dense, stated, 0.75f)
+      << "the map's index is the surface's own stated as a number";
 }
 
 TEST(Transmission, FrostedGlassBlursTheEdge) {

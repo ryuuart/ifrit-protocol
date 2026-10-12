@@ -546,7 +546,8 @@ SkBlendMode deviceBlend(material::BlendMode mode) {
 }
 
 /** WHAT A SLOT HOLDS when its texture does not say: a surface's normal,
- *  roughness, metalness, occlusion, opacity and clear-coat maps are data,
+ *  roughness, metalness, occlusion, opacity, clear-coat, transmission,
+ *  thickness, distortion and volume maps are data,
  *  and keep their smaller copies because a surface's map is shrunk on
  *  screen like any other; its base colour and emission are colour; and
  *  anything else — the slots a flipbook or a flow map brought with it — is
@@ -561,7 +562,7 @@ device::MapForm formFor(std::string_view slot, const material::Texture& map) {
       slot == surface::kClearcoatRoughnessSlot ||
       slot == surface::kClearcoatNormalSlot ||
       slot == surface::kTransmissionSlot || slot == surface::kThicknessSlot ||
-      slot == surface::kDistortionSlot;
+      slot == surface::kDistortionSlot || slot == surface::kVolumeSlot;
   device::MapForm form;
   form.colorSpace = map.colorSpace().value_or(
       surfaceData ? media::ColorSpace::Data : media::ColorSpace::Srgb);
@@ -941,17 +942,21 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
       samplers[i] = gpu.shared.comparisonSampler();
       continue;
     }
-    // …and a transmissive body's own transmission and thickness maps,
-    // which its tint beside the shadow maps reads.
-    if (slot == "uTintTransmissionMap" || slot == "uTintThicknessMap") {
+    // …and a transmissive body's own transmission, thickness, volume and
+    // attenuation maps, which its tint beside the shadow maps reads.
+    if (slot == "uTintTransmissionMap" || slot == "uTintThicknessMap" ||
+        slot == "uTintVolumeMap" || slot == "uTintAttenuationMap") {
+      const std::string_view own =
+          slot == "uTintTransmissionMap" ? material::surface::kTransmissionSlot
+          : slot == "uTintThicknessMap"  ? material::surface::kThicknessSlot
+          : slot == "uTintVolumeMap"     ? material::surface::kVolumeSlot
+                                         : material::surface::kAttenuationSlot;
       if (material)
-        if (const material::Texture* own = material::surface::map(
-                *material, slot == "uTintTransmissionMap"
-                               ? material::surface::kTransmissionSlot
-                               : material::surface::kThicknessSlot))
-          textures[i] = gpu.maps.sample(
-              *own, formFor(material::surface::kTransmissionSlot, *own),
-              std::chrono::duration<double>(gpu.seconds));
+        if (const material::Texture* map =
+                material::surface::map(*material, own))
+          textures[i] =
+              gpu.maps.sample(*map, formFor(own, *map),
+                              std::chrono::duration<double>(gpu.seconds));
       samplers[i] = gpu.shared.samplerFor(SkFilterMode::kLinear, true);
       continue;
     }

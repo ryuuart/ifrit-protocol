@@ -5,7 +5,6 @@
 #include "sigilcompose/texture/SurfaceScene.h"
 
 #include <sigilcompose/core/Composer.h>
-#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <algorithm>
@@ -30,7 +29,8 @@ constexpr std::array kRoles{Role::BaseColor, Role::Normal, Role::Packed,
  *  page states the lobe: the sheen's colour and its roughness beside the
  *  specular strength, the specular colour with that same shared image, the
  *  brushing's direction and strength, the film's weight and thickness, the
- *  transmission with the thickness of its volume, the distortion — and the
+ *  transmission with the thickness, index, dispersion and attenuation of its
+ *  volume, the distortion — and the
  *  coat's own normal, once a material states one. */
 std::vector<Role> lobeRoles(const material::Lobes& lobes,
                             bool clearcoatNormal) {
@@ -44,6 +44,8 @@ std::vector<Role> lobeRoles(const material::Lobes& lobes,
   if (lobes.transmission) {
     out.push_back(Role::Transmission);
     out.push_back(Role::Thickness);
+    out.push_back(Role::Volume);
+    out.push_back(Role::Attenuation);
   }
   if (lobes.distortion) out.push_back(Role::Distortion);
   return out;
@@ -128,13 +130,6 @@ void SurfaceScene::render(const Element& root, double seconds) {
     m_thicknessScale = std::max(m_thicknessScale, reach.thickness);
   if (m_range.distortion <= 0)
     m_distortionScale = std::max(m_distortionScale, reach.distortion);
-  // A page carries one volume: the first transmitting material's.
-  if (!m_volume) m_volume = reach.volume;
-  if (reach.volumesDiffer || (reach.volume && *reach.volume != *m_volume))
-    material::reportOnce(
-        "compose.surface.volume",
-        "transmitting materials on one page state different indices, "
-        "attenuations or dispersions; the page carries the first one's");
   for (auto& [role, scene] : m_scenes) {
     const float scale = scaleOf(role);
     if (scene->composer().surfaceMapScale() == scale) continue;
@@ -175,7 +170,6 @@ material::texture::TextureMaps SurfaceScene::readings() const {
   maps.emissiveStrength = m_emissionScale;
   maps.thickness = m_thicknessScale;
   maps.distortionStrength = m_distortionScale;
-  maps.volume = m_volume;
   return maps;
 }
 

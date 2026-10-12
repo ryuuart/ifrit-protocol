@@ -75,6 +75,16 @@ enum class Role {
    *  half-grey still, over the strength the set states its full swing
    *  stands for. */
   Distortion,
+  /** A transmitting volume, per point: its index of refraction in red as
+   *  `1 - 1 / index`, its dispersion in green and the distance light
+   *  crosses before it has become the attenuation colour in blue, each of
+   *  those two as `value / (value + 1)` — so every number has a place
+   *  short of white whatever its size, and black is an index of one with
+   *  no spread and nothing taken. */
+  Volume,
+  /** The colour light passing through a transmitting volume becomes, as
+   *  typed, multiplied by the colour the surface states. */
+  Attenuation,
 };
 
 /** The thickness, in nanometres, an `Iridescence` image reaches at white
@@ -156,8 +166,9 @@ struct TextureMaps {
    *  is read at. */
   float thickness = 0;
   float distortionStrength = 0;
-  /** The volume a transmission map's surface bends and tints by; none
-   *  leaves the stock surface's. */
+  /** The volume a transmission map's surface bends and tints by,
+   *  wherever a `Volume` or `Attenuation` map does not say otherwise;
+   *  none leaves the stock surface's. */
   std::optional<Volume> volume;
 
   /** The texture for @p role, or null when the set has none. */
@@ -173,13 +184,21 @@ struct TextureMaps {
 TextureMaps fromFiles(const TextureSet& set, const Decoder& decode);
 
 /** Images already decoded and keyed by usage word — what a rendered
- *  Substance graph hands over or any pipeline that names its maps by
- *  channel — as textures by role. The first usage word naming a role
- *  wins, so "diffuse" and "baseColor" both land on BaseColor. Substance
- *  graphs author DirectX normals unless told otherwise, hence the
- *  default for @p normalDirectX. */
+ *  Substance graph hands over, a decoded model part carries, or any
+ *  pipeline that names its maps by channel — as textures by role. The
+ *  first usage word naming a role wins, so "diffuse" and "baseColor" both
+ *  land on BaseColor. Substance graphs author DirectX normals unless told
+ *  otherwise, hence the default for @p normalDirectX.
+ *
+ *  @p statedColorSpaces holds, by the same usage word, the colour space
+ *  the file states that image is in, in the file's own word — a USD
+ *  texture's `sourceColorSpace`, a model part's texture reference. "raw"
+ *  and "data" state numbers and "sRGB" states colour, in any case, so a
+ *  map authored `raw` in a colour role is data; a usage it leaves out, or
+ *  a word other than these, is decided by its role. */
 TextureMaps fromUsageMap(
     const std::map<std::string, media::PixelSource>& byUsage,
-    bool normalDirectX = true);
+    bool normalDirectX = true,
+    const std::map<std::string, std::string>& statedColorSpaces = {});
 
 }  // namespace sigil::material::texture

@@ -639,6 +639,13 @@ struct SurfaceOptions {
    *  sizes is as thick as each drop is. Empty, or a name the instances do
    *  not carry, multiplies by one. */
   std::string thicknessAttribute;
+  /** A FLAT BACK: the body's back is the plane at its own zero depth — the
+   *  plane its own z is zero on, where a drop rests on the glass it sits
+   *  on — rather than a face `thickness` behind the front and curved as
+   *  the front is. A plano-convex body is a curved front over a flat
+   *  back; the volume between them is what the light crosses, whatever
+   *  `thickness` says. */
+  bool flatBack = false;
   /** VOLUME: what the medium takes out of the light it carries. Light that
    *  has travelled `attenuationDistance` scene units through it has become
    *  `attenuationColor`; farther, deeper still — so a thick slab of tinted
@@ -655,12 +662,12 @@ struct SurfaceOptions {
    *  stands behind the surface is displaced by a two-channel DATA map —
    *  red across and green up the surface, which on a body is the way its u
    *  runs and the way a normal map's green points, half-grey still — by
-   *  `distortionStrength` scene units at the surface, as heat haze and a shockwave bend what is seen
-   *  through them. No light is involved in the displacement: the
-   *  surface's own lit colour is laid over the displaced picture by its
-   *  alpha, so a fully transparent surface is the displacement alone. An
-   *  unlit surface does not carry it. Without a map, or at zero strength,
-   *  nothing moves. */
+   *  `distortionStrength` scene units at the surface, as heat haze and a
+   * shockwave bend what is seen through them. No light is involved in the
+   * displacement: the surface's own lit colour is laid over the displaced
+   * picture by its alpha, so a fully transparent surface is the displacement
+   * alone. An unlit surface does not carry it. Without a map, or at zero
+   * strength, nothing moves. */
   std::optional<Material> distortion;
   float distortionStrength = 0;
   float reflectionWeight = 1;

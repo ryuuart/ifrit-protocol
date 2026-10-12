@@ -90,11 +90,25 @@ float4 surface(float2 uv) {
                             : 1.0;
   gSurfaceThickness =
       max(thickness * (dressedS(thm) ? thm.r : 1.0) * copyThickness, 0.0);
+  gSurfaceFlatBack = flatBack;
   // The attenuation colour is a colour as it was typed, decoded like the
-  // base colour before any light passes through it.
-  gSurfaceAttenuationColor = linearFromSrgb(attenuationColor.rgb);
+  // base colour before any light passes through it, and its map's colour
+  // with it.
+  float4 atm = attenuationMap.Sample(uv);
+  gSurfaceAttenuationColor =
+      linearFromSrgb(attenuationColor.rgb) * linearFromSrgb(atm.rgb);
   gSurfaceAttenuationDistance = max(attenuationDistance, 0.0);
   gSurfaceDispersion = max(dispersion, 0.0);
+  // A VOLUME MAP states the volume point by point: the index in red as
+  // 1 - 1 / index, the dispersion in green and the attenuation distance in
+  // blue each as value / (value + 1).
+  float4 vm = volumeMap.Sample(uv);
+  if (dressedS(vm)) {
+    float3 held = min(vm.rgb, float3(0.999, 0.999, 0.999));
+    gSurfaceIor = max(1.0 / (1.0 - held.r), 1.0);
+    gSurfaceDispersion = held.g / (1.0 - held.g);
+    gSurfaceAttenuationDistance = held.b / (1.0 - held.b);
+  }
   // } transmission
   // distortion {
   // The map is DATA: half-grey is still, and each channel runs one unit

@@ -295,6 +295,28 @@ TEST(TextureSet, AUsageWordNamesARoleAndAnUnrecognisedOneIsUnknown) {
   EXPECT_EQ(texture::name(texture::Role::Packed), "packed");
 }
 
+TEST(TextureSet, AColourSpaceTheFileStatesOverridesTheRole) {
+  const sk_sp<SkImage> image = solid(SK_ColorWHITE, 2, 2);
+  // A base colour authored raw is data, a normal authored sRGB is colour,
+  // and a map whose file states nothing — or "auto" — leaves its role to
+  // decide, which the texture shows as no stated colour space.
+  const texture::TextureMaps maps = texture::fromUsageMap(
+      {{"baseColor", image},
+       {"normal", image},
+       {"roughness", image},
+       {"emissive", image}},
+      false, {{"baseColor", "raw"}, {"normal", "sRGB"}, {"emissive", "auto"}});
+  ASSERT_NE(maps.map(texture::Role::BaseColor), nullptr);
+  EXPECT_EQ(maps.map(texture::Role::BaseColor)->colorSpace(),
+            sigil::media::ColorSpace::Data);
+  EXPECT_EQ(maps.map(texture::Role::Normal)->colorSpace(),
+            sigil::media::ColorSpace::Srgb);
+  EXPECT_FALSE(maps.map(texture::Role::Roughness)->colorSpace().has_value());
+  EXPECT_FALSE(maps.map(texture::Role::Emissive)->colorSpace().has_value());
+  // The stated texture still repeats, as every map of a set does.
+  EXPECT_EQ(maps.map(texture::Role::BaseColor)->tileX(), Repeat::Repeat);
+}
+
 TEST(TextureSet, DiscoversAndDecodesByRole) {
   namespace fs = std::filesystem;
   const sigil::test::ScratchDir scratch("sigilmaterial_texset");

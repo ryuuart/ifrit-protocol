@@ -18,11 +18,15 @@
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
 
 #include <cmath>
 #include <cstdlib>
+#include <string>
+
+#include "support/SlangSurface.h"
 
 using namespace sigil::material;
 
@@ -33,6 +37,31 @@ TEST(Ocio, AConfigThatCannotBeReadFailsSoftWithAnEmptyLut) {
   // content it was handed.
   const Material bad = ocio::viewTransform("ocio://no-such-config", "x", "y");
   EXPECT_EQ(bad.leaf("lut"), nullptr);
+}
+
+// Both bakes are the same programs on a device: the volume and the row
+// each compile as a surface reading the content and the table, and the
+// table is numbers with no smaller copies, so a device reads the bake as
+// it was written.
+TEST(Ocio, TheVolumeAndTheRowHaveSlangSurfaces) {
+  const Material volume =
+      ocio::viewTransform("ocio://no-such-config", "x", "y");
+  slang::Compiled built;
+  std::string error;
+  ASSERT_TRUE(
+      sigil::material::test::compilesAsSurface(volume.recipe(), &built, &error))
+      << "volume: " << error;
+  EXPECT_NE(built.uniform("lutSize"), nullptr);
+  if (!ocio::available()) GTEST_SKIP() << "OCIO raw config unavailable";
+  const Material row = ocio::exponent(2.2f);
+  ASSERT_FALSE(row.recipe().channelwiseSlot().empty());
+  ASSERT_TRUE(
+      sigil::material::test::compilesAsSurface(row.recipe(), &built, &error))
+      << "row: " << error;
+  const auto* table = dynamic_cast<const Texture*>(row.leaf("lut"));
+  ASSERT_NE(table, nullptr);
+  EXPECT_EQ(table->colorSpace(), sigil::media::ColorSpace::Data);
+  EXPECT_EQ(table->mipmaps(), false);
 }
 
 TEST(Ocio, AnExponentBakesToAResponseRowThatGradesTheContent) {
@@ -137,8 +166,10 @@ TEST(Ocio, ASurfaceATableCannotCarryKeepsTheProgram) {
   for (const SkColorType surface :
        {kRGBA_F16_SkColorType, kRGBA_F32_SkColorType, kUnknown_SkColorType}) {
     const Filter kept = skia::lowered(grade, surface);
-    EXPECT_EQ(skia::colorFilter(kept), nullptr) << "colour type " << (int)surface;
-    EXPECT_NE(skia::imageFilter(kept), nullptr) << "colour type " << (int)surface;
+    EXPECT_EQ(skia::colorFilter(kept), nullptr)
+        << "colour type " << (int)surface;
+    EXPECT_NE(skia::imageFilter(kept), nullptr)
+        << "colour type " << (int)surface;
   }
 }
 
@@ -154,7 +185,9 @@ TEST(Ocio, AViewThatMixesChannelsBakesTheVolumeAndKeepsTheProgram) {
       << "a channel-mixing transform must bake the volume";
   for (const SkColorType surface : {kN32_SkColorType, kRGBA_F16_SkColorType}) {
     const Filter kept = skia::lowered(mix, surface);
-    EXPECT_EQ(skia::colorFilter(kept), nullptr) << "colour type " << (int)surface;
-    EXPECT_NE(skia::imageFilter(kept), nullptr) << "colour type " << (int)surface;
+    EXPECT_EQ(skia::colorFilter(kept), nullptr)
+        << "colour type " << (int)surface;
+    EXPECT_NE(skia::imageFilter(kept), nullptr)
+        << "colour type " << (int)surface;
   }
 }

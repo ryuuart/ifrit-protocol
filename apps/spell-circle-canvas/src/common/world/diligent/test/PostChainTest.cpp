@@ -21,10 +21,12 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilworld/World.h>
 #include <sigilworld/advanced/Stats.h>
+#include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -526,4 +528,70 @@ TEST(PostChain, TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn) {
   // A casting light's filter — four comparing gathers a tap block — is
   // less than a lit pixel's own cost again.
   EXPECT_LT(shadowed, one * 2.0) << one << " " << shadowed;
+}
+
+TEST(PostChain, TheSeenPhaseOfAPaneCostsASmallMultipleOfALaidCard) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // The device time of one phase at a full-size frame — the least of a few
+  // timed frames — for an opaque card with, when @p pane is stated, a pane
+  // covering the whole frame in front of it, under one light that casts
+  // shadows when @p shadowed says.
+  const auto timed = [&](std::optional<material::SurfaceOptions> pane,
+                         const char* stage, bool shadowed) {
+    std::vector<Node> content;
+    content.push_back(
+        mesh(gm::quad(400, 400))
+            .key("card")
+            .at({0, 0, -20})
+            .fill(material::surface::program(
+                {.baseColor = {0.5f, 0.5f, 0.5f, 1}, .roughness = 0.5f})));
+    if (pane)
+      content.push_back(
+          mesh(gm::quad(400, 400))
+              .key("pane")
+              .fill(
+                  material::from(material::Color{1, 1, 1, 1}).surface(*pane)));
+    content.push_back(
+        directionalLight({-0.2f, -0.3f, -1}, {.castShadow = shadowed})
+            .key("sun"));
+    content.push_back(camera(diligent::levelEye()).key("camera"));
+    Frame frame(group(std::move(content)).key("set"));
+    frame.extent({1440, 960})
+        .runtime(on.runtime)
+        .timeStages(true)
+        .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    motion::Engine engine;
+    Scene scene(engine);
+    double least = 1e9;
+    bool measured = false;
+    for (int k = 0; k < 10; ++k) {
+      double longest = 0.0;
+      const SceneStats stats = timedUntilRead(scene, frame, &longest);
+      measured = measured || stats.deviceTiming == DeviceTiming::Measured;
+      for (const DeviceStage& each : stats.deviceStages)
+        if (each.stage == stage) least = std::min(least, each.ms);
+    }
+    return measured ? least : -1.0;
+  };
+  // The first scene timed meets a device still raising its clocks, so it
+  // is timed once to be thrown away.
+  if (timed(std::nullopt, "colour.laid", false) < 0)
+    GTEST_SKIP() << "the device writes no timestamps";
+  // Clear glass with a volume behind its face, so the eye's ray is carried
+  // through it to the scene behind.
+  const material::SurfaceOptions lens{
+      .roughness = 0.0f, .transmission = 1.0f, .ior = 1.5f, .thickness = 10.0f};
+  const double card = timed(std::nullopt, "colour.laid", false);
+  const double pane = timed(lens, "colour.seen", false);
+  const double shadowedCard = timed(std::nullopt, "colour.laid", true);
+  const double shadowedPane = timed(lens, "colour.seen", true);
+  RecordProperty("cardMs", std::to_string(card));
+  RecordProperty("paneMs", std::to_string(pane));
+  RecordProperty("shadowedCardMs", std::to_string(shadowedCard));
+  RecordProperty("shadowedPaneMs", std::to_string(shadowedPane));
+  // A pixel seen through — its lit face, the ray carried through the
+  // volume and the scene behind read where it lands — costs a small
+  // multiple of an opaque lit one.
+  EXPECT_LT(pane, card * 3.0) << card << " " << pane;
 }

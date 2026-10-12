@@ -131,6 +131,12 @@ inline constexpr std::string_view kThicknessSlot =
     "thicknessMap";  ///< red, multiplied by `thickness`
 inline constexpr std::string_view kDistortionSlot =
     "distortionMap";  ///< red across and green up, half-grey still
+inline constexpr std::string_view kVolumeSlot =
+    "volumeMap";  ///< the index, dispersion and attenuation distance, encoded
+                  ///< as `texture::Role::Volume` is; in place of `ior`,
+                  ///< `dispersion` and `attenuationDistance` where dressed
+inline constexpr std::string_view kAttenuationSlot =
+    "attenuationMap";  ///< a colour, multiplied by `attenuationColor`
 
 /** The metallic-roughness ABI. Its colours are FACTORS ON THE MAPS in
  *  their slots — `baseColor` on `baseColorMap`, `emissive` on
@@ -179,6 +185,10 @@ struct SurfaceParameters {
   /** The number the instance scalar that multiplies `thickness` is asked
    *  for by (`instanceAttributeKey`), or zero for none. */
   float thicknessAttribute = 0;
+  /** Above one half the back of the volume is the plane at the body's own
+   *  zero depth rather than a face the thickness behind the front
+   *  (`SurfaceOptions::flatBack`). */
+  float flatBack = 0;
   /** VOLUME: light that has crossed `attenuationDistance` scene units of
    *  the medium has become `attenuationColor`, a colour as an author types
    *  it; zero distance takes nothing out. */
@@ -328,7 +338,8 @@ const Texture* map(const Material& material, std::string_view slot);
  *  @p base already moved it. An emissive map is read at the strength the
  *  set's `emissiveStrength` states, when it states one; a transmission map
  *  carries the transmission, its thickness map read at the set's
- *  `thickness` and its volume at the set's `volume`; a distortion map
+ *  `thickness`, its volume at the set's `volume` where a `Volume` map
+ *  and an `Attenuation` map do not state it point by point; a distortion map
  *  carries the distortion at the set's `distortionStrength`, one where it
  *  states none. */
 Material program(const texture::TextureMaps& maps, SurfaceParameters base = {});

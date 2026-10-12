@@ -32,7 +32,9 @@ const std::shared_ptr<const Recipe>& halftoneRampRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<HalftoneRampParameters>("field.halftoneRamp")
           .frame(FrameInput::Resolution)
-          .body(Target::SkSL, std::string(shaderSource("HalftoneRamp.sksl"))));
+          .body(Target::SkSL, std::string(shaderSource("HalftoneRamp.sksl")))
+          .body(Target::Slang,
+                std::string(shaderSource("HalftoneRamp.slang"))));
   return recipe;
 }
 
@@ -80,22 +82,32 @@ class PerlinLeaf final : public skia::ShaderLeaf {
   bool m_turbulence;
 };
 
-struct NoParameters {
-  float uUnused;
+/** What the noise is, read by the device body, which sums the field
+ *  itself; the page's body passes Skia's generator through, which holds
+ *  the same numbers. */
+struct NoiseParameters {
+  float uFrequency;
+  float uOctaves;
+  float uSeed;
+  float uTurbulence;
 };
 
 const std::shared_ptr<const Recipe>& passThroughRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<NoParameters>("field.noise")
+      Recipe::of<NoiseParameters>("field.noise")
           .slot("uSource")
-          .body(Target::SkSL, std::string(shaderSource("Noise.sksl"))));
+          .frame(FrameInput::Resolution)
+          .body(Target::SkSL, std::string(shaderSource("Noise.sksl")))
+          .body(Target::Slang, std::string(shaderSource("Noise.slang"))));
   return recipe;
 }
 
 }  // namespace
 
 Material noise(float frequency, int octaves, float seed, bool turbulence) {
-  Material m(passThroughRecipe(), NoParameters{0});
+  Material m(passThroughRecipe(),
+             NoiseParameters{frequency, (float)octaves, seed,
+                             turbulence ? 1.0f : 0.0f});
   m.slot("uSource", std::shared_ptr<const Leaf>(std::make_shared<PerlinLeaf>(
                         frequency, octaves, seed, turbulence)));
   return m;
@@ -146,7 +158,9 @@ const std::shared_ptr<const Recipe>& rippleRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<RippleParameters>("field.ripple")
           .slot("content")
-          .body(Target::SkSL, std::string(shaderSource("Ripple.sksl"))));
+          .frame(FrameInput::Resolution)
+          .body(Target::SkSL, std::string(shaderSource("Ripple.sksl")))
+          .body(Target::Slang, std::string(shaderSource("Ripple.slang"))));
   return recipe;
 }
 

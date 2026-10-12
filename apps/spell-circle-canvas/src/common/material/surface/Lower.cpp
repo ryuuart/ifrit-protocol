@@ -96,6 +96,7 @@ Material lower(const Material& material) {
   parameters.attenuationColor = stated.attenuationColor;
   parameters.attenuationDistance = stated.attenuationDistance;
   parameters.dispersion = stated.dispersion;
+  parameters.flatBack = stated.flatBack ? 1.0f : 0.0f;
   parameters.distortionStrength = stated.distortionStrength;
   parameters.reflectionWeight = stated.reflectionWeight;
   parameters.clearcoat = factor(stated.clearcoat);

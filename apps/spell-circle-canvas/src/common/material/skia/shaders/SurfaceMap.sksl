@@ -12,7 +12,10 @@
 // 12 the thin film's weight in red and its thickness in green, 13 the
 // clear coat's own normal, encoded as the normal is, 14 the transmission,
 // 15 the thickness in scene units, 16 the distortion in scene units, red
-// across and green up, encoded around one half.
+// across and green up, encoded around one half, 17 the volume — the index
+// in red as 1 - 1 / index, the dispersion in green and the attenuation
+// distance in blue each as value / (value + 1) — and 18 the attenuation
+// colour as typed.
 // A surface stated unlit is its own colour: emission is the colour
 // stack, the base is black, the normal faces the viewer, roughness and
 // occlusion are one, metallic and the coat zero, no sheen, a white
@@ -85,6 +88,10 @@ uniform float uHasThicknessMap;
 uniform float uThickness;
 uniform float uHasDistortionMap;
 uniform float uDistortionStrength;
+uniform float uIor;
+uniform float uDispersion;
+uniform float uAttenuationDistance;
+uniform float4 uAttenuationColor;
 
 float roughnessAt(float2 xy, bool unlit) {
   if (unlit) return 1.0;
@@ -178,12 +185,22 @@ half4 main(float2 xy) {
         if (uHasThicknessMap > 0.5) thickness *= float(uThicknessMap.eval(xy).r);
       }
       value = float3(max(thickness, 0.0));
-    } else {
+    } else if (uRole < 16.5) {
       float2 moved = float2(0.0);
       if (!unlit && uHasDistortionMap > 0.5)
         moved = (float2(uDistortionMap.eval(xy).rg) * 2.0 - 1.0) *
                 uDistortionStrength;
       value = float3(moved * 0.5 + 0.5, 0.0);
+    } else if (uRole < 17.5) {
+      // An unlit surface carries the stock volume, which nothing passes
+      // through.
+      float index = unlit ? 1.5 : max(uIor, 1.0);
+      float spread = unlit ? 0.0 : max(uDispersion, 0.0);
+      float distance = unlit ? 0.0 : max(uAttenuationDistance, 0.0);
+      value = float3(1.0 - 1.0 / index, spread / (spread + 1.0),
+                     distance / (distance + 1.0));
+    } else {
+      value = unlit ? float3(1.0) : clamp(uAttenuationColor.rgb, 0.0, 1.0);
     }
   } else if (uRole < 2.5) {
     value = float3(roughnessAt(xy, unlit));

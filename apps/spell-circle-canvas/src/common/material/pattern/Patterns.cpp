@@ -51,11 +51,12 @@ Tile halftone(float spacing, float radius, Color color, bool staggered) {
 
 Tile stripes(float on, float off, Color color) {
   const float period = std::max(on + off, 1.0f);
-  return paintedTile({period, 8}, [on, color](SkCanvas& c, SkSize sz, uint32_t) {
-    SkPaint p;
-    p.setColor4f(sk(color), nullptr);
-    c.drawRect(SkRect::MakeWH(on, sz.height()), p);
-  });
+  return paintedTile({period, 8},
+                     [on, color](SkCanvas& c, SkSize sz, uint32_t) {
+                       SkPaint p;
+                       p.setColor4f(sk(color), nullptr);
+                       c.drawRect(SkRect::MakeWH(on, sz.height()), p);
+                     });
 }
 
 Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
@@ -66,7 +67,7 @@ Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
   const bool down = along == Axis::V;
   const glm::vec2 size = down ? glm::vec2{8, period} : glm::vec2{period, 8};
   return paintedTile(size, [runs = std::move(runs), period, phase, down](
-                            SkCanvas& c, SkSize sz, uint32_t) {
+                               SkCanvas& c, SkSize sz, uint32_t) {
     // Start one wrapped phase back along the axis and paint two periods,
     // so the seam is covered whatever the phase.
     float at = -std::fmod(std::fmod(phase, period) + period, period);
@@ -85,33 +86,36 @@ Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
 
 Tile checker(float cell, Color first, Color second) {
   const float s = std::max(cell, 1.0f);
-  return paintedTile({2 * s, 2 * s}, [s, first, second](SkCanvas& c, SkSize, uint32_t) {
-    SkPaint pa, pb;
-    pa.setColor4f(sk(first), nullptr);
-    pb.setColor4f(sk(second), nullptr);
-    c.drawRect(SkRect::MakeWH(s, s), pa);
-    c.drawRect(SkRect::MakeXYWH(s, s, s, s), pa);
-    c.drawRect(SkRect::MakeXYWH(s, 0, s, s), pb);
-    c.drawRect(SkRect::MakeXYWH(0, s, s, s), pb);
-  });
+  return paintedTile({2 * s, 2 * s},
+                     [s, first, second](SkCanvas& c, SkSize, uint32_t) {
+                       SkPaint pa, pb;
+                       pa.setColor4f(sk(first), nullptr);
+                       pb.setColor4f(sk(second), nullptr);
+                       c.drawRect(SkRect::MakeWH(s, s), pa);
+                       c.drawRect(SkRect::MakeXYWH(s, s, s, s), pa);
+                       c.drawRect(SkRect::MakeXYWH(s, 0, s, s), pb);
+                       c.drawRect(SkRect::MakeXYWH(0, s, s, s), pb);
+                     });
 }
 
 Tile gridLines(float spacingX, float spacingY, float width, Color color) {
   const float sx = std::max(spacingX, 1.0f);
   const float sy = std::max(spacingY, 1.0f);
-  return paintedTile({sx, sy}, [width, color](SkCanvas& c, SkSize sz, uint32_t) {
-    SkPaint p;
-    p.setColor4f(sk(color), nullptr);
-    c.drawRect(SkRect::MakeWH(sz.width(), width), p);
-    c.drawRect(SkRect::MakeWH(width, sz.height()), p);
-  });
+  return paintedTile({sx, sy},
+                     [width, color](SkCanvas& c, SkSize sz, uint32_t) {
+                       SkPaint p;
+                       p.setColor4f(sk(color), nullptr);
+                       c.drawRect(SkRect::MakeWH(sz.width(), width), p);
+                       c.drawRect(SkRect::MakeWH(width, sz.height()), p);
+                     });
 }
 
-Tile speckle(float tileSize, int count, float minimumRadius, float maximumRadius,
-             std::vector<Color> palette) {
+Tile speckle(float tileSize, int count, float minimumRadius,
+             float maximumRadius, std::vector<Color> palette) {
   const float s = std::max(tileSize, 8.0f);
-  return paintedTile({s, s}, [s, count, minimumRadius, maximumRadius, palette = std::move(palette)](
-                              SkCanvas& c, SkSize, uint32_t seed) {
+  return paintedTile({s, s}, [s, count, minimumRadius, maximumRadius,
+                              palette = std::move(palette)](SkCanvas& c, SkSize,
+                                                            uint32_t seed) {
     SkPaint p;
     p.setAntiAlias(true);
     for (int i = 0; i < count; ++i) {
@@ -152,25 +156,28 @@ struct StippleParameters {
 const std::shared_ptr<const Recipe>& scanlineRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<ScanlineParameters>("pattern.scanlines")
-          .body(Target::SkSL, std::string(shaderSource("Scanlines.sksl"))));
+          .frame(FrameInput::Resolution)
+          .body(Target::SkSL, std::string(shaderSource("Scanlines.sksl")))
+          .body(Target::Slang, std::string(shaderSource("Scanlines.slang"))));
   return recipe;
 }
 
 const std::shared_ptr<const Recipe>& stippleRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<StippleParameters>("pattern.stipple")
-          .body(Target::SkSL, std::string(shaderSource("Stipple.sksl"))));
+          .frame(FrameInput::Resolution)
+          .body(Target::SkSL, std::string(shaderSource("Stipple.sksl")))
+          .body(Target::Slang, std::string(shaderSource("Stipple.slang"))));
   return recipe;
 }
 
 }  // namespace
 
 Material scanlines(const ScanlineOptions& options) {
-  if (options.period <= 0.0f || options.on <= 0.0f)
-    return Color{0, 0, 0, 0};
+  if (options.period <= 0.0f || options.on <= 0.0f) return Color{0, 0, 0, 0};
   return Material(scanlineRecipe(),
-                  ScanlineParameters{options.color, options.period,
-                                     options.on, options.phase});
+                  ScanlineParameters{options.color, options.period, options.on,
+                                     options.phase});
 }
 
 Material stipple(const StippleOptions& options) {
@@ -183,7 +190,8 @@ Material stipple(const StippleOptions& options) {
   return Material(stippleRecipe(),
                   StippleParameters{options.color,
                                     {word(0), word(1), word(2), word(3)},
-                                    (float)options.size, options.cell});
+                                    (float)options.size,
+                                    options.cell});
 }
 
 uint64_t ditherBits(int on, int size) {

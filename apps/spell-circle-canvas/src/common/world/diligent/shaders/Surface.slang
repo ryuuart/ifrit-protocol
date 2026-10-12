@@ -131,11 +131,15 @@ uniform float4 uBaseColor;
 /** WHAT A TRANSMISSIVE BODY LETS THROUGH, for its tint beside the shadow
  *  maps: x the share it transmits, y how deep it is in scene units, z the
  *  distance after which light has become `uTintAttenuation` (zero takes
- *  nothing); each of the first two multiplied by its map. */
+ *  nothing); each of the first two multiplied by its map, the distance
+ *  its volume map's where that is dressed, and the colour multiplied by
+ *  its attenuation map's. */
 uniform float4 uTintVolume;
 uniform float4 uTintAttenuation;
 uniform Sampler2D uTintTransmissionMap;
 uniform Sampler2D uTintThicknessMap;
+uniform Sampler2D uTintVolumeMap;
+uniform Sampler2D uTintAttenuationMap;
 /** THE MAP the body is dressed with, multiplied into the surface's colour
  *  before the lighting. A body given no map reads one white texel, so a
  *  colour multiplied by a map it does not have is that colour. */
@@ -359,6 +363,12 @@ struct VSOut {
    *  side v runs on; no length where the mesh states none. */
   float4 viewTangent : TANGENT0;
 #endif
+#if defined(SIGIL_LIT) && defined(SIGIL_TRANSMISSION)
+  /** The plane at the copy's own zero depth, in the space the shading is
+   *  written in: its unit normal and its distance along it from the eye —
+   *  the back a flat-backed body's light leaves through. */
+  nointerpolation float4 viewBackPlane : TEXCOORD4;
+#endif
 };
 
 // ---- what a body may say about its surface --------------------------
@@ -390,6 +400,9 @@ static float3 gSurfaceClearcoatNormal = float3(0.0, 0.0, 1.0);
 static float gSurfaceTransmission = 0.0;
 static float gSurfaceIor = 1.5;
 static float gSurfaceThickness = 0.0;
+/** Above one half, the volume's back is the plane at the body's own zero
+ *  depth rather than a face the thickness behind the front. */
+static float gSurfaceFlatBack = 0.0;
 static float3 gSurfaceAttenuationColor = float3(1.0, 1.0, 1.0);
 static float gSurfaceAttenuationDistance = 0.0;
 static float gSurfaceDispersion = 0.0;
@@ -446,6 +459,16 @@ float3 inverseScale(float3 s) {
                 s.z != 0.0 ? 1.0 / s.z : 1.0);
 }
 
+#if defined(SIGIL_LIT) && defined(SIGIL_TRANSMISSION)
+/** The plane through @p point facing @p normal: its unit normal and its
+ *  distance along it from the origin. */
+float4 planeThrough(float3 point, float3 normal) {
+  let length2 = dot(normal, normal);
+  let unit = length2 > 0.0 ? normal / sqrt(length2) : float3(0.0, 0.0, 1.0);
+  return float4(unit, dot(unit, point));
+}
+#endif
+
 [shader("vertex")]
 VSOut vsMain(VSIn input) {
   VSOut out;
@@ -488,6 +511,11 @@ VSOut vsMain(VSIn input) {
                    .xyz,
                input.tangent.w);
 #endif
+#if defined(SIGIL_LIT) && defined(SIGIL_TRANSMISSION)
+    out.viewBackPlane =
+        planeThrough(mul(uView, float4(centre, 1.0)).xyz,
+                     mul(uView, float4(back, 0.0)).xyz);
+#endif
   } else {
     let local = input.instancePosition.xyz +
                 rotateByQuaternion(q, input.position * s);
@@ -502,6 +530,17 @@ VSOut vsMain(VSIn input) {
         float4(mul(uModelView, float4(localTangent, 0.0)).xyz,
                input.tangent.w);
 #endif
+#if defined(SIGIL_LIT) && defined(SIGIL_TRANSMISSION)
+    // The copy's own z of zero: through where it stands, facing its own
+    // z as a normal does.
+    out.viewBackPlane = planeThrough(
+        mul(uModelView, float4(input.instancePosition.xyz, 1.0)).xyz,
+        mul(uNormalMatrix,
+            float4(rotateByQuaternion(q, float3(0.0, 0.0, 1.0) *
+                                             inverseScale(s)),
+                   0.0))
+            .xyz);
+#endif
   }
   let window = input.instanceTextureWindow;
   out.uv = window.xy + input.uv * window.zw;
@@ -515,6 +554,9 @@ VSOut vsMain(VSIn input) {
 // ---- what a material may read of the instance it is drawn on ---------
 
 static float4 gInstanceColor = float4(1.0, 1.0, 1.0, 1.0);
+/** The plane at this pixel's copy's own zero depth, as `VSOut` carries
+ *  it. */
+static float4 gBackPlane = float4(0.0, 0.0, 1.0, 0.0);
 static float4 gInstanceAttributes = float4(0.0, 0.0, 0.0, 0.0);
 static float gInstanceIndex = 0.0;
 
@@ -570,6 +612,9 @@ void enterInstance(VSOut input) {
   gInstanceColor = input.perInstanceColor;
   gInstanceAttributes = input.perInstanceAttributes;
   gInstanceIndex = input.perInstanceIndex;
+#if defined(SIGIL_LIT) && defined(SIGIL_TRANSMISSION)
+  gBackPlane = input.viewBackPlane;
+#endif
 }
 
 /** The scaffold's own surface, for a draw with no material program: the
@@ -653,9 +698,11 @@ float curvatureOf(float3 geometric, float3 p) {
  *  is read as a lens: its front is the surface at @p p facing @p n, bent
  *  by @p curvature; its back stands @p thickness behind the front along
  *  the normal, curved the same way, so a flat face is a slab whose back is
- *  parallel to it and a ball as thick as it is wide is a ball. The ray,
- *  bent into the medium at the front, crosses to the back, and is bent
- *  again leaving it. @p travelled says how far it went inside. */
+ *  parallel to it and a ball as thick as it is wide is a ball — or, for a
+ *  body whose back is flat, its back is the plane at its own zero depth,
+ *  `gBackPlane`. The ray, bent into the medium at the front, crosses to
+ *  the back, and is bent again leaving it. @p travelled says how far it
+ *  went inside. */
 void passage(float3 p, float3 v, float3 n, float curvature, float ior,
              out float3 leftAt, out float3 leaving, out float travelled) {
   leftAt = p;
@@ -663,6 +710,21 @@ void passage(float3 p, float3 v, float3 n, float curvature, float ior,
   travelled = 0.0;
   let bent = refraction(-v, n, 1.0 / ior);
   if (dotP(bent, bent) <= 0.0) return;
+  if (gSurfaceFlatBack > 0.5) {
+    // THE FLAT BACK, met by the bent ray where it reaches the plane; a
+    // point on or behind the plane has no volume in front of it, and the
+    // ray leaves where it entered. It leaves through the plane's own
+    // normal, turned the way the ray crosses it.
+    let facing = gBackPlane.xyz;
+    let toward = dotP(facing, bent);
+    if (abs(toward) > 1e-5)
+      travelled = max((gBackPlane.w - dotP(facing, p)) / toward, 0.0);
+    leftAt = p + bent * travelled;
+    let outward = toward >= 0.0 ? facing : -facing;
+    let out = refraction(bent, -outward, ior);
+    leaving = dotP(out, out) > 0.0 ? normalizeP(out) : bent;
+    return;
+  }
   // A ball cannot be thicker than it is wide.
   let k = curvature;
   var thick = max(gSurfaceThickness, 0.0);
@@ -1626,10 +1688,21 @@ float4 fsShadowTint(VSOut input) : SV_Target {
   let weight = clamp(uTintVolume.x * uTintTransmissionMap.Sample(input.uv).r,
                      0.0, 1.0);
   let depth = max(uTintVolume.y * uTintThicknessMap.Sample(input.uv).r, 0.0);
+  // The volume point by point where a map states it: the distance in the
+  // volume map's blue as distance / (distance + 1), the colour the
+  // attenuation map's as typed.
+  var distance = uTintVolume.z;
+  let volume = uTintVolumeMap.Sample(input.uv);
+  if (volume.r < 1.0 || volume.g < 1.0 || volume.b < 1.0) {
+    let held = min(volume.b, 0.999);
+    distance = held / (1.0 - held);
+  }
+  let attenuation = uTintAttenuation.rgb *
+                    linearFromSrgb(uTintAttenuationMap.Sample(input.uv).rgb);
   var colour = uBaseColor.rgb;
-  if (uTintVolume.z > 0.0)
-    colour = colour * pow(max(uTintAttenuation.rgb, float3(1e-4, 1e-4, 1e-4)),
-                          float3(depth / uTintVolume.z));
+  if (distance > 0.0)
+    colour = colour * pow(max(attenuation, float3(1e-4, 1e-4, 1e-4)),
+                          float3(depth / distance));
   return float4(float3(1.0 - weight) + colour * weight, 1.0);
 }
 
