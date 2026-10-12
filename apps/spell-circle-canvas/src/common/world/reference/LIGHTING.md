@@ -132,7 +132,10 @@ puts an unlit mesh of its shape beside it.
 - **Range.** Past zero, `range` brings that smoothly to zero:
   the inverse square times `(1 − (d / range)⁴)²`, clamped, which has no
   edge and is exactly zero at the range. Zero, the default, reaches
-  everywhere.
+  everywhere. A sphere light's falloff is windowed the same way, and a
+  rect's or a disk's whole delivery — what its face sends the diffuse
+  side and its highlight — by that window measured from its centre
+  (`rangeWindow`).
 - **Cone.** A spot is full strength within `innerAngle` degrees of its
   aim and dark beyond `outerAngle`; between them the square of where the
   cosine stands (`coneFalloff`).
@@ -488,6 +491,6 @@ a clear pane's. A sized light's shadow is cast through maps from its centre, its
 widening the penumbra the filter draws rather than the maps holding the
 panel's extent; its highlight is a
 representative point's, not an integral of the lobe over it; a sized light
-has no range and no cone. The sheen reads the GGX chain
+has no cone. The sheen reads the GGX chain
 rather than one filtered for its own lobe. A sheen, a brushing and a film are
 single-scattering terms with no energy put back of their own.

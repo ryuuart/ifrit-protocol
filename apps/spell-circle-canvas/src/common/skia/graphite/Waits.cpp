@@ -1,5 +1,5 @@
-// What this library notes about a recorder: the Metal device it draws
-// on, and the GPU waits its next inserted recording carries.
+// What this library notes about a recorder: the GPU waits its next
+// inserted recording carries.
 
 #include "Waits.h"
 
@@ -32,7 +32,6 @@ struct Registry {
   std::mutex mutex;
   boost::unordered_flat_map<const skgpu::graphite::Recorder*, std::vector<Wait>>
       waits;
-  boost::unordered_flat_map<const skgpu::graphite::Recorder*, void*> devices;
 };
 
 Registry& registry() {
@@ -44,25 +43,9 @@ Registry& registry() {
 
 }  // namespace
 
-void noteMetalDevice(const skgpu::graphite::Recorder* recorder,
-                     void* mtlDevice) {
-  if (!recorder) return;
-  Registry& store = registry();
-  const std::lock_guard<std::mutex> lock(store.mutex);
-  store.devices[recorder] = mtlDevice;
-}
-
-void* metalDeviceOf(const skgpu::graphite::Recorder* recorder) {
-  Registry& store = registry();
-  const std::lock_guard<std::mutex> lock(store.mutex);
-  const auto found = store.devices.find(recorder);
-  return found == store.devices.end() ? nullptr : found->second;
-}
-
 void forgetRecorder(const skgpu::graphite::Recorder* recorder) {
   Registry& store = registry();
   const std::lock_guard<std::mutex> lock(store.mutex);
-  store.devices.erase(recorder);
   store.waits.erase(recorder);
 }
 

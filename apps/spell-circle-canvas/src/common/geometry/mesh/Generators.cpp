@@ -74,43 +74,6 @@ Mesh sheet(
       out.normals.push_back(normalized(raw));
     }
   }
-  // THE TANGENTS, where the uvs are the sheet's own parameters: u runs
-  // along the difference between a vertex's neighbours across the row,
-  // squared to the normal, and v — which runs opposite the parameter —
-  // stands beside it on the side the column's neighbours say. A pole,
-  // where a row collapses onto one point, takes its direction from the
-  // row beside it, which is the way u runs as the pole is approached.
-  // A sheet whose texture is placed some other way carries none.
-  if (!options.textureFromPosition && !options.textureRectangle) {
-    out.tangents.assign(out.positions.size(), glm::vec4(0.0f));
-    const auto at = [&](int i, int j) {
-      return out.positions[(size_t)j * nu + i];
-    };
-    for (int j = 0; j < nv; ++j)
-      for (int i = 0; i < nu; ++i) {
-        const glm::vec3 n = out.normals[(size_t)j * nu + i];
-        glm::vec3 across{0.0f};
-        // The row itself, or the nearest row that has a length.
-        for (int reach = 0; reach < nv; ++reach) {
-          for (const int row : {j - reach, j + reach}) {
-            if (row < 0 || row >= nv) continue;
-            across =
-                at(std::min(i + 1, nu - 1), row) - at(std::max(i - 1, 0), row);
-            across -= n * glm::dot(across, n);
-            if (glm::dot(across, across) > 1e-12f) break;
-          }
-          if (glm::dot(across, across) > 1e-12f) break;
-        }
-        if (glm::dot(across, across) <= 1e-12f) continue;
-        across = glm::normalize(across);
-        // v in the uvs grows as the parameter falls.
-        const glm::vec3 up =
-            at(i, std::max(j - 1, 0)) - at(i, std::min(j + 1, nv - 1));
-        const float side =
-            glm::dot(glm::cross(n, across), up) < 0.0f ? -1.0f : 1.0f;
-        out.tangents[(size_t)j * nu + i] = glm::vec4(across, side);
-      }
-  }
   placeTexture(out, options);
   for (int j = 0; j + 1 < nv; ++j) {
     for (int i = 0; i + 1 < nu; ++i) {
@@ -147,6 +110,47 @@ Mesh sheet(
       out.normals[i] = out.normals[take];
     }
   }
+  // THE TANGENTS, where the uvs are the sheet's own parameters: u runs
+  // along the difference between a vertex's neighbours across the row,
+  // squared to the normal, and v — which runs opposite the parameter —
+  // stands beside it on the side the column's neighbours say. A pole,
+  // where a row collapses onto one point, takes its direction from the
+  // row beside it, which is the way u runs as the pole is approached.
+  // They are squared to the normals once the poles have borrowed theirs.
+  // A sheet whose texture is placed some other way reads them off the
+  // placed uvs once they are written.
+  const bool placed = options.textureFromPosition || options.textureRectangle;
+  if (!placed) {
+    out.tangents.assign(out.positions.size(), glm::vec4(0.0f));
+    const auto at = [&](int i, int j) {
+      return out.positions[(size_t)j * nu + i];
+    };
+    for (int j = 0; j < nv; ++j)
+      for (int i = 0; i < nu; ++i) {
+        const glm::vec3 n = out.normals[(size_t)j * nu + i];
+        glm::vec3 across{0.0f};
+        // The row itself, or the nearest row that has a length.
+        for (int reach = 0; reach < nv; ++reach) {
+          for (const int row : {j - reach, j + reach}) {
+            if (row < 0 || row >= nv) continue;
+            across =
+                at(std::min(i + 1, nu - 1), row) - at(std::max(i - 1, 0), row);
+            across -= n * glm::dot(across, n);
+            if (glm::dot(across, across) > 1e-12f) break;
+          }
+          if (glm::dot(across, across) > 1e-12f) break;
+        }
+        if (glm::dot(across, across) <= 1e-12f) continue;
+        across = glm::normalize(across);
+        // v in the uvs grows as the parameter falls.
+        const glm::vec3 up =
+            at(i, std::max(j - 1, 0)) - at(i, std::min(j + 1, nv - 1));
+        const float side =
+            glm::dot(glm::cross(n, across), up) < 0.0f ? -1.0f : 1.0f;
+        out.tangents[(size_t)j * nu + i] = glm::vec4(across, side);
+      }
+  }
+  if (placed) out.computeTangents();
   return out;
 }
 
@@ -190,10 +194,12 @@ Mesh bakePrimitiveColor(const Mesh& mesh, std::string_view lane) {
   const bool normals = mesh.normals.size() == mesh.positions.size();
   const bool uvs = mesh.uvs.size() == mesh.positions.size();
   const bool colors = mesh.colors.size() == mesh.positions.size();
+  const bool tangents = mesh.tangents.size() == mesh.positions.size();
   out.positions.reserve(tris * 3);
   out.indices.reserve(tris * 3);
   if (normals) out.normals.reserve(tris * 3);
   if (uvs) out.uvs.reserve(tris * 3);
+  if (tangents) out.tangents.reserve(tris * 3);
   out.colors.reserve(tris * 3);
   for (size_t t = 0; t < tris; ++t) {
     const glm::vec4 flat = (*primitive)[t];
@@ -203,6 +209,7 @@ Mesh bakePrimitiveColor(const Mesh& mesh, std::string_view lane) {
       out.positions.push_back(mesh.positions[idx]);
       if (normals) out.normals.push_back(mesh.normals[idx]);
       if (uvs) out.uvs.push_back(mesh.uvs[idx]);
+      if (tangents) out.tangents.push_back(mesh.tangents[idx]);
       out.colors.push_back(colors ? mesh.colors[idx] * flat : flat);
     }
   }

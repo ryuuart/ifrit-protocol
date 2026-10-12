@@ -1,7 +1,8 @@
 /** @file
  * A body whose program has not compiled yet: drawn as a stand-in by a
  * frame that will not wait, whole on a later frame, and whole on the
- * first frame of one that waits.
+ * first frame of one that waits; a live frame waits for no pipeline a
+ * newly arrived program is drawn with.
  *
  * Every case SKIPS where there is no Vulkan runtime to ask.
  */
@@ -202,4 +203,80 @@ TEST(StandIn, AFirstLiveFrameBuildsNoPipelineOnTheThreadThatDraws) {
   // Within a small factor of a frame that builds nothing, with a floor
   // for a frame so short that the clock's own grain decides the ratio.
   EXPECT_LT(first, std::max(steady * 6.0, 6.0)) << first << " " << steady;
+}
+
+TEST(StandIn, ALiveFrameDoesNotWaitForANewlyArrivedProgramsPipeline) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A surface no other case compiled, worn by a body that enters a scene
+  // already running: its program compiles on a worker, and the frame it
+  // arrives in finds the pipeline it is drawn with not yet built.
+  const material::Material arriving =
+      uncompiled("world.test.stand-in.arrives-mid-run");
+  const material::Material steadyCard =
+      material::from(material::Color{0.2f, 0.3f, 0.4f, 1});
+  const auto frameOf = [&](bool withArrival) {
+    std::vector<Node> content{
+        directionalLight({0, 0, -1}, {.intensity = 0.5f}).key("sun"),
+        mesh(::sigil::geometry::mesh::quad(120, 120))
+            .key("card")
+            .fill(steadyCard)};
+    if (withArrival)
+      content.push_back(mesh(::sigil::geometry::mesh::quad(40, 40))
+                            .key("arrival")
+                            .at({0, 0, 5})
+                            .fill(arriving));
+    Frame frame(group(std::move(content)).key("set"));
+    frame.extent(kExtent)
+        .defaultCamera(diligent::levelEye())
+        .runtime(on.runtime)
+        .standIns(true)
+        .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    return frame;
+  };
+  motion::Engine engine;
+  Scene scene(engine);
+  const auto timed = [&](bool withArrival) {
+    const auto start = std::chrono::steady_clock::now();
+    scene.render(frameOf(withArrival));
+    (void)middle(scene);
+    return std::chrono::duration<double, std::milli>(
+               std::chrono::steady_clock::now() - start)
+        .count();
+  };
+  // The steady frame, once the running scene's own programs and
+  // pipelines are in hand.
+  const auto settled =
+      std::chrono::steady_clock::now() + std::chrono::seconds(30);
+  do {
+    (void)timed(false);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  } while (scene.stats().programsPending > 0 &&
+           std::chrono::steady_clock::now() < settled);
+  ASSERT_EQ(scene.stats().programsPending, 0);
+  double steady = timed(false);
+  for (int k = 0; k < 4; ++k) steady = std::min(steady, timed(false));
+
+  // The body enters, and every frame until it is drawn whole is timed.
+  double longest = 0.0;
+  int frames = 0;
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(30);
+  do {
+    longest = std::max(longest, timed(true));
+    ++frames;
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  } while (scene.stats().programsPending > 0 &&
+           std::chrono::steady_clock::now() < deadline);
+  ASSERT_EQ(scene.stats().programsPending, 0);
+  RecordProperty("steadyMs", std::to_string(steady));
+  RecordProperty("longestMs", std::to_string(longest));
+  RecordProperty("frames", std::to_string(frames));
+  // Within a small factor of a frame that builds nothing, with a floor
+  // for a frame so short that the clock's own grain decides the ratio.
+  EXPECT_LT(longest, std::max(steady * 6.0, 6.0)) << longest << " " << steady;
+  // The arrival is drawn whole: lit, short of its authored red.
+  const SkColor4f arrived = middle(scene);
+  EXPECT_LT(arrived.fR, 0.8f);
+  EXPECT_GT(arrived.fR, 0.05f);
 }

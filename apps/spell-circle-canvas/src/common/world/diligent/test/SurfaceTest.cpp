@@ -14,6 +14,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -26,6 +27,8 @@
 #include <sigilworld/diligent/Import.h>
 #include <sigilworld/diligent/Runtime.h>
 
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <glm/geometric.hpp>
@@ -645,4 +648,97 @@ TEST(SurfaceSlots, ANormalDerivedFromAHeightDressesADeviceBody) {
       material::field::cellular(6.0f), {.depth = 16.0f}));
   EXPECT_LT(plain, 0.01);
   EXPECT_GT(dressed, plain + 0.03) << "the relief turns the shading across it";
+}
+
+TEST(SurfaceSlots,
+     AHeightsDerivedNormalShadesAsTheSameNormalSuppliedAsATexture) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  constexpr int kTexels = 256;
+  constexpr float kDepth = 6.0f;
+  constexpr float kStep = 1.0f;
+  constexpr float kWaves = 3.0f;
+  const auto height = [&](float u) {
+    return 0.5f + 0.5f * std::sin(2.0f * 3.14159265f * kWaves * u);
+  };
+  // One raking light, crossing the card from its right, so a slope along
+  // the card's width shows as light and shade.
+  const auto plate = [&](std::optional<material::Material> normal) {
+    material::SurfaceOptions options{.roughness = 0.6f};
+    options.normal = std::move(normal);
+    const Group root =
+        group({directionalLight({-1.0f, 0.0f, -0.35f}).key("sun"),
+               mesh(::sigil::geometry::mesh::quad(120, 120))
+                   .key("card")
+                   .fill(material::from(material::Color{0.7f, 0.7f, 0.7f, 1})
+                             .surface(options))})
+            .key("set");
+    Frame frame(root);
+    frame.extent(kExtent)
+        .defaultCamera(diligent::levelEye())
+        .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    return diligent::photograph(frame, on.runtime, kExtent);
+  };
+  const SkBitmap flat = plate(std::nullopt);
+  // How many pixels of the picture the card's width covers, which is the
+  // span of the surface the derivation's step is measured in.
+  int covered = 0;
+  for (int x = 0; x < kExtent.x; ++x)
+    if (luma(flat.getColor4f(x, kExtent.y / 2)) > 0.02f) ++covered;
+  ASSERT_GT(covered, kExtent.x / 4);
+
+  // The height, as numbers exactly as stored.
+  const auto heightTexture =
+      drawnTexture("world.test.height-waves", kTexels, 1,
+                   [&](SkCanvas& canvas) {
+                     for (int x = 0; x < kTexels; ++x) {
+                       const float h = height((x + 0.5f) / kTexels);
+                       SkPaint paint;
+                       paint.setColor4f({h, h, h, 1});
+                       canvas.drawRect(SkRect::MakeXYWH((float)x, 0, 1, 1),
+                                       paint);
+                     }
+                   })
+          .colorSpace(media::ColorSpace::Data);
+  // The same normal, worked out here as the derivation works it out: the
+  // central difference one step of the card's own pixels either side,
+  // scaled by the depth over the step.
+  const float across = kStep / (float)covered;
+  const auto normalTexture =
+      drawnTexture(
+          "world.test.normal-waves", kTexels, 1,
+          [&](SkCanvas& canvas) {
+            for (int x = 0; x < kTexels; ++x) {
+              const float u = (x + 0.5f) / kTexels;
+              glm::vec3 n{(height(u - across) - height(u + across)) * kDepth /
+                              kStep * 0.5f,
+                          0.0f, 1.0f};
+              n /= std::max(std::max(std::abs(n.x), std::abs(n.y)), 1.0f);
+              n = glm::normalize(n) * 0.5f + 0.5f;
+              SkPaint paint;
+              paint.setColor4f({n.x, n.y, n.z, 1});
+              canvas.drawRect(SkRect::MakeXYWH((float)x, 0, 1, 1), paint);
+            }
+          })
+          .colorSpace(media::ColorSpace::Data);
+
+  const SkBitmap derived = plate(material::surface::normalFromHeight(
+      material::image(heightTexture), {.depth = kDepth, .step = kStep}));
+  const SkBitmap supplied = plate(material::image(normalTexture));
+  float differs = 0;
+  float relief = 0;
+  for (int x = kExtent.x / 2 - covered / 3; x < kExtent.x / 2 + covered / 3;
+       ++x) {
+    const float fromHeight = luma(derived.getColor4f(x, kExtent.y / 2));
+    const float fromTexture = luma(supplied.getColor4f(x, kExtent.y / 2));
+    const float plain = luma(flat.getColor4f(x, kExtent.y / 2));
+    differs = std::max(differs, std::abs(fromHeight - fromTexture));
+    relief = std::max(relief, std::abs(fromTexture - plain));
+  }
+  RecordProperty("differs", std::to_string(differs));
+  RecordProperty("relief", std::to_string(relief));
+  EXPECT_GT(relief, 0.1f) << "the supplied normal turns the shading";
+  EXPECT_LT(differs, relief * 0.15f)
+      << "the derived normal shades as the supplied one: " << differs
+      << " against a relief of " << relief;
 }

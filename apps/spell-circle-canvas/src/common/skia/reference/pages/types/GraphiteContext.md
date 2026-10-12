@@ -26,7 +26,9 @@ forward here.
 A Recorder belongs to one thread; the Context tolerates use from
 several threads but never at once. `sigil::skia::GraphiteContext::recorder`
 is the thread that made the context; another thread takes its own from
-`sigil::skia::GraphiteContext::makeRecorder` and records on it alone;
+`sigil::skia::GraphiteContext::makeRecorder` and records on it alone —
+it draws on the same device, which `sigil::skia::deviceOf` names for it
+as for the context's own recorder;
 and every call on `sigil::skia::GraphiteContext::context` — inserting,
 submitting, reading back, retiring finished work — from any thread holds
 `sigil::skia::GraphiteContext::lockContext` once more than one thread can

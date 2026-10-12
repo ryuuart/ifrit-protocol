@@ -190,7 +190,9 @@ spells Skia:
   `PixelSource` is taken, and a `Picture` assigns to Skia's image.
 - **The device binding.** `DeviceBinding` and `deviceImage` answer in
   the image a Graphite recorder draws, which is what a leaf, a pen and a
-  texture call.
+  texture call: the surface wrapped where the recorder can sample it, and
+  read back into host memory where it cannot — Graphite on another API
+  than the surface's — or where there is no recorder.
 - **The raster doors.** `encode`, `difference`, `coverageMask` and
   `append` over a pixmap take pixels exactly as stored, for a caller that
   chose a depth or holds rows it did not decode. Each is defined by the

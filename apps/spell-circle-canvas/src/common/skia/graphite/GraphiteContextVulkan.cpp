@@ -85,12 +85,10 @@ std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
       skgpu::graphite::ContextFactory::MakeVulkan(backendContext, options);
   if (!context) return nullptr;
 
-  std::unique_ptr<skgpu::graphite::Recorder> recorder =
-      context->makeRecorder(makeRecorderOptions());
-  if (!recorder) return nullptr;
-
-  return std::unique_ptr<GraphiteContext>(
-      new GraphiteContext(std::move(context), std::move(recorder)));
+  std::unique_ptr<GraphiteContext> made(
+      new GraphiteContext(std::move(context), handles.device));
+  if (!made->recorder()) return nullptr;
+  return made;
 }
 
 }  // namespace sigil::skia

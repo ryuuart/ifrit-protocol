@@ -3,8 +3,9 @@
  * lights the plate beneath it and nothing behind its face; a mirror shows
  * its outline, wide for a wide panel and turning with its node; a larger
  * sphere at the same intensity spreads a wider, dimmer highlight; a light
- * link narrows a sized light as any other; and the sized path leaves a
- * picture lit only by a point light exactly as it was.
+ * link narrows a sized light as any other; a rect's or a disk's range
+ * darkens what stands past it; and the sized path leaves a picture lit
+ * only by a point light exactly as it was.
  */
 
 #include <gtest/gtest.h>
@@ -223,4 +224,46 @@ TEST(AreaLight, ANodesScaleSizesThePanelItHolds) {
       on.runtime);
   EXPECT_GT(diligent::worstChannel(scaled, unscaled), 8)
       << "a larger panel lights the plate otherwise";
+}
+
+TEST(AreaLight, ARectsOrADisksRangeDarkensWhatStandsPastIt) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // The panel stands 60 units in front of the card, facing it.
+  const auto rect = [&](float range) {
+    return photographed(
+        {rectLight(
+             {0, 0, -1},
+             {.width = 40, .height = 40, .intensity = 4.0f, .range = range})
+             .key("panel")
+             .at({0, 0, 60}),
+         card(matte())},
+        on.runtime);
+  };
+  const auto disk = [&](float range) {
+    return photographed(
+        {diskLight({0, 0, -1},
+                   {.radius = 20, .intensity = 4000.0f, .range = range})
+             .key("panel")
+             .at({0, 0, 60}),
+         card(matte())},
+        on.runtime);
+  };
+  for (const bool isRect : {true, false}) {
+    const auto plate = [&](float range) {
+      return isRect ? rect(range) : disk(range);
+    };
+    const float unbounded = luma(at(plate(0), 0.5f, 0.5f));
+    const float farReaching = luma(at(plate(600), 0.5f, 0.5f));
+    const float halfway = luma(at(plate(70), 0.5f, 0.5f));
+    const float shortOfIt = luma(at(plate(50), 0.5f, 0.5f));
+    EXPECT_GT(unbounded, 0.1f) << (isRect ? "rect" : "disk");
+    // A range far past the card leaves it as lit as no range does…
+    EXPECT_NEAR(farReaching, unbounded, unbounded * 0.02f)
+        << (isRect ? "rect" : "disk");
+    // …one just past it dims it, and one short of it leaves it dark.
+    EXPECT_LT(halfway, unbounded * 0.6f) << (isRect ? "rect" : "disk");
+    EXPECT_GT(halfway, 1.5f / 255.0f) << (isRect ? "rect" : "disk");
+    EXPECT_LT(shortOfIt, 1.5f / 255.0f) << (isRect ? "rect" : "disk");
+  }
 }

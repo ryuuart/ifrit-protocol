@@ -307,6 +307,7 @@ Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options) {
     std::vector<glm::vec4>& sets = out.primitive("Material", {0, 0, 0, 0});
     for (size_t t = capTriangles; t < sets.size(); ++t) sets[t] = {1, 0, 0, 0};
   }
+  out.computeTangents();
   return out;
 }
 
@@ -334,6 +335,7 @@ Mesh fill(const path::Outline& outline, float tolerance) {
     orientTriangle(out.positions, tri, normal);
     out.indices.insert(out.indices.end(), {tri[0], tri[1], tri[2]});
   }
+  out.computeTangents();
   return out;
 }
 
@@ -462,6 +464,7 @@ Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
   }
   if ((volume < 0) != options.inward) reverseWinding(out.indices);
   out.computeNormals();
+  out.computeTangents();
   return out;
 }
 
@@ -511,6 +514,9 @@ Mesh revolve(const std::vector<glm::vec2>& profile,
   if ((area < 0) != options.inward) {
     reverseWinding(out.indices);
     for (glm::vec3& normal : out.normals) normal = -normal;
+    // v grows the same way along the surface whichever way it faces, so
+    // the side it stands on beside u turns with the normal.
+    for (glm::vec4& tangent : out.tangents) tangent.w = -tangent.w;
   }
   return out;
 }
@@ -558,6 +564,7 @@ Mesh box(glm::vec3 lo, glm::vec3 hi, const BoxOptions& options) {
     out.indices.insert(out.indices.end(),
                        {base, base + 1, base + 2, base, base + 2, base + 3});
   }
+  out.computeTangents();
   return out;
 }
 
@@ -759,6 +766,7 @@ Mesh platonic(Platonic solid, const PlatonicOptions& options) {
       ids.emplace_back((float)face, 0, 0, 0);
     }
   }
+  out.computeTangents();
   return out;
 }
 

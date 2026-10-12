@@ -1245,7 +1245,8 @@ float3 shadeLit(VSOut input, float3 base) {
       if (kind > 6.5) {
         let cosFace = dotP(-toCentre, face);
         if (cosFace <= 0.0) continue;
-        let fall = 1.0 / (far * far + size * size);
+        let fall = rangeWindow(far, uLightDirection[i].w) /
+                   (far * far + size * size);
         irradiance = cosFace * fall * facing;
         solid = diskSolidAngle(far, size, cosFace);
         strength = cosFace * fall;
@@ -1271,9 +1272,13 @@ float3 shadeLit(VSOut input, float3 base) {
         let corner1 = centre + across * size - up * halfHeight;
         let corner2 = centre + across * size + up * halfHeight;
         let corner3 = centre - across * size + up * halfHeight;
-        irradiance = quadIrradiance(corner0, corner1, corner2, corner3, n);
+        // The panel's reach ends in the window its range states, measured
+        // from its centre.
+        let window = rangeWindow(far, uLightDirection[i].w);
+        irradiance =
+            window * quadIrradiance(corner0, corner1, corner2, corner3, n);
         solid = quadSolidAngle(corner0, corner1, corner2, corner3);
-        strength = solid;
+        strength = window * solid;
         lit = normalizeP(rectPoint(centre, face, across, up, size, halfHeight,
                                    r));
 #ifdef SIGIL_CLEARCOAT

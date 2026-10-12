@@ -734,3 +734,22 @@ TEST(Points, AFilledScalarLaneOnACloudSurvivesTheChainToItsInstances) {
       *points::instances(cloud, mesh::quad(2, 2), options).attributeIf("age"),
       *age);
 }
+
+TEST(Points, AStampCarryingTangentsFormsThemOnEveryCopy) {
+  const Cloud cloud = points::ring({0, 0, 0}, 80, 6);
+  const Mesh stamp = mesh::quad(10, 10);
+  ASSERT_EQ(stamp.tangents.size(), stamp.vertexCount());
+  points::InstanceOptions options;
+  options.orientLane = "normal";
+  const Mesh merged = points::instance(cloud, stamp, options);
+  ASSERT_EQ(merged.tangents.size(), merged.vertexCount());
+  for (size_t i = 0; i < merged.vertexCount(); ++i) {
+    const glm::vec3 along(merged.tangents[i]);
+    EXPECT_NEAR(glm::length(along), 1.0f, 1e-3f) << i;
+    EXPECT_NEAR(glm::dot(along, merged.normals[i]), 0.0f, 1e-3f) << i;
+  }
+  // A stamp carrying none forms none.
+  Mesh plain = stamp;
+  plain.tangents.clear();
+  EXPECT_TRUE(points::instance(cloud, plain, options).tangents.empty());
+}

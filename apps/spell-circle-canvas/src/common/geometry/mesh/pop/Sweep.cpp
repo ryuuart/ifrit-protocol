@@ -11,7 +11,6 @@
  * about.
  */
 
-#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/pop/Sweep.h"
 
 #include <sigilcore/schedule/Parallel.h>
@@ -22,6 +21,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <utility>
+
+#include "sigilgeometry/advanced/Skia.h"
 
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
  *  opaque parameters are the group range and the global bindings, whose
@@ -250,6 +251,7 @@ Mesh sweep(const std::vector<curve::Frame3>& rail,
     }
   }
   if (geometric) out.computeNormals();
+  out.computeTangents();
   return out;
 }
 

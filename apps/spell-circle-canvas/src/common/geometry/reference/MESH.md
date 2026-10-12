@@ -11,9 +11,12 @@ operator catalogue and `KIT.md` the shelf.
 the currency every feature under it speaks.
 
 - **`mesh/Mesh.h`** — the mesh currency. The `Mesh` struct (positions,
-  normals, uvs, colors, indices, and the `primitives` lane map),
-  `append()`/`transform()`/`computeNormals()`/`bounds()`, and
-  `mesh::bakePrimitiveColor()`. `primitiveNames()` answers WHICH lanes the
+  normals, uvs, colors, tangents, indices, and the `primitives` lane map),
+  `append()`/`transform()`/`computeNormals()`/`computeTangents()`/`bounds()`,
+  and `mesh::bakePrimitiveColor()`. The tangent lane says which way u runs
+  along the surface at each vertex, which is what a brushing follows;
+  every stock generator fills it and every operation that forms vertices
+  anew carries it. `primitiveNames()` answers WHICH lanes the
   mesh carries, in the map's own order, so a reader that did not write
   them walks them without holding the map's own type. Two surfaces are
   here rather than on the kit's

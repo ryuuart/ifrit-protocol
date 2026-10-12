@@ -106,16 +106,25 @@ struct Mesh {
   void transform(const glm::mat4& m);
   /** Recompute vertex normals as area-weighted triangle-normal sums. */
   void computeNormals();
+  /** Fill the tangent lane from the uvs: at each vertex, the direction u
+   *  grows along the surface, summed over the triangles meeting there and
+   *  squared to the vertex's normal, with w saying which way v grows
+   *  beside it. A mesh whose uvs or normals are not sized to its positions
+   *  comes back carrying none, and so does a vertex no triangle gives a
+   *  direction of u. */
+  void computeTangents();
   /** Axis-aligned bounds. */
   void bounds(glm::vec3* lo, glm::vec3* hi) const;
 
   /** THE TANGENT LANE, optional: per vertex, in xyz the unit direction u
    *  runs along the surface, and in w which way v runs beside it — the
    *  direction v grows along is cross(normal, xyz) times w, one or minus
-   *  one. A generator that knows how its surface is parameterised fills
-   *  it; empty, or any count other than positions, is a mesh that carries
-   *  none, and a renderer reads the direction off the uvs where it draws.
-   *  A vertex whose xyz has no length carries none either. */
+   *  one. Every stock generator fills it — `grid()` from how its sheet is
+   *  parameterised, the rest through `computeTangents()` — and every
+   *  operation that forms vertices anew carries it. Empty, or any count
+   *  other than positions, is a mesh that carries none, and a renderer
+   *  reads the direction off the uvs where it draws. A vertex whose xyz
+   *  has no length carries none either. */
   std::vector<glm::vec4> tangents;
 
   /** Content equality, lane for lane. */

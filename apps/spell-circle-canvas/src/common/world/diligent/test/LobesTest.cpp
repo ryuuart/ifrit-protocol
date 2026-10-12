@@ -345,3 +345,45 @@ TEST(Lobes, ABrushedHighlightRunsSmoothlyAcrossACoarseMeshsEdges) {
   RecordProperty("derived", std::to_string(derived));
   EXPECT_LT(stated, derived * 0.85f) << stated << " " << derived;
 }
+
+TEST(Lobes, ABrushedHighlightRunsSmoothlyAcrossARevolvedCapsFacets) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  surface::SurfaceParameters brushed;
+  brushed.baseColor = {0.9f, 0.9f, 0.9f, 1};
+  brushed.metallic = 1.0f;
+  brushed.roughness = 0.35f;
+  brushed.anisotropy = 0.9f;
+  // A dome lathed from a profile of four points and twelve steps round:
+  // its uvs' derivatives are constant across each facet, so a brushing
+  // read off them steps at every edge, and one read off the tangents the
+  // lathe states does not.
+  const std::vector<glm::vec2> profile = {{0, 60}, {30, 52}, {52, 30}, {60, 0}};
+  const gm::Mesh coarse = gm::revolve(profile, {.segments = 12});
+  ASSERT_EQ(coarse.tangents.size(), coarse.positions.size());
+  gm::Mesh bare = coarse;
+  bare.tangents.clear();
+  const auto plate = [&](const gm::Mesh& dome) {
+    return photographed(
+        {directionalLight({-0.3f, -0.4f, -1}, {.intensity = 2.5f}).key("sun"),
+         mesh(dome).key("dome").rotateX(70).fill(surface::program(brushed))},
+        on.runtime);
+  };
+  const auto steps = [](const SkBitmap& image) {
+    float sum = 0;
+    for (int y = 1; y + 1 < kExtent.y; ++y)
+      for (int x = 1; x + 1 < kExtent.x; ++x) {
+        const float here = luma(image.getColor4f(x, y));
+        sum += std::fabs(luma(image.getColor4f(x - 1, y)) - 2 * here +
+                         luma(image.getColor4f(x + 1, y))) +
+               std::fabs(luma(image.getColor4f(x, y - 1)) - 2 * here +
+                         luma(image.getColor4f(x, y + 1)));
+      }
+    return sum;
+  };
+  const float stated = steps(plate(coarse));
+  const float derived = steps(plate(bare));
+  RecordProperty("stated", std::to_string(stated));
+  RecordProperty("derived", std::to_string(derived));
+  EXPECT_LT(stated, derived * 0.85f) << stated << " " << derived;
+}

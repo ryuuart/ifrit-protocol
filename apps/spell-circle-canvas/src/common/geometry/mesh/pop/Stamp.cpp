@@ -258,6 +258,9 @@ Mesh instance(const Cloud& cloud, const Mesh& stamp,
     const uint32_t base = (uint32_t)(i * stampVerts);
     for (uint32_t idx : stamp.indices) out.indices.push_back(base + idx);
   }
+  // A stamp carrying tangents forms them on every copy, read off the
+  // copy's own uvs and normals, which the stamp's turn has already moved.
+  if (stamp.tangents.size() == stampVerts) out.computeTangents();
   return out;
 }
 

@@ -350,18 +350,21 @@ PresentedImage* freePresented(Gpu& gpu) {
   return &gpu.presented.back();
 }
 
-/** THE PICTURE ON THE DEVICE'S OWN QUEUE: a canvas recorded by this
- *  device's own Graphite draws on the very queue the picture was drawn on,
- *  so the final stage's texture is handed over as it stands — left
+/** THE PICTURE ON THE DEVICE'S OWN QUEUE: a canvas recorded by any
+ *  recorder of this device's own Graphite — its main one or one made from
+ *  it for another thread — draws on the very queue the picture was drawn
+ *  on, so the final stage's texture is handed over as it stands — left
  *  readable behind a barrier that every later submission on the queue
  *  waits for, which is all the order the two need; no fence and nothing
- *  read back. Null for a recorder that is not the device's own, which the
- *  caller answers otherwise. */
+ *  read back. Null for a recorder on another device, which the caller
+ *  answers otherwise. */
 sk_sp<SkImage> presentOnQueue(Gpu& gpu, std::string_view name,
                               skgpu::graphite::Recorder& recorder) {
 #ifdef SK_VULKAN
-  skia::GraphiteContext* own = gpu.device->graphite();
-  if (gpu.presentRefused || !own || own->recorder() != &recorder)
+  ::sigil::core::hardware::GpuDevice* shared = gpu.device->gpu();
+  if (gpu.presentRefused || !shared || !gpu.device->graphite() ||
+      !shared->native().vulkan.device ||
+      skia::deviceOf(recorder) != shared->native().vulkan.device)
     return nullptr;
   dg::ITexture* texture = gpu.current(name);
   if (!texture) texture = gpu.previous(name);

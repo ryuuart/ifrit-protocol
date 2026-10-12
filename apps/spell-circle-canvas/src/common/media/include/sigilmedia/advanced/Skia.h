@@ -64,22 +64,25 @@ inline glm::ivec2 fromSk(SkISize size) { return {size.width(), size.height()}; }
 /** HOW A FRAME STANDING ON A DEVICE BECOMES AN IMAGE: made by the source
  *  that produced the frame, which alone knows what its surface is.
  *  `image(recorder)` wraps the surface for @p recorder where it stands,
- *  and with no recorder reads it back into host memory. An
+ *  and reads it back into host memory with no recorder or with one that
+ *  cannot sample the surface — Graphite on another API than the
+ *  surface's — since a host copy is what any recorder draws. An
  *  implementation keeps what it made, so a frame drawn in several places
- *  is bound once per recorder. */
+ *  is bound once per recorder and read back once. */
 class DeviceBinding {
  public:
   virtual ~DeviceBinding() = default;
-  /** The frame as an image @p recorder draws, or read back to the CPU
-   *  when @p recorder is null; null when neither can be made. */
+  /** The frame as an image @p recorder draws: wrapped where @p recorder
+   *  can sample the surface, read back to the CPU where it cannot or where
+   *  @p recorder is null; null only when neither can be made. */
   virtual sk_sp<SkImage> image(skgpu::graphite::Recorder* recorder) = 0;
 };
 
 /** THE FRAME AS AN IMAGE @p recorder DRAWS: its picture when it has one,
  *  its device surface bound for @p recorder when it has that, and that
- *  surface read back to host memory when @p recorder is null. Null for an
- *  empty frame. What a leaf, a pen and a texture call; a sketch draws a
- *  frame through one of them. */
+ *  surface read back to host memory when @p recorder is null or cannot
+ *  sample it. Null for an empty frame. What a leaf, a pen and a texture call; a
+ * sketch draws a frame through one of them. */
 sk_sp<SkImage> deviceImage(const Frame& frame,
                            skgpu::graphite::Recorder* recorder);
 

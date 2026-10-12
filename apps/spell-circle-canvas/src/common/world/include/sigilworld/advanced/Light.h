@@ -119,8 +119,9 @@ struct LightDescription {
   motion::Animatable<float> intensity = 1.0f;
   /** A hemisphere light's colour from below the horizon. */
   motion::Animatable<material::Color> groundColor = material::Color{0, 0, 0, 1};
-  /** Point and spot: past zero, the distance at which a smooth window has
-   *  brought the inverse square to nothing; zero reaches everywhere. */
+  /** Point, spot, sphere, rect and disk: past zero, the distance from
+   *  where it stands at which a smooth window has brought it to nothing;
+   *  zero reaches everywhere. */
   float range = 0;
   /** Spot: full strength within `innerAngle` degrees of where it aims,
    *  dark beyond `outerAngle`, interpolated between. */

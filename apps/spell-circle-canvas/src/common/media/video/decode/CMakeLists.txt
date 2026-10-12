@@ -31,9 +31,12 @@ sigil_test(media_test
 if(APPLE)
   sigil_frameworks(metal Metal)
 
+  # Graphite on the shared Vulkan device is the recorder that cannot sample
+  # a decoded frame's Metal planes.
   sigil_test(media_test
     SOURCES test/DeviceTest.mm
-    LIBRARIES SigilMediaVideoDecode SigilMediaVideoEncode SigilSkiaGraphite ${metal}
+    LIBRARIES SigilMediaVideoDecode SigilMediaVideoEncode SigilSkiaGraphite
+              SigilGeometryDevice ${metal}
     SUITES VideoDevice LABELS gpu
     ARC)
 

@@ -55,3 +55,14 @@ endif()
 sigil_test(io_test
   SOURCES test/PublisherTest.cpp test/SubscriptionTest.cpp
   LIBRARIES SigilIOFrames)
+
+# An arrival bound for Graphite on the shared Vulkan device, a recorder
+# that cannot sample its Metal texture.
+if(APPLE)
+  sigil_frameworks(metal Metal)
+  sigil_test(io_test
+    SOURCES test/ReceivedTest.mm
+    LIBRARIES SigilIOFrames SigilSkiaGraphite SigilGeometryDevice ${metal}
+    SUITES ReceivedFrame LABELS gpu
+    ARC)
+endif()

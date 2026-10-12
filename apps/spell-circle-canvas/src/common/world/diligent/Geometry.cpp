@@ -743,32 +743,49 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   else
     surface = surfaceOf(material, lit, gpu.seconds, caster != nullptr,
                         gpu.standIns, reaching);
-  // THE PIPELINE, built on the device's workers: a stand-in's is started
-  // when the runtime is made, and where a live frame still finds it
-  // building the body is left out of that frame and counted as waiting.
   if (!surface.program || surface.program->empty()) return;
   PipelineKey key = bodyKey(*surface.program, blending, cull, caster);
-  // A body whose own program is in hand waits for its pipeline, so the
-  // frame after a program arrives draws it whole; only a stand-in in a
-  // live frame — whose pipeline every runtime starts ahead of its first
-  // frame — is not waited for.
-  const Pipeline* pipeline = gpu.standIns && surface.standIn
-                                 ? gpu.pipelines.ready(key)
-                                 : gpu.pipelines.pipeline(key);
-  if (!pipeline && gpu.standIns && surface.standIn) {
-    ++gpu.programsPending;
-    return;
+  // A LIGHT KIND ENTERING, told from a body opening by the light bits its
+  // lit program was last drawn whole with.
+  const material::Recipe* litRecipe =
+      lit && !caster && material ? &material->recipe() : nullptr;
+  const auto drawn =
+      litRecipe ? gpu.litWith.find(litRecipe) : gpu.litWith.end();
+  const bool entering = drawn != gpu.litWith.end() && drawn->second != reaching;
+  // THE PIPELINE, built on the device's workers. A frame that waits waits
+  // for it. A live frame takes it only once it is built: until then the
+  // body stands in, through the stand-in's pipeline every runtime starts
+  // ahead of its first frame, and where that one too is still building
+  // the body is left out of the frame; either way it is counted as
+  // waiting. The one body a live frame waits for is one whose program a
+  // light kind entering made it wait for, so that light costs at most one
+  // frame of stand-ins.
+  const Pipeline* pipeline = nullptr;
+  if (!gpu.standIns || (entering && !surface.standIn)) {
+    pipeline = gpu.pipelines.pipeline(key);
+  } else {
+    pipeline = gpu.pipelines.ready(key);
+    if (!pipeline && !surface.standIn && !(caster && caster->tint)) {
+      surface = Surface{};
+      surface.standIn = true;
+      surface.lit = false;
+      surface.program =
+          caster ? &shadowScaffold(/*coverage=*/true) : &scaffold(false);
+      key = bodyKey(*surface.program, blending, cull, caster);
+      pipeline = gpu.pipelines.ready(key);
+    }
+    if (!pipeline) {
+      ++gpu.programsPending;
+      return;
+    }
   }
   if (!pipeline) return;
-  // A LIGHT KIND ENTERING, told from a body opening by the light bits its
-  // lit program was last drawn whole with: the compile the stand-in
-  // started is waited for before the next geometry pass draws.
-  if (lit && !caster && material) {
-    const material::Recipe* recipe = &material->recipe();
-    const auto drawn = gpu.litWith.find(recipe);
+  // The compile a light kind entering made the stand-in start is waited
+  // for before the next geometry pass draws.
+  if (litRecipe) {
     if (!surface.standIn)
-      gpu.litWith[recipe] = reaching;
-    else if (drawn != gpu.litWith.end() && drawn->second != reaching)
+      gpu.litWith[litRecipe] = reaching;
+    else if (entering)
       gpu.awaitedPrograms.emplace_back(material->recipePointer(),
                                        kVariantLit | reaching);
   }
@@ -1895,6 +1912,7 @@ int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
     viewport.MaxDepth = 1.0f;
     context->SetViewports(1, &viewport, side, side);
     const Collection& link = map.light->light.shadowLink;
+    const int64_t pendingBefore = gpu.programsPending;
     for (size_t i = 0; i < view.draws.size(); ++i) {
       const Draw& body = view.draws[i];
       if (!casts(body)) continue;
@@ -1909,6 +1927,10 @@ int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
           caster.coverage ? body.texture : nullptr, {}, view.environment,
           /*lit=*/false, Blending{}, /*cull=*/false, nullptr, nullptr, &caster);
     }
+    // A tile a body stood in for, or was left out of, is drawn again on
+    // the next frame, whatever its depth is a function of.
+    if (gpu.programsPending != pendingBefore)
+      gpu.shadowFolds[at] = ~gpu.shadowFolds[at];
   }
   return (int64_t)redrawn;
 }

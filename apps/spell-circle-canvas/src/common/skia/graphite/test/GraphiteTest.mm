@@ -687,6 +687,30 @@ TEST(SigilSkiaGraphite, AThreadOfItsOwnRecordsOnARecorderOfItsOwn) {
   EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 0, 255));
 }
 
+TEST(SigilSkiaGraphite, EveryRecorderOfAContextNamesItsDevice) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  void *metal = (__bridge void *)device();
+  EXPECT_EQ(sigil::skia::deviceOf(*ctx->recorder()), metal);
+  std::unique_ptr<skgpu::graphite::Recorder> second = ctx->makeRecorder();
+  ASSERT_NE(second, nullptr);
+  EXPECT_EQ(sigil::skia::deviceOf(*second), metal);
+  // A texture on that device is one a second recorder draws on too.
+  MTLTextureDescriptor *described =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+                                                         width:4
+                                                        height:4
+                                                     mipmapped:NO];
+  id<MTLTexture> texture = [device() newTextureWithDescriptor:described];
+  ASSERT_NE(texture, nil);
+  EXPECT_TRUE(sigil::skia::drawsOnDeviceOf(*second, (__bridge void *)texture));
+  // A recorder made outside this library cannot be named.
+  std::unique_ptr<skgpu::graphite::Recorder> bare = ctx->context()->makeRecorder({});
+  ASSERT_NE(bare, nullptr);
+  EXPECT_EQ(sigil::skia::deviceOf(*bare), nullptr);
+  EXPECT_FALSE(sigil::skia::drawsOnDeviceOf(*bare, (__bridge void *)texture));
+}
+
 TEST(SigilSkiaGraphite, AMovedFromSurfaceHoldsNothingAndSubmitsNothing) {
   SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();

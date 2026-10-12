@@ -82,8 +82,9 @@ class GraphiteContext {
 
   /** A recorder of its own for another thread, built with the same
    *  options as `recorder()` — the image provider and ordered replay —
-   *  so it carries the same preconditions. Recordings it snaps are
-   *  inserted into `context()` under `lockContext()`. */
+   *  so it carries the same preconditions, and draws on the same device,
+   *  which `deviceOf` names for it as for `recorder()`. Recordings it
+   *  snaps are inserted into `context()` under `lockContext()`. */
   std::unique_ptr<skgpu::graphite::Recorder> makeRecorder() const;
 
   /** Holds the context for the calling thread; every `context()` call
@@ -174,15 +175,24 @@ class GraphiteContext {
   [[nodiscard]] size_t precompile(std::span<const sk_sp<SkData>> keys) const;
 
  private:
-  /** Wraps a context and the one recorder made from it; the backend
-   *  factories build the pair and hand it here. A context is reached
-   *  only through a factory, and only ever by pointer. */
+  /** Wraps a context and makes its one recorder; the backend factories
+   *  build the context on @p device — an id<MTLDevice> or a VkDevice,
+   *  bridged to void* — and hand it here. A context is reached only
+   *  through a factory, and only ever by pointer. */
   GraphiteContext(std::unique_ptr<skgpu::graphite::Context> context,
-                  std::unique_ptr<skgpu::graphite::Recorder> recorder);
+                  void* device);
 
   std::unique_ptr<skgpu::graphite::Context> m_context;
+  /** The device every recorder made here draws on. */
+  void* m_device = nullptr;
   std::unique_ptr<skgpu::graphite::Recorder> m_recorder;
   mutable std::mutex m_contextMutex;
 };
+
+/** THE DEVICE @p recorder DRAWS ON — an id<MTLDevice> or a VkDevice,
+ *  bridged to void* — for every recorder a context here made: its own
+ *  `recorder()` and every one from `makeRecorder()`. Null for a recorder
+ *  this library did not make, whose device it cannot name. */
+void* deviceOf(const skgpu::graphite::Recorder& recorder);
 
 }  // namespace sigil::skia

@@ -125,6 +125,9 @@ struct RectLightOptions {
   /** How bright its face is, as a factor on the colour: a larger panel
    *  at the same intensity delivers more. */
   motion::Animatable<float> intensity = 1.0f;
+  /** Past zero, the distance from its centre at which it has been brought
+   *  smoothly to nothing; zero reaches everywhere. */
+  float range = 0;
   /** WHETHER IT CASTS SHADOWS — through six maps from its centre turned
    *  to its face, which hold its whole front half, with an edge the panel's
    *  size widens away from where a caster meets what it shades: off unless
@@ -163,6 +166,9 @@ struct DiskLightOptions {
   /** How strongly: what it delivers along its face's normal at one
    *  unit, whatever its size. */
   motion::Animatable<float> intensity = 1.0f;
+  /** Past zero, the distance from its centre at which it has been brought
+   *  smoothly to nothing; zero reaches everywhere. */
+  float range = 0;
   /** WHETHER IT CASTS SHADOWS — through six maps from its centre turned
    *  to its face, which hold its whole front half, with an edge the panel's
    *  size widens away from where a caster meets what it shades: off unless

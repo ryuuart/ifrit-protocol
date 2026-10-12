@@ -410,17 +410,13 @@ The unresolved screen should not form large alternating islands.
 ## Renderer gap: a material channel with no Slang body is not bound by World
 
 World's device binder writes a child material in a surface slot into the
-body that reads it (`material::inlined`), so `surface::blendNormals`, a
-flipbook or a flow map plays as a channel. `surface::normalFromHeight` has
-an SkSL body only, so the device cannot compile it: the slot is reported
-once and reads as empty. Compose's Skia executor evaluates it.
-
-Wanted: a Slang body for `normalFromHeight` (a central difference over the
-height slot at a texel step the recipe states), or a bake of its output into
-a texture before it reaches a body. A regression should compare a height
-texture's derived normal on a World card with the same normal supplied as a
-texture, under one raking light. Until then a page reaches a scene3d sketch through
-`compose::SurfaceScene`, whose normal map is an image the binder reads.
+body that reads it, so a recipe with a Slang body plays as a channel and
+one without is reported once and reads as empty. `field.noise`,
+`field.ripple`, `field.halftoneRamp`, `pattern.scanlines` and
+`pattern.stipple`, and the OCIO `color.lut3d` and `color.response1d`
+recipes, carry SkSL bodies only. Each wants a Slang body. A test should
+put each on a World card's base colour or normal and find it varying
+across the card as the page draws it.
 
 ## Authoring gap: material strokes separate cap and join control from surface relief
 
@@ -553,36 +549,35 @@ should compare the rect's specular response on a plate at roughness 0.3,
 rectangle, within a stated bound, and the fitted tables against direct
 integration at their texel centres.
 
-## A sized light's sheen and brushing are simplified, and a rect or disk light has no range
+## A sized light's sheen and brushing are simplified
 
 Under a rect, sphere or disk light a sheen is lit as by a point light at
 the light's centre carrying the whole light, and a brushing keeps the
-isotropic representative point and stretches the lobe there. Neither
-follows the light's shape, and `RectLightOptions` and `DiskLightOptions`
-carry no `range` window. A test should assert that a brushed plate under
-a long strip light aligned with the brushing shows a longer highlight than
-one across it, that a sheen under a wide panel grazing a cloth plate
-spreads over the panel's width, and that a rect light's range darkens
-what stands past it.
+isotropic representative point and stretches the lobe there; neither
+follows the light's shape. A brushed strip aligned with the brushing
+already shows a longer highlight than one across it, and a cloth plate
+under a narrow and a wide grazing panel show nearly the same profile, so
+no image test tells the shape-following treatment from today's; a
+discriminating test needs a numerical integral of the lobe over the
+light, as the representative-point entry states.
 
 ## Performance: a Compose page's path strokes are rasterised on the CPU every frame
 
 A scene3d page draws on the Vulkan Graphite context made with internal
 multisampling off (the `workaround:` in
-`src/common/skia/graphite/GraphiteContextVulkan.cpp`, whose stated
-reason is passes ending mid-scene), so Skia takes its raster-atlas path
-strategy and every non-simple path is filled on the CPU, which is nearly
-all of the main thread's busy time in `wet_glass_console`; the scrolling
-traces are new geometry each frame, so the atlas never hits. The ribbon
-band itself is costly to fill: `geometry::path::sweptRegion`
-(`geometry/path/Band.cpp`) builds it as thousands of overlapping quads
-and join circles, several times the cost of a plain stroked outline. On
-Metal, Graphite tessellates instead. Either the Vulkan context takes
-internal multisampling back behind a test of the reason the workaround
-states, or a constant-width ribbon is emitted as a stroked outline and
-the swept region simplified, which moves ribbon pictures. The bench arm
-`BM_Draw_Ribbons_Scrolling` in `compose/brush/bench/ComposePaintBench.cpp`
-holds the number either must move.
+`src/common/skia/graphite/GraphiteContextVulkan.cpp`), so Skia takes its
+raster-atlas path strategy and every non-simple path is filled on the
+CPU; the scrolling traces of `wet_glass_console` are new geometry each
+frame, so the atlas never hits, and the CPU fill is a third of the host
+frame. The workaround's reason holds: with multisampling on, a pass that
+resumes after a fence loses what the pass before it drew
+(`AdoptedGraphite.AFencedPassKeepsWhatThePassBeforeItDrew`). The
+multisampled attachment can come back once a resumed pass keeps its
+samples, which is a resolve-and-reload of the multisampled target around
+the fence. The ribbon band itself, built by `geometry::path::sweptRegion`
+as thousands of overlapping quads, is the other half, which the stroked
+outline form addresses. The bench arm `BM_Draw_Ribbons_Scrolling` holds
+the number either must move.
 
 ## Performance: a transmissive pixel costs several times an opaque lit one
 
@@ -605,58 +600,14 @@ different indices and find each region's volume in its own maps.
 
 The refraction lens assumes a body's back mirrors the front's curvature,
 so a drop resting flat on glass, or any plano-convex body, cannot be
-stated. A body should be able to state a flat back: a field on
-`SurfaceOptions` in material core, carried to the surface program as a
-plane at the body's own zero depth. A test should bend a plano-convex
-body like one; a dome's edge shift against the mirrored back is too close
-to tell them apart, so the test wants a thick slab whose far face is flat
-and a grid behind it, measuring the grid's displacement across the slab.
-
-## A device binding may answer nothing to a recorder that cannot sample its surface
-
-The media `DeviceBinding` contract (`include/sigilmedia/advanced/Skia.h`)
-says `image(recorder)` wraps the surface for the recorder or reads back
-when the recorder is null, and says nothing of a recorder that cannot
-sample the surface, such as a Vulkan Graphite handed a Metal texture. The
-Substance binding now answers its host copy there. The video decoder's
-`FrameBinding` (`media/video/decode/Raster.cpp`) and the received frames
-binding under `io/frames` may still answer null to such a recorder, so an
-image leaf drawing them in a headless device sweep draws nothing. A
-binding should answer the host copy wherever it cannot wrap, and the
-contract should say so. A test should bind each kind of device frame for a
-Vulkan Graphite recorder and find a drawable image. The copy that host
-answer costs could go once the shared device imports a Metal texture into
-Vulkan, as it already exports its own objects the other way.
-
-## Contract: a live frame waits for a newly arrived program's pipeline
-
-When a body's program arrives, the next live frame builds its pipeline on
-a worker but waits for it. Scene3d sessions now report a `pending` lane
-from `SceneStats::programsPending`, and `shadedFrame` in
-`src/sketch/scene3d/test/Scene3DSessionTest.cpp` draws until it is zero,
-so `drawBody` in `src/common/world/diligent/Geometry.cpp` can take the
-pipeline cache's non-waiting answer for every live body and stand the
-body in until it is built, as the first frame's bodies are. A test should
-run a live scene whose program arrives mid-run and find no frame longer
-than a small multiple of the steady frame.
-
-## Present on device covers only the device Graphite's main recorder
-
-`Gpu::present` takes the in-place path only when the canvas's recorder is
-the device Graphite's own recorder; a recorder made from the same context
-with `makeRecorder()` is read back. Any recorder of that context should be
-served in place, which needs a SigilSkia query naming a Vulkan recorder's
-device the way `drawsOnDeviceOf` does for Metal. A test should present onto
-a surface of a second recorder of the same context and find readbacks zero.
-
-## The tangent lane is filled only by the grid generator
-
-`Mesh::tangents` is filled by `grid()`, so brushing follows the surface on
-a sphere, a torus and a superellipsoid, while `revolve`, `extrude`, `box`
-and the sweeps carry no tangents and an operation that rebuilds vertices
-drops them, since a mis-sized lane reads as none. Every generator should
-fill the lane and every rebuilding operation carry it. A test should brush
-a revolved cap of a coarse profile and find no facet steps.
+stated. A body should state a flat back: `SurfaceOptions::flatBack` in
+material core, meaning the back is the plane at the body's own zero
+depth; `Lower.cpp` copies it into the surface parameters as a uniform,
+`Surface.slang` and its over prelude carry it, World's vertex stage
+passes the body's back plane in view space, and the passage intersects
+the bent ray with that plane and refracts out through its normal. A test
+should put a thick slab with a flat far face over a grid and measure the
+grid's displacement across the slab.
 
 ## Design question: the window's endpoint has no client clock or session access
 
@@ -681,3 +632,21 @@ restaled like any world-space node. A test should paint a root-space
 gradient in a pen leaf under a recorded parent, move the grandparent, and
 find the leaf's pixels matching an ordinary world-space fill at the same
 root positions.
+
+## A grid's pole normals lean toward one column
+
+`grid()` gives every degenerate pole vertex the nearest valid normal in
+vertex order, so every vertex of a pole row takes one neighbour's normal
+and leans toward that column; at a superellipsoid's or a revolved dome's
+apex the normal stands well off the axis. A pole's normal should be the
+sheet's limit there, which for a revolved profile is the axis. A test
+should find every pole vertex's normal of a revolved dome and a
+superellipsoid within a small angle of the axis; every superellipsoid
+plate moves.
+
+## Python lacks a rect's and a disk's range and a mesh's tangents
+
+`rectLight` and `diskLight` in `python/world/World.cpp` take no `range`,
+and `Mesh.computeTangents` is not bound. Bind both and regenerate the
+typing; a Python rect light with a short range should leave a card past
+it dark, and a Python mesh with uvs should gain a tangent lane.

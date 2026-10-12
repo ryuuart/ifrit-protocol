@@ -175,7 +175,9 @@ the device, holding its own reference to the texture, the same frame until
 another arrives. `sigil::media::deviceImage` binds it for the recorder a
 drawing is recorded on, turned the right way up once per arrival, and reads it
 back into host memory, turned the same way, for a caller with no recorder — a
-body in a world drawn on another device, an encode. Asking for it is also the
+body in a world drawn on another device, an encode — and for a recorder that
+cannot sample a Metal texture, such as Graphite on a Vulkan device, which draws
+that host copy. Asking for it is also the
 reconnection `latest` is.
 
 `sigil::io::frames::defaultMetalDevice` returns the process's shared system Metal

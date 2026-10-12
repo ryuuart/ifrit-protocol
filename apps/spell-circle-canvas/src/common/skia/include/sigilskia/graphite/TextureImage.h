@@ -73,8 +73,10 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder, void* mtlTexture,
                          TextureRelease released, void* releasedContext);
 
 /** Whether @p recorder draws on the Metal device @p mtlTexture stands on.
- *  False for a recorder on another API or another device, and for one
- *  this library did not bring up, whose device it cannot name. */
+ *  True for every recorder a context here made, its own and every one
+ *  from `makeRecorder()`; false for a recorder on another API or another
+ *  device, and for one this library did not make, whose device it cannot
+ *  name. */
 bool drawsOnDeviceOf(const skgpu::graphite::Recorder& recorder,
                      void* mtlTexture);
 

@@ -16,6 +16,7 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/YUVABackendTextures.h>
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/TextureImage.h>
 
 #include "Waits.h"
@@ -134,7 +135,7 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture, 
 
 bool drawsOnDeviceOf(const skgpu::graphite::Recorder &recorder, void *mtlTexture) {
   if (recorder.backend() != skgpu::BackendApi::kMetal || !mtlTexture) return false;
-  void *device = metalDeviceOf(&recorder);
+  void *device = deviceOf(recorder);
   if (!device) return false;
   id<MTLTexture> texture = (__bridge id<MTLTexture>)mtlTexture;
   return (__bridge void *)texture.device == device;

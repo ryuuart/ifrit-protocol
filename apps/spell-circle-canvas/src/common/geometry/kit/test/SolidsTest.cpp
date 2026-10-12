@@ -30,6 +30,58 @@ bool normalsAreUnit(const Mesh& mesh) {
   return true;
 }
 
+/** How many of @p mesh's vertices break the tangent lane's promise: a
+ *  unit direction in the surface, square to the normal, pointing the way
+ *  u grows across the triangles that meet there, with w on the side v
+ *  grows. A triangle whose uvs wrap or do not span the surface says
+ *  nothing about its corners. A lane not sized to the positions breaks it
+ *  at every vertex. */
+int tangentsBreakingTheUvs(const Mesh& mesh) {
+  if (mesh.tangents.size() != mesh.positions.size())
+    return (int)std::max<size_t>(mesh.positions.size(), 1);
+  int breaking = 0;
+  for (size_t i = 0; i < mesh.positions.size(); ++i) {
+    const glm::vec3 along(mesh.tangents[i]);
+    if (std::abs(glm::length(along) - 1.0f) > 1e-3f ||
+        std::abs(glm::dot(along, mesh.normals[i])) > 1e-3f ||
+        std::abs(std::abs(mesh.tangents[i].w) - 1.0f) > 1e-6f)
+      ++breaking;
+  }
+  for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+    const uint32_t corner[3] = {mesh.indices[i], mesh.indices[i + 1],
+                                mesh.indices[i + 2]};
+    const glm::vec3 edge1 =
+        mesh.positions[corner[1]] - mesh.positions[corner[0]];
+    const glm::vec3 edge2 =
+        mesh.positions[corner[2]] - mesh.positions[corner[0]];
+    const glm::vec2 change1 = mesh.uvs[corner[1]] - mesh.uvs[corner[0]];
+    const glm::vec2 change2 = mesh.uvs[corner[2]] - mesh.uvs[corner[0]];
+    const glm::vec2 change3 = change2 - change1;
+    if (std::max({std::abs(change1.x), std::abs(change2.x), std::abs(change3.x),
+                  std::abs(change1.y), std::abs(change2.y),
+                  std::abs(change3.y)}) > 0.5f)
+      continue;
+    const float spanned = change1.x * change2.y - change2.x * change1.y;
+    if (std::abs(spanned) < 1e-9f) continue;
+    const glm::vec3 u = (edge1 * change2.y - edge2 * change1.y) / spanned;
+    const glm::vec3 v = (edge2 * change1.x - edge1 * change2.x) / spanned;
+    for (const uint32_t at : corner) {
+      const glm::vec3 n = mesh.normals[at];
+      const glm::vec3 along(mesh.tangents[at]);
+      const glm::vec3 beside = glm::cross(n, along) * mesh.tangents[at].w;
+      const glm::vec3 uInSurface = u - n * glm::dot(u, n);
+      const glm::vec3 vInSurface = v - n * glm::dot(v, n);
+      if (glm::dot(uInSurface, uInSurface) > 1e-12f &&
+          glm::dot(along, uInSurface) <= 0.0f)
+        ++breaking;
+      if (glm::dot(vInSurface, vInSurface) > 1e-12f &&
+          glm::dot(beside, vInSurface) <= 0.0f)
+        ++breaking;
+    }
+  }
+  return breaking;
+}
+
 /** How many of @p mesh's triangles face toward @p centre — or, when
  *  @p away is false, away from it — by their winding or by the normals at
  *  their corners; a triangle with no area faces nowhere and is not
@@ -538,4 +590,59 @@ TEST(SolidValues, EachFormsWhatItsFormerFormsAndComparesByItsFields) {
       extrude(outline, 6));
   EXPECT_NE((solids::Extrusion{.outline = outline, .options = {.depth = 6}}),
             (solids::Extrusion{.outline = outline, .options = {.depth = 7}}));
+}
+
+TEST(Solids, EverySolidCarriesTangentsFollowingItsUvs) {
+  const std::vector<glm::vec2> cap = {{0, 30}, {14, 26}, {24, 16}, {30, 0}};
+  EXPECT_EQ(tangentsBreakingTheUvs(revolve(cap, {.segments = 12})), 0);
+  // Turned to face into the solid, v still grows the same way along the
+  // surface, so w turns with the normal.
+  EXPECT_EQ(
+      tangentsBreakingTheUvs(revolve(cap, {.segments = 12, .inward = true})),
+      0);
+  const std::vector<glm::vec2> can = {{0, 0}, {10, 0}, {10, 20}, {0, 20}};
+  EXPECT_EQ(tangentsBreakingTheUvs(revolve(can, {.segments = 24})), 0);
+  EXPECT_EQ(tangentsBreakingTheUvs(box({0, 0, 0}, {2, 3, 4})), 0);
+  const path::Outline outline = path::fromSk(square(40));
+  EXPECT_EQ(tangentsBreakingTheUvs(extrude(outline, 6)), 0);
+  EXPECT_EQ(
+      tangentsBreakingTheUvs(extrude(
+          outline, {.depth = 10, .edge = ExtrudeEdge::Round, .edgeSize = 2})),
+      0);
+  EXPECT_EQ(tangentsBreakingTheUvs(fill(outline)), 0);
+  const std::vector<std::vector<glm::vec3>> sections = {
+      {{0, 0, 0}, {10, 0, 0}, {10, 0, 10}, {0, 0, 10}},
+      {{0, 20, 0}, {10, 20, 0}, {10, 20, 10}, {0, 20, 10}}};
+  EXPECT_EQ(tangentsBreakingTheUvs(loft(sections)), 0);
+  for (const Platonic solid :
+       {Platonic::Tetrahedron, Platonic::Octahedron, Platonic::Dodecahedron,
+        Platonic::Icosahedron, Platonic::Cube})
+    EXPECT_EQ(tangentsBreakingTheUvs(platonic(solid)), 0)
+        << "regular solid " << (int)solid;
+  EXPECT_EQ(tangentsBreakingTheUvs(torus(40, 8, 24, 12)), 0);
+  // A sheet whose texture is laid by a formula reads its tangents off the
+  // laid uvs.
+  const Mesh laid = grid(
+      8, 8,
+      [](float u, float v) -> glm::vec3 { return {u * 10, v * 10, u * v}; },
+      {.textureFromPosition = [](glm::vec3 p) {
+        return glm::vec2{p.y / 10, p.x / 10};
+      }});
+  EXPECT_EQ(tangentsBreakingTheUvs(laid), 0);
+}
+
+TEST(Solids, AnOperationFormingVerticesAnewCarriesTheTangents) {
+  const Mesh ball = superellipsoid({10, 10, 10}, 2.0f, 12, 8);
+  ASSERT_EQ(ball.tangents.size(), ball.positions.size());
+  Mesh tinted = ball;
+  tinted.primitive("Color", {0.5f, 0.5f, 0.5f, 1});
+  const Mesh baked = bakePrimitiveColor(tinted);
+  ASSERT_EQ(baked.tangents.size(), baked.positions.size());
+  for (size_t t = 0; t < baked.indices.size(); ++t)
+    EXPECT_EQ(baked.tangents[baked.indices[t]], ball.tangents[ball.indices[t]]);
+  // A mesh with no uvs to read u off carries none.
+  Mesh bare = ball;
+  bare.uvs.clear();
+  bare.computeTangents();
+  EXPECT_TRUE(bare.tangents.empty());
 }

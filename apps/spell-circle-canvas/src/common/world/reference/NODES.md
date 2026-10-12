@@ -171,7 +171,8 @@ their node stands: `rectLight` is a panel `RectLightOptions::width` by
 `RectLightOptions::height` shining from its front face along its
 direction, `sphereLight` a ball of `SphereLightOptions::radius` shining
 every way, and `diskLight` a round panel of `DiskLightOptions::radius`
-shining from its front face. `ambientLight` arrives equally from every
+shining from its front face; each states a `range` as a point light
+does, measured from its centre. `ambientLight` arrives equally from every
 direction, and `hemisphereLight` from a sky above the horizon and a
 ground below it, about its node's up. A light is aimed by the direction
 it travels, and its node's rotation turns that direction — and a

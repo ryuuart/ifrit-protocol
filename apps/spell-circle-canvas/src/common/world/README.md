@@ -612,7 +612,8 @@ a texture handed to the canvas's queue, a fence is signalled behind it
 on the device's queue, and the canvas's next submission waits on the
 GPU for that signal — the same order a compose texture sampled by a 3D
 pass keeps by riding one queue, made explicit because a window draws on
-a queue of its own. A canvas recorded by the device's own Graphite
+a queue of its own. A canvas recorded by any recorder of the device's
+own Graphite — its main one, or one made from it for another thread —
 stands on the very queue the picture was drawn on, so the texture is
 handed over behind a barrier alone, with no fence. A texture is drawn
 into again only once the canvas's submission that sampled it has
@@ -629,12 +630,16 @@ way each picture went.
 yet is drawn in its base colour, unlit, while
 `material::ProgramCache::prepare` compiles it on a worker, and whole on
 the first frame after it arrives; `SceneStats::programsPending` counts
-the bodies drawn so. Pipelines are built on the device's workers: the
-stand-in's own, with every other one each frame draws with, is started
-when the runtime is made, ahead of the first frame, and a live frame
-that still finds it building leaves the body out and counts it so; a
-body whose program is in hand waits for its pipeline, so the frame after
-a program arrives draws it whole. A frame left waiting compiles every
+the bodies drawn so. Pipelines are built on the device's workers, and a
+live frame waits for none: a body whose program is in hand but whose
+pipeline is still building stands in too, and is drawn whole on the
+first frame after the pipeline is built. The stand-in's own pipeline,
+with every other one each frame draws with, is started when the runtime
+is made, ahead of the first frame, and a live frame that still finds it
+building leaves the body out and counts it so. The one wait a live frame
+takes is for a light kind entering: the pass after it waits for the
+programs and pipelines the new set of lights needs, so a light entering
+costs at most one frame of stand-ins. A frame left waiting compiles every
 program and builds every pipeline before it draws, so its first frame
 holds the real surfaces. The pipelines go through the
 driver's cache on the device they stand on, which a host that names a
@@ -745,9 +750,10 @@ would drag one edge's pixels across a whole face.
 **A channel the device samples is an image texture or a material with a
 Slang body.** A material in a slot is written into the body it fills
 (`material::inlined`), so a flipbook, a flow map or one channel of a
-packed texture plays on a body as it does on a page. A channel filled with
-a material that has no Slang body — a normal derived from a height, a
-gradient — has nothing the device can compile: it reports the slot once
+packed texture plays on a body as it does on a page, and a normal derived
+from a height shades a body as the same normal supplied as a texture does.
+A channel filled with a material that has no Slang body — a gradient, a
+noise field — has nothing the device can compile: it reports the slot once
 and the slot reads as empty.
 
 **World does not link SigilCompose and no world header names a compose

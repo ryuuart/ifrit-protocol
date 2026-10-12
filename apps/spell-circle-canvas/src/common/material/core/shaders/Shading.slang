@@ -637,12 +637,23 @@ public float3 diffuseColorFrom(float3 baseColor, float metal,
 
 // ---- how a light reaches a point ---------------------------------------
 
+/** THE SMOOTH WINDOW A POSITIONED LIGHT'S REACH ENDS IN over @p distance:
+ *  one minus the fourth power of the distance over @p range, squared, so it
+ *  reaches exactly zero at the range and the cut has no edge. A range of
+ *  zero or less is no window: one everywhere. The distance is held off zero
+ *  as the falloff below holds it. */
+public float rangeWindow(float distance, float range) {
+  if (range <= 0.0) return 1.0;
+  float q = max(distance, 1e-2) / range;
+  float q2 = q * q;
+  float w = min(max(1.0 - q2 * q2, 0.0), 1.0);
+  return w * w;
+}
+
 /** HOW A POSITIONED LIGHT FALLS OFF over @p distance: the inverse square,
- *  which is what light spreading over a sphere does, times a smooth window
- *  that brings it to exactly zero at @p range — one minus the fourth power
- *  of the distance over the range, squared, so the cut has no edge. A range
- *  of zero or less is no window: the light reaches everywhere. The distance
- *  is held off zero, where the square would answer infinity. */
+ *  which is what light spreading over a sphere does, times the window
+ *  `rangeWindow` states, its products taken left to right. The distance is held off zero, where the square
+ *  would answer infinity. */
 public float distanceFalloff(float distance, float range) {
   float d = max(distance, 1e-2);
   float falloff = 1.0 / (d * d);

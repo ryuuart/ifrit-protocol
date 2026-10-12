@@ -176,3 +176,27 @@ TEST(MeshSweep, TheOptionsCompareAndATaperIsEqualToNothing) {
 }
 
 }  // namespace
+
+TEST(MeshSweep, ASweptTubeCarriesTangentsRunningRoundItsRings) {
+  for (const bool caps : {false, true}) {
+    SweepOptions options;
+    options.caps = caps;
+    const Mesh tube = pop::sweep(rail(5), sections::circle(12), options);
+    ASSERT_EQ(tube.tangents.size(), tube.positions.size());
+    ASSERT_EQ(tube.normals.size(), tube.positions.size());
+    // Twelve sides and the seam point again.
+    const size_t ring = 13;
+    for (size_t i = 0; i < 5 * ring; ++i) {
+      const glm::vec3 along(tube.tangents[i]);
+      EXPECT_NEAR(glm::length(along), 1.0f, 1e-3f) << i;
+      EXPECT_NEAR(glm::dot(along, tube.normals[i]), 0.0f, 1e-3f) << i;
+      // Round the ring, the way the profile runs: square to the rail.
+      EXPECT_NEAR(along.z, 0.0f, 1e-3f) << i;
+    }
+    // Every vertex of a ring turns the same way round it.
+    for (size_t k = 1; k + 1 < ring; ++k) {
+      const glm::vec3 onward = tube.positions[k + 1] - tube.positions[k - 1];
+      EXPECT_GT(glm::dot(glm::vec3(tube.tangents[k]), onward), 0.0f) << k;
+    }
+  }
+}

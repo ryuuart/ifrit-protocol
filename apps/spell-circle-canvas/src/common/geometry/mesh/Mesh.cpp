@@ -174,6 +174,45 @@ void Mesh::transform(const glm::mat4& m) {
   }
 }
 
+void Mesh::computeTangents() {
+  const size_t count = positions.size();
+  if (uvs.size() != count || normals.size() != count || count == 0) {
+    tangents.clear();
+    return;
+  }
+  // Each triangle's rate of change of position along u and along v, read
+  // from its two edges and the uvs' change along them. A triangle the uvs
+  // do not span — two edges with parallel uv changes — says nothing.
+  std::vector<glm::vec3> alongU(count, glm::vec3(0.0f));
+  std::vector<glm::vec3> alongV(count, glm::vec3(0.0f));
+  for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+    const uint32_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
+    if (a >= count || b >= count || c >= count) continue;
+    const glm::vec3 edge1 = positions[b] - positions[a];
+    const glm::vec3 edge2 = positions[c] - positions[a];
+    const glm::vec2 change1 = uvs[b] - uvs[a];
+    const glm::vec2 change2 = uvs[c] - uvs[a];
+    const float spanned = change1.x * change2.y - change2.x * change1.y;
+    if (std::abs(spanned) < 1e-20f) continue;
+    const glm::vec3 u = (edge1 * change2.y - edge2 * change1.y) / spanned;
+    const glm::vec3 v = (edge2 * change1.x - edge1 * change2.x) / spanned;
+    for (const uint32_t vertex : {a, b, c}) {
+      alongU[vertex] += u;
+      alongV[vertex] += v;
+    }
+  }
+  tangents.assign(count, glm::vec4(0.0f));
+  for (size_t i = 0; i < count; ++i) {
+    const glm::vec3 n = normals[i];
+    glm::vec3 across = alongU[i] - n * glm::dot(n, alongU[i]);
+    if (glm::dot(across, across) <= 1e-24f) continue;
+    across = glm::normalize(across);
+    const float side =
+        glm::dot(glm::cross(n, across), alongV[i]) < 0.0f ? -1.0f : 1.0f;
+    tangents[i] = glm::vec4(across, side);
+  }
+}
+
 void Mesh::computeNormals() {
   normals.assign(positions.size(), {0, 0, 0});
   const uint32_t count = (uint32_t)positions.size();

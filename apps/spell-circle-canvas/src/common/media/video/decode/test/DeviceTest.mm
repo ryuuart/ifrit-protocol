@@ -1,4 +1,5 @@
-/** @file The native decoded-frame path into a Metal Graphite recorder. */
+/** @file The native decoded-frame path into a Metal Graphite recorder, and
+ *  the host copy a recorder that cannot sample the frame is handed. */
 
 #import <Metal/Metal.h>
 
@@ -13,13 +14,16 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilmedia/video/Video.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <chrono>
 #include <cstddef>
+#include <memory>
+#include <string>
 
 namespace media = sigil::media;
 using namespace std::chrono_literals;
@@ -51,8 +55,7 @@ TEST(VideoDevice, VideoToolboxFrameWrapsAsGraphiteYuvaImage) {
   ASSERT_NE(graphite, nullptr);
 
   const auto clip = media::decode<media::Video>(
-      encoded, {.cachedFrames = 2, .hardware = media::HardwarePreference::Preferred},
-      "device.mp4");
+      encoded, {.cachedFrames = 2, .hardware = media::HardwarePreference::Preferred}, "device.mp4");
   ASSERT_NE(clip, nullptr);
   const media::Frame first = clip->frameAt(20ms);
   if (first.device.kind != media::DeviceFrame::Kind::PixelBuffer)
@@ -85,13 +88,62 @@ TEST(VideoDevice, VideoToolboxFrameWrapsAsGraphiteYuvaImage) {
   // still pass a single one-to-one blit.
   surface->getCanvas()->drawImageRect(firstImage, SkRect::MakeXYWH(0, 0, kWidth * 3, kHeight * 2),
                                       SkSamplingOptions());
-  surface->getCanvas()->drawImageRect(secondImage,
-                                      SkRect::MakeXYWH(kWidth, kHeight, kWidth * 2, kHeight * 3),
-                                      SkSamplingOptions());
+  surface->getCanvas()->drawImageRect(
+      secondImage, SkRect::MakeXYWH(kWidth, kHeight, kWidth * 2, kHeight * 3), SkSamplingOptions());
   std::unique_ptr<skgpu::graphite::Recording> recording = graphite->recorder()->snap();
   ASSERT_NE(recording, nullptr);
   skgpu::graphite::InsertRecordingInfo insert;
   insert.fRecording = recording.get();
   ASSERT_TRUE(graphite->context()->insertRecording(insert));
   EXPECT_TRUE(graphite->context()->submit(skgpu::graphite::SyncToCpu::kYes));
+}
+
+TEST(VideoDevice, ARecorderThatCannotSampleTheFrameIsHandedItsHostCopy) {
+  constexpr int kWidth = 96;
+  constexpr int kHeight = 64;
+  media::Encoder encoder({.width = kWidth,
+                          .height = kHeight,
+                          .framesPerSecond = 10,
+                          .bitRate = 500'000,
+                          .hardware = media::HardwarePreference::Disabled});
+  ASSERT_TRUE(encoder) << encoder.error();
+  SkBitmap pixels;
+  pixels.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
+  pixels.eraseColor(SK_ColorMAGENTA);
+  ASSERT_TRUE(append(encoder, pixels.pixmap()));
+  ASSERT_TRUE(append(encoder, pixels.pixmap()));
+  const std::vector<std::byte> encoded = encoder.finish();
+  ASSERT_FALSE(encoded.empty()) << encoder.error();
+
+  const auto clip = media::decode<media::Video>(
+      encoded, {.cachedFrames = 2, .hardware = media::HardwarePreference::Preferred}, "device.mp4");
+  ASSERT_NE(clip, nullptr);
+  const media::Frame frame = clip->frameAt(20ms);
+  if (frame.device.kind != media::DeviceFrame::Kind::PixelBuffer)
+    GTEST_SKIP() << "VideoToolbox decoder unavailable in this session";
+
+  // Graphite on a Vulkan device: a recorder that cannot sample the Metal
+  // planes the decoder holds.
+  std::string error;
+  static const std::unique_ptr<sigil::geometry::device::Device> vulkan =
+      sigil::geometry::device::Device::create({}, &error);
+  if (!vulkan || !vulkan->graphite()) GTEST_SKIP() << "no Vulkan Graphite: " << error;
+  skgpu::graphite::Recorder* recorder = vulkan->graphite()->recorder();
+  ASSERT_EQ(recorder->backend(), skgpu::BackendApi::kVulkan);
+
+  const sk_sp<SkImage> image = media::deviceImage(frame, recorder);
+  ASSERT_NE(image, nullptr) << "a frame the recorder cannot sample is drawn from its host copy";
+  EXPECT_FALSE(image->isTextureBacked());
+  EXPECT_EQ(image->width(), kWidth);
+  EXPECT_EQ(image->height(), kHeight);
+  // The host copy is the frame: magenta through the codec's rounding.
+  SkBitmap read;
+  ASSERT_TRUE(read.tryAllocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight)));
+  ASSERT_TRUE(image->readPixels(nullptr, read.pixmap(), 0, 0));
+  const SkColor middle = read.getColor(kWidth / 2, kHeight / 2);
+  EXPECT_GT(SkColorGetR(middle), 200u);
+  EXPECT_LT(SkColorGetG(middle), 60u);
+  EXPECT_GT(SkColorGetB(middle), 200u);
+  // Read back once: the caller with no recorder is handed the same copy.
+  EXPECT_EQ(media::deviceImage(frame, nullptr).get(), image.get());
 }

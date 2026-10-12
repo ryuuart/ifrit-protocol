@@ -1,7 +1,8 @@
 /** @file
  * A picture presented where the device drew it: sampled by a canvas on
  * another queue — a window's, on Metal — with nothing read back, and the
- * same picture the readback draws.
+ * same picture the readback draws, whichever recorder of the device's own
+ * Graphite samples it.
  *
  * Every case SKIPS where there is no Vulkan runtime, no Metal device to
  * stand a second queue on, or a driver that cannot name the Metal
@@ -14,6 +15,8 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Context.h>
+#include <include/gpu/graphite/Recorder.h>
+#include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -25,6 +28,7 @@
 #include <sigilworld/scene/Scene.h>
 
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "DeviceSeams.h"
@@ -194,5 +198,51 @@ TEST(PresentedOnQueue, AFrameOnTheDevicesOwnGraphiteIsSampledWhereItStands) {
   EXPECT_EQ(scene.stats().readbacks, 1);
   EXPECT_LE(diligent::worstChannel(inPlace, readBack), 1);
   const SkColor4f middle = inPlace.getColor4f(kExtent.x / 2, kExtent.y / 2);
+  EXPECT_GT(middle.fR, 0.1f);
+}
+
+TEST(PresentedOnQueue, ASecondRecorderOfTheDevicesGraphiteSamplesInPlaceToo) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  skia::GraphiteContext* own = on.device->graphite();
+  if (!own) GTEST_SKIP() << "the device carries no Graphite of its own";
+  // A recorder made from the device's own Graphite for another thread:
+  // it records onto the same queue the picture was drawn on.
+  std::unique_ptr<skgpu::graphite::Recorder> second = own->makeRecorder();
+  ASSERT_NE(second, nullptr);
+  motion::Engine engine;
+  Scene scene(engine);
+  engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+  scene.render(lit(on.runtime));
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y);
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(second.get(), info);
+  ASSERT_NE(surface, nullptr);
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  draw(scene, *surface->getCanvas(), world::Presentation::OnDevice);
+  EXPECT_EQ(scene.stats().presentedOnDevice, 1);
+  // NOTHING CROSSED BACK: the picture was sampled where it was drawn.
+  EXPECT_EQ(scene.stats().readbacks, 0);
+
+  // What the second recorder drew is inserted under the context's lock,
+  // and its pixels read once it is submitted, under the lock every
+  // submission on that queue takes.
+  SkBitmap pixels;
+  pixels.allocPixels(info);
+  {
+    geometry::device::Device::QueueLock lock(*on.device);
+    std::unique_ptr<skgpu::graphite::Recording> recording = second->snap();
+    ASSERT_NE(recording, nullptr);
+    {
+      const std::unique_lock<std::mutex> held = own->lockContext();
+      skgpu::graphite::InsertRecordingInfo insert;
+      insert.fRecording = recording.get();
+      ASSERT_EQ(own->context()->insertRecording(insert),
+                skgpu::graphite::InsertStatus::kSuccess);
+    }
+    ASSERT_TRUE(skia::readbackPixels(*own, *surface, pixels.pixmap()));
+    own->context()->checkAsyncWorkCompletion();
+  }
+  const SkColor4f middle = pixels.getColor4f(kExtent.x / 2, kExtent.y / 2);
   EXPECT_GT(middle.fR, 0.1f);
 }

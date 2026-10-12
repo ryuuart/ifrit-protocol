@@ -68,6 +68,16 @@ std::vector<size_t> shadowCasters(std::span<const PlacedLight> lights) {
   return out;
 }
 
+/** The device's `rangeWindow`: one minus the fourth power of @p distance
+ *  over @p range, squared; one where there is no range. */
+static float rangeWindow(float distance, float range) {
+  if (range <= 0.0f) return 1.0f;
+  const float reach = std::max(distance, 1e-2f) / range;
+  const float window =
+      std::clamp(1.0f - reach * reach * reach * reach, 0.0f, 1.0f);
+  return window * window;
+}
+
 float attenuation(const PlacedLight& placed, const glm::vec3& at) {
   const LightDescription& light = placed.light;
   const glm::vec3 toLight = placed.position - at;
@@ -75,9 +85,10 @@ float attenuation(const PlacedLight& placed, const glm::vec3& at) {
     const float cosFace = glm::dot(unit(light.direction), unit(-toLight));
     if (cosFace <= 0.0f) return 0.0f;
     const float squared = std::max(glm::dot(toLight, toLight), 1e-4f);
+    const float window = rangeWindow(std::sqrt(squared), light.range);
     if (light.kind == LightKind::Disk)
-      return cosFace / (squared + light.radius * light.radius);
-    return light.width * light.height * cosFace / squared;
+      return window * cosFace / (squared + light.radius * light.radius);
+    return window * light.width * light.height * cosFace / squared;
   }
   if (light.kind != LightKind::Point && light.kind != LightKind::Spot &&
       light.kind != LightKind::Sphere)
@@ -175,6 +186,7 @@ Light rectLight(glm::vec3 direction, RectLightOptions options) {
                     .direction = direction,
                     .color = std::move(options.color),
                     .intensity = std::move(options.intensity),
+                    .range = options.range,
                     .width = std::max(options.width, 0.0f),
                     .height = std::max(options.height, 0.0f),
                     .castShadow = options.castShadow,
@@ -196,6 +208,7 @@ Light diskLight(glm::vec3 direction, DiskLightOptions options) {
                     .direction = direction,
                     .color = std::move(options.color),
                     .intensity = std::move(options.intensity),
+                    .range = options.range,
                     .radius = std::max(options.radius, 0.0f),
                     .castShadow = options.castShadow,
                     .shadow = options.shadow});

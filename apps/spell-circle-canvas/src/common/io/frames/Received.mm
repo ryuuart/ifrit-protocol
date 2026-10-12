@@ -15,9 +15,9 @@
 #include <include/gpu/graphite/Surface.h>
 #include <sigilskia/graphite/TextureImage.h>
 
+#include <sigilmedia/advanced/Skia.h>
 #include <mutex>
 #include <utility>
-#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::io::frames::detail {
 
@@ -28,8 +28,8 @@ namespace {
  *  as the answer is: an image made from a surface names the surface's
  *  texture. Null when no target could be made, which leaves a scene with
  *  no picture rather than with a picture the wrong way up. */
-sk_sp<SkImage> turnOver(skgpu::graphite::Recorder& recorder,
-                        const sk_sp<SkImage>& carried, sk_sp<SkSurface>& target) {
+sk_sp<SkImage> turnOver(skgpu::graphite::Recorder& recorder, const sk_sp<SkImage>& carried,
+                        sk_sp<SkSurface>& target) {
   target.reset();
   if (!carried) return nullptr;
   target = SkSurfaces::RenderTarget(&recorder, carried->imageInfo());
@@ -57,10 +57,12 @@ sk_sp<SkImage> turnOver(const sk_sp<SkImage>& read) {
 }
 
 /** ONE ARRIVAL, BOUND: one turn per recorder that asks, one read back for
- *  every caller with none. The frame is premultiplied the way the
- *  publisher's canvas wrote it and its texels mean what its own format
- *  says; nothing converts on the way across, so no colour space is
- *  stated. */
+ *  every caller with none. A recorder that cannot wrap the arrived
+ *  texture — Graphite on another API — is handed that read-back copy,
+ *  which any recorder draws, rather than nothing.
+ *  The frame is premultiplied the way the publisher's canvas wrote it and
+ *  its texels mean what its own format says; nothing converts on the way
+ *  across, so no colour space is stated. */
 class ArrivalBinding final : public media::DeviceBinding {
  public:
   explicit ArrivalBinding(std::shared_ptr<void> texture) : m_texture(std::move(texture)) {}
@@ -72,7 +74,7 @@ class ArrivalBinding final : public media::DeviceBinding {
         m_recorder = recorder;
         m_turned = turnOver(*recorder, skia::wrapImage(*recorder, m_texture.get()), m_target);
       }
-      return m_turned;
+      if (m_turned) return m_turned;
     }
     if (!m_read) m_read = turnOver(skia::readImage(m_texture.get()));
     return m_read;

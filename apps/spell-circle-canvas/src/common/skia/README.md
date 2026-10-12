@@ -152,8 +152,11 @@ that tells its owner when the texture is free again —
 released, context)` — calls `released` once the image is gone and every
 submission that sampled it has finished, which is when the writer may
 draw into it again. `sigil::skia::drawsOnDeviceOf(recorder, mtlTexture)`
-says whether a recorder this library brought up stands on the texture's
-device at all.
+says whether a recorder this library made stands on the texture's
+device at all, and `sigil::skia::deviceOf(recorder)` names the device —
+an `id<MTLDevice>` or a `VkDevice` — that any recorder a context here
+made draws on, its own `recorder()` and every one from `makeRecorder()`
+alike; a recorder made outside the library has none to name.
 
 **A texture that must cross to another device is READ, not wrapped.**
 A wrap names one texture on one recorder, so it has nothing to give a
