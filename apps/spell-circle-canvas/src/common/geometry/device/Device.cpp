@@ -12,10 +12,12 @@
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
+#include <mutex>
 #include <system_error>
 #include <vector>
 
 #include "AdoptDevice.h"
+#include "MetalObjects.h"
 
 namespace sigil::geometry::device {
 namespace dg = Diligent;
@@ -32,6 +34,10 @@ struct Device::Impl {
   /** The driver's pipeline cache, and the file it is kept in. */
   dg::RefCntAutoPtr<dg::IPipelineStateCache> pipelines;
   std::filesystem::path pipelineFile;
+  /** The Metal events the queue has been asked to wait on, made the
+   *  first time one is; null until then. */
+  std::unique_ptr<MetalEvents> metalEvents;
+  std::once_flag metalEventsMade;
 };
 
 namespace {
@@ -73,6 +79,12 @@ Device::~Device() {
   if (!m_impl) return;
   keepPipelines(m_impl->pipelines, m_impl->pipelineFile);
   m_impl->pipelines.Release();
+  // A semaphore over a Metal event may not go while a wait on it is still
+  // queued, so the queue is let finish first — only where one was made.
+  if (m_impl->metalEvents) {
+    m_impl->context->WaitForIdle();
+    m_impl->metalEvents.reset();
+  }
   // Graphite's teardown and the adopted device's both touch the shared
   // queue, so they go under the queue lock and ahead of the Diligent
   // objects that own it.
@@ -222,6 +234,18 @@ skia::GraphiteContext* Device::graphite() const {
 }
 Diligent::IPipelineStateCache* Device::pipelineStateCache() const {
   return m_impl->pipelines;
+}
+
+bool Device::waitForMetalEvent(void* mtlSharedEvent,
+                               core::hardware::FenceValue value) {
+  core::hardware::GpuDevice* const shared = gpu();
+  if (!shared || shared->backend() != core::hardware::Backend::Vulkan)
+    return false;
+  std::call_once(m_impl->metalEventsMade, [this] {
+    m_impl->metalEvents = std::make_unique<MetalEvents>(m_impl->device);
+  });
+  return m_impl->metalEvents->wait(shared->native().vulkan.queue,
+                                   mtlSharedEvent, value);
 }
 
 Device::QueueLock::QueueLock(Device& device) : m_device(&device) {

@@ -70,8 +70,17 @@ objects.** Where the driver runs Vulkan over Metal, `metalTexture()` and
 `metalEvent()` answer the id<MTLTexture> behind a texture and the
 id<MTLSharedEvent> behind a fence on `gpu()`, so a window drawing on a
 Metal queue of its own samples a picture drawn here and waits for it on
-the GPU. Both answer null on any other driver, and a caller then reads
-the picture back.
+the GPU. `metalTexture()` also takes a texture's handle on `gpu()`, which
+is what a Graphite context on Metal paints through for a texture this
+device made. The other way round, `importMetalTexture()` names a texture
+Metal made on `gpu()` as a Vulkan image over the same memory, stated by
+the `core::hardware::TextureDescription` it was made from; the handle
+owns the image and the texture stays its maker's, and
+`waitForMetalEvent()` holds this device's queue until an event a Metal
+queue raises reaches a value, so a texture painted there is sampled here
+only once it is painted. The wait is queued under a `QueueLock`, like
+every wait on `gpu()`. All of them answer null or false on any other
+driver, and a caller then reads the picture back.
 
 **Pipelines are kept between runs.** Every pipeline is built through the
 driver's own cache, `pipelineStateCache()`, which `Device::create` seeds

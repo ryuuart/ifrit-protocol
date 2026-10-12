@@ -283,6 +283,126 @@ TEST(AdoptedDevice, ImportExportRoundTrip) {
   EXPECT_FALSE(device->importNative(metal)) << "another API's texture";
 }
 
+// THE METAL OBJECT BEHIND A TEXTURE NAMED HERE, on a driver that runs
+// Vulkan over Metal: one texture is one object however often it is asked
+// for, and a handle that names nothing any more names no object either.
+TEST(AdoptedDevice, ATextureNamedHereIsReachedOnMetal) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice* device = on->gpu();
+  if (!device) GTEST_SKIP() << "the device was created but not adopted";
+  const TextureHandle texture = device->createTexture(smallTexture());
+  ASSERT_TRUE(device->isValid(texture));
+  void* metal = on->metalTexture(texture);
+  if (!metal) {
+    device->destroy(texture);
+    GTEST_SKIP() << "this driver does not name the Metal objects behind its "
+                    "own";
+  }
+  EXPECT_EQ(on->metalTexture(texture), metal);
+  device->destroy(texture);
+  EXPECT_EQ(on->metalTexture(texture), nullptr) << "a stale handle";
+  EXPECT_EQ(on->metalTexture(TextureHandle{}), nullptr) << "a null handle";
+}
+
+// A TEXTURE METAL MADE, NAMED HERE OVER THE SAME MEMORY: the image the
+// import names is backed by the very texture it was handed — asked for
+// the Metal object behind it, the driver answers that texture — and it
+// carries the size, format and levels the texture was made with. The
+// image is the handle's and the texture its maker's, so destroying the
+// one leaves the other standing.
+TEST(AdoptedDevice, ATextureMetalMadeIsNamedHereOverTheSameMemory) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice* device = on->gpu();
+  if (!device) GTEST_SKIP() << "the device was created but not adopted";
+  std::string error;
+  const std::unique_ptr<GpuDevice> metal = GpuDevice::createOwned(&error);
+  if (!metal || metal->backend() != Backend::Metal)
+    GTEST_SKIP() << "no Metal device: " << error;
+
+  TextureDescription desc;
+  desc.width = 64;
+  desc.height = 32;
+  desc.format = TextureFormat::RGBA8Unorm;
+  desc.mipLevels = 4;
+  const TextureHandle made = metal->createTexture(desc);
+  ASSERT_TRUE(metal->isValid(made));
+  void* texture = metal->exportNative(made).mtlTexture;
+  ASSERT_NE(texture, nullptr);
+
+  const TextureHandle imported = on->importMetalTexture(texture, desc);
+  if (!imported) {
+    metal->destroy(made);
+    GTEST_SKIP() << "this driver does not import a Metal texture";
+  }
+  ASSERT_TRUE(device->isValid(imported));
+  const NativeTexture native = device->exportNative(imported);
+  EXPECT_EQ(native.backend, Backend::Vulkan);
+  EXPECT_NE(native.vkImage, 0u);
+  EXPECT_EQ(native.vkMemory, 0u) << "the texture is the memory";
+  EXPECT_EQ(native.vkFormat, 37u /*R8G8B8A8_UNORM*/);
+  EXPECT_EQ(native.width, 64);
+  EXPECT_EQ(native.height, 32);
+  EXPECT_EQ(native.mipLevels, 4);
+  EXPECT_EQ(on->metalTexture(imported), texture) << "the very same texture";
+
+  device->destroy(imported);
+  for (int i = 0; i < 3; ++i) device->beginFrame();
+  EXPECT_TRUE(metal->isValid(made));
+  EXPECT_EQ(metal->exportNative(made).mtlTexture, texture);
+  metal->destroy(made);
+
+  EXPECT_FALSE(on->importMetalTexture(nullptr, desc)) << "no texture";
+}
+
+// A QUEUE ON METAL ORDERS THIS DEVICE'S QUEUE: a wait for an event that
+// queue raises holds everything submitted here after it — a signal of
+// this device's own fence among them — until the Metal queue has raised
+// the event, and then lets it through. Nothing on this side raises the
+// event, so the signal standing still is the wait and not a slow queue.
+TEST(AdoptedDevice, AQueueOnMetalOrdersThisDevicesQueue) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice* device = on->gpu();
+  if (!device) GTEST_SKIP() << "the device was created but not adopted";
+  std::string error;
+  const std::unique_ptr<GpuDevice> metal = GpuDevice::createOwned(&error);
+  if (!metal || metal->backend() != Backend::Metal)
+    GTEST_SKIP() << "no Metal device: " << error;
+
+  const FenceHandle painted = metal->createFence();
+  void* event = metal->exportNative(painted);
+  ASSERT_NE(event, nullptr);
+  const FenceHandle after = device->createFence();
+  FenceValue reached = kFenceInitialValue;
+  {
+    geometry::device::Device::QueueLock lock(*on);
+    if (!on->waitForMetalEvent(event, 1)) {
+      device->destroyFence(after);
+      metal->destroyFence(painted);
+      GTEST_SKIP() << "this driver does not bring a Metal event over";
+    }
+    reached = device->signal(after);
+  }
+  EXPECT_EQ(device->waitCpu(after, reached, std::chrono::milliseconds(50)),
+            FenceWait::TimedOut)
+      << "the queue ran past a wait nothing had raised";
+
+  EXPECT_EQ(metal->signal(painted), 1u);
+  EXPECT_EQ(device->waitCpu(after, reached), FenceWait::Reached);
+
+  // The event is brought over once: a second wait, for a value already
+  // raised, holds nothing.
+  {
+    geometry::device::Device::QueueLock lock(*on);
+    EXPECT_TRUE(on->waitForMetalEvent(event, 1));
+    reached = device->signal(after);
+  }
+  EXPECT_EQ(device->waitCpu(after, reached), FenceWait::Reached);
+  EXPECT_FALSE(on->waitForMetalEvent(nullptr, 1)) << "no event";
+
+  device->destroyFence(after);
+  metal->destroyFence(painted);
+}
+
 TEST(AdoptedDevice, TimelineFenceSignalsAndWaits) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
   GpuDevice* device = on->gpu();

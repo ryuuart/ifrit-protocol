@@ -512,3 +512,19 @@ Python sketch stating `NAME` is filed under it, while `Grimoire --sketch`
 answers to the filed name or the file stem. The plates verb should find a
 sketch the way Grimoire does. A test should select, through the verb, a
 sketch whose filed name differs from its stem.
+
+## Graphite's Metal signal semaphores crash in this Skia build
+
+`skgpu::graphite::MtlCommandBuffer::addSignalSemaphores` in the Skia the
+port builds passes the address of `BackendSemaphores::GetMtlEvent` to
+the command buffer's signal call instead of calling it, where the wait
+path calls it, so any recording inserted on a Metal Graphite context with
+a signal semaphore faults in the Objective-C dispatch with that
+function's address as the receiver. A recording inserted with one Metal
+signal semaphore should raise the semaphore's event to its value once
+the submit completes. The fix is a patch to the Skia port in the
+sigil-vcpkg-registry. Until then the Metal queue orders itself before
+the Vulkan queue through the offscreen surface's own fence signal and
+`Device::waitForMetalEvent`. A test should insert a recording on a Metal
+context with one signal semaphore and find a Metal fence's CPU wait
+reach its value.
