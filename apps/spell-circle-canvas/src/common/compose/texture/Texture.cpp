@@ -6,6 +6,7 @@
 
 #include "sigilcompose/texture/Texture.h"
 
+#include <include/core/SkBitmap.h>
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
@@ -23,9 +24,11 @@
 #include <sigilmotion/clock/Engine.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/Readback.h>
 
 #include <algorithm>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -319,12 +322,52 @@ material::Texture TextureScene::texture() const {
 
 uint64_t TextureScene::revision() const { return m_impl->version; }
 
+namespace {
+
+/** A SCENE PAINTED ON A DEVICE, AS THE IMAGE A RECORDER DRAWS. The
+ *  snapshot the scene keeps belongs to the Graphite context it painted
+ *  through, so only a recorder of that same device may draw it; any other
+ *  recorder, and none, is handed the pixels read back to host memory,
+ *  read once per revision of the scene. */
+class SceneBinding final : public media::DeviceBinding {
+ public:
+  explicit SceneBinding(std::shared_ptr<const TextureScene> scene)
+      : m_scene(std::move(scene)) {}
+
+  sk_sp<SkImage> image(skgpu::graphite::Recorder* recorder) override {
+    const sk_sp<SkImage> painted = m_scene->image();
+    if (!painted) return nullptr;
+    if (recorder && m_scene->recorder() &&
+        skia::deviceOf(*recorder) == skia::deviceOf(*m_scene->recorder()))
+      return painted;
+    std::lock_guard lock(m_mutex);
+    if (m_read && m_readFrom == painted) return m_read;
+    m_read = m_scene->hostImage();
+    m_readFrom = m_read ? painted : nullptr;
+    return m_read;
+  }
+
+ private:
+  std::mutex m_mutex;
+  std::shared_ptr<const TextureScene> m_scene;
+  sk_sp<SkImage> m_readFrom;
+  sk_sp<SkImage> m_read;
+};
+
+}  // namespace
+
 media::Frame SceneSource::frameAt(std::chrono::duration<double>) const {
   media::Frame frame;
   if (!m_scene) return frame;
-  frame.image = media::fromSk(m_scene->image());
   const material::DeviceImage where = m_scene->deviceImage();
-  if (!where) return frame;
+  if (!where) {
+    frame.image = media::fromSk(m_scene->image());
+    return frame;
+  }
+  // On a device the pixels are named, never handed over as the image:
+  // the snapshot belongs to the scene's own context, and the binding
+  // answers each recorder with what it can draw.
+  frame.device.binding = std::make_shared<SceneBinding>(m_scene);
   frame.device.kind = media::DeviceFrame::Kind::Texture;
   frame.device.device = where.device;
   frame.device.pointer = where.pointer;
@@ -337,6 +380,26 @@ media::Frame SceneSource::frameAt(std::chrono::duration<double>) const {
 }
 SkISize TextureScene::size() const { return m_impl->info.dimensions(); }
 sk_sp<SkImage> TextureScene::image() const { return m_impl->image; }
+skgpu::graphite::Recorder* TextureScene::recorder() const {
+  return m_impl->context ? m_impl->context->recorder() : nullptr;
+}
+
+sk_sp<SkImage> TextureScene::hostImage() const {
+  const Impl& impl = *m_impl;
+  if (!impl.image) return nullptr;
+  if (!impl.device || !impl.context || !impl.handle) return impl.image;
+  // Wrapped as a paint wraps it, and read through the context that
+  // painted it, which waits for that paint on the device.
+  skia::OffscreenSurface surface(*impl.context, *impl.device, impl.handle,
+                                 impl.info.refColorSpace());
+  if (!surface.surface()) return nullptr;
+  SkBitmap pixels;
+  if (!pixels.tryAllocPixels(impl.info) ||
+      !skia::readbackPixels(*impl.context, *surface.surface(), pixels.pixmap()))
+    return nullptr;
+  pixels.setImmutable();
+  return pixels.asImage();
+}
 
 material::DeviceImage TextureScene::deviceImage() const {
   const Impl& impl = *m_impl;

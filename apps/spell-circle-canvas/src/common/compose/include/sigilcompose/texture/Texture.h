@@ -32,6 +32,10 @@ namespace sigil::skia {
 class GraphiteContext;
 }  // namespace sigil::skia
 
+namespace skgpu::graphite {
+class Recorder;
+}
+
 namespace sigil::compose {
 
 class Composer;
@@ -93,6 +97,15 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
   /** Where those pixels stand when they stand on a device; empty on the
    *  raster surface or before the first paint on the current surface. */
   material::DeviceImage deviceImage() const;
+  /** The recorder the scene paints through on a device; null on the
+   *  raster surface. A recorder of the same device draws `image()` as it
+   *  stands; any other, and none, is handed a host copy of it. */
+  skgpu::graphite::Recorder* recorder() const;
+  /** The latest pixels as an image any canvas draws: `image()` itself on
+   *  the raster surface, and on a device the surface read back to host
+   *  memory, which blocks on the device finishing the paint. Null before
+   *  a paint or when the read-back fails. */
+  sk_sp<SkImage> hostImage() const;
   /** Whether the retained tree needs another render. */
   bool isRunning() const;
   /** The rect of its source a cut shows; none on a scene with a tree. */

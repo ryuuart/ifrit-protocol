@@ -41,7 +41,8 @@ void draw(Scene& scene, SkCanvas& canvas, Presentation presentation) {
   const glm::ivec2 whole =
       isPart(offset, impl.frame.extent()) ? offset.whole : impl.frame.extent();
   for (const material::Texture& overlay : impl.frame.overlays()) {
-    sk_sp<SkImage> laid = overlay.frameAt(impl.view.time).image;
+    sk_sp<SkImage> laid =
+        overlay.frameAt(impl.view.time, canvas.recorder()).image;
     // A picture standing on a device the canvas cannot sample is read
     // back first.
     if (laid && laid->isTextureBacked() && !canvas.recorder() &&

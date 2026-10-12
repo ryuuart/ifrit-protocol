@@ -450,3 +450,29 @@ size fit should close on its seam.
 bands with `Scene2DContext::measure`, and `cosmati`'s onyx roundel ring
 is sized by eye. Both can declare `.fit = TextPath::Fit::Size` and drop
 the measurement; their plates move by the fit's residual.
+
+## A window bench of a named sketch prints no row
+
+`Grimoire --window-bench 6 --sketch wet_glass_console` (with or without
+`--kind scene3d` and `--window-scale 2`) opens the window, stands its
+pipelines up and exits after the stretch with no `WINDOW` row, neither a
+reading nor a `SKIPPED` or `FAILED` line, so the presented rate the row
+carries cannot be read for one sketch. The cadence evidently never
+reaches its read step: the entry on screen is matched by the path the
+registry names, and a selection by name may not be what the host opened.
+A bench of one named sketch should print exactly one row. A test should
+run the window bench for one registry entry and find a `WINDOW` row
+naming it.
+
+## An asynchronous pipeline build can abort inside the Metal compiler
+
+With pipelines built on a worker, one run aborted on a dispatch queue in
+Metal's `newLibraryWithSource` under MoltenVK's shader library compiler,
+through an assertion the crash report does not quote
+(`Grimoire-2026-10-11-192549`). The Metal compiler is being driven from
+a worker thread while the window's own Metal work proceeds; whether the
+assertion is a compile error the synchronous path would have reported
+as a failed pipeline, or a threading rule of the compiler, is not known.
+A failed asynchronous build must become a pipeline the frame stands in
+for, never an abort. A test should hand the pipeline cache a program
+that cannot compile and find the body stood in and the error reported.

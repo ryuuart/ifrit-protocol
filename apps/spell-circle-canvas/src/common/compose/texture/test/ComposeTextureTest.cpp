@@ -545,6 +545,57 @@ TEST(ComposeTexture,
   expectDevicePrecision(*device->gpu(), *device->graphite());
 }
 
+TEST(ComposeTexture, ASceneOnADeviceHandsAForeignRecorderAHostCopy) {
+  namespace skia = sigil::skia;
+  namespace core = sigil::core;
+  namespace media = sigil::media;
+  SIGIL_ON_DEVICE_OR_SKIP(device);
+  if (!device->gpu() || !device->graphite())
+    GTEST_SKIP() << "no adopted Graphite context on this Vulkan device";
+  std::string error;
+  const std::unique_ptr<core::hardware::GpuDevice> other =
+      core::hardware::GpuDevice::createOwned(&error);
+  if (!other) GTEST_SKIP() << error;
+  const std::unique_ptr<skia::GraphiteContext> foreign =
+      skia::GraphiteContext::create(*other);
+  if (!foreign) GTEST_SKIP() << "no second Graphite context on this machine";
+
+  const std::shared_ptr<TextureScene> scene =
+      TextureScene::make({16, 16}, fonts());
+  ASSERT_TRUE(scene);
+  {
+    const sigil::geometry::device::Device::QueueLock lock(*device);
+    ASSERT_TRUE(scene->useDevice(*device->gpu(), *device->graphite()));
+    scene->render(plate({1, 0, 0, 1}));
+  }
+  const sigil::material::Texture texture = scene->texture();
+  ASSERT_EQ(scene->recorder(), device->graphite()->recorder());
+
+  // The scene's own recorder draws the snapshot where it stands.
+  const sk_sp<SkImage> own =
+      media::toSk(texture.frameAt({}, device->graphite()->recorder()).image);
+  ASSERT_TRUE(own);
+  EXPECT_TRUE(own->isTextureBacked());
+
+  // A recorder of another device, and none, are handed a host copy of
+  // the same pixels, which any canvas draws.
+  for (skgpu::graphite::Recorder* recorder :
+       {foreign->recorder(),
+        static_cast<skgpu::graphite::Recorder*>(nullptr)}) {
+    const sk_sp<SkImage> copy =
+        media::toSk(texture.frameAt({}, recorder).image);
+    ASSERT_TRUE(copy) << (recorder ? "foreign" : "none");
+    EXPECT_FALSE(copy->isTextureBacked());
+    SkBitmap pixels;
+    ASSERT_TRUE(pixels.tryAllocPixels(SkImageInfo::MakeN32Premul(16, 16)));
+    ASSERT_TRUE(copy->readPixels(nullptr, pixels.pixmap(), 0, 0));
+    const SkColor4f centre = pixels.getColor4f(8, 8);
+    EXPECT_NEAR(centre.fR, 1.f, .01f);
+    EXPECT_NEAR(centre.fG, 0.f, .01f);
+    EXPECT_NEAR(centre.fA, 1.f, .01f);
+  }
+}
+
 TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   namespace skia = sigil::skia;
   namespace core = sigil::core;

@@ -538,9 +538,12 @@ the color space. F16 retains HDR values; F32 is raster-only. Device adoption
 keeps the requested format and profile, leaves the scene intact on failure,
 and clears its pixels and caches on success. Fonts, device and context must
 outlive the scene and its texture values. A device `image()` belongs to its
-Graphite context; it is not a portable raster readback. `SceneSource` reads
-the latest scene image and compares by its captured revision, rather than
-preserving historical pixels.
+Graphite context; it is not a portable raster readback, so the scene's
+texture names its pixels on the device and answers a recorder of that
+device with the image as it stands and any other recorder, or none, with
+a host copy read once per revision (`TextureScene::recorder` names the
+scene's own). `SceneSource` reads the latest scene image and compares by
+its captured revision, rather than preserving historical pixels.
 
 The depth features project planes in a 2D tree; use SigilWorld for a
 world scene. [Depth](reference/DEPTH.md) explains projection and hit testing.
