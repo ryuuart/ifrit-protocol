@@ -165,17 +165,19 @@ font size unchanged.
 
 Also wanted by `cosmati`: the onyx roundel's brass ring is sized by eye to come near its seam, and its gap comment states the constraint.
 
-## A turning sheet wearing a coverage shadow repaints the whole canvas every frame
+## A coverage decoration under a turning child is blurred anew every frame
 
-`chaucer_astrolabe` fails its frame gate: its static parts are promoted
-textures, but the rete turns inside a full-canvas sheet that wears a
-coverage-derived bevel and drop shadow, so the sheet's own paint is
-re-recorded over the whole canvas each frame and a `Cache::Texture` over
-the rete's engraving bakes nothing. Compose's retained drawing of a
-coverage decoration under a moving child should let the unchanged parts
-hold while the mover is composited. A test should bench a full-canvas
-sheet with a coverage shadow over one turning child and find its frame
-within a small multiple of the child's own cost; the plate moves.
+A sheet's silhouette over children that only turn or slide is composed
+from held parts, but the decorations drawn from it, the drop shadow and
+the bevel's two inner shadows, are blurred from the turning silhouette on
+every frame, which dominates `chaucer_astrolabe`'s frame. The highlight
+angle and the shadow offset are fixed in page space while the silhouette
+turns, so the decorations cannot be held as paths; holding them means
+keeping the child's coverage and blurred-coverage masks in the child's
+own frame and compositing them each frame, exact for the drop shadow and
+two masks per inner shadow, in `brush::Shadow` and `CoverageMark`. The
+bench `BM_Draw_CoverageSheet_TurningChild` holds the number; the dressed
+sheet should cost a small multiple of the child's own paint.
 
 ## `text_paints::sparkle`'s cells follow the run's extent, and no test binary can hold that
 
@@ -561,23 +563,21 @@ no image test tells the shape-following treatment from today's; a
 discriminating test needs a numerical integral of the lobe over the
 light, as the representative-point entry states.
 
-## Performance: a Compose page's path strokes are rasterised on the CPU every frame
+## Performance: a page on the Vulkan device fills its paths on the CPU
 
 A scene3d page draws on the Vulkan Graphite context made with internal
 multisampling off (the `workaround:` in
 `src/common/skia/graphite/GraphiteContextVulkan.cpp`), so Skia takes its
 raster-atlas path strategy and every non-simple path is filled on the
 CPU; the scrolling traces of `wet_glass_console` are new geometry each
-frame, so the atlas never hits, and the CPU fill is a third of the host
+frame, so the atlas never hits, and the fill is a third of the host
 frame. The workaround's reason holds: with multisampling on, a pass that
 resumes after a fence loses what the pass before it drew
 (`AdoptedGraphite.AFencedPassKeepsWhatThePassBeforeItDrew`). The
 multisampled attachment can come back once a resumed pass keeps its
-samples, which is a resolve-and-reload of the multisampled target around
-the fence. The ribbon band itself, built by `geometry::path::sweptRegion`
-as thousands of overlapping quads, is the other half, which the stroked
-outline form addresses. The bench arm `BM_Draw_Ribbons_Scrolling` holds
-the number either must move.
+samples, a resolve and reload of the multisampled target around the
+fence. The bench arm `BM_Draw_Ribbons_Scrolling` and the console's
+`--bench --gpu` hold the numbers it must move.
 
 ## Performance: a transmissive pixel costs several times an opaque lit one
 
@@ -619,19 +619,6 @@ under `GrimoireView::hostMutex`, while a `SessionAgent` opens and owns a
 host of its own. Mounting them needs either an agent that adopts an
 external host and hops its calls to the render thread, or a different
 split; the choice is the owner's.
-
-## A world-space material in a pen leaf inside a held recording keeps its old anchoring when an ancestor moves
-
-A pen leaf resolves world-space materials against the node-to-root
-matrix it is painted under, but a pen program's materials are invisible
-to `nodeUsesWorldSpace`, so the leaf never sets `hasWorldSpaceMaterial`.
-When an ancestor moves and the parent's recording is reused at the new
-place, the program does not run again and its field stays anchored where
-it was recorded. A pen leaf painting a world-space material should be
-restaled like any world-space node. A test should paint a root-space
-gradient in a pen leaf under a recorded parent, move the grandparent, and
-find the leaf's pixels matching an ordinary world-space fill at the same
-root positions.
 
 ## A grid's pole normals lean toward one column
 

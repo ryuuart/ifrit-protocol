@@ -8,6 +8,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
@@ -33,8 +34,8 @@ Element bloomBlock(Cache mode) {
   return box()
       .padding(24)
       .cache(mode)
-      .filter(sigil::material::skia::filter(
-          SkImageFilters::Blur(12, 12, nullptr)))
+      .filter(
+          sigil::material::skia::filter(SkImageFilters::Blur(12, 12, nullptr)))
       .children({text(u8"BLOOM PIPELINE", style)});
 }
 
@@ -71,7 +72,8 @@ BENCHMARK(BM_Draw_Bloom_TextureBaked);
 
 namespace {
 
-Element haloedBand(Boundary boundary, const sigil::motion::Animatable<float>& turn) {
+Element haloedBand(Boundary boundary,
+                   const sigil::motion::Animatable<float>& turn) {
   const float side = 640.0f, radius = 260.0f;
   Element band = box()
                      .key("band")
@@ -278,7 +280,7 @@ sigil::material::Filter blurEffect(BlurArm arm, float sigma) {
       // pays it.
       const int radius = (int)std::lround(3.0f * sigma);
       return sigil::material::skia::program(naiveVaryingBlur(radius),
-                                                   {{"uMaxSigma", sigma}})
+                                            {{"uMaxSigma", sigma}})
           .slot("param", sigmaRamp());
     }
     case BlurArm::ConstantMax:
@@ -417,3 +419,85 @@ BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_Graphite)
     ->Unit(benchmark::kMillisecond);
 
 #endif  // SIGIL_BENCH_GPU
+
+// ---------------------------------------------------------------------------
+// A FULL-CANVAS SHEET DRESSED BY ITS COVERAGE OVER ONE TURNING CHILD: a
+// shadow and a bevel cast from the silhouette of what the sheet holds, and a
+// lacy wheel turning inside it. Arm 0 is the wheel alone; arm 1 the dressed
+// sheet over it. The sheet's silhouette is composed from held parts, so its
+// frame stays within a small multiple of the wheel's own.
+
+namespace {
+
+Element turningWheel(const sigil::motion::Animatable<float>& turn) {
+  constexpr float kSide = 900, kRadius = 380;
+  Element wheel =
+      box()
+          .absolute()
+          .left(350)
+          .top(150)
+          .width(kSide)
+          .height(kSide)
+          .transformOrigin(pct(50), pct(50))
+          .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}));
+  std::vector<Element> spokes;
+  for (int i = 0; i < 48; ++i) {
+    const float a = (float)i * 6.2831853f / 48.0f;
+    spokes.push_back(box()
+                         .absolute()
+                         .left(kSide * 0.5f + kRadius * std::cos(a) - 14)
+                         .top(kSide * 0.5f + kRadius * std::sin(a) - 14)
+                         .width(28)
+                         .height(28)
+                         .fill(Fill::color({0.85f, 0.65f, 0.3f, 1})));
+  }
+  spokes.push_back(box()
+                       .absolute()
+                       .left(40)
+                       .top(kSide * 0.5f - 12)
+                       .width(kSide - 80)
+                       .height(24)
+                       .fill(Fill::color({0.85f, 0.65f, 0.3f, 1})));
+  spokes.push_back(box()
+                       .absolute()
+                       .left(kSide * 0.5f - 12)
+                       .top(40)
+                       .width(24)
+                       .height(kSide - 80)
+                       .fill(Fill::color({0.85f, 0.65f, 0.3f, 1})));
+  wheel.children(std::move(spokes));
+  return wheel;
+}
+
+static void BM_Draw_CoverageSheet_TurningChild(benchmark::State& state) {
+  const bool dressed = state.range(0) == 1;
+  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
+  Host host(1600, 1200);
+  Element sheet = box().absolute().left(0).top(0).width(1600).height(1200);
+  if (dressed)
+    sheet.decorationOutline(Boundary::Coverage)
+        .fill(sigil::material::from(sigil::material::Color{0, 0, 0, 0})
+                  .effects(sigil::material::Filter::bevel(
+                      {.depth = 2,
+                       .size = 3,
+                       .angleDegrees = 125,
+                       .highlight = {1, 0.9f, 0.7f, 0.55f},
+                       .shadow = {0.1f, 0.05f, 0, 0.55f}})))
+        .background(shadow(sigil::material::Color{0, 0, 0, 0.55f}, {7, 9}, 8));
+  sheet.children({turningWheel(turn)});
+  host.composer.render(box().children({std::move(sheet)}));
+  host.draw();
+  float t = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    turn = (t += 0.002f);
+    host.draw();
+  }
+  state.counters["dressed"] = dressed ? 1 : 0;
+}
+
+}  // namespace
+
+BENCHMARK(BM_Draw_CoverageSheet_TurningChild)
+    ->Arg(0)
+    ->Arg(1)
+    ->Unit(benchmark::kMillisecond);

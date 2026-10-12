@@ -9,6 +9,8 @@
  * spine are one geometry rather than three.
  */
 
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathUtils.h>
 #include <sigilcompose/brush/Relief.h>
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigildraw/Pen.h>
@@ -59,6 +61,34 @@ float Ribbon::bleed(glm::vec2 size) const {
 }
 
 SkPath Ribbon::band(const SkPath& spine) const {
+  // A CONSTANT WIDTH IS A STROKE: the spine's own outline at that width,
+  // butt-ended and joined as the ribbon says, which is the region the
+  // sweep below would union out of its cross-sections, in a handful of
+  // curves rather than one piece per step.
+  const std::optional<float> constant =
+      hasProfile() ? (width == geometry::path::Profile(width.max())
+                          ? std::optional<float>(width.max())
+                          : std::nullopt)
+                   : (nibAngleDeg < 0 && widthStart == widthEnd
+                          ? std::optional<float>(widthStart)
+                          : std::nullopt);
+  if (constant) {
+    if (!std::isfinite(*constant) || *constant == 0) return SkPath();
+    SkPaint outline;
+    outline.setStyle(SkPaint::kStroke_Style);
+    outline.setStrokeWidth(std::abs(*constant));
+    outline.setStrokeCap(SkPaint::kButt_Cap);
+    outline.setStrokeJoin(
+        join == geometry::path::Join::Round   ? SkPaint::kRound_Join
+        : join == geometry::path::Join::Miter ? SkPaint::kMiter_Join
+                                              : SkPaint::kBevel_Join);
+    outline.setStrokeMiter(std::max(miterLimit, 1.0f));
+    bool filled = false;
+    SkPath region = skpathutils::FillPathWithPaint(spine, outline, &filled);
+    if (!filled) return SkPath();
+    region.setFillType(SkPathFillType::kWinding);
+    return region;
+  }
   // THE GEOMETRY IS SIGILGEOMETRY'S. What is a ribbon's own is the WIDTH
   // LAW — three of them, and the third is why a band is swept rather than
   // zipped from two offset rails: a pen nib's width is a function of the

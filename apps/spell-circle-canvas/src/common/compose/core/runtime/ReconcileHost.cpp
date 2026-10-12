@@ -244,9 +244,15 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   // matrix while those descendants prune — so the world-space ones are
   // staled by hand. (Layout moves are caught by the rect sync walk;
   // bound transforms by the volatility walk.)
-  inst.hasWorldSpaceMaterial = nodeUsesWorldSpace(next) ||
-                               ruleFillUsesWorldSpace(inst.ruleLayer.get()) ||
-                               inst.inkUsesWorldSpace();
+  // A custom program whose drawing is held is a callable nothing here can
+  // look inside, and a pen it hands the canvas anchors a world-space
+  // material on the node's root placement: it is counted as reading that
+  // placement, so its recording is remade when the placement moves. One
+  // painted every frame reads it every frame.
+  inst.hasWorldSpaceMaterial =
+      nodeUsesWorldSpace(next) ||
+      (next.kind == Kind::Custom && next.cacheMode != Cache::None) ||
+      ruleFillUsesWorldSpace(inst.ruleLayer.get()) || inst.inkUsesWorldSpace();
   if (prev && !describedTransformEqual(*prev, next)) staleWorldSpaceBelow(inst);
 
   // Kind change → full remount of content state.

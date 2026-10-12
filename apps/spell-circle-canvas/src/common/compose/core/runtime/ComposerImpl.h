@@ -938,6 +938,18 @@ struct Composer::Impl {
    *  past it traces wider. */
   const SkPath& coverageOutline(detail::Instance& inst, SkSize size,
                                 float contentScale);
+  /** The raster trace itself: @p phase of @p inst's paint over @p covers
+   *  at @p scale, cut at @p threshold, as a path in the node's own space. */
+  SkPath traceCoverage(detail::Instance& inst, const SkRect& covers,
+                       float scale, float contentScale, float threshold,
+                       Phase phase);
+  /** A silhouette composed from held parts — the node's own paint traced
+   *  alone, and each child's own silhouette placed by its transform — for
+   *  a node whose children move rigidly and change nothing else; nothing
+   *  where that does not hold. */
+  std::optional<SkPath> composedCoverage(detail::Instance& inst,
+                                         const SkRect& covers, float scale,
+                                         float contentScale, float threshold);
   /** WHAT A NODE SAYS ITS EDGE IS, in its own space — its glyph outlines
    *  under `Boundary::Glyphs`, the silhouette of what it drew under
    *  `Boundary::Coverage`, its declared shape otherwise. Empty when the

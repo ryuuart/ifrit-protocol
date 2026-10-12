@@ -335,7 +335,9 @@ taken where the glyphs are drawn: a `textFx()` track that moves, scales,
 turns, shears or hides a glyph this frame moves its contour with it, and a
 passage no track deviates keeps the outline its layout cut. Coverage tracing uses
 a bounded raster, produces stepped edges, follows device scale and has an
-opacity threshold. It excludes the node's own decorations, includes its
+opacity threshold. A silhouette over children that only turn or slide is
+composed from held parts, so its edges are each child's own steps carried
+with it rather than device-aligned steps. It excludes the node's own decorations, includes its
 content and children, and falls back to the shape when empty.
 
 **Compose does not shade.** A fill, ink or stroke whose material states a

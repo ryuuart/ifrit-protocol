@@ -376,6 +376,65 @@ TEST(DrawNode, ANibLaysDiscsOfItsOwnColour) {
   }
 }
 
+// A pen leaf whose drawing is held keeps its world-space field on the root
+// when an ancestor moves: the recording holding it is remade rather than
+// replayed at the new place with the old anchoring, so a sheet turned
+// to an angle frame by frame paints what the same sheet standing at that
+// angle from its first frame paints.
+TEST(DrawNode, APenInAHeldRecordingFollowsTheRootWhenAnAncestorMoves) {
+  material::Paint field = material::Paint::linearGradient(
+      {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  field.worldSpace();
+  const auto describe = [&](const motion::Animatable<float>& turn) {
+    const auto leaf = pen([field](Pen& pen, const PaintContext&) {
+                        pen.noStroke();
+                        pen.fill(field);
+                        pen.rect(0, 0, pen.width, pen.height);
+                      })
+                          .cache(Cache::Picture)
+                          .absolute()
+                          .left(0)
+                          .top(0)
+                          .width(120)
+                          .height(40);
+    // The corner child makes the parent record rather than paint live.
+    const auto parent =
+        box().absolute().left(0).top(0).width(120).height(40).children(
+            {leaf,
+             box().absolute().left(0).top(0).width(2).height(2).fill(green())});
+    return box().children(
+        {box()
+             .absolute()
+             .left(40)
+             .top(80)
+             .width(120)
+             .height(40)
+             .transformOrigin(pct(50), pct(50))
+             .rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}))
+             .children({parent})});
+  };
+  motion::Animatable<float> turn = motion::animatable(0.0f);
+  Host turning(200, 200);
+  turning.composer.render(describe(turn));
+  for (int frame = 0; frame <= 25; ++frame) {
+    turn = (float)frame / 100.0f;
+    turning.frame();
+  }
+  motion::Animatable<float> held = motion::animatable(0.25f);
+  Host still(200, 200);
+  still.composer.render(describe(held));
+  still.frame();
+  int far = 0;
+  for (int y = 0; y < 200; ++y)
+    for (int x = 0; x < 200; ++x) {
+      const SkColor a = turning.pixel(x, y), b = still.pixel(x, y);
+      if (std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)) > 8 ||
+          std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b)) > 8)
+        ++far;
+    }
+  EXPECT_LT(far, 20);
+}
+
 TEST(RetainedElement, PaintsAtTheBoxAndKeepsItsComposer) {
   Paper paper;
   for (int frame = 1; frame <= 2; ++frame) {

@@ -25,7 +25,6 @@
 
 namespace sigil::geometry::path {
 
-
 /** Displace a path in its own (along, across) frame — the primitive
  *  behind a relative strand, and exactly the band's frame. Whatever the
  *  law, a corner is joined at the contour's REAL VERTEX — arc outside a
@@ -98,8 +97,10 @@ struct Sweep {
 };
 
 /** THE REGION A WIDTH LAW SWEEPS along @p spine, as the UNION of its
- *  cross-sections: one quadrilateral per step, plus a wedge or a disc at
- *  each station two steps share.
+ *  cross-sections: laid in strips where the spine bends gently — each
+ *  covering what its steps' quadrilaterals and joins would, to within a
+ *  twentieth of a pixel — and broken at a station that bends harder or
+ *  whose inner rail would fold, where a wedge or a disc closes the turn.
  *
  *  This is the OTHER construction of a band, and the difference from
  *  `bandRegion` is what a hard turn does. `bandRegion` walks the two rails

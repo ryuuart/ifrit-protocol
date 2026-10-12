@@ -681,6 +681,15 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkRect heldBakeBounds = SkRect::MakeEmpty();
   bool bakeBoundsHeld = false;
   bool ownVaries = false;
+  /** Whether the node's own paint lands differently from frame to frame —
+   *  its transform, opacity or blend in motion — whatever it draws. */
+  bool ownPaintMoves = false;
+  /** Whether what this subtree COVERS can change from frame to frame: a
+   *  content term of the node's own, or any paint below it that moves.
+   *  A world-space material's anchoring moving with its node is not one:
+   *  it moves where the material's field is sampled, which the node's
+   *  coverage is not read from. Written by the volatility walk. */
+  bool silhouetteVolatile = false;
   bool extentSeen = false;
   SkRect lastExtent = SkRect::MakeEmpty();
   SkMatrix lastPlacement = SkMatrix::I();
@@ -928,6 +937,16 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkRect coverageOutlineBounds = SkRect::MakeLTRB(-1, -1, -1, -1);
   float coverageOutlineScale = -1.0f;  ///< the device scale it was traced at
   float coverageOutlineThreshold = -1.0f;  ///< the tolerance it was cut at
+  /** The node's OWN paint traced alone, for a silhouette composed from
+   *  held parts while only its children move: keyed as the whole trace
+   *  is, and re-traced when the node's own paint is invalidated. */
+  struct OwnCoverage {
+    SkPath outline;
+    SkRect bounds = SkRect::MakeLTRB(-1, -1, -1, -1);
+    float scale = -1.0f;
+    float threshold = -1.0f;
+  };
+  OwnCoverage coverageOwn;
   // The silhouette a custom shape resolved to, and the shape VALUE it came
   // from. The description it was read off is not an identity: a
   // description freed and rebuilt can land on the address the old one

@@ -21,9 +21,9 @@
 #include <vector>
 
 #include "OffsetInternal.h"
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -237,53 +237,97 @@ SkPath sweptRegion(const SkPath& spine, const SweepWidth& width,
       if (at >= len) break;
     }
     if (pos.size() < 2) continue;
+    // A station closer to the last than a ten-thousandth of a pixel has no
+    // direction of its own: it is the same station.
+    {
+      size_t kept = 1;
+      for (size_t i = 1; i < pos.size(); ++i) {
+        if (std::hypot(pos[i].x() - pos[kept - 1].x(),
+                       pos[i].y() - pos[kept - 1].y()) < 1e-4f) {
+          half[kept - 1] = std::max(half[kept - 1], half[i]);
+          continue;
+        }
+        pos[kept] = pos[i];
+        half[kept] = half[i];
+        ++kept;
+      }
+      pos.resize(kept);
+      half.resize(kept);
+    }
+    if (pos.size() < 2) continue;
 
-    // One quadrilateral per step, each wound the same way, so the band is
-    // the UNION of its cross-sections rather than one contour that
-    // crosses itself where the spine turns hard.
+    // The normal of each step, left of travel.
     std::vector<SkVector> normal(pos.size() - 1);
+    std::vector<SkVector> along(pos.size() - 1);
     for (size_t i = 0; i + 1 < pos.size(); ++i) {
       const SkVector e{pos[i + 1].x() - pos[i].x(),
                        pos[i + 1].y() - pos[i].y()};
       const float L = std::hypot(e.x(), e.y());
-      if (L < 1e-4f) {
-        normal[i] = {0, 0};
-        continue;
-      }
-      const SkVector n{-e.y() / L, e.x() / L};
-      normal[i] = n;
-      const SkPoint quad[4]{
-          {pos[i].x() + n.x() * half[i], pos[i].y() + n.y() * half[i]},
-          {pos[i + 1].x() + n.x() * half[i + 1],
-           pos[i + 1].y() + n.y() * half[i + 1]},
-          {pos[i + 1].x() - n.x() * half[i + 1],
-           pos[i + 1].y() - n.y() * half[i + 1]},
-          {pos[i].x() - n.x() * half[i], pos[i].y() - n.y() * half[i]}};
-      addBandPiece(band, quad, 4);
+      along[i] = {e.x() / L, e.y() / L};
+      normal[i] = {-e.y() / L, e.x() / L};
     }
+    const auto offset = [&](size_t i, SkVector n, float reach, float side) {
+      return SkPoint{pos[i].x() + n.x() * reach * side,
+                     pos[i].y() + n.y() * reach * side};
+    };
 
-    // The joins, at every station two steps meet on. Both sides are
-    // emitted and the winding fill absorbs the one on the inside of the
-    // turn, which is cheaper and steadier than deciding which side is
-    // outside from a cross product that vanishes on a straight run.
-    for (size_t i = 1; i + 1 < pos.size(); ++i) {
+    // THE BAND IS LAID IN RUNS. Where the spine bends gently, one strip —
+    // the left rail forward, the right rail back — covers what that run's
+    // quadrilaterals and the joins between them would, to within a
+    // twentieth of a pixel: a station's rails stand on the bisector of its
+    // two steps, at the reach that keeps each rail parallel to its step.
+    // A station that bends harder than that, or whose inner rail would
+    // fold back on itself, ends the run; there the two runs meet on their
+    // own steps' cross-sections and the join closes the outside, as a pen
+    // closes a corner. A strip is wound as one quadrilateral of it is, so
+    // the winding fill unions runs, joins and overlaps alike.
+    constexpr float kRunTolerancePx = 0.05f;
+    std::vector<SkPoint> left, right;
+    const auto flushRun = [&] {
+      if (left.size() < 2) {
+        left.clear();
+        right.clear();
+        return;
+      }
+      std::vector<SkPoint> ring(left);
+      ring.insert(ring.end(), right.rbegin(), right.rend());
+      // The orientation one quadrilateral of the strip has, which every
+      // piece of the band shares.
+      const std::array<glm::vec2, 4> first{fromSk(left[0]), fromSk(left[1]),
+                                           fromSk(right[1]), fromSk(right[0])};
+      band.moveTo(ring[0]);
+      if (signedArea(first) > 0)
+        for (size_t k = ring.size(); k-- > 1;) band.lineTo(ring[k]);
+      else
+        for (size_t k = 1; k < ring.size(); ++k) band.lineTo(ring[k]);
+      band.close();
+      left.clear();
+      right.clear();
+    };
+    const auto startRun = [&](size_t i) {
+      left.push_back(offset(i, normal[i], half[i], 1));
+      right.push_back(offset(i, normal[i], half[i], -1));
+    };
+    // The joins, at a station two runs meet on. Both sides are emitted and
+    // the winding fill absorbs the one on the inside of the turn, which is
+    // cheaper and steadier than deciding which side is outside from a
+    // cross product that vanishes on a straight run.
+    const auto emitJoin = [&](size_t i) {
       const SkVector& n0 = normal[i - 1];
       const SkVector& n1 = normal[i];
       const float turn = n0.x() * n1.y() - n0.y() * n1.x();
       const float h = half[i];
       // Below about a tenth of a pixel of opening there is nothing to
-      // close, which is every station of a smoothly sampled curve.
-      if (h <= 0 || std::abs(turn) * h < 0.1f) continue;
+      // close.
+      if (h <= 0 || std::abs(turn) * h < 0.1f) return;
       if (sweep.join == SweepJoin::Round) {
         band.addCircle(pos[i].x(), pos[i].y(), h, SkPathDirection::kCCW);
-        continue;
+        return;
       }
       for (int side = -1; side <= 1; side += 2) {
         const float s = (float)side;
-        const SkPoint a{pos[i].x() + n0.x() * h * s,
-                        pos[i].y() + n0.y() * h * s};
-        const SkPoint b{pos[i].x() + n1.x() * h * s,
-                        pos[i].y() + n1.y() * h * s};
+        const SkPoint a = offset(i, n0, h, s);
+        const SkPoint b = offset(i, n1, h, s);
         if (sweep.join == SweepJoin::Miter) {
           // The rails meet where the bisector carries them. `cos` is the
           // half-angle's cosine, and 1/cos is the reach in half-widths —
@@ -303,7 +347,51 @@ SkPath sweptRegion(const SkPath& spine, const SweepWidth& width,
         const SkPoint wedge[3]{pos[i], a, b};
         addBandPiece(band, wedge, 3);
       }
+    };
+    // Whether a step's rails, from @p from to @p to, still run forward.
+    const auto forward = [&](size_t step, SkPoint from, SkPoint to) {
+      return (to.x() - from.x()) * along[step].x() +
+                 (to.y() - from.y()) * along[step].y() >
+             0;
+    };
+    startRun(0);
+    for (size_t i = 1; i + 1 < pos.size(); ++i) {
+      const SkVector& n0 = normal[i - 1];
+      const SkVector& n1 = normal[i];
+      const float angle = std::atan2(n0.x() * n1.y() - n0.y() * n1.x(),
+                                     n0.x() * n1.x() + n0.y() * n1.y());
+      const float h = half[i];
+      bool gentle =
+          h * angle * angle / 8 <= kRunTolerancePx && std::abs(angle) < 0.5f;
+      SkPoint l{}, r{};
+      if (gentle) {
+        SkVector m{n0.x() + n1.x(), n0.y() + n1.y()};
+        const float mag = std::hypot(m.x(), m.y());
+        m = {m.x() / mag, m.y() / mag};
+        const float reach = h / (m.x() * n1.x() + m.y() * n1.y());
+        l = offset(i, m, reach, 1);
+        r = offset(i, m, reach, -1);
+        const SkPoint nextLeft = offset(i + 1, n1, half[i + 1], 1);
+        const SkPoint nextRight = offset(i + 1, n1, half[i + 1], -1);
+        gentle = forward(i - 1, left.back(), l) &&
+                 forward(i - 1, right.back(), r) && forward(i, l, nextLeft) &&
+                 forward(i, r, nextRight);
+      }
+      if (gentle) {
+        left.push_back(l);
+        right.push_back(r);
+        continue;
+      }
+      left.push_back(offset(i, n0, h, 1));
+      right.push_back(offset(i, n0, h, -1));
+      flushRun();
+      emitJoin(i);
+      startRun(i);
     }
+    const size_t last = pos.size() - 1;
+    left.push_back(offset(last, normal[last - 1], half[last], 1));
+    right.push_back(offset(last, normal[last - 1], half[last], -1));
+    flushRun();
   }
   SkPath path = band.detach();
   path.setFillType(SkPathFillType::kWinding);

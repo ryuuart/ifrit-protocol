@@ -14,13 +14,16 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkRegion.h>
 #include <include/core/SkSurface.h>
+#include <include/pathops/SkPathOps.h>
 #include <src/core/SkScopeExit.h>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <vector>
 
+#include "PaintInternal.h"
 #include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
@@ -122,7 +125,9 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   // origin left of the box is a NEGATIVE left and the raster carries that
   // offset.
   const SkRect covers = sized ? ownPaintBounds(inst) : SkRect::MakeEmpty();
-  const bool stale = inst.paintDirty || inst.subtreeVolatile ||
+  // What the subtree covers is all a trace reads, so a subtree whose
+  // colours move and whose coverage holds keeps its trace.
+  const bool stale = inst.paintDirty || inst.silhouetteVolatile ||
                      inst.coverageOutlineSize != size ||
                      inst.coverageOutlineBounds != covers ||
                      inst.coverageOutlineScale != contentScale ||
@@ -147,6 +152,25 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   const float longer = std::max(covers.width(), covers.height());
   const float scale = std::min(contentScale > 0 ? contentScale : 1.0f,
                                (float)kMaxTraceRaster / std::max(longer, 1.0f));
+  // A node whose own paint was invalidated traces its own part again.
+  if (inst.paintDirty) inst.coverageOwn.scale = -1.0f;
+  // A SILHOUETTE WHOSE PARTS HOLD: where only children move, and move
+  // rigidly, the node's own paint and each child's silhouette are traced
+  // once and held, and a frame places them where the children now stand
+  // rather than painting the whole subtree into a raster again.
+  if (std::optional<SkPath> composed =
+          composedCoverage(inst, covers, scale, contentScale, threshold)) {
+    inst.coverageOutline = std::move(*composed);
+    return inst.coverageOutline;
+  }
+  inst.coverageOutline =
+      traceCoverage(inst, covers, scale, contentScale, threshold, Phase::All);
+  return inst.coverageOutline;
+}
+
+SkPath Composer::Impl::traceCoverage(Instance& inst, const SkRect& covers,
+                                     float scale, float contentScale,
+                                     float threshold, Phase phase) {
   // THE RASTER'S GRID IS THE BOX'S GRID. The pixel edges are placed on
   // whole multiples of the trace's own step, so the pixels covering the
   // box are the same pixels whether or not a carrier widened the rect
@@ -162,7 +186,7 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   // One channel, because coverage is the only channel the answer reads.
   const sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeA8(width, height));
-  if (!surface) return inst.coverageOutline;
+  if (!surface) return SkPath();
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(SK_ColorTRANSPARENT);
   canvas.translate((float)-raster.left(), (float)-raster.top());
@@ -202,25 +226,102 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
     // The raster is what the trace's draws land on: an image bound for the
     // enclosing recording's device would draw nothing into it.
     recording.canvas = &canvas;
-    paintContent(inst, canvas, contentScale);
+    paintContent(inst, canvas, contentScale, SkBlendMode::kSrcOver, 1.0f,
+                 phase);
     painted = true;
   }
 
   SkPixmap alpha;
-  if (!surface->peekPixels(&alpha)) return inst.coverageOutline;
+  if (!surface->peekPixels(&alpha)) return SkPath();
   const SkRegion covered = regionOfCoveredPixels(
       alpha, (uint8_t)std::clamp(std::lround(threshold * 255.0f), 0L, 255L));
-  if (covered.isEmpty()) return inst.coverageOutline;
+  if (covered.isEmpty()) return SkPath();
   // Back into the node's own local space, which is where a decoration and
   // a flow exclusion both read it: the raster's own pixels, unscaled, then
   // shifted by the offset the grid was placed at. A node whose ink stays
   // inside its box traces the path it always did, since that offset is
   // zero steps for it.
-  inst.coverageOutline = covered.getBoundaryPath()
-                             .makeTransform(SkMatrix::Translate(
-                                 (float)raster.left(), (float)raster.top()))
-                             .makeScale(1.0f / scale, 1.0f / scale);
-  return inst.coverageOutline;
+  return covered.getBoundaryPath()
+      .makeTransform(
+          SkMatrix::Translate((float)raster.left(), (float)raster.top()))
+      .makeScale(1.0f / scale, 1.0f / scale);
+}
+
+std::optional<SkPath> Composer::Impl::composedCoverage(Instance& inst,
+                                                       const SkRect& covers,
+                                                       float scale,
+                                                       float contentScale,
+                                                       float threshold) {
+  const ElementNode& node = *inst.description;
+  const ComputedStyle& style = inst.computed;
+  // The node's own paint must hold, and nothing of its own may wrap its
+  // children: a clip, a mask or a filter over the layer reads the children
+  // where they stand and is not the union of their silhouettes.
+  if (inst.ownContentVolatile || inst.paintDirty || style.clipContent ||
+      layerEffectOf(node) || backdropEffectOf(node) || node.hasMasks() ||
+      hostsSpace(inst))
+    return std::nullopt;
+  bool anyMoving = false;
+  struct Part {
+    Instance* child;
+    SkMatrix placed;
+  };
+  std::vector<Part> parts;
+  for (const auto& owned : inst.children) {
+    Instance& child = *owned;
+    if (child.computed.layout.display == Display::None) continue;
+    const ElementNode& described = *child.description;
+    // A child is held when what it draws changes in nothing but where it
+    // stands: no content of its own in motion, nothing moving below it,
+    // drawn whole at full opacity and the plain blend, on a flat plane, and
+    // dressed by no mark of its own, which a trace of the child alone
+    // would leave out.
+    if (child.silhouetteVolatile || child.paintDirty || described.fxData ||
+        !described.backgrounds.empty() || !described.foregrounds.empty() ||
+        child.computed.paint.opacity.identity() != nullptr ||
+        child.computed.paint.blendMode != SkBlendMode::kSrcOver ||
+        child.resolveFloat(Instance::kOpacity, child.computed.paint.opacity) <
+            1.0f ||
+        hostsSpace(child))
+      return std::nullopt;
+    const NodeTransform tf = transformOf(child);
+    if (tf.spatial() || described.depthData) return std::nullopt;
+    anyMoving |= child.transformLive;
+    const SkRect rect = instanceRect(child);
+    SkMatrix placed = SkMatrix::Translate(rect.left(), rect.top());
+    placed.preConcat(tf.matrix({0, 0}, rect.width(), rect.height()));
+    parts.push_back({&child, placed});
+  }
+  // Only a node whose children are moving is worth composing: a still one
+  // is traced once and held whole.
+  if (!anyMoving) return std::nullopt;
+
+  Instance::OwnCoverage& own = inst.coverageOwn;
+  if (own.bounds != covers || own.scale != contentScale ||
+      own.threshold != threshold) {
+    own.outline = traceCoverage(inst, covers, scale, contentScale, threshold,
+                                Phase::OwnOnly);
+    own.bounds = covers;
+    own.scale = contentScale;
+    own.threshold = threshold;
+  }
+  std::vector<SkPath> pieces;
+  if (!own.outline.isEmpty()) pieces.push_back(own.outline);
+  for (const Part& part : parts) {
+    Instance& child = *part.child;
+    const SkRect rect = instanceRect(child);
+    const SkPath& held =
+        coverageOutline(child, {rect.width(), rect.height()}, contentScale);
+    if (!held.isEmpty()) pieces.push_back(held.makeTransform(part.placed));
+  }
+  if (pieces.empty()) return SkPath();
+  if (pieces.size() == 1) return std::move(pieces.front());
+  // Silhouettes overlap where children do, and a hole in one may be
+  // covered by another, so the parts are united rather than appended.
+  SkOpBuilder united;
+  for (const SkPath& piece : pieces) united.add(piece, kUnion_SkPathOp);
+  if (std::optional<SkPath> result = united.resolve()) return result;
+  return std::nullopt;
 }
 
 }  // namespace sigil::compose

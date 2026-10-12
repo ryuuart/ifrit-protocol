@@ -7,10 +7,12 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkContourMeasure.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPathUtils.h>
 #include <include/core/SkRect.h>
 
 #include <algorithm>
@@ -437,10 +439,9 @@ TEST(Band, ARailStandsItsWholeWidthOffEveryCornerItTurnsAround) {
         EXPECT_EQ(cornerLoops(parallel(polygon, width, 2.0f), 0.0f), 0)
             << "constant " << width << " on a " << sides << "-gon of "
             << radius;
-        EXPECT_EQ(
-            cornerLoops(profileOffset(polygon, Swell{width, width * 0.5f}),
-                        0.0f),
-            0)
+        EXPECT_EQ(cornerLoops(
+                      profileOffset(polygon, Swell{width, width * 0.5f}), 0.0f),
+                  0)
             << "varying " << width << " on a " << sides << "-gon of " << radius;
       }
 }
@@ -503,8 +504,8 @@ TEST(Band, ARailMitresTheOutsideOfATurnWhenItsJoinSaysSo) {
   const SkPath rounded = parallel(star, across, 2.0f, Join::Round);
   EXPECT_EQ(parallel(star, across, 2.0f), rounded) << "round by default";
   for (const glm::vec2& vertex : vertices) {
-    const glm::vec2 point =
-        vertex + glm::normalize(vertex - centre) * (across / std::sin(halfPoint));
+    const glm::vec2 point = vertex + glm::normalize(vertex - centre) *
+                                         (across / std::sin(halfPoint));
     EXPECT_LT(nearestTo(mitred, point), 1.0f)
         << "mitred at " << vertex.x << "," << vertex.y;
     // An arc about the vertex stands the offset from it and no nearer —
@@ -519,8 +520,8 @@ TEST(Band, ARailMitresTheOutsideOfATurnWhenItsJoinSaysSo) {
   const SkPath bevelled = parallel(star, across, 2.0f, Join::Bevel);
   EXPECT_EQ(limited, bevelled);
   for (const glm::vec2& vertex : vertices) {
-    const glm::vec2 point =
-        vertex + glm::normalize(vertex - centre) * (across / std::sin(halfPoint));
+    const glm::vec2 point = vertex + glm::normalize(vertex - centre) *
+                                         (across / std::sin(halfPoint));
     EXPECT_GT(nearestTo(bevelled, point), across * 0.5f);
   }
 }
@@ -712,6 +713,40 @@ TEST(Band, ASweptWidthMayBeKeyedOnDirectionWhereAProfileCannot) {
   });
   EXPECT_FALSE(pinched.isEmpty());
   EXPECT_TRUE(pinched.isFinite());
+}
+
+TEST(Band, AGentlyBendingSweepIsOneStripThatCoversWhatItsStrokeDoes) {
+  // A wave sampled at a pixel a step: thousands of cross-sections, laid as
+  // one strip because no station bends hard. It covers what a stroke of
+  // the same constant width covers, to the pixel at the edges, and holds
+  // a handful of verbs per station rather than a piece and a join each.
+  SkPathBuilder wave;
+  wave.moveTo(20, 150);
+  for (int x = 21; x <= 280; ++x)
+    wave.lineTo((float)x, 150 + 60 * std::sin((float)x * 0.04f));
+  const SkPath spine = wave.detach();
+  const SweepWidth constant = [](const SweepStation&) { return 12.0f; };
+  const SkPath band =
+      sweptRegion(spine, constant, {.stepPx = 1, .join = SweepJoin::Round});
+  SkPaint stroke;
+  stroke.setStyle(SkPaint::kStroke_Style);
+  stroke.setStrokeWidth(12);
+  stroke.setStrokeJoin(SkPaint::kRound_Join);
+  const SkPath reference = skpathutils::FillPathWithPaint(spine, stroke);
+  const int swept = inked(band), stroked = inked(reference);
+  EXPECT_NEAR(swept, stroked, stroked / 100);
+  // One station a pixel: a strip is two rail points a station, where a
+  // piece and a join a station take five verbs and more.
+  SkContourMeasureIter measure(spine, false);
+  const int stations = (int)std::ceil(measure.next()->length()) + 1;
+  EXPECT_LT(band.countVerbs(), 2 * stations + 16);
+  // A tapering width keeps the strip too, and pinches where the law does.
+  const SweepWidth taper = [](const SweepStation& at) {
+    return 2.0f + 14.0f * (1 - at.fraction);
+  };
+  const SkPath tapered = sweptRegion(spine, taper, {.stepPx = 1});
+  EXPECT_LT(tapered.countVerbs(), 2 * stations + 16);
+  EXPECT_GT(inked(tapered), stroked / 2);
 }
 
 }  // namespace

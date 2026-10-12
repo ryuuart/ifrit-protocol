@@ -82,9 +82,11 @@ struct Ribbon {
    *  Skia's own rule for a stroke.
    *
    *  It shapes the outside only, because the inside of a turn is not a
-   *  choice: a band is the UNION of its cross-sections, and this one is
-   *  built as one quadrilateral per sampled step, all wound the same way,
-   *  so the overlap on the inside of a bend fills. A band zipped into a
+   *  choice: a band is the UNION of its cross-sections. A constant width
+   *  is the spine's stroke outline at that width, butt-ended; any other
+   *  law is swept by `geometry::path::sweptRegion`, in strips that break
+   *  at every hard bend, all wound the same way, so the overlap on the
+   *  inside of a bend fills. A band zipped into a
    *  single left-forward, right-back contour cannot do that — its inner
    *  rail crosses itself, the crossing winds the wrong way, and the
    *  winding fill DROPS the inside of the bend. The hole opens once the
