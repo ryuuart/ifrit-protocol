@@ -341,6 +341,8 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // not move this node's own device rect.
   const bool worldUnderMotion =
       inst.hasWorldSpaceMaterial && (moving || movingAbove);
+  // Every animated scalar but the anchoring, for the silhouette's reading.
+  const bool scalarBesideAnchoring = scalarContent;
   scalarContent |= worldUnderMotion;
   // A BOUND fill joins the memoized lane too, even though a Fill is not a
   // float: its equality is structurally exact (kind, colour bitwise, shader
@@ -460,6 +462,18 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                     .inSpace = hosts};
   for (auto& child : inst.children) kids.add(computeVolatile(*child, below));
   const bool childrenVolatile = kids.anyVolatile;
+  // WHAT THE SUBTREE COVERS: every content term but an anchoring that
+  // moves with the node, and any paint below that moves.
+  {
+    bool silhouette =
+        otherThanScalar ||
+        (scalarContent && (scalarBesideAnchoring || boundFill || patternPan));
+    for (const auto& child : inst.children)
+      silhouette =
+          silhouette || child->silhouetteVolatile || child->ownPaintMoves;
+    inst.silhouetteVolatile = silhouette;
+    inst.ownPaintMoves = ownPaint;
+  }
   // Does anything here composite against what is ALREADY on the canvas? If
   // so the subtree can never be baked into a transparent layer and blitted
   // back — a kMultiply child would resolve against transparent black. This

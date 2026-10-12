@@ -91,6 +91,14 @@ independently of matrix stability, and the host stays active for that draw.
 Pixel layers and coverage traces isolate pending visits within their own
 paint; permanent bake refusals do not request another frame.
 
+A coverage silhouette over children that only move, rigidly and at full
+opacity, is composed from held parts: the node's own paint traced alone and
+each child's own silhouette placed by its current transform, so a turning
+child costs a path transform rather than a raster trace of the subtree. Its
+edges are then the child's own steps turned with it. A custom program whose
+drawing is held is a callable, so it is counted as reading its root
+placement and its recording is remade when an ancestor moves it.
+
 Pixel bakes retain the owning draw's destination precision and color space,
 with premultiplied alpha for transparent intermediate surfaces. A destination
 format change drops both images and the recordings that contain them. Picture
