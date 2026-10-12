@@ -417,7 +417,7 @@ bool operatorInputsEqual(const ElementNode& a, const ElementNode& b) {
 static_assert(kFieldCount<ElementNode> == 25 &&
                   kFieldCount<DeclaredFields::Storage> == 6 &&
                   kFieldCount<PaintProps> == 15 &&
-                  kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
+                  kFieldCount<ImageData> == 4 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
               "field. Rule on it below — participate, or a stated reason "
@@ -550,7 +550,9 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   if (!textEqual(a, b)) return false;
   if ((bool)a.imageData != (bool)b.imageData) return false;
   if (a.imageData && (!(a.imageData->source == b.imageData->source) ||
-                      a.imageData->region != b.imageData->region))
+                      a.imageData->region != b.imageData->region ||
+                      a.imageData->fit != b.imageData->fit ||
+                      a.imageData->aspect != b.imageData->aspect))
     return false;
   return true;
 }

@@ -255,6 +255,15 @@ struct RuleTextLayer {
 struct ImageData {
   sigil::media::PixelSource source;
   std::optional<SkRect> region;  // atlas sub-rect, source px
+  /** How the source meets a box of another shape. Under `Cover` and
+   *  `Contain` a leaf whose box is left open is given the source's
+   *  proportions as it is styled; the painter keeps the fit in a box that
+   *  is stated. `Native` draws the source into the whole box. */
+  material::Fit fit = material::Fit::Native;
+  /** The source's width over its height when the leaf was made; zero
+   *  where the source did not know its size, and the leaf then takes its
+   *  parent's box on both axes. */
+  float aspect = 0.0f;
 };
 
 struct CustomData {

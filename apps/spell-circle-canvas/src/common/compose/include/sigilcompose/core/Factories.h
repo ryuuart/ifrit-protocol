@@ -203,7 +203,8 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
  *  `Native` asks nothing of the box, so the leaf is sized as any node is
  *  and the frame is drawn into that box — the fit a pixel-exact grid of
  *  sprites or atlas cells spells.
- *  `imageRegion()` draws one sub-rect of an atlas and `imageRendering()` —
+ *  `imageRegion()` draws one sub-rect of an atlas, the source the fit is
+ *  applied to, and `imageRendering()` —
  *  inherited from any ancestor — says how the pixels are filtered. An
  *  empty source draws nothing. */
 [[nodiscard]] Image image(sigil::media::PixelSource source,
@@ -223,9 +224,12 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
  *  keeps the proportions and leaves the slack, `Cover` keeps them and
  *  crops what overflows, and `Native` asks nothing — the leaf stands at
  *  the picture's own pixels. THE LEAF TAKES THE BOX IT STANDS IN under
- *  the first three, and under `Contain` and `Cover` the node itself
- *  carries the picture's proportions, so what is painted is the whole of
- *  the node. A null picture draws nothing. */
+ *  the first three, and under `Contain` and `Cover` a free node carries
+ *  the picture's proportions, so what is painted is the whole of the
+ *  node. THE FIT HOLDS IN A STATED BOX: a leaf given both dimensions, or
+ *  a `rect()`, of another shape draws `Cover` as the centred crop that
+ *  covers the box and `Contain` letterboxed and centred in it. A null
+ *  picture draws nothing. */
 [[nodiscard]] Image image(sk_sp<SkImage> picture,
                           material::Fit fit = material::Fit::Contain);
 /** A box whose content is one paint program (≡ box().background(p)).

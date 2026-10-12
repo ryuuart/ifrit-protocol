@@ -55,12 +55,16 @@ drawn into that box — the fit a pixel-exact grid spells, since an
 `imageRegion` cell of an atlas does not have the atlas's proportions.
 
 **The picture leaf takes the box it stands in** under every fit, and
-under `Contain` and `Cover` the node itself carries the picture's
-proportions, so what is painted is the whole of the node. `Stretch`
-scales both axes independently; `Contain` keeps the proportions and
-leaves the slack on the long axis; `Cover` leaves no slack and lets
-whatever clips the node crop the overflow. A null picture is an empty
-box.
+under `Contain` and `Cover` a node whose box is left open carries the
+picture's proportions, so what is painted is the whole of the node.
+`Stretch` scales both axes independently; `Contain` keeps the
+proportions and leaves the slack on the long axis; `Cover` leaves no
+slack and lets whatever clips the node crop the overflow. **The fit
+holds in a stated box**: a leaf given both its width and its height, or
+a `rect`, of another shape draws `Cover` as the centred crop of the
+picture that covers the box and `Contain` letterboxed and centred in
+it, and an `imageRegion` is the part of the source the fit is applied
+to. A null picture is an empty box.
 
 **Sampling is inherited, and the default is wrong for pixels.** Linear
 is right for a photograph and wrong for every grid of pixels — art,

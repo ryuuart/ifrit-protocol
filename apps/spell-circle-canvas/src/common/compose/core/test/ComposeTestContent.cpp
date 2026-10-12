@@ -3,7 +3,8 @@
 // kinds a leaf draws from — a held path, a keyed shape, a replayed picture,
 // a figure with its own box, a keyed custom whose key must stay honest,
 // the sampling an image leaf is magnified with, the box a picture and
-// an atlas region meet, and what a paint program is handed.
+// an atlas region meet, the fit a picture keeps in a stated box, and what
+// a paint program is handed.
 
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
@@ -356,6 +357,144 @@ TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
       bare.composer.bounds("none");
   ASSERT_TRUE(empty.has_value());
   EXPECT_FLOAT_EQ(empty->height(), 0);
+}
+
+namespace {
+
+/** Four upright stripes across a 40x10 picture, ten pixels each: red,
+ *  green, blue, white. Which stripes show says which part was drawn. */
+sk_sp<SkImage> fourStripes() {
+  SkBitmap stripes;
+  stripes.allocN32Pixels(40, 10);
+  const SkColor colours[] = {SK_ColorRED, SK_ColorGREEN, SK_ColorBLUE,
+                             SK_ColorWHITE};
+  for (int index = 0; index < 4; ++index)
+    stripes.erase(colours[index], SkIRect::MakeXYWH(index * 10, 0, 10, 10));
+  return stripes.asImage();
+}
+
+/** @p picture placed by hand with Skia on a black 120x120 ground, through
+ *  the same sampling the leaf is given. */
+SkBitmap drawnByHand(const sk_sp<SkImage>& picture, const SkRect& source,
+                     const SkRect& destination, SkFilterMode filter) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 120));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  surface->getCanvas()->drawImageRect(picture, source, destination,
+                                      SkSamplingOptions(filter), nullptr,
+                                      SkCanvas::kFast_SrcRectConstraint);
+  SkBitmap pixels;
+  pixels.allocPixels(surface->imageInfo());
+  surface->readPixels(pixels.pixmap(), 0, 0);
+  return pixels;
+}
+
+bool samePixels(const SkBitmap& left, const SkBitmap& right) {
+  if (left.dimensions() != right.dimensions()) return false;
+  for (int y = 0; y < left.height(); ++y)
+    if (std::memcmp(left.getAddr32(0, y), right.getAddr32(0, y),
+                    (size_t)left.width() * 4) != 0)
+      return false;
+  return true;
+}
+
+/** A 4:1 picture under @p fit, given a square 80x80 box at (20, 20) by
+ *  `rect()`, drawn with nearest sampling on a black 120x120 ground. */
+SkBitmap squareBoxed(const sk_sp<SkImage>& picture, material::Fit fit) {
+  Host host(120, 120);
+  host.composer.render(
+      box().children({image(picture, fit)
+                          .imageRendering(material::Sampling::Nearest)
+                          .absolute()
+                          .rect(20, 20, 80, 80)}));
+  host.frame();
+  return host.pixels();
+}
+
+}  // namespace
+
+TEST(ComposeContent, ACoverLeafInAStatedBoxShowsTheCentredCrop) {
+  // The box is square and the picture is 4:1, so covering it takes the
+  // picture at eight times and keeps its middle ten pixels: the green and
+  // blue stripes, half the box each. Stretched, all four would show.
+  const sk_sp<SkImage> picture = fourStripes();
+  const SkBitmap shown = squareBoxed(picture, material::Fit::Cover);
+  EXPECT_TRUE(samePixels(
+      shown,
+      drawnByHand(picture, SkRect::MakeXYWH(15, 0, 10, 10),
+                  SkRect::MakeXYWH(20, 20, 80, 80), SkFilterMode::kNearest)));
+  EXPECT_EQ(shown.getColor(30, 60), SK_ColorGREEN);
+  EXPECT_EQ(shown.getColor(90, 60), SK_ColorBLUE);
+  for (int x = 20; x < 100; ++x)
+    ASSERT_NE(shown.getColor(x, 60), SK_ColorRED) << "stretched at " << x;
+}
+
+TEST(ComposeContent, AContainLeafInAStatedBoxIsLetterboxed) {
+  // Held whole at twice its size, 80x20, centred: thirty pixels of the box
+  // above and below stay the ground.
+  const sk_sp<SkImage> picture = fourStripes();
+  const SkBitmap shown = squareBoxed(picture, material::Fit::Contain);
+  EXPECT_TRUE(samePixels(shown, drawnByHand(picture, SkRect::MakeWH(40, 10),
+                                            SkRect::MakeXYWH(20, 50, 80, 20),
+                                            SkFilterMode::kNearest)));
+  for (int y : {21, 49, 70, 99})
+    EXPECT_EQ(shown.getColor(60, y), SK_ColorBLACK) << "margin at " << y;
+  EXPECT_EQ(shown.getColor(25, 60), SK_ColorRED);
+  EXPECT_EQ(shown.getColor(95, 60), SK_ColorWHITE);
+}
+
+TEST(ComposeContent, AStretchLeafInAStatedBoxStretches) {
+  const sk_sp<SkImage> picture = fourStripes();
+  const SkBitmap shown = squareBoxed(picture, material::Fit::Stretch);
+  EXPECT_TRUE(samePixels(shown, drawnByHand(picture, SkRect::MakeWH(40, 10),
+                                            SkRect::MakeXYWH(20, 20, 80, 80),
+                                            SkFilterMode::kNearest)));
+  EXPECT_EQ(shown.getColor(25, 60), SK_ColorRED);
+  EXPECT_EQ(shown.getColor(95, 60), SK_ColorWHITE);
+}
+
+TEST(ComposeContent, AFreeCoverLeafDrawsTheWholePictureIntoItsBox) {
+  // Free, the leaf is the picture's shape up to the layout's rounding, and
+  // the whole picture is drawn into the whole box with linear sampling,
+  // exactly as a hand-placed draw into the same box.
+  SkBitmap odd;
+  odd.allocN32Pixels(30, 7);
+  odd.eraseColor(SK_ColorBLUE);
+  odd.erase(SK_ColorYELLOW, SkIRect::MakeXYWH(0, 0, 13, 3));
+  const sk_sp<SkImage> picture = odd.asImage();
+  Host host(120, 120);
+  host.composer.render(box().width(120).height(60).children(
+      {image(picture, material::Fit::Cover).key("free")}));
+  host.frame();
+  const SkRect bounds = require(host.composer.bounds("free"));
+  EXPECT_FLOAT_EQ(bounds.height(), 60);
+  EXPECT_NEAR(bounds.width(), 60.0f * 30.0f / 7.0f, 0.5f);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 120));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  surface->getCanvas()->drawImageRect(picture, bounds,
+                                      SkSamplingOptions{SkFilterMode::kLinear});
+  SkBitmap expected;
+  expected.allocPixels(surface->imageInfo());
+  surface->readPixels(expected.pixmap(), 0, 0);
+  EXPECT_TRUE(samePixels(host.pixels(), expected));
+}
+
+TEST(ComposeContent, ARegionIsTheSourceTheFitApplies) {
+  // The region straddles the atlas seam, half red and half green. Held
+  // inside a 2:1 box it is a centred square with a margin either side.
+  auto atlas = twoCellAtlas();
+  Host host(120, 120);
+  host.composer.render(box().children(
+      {image(atlas, material::Fit::Contain)
+           .imageRegion(geometry::path::Rect::of({8, 0}, {16, 16}))
+           .absolute()
+           .rect(0, 0, 100, 50)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 25), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(35, 25), SK_ColorRED);
+  EXPECT_EQ(host.pixel(65, 25), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(90, 25), SK_ColorBLACK);
 }
 
 TEST(ComposeContent, ImageRegionDrawsAtlasCell) {

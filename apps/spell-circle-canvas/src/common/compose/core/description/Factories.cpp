@@ -113,22 +113,18 @@ Image image(sigil::media::PixelSource source, material::Fit fit) {
   const glm::ivec2 size = source.size();
   Image leaf{std::make_shared<detail::ElementNode>()};
   leaf.node()->kind = Kind::Image;
-  leaf.node()->imageData.ensure().source = std::move(source);
+  detail::ImageData& data = leaf.node()->imageData.ensure();
+  data.source = std::move(source);
+  data.fit = fit;
   // Native asks nothing of the box.
   if (fit == material::Fit::Native) return leaf;
-  // THE FIT IS LAYOUT AND NOT A MATRIX: the leaf takes the box it stands
-  // in, and where its proportions are kept the node itself is the right
-  // shape — so what is painted is the whole of the node and a caller
-  // computes nothing.
-  const float width = (float)size.x;
-  const float height = (float)size.y;
-  if (fit == material::Fit::Stretch || width <= 0.0f || height <= 0.0f)
+  if (fit == material::Fit::Stretch || size.x <= 0 || size.y <= 0)
     return leaf.width(pct(100)).height(pct(100));
-  leaf.aspectRatio(width / height);
-  if (fit == material::Fit::Contain)
-    leaf.width(pct(100)).maxWidth(pct(100)).maxHeight(pct(100));
-  else
-    leaf.height(pct(100)).minWidth(pct(100));
+  // Under Contain and Cover the box the fit asks for is a starting shape,
+  // not a statement: a box left open is given the picture's proportions
+  // as the leaf is styled, and a box that is stated stands, the fit then
+  // kept where the picture is painted.
+  data.aspect = (float)size.x / (float)size.y;
   return leaf;
 }
 

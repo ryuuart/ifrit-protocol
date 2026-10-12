@@ -68,6 +68,48 @@ using namespace detail;
 
 namespace {
 
+/** WHERE A PICTURE MEETS ITS LEAF'S BOX: the part of the source drawn and
+ *  the rect it is drawn into. `Cover` draws the centred crop of the source
+ *  that covers the box, `Contain` draws the whole source at the one scale
+ *  that fits, centred with an equal margin on either side, and `Stretch`
+ *  and `Native` draw the whole source into the whole box. A box within half
+ *  a unit of the source's shape is that shape, which is what the layout
+ *  gives a free leaf, and takes the whole source into the whole box. */
+struct ImagePlacement {
+  SkRect source;
+  SkRect destination;
+};
+
+ImagePlacement placeImage(const SkRect& source, const SkRect& box,
+                          material::Fit fit) {
+  const ImagePlacement whole{source, box};
+  if (fit != material::Fit::Cover && fit != material::Fit::Contain)
+    return whole;
+  if (source.isEmpty() || box.isEmpty()) return whole;
+  const float scaleAcross = box.width() / source.width();
+  const float scaleDown = box.height() / source.height();
+  const float scale = fit == material::Fit::Cover
+                          ? std::max(scaleAcross, scaleDown)
+                          : std::min(scaleAcross, scaleDown);
+  const float fittedWidth = source.width() * scale;
+  const float fittedHeight = source.height() * scale;
+  if (std::abs(fittedWidth - box.width()) < 0.5f &&
+      std::abs(fittedHeight - box.height()) < 0.5f)
+    return whole;
+  if (fit == material::Fit::Contain)
+    return {source,
+            SkRect::MakeXYWH(box.x() + (box.width() - fittedWidth) * 0.5f,
+                             box.y() + (box.height() - fittedHeight) * 0.5f,
+                             fittedWidth, fittedHeight)};
+  const float croppedWidth = box.width() / scale;
+  const float croppedHeight = box.height() / scale;
+  return {
+      SkRect::MakeXYWH(source.x() + (source.width() - croppedWidth) * 0.5f,
+                       source.y() + (source.height() - croppedHeight) * 0.5f,
+                       croppedWidth, croppedHeight),
+      box};
+}
+
 /** Does this span set claim the whole boundary? Then the boundary is
  *  untouched, and returning the source path unchanged is required, not an
  *  optimisation: a fully settled reveal must draw exactly the path it would
@@ -967,12 +1009,23 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           if (picture) {
             const SkSamplingOptions sampling = inst.sampling.value_or(
                 SkSamplingOptions{SkFilterMode::kLinear});
-            if (node.imageData->region)
-              canvas.drawImageRect(picture, *node.imageData->region, bounds,
+            // A stated region is the source the fit is applied to, and
+            // sampling stays inside it; a crop of the whole picture may
+            // sample the picture beyond the crop, as its own neighbours.
+            const std::optional<SkRect>& region = node.imageData->region;
+            const ImagePlacement placed =
+                placeImage(region.value_or(SkRect::Make(picture->dimensions())),
+                           bounds, node.imageData->fit);
+            if (region)
+              canvas.drawImageRect(picture, placed.source, placed.destination,
                                    sampling, nullptr,
                                    SkCanvas::kStrict_SrcRectConstraint);
+            else if (placed.source == SkRect::Make(picture->dimensions()))
+              canvas.drawImageRect(picture, placed.destination, sampling);
             else
-              canvas.drawImageRect(picture, bounds, sampling);
+              canvas.drawImageRect(picture, placed.source, placed.destination,
+                                   sampling, nullptr,
+                                   SkCanvas::kFast_SrcRectConstraint);
           }
         }
         break;

@@ -202,7 +202,12 @@ layout. `stack()` overlaps its children and makes them absolute.
 that container; flex properties and geometry-reading layout features do
 not apply inside it.
 
-Text leaves measure their contents. A `custom()` program has no intrinsic
+Text leaves measure their contents. An `image()` leaf's fit holds in
+whatever box it stands in: a free leaf under `Contain` or `Cover` takes the
+picture's proportions, and a leaf whose box is stated in another shape
+draws `Cover` as the centred crop that covers the box and `Contain`
+letterboxed and centred in it, applied to its `imageRegion()` where one is
+stated. A `custom()` program has no intrinsic
 size, so give it dimensions or absolute insets. Bare numbers are pixels;
 `pct()` reads the parent's extent. Font-relative lengths use SigilWeave's
 units, while canvas-relative lengths read the viewport.

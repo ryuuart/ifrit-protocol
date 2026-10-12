@@ -503,8 +503,12 @@ bool ruleLayerEqual(const RuleLayer* a, const RuleLayer* b) {
          materialSlotEqual(a->material, b->material);
 }
 
-void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
-                  ComputedStyle& out, const RuleLayer* rules) {
+namespace {
+
+/** The node's own statements over the matched rules, the inherited
+ *  properties and the keywords, folded as `resolveStyle()` states. */
+void foldStatements(const ComputedStyle* parent, const ElementNode& node,
+                    ComputedStyle& out, const RuleLayer* rules) {
   out.layout = node.fields.layout();
   out.paint = node.fields.paint();
   out.corners = node.fields.corners();
@@ -558,6 +562,44 @@ void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
       if (!node.fields.declared().has(entry.field)) resolve(entry);
   if (node.fields.keywords())
     for (const auto& entry : node.fields.keywords()->entries()) resolve(entry);
+}
+
+/** THE BOX A FIT ASKS FOR where the leaf leaves one open. A free `Contain`
+ *  leaf is as wide as its parent allows and no taller than it, a free
+ *  `Cover` leaf as tall as its parent and at least as wide, and both keep
+ *  the picture's proportions, so what is painted is the whole of the box.
+ *  A leaf whose width and height are both stated, by itself or by a rule,
+ *  keeps the box it was given, and the fit is kept where it is painted.
+ *  Any bound or proportion the leaf states itself stands. */
+void shapeImageBox(const ElementNode& node, LayoutProps& layout) {
+  if (node.kind != Kind::Image || !node.imageData) return;
+  const ImageData& image = *node.imageData;
+  if (image.fit != material::Fit::Cover && image.fit != material::Fit::Contain)
+    return;
+  if (image.aspect <= 0.0f) return;
+  const bool widthOpen = layout.width.unit == Dimension::Unit::Auto;
+  const bool heightOpen = layout.height.unit == Dimension::Unit::Auto;
+  if (!widthOpen && !heightOpen) return;
+  const auto fallback = [](Dimension& field) {
+    if (field.unit == Dimension::Unit::Auto) field = pct(100);
+  };
+  if (layout.aspect <= 0.0f) layout.aspect = image.aspect;
+  if (image.fit == material::Fit::Contain) {
+    fallback(layout.width);
+    fallback(layout.maxWidth);
+    fallback(layout.maxHeight);
+  } else {
+    fallback(layout.height);
+    fallback(layout.minWidth);
+  }
+}
+
+}  // namespace
+
+void resolveStyle(const ComputedStyle* parent, const ElementNode& node,
+                  ComputedStyle& out, const RuleLayer* rules) {
+  foldStatements(parent, node, out, rules);
+  shapeImageBox(node, out.layout);
 }
 
 }  // namespace detail
