@@ -21,6 +21,15 @@ def register(table: Table) -> None:
     table.erased("_sigil.weave.Type", "color", "_t.ColorLike | None")
     table.attribute("_sigil.weave.Type.textTransform", "TextTransform | None")
     table.attribute("_sigil.weave.Type.verticalForm", "VerticalForm | None")
+    # The base direction a paragraph's bidi resolves against lives in the
+    # unicode module, which the block's field names across the boundary.
+    table.attribute(
+        "_sigil.weave.ParagraphBlock.baseDirection", "unicode.BaseDirection | None"
+    )
+    table.parameters(
+        "_sigil.weave.ParagraphBlock.__init__",
+        baseDirection="unicode.BaseDirection | None",
+    )
     table.returns("_sigil.weave.Type", "features", "list[FontFeature] | None")
     table.returns("_sigil.weave.Type", "variations", "list[FontVariation]")
     for field in ("size", "track", "wordSpacing"):
