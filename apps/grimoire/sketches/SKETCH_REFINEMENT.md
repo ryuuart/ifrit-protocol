@@ -145,14 +145,11 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `data_scales` | Retain · focused specimen | Cached preview |
 | `data_sources` | Rewritten · subject study | Reviewed GPU plate |
 | `feed_events` | Refined · instrument | Rendered plate |
-| `feed_sky` | Rewritten · three doors on kit panels; `quic_sky` and `shared_sky` folded in | Rendered plate |
-| `grpc_watch` | Refined · instrument | Rendered plate |
+| `feed_sky` | Rewritten · two doors on kit panels | Rendered plate |
 | `midi_pads` | Refined · instrument | Rendered plate |
 | `osc_desk` | Refined · instrument | Rendered plate |
 | `phone_sky` | Refined · instrument | Rendered plate |
 | `schema_scene` | Refined · instrument | Rendered plate |
-| `serial_sensor` | Refined · instrument | Rendered plate |
-| `webrtc_sky` | Refined · instrument | Rendered plate |
 | `bristle_current` | Retain · drawing as the subject | Cached preview |
 | `p5_hello` | Retain · drawing as the subject | Cached preview |
 | `p5_mixed_forms` | Retain · drawing as the subject | Cached preview |
@@ -252,8 +249,6 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `svg_silhouette` | Rewritten · subject study | Reviewed GPU plate |
 | `ticker_lanes` | Rewritten · subject study | Reviewed GPU plate |
 | `tile_map` | Rewritten · subject study | Reviewed GPU plate |
-| `usd_roundtrip` | Rewritten · subject study | Reviewed GPU plate |
-| `volatility_cost` | Rewritten · subject study | Reviewed GPU plate |
 | `warichu_placeholder` | Rewritten · subject study | Reviewed GPU plate |
 | `web_script` | Rewritten · subject study | Reviewed GPU plate |
 | `yarn_marquee` | Rewritten · subject study | Reviewed GPU plate |

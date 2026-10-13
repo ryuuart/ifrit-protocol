@@ -77,7 +77,7 @@ Other labels state required facilities:
 | `gpu` | Metal on Apple, or a Vulkan runtime |
 | `fonts` | Installed platform fonts |
 | `network` | An internet route |
-| `oiio`, `ocio`, `svg`, `usd` | The named decode, color or scene backend |
+| `oiio`, `ocio`, `svg` | The named decode or color backend |
 | `substance`, `ultralight` | The named licensed SDK or its fixtures |
 | `plates` | The adopted platform and font set |
 | `cocoa`, `window` | A window server, and a real window for `window` |

@@ -92,10 +92,8 @@ TEST(ProtocolRoundTrip, AValueMadeWithNothingSetHoldsTheDeclaredDefaults) {
   EXPECT_EQ(60.0, protocol::clock::values::StepParameters{}.rate);
   EXPECT_FALSE(protocol::clock::values::StepParameters{}.seconds);
   EXPECT_TRUE(protocol::clock::values::PauseParameters{}.paused);
-  EXPECT_EQ(protocol::session::Promotion_Auto,
-            protocol::session::values::PromotionParameters{}.promotion);
-  EXPECT_EQ(0u, protocol::values::Revision{}.breaking);
-  EXPECT_EQ(4u, protocol::values::Revision{}.compatible);
+  EXPECT_EQ(1u, protocol::values::Revision{}.breaking);
+  EXPECT_EQ(0u, protocol::values::Revision{}.compatible);
 }
 
 /** Every sample, each handed to @p visit with its value type, the name
@@ -123,8 +121,8 @@ void everySample(Visit&& visit) {
       "sigil.protocol.registry.ListResult",
       R"({"sketches": [{"name": "hello", "stem": "hello", "kind": "scene2d",
                         "available": true},
-                       {"name": "usd_roundtrip", "available": false,
-                        "reason": "built without OpenUSD"}]})");
+                       {"name": "substance_swatches", "available": false,
+                        "reason": "built without the Substance SDK"}]})");
   visit.template operator()<protocol::session::values::TimingResult>(
       "sigil.protocol.session.TimingResult",
       R"({"total_milliseconds": 4.5, "lanes": [{"name": "paint",

@@ -119,7 +119,6 @@ PUBLIC_MODULES: dict[str, str] = {
     # A sketch host in this process, driven through the protocol: the
     # in-process route beside sigil.protocol.connect's socket.
     "_sigil.testing": "sigil.testing",
-    "_sigil.usd": "sigil.usd",
     "_sigil.weave": "sigil.weave",
     "_sigil.weave.features": "sigil.weave.features",
     "_sigil.weave.flowshape": "sigil.weave.flowshape",
@@ -163,9 +162,7 @@ RENAMES: dict[str, dict[str, str]] = {
 # library is a licensed download. A row here that this extension does not
 # register is skipped rather than refused, and the package module already
 # committed for it is left alone.
-OPTIONAL_MODULES: frozenset[str] = frozenset(
-    {"_sigil.scry", "_sigil.usd", "_sigil.sketch.scry"}
-)
+OPTIONAL_MODULES: frozenset[str] = frozenset({"_sigil.scry", "_sigil.sketch.scry"})
 
 # The named unions the bindings convert through. They are declarations and
 # nothing else: no module of this name is registered or imported at runtime.

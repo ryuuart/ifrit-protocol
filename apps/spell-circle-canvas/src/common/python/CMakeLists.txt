@@ -57,8 +57,7 @@ sigil_library(SigilPython
     geometry/Registration.h io/Hub.h io/Registration.h media/Registration.h
     material/Convert.h material/Registration.h measure/Registration.h
     motion/Convert.h motion/Registration.h scry/Registration.h
-    skia/Registration.h skia/Values.h
-    usd/Registration.h weave/Registration.h
+    skia/Registration.h skia/Values.h weave/Registration.h
     world/Registration.h
   PUBLIC
     pybind11::headers unofficial::skia::skia SigilComposeCore SigilComposeKit
@@ -97,11 +96,6 @@ endif()
 if(TARGET SigilComposeWeb)
   target_link_libraries(SigilPython PRIVATE SigilComposeWeb)
   target_compile_definitions(SigilPython PUBLIC SIGIL_PYTHON_HAS_WEB)
-endif()
-if(TARGET SigilUsd)
-  target_sources(SigilPython PRIVATE usd/Usd.cpp)
-  target_link_libraries(SigilPython PRIVATE SigilUsdRead SigilUsdRuntime SigilUsdWrite)
-  target_compile_definitions(SigilPython PUBLIC SIGIL_PYTHON_HAS_USD)
 endif()
 
 target_include_directories(SigilPython SYSTEM PUBLIC ${Python3_INCLUDE_DIRS})

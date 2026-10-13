@@ -10,9 +10,8 @@
 #                (SigilGeometry), material/ (SigilMaterial), draw/
 #                (SigilDraw), world/ (SigilWorldNode, SigilWorldFrame,
 #                SigilWorldGraph, SigilWorldScene,
-#                SigilWorldKit, SigilWorldDiligent) and usd/ (SigilUsd),
-#                which leaves itself out where its SDK is not installed, and
-#                compose/ (SigilCompose) last. Each library carries its
+#                SigilWorldKit, SigilWorldDiligent) and compose/
+#                (SigilCompose) last. Each library carries its
 #                own features as its own archives, and a build module
 #                only one library needs stands in that library's cmake/.
 #   sketch/      SigilSketch: the framework a scene is hosted through —
@@ -21,8 +20,6 @@
 #                application built on it, stands beside this tree
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
-#   spellcircle/ the SpellCircle receiver product: shared/ core embedded by
-#                both the qt/ and mac/ executables
 # Test support belonging to no library: a scratch directory on disk is
 # the standard library and nothing else, and a font context is one line
 # every test binary that draws text would otherwise write for itself.
@@ -61,7 +58,6 @@ add_subdirectory(common/material)
 # mixers, and beneath compose, which hosts a pen program in a node.
 add_subdirectory(common/draw)
 add_subdirectory(common/world)
-add_subdirectory(common/usd)
 add_subdirectory(common/compose)
 if(SIGIL_BUILD_PYTHON)
   add_subdirectory(common/python)
@@ -70,8 +66,3 @@ endif()
 # describe a compose Element tree or a world Frame, so this links both.
 add_subdirectory(sketch)
 add_subdirectory(sigilweave)
-if(SIGIL_BUILD_APPS)
-  add_subdirectory(spellcircle)
-# Seer hosts wire inspection and the shared receiver frontend.
-  add_subdirectory(seer)
-endif()

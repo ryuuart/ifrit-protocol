@@ -336,14 +336,13 @@ show it; other raster draws still do. A test should draw a 32 pixel disc
 at 0.35 pixels with linear mipmap sampling and find about three quarters
 of its area laid as alpha at every placement.
 
-## Python and USD lack a flat back
+## Python lacks a flat back
 
 `material::SurfaceOptions::flatBack` and `surface::SurfaceParameters::flatBack`
 exist, but `python/material/Core.cpp` and `python/material/Environment.cpp`
-bind neither and `usd/write/Material.cpp` does not keep it. Every surface
-option should reach Python and survive USD export. A test should build a
-surface in Python with `flatBack=True` and read it back from its
-parameters, and write a flat-backed surface to USD and read it back set.
+bind neither. Every surface option should reach Python. A test should
+build a surface in Python with `flatBack=True` and read it back from its
+parameters.
 
 ## Luminance grain has no Slang body
 

@@ -861,16 +861,6 @@ python = [
   "compose.kit.rules",
 ]
 
-[requirement.usd-readers]
-native = "`usd::readModel` / `readLights` / `readCameras` import"
-library = "USD"
-python = ["usd.readModel", "usd.readLights", "usd.readCameras"]
-
-[requirement.usd-writer]
-native = "`usd::Writer` stage export"
-library = "USD"
-python = ["usd.Writer"]
-
 [requirement.verlet]
 native = "`motion::physics::Points` and `Constraint` (Verlet)"
 library = "Motion"

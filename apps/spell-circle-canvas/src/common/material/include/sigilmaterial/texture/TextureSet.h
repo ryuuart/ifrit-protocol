@@ -191,11 +191,11 @@ TextureMaps fromFiles(const TextureSet& set, const Decoder& decode);
  *  otherwise, hence the default for @p normalDirectX.
  *
  *  @p statedColorSpaces holds, by the same usage word, the colour space
- *  the file states that image is in, in the file's own word — a USD
- *  texture's `sourceColorSpace`, a model part's texture reference. "raw"
- *  and "data" state numbers and "sRGB" states colour, in any case, so a
- *  map authored `raw` in a colour role is data; a usage it leaves out, or
- *  a word other than these, is decided by its role. */
+ *  the file states that image is in, in the file's own word — a model
+ *  part's texture reference. "raw" and "data" state numbers and "sRGB"
+ *  states colour, in any case, so a map authored `raw` in a colour role is
+ *  data; a usage it leaves out, or a word other than these, is decided by
+ *  its role. */
 TextureMaps fromUsageMap(
     const std::map<std::string, media::PixelSource>& byUsage,
     bool normalDirectX = true,

@@ -329,7 +329,7 @@ caller who did not know to write the field by name would get a stack at
 full strength and read it as a wrong mask. `under(m)`
 is the material a stack stands on — one step down, so walking it reaches
 the bottom — and `stackDepth(m)` counts the steps. A consumer that can
-only express one material (`UsdPreviewSurface`, say) writes the bottom
+only express one material (a glTF material, say) writes the bottom
 and records the depth.
 
 **Two kinds of target read a stack, and only one of them can reach the

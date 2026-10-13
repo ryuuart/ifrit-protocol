@@ -101,10 +101,6 @@
     },
     "tbb",
     "tinyobjloader",
-    {
-      "name": "usd",
-      "default-features": false
-    },
     "uwebsockets",
     "vulkan-headers",
     "yoga"

@@ -61,7 +61,7 @@ struct EnvironmentOptions {
 /** THE ENVIRONMENT AS ONE FRAME READ IT: the panorama, its second, and
  *  every dial read once and held, with the turn as the matrix that
  *  carries a world direction into the panorama's own frame. What an
- *  executor reads and what a USD stage stores. */
+ *  executor reads. */
 struct Environment {
   EnvironmentMap map;
   EnvironmentMap next;

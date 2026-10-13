@@ -1,238 +1,30 @@
-# SpellCircle
+# Sigil
 
-SpellCircle draws network-driven vector diagrams for live production. An
-external process — a Python script, a TouchDesigner patch — describes a
-scene of circles, points placed on those circles' perimeters, edges
-between points, and labelled boxes, and sends it as a FlatBuffers
-datagram over UDP. SpellCircle receives it, draws it with Skia on the
-GPU, and publishes the result as a transparent-background texture over
-Syphon, where a VJ or compositing tool picks it up.
+The Sigil libraries make a GPU-forward 2D renderer whose pages are
+materials on 3D surfaces. A page — boxes, text, paths and pictures, laid
+out and styled the way a web page is — is drawn with Skia on the GPU, and
+SigilWorld renders it as the material of a lit surface, live, at the pace
+of a game. Each library is independent, with its own README as its canon
+and its own test and benchmark binaries.
 
-Seer hosts the Qt receiver beside its wire inspector, sender, recorder and
-shared-texture viewer.
-The receiver accepts externally authored scenes; Grimoire, the stock sketch
-host built on SigilSketch beside this tree at
-[`apps/grimoire`](../grimoire/README.md), is the authoring application. Scenes may arrive at animation frame rates, so a sender can use
-the receiver as a live output surface.
+Grimoire, at [`apps/grimoire`](../grimoire/README.md), is the host. It
+runs a sketch — one scene, written in C++ or in Python — live in a
+window, renders it headless for the plate ledger, and with `--publish`
+offers what it draws as a shared texture for another program to pick up.
+A sketch hears the outside world through SigilIO's doors and reads what
+arrives through SigilData, so an external patch can drive it; the
+[TouchDesigner guide](docs/guides/sigilio-flatbuffers-touchdesigner.md)
+walks one patch from JSON over UDP to a FlatBuffers schema of its own.
 
-What you get on screen is a viewer and a control surface: a canvas you
-pan and zoom, a timestamped feed of arriving packets, a packets-per-second
-readout, and settings for accent colour, stroke width, scale, fonts, box
-geometry, label offsets, canvas size, and the UDP port. Panning and
-zooming never redraw the scene — they move an already-rendered image.
-
-## Getting a picture on screen
-
-Build (see [Build and test](#build-and-test)), open **Scenes** in Seer and
-choose **Open Scene Receiver**, then send it something:
-
-```sh
-build/bin/Release/Seer.app/Contents/MacOS/Seer --receiver udp://:27015
-```
-
-A plain Seer launch opens no ports. **Scenes** provides an explicit start
-action using the saved source, or UDP port 27015 when there are no saved settings. Its source stays pinned
-while another wire is inspected. The receiver panel has start/stop, fit,
-actual-size, clear, activity, and graphics settings controls. Graphics and
-source settings save together under Seer's `receiver` configuration directory
-and import existing
-SpellCircle graphics and port settings when no Seer receiver settings exist.
-Cancel restores the values present when settings opened. Syphon continues to
-publish under the server name `SpellCircle`.
-
-Graphics settings are grouped into **Appearance**, **Labels** and **Layout**.
-They share the controls and spacing used by the other Qt applications; stroke
-width accepts decimal values. The native macOS frontend exposes the same
-settings vocabulary through its SwiftUI inspector and Liquid Glass controls.
-Each frontend keeps its platform-specific navigation and materials.
-Both take initial styling, canvas limits and receiver defaults from
-`spellcircle::ReceiverDefaults`. Native Swift settings fall back to the
-initialized engine; saved settings remain authoritative in each frontend.
-Canvas dimensions clamp to the same limits during editing and settings import.
-
-The **Textures** workspace discovers shared Syphon outputs, previews a selected
-source, and saves PNG frames. **Messages** opens and inspects byte streams.
-The scene receiver keeps publishing while either workspace is selected. See
-[Seer](src/seer/README.md) for its command-line listing and capture options.
-
-With the lightweight Python package installed, run its bundled examples:
-
-```sh
-python3 -m SpellCircle.examples.send_spell_circles --seed 1
-python3 -m SpellCircle.examples.animate_spell_circles --fps 60
-```
-
-The first sends a single randomized sigil; the second streams an animated
-one. Both default to `127.0.0.1:27015`.
-
-## Authoring a scene
-
-The lightweight `ifrit-protocol-apps` package under `apps/python/spellcircle/`
-builds and sends scenes. It requires Python 3.11 or newer and FlatBuffers, with
-no native drawing extension. Install that project with a Python package
-installer; its [README](../python/spellcircle/README.md) describes the model,
-codec and transport APIs:
-
-```python
-from SpellCircle import SpellCircleCanvas, SceneSender
-
-canvas = SpellCircleCanvas(width=1000, height=1000)
-ring = canvas.circle("outer", center_x=500, center_y=500, radius=400)
-
-# Points live at a fraction clockwise from 12 o'clock.
-top = canvas.point(ring, position=0.0, value="north")
-right = canvas.point(ring, position=0.25, value="east")
-canvas.edge(top, right)
-
-# A radius-0 circle is an invisible anchor: it places things at an
-# arbitrary coordinate instead of on a visible perimeter.
-canvas.box("readout", canvas.point(canvas.anchor(500, 900)))
-
-with SceneSender("127.0.0.1", 27015) as sender:
-    sender.send(canvas.to_bytes())
-```
-
-`SpellCircleCanvas` records calls as plain values; `to_bytes()` is the
-only thing that serializes. Points shared between edges become a single
-point on the wire.
-
-The package exports `SpellCircleCanvas`, `PointReference`,
-`CircleDefinition`, `SceneBuilder`, `SceneSender`, and `send_once`.
-`SceneBuilder` is the lower-level path if you want to emit FlatBuffers
-tables yourself.
-
-For Python that draws directly through the native libraries, the same Python
-workspace contains the separate `sigil-sketch` distribution in `apps/python/sigil/`.
-It imports as `sigil`, renders headless with `sigil render`, and opens the live
-native application with `sigil open`. Grimoire also opens Python sketches
-directly through its file picker. Installing the SpellCircle transport package
-does not install these native bindings or change TouchDesigner's interpreter
-requirements.
-
-## How a packet becomes pixels
-
-```
-Python  ──FlatBuffers──▶  UDP :27015  ──▶  drain  ──▶  verify  ──▶  decode
-                                                                      │
-                            Syphon ◀── draw ◀── resolveScene ◀─────────┘
-```
-
-The port is a door on a resource hub: `sigil::io::Hub::listen()` on a
-`udp://:27015` URI binds a dual-stack socket and takes every datagram
-that reaches it on a thread of its own. Each front end drains that door
-on its owner thread. Seer drains each observed wire once and shares arrivals
-with raw inspection and its pinned receiver; `-[SCKEngine readArrivals]`
-drains the native macOS frontend. Each hands accepted input to
-`SceneSession`, which verifies and decodes a changed payload into an
-`entt` registry. Malformed packets leave the current scene
-intact. Byte-identical packets count toward the arrival rate without
-decoding or invalidating the scene again.
-
-Nothing is delivered onto the user interface thread from outside it: the
-transport puts arrivals in the door and the frame takes them out, in
-order. `sigil::io::Message::receivedAt()` places the arrival's timestamp on the
-steady clock, so arrival rates retain transport timing independently of
-when the queue is drained. Replayed arrivals preserve their recorded spacing
-relative to the first playback advance.
-
-Binding is synchronous: when the door is asked for,
-`sigil::io::Feed::state()` says whether the port was free (`error`)
-and which one was bound (`localAddress`), so `listening` and
-the status line are right the moment `start()` returns. Closing the door
-— dropping the last handle to it — stops its socket and discards what
-it still holds.
-
-`resolveScene()` then converts that registry into a `ResolvedScene` of
-absolute native pixels, and `SceneRenderer::draw()` puts it on an
-`SkCanvas`. The drawing order is edges, then circles with their curved
-ring labels, then point labels, then boxes. The canvas clears to
-transparent so downstream tools composite over their own background.
-
-**`resolveScene()` is the only place scaling and point-on-circle math
-happens.** Both front ends consume `ResolvedScene`, which holds nothing
-but absolute pixels, so the two apps cannot drift apart on geometry. If
-you are changing where something lands on screen, that function is where
-the change belongs.
-
-### Embedding the receiver
-
-Link `SigilIOHub` and `SigilIOTransport` for the door, and
-`SpellCircleDocument` for verified scene state. None of them depends on
-Qt, AppKit, Skia, or a renderer. `SpellCircleScene` adds geometry
-resolution and drawing.
-
-```cpp
-#include "SceneSession.h"
-#include <sigilio/hub/Feed.h>
-#include <sigilio/hub/Hub.h>
-#include <sigilio/transport/Transport.h>
-#include <iostream>
-
-sigil::io::Hub hub;
-sigil::io::registerTransports(hub, {"udp"});  // only UDP: the product speaks nothing else
-
-const sigil::io::Feed door = hub.listen("udp://:27015", {.capacity = 64});
-if (!door.state().error.empty()) std::cerr << door.state().error << '\n';
-
-spellcircle::SceneSession scene;
-for (;;) {                            // once a frame, on the thread that draws
-  while (const std::optional<sigil::io::Message> message = door.receive()) {
-    scene.ingest(message->payload->data(), message->payload->size(),
-                 message->receivedAt());
-  }
-}
-```
-
-The transport runs the socket on a thread of its own and the host never
-names it. `sigil::io::Feed::receive()` never waits: a frame that finds
-nothing gets on with itself. The door keeps the last `capacity` messages,
-so a reader that misses a frame loses nothing and one that falls a whole
-second behind loses the oldest scenes rather than the newest —
-`sigil::io::FeedState::dropped`, read from `sigil::io::Feed::state()`,
-counts those. `sigil::io::Message::sender`
-names the sender, spelled `udp://127.0.0.1:52341`; both front ends show
-it with the scheme taken off.
-
-`spellcircle::SceneSession::ingest()` is synchronous and the session
-belongs to one owner thread — the one that drains the door. The Qt renderer copies scene state during synchronization. A host
-can also feed the session from anything else that produces bytes. Its
-generation changes only when the accepted document changes or is cleared.
-Arrival rates use the datagram's receive time, so a busy frame cannot
-inflate them, and expire after two seconds of silence. Feed presentation
-remains the host's choice. `SceneDocument::decode()` also verifies its
-input when used directly and returns no statistics for an invalid payload.
-
-## Layout
-
-The Qt-free core is shared; the two front ends are not.
-
-| Path | What it is |
-| --- | --- |
-| `src/spellcircle/shared/schema/` | `SpellCircle.fbs` and its generated header — the wire format |
-| `src/spellcircle/shared/scene/` | `SpellCircleDocument`: verified ingestion and session state; `SpellCircleScene`: resolve, draw, ring-label geometry |
-| `src/spellcircle/qt/` | Reusable scene models, canvas and graphics form hosted by Seer; the canvas uses the shared Qt publication adapter |
-| `src/seer/app/` | The Qt application: wire inspection and the pinned scene receiver |
-| `src/spellcircle/mac/` | `SpellCircleMac` — SwiftUI over an ObjC++ bridge, macOS only |
-
-`SceneRenderer` is not thread-safe. It builds its font context lazily on
-the first `draw()`, and every later `draw()` must come from that same
-thread.
-
-The Mac app is a separate executable rather than a Qt build. Its
-`SpellCircleMacBridge` is a shared library that absorbs the entire C++
-side — scene core, Skia, SigilWeave, ICU, HarfBuzz, Syphon — so the whole
-of it links through the clang++ driver and the Swift executable links one
-dylib.
-
-Seer owns a session with one resource hub, a scene model and graphics
-settings. Its QML root receives that session; raw inspection and scene
-ingestion share each drained arrival. The Swift app's `EngineModel` owns one
-`SCKEngine`. Both frontends reuse the verified document and scene renderer.
+Python is a first-class authoring language. The `sigil-sketch`
+distribution in `apps/python/sigil/` imports as `sigil`, renders headless
+with `sigil render` and opens the live host with `sigil open`; Grimoire
+also opens a Python sketch directly through its file picker.
 
 ## Libraries
 
-The app is thin. Most of the code is in libraries under `src/common/`,
-`src/sigilweave/` and `src/sketch/`, each of which has its own README:
+Most of the code is in libraries under `src/common/`, `src/sigilweave/`
+and `src/sketch/`, each of which has its own README:
 
 | Library | What it does |
 | --- | --- |
@@ -240,7 +32,7 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 | [SigilSkia](src/common/skia/README.md) | Skia Graphite on a device someone else owns |
 | [Ifrit.Qt](src/common/qt/README.md) | Reusable Qt Quick controls |
 | [SigilMedia](src/common/media/README.md) | Pictures, still and moving: image and animation decoding and encoding, streaming video decoding with GPU composition and MP4 encoding, distance fields and pixel differences |
-| [SigilIOPublish](src/common/io/publish/README.md) | Optional SigilIO native texture publication and subscription; Seer owns inspection and capture |
+| [SigilIOPublish](src/common/io/publish/README.md) | Optional SigilIO native texture publication and subscription |
 | [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
 | [SigilData](src/common/data/README.md) | Tabular data and scales: typed columns, and the one value that maps a domain onto a range |
 | [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |
@@ -251,7 +43,6 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 | [SigilDraw](src/common/draw/README.md) | An immediate-mode pen with p5's verbs |
 | [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
 | [SigilSubstance](src/common/substance/README.md) | Adobe Substance 3D materials rendered to images, where the SDK is installed |
-| [SigilUsd](src/common/usd/README.md) | OpenUSD read and write, where the package is installed |
 | [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
 | [SigilPython](src/common/python/README.md) | Reusable Python bindings over the native libraries; callback and value ownership shared with host integrations |
 | [SigilSketch](src/sketch/README.md) | The framework a scene is hosted through: registration, sessions, the live host and plates |
@@ -279,7 +70,7 @@ ctest --test-dir build -C Release --output-on-failure
 ```
 
 `sigil.py setup` finds Qt and vcpkg and writes the uncommitted
-`CMakeUserPresets.json`. It is one of ten verbs over the build's
+`CMakeUserPresets.json`. It is one of nine verbs over the build's
 administration; `scripts/README.md` is the canon for all of them.
 
 How a library under this one is built, tested and measured — its one
@@ -288,41 +79,12 @@ what a case may pin, what a label promises and where the shared
 fixtures are — is written once, in
 [docs/overview/testing.md](docs/overview/testing.md).
 
-The product's own test suite covers the receiver layers:
-
-- `spellcircle_document_test` checks accepted scene state, malformed
-  input, deduplication, clearing, and receive-time arrival rates.
-- `spellcircle_test` builds wire payloads and checks decode, resolution,
-  box placement, and ring-label geometry.
-- `seer_qt_test` checks shared trace/scene delivery, pinned-source independence,
-  malformed and duplicate packets, rebind/stop/retry, recording replay, and
-  settings import/save/cancel.
-- `spellcircle_mac_test` does the same through the ObjC++ engine, down to
-  the feed entry a changed scene appends and the source it names.
-
-App presentation also needs a live run with incoming scenes.
-
 Use a Release build for any performance work. Several library
 benchmarks and sketches are deliberately stressful and Debug timings
 say nothing useful. The benchmarks are not tests: the `benches` target
 builds every `*_bench` binary and `scripts/sigil.py bench` (`mise run
 bench`) runs them one at a time on a quiet machine against the
 committed baseline.
-
-### Changing the wire format
-
-Edit `src/spellcircle/shared/schema/SpellCircle.fbs`. The two sides are
-then handled differently.
-
-The **C++ header** is generated into the build tree by the
-`SpellCircleSchema` target, so the next build picks the edit up on its
-own — there is nothing to run and nothing to commit.
-
-The **Python modules** are committed, because `apps/python/spellcircle` is
-installed and imported without a CMake build in reach. Run
-`scripts/sigil.py flatbuffers` and commit what it writes:
-
-- `apps/python/spellcircle/SpellCircle/{Vec2,Circle,Point,Edge,Box,Scene}.py`
 
 ### The SDKs that are not in vcpkg
 

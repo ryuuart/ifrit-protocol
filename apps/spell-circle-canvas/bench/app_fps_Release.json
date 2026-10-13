@@ -1974,17 +1974,6 @@
    "submit": 0.27,
    "headroom": 2769.0
   },
-  "usd_roundtrip": {
-   "window": "1440x900@2",
-   "canvas": "1200x520",
-   "kind": "scene2d",
-   "fps": 120.1,
-   "work": 0.19,
-   "p99": 1.01,
-   "draw": 0.18,
-   "submit": 0.39,
-   "headroom": 5139.9
-  },
   "vagrant_story_target": {
    "window": "1440x900@2",
    "canvas": "1280x960",

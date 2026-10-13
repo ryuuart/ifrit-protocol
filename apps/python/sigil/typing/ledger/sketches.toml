@@ -542,7 +542,7 @@ needs = "JSON Connection kind handlers; recording replay; eased ticker ramps; in
 requires = ["kit-instrument", "timelines", "connection"]
 
 [sketch.feed_sky]
-needs = "One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording replay per door; kit panels and state readouts; cached band elements on one bound clock"
+needs = "One sky through two doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over shared memory; a recording replay per door; kit panels and state readouts; cached band elements on one bound clock"
 requires = ["sketch-schemas", "connection", "flatbuffer", "kit-connection-readout"]
 
 [sketch.feed_vitals]
@@ -657,10 +657,6 @@ requires = [
 [sketch.grid_layouts]
 needs = "Grid, diagonal and baseline layout schemes; ladder rules; themed mono type; readout rows"
 requires = ["compose-readout"]
-
-[sketch.grpc_watch]
-needs = "gRPC Connection handlers and broadcast sends; eased ticker ramps; instrument page; pen bands"
-requires = ["kit-instrument", "timelines", "connection"]
 
 [sketch.guest_body]
 needs = "scene3d world frame; published texture subscription; texture scene; material texture slot; lit meshes"
@@ -1198,10 +1194,6 @@ requires = ["sketch-schemas", "kit-instrument", "connection", "flatbuffer"]
 needs = "Signed-distance star shapes; layered SDF style (shadow, glow, fill, border); pad reserve; material paint fill"
 requires = ["kit-section-header", "sdf"]
 
-[sketch.serial_sensor]
-needs = "Serial line Connection; recording replay; instrument page; transformed pen ribbons"
-requires = ["kit-instrument", "connection"]
-
 [sketch.set_stagger]
 needs = "scene3d hosting with camera; world child stagger by spread; entrance transitions; collection-narrowed passes; three-point rig"
 requires = ["scene3d-sketches", "schedules", "world-placement"]
@@ -1462,18 +1454,6 @@ requires = [
 needs = "Instanced atlas stamping from a live pool; fixed-step simulation; ornament nine-slice and flourish cards; scrim; gradients"
 requires = ["instancing", "slice", "legibility"]
 
-[sketch.usd_roundtrip]
-needs = "USD stage writer and readers for mesh, instancer, light, camera; point scatter on mesh; mesh painter"
-requires = [
-  "availability-probe",
-  "require-cached",
-  "kit-section-header",
-  "clouds",
-  "mesh-codec",
-  "usd-writer",
-  "usd-readers",
-]
-
 [sketch.vagrant_story_target]
 needs = "Device scene3d hosting; lit meshes and lights; compose texture on material slot; frustum extent; baked pixel type; kit meter"
 requires = [
@@ -1518,17 +1498,6 @@ requires = [
   "video-playback",
 ]
 
-[sketch.volatility_cost]
-needs = "Eager profiling probe composer: stats, profile, cache states, refusals, bounds; star silhouettes; bound movers; legend, table, readout"
-requires = [
-  "compose-readout",
-  "compose-table",
-  "kit-legend",
-  "standalone-composer",
-  "composer-profile",
-  "silhouettes",
-]
-
 [sketch.warichu_placeholder]
 needs = "Warichu split of a note paragraph; vertical writing; rich text slots; measured advances; readout"
 requires = ["compose-readout"]
@@ -1552,10 +1521,6 @@ requires = [
   "kit-section-header",
   "web-engine",
 ]
-
-[sketch.webrtc_sky]
-needs = "WebRTC Connection over WebSocket signal; broadcast sends; eased ticker ramps; instrument page"
-requires = ["kit-instrument", "timelines", "connection"]
 
 [sketch.winamp_base]
 needs = "Instanced LED and row atlases; skin bevels; marquee kit; program tile; live pen curve; grain materials; ellipsised rows"

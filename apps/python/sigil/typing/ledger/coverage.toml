@@ -28,14 +28,13 @@ python = ["sketch.sketch"]
 bound = "undecorated classes with `setup` and an optional `update`, which open only from their file path"
 
 [[section.surface.item]]
-bound = "a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `nonlinearPicture`, `render`, `measure`, `snapshot`, `measured`, `local` and the session readings) that rejects use after teardown or from another thread"
+bound = "a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `render`, `measure`, `snapshot`, `measured`, `local` and the session readings) that rejects use after teardown or from another thread"
 python = [
   "sketch.Scene2DContext.canvas",
   "sketch.Scene2DContext.background",
   "sketch.Scene2DContext.captureAt",
   "sketch.Scene2DContext.oversample",
   "sketch.Scene2DContext.plate",
-  "sketch.Scene2DContext.nonlinearPicture",
   "sketch.Scene2DContext.render",
   "sketch.Scene2DContext.measure",
   "sketch.Scene2DContext.snapshot",
@@ -157,13 +156,11 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`setProfiling` with `profile`, `setCompositeCounting`, `setAutoTexturePromotion` and `setBakeDensity`"
-bound_text = "`setProfiling` with `profile`, `setCompositeCounting`, `setAutoTexturePromotion` and `setBakeDensity`"
+native = "`setProfiling` with `profile` and `setBakeDensity`"
+bound_text = "`setProfiling` with `profile` and `setBakeDensity`"
 python = [
   "compose.Composer.setProfiling",
   "compose.Composer.profile",
-  "compose.Composer.setCompositeCounting",
-  "compose.Composer.setAutoTexturePromotion",
   "compose.Composer.setBakeDensity",
 ]
 
@@ -2343,7 +2340,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC transports"
+bound = "the UDP, OSC, Art-Net, WebSocket, shared memory and MIDI transports"
 python = ["io.registerTransports"]
 
 [[section.surface.item]]
@@ -2425,10 +2422,6 @@ python = ["measure.lineFit"]
 [library.Scry]
 native = "SigilScry"
 modules = ["scry", "sketch.scry"]
-
-[library.USD]
-native = "SigilUSD"
-modules = ["usd"]
 
 [library.Measure]
 native = "SigilMeasure"

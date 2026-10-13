@@ -97,9 +97,8 @@ turned into a frame — a scene, an ordered list of passes, the readbacks
 the caller asked for — and executed. It consumes SigilGeometry's types
 and never the reverse.
 
-**[SigilUsd](doxygen:SigilUsd)** — an optional SDK integration: USD
-in and out. Adobe Substance archives are a feature of SigilMaterial,
-cooked into a Material where the SDK is installed.
+Adobe Substance archives are a feature of SigilMaterial, cooked into a
+Material where the SDK is installed.
 
 ## Getting things in and out
 
@@ -138,11 +137,6 @@ something a host opens live and hot-swaps on every save. Its kit is
 the sheet a sketch stands on — the theme, the page and the furniture a
 specimen is built out of. Grimoire, the stock host built on it, carries
 the reference studies as its catalogue of sketches.
-
-**[SigilSeer](doxygen:SigilSeer)** — every wire, and what is going down
-it: a tool that opens a wire, says what is coming down it and who is at
-the other end, shows the newest message several ways, sends one back,
-and previews shared textures.
 
 **[Ifrit.Qt](doxygen:IfritQt)** — the reusable Qt Quick controls the
 desktop tools share.

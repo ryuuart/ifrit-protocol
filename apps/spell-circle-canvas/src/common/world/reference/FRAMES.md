@@ -33,7 +33,7 @@ switch — blurred by `EnvironmentOptions::blur` in the roughness units a
 reflection reads, and projected onto a ground sphere of
 `EnvironmentOptions::groundRadius` where that is past zero. Every dial is
 a `motion::Animatable`, read once a frame into an `Environment`, which is
-what an executor reads and a USD stage stores. `EnvironmentMap` is the
+what an executor reads. `EnvironmentMap` is the
 panorama itself: SigilMaterial's type, because SigilGeometry's device
 residency uploads it and Geometry stands beneath this library.
 
