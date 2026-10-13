@@ -132,7 +132,8 @@ https://github.com/ryuuart/sigil-vcpkg-registry (checked out at
 `~/REI/sigil-vcpkg-registry`); a port change is pushed there and the
 `baseline` in `vcpkg-configuration.json` bumped, together with the
 `version>=` on `skia` that the sanitizer pin names. The overlay triplet
-builds oneTBB shared because USD's dylibs deadlock on a static one.
+builds release only, and oneTBB shared because USD's dylibs deadlock on a
+static one.
 
 Each library has ONE test binary and ONE benchmark binary — `<lib>_test`
 under `build/bin/<config>/tests/`, `<lib>_bench` under `.../benches/` —

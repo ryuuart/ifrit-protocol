@@ -14,6 +14,11 @@ set(VCPKG_LIBRARY_LINKAGE static)
 set(VCPKG_CMAKE_SYSTEM_NAME Darwin)
 set(VCPKG_OSX_ARCHITECTURES arm64)
 
+# Release only: the libraries build one configuration, so the installed
+# tree carries one half, and a port that reads its dependencies through
+# pkg-config reads that half alone.
+set(VCPKG_BUILD_TYPE release)
+
 if(PORT STREQUAL "tbb")
   set(VCPKG_LIBRARY_LINKAGE dynamic)
 endif()
