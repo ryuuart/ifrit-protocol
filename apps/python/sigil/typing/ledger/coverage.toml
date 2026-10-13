@@ -393,14 +393,25 @@ python = [
 
 [[section.surface.item]]
 native = "the `textFx::` text effects (`scramble`, `tween`, `tint`, `hold`, `sequence`, `mix` and `variableAxis`)"
+bound_text = "the text effects as `textFx.TextEffect` values a track runs — `Text.textFx(effect, ...)` naming the track's fields as keywords, or `compose.Track(effect=...)` — `scramble`, `tween` over `textFx.GlyphModifier` stops and `GlyphModifierKeyframe` shares, whose three colour terms are each a colour, the ink in force or a custom property, `tint` over colour stops, `hold`, `sequence` over `effect.until(t)` phases with `crossfade`, `mix` and `variableAxis`"
 python = [
+  "compose.Track.effect",
+  "compose.textFx.TextEffect",
+  "compose.textFx.Phase",
+  "compose.textFx.GlyphModifier",
+  "compose.textFx.GlyphModifierKeyframe",
   "compose.textFx.scramble",
   "compose.textFx.tween",
+  "compose.textFx.tint",
+  "compose.textFx.hold",
   "compose.textFx.sequence",
+  "compose.textFx.mix",
+  "compose.textFx.variableAxis",
 ]
 
 [[section.surface.item]]
 native = "the entrance as an effect, `textFx::enter`, and `waveLoop`"
+bound_text = "the entrance as an effect, `textFx.enter` over a `textFx.DisplacedTween`, and `textFx.waveLoop`"
 python = [
   "compose.textFx.enter",
   "compose.textFx.waveLoop",
@@ -408,6 +419,7 @@ python = [
 
 [[section.surface.item]]
 native = "`Text::variationDrive` and `Text::textAttach`"
+bound_text = "`Text.variationDrive` over a number or a motion value, and `Text.textAttach` over a selector and a node"
 python = ["compose.Text.variationDrive", "compose.Text.textAttach"]
 
 [[section.surface.item]]

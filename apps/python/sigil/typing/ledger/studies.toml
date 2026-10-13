@@ -84,6 +84,9 @@ combines = "Periodic arcs and fading trails computed from the scene clock"
 [study.python_plaque]
 combines = "One Compose page as the material of a baked plaque: stone, copper type raised on a rounded shoulder, a glowing rule and flat ink, lit by a moving key and a studio environment"
 
+[study.python_text_fx]
+combines = "A held scramble, keyframe stops naming a custom property and the ink, a tint by word, a sequence of an entrance and a squash, and a wave loop"
+
 [study.python_type_atelier]
 combines = "Mixed runs, inline slots, named selections, initial letters, balanced story frames and a curved baseline"
 

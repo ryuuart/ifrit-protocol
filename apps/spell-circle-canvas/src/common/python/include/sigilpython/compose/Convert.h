@@ -20,6 +20,10 @@ compose::Dimension dimension(pybind11::handle value);
  *  that paint, a token is the variable it names, and anything else is a
  *  colour. */
 compose::Fill fill(pybind11::handle value);
+/** A colour term read from what a fill takes: a colour, the ink in force
+ *  (`Fill.currentInk()`) or a custom property — never a paint, which
+ *  raises. */
+compose::ColorTerm colorTerm(pybind11::handle value);
 /** A cross-axis alignment read from @p value's name. */
 compose::Align alignment(pybind11::handle value);
 /** A main-axis justification read from @p value's name. */

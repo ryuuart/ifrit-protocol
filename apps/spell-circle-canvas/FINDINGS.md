@@ -472,3 +472,18 @@ true; a client to a port nobody holds should never read `Open` and should
 carry the reason in `state().error`. `wardnet_live/sender.py` offers its
 first message again for up to five seconds until this is fixed.
 
+## A settled track that moves nothing places its glyphs on whole pixels
+
+A text leaf under a track whose effect displaces nothing and whose
+progress is settled, such as `textFx({.effect = textFx::tween({})})` at
+progress one, places its glyphs on whole pixels, while the same leaf with
+no track keeps fractional glyph origins, so the two pictures differ by
+up to half a pixel per glyph. `TextEffect::displaces` says only a run
+whose effect displaces and whose progress is live moves to the finer
+grid, so a settled track that changes nothing should place its run as
+the bare leaf does; otherwise adding or removing a track, as when an
+entrance ends, shifts the letters. A test should assert that a leaf
+under an identity track at progress one renders byte-identical to the
+same leaf without the track; if whole-pixel placement under any track is
+the rule, the text effects reference should say so instead.
+

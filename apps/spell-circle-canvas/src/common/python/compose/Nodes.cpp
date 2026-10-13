@@ -612,6 +612,14 @@ void bindTextVerbs(py::class_<Text>& element) {
       .def("textOnPath", &Text::textOnPath, py::arg("path"), fluent)
       .def("span", &Text::span, py::arg("where"), py::arg("style"), fluent)
       .def("textAnnotation", &Text::textAnnotation, py::arg("reading"), fluent)
+      .def(
+          "textAttach",
+          [](Text& self, weave::Selector where, py::handle what) -> Text& {
+            return self.textAttach(std::move(where), node(what));
+          },
+          py::arg("where"), py::arg("what"), fluent,
+          "Anchors `what` to the unit `where` resolves to: a child whose "
+          "parent box is that unit's rect, reserving nothing in the text.")
       .def("atRest", &Text::atRest);
 }
 

@@ -48,12 +48,12 @@ that its pixels match the original.
 | Scene3D | 11 | 0 | 0 |
 | Data | 9 | 0 | 0 |
 | Media | 5 | 1 | 0 |
-| Catalog · Type | 9 | 5 | 0 |
+| Catalog · Type | 9 | 6 | 0 |
 | Catalog · Chrome | 2 | 1 | 0 |
 | Catalog · Game UI | 5 | 1 | 0 |
 | Catalog · Generative | 2 | 0 | 0 |
 | Catalog · Tiling | 1 | 0 | 0 |
-| Study · Type | 8 | 0 | 0 |
+| Study · Type | 8 | 1 | 0 |
 | Study · Pattern | 4 | 0 | 0 |
 | Study · Paint | 2 | 2 | 0 |
 | Study · Motion | 4 | 0 | 0 |
@@ -65,7 +65,7 @@ that its pixels match the original.
 | Study · Effects | 1 | 0 | 1 |
 | Study · Lighting | 2 | 0 | 0 |
 | Study · Materials | 10 | 0 | 0 |
-| **All** | **230** | **60** | **10** |
+| **All** | **230** | **62** | **10** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -89,10 +89,7 @@ One surface alone stands between each of these sketches and a translation:
 - Scene3D sketches (`sketch::Scene3DContext`, `describe`): `lantern_room`.
 - `compose::Composer::beatsOf` and `units`: `karaoke_wipe`.
 - `compose::LayeredBrush` stroke layers: `lain_navi`.
-- `compose::Text::textAttach` selection marks: `bousen`.
 - `compose::kit::bars` over a table's two columns: `data_sources`.
-- `compose::textFx` text effects (`tween`, `scramble`, `sequence`):
-  `matrix_rain`.
 - `geometry::mesh::Cloud` and `mesh::points`: `pop_math`.
 - `geometry::path::Contour` corners, poses and offsets: `contour_poses`.
 - `geometry::path::PolarFrame` and `path::Grid`: `frame_grid`.
@@ -131,7 +128,6 @@ needs.
 | `material::sdf` shapes and styles | Material | 9 |
 | `compose::Border` and `compose::decorations::border` rules | Compose | 8 |
 | `compose::routers` stock routers | Compose kit | 8 |
-| `compose::textFx` text effects (`tween`, `scramble`, `sequence`) | Compose | 8 |
 | `geometry::mesh::curve::Spline3` and frames | Geometry | 8 |
 | `material::Paint::offset` bound to motion values | Material | 8 |
 | `material::Recipe` authoring | Material | 8 |
@@ -187,7 +183,7 @@ Python environment.
 
 | Surface | Bound | Not yet bound |
 | --- | --- | --- |
-| Elements | Factories `box`, `stack`, `positioned`, `text` over a string, a styled string, rich text or a `weave.Paragraph`, `frame`, `image` over a Skia image or a `media.Image`, `picture`, `pathFigure`, `slot`, `memo`, `pen` and `graphics` with Python programs, keyed or not, `custom` paint programs reading `PaintContext`, and `layout` over the six stock schemes, an operator or a Python operator; `point`, the node with no extent that carries a key and facts; `drawWith`, keyed or not, over a Python program handed one pen and the settled scope; `keyedShape(key, function)` comparable shapes; the node verbs on `Element` and the text-leaf verbs on `Text`, with named arguments throughout: layout and placement, 2D and 3D transforms, fills, corners, shapes and clips, masks, effects, blending and hit testing, opacity, entrances and transitions, caching; `padding` and `margin` in CSS's order of one, two, three or four lengths, a named-sides keyword form and the per-side `paddingTop` to `paddingLeft` and `marginTop` to `marginLeft`; the cascade verbs `font`, `paragraph`, `ink`, `styleClass`, `role`, `var` and `applyStyleSheet`, with `inherit`, `initial` and `unset`; the glyph shadows `textShadow` over `TextShadow` records, each coloured by a colour, the ink in force or a custom property, and `textStyleOf`, the style a text leaf in a tree is set in; the fact verbs `attribute` and `attributes` over an `Attributes` table; `operators` over the stock arranging values, the connecting records and Python objects that arrange or add; dimensions in px, pct, em, rem, lh, ch, pt, var, pw and ph; children as elements or one iterable; `band` over a shape at a width, a number or a width law, with `bandAlignment`; `Anchor` and `RailRouter`; `feed` rows and rings; `instancing` pools and cell sheets; `Text.textFx` over a `compose.Track` — which glyphs, the unit, the schedule, `Beats` and the master `progress` — and the native entrance `textFx.entrance` over a `textFx.DisplacedTween` of `textFx.Displaced` stops, with its stock tweens `rise`, `slide`, `pop`, `spinIn`, `scatter`, `typeOn` and `variableAxisSweep`; the adding operators `compose.connect.Along` over a run of stops written as anchors, keys, keyed points or free points, `compose.pin.ByLane` over `pin.Request` facts, `compose.outline.Around` and `Hull`, and `compose.stamp.ByLane` over a Python maker | the `textFx::` text effects (`scramble`, `tween`, `tint`, `hold`, `sequence`, `mix` and `variableAxis`); the entrance as an effect, `textFx::enter`, and `waveLoop`; `Text::variationDrive` and `Text::textAttach`; `Pattern`; `Table`; shader fills; standalone `intrinsicSize`, `snapshot`, `metrics`, `measureRun`, `runPens`, `atCapHeight` and `fitRun`; `tiles` and `shelve`; `video` and `web` leaves; `TextureScene` and `texture`, which paint a tree into a material texture |
+| Elements | Factories `box`, `stack`, `positioned`, `text` over a string, a styled string, rich text or a `weave.Paragraph`, `frame`, `image` over a Skia image or a `media.Image`, `picture`, `pathFigure`, `slot`, `memo`, `pen` and `graphics` with Python programs, keyed or not, `custom` paint programs reading `PaintContext`, and `layout` over the six stock schemes, an operator or a Python operator; `point`, the node with no extent that carries a key and facts; `drawWith`, keyed or not, over a Python program handed one pen and the settled scope; `keyedShape(key, function)` comparable shapes; the node verbs on `Element` and the text-leaf verbs on `Text`, with named arguments throughout: layout and placement, 2D and 3D transforms, fills, corners, shapes and clips, masks, effects, blending and hit testing, opacity, entrances and transitions, caching; `padding` and `margin` in CSS's order of one, two, three or four lengths, a named-sides keyword form and the per-side `paddingTop` to `paddingLeft` and `marginTop` to `marginLeft`; the cascade verbs `font`, `paragraph`, `ink`, `styleClass`, `role`, `var` and `applyStyleSheet`, with `inherit`, `initial` and `unset`; the glyph shadows `textShadow` over `TextShadow` records, each coloured by a colour, the ink in force or a custom property, and `textStyleOf`, the style a text leaf in a tree is set in; the fact verbs `attribute` and `attributes` over an `Attributes` table; `operators` over the stock arranging values, the connecting records and Python objects that arrange or add; dimensions in px, pct, em, rem, lh, ch, pt, var, pw and ph; children as elements or one iterable; `band` over a shape at a width, a number or a width law, with `bandAlignment`; `Anchor` and `RailRouter`; `feed` rows and rings; `instancing` pools and cell sheets; `Text.textFx` over a `compose.Track` — which glyphs, the unit, the schedule, `Beats` and the master `progress` — and the native entrance `textFx.entrance` over a `textFx.DisplacedTween` of `textFx.Displaced` stops, with its stock tweens `rise`, `slide`, `pop`, `spinIn`, `scatter`, `typeOn` and `variableAxisSweep`; the text effects as `textFx.TextEffect` values a track runs — `Text.textFx(effect, ...)` naming the track's fields as keywords, or `compose.Track(effect=...)` — `scramble`, `tween` over `textFx.GlyphModifier` stops and `GlyphModifierKeyframe` shares, whose three colour terms are each a colour, the ink in force or a custom property, `tint` over colour stops, `hold`, `sequence` over `effect.until(t)` phases with `crossfade`, `mix` and `variableAxis`; the entrance as an effect, `textFx.enter` over a `textFx.DisplacedTween`, and `textFx.waveLoop`; `Text.variationDrive` over a number or a motion value, and `Text.textAttach` over a selector and a node; the adding operators `compose.connect.Along` over a run of stops written as anchors, keys, keyed points or free points, `compose.pin.ByLane` over `pin.Request` facts, `compose.outline.Around` and `Hull`, and `compose.stamp.ByLane` over a Python maker | `Pattern`; `Table`; shader fills; standalone `intrinsicSize`, `snapshot`, `metrics`, `measureRun`, `runPens`, `atCapHeight` and `fitRun`; `tiles` and `shelve`; `video` and `web` leaves; `TextureScene` and `texture`, which paint a tree into a material texture |
 | Selector sheets | `compose.selector(cssText)` and the same value built name by name under `compose.select` (`styleClass`, `role`, `any`, `is_`, `where`, `notAnyOf`, `has`); the four combinators as `child`, `descendant`, `next` and `sibling`; every structural pseudo-class, with `nthChild` and `nthLastChild` taking `of`; `\|`, `&` and `~` for the list, the compound and the negation CSS's `!` spells; `specificity()` over a comparable, ordered `Specificity` and `matchesNothing()`; `compose.Rule` from either door with the node's own declaration verbs — the box, the flex line, placement, corners and overflow, the fill, `opacity` and `blendMode`, the 2D transform, the cascade (`font`, `paragraph`, `ink`, `var`, `varDefaults`, `imageRendering`, `inherit`, `initial` and `unset`), `transition` and the text properties — reading its `selector` and `type` back; `Dimension` arithmetic for what CSS writes as `calc()`; `compose.StyleSheet` from an iterable of rules and sheets, with `rules`, `size`, iteration, `+` and value equality; `Element.applyStyleSheet`, whose sheet sees only its own subtree | `Rule::inkVar` and `Rule::vars`, which name a `VarTable` registered later in the assembly; the `Rule` readers `inkMaterial`, `inkAnchor`, `inkUnit` and `statesInk` |
 | Decorations | `Decoration` over `PathFormat` (stroke fill, alignment, dashes, caps, joins, stamps, trims and animated phases) or `Shadow`; `stroke`, `shadow`, and a material's effects through `Element.fill`; `relief`, a material over the rounded relief of the outline it decorates, with its `shoulder` and `depth`; overlay, background, foreground and stroke layers; span passes over `spans` selections; `Element.decorationOutline` and `Boundary`; `compose.brush.ribbon`: a band swept along the outline `stroke()` gives it, as wide as a width law says, a calligraphic nib at `nibAngleDeg` with its `nibContrast`, or a taper from the start's width to `widthEnd`, painted with a colour, a fill or a material; `Ribbon.band` hands back the region it fills | `Slice`, `ContourWalk`, `Wash`, `Border` and the `decorations::` borders and washes; `onEdges` and `inset`; the `brush::` solids, weaves, scatters, patterns, corner art and art; `Brush` shaped layer stacks and `brush::restyle`; `LayeredBrush`; `lines::Line`, `Rails`, `Hatch` and `RadialHatch`; the `styles::` bevel pair, brackets and tick rails, each inked with a material; `PathFormat::effect`; shadow offsets driven by motion outputs; decoration schemes written in Python |
 | Compose kit | `compose.kit` records `Sheet`, `Panel`, `Board`, `Well`, `WellContent`, `Caption`, `Cells`, `PanelGrid`, `Line` and `Ladder` with every native field, their factories, `centred`, `at`, `disc`, `dot`, `ring` and `figure`, with caption, sheet and panel lines as Python callables; `compose.layouts` `Grid` with tracks, areas and dense flow, `Radial`, `Diagonal`, `BaselineGrid`, `Jittered` and `AlongPath`; the connecting operators `compose.connect.Between` and `ByLane` with their router, gap, wire and bleed | the rows (`section`, `readout`, `table`, `bars`); typesetting (`ruby`, `kenten`, `bullets`, `textColumns`, `rules`, `nestedRun`); `annotate` with `Beside` and `Anchored`; `trackMeter` and `restGhost`; `marquee`; legibility (`scrim`, `haloed`, `shaded`, `emboldened` and `drawHaloed`); `plate`, `console` and `tinted`; `routers::`; `instancing::place::`; the stroke and brush presets; sprites and pixel type; the named default leaves |
@@ -284,7 +280,7 @@ SigilScry and SigilSubstance build only when their optional SDKs are found;
 
 ## Python studies
 
-The 26 bundled Python sketches are authoring studies. Seven port a native
+The 31 bundled Python sketches are authoring studies. Seven port a native
 sketch, three adapt one, and the rest exercise the Python surface without a
 native counterpart.
 
@@ -296,12 +292,14 @@ NumPy, which the package's `studies` extra supplies.
 | Study | What it combines | Native sketch |
 | --- | --- | --- |
 | `python_alpha_ground` | A transparent ground under one turning mark, for a subscriber to composite | Ports `alpha_ground` |
+| `python_bindings` | Not yet described | — |
 | `python_botanical_study` | Wash, dry mass, hatching and veins over ten leaves on a pressure-drawn branch | Adapts `brush_botanical_study` |
 | `python_carved_linework` | One Compose page on one baked quad: limestone lettering cut glyph by glyph into slate, brushed copper ribbon traces, plated vias as brushed ribbon rings, and an emissive pulse riding a trace in a live window under a bloom, lit by a key on a rail and a soft panel | — |
 | `python_compose_stamps` | Compose trees placed by a Draw pen and repeated as a custom brush tip | — |
 | `python_dashboard` | Functions and iterables that build retained elements | — |
 | `python_data_garden` | Native table sorting and domain scales over one illustrative CSV dataset | — |
 | `python_document` | One document under two inherited role stylesheets | Adapts `document_styles` |
+| `python_entrances` | Not yet described | — |
 | `python_flipbook_fire` | A generated flame sheet played as a flipbook, coals moving along a flow map, embers each showing their own cell, a flickering light and bloom, baked on the device | Ports `flipbook_fire` |
 | `python_hello` | A greeting and a moving circle, with two constants to edit | — |
 | `python_hello_compose` | Python components, native kits, material paints and an entrance | — |
@@ -319,6 +317,9 @@ NumPy, which the package's `studies` extra supplies.
 | `python_observable_reynolds` | Stateful flocking, seeded initialization and transforms | Ports `observable_reynolds_steering` |
 | `python_orbits` | Periodic arcs and fading trails computed from the scene clock | — |
 | `python_plaque` | One Compose page as the material of a baked plaque: stone, copper type raised on a rounded shoulder, a glowing rule and flat ink, lit by a moving key and a studio environment | — |
+| `python_springs` | Not yet described | — |
+| `python_text_fx` | A held scramble, keyframe stops naming a custom property and the ink, a tint by word, a sequence of an entrance and a squash, and a wave loop | — |
+| `python_timeline` | Not yet described | — |
 | `python_type_atelier` | Mixed runs, inline slots, named selections, initial letters, balanced story frames and a curved baseline | — |
 | `python_world_study` | One vessel mesh under keyed scene nodes, three dielectric finishes and a moving three-point rig, baked on the device | — |
 
@@ -424,7 +425,7 @@ model, arithmetic and data become Python code and are not listed.
 | `crt_bloom` | Glow and directional blur effects; additive blend; texture cache; CRT overlay recipe; explicit default face | — |
 | `decay_step` | Clock arithmetic (decay, quantize, step, phase); closed-form spring state; plot kit with axes, rules and traces | `sketch::kit::plot` chart layers |
 | `draw_with_scope` | Facts on cards; keyed and keyless `drawWith` programs reading the settled scope; pen wires and labels; comparison kit | — |
-| `ember_decode` | Kinetic text track with pass effect and stagger by unit; beat schedule query; authored SkSL recipe; meter kit | `sketch::kit::meter` and `gauge`; `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `compose::Composer::beatsOf` and `units`; `material::Recipe` authoring |
+| `ember_decode` | Kinetic text track with pass effect and stagger by unit; beat schedule query; authored SkSL recipe; meter kit | `sketch::kit::meter` and `gauge`; `compose::Composer::beatsOf` and `units`; `material::Recipe` authoring |
 | `encode_write` | Image encode and decode across formats; hub mount, write and image load; offscreen pen drawing; wells | `SkSurfaces::Raster` standalone raster surfaces |
 | `env_faces` | Environment maps from faces, cube sheets and panoramas; ground replacement; bevel normals; chrome reflection fill | `SkSurfaces::Raster` standalone raster surfaces; `material::Texture` and `Material::slot`; `material::EnvironmentMap` and kit environments; `material::bevelNormals` normal maps |
 | `env_lanes` | World environment dials and camera exposure; studio and sunset panoramas; world frames baked to images; PBR surfaces | `material::EnvironmentMap` and kit environments |
@@ -435,7 +436,7 @@ model, arithmetic and data become Python code and are not listed.
 | `formation_bands` | Polygon silhouette; width profiles, rail offsets and band regions; wave shaper; comparison kit; canvas path strokes | `geometry::shapers` and `path::Shaper` |
 | `frame_grid` | Polar frames with angle conventions; unit grid with snap; arrange rings and cells; pen graphics; comparison kit | `geometry::path::PolarFrame` and `path::Grid` |
 | `frame_inputs` | Recipe with frame inputs; uniform block binding; material specialization; material fill with content scale and world transform | `material::Recipe` authoring; `material::skia::fill` with `FrameData` |
-| `fx_scatter_mix` | Per-glyph effect tracks; scatter, mix and tint effects; spread schedules; beat readback meters; comparison kit | `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `compose::Composer::beatsOf` and `units`; `compose::kit::trackMeter` and `restGhost` instruments |
+| `fx_scatter_mix` | Per-glyph effect tracks; scatter, mix and tint effects; spread schedules; beat readback meters; comparison kit | `compose::Composer::beatsOf` and `units`; `compose::kit::trackMeter` and `restGhost` instruments |
 | `geo_groups` | Point clouds with named lanes; Houdini geo encode and decode; masked point operators; billboard sprites; comparison kit | `compose::kit::dotSprite` point stamp; `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec` |
 | `gif_frames` | Network image load; decoded frames and timed playback; resource and image probes; nearest sampling; cached-resource availability gate; comparison kit | A declared `available(why)` probe; `io::Hub` typed probes and `registerDecoder` for further types |
 | `grid_layouts` | Grid, diagonal and baseline layout schemes; ladder rules; themed mono type; readout rows | `compose::kit::readout` rows |
@@ -560,7 +561,7 @@ model, arithmetic and data become Python code and are not listed.
 | --- | --- | --- |
 | `annotated_margin` | Document paragraphs; per-word cascade track; composer unit and beat read-backs; sibling annotations; block rules; track meter | `compose::Composer::beatsOf` and `units`; `compose::kit::trackMeter` and `restGhost` instruments; `compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`); `compose::kit::annotate` sibling annotations |
 | `beethoven` | Span-revealed arc strokes; entrance animation; stylesheet classes; drop shadow; keyed absolute layout | — |
-| `bousen` | Vertical blocks; decorated span paints; OpenType features; phrase marks; column cascade track; kit cells | `compose::Text::textAttach` selection marks |
+| `bousen` | Vertical blocks; decorated span paints; OpenType features; phrase marks; column cascade track; kit cells | — |
 | `chrome_type` | Layer style presets on glyph boundaries; glow and bevel decorations; themed kit cells and page | — |
 | `horizontal_flow` | Document kit; specimen theme, wells and captions; stock silhouettes; shape-following flowAround exclusions | `geometry::shapes` corner operators |
 | `mawarikomi` | Vertical writing mode; silhouette exclusions; clamped column ellipsis; document kit; specimen cells; gradient ground | — |
@@ -579,7 +580,7 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
-| `daemon console` | Structured feed ring; per-glyph text effects; SDF panel; bound tile pan; OCIO output view; meters; bound outputs; rich row classes | `sketch::kit::meter` and `gauge`; `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `material::sdf` shapes and styles; `material::Paint::offset` bound to motion values; `material::ocio` colour management |
+| `daemon console` | Structured feed ring; per-glyph text effects; SDF panel; bound tile pan; OCIO output view; meters; bound outputs; rich row classes | `sketch::kit::meter` and `gauge`; `material::sdf` shapes and styles; `material::Paint::offset` bound to motion values; `material::ocio` colour management |
 | `loot grid` | Instanced atlas stamps; bevel emboss panel; recessed wells; noise recipes; pattern tiles; path silhouettes; legends; bound outputs | `sketch::kit::legend` and `swatchStrip`; `compose::instancing::place` placers |
 | `passive tree` | SDF sockets with bound glow uniform; wires with the orbit router; layered brush presets; stock silhouettes; span trims; legend; title card | `sketch::kit::titleCard`; `sketch::kit::legend` and `swatchStrip`; `compose::lines::presets` and `compose::brush::presets`; `compose::routers` stock routers; `material::sdf` shapes and styles; `material::Paint::offset` bound to motion values |
 | `persona menu` | Runtime shader on a 6 Hz stepped clock; stock silhouettes; fixed wedge path; spring cursor; staggered entrances; text outlines and glow | — |
@@ -604,14 +605,14 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
-| `axis_ripple` | Per-glyph variable-axis track on a looping textFx cascade; a level under each letter by textAttach with a bound scale; fontFamily on a sheet with custom properties; Scene2DContext::measure to the whole pixel; document type | `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `compose::metrics` and `compose::runPens` measurement; `compose::Text::textAttach` selection marks; `SkTypeface` variation axes and style readback |
-| `elastic_type` | animate.css's two keyframe tables per letter and on the whole word on one clock; rest ghost; sketch-kit plots with traces, marks, cursors and axis readings; one sheet of roles, series classes and colour tokens; document type | `sketch::kit::plot` chart layers; `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `compose::kit::trackMeter` and `restGhost` instruments |
+| `axis_ripple` | Per-glyph variable-axis track on a looping textFx cascade; a level under each letter by textAttach with a bound scale; fontFamily on a sheet with custom properties; Scene2DContext::measure to the whole pixel; document type | `compose::metrics` and `compose::runPens` measurement; `SkTypeface` variation axes and style readback |
+| `elastic_type` | animate.css's two keyframe tables per letter and on the whole word on one clock; rest ghost; sketch-kit plots with traces, marks, cursors and axis readings; one sheet of roles, series classes and colour tokens; document type | `sketch::kit::plot` chart layers; `compose::kit::trackMeter` and `restGhost` instruments |
 | `form_system` | Not yet audited | Not yet audited |
 | `karaoke_wipe` | Per-glyph tint cascade over a cue table read from data/; textStroke keyline on aliased type; marks hung on the letters as a ruler; palette tokens on the root; bound ball and playhead transforms | `compose::Composer::beatsOf` and `units` |
-| `matrix_rain` | Looping per-glyph streak, scramble and mirror tracks from one sheet and one clock; words in data/; seeded spread; vertical upright text; glow underlays; kit::vignette | `compose::textFx` text effects (`tween`, `scramble`, `sequence`) |
+| `matrix_rain` | Looping per-glyph streak, scramble and mirror tracks from one sheet and one clock; words in data/; seeded spread; vertical upright text; glow underlays; kit::vignette | — |
 | `rhythmus` | Not yet audited | Not yet audited |
-| `rota_convocationis` | Curved-baseline glyph tracks and pass; spread schedules; beat read-back; selector marks; SDF and SkSL recipes; path roughen/resample; instanced embers | `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `compose::Composer::beatsOf` and `units`; `compose::Text::textAttach` selection marks; `SkPathBuilder::arcTo` and `skpathutils::FillPathWithPaint`; `geometry::path::PolarFrame` and `path::Grid`; `geometry::shapes::ticks` and `chords` divisions; `geometry::path::Polyline` resampling and smoothing; `geometry::path::operations` chain and outline effects; `material::sdf` shapes and styles; `material::Recipe` authoring |
-| `shipping_forecast` | Per-glyph text tracks; stagger spreads; one sheet of roles, classes and colour tokens; selector span restyling; path and vertical text; the sea area being read lit on its ring; title card; kit tables; edge decoration | `sketch::kit::Document` content reader; `sketch::kit::titleCard`; `compose::onEdges` and `compose::inset` adaptors; `compose::textFx` text effects (`tween`, `scramble`, `sequence`) |
+| `rota_convocationis` | Curved-baseline glyph tracks and pass; spread schedules; beat read-back; selector marks; SDF and SkSL recipes; path roughen/resample; instanced embers | `compose::Composer::beatsOf` and `units`; `SkPathBuilder::arcTo` and `skpathutils::FillPathWithPaint`; `geometry::path::PolarFrame` and `path::Grid`; `geometry::shapes::ticks` and `chords` divisions; `geometry::path::Polyline` resampling and smoothing; `geometry::path::operations` chain and outline effects; `material::sdf` shapes and styles; `material::Recipe` authoring |
+| `shipping_forecast` | Per-glyph text tracks; stagger spreads; one sheet of roles, classes and colour tokens; selector span restyling; path and vertical text; the sea area being read lit on its ring; title card; kit tables; edge decoration | `sketch::kit::Document` content reader; `sketch::kit::titleCard`; `compose::onEdges` and `compose::inset` adaptors |
 
 #### Study · Pattern
 

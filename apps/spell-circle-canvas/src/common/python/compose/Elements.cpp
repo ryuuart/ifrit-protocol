@@ -39,22 +39,6 @@ constexpr auto fluent = py::return_value_policy::reference_internal;
 using compose::Element;
 using Model = std::shared_ptr<PythonValue>;
 
-/** A colour term from what a fill takes: a colour, the ink in force or a
- *  custom property — never a paint. */
-compose::ColorTerm colorTerm(py::handle value) {
-  if (py::isinstance<compose::VarRef>(value))
-    return compose::ColorTerm::var(value.cast<compose::VarRef>());
-  const compose::Fill paint = fill(value);
-  if (paint.kind != compose::Fill::Kind::Color)
-    throw py::type_error(
-        "A colour term is a colour, the ink in force (Fill.currentInk()) or "
-        "a custom property (Fill.var(name)), never a paint.");
-  compose::ColorTerm term(paint.colorValue);
-  term.ref = paint.ref;
-  term.varId = paint.varId;
-  return term;
-}
-
 Element memo(py::object properties, py::function describe) {
   // Capture a model value, rather than an alias whose mutation would make
   // the old and new declarations compare against the same changed object.

@@ -1334,9 +1334,28 @@ duration and stagger are the track's schedule; a `compose.Track` passed
 beside it says which glyphs, by what unit, and the master `progress`, which
 binds any motion value.
 
+Every other effect a track runs is a `textFx.TextEffect` value, handed to
+`Text.textFx` with the track's other fields as keywords —
+`text("DECODE").textFx(textFx.scramble("0123456789"), progress=reveal)` —
+or set as `compose.Track(effect=...)`. `scramble` churns each glyph through a
+charset before it lands; `tween` walks `textFx.GlyphModifier` stops, a bare
+stop taking an equal share of the path and a `GlyphModifierKeyframe` naming
+its own share and curve, and each of a stop's three colour terms is a colour,
+the ink in force (`Fill.currentInk()`) or a custom property (`Fill.var(name)`)
+read where the glyph is painted, so a table follows the sheet; `tint` reveals
+colour stops toward the colour the leaf is set in; `hold` paints nothing
+before a unit's beat opens; `sequence` plays phases written
+`effect.until(0.4)`, each with an optional `crossfade`, one after another in
+local time; `mix` runs effects at once; `variableAxis` holds a variable axis;
+`enter` is an entrance tween as an effect for the combinators; and `waveLoop`
+bobs the glyphs on a wrapping phase. `Text.variationDrive` drives a variable
+axis from a number or a motion value, and `Text.textAttach` anchors a node to
+the unit a selector resolves to.
+
 Direct editable paragraphs, font contexts, native flow geometry and annotation
-values are available. The other per-glyph effects and custom Python
-implementations of flow/hyphenation remain unfinished. A paint layer's `material` and a paint
+values are available. An effect body written in Python, a shader pass as a
+track's effect, and custom Python implementations of flow/hyphenation remain
+unfinished. A paint layer's `material` and a paint
 style's `foregroundMaterial` are shaded over the glyphs their pass covers by
 the resolver a sketch session installs; drawn where no resolver is installed,
 the pass keeps its Skia paint. The parity table tracks the remaining work

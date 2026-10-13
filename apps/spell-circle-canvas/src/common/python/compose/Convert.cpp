@@ -58,6 +58,20 @@ compose::Fill fill(py::handle value) {
   return compose::Fill::color(color(value));
 }
 
+compose::ColorTerm colorTerm(py::handle value) {
+  if (py::isinstance<compose::VarRef>(value))
+    return compose::ColorTerm::var(value.cast<compose::VarRef>());
+  const compose::Fill paint = fill(value);
+  if (paint.kind != compose::Fill::Kind::Color)
+    throw py::type_error(
+        "A colour term is a colour, the ink in force (Fill.currentInk()) or "
+        "a custom property (Fill.var(name)), never a paint.");
+  compose::ColorTerm term(paint.colorValue);
+  term.ref = paint.ref;
+  term.varId = paint.varId;
+  return term;
+}
+
 compose::Align alignment(py::handle value) {
   if (py::isinstance<compose::Align>(value))
     return value.cast<compose::Align>();
