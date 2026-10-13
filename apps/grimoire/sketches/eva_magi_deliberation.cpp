@@ -208,7 +208,6 @@ struct EvaMagiDeliberation {
     // The plate does not move: one moment, named, so the sweep and the
     // window render the same picture.
     context.captureAt(0.05);
-    context.nonlinearPicture();
     context.composer.render(describe());
   }
 };

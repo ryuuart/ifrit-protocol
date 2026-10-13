@@ -2,10 +2,9 @@
  * Connectivity and cache decisions read from a composed diagram. A wire is
  * keyed by the pair it joins, so connectivity is a question about keys:
  * bounds() answers where each wire came to rest, and answers nothing for a
- * pairing no operator drew. profile() reports the cache state, first
- * promotion reason and complete refusal mask for each selected node. The
- * queries run on a separate composer after its first draw; the displayed
- * timings are deliberately omitted from plates.
+ * pairing no operator drew. profile() reports how each selected node
+ * produced its pixels. The queries run on a separate composer after its
+ * first draw; the displayed timings are deliberately omitted from plates.
  */
 
 // TAGS: Geometry/Diagrams
@@ -26,7 +25,6 @@
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
-#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
@@ -61,23 +59,16 @@ sigil::compose::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
   return look.styleSheet();
 }
 
-/** THE WORDS THE TWO ENUMS NAME, each run in its enum's own order, so a
- *  refusal mask's bit and a cache state index straight into them. The
- *  refusal MASK is where a word is wanted rather than the sentence a
- *  reason spells, because thirteen sentences would not fit. */
-constexpr const char* kPromotionWords[] = {
-    "Cheap",    "Warming",    "Promoted",    "AskedFor", "OptedOut",
-    "Volatile", "Composited", "Transformed", "Filtered", "ReadsBackdrop",
-    "TooBig",   "SplitBaked", "HostsSpace"};
-constexpr const char* kStateWords[] = {"Live",     "Picture",  "Texture",
-                                       "Promoted", "SplitOwn", "Group"};
+/** The words the cache state names, in the enum's own order, so a state
+ *  indexes straight into them. */
+constexpr const char* kStateWords[] = {"Live", "Picture", "Texture", "Group"};
 
 }  // namespace
 
 struct RoutesProbe {
   std::vector<std::string> routes;  // the pairings that answered
   struct Verdict {
-    std::string key, state, reason, refusals;
+    std::string key, state;
   };
   std::vector<Verdict> verdicts;
 
@@ -106,25 +97,14 @@ struct RoutesProbe {
         // A row's label is the node's key() and the kind and size that
         // make it actionable, so the key is a prefix of it.
         if (row.label.starts_with(std::string(key) + " (")) {
-          // The verdict is FIRST MATCH, so a cheap node reports Cheap
-          // however many other conditions also refuse it; the mask carries
-          // every one of them, which is the line under the reason.
-          std::string refused;
-          for (size_t bit = 0; bit < std::size(kPromotionWords); ++bit) {
-            if (!row.refused((Composer::Promotion)bit)) continue;
-            if (!refused.empty()) refused += ", ";
-            refused += kPromotionWords[bit];
-          }
-          verdicts.push_back({key, kStateWords[(size_t)row.cacheState],
-                              Composer::promotionReason(row.promotion),
-                              refused.empty() ? "none" : refused});
+          verdicts.push_back({key, kStateWords[(size_t)row.cacheState]});
           break;
         }
 
     ctx.composer.render(sheetFor());
   }
 
-  /** One probe node: a small plate whose only job is to earn a verdict. */
+  /** One probe node: a small plate whose only job is to report a state. */
   Element probe(const char* key, float x, float y) const {
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     return kit::at(x, y, kNode, 34)
@@ -145,7 +125,7 @@ struct RoutesProbe {
             // The hub every listed route is anchored on.
             .children(
                 {probe("hub", 128, 128).width(80).height(44),
-                 // Four probes, each wearing one promotion verdict.
+                 // Four probes, each drawn a different way.
                  probe("spun", 16, 24).rotate(-8),
                  probe("glass", 220, 24).opacity(0.55f),
                  probe("baked", 16, 232).cache(Cache::Texture),
@@ -215,22 +195,15 @@ struct RoutesProbe {
           return sketch::kit::well({.width = 560, .padding = 16})
               .row()
               .gap(20)
-              .children({box().width(108).column().gap(8).children(
-                             {document::label(row.key),
-                              text(row.state).styleClass("readout")}),
-                         box().width(400).column().gap(8).children(
-                             {text(row.reason).width(400),
-                              document::caption("Refusals: " + row.refusals)
-                                  .width(400)})});
+              .children({document::label(row.key).width(108),
+                         text(row.state).styleClass("readout")});
         })});
     return sketch::kit::page(
                {.title = "Ask the tree what happened",
                 .subtitle =
                     "A route query describes connectivity. A profile describes "
-                    "why each drawn node kept its cache state.",
-                .footer = "Both queries run after a frame is drawn. The reason "
-                          "is the first matching condition; the refusal mask "
-                          "includes every matching condition."},
+                    "how each drawn node produced its pixels.",
+                .footer = "Both queries run after a frame is drawn."},
                box().row().gap(32).children(
                    {box().column().gap(18).width(kDiagram).children(
                         {sketch::kit::sectionHeader(
@@ -246,7 +219,7 @@ struct RoutesProbe {
                              .width(kDiagram)}),
                     box().column().gap(18).width(560).children(
                         {sketch::kit::sectionHeader(
-                             {.label = "CACHE VERDICTS",
+                             {.label = "CACHE STATES",
                               .note = "composer.profile()"}),
                          std::move(costs)})}))
         .applyStyleSheet(sheetClasses(sketch::kit::theme()));
@@ -254,6 +227,6 @@ struct RoutesProbe {
 };
 
 SIGIL_SKETCH(RoutesProbe, "Kit · API",
-             "the wires that answer for one hub, and the profile row each "
-             "of four bake refusals produces, both read off the composer "
-             "after the frame they describe")
+             "the wires that answer for one hub, and the cache state each "
+             "of four probes reports, both read off the composer after the "
+             "frame they describe")

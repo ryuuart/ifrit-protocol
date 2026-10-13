@@ -453,3 +453,16 @@ the methods matching it. A test should deliver a bundle holding `/a/x 1`
 and `/a/y 2` to an `osc://` connection, find an `on("/a/*")` handler run
 twice, and find both `latest("/a/x")` and `latest("/a/y")` non-empty. An
 OSC Out CHOP set to send bundles draws nothing until then.
+
+## SigilIO's frames delivery and capture have no test of their own
+
+`io_test` covers only the refusals of `publish` and `subscribe`; the
+cases that proved delivery and capture lived beside the removed wire
+tester, which carried a static frame to clients that subscribed after
+drawing stopped and checked a captured frame's rows and channels.
+`io::frames` should keep its own guarantees under test: discovery through
+`sigil::io::frames::publications()`, late subscription to a static
+publication, and row and channel order. A `gpu`-labelled `io_test` case
+should publish a two-by-two quadrant texture over a `syphon://` name,
+find it listed, and have two subscribers that join after drawing stops
+each receive the same four quadrants in order.

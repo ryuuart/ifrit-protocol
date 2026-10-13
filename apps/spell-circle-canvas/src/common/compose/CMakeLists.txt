@@ -181,7 +181,6 @@ set_tests_properties(compose_header_self_test PROPERTIES RESOURCE_LOCK sigil_bui
 if(APPLE)
   sigil_test(compose_test
     SOURCES test/ComposeGpuTest.mm test/ComposeGpuDestinationTest.mm
-            test/ComposeGpuPromotionTest.mm
     LIBRARIES SigilComposeKit SigilComposeBrush SigilComposeTypography
               SigilWeavePorts SigilSkia
     SUITES ComposeGpu "*/DirectImageDraw" "*/ComposeGpuMaterialDestination"

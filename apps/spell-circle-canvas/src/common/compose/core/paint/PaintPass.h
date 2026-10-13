@@ -26,15 +26,6 @@
 
 namespace sigil::compose {
 
-/** Promotion thresholds. A node must cost more than this to replay, for
- *  this many consecutive frames, before the library re-bakes it. 1 ms is
- *  ~6% of a 60 FPS frame — well above noise, far below the point where a
- *  sketch is in trouble; 8 frames keeps a one-off stall from promoting
- *  anything. Shared by the whole-subtree promotion and the split bake,
- *  which warm on the same bar. */
-constexpr double kPromoteMs = 1.0;
-constexpr uint8_t kPromoteFrames = 8;
-
 /** A BAKE LAYER IS A DEVICE OF ITS OWN. What is painted into it lands on
  *  the layer's grid, and the layer is then blitted wherever the node is —
  *  so a node inside the bake composes its matrix through nothing, whatever
@@ -67,7 +58,7 @@ struct BakeLayerScope {
 /** One node's paint, as the tiers below it read it. Filled in the order the
  *  walk computes it: the placement first, then the effects and memos the
  *  cache decision stands on, then the device geometry a bake is measured
- *  in and the promotion verdict taken from it. */
+ *  in. */
 struct PaintPass {
   PaintPass(Composer::Impl& impl, detail::Instance& inst, SkCanvas& canvas,
             const SkRect& rect, ProfileScope& profile)
@@ -156,37 +147,19 @@ struct PaintPass {
    *  where it is painted every frame, and the outermost open recording's
    *  inside one, where it is painted only when that recording is taken. */
   bool matrixStable = true;
-  /** Positive axis-aligned scale without perspective, required by the
-   *  automatic promotion and split tiers. */
-  bool upright = false;
-  /** THE DEVICE-BAKE RULE, which the Cache::Group, Cache::Texture and split
-   *  tiers share: a device-space bake blits with the matrix reset at an
-   *  ABSOLUTE device rect, so it is exact under one matrix and wrong under
-   *  every other. It may be taken at the root, or inside recordings that
-   *  are all PINNED, and never inside an unpinned one. */
+  /** THE DEVICE-BAKE RULE, which the Cache::Group and Cache::Texture tiers
+   *  share: a device-space bake blits with the matrix reset at an ABSOLUTE
+   *  device rect, so it is exact under one matrix and wrong under every
+   *  other. It may be taken at the root, or inside recordings that are all
+   *  PINNED, and never inside an unpinned one. */
   bool deviceBakeable = false;
-
-  // ---- the promotion verdict ----
-  /** Every condition under which a bake would produce different pixels or
-   *  would not pay for itself, as a BIT MASK over Composer::Promotion so
-   *  ALL of them are reported rather than the first. */
-  uint16_t refusals = 0;
-  /** Whether automatic caching is switched off for this node — by the
-   *  host's policy, or by the node's own cacheMode. */
-  bool optedOut = false;
-  /** Whether the node is eligible for an automatic bake at all. */
-  bool promotable = false;
-  /** EAGER SKIPS THE STOPWATCH AND NOTHING ELSE: the policy answers "is
-   *  this node expensive enough to be worth baking" with yes, and changes
-   *  none of the refusals. */
-  bool eager = false;
 
   // ---- what the tiers ask of the pass ----
 
   /** The rect this node is ALLOCATED to, in its own space — the subtree
    *  union with every layer effect in it given its filter's reach, which is
    *  what a surface has to hold. bakeBounds() walks the whole subtree and
-   *  three tiers ask for it, so it is memoised per paint — lazily, so a
+   *  every bake tier asks for it, so it is memoised per paint — lazily, so a
    *  node that reaches none of them never pays for it — and kept across
    *  paints while the subtree holds still: every change that can move the
    *  rect stales the node's paint (`markPaintDirtyUp`) or declares it
@@ -219,12 +192,6 @@ struct PaintPass {
    *  coverage than the live paint's), and never reaching outside the canvas
    *  the bake stands on. */
   SkIRect deviceRect();
-
-  /** …and the same rect for a bake measured to something other than the
-   *  node's whole paint — the split's own half. One producer, because the
-   *  margin, the clip's cap and the canvas's origin are conditions on the
-   *  RECT and not on which tier asked for it. */
-  SkIRect bakeRect(const SkRect& local) const;
 
   /** Paint into a shared surface on the canvas's own grid, then snapshot
    *  @p device. Keeping the original matrix and origin preserves the live
@@ -273,14 +240,6 @@ struct PaintPass {
    *  nothing of the node has been painted yet. */
   sk_sp<SkImageFilter> resolveLayerFilter();
 
-  /** Record the promotion verdict on this node's profile row. */
-  void note(Composer::Promotion p);
-
-  /** What this node cost to paint the way it painted — a picture replay for
-   *  a cached subtree, the live draw for a leaf — folded into the rolling
-   *  estimate, and the promotion decision taken from it. */
-  void accrue(double cost);
-
   /** Time one draw against the COMPOSE_PROF threshold, printing it when it
    *  runs over. */
   template <class Draw>
@@ -307,19 +266,6 @@ struct PaintPass {
 // The cache ladder, one tier per file, in the order paint() dispatches
 // through them.
 
-/** Automatic texture promotion (PromotionTier.cpp): the refusal mask, the
- *  primary verdict and the device-bake rule, written onto the pass. */
-void decidePromotion(PaintPass& pass);
-
-/** …and the bake it admits. True when the node was blitted and its paint is
- *  over. */
-bool paintPromotedBake(PaintPass& pass);
-
-/** The split bake (SplitBake.cpp): the node's OWN paint baked and blitted,
- *  its children drawn live over it. True when the node was a candidate, in
- *  which case its paint is over either way. */
-bool paintSplitBake(PaintPass& pass);
-
 /** Cache::Group (GroupBake.cpp): the whole subtree, held by a VALUE memo.
  *  True when the node was blitted and its paint is over; a ticking group
  *  falls through and paints live. */
@@ -334,8 +280,7 @@ bool paintTextureBake(PaintPass& pass);
  *  replayable command list, taken or replayed by the kernel's bake seam. */
 void paintThroughPicture(PaintPass& pass);
 
-/** The live draw (PictureTier.cpp), timed when the node could be promoted
- *  and untimed when it could not. */
+/** The live draw (PictureTier.cpp), for a node that records nothing. */
 void paintLive(PaintPass& pass);
 
 }  // namespace sigil::compose

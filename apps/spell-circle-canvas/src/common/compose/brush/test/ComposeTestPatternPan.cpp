@@ -1,5 +1,5 @@
 // A pattern panned under its node: a bound offset moves the tiles with
-// no re-describe, settles into a promotion and never settles while it
+// no re-describe, settles into a bake and never settles while it
 // keeps moving, an unbound offset stays a describe-time value and
 // prunes, and the binding itself is part of the recipe.
 
@@ -54,8 +54,7 @@ TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
   // describe (the whole point of the bound form).
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
-  pat.sampling(material::Sampling::Nearest)
-      .offset(panX, std::nullopt);
+  pat.sampling(material::Sampling::Nearest).offset(panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
   host.frame();
@@ -74,15 +73,14 @@ TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
       << "frame two: the bound pan did not keep moving";
 }
 
-TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
-  // The release has to show against Promotion::Volatile's `contentStable`,
-  // not only against the recording: promotion is a SEPARATE consumer of
-  // `subtreeVolatile`, so a parked pan that kept its recording but was still
-  // denied its bake would keep all of the cost.
+TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndBakes) {
+  // The release has to show against the bake, not only against the
+  // recording: a bake is a SEPARATE consumer of `subtreeVolatile`, so a
+  // parked pan that kept its recording but was still denied its bake would
+  // keep all of the cost.
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
-  pat.sampling(material::Sampling::Nearest)
-      .offset(panX, std::nullopt);
+  pat.sampling(material::Sampling::Nearest).offset(panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
   host.composer.setProfiling(true);
@@ -91,25 +89,25 @@ TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
   ASSERT_TRUE(accent);
   const int px = (int)accent->left() + 3, py = (int)accent->centre().y;
   EXPECT_EQ(host.pixel(px, py), SK_ColorRED);
-  // BEFORE the settle: a fresh bound pan denies contentStable at the root.
+  // BEFORE the settle: a fresh bound pan holds the root off its bake.
   {
     const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
-    EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
+    EXPECT_NE(root->cacheState, Composer::CacheState::Texture)
         << "a fresh bound pan must declare volatility";
     EXPECT_EQ(host.composer.stats().texturesLive, 0u)
         << "the root's asked-for bake must be refused while volatile";
   }
   for (int i = 0; i < 12; ++i)  // kScalarSettleFrames = 8, plus the release
     host.frame(0.016);          // walk and the settling frame's re-record
-  // AFTER: released — the node promotes like a static pattern.
+  // AFTER: released — the node bakes like a static pattern.
   {
     const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
-    EXPECT_FALSE(root->refused(Composer::Promotion::Volatile))
-        << "a settled bound pan still denies contentStable — no release";
+    EXPECT_EQ(root->cacheState, Composer::CacheState::Texture)
+        << "a settled bound pan still holds the root off its bake — no release";
     EXPECT_GE(host.composer.stats().texturesLive, 1u)
-        << "the released root never took its bake — promotion still denied";
+        << "the released root never took its bake — its bake still refused";
   }
   // …and the hold costs NOTHING.
   unsigned settledRecords = 0, settledPaints = 0;
@@ -131,14 +129,14 @@ TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
   {
     const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
-    EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
+    EXPECT_NE(root->cacheState, Composer::CacheState::Texture)
         << "the resumed pan must re-declare volatility the same frame";
   }
   // …and the cycle closes: it settles AGAIN and re-releases.
   for (int i = 0; i < 12; ++i) host.frame(0.016);
   const Composer::NodeCost* root = rowOf(host, "root");
   ASSERT_TRUE(root);
-  EXPECT_FALSE(root->refused(Composer::Promotion::Volatile))
+  EXPECT_EQ(root->cacheState, Composer::CacheState::Texture)
       << "a re-settled bound pan did not re-release";
   EXPECT_EQ(host.pixel(px, py), SK_ColorGREEN);
 }
@@ -149,8 +147,7 @@ TEST(ComposePatternPan, AMovingBoundPanNeverReleases) {
   // true phase on screen.
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
-  pat.sampling(material::Sampling::Nearest)
-      .offset(panX, std::nullopt);
+  pat.sampling(material::Sampling::Nearest).offset(panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
   host.composer.setProfiling(true);
@@ -163,7 +160,7 @@ TEST(ComposePatternPan, AMovingBoundPanNeverReleases) {
     host.frame(0.016);
     const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
-    EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
+    EXPECT_NE(root->cacheState, Composer::CacheState::Texture)
         << "a driven bound pan released its volatility at frame " << i;
     EXPECT_EQ(host.composer.stats().texturesLive, 0u)
         << "a bake was held across a driven bound pan at frame " << i;
@@ -179,15 +176,13 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
   // bound channel — still describe-time, still the static fill path (no
   // live slot, no volatility), and an identical re-describe still prunes.
   Pattern pat = halfTilePattern();
-  pat.sampling(material::Sampling::Nearest)
-      .offset(glm::vec2{8.0f, 0.0f});
+  pat.sampling(material::Sampling::Nearest).offset(glm::vec2{8.0f, 0.0f});
   EXPECT_FALSE(pat.material().isRunning())
       << "a static pan must not route to the live material slot";
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern bound = pat;
   bound.offset(panX, std::nullopt);
-  EXPECT_TRUE(bound.material().isRunning())
-      << "the bound form must route live";
+  EXPECT_TRUE(bound.material().isRunning()) << "the bound form must route live";
   EXPECT_FALSE(pat.material().isRunning())
       << "binding a COPY must not contaminate the original (value law)";
   // ONE QUESTION, three answers. Whether the bound pan is the whole of
@@ -199,12 +194,15 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
   // and one with no pan at all, answer no.
   Pattern parked = halfTilePattern();
   parked.offset(8.0f, std::nullopt);
-  EXPECT_TRUE(material::skia::paint(parked.material()).boundOffsetOnly()) << "a parked pan is a pan";
+  EXPECT_TRUE(material::skia::paint(parked.material()).boundOffsetOnly())
+      << "a parked pan is a pan";
   EXPECT_FALSE(parked.material().isRunning()) << "…and it is not moving";
-  EXPECT_TRUE(material::skia::paint(bound.material()).boundOffsetOnly()) << "…so is a moving one";
+  EXPECT_TRUE(material::skia::paint(bound.material()).boundOffsetOnly())
+      << "…so is a moving one";
   EXPECT_FALSE(material::skia::paint(pat.material()).boundOffsetOnly())
       << "the describe-time offset is the recipe's, not the lane's";
-  EXPECT_FALSE(material::skia::paint(halfTilePattern().material()).boundOffsetOnly())
+  EXPECT_FALSE(
+      material::skia::paint(halfTilePattern().material()).boundOffsetOnly())
       << "a material with no pan channel must not claim the lane";
   // The static pan draws at its phase and prunes across re-describes.
   Host host(300, 300);
@@ -225,7 +223,8 @@ TEST(ComposePatternPan, ThePanBindingIsRecipe) {
   // The BINDING participates in the prune signature: the same binding
   // prunes, a different one patches. A pruned swap would leave the OLD
   // live value driving the pixels for as long as the node lives.
-  sigil::motion::Animatable<float> a = sigil::motion::animatable(0.0f), b = sigil::motion::animatable(0.0f);
+  sigil::motion::Animatable<float> a = sigil::motion::animatable(0.0f),
+                                   b = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
   Pattern p1 = pat, p2 = pat, p3 = pat;
   p1.offset(a, std::nullopt);

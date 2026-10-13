@@ -35,7 +35,6 @@ Element pinnedArt(int kind) {
 
 TEST_P(CenterPinCaching, ASiblingSlotChangeKeepsThePinnedArtAndItsBake) {
   Host host(1100, 800);
-  host.composer.setAutoTexturePromotion(false);
   host.composer.render(box().children({box()
                                            .key("art")
                                            .width(1000)

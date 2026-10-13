@@ -2,7 +2,7 @@
  * Four memoized map chunks share one generated image atlas.
  * Each timed mutation edits one tile; a bound sibling wash marks the edited
  * chunk without invalidating its memo. A separate composer measures the map
- * alone with promotion disabled. The displayed counts belong to the previous
+ * alone. The displayed counts belong to the previous
  * completed edit; elapsed timings appear only in a live window.
  */
 
@@ -191,16 +191,13 @@ struct TileMap {
   /** The composer's own count for the frame that did the work, and the
    *  composer it is taken from.
    *
-   *  A COUNT OF RECORDINGS IS TAKEN AGAINST A CACHING POLICY. Nodes
-   *  described, memo hits and instances patched are the reconciler's and
-   *  are a function of the description alone; recordings held and nodes
-   *  painted live are the paint tier's, and a host that promotes turns a
-   *  recording into a bake and a painted node into a blit. So the counts
-   *  are read off a composer the sheet owns rather than off the one the
-   *  host opened: the same tree, stepped on the same clock, with the
-   *  promoter held off — which is the regime this sheet is about. It
-   *  draws into nothing; a no-draw canvas runs the whole phase and fills
-   *  no pixels. */
+   *  The counts are the MAP's alone. Nodes described, memo hits and
+   *  instances patched are the reconciler's and are a function of the
+   *  description; recordings held and nodes painted live are the paint
+   *  tier's. The host's composer also draws the sheet around the map, so
+   *  the counts are read off a composer the sheet owns: the same tree,
+   *  stepped on the same clock. It draws into nothing; a no-draw canvas
+   *  runs the whole phase and fills no pixels. */
   std::unique_ptr<Composer> probe;
   Composer::Stats worked;
 
@@ -228,7 +225,6 @@ struct TileMap {
     });
     probe = std::make_unique<Composer>(ctx.engine, *ctx.fonts);
     probe->setSize({kChunks * kChunkCols * kTile, kChunkRows * kTile});
-    probe->setAutoTexturePromotion(Composer::PromotionPolicy::Off);
     probe->render(map());
     ctx.composer.render(describe(ctx));
   }

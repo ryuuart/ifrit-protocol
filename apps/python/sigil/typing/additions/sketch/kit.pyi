@@ -18,8 +18,6 @@ class _StageProperties(typing.TypedDict, total=False):
     oversample: int
     plate_only: bool
     plateOnly: bool
-    nonlinear_picture: bool
-    nonlinearPicture: bool
 
 class _PageProperties(typing.TypedDict, total=False):
     title: str

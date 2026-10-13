@@ -59,7 +59,6 @@ void Art::paint(draw::Pen& pen, const PaintContext& ctx) const {
     motion::Engine engine;
     Composer composer(engine, *ctx.fonts);
     composer.setSize({sz.width(), sz.height()});
-    composer.setAutoTexturePromotion(false);
     composer.render(
         box().width(sz.width()).height(sz.height()).children({art}));
     composer.draw(*surface->getCanvas());

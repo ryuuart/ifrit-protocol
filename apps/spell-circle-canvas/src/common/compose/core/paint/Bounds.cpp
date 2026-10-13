@@ -94,7 +94,7 @@ float declaredBleed(const Instance& inst, SkSize skiaSize) {
  *  node's extent begins here — the recording cull and the child union over
  *  it, the bounded saveLayer a group opacity or a layer effect opens, the
  *  surface a lifted filter runs over, the local and device texture bakes,
- *  the split bake's own half, and the alpha surface a coverage boundary is
+ *  and the alpha surface a coverage boundary is
  *  traced off — so a carrier missing here is ink cut by every one of them,
  *  and, in the trace's case, a silhouette cut square where the ink went
  *  on. */

@@ -2,14 +2,14 @@
 // shadows under a fill, strokes over one, the mask a decoration is gated
 // by, and the wire an operator threads through a run of stops.
 
-#include <sigildraw/Pen.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigildraw/Pen.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <functional>
 
 #include "support/BrushTestSupport.h"
-#include <sigilmotion/ease/Ease.h>
-#include <sigilmedia/advanced/Skia.h>
 
 TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
   Host host;
@@ -44,12 +44,7 @@ TEST(ComposeDecorations, ContourWalkVisitsSamplesPositioned) {
     c.drawRect(SkRect::MakeXYWH(-2, -2, 4, 4), p);  // at the sample origin
   };
   host.composer.render(box().children(
-      {box()
-           .width(100)
-           .height(100)
-           .inset(50)
-           .absolute()
-           .foreground(walk)}));
+      {box().width(100).height(100).inset(50).absolute().foreground(walk)}));
   host.frame();
   EXPECT_EQ(visits, 16);  // 400px perimeter / 25px spacing
   EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);  // top edge stamped
@@ -64,9 +59,7 @@ TEST(ComposeDecorations, AnimatedWalkDeclaresVolatility) {
   ContourWalk walk;
   walk.spacing = 50.0f;
   walk.animatedWalk = true;
-  walk.draw = [] {
-    ++visits;
-  };
+  walk.draw = [] { ++visits; };
   host.composer.render(
       box().children({box().width(100).height(100).foreground(walk)}));
   host.frame();
@@ -97,17 +90,17 @@ TEST(ComposeDecorations, ContourWalkStampAtSequencesPerSampleArt) {
       return std::nullopt;  // odd samples: the shared stamp replays
     return box().width(10).height(10).fill(red());
   };
-  host.composer.render(box().children(
-      {box()
-           .absolute()
-           .inset(80, 20)
-           .shape(skiaShape([](SkSize s) {
-             SkPathBuilder b;
-             b.moveTo(0, s.height() / 2);
-             b.lineTo(s.width(), s.height() / 2);
-             return b.detach();
-           }))
-           .foreground(walk)}));
+  host.composer.render(box().children({box()
+                                           .absolute()
+                                           .inset(80, 20)
+                                           .shape(skiaShape([](SkSize s) {
+                                             SkPathBuilder b;
+                                             b.moveTo(0, s.height() / 2);
+                                             b.lineTo(s.width(),
+                                                      s.height() / 2);
+                                             return b.detach();
+                                           }))
+                                           .foreground(walk)}));
   host.frame();
   // 160px rail, spacing 40 → samples at x = 20, 60, 100, 140 (y = 100).
   EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);     // index 0: its own art
@@ -143,16 +136,17 @@ TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
 
 TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(80)
-           .height(80)
-           .inset(40)
-           .absolute()
-           .borderRadius({10})
-           .background(sigil::compose::shadow(material::Color{0, 0, 1, 1}, {12, 12}, 0))
-           .fill(red())
-           .foreground(sigil::compose::stroke(4, green()))}));
+  host.composer.render(
+      box().children({box()
+                          .width(80)
+                          .height(80)
+                          .inset(40)
+                          .absolute()
+                          .borderRadius({10})
+                          .background(sigil::compose::shadow(
+                              material::Color{0, 0, 1, 1}, {12, 12}, 0))
+                          .fill(red())
+                          .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
   EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);     // fill over shadow
   EXPECT_EQ(host.pixel(128, 128), SK_ColorBLUE);  // shadow offset corner
@@ -175,7 +169,8 @@ TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
              .height(40)
              .borderRadius({6})
              .fill(red())
-             .background(sigil::compose::shadow(material::Color{0, 0, 0, 0.5f}, {2, 2}, 4))
+             .background(sigil::compose::shadow(material::Color{0, 0, 0, 0.5f},
+                                                {2, 2}, 4))
              .foreground(sigil::compose::stroke(2, green())),
          box().width(60).height(20).foreground(dash)});
   };
@@ -233,8 +228,8 @@ TEST(ComposeWire, ThreadsThroughItsStops) {
       stack()
           .children({station("s1", 10, 40), station("s2", 90, 40),
                      station("s3", 170, 40)})
-          .operators({connect::Along{
-              .stops = {{"s1"}, {"s2"}, {"s3"}}, .wire = railLine()}}));
+          .operators({connect::Along{.stops = {{"s1"}, {"s2"}, {"s3"}},
+                                     .wire = railLine()}}));
   host.frame();
   EXPECT_EQ(host.pixel(60, 50), SK_ColorGREEN);   // between s1 and s2
   EXPECT_EQ(host.pixel(140, 50), SK_ColorGREEN);  // between s2 and s3
@@ -386,14 +381,14 @@ TEST(ComposeMask, PartialOutlineStrokesOnlyRevealedStretch) {
   // first 20% of the perimeter is dressed; right/bottom stay bare. The
   // fill and every outline decoration trace the CUT path.
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(100)
-           .height(100)
-           .inset(0, 100, 100, 0)
-           .absolute()
-           .mask(by::spans(spans::upTo(0.2f)))
-           .foreground(sigil::compose::stroke(4, green()))}));
+  host.composer.render(
+      box().children({box()
+                          .width(100)
+                          .height(100)
+                          .inset(0, 100, 100, 0)
+                          .absolute()
+                          .mask(by::spans(spans::upTo(0.2f)))
+                          .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
   // Perimeter order for this outline: left → top → right → bottom, so the
   // first 20% is about the left edge. That order is a property of how the
@@ -421,8 +416,8 @@ TEST(ComposeMask, TransitionDrawsOn) {
   host.composer.render(tree(0.001f));
   host.frame();
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
-  host.composer.render(
-      tree(motion::animate({.to = 1.0f, .duration = 400ms, .ease = motion::ease::linear})));
+  host.composer.render(tree(motion::animate(
+      {.to = 1.0f, .duration = 400ms, .ease = motion::ease::linear})));
   host.frame(0.2);  // ~50%: left + top revealed, bottom still bare
   EXPECT_EQ(host.pixel(50, 1), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
@@ -435,14 +430,14 @@ TEST(ComposeMask, BoundGateRevealsWithoutRender) {
   // render(), and the reveal advances — the self-drawing wire primitive.
   motion::Animatable<float> end = motion::animatable(0.2f);
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(100)
-           .height(100)
-           .inset(0, 100, 100, 0)
-           .absolute()
-           .mask(by::spans(spans::upTo(end)))
-           .foreground(sigil::compose::stroke(4, green()))}));
+  host.composer.render(
+      box().children({box()
+                          .width(100)
+                          .height(100)
+                          .inset(0, 100, 100, 0)
+                          .absolute()
+                          .mask(by::spans(spans::upTo(end)))
+                          .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
   // (99,30) sits at ~57.5% of the perimeter (right edge, top→bottom).
   EXPECT_EQ(host.pixel(99, 30), SK_ColorBLACK);  // bare at end=0.2
@@ -517,14 +512,14 @@ TEST(ComposeDecorations, AStrokeCanRefuseTheSmoothingThatBlursAHardRule) {
   EXPECT_EQ(feathered(off), 0);
 }
 
-TEST(ComposeDecorations, ABrushThatBlendsRefusesItsNodeTheBake) {
+TEST(ComposeDecorations, ABrushThatBlendsRefusesItsGroupTheBake) {
   // The same claim on the slot a BRUSH stands in. A SPAN-QUALIFIED stroke
   // pass keeps its Decoration in a list of its own — an unqualified stroke
   // is a foreground and was already read — and an additive filament along
   // part of the outline reads what is beneath the node for the reason a
   // wash does. Every carrier of a Decoration is asked, or a mark declines
   // the bake on one slot and takes it on another.
-  const auto page = [] {
+  const auto page = [](Cache caching) {
     LayeredBrush glow;
     glow.layers.push_back({.width = 6,
                            .ink = Fill::color({0.9f, 0.7f, 0.3f, 1}),
@@ -532,95 +527,89 @@ TEST(ComposeDecorations, ABrushThatBlendsRefusesItsNodeTheBake) {
                            .blend = material::BlendMode::PlusLighter});
     return box()
         .cache(Cache::None)
-        .children({box().absolute().left(0).top(0).width(200).height(200).fill(
-                       Fill::color({0.55f, 0.4f, 0.2f, 1})),
-                   box()
-                       .key("filament")
-                       .absolute()
-                       .left(30)
-                       .top(30)
-                       .width(140)
-                       .height(140)
-                       .stroke(spans::edges(14), glow)});
+        .children(
+            {box().absolute().left(0).top(0).width(200).height(200).fill(
+                 Fill::color({0.55f, 0.4f, 0.2f, 1})),
+             box().key("group").absolute().inset(0).cache(caching).children(
+                 {box()
+                      .key("filament")
+                      .absolute()
+                      .left(30)
+                      .top(30)
+                      .width(140)
+                      .height(140)
+                      .stroke(spans::edges(14), glow)})});
   };
-  const auto render = [&](Composer::PromotionPolicy policy) {
+  const auto render = [&](Cache caching, Composer::CacheState* state) {
     Host host;
-    host.composer.setAutoTexturePromotion(policy);
     host.composer.setProfiling(true);
-    host.composer.render(page());
+    host.composer.render(page(caching));
     for (int i = 0; i < 3; ++i) host.frame();
-    return host.composer.profile().empty() ? std::vector<SkColor>()
-                                           : grab(host);
+    if (const Composer::NodeCost* row = requireRow(host.composer, "group"))
+      *state = row->cacheState;
+    return grab(host);
   };
-  const std::vector<SkColor> live = render(Composer::PromotionPolicy::Off);
-  const std::vector<SkColor> eager = render(Composer::PromotionPolicy::Eager);
-  ASSERT_EQ(live.size(), eager.size());
+  Composer::CacheState unasked = Composer::CacheState::Live;
+  Composer::CacheState asked = Composer::CacheState::Group;
+  const std::vector<SkColor> live = render(Cache::None, &unasked);
+  const std::vector<SkColor> grouped = render(Cache::Group, &asked);
+  ASSERT_EQ(live.size(), grouped.size());
   size_t differing = 0;
   for (size_t i = 0; i < live.size(); ++i)
-    if (live[i] != eager[i]) ++differing;
+    if (live[i] != grouped[i]) ++differing;
   EXPECT_EQ(differing, 0u)
       << differing
       << " pixels moved: a node whose brush blends with the page was baked "
          "away from the page";
-
-  Host host;
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
-  host.composer.setProfiling(true);
-  host.composer.render(page());
-  host.frame();
-  const Composer::NodeCost* row = requireRow(host.composer, "filament");
-  ASSERT_NE(row, nullptr);
-  EXPECT_TRUE(row->refused(Composer::Promotion::ReadsBackdrop));
+  EXPECT_NE(asked, Composer::CacheState::Group)
+      << "the group holding a node that blends with the page took its bake";
 }
 
-TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsNodeTheBake) {
+TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsGroupTheBake) {
   // A wash through a blend mode reads what is UNDER the node — that is the
   // whole of what a soft-light pass over a page is for. A bake would offer
   // it the layer's transparent black instead, and the difference is the
-  // mark rather than a rounding. So the node declares it, and the promoter
-  // refuses the bake: the two renders are identical to the byte.
-  const auto page = [] {
+  // mark rather than a rounding. So the node declares it, and a group
+  // holding it refuses the bake: the two renders are identical to the byte.
+  const auto page = [](Cache caching) {
     return box()
         .cache(Cache::None)
-        .children({box().absolute().left(0).top(0).width(200).height(200).fill(
-                       Fill::color({0.55f, 0.4f, 0.2f, 1})),
-                   box()
-                       .key("washed")
-                       .absolute()
-                       .left(30)
-                       .top(30)
-                       .width(140)
-                       .height(140)
-                       .foreground(decorations::wash(
-                           material::Color{0.9f, 0.9f, 0.9f, 1},
-                           material::BlendMode::SoftLight, 0.8f))});
+        .children(
+            {box().absolute().left(0).top(0).width(200).height(200).fill(
+                 Fill::color({0.55f, 0.4f, 0.2f, 1})),
+             box().key("group").absolute().inset(0).cache(caching).children(
+                 {box()
+                      .key("washed")
+                      .absolute()
+                      .left(30)
+                      .top(30)
+                      .width(140)
+                      .height(140)
+                      .foreground(decorations::wash(
+                          material::Color{0.9f, 0.9f, 0.9f, 1},
+                          material::BlendMode::SoftLight, 0.8f))})});
   };
-  const auto render = [&](Composer::PromotionPolicy policy) {
+  const auto render = [&](Cache caching, Composer::CacheState* state) {
     Host host;
-    host.composer.setAutoTexturePromotion(policy);
     host.composer.setProfiling(true);
-    host.composer.render(page());
+    host.composer.render(page(caching));
     for (int i = 0; i < 3; ++i) host.frame();
-    return host.composer.profile().empty() ? std::vector<SkColor>()
-                                           : grab(host);
+    if (const Composer::NodeCost* row = requireRow(host.composer, "group"))
+      *state = row->cacheState;
+    return grab(host);
   };
-  const std::vector<SkColor> live = render(Composer::PromotionPolicy::Off);
-  const std::vector<SkColor> eager = render(Composer::PromotionPolicy::Eager);
-  ASSERT_EQ(live.size(), eager.size());
+  Composer::CacheState unasked = Composer::CacheState::Live;
+  Composer::CacheState asked = Composer::CacheState::Group;
+  const std::vector<SkColor> live = render(Cache::None, &unasked);
+  const std::vector<SkColor> grouped = render(Cache::Group, &asked);
+  ASSERT_EQ(live.size(), grouped.size());
   size_t differing = 0;
   for (size_t i = 0; i < live.size(); ++i)
-    if (live[i] != eager[i]) ++differing;
+    if (live[i] != grouped[i]) ++differing;
   EXPECT_EQ(differing, 0u)
       << differing
-      << " pixels moved: a node whose wash blends with the page "
-         "was baked away from the page";
-
-  Host host;
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
-  host.composer.setProfiling(true);
-  host.composer.render(page());
-  host.frame();
-  const Composer::NodeCost* row = requireRow(host.composer, "washed");
-  ASSERT_NE(row, nullptr);
-  EXPECT_TRUE(row->refused(Composer::Promotion::ReadsBackdrop));
+      << " pixels moved: a node whose wash blends with the page was baked "
+         "away from the page";
+  EXPECT_NE(asked, Composer::CacheState::Group)
+      << "the group holding a node that blends with the page took its bake";
 }

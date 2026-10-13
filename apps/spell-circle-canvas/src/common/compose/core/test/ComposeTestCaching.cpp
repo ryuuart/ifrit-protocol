@@ -263,7 +263,6 @@ TEST(ComposeCache, ADeclaredBakeDensityHoldsOneBakeAcrossViewScales) {
 
 TEST(ComposeCache, ADeclaredGroupBakeDensityHoldsAcrossViewScales) {
   Host host;
-  host.composer.setAutoTexturePromotion(false);
   host.composer.setBakeDensity(2.0f);
   host.composer.render(box()
                            .cache(Cache::None)
@@ -561,7 +560,6 @@ Element tracedDisc() {
  *  scale it was warmed at, or drawn at that scale from the first frame. */
 std::vector<SkColor> stillAtTwice(bool warmFirst) {
   Host host(200, 200);
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   host.composer.render(tracedDisc());
   if (warmFirst)
     for (int i = 0; i < 6; ++i) host.frame();
@@ -623,7 +621,6 @@ Element stripedBake(const motion::Animatable<float>& drift) {
  *  drawn at twice it, or drawn at twice it from the first frame. */
 std::vector<SkColor> stripesAtTwice(bool warmFirst) {
   Host host(200, 200);
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   motion::Animatable<float> drift = motion::animatable(0.0f);
   host.composer.render(stripedBake(drift));
   if (warmFirst)
@@ -835,10 +832,9 @@ namespace {
  *  shadow shows. */
 constexpr SkColor kGround = 0xFFE8E0D0;
 
-std::pair<int, double> turnedAgainstStill(Composer::PromotionPolicy policy) {
+std::pair<int, double> turnedAgainstStill() {
   motion::Animatable<float> turn = motion::animatable(0.0f);
   Host turning(240, 240);
-  turning.composer.setAutoTexturePromotion(policy);
   turning.composer.render(dressedSheet(turn));
   for (int frame = 0; frame <= 12; ++frame) {
     turn = (float)frame / 100.0f;
@@ -874,18 +870,7 @@ TEST(ComposeCaching, ACoverageDressedSheetOverATurningChildPaintsItsTurn) {
   // subtree steps along them a device pixel at a time, and a turned mask
   // is sampled between its pixels: the two agree everywhere but along
   // that edge, and nowhere by much.
-  const auto [far, mean] =
-      turnedAgainstStill(Composer::PromotionPolicy::ByCost);
-  EXPECT_EQ(far, 0);
-  EXPECT_LT(mean, 3.0);
-}
-
-// The sheet's own paint holds nothing still while its silhouette turns: a
-// shadow cast from that silhouette moves with it, so a promotion that keeps
-// the sheet's own half baked under its live children would keep a shadow
-// of where the child stood.
-TEST(ComposeCaching, ACoverageDressedSheetKeepsNoShadowOfWhereItsChildStood) {
-  const auto [far, mean] = turnedAgainstStill(Composer::PromotionPolicy::Eager);
+  const auto [far, mean] = turnedAgainstStill();
   EXPECT_EQ(far, 0);
   EXPECT_LT(mean, 3.0);
 }

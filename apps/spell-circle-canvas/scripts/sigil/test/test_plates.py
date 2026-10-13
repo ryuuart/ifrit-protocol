@@ -180,10 +180,9 @@ class TheDeviceTierIsTheReference(unittest.TestCase):
         self.assertIn("MOVED  astral_tome", printed)
         self.assertIn("<-- FINDING", printed)
 
-    def test_the_other_tiers_refuse_to_rebase(self):
-        for tier in ("cpu", "promotion"):
-            with self.assertRaises(SystemExit):
-                self.fixture.run("--tier", tier, "--rebase")
+    def test_the_cpu_tier_refuses_to_rebase(self):
+        with self.assertRaises(SystemExit):
+            self.fixture.run("--tier", "cpu", "--rebase")
 
 
 class TheRasterSmokeFailsOnlyForARenderThatFailed(unittest.TestCase):

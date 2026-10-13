@@ -17,7 +17,6 @@ void stage(Scene2DContext& ctx, const Stage& surface) {
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;
-  declared.nonlinearPicture = surface.nonlinearPicture;
   ctx.canvas(declared);
 }
 
@@ -30,7 +29,6 @@ void stage(Scene3DContext& ctx, const Stage& surface) {
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;
-  declared.nonlinearPicture = surface.nonlinearPicture;
   *ctx.specification = declared;
 }
 

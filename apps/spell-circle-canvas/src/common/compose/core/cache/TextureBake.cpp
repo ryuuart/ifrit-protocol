@@ -165,8 +165,6 @@ bool paintTextureBake(PaintPass& pass) {
       if (pass.profile.row != SIZE_MAX) {
         impl.profileRows[pass.profile.row].cacheState =
             Composer::CacheState::Texture;
-        impl.profileRows[pass.profile.row].promotion =
-            Composer::Promotion::AskedFor;
       }
       // Identity CTM is global canvas space even inside a saveLayer (the
       // layer device carries its own origin), so an opacity/blend bake
@@ -366,8 +364,6 @@ bool paintTextureBake(PaintPass& pass) {
     impl.profileRows[pass.profile.row].cacheState =
         inst.textureImage ? Composer::CacheState::Texture
                           : Composer::CacheState::Live;
-    impl.profileRows[pass.profile.row].promotion =
-        Composer::Promotion::AskedFor;
     impl.profileRows[pass.profile.row].effectDeferred =
         deferEffect && inst.textureImage;
   }

@@ -1,6 +1,6 @@
 ---
 name: grimoire
-description: Run Grimoire, the SigilSketch host, from the command line - headless plate sweeps, one still, bench and window-bench, video montage, plate comparison, texture promotion pins, thumbnails and the protocol endpoint a client drives
+description: Run Grimoire, the SigilSketch host, from the command line - headless plate sweeps, one still, bench and window-bench, video montage, plate comparison, thumbnails and the protocol endpoint a client drives
 ---
 
 # Grimoire from the command line
@@ -38,12 +38,7 @@ of at each sketch's own, and moves a `--frame` still the same way.
 differences two directories of plates channel by channel; the plate
 ledger reads the same rows as values through `sigil.sketch.compare`, so
 `sigil.py plates` needs the `sigil_python` target built beside
-Grimoire. A headless sweep is opened deterministic and a deterministic
-session holds automatic texture promotion off, so `--promotion` is the
-one door that lets the promoter go with every other pin standing, and
-`--no-promotion` pins it off on a backend whose default would not; the
-plate ledger's promotion tier renders each scene both ways and judges
-the pair. The ledger's device tier, its default and its reference, judges
+Grimoire. A headless sweep is opened deterministic. The ledger's device tier, its default and its reference, judges
 every scene2d and scene3d sketch on byte identity against one machine-local
 device manifest, adopted with `--rebase`; `sigil.py plates --tier cpu` is a
 smoke run of the raster path that reads each scene2d sketch's CPU plate

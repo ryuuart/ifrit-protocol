@@ -282,40 +282,9 @@ void Composer::draw(SkCanvas& canvas) {
   impl.stats.texturesBaked = 0;
   impl.stats.nodesPainted = 0;
   impl.stats.nodesBounded = 0;
-  impl.promotedBytesLast = impl.promotedBytes;
-  impl.promotedBytes = 0;
+  impl.bakedBytesLast = impl.bakedBytes;
+  impl.bakedBytes = 0;
   impl.recording.groupPending = false;
-
-  // Backend-aware promotion default. recorder() is non-null on a Graphite
-  // canvas, recordingContext() on a Ganesh one.
-  // Either means this surface is GPU-backed, and the cost signal automatic
-  // promotion decides from — time spent recording draw ops — no longer
-  // predicts what the surface actually pays, so promotion stays off unless
-  // the host explicitly asked for it. When it flips OFF here, drop any bakes
-  // taken on a previous raster frame so a host that alternates backends does
-  // not blit a stale texture.
-  const bool gpuBacked =
-      canvas.recorder() != nullptr || canvas.recordingContext() != nullptr;
-  const Composer::PromotionPolicy effective =
-      (impl.promotionExplicit || !gpuBacked) ? impl.autoPromote
-                                             : Composer::PromotionPolicy::Off;
-  if (effective != impl.autoPromoteEffective) {
-    impl.autoPromoteEffective = effective;
-    if (effective == Composer::PromotionPolicy::Off && impl.root) {
-      const auto clear = [](auto&& self, detail::Instance& inst) -> void {
-        inst.autoTexture = false;
-        inst.hotFrames = 0;
-        // Cache::Group is the author's bake too, and it is not promotion:
-        // dropping it here would cost a re-bake for a switch that has
-        // nothing to say about it.
-        if (inst.description && inst.description->cacheMode != Cache::Texture &&
-            inst.description->cacheMode != Cache::Group)
-          inst.textureImage.reset();
-        for (auto& child : inst.children) self(self, *child);
-      };
-      clear(clear, *impl.root);
-    }
-  }
 
   // PaintContext::contentScale — device px per layout px under the host's
   // current transform (2.0 on a HiDPI-scaled canvas). Best effort: recordings
@@ -338,18 +307,6 @@ void Composer::draw(SkCanvas& canvas) {
     impl.profChildMs = 0;
     impl.profDepth = 0;
   }
-  if (impl.countComposites) {
-    // The plane indexes the canvas this frame is drawn on, in that
-    // canvas's own device pixels, and it counts THIS draw: a frame's
-    // blits are a fact about the frame, and a plane carried over from
-    // the last one would report a picture nobody is looking at.
-    const SkISize device = canvas.getBaseLayerSize();
-    impl.compositePlane.width = device.width();
-    impl.compositePlane.height = device.height();
-    impl.compositePlane.counts.assign(
-        (size_t)device.width() * (size_t)device.height(), 0);
-  }
-
   sigil::measure::Laps laps;
 
   if (!impl.settledForDraw) impl.settleForDraw();
@@ -423,51 +380,6 @@ void Composer::setProfiling(bool on) {
 
 bool Composer::profiling() const { return m_impl->profileEnabled; }
 
-void Composer::setCompositeCounting(bool on) {
-  m_impl->countComposites = on;
-  if (!on) m_impl->compositePlane = {};
-}
-
-bool Composer::compositeCounting() const { return m_impl->countComposites; }
-
-const Composer::CompositePlane& Composer::compositePlane() const {
-  return m_impl->compositePlane;
-}
-
-void Composer::setAutoTexturePromotion(bool on) {
-  setAutoTexturePromotion(on ? PromotionPolicy::ByCost : PromotionPolicy::Off);
-}
-
-void Composer::setAutoTexturePromotion(PromotionPolicy policy) {
-  m_impl->autoPromote = policy;
-  m_impl->promotionExplicit = true;  // the host has an opinion; honour it on
-                                     // every backend, overriding the default.
-  if (policy == PromotionPolicy::Off && m_impl->root) {
-    // Drop every promoted bake, and the counters that would re-promote from
-    // where they left off, so turning promotion off actually exercises the
-    // unpromoted path instead of blitting textures baked before the switch.
-    const auto clear = [](auto&& self, detail::Instance& inst) -> void {
-      inst.autoTexture = false;
-      inst.hotFrames = 0;
-      inst.replayMs = 0;
-      inst.liveStableRate = 0;
-      if (inst.description && inst.description->cacheMode != Cache::Texture &&
-          inst.description->cacheMode != Cache::Group)
-        inst.textureImage.reset();
-      for (auto& child : inst.children) self(self, *child);
-    };
-    clear(clear, *m_impl->root);
-  }
-}
-
-Composer::PromotionPolicy Composer::autoTexturePromotionPolicy() const {
-  return m_impl->autoPromote;
-}
-
-bool Composer::autoTexturePromotion() const {
-  return m_impl->autoPromote != PromotionPolicy::Off;
-}
-
 void Composer::setBakeDensity(float devicePixelsPerUnit) {
   const float density = devicePixelsPerUnit > 0 ? devicePixelsPerUnit : 0.0f;
   if (density == m_impl->bakeDensity) return;
@@ -483,9 +395,7 @@ void Composer::setBakeDensity(float devicePixelsPerUnit) {
   if (!m_impl->root) return;
   const auto clear = [](auto&& self, detail::Instance& inst) -> void {
     inst.textureImage.reset();
-    inst.ownImage.reset();
     inst.paintDirty = true;
-    inst.ownPaintDirty = true;
     for (auto& child : inst.children) self(self, *child);
   };
   clear(clear, *m_impl->root);
@@ -507,52 +417,6 @@ void Composer::setKey(std::string_view name, int code, bool pressed) {
     keys.keyCode = code;
   }
   keys.pressed = !keys.down.empty();
-}
-
-const char* Composer::promotionReason(Promotion p) {
-  switch (p) {
-    case Promotion::Cheap:
-      return "cheap enough to leave alone";
-    case Promotion::Warming:
-      return "expensive — counting frames before a bake";
-    case Promotion::Promoted:
-      return "baked by the library";
-    case Promotion::AskedFor:
-      return "Cache::Texture — you asked for it";
-    case Promotion::OptedOut:
-      return "promotion opted out";
-    case Promotion::Volatile:
-      return "its content changes every frame";
-    case Promotion::Composited:
-      return "opacity/blend — a bake would round twice; "
-             "ask for Cache::Texture yourself";
-    // The refusal is real: baking a rotated, mirrored or skewed node and
-    // blitting the result differs from painting it live by about one least
-    // significant bit on the antialiased edges of a shader fill, and the
-    // library will not spend a caller's exactness without being asked. But a
-    // constant small tilt is common — a band angled a fraction of a degree
-    // never lies square — and such a node can be the most expensive thing in
-    // the frame while looking ordinary. So the reason names the opt-in
-    // instead of only describing the geometry, which would leave the author
-    // with nothing to act on.
-    case Promotion::Transformed:
-      return "rotated, mirrored or skewed: a bake would differ by ~1 LSB on "
-             "the antialiased edges, so the library will not take it for you "
-             "— add .cache(Cache::Texture) if you accept that";
-    case Promotion::Filtered:
-      return "layer/backdrop effect or clip";
-    case Promotion::ReadsBackdrop:
-      return "something in this subtree blends with the canvas (a non-srcOver "
-             "blend or backdrop filter, here or in a descendant)";
-    case Promotion::TooBig:
-      return "too large to bake, or over the bake budget";
-    case Promotion::SplitBaked:
-      return "own paint baked, volatile children painted live over the blit";
-    case Promotion::HostsSpace:
-      return "hosts a shared 3D space: its children are drawn on the plane "
-             "beneath it, so it has no layer of its own to bake";
-  }
-  return "";
 }
 
 const std::vector<Composer::NodeCost>& Composer::profile() const {
@@ -593,18 +457,16 @@ void Composer::purgeCaches() {
   Impl& impl = *m_impl;
   impl.changesUnknown = true;
   impl.bakeSurfaces.clear();
-  impl.promotedBytes = 0;
-  impl.promotedBytesLast = 0;
+  impl.bakedBytes = 0;
+  impl.bakedBytesLast = 0;
   if (!impl.root) return;
   std::function<void(Instance&)> walk = [&walk](Instance& inst) {
     inst.picture.reset();
     inst.textureImage.reset();
-    inst.ownImage.reset();  // the split bake's own-paint half is a cache too
     inst.bakedLiveShader.reset();
     inst.hasPendingLiveFill = false;
     inst.stampCache = {};
     inst.paintDirty = true;
-    inst.ownPaintDirty = true;
     for (auto& child : inst.children) walk(*child);
   };
   walk(*impl.root);

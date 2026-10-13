@@ -65,8 +65,8 @@ std::optional<LocalGroupBake> localGroupBakePlan(PaintPass& pass) {
                      inst.textureContentScale == pass.impl.hostScale) &&
                     inst.textureBakeRect == bounds;
   if (!held &&
-      std::max(pass.impl.promotedBytesLast, pass.impl.promotedBytes) + bytes >
-          Composer::Impl::kPromotedBudget)
+      std::max(pass.impl.bakedBytesLast, pass.impl.bakedBytes) + bytes >
+          Composer::Impl::kBakeBudget)
     return std::nullopt;
   return LocalGroupBake{bounds, rung, scale, info, bytes, held};
 }
@@ -104,11 +104,9 @@ bool paintGroupLocalBake(PaintPass& pass, const LocalGroupBake& plan) {
     impl.stats.picturesRecorded++;
     if (!impl.coverageTrace) impl.stats.texturesBaked++;
   }
-  impl.promotedBytes += plan.bytes;
+  impl.bakedBytes += plan.bytes;
   if (pass.profile.row != SIZE_MAX) {
     impl.profileRows[pass.profile.row].cacheState = Composer::CacheState::Group;
-    impl.profileRows[pass.profile.row].promotion =
-        Composer::Promotion::AskedFor;
   }
   // A recording holding this blit is remade when the host's scale leaves
   // the rung the bake was taken for.
@@ -193,8 +191,8 @@ bool paintGroupBake(PaintPass& pass) {
                          (size_t)impl.bakeInfo({1, 1}).bytesPerPixel();
     const bool affordable =
         inst.textureImage ||
-        std::max(impl.promotedBytesLast, impl.promotedBytes) + bytes <=
-            Composer::Impl::kPromotedBudget;
+        std::max(impl.bakedBytesLast, impl.bakedBytes) + bytes <=
+            Composer::Impl::kBakeBudget;
     const bool deviceEligible =
         pass.deviceBakeable && !moving && rectStable && impl.bakeDensity <= 0 &&
         !totalM.hasPerspective() && device.width() > 0 && device.height() > 0 &&
@@ -233,12 +231,10 @@ bool paintGroupBake(PaintPass& pass) {
         }
       }
       if (inst.textureImage) {
-        impl.promotedBytes += bytes;
+        impl.bakedBytes += bytes;
         if (pass.profile.row != SIZE_MAX) {
           impl.profileRows[pass.profile.row].cacheState =
               Composer::CacheState::Group;
-          impl.profileRows[pass.profile.row].promotion =
-              Composer::Promotion::AskedFor;
         }
         pass.profDraw("group blit", [&] {
           pass.deviceBlit(inst.textureImage, device, nullptr);

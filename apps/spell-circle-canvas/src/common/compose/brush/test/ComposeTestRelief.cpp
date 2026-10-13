@@ -303,8 +303,7 @@ std::vector<RootReliefCase> rootReliefCases() {
   const Arm arms[] = {
       {Cache::None, Composer::CacheState::Live, "Live"},
       {Cache::Picture, Composer::CacheState::Picture, "Picture"},
-      {Cache::Texture, Composer::CacheState::Texture, "Texture"},
-      {Cache::Auto, Composer::CacheState::Promoted, "Eager"}};
+      {Cache::Texture, Composer::CacheState::Texture, "Texture"}};
   const char* slots[] = {"Background", "Foreground", "Overlay",
                          "SpanBackground", "SpanForeground"};
   std::vector<RootReliefCase> cases;
@@ -333,10 +332,6 @@ TEST_P(HeldRootRelief, ReanchorsWhenOnlyItsAncestorMoves) {
   auto shift = motion::animatable(0.0f);
   Host retained(320, 160), ordinary(320, 160);
   retained.composer.setProfiling(true);
-  retained.composer.setAutoTexturePromotion(
-      arm.cache == Cache::Auto ? Composer::PromotionPolicy::Eager
-                               : Composer::PromotionPolicy::Off);
-  ordinary.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   retained.composer.render(
       movingPanel(shift, field, arm.cache, contour, arm.slot));
   ordinary.composer.render(movingPanel(shift, field, Cache::None));
@@ -382,8 +377,6 @@ TEST_P(HeldRootWash, ReanchorsThroughItsDecorationWrapper) {
   auto shift = motion::animatable(0.0f);
   Host retained(320, 160), ordinary(320, 160);
   retained.composer.setProfiling(true);
-  retained.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
-  ordinary.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   retained.composer.render(
       movingPanel(shift, field, Cache::Picture, mark, 1, true));
   ordinary.composer.render(

@@ -28,7 +28,7 @@ from sigil.compose import Composer, box, slot
 from sigil.sketch import render_file
 
 # Every name this package nests inside the class it reports about.
-NESTED = ("CacheState", "CompositePlane", "NodeCost", "Promotion")
+NESTED = ("CacheState", "NodeCost")
 
 # The calls a sketch's composer answered while the sketch adapter owned
 # the class, which the one class still answers.
@@ -46,19 +46,12 @@ HOSTED = (
 
 # The calls this package adds, on either owner.
 GROWN = (
-    "autoTexturePromotion",
-    "autoTexturePromotionPolicy",
     "bakeDensity",
-    "compositeCounting",
-    "compositePlane",
     "draw",
     "profile",
     "profiling",
-    "promotionReason",
     "scheduleSpan",
-    "setAutoTexturePromotion",
     "setBakeDensity",
-    "setCompositeCounting",
     "setInherited",
     "setKey",
     "setPointer",
@@ -85,32 +78,10 @@ class Spellings(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue(callable(getattr(Composer, name)))
 
-    def test_the_promotion_policy_has_its_three_values(self):
-        policy = native.PromotionPolicy
-        self.assertEqual(set(policy.__members__), {"Off", "ByCost", "Eager"})
-
-    def test_the_nested_enumerations_carry_the_native_values(self):
+    def test_the_cache_state_carries_the_native_values(self):
         self.assertEqual(
             list(Composer.CacheState.__members__),
-            ["Live", "Picture", "Texture", "Promoted", "SplitOwn", "Group"],
-        )
-        self.assertEqual(
-            list(Composer.Promotion.__members__),
-            [
-                "Cheap",
-                "Warming",
-                "Promoted",
-                "AskedFor",
-                "OptedOut",
-                "Volatile",
-                "Composited",
-                "Transformed",
-                "Filtered",
-                "ReadsBackdrop",
-                "TooBig",
-                "SplitBaked",
-                "HostsSpace",
-            ],
+            ["Live", "Picture", "Texture", "Group"],
         )
 
 
@@ -194,30 +165,9 @@ class Owned(unittest.TestCase):
         composer.setProfiling(on=False)
         self.assertFalse(composer.profiling())
 
-        self.assertFalse(composer.compositeCounting())
-        composer.setCompositeCounting(on=True)
-        self.assertTrue(composer.compositeCounting())
-
         self.assertEqual(composer.bakeDensity(), 0)
         composer.setBakeDensity(devicePixelsPerUnit=2.0)
         self.assertEqual(composer.bakeDensity(), 2.0)
-
-    def test_promotion_takes_a_policy_or_a_truth_value(self):
-        policy = native.PromotionPolicy
-        composer = Composer()
-        self.assertEqual(composer.autoTexturePromotionPolicy(), policy.ByCost)
-        self.assertTrue(composer.autoTexturePromotion())
-        composer.setAutoTexturePromotion(policy.Eager)
-        self.assertEqual(composer.autoTexturePromotionPolicy(), policy.Eager)
-        composer.setAutoTexturePromotion(False)
-        self.assertEqual(composer.autoTexturePromotionPolicy(), policy.Off)
-        self.assertFalse(composer.autoTexturePromotion())
-        composer.setAutoTexturePromotion(on=True)
-        self.assertEqual(composer.autoTexturePromotionPolicy(), policy.ByCost)
-        composer.setAutoTexturePromotion(policy=policy.Off)
-        self.assertFalse(composer.autoTexturePromotion())
-        with self.assertRaises(TypeError):
-            composer.setAutoTexturePromotion("Eager")
 
     def test_the_viewport_is_a_size_however_it_is_spelled(self):
         composer = Composer()
@@ -255,15 +205,9 @@ class Owned(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(TypeError):
                 composer.draw(value)
 
-    def test_nothing_is_reported_before_a_frame_was_profiled_or_counted(self):
+    def test_nothing_is_reported_before_a_frame_was_profiled(self):
         composer = Composer()
         self.assertEqual(composer.profile(), [])
-        plane = composer.compositePlane()
-        self.assertEqual((plane.width, plane.height, plane.counts), (0, 0, b""))
-        self.assertEqual(plane.at(0, 0), 0)
-        self.assertEqual(plane.at(x=-1, y=-1), 0)
-        self.assertEqual(plane.copy().counts, b"")
-        self.assertEqual(copy.deepcopy(plane).width, 0)
 
     def test_a_composer_refuses_a_thread_it_was_not_made_on(self):
         composer = Composer()
@@ -285,26 +229,14 @@ class Owned(unittest.TestCase):
 
 
 class Reports(unittest.TestCase):
-    def test_every_promotion_has_a_reason_of_its_own(self):
-        promotions = list(Composer.Promotion.__members__.values())
-        reasons = [Composer.promotionReason(each) for each in promotions]
-        self.assertTrue(all(isinstance(reason, str) and reason for reason in reasons))
-        self.assertEqual(len(set(reasons)), len(promotions))
-        self.assertEqual(
-            Composer.promotionReason(promotion=Composer.Promotion.OptedOut),
-            reasons[promotions.index(Composer.Promotion.OptedOut)],
-        )
-
     def test_a_node_cost_is_a_record(self):
-        promotion, state = Composer.Promotion, Composer.CacheState
+        state = Composer.CacheState
         cost = Composer.NodeCost(
             label="plate",
             selfMs=1.5,
             totalMs=2.5,
             depth=3,
             cacheState=state.Picture,
-            promotion=promotion.Volatile,
-            refusals=(1 << promotion.Volatile.value) | (1 << promotion.Filtered.value),
             effectDeferred=True,
         )
         self.assertEqual(
@@ -313,22 +245,17 @@ class Reports(unittest.TestCase):
         )
         self.assertTrue(cost.effectDeferred)
         self.assertTrue(cost.cached())
-        self.assertTrue(cost.refused(promotion.Volatile))
-        self.assertTrue(cost.refused(promotion=promotion.Filtered))
-        self.assertFalse(cost.refused(promotion.OptedOut))
         for duplicate in (cost.copy(), copy.copy(cost), copy.deepcopy(cost)):
             self.assertIsNot(duplicate, cost)
             self.assertEqual(duplicate.label, "plate")
-            self.assertEqual(duplicate.refusals, cost.refusals)
+            self.assertEqual(duplicate.cacheState, cost.cacheState)
         duplicate = cost.copy()
         duplicate.label = "other"
         self.assertEqual(cost.label, "plate")
 
-    def test_a_fresh_node_cost_is_live_and_cheap(self):
+    def test_a_fresh_node_cost_is_live(self):
         cost = Composer.NodeCost()
         self.assertEqual(cost.cacheState, Composer.CacheState.Live)
-        self.assertEqual(cost.promotion, Composer.Promotion.Cheap)
-        self.assertEqual(cost.refusals, 0)
         self.assertFalse(cost.cached())
         with self.assertRaisesRegex(TypeError, "Unknown NodeCost field"):
             Composer.NodeCost(selfMilliseconds=1)
@@ -427,13 +354,12 @@ class Frames(Session):
         self.assertEqual(reds(plain), 0)
         self.assertGreater(reds(inked), 0)
 
-    def test_a_profiled_frame_is_rows_worst_first_with_a_reason_each(self):
+    def test_a_profiled_frame_is_rows_worst_first(self):
         self.render("""
             pen.background('#000000')
             probe = Composer()
             probe.setSize((48, 32))
             probe.setProfiling(True)
-            probe.setAutoTexturePromotion(native.PromotionPolicy.Off)
             probe.render(box().key('root').children([plate()]))
             probe.draw(pen.canvas())
             results['rows'] = probe.profile()
@@ -448,33 +374,9 @@ class Frames(Session):
         )
         for row in rows:
             self.assertIsInstance(row, Composer.NodeCost)
-            self.assertTrue(Composer.promotionReason(row.promotion))
             self.assertGreaterEqual(row.totalMs, 0)
-        self.assertTrue(any(row.refused(Composer.Promotion.OptedOut) for row in rows))
         self.assertTrue(any("plate" in row.label for row in rows))
         self.assertEqual(self.results["cleared"], [])
-
-    def test_a_counted_frame_gives_a_plane_the_size_of_its_canvas(self):
-        self.render("""
-            pen.background('#000000')
-            probe = Composer()
-            probe.setSize((48, 32))
-            probe.setCompositeCounting(True)
-            probe.render(box().children([plate()]))
-            probe.draw(pen.canvas())
-            results['plane'] = probe.compositePlane()
-        """)
-        plane = self.results["plane"]
-        self.assertGreaterEqual(plane.width, 48)
-        self.assertGreaterEqual(plane.height, 32)
-        self.assertEqual(len(plane.counts), plane.width * plane.height)
-        view = memoryview(plane)
-        self.assertTrue(view.readonly)
-        self.assertEqual(view.format, "B")
-        self.assertEqual(view.shape, (plane.height, plane.width))
-        self.assertEqual(view.tobytes(), plane.counts)
-        self.assertEqual(plane.at(0, 0), plane.counts[0])
-        self.assertEqual(plane.at(plane.width, 0), 0)
 
     def test_a_composer_is_not_touched_from_inside_its_own_draw(self):
         self.render("""
@@ -580,7 +482,6 @@ class Lent(Session):
             setup="""
                 composer = ctx.composer
                 composer.setProfiling(True)
-                composer.setAutoTexturePromotion(native.PromotionPolicy.Off)
                 composer.setBakeDensity(1.0)
                 composer.setPointer((4, 4), False)
                 composer.setKey('a', 65, True)
@@ -589,7 +490,6 @@ class Lent(Session):
             update="""
                 if elapsed > 1 / 60:
                     results['rows'] = ctx.composer.profile()
-                    results['policy'] = ctx.composer.autoTexturePromotionPolicy()
                     results['density'] = ctx.composer.bakeDensity()
                     results['span'] = ctx.composer.scheduleSpan('plate', 0)
                     results['composer'] = ctx.composer
@@ -597,7 +497,6 @@ class Lent(Session):
             at=0.05,
         )
         self.assertGreater(len(self.results["rows"]), 0)
-        self.assertEqual(self.results["policy"], native.PromotionPolicy.Off)
         self.assertEqual(self.results["density"], 1.0)
         self.assertEqual(self.results["span"], 0)
         # Every call asks the session again, the grown ones as the old.

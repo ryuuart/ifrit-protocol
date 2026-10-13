@@ -364,7 +364,6 @@ TEST(Scene2DCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
     EXPECT_EQ(progress->paints, discard ? 0 : 36);
 
     session->setProfiling(true);
-    session->setCompositeCounting(true);
     session->still(*target->getCanvas());
     const SkBitmap result = sigil::sketch::test::plateOf(*target);
     EXPECT_EQ(progress->updates, 37);
@@ -374,7 +373,6 @@ TEST(Scene2DCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
     EXPECT_NEAR(progress->elapsed, .6, 1e-9);
     EXPECT_NE(result.getColor(14, 12), SK_ColorBLACK);
     EXPECT_FALSE(session->costs(8).empty());
-    EXPECT_FALSE(session->compositeCounts().counts.empty());
 
     // Repaint still draws, without advancing the body or its timer.
     session->repaint(*target->getCanvas());
@@ -391,10 +389,8 @@ TEST(Scene2DCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
     EXPECT_EQ(session->timing().drawMs, 0);
     for (const LaneCost& lane : session->lanes()) EXPECT_EQ(lane.ms, 0);
     EXPECT_TRUE(session->costs(8).empty());
-    EXPECT_TRUE(session->compositeCounts().counts.empty());
     session->repaint(*target->getCanvas());
     EXPECT_FALSE(session->costs(8).empty());
-    EXPECT_FALSE(session->compositeCounts().counts.empty());
     return result;
   };
   const SkBitmap reference = take(false);

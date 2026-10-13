@@ -113,8 +113,6 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
 
   /** The retained composer's statistics and queries. */
   const Composer& composer() const;
-  /** Set the retained composer's texture-promotion policy. */
-  void setAutoTexturePromotion(PromotionPolicy policy);
   /** Paint the tree as one map of its surface (`Composer::setSurfaceMap`),
    *  cleared to that map's ground in place of the background; none paints
    *  it as it is seen, over the background again. The next render paints. */

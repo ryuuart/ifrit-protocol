@@ -223,7 +223,6 @@ void bindSpecimens(py::module_& module) {
   field(stage, "background", &sketchKit::Stage::background);
   field(stage, "oversample", &sketchKit::Stage::oversample);
   field(stage, "plateOnly", &sketchKit::Stage::plateOnly);
-  field(stage, "nonlinearPicture", &sketchKit::Stage::nonlinearPicture);
   auto page = record<sketchKit::Page>(module, "Page");
   field(page, "title", &sketchKit::Page::title);
   field(page, "subtitle", &sketchKit::Page::subtitle);

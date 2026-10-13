@@ -107,10 +107,10 @@ class Revision:
     a change a client has to be rebuilt for raises it.
     """
 
-    breaking: int = 0
+    breaking: int = 1
     """Raised by a change that breaks a client built against the last."""
 
-    compatible: int = 4
+    compatible: int = 0
     """Raised by a change a client built against the last still speaks."""
 
     def to_json(self) -> dict[str, messages.Json]:
@@ -125,8 +125,8 @@ class Revision:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
-            breaking=messages.integer(fields, "breaking", 0),
-            compatible=messages.integer(fields, "compatible", 4),
+            breaking=messages.integer(fields, "breaking", 1),
+            compatible=messages.integer(fields, "compatible", 0),
         )
 
 

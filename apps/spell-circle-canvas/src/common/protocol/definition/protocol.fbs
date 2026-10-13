@@ -72,9 +72,9 @@ table Empty {}
 /// a change a client has to be rebuilt for raises it.
 table Revision {
   /// Raised by a change that breaks a client built against the last.
-  breaking: uint = 0;
+  breaking: uint = 1;
   /// Raised by a change a client built against the last still speaks.
-  compatible: uint = 4;
+  compatible: uint = 0;
 }
 
 // workaround: flatc embeds the reflected definition beside the generated
@@ -219,17 +219,6 @@ enum Device : byte {
   Gpu = 1
 }
 
-/// When the runtime may re-bake a node it was not asked to.
-enum Promotion : byte {
-  /// Never: a byte-identical still asks for this.
-  Off = 0,
-  /// By the runtime's own measure of what is expensive, which differs
-  /// from machine to machine.
-  Auto = 1,
-  /// Every node the runtime may bake, whatever it costs.
-  Eager = 2
-}
-
 /// A session as a list shows it.
 table Summary {
   /// The registry name, or the path, it was opened from.
@@ -259,12 +248,6 @@ table OpenParameters {
 table DeviceParameters {
   /// The device the session draws with from now on.
   device: Device;
-}
-
-/// What pinPromotion is asked.
-table PromotionParameters {
-  /// When the runtime may re-bake from now on.
-  promotion: Promotion = Auto;
 }
 
 /// What pinDensity is asked.
@@ -368,19 +351,6 @@ table ProfileResult {
   rows: [string];
 }
 
-/// The composite-count plane of the next still.
-table CompositeCountsResult {
-  /// Where the plane was written, under the state root: one saturating
-  /// byte per device pixel, as a grey image.
-  path: string;
-  /// The plane's width in pixels.
-  width: uint;
-  /// The plane's height in pixels.
-  height: uint;
-  /// The most composites any one pixel passed through.
-  maximum: uint;
-}
-
 /// A session opened.
 table OpenedEvent {
   /// The session.
@@ -412,8 +382,6 @@ rpc_service Session {
   open(OpenParameters): Summary (asynchronous);
   /// Pins the device the session draws with.
   pinDevice(DeviceParameters): sigil.protocol.Empty;
-  /// Pins when the runtime may re-bake a node it was not asked to.
-  pinPromotion(PromotionParameters): sigil.protocol.Empty;
   /// Pins the density every raster the session bakes is formed at, from
   /// the first frame of each session opened after it and from now on in
   /// the one open. A still at that density of a session pinned before it
@@ -439,9 +407,6 @@ rpc_service Session {
   /// Attributes what the next frame spends to what spent it, and answers
   /// the most expensive rows once that frame is drawn.
   profile(ProfileParameters): ProfileResult (asynchronous, experimental);
-  /// Counts the composites each pixel of the next still passes through,
-  /// and answers the plane once that still is taken.
-  compositeCounts(sigil.protocol.Empty): CompositeCountsResult (asynchronous);
   /// Starts this client's session events.
   enable(sigil.protocol.Empty): sigil.protocol.Empty;
   /// Stops this client's session events.
@@ -568,7 +533,7 @@ namespace sigil.protocol.host;
 table VersionResult {
   /// The definition the host was built from.
   revision: sigil.protocol.Revision (required);
-  /// The program: Grimoire, Seer or the receiver.
+  /// The program, such as Grimoire.
   program: string;
   /// The program's own version.
   program_version: string;

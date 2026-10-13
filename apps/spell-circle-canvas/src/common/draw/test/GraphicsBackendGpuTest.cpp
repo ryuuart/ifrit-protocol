@@ -1,8 +1,8 @@
 /** @file
- * Where a persistent buffer stands when its host changes backend: a
- * buffer begun first on raster moves onto the device that later begins
- * it, carrying its marks; one on a device stays there under a host with
- * none, and neither forms again on a frame that changes nothing.
+ * Where a persistent buffer stands: on the device of the host that first
+ * begins it, staying there whatever host begins it next and re-formed
+ * beside itself; on raster where its first host makes no surface; and
+ * formed again on no frame that changes nothing.
  */
 
 #include <gtest/gtest.h>
@@ -84,7 +84,7 @@ SkColor at(const std::vector<uint32_t>& pixels, int x, int y) {
 
 }  // namespace
 
-TEST(GraphicsBackendGpu, ARasterBufferMovesOntoTheDeviceWithItsMarks) {
+TEST(GraphicsBackendGpu, ABufferFormsOnTheDeviceOfTheHostThatFirstBeginsIt) {
   auto device = sigil::core::hardware::GpuDevice::createOwned();
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);
@@ -93,36 +93,29 @@ TEST(GraphicsBackendGpu, ARasterBufferMovesOntoTheDeviceWithItsMarks) {
       context->recorder(), SkImageInfo::MakeN32Premul(kExtent));
   ASSERT_TRUE(deviceHost);
 
-  // First begun by a host that draws nothing, as a headless step is.
-  SkNoDrawCanvas stepping(kExtent.width(), kExtent.height());
   draw::Graphics buffer(float(kExtent.width()), float(kExtent.height()));
   const SkRect left = SkRect::MakeXYWH(4, 4, 12, 12);
-  frame(buffer, stepping, &left);
-  ASSERT_TRUE(buffer.image());
-  EXPECT_FALSE(buffer.image()->isTextureBacked());
-  EXPECT_EQ(at(pixelsOf(buffer, nullptr), 8, 8), SK_ColorRED);
-
-  // The device begins it at the same extent: it moves there, marks kept.
-  const SkRect right = SkRect::MakeXYWH(40, 4, 12, 12);
-  frame(buffer, *deviceHost->getCanvas(), &right);
+  frame(buffer, *deviceHost->getCanvas(), &left);
   EXPECT_EQ(buffer.extent(), kExtent);
   ASSERT_TRUE(buffer.image());
   EXPECT_TRUE(buffer.image()->isTextureBacked());
-  const auto moved = pixelsOf(buffer, context.get());
-  ASSERT_FALSE(moved.empty());
-  EXPECT_EQ(at(moved, 8, 8), SK_ColorRED);
-  EXPECT_EQ(at(moved, 44, 8), SK_ColorRED);
-  EXPECT_EQ(at(moved, 30, 24), SK_ColorTRANSPARENT);
 
   // A frame that changes nothing forms nothing: the held image stands.
   const uint32_t held = buffer.image()->uniqueID();
   frame(buffer, *deviceHost->getCanvas(), nullptr);
   EXPECT_EQ(buffer.image()->uniqueID(), held);
 
-  // A host without a device keeps it on the device, and forms nothing.
-  frame(buffer, stepping, nullptr);
+  // A host that draws nothing, as a headless step is, keeps it on the
+  // device and forms nothing; its marks land there.
+  SkNoDrawCanvas stepping(kExtent.width(), kExtent.height());
+  const SkRect right = SkRect::MakeXYWH(40, 4, 12, 12);
+  frame(buffer, stepping, &right);
   EXPECT_TRUE(buffer.image()->isTextureBacked());
-  EXPECT_EQ(buffer.image()->uniqueID(), held);
+  const auto marked = pixelsOf(buffer, context.get());
+  ASSERT_FALSE(marked.empty());
+  EXPECT_EQ(at(marked, 8, 8), SK_ColorRED);
+  EXPECT_EQ(at(marked, 44, 8), SK_ColorRED);
+  EXPECT_EQ(at(marked, 30, 24), SK_ColorTRANSPARENT);
 
   // A finer density under that host re-forms it beside itself, on the
   // device, with every mark scaled along.
@@ -149,7 +142,35 @@ TEST(GraphicsBackendGpu, ARasterBufferMovesOntoTheDeviceWithItsMarks) {
   EXPECT_EQ(finerAt(88, 16), SK_ColorRED);
 }
 
-TEST(GraphicsBackendGpu, ADeviceThatCannotFormTheBufferIsNotAskedAgain) {
+TEST(GraphicsBackendGpu, ABufferFirstBegunWithoutASurfaceStaysOnRaster) {
+  auto device = sigil::core::hardware::GpuDevice::createOwned();
+  if (!device) GTEST_SKIP() << "no GPU device";
+  auto context = GraphiteContext::create(*device);
+  if (!context) GTEST_SKIP() << "no Graphite context";
+  auto deviceHost = SkSurfaces::RenderTarget(
+      context->recorder(), SkImageInfo::MakeN32Premul(kExtent));
+  ASSERT_TRUE(deviceHost);
+
+  // First begun by a host that draws nothing and makes no surface.
+  SkNoDrawCanvas stepping(kExtent.width(), kExtent.height());
+  draw::Graphics buffer(float(kExtent.width()), float(kExtent.height()));
+  const SkRect left = SkRect::MakeXYWH(4, 4, 12, 12);
+  frame(buffer, stepping, &left);
+  ASSERT_TRUE(buffer.image());
+  EXPECT_FALSE(buffer.image()->isTextureBacked());
+
+  // A device beginning it later draws on the raster it stands on.
+  const SkRect right = SkRect::MakeXYWH(40, 4, 12, 12);
+  frame(buffer, *deviceHost->getCanvas(), &right);
+  EXPECT_EQ(buffer.extent(), kExtent);
+  EXPECT_FALSE(buffer.image()->isTextureBacked());
+  const auto marked = pixelsOf(buffer, nullptr);
+  ASSERT_FALSE(marked.empty());
+  EXPECT_EQ(at(marked, 8, 8), SK_ColorRED);
+  EXPECT_EQ(at(marked, 44, 8), SK_ColorRED);
+}
+
+TEST(GraphicsBackendGpu, ADeviceThatCannotFormTheBufferLeavesItOnRaster) {
   auto device = sigil::core::hardware::GpuDevice::createOwned();
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);

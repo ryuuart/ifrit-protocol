@@ -28,14 +28,8 @@
 
 namespace {
 
-/** A subtree the promoter will actually promote.
- *
- *  "Expensive" has to mean over the promotion time threshold. Child count
- *  alone does not get there — hundreds of thin hairline-stroked boxes are
- *  still far under the bar — so the panel carries a per-pixel shader across
- *  its whole area as well as its children. Drop the shader and every
- *  assertion about this node being promoted quietly becomes an assertion
- *  about a node that never could be. */
+/** A subtree whose paint is expensive: a per-pixel shader across its whole
+ *  area under a field of stroked children. */
 Element expensivePanel() {
   Element panel = box().width(180).height(180).fill(
       material::skia::base(material::skia::sksl(heavyEffect(false))));

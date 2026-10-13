@@ -114,12 +114,6 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.selected = argv[++i];
     } else if (arg == "--ledger") {
       args.sweepOptions.ledger = true;
-    } else if (arg == "--no-promotion") {
-      args.sweepOptions.noPromotion = true;
-    } else if (arg == "--promotion") {
-      args.sweepOptions.promotion = true;
-    } else if (arg == "--composites") {
-      args.sweepOptions.countPlane = true;
     } else if (arg == "--shot" && i + 1 < argc) {
       args.shotPath = argv[++i];
     } else if (arg == "--assets" && i + 1 < argc) {

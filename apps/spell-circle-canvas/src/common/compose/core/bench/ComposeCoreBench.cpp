@@ -435,7 +435,6 @@ BENCHMARK(BM_Env_ThemeHeld_MemosNeverRead)->Apply(nodeLadder);
 static void BM_Draw_GroupCache_LivePictures(benchmark::State& state) {
   const int count = (int)state.range(0);
   Host host(640, 640);
-  host.composer.setAutoTexturePromotion(false);
   host.composer.render(groupScene(count, Cache::Auto));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
@@ -449,7 +448,6 @@ BENCHMARK(BM_Draw_GroupCache_LivePictures)
 static void BM_Draw_GroupCache_Blit(benchmark::State& state) {
   const int count = (int)state.range(0);
   Host host(640, 640);
-  host.composer.setAutoTexturePromotion(false);
   host.composer.render(groupScene(count, Cache::Group));
   host.draw();  // establish the subtree-value memo
   host.draw();  // settle and take the one group bake

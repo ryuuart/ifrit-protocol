@@ -341,26 +341,6 @@ sk_sp<SkImage> plateImage(const std::filesystem::path& path) {
                                            : nullptr;
 }
 
-/** The worst per-channel disagreement between two plates of one size. */
-int worstChannelDrift(const SkImage& a, const SkImage& b) {
-  if (a.width() != b.width() || a.height() != b.height()) return 256;
-  SkBitmap left, right;
-  left.allocN32Pixels(a.width(), a.height());
-  right.allocN32Pixels(b.width(), b.height());
-  if (!a.readPixels(left.pixmap(), 0, 0) || !b.readPixels(right.pixmap(), 0, 0))
-    return 256;
-  int worst = 0;
-  for (int y = 0; y < a.height(); ++y)
-    for (int x = 0; x < a.width(); ++x) {
-      const SkColor p = left.getColor(x, y), q = right.getColor(x, y);
-      if (p == q) continue;
-      for (int shift : {0, 8, 16, 24})
-        worst = std::max(worst, std::abs((int)((p >> shift) & 0xffu) -
-                                         (int)((q >> shift) & 0xffu)));
-    }
-  return worst;
-}
-
 struct PixelBounds {
   int left = 0;
   int top = 0;
@@ -395,41 +375,8 @@ SweepOptions ledgerRun(const std::filesystem::path& outputDirectory) {
   SweepOptions options;
   options.outputDirectory = outputDirectory.string();
   options.ledger = true;
-  options.noPromotion = true;
   options.only = find("sweep_probe");
   return options;
-}
-
-TEST(Sweep, PromotionAndNoPromotionAskForOppositeRunsAndAreRefusedTogether) {
-  // The two flags name the same switch in opposite positions, and a run
-  // that took one silently would report a picture nobody asked for.
-  const ScratchDir out("sigil_sweep_both_promotions");
-  SweepOptions options = ledgerRun(out.path);
-  options.promotion = true;  // …beside the noPromotion ledgerRun sets
-  EXPECT_EQ(1, sweep(options, fonts(), assets()));
-  EXPECT_FALSE(std::filesystem::exists(out.path / "plate_sweep_probe.png"));
-}
-
-TEST(Sweep, APromotedRunKeepsEveryOtherPinAndStaysWithinOneCodeValue) {
-  // The lane's contract on one sketch: a promoted run still renders, and
-  // what it renders stands within the rule the whole tier is judged by.
-  // A bake is taken under the live matrix post-translated by an integer,
-  // so a shaded pixel can land one code value from the live paint and
-  // nothing may land further. This probe is too cheap for the promoter to
-  // fire on, so the drift it measures is zero — what fails here is a
-  // promoted run that stops rendering, or one that moves a picture the
-  // promoter never touched.
-  const ScratchDir off("sigil_sweep_promo_off");
-  const ScratchDir on("sigil_sweep_promo_on");
-  ASSERT_EQ(0, sweep(ledgerRun(off.path), fonts(), assets()));
-  SweepOptions promoted = ledgerRun(on.path);
-  promoted.noPromotion = false;
-  promoted.promotion = true;
-  ASSERT_EQ(0, sweep(promoted, fonts(), assets()));
-  const sk_sp<SkImage> a = plateImage(off.path / "plate_sweep_probe.png");
-  const sk_sp<SkImage> b = plateImage(on.path / "plate_sweep_probe.png");
-  ASSERT_TRUE(a && b);
-  EXPECT_LE(worstChannelDrift(*a, *b), 1);
 }
 
 TEST(Sweep, WritesThePlateUnderTheNameTheSketchIsFiledAs) {

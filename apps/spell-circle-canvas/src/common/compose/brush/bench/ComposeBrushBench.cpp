@@ -42,8 +42,7 @@ enum class MaskKind { Spans, Edge };
 
 Element maskedGrid(int count, MaskKind kind,
                    sigil::motion::Animatable<float>& reveal) {
-  auto root =
-      positioned().inset(0);
+  auto root = positioned().inset(0);
   constexpr int kColumns = 32;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
@@ -116,8 +115,7 @@ struct WaveWidth {
 };
 
 Element profiledRibbonGrid(int count) {
-  auto root =
-      positioned().inset(0);
+  auto root = positioned().inset(0);
   constexpr int kColumns = 16;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
@@ -150,8 +148,7 @@ Element profiledRibbonGrid(int count) {
  *  a per-Instance span cache, if one is ever added, has something to be
  *  measured against. */
 Element spanStrokeGrid(int passCount, sigil::motion::Animatable<float>& phase) {
-  auto root =
-      positioned().inset(0);
+  auto root = positioned().inset(0);
   constexpr int kColumns = 4;
   constexpr int kNodes = 16;
   const float slot = 1.0f / (float)passCount;
@@ -169,8 +166,10 @@ Element spanStrokeGrid(int passCount, sigil::motion::Animatable<float>& phase) {
       const SkColor4f color = p % 2 == 0 ? SkColor4f{0.95f, 0.55f, 0.25f, 1.0f}
                                          : SkColor4f{0.25f, 0.65f, 0.95f, 1.0f};
       leaf.stroke(
-          spans::wrap(sigil::motion::bind(phase, {.to = {base, base + 1.0f}}),
-                      sigil::motion::bind(phase, {.to = {base + 0.6f * slot, base + 0.6f * slot + 1.0f}})),
+          spans::wrap(
+              sigil::motion::bind(phase, {.to = {base, base + 1.0f}}),
+              sigil::motion::bind(phase, {.to = {base + 0.6f * slot,
+                                                 base + 0.6f * slot + 1.0f}})),
           brush::solid(3.0f, Fill::color(color)));
     }
     root.children({std::move(leaf)});
@@ -369,15 +368,15 @@ ContourWalk starVine() {
  *  than rebuilt per station. */
 static void BM_Draw_StampBorder_Cached(benchmark::State& state) {
   Host host(800, 600);
-  host.composer.render(box().children(
-      {box()
-           .width(400)
-           .height(280)
-           .inset(100, 300, 220, 100)
-           .absolute()
-           .borderRadius({20})
-           .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
-           .foreground(starVine())}));
+  host.composer.render(
+      box().children({box()
+                          .width(400)
+                          .height(280)
+                          .inset(100, 300, 220, 100)
+                          .absolute()
+                          .borderRadius({20})
+                          .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
+                          .foreground(starVine())}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }
@@ -389,17 +388,17 @@ BENCHMARK(BM_Draw_StampBorder_Cached);
 static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State& state) {
   Host host(800, 600);
   sigil::motion::Animatable<float> spin = sigil::motion::animatable(0.0f);
-  host.composer.render(box().children(
-      {box()
-           .width(300)
-           .height(300)
-           .inset(150, 250)
-           .absolute()
-           .shape(
-               geometry::shapes::rounded(geometry::shapes::star(7, 0.6f), 10))
-           .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
-           .rotate(spin)
-           .foreground(starVine())}));
+  host.composer.render(
+      box().children({box()
+                          .width(300)
+                          .height(300)
+                          .inset(150, 250)
+                          .absolute()
+                          .shape(geometry::shapes::rounded(
+                              geometry::shapes::star(7, 0.6f), 10))
+                          .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
+                          .rotate(spin)
+                          .foreground(starVine())}));
   host.draw();
   float angle = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -418,19 +417,19 @@ static void BM_Draw_ArtWarp_Live(benchmark::State& state) {
       brush::artAlong(box().width(48).height(16).borderRadius({8}).fill(
                           Fill::color({0.5f, 0.8f, 0.5f, 1})),
                       14, 6);
-  host.composer.render(box().children(
-      {box()
-           .absolute()
-           .inset(20)
-           .shape(sigil::compose::bench::skiaShape([](SkSize s) {
-             SkPathBuilder b;
-             b.moveTo(0, s.height() / 2);
-             b.cubicTo(s.width() * 0.3f, 0, s.width() * 0.5f, s.height(),
-                       s.width(), s.height() / 2);
-             return b.detach();
-           }))
-           .foreground(vine)
-           .cache(Cache::None)}));
+  host.composer.render(
+      box().children({box()
+                          .absolute()
+                          .inset(20)
+                          .shape(sigil::compose::bench::skiaShape([](SkSize s) {
+                            SkPathBuilder b;
+                            b.moveTo(0, s.height() / 2);
+                            b.cubicTo(s.width() * 0.3f, 0, s.width() * 0.5f,
+                                      s.height(), s.width(), s.height() / 2);
+                            return b.detach();
+                          }))
+                          .foreground(vine)
+                          .cache(Cache::None)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }
@@ -458,7 +457,7 @@ BENCHMARK(BM_Draw_Hatch_Live);
 // A bound property marks its node volatile for as long as the binding
 // exists, regardless of whether the value changed this frame. Volatility
 // then propagates upward, so the ancestors of a bound node also drop their
-// recordings and lose texture promotion.
+// recordings and their bakes.
 //
 // The fixture isolates that: a panel of `count` stroked, shaped cells, each
 // recording its own picture, plus ONE accent cell in the same row whose fill
@@ -541,7 +540,7 @@ SkColor4f accentColor(int step) {
 
 constexpr int kSlowPeriod = 180;
 
-/** Warms the panel past the settle window and any promotion warmup, and
+/** Warms the panel past the settle window, and
  *  prints the profile rows when COMPOSE_BENCH_WHY is set so a surprising
  *  number can be read against what the cache state machine did. */
 void warmPanel(Host& host) {
@@ -551,9 +550,8 @@ void warmPanel(Host& host) {
     host.draw();
     for (const auto& row : host.composer.profile())
       if (row.depth <= 3)
-        std::printf("  [why] %-28s self=%7.3f ms cache=%d promotion=%d\n",
-                    row.label.c_str(), row.selfMs, (int)row.cacheState,
-                    (int)row.promotion);
+        std::printf("  [why] %-28s self=%7.3f ms cache=%d\n", row.label.c_str(),
+                    row.selfMs, (int)row.cacheState);
     host.composer.setProfiling(false);
   }
 }
@@ -566,7 +564,8 @@ void accentLadder(::benchmark::Benchmark* b) {
 
 static void BM_Draw_StillAccent_Bound(benchmark::State& state) {
   const int count = (int)state.range(0);
-  sigil::motion::Animatable<Fill> tint = sigil::motion::animatable<Fill>(Fill::color(accentColor(0)));
+  sigil::motion::Animatable<Fill> tint =
+      sigil::motion::animatable<Fill>(Fill::color(accentColor(0)));
   Host host(900, 900);
   host.composer.render(
       slowThemedPanel(count, AccentFill::Bound, tint, accentColor(0)));
@@ -599,7 +598,8 @@ BENCHMARK(BM_Draw_StillAccent_Plain)->Apply(accentLadder);
 
 static void BM_Draw_SlowAccent_Bound(benchmark::State& state) {
   const int count = (int)state.range(0);
-  sigil::motion::Animatable<Fill> tint = sigil::motion::animatable<Fill>(Fill::color(accentColor(0)));
+  sigil::motion::Animatable<Fill> tint =
+      sigil::motion::animatable<Fill>(Fill::color(accentColor(0)));
   Host host(900, 900);
   host.composer.render(
       slowThemedPanel(count, AccentFill::Bound, tint, accentColor(0)));

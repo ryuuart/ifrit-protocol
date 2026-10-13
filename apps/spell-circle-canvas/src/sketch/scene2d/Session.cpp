@@ -119,24 +119,6 @@ class Scene2DSession final : public Session {
     // line of the body onward.
     const PainterScope on(m_painter);
     m_composer = std::make_unique<compose::Composer>(m_engine, m_fonts);
-    // A deterministic session is one whose picture will be diffed, and the
-    // composer's automatic texture promotion decides by a STOPWATCH: a node
-    // whose paint measures over a millisecond for eight frames is baked and
-    // blitted thereafter, and its antialiased edges then land one code
-    // value away from the live paint. Whether the threshold is crossed
-    // depends on how busy the machine is, so with it on the same binary
-    // draws two different plates. The sketch's own measurements are pinned
-    // by ctx.measured(); this pins the runtime's.
-    //
-    // It is the session's DEFAULT rather than a property of determinism:
-    // setAutoPromotion() lifts it afterwards, which is how a run that
-    // means to exercise the promoter keeps every other pin in place. Such
-    // a run is judged by distance from a plate, never by hash — and it
-    // asks for the EAGER policy, which has no stopwatch in it, so the set
-    // of nodes it exercises is the scene's and not the machine's.
-    if (deterministic)
-      m_composer->setAutoTexturePromotion(
-          compose::Composer::PromotionPolicy::Off);
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
     // inside setup. The second call is a no-op when they agree.
@@ -221,39 +203,7 @@ class Scene2DSession final : public Session {
     return std::string(line) + held;
   }
 
-  void setAutoPromotion(Promotion policy) override {
-    using Policy = compose::Composer::PromotionPolicy;
-    // A SKETCH THAT DECLARED ITS PICTURE NONLINEAR keeps the automatic
-    // promoter off whatever a host asks for. A bake is a picture held
-    // for a frame and blitted, and the arithmetic that makes that the
-    // same picture is a bound on the DIFFERENCE it may carry — which a
-    // step, a round or a reciprocal downstream of it multiplies by a
-    // gain the scene chose and nothing here can see. So the declaration
-    // outranks the request: such a scene is drawn from live paint.
-    if (m_specification.nonlinearPicture) policy = Promotion::Off;
-    const Policy resolved = policy == Promotion::Off     ? Policy::Off
-                            : policy == Promotion::Eager ? Policy::Eager
-                                                         : Policy::ByCost;
-    m_composer->setAutoTexturePromotion(resolved);
-    // …and every scene the sketch keeps as a texture runs under the same
-    // rule: a run testing promotion reaches them, and one pinning it off
-    // reaches them too.
-    for (const std::shared_ptr<compose::TextureScene>& scene : m_scenes)
-      scene->setAutoTexturePromotion(resolved);
-  }
-
   void setProfiling(bool on) override { m_composer->setProfiling(on); }
-
-  void setCompositeCounting(bool on) override {
-    m_composer->setCompositeCounting(on);
-  }
-
-  [[nodiscard]] CompositeCounts compositeCounts() const override {
-    if (m_paintSkipped) return {};
-    const compose::Composer::CompositePlane& plane =
-        m_composer->compositePlane();
-    return {plane.width, plane.height, plane.counts};
-  }
 
   void pointer(float x, float y, bool pressed) override {
     m_composer->setPointer({x, y}, pressed);
@@ -267,16 +217,11 @@ class Scene2DSession final : public Session {
     m_composer->setBakeDensity(devicePixelsPerUnit);
   }
 
-  /** The per-node attribution, written out. An expensive node reported
-   *  as live paint with nothing beside it gives an author no next move:
-   *  each refusal to bake is individually correct and individually
-   *  invisible, so the reason is printed where the cost is — and every
-   *  other reason after it, because a first-match verdict costs an
-   *  author one iteration per hidden refusal. */
+  /** The per-node attribution, written out: what each node cost and how
+   *  it produced its pixels. */
   [[nodiscard]] std::vector<std::string> costs(size_t limit) const override {
     if (m_paintSkipped) return {};
     using Cache = compose::Composer::CacheState;
-    using Prom = compose::Composer::Promotion;
     std::vector<std::string> lines;
     const auto& rows = m_composer->profile();
     for (size_t i = 0; i < rows.size() && lines.size() < limit; ++i) {
@@ -292,12 +237,6 @@ class Scene2DSession final : public Session {
         case Cache::Texture:
           state = "[texture — you asked for it]";
           break;
-        case Cache::Promoted:
-          state = "[TEXTURE, promoted by the library — not by you]";
-          break;
-        case Cache::SplitOwn:
-          state = "[OWN PAINT baked, live children over the blit]";
-          break;
         case Cache::Group:
           state = "[group — subtree baked whole while its bindings hold still]";
           break;
@@ -306,14 +245,6 @@ class Scene2DSession final : public Session {
       std::snprintf(line, sizeof line, "%8.2f ms  %-40s %s", row.selfMs,
                     row.label.c_str(), state);
       lines.emplace_back(line);
-      if (row.cacheState != Cache::Live || row.selfMs < 1.0) continue;
-      lines.emplace_back(std::string("          not baked: ") +
-                         compose::Composer::promotionReason(row.promotion));
-      for (Prom also : {Prom::Volatile, Prom::Composited, Prom::Transformed,
-                        Prom::Filtered, Prom::ReadsBackdrop, Prom::TooBig})
-        if (also != row.promotion && row.refused(also))
-          lines.emplace_back(std::string("                …and: ") +
-                             compose::Composer::promotionReason(also));
     }
     return lines;
   }

@@ -217,10 +217,9 @@ struct EvaMagiInterior {
 
   void setup(sketch::Scene2DContext& ctx) {
     fonts = ctx.fonts;
-    sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
-                             .captureAt = 9,
-                             .background = kGround,
-                             .nonlinearPicture = true});
+    sketch::kit::stage(
+        ctx,
+        {.size = {kWidth, kHeight}, .captureAt = 9, .background = kGround});
     auto tube = evangelion::crtTube(SkRect::MakeWH(kWidth, kHeight));
     tube.set("uBloom", 0.22f);
     const auto phosphor = material::Filter::bloom({.sigma = 1.6f,

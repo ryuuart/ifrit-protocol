@@ -83,7 +83,7 @@ struct SessionAgentOptions {
  *  Either is written as a PNG under the state root.
  *
  *  What a client sets — the clock's policy, its hold and speed, the
- *  promotion and density pins — is keyed by the client, and goes when
+ *  density pin — is keyed by the client, and goes when
  *  that client detaches: the next frame is the wall's again.
  *
  *  Everything runs on the thread the dispatcher is driven from; `frame()`
@@ -106,9 +106,6 @@ class SessionAgent final : public protocol::session::SessionAgent {
             protocol::Reply<protocol::session::values::Summary> reply) override;
   protocol::Answer<protocol::values::Empty> pinDevice(
       const protocol::session::values::DeviceParameters& parameters) override;
-  protocol::Answer<protocol::values::Empty> pinPromotion(
-      const protocol::session::values::PromotionParameters& parameters)
-      override;
   protocol::Answer<protocol::values::Empty> pinDensity(
       const protocol::session::values::DensityParameters& parameters) override;
   void still(
@@ -123,9 +120,6 @@ class SessionAgent final : public protocol::session::SessionAgent {
   void profile(
       const protocol::session::values::ProfileParameters& parameters,
       protocol::Reply<protocol::session::values::ProfileResult> reply) override;
-  void compositeCounts(
-      protocol::Reply<protocol::session::values::CompositeCountsResult> reply)
-      override;
 
   // --- the clock, as the clock domain's agent drives it -------------------
 
@@ -204,16 +198,13 @@ class SessionAgent final : public protocol::session::SessionAgent {
   /** The pins a client set, put on the session now standing. */
   void applyPins();
   /** ONE FRAME of @p delta seconds drawn with the replies it owes: the
-   *  next frame's profile and composite counts, and the budget. */
+   *  next frame's profile, and the budget. */
   bool drawFrame(double delta, std::string* why);
-  /** Takes the counting and profiling a pending reply asked of the frame
-   *  about to be drawn. */
+  /** Takes the profiling a pending reply asked of the frame about to be
+   *  drawn. */
   void armFrame();
   /** …and answers them from the frame just drawn. */
   void answerFrame();
-  /** Answers every composite-count plane owed, off @p session's last
-   *  counted frame, and stops the counting. */
-  void answerCounts(Session& session);
   /** The still, written; nothing with the reason in @p why. */
   std::optional<protocol::session::values::StillResult> takeStill(
       double density, const std::string& path, std::string* why);
@@ -243,17 +234,13 @@ class SessionAgent final : public protocol::session::SessionAgent {
   std::string m_sketch;  // what the standing session was opened by
   std::optional<PendingOpen> m_pendingOpen;
   std::optional<PendingProfile> m_pendingProfile;
-  std::vector<protocol::Reply<protocol::session::values::CompositeCountsResult>>
-      m_pendingCounts;
-  std::optional<protocol::session::Promotion> m_promotion;
   /** The density pinned for bakes; zero for a plate's. */
   std::optional<double> m_density;
   /** Which client set each override: `policy`, `held`, `scale`,
-   *  `promotion`, `density`. */
+   *  `density`. */
   std::map<std::string, std::string> m_owners;
   float m_bakeDensity = 0.0f;
   uint64_t m_stills = 0;
-  uint64_t m_planes = 0;
   uint64_t m_sequences = 0;
   std::filesystem::path m_lastStill;
   std::vector<std::function<void(double)>> m_budgetListeners;

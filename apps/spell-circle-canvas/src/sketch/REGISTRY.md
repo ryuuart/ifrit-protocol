@@ -105,67 +105,6 @@ forms its frame at that many pixels, and puts the result back on the
 declared canvas — which on a plate's canvas is the identity, and is why
 the two hosts agree to the byte.
 
-### The promoter, and the one lane that exercises it
-
-A headless session is opened DETERMINISTIC, and a deterministic session
-holds the composer's automatic texture promotion off. The promoter
-decides by a stopwatch — a node whose paint measures over a millisecond
-for eight frames is baked and blitted thereafter — so whether it fires
-depends on how busy the machine is, and with it on the same binary draws
-two different plates. Holding it off is what makes a hash a verdict.
-
-The cost is that the whole sweep renders the runtime with one of its
-features switched out. `--promotion` is the door back: it opens every
-session with promotion ON and changes nothing else — same clock, same
-fixed step, same declared capture moment, same `ctx.measured()` pins —
-so the only difference between the two renders of a scene is the
-promoter. `--no-promotion` and `--promotion` ask for opposite runs and
-naming both is refused.
-
-IT OPENS THEM EAGER. The stopwatch that makes the promoter load-dependent
-would make the lane load-dependent too: on an idle machine nothing
-crosses the bar and the run reports a clean sweep it did not earn, while
-on a loaded one a different handful of nodes crosses it each time. So
-`--promotion` asks for the eager policy — every node the composer's rules
-admit is baked from its first frame, whatever it costs — and nothing
-about what a bake is allowed to do changes. One scene therefore exercises
-the same node set on every machine, and it is the whole promotable set
-rather than the few nodes that happened to be slow.
-
-…UNLESS THE SKETCH DECLARED OTHERWISE. `ctx.nonlinearPicture()` says the
-sketch's picture is not linear in what went into it: it ends on a step, a
-round, a gate or a reciprocal — a view transform quantizing each channel
-to a palette, a bright pass through a smoothstep, anything that
-unpremultiplies and so carries a gain of 1/alpha. There is then no bound
-between a difference UNDER that stage and the difference it shows, so one
-code value the promoter is allowed to cost arrives as a whole step, in a
-place the difference was never in. Such a sketch holds the promoter off
-from its own setup whatever a host asks for, its picture is drawn from
-live paint everywhere, and a sweep that asked for the promoter prints
-`<name>: declared nonlinear` so the tier can say the scene stood under
-its own declaration rather than reporting an agreement it never tested.
-The declaration belongs to the sketch, which is where the ablation
-showing that the picture UNDER the stage is right has to be stated;
-`spacejam_1996` and the three `eva_magi_*` plates carry it.
-
-What comes out is not byte-comparable and is not meant to be. A promoted
-node is baked under the live matrix post-translated by an integer, and
-inverting that matrix to find a shader's local coordinates does not
-cancel the integer to the last bit at a scale whose reciprocal is
-inexact, so a shaded pixel can land ONE code value from the live paint
-and nothing may land further. Where the held-off plate holds CONTENT the
-bake lands on something, and there the bound is two — the node's own
-coverage rounded into the bake and the bake rounded onto what it lands
-on — PER CACHED RASTER the pixel stood under. Nothing nests, but
-independent nodes overlap, and a stack of concentric rings each promoted
-on its own puts seven or nine of them over one pixel; each rounds, and
-the rounding does not decay. `--composites` writes the count beside each
-plate, `counts_<sketch>.png`, one grey level per device pixel, and
-the comparison below prices the content difference by it. A difference past that
-is a picture that moved — a bake somewhere else, rasterised against
-another clip, or gone stale — and that is a defect in the promoter rather
-than a plate to adopt.
-
 ### Two directories of plates, compared
 
 How far every plate in one directory stands from the plate of the same
@@ -179,7 +118,7 @@ Each row prints as the line its outcome opens:
 
 ```
 compared <name> mean <mean> p99 <p99> max <max> clear <max> content <max>
-         graze <max> <how many> composited <per composite> <how many stacked>
+         graze <max> <how many>
 size <name> <W>x<H> <W>x<H>
 missing <name> first|second
 unreadable <name> first|second
@@ -201,34 +140,20 @@ a difference that reaches a pixel no edge explains, which is what a
 picture that MOVED shows — pixels taken off the edges, a mark that is
 gone, a wash at another value.
 
-`composited` is that same `content` figure divided by how many CACHED
-RASTERS were blitted over each pixel, rounded up, with the count of
-content pixels that stood under more than one beside it. A cached raster
-is a composite the picture beside it did not make and every composite
-rounds, so a difference of four under four of them is the same fact as a
-difference of one under one — and a caller whose tolerance is a bound per
-composite reads this rather than `content`. The counts come from a plane
-the SECOND directory carries beside its plates, named `counts_<sketch>`
-and written by a headless sweep asked for `--composites`; with no plane
-there every pixel stands under one composite and `composited` is
-`content`.
-
 It opens no sketch, needs no fonts, no assets and no device, and it
 JUDGES NOTHING — how close is close enough is a tolerance about a
-machine, which is the plate ledger's to hold. The ledger's device and
-promotion tiers are the callers: each renders two directories of plates
-in one run and reads the rows, and `sigil.py plates compare <dir-a>
-<dir-b>` prints the same lines.
+machine, which is the plate ledger's to hold. The ledger's CPU tier is
+the caller: it renders a directory of raster plates and reads the rows
+against the device plates, and `sigil.py plates compare <dir-a> <dir-b>`
+prints the same lines.
 
 ### The plate ledger
 
-`scripts/sigil.py plates` drives Grimoire's sweep: three tiers over one
+`scripts/sigil.py plates` drives Grimoire's sweep: two tiers over one
 binary. The device tier is the reference: it renders every scene2d and
 scene3d sketch on the device and judges each on byte identity against one
 device manifest, which `--rebase` adopts; the CPU tier is a smoke run of
 the raster path, rendering each scene2d sketch on the CPU and reporting
 its drift from the device plate per colour channel, keeping no baseline
-and failing only when a sketch cannot render; the promotion tier renders
-each scene2d sketch with the promoter held off and again with every
-promotable node eagerly baked, and judges the pair within one code value.
+and failing only when a sketch cannot render.
 The judgement itself is `scripts/README.md`'s.

@@ -19,8 +19,7 @@ Grimoire <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--deterministic | --no-deterministic]
 Grimoire <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Grimoire --headless [<outdir>] [--gpu] [--sketch <name>] [--kind <k>]
-           [--at <sec>] [--scale <n>] [--ledger] [--no-promotion | --promotion]
-           [--composites]
+           [--at <sec>] [--scale <n>] [--ledger]
 Grimoire --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--video-bitrate <bits>] [--fps <n>] [--sketch <name>]
            [--kind <k>] [--gpu]
@@ -139,10 +138,9 @@ instead would be composited the matte. `alpha_ground` and
 `python_alpha_ground` are the sketches that declare a transparent ground
 and say what to do with one.
 
-Seer, the wire and texture reader, is what to check it with:
-`Seer --list-textures` says what is being offered, `Seer --texture <name>`
-opens a window on it and `Seer --texture <name> --grab <png>` writes its
-newest frame to a file.
+Any Syphon client checks it: `sigil::io::frames::publications()` and a
+client's own list say what is being offered under what name, and a second
+Grimoire running `guest_picture`, below, wears it.
 
 **Frames come the other way too**: a sketch wears another application's
 publication through `sigil::sketch::Guest`, which [SigilSketch's
@@ -477,9 +475,7 @@ away, so a sketch whose whole cost is one full-canvas shader reads as
 free. `--bench` allocates the real canvas, warms it to `--at` so
 programs, bakes, snapshots and glyph atlases are hot, then times real
 frames. On a failure it prints the most expensive nodes with how each
-produced its pixels, and under any expensive one that is not a bake, a
-line saying **why** — because each refusal to bake is individually
-correct and individually invisible.
+produced its pixels.
 
 `--jitter-dt` steps a varying frame interval instead of the fixed one. A
 fixed step is not a neutral simplification for anything that memoizes on

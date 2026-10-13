@@ -21,7 +21,7 @@ namespace sigil::protocol {
  *  `host.describe` answers comes from here, read at the moment it is
  *  asked. */
 struct Program {
-  /** The program: Grimoire, Seer or the receiver. */
+  /** The program, such as Grimoire. */
   std::string name;
   /** The program's own version. */
   std::string version;

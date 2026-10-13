@@ -1,6 +1,5 @@
 #include "PaintPass.h"
 
-#include <include/core/SkBitmap.h>
 #include <include/core/SkSurface.h>
 #include <src/core/SkScopeExit.h>
 
@@ -21,8 +20,11 @@ SkIRect PaintPass::deviceClip() const {
   return impl.recording.replay.mapRect(SkRect::Make(clip)).roundOut();
 }
 
-SkIRect PaintPass::bakeRect(const SkRect& local) const {
-  const SkRect f = totalM.mapRect(local);
+SkIRect PaintPass::deviceRect() {
+  // The paint bounds, which already hold the shape the node declares and
+  // the reach the effects under it filter over: a device bake is a
+  // SURFACE, and a surface allocated to less than the ink cuts it.
+  const SkRect f = totalM.mapRect(localBounds());
   if (!f.isFinite() || f.isEmpty()) return SkIRect::MakeEmpty();
   const double left = std::floor((double)f.left());
   const double top = std::floor((double)f.top());
@@ -46,13 +48,6 @@ SkIRect PaintPass::bakeRect(const SkRect& local) const {
     return SkIRect::MakeEmpty();
   return SkIRect::MakeLTRB((int)croppedLeft, (int)croppedTop, (int)croppedRight,
                            (int)croppedBottom);
-}
-
-SkIRect PaintPass::deviceRect() {
-  // The paint bounds, which already hold the shape the node declares and
-  // the reach the effects under it filter over: a device bake is a
-  // SURFACE, and a surface allocated to less than the ink cuts it.
-  return bakeRect(localBounds());
 }
 
 SkCanvas& Composer::Impl::paintDestination(SkCanvas& canvas) const {
@@ -122,30 +117,6 @@ sk_sp<SkImage> PaintPass::takeDeviceBake(
   return scratch->makeImageSnapshot(device);
 }
 
-void Composer::Impl::countBlit(const sk_sp<SkImage>& image, const SkIRect& at) {
-  if (!image || compositePlane.width <= 0) return;
-  SkBitmap read;
-  if (!read.tryAllocPixels(
-          SkImageInfo::MakeN32Premul(image->width(), image->height())))
-    return;
-  if (!image->readPixels(nullptr, read.pixmap(), 0, 0)) return;
-  const SkIRect on =
-      SkIRect::MakeWH(compositePlane.width, compositePlane.height);
-  for (int y = std::max(at.top(), on.top());
-       y < std::min(at.bottom(), on.bottom()); ++y) {
-    const SkColor* row = (const SkColor*)read.getAddr32(0, y - at.top());
-    uint8_t* out =
-        compositePlane.counts.data() + (size_t)y * (size_t)compositePlane.width;
-    for (int x = std::max(at.left(), on.left());
-         x < std::min(at.right(), on.right()); ++x) {
-      // A BLIT THAT CONTRIBUTES NOTHING ROUNDS NOTHING: transparent black
-      // leaves the destination as it stood, to the bit.
-      if (SkColorGetA(row[x - at.left()]) == 0) continue;
-      if (out[x] < 255) ++out[x];
-    }
-  }
-}
-
 void PaintPass::deviceBlit(const sk_sp<SkImage>& image, const SkIRect& at,
                            const SkPaint* paint) {
   canvas.save();
@@ -155,7 +126,6 @@ void PaintPass::deviceBlit(const sk_sp<SkImage>& image, const SkIRect& at,
                    SkSamplingOptions(), paint);
   canvas.restore();
   if (impl.recording.depth > 0) ++impl.recording.deviceBakes;
-  if (impl.countComposites && !impl.paintingUnseen) impl.countBlit(image, at);
 }
 
 PaintPass::BakeRung PaintPass::localBakeRung(const SkMatrix& total) {
@@ -226,12 +196,6 @@ sk_sp<SkImageFilter> PaintPass::resolveLayerFilter() {
   const material::FrameData effectFrame = frameOf(effectCtx);
   return material::skia::resolvedImageFilter(*layerEffectOf(node),
                                              &effectFrame);
-}
-void PaintPass::note(Composer::Promotion p) {
-  if (profile.row != SIZE_MAX) {
-    impl.profileRows[profile.row].promotion = p;
-    impl.profileRows[profile.row].refusals = refusals;
-  }
 }
 
 }  // namespace sigil::compose

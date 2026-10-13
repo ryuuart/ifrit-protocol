@@ -529,7 +529,6 @@ half4 main(float2 p) {
   const brush::Ribbon mark = brush::ribbon(24, fill);
   EXPECT_TRUE(mark.isRunning());
   Host host;
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   host.composer.render(straightRun(mark).cache(Cache::Picture));
   host.frame();
   ASSERT_EQ(host.pixel(100, 100), SK_ColorRED);
@@ -582,8 +581,6 @@ TEST_P(HeldRootRibbon, ReanchorsSurfaceAndEffectInputsWhenItsAncestorMoves) {
                        .children({straightRun(mark).cache(cache)})});
   };
   Host retained(400, 200), ordinary(400, 200);
-  retained.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
-  ordinary.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   retained.composer.render(scene(Cache::Picture));
   ordinary.composer.render(scene(Cache::None));
   for (int frame = 0; frame < 16; ++frame) {

@@ -260,9 +260,7 @@ struct Scene2DContext {
    *  must be pinned. It is the one reading of the clock a sketch gets,
    *  and never says which client drives it. See `measured()`; read the
    *  flag directly only when you need to suppress a whole panel rather
-   *  than one number. The runtime's own measured decision — the
-   *  composer's stopwatch-driven texture promotion — is already held off
-   *  under this flag by the session that opened it. */
+   *  than one number. */
   bool deterministic = false;
 
   /** A number the sketch measured about ITS OWN EXECUTION — a build
@@ -361,20 +359,6 @@ struct Scene2DContext {
    *      ctx.plate(); // a 2400×1600 sheet, judged on its capture */
   void plate() {
     if (specification) specification->plateOnly = true;
-  }
-  /** DECLARE THIS SKETCH'S PICTURE NONLINEAR in what went into it: it
-   *  ends on a step, a round, a gate or a reciprocal, so one code value
-   *  under that stage is a whole step over it and no comparison of two
-   *  rasterisations of this scene can bound what the difference means.
-   *  The automatic promoter is then held off for this sketch whatever a
-   *  host asks for, and a sweep that means to exercise it says so.
-   *
-   *      ctx.nonlinearPicture(); // the view rounds to the 216 web colours
-   *
-   *  State the ablation in the sketch's header: what the number is with
-   *  the stage left out is what says the picture under it is right. */
-  void nonlinearPicture() {
-    if (specification) specification->nonlinearPicture = true;
   }
 };
 

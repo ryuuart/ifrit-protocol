@@ -42,8 +42,8 @@ std::optional<Plate> readPlate(const std::filesystem::path& path) {
   const std::vector<char> encoded((std::istreambuf_iterator<char>(file)),
                                   std::istreambuf_iterator<char>());
   if (encoded.empty()) return std::nullopt;
-  const auto decoded = media::decode<media::Image>(
-      std::as_bytes(std::span(encoded)), {}, path);
+  const auto decoded =
+      media::decode<media::Image>(std::as_bytes(std::span(encoded)), {}, path);
   if (!decoded || decoded->frames().empty()) return std::nullopt;
   const sk_sp<SkImage> image = decoded->frames().front().image;
   if (!image) return std::nullopt;
@@ -60,40 +60,6 @@ std::optional<Plate> readPlate(const std::filesystem::path& path) {
   const SkPixmap pixels(info, plate.pixels.data(), (size_t)plate.width * 4);
   if (!image->readPixels(nullptr, pixels, 0, 0)) return std::nullopt;
   return plate;
-}
-
-/** Mean, 99th percentile and worst absolute channel difference, in
- *  0..255, over every channel of every pixel — and the worst split THREE
- *  ways by what the pixel it stands on is, written into the plate's row.
- *
- *  The split is there because a caller's tolerance can depend on it. A
- *  picture drawn over transparent black and the same picture drawn over
- *  something are not composited the same number of times, so the second is
- *  allowed a rounding the first is not. And a differing pixel that sits on
- *  an ANTIALIASED EDGE IN BOTH PLATES is a third thing again: what changed
- *  there is one pixel's coverage of an edge both pictures draw, which is
- *  what a mark standing a fraction of a device pixel from where the other
- *  drew it looks like — where a picture that MOVED takes pixels off the
- *  edges, or takes whole marks away, and shows it by differing where
- *  neither plate has an edge at all.
- *
- *  Which pixels are which is a fact about the two files and is answered
- *  here; how much each is allowed is a judgement and is not. */
-/** THE COMPOSITE-COUNT PLANE beside a plate: how many cached rasters were
- *  blitted over each of its pixels, one grey level each, written by a
- *  headless sweep asked for it. A plate with none stands as a plate whose
- *  every pixel was composited once. */
-std::vector<uint8_t> readCountPlane(const std::filesystem::path& path,
-                                    int width, int height) {
-  const std::optional<Plate> plane = readPlate(path);
-  if (!plane || plane->width != width || plane->height != height) return {};
-  std::vector<uint8_t> counts((size_t)width * height, 1);
-  for (size_t at = 0; at < counts.size(); ++at)
-    // Grey, so every channel carries it; the red one is as good as any,
-    // and a pixel no raster was blitted over is composited once like any
-    // other pixel of a live paint.
-    counts[at] = std::max<uint8_t>(1, plane->pixels[at * 4]);
-  return counts;
 }
 
 /** HOW MUCH THE PICTURE ITSELF VARIES WITHIN A PIXEL OF EACH POINT: the
@@ -126,8 +92,24 @@ std::vector<uint8_t> localSpan(const Plate& plate) {
   return span;
 }
 
+/** Mean, 99th percentile and worst absolute channel difference, in
+ *  0..255, over every channel of every pixel — and the worst split THREE
+ *  ways by what the pixel it stands on is, written into the plate's row.
+ *
+ *  The split is there because a caller's tolerance can depend on it. A
+ *  picture drawn over transparent black and the same picture drawn over
+ *  something are not composited the same number of times, so the second is
+ *  allowed a rounding the first is not. And a differing pixel that sits on
+ *  an ANTIALIASED EDGE IN BOTH PLATES is a third thing again: what changed
+ *  there is one pixel's coverage of an edge both pictures draw, which is
+ *  what a mark standing a fraction of a device pixel from where the other
+ *  drew it looks like — where a picture that MOVED takes pixels off the
+ *  edges, or takes whole marks away, and shows it by differing where
+ *  neither plate has an edge at all.
+ *
+ *  Which pixels are which is a fact about the two files and is answered
+ *  here; how much each is allowed is a judgement and is not. */
 void measureDistance(const Plate& first, const Plate& second,
-                     const std::vector<uint8_t>& composites,
                      PlateComparison& distance) {
   std::array<size_t, 256> histogram{};
   const size_t count = std::min(first.pixels.size(), second.pixels.size());
@@ -208,17 +190,6 @@ void measureDistance(const Plate& first, const Plate& second,
       } else {
         distance.worstOverContent =
             std::max(distance.worstOverContent, (int)moved[at]);
-        // …AND THE SAME DIFFERENCE PRICED PER COMPOSITE. A cached raster
-        // is a composite the live paint does not make, and each one
-        // rounds — so what a picture may differ by is a bound per
-        // composite times the number of them the pixel stood under, and
-        // a pixel under seven is not a pixel under one however alike the
-        // two look here. Rounded up, so the figure is the bound a caller
-        // states per composite.
-        const int under = composites.empty() ? 1 : (int)composites[at];
-        distance.worstPerComposite = std::max(
-            distance.worstPerComposite, ((int)moved[at] + under - 1) / under);
-        if (under > 1) ++distance.stackedPixels;
       }
     }
   }
@@ -292,13 +263,7 @@ Comparison compare(const CompareOptions& options) {
       plate.outcome = PlateOutcome::Resized;
       continue;
     }
-    // The plane, if the sweep that wrote the SECOND directory was asked
-    // for one: it describes that render's own composites, which are the
-    // ones the first render did not make.
-    const std::vector<uint8_t> composites =
-        readCountPlane(second / (std::string(kCountPrefix) + name + ".png"),
-                       a->width, a->height);
-    measureDistance(*a, *b, composites, plate);
+    measureDistance(*a, *b, plate);
   }
   return comparison;
 }
@@ -319,12 +284,10 @@ std::string comparisonLine(const PlateComparison& plate) {
       break;
   }
   std::snprintf(tail, sizeof tail,
-                " mean %.4f p99 %d max %d clear %d content %d graze %d %zu "
-                "composited %d %zu",
+                " mean %.4f p99 %d max %d clear %d content %d graze %d %zu",
                 plate.mean, plate.p99, plate.worst, plate.worstOverClear,
                 plate.worstOverContent, plate.worstOverGraze,
-                plate.grazingPixels, plate.worstPerComposite,
-                plate.stackedPixels);
+                plate.grazingPixels);
   return "compared " + plate.name + tail;
 }
 

@@ -1,5 +1,5 @@
 // What a bound value's volatility does to the cache: a fill that settles
-// releases it and the subtree promotes, one that keeps moving never
+// releases it and the subtree takes its bake, one that keeps moving never
 // does, and a fill or an effect still moving under a held gate repaints
 // the gate with it.
 
@@ -12,10 +12,9 @@ namespace {
 /** Root → frame → a row of stroked, shaped cells, plus ONE accent whose
  *  fill is bound. The accent's ANCESTORS are what a badly-classified
  *  binding poisons, which is why the accent is buried rather than at the
- *  root. `Cache::Texture` makes the outcome observable deterministically:
- *  an explicitly asked-for bake obeys the same volatility gate automatic
- *  promotion does, without the cost-threshold timing an assertion could
- *  flap on. */
+ *  root. `Cache::Texture` makes the outcome observable: an asked-for bake
+ *  is refused while anything under it is volatile and taken once it is
+ *  released. */
 Element settledFillPanel(const motion::Animatable<Fill>& tint) {
   auto row = box().key("row").row().flexWrap().gap(2);
   for (int id = 0; id < 12; ++id)
@@ -38,11 +37,10 @@ Element settledFillPanel(const motion::Animatable<Fill>& tint) {
 
 }  // namespace
 
-TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
-  // The release must show against Promotion::Volatile's
-  // `contentStable`, because promotion is a SEPARATE consumer of
-  // `subtreeVolatile` from the memo — keeping the recording while still
-  // refusing the bake would keep all of the 5 ms.
+TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndBakes) {
+  // The release must show against the bake, because a bake is a SEPARATE
+  // consumer of `subtreeVolatile` from the memo — keeping the recording
+  // while still refusing the bake would keep all of the cost.
   motion::Animatable<Fill> tint = motion::animatable<Fill>(red());
   Host host(300, 300);
   host.composer.render(settledFillPanel(tint));
@@ -52,26 +50,27 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
   ASSERT_TRUE(accentRect);
   const int ax = (int)accentRect->centre().x, ay = (int)accentRect->centre().y;
   EXPECT_EQ(host.pixel(ax, ay), SK_ColorRED);
-  // BEFORE the settle: the bound fill denies contentStable at the root —
+  // BEFORE the settle: the bound fill holds the root off its bake —
   // the asked-for texture is refused and the whole chain paints live.
   {
     const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
-    EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
+    EXPECT_NE(root->cacheState, Composer::CacheState::Texture)
         << "a fresh bound fill must declare volatility";
     EXPECT_EQ(host.composer.stats().texturesLive, 0u)
         << "the root's asked-for bake must be refused while volatile";
   }
   for (int i = 0; i < 12; ++i)  // past the settle count, the release walk,
     host.frame(0.016);          // and the settling frame's re-record
-  // AFTER: released — the node promotes like a plain one.
+  // AFTER: released — the node bakes like a plain one.
   {
     const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
-    EXPECT_FALSE(root->refused(Composer::Promotion::Volatile))
-        << "a settled bound fill still denies contentStable — no release";
+    EXPECT_EQ(root->cacheState, Composer::CacheState::Texture)
+        << "a settled bound fill still holds the root off its bake — no "
+           "release";
     EXPECT_GE(host.composer.stats().texturesLive, 1u)
-        << "the released root never took its bake — promotion still denied";
+        << "the released root never took its bake — its bake still refused";
   }
   // …and the hold costs NOTHING, which is the whole point of releasing.
   unsigned settledRecords = 0, settledPaints = 0;
@@ -94,14 +93,14 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
   {
     const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
-    EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
+    EXPECT_NE(root->cacheState, Composer::CacheState::Texture)
         << "the moved fill must re-declare volatility the same frame";
   }
   // …and the cycle closes: it settles AGAIN and re-releases.
   for (int i = 0; i < 12; ++i) host.frame(0.016);
   const Composer::NodeCost* root = rowOf(host, "root");
   ASSERT_TRUE(root);
-  EXPECT_FALSE(root->refused(Composer::Promotion::Volatile))
+  EXPECT_EQ(root->cacheState, Composer::CacheState::Texture)
       << "a re-settled bound fill did not re-release";
   EXPECT_EQ(host.pixel(ax, ay), SK_ColorGREEN);
 }
@@ -124,7 +123,7 @@ TEST(ComposeSettledFill, AMovingBoundFillNeverReleases) {
     host.frame(0.016);
     const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
-    EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
+    EXPECT_NE(root->cacheState, Composer::CacheState::Texture)
         << "a driven bound fill released its volatility at frame " << i;
     EXPECT_EQ(host.composer.stats().texturesLive, 0u)
         << "a bake was held across a driven bound fill at frame " << i;
@@ -149,7 +148,8 @@ TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
   // part of the memo's comparison, moving it while the gate holds replays
   // the old colour.
   motion::Animatable<float> reveal = motion::animatable(1.0f);
-  motion::Animatable<Fill> tint = motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));  // red
+  motion::Animatable<Fill> tint =
+      motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));  // red
   Host host(200, 200);
   host.composer.render(box().children(
       {revealBox().fill(tint).mask(by::spans(spans::upTo(reveal)))}));
@@ -193,8 +193,8 @@ TEST(ComposeCache, ALiveEffectMovingUnderAHeldGateRepaints) {
   host.composer.render(box().children(
       {revealBox()
            .fill(Fill::color({1, 0, 0, 1}))
-           .filter(material::skia::program(fx, {{"amt", 1.0f}})
-                       .bind("amt", amt))
+           .filter(
+               material::skia::program(fx, {{"amt", 1.0f}}).bind("amt", amt))
            .mask(by::spans(spans::upTo(reveal)))}));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);

@@ -9,60 +9,68 @@
 
 namespace {
 
-Element timedLeaf(float quantizeHz) {
+Element timedLeaf(float quantizeHz, Cache caching = Cache::Auto) {
   material::Paint m = material::skia::sksl(heavyEffect(true));
   if (quantizeHz > 0) m.quantizeTime(quantizeHz);
-  return box().children({box().width(400).height(400).key("plasma").fill(
-      material::skia::base(std::move(m)))});
+  return box().children(
+      {box().width(400).height(400).key("plasma").cache(caching).fill(
+          material::skia::base(std::move(m)))});
+}
+
+/** How many recordings @p host made over @p frames frames of a sixtieth. */
+size_t recordingsOver(Host& host, int frames) {
+  size_t recorded = 0;
+  for (int i = 0; i < frames; ++i) {
+    host.frame(1.0 / 60.0);
+    recorded += host.composer.stats().picturesRecorded;
+  }
+  return recorded;
 }
 
 }  // namespace
 
-TEST(ComposeCache, AQuantizedMaterialIsCacheableBetweenItsTicks) {
+TEST(ComposeCache, AQuantizedMaterialIsRecordedAgainOnlyWhenItTicks) {
   // quantizeTime(4) at 60 FPS means the shader's inputs change four times a
   // second and the other 56 frames resolve to the SAME shader. Their pixels
-  // are therefore identical to the last bake's — not similar, identical —
-  // so the bake is still valid and the shader need not run.
+  // are therefore identical to the last recording's — not similar,
+  // identical — so the recording stands and nothing records again.
   Host host(400, 400);
   host.composer.setProfiling(true);
   host.composer.render(timedLeaf(4.0f));
-  for (int i = 0; i < 24; ++i) host.frame(1.0 / 60.0);
+  host.frame();
+  const size_t recorded = recordingsOver(host, 24);
   const Composer::NodeCost* row = requireRow(host.composer, "plasma");
   ASSERT_NE(row, nullptr);
-  EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted)
-      << "a material stepping at 4 Hz still paid its shader 60 times a second";
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Picture);
+  EXPECT_LE(recorded, 2u) << "a material stepping at 4 Hz recorded " << recorded
+                          << " times in 24 frames";
 }
 
-TEST(ComposeCache, AContinuousMaterialStaysLive) {
-  // The other half of the same rule, and the reason it is MEASURED rather
+TEST(ComposeCache, AContinuousMaterialIsRecordedEveryFrame) {
+  // The other half of the same rule, and the reason it is OBSERVED rather
   // than read off quantizeTime(): a material whose inputs really do change
-  // every frame would re-bake every frame, which costs more than the replay
-  // it replaced. Its stability rate never reaches the threshold.
+  // every frame resolves to a new shader every frame, and the recording
+  // that baked the last one is stale.
   Host host(400, 400);
-  host.composer.setProfiling(true);
   host.composer.render(timedLeaf(0.0f));
-  for (int i = 0; i < 24; ++i) host.frame(1.0 / 60.0);
-  const Composer::NodeCost* row = requireRow(host.composer, "plasma");
-  ASSERT_NE(row, nullptr);
-  EXPECT_NE(row->cacheState, Composer::CacheState::Promoted);
-  EXPECT_EQ(row->promotion, Composer::Promotion::Volatile);
+  host.frame();
+  EXPECT_GE(recordingsOver(host, 12), 12u);
 }
 
-TEST(ComposeCache, TemporalPromotionIsPixelIdenticalAcrossATick) {
+TEST(ComposeCache, AQuantizedMaterialIsPixelIdenticalAcrossATick) {
   // Held to the same standard as the static case, over a window that
   // straddles the quantizer's step: 4 Hz at 60 FPS steps on frames 15, 30
   // and 45, so frames 24..40 cover a full hold, the tick, and the hold
-  // after it. Every frame must match the unpromoted render exactly.
-  Host promoted(400, 400), plain(400, 400);
-  plain.composer.setAutoTexturePromotion(false);
-  promoted.composer.render(timedLeaf(4.0f));
-  plain.composer.render(timedLeaf(4.0f));
+  // after it. Every frame must match the uncached render exactly.
+  Host held(400, 400), plain(400, 400);
+  held.composer.render(timedLeaf(4.0f));
+  plain.composer.render(timedLeaf(4.0f, Cache::None));
   for (int i = 0; i < 41; ++i) {
-    promoted.frame(1.0 / 60.0);
+    held.frame(1.0 / 60.0);
     plain.frame(1.0 / 60.0);
     if (i < 24) continue;
-    ASSERT_TRUE(identicalPixels(plain, promoted, 400, 400))
-        << "frame " << i << " differs under temporal promotion";
+    ASSERT_TRUE(identicalPixels(plain, held, 400, 400))
+        << "frame " << i << " differs from the uncached render";
   }
 }
 
@@ -120,10 +128,9 @@ TEST(ComposeCache, AHeldKeyframeSegmentDoesNotRepaint) {
 }
 
 TEST(ComposeCache, ScalarMemoIsPixelIdenticalAcrossEveryWaypoint) {
-  // The constraint carried from the temporal-promotion work: every frame
-  // identical, not just the held ones. A hold that goes stale by one frame
-  // at a waypoint is exactly the bug this could introduce, and it would be
-  // invisible in any single still.
+  // Every frame identical, not just the held ones. A hold that goes stale by
+  // one frame at a waypoint is exactly the bug this could introduce, and it
+  // would be invisible in any single still.
   //
   // Cache::None on the node under test is the ground truth — it re-paints
   // from scratch every frame by construction — so the two hosts differ in

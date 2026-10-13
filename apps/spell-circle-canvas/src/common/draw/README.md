@@ -260,10 +260,10 @@ The pen adds material, geometry and text overloads to the p5 verbs.
   Density is the greater of the host's density and
   `buffer.setDensityFloor(px)`. Style and pixels persist. `resize(w, h)`
   or a density change scales the previous picture into the replacement
-  surface. A buffer first formed on raster moves onto a host's device,
-  marks kept, when that device first begins it; one on a device stays
-  there under a host without one, and a device that cannot form it is
-  not asked again at the same extent. Dimensions clamp to at least one
+  surface. The buffer forms where its first host draws — on that host's
+  device when it has one, on raster when its canvas makes no surface —
+  and every re-form is made beside the surface it replaces, so the buffer
+  stays where it was formed. Dimensions clamp to at least one
   canvas unit and must be finite, as must the density floor. Invalid inputs throw
   `std::invalid_argument` without changing them. `begin` throws
   `std::length_error` for an unrepresentable pixel extent or
@@ -320,7 +320,7 @@ state should follow that position. Generating new IDs every frame
 accumulates guests. Skipping a slot preserves its state; the store has
 no automatic retirement. Call `pen.retained().erase(slot)` when a guest
 is permanently removed. It releases that entry, returns whether one was
-removed, and preserves all other entries and host state. Drawing the
+removed, and preserves all other entries. Drawing the
 same slot later creates a fresh guest. References returned by `get` for
 an erased entry must no longer be used. `pen.retained().clear()` releases
 every guest; use it when all retained state should restart.

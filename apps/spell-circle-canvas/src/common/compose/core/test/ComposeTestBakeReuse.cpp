@@ -619,7 +619,6 @@ TEST(ComposeCaching, AHeldTextureMeasuresItsSubtreeOnlyWhenItChanges) {
     return box().cache(Cache::None).children({std::move(held)});
   };
   Host host;
-  host.composer.setAutoTexturePromotion(false);
   host.composer.render(subtree({1, 0, 0, 1}, 20));
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 1u);

@@ -86,7 +86,6 @@ void bindCanvasSpecification(py::module_& sketches) {
   field(declared, "paintDiscardedFrames",
         &CanvasSpecification::paintDiscardedFrames);
   field(declared, "plateOnly", &CanvasSpecification::plateOnly);
-  field(declared, "nonlinearPicture", &CanvasSpecification::nonlinearPicture);
 }
 
 void bindContext(py::module_& module) {
@@ -168,9 +167,6 @@ void bindContext(py::module_& module) {
           },
           py::arg("samples"))
       .def("plate", [](const Context& ctx) { ctx.state()->context().plate(); })
-      .def(
-          "nonlinearPicture",
-          [](const Context& ctx) { ctx.state()->context().nonlinearPicture(); })
       .def(
           "measure",
           [](const Context& ctx, const compose::Element& element,

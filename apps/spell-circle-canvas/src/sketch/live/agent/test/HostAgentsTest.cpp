@@ -7,7 +7,7 @@
  * a recording delivers nothing more under it, a hold and a speed act on
  * the wall's frames, a budget runs out once and says so to a client that
  * enabled the clock, and what a client set — the policy, the hold, the
- * speed, the promotion pin — goes when it detaches.
+ * speed, the density pin — goes when it detaches.
  */
 
 #include <gtest/gtest.h>
@@ -362,7 +362,7 @@ TEST(SketchSessionAgent, WritesAStillUnderTheStateRootAtItsDensity) {
             std::string::npos);
 }
 
-TEST(SketchSessionAgent, ReadsBackTimingProfileAndCompositeCounts) {
+TEST(SketchSessionAgent, ReadsBackTimingAndProfile) {
   AgentHost host;
   ASSERT_TRUE(host.policy(clock::Policy_Advance));
   ASSERT_TRUE(host.open("agents_marching_box"));
@@ -382,13 +382,6 @@ TEST(SketchSessionAgent, ReadsBackTimingProfileAndCompositeCounts) {
   ASSERT_TRUE(timing && *timing);
   EXPECT_GE(timing->result().total_milliseconds, 0.0);
   EXPECT_FALSE(timing->result().lanes.empty());
-
-  std::optional<Answer<session::values::CompositeCountsResult>> counts;
-  client.compositeCounts(AgentHost::into(counts));
-  EXPECT_FALSE(counts);  // owed by the next still
-  ASSERT_TRUE(host.still());
-  ASSERT_TRUE(counts);
-  if (*counts) EXPECT_TRUE(std::filesystem::exists(counts->result().path));
 }
 
 TEST(SketchSessionAgent, RefusesWhatThisHostCannotDoNamingWhy) {
@@ -580,12 +573,12 @@ TEST(SketchSessionAgent, ADensityPinnedBeforeTheOpenIsTheFirstFramesGrid) {
   EXPECT_NE(refused.error().message.find("density"), std::string::npos);
 }
 
-TEST(SketchClockAgent, TheHoldTheSpeedAndBothPinsGoWithTheirClient) {
+TEST(SketchClockAgent, TheHoldTheSpeedAndTheDensityPinGoWithTheirClient) {
   AgentHost host;
   ASSERT_TRUE(host.open("agents_marching_box"));
   {
     const protocol::InProcess setter(host.dispatcher);
-    std::optional<Answer<protocol::values::Empty>> held, slowed, pinned;
+    std::optional<Answer<protocol::values::Empty>> held, slowed;
     clock::values::PauseParameters hold;
     hold.paused = true;
     clock::ClockClient(setter.caller()).pause(hold, AgentHost::into(held));
@@ -593,16 +586,11 @@ TEST(SketchClockAgent, TheHoldTheSpeedAndBothPinsGoWithTheirClient) {
     half.scale = 0.5;
     clock::ClockClient(setter.caller())
         .setTimeScale(half, AgentHost::into(slowed));
-    session::values::PromotionParameters eager;
-    eager.promotion = session::Promotion_Eager;
-    session::SessionClient(setter.caller())
-        .pinPromotion(eager, AgentHost::into(pinned));
     std::optional<Answer<protocol::values::Empty>> dense;
     session::values::DensityParameters plate;
     session::SessionClient(setter.caller())
         .pinDensity(plate, AgentHost::into(dense));
-    ASSERT_TRUE(held && *held && slowed && *slowed && pinned && *pinned &&
-                dense && *dense);
+    ASSERT_TRUE(held && *held && slowed && *slowed && dense && *dense);
     const clock::values::CurrentResult during = host.current().result();
     EXPECT_TRUE(during.paused);
     EXPECT_EQ(during.time_scale, 0.5);
@@ -610,8 +598,8 @@ TEST(SketchClockAgent, TheHoldTheSpeedAndBothPinsGoWithTheirClient) {
     EXPECT_GT(host.current().result().frame, 1u);
   }
   // The setter has gone: the clock moves at the wall's own speed again,
-  // and the session was opened anew for the runtime's own promotion and
-  // density, drawing its first frame.
+  // and the session was opened anew for the runtime's own density,
+  // drawing its first frame.
   const clock::values::CurrentResult after = host.current().result();
   EXPECT_FALSE(after.paused);
   EXPECT_EQ(after.time_scale, 1.0);

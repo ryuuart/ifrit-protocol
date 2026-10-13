@@ -29,7 +29,6 @@ about those two is the commonest way to read a signature backwards.
 | **pen** | SigilDraw | The immediate-mode drawing object: p5's verbs with p5's names, argument orders and defaults, over a canvas. |
 | **plate** | SigilSketch | A rendered still of a sketch, taken headless and compared against the recorded one. The plate ledger is what judges a change: a moved plate is a fact to be explained, not a failure. |
 | **primitive** | every library | Something irreducible, which lives in a library's core. If a consumer needs one that does not exist, the library that owns that domain grows — the consumer does not invent its own. |
-| **promotion** | SigilCompose | Turning a node's cached picture into a texture, decided by a policy the painting composer runs under. The policy decides which nodes are promoted, not what a promoted node may do. |
 | **prune** | SigilCore | Skipping the repaint of a node whose description compares equal to the retained one. Everything in the tree that compares by value exists so that this is cheap and provable. |
 | **recipe** | SigilMaterial | A material's definition: a struct of uniform-typed fields that is its ABI, one shader body per language, the slots it samples, and the per-frame values it reads. |
 | **reconciler** | SigilCore | The kernel that matches a fresh description onto the retained tree — by key, then by position — so only what changed is touched. |
@@ -43,7 +42,7 @@ about those two is the commonest way to read a signature backwards.
 | **value** | every library | What you CREATE to pass to a verb. The reference gives each one a page saying how to make one, what takes it, and what returns it. |
 | **verb** | SigilCompose, SigilDraw | Something you SAY to a node or a pen: a member that returns it, so calls chain. A verb naming a CSS-inherited property writes that lane and inherits. |
 | **volatility** | SigilCompose, SigilMaterial | Whether a value repaints differently from one frame to the next. Every value that can answer it spells it `isRunning`, always derived from how the value was built and never a setter. A value that repaints and does not declare it is frozen by the first cache that sees it, with no error and no warning. |
-| **wire** | SigilSeer, SigilIO | One URI a message arrives on or leaves by. Seer is the tool that watches all of them at once. |
+| **wire** | SigilIO | One URI a message arrives on or leaves by. |
 
 ## Words about the build, not the libraries
 
@@ -52,4 +51,4 @@ about those two is the commonest way to read a signature backwards.
 | **probe** | `cmake/Sigil.cmake` | The compile check over a document's prose: every qualified API name a README or a chapter spells must exist in a header, or the build fails. Headers win. |
 | **ledger** | `scripts/sigil.py` | A recorded set of numbers a run is compared against — plates, benchmarks, coverage. A ledger owns numbers so that comments and documents do not. |
 | **sweep** | Grimoire | A headless pass over the whole sketch registry, rendering each one. A file outside the registry is photographed on its own and never enters it. |
-| **tier** | plates, paints | A level a thing is judged or resolved at: the plate ledger's device and promotion tiers, and a paint's static, geometry and live tiers. |
+| **tier** | plates, paints | A level a thing is judged or resolved at: the plate ledger's device and CPU tiers, and a paint's static, geometry and live tiers. |

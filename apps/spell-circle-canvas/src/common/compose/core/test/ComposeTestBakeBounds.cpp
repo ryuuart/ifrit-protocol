@@ -1,9 +1,9 @@
-// What a bake has to reach that the node's own box does not: the ink a
-// line, a face, a curve, a shape and a blurred child each draw outside
-// it, the grid a curve far from the origin must still stand on, the
-// declared shape that bounds every layer the node is given, and the
-// dressed coverage that holds ink outside the box without moving the ink
-// inside it.
+// What a device bake has to reach that the node's own box does not: the
+// ink a line, a face, a curve, a shape and a blurred child each draw
+// outside it, the grid a curve far from the origin must still stand on, the
+// rasteriser route a bake rests on, the declared shape that bounds every
+// layer the node is given, and the dressed coverage that holds ink outside
+// the box without moving the ink inside it.
 
 #include <include/core/SkFontMetrics.h>
 #include <sigildraw/Pen.h>
@@ -11,7 +11,7 @@
 
 #include <vector>
 
-#include "support/PromotionTestSupport.h"
+#include "support/BakeTestSupport.h"
 
 namespace {
 
@@ -43,23 +43,24 @@ Element typeOutsideItsBox() {
 
 }  // namespace
 
-TEST(ComposeCache, APromotedLineKeepsTheInkThatStandsOutsideItsBox) {
+TEST(ComposeCache, ABakedLineKeepsTheInkThatStandsOutsideItsBox) {
   // A device bake is a surface sized to the node's paint bounds, and every
   // pixel outside it is lost rather than rounded — a whole coverage value,
   // tens of code values, wherever the live paint had ink there. So the
   // bounds a text leaf reports must hold the GLYPHS and not only the band
   // its lines were measured to.
-  const PromotionDrift drift =
-      promotionDriftOf(typeOutsideItsBox, SkMatrix::Scale(2, 2), 360, 160);
-  ASSERT_TRUE(drift.promoted)
-      << "nothing was promoted, so this compared two live renders";
+  const BakeDrift drift =
+      bakeDriftOf(typeOutsideItsBox, SkMatrix::Scale(2, 2), 360, 160);
+  ASSERT_TRUE(drift.baked)
+      << "nothing was baked, so this compared two live renders";
   EXPECT_LE(drift.worstChannel, 1)
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the library promoted a line whose glyphs stand "
+      << " code values, when the page was baked holding a line whose glyphs "
+         "stand "
          "outside its box";
 }
 
-TEST(ComposeFaces, APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics) {
+TEST(ComposeFaces, ABakedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics) {
   // The same claim about a REAL face, which is where it was found: a line
   // of type at a size a sheet's chrome is set at, on whatever face the
   // machine resolves for a style that names none. Its box is the band of
@@ -85,13 +86,12 @@ TEST(ComposeFaces, APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics) {
                         .width(280)});
     return sheet;
   };
-  const PromotionDrift drift =
-      promotionDriftOf(page, SkMatrix::Scale(2, 2), 600, 120);
-  ASSERT_TRUE(drift.promoted)
-      << "nothing was promoted, so this compared two live renders";
+  const BakeDrift drift = bakeDriftOf(page, SkMatrix::Scale(2, 2), 600, 120);
+  ASSERT_TRUE(drift.baked)
+      << "nothing was baked, so this compared two live renders";
   EXPECT_LE(drift.worstChannel, 1)
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the library promoted a line of type";
+      << " code values, when the page was baked holding a line of type";
 }
 
 namespace {
@@ -132,7 +132,7 @@ Element strokedArcFarFromTheOrigin() {
 
 }  // namespace
 
-TEST(ComposeCache, APromotedCurveFarFromTheOriginStandsOnTheLivePaintsGrid) {
+TEST(ComposeCache, ABakedCurveFarFromTheOriginStandsOnTheLivePaintsGrid) {
   // A bake taken on a surface allocated at the node's own corner maps a
   // point through the live matrix with its translation reduced by an
   // integer. The integer is exact; the SUM it enters is not. The live paint
@@ -142,30 +142,29 @@ TEST(ComposeCache, APromotedCurveFarFromTheOriginStandsOnTheLivePaintsGrid) {
   // squarely, a whole supersample bucket where a curve runs nearly tangent
   // to it. The distance from the origin is the whole of the fixture: the
   // same arc at the origin is exact, because there the offset cancels.
-  const PromotionDrift drift =
-      promotionDriftOf(strokedArcFarFromTheOrigin, SkMatrix::I(), 1500, 1500);
-  ASSERT_TRUE(drift.promoted)
-      << "nothing was promoted, so this compared two live renders";
+  const BakeDrift drift =
+      bakeDriftOf(strokedArcFarFromTheOrigin, SkMatrix::I(), 1500, 1500);
+  ASSERT_TRUE(drift.baked)
+      << "nothing was baked, so this compared two live renders";
   EXPECT_LE(drift.worstChannel, 2)
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the library promoted a curve standing 1100 "
+      << " code values, when the page was baked holding a curve standing 1100 "
          "pixels from the canvas origin";
 }
 
-TEST(ComposeCache, APromotedCurveKeepsTheCoverageItsLivePaintComputes) {
+TEST(ComposeCache, ABakedCurveKeepsTheCoverageItsLivePaintComputes) {
   // Skia decides whether a path needs its clipped rasterisation from the
   // path's CONTROL-POINT bounds, and the clipped and unclipped routes do
   // not answer the same antialiased coverage. A bake allocated to exactly
   // what the node paints cuts inside those bounds for every curve, so the
-  // promoted picture of a stroked arc moves by tens of code values along
+  // baked picture of a stroked arc moves by tens of code values along
   // its whole length. The bake's margin is what keeps the two on one route.
-  const PromotionDrift drift =
-      promotionDriftOf(strokedArc, SkMatrix::I(), 420, 420);
-  ASSERT_TRUE(drift.promoted)
-      << "nothing was promoted, so this compared two live renders";
+  const BakeDrift drift = bakeDriftOf(strokedArc, SkMatrix::I(), 420, 420);
+  ASSERT_TRUE(drift.baked)
+      << "nothing was baked, so this compared two live renders";
   EXPECT_LE(drift.worstChannel, 1)
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the library promoted a stroked curve";
+      << " code values, when the page was baked holding a stroked curve";
 }
 
 namespace {
@@ -224,7 +223,7 @@ namespace {
  *  filtered saveLayer for its filter, so the halo is painted — and the
  *  group above it is sized to the box alone, so a surface allocated to
  *  that box cuts the skirt off square. The group carries no effect of its
- *  own, which is what keeps it promotable: a filtered node is refused. */
+ *  own, so what holds the skirt is the reach its child's filter answers. */
 Element blurredChildUnderAGroup() {
   Element page = blackPage();
   Element group = box().absolute().left(100).top(100).width(40).height(40);
@@ -240,7 +239,7 @@ Element blurredChildUnderAGroup() {
 
 }  // namespace
 
-TEST(ComposeCache, APromotedNodeKeepsTheSkirtABlurredChildFilters) {
+TEST(ComposeCache, ABakedNodeKeepsTheSkirtABlurredChildFilters) {
   // What a layer effect paints is not what the content under it covers: a
   // blur, a glow, a shadow put ink outside the box the filtered node was
   // measured to, and that ink is drawn INTO whatever surface the node above
@@ -249,17 +248,17 @@ TEST(ComposeCache, APromotedNodeKeepsTheSkirtABlurredChildFilters) {
   // rect a bake is sized to holds every effect below it at the reach its
   // own filter answers. The LAYERS keep the unfiltered rect: Skia grows a
   // filtered saveLayer for its filter already.
-  const PromotionDrift drift =
-      promotionDriftOf(blurredChildUnderAGroup, SkMatrix::I(), 240, 240);
-  ASSERT_TRUE(drift.promoted)
-      << "nothing was promoted, so this compared two live renders";
+  const BakeDrift drift =
+      bakeDriftOf(blurredChildUnderAGroup, SkMatrix::I(), 240, 240);
+  ASSERT_TRUE(drift.baked)
+      << "nothing was baked, so this compared two live renders";
   EXPECT_LE(drift.worstChannel, 2)
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the library promoted a node holding a child "
+      << " code values, when the page was baked holding a node holding a child "
          "whose blur reaches past its box";
 }
 
-TEST(ComposeCache, APromotedShapeKeepsTheInkItDrawsOutsideItsBox) {
+TEST(ComposeCache, ABakedShapeKeepsTheInkItDrawsOutsideItsBox) {
   // A device bake is a SURFACE, and ink outside it is lost rather than
   // rounded. The node's box bounds the layers it opens, but it does not
   // bound the path it declares: a Shape resolved against that box may
@@ -267,14 +266,124 @@ TEST(ComposeCache, APromotedShapeKeepsTheInkItDrawsOutsideItsBox) {
   // every decoration dresses it. So what a bake is allocated to holds the
   // shape as well, and what bounds the drawing stays the clip the bake
   // carries in rather than the allocation.
-  const PromotionDrift drift =
-      promotionDriftOf(shapeOutsideItsBox, SkMatrix::I(), 240, 240);
-  ASSERT_TRUE(drift.promoted)
-      << "nothing was promoted, so this compared two live renders";
+  const BakeDrift drift =
+      bakeDriftOf(shapeOutsideItsBox, SkMatrix::I(), 240, 240);
+  ASSERT_TRUE(drift.baked)
+      << "nothing was baked, so this compared two live renders";
   EXPECT_LE(drift.worstChannel, 1)
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the library promoted a node whose shape reaches "
+      << " code values, when the page was baked holding a node whose shape "
+         "reaches "
          "past its box";
+}
+
+namespace {
+
+/** THE SAME STROKED CURVE, DRAWN THREE WAYS IN PLAIN SKIA — no compose in
+ *  it at all, because what is asked here is a question about the
+ *  rasteriser and a device bake is only the caller of it.
+ *
+ *  A bake paints its node into a fresh premultiplied surface and blits the
+ *  result; the live paint puts the same draw straight onto the
+ *  destination. If those two routes answered different antialiased
+ *  coverage — a surface property, an alpha type, a coverage mode, the way
+ *  a layer's bounds are snapped — then every baked curve would stand a
+ *  fraction of a pixel from its live paint and no bake could ever agree.
+ *  They do not: the offscreen and the saveLayer are the same pixels as the
+ *  direct draw, and what separates the BLITTED offscreen from the direct
+ *  draw is one code value of arithmetic, the node's own coverage
+ *  composited twice where the live paint composited once. */
+struct RouteProbe {
+  int layerVsOffscreen = 0;
+  int liveVsOffscreenOverTheGround = 0;
+  int liveVsBlittedOffscreen = 0;
+};
+
+RouteProbe rasterisationRoutes() {
+  constexpr int kW = 420, kH = 420;
+  const SkColor ground = SkColorSetARGB(255, 40, 90, 140);
+  SkPathBuilder builder;
+  builder.addArc(SkRect::MakeLTRB(31, 31, 369, 369), -30.0f, 300.0f);
+  const SkPath path = builder.detach();
+  SkPaint paint;
+  paint.setStyle(SkPaint::kStroke_Style);
+  paint.setStrokeWidth(22);
+  paint.setColor(SK_ColorWHITE);
+  paint.setAntiAlias(true);
+  const SkMatrix under = SkMatrix::Translate(10, 10);
+
+  const auto surface = [] {
+    return SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kW, kH));
+  };
+  const auto pixels = [](SkSurface& from) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(kW, kH));
+    from.readPixels(bm.pixmap(), 0, 0);
+    std::vector<SkColor> out;
+    for (int y = 0; y < kH; ++y)
+      for (int x = 0; x < kW; ++x) out.push_back(bm.getColor(x, y));
+    return out;
+  };
+
+  // Straight onto the destination, which is what a live paint is.
+  sk_sp<SkSurface> live = surface();
+  live->getCanvas()->clear(ground);
+  live->getCanvas()->concat(under);
+  live->getCanvas()->drawPath(path, paint);
+
+  // Into a layer opened over that same destination.
+  sk_sp<SkSurface> layered = surface();
+  layered->getCanvas()->clear(ground);
+  layered->getCanvas()->saveLayer(nullptr, nullptr);
+  layered->getCanvas()->concat(under);
+  layered->getCanvas()->drawPath(path, paint);
+  layered->getCanvas()->restore();
+
+  // Into a fresh premultiplied surface — the route a bake takes — and
+  // blitted back over the ground.
+  sk_sp<SkSurface> offscreen = surface();
+  offscreen->getCanvas()->clear(SK_ColorTRANSPARENT);
+  offscreen->getCanvas()->concat(under);
+  offscreen->getCanvas()->drawPath(path, paint);
+  sk_sp<SkSurface> blitted = surface();
+  blitted->getCanvas()->clear(ground);
+  blitted->getCanvas()->drawImage(offscreen->makeImageSnapshot(), 0, 0);
+
+  // …and the same offscreen with the ground already in it, which takes
+  // the bake's route through the rasteriser and the live paint's
+  // arithmetic through the blend.
+  sk_sp<SkSurface> overGround = surface();
+  overGround->getCanvas()->clear(ground);
+  overGround->getCanvas()->concat(under);
+  overGround->getCanvas()->drawPath(path, paint);
+
+  const std::vector<SkColor> pl = pixels(*live), pa = pixels(*layered),
+                             pb = pixels(*blitted), pg = pixels(*overGround);
+  return {worstDrift(pa, pb, nullptr), worstDrift(pl, pg, nullptr),
+          worstDrift(pl, pb, nullptr)};
+}
+
+}  // namespace
+
+TEST(ComposeCache, ADeviceBakeRasterisesOnItsLivePaintsRoute) {
+  // WHAT A DEVICE BAKE RESTS ON. Skia holds more than one way to answer an
+  // antialiased edge, and which one a draw takes is decided from the
+  // path's bounds against the clip it stands in — which is why a bake is
+  // allocated with a margin. What it must NOT depend on is the surface the
+  // draw lands on: a bake paints into a fresh premultiplied surface where
+  // the live paint puts the same draw onto the destination, and if those
+  // answered different coverage no bake could ever agree with the paint it
+  // replaces.
+  const RouteProbe routes = rasterisationRoutes();
+  EXPECT_EQ(routes.layerVsOffscreen, 0)
+      << "a layer opened over the destination and a fresh offscreen "
+         "rasterise the same curve differently";
+  EXPECT_EQ(routes.liveVsOffscreenOverTheGround, 0)
+      << "an offscreen surface holding the ground rasterises the same curve "
+         "differently from the destination it stands for";
+  EXPECT_LE(routes.liveVsBlittedOffscreen, 1)
+      << "a blitted offscreen stands more than the one code value its "
+         "second composite costs from the live paint";
 }
 
 namespace {
@@ -323,11 +432,10 @@ SkIRect inkBoundsOf(const std::vector<SkColor>& pixels, int w, int h) {
   return ink;
 }
 
-/** One scene drawn once with promotion held off, so what the pixels answer
- *  is about the layers a node opens and nothing about a bake. */
+/** One scene drawn once, so what the pixels answer is about the layers a
+ *  node opens and nothing about a bake. */
 std::vector<SkColor> drawnLive(Element page, int w, int h) {
   Host host(w, h);
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   host.composer.render(std::move(page));
   host.frame();
   return surfaceOf(host, w, h);
@@ -522,14 +630,19 @@ TEST(ComposeCoverageBounds, InkInsideTheBoxTracesWhereItAlwaysDid) {
          "than the node's steps";
 }
 
-TEST(ComposeCache, PaintBoundsBeyondIntegerCoordinatesFallBackToLive) {
-  const auto scene = [] {
+TEST(ComposeCache, PaintBoundsBeyondIntegerCoordinatesPaintTheLivePicture) {
+  // A declared shape whose bounds stand far past any integer device
+  // coordinate: the rect a device bake is measured to is cropped to the
+  // clip before it is narrowed, so the bake paints what the live paint does
+  // rather than overflowing into a rect that stands nowhere.
+  const auto scene = [](Cache caching) {
     return box()
         .cache(Cache::None)
         .children({box()
                        .key("largeShape")
                        .width(80)
                        .height(80)
+                       .cache(caching)
                        .shape(skiaShape([] {
                          SkPathBuilder path;
                          path.addRect(SkRect::MakeLTRB(-1.0e20f, -1.0e20f,
@@ -538,18 +651,11 @@ TEST(ComposeCache, PaintBoundsBeyondIntegerCoordinatesFallBackToLive) {
                        }))
                        .fill(red())});
   };
-  Host plain, eager;
-  plain.composer.setAutoTexturePromotion(false);
-  eager.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
-  eager.composer.setProfiling(true);
-  plain.composer.render(scene());
-  eager.composer.render(scene());
+  Host plain, baked;
+  plain.composer.render(scene(Cache::Auto));
+  baked.composer.render(scene(Cache::Texture));
   plain.frame();
-  eager.frame();
-  EXPECT_TRUE(identicalPixels(plain, eager, 200, 200));
-  EXPECT_EQ(eager.pixel(40, 40), SK_ColorRED);
-  EXPECT_EQ(eager.composer.stats().texturesBaked, 0u);
-  const Composer::NodeCost* row = requireRow(eager.composer, "largeShape");
-  ASSERT_NE(row, nullptr);
-  EXPECT_EQ(row->cacheState, Composer::CacheState::Live);
+  baked.frame();
+  EXPECT_TRUE(identicalPixels(plain, baked, 200, 200));
+  EXPECT_EQ(baked.pixel(40, 40), SK_ColorRED);
 }

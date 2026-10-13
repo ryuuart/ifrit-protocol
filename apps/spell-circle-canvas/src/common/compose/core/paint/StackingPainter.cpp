@@ -363,17 +363,14 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                        .rootSize = geometry::path::fromSk(rootLayoutSize)};
     inst.pendingLiveFill = resolveFill(*liveMaterialOf(inst), probe);
     inst.hasPendingLiveFill = true;
+    // Material::resolve() memoizes on the byte-identical digest of every
+    // varying input, so a stable shader POINTER is a proof that the
+    // quantized inputs have not ticked — and therefore that the pixels of
+    // the last recording or bake are still the pixels this frame wants.
     liveStable =
         (inst.picture || inst.textureImage) && !inst.paintDirty &&
         material::skia::staticShader(detail::paintOf(inst.pendingLiveFill)) ==
             inst.bakedLiveShader;
-    // The temporal-stability estimate. Material::resolve() memoizes on the
-    // byte-identical digest of every varying input, so a stable shader
-    // POINTER is a proof that the quantized inputs have not ticked — and
-    // therefore that the pixels of the last bake are still the pixels this
-    // frame wants. EMA, so one tick does not cost the promotion.
-    inst.liveStableRate =
-        inst.liveStableRate * 0.75f + (liveStable ? 0.25f : 0.0f);
   }
 
   // The scalar memo's probe: the animated content scalars AS OF THIS FRAME.
@@ -440,10 +437,9 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   //
   // The candidacy only; the tier is TAKEN at the local bake, which is the
   // one that holds the two surfaces it needs. An ASKED-FOR bake
-  // only: an automatic promotion refuses a filtered node outright, and
-  // where the author has not asked for a texture at all this would turn a
-  // picture replay into a bake, which is a different decision than this
-  // one. A DEVICE-space bake is left exactly as it stands — it is taken
+  // only: where the author has not asked for a texture at all this would
+  // turn a picture replay into a bake, which is a different decision than
+  // this one. A DEVICE-space bake is left exactly as it stands — it is taken
   // once and re-taken only when the node moves, so there is no repeated
   // bake there to make cheaper.
   const bool staticEffectCandidate =
@@ -543,40 +539,24 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     inst.lastDeviceMatrix = totalM;
     inst.deviceMatrixSeen = true;
   }
-  // Upright, unmirrored, unrotated and unskewed. It is tempting to drop
-  // this: a device-space bake concatenates the full matrix into the layer
-  // and blits with the matrix reset at an integer offset, so it cannot
-  // resample and ought to be exact at any angle. It is not, for two
-  // separate reasons, and automatic promotion is held to exact agreement
-  // because the author never asked for it.
-  //
-  //  - A shader's local coordinates come from INVERTING the CTM, and the
-  //    layer's CTM differs from the canvas's by an integer device
-  //    translation. Inverting a rotation maps that integer offset through
-  //    irrational entries, so the cancellation is only approximate, while
-  //    an axis-aligned matrix maps it through ±1 and 0 and cancels exactly.
-  //    Off-axis, shaded pixels land about one least-significant bit away.
-  //  - A bake rect larger than the device clip hands Skia a different clip
-  //    to rasterize the antialiased edges against. That one is worth many
-  //    levels, not one, and it shows up wherever a rotated node's bounds
-  //    overflow the canvas.
-  //
-  // A test that rotates a plain colour fill small enough to fit exercises
-  // neither effect and will pass with this gate removed. `Cache::Texture`
-  // is opt-in and does accept the trade, which is why the refusal message
-  // points an author there rather than describing the geometry — a node
-  // held off promotion by a constant fraction-of-a-degree tilt needs to be
-  // told what to do about it.
-  const bool upright = totalM.getSkewX() == 0 && totalM.getSkewY() == 0 &&
-                       totalM.getScaleX() > 0 && totalM.getScaleY() > 0 &&
-                       !totalM.hasPerspective();
   pass.totalM = totalM;
   pass.matrixStable = matrixStable;
-  pass.upright = upright;
+  // THE DEVICE-BAKE RULE, which the Cache::Group and Cache::Texture tiers
+  // share: a device-space bake blits with the matrix reset at an ABSOLUTE
+  // device rect, so it is exact under one matrix and wrong under every
+  // other. It may be taken at the root, or inside recordings that are all
+  // PINNED — made under a matrix stamped on the instance and remade the
+  // frame it differs — and never inside an unpinned one, which replays
+  // under a declared motion and would be remade every frame. Inside a
+  // pinned recording the node is painted only when the recording is, so the
+  // matrix must also be holding still by the recording's own history: a
+  // bake taken under a moving matrix would pin a recording that is then
+  // remade, and the bake with it, on every frame of the motion. And never
+  // inside another bake: the bake above already holds this node, and its
+  // image is what the blit lands.
+  pass.deviceBakeable = recording.unpinnedDepth == 0 && bakeDepth == 0 &&
+                        (recording.depth == 0 || matrixStable);
 
-  decidePromotion(pass);
-  if (paintPromotedBake(pass)) return;
-  if (paintSplitBake(pass)) return;
   if (paintGroupBake(pass)) return;
 
   if (bakesPixels() && cacheHolds &&
@@ -594,8 +574,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
              // own fill.
              !spaceHost &&
              // Empty containers paint live so their traversal does not
-             // introduce a recording scope that changes child promotion.
-             // Their children retain independent cache decisions.
+             // introduce a recording scope of its own. Their children
+             // retain independent cache decisions.
              rect.width() >= 0.5f && rect.height() >= 0.5f &&
              (node.cacheMode == Cache::Picture || !inst.children.empty() ||
               node.kind == Kind::Text || node.kind == Kind::Custom ||

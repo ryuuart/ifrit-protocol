@@ -1,6 +1,6 @@
 #pragma once
 // SkSL effects the tests drive materials with: a one-uniform probe and a
-// deliberately per-pixel-expensive shader for the cache promoter.
+// deliberately per-pixel-expensive shader whose cost a cache saves.
 
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
@@ -17,9 +17,8 @@ sk_sp<SkRuntimeEffect> ukEffect() {
   return effect;
 }
 
-/** Expensive per PIXEL, which is the only kind of expensive that matters
- *  here: automatic promotion thresholds on how long a node takes to paint,
- *  so cost has to come from fragment work over an area. */
+/** Expensive per PIXEL: fragment work over an area, which is the cost a
+ *  pixel bake saves and a recording replays. */
 sk_sp<SkRuntimeEffect> heavyEffect(bool withTime) {
   // The static variant must not so much as DECLARE uTime: Material::sksl
   // reads liveness off the declaration, not off whether anything drives it.

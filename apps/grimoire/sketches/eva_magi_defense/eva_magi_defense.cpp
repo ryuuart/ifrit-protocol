@@ -442,8 +442,7 @@ struct EvaMagiDefense {
     sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
                              .captureAt = 2.5,
                              .background = kGround,
-                             .oversample = 2,
-                             .nonlinearPicture = true});
+                             .oversample = 2});
 
     funnel = funnelPath();
     fieldStrip = eva::fieldStrip(0.0f);

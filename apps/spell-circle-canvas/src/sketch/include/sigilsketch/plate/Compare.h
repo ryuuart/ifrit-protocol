@@ -69,17 +69,6 @@ enum class PlateSide { First, Second };
  *    pixels taken off the edges, a mark that is gone, a wash at another
  *    value.
  *
- *  `worstPerComposite` is the content figure again, divided by how many
- *  CACHED RASTERS were blitted over each pixel and rounded up, with
- *  `stackedPixels` counting the content pixels that stood under more than
- *  one. A cached raster is a composite the picture beside it did not make
- *  and every composite rounds, so a difference of four under four of them
- *  is the same fact as a difference of one under one — and a caller whose
- *  tolerance is a bound per composite reads this rather than the content
- *  figure. The counts come from a plane the second directory carries
- *  beside its plates, written by a headless sweep asked for one; without
- *  it every pixel stands under one composite and the two figures agree.
- *
  *  Which pixels are which is a fact about two files; how much each is
  *  allowed is a judgement and stays with the caller. */
 struct PlateComparison {
@@ -99,8 +88,6 @@ struct PlateComparison {
   int worstOverContent = 0;
   int worstOverGraze = 0;
   std::size_t grazingPixels = 0;
-  int worstPerComposite = 0;
-  std::size_t stackedPixels = 0;
 };
 
 /** EVERY PLATE THAT STANDS IN EITHER DIRECTORY, in name order, or why
@@ -125,7 +112,6 @@ struct Comparison {
  *      compared <name> mean <mean> p99 <p99> max <worst>
  *               clear <worstOverClear> content <worstOverContent>
  *               graze <worstOverGraze> <grazingPixels>
- *               composited <worstPerComposite> <stackedPixels>
  *      size <name> <W>x<H> <W>x<H>
  *      missing <name> first|second
  *      unreadable <name> first|second

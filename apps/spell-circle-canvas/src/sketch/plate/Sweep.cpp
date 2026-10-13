@@ -34,7 +34,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <cstring>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -70,24 +69,6 @@ bool writePlate(const SkPixmap& pixels, const std::filesystem::path& path) {
   return !png.empty() && io::writeBytes(path, png.data(), png.size());
 }
 
-/** The composite-count plane on disk, beside the plate it describes: one
- *  grey level per device pixel, so a reader sees where the counts stand
- *  and a script reads the number itself out of the same file. */
-bool writeCountPlane(const Session::CompositeCounts& plane,
-                     const std::string& dir, const char* name) {
-  if (plane.width <= 0 || plane.height <= 0) return true;
-  SkBitmap grey;
-  if (!grey.tryAllocPixels(SkImageInfo::Make(
-          plane.width, plane.height, kGray_8_SkColorType, kOpaque_SkAlphaType)))
-    return false;
-  for (int y = 0; y < plane.height; ++y)
-    std::memcpy(grey.getAddr8(0, y),
-                plane.counts.data() + (size_t)y * (size_t)plane.width,
-                (size_t)plane.width);
-  return writePlate(grey.pixmap(),
-                    dir + "/" + std::string(kCountPrefix) + name + ".png");
-}
-
 }  // namespace
 
 PlateExtent plateExtent(float width, float height, float density) {
@@ -113,20 +94,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     std::fprintf(stderr, "plate density must be zero or finite and positive\n");
     return 1;
   }
-  if (options.promotion && options.noPromotion) {
-    std::fprintf(stderr,
-                 "--promotion and --no-promotion ask for opposite runs; "
-                 "name one\n");
-    return 1;
-  }
-  if (options.countPlane && options.gpu) {
-    std::fprintf(stderr,
-                 "--composites is refused with --gpu: the plane is read "
-                 "back off each cached raster, and a device raster is not "
-                 "readable where it is blitted\n");
-    return 1;
-  }
-
   // THE DEVICE'S OWN CONTEXT, and never one of this sweep's making: a
   // scene3d sketch is rendered by the runtime the host installed on the device
   // it brought up, and a scene2d sketch is photographed on a surface allocated
@@ -245,15 +212,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       session.reset();
       session = kind->open(fonts, assets, true, entry.key);
     }
-    if (options.noPromotion) session->setAutoPromotion(Session::Promotion::Off);
-    if (options.promotion) session->setAutoPromotion(Session::Promotion::Eager);
-    // A SKETCH WHOSE PICTURE IS NOT LINEAR IN WHAT WENT INTO IT holds the
-    // promoter off from its own declaration, so a sweep that asked for it
-    // did not get it — and says so here rather than reporting a scene that
-    // agreed with itself. A tier that judged such a scene in silence would
-    // be an exclusion nobody could see.
-    if (options.promotion && session->canvas().nonlinearPicture)
-      std::printf("%s: declared nonlinear\n", entry.name);
     SkDebugf("=== sketch %s\n", entry.name);
 
     // Every size below comes off the session: a sketch declares its own
@@ -419,10 +377,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       // moment, and a still is a function of the declaration alone.
       session.reset();
       session = kind->open(fonts, assets, true, entry.key);
-      if (options.noPromotion)
-        session->setAutoPromotion(Session::Promotion::Off);
-      if (options.promotion)
-        session->setAutoPromotion(Session::Promotion::Eager);
       if (session->canvas().size != size) {
         std::fprintf(stderr,
                      "sketch %s declared a different canvas on reopen\n",
@@ -499,19 +453,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     sk_sp<SkSurface> plate = SkSurfaces::Raster(plateInfo);
     plate->getCanvas()->clear(clearColor);
     plate->getCanvas()->scale(scale, scale);
-    // ASKED FOR OVER THE STILL AND NOTHING ELSE: the plane describes the
-    // frame that was photographed, and every frame stepped to reach it
-    // would otherwise be counted into the same tally.
-    if (options.countPlane) session->setCompositeCounting(true);
     session->still(*plate->getCanvas());
-    if (options.countPlane) {
-      const bool wrote = writeCountPlane(session->compositeCounts(),
-                                         options.outputDirectory, entry.name);
-      session->setCompositeCounting(false);
-      if (!wrote) {
-        return 1;
-      }
-    }
     plate->readPixels(bitmap.pixmap(), 0, 0);
     if (!writePlate(bitmap.pixmap(), path)) {
       return 1;

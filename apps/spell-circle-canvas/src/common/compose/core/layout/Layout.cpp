@@ -272,12 +272,8 @@ void Composer::Impl::syncLayoutRects(Instance& inst, bool movedAbove) {
       inst.markPaintDirtyUp();  // own content baked the old bounds
     else if (inst.parent)
       // The parent's RECORDING baked this child's old offset; the parent's
-      // OWN paint did not — it never contained the child at all. The split
-      // bake (own paint baked, volatile children drawn live over the blit)
-      // is the cache tier that can tell those apart, and this is the case
-      // it exists for: passing ownPaint=true here would remake the parent's
-      // bake on every frame a child moves and the tier would silently never
-      // pay off.
+      // OWN paint did not — it never contained the child at all, so the
+      // repaint region does not count the parent's own extent as changed.
       inst.parent->markPaintDirtyUp(/*ownPaint=*/false);
     contentDirty = true;
   }

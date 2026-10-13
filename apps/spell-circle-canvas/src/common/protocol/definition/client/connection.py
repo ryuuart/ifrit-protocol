@@ -6,8 +6,8 @@
 to the listeners of its method. Whatever carries the text — a socket, or a
 host in the same process — speaks it the same way.
 
-``connect(address)`` attaches to a running host — Grimoire, Seer, the
-receiver — at ``ws://127.0.0.1:PORT/sigil`` or through the state directory
+``connect(address)`` attaches to a running host, such as Grimoire, at
+``ws://127.0.0.1:PORT/sigil`` or through the state directory
 whose ``protocol-address`` names it, reads the definition the host serves at
 ``/protocol``, and refuses a host built from a definition that breaks this
 client. ``launch(state=…)`` starts a headless Grimoire serving the protocol

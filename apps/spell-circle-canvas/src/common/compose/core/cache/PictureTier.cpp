@@ -9,7 +9,6 @@
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkRect.h>
 #include <sigilcore/cache/Bake.h>
-#include <sigilmeasure/time/Stopwatch.h>
 #include <src/core/SkScopeExit.h>
 
 #include <algorithm>
@@ -188,11 +187,7 @@ void paintThroughPicture(PaintPass& pass) {
   if (pass.profile.row != SIZE_MAX)
     impl.profileRows[pass.profile.row].cacheState =
         Composer::CacheState::Picture;
-  // The measurement that drives promotion: what the replay of this
-  // node's recording cost, which is what the tier is choosing against.
-  const measure::Stopwatch replayWatch;
   pass.profDraw("replay", [&] { impl.pictureBake->replay(target); });
-  pass.accrue(measure::Milliseconds(replayWatch.elapsed()).count());
 }
 
 void paintLive(PaintPass& pass) {
@@ -203,24 +198,9 @@ void paintLive(PaintPass& pass) {
   const float leafOpacity = pass.leafOpacity;
 
   if (!impl.coverageTrace) impl.stats.nodesPainted++;
-  // A LEAF never records a picture — one draw call beats a nested
-  // recording — so without this it would never be timed at all, and the
-  // most expensive single object a scene can hold, a full-canvas box
-  // carrying one shader, would be structurally invisible to the promoter.
-  // So the live draw is timed too, but ONLY for a node that could
-  // actually be promoted: that keeps two clock reads per frame off every
-  // ineligible node in the tree, of which there are usually thousands.
-  if (!pass.promotable) {
-    pass.profDraw("live", [&] {
-      impl.paintContent(inst, canvas, impl.hostScale, leafBlend, leafOpacity);
-    });
-  } else {
-    const measure::Stopwatch liveWatch;
-    pass.profDraw("live", [&] {
-      impl.paintContent(inst, canvas, impl.hostScale, leafBlend, leafOpacity);
-    });
-    pass.accrue(measure::Milliseconds(liveWatch.elapsed()).count());
-  }
+  pass.profDraw("live", [&] {
+    impl.paintContent(inst, canvas, impl.hostScale, leafBlend, leafOpacity);
+  });
   inst.paintDirty = false;
 }
 

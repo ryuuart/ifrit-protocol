@@ -269,8 +269,6 @@ struct Composer::Impl {
   // own total upward. That gives selfMs = totalMs - children without a
   // second traversal.
   bool profileEnabled = false;
-  // Composer::setAutoTexturePromotion (the INTENT).
-  Composer::PromotionPolicy autoPromote = Composer::PromotionPolicy::ByCost;
   /** Composer::setBakeDensity: device pixels per layout unit every pixel
    *  bake is taken at, whatever the frame's matrix says. Zero is the
    *  coarse ladder read off that matrix. */
@@ -280,27 +278,13 @@ struct Composer::Impl {
   SkPoint pointerAt = {0, 0};
   bool pointerPressed = false;
   KeyState keys;
-  bool promotionExplicit = false;  // did the host call the setter?
-  // The value paint() actually reads, recomputed each draw(). Differs from
-  // `autoPromote` only under the backend-aware default: automatic promotion
-  // is OFF on a Graphite/GPU surface unless the host asked for it
-  // explicitly. The cost model that drives promotion — the millisecond
-  // threshold, the stability average, the temporal gate — times how long a
-  // node takes to RECORD its ops, which stands in for raster cost and says
-  // nothing about GPU cost. On GPU the threshold is rarely crossed, and
-  // when it is, the bake plus its synchronization and upload costs more
-  // than the recording it replaces. Re-enabling it there needs a cost model
-  // built on GPU timestamps. The global switch still overrides in both
-  // directions.
-  Composer::PromotionPolicy autoPromoteEffective =
-      Composer::PromotionPolicy::ByCost;
-  // Promoted bakes are pixels, and a dense scene can carry many
-  // full-canvas nodes at several megabytes each. A budget, carried from the
+  // Pixel bakes are pixels, and a dense scene can carry many full-canvas
+  // group bakes at several megabytes each. A budget, carried from the
   // previous frame (paint order is stable, so the previous frame's total is
-  // the right question to ask before adding one more), keeps an automatic
-  // win from becoming an automatic out-of-memory.
-  size_t promotedBytes = 0;      // accumulated during the current paint
-  size_t promotedBytesLast = 0;  // what the previous frame ended up holding
+  // the right question to ask before adding one more), keeps a bake from
+  // becoming an out-of-memory.
+  size_t bakedBytes = 0;      // accumulated during the current paint
+  size_t bakedBytesLast = 0;  // what the previous frame ended up holding
   // The recording the walk is painting into, saved and restored by value
   // by every scope that opens one.
   detail::RecordingState recording;
@@ -344,7 +328,7 @@ struct Composer::Impl {
   // intrinsic root (snapshot()). Written by paint() at the root frame;
   // PaintContext::rootSize is read from here.
   SkSize rootLayoutSize = SkSize::MakeEmpty();
-  static constexpr size_t kPromotedBudget = size_t{192} * 1024 * 1024;
+  static constexpr size_t kBakeBudget = size_t{192} * 1024 * 1024;
   /** THE MARGIN EVERY DEVICE BAKE IS ALLOCATED WITH, in device pixels, for
    *  a bake whose larger side is @p extent.
    *
@@ -355,7 +339,7 @@ struct Composer::Impl {
    *  two routes do not answer the same antialiased coverage. A stroked
    *  curve baked flush moves by TENS of code values along its whole length
    *  — not the one an integer device offset costs — so the margin is what
-   *  makes a promoted node paint the picture its live paint paints.
+   *  makes a device bake paint the picture its live paint paints.
    *
    *  It is a FRACTION of the bake because the reach it has to cover is one:
    *  a stroker approximates an offset curve with cubics whose control
@@ -383,12 +367,6 @@ struct Composer::Impl {
   std::vector<Composer::NodeCost> profileRows;
   double profChildMs = 0;
   int profDepth = 0;
-  // Composer::setCompositeCounting: the tally every device blit adds to,
-  // sized to the canvas at the top of a counted draw and read back off each
-  // bake's image, so it is a diagnostic and never a frame's cost.
-  bool countComposites = false;
-  Composer::CompositePlane compositePlane;
-  void countBlit(const sk_sp<SkImage>& image, const SkIRect& at);
   // render()/renderSlot() phase time accumulated since the previous draw();
   // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
   double reconcileAccumMs = 0;
@@ -894,19 +872,16 @@ struct Composer::Impl {
    *  exactly as a resting one is. */
   detail::TextInk textInkOf(detail::Instance& inst,
                             const PaintContext& paintCtx);
-  /** Which half of a node's paint to emit.
+  /** How much of a node's paint to emit.
    *
    *  The node's own paint is a CONTIGUOUS PREFIX of paintContent —
    *  backgrounds, clip, fill, echoes, overlays, leaf content — ending
-   *  exactly at the children loop. Everything after that loop (the clip
-   *  restore, the FOREGROUNDS, the wipe and effect restores) belongs to the
-   *  children half: foregrounds paint over the children, so they can never
-   *  be in an own-paint bake. That is why this is a phase flag and two
-   *  skips rather than a split function. */
+   *  exactly at the children loop. A coverage trace of the node's own paint
+   *  alone emits that prefix and skips the children and the foregrounds
+   *  painted over them. */
   enum class Phase : uint8_t {
-    All,           ///< the whole node, unchanged
-    OwnOnly,       ///< the prefix: no children, no foregrounds
-    ChildrenOnly,  ///< the children and the foregrounds over them
+    All,      ///< the whole node, unchanged
+    OwnOnly,  ///< the prefix: no children, no foregrounds
   };
   /** @p deferLayerEffect leaves the node's own layer effect OUT of what is
    *  emitted, for a bake that is going to be filtered at its blit instead.
@@ -971,11 +946,9 @@ struct Composer::Impl {
   const detail::Instance* coverageTrace = nullptr;
   /** What the node paints BY ITSELF, in its own local space: its box grown
    *  by every decoration's declared bleed, any routed path and the shape it
-   *  declares, and NOTHING from its children. The split bake sizes its
-   *  layer with this — and the independence from the children is the
-   *  load-bearing part, not an optimisation: `recordBounds` unions the
-   *  children in, so it changes every frame a child moves, and a bake rect
-   *  that changes every frame is a bake remade every frame. */
+   *  declares, and NOTHING from its children: what a coverage trace of the
+   *  node's own paint and the repaint region read, which must not move
+   *  when only a child does. */
   SkRect ownPaintBounds(detail::Instance& inst);
   /** The rect a node's recording must cover — in its own local plane, or,
    *  for a node hosting a shared space, in the plane that space is drawn

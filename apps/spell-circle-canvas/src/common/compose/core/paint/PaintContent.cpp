@@ -210,13 +210,12 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                                   bool deferLayerEffect) {
   const ElementNode& node = inst.painted();
   const ComputedStyle& style = inst.computed;
-  // The two halves of a node's paint, split at the children loop. A
-  // split bake is only ever offered to a node with no layer effect — that
-  // one WRAPS BOTH HALVES and a bake of the prefix alone would have to
-  // reproduce it. A clip and a whole-node mask wrap both halves too, but
-  // both are opened and closed inside EACH phase, so the phases stay a pair
-  // of skips over an otherwise untouched function; the granular mask scopes
-  // below are each opened and closed inside the half they belong to.
+  // The node's own paint is the prefix up to the children loop, which a
+  // coverage trace of the node alone emits by itself. A clip and a
+  // whole-node mask wrap the whole node, but both are opened and closed
+  // inside either phase, so the phase stays a skip over an otherwise
+  // untouched function; the granular mask scopes below are each opened and
+  // closed inside the part they belong to.
   // A node HOSTING A SHARED SPACE was left by paint() at the plane the
   // space is drawn on: its own paint — both halves — concatenates its own
   // plane here, and its children place themselves against the canvas as
@@ -239,7 +238,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   const auto leaveOwn = [&] {
     if (ownPlane) canvas.restore();
   };
-  const bool emitOwn = phase != Phase::ChildrenOnly && ownVisible;
+  const bool emitOwn = ownVisible;
   const bool emitChildren = phase != Phase::OwnOnly;
   // A COVERAGE TRACE OF THIS NODE draws everything the node draws EXCEPT
   // its own marks: the marks are what dress the traced boundary, so a mark
@@ -485,8 +484,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .vars = inst.vars.get(),
       .pointer = pointerHere,
       .keys = &keys,
-      .bakeDensity = bakeDensity,
-      .promotion = autoPromoteEffective};
+      .bakeDensity = bakeDensity};
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots. A LIVE
@@ -787,12 +785,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // plain).
   std::optional<Fill> resolvedFill;
   if (!emitOwn) {
-    // ChildrenOnly: the prefix above already ran into the bake. Skip
-    // straight past the fill, the echoes, the overlays and the leaf
-    // content to the children loop. (The outline and the clip/wipe/effect
-    // wrappers above are recomputed rather than skipped — they are cheap,
-    // they must stay balanced against their restores below, and the
-    // foregrounds still trace the outline.)
+    // Nothing of the node's own shows: skip straight past the fill, the
+    // echoes, the overlays and the leaf content to the children loop. (The
+    // outline and the clip/wipe/effect wrappers above are recomputed rather
+    // than skipped — they are cheap, they must stay balanced against their
+    // restores below, and the foregrounds still trace the outline.)
   } else if (const material::Paint* live = liveMaterialOf(inst)) {
     // A LIT FILL THAT READS ITS UNIT, on a page painted as a surface map,
     // is that map of its material answered for the node's own outline:
@@ -1067,10 +1064,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
 
   if (style.clipContent) canvas.restore();  // decorations below stay unclipped
 
-  // FOREGROUNDS PAINT AFTER THE CHILDREN, so they belong to the children
-  // half and can never be in an own-paint bake. The own half is the
-  // contiguous PREFIX up to the children loop, which is not the same thing
-  // as "everything except the children".
+  // FOREGROUNDS PAINT AFTER THE CHILDREN, so they are not part of the
+  // node's own paint. That is the contiguous PREFIX up to the children
+  // loop, which is not the same thing as "everything except the children".
   if (emitChildren && emitMarks)
     for (size_t i = 0; i < node.foregrounds.size(); ++i)
       paintMark(node.foregrounds[i], detail::MarkSlot::Foreground, i);

@@ -3,6 +3,7 @@
 // bakes wherever the node sits.
 
 #include <sigilmaterial/skia/Paint.h>
+
 #include <utility>
 
 #include "support/BrushTestSupport.h"
@@ -200,7 +201,8 @@ Element board(int i) {
       .height(11)
       .rotate(ang)
       .shape(skiaShape([shape] { return shape; }))
-      .fill(material::from(material::skia::base(material::skia::sksl(boardGrain())))
+      .fill(material::from(
+                material::skia::base(material::skia::sksl(boardGrain())))
                 .effects(material::Filter::bevel(
                     {.depth = 0.8f,
                      .size = 1.2f,
@@ -241,8 +243,7 @@ enum class Ground { Black, LitIsolated };
 Element latticeScene(Cache mode, Ground ground) {
   Element g = lattice(mode);
   if (ground == Ground::LitIsolated)
-    g.filter(
-        material::skia::filter(SkImageFilters::Offset(0, 0, nullptr)));
+    g.filter(material::skia::filter(SkImageFilters::Offset(0, 0, nullptr)));
   Element wrapped = box()
                         .cache(Cache::None)
                         .absolute()
@@ -257,13 +258,11 @@ Element latticeScene(Cache mode, Ground ground) {
   return root.children({std::move(wrapped)});
 }
 
-/** Both hosts, same frame, same numbers, promotion off on BOTH so the only
- *  difference between them is the Cache mode on the lattice. */
+/** Both hosts, same frame, same numbers, so the only difference between
+ *  them is the Cache mode on the lattice. */
 struct GroupPair {
   Host on{240, 240}, off{240, 240};
   explicit GroupPair(Ground ground = Ground::Black) {
-    on.composer.setAutoTexturePromotion(false);
-    off.composer.setAutoTexturePromotion(false);
     on.composer.setProfiling(true);
     setBoardPhase(0.0);
     // Rendered ONCE. A node carrying a shape callable compares unequal on
@@ -451,7 +450,8 @@ TEST(ComposeCache, AGroupsOwnFadeDoesNotDropItsBake) {
   // composite exactly. Including them in the memo would have cost the bake
   // on every frame of every entrance, for a change the bake does not
   // contain.
-  static sigil::motion::Animatable<float> groupFade = sigil::motion::animatable(1.0f);
+  static sigil::motion::Animatable<float> groupFade =
+      sigil::motion::animatable(1.0f);
   const auto scene = [](Cache mode) {
     Element g = lattice(mode).opacity(groupFade);
     return stack().children({box()
@@ -464,8 +464,6 @@ TEST(ComposeCache, AGroupsOwnFadeDoesNotDropItsBake) {
                                  .children({std::move(g)})});
   };
   Host on(240, 240), off(240, 240);
-  on.composer.setAutoTexturePromotion(false);
-  off.composer.setAutoTexturePromotion(false);
   on.composer.setProfiling(true);
   setBoardPhase(kGroupDone + 0.4);  // the boards hold still…
   groupFade = 1.0f;
@@ -507,7 +505,6 @@ namespace {
  *  state over ten settled frames? */
 bool groupBakesWith(Element extra) {
   Host host(240, 240);
-  host.composer.setAutoTexturePromotion(false);
   host.composer.setProfiling(true);
   setBoardPhase(kGroupDone + 0.4);
   Element g = lattice(Cache::Group).children({std::move(extra)});
@@ -543,13 +540,14 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
   // A LIVE MATERIAL. uTime moves pixels every frame with no float anywhere in
   // the tree to compare, so a group holding a bake across one would blit last
   // second's picture forever.
-  EXPECT_FALSE(groupBakesWith(
-      plainExtra().fill(material::skia::base(material::skia::sksl(heavyEffect(true))))))
+  EXPECT_FALSE(groupBakesWith(plainExtra().fill(
+      material::skia::base(material::skia::sksl(heavyEffect(true))))))
       << "a group baked over a live material";
 
   // A NON-SRCOVER BLEND below the root: inside the bake it resolves against
   // transparent black instead of against the ground.
-  EXPECT_FALSE(groupBakesWith(plainExtra().blendMode(material::BlendMode::Multiply)))
+  EXPECT_FALSE(
+      groupBakesWith(plainExtra().blendMode(material::BlendMode::Multiply)))
       << "a group baked over a kMultiply child, which resolves against "
          "transparent black inside a bake";
 
@@ -560,7 +558,8 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
 
   // An ANIMATED DECORATION: the same argument as the live material, one
   // level out from the fill.
-  static sigil::motion::Animatable<float> dash = sigil::motion::animatable(0.0f);
+  static sigil::motion::Animatable<float> dash =
+      sigil::motion::animatable(0.0f);
   PathFormat marching = stroke(2.0f, Fill::color({1, 1, 1, 1}));
   marching.dashIntervals = {4.0f, 4.0f};
   marching.dashPhaseBinding = dash;
@@ -575,9 +574,9 @@ TEST(ComposeCache, AMovingGroupRidesOneLocalBakeRatherThanRemakingIt) {
   // transform is declared as moving holds its settled subtree as ONE local
   // bake and blits it through the motion, rather than remaking a device
   // bake at every position.
-  static sigil::motion::Animatable<float> slide = sigil::motion::animatable(0.0f);
+  static sigil::motion::Animatable<float> slide =
+      sigil::motion::animatable(0.0f);
   Host host(240, 240);
-  host.composer.setAutoTexturePromotion(false);
   host.composer.setProfiling(true);
   setBoardPhase(kGroupDone + 0.4);
   slide = 0.0f;

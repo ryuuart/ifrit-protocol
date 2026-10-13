@@ -14,7 +14,6 @@
 #include <src/core/SkScopeExit.h>
 
 #include <algorithm>
-#include <any>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -22,20 +21,6 @@
 namespace sigil::compose {
 
 namespace {
-
-/** Retained guests inherit policy from the pen executing the program,
- *  including the graphics buffer's pen. */
-void lendPolicy(draw::Pen& pen, PromotionPolicy promotion) {
-  pen.retained().host() = promotion;
-}
-
-/** What was lent, or the default a composer starts under where nothing
- *  was — a pen no program holds, or a slot another host keeps. */
-PromotionPolicy hostPolicy(draw::Pen& pen) {
-  const PromotionPolicy* lent =
-      std::any_cast<PromotionPolicy>(&pen.retained().host());
-  return lent ? *lent : PromotionPolicy::ByCost;
-}
 
 /** The pen a node draws with, and what the paint context does not
  *  carry: the step since the last frame and the count of frames. */
@@ -82,7 +67,6 @@ PaintProgram penPainter(PenProgram program) {
     held->pen.begin(canvas, held->nextFrame(ctx));
     const SkScopeExit endFrame([&] { held->pen.end(); });
     held->pen.inherit(ctx.ink, ctx.font);
-    lendPolicy(held->pen, ctx.promotion);
     program(held->pen, ctx);
   };
 }
@@ -146,7 +130,6 @@ PaintProgram graphicsPainter(PenProgram program) {
       draw::Pen& g = held->surface->begin(held->host.pen);
       const SkScopeExit endSurface([&] { held->surface->end(); });
       g.inherit(inheritedInk, ctx.font);
-      lendPolicy(g, ctx.promotion);
       if (shouldRun(g, *held)) {
         // The program's own clock, as p5 keeps it: the count counts runs,
         // and the step is the time since the last one, so a program under
@@ -169,13 +152,10 @@ struct RetainedGuest {
   /** A changed borrowed font context requires a new composer. */
   weave::FontContext* fonts = nullptr;
   std::unique_ptr<Composer> composer;
-  /** Apply policy only when it changes; disabling it walks retained caches. */
-  std::optional<PromotionPolicy> promotion;
   explicit RetainedGuest(weave::FontContext& context) { adopt(context); }
   void adopt(weave::FontContext& context) {
     fonts = &context;
     composer = std::make_unique<Composer>(engine, context);
-    promotion.reset();
   }
 };
 
@@ -251,15 +231,6 @@ void paintRetained(draw::Pen& pen, const Element& element,
   // the guest is kept across frames and the reference it holds is not
   // this pen's to assume.
   if (guest.fonts != fonts) guest.adopt(*fonts);
-  // THE SAME RULE AS THE HOST'S: a capture that pinned the session's
-  // promoter off reaches this composer too, and a run testing promotion
-  // reaches it as well — the guest is the same runtime making the same
-  // measured decision on the same capture.
-  if (const PromotionPolicy policy = hostPolicy(pen);
-      guest.promotion != policy) {
-    guest.composer->setAutoTexturePromotion(policy);
-    guest.promotion = policy;
-  }
   // The host has already chosen the frame's movement. A stated step is
   // passed through unchanged, including a fixed-step capture's long frame.
   const motion::Duration step(pen.deltaTime / 1000.0);

@@ -290,17 +290,8 @@ class PythonSession final : public Session {
   void redeclare() override {
     invoke([&] { m_session->redeclare(); });
   }
-  void setAutoPromotion(Promotion policy) override {
-    invoke([&] { m_session->setAutoPromotion(policy); });
-  }
   void setProfiling(bool on) override {
     invoke([&] { m_session->setProfiling(on); });
-  }
-  void setCompositeCounting(bool on) override {
-    invoke([&] { m_session->setCompositeCounting(on); });
-  }
-  CompositeCounts compositeCounts() const override {
-    return m_session->compositeCounts();
   }
   void setBakeDensity(float density) override {
     invoke([&] { m_session->setBakeDensity(density); });

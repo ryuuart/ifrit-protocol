@@ -38,8 +38,6 @@ void bindSketchPlates(py::module_& module) {
       .def_readonly("worstOverContent", &PlateComparison::worstOverContent)
       .def_readonly("worstOverGraze", &PlateComparison::worstOverGraze)
       .def_readonly("grazingPixels", &PlateComparison::grazingPixels)
-      .def_readonly("worstPerComposite", &PlateComparison::worstPerComposite)
-      .def_readonly("stackedPixels", &PlateComparison::stackedPixels)
       .def("__str__", &comparisonLine);
   py::class_<Comparison>(sketches, "Comparison")
       .def_readonly("plates", &Comparison::plates)

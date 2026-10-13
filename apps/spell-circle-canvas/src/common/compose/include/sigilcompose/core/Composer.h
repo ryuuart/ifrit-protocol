@@ -385,10 +385,10 @@ class Composer {
     size_t texturesLive = 0;    ///< Cache::Texture images held
     /** CACHE WRITES last draw() — every recording AND every pixel bake.
      *
-     *  The name is narrower than the number: `Cache::Texture` bakes and
-     *  library-promoted bakes count here too, so this answers "how much
-     *  cache work did that frame do". `texturesBaked` breaks out the
-     *  pixel-bake subset. */
+     *  The name is narrower than the number: `Cache::Texture` and
+     *  `Cache::Group` bakes count here too, so this answers "how much cache
+     *  work did that frame do". `texturesBaked` breaks out the pixel-bake
+     *  subset. */
     size_t picturesRecorded = 0;
     size_t texturesBaked = 0;  ///< of those, bakes rather than recordings
     size_t nodesPainted = 0;   ///< instances painted live last draw()
@@ -434,15 +434,9 @@ class Composer {
    *  named separately rather than collapsed into "cached", because they
    *  cost radically different amounts — see the note above. */
   enum class CacheState : uint8_t {
-    Live,      ///< painted from scratch
-    Picture,   ///< replayed a recording — RE-RUNS every shader, every pixel
-    Texture,   ///< blitted a raster bake — the author asked for it
-    Promoted,  ///< blitted a raster bake the LIBRARY decided to make
-    /** Blitted the node's OWN paint and drew its live children over it.
-     *  Volatility is declared per node, so a static ground plane carrying
-     *  one moving child shares the child's verdict and loses; this state
-     *  says the two were separated. */
-    SplitOwn,
+    Live,     ///< painted from scratch
+    Picture,  ///< replayed a recording — RE-RUNS every shader, every pixel
+    Texture,  ///< blitted a raster bake — the author asked for it
     /** Blitted a whole-subtree bake held by `Cache::Group`'s value memo:
      *  the node AND its animated children, composited once into one
      *  unrotated device layer while every bound scalar below holds still.
@@ -451,65 +445,15 @@ class Composer {
      *  provably NOT CHANGING RIGHT NOW, and the difference is one frame. */
     Group,
   };
-  /** WHY a node is, or is not, a pixel bake.
-   *
-   *  Promotion refusals are individually correct and individually
-   *  invisible, so an expensive live-painted node is otherwise a dead end
-   *  for an author. Every profiled node carries its reason here. Each
-   *  refusal value names a condition under which a bake would produce
-   *  DIFFERENT PIXELS, which is the one thing promotion may never do. */
-  enum class Promotion : uint8_t {
-    Cheap,        ///< under the cost threshold — promoting it would not pay
-    Warming,      ///< expensive, counting the consecutive frames before a bake
-    Promoted,     ///< baked by the library
-    AskedFor,     ///< Cache::Texture — the author's own bake, not a decision
-    OptedOut,     ///< Cache::Picture / Cache::None, or promotion switched off
-    Volatile,     ///< its content genuinely changes every frame
-    Composited,   ///< opacity < 1 or a non-srcOver blend: a bake would round
-                  ///< twice
-    Transformed,  ///< rotated, skewed or mirrored — a bake would resample
-    Filtered,     ///< layer/backdrop effect or clip on the node itself
-    /** Something in the subtree composites against what is already on the
-     *  canvas — a non-srcOver blend or a backdrop filter, on this node or
-     *  any descendant. A bake would resolve it against transparent black.
-     *  Separated from Filtered because the remedy is different: a clip is
-     *  the author's own node to change, whereas this can be a blend three
-     *  levels down that they will not find without being told. */
-    ReadsBackdrop,
-    TooBig,  ///< beyond the per-bake area cap or the composer's bake budget
-    /** The node's OWN paint is baked and its volatile children are painted
-     *  live over the blit. Not a refusal — the outcome for a node whose
-     *  static self was being re-rasterized every frame to redraw a moving
-     *  child on top of it. */
-    SplitBaked,
-    /** The node hosts a shared 3D space (`Element::preserve3d`): its
-     *  children stand on planes of their own, drawn on the plane beneath
-     *  it, so it has no layer of its own to bake. It paints live and the
-     *  children keep their own caches. */
-    HostsSpace,
-  };
-  /** One node's share of the last frame, with the reason it was or was
-   *  not promoted to a cached bake. This is the per-node companion to
-   *  Stats: Stats says the tree is re-rasterizing, these say which
-   *  node is doing it and what refused the bake. */
+  /** One node's share of the last frame and how it produced its pixels.
+   *  This is the per-node companion to Stats: Stats says the tree is
+   *  re-rasterizing, these say which node is doing it. */
   struct NodeCost {
     std::string label;   ///< key() if set, else kind + size — actionable
     double selfMs = 0;   ///< this node's own paint, EXCLUDING children
     double totalMs = 0;  ///< including children
     int depth = 0;
     CacheState cacheState = CacheState::Live;
-    Promotion promotion = Promotion::Cheap;
-    /** EVERY condition that refused a bake, not just the first one.
-     *
-     *  `promotion` is a first-match verdict, so a node that is both
-     *  volatile and clipped reports only `Volatile`, and fixing the
-     *  volatility then reveals a second refusal that was never mentioned.
-     *  This mask carries all of them at once; `promotion` stays the
-     *  primary outcome.
-     *
-     *  The bit index IS the Promotion ordinal, so there is no second table
-     *  to drift out of sync with the enum. */
-    uint16_t refusals = 0;
     /** Is the node's layer effect applied OVER its bake rather than
      *  inside the raster that makes it? Lifted out, the effect is one
      *  image draw over the finished bake and a re-bake pays its content
@@ -517,13 +461,8 @@ class Composer {
      *  band every time the node bakes. Set on a node that holds a bake and
      *  wears an effect the library could lift; false everywhere else. */
     bool effectDeferred = false;
-    bool refused(Promotion p) const {
-      return (refusals & (uint16_t)(1u << (unsigned)p)) != 0;
-    }
     bool cached() const { return cacheState != CacheState::Live; }
   };
-  /** One short phrase for a Promotion, for printing next to a cost. */
-  static const char* promotionReason(Promotion p);
   /** Whether every draw() times its nodes and fills `profile()`. Off
    *  when nothing said otherwise: the timing calls are cheap but not
    *  free. */
@@ -534,147 +473,13 @@ class Composer {
    *  profiling is off. */
   const std::vector<NodeCost>& profile() const;
 
-  /** HOW MANY DEVICE BLITS EACH PIXEL WAS UNDER.
-   *
-   *  A cached raster is a composite the live paint does not make: the
-   *  node's coverage is rounded into the bake's own eight bits, and the
-   *  bake is then rounded again onto whatever it lands on. What that
-   *  costs a pixel is bounded per composite, so the bound a whole picture
-   *  stands under is a bound PER PIXEL times the number of composites
-   *  that pixel passed through — and nothing else in the library reports
-   *  that number. A picture that differs from its live paint by more than
-   *  one composite's worth is either a bake landing on another bake's
-   *  output or a bound that was never true; the plane tells the two
-   *  apart, per pixel, on the picture itself rather than on a fixture.
-   *
-   *  Counted are the blits: a pixel is under one when the image being
-   *  blitted carries a nonzero alpha there, because a blit that
-   *  contributes nothing rounds nothing. Sizing follows the canvas the
-   *  frame is drawn on, in that canvas's own device pixels, so a plane
-   *  and the plate taken from the same draw index alike.
-   *
-   *  It costs a readback of every bake, so it is off unless asked for and
-   *  a host asks for one draw rather than a run. */
-  void setCompositeCounting(bool on);
-  /** Whether the next draw() will count composites. */
-  bool compositeCounting() const;
-  /** The plane the last counted draw() produced. Saturating, because a
-   *  pixel under 255 composites is a fact no eighth bit refines. */
-  struct CompositePlane {
-    int width = 0;                ///< device pixels across, the canvas's own
-    int height = 0;               ///< device pixels down
-    std::vector<uint8_t> counts;  ///< row-major, one saturating count each
-    /** The count at a device pixel; zero outside the plane. */
-    uint8_t at(int x, int y) const {
-      if (x < 0 || y < 0 || x >= width || y >= height) return 0;
-      return counts[(size_t)y * (size_t)width + (size_t)x];
-    }
-  };
-  /** The plane the last counted draw() produced; empty when counting was
-   *  never switched on. */
-  const CompositePlane& compositePlane() const;
   /** @} */
 
   /** @name Settings
    *  What the composer is told about the surface it draws onto and the
-   *  input arriving over it: how eagerly to bake, at what density, and
+   *  input arriving over it: at what density to bake, and
    *  where the pointer and the keyboard are.
    *  @{ */
-
-  /** WHAT DECIDES A PROMOTION — never what a promotion is allowed to do.
-   *
-   *  `ByCost` is the library's own judgement and the default: a node is
-   *  baked once its paint has measured over the threshold for several
-   *  consecutive frames. That decision is a STOPWATCH, so which nodes are
-   *  promoted depends on how busy the machine is: one binary drawing one
-   *  scene promotes a different set of nodes on a loaded machine than on
-   *  an idle one, and on an idle one it may promote nothing at all.
-   *
-   *  `Eager` bakes every node the promoter is ALLOWED to bake, from its
-   *  first frame, whatever the node costs. Every eligibility rule stands
-   *  unchanged — a node whose bake would paint different pixels is
-   *  refused here exactly as it is under `ByCost`, and reports the same
-   *  reason — and only the cost question is skipped. A run that means to
-   *  TEST promotion asks for this: the promoted set is then a property of
-   *  the scene, identical on every machine, and it is the whole
-   *  promotable set rather than the few nodes that happened to be slow.
-   *  It is not a performance mode: a bake nobody needed costs the bake. */
-  using PromotionPolicy = compose::PromotionPolicy;
-  /** AUTOMATIC TEXTURE PROMOTION. On by default on CPU raster; OFF by
-   *  default on a Graphite/GPU surface, because the cost model driving it
-   *  measures op-RECORDING time, which describes raster work and not GPU
-   *  work. This setter overrides in both directions.
-   *
-   *  A provably-static `Cache::Auto` subtree already caches as an
-   *  SkPicture — but a picture records the DRAW CALLS, so replaying it
-   *  re-runs every shader over every pixel, forever. It saves the describe
-   *  and the layout, not the pixels. Promotion is what turns an expensive
-   *  static node into an actual blit: the composer watches how long each
-   *  static node's paint costs, and once a node has been expensive for
-   *  several consecutive frames it bakes that subtree ONCE into a raster
-   *  image and blits it thereafter.
-   *
-   *  THREE KINDS OF NODE ARE ELIGIBLE:
-   *
-   *  1. A cached subtree whose picture replay is expensive.
-   *  2. A LEAF that never records a picture at all. Bare boxes are
-   *     deliberately excluded from picture recording, since one drawRect
-   *     beats a nested recording — but a full-canvas box carrying one
-   *     costly shader is exactly such a leaf, and it is often the single
-   *     most expensive object in a frame. Leaves are measured.
-   *  3. A node whose only volatility is a LIVE MATERIAL that has not
-   *     actually moved since the bake. `Material::quantizeTime(hz)` steps
-   *     its uniforms hz times a second, so most frames resolve to the SAME
-   *     shader and the previous bake is still exact. A material bound to a
-   *     continuous live value resolves to a new shader every frame, never
-   *     reaches that stability, and stays live — the library measures
-   *     which it is rather than assuming.
-   *
-   *  Re-baking is not free, so a node holds its promotion only while it is
-   *  actually stable: a bake per frame would cost more than the replay it
-   *  replaced.
-   *
-   *  IT MUST NOT MOVE A PIXEL, and that is enforced structurally rather
-   *  than hoped for: promotion is refused unless the node maps to device
-   *  space with no rotation, mirroring or skew, and the bake is then taken
-   *  in DEVICE space at an integer-snapped rect and blitted back with the
-   *  matrix reset and no resampling. An integer device-space translation
-   *  cannot alter rasterisation, so every fully covered pixel of the blit
-   *  is the pixel the live paint would have produced. Anything outside
-   *  that envelope keeps painting as it did.
-   *
-   *  It is exact to the pixel and not to the code value: an antialiased
-   *  edge is stored in the bake as 8-bit premultiplied coverage and
-   *  composited from there, where the live draw blends its coverage
-   *  against the backdrop in one step, and the two agree only to within
-   *  1 LSB along the edge. Because promotion is decided by a measured
-   *  cost, which load can tip either way, a capture that will be diffed
-   *  turns it off here rather than accept an edge that depends on how busy
-   *  the machine was.
-   *
-   *  The refusals that look most like missed wins are the honest ones. A
-   *  leaf at `opacity(0.13).blendMode(kSoftLight)` — the paper-grain idiom,
-   *  and often the most expensive node in a tree — cannot be promoted:
-   *  compositing a bake applies the alpha to an already-rounded 8-bit
-   *  colour, while the direct draw applies it to the shader's float
-   *  output, and the two agree only to within 1 LSB. Ask for that one
-   *  yourself with `.cache(Cache::Texture)` — an author who types it has
-   *  accepted the rounding; the library will not accept it on your behalf.
-   *
-   *  Why a given node was or was not promoted is reported per node as
-   *  NodeCost::promotion.
-   *
-   *  Opting out: globally here, or per node with `.cache(Cache::Picture)`,
-   *  which means "record, and never promote". `Cache::Texture` is the
-   *  opposite opt-in and is unaffected. */
-  void setAutoTexturePromotion(PromotionPolicy policy);
-  /** The two-state form: false is `Off`, true is `ByCost`. */
-  void setAutoTexturePromotion(bool on);
-  /** The policy in force, which is the surface's own default until a
-   *  host overrides it. */
-  PromotionPolicy autoTexturePromotionPolicy() const;
-  /** Whether anything may be promoted at all — the policy is not `Off`. */
-  bool autoTexturePromotion() const;
 
   /** A PIXEL BAKE IS A PICTURE OF THE CANVAS, NOT OF THE VIEW.
    *

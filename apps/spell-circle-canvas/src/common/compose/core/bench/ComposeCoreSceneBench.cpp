@@ -232,7 +232,6 @@ BENCHMARK(BM_Draw_ChargedDisc_Live)->Arg(1)->Arg(4)->Arg(16)->Arg(64);
 static void BM_Draw_HeldTexture_SubtreeScaling(benchmark::State& state) {
   const int count = (int)state.range(0);
   Host host(256, 256);
-  host.composer.setAutoTexturePromotion(false);
   host.composer.setBakeDensity(1.0f);
   Element subtree = box().width(256).height(256).cache(Cache::Texture);
   for (int i = 0; i < count; ++i) {

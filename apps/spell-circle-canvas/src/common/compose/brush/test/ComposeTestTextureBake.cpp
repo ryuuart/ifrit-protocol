@@ -1,7 +1,10 @@
 // The texture bake under a transform: a quarter turn, a layer of the bake's
-// own, and a host perspective the bake either tracks or refuses.
+// own, and a host perspective the bake either tracks or refuses; and what a
+// cached node keeps of a wire mounted over it, of its bleed and of its
+// settled opacity.
 
 #include <sigilmaterial/paint/Bases.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <limits>
 #include <stdexcept>
@@ -197,34 +200,6 @@ double meanInkDiff(Host& a, Host& b, int w, int h) {
 
 }  // namespace
 
-TEST(ComposeCache, PromotionRefusesAHostPerspectiveCtm) {
-  // Guard #1, promotion's `upright` gate: a perspective CTM must read as
-  // Transformed — a device bake under it would pin a projected quad to an
-  // axis-aligned rect. The no-perspective arm is the positive control: the
-  // SAME node under the same harness PROMOTES, so a silently widened gate
-  // fails the arm that proves the refusal was the guard's doing.
-  for (bool perspective : {false, true}) {
-    Host host(300, 300);
-    host.composer.setProfiling(true);
-    host.composer.render(profiledUnder(
-        expensivePanel().absolute().left(40).top(40).key("underCamera")));
-    const SkMatrix camera = perspective ? hostCamera(0.0012f) : SkMatrix::I();
-    for (int i = 0; i < 30; ++i) frameUnder(host, camera);
-    const Composer::NodeCost* row = requireRow(host.composer, "underCamera");
-    ASSERT_NE(row, nullptr);
-    if (perspective) {
-      EXPECT_NE(row->cacheState, Composer::CacheState::Promoted)
-          << "promoted a node under a host perspective CTM";
-      EXPECT_TRUE(row->refused(Composer::Promotion::Transformed))
-          << "the refusal must name the geometry";
-    } else {
-      EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted)
-          << "the control arm did not promote — the refusal assertion above "
-             "is not testing the perspective guard";
-    }
-  }
-}
-
 namespace {
 
 /** Smooth content for the projected-bake meter: a ramp panel with thick
@@ -252,9 +227,9 @@ Element rampPanel(bool cached) {
 }  // namespace
 
 TEST(ComposeCache, ATextureBakeUnderPerspectiveTracksTheCamera) {
-  // Guard #3, the Cache::Texture device bake: under a perspective CTM the
-  // node must fall back to the matrix-independent LOCAL bake (unpromoted
-  // in the device sense) rather than bake a device-rect-pinned texture.
+  // The Cache::Texture device bake: under a perspective CTM the
+  // node must fall back to the matrix-independent LOCAL bake rather than
+  // bake a device-rect-pinned texture.
   // Pinned through what an author can see: the baked node's pixels track
   // the camera, frame over frame, staying near the uncached twin — a
   // device-pinned texture would replay the OLD projection after the
@@ -331,8 +306,6 @@ TEST(ComposeCache, SparseFurnitureSurvivesAFractionalCaptureScale) {
   Host cached(1440, 1052), plain(1440, 1052);
   cached.composer.render(scene(Cache::Texture));
   plain.composer.render(scene(Cache::None));
-  cached.composer.setAutoTexturePromotion(false);
-  plain.composer.setAutoTexturePromotion(false);
   for (int i = 0; i < 3; ++i) cached.frame();
   for (Host* host : {&cached, &plain}) {
     host->surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2400, 1754));
@@ -372,8 +345,6 @@ TEST(ComposeCache, AnOversizedLocalBakeReplacesADeviceBakeWithLivePaint) {
                        .children({box().width(12).height(12).fill(blue())})});
   };
   Host plain, cached;
-  plain.composer.setAutoTexturePromotion(false);
-  cached.composer.setAutoTexturePromotion(false);
   cached.composer.setProfiling(true);
   plain.composer.render(scene(Cache::None));
   cached.composer.render(scene(Cache::Texture));
@@ -398,7 +369,6 @@ TEST(ComposeCache, UnrepresentableBakeDimensionsPaintLive) {
   for (Cache cache : {Cache::Texture, Cache::Group}) {
     Host host;
     auto scale = motion::animatable(1.0f);
-    host.composer.setAutoTexturePromotion(false);
     host.composer.setBakeDensity(std::numeric_limits<float>::max());
     host.composer.render(box()
                              .cache(Cache::None)
@@ -420,11 +390,10 @@ TEST(ComposeCache, UnrepresentableBakeDimensionsPaintLive) {
   }
 }
 
-TEST(ComposeCache, ABakeExceptionRestoresPromotionEligibility) {
+TEST(ComposeCache, ABakeExceptionLeavesTheNextBakeToBeTaken) {
   for (Cache cache : {Cache::Texture, Cache::Picture}) {
     Host host;
     auto scale = motion::animatable(1.0f);
-    host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
     host.composer.setProfiling(true);
     Element failing = custom([] { throw std::runtime_error("paint failed"); })
                           .width(80)
@@ -437,44 +406,24 @@ TEST(ComposeCache, ABakeExceptionRestoresPromotionEligibility) {
       EXPECT_THROW(host.frame(), std::runtime_error);
     }
 
-    host.composer.render(
-        box()
-            .cache(Cache::None)
-            .children(
-                {box().key("recovered").width(80).height(80).fill(red())}));
+    host.composer.render(box()
+                             .cache(Cache::None)
+                             .children({box()
+                                            .key("recovered")
+                                            .width(80)
+                                            .height(80)
+                                            .fill(red())
+                                            .cache(Cache::Texture)}));
     host.frame();
     const Composer::NodeCost* row = requireRow(host.composer, "recovered");
     ASSERT_NE(row, nullptr);
-    EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted);
+    EXPECT_EQ(row->cacheState, Composer::CacheState::Texture);
     EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
   }
 }
 
-TEST(ComposeCache, AnInvisibleBakeExceptionRestoresCompositeCounting) {
+TEST(ComposeCache, ACoverageExceptionRetriesTheTraceAndLeavesTheNextBake) {
   Host host;
-  auto opacity = motion::animatable(0.0f);
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
-  host.composer.setCompositeCounting(true);
-  host.composer.render(custom([] { throw std::runtime_error("paint failed"); })
-                           .width(80)
-                           .height(80)
-                           .opacity(motion::bind(opacity))
-                           .cache(Cache::Texture));
-  EXPECT_THROW(host.frame(), std::runtime_error);
-  host.composer.render(box()
-                           .cache(Cache::None)
-                           .children({box().width(80).height(80).fill(red())}));
-  host.frame();
-  const Composer::CompositePlane& plane = host.composer.compositePlane();
-  ASSERT_GT(plane.width, 40);
-  ASSERT_GT(plane.height, 40);
-  EXPECT_GT(plane.counts[40 * plane.width + 40], 0);
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
-}
-
-TEST(ComposeCache, ACoverageExceptionRetriesTheTraceAndRestoresPromotion) {
-  Host host;
-  host.composer.setAutoTexturePromotion(false);
   bool fail = false;
   int paintRuns = 0;
   host.composer.render(
@@ -502,15 +451,79 @@ TEST(ComposeCache, ACoverageExceptionRetriesTheTraceAndRestoresPromotion) {
   EXPECT_EQ(paintRuns, beforeRetry + 2);
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB(20, 32, 28, 64)));
 
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
   host.composer.setProfiling(true);
-  host.composer.render(
-      box()
-          .cache(Cache::None)
-          .children({box().key("recovered").width(80).height(80).fill(red())}));
+  host.composer.render(box()
+                           .cache(Cache::None)
+                           .children({box()
+                                          .key("recovered")
+                                          .width(80)
+                                          .height(80)
+                                          .fill(red())
+                                          .cache(Cache::Texture)}));
   host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "recovered");
   ASSERT_NE(row, nullptr);
-  EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Texture);
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+}
+
+TEST(ComposeCache, AnAddedWireSurvivesParentCaching) {
+  // A wire is mounted by an operator AFTER the parent has been described,
+  // and it reaches across the whole span between the nodes it joins. The
+  // parent's recording cull has to account for it, or the wire is drawn on
+  // the first frame and clipped away by every cached replay after it.
+  Host host;
+  host.composer.render(
+      box()
+          .children(
+              {box().absolute().inset(90, 160, 90, 20).fill(red()).key("a"),
+               box().absolute().inset(90, 20, 90, 160).fill(red()).key("b")})
+          .operators({connect::Between{
+              .from = "a", .to = "b", .wire = stroke(4, green())}}));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the wire, mid-span
+  host.frame();                                    // cached replay
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
+}
+
+TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
+  // A texture bake must cover the node's PAINT bounds, not its box: a
+  // decoration that bleeds outside the box (here a shadow offset well past
+  // it) is silently cropped away by a bake sized to the node.
+  Host host;
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(70)
+           .cache(Cache::Texture)
+           .background(Shadow{Fill::color({0, 1, 0, 1}), {30, 0}, 0})
+           .fill(red())}));
+  host.frame();
+  EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // shadow past the box
+}
+
+TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
+  // When an opacity transition settles, the leaf's recording must be re-baked:
+  // the recording made while opacity was 1 folded the fill straight into the
+  // draw, and replaying it under the settled 0.4 would show the leaf at full
+  // strength. The second frame() draws only from caches, which is where a
+  // missed re-bake shows up.
+  Host host;
+  auto tree = [](motion::Animatable<float> op) {
+    return box().children({box()
+                               .width(80)
+                               .height(80)
+                               .fill(Fill::color({1, 0, 0, 1}))
+                               .opacity(std::move(op))});
+  };
+  host.composer.render(tree(1.0f));
+  host.frame();
+  host.composer.render(
+      tree(motion::animate({.to = 0.4f,
+                            .duration = std::chrono::milliseconds(100),
+                            .ease = motion::ease::linear})));
+  host.frame(0.5);  // settled at 0.4
+  host.frame();     // draw again from caches
+  const SkColor c = host.pixel(40, 40);
+  EXPECT_NEAR(SkColorGetR(c), 102, 12);  // 0.4 · 255 on black
 }

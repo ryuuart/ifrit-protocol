@@ -2,12 +2,12 @@
 
 A chapter of [SigilCompose's README](../README.md).
 
-The library caches provably-static subtrees on its own. A `Cache::Auto`
-subtree with nothing volatile in it records into a picture; a node that has
-been expensive for several consecutive frames may be re-baked into a raster
-image and blitted thereafter. None of that is safe unless "static" is
-*true*, and nothing in the library can introspect a type-erased value to
-find out.
+The library records provably-static subtrees on its own: a `Cache::Auto`
+subtree with nothing volatile in it records into a picture and replays it
+until something it paints changes. Pixel bakes are the author's —
+`Cache::Texture` and `Cache::Group` ask for them. None of that is safe
+unless "static" is *true*, and nothing in the library can introspect a
+type-erased value to find out.
 
 **So anything that changes without a re-describe must say so.** Concretely:
 
@@ -66,10 +66,9 @@ into and composited back on every bake — and that layer, not the filter's
 arithmetic, is most of what an effect over a large node costs: a small
 sigma paid nearly what a large one did. The picture is the same one, and
 the blit is untouched. The tier is the author's own bake only
-(`Cache::Texture`; automatic promotion refuses a filtered node outright),
-and it is refused to a masked node, a `backdropFilter()`, and a node whose
-subtree composites against the canvas — the same list the live tier
-refuses.
+(`Cache::Texture`), and it is refused to a masked node, a
+`backdropFilter()`, and a node whose subtree composites against the
+canvas — the same list the live tier refuses.
 
 The effect stays on the *bake* and never moves onto the *blit*, which is
 where a live effect goes. A filter on a blit's paint is evaluated per
@@ -121,9 +120,7 @@ resolution exactly as it does for a node that moves itself, and the device
 bake is taken once no declaration above or on the node moves. A
 `Cache::Group` node follows the same rule: its settled subtree is held in
 local space while it or an ancestor moves, or its device rect does, and in
-device space once all of them hold still. Automatic promotion is not this
-tier and is not changed by it: it takes device bakes only, remade whenever
-the matrix they stand under moves.
+device space once all of them hold still.
 
 A group needs two observations before holding its pixels. An eligible group
 inside a retained picture requests one follow-up draw, including after its
@@ -174,20 +171,15 @@ nothing. A device-space region cannot safely restrict this blit when a
 capture changes scale or an effect evaluates the picture on an intermediate
 surface, so local bakes carry no separately cached clipping grid.
 
-**A PROMOTED NODE PAINTS THE PICTURE ITS LIVE PAINT PAINTS**, within one
-code value per channel, and that is the whole of what automatic promotion
-may cost. The one value is not slack for a bake to be approximately
-right: what a bake holds is an image of eight bits a channel, premultiplied
-by the coverage it was drawn with, and the blit composites from that — so
-a shaded pixel may land one code value from the live paint and nothing may
-land further. Every condition the promoter is held to follows from that —
-the bake carries the canvas's own clip, so an edge that leaves the canvas
-is cut the same way in both; it stands on the canvas's own grid, so the
-matrix it inverts is the live paint's to the bit; the node must be
-upright, since off-axis a blit at an absolute device rect is not the same
-picture at all; and nothing live may be inside the bake. A scene whose
-promoted frame differs from its unpromoted one by more than a value is a
-defect in this library, never a plate to rebase.
+**A DEVICE BAKE PAINTS THE PICTURE ITS LIVE PAINT PAINTS**, within one
+code value per channel. What a bake holds is an image of eight bits a
+channel, premultiplied by the coverage it was drawn with, and the blit
+composites from that — so a shaded pixel may land one code value from the
+live paint and nothing may land further. Every condition below follows
+from that: the bake carries the canvas's own clip, so an edge that leaves
+the canvas is cut the same way in both; it stands on the canvas's own grid,
+so the matrix it inverts is the live paint's to the bit; and it is taken
+with a margin, so the rasteriser takes the live paint's route.
 
 **AND THE CLIP IS PART OF WHAT THE BAKE IS.** Because the bake carries
 the canvas's clip in, what it holds is the node's paint AS THAT CLIP LEFT
@@ -233,8 +225,8 @@ SIZE.** Everything a node is given room in comes from its own paint
 bounds: the recording cull and the subtree union over it, the BOUNDED
 `saveLayer` a group opacity or blend composites through, the one a layer
 effect is run over, the surface a lifted filter runs over, the local and
-device texture bakes, the split bake's own half, and the alpha surface a
-coverage boundary is traced off. So the declared shape
+device texture bakes, and the alpha surface a coverage boundary is traced
+off. So the declared shape
 bounds every one of them, and a LAYER is the harsher case rather than the
 lenient one: a `saveLayer`'s bounds are a clip, so a layer that misses the
 node's ink DELETES it, where an allocation that misses it merely cuts what
@@ -259,28 +251,12 @@ into a layer and into a fresh offscreen is the same pixels, which
 `ADeviceBakeRasterisesOnItsLivePaintsRoute` holds.
 
 So no offset enters the layer's matrix at all. Every device bake — the
-promotion tier's, the split's, the group's and the device-space texture
-one — is painted under the node's own matrix on a surface standing at the
-canvas's origin, and the node's rect is taken off it as the image the blit
-replaces the paint with. The surface is SHARED, one per depth of nesting
+group's and the device-space texture one — is painted under the node's own
+matrix on a surface standing at the canvas's origin, and the node's rect
+is taken off it as the image the blit replaces the paint with. The surface is SHARED, one per depth of nesting
 and grown to the largest rect any bake has needed, so the grid costs a
 canvas rather than a canvas per node; what a node keeps is the image, and
 the rect it is measured to has one producer.
-
-AND THE CONTRACT CARRIES A THIRD CLAUSE STILL, FOR WHAT A ROUNDING COSTS
-AN EDGE. A PROMOTED MARK MAY STAND ONE STEP OF ITS OWN COVERAGE FROM ITS
-LIVE PAINT WHERE A CURVE GRAZES THE GRID. What one step costs a pixel is
-not a code value but whatever quantizer stands at that coordinate — a
-supersample bucket on a nearly tangent edge, the phase bucket a glyph mask
-is cached at — so the clause bounds the SHAPE of the difference rather
-than its size: it may reach only pixels whose difference is confined to an
-antialiased edge BOTH the promoted and the live picture draw, where the
-picture varies by at least the difference within a pixel of that point in
-each of them and so does every differing pixel beside it. That is one
-pixel's coverage of an edge the two agree about. A picture that MOVED
-shows the opposite — pixels taken off the edges, a mark that is gone, a
-wash at another value — and no clause admits it. The lane below measures
-the two apart and holds each to its own bar.
 
 The one value is the bake **over transparent black**. A bake that lands
 on CONTENT carries a second, and it is a rounding rather than a move: the
@@ -292,88 +268,36 @@ further out over a bright backdrop, and taking the bake at higher
 precision does not remove it. It appears only where the node's own alpha
 is partial; an opaque node over anything is exact.
 
-**AND THE SECOND VALUE IS PER COMPOSITE.** A bake is one composite and a
-pixel can stand under many: nothing nests, but independent nodes overlap,
-and a stack of concentric rings each promoted on its own puts seven or
-nine cached rasters over one pixel. Each of them rounds and the rounding
-does not decay — a flat wash through N bakes stands N code values from
-the same wash painted live, which
-`ACachedRasterCostsThePixelItLandsOnOneCodeValue` measures over every
-destination value, every source alpha and a spread of source colours. So
-what bounds a PICTURE is the two above times how many composites its
-pixels stood under, and a lane that judges a picture has to count them:
-`Composer::setCompositeCounting` tallies every device blit into a plane
-the size of the canvas, which is how the difference is priced. Anything
-beyond that is a picture that changed.
+**A NODE INSIDE A BAKE IS NOT BAKED AGAIN IN DEVICE SPACE.** A bake
+standing inside another node's bake is a composite the live paint does not
+make — the node's own coverage into its own image, that image into the
+layer above, and the layer above onto the canvas — and it buys nothing:
+the image of the bake above is what the blit lands, so the inner one would
+be consulted only on the frames that one is remade.
 
-**WHICH IS WHY A NODE INSIDE A BAKE IS NOT BAKED AGAIN.** Two composites
-is what the second value bounds, and a bake standing inside another node's
-bake makes three: the node's own coverage into its own image, that image
-into the layer above, and the layer above onto the canvas. It buys nothing
-either — the image of the bake above is what the blit lands, so the inner
-one is consulted only on the frames that one is remade, which is the
-measured cost being near zero and the cost rule never asking. Only the
-eager policy ever reached for it, and refusing it is a condition on the
-pixels rather than a change of policy, so `Eager` and `ByCost` refuse it
-alike.
+**A BAKE OFFERS WHAT IT HOLDS TRANSPARENT BLACK**, so anything that
+composites against what is already on the canvas is refused the bakes the
+library holds without being asked — a `Cache::Group` above it and the memo
+hold — and paints live.
 
-**AND SO DOES TYPE THAT ADDS RATHER THAN COVERS.** A glyph pass carries
+**SO DOES TYPE THAT ADDS RATHER THAN COVERS.** A glyph pass carries
 an `SkPaint` of its own, so a phrase set additively — the blend on the
 paint, which is where it belongs, since a blend on the NODE opens a layer
 every frame — composites against what is under the node exactly as a
 blended decoration does. Every paint a text node can carry is asked: the
 style's foreground and its under- and overlays, its line decorations,
 each run of a `weave::RichText` value, and each `span()` restyle. A
-node carrying one, and every ancestor, is refused the automatic bake and
-the memo hold, and the row says `ReadsBackdrop` — because a bake would
-offer that light transparent black instead of the ground, and the light
-comes back flat.
+node carrying one, and every ancestor, is refused the group bake and the
+memo hold — because a bake would offer that light transparent black
+instead of the ground, and the light comes back flat.
 
 **A PAINT PROGRAM OF ONE'S OWN READS THE BACKDROP.** A `custom()` leaf is
 handed the canvas and may draw with any blend mode — and a picture
 recorded elsewhere and replayed through one may hold any blend inside it.
 Nothing in this library can look inside a callable, so the refusal
 analysis counts such a node as compositing with the canvas: it and every
-ancestor are refused the automatic bake and the memo hold, and the row
-says `ReadsBackdrop`. The cost of the other reading is not a rounding — a
+ancestor are refused the group bake and the memo hold. The cost of the
+other reading is not a rounding — a
 plus-blended wash baked against transparent black lands a hundred code
 values from its live paint. An author who knows their program only draws
 over what it covers asks for the bake with `.cache(Cache::Texture)`.
-
-**WHAT DECIDES A PROMOTION IS A POLICY, AND ONE OF ITS VALUES HAS NO
-STOPWATCH IN IT.** `Composer::setAutoTexturePromotion` takes
-`PromotionPolicy::Off`, `ByCost` or `Eager`, and the policy a composer
-runs under reaches every program it paints as `PaintContext::promotion`,
-so a program that keeps a composer of its own — a pen's retained guest,
-a `TextureScene` — runs it under the same rule, and a capture that
-pinned the session's promoter off pins every composer built inside its
-paint. `ByCost` is the default and
-the library's own judgement: a node is baked once its paint has measured
-over the threshold for several consecutive frames, which means the set of
-nodes promoted is a fact about how busy the machine was — on an idle one
-it can be empty. `Eager` bakes every node the rules above admit, from its
-first frame, whatever it costs. Not one eligibility rule moves: a node
-whose bake would paint different pixels is refused under `Eager` exactly
-as under `ByCost` and reports the same reason. It is not a performance
-mode — a bake nobody needed costs the bake — it is how a run that means
-to TEST the promoter gets the same node set on every machine, and gets
-all of it rather than the few nodes that happened to be slow.
-
-**THE LANE THAT HOLDS THE PROMOTER TO THAT.** Every scene in the sketch
-registry is rendered twice on the CPU — once with the policy `Off` and
-once `Eager`, everything else about the two runs pinned to the same
-clock, the same fixed step and the same capture moment — and the two
-pictures are differenced channel by channel. The pair is judged by the
-three clauses above, each differing pixel against the bar for what it
-stands on: one code value over transparent black, two over content per
-composite the pixel stood under — counted into a plane the eager half is
-asked for — and the grazing case under a bar of its own, which is the
-quantizer's own step and not a scene's figure: Skia's supersampled scan
-converter samples four rows of a pixel, so coverage moves in quarters,
-and a quarter of the widest contrast an eight-bit plate can carry is
-sixty-four code values. A scene past any of them is a promoted
-node painting a different picture, and it is filed against this library. Because the on half is eager rather than measured, that sweep
-covers every promotable node in the registry and reports the same numbers
-on any machine. It is `sigil.py plates --tier promotion`, and it
-is the only run in the repository that photographs this library with
-promotion switched on.

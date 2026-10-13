@@ -77,9 +77,9 @@ under it are one picture. Every still is written under the state root; a path
 outside it is refused.
 
 **What a client sets goes with it**: the policy and its budget, the hold,
-the speed and the promotion and density pins are each kept against the
-client that set them, and when it detaches the session is opened again
-for the wall's clock and the runtime's own promotion and density.
+the speed and the density pin are each kept against the client that set
+them, and when it detaches the session is opened again for the wall's
+clock and the runtime's own density.
 
 Two commands are answered with a refusal that names why, and are the
 ones this agent leaves open: `session.measured`, because a value a sketch

@@ -28,21 +28,6 @@ class Device(enum.Enum):
     """The GPU, through the host's device."""
 
 
-class Promotion(enum.Enum):
-    """When the runtime may re-bake a node it was not asked to."""
-
-    Off = "Off"
-    """Never: a byte-identical still asks for this."""
-
-    Auto = "Auto"
-    """By the runtime's own measure of what is expensive, which differs
-    from machine to machine.
-    """
-
-    Eager = "Eager"
-    """Every node the runtime may bake, whatever it costs."""
-
-
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class ClosedEvent:
     """A session closed."""
@@ -62,45 +47,6 @@ class ClosedEvent:
         fields = messages.members(value, cls)
         return cls(
             sketch=messages.text(fields, "sketch", ""),
-        )
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class CompositeCountsResult:
-    """The composite-count plane of the next still."""
-
-    path: str = ""
-    """Where the plane was written, under the state root: one saturating
-    byte per device pixel, as a grey image.
-    """
-
-    width: int = 0
-    """The plane's width in pixels."""
-
-    height: int = 0
-    """The plane's height in pixels."""
-
-    maximum: int = 0
-    """The most composites any one pixel passed through."""
-
-    def to_json(self) -> dict[str, messages.Json]:
-        """This table as the JSON object the wire carries."""
-        out: dict[str, messages.Json] = {}
-        out["path"] = self.path
-        out["width"] = self.width
-        out["height"] = self.height
-        out["maximum"] = self.maximum
-        return out
-
-    @classmethod
-    def from_json(cls, value: messages.Json) -> CompositeCountsResult:
-        """The table a JSON object carries; MessageError where it does not fit."""
-        fields = messages.members(value, cls)
-        return cls(
-            path=messages.text(fields, "path", ""),
-            width=messages.integer(fields, "width", 0),
-            height=messages.integer(fields, "height", 0),
-            maximum=messages.integer(fields, "maximum", 0),
         )
 
 
@@ -359,28 +305,6 @@ class ProfileResult:
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class PromotionParameters:
-    """What pinPromotion is asked."""
-
-    promotion: Promotion = Promotion.Auto
-    """When the runtime may re-bake from now on."""
-
-    def to_json(self) -> dict[str, messages.Json]:
-        """This table as the JSON object the wire carries."""
-        out: dict[str, messages.Json] = {}
-        out["promotion"] = self.promotion.value
-        return out
-
-    @classmethod
-    def from_json(cls, value: messages.Json) -> PromotionParameters:
-        """The table a JSON object carries; MessageError where it does not fit."""
-        fields = messages.members(value, cls)
-        return cls(
-            promotion=messages.enumeration(fields, "promotion", Promotion.Auto),
-        )
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
 class SequenceParameters:
     """What sequence is asked."""
 
@@ -629,12 +553,6 @@ class Session:
         answer = self._caller.call("session.pinDevice", parameters.to_json())
         _shared.answer("session.pinDevice", _shared.Empty.from_json, answer)
 
-    def pin_promotion(self, *, promotion: Promotion = Promotion.Auto) -> None:
-        """Pins when the runtime may re-bake a node it was not asked to."""
-        parameters = PromotionParameters(promotion=promotion)
-        answer = self._caller.call("session.pinPromotion", parameters.to_json())
-        _shared.answer("session.pinPromotion", _shared.Empty.from_json, answer)
-
     def pin_density(self, *, density: float = 0.0) -> None:
         """Pins the density every raster the session bakes is formed at, from
         the first frame of each session opened after it and from now on in
@@ -705,17 +623,6 @@ class Session:
         parameters = ProfileParameters(limit=limit)
         answer = self._caller.call("session.profile", parameters.to_json())
         return _shared.answer("session.profile", ProfileResult.from_json, answer)
-
-    def composite_counts(self) -> CompositeCountsResult:
-        """Counts the composites each pixel of the next still passes through,
-        and answers the plane once that still is taken.
-
-        Answered once the work is done.
-        """
-        answer = self._caller.call("session.compositeCounts", {})
-        return _shared.answer(
-            "session.compositeCounts", CompositeCountsResult.from_json, answer
-        )
 
     def enable(self) -> None:
         """Starts this client's session events."""

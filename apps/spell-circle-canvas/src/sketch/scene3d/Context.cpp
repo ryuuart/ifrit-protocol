@@ -47,11 +47,6 @@ std::shared_ptr<compose::TextureScene> Scene3DContext::textureScene(
     SkISize size, sigil::material::Color background) {
   std::shared_ptr<compose::TextureScene> scene =
       compose::TextureScene::make(size, fonts, background);
-  // A CAPTURE THAT WILL BE DIFFED pins the scene's promoter off, as every
-  // composer a host holds is pinned: the scene is the same runtime making
-  // the same measured decision on the same capture.
-  if (deterministic)
-    scene->setAutoTexturePromotion(compose::PromotionPolicy::Off);
   if (!deterministic) standOnTheDevice(*scene);
   // Kept by the session, not by this context: the context is handed over
   // at setup and gone by the first frame, and the scene has to stand for
@@ -65,8 +60,7 @@ namespace detail {
 Page keptPage(glm::ivec2 size, compose::SurfaceRange range,
               weave::FontContext& fonts,
               std::vector<std::shared_ptr<compose::SurfaceScene>>* pages) {
-  // A page painted as maps takes no pixel bake, so a capture that will be
-  // diffed has no promotion decision to pin, and it stands on the device
+  // A page painted as maps takes no pixel bake, so it stands on the device
   // whether or not the capture will be diffed. Kept by the session, as a
   // texture scene is.
   std::shared_ptr<compose::SurfaceScene> scene =

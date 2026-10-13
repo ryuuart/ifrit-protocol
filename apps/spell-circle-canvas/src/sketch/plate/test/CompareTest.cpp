@@ -17,7 +17,6 @@
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Sweep.h>
 
-#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -95,7 +94,7 @@ TEST(SketchCompare, PrintsEachRowAsTheLineItsWordOpens) {
   EXPECT_EQ(report,
             "missing alone second\n"
             "compared probe mean 0.0000 p99 0 max 0 clear 0 content 0 graze 0 "
-            "0 composited 0 0\n");
+            "0\n");
 }
 
 /** TWO SIZES ARE NOT A DISTANCE. A plate that changed shape is a plate
@@ -216,26 +215,6 @@ void writeCurvePlate(const std::filesystem::path& dir, const std::string& name,
             (std::streamsize)png.size());
 }
 
-/** A COMPOSITE-COUNT PLANE beside a plate: one grey level per pixel,
- *  saying how many cached rasters were blitted over it. Flat, because
- *  what the case is about is the division and not the map. */
-void writeCountPlane(const std::filesystem::path& dir, const std::string& name,
-                     int composites, int size = 64) {
-  SkBitmap bitmap;
-  bitmap.allocPixels(
-      SkImageInfo::Make(size, size, kGray_8_SkColorType, kOpaque_SkAlphaType));
-  std::memset(bitmap.getPixels(), composites, bitmap.computeByteSize());
-  const std::vector<std::byte> png =
-      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
-  ASSERT_FALSE(png.empty());
-  std::filesystem::create_directories(dir);
-  std::ofstream out(
-      dir / (std::string(sigil::sketch::kCountPrefix) + name + ".png"),
-      std::ios::binary);
-  out.write(reinterpret_cast<const char*>(png.data()),
-            (std::streamsize)png.size());
-}
-
 }  // namespace
 
 namespace {
@@ -271,33 +250,6 @@ TEST(SketchCompare, TellsAGrazingEdgeFromAMarkThatIsGone) {
   // The dropped mark: the difference is the ink itself, and it is content.
   EXPECT_GT(dropped.worstOverContent, 180);
   EXPECT_EQ(dropped.worst, dropped.worstOverContent);
-}
-
-/** A CACHED RASTER IS A COMPOSITE, AND A PIXEL CAN STAND UNDER MANY. Each
- *  one rounds, so what a difference costs is a bound per composite times
- *  the count — and a difference of four under four of them is the same
- *  fact as a difference of one under one. The count plane the second
- *  directory carries is what says which; without one every pixel stands
- *  under one composite and the figure is the content difference itself. */
-TEST(SketchCompare, PricesTheContentDifferenceByTheCompositesUnderIt) {
-  const ScratchDir scratch("compare_composites");
-  const std::filesystem::path base = scratch.path / "base";
-  const std::filesystem::path gone = scratch.path / "gone";
-  writeCurvePlate(base, "probe", 0.0f, true);
-  writeCurvePlate(gone, "probe", 0.0f, false);
-
-  const PlateComparison alone =
-      rowOf(compare({base.string(), gone.string()}), "probe");
-  EXPECT_EQ(alone.worstPerComposite, alone.worstOverContent);
-  EXPECT_EQ(alone.stackedPixels, 0u);
-
-  writeCountPlane(gone, "probe", 4);
-  const PlateComparison stacked =
-      rowOf(compare({base.string(), gone.string()}), "probe");
-  EXPECT_EQ(stacked.worstOverContent, alone.worstOverContent)
-      << "the raw difference moved";
-  EXPECT_EQ(stacked.worstPerComposite, (alone.worstOverContent + 3) / 4);
-  EXPECT_GT(stacked.stackedPixels, 0u);
 }
 
 TEST(SketchCompare, NamesAPlateThatStandsInOnlyOneDirectory) {

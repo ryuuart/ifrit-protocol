@@ -103,7 +103,7 @@ scheme of your own is C++ only.
 
 - `core/Paint.h` — `Fill`, with `Fill::color`, `Fill::none`,
   `Fill::currentInk`, `Fill::var`, `Fill::material` and `Fill::needsFrame`; `Corners`; `PaintContext`, and the
-  `KeyState` and `PromotionPolicy` it carries; `PaintProgram`; and
+  `KeyState` it carries; `PaintProgram`; and
   `resolveRef`, `toFill`, `resolveFill` and `frameOf`.
 - `core/PaintBox.h` — `PaintBox`, the rectangle a paint is stretched over.
 - `core/Var.h` — `VarRef`, the `var` that interns one, and the `varName`

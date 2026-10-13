@@ -36,17 +36,6 @@ using protocol::refusal;
 /** The widest still a raster surface is asked for, in either direction. */
 constexpr int kLargestStill = 16384;
 
-Session::Promotion promotionOf(protocol::session::Promotion promotion) {
-  switch (promotion) {
-    case protocol::session::Promotion_Off:
-      return Session::Promotion::Off;
-    case protocol::session::Promotion_Eager:
-      return Session::Promotion::Eager;
-    default:
-      return Session::Promotion::ByCost;
-  }
-}
-
 /** The file a path the client named opens by: the file itself, or the
  *  entry of a sketch that is a directory. Empty where it names neither. */
 std::filesystem::path entryAt(const std::filesystem::path& asked) {
@@ -247,7 +236,6 @@ void SessionAgent::settleOpen() {
 void SessionAgent::applyPins() {
   Session* session = m_host ? m_host->session() : nullptr;
   if (!session) return;
-  if (m_promotion) session->setAutoPromotion(promotionOf(*m_promotion));
   if (m_density) {
     m_bakeDensity = *m_density > 0 ? (float)*m_density : plateDensity(*session);
     session->setBakeDensity(m_bakeDensity);
@@ -262,14 +250,6 @@ Answer<protocol::values::Empty> SessionAgent::pinDevice(
     return refusal(ErrorCode_failed,
                    "session.pinDevice: this host draws a session and its "
                    "stills on the CPU alone");
-  return protocol::values::Empty{};
-}
-
-Answer<protocol::values::Empty> SessionAgent::pinPromotion(
-    const values::PromotionParameters& parameters) {
-  m_promotion = parameters.promotion;
-  own("promotion");
-  applyPins();
   return protocol::values::Empty{};
 }
 
@@ -374,48 +354,6 @@ std::filesystem::path SessionAgent::underStateRoot(const std::string& asked,
   return path;
 }
 
-void SessionAgent::answerCounts(Session& session) {
-  if (m_pendingCounts.empty()) return;
-  const Session::CompositeCounts plane = session.compositeCounts();
-  session.setCompositeCounting(false);
-  std::vector<protocol::Reply<values::CompositeCountsResult>> owed =
-      std::move(m_pendingCounts);
-  m_pendingCounts.clear();
-  std::string why;
-  const std::filesystem::path file =
-      underStateRoot({}, numbered(++m_planes, "counts/counts", ".png"), &why);
-  SkBitmap grey;
-  bool written = false;
-  if (!file.empty() && plane.width > 0 && plane.height > 0 &&
-      grey.tryAllocPixels(SkImageInfo::Make(plane.width, plane.height,
-                                            kGray_8_SkColorType,
-                                            kOpaque_SkAlphaType))) {
-    for (int y = 0; y < plane.height; ++y)
-      std::memcpy(grey.getAddr8(0, y),
-                  plane.counts.data() + (size_t)y * (size_t)plane.width,
-                  (size_t)plane.width);
-    written = writePng(grey.pixmap(), file);
-  }
-  values::CompositeCountsResult counts;
-  if (written) {
-    counts.path = file.string();
-    counts.width = (uint32_t)plane.width;
-    counts.height = (uint32_t)plane.height;
-    counts.maximum =
-        *std::max_element(plane.counts.begin(), plane.counts.end());
-  }
-  for (auto& reply : owed) {
-    if (written) {
-      reply(counts);
-      continue;
-    }
-    reply(refusal(
-        ErrorCode_failed,
-        "session.compositeCounts: " +
-            (why.empty() ? std::string("the runtime counted no plane") : why)));
-  }
-}
-
 std::optional<values::StillResult> SessionAgent::takeStill(
     double density, const std::string& path, std::string* why) {
   Session* session = m_host && !m_pendingOpen ? m_host->session() : nullptr;
@@ -432,8 +370,6 @@ std::optional<values::StillResult> SessionAgent::takeStill(
   const std::filesystem::path file = underStateRoot(path, name, why);
   if (file.empty()) return std::nullopt;
 
-  const bool counting = !m_pendingCounts.empty();
-  if (counting) session->setCompositeCounting(true);
   SkBitmap bitmap;
   if (m_clock.isPaused()) {
     // A HELD CLOCK photographs the frame it holds as it was last drawn,
@@ -473,7 +409,6 @@ std::optional<values::StillResult> SessionAgent::takeStill(
       return std::nullopt;
     }
   }
-  if (counting) answerCounts(*session);
   if (!writePng(bitmap.pixmap(), file)) {
     *why = "the still could not be written to " + file.string();
     return std::nullopt;
@@ -579,16 +514,6 @@ void SessionAgent::profile(const values::ProfileParameters& parameters,
   m_pendingProfile = PendingProfile{parameters.limit, std::move(reply)};
 }
 
-void SessionAgent::compositeCounts(
-    protocol::Reply<values::CompositeCountsResult> reply) {
-  if (!m_host || !m_host->session()) {
-    reply(refusal(ErrorCode_failed,
-                  "session.compositeCounts: no session is open"));
-    return;
-  }
-  m_pendingCounts.push_back(std::move(reply));
-}
-
 // --- the clock -------------------------------------------------------------
 
 double SessionAgent::statedFrame(double seconds) {
@@ -645,11 +570,6 @@ void SessionAgent::release(const std::string& session) {
       m_density.reset();
       // No pin is the runtime's own density again, which only a session
       // opened anew holds from its first frame.
-      if (m_host && m_host->session()) reopen();
-    } else if (what == "promotion") {
-      m_promotion.reset();
-      // No pin is the session's own default again, which a session opened
-      // anew holds from its first frame.
       if (m_host && m_host->session()) reopen();
     } else if (what == "policy") {
       const bool wasWall = m_clock.isWall();

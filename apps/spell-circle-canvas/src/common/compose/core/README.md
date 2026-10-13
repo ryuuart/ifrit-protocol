@@ -12,7 +12,7 @@ organized by the question each part answers.
 | `runtime/` | What survives the next description? | Composer lifetime, instances, reconciliation, transitions and queries. |
 | `layout/` | Where does the content belong? | Yoga styles and measurement, arranging and adding operators, text flow, threading and borrowed geometry. |
 | `paint/` | What should be drawn, and in what order? | The stacking walk, content dispatch, transforms, paint bounds, coverage, material lowering, tiled pictures, instanced leaves and profiling. |
-| `cache/` | Can that drawing be reused? | Volatility, scalar stability, picture, texture, group, split and promotion tiers; pattern and stamp bakes. |
+| `cache/` | Can that drawing be reused? | Volatility, scalar stability, the picture tier and the texture and group bakes an author asks for; pattern and stamp bakes. |
 
 These are private implementation concerns within one target. They share
 the retained tree and its orchestration context; a directory is not an

@@ -31,11 +31,6 @@ class PaintProgramValues(unittest.TestCase):
         with self.assertRaises(TypeError):
             native.PaintContext()
 
-    def test_the_promotion_policy_names_its_three_rules(self):
-        self.assertEqual(
-            set(native.PromotionPolicy.__members__), {"Off", "ByCost", "Eager"}
-        )
-
     def test_key_state_is_a_record_that_copies_what_it_holds(self):
         state = native.KeyState(pressed=True, key="a", keyCode=65, down=[65, 16])
         self.assertEqual(
@@ -339,7 +334,6 @@ class PaintProgramRenders(unittest.TestCase):
                         borrowed=(context.borrowed, context.borrowedPath('nobody').isEmpty()),
                         matrix=isinstance(context.toRoot, skia.Matrix),
                         density=context.bakeDensity,
-                        promotion=context.promotion,
                     )
 
                 ctx.render(
@@ -380,7 +374,6 @@ class PaintProgramRenders(unittest.TestCase):
         self.assertEqual(results["borrowed"], ([], True))
         self.assertTrue(results["matrix"])
         self.assertGreaterEqual(results["density"], 0)
-        self.assertIsInstance(results["promotion"], native.PromotionPolicy)
 
     def test_a_pen_program_names_the_pen_the_context_or_neither(self):
         self.render(

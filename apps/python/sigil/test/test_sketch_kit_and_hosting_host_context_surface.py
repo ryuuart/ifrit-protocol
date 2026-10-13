@@ -54,7 +54,6 @@ class HostContextSurface(unittest.TestCase):
                         oversample=1,
                         paintDiscardedFrames=False,
                         plateOnly=True,
-                        nonlinearPicture=True,
                     )
                     ctx.canvas(wanted)
                     builtins._sigil_host_context = (
@@ -78,7 +77,6 @@ class HostContextSurface(unittest.TestCase):
         self.assertFalse(wanted.paintDiscardedFrames)
         self.assertTrue(CanvasSpecification().paintDiscardedFrames)
         self.assertTrue(wanted.plateOnly)
-        self.assertTrue(wanted.nonlinearPicture)
         self.assertEqual(copied.background, wanted.background)
         copied.oversample = 4
         self.assertEqual(wanted.oversample, 1)

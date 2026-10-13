@@ -57,9 +57,13 @@ class LoopbackHost(threading.Thread):
     answered by method as `answer` says, keeping the methods it was asked
     in order and the pongs it heard."""
 
-    def __init__(self, *, breaking: int = 0, serves_definition: bool = True) -> None:
+    def __init__(
+        self, *, breaking: int | None = None, serves_definition: bool = True
+    ) -> None:
         super().__init__(daemon=True)
-        self.breaking = breaking
+        # The revision this client was built against, unless a case asks
+        # for another.
+        self.breaking = Revision().breaking if breaking is None else breaking
         self.serves_definition = serves_definition
         self.asked: list[str] = []
         self.pongs = 0

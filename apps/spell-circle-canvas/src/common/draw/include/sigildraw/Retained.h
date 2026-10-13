@@ -7,7 +7,6 @@
  * the call site that painted the guest.
  */
 
-#include <any>
 #include <boost/container_hash/hash.hpp>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
@@ -77,15 +76,10 @@ class Retained {
   [[nodiscard]] size_t size() const { return m_entries.size(); }
   /** Removes @p slot and releases the store's ownership of its value.
    *  Returns whether an entry was removed. References obtained for that
-   *  entry must no longer be used; other entries and host state remain.
+   *  entry must no longer be used; other entries remain.
    *  Asking for the removed slot again creates a new value. */
   bool erase(const Slot& slot) { return m_entries.erase(slot) != 0; }
   void clear() { m_entries.clear(); }
-  /** WHAT THE HOST THAT KEEPS GUESTS HERE KEEPS FOR ITSELF: one value of
-   *  its own type, for what every guest must be handed and no slot of
-   *  theirs can carry. Empty until the host sets it; not a guest, so it
-   *  is not counted among them. */
-  [[nodiscard]] std::any& host() { return m_host; }
 
  private:
   struct Entry {
@@ -93,7 +87,6 @@ class Retained {
     std::shared_ptr<void> value;
   };
   boost::unordered_flat_map<Slot, Entry, SlotHash> m_entries;
-  std::any m_host;
 };
 
 }  // namespace sigil::draw

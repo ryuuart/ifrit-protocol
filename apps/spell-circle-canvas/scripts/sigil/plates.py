@@ -12,13 +12,12 @@
                                        # flappers from code
     sigil.py plates --tier cpu         # the raster smoke: scene2d on the
                                        # CPU, read against the device plates
-    sigil.py plates --tier promotion   # …and with the promoter let go
     sigil.py plates compare <a> <b>    # two plate directories, differenced
 
 Renders every sketch through `Grimoire --headless --ledger` (the
 benchmark-free exact-stepped capture), N at a time. One binary renders
-all three tiers; what separates them is which rasteriser a sketch draws
-through and what the runtime's promoter is allowed to do. THE DEVICE IS
+both tiers; what separates them is which rasteriser a sketch draws
+through. THE DEVICE IS
 THE REFERENCE: the device tier (the default) renders every scene2d and
 scene3d sketch on the device and holds each to one machine-local
 manifest of device plates on byte identity. The CPU tier is a smoke run
@@ -30,8 +29,8 @@ agree.
 What each tier judges, what it refuses and why each ceiling stands where
 it does is scripts/README.md; this refuses to keep a second copy of it.
 The judgement is here because a ceiling is a tolerance about a machine
-and not a fact about two files: the manifest, the tolerances, the
-promotion ceiling and --stability are what this owns. Decoding and
+and not a fact about two files: the manifest, the tolerances and
+--stability are what this owns. Decoding and
 differencing plates is the sketch library's, read here as values through
 the Python extension the build links.
 
@@ -60,12 +59,6 @@ KINDS = ("scene2d", "scene3d")
 
 # The flag every render carries: the benchmark-free exact-stepped capture.
 RENDER_ARGS = ("--ledger",)
-# …and what each tier says about the promoter. Held off wherever a hash is
-# the verdict, because cost-based re-baking decides by a measured per-frame
-# cost that load tips either way; turned on for the tier whose whole subject
-# it is.
-PROMOTION_OFF = ("--no-promotion",)
-PROMOTION_ON = ("--promotion",)
 
 # The ctest label every library plate case carries, and the variable that
 # turns such a case from judging its render into adopting it.
@@ -85,72 +78,6 @@ SCENE3D_KIND = "scene3d"
 
 # The device manifest, the one reference every sketch is judged against.
 DEVICE_MANIFEST = "plate_baseline_{config}_device.sha256"
-
-# How far a promoted plate may stand from the same scene rendered with the
-# promoter held off, and it is THREE BARS because the contract compose
-# states has three. None is a tolerance anyone chose.
-#
-# ONE CODE VALUE WHERE THE HELD-OFF PLATE IS TRANSPARENT BLACK. A promoted
-# node is baked under the live matrix post-translated by an integer, and
-# inverting that matrix to find a shader's local coordinates does not
-# cancel the integer to the last bit at a scale whose reciprocal is
-# inexact — so a shaded pixel can land one code value from the live paint
-# and nothing may land further.
-#
-# TWO WHERE IT HOLDS CONTENT, PER COMPOSITE THE PIXEL STOOD UNDER. There
-# the bake LANDS ON something: the node's own coverage is composited twice
-# where the live paint composited once — into the bake, and again when the
-# bake is blitted — and Skia's blit of a raster image is not the
-# arithmetic of its direct shader draw, so a texel whose alpha is between
-# none and all can settle one value further out. It is still a rounding:
-# it appears only where the node's own alpha is partial, and taking the
-# bake at higher precision does not remove it.
-#
-# PER COMPOSITE, because a bake is one composite and a pixel can stand
-# under many. Nothing nests — a node inside a bake is not baked again —
-# but independent nodes overlap, and a stack of concentric rings each
-# promoted on its own puts seven or nine cached rasters over one pixel.
-# Each of them rounds, and the rounding does not decay: a flat wash
-# through N bakes stands N code values from the same wash painted live,
-# measured over every destination value, every source alpha and a spread
-# of source colours. So the bound is the two above times the count, and
-# the comparison reports the content difference already divided by it — the
-# figure judged here is a bound PER COMPOSITE and the bar does not move
-# with the picture's depth. A run whose ON half was not asked for a
-# composite-count plane prices every pixel at one composite, which is the
-# bound this bar carried before it could count.
-#
-# AND SIXTY-FOUR WHERE THE DIFFERENCE IS CONFINED TO A GRAZING EDGE. A bake
-# is taken under the live matrix with an integer subtracted from its
-# translation, so the two matrices map a point through the same numbers at
-# different MAGNITUDES and part by half a float step of the device
-# coordinate — nothing along an edge that meets the grid squarely, and a
-# whole supersample bucket where a curve runs nearly tangent to one. The
-# error is the live paint's own rounding, which the bake does not share, so
-# no allocation, offset or clip removes it; only a bake taken at the canvas
-# origin does, at a full-canvas surface per promoted node.
-#
-# WHERE THE NUMBER COMES FROM: THE RASTERISER'S OWN QUANTUM, and no scene.
-# Skia's supersampled scan converter samples four rows of each pixel
-# (`SK_SUPERSAMPLE_SHIFT` is 2), so the coverage it can answer for a pixel
-# moves in quarters and the coarsest step one crossing edge can make is a
-# quarter of that pixel's own contrast. The widest contrast an eight-bit
-# plate can carry is the whole range, 255, so one step is at most 64 code
-# values. That is the bar: one step of the quantizer the clause names, at
-# the contrast a plate can hold. It is not a tolerance measured off the
-# scenes that happen to graze — a bar taken from a picture moves when the
-# picture is fixed, and this one does not.
-#
-# The held-off plate is the reference, so it is the one that says which
-# bar a differing pixel is judged by; the comparison reports the worst
-# difference under each. Anything past them is a picture that moved rather
-# than a picture that rounded.
-PROMOTION_DRIFT_CEILING = 1
-PROMOTION_DRIFT_CEILING_OVER_CONTENT = 2
-PROMOTION_DRIFT_CEILING_OVER_GRAZE = 64
-
-# …so the ON half is asked for the plane the content bar is priced by.
-PROMOTION_ON_COUNTED = PROMOTION_ON + ("--composites",)
 
 
 def registry(binary, kinds, device=False):
@@ -227,21 +154,12 @@ def resolve(queries, listing: Listing):
     return chosen, unknown
 
 
-def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
-    """Render one scene; returns (scene, digest, error, elapsed seconds,
-    declared).
+def render_scene(binary, scene, outdir, timeout, extra_args=()):
+    """Render one scene; returns (scene, digest, error, elapsed seconds).
 
     The elapsed time is reported for every outcome, so a sweep can name
     what it is still waiting on rather than going quiet behind its
-    slowest scene.
-
-    `declared` is what the SKETCH said about itself that changed what
-    this render did — the one mark a run carries back out. A sketch that
-    declares its picture nonlinear in what went into it holds the
-    automatic promoter off from its own setup, so a sweep that asked for
-    the promoter did not get it, and a tier that reported the resulting
-    agreement without saying so would be an exclusion nobody could
-    see."""
+    slowest scene."""
     started = time.monotonic()
     try:
         result = subprocess.run(
@@ -270,20 +188,17 @@ def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
                 f"raise --timeout-seconds if the scene is merely slow)"
             ),
             time.monotonic() - started,
-            None,
         )
     elapsed = time.monotonic() - started
     plate = plate_path(outdir, scene)
-    declared = "nonlinear" if f"{scene}: declared nonlinear" in result.stdout else None
     if result.returncode != 0 or not os.path.exists(plate):
         return (
             scene,
             None,
             (result.stderr or result.stdout).strip()[-300:],
             elapsed,
-            declared,
         )
-    return scene, baseline.digest(plate), None, elapsed, declared
+    return scene, baseline.digest(plate), None, elapsed
 
 
 def compared(first, second):
@@ -295,9 +210,7 @@ def compared(first, second):
     A row carries the mean, p99 and worst channel distance, the worst split
     by what the pixel stands on — transparent black in `first`
     (`worstOverClear`), an edge both plates draw (`worstOverGraze`, over
-    `grazingPixels`) or anything else (`worstOverContent`) — and the
-    content figure priced PER COMPOSITE the pixel stood under
-    (`worstPerComposite`, with `stackedPixels`). Decoding and differencing
+    `grazingPixels`) or anything else (`worstOverContent`). Decoding and differencing
     is the library's; what stays here is the judgement — which distance is
     close enough on this machine — because that is a tolerance and not a
     fact about two files."""
@@ -383,10 +296,9 @@ def prune_plates(directory, scenes):
 
 def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
     """Renders every scene, N at a time, printing one line per scene as
-    it finishes. Returns (scene -> digest, scene -> error, scene ->
-    declaration). @p standing names how a rendered scene stands, given
-    its digest."""
-    results, errors, declared = {}, {}, {}
+    it finishes. Returns (scene -> digest, scene -> error). @p standing
+    names how a rendered scene stands, given its digest."""
+    results, errors = {}, {}
     # Submitted rather than mapped, because map yields in submission
     # order and would hold every finished scene's line behind an
     # unfinished earlier one.
@@ -396,9 +308,7 @@ def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
             for scene in scenes
         ]
         for done, future in enumerate(concurrent.futures.as_completed(pending), 1):
-            scene, digest, err, elapsed, mark = future.result()
-            if mark:
-                declared[scene] = mark
+            scene, digest, err, elapsed = future.result()
             if digest is None:
                 errors[scene] = err
             else:
@@ -410,7 +320,7 @@ def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
             )
     for scene, err in sorted(errors.items()):
         print(f"RENDER FAILED  {scene}: {err}")
-    return results, errors, declared
+    return results, errors
 
 
 def raster_smoke(binary, scenes, timeout, jobs, raster_dir, device_dir):
@@ -423,13 +333,13 @@ def raster_smoke(binary, scenes, timeout, jobs, raster_dir, device_dir):
     only for a sketch that did not render. The CPU plates are kept beside
     the device plates so a row can be opened rather than only measured."""
     print("[scene2d on the cpu]")
-    _, errors, _ = sweep(
+    _, errors = sweep(
         binary,
         scenes,
         raster_dir,
         timeout,
         jobs,
-        PROMOTION_OFF,
+        (),
         lambda s, d: "rendered",
     )
     print()
@@ -480,143 +390,6 @@ def raster_smoke_report(scenes, errors, distances, unusable, refusal):
     return 0
 
 
-def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
-    """The promotion tier: every sketch rendered with the promoter held off
-    and again with it on, and the two plates differenced.
-
-    It has no baseline. Both plates are made in this run and the held-off
-    one IS the reference, because the question is not what a sketch draws
-    but whether the runtime's own re-baking changes it.
-
-    THE ON HALF IS EAGER: the runtime bakes every node its rules admit,
-    from that node's first frame, instead of the handful a stopwatch found
-    expensive under this run's load. So the tier tests the same node set on
-    every machine, and all of the promotable set rather than the few slow
-    nodes — an idle machine promotes nothing by cost and would report a
-    clean sweep it never earned.
-
-    …EXCEPT WHERE THE SCENE DECLARED OTHERWISE. A sketch whose picture is
-    not linear in what went into it — a view that rounds each channel to a
-    palette, a bright pass through a smoothstep gate, anything that
-    unpremultiplies and so carries a gain of 1/alpha — holds the promoter
-    off from its own setup, because there is no bound between a difference
-    under such a stage and a difference over it. The tier judges those
-    scenes under the policy they declare and names them on their verdict
-    line: the declaration lives with the scene it is about, in the sketch
-    that has to explain it, and there is no list of exceptions here.
-
-    THE BAR IS THE CONTRACT AS COMPOSE STATES IT, and it has three parts,
-    judged per pixel against the HELD-OFF plate: one code value where that
-    plate is transparent black, two PER COMPOSITE where it holds content
-    and the bake therefore composited the node's own coverage twice, and
-    sixty-four where the difference is confined to an antialiased edge BOTH
-    plates draw — the grazing case, where a mark stands half a float step
-    of its device coordinate from its live paint and a supersample bucket
-    flips on the curve that runs nearly tangent to the grid. A scene past any of them is
-    a defect to file against the promoter, never a plate to rebase — there
-    is no baseline here to rebase into. Both halves are kept, so a scene
-    reported MOVED can be opened beside the plate it was meant to
-    match."""
-
-    print("[promotion off]")
-    _, off_errors, _ = sweep(
-        binary, scenes, off_dir, timeout, jobs, PROMOTION_OFF, lambda s, d: "rendered"
-    )
-    print("[promotion on]")
-    _, on_errors, declared = sweep(
-        binary,
-        scenes,
-        on_dir,
-        timeout,
-        jobs,
-        PROMOTION_ON_COUNTED,
-        lambda s, d: "rendered",
-    )
-    errors = len(off_errors) + len(on_errors)
-
-    verdict = 0
-    within = 0
-    print()
-    distances, unusable, refusal = compared(off_dir, on_dir)
-    if refusal:
-        # Nothing was differenced, so every scene below fails for this one
-        # reason rather than for one of its own.
-        print(f"  {refusal}   <-- FINDING")
-    for scene in scenes:
-        if scene in unusable:
-            print(f"  {unusable[scene].upper()} {scene}   <-- FINDING")
-            verdict = 1
-            continue
-        if scene not in distances:
-            verdict = 1
-            continue
-        row = distances[scene]
-        mean, p99, worst = row.mean, row.p99, row.worst
-        over_clear = row.worstOverClear
-        over_content = row.worstOverContent
-        over_graze, grazing = row.worstOverGraze, row.grazingPixels
-        per_composite, stacked = row.worstPerComposite, row.stackedPixels
-        # EACH PART AGAINST ITS OWN BAR, and the held-off plate is what
-        # says which part a pixel is in.
-        if (
-            over_clear <= PROMOTION_DRIFT_CEILING
-            and per_composite <= PROMOTION_DRIFT_CEILING_OVER_CONTENT
-            and over_graze <= PROMOTION_DRIFT_CEILING_OVER_GRAZE
-        ):
-            within += 1
-            # A scene the promoter never fired on differs in nothing at
-            # all, and one it did fire on differs by a code value on the
-            # shaded pixels. Both are within the rule; the count of
-            # differing pixels is what tells them apart, so max is
-            # printed for every scene rather than only for the movers.
-            note = "   declared nonlinear" if scene in declared else ""
-            # A scene whose whole remainder grazes says so, with how many
-            # pixels it was: the bar it stood under is not the one the
-            # other verdict lines are read against.
-            if over_graze > PROMOTION_DRIFT_CEILING_OVER_CONTENT:
-                note = f"   {over_graze} grazing on {grazing} px{note}"
-            # …and a scene whose content difference is only within the
-            # rule once the composites are counted says that too: the
-            # number on the line is the raw worst, and what it was
-            # judged by is the worst per composite.
-            if over_content > PROMOTION_DRIFT_CEILING_OVER_CONTENT:
-                note = (
-                    f"   {over_content} over content, {per_composite} per "
-                    f"composite on {stacked} stacked px{note}"
-                )
-            print(f"  WITHIN {scene:<24} max {worst:3d}  mean {mean:6.2f}{note}")
-            continue
-        if over_clear > PROMOTION_DRIFT_CEILING:
-            over = f"{over_clear} over nothing"
-        elif per_composite > PROMOTION_DRIFT_CEILING_OVER_CONTENT:
-            over = f"{per_composite} over content per composite"
-        else:
-            over = f"{over_graze} over a grazing edge on {grazing} px"
-
-        print(
-            f"  MOVED  {scene:<24} max {worst:3d} ({over})"
-            f"  mean {mean:6.2f}  p99 {p99:4d}   <-- FINDING"
-        )
-        verdict = 1
-    print(
-        f"\n{within} of {len(scenes)} within the rule "
-        f"({PROMOTION_DRIFT_CEILING} over transparent black, "
-        f"{PROMOTION_DRIFT_CEILING_OVER_CONTENT} over content per composite "
-        f"the pixel stood under, "
-        f"{PROMOTION_DRIFT_CEILING_OVER_GRAZE} on an edge both plates draw), "
-        f"{errors} failed"
-    )
-    if declared:
-        print(
-            f"{len(declared)} of them declared a nonlinear picture and stood "
-            f"under that: {', '.join(sorted(declared))}"
-        )
-    print(f"plates kept: {off_dir}\n             {on_dir}")
-    if verdict == 0 and not errors:
-        print("VERDICT: the promoter moves no picture past the contract's bar")
-    return verdict or (1 if errors else 0)
-
-
 def hashed_sweep(
     binary,
     scenes,
@@ -651,7 +424,7 @@ def hashed_sweep(
     # plates. A judging sweep renders beside it, which leaves the two
     # directories `plates compare` differences standing when it is over.
     outdir = kept_baseline if adopting else judged()
-    results, errors, _ = sweep(
+    results, errors = sweep(
         binary,
         scenes,
         outdir,
@@ -699,7 +472,7 @@ def hashed_sweep(
         if args.stability > 0:
             rerenders = {results[scene]}
             for _ in range(args.stability):
-                _, digest, _, _, _ = render_scene(
+                _, digest, _, _ = render_scene(
                     binary,
                     scene,
                     stability(),
@@ -776,7 +549,7 @@ def main(argv: list) -> int:
     ap.add_argument("--jobs", type=int, default=max(2, (os.cpu_count() or 8) // 2))
     ap.add_argument(
         "--tier",
-        choices=("device", "cpu", "promotion"),
+        choices=("device", "cpu"),
         default="device",
         help="device (default), the reference: every scene2d and scene3d "
         "sketch rendered on the device to its declared capture moment and "
@@ -785,14 +558,7 @@ def main(argv: list) -> int:
         "cpu, the raster smoke: every scene2d sketch rendered on the CPU and "
         "read per colour channel against its device plate; the rows are "
         "reported and only a sketch that fails to render fails the run; no "
-        "baseline. "
-        "promotion: the scene2d sketches rendered with automatic texture "
-        "promotion held "
-        "off and again with every promotable node eagerly baked, judged "
-        "within one code value where the held-off plate is transparent "
-        "black, two per composite where it holds content, and sixty-four "
-        "where the difference is confined to an antialiased edge both plates "
-        "draw; no baseline",
+        "baseline",
     )
     ap.add_argument(
         "--kind",
@@ -850,8 +616,7 @@ def main(argv: list) -> int:
 
     # A SCENE3D SKETCH IS AVAILABLE ONLY WHERE A DEVICE IS, so the device
     # tier asks the binary to bring its device up before it lists anything;
-    # the other two tiers list without one and pass every scene3d sketch
-    # over.
+    # the CPU tier lists without one and passes every scene3d sketch over.
     listing = registry(binary, kinds, device=on_device)
     if listing is None:
         print("SKIPPED: this machine has no device to render on")
@@ -894,21 +659,6 @@ def main(argv: list) -> int:
             f"is drawn on the device and nowhere else"
         )
 
-    if args.tier == "promotion":
-        print(
-            f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
-            f"tier promotion: each rendered with automatic texture promotion "
-            f"held off and again with every promotable node eagerly baked"
-        )
-        return promotion_sweep(
-            binary,
-            scenes,
-            args.timeout_seconds,
-            args.jobs,
-            plate_dir(args.config, "promotion", "off"),
-            plate_dir(args.config, "promotion", "on"),
-        )
-
     # The device plates the manifest was adopted from: what the device tier
     # judges beside and what the raster smoke reads against.
     device_baseline = plate_dir(args.config, "device", "baseline", fresh=False)
@@ -941,7 +691,7 @@ def main(argv: list) -> int:
         kept_baseline=device_baseline,
         judged=lambda: plate_dir(args.config, "device", "gpu"),
         stability=lambda: plate_dir(args.config, "device", "stability", fresh=False),
-        extra_args=PROMOTION_OFF + ("--gpu",),
+        extra_args=("--gpu",),
         narrowed=narrowed,
         skipped=skipped,
     )

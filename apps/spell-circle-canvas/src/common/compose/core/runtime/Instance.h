@@ -824,23 +824,6 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // enough, on the few nodes that opt in, that the trade is not worth taking.
   std::vector<float> groupPrev;
   bool groupPrevSeen = false;
-  // Auto texture promotion: a rolling estimate of what this node's PAINT
-  // costs each frame — a picture replay for a cached subtree, the live
-  // draw for a leaf that never records one — and how many consecutive
-  // frames it has been expensive. Promotion is sticky (autoTexture) until
-  // the node goes dirty.
-  float replayMs = 0;
-  uint8_t hotFrames = 0;
-  bool autoTexture = false;
-  // Temporal stability, for the liveMatOnly case: the fraction of recent
-  // frames on which the live material resolved to the SHADER ALREADY BAKED.
-  // A material quantized to a step slower than the frame rate settles high;
-  // one bound to a continuous output sits at zero and never promotes. The
-  // rule is observed per frame rather than read off the material's declared
-  // quantization, because a bound output that happens to be holding still
-  // is just as cacheable, and a quantized one being driven faster than its
-  // own step rate is not.
-  float liveStableRate = 0;
   // True when this node OR anything below it blends against what is already
   // on the canvas (a non-srcOver blend, or a backdrop filter). Such a
   // subtree cannot be baked into a transparent layer and blitted back: the
@@ -848,52 +831,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // backdrop, and the pixels would differ. Computed by computeVolatile.
   bool subtreeReadsBackdrop = false;
   // The same question asked of the node's OWN paint alone, without its
-  // children. The two halves are what the split bake turns on: a bake that
-  // replaces only the node's own layer, with live children drawn over the
-  // BLIT, fails when the OWN paint would resolve against transparent black
-  // — and is unaffected by what the children do, because they composite
-  // against the blitted destination exactly as they would have against a
-  // freshly rasterized one. `subtreeReadsBackdrop` (own OR children) is
-  // still the right question for whole-subtree promotion, where the
-  // children ARE inside the bake.
+  // children: what the subtree's answer is folded from.
   bool ownReadsBackdrop = false;
-  // The split bake's other half: is the node's OWN content volatile, as
-  // distinct from its subtree's? `subtreeVolatile && !ownContentVolatile`
-  // is exactly "the children are what makes this node uncacheable", which
-  // is the split bake's entire premise — a large static backdrop that is
-  // re-rasterized every frame only so a small moving child can land on top
-  // of it.
-  bool ownContentVolatile = false;
   // What the node's own paint COVERS may change: its own content apart
   // from marks cast from its silhouette, which follow its children and
   // which a trace of the node never holds.
   bool ownCoverageVolatile = false;
-  // ---- the split bake ------------------------------------------------------
-  // The node's own paint, baked alone; the children are painted LIVE over
-  // the blit. Deliberately NOT `textureImage`: a node can only ever hold one
-  // of the two (the split needs subtreeVolatile, every other bake needs the
-  // opposite), but sharing the slot would make each path's staleness rules
-  // answer for the other's, and they are different rules.
-  sk_sp<SkImage> ownImage;
-  SkRect ownBakeRect = SkRect::MakeEmpty();    // device rect the bake covers
-  SkIRect ownBakeClip = SkIRect::MakeEmpty();  // …and the clip that cut it
-  SkMatrix ownBakeMatrix = SkMatrix::I();      // …and the matrix it was
-                                               // drawn under, which moves
-                                               // below a whole device pixel
-  float ownPaintMs = 0;                        // EMA of the own-paint cost
-  uint8_t ownHotFrames = 0;
-  // Consecutive frames on which the own bake had to be REMADE. A bake per
-  // frame costs more than the live draw it replaced, so a node whose own
-  // paint really is invalidated every frame must not hold its promotion on
-  // the strength of a measurement taken while it was still cheap.
-  uint8_t ownRebakes = 0;
-  bool splitBake = false;  // sticky, like autoTexture
-  // Staleness for `ownImage`, and the reason it cannot be `paintDirty`:
-  // markPaintDirtyUp() propagates a descendant's patch to every ancestor,
-  // which is correct for a RECORDING (it baked the child's draw calls) and
-  // wrong for a split bake (the children were never in it). Set only on the
-  // node whose own description changed.
-  bool ownPaintDirty = true;
   bool hasPendingLiveFill = false;
   Fill pendingLiveFill;
   sk_sp<SkShader> bakedLiveShader;
@@ -1041,14 +984,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
    *  `ownPaint` says whether THIS node's own paint changed. It is false for
    *  exactly one caller — a child whose layout POSITION moved, which stales
    *  the parent's recording (it baked the old offset) and leaves the
-   *  parent's own paint untouched. Only the split bake reads that
+   *  parent's own paint untouched. Only the repaint region reads that
    *  distinction; passing true is always the safe answer. */
   void markPaintDirtyUp(bool ownPaint = true) {
-    if (ownPaint) {
-      ownPaintDirty = true;
-      changedOwn = true;
-      ownImage.reset();
-    }
+    if (ownPaint) changedOwn = true;
     for (Instance* i = this; i; i = i->parent) {
       if (i->paintDirty && i != this) break;  // ancestors already invalidated
       i->paintDirty = true;

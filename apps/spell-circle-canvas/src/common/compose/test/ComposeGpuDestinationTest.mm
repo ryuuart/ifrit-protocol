@@ -325,7 +325,6 @@ TEST_P(ComposeGpuMaterialDestination, DeviceSourceUsesTheOwningDestinationAndRet
   sigil::motion::Engine engine;
   Composer composer(engine, fonts());
   composer.setSize({width, height});
-  composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   composer.render(
       deviceMaterialTree(deviceMaterial(binding, test.live, test.plain), test.localBake));
   // A plain static source retains its eager raster snapshot. Other
@@ -397,7 +396,6 @@ TEST(ComposeGpu, StaticDeviceFillAndInkRebindHeldPicturesAcrossDestinations) {
   sigil::motion::Engine engine;
   Composer composer(engine, fonts());
   composer.setSize({width, height});
-  composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   composer.render(
       box()
           .cache(Cache::Picture)
@@ -446,7 +444,6 @@ TEST(ComposeGpu, StaticDeviceFillRetainsItsSourceWithoutAFramelessFallback) {
   sigil::motion::Engine engine;
   Composer composer(engine, fonts());
   composer.setSize({48, 48});
-  composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   composer.render(
       box().width(48).height(48).cache(Cache::Picture).fill(deviceMaterial(binding, false, true)));
   binding->resetReads();
@@ -497,7 +494,6 @@ TEST_P(ComposeGpuSpanInk, StaticSpanInkRebindsCachedParagraphsAcrossDestinations
 
   Composer composer(engine, fonts());
   composer.setSize({kSpanWidth, kSpanHeight});
-  composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   const auto describe = [&] {
     const auto source = spanDeviceMaterial(binding, domain);
     return spanInkTree(&source, domain);
@@ -574,7 +570,6 @@ TEST_P(ComposeGpuSpanInk, SpanInkWithoutRasterFallbackSurvivesRecorderReplacemen
 
   Composer composer(engine, fonts());
   composer.setSize({kSpanWidth, kSpanHeight});
-  composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   const auto source = spanDeviceMaterial(binding, domain);
   composer.render(spanInkTree(&source, domain));
   binding->resetReads();
@@ -671,7 +666,6 @@ TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAcrossDestinationsAndLeavesIt
     ASSERT_EQ(columns.size(), 6u);
     Composer expected(engine, fonts());
     expected.setSize({kSpanWidth, kSpanHeight});
-    expected.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
     const auto reference = [&](sigil::skia::GraphiteContext *context, SkColor color) {
       expected.render(
           box().width(kSpanWidth).height(kSpanHeight).fill(material::from(materialColor(color))));
@@ -680,7 +674,6 @@ TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAcrossDestinationsAndLeavesIt
     };
     Composer composer(engine, fonts());
     composer.setSize({kSpanWidth, kSpanHeight});
-    composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
     composer.render(tree());
     colorBinding->resetReads();
     normalBinding->resetReads();

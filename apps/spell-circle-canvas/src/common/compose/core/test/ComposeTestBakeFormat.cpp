@@ -1,6 +1,6 @@
 // What a pixel bake keeps of the destination it is drawn for: a float
 // destination's precision and colour space through held texture and group
-// bakes, promoted and split bakes, a cell sheet and brush art shared by
+// bakes, a cell sheet and brush art shared by
 // composers drawing to different formats, and the switch from one format
 // to another dropping what was baked for the last.
 
@@ -87,7 +87,6 @@ TEST(ComposeCaching, FloatDestinationSurvivesHeldPixelBakesAndFormatSwitches) {
     for (const Cache cache : {Cache::Texture, Cache::Group}) {
       SCOPED_TRACE(static_cast<int>(cache));
       Host retained(128, 80);
-      retained.composer.setAutoTexturePromotion(false);
       retained.composer.setBakeDensity(density);
       retained.composer.render(hdrCacheFigure(cache));
       for (const SkColorType type : {kN32_SkColorType, kRGBA_F16_SkColorType,
@@ -138,7 +137,6 @@ TEST(ComposeCaching, SharedCellSheetKeepsHdrForEachComposersDestination) {
                              .children({instances(atlas, pool, mode)});
     Host byteHost(64, 64), floatHost(64, 64);
     for (Host* host : {&byteHost, &floatHost}) {
-      host->composer.setAutoTexturePromotion(false);
       host->composer.render(tree);
     }
     const auto draw = [&](Host& host, SkColorType type) {
@@ -223,51 +221,6 @@ TEST(ComposeCaching, SharedCellSheetKeepsHdrForEachComposersDestination) {
   }
 }
 
-TEST(ComposeCaching, PromotedAndSplitBakesKeepTheFloatDestination) {
-  for (const bool split : {false, true}) {
-    SCOPED_TRACE(split);
-    const auto moving = motion::animatable(.5f);
-    const auto figure = [&] {
-      Element radiant =
-          box()
-              .key("radiant")
-              .absolute()
-              .rect(8.25f, 12.25f, 40, 40)
-              .shape(skiaShape([](SkSize size) {
-                return SkPathBuilder().addOval(SkRect::MakeSize(size)).detach();
-              }))
-              .fill(hdrCacheSurface());
-      if (split)
-        radiant.children(
-            {box().absolute().rect(14, 14, 8, 8).opacity(moving).fill(blue())});
-      return box().width(64).height(64).cache(Cache::None).children({radiant});
-    };
-    Host retained(64, 64);
-    retained.composer.setProfiling(true);
-    retained.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
-    retained.composer.render(figure());
-    for (const SkColorType type :
-         {kN32_SkColorType, kRGBA_F16_SkColorType, kRGBA_F32_SkColorType}) {
-      retained.surface = SkSurfaces::Raster(
-          SkImageInfo::Make(64, 64, type, kPremul_SkAlphaType));
-      ASSERT_TRUE(retained.surface);
-      for (int frame = 0; frame < 4; ++frame)
-        retained.frame(0, SK_ColorTRANSPARENT);
-      const Composer::NodeCost* row = requireRow(retained.composer, "radiant");
-      ASSERT_NE(row, nullptr);
-      EXPECT_EQ(row->cacheState, split ? Composer::CacheState::SplitOwn
-                                       : Composer::CacheState::Promoted);
-      const test::Raster fresh =
-          test::rasterize(figure(), fonts(), {64, 64}, type);
-      ASSERT_TRUE(fresh.valid());
-      const SkBitmap actual = retained.pixels();
-      EXPECT_LE(premulDifference(actual, fresh.bitmap),
-                type == kN32_SkColorType ? .016f : .004f);
-      if (type != kN32_SkColorType) EXPECT_GT(actual.getColor4f(28, 22).fR, 1);
-    }
-  }
-}
-
 TEST(ComposeCaching, SharedBrushArtKeepsHdrThroughSpanAndPictureCaches) {
   for (const bool span : {false, true}) {
     SCOPED_TRACE(span);
@@ -302,7 +255,6 @@ TEST(ComposeCaching, SharedBrushArtKeepsHdrThroughSpanAndPictureCaches) {
     };
     Host byteHost(128, 80), floatHost(128, 80);
     for (Host* host : {&byteHost, &floatHost}) {
-      host->composer.setAutoTexturePromotion(false);
       host->composer.render(tree(shared, Cache::Picture));
     }
     const auto draw = [&](Host& host, SkColorType type) {
@@ -349,7 +301,6 @@ TEST(ComposeCaching, SharedBrushArtKeepsHdrThroughSpanAndPictureCaches) {
 TEST(ComposeCaching,
      PixelBakesFollowDestinationProfileAndOpaqueFloatPrecision) {
   Host retained(128, 80);
-  retained.composer.setAutoTexturePromotion(false);
   retained.composer.render(hdrCacheFigure(Cache::Texture));
   const auto draw = [&](const SkImageInfo& info) {
     retained.surface = SkSurfaces::Raster(info);
@@ -368,7 +319,6 @@ TEST(ComposeCaching,
     Host fresh(128, 80);
     fresh.surface = SkSurfaces::Raster(info);
     ASSERT_TRUE(fresh.surface);
-    fresh.composer.setAutoTexturePromotion(false);
     fresh.composer.render(hdrCacheFigure(Cache::None));
     fresh.frame(0, SK_ColorTRANSPARENT);
     EXPECT_LE(premulDifference(actual, fresh.pixels()), .004f);
@@ -389,7 +339,6 @@ TEST(ComposeCaching,
   Host fresh(128, 80);
   fresh.surface = SkSurfaces::Raster(opaque);
   ASSERT_TRUE(fresh.surface);
-  fresh.composer.setAutoTexturePromotion(false);
   fresh.composer.render(hdrCacheFigure(Cache::None));
   fresh.frame(0, SK_ColorTRANSPARENT);
   EXPECT_LE(premulDifference(actual, fresh.pixels()), .004f);

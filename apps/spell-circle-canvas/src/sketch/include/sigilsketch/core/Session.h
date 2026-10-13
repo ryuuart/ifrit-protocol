@@ -113,25 +113,6 @@ class Session {
    *  runtime with none. */
   [[nodiscard]] virtual std::string counters() const { return {}; }
 
-  /** WHEN THE RUNTIME MAY RE-BAKE A NODE IT WAS NOT ASKED TO.
-   *
-   *  `Off` is what a byte-identity sweep asks for: a cost-driven re-bake
-   *  is the one behaviour whose outcome depends on how busy the machine
-   *  is, so with it on a plate's bytes do too.
-   *
-   *  `ByCost` is the runtime's own judgement — it bakes what its
-   *  stopwatch says is expensive, and therefore a different set of nodes
-   *  on a loaded machine than on an idle one.
-   *
-   *  `Eager` bakes everything the runtime is ALLOWED to bake, whatever it
-   *  costs. Nothing about what a bake may do changes; only the question
-   *  of whether the node was worth one. That is what a run TESTING the
-   *  re-baking wants: the same nodes on every machine, and all of them.
-   *
-   *  A runtime that promotes nothing ignores this. */
-  enum class Promotion : uint8_t { Off, ByCost, Eager };
-  virtual void setAutoPromotion(Promotion policy) { (void)policy; }
-
   /** Attribute per-node cost on the frames that follow. It costs
    *  something to collect, so a host turns it on for one frame rather
    *  than for a measured run. */
@@ -150,25 +131,6 @@ class Session {
    *  empty for a runtime with no device stages or when none were asked
    *  for. */
   [[nodiscard]] virtual std::string deviceTimes() const { return {}; }
-
-  /** COUNT THE COMPOSITES EACH PIXEL PASSES THROUGH on the frames that
-   *  follow. A runtime that holds cached rasters composites a pixel more
-   *  times than a live paint does, and each composite rounds; the count
-   *  is what turns a per-composite bound into a bound on a picture. It
-   *  costs a readback per cached raster, so a host asks for one frame
-   *  rather than for a run, and a runtime that caches nothing of its own
-   *  ignores it. */
-  virtual void setCompositeCounting(bool on) { (void)on; }
-
-  /** The plane the last counted frame produced: one saturating byte per
-   *  device pixel of the canvas that frame was drawn on, row-major.
-   *  Empty when nothing counted. */
-  struct CompositeCounts {
-    int width = 0;
-    int height = 0;
-    std::vector<uint8_t> counts;
-  };
-  [[nodiscard]] virtual CompositeCounts compositeCounts() const { return {}; }
 
   /** HOW MANY DEVICE PIXELS A CANVAS UNIT IS WORTH, for the rasters this
    *  runtime bakes. Declared, a cached raster is taken at this density

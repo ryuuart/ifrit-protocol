@@ -129,8 +129,6 @@ sigil_library(SigilComposeCore
     cache/MarkStates.h
     cache/Pattern.cpp
     cache/PictureTier.cpp
-    cache/PromotionTier.cpp
-    cache/SplitBake.cpp
     cache/StampCache.h
     cache/TextureBake.cpp
     cache/Volatility.cpp
@@ -168,12 +166,11 @@ sigil_test(compose_test
   SOURCES test/ComposeTestLayout.cpp test/ComposeTestGrid.cpp
           test/ComposeTestContent.cpp
           test/ComposeTestReconcile.cpp test/ComposeTestCaching.cpp
-          test/ComposeTestPromotion.cpp test/ComposeTestMotion.cpp
+          test/ComposeTestMotion.cpp
           test/ComposeTestBakeReuse.cpp test/ComposeTestBakeFormat.cpp
           test/ComposeTestGroupSettling.cpp
           test/ComposeTestFlowAroundCore.cpp
-          test/ComposeTestPromotionBounds.cpp
-          test/ComposeTestPromotionGate.cpp
+          test/ComposeTestBakeBounds.cpp
           test/StandardExceptionsTest.cpp
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp

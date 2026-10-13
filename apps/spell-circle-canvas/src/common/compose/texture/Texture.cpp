@@ -425,10 +425,6 @@ bool TextureScene::isRunning() const {
 
 const Composer& TextureScene::composer() const { return *m_impl->composer; }
 
-void TextureScene::setAutoTexturePromotion(PromotionPolicy policy) {
-  m_impl->composer->setAutoTexturePromotion(policy);
-}
-
 material::Texture texture(const Element& root, SkISize size,
                           weave::FontContext& fonts,
                           material::Color background) {

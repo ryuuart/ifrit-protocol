@@ -88,7 +88,7 @@ void Composer::Impl::scanReleasedScalars() {
     now.world = worldScalarsOf(*inst);
     // The bound fill: a released node whose output is assigned while the
     // volatility walk is idle must re-declare before its settled colour
-    // replays from an ancestor's recording or its own promoted bake.
+    // replays from an ancestor's recording or its own bake.
     now.fill = inst->resolveBoundFill();
     // The bound tile pan: same argument, so a parked scroll re-declares
     // before its parked phase replays.

@@ -30,9 +30,9 @@ sigil_test(compose_test
           test/ComposeTestPixelStyles.cpp test/ComposeTestStyleEffects.cpp
           test/ComposeTestStrokePresets.cpp test/ComposeTestRelief.cpp
           test/ComposeTestReliefRibbon.cpp
-          test/ComposeTestTextAndLayout.cpp test/ComposeTestPromotion.cpp
+          test/ComposeTestTextAndLayout.cpp
           test/ComposeTestTextureBake.cpp test/ComposeTestTemporalCache.cpp
-          test/ComposeTestSplitBake.cpp test/ComposeTestGroupBake.cpp
+          test/ComposeTestGroupBake.cpp
           test/ComposeTestRuleMarks.cpp test/ComposeTestCascadePaints.cpp
           test/ComposeTestLayerStyles.cpp
   LIBRARIES SigilComposeBrush SigilComposeKit SigilComposeTesting

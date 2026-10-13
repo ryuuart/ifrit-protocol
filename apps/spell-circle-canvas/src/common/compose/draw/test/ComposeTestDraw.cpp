@@ -92,61 +92,6 @@ TEST(DrawNode, RunsThePenOverTheNodesBoxEveryFrame) {
   EXPECT_EQ(runs, 2);  // Cache::None: the program runs each frame
 }
 
-/** A program reads the policy its composer runs under, and a pen keeps
- *  it for the guest a program holds — so a session pinned deterministic
- *  pins every composer built inside its paint, and a run meaning to test
- *  promotion reaches them too. */
-TEST(DrawNode, AProgramReadsThePromotionPolicyItsComposerRunsUnder) {
-  Host host;
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
-  PromotionPolicy seen = PromotionPolicy::ByCost;
-  host.composer.render(stack().children(
-      {custom("probe", [&](sigil::draw::Pen& pen, const PaintContext& ctx) {
-         seen = ctx.promotion;
-       }).cache(Cache::None)}));
-  host.frame();
-  EXPECT_EQ(seen, PromotionPolicy::Off);
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
-  host.frame();
-  EXPECT_EQ(seen, PromotionPolicy::Eager);
-}
-
-/** A RETAINED GUEST RUNS UNDER ITS HOST'S POLICY, whichever pen paints
- *  it: the pen a pen program draws with, and the buffer's own pen a
- *  graphics program draws with. A guest's composer paints its leaves
- *  under the policy it runs under, so a leaf inside the guest reads what
- *  the host pinned — and reads the next pin too, since a guest is told
- *  again when the host's policy moves. */
-TEST(DrawNode, ARetainedGuestRunsUnderItsHostsPromotionPolicy) {
-  Host host;
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
-  PromotionPolicy byPen = PromotionPolicy::ByCost;
-  PromotionPolicy byGraphics = PromotionPolicy::ByCost;
-  const auto probe = [](PromotionPolicy& seen) {
-    return custom("probe",
-                  [&seen](sigil::draw::Pen& pen, const PaintContext& ctx) {
-                    seen = ctx.promotion;
-                  })
-        .cache(Cache::None);
-  };
-  const Element penGuest = probe(byPen);
-  const Element graphicsGuest = probe(byGraphics);
-  host.composer.render(stack().children(
-      {pen([&](Pen& p) { p.element(penGuest, 0, 0, 40, 40); })
-           .width(50)
-           .height(50),
-       graphics([&](Pen& g) { g.element(graphicsGuest, 0, 0, 40, 40); })
-           .width(50)
-           .height(50)}));
-  host.frame();
-  EXPECT_EQ(byPen, PromotionPolicy::Off);
-  EXPECT_EQ(byGraphics, PromotionPolicy::Off);
-  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
-  host.frame();
-  EXPECT_EQ(byPen, PromotionPolicy::Eager);
-  EXPECT_EQ(byGraphics, PromotionPolicy::Eager);
-}
-
 TEST(DrawNode, ACanvasFillsTheBoxItStandsIn) {
   // `cover()` is `absolute().inset(0)` said once, and a pen comes back
   // wearing it — a p5 canvas fills its box by nature.

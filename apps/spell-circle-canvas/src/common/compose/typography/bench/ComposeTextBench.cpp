@@ -274,7 +274,7 @@ BENCHMARK(BM_Draw_ZoomedPage_Settle)
 #ifdef SIGIL_BENCH_GPU
 
 // ---- Dense static text on Graphite ---------------------------------------
-// Automatic texture promotion is off on the GPU path, so a dense static text
+// Nothing bakes a dense static text block the author did not ask to, so the
 // block genuinely replays its draw calls every frame and every glyph goes
 // through strike and atlas planning once per Recording. Two Skia knobs act
 // on exactly that shape: RecorderOptions::fRequireOrderedRecordings (with

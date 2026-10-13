@@ -179,7 +179,6 @@ TEST(Pen, RetiringAStoredGuestReleasesOnlyThatGuest) {
   store.get<int>(retired, [&] { return trackedValue(retiredResource, 5); });
   int& survivor =
       store.get<int>(kept, [&] { return trackedValue(keptResource, 9); });
-  store.host() = 42;
 
   EXPECT_TRUE(store.erase(retired));
   EXPECT_TRUE(retiredResource.expired());
@@ -187,7 +186,6 @@ TEST(Pen, RetiringAStoredGuestReleasesOnlyThatGuest) {
   EXPECT_EQ(store.size(), 1u);
   EXPECT_EQ(&survivor, keptResource.lock().get());
   EXPECT_EQ(survivor, 9);
-  EXPECT_EQ(std::any_cast<int>(store.host()), 42);
   EXPECT_FALSE(store.erase(retired));
   EXPECT_EQ(store.size(), 1u);
 }

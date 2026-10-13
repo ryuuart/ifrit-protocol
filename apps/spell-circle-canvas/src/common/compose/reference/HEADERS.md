@@ -27,10 +27,7 @@ sound model; nothing below them changes kernel semantics.
   of a fill: a value, the ink in force or a custom property, which
   `resolveColor` reads against a paint context), `Corners`,
   `PaintContext`, `KeyState` — the keys a host fed, as a paint program
-  reads them beside `PaintContext::pointer` — `PromotionPolicy`, what
-  decides a texture promotion, which `PaintContext::promotion` carries as
-  the policy the painting composer runs under, so a program keeping a
-  composer of its own runs it under the same rule — `PaintProgram`, a
+  reads them beside `PaintContext::pointer` — `PaintProgram`, a
   drawing made with the draw executor's pen that NAMES ONLY THE
   PARAMETERS IT READS: the pen and the context are both offered, so
   `[](draw::Pen& pen) {…}`, `[](draw::Pen& pen, const PaintContext& ctx)

@@ -1,11 +1,11 @@
 # SigilProtocol
 
 One protocol every Sigil host speaks and every client of one is generated
-from. A host — Grimoire, Seer, the product receiver — is asked what it
-is, told how its clock moves, made to open a sketch and photograph it,
-and asked what its registry holds, all as commands of one definition;
-whatever asks, a test in the same process, a script over a socket or a
-panel in Seer, speaks the same commands in the same words.
+from. A host such as Grimoire is asked what it is, told how its clock
+moves, made to open a sketch and photograph it, and asked what its
+registry holds, all as commands of one definition; whatever asks, a test
+in the same process or a script over a socket, speaks the same commands
+in the same words.
 
 The definition is a FlatBuffers schema, `definition/protocol.fbs`. Its
 `rpc_service` blocks are the DOMAINS — `host`, `clock`, `session`,
@@ -54,13 +54,12 @@ derived is kept by hand.
                    ^             /protocol served,  |          |
                    |             inside sigil::io::advance(hub)          |
                    |                      ^         |          v
-                   +------- CLIENTS ------+---------+       PANELS
-                                                            (Seer)
+                   +------- CLIENTS ------+---------+----------+
 ```
 
-Seven seams, in the order a message crosses them; the first six are
-built, and every host mounts the endpoint — Grimoire and Seer by
-default, the product receiver when `--inspect` asks. Each promises
+Six seams, in the order a message crosses them, every one built, and
+every host mounts the endpoint — Grimoire's window by default, a
+headless Grimoire when `--inspect` asks. Each promises
 something and refuses something, and a failure names the seam that
 refused.
 
@@ -221,9 +220,8 @@ telling each that enabled `host` that the endpoint is closing, through
 address file while it still names this endpoint. It is made on a hub and
 a dispatcher and let go before either, and before the agents mounted on
 that dispatcher, whose `onDetach` listeners its going runs. Grimoire's
-window and Seer put one on their dispatcher by default, a headless
-Grimoire serves one when `--headless --inspect` asks, and the product
-receiver mounts one only when `--inspect` asks.
+window puts one on its dispatcher by default, and a headless Grimoire
+serves one when `--headless --inspect` asks.
 
 **6. The clients** speak through a `sigil::protocol::Caller`: `call`
 sends a method and its parameters' JSON text and hands the answer back
@@ -259,11 +257,6 @@ or through the state directory whose address file names it, reads the
 definition it serves at `/protocol` and refuses one whose breaking
 revision differs; and `launch`, which starts a headless Grimoire under
 a state directory and connects once its address file is written.
-
-**7. The panels** are Seer's, over the same clients, and come after the
-runtime; the first a client asks for is `host.describe`, which answers
-the version, the domains mounted, the clock's policy, the state root,
-the sessions open and the clients attached.
 
 ## The envelope
 

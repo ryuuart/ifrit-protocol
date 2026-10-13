@@ -142,7 +142,6 @@ TEST(ComposeTexture, AScaleReadingMaterialLetsTheSceneSleep) {
 
 TEST(ComposeTexture, PictureWrappedGroupTakesOneFollowUpRenderThenSleeps) {
   const auto scene = TextureScene::make({64, 48}, fonts());
-  scene->setAutoTexturePromotion(PromotionPolicy::Off);
   const Element tree = box()
                            .width(64)
                            .height(48)
@@ -355,7 +354,6 @@ TEST(ComposeTexture, FloatLayersAndTextureSamplingKeepTheirRangeWhileHeld) {
     const auto scene = TextureScene::make(
         SkImageInfo::Make(32, 24, type, kPremul_SkAlphaType), fonts());
     ASSERT_TRUE(scene);
-    scene->setAutoTexturePromotion(PromotionPolicy::Off);
     const Element tree = layeredHdr();
     scene->render(tree);
     scene->render(tree, 1.0 / 60.0);
@@ -446,7 +444,6 @@ void expectDevicePrecision(sigil::core::hardware::GpuDevice& device,
                                                kPremul_SkAlphaType, profile);
     const auto scene = TextureScene::make(info, fonts(), {4, 2, 1, .5f});
     ASSERT_TRUE(scene);
-    scene->setAutoTexturePromotion(PromotionPolicy::Off);
     const auto tree = layeredHdr();
     scene->render(tree);
     scene->render(tree, 1.0 / 60.0);

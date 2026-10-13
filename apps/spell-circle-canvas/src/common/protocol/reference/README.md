@@ -13,7 +13,7 @@ page says something the definition no longer does.
 | --- | --- |
 | `domains/host.md` | the host itself: what it is, which domains it mounts, where it keeps its state, and describe, the first command a client sends |
 | `domains/clock.md` | the clock a session's frames are drawn at: its four policies, stepping, pausing, the time scale and the budget |
-| `domains/session.md` | the one running sketch: opening it, pinning its device and promotion, stills and sequences, timing, measured values and the composite-count plane |
+| `domains/session.md` | the one running sketch: opening it, pinning its device and density, stills and sequences, timing, profiles and measured values |
 | `domains/registry.md` | the sketches a host can open, and the rows a browser shows for them |
 
 The tables every domain shares — `Error`, `Empty`, `Revision` and the

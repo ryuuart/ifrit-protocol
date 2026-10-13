@@ -131,10 +131,6 @@ struct DecliningSession : protocol::session::SessionAgent {
       const protocol::session::values::DeviceParameters&) override {
     return declined("session.pinDevice");
   }
-  Answer<Empty> pinPromotion(
-      const protocol::session::values::PromotionParameters&) override {
-    return declined("session.pinPromotion");
-  }
   Answer<Empty> pinDensity(
       const protocol::session::values::DensityParameters&) override {
     return declined("session.pinDensity");
@@ -157,10 +153,6 @@ struct DecliningSession : protocol::session::SessionAgent {
   void profile(const protocol::session::values::ProfileParameters&,
                Reply<protocol::session::values::ProfileResult> reply) override {
     reply(declined("session.profile"));
-  }
-  void compositeCounts(
-      Reply<protocol::session::values::CompositeCountsResult> reply) override {
-    reply(declined("session.compositeCounts"));
   }
 };
 
@@ -186,26 +178,13 @@ TEST(ProtocolWiring, EachDomainMountsTheCommandsItsAgentAnswers) {
   protocol::session::wire(board, session);
   protocol::registry::wire(board, registry);
   // enable and disable are the dispatcher's, so no wire() mounts them.
-  EXPECT_EQ((std::set<std::string>{"clock.current",
-                                   "clock.pause",
-                                   "clock.setPolicy",
-                                   "clock.setTimeScale",
-                                   "clock.step",
-                                   "host.describe",
-                                   "host.stateRoot",
-                                   "host.version",
-                                   "registry.catalog",
-                                   "registry.list",
-                                   "session.compositeCounts",
-                                   "session.measured",
-                                   "session.open",
-                                   "session.pinDensity",
-                                   "session.pinDevice",
-                                   "session.pinPromotion",
-                                   "session.profile",
-                                   "session.sequence",
-                                   "session.still",
-                                   "session.timing"}),
+  EXPECT_EQ((std::set<std::string>{
+                "clock.current", "clock.pause", "clock.setPolicy",
+                "clock.setTimeScale", "clock.step", "host.describe",
+                "host.stateRoot", "host.version", "registry.catalog",
+                "registry.list", "session.measured", "session.open",
+                "session.pinDensity", "session.pinDevice", "session.profile",
+                "session.sequence", "session.still", "session.timing"}),
             board.methods());
 }
 

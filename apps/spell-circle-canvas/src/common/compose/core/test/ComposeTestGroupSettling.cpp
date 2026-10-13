@@ -11,7 +11,6 @@ TEST(ComposeCaching, PictureRevisitsASettlingGroupThenHoldsItsPixels) {
   for (const float density : {0.0f, 1.0f}) {
     SCOPED_TRACE(density);
     Host host(64, 64);
-    host.composer.setAutoTexturePromotion(false);
     host.composer.setBakeDensity(density);
     const auto tree = [](Fill fill) {
       return box()
@@ -52,7 +51,6 @@ TEST(ComposeCaching, PictureRevisitsASettlingGroupThenHoldsItsPixels) {
 
 TEST(ComposeCaching, MovingPictureParentSettlesOneLocalGroupBake) {
   Host host(64, 64);
-  host.composer.setAutoTexturePromotion(false);
   motion::Animatable<float> drift = motion::animatable(0.0f);
   host.composer.render(box()
                            .width(64)
@@ -97,7 +95,6 @@ TEST(ComposeCaching, RefusedGroupsDoNotRequestSettlingDraws) {
     host.surface = SkSurfaces::Raster(
         SkImageInfo::Make(64, 64, kRGBA_F32_SkColorType, kPremul_SkAlphaType));
     ASSERT_TRUE(host.surface);
-    host.composer.setAutoTexturePromotion(false);
     host.composer.setBakeDensity(1);
     host.composer.render(box()
                              .width(64)
@@ -115,7 +112,6 @@ TEST(ComposeCaching, RefusedGroupsDoNotRequestSettlingDraws) {
 
 TEST(ComposeCaching, PixelBakeDoesNotKeepAnEnclosedGroupPending) {
   Host host(64, 64);
-  host.composer.setAutoTexturePromotion(false);
   host.composer.render(
       box()
           .width(64)

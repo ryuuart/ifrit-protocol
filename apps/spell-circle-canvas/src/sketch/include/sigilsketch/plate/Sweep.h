@@ -23,11 +23,6 @@ class Assets;
  *  name is what a baseline manifest holds, so it is spelled once. */
 inline constexpr std::string_view kPlatePrefix = "plate_";
 
-/** …and how a COMPOSITE-COUNT PLANE is named: this, the sketch's filed
- *  name, `.png`. It stands beside the plate it describes and anything
- *  that reads one reads the spelling from here. */
-inline constexpr std::string_view kCountPrefix = "counts_";
-
 /** HOW WIDE A PLATE MAY BE before the oversample gives way rather than
  *  the pixel count. It bounds the default host density; an explicit
  *  density or a sketch's declared oversample is rendered exactly as
@@ -88,52 +83,6 @@ struct SweepOptions {
   /** Only the sketches drawn through this runtime (`scene2d`, `scene3d`);
    *  empty is all of them. */
   std::string kind;
-  /** Force cost-based re-baking off. On a device the backend-aware
-   *  default already holds it off; naming it makes the comparison
-   *  reproducible on either backend rather than a behaviour it adds. */
-  bool noPromotion = false;
-  /** Turn automatic re-baking ON — EAGERLY — leaving every other pin of a
-   *  headless run in place.
-   *
-   *  A headless session is opened deterministic, and a deterministic
-   *  session holds automatic texture promotion off — so nothing a sweep
-   *  renders exercises the promoter, and the one renderer feature a
-   *  plate is deliberately blind to is also the one nothing photographs.
-   *  This is the door: the clock, the step, the capture moment and the
-   *  sketch's own `measured()` pins all stand, and only the promoter is
-   *  let go.
-   *
-   *  IT IS THE EAGER POLICY, not the runtime's own cost judgement. The
-   *  cost judgement is a stopwatch, so the set of nodes it bakes depends
-   *  on how busy the machine is — on an idle one it can bake nothing at
-   *  all, and a sweep that promotes nothing proves nothing. Eager bakes
-   *  every node the rules admit, from its first frame, so one scene
-   *  exercises the same nodes on every machine and all of them.
-   *
-   *  What comes out is NOT byte-comparable with a plate — a bake lands
-   *  under a matrix post-translated by an integer, so a shaded pixel may
-   *  sit one code value from the live paint — so it is judged by distance
-   *  from the plate rather than by hash. Refused together with
-   *  `noPromotion`, which asks for the opposite. */
-  bool promotion = false;
-  /** ALSO WRITE THE COMPOSITE-COUNT PLANE beside each plate, named by
-   *  `kCountPrefix` — one grey level per device pixel, saying how many
-   *  cached rasters were blitted over it.
-   *
-   *  A cached raster is a composite the live paint does not make, and
-   *  each composite rounds into eight bits; so what a promoted plate may
-   *  differ from its live paint by is a bound PER COMPOSITE times the
-   *  count, and the count is otherwise invisible — a picture under seven
-   *  of them and a picture under one look alike in a difference. Written
-   *  as a plate is written, at the plate's own size, so the two index
-   *  alike, and counted over the STILL alone: the plane describes the
-   *  frame that was photographed.
-   *
-   *  It costs a readback per cached raster of that one frame, and asking
-   *  for it changes nothing a plate holds. A comparison reads it beside
-   *  the second directory's plates and prices the content difference by
-   *  it. */
-  bool countPlane = false;
   /** Take every still at this scene time, in seconds, overriding both
    *  the derived frame and any sketch's declared moment; negative leaves
    *  each sketch its own. Zero is a time like any other: the still is the

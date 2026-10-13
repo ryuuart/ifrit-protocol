@@ -56,22 +56,6 @@ Takes `DeviceParameters`: What pinDevice is asked.
 
 Answers nothing but that it was done.
 
-### session.pinPromotion
-
-Pins when the runtime may re-bake a node it was not asked to.
-
-In Python, Session.pin_promotion.
-
-Answered at once.
-
-Takes `PromotionParameters`: What pinPromotion is asked.
-
-| Parameter | Type | Default | |
-| --- | --- | --- | --- |
-| `promotion` | Promotion (enumeration) | Auto | When the runtime may re-bake from now on. |
-
-Answers nothing but that it was done.
-
 ### session.pinDensity
 
 Pins the density every raster the session bakes is formed at, from the first frame of each session opened after it and from now on in the one open. A still at that density of a session pinned before it opened is the plate a sweep takes of the same moment; a bake formed before the pin is formed again only when its node describes again.
@@ -196,25 +180,6 @@ Answers `ProfileResult`: What the profiled frame spent, the most expensive first
 | --- | --- | --- | --- |
 | `rows` | list of string | empty | Each row in the runtime's own words: what spent the time, and how much. |
 
-### session.compositeCounts
-
-Counts the composites each pixel of the next still passes through, and answers the plane once that still is taken.
-
-In Python, Session.composite_counts.
-
-Answered later, through the reply the agent is handed, once the work is done.
-
-Takes nothing.
-
-Answers `CompositeCountsResult`: The composite-count plane of the next still.
-
-| Field | Type | Default | |
-| --- | --- | --- | --- |
-| `path` | string | "" | Where the plane was written, under the state root: one saturating byte per device pixel, as a grey image. |
-| `width` | uint | 0 | The plane's width in pixels. |
-| `height` | uint | 0 | The plane's height in pixels. |
-| `maximum` | uint | 0 | The most composites any one pixel passed through. |
-
 ### session.enable
 
 Starts this client's session events.
@@ -282,16 +247,6 @@ What a session draws with.
 | --- | --- |
 | `Cpu` | Skia's raster backend: the reference every plate is judged against. |
 | `Gpu` | The GPU, through the host's device. |
-
-### Promotion
-
-When the runtime may re-bake a node it was not asked to.
-
-| Value | |
-| --- | --- |
-| `Off` | Never: a byte-identical still asks for this. |
-| `Auto` | By the runtime's own measure of what is expensive, which differs from machine to machine. |
-| `Eager` | Every node the runtime may bake, whatever it costs. |
 
 ### LaneCost
 

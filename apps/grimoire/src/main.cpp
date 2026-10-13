@@ -13,7 +13,7 @@
  *   Grimoire --compare <dir-a> <dir-b>       compare two plate sweeps
  *   Grimoire --headless [<outdir>] [--gpu] [--sketch <name>]
  *              [--kind <k>] [--at <s>]
- *              [--ledger] [--no-promotion | --promotion] [--composites]
+ *              [--ledger]
  *                                              plates, and the timing table;
  *                                              into sketch_plates/ unless a
  *                                              directory is named
@@ -70,19 +70,6 @@
  * `--sketch` takes a case-insensitive substring and answers to a
  * sketch's filed name or its file stem, which is the loop for visual
  * iteration.
- *
- * A HEADLESS SWEEP RENDERS WITH AUTOMATIC TEXTURE PROMOTION OFF, because
- * a plate is judged on byte identity and a cost-driven bake depends on
- * how busy the machine is. `--no-promotion` names that default so it
- * holds on a backend that would otherwise decide for itself.
- * `--promotion` opens the sessions EAGER instead: every node the
- * runtime is allowed to bake is baked from its first frame, whatever it
- * costs, so the set of nodes exercised is the scene's and identical on
- * every machine. Such a run is judged by distance from a plate, never
- * by hash. `--composites` writes a second picture beside each plate,
- * `counts_<sketch>.png`, whose grey level is how many cached rasters
- * were blitted over that pixel — the number a per-composite rounding
- * bound has to be multiplied by before it bounds a picture.
  *
  * `--publish` OFFERS THE LIVE WINDOW'S FRAMES to other applications on
  * this machine, under a name they subscribe to — the one given, or the

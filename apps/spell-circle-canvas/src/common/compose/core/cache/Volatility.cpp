@@ -350,13 +350,13 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // recording was baked with" is well defined. ContentScalars carries it,
   // so the recording survives between changes, the flag releases after
   // kScalarSettleFrames of identity — which is what lets a never-moving
-  // bound accent be promoted like a plain colour — and the per-draw
+  // bound accent be cached like a plain colour — and the per-draw
   // released scan re-declares THE FRAME the output moves, before anything
   // stale replays.
   scalarContent |= boundFill;
   // …and the bound tile PAN, the third member of the lane. ContentScalars
   // carries the resolved pair, so each moved frame re-records with the new
-  // phase and nothing re-describes, a parked scroll releases and promotes
+  // phase and nothing re-describes, a parked scroll releases and caches
   // like a static pattern, and the released scan re-declares THE FRAME the
   // pan resumes.
   scalarContent |= patternPan;
@@ -484,15 +484,10 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool ownPaintVolatile = ownContent || marksFollowCoverage;
   // Does anything here composite against what is ALREADY on the canvas? If
   // so the subtree can never be baked into a transparent layer and blitted
-  // back — a kMultiply child would resolve against transparent black. This
-  // is the trap automatic promotion has to avoid, and it is invisible in a
-  // still frame of the common case, so it is computed rather than assumed.
-  // Split into halves, because the two cache strategies ask different
-  // questions of it. Whole-subtree promotion bakes the children too, so it
-  // must ask about the whole subtree. A split bake replaces only the node's
-  // OWN layer and draws children over the blit, so it must ask only about
-  // the node's own paint — the children composite against the blit exactly
-  // as they would against freshly rasterized pixels.
+  // back — a kMultiply child would resolve against transparent black. It
+  // is invisible in a still frame of the common case, so it is computed
+  // rather than assumed: the node's own paint here, and the subtree's
+  // answer folded from it below, which is what a group bake asks.
   //
   // A CUSTOM PROGRAM IS A CALLABLE, AND NOTHING HERE CAN LOOK INSIDE IT.
   // It is handed the canvas and may draw with any blend mode it likes — a
@@ -569,14 +564,8 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // here or ANY volatility below (children paint inside the recording,
   // transforms included) — but not by own paint volatility.
   const bool blocked = verdict.subtreeVolatile;
-  // …and WHICH of the two it was. `subtreeVolatile && !ownContentVolatile`
-  // is the split bake's whole population: the node's own paint is provably
-  // static and only its children move.
-  inst.ownContentVolatile = verdict.ownContentVolatile;
   inst.ownCoverageVolatile = ownContent;
   inst.ownVaries = ownPaint || ownPaintVolatile;
-  if (ownPaintVolatile)
-    inst.ownImage.reset();  // a volatile own paint can never hold a bake
   // The resolve-memo carve-out: volatility caused SOLELY by a live
   // material keeps its picture — paint() replays it while resolve() stays
   // stable and re-records only when the shader actually changes. Stated as

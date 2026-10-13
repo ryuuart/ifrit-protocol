@@ -64,7 +64,6 @@ void detail::drawSettled(const Element& root, sigil::weave::FontContext& fonts,
   // would otherwise hold for good.
   composer.m_impl->liveOnly = true;
   composer.setSize({viewport.width(), viewport.height()});
-  composer.setAutoTexturePromotion(false);
   composer.render(root);
   composer.draw(canvas);
 }

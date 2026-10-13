@@ -345,8 +345,9 @@ struct Echo {
 /** Cache override.
  *
  *  - **Auto** (the default) records provably-static subtrees as pictures.
- *  - **Picture** records, and never lets the library promote the node to
- *    a pixel bake.
+ *  - **Picture** records the node even where Auto paints it live: a
+ *    childless leaf whose one draw would otherwise beat a nested
+ *    recording.
  *  - **Texture** rasterizes the subtree once into an image. Best for dense
  *    or effect-heavy content; wasteful for sparse regions, where the blit
  *    of a mostly-empty image costs more than the few draws it replaced.

@@ -178,7 +178,6 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
         ++skipped;
         continue;
       }
-      session->setAutoPromotion(Session::Promotion::Off);
       const SkSize declared = session->canvas().size;
       if (declared.width() <= 0 || declared.height() <= 0) {
         std::printf("story %-24s [skipped: empty canvas]\n", entry.name);

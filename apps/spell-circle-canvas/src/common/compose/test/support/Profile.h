@@ -26,16 +26,13 @@ namespace {
  *  nodes sit in real scenes: under a stack() with animated siblings.
  *
  *  Pair it with `requireRow()`, and note what each half guarantees:
- *  `profiledUnder` gets the node PROFILED, `requireRow` proves it was.
- *  **Neither makes it PROMOTED** — that needs the node to be genuinely
- *  over the cost threshold, which is a property of the content, not of
- *  the fixture. See `expensivePanel`. */
+ *  `profiledUnder` gets the node PROFILED, `requireRow` proves it was. */
 Element profiledUnder(Element subject) {
   return box().cache(Cache::None).children({std::move(subject)});
 }
 
 /** The profile row for `key`, failing loudly when there is none — the
- *  difference between "the library did not promote it" and "the test never
+ *  difference between "the library did not cache it" and "the test never
  *  looked at it", which a `for`-loop-with-an-`if` cannot tell you. */
 const Composer::NodeCost* requireRow(const Composer& composer,
                                      const char* key) {

@@ -49,22 +49,7 @@ void Graphics::form(Pen& host) {
                        pixelDimension(m_height, density)};
   const SkSize scale{(float)extent.width() / m_width,
                      (float)extent.height() / m_height};
-  // The device the host draws on, if it has one. A buffer moves onto a
-  // host's device the first time that device begins it, whatever host
-  // formed it first; one already on a device stays there under a host
-  // with none, since a device's pixels can be read back only through its
-  // context, which a pen does not hold. A device that cannot form the
-  // surface is remembered with the raster one formed in its place, so the
-  // attempt is not repeated every frame.
-  SkCanvas* const hostCanvas = host.canvas();
-  skgpu::graphite::Recorder* const recorder =
-      hostCanvas ? hostCanvas->recorder() : nullptr;
-  GrRecordingContext* const context =
-      hostCanvas ? hostCanvas->recordingContext() : nullptr;
-  const bool offersDevice = recorder || context;
-  const bool sameDevice =
-      !offersDevice || (recorder == m_recorder && context == m_context);
-  if (m_surface && m_extent == extent && sameDevice) {
+  if (m_surface && m_extent == extent) {
     // The units the buffer's pen draws in are its canvas size whatever
     // extent the surface was formed at, so a `resize` too small to move
     // the rounded extent still moves the scale.
@@ -72,16 +57,19 @@ void Graphics::form(Pen& host) {
     return;
   }
   const SkImageInfo info = SkImageInfo::MakeN32Premul(extent);
-  // Made through the host's canvas so it lives where the host draws;
-  // raster is what a host with no device offers, and what a device
-  // canvas answers when it cannot make one.
-  // A buffer re-formed under a host without a device is formed beside the
-  // surface it replaces, so one standing on a device stays there.
-  sk_sp<SkSurface> surface = m_surface && !offersDevice
-                                 ? m_surface->makeSurface(info)
-                             : hostCanvas ? hostCanvas->makeSurface(info)
-                                          : nullptr;
-  if (!surface) surface = SkSurfaces::Raster(info);
+  // FORMED WHERE THE HOST DRAWS, through the host's canvas, so a buffer
+  // begun under a device stands on that device; and RE-FORMED BESIDE
+  // ITSELF, so it stays where it was formed whatever host begins it next.
+  // A host whose canvas makes no surface — one that draws nothing, or a
+  // device refusing the extent — forms it on raster.
+  SkCanvas* const hostCanvas = host.canvas();
+  sk_sp<SkSurface> surface;
+  if (m_surface) {
+    surface = m_surface->makeSurface(info);
+  } else {
+    if (hostCanvas) surface = hostCanvas->makeSurface(info);
+    if (!surface) surface = SkSurfaces::Raster(info);
+  }
   if (!surface) throw std::bad_alloc();
   SkCanvas& target = *surface->getCanvas();
   target.clear(SK_ColorTRANSPARENT);
@@ -98,10 +86,6 @@ void Graphics::form(Pen& host) {
   m_surface = std::move(surface);
   m_extent = extent;
   m_scale = scale;
-  if (offersDevice) {
-    m_recorder = recorder;
-    m_context = context;
-  }
 }
 
 void Graphics::resize(float width, float height) {

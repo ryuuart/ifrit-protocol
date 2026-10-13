@@ -282,7 +282,7 @@ struct Slice {
   float density = 1.0f;
 
   /** Structural equality (asset by pointer identity) so a static nine-slice
-   *  frame prunes without memo. The promotion cache is identity-free. */
+   *  frame prunes without memo. */
   bool operator==(const Slice& o) const {
     return asset == o.asset && xDivs == o.xDivs && yDivs == o.yDivs &&
            filter == o.filter && density == o.density;

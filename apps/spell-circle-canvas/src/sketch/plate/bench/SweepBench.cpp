@@ -48,7 +48,6 @@ void Ledger(benchmark::State& state) {
   options.outputDirectory =
       (std::filesystem::temp_directory_path() / "sigil_sweep_bench").string();
   options.ledger = true;
-  options.noPromotion = true;
   options.only = find("sweep_bench_probe");
   for (auto&& _ : state)
     benchmark::DoNotOptimize(sweep(options, fonts(), assets()));

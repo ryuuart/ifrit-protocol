@@ -477,27 +477,33 @@ tree independent of the material consuming it to avoid a feedback loop.
 Retain the texture scene; its settled tree does not repaint as the scene's
 lights move.
 
-Leave `Cache::Auto` in place for ordinary scenes. The composer records
-static content and chooses reuse from declared inputs. A custom paint
-program that reads time, input or external state without re-describing
-must use `Cache::None`. Custom decoration schemes must forward their
-animation, overflow, mark width, backdrop, root-space sampling and borrowing
-capabilities when composed; `DecorationStack` and the stock adaptors do
-that for their members. A scheme that samples root coordinates declares
-`usesWorldSpace()` so a moved ancestor invalidates its held paint. A
-described tree may be painted by several composers at once, so a scheme
-keeps nothing it prepares in its own value: what a mark keeps between
-paints stands on the instance painting it, handed to the mark through
-`PaintContext::markState` and `PaintContext::stamps`, and a mark painted
-outside a composer prepares what it needs for that one paint.
+ONE RULE DECIDES WHAT IS PAINTED AGAIN: a node records again when
+something it paints has changed, and an author's cache statement is the
+only bake. Leave `Cache::Auto` in place for ordinary scenes: the composer
+records static content as pictures and replays them until a declared
+input moves. A custom paint program that reads time, input or external
+state without re-describing must use `Cache::None`. Custom decoration
+schemes must forward their animation, overflow, mark width, backdrop,
+root-space sampling and borrowing capabilities when composed;
+`DecorationStack` and the stock adaptors do that for their members. A
+scheme that samples root coordinates declares `usesWorldSpace()` so a
+moved ancestor invalidates its held paint. A described tree may be
+painted by several composers at once, so a scheme keeps nothing it
+prepares in its own value: what a mark keeps between paints stands on the
+instance painting it, handed to the mark through `PaintContext::markState`
+and `PaintContext::stamps`, and a mark painted outside a composer prepares
+what it needs for that one paint.
 
-`Cache::Picture`, `Cache::Texture` and `Cache::Group` express explicit
-reuse choices. Global texture promotion is a separate measured policy,
-and bake density controls raster resolution. Those controls are useful
-when a profile identifies work to change; they are not needed to start a
-scene. `Composer::setProfiling` and `Composer::profile` report per-node
-paint cost and cache decisions. `PromotionPolicy::Eager` is a deterministic
-eligibility-testing mode, not a performance recommendation.
+`Cache::Picture`, `Cache::Texture` and `Cache::Group` are the author's own
+reuse statements: a recording kept even for a leaf, a pixel bake, and a
+pixel bake of a subtree whose children animate. The one bake an author
+states without a cache statement is a live `filter()` over still content:
+the content is rasterized once with the effect left out, and the effect
+runs over that image every frame. Nothing else is baked to pixels. Bake
+density controls the resolution of those bakes. Those
+controls are useful when a profile identifies work to change; they are not
+needed to start a scene. `Composer::setProfiling` and `Composer::profile`
+report per-node paint cost and how each node produced its pixels.
 
 [The caching contract](reference/CACHING.md) states the requirements for
 custom drawing and the reuse policies. [Traps](reference/TRAPS.md) covers

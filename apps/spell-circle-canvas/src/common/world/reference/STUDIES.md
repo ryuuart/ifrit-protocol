@@ -147,8 +147,6 @@ python3 scripts/sigil.py plates --kind scene3d --tier device --stability 2
 ```
 
 A sweep narrowed to one kind or one study merges into that manifest
-rather than truncating it. The CPU smoke and the promotion tier pass
-every study over and say how many they passed over: a study has no
-raster plate, and the runtime a study draws through promotes nothing.
-With no device the device tier reports that and exits green, because a
+rather than truncating it. The CPU smoke passes every study over and
+says how many it passed over: a study has no raster plate. With no device the device tier reports that and exits green, because a
 machine with no Vulkan runtime has nothing to judge a study with.
