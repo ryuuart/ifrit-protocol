@@ -11,15 +11,7 @@
 # own behind the same door. And MIDI over RtMidi, which is the platform's
 # own MIDI stack behind one class: no thread is started for it at all,
 # the driver running the callback every arriving message is delivered
-# from. And the serial port, over Boost.Asio again: a device file read
-# on the UDP transport's kind of thread, with the lines a board prints
-# cut out of the stream that carries them. And gRPC, at both ends of one
-# generic method: a server holding a port and a call reaching one, with
-# no generated stub anywhere in the transport and no thread of this
-# library's at all, gRPC running its own and calling back onto them. And
-# WebRTC over libdatachannel: one connection per peer and one channel on
-# each, introduced over a websocket door this same feature opens, with
-# no thread of this library's either.
+# from.
 #
 # Every stack is PRIVATE: the header names a Hub and a scheme and
 # nothing of the network behind them, so a consumer that opens a feed
@@ -28,36 +20,19 @@
 # TLS and without zlib, so there is no OpenSSL or ZLIB to find beside it
 # and nothing it could listen for wss:// on; libcurl carries the TLS the
 # client end speaks it over, and the hub beneath this feature already
-# requires it. gRPC brings its own stack the same way — its transport,
-# its threads and the protobuf, abseil and OpenSSL beneath them are
-# found by its own package and reach nothing above this target.
-# libdatachannel brings the same way what a connection through a router
-# is made of — the routes, the encryption and the stream — and its
-# introductions cross a door this feature already opens, so there is no
-# signalling server to find beside it. And QUIC over msquic: one
-# encrypted connection per peer on one UDP port, a unidirectional stream
-# per message and datagrams beside them, with no thread of this
-# library's either — msquic runs its own workers and calls back onto
-# them. It carries the TLS that door is made of inside its own shared
-# library, so there is no OpenSSL to find beside it, and it is linked
-# privately like every other stack here.
+# requires it.
 find_package(boost_asio CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
 find_package(rtmidi CONFIG REQUIRED)
-find_package(gRPC CONFIG REQUIRED)
-find_package(LibDataChannel CONFIG REQUIRED)
-find_package(msquic CONFIG REQUIRED)
 sigil_library(SigilIOTransport
   SOURCES Transports.cpp Registration.h Udp.cpp WebSocket.cpp
-          WebSocketClient.cpp SharedMemory.cpp Midi.cpp Serial.cpp Grpc.cpp
-          Quic.cpp QuicLibrary.cpp QuicLibrary.h QuicAddress.cpp QuicAddress.h
-          QuicSession.cpp QuicSession.h QuicPeer.cpp QuicPeer.h WebRtc.cpp
-          Introduction.cpp Introduction.h IoThread.cpp IoThread.h
+          WebSocketClient.cpp SharedMemory.cpp Midi.cpp IoThread.cpp
+          IoThread.h
   HEADERS Transport.h
   PUBLIC SigilIOHub
   PRIVATE Boost::asio unofficial::uwebsockets::uwebsockets CURL::libcurl
-          RtMidi::rtmidi gRPC::grpc++ LibDataChannel::LibDataChannel msquic)
+          RtMidi::rtmidi)
 # The installer is handed to the hub from a source compiled into each
 # consumer, because a static initializer inside the archive is dropped
 # with the archive member nothing references.
@@ -73,29 +48,11 @@ target_sources(SigilIOTransport INTERFACE
 # and not one it inherits; the client's cases call a listener this same
 # process is holding and the region's cases write the region they read,
 # and the MIDI cases make a port of their own and open it back, so both
-# ends of a session, of a region and of a cable stand in one binary. The
-# serial cases make a pseudo-terminal pair and write the readings into
-# the master, the feed opening the slave by the path the system named
-# it, so a board is needed for none of them. The gRPC cases call a
-# server this same process is holding, so both ends of a method stand in
-# one binary and no stub is generated for either. The WebRTC cases start a
-# peer in a process of their own — this same binary, run again on the
-# one case that takes a room up and echoes what it hears — because a
-# door with nothing in the middle of it has its two ends on two
-# machines, and dispatch on every look, an introduction crossing on the
-# frame. The QUIC cases call a port this
-# same process is holding, so both ends of a connection stand in one
-# binary; that port has to answer for itself, so they WRITE A CERTIFICATE
-# AND A KEY into a scratch directory of their own with OpenSSL — which
-# is why this binary and the bench below find it and no other target
-# here does — and the call reaches the self-signed pair the way a
-# machine on a stage does.
-find_package(OpenSSL REQUIRED)
+# ends of a session, of a region and of a cable stand in one binary.
 sigil_test(io_test
   SOURCES test/UdpTest.cpp test/WebSocketTest.cpp test/WebSocketClientTest.cpp
-          test/SharedMemoryTest.cpp test/MidiTest.cpp test/SerialTest.cpp
-          test/GrpcTest.cpp test/QuicTest.cpp test/WebRtcTest.cpp
-  LIBRARIES SigilIOTransport Boost::asio OpenSSL::SSL OpenSSL::Crypto)
+          test/SharedMemoryTest.cpp test/MidiTest.cpp
+  LIBRARIES SigilIOTransport Boost::asio)
 
 # WHAT THE WIRES CARRY: one arm per door, with both ends of it standing
 # in the one binary, timing the messages a second that door carries end
@@ -104,15 +61,9 @@ sigil_test(io_test
 # rather than the socket underneath it, and a regression in a door
 # stands in the ledger. Each arm makes what it measures for itself, as
 # the cases do: a port on the loopback, a region of this machine's
-# memory, a pseudo-terminal pair, a MIDI port made rather than found,
-# and for QUIC the same self-signed pair written with the OpenSSL above.
-# WEBRTC HAS ONE TOO: both ends of a conversation stand in this process,
-# introduced over a websocket door this same feature opens on a port
-# taken and given straight back, which puts two ends on the one thread
-# the library under that door finds every end's routes on — an
-# arrangement that library now survives. The pair is made before
-# anything is timed, so what the row says is what the door carries once
-# it stands.
+# memory and a MIDI port made rather than found. The ends are made
+# before anything is timed, so what a row says is what the door carries
+# once it stands.
 sigil_bench(io_bench
   SOURCES bench/TransportBench.cpp
-  LIBRARIES SigilIOTransport OpenSSL::SSL OpenSSL::Crypto)
+  LIBRARIES SigilIOTransport)

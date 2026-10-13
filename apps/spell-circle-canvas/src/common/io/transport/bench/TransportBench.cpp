@@ -9,45 +9,32 @@
  * message — and never the socket alone.
  *
  * Every arm opens what it measures for itself: a port on the loopback, a
- * region of this machine's memory, a pseudo-terminal pair, a MIDI port
- * made rather than found. Nothing is plugged in and nothing is reached
- * over a network. A machine that will not give this process the door an
- * arm asks for skips that arm with the reason; a door that opened and
- * then did not carry its batch inside the deadline ends its arm with the
- * error, which is a regression rather than a machine.
+ * region of this machine's memory, a MIDI port made rather than found.
+ * Nothing is plugged in and nothing is reached over a network. A machine that
+ * will not give this process the door an arm asks for skips that arm with the
+ * reason; a door that opened and then did not carry its batch inside the
+ * deadline ends its arm with the error, which is a regression rather than a
+ * machine.
  *
  * Run a Release build; Debug numbers say nothing.
  */
 
-#include <arpa/inet.h>
 #include <benchmark/benchmark.h>
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <openssl/bio.h>
-#include <openssl/ec.h>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
 #include <sigilio/transport/Transport.h>
-#include <sigilio/advanced/Time.h>
-#include <sys/socket.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
 #include <thread>
-
-#include "ScratchDir.h"
 
 namespace {
 
@@ -183,8 +170,9 @@ void BM_Udp(benchmark::State& state) {
     state.SkipWithError(listener.state().error);
     return;
   }
-  const Feed sender = hub.listen(
-      "udp://127.0.0.1:" + std::to_string(portOf(listener.state().localAddress)));
+  const Feed sender =
+      hub.listen("udp://127.0.0.1:" +
+                 std::to_string(portOf(listener.state().localAddress)));
   if (!sender.state().error.empty()) {
     state.SkipWithError(sender.state().error);
     return;
@@ -227,7 +215,8 @@ void BM_WebSocket(benchmark::State& state) {
     return;
   }
   const Feed client = hub.listen(
-      "ws://127.0.0.1:" + std::to_string(portOf(server.state().localAddress)) + "/bench");
+      "ws://127.0.0.1:" + std::to_string(portOf(server.state().localAddress)) +
+      "/bench");
   if (!client.state().error.empty()) {
     state.SkipWithError(client.state().error);
     return;
@@ -278,8 +267,7 @@ constexpr const char* kLookRate = "?rate=20000";
  *  and arrive as one message. What this arm times is therefore the
  *  round from a write to the look that takes it, at the rate the URI
  *  asked the reader to look. */
-bool carriedByRegion(SharedMemoryWriter& writer,
-                     const Feed& into,
+bool carriedByRegion(SharedMemoryWriter& writer, const Feed& into,
                      std::span<const std::byte> message) {
   const Moment until = std::chrono::steady_clock::now() + kDeadline;
   for (size_t written = 0; written != kBatch; ++written) {
@@ -362,7 +350,7 @@ void BM_Midi(benchmark::State& state) {
 
   // A note on the middle C of the first channel, struck hard.
   const Bytes message(std::vector<std::byte>{std::byte{0x90}, std::byte{0x3C},
-                                            std::byte{0x64}});
+                                             std::byte{0x64}});
   const SendOne sendOne = [&](Moment) { return keys.send(message); };
   if (!carried(pads, sendOne)) {
     state.SkipWithError(kNotCarried);
@@ -377,398 +365,5 @@ void BM_Midi(benchmark::State& state) {
   countMessages(state, kNoteBytes);
 }
 BENCHMARK(BM_Midi)->Unit(benchmark::kMicrosecond);
-
-// --------------------------------------------------------------- serial
-
-/** A PSEUDO-TERMINAL PAIR STANDING IN FOR A BOARD: the slave is a port
- *  with a path, which is the whole of what the serial transport asks of
- *  a device, and the master is the end this process writes the readings
- *  into. What an arm on it times is the reading, the line the transport
- *  cuts out of the bytes and the feed it delivers into, with a kernel
- *  buffer where the wire would be. */
-struct PseudoTerminal {
-  PseudoTerminal() {
-    master = ::posix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK);
-    if (master < 0) return;
-    if (::grantpt(master) != 0 || ::unlockpt(master) != 0) return;
-    const char* const named = ::ptsname(master);
-    if (named != nullptr) device = named;
-  }
-  ~PseudoTerminal() {
-    if (master >= 0) ::close(master);
-  }
-  PseudoTerminal(const PseudoTerminal&) = delete;
-  PseudoTerminal& operator=(const PseudoTerminal&) = delete;
-
-  /** Raw mode between the two ends, which is what makes the bytes
-   *  written here the bytes the port reads: a discipline left as it
-   *  comes echoes them back and turns a newline into a pair. A pair
-   *  answers no such call until its slave is open, so this is asked once
-   *  the feed has opened it. */
-  bool raw() const {
-    termios line{};
-    if (::tcgetattr(master, &line) != 0) return false;
-    ::cfmakeraw(&line);
-    return ::tcsetattr(master, TCSANOW, &line) == 0;
-  }
-
-  /** One line onto the wire, whole: a master with no room now takes the
-   *  rest of it once the reader has drained some, and gives up at @p
-   *  until rather than writing half a line forever. */
-  bool writeLine(std::string_view line, Moment until) const {
-    size_t written = 0;
-    while (written != line.size()) {
-      const ssize_t count =
-          ::write(master, line.data() + written, line.size() - written);
-      if (count > 0) {
-        written += static_cast<size_t>(count);
-        continue;
-      }
-      if (std::chrono::steady_clock::now() > until) return false;
-      std::this_thread::yield();
-    }
-    return true;
-  }
-
-  int master = -1;
-  std::string device;
-};
-
-void BM_Serial(benchmark::State& state) {
-  const size_t size = static_cast<size_t>(state.range(0));
-  PseudoTerminal pair;
-  if (pair.device.empty()) {
-    state.SkipWithMessage("this machine offered no pseudo-terminal pair");
-    return;
-  }
-  Hub hub;
-  sigil::io::registerTransports(hub, {"serial"});
-  const Feed board =
-      hub.listen("serial://" + pair.device + "?baud=115200");
-  if (!board.state().error.empty()) {
-    state.SkipWithError(board.state().error);
-    return;
-  }
-  if (!pair.raw()) {
-    state.SkipWithMessage("this machine would not put the pair in raw mode");
-    return;
-  }
-
-  // A message is a line, so the newline is written after the payload and
-  // is no part of the message the feed takes.
-  const std::string line = std::string(size, 'x') + "\n";
-  const SendOne sendOne = [&](Moment until) {
-    return pair.writeLine(line, until);
-  };
-  if (!carried(board, sendOne)) {
-    state.SkipWithError(kNotCarried);
-    return;
-  }
-  for ([[maybe_unused]] auto iteration : state) {
-    if (!carried(board, sendOne)) {
-      state.SkipWithError(kNotCarried);
-      break;
-    }
-  }
-  countMessages(state, size);
-}
-BENCHMARK(BM_Serial)->Arg(64)->Arg(1400)->Unit(benchmark::kMicrosecond);
-
-// ----------------------------------------------------------------- grpc
-
-/** A call on one generic method, both ends of it in this binary: what is
- *  timed is the queue a message is written from, the stream underneath
- *  it, and the thread of gRPC's own the server's feed is delivered
- *  from. */
-void BM_Grpc(benchmark::State& state) {
-  const size_t size = static_cast<size_t>(state.range(0));
-  Hub hub;
-  sigil::io::registerTransports(hub, {"grpc"});
-  const Feed server = hub.listen("grpc://:0/Sky/Watch");
-  if (!server.state().error.empty()) {
-    state.SkipWithError(server.state().error);
-    return;
-  }
-  const Feed caller =
-      hub.listen("grpc://127.0.0.1:" + std::to_string(portOf(server.state().localAddress)) +
-               "/Sky/Watch");
-  if (!caller.state().error.empty()) {
-    state.SkipWithError(caller.state().error);
-    return;
-  }
-
-  const Bytes message = payloadOf(size);
-  const SendOne sendOne = [&](Moment) { return caller.send(message); };
-  // The first batch is what the call is opened by: a message handed over
-  // before the stream is up waits on it rather than going nowhere, and
-  // an arm measures the stream standing rather than the call reaching.
-  if (!carried(server, sendOne)) {
-    state.SkipWithError(kNotCarried);
-    return;
-  }
-  for ([[maybe_unused]] auto iteration : state) {
-    if (!carried(server, sendOne)) {
-      state.SkipWithError(kNotCarried);
-      break;
-    }
-  }
-  countMessages(state, size);
-}
-BENCHMARK(BM_Grpc)->Arg(64)->Arg(1400)->Unit(benchmark::kMicrosecond);
-
-// ----------------------------------------------------------------- quic
-
-/** A SELF-SIGNED PAIR FOR ONE ARM TO ANSWER WITH, written into @p
- *  scratch as cert.pem and key.pem.
- *
- *  A QUIC port answers for itself or it answers nobody, and nobody signs
- *  for a machine an arm makes up, so the pair is made here: an
- *  elliptic-curve key on the P-256 curve and a certificate naming
- *  localhost that vouches for itself. False where the pair could not be
- *  made or written, which is an arm that cannot run rather than a door
- *  that regressed. */
-bool standCredentials(const sigil::test::ScratchDir& scratch) {
-  EVP_PKEY* key = EVP_EC_gen("P-256");
-  if (!key) return false;
-  X509* certificate = X509_new();
-  if (!certificate) {
-    EVP_PKEY_free(key);
-    return false;
-  }
-  bool made = false;
-  do {
-    // Version 3, which is what the number 2 spells here.
-    if (X509_set_version(certificate, 2) != 1) break;
-    if (ASN1_INTEGER_set(X509_get_serialNumber(certificate), 1) != 1) break;
-    if (!X509_gmtime_adj(X509_getm_notBefore(certificate), 0)) break;
-    if (!X509_gmtime_adj(X509_getm_notAfter(certificate), 60 * 60)) break;
-    if (X509_set_pubkey(certificate, key) != 1) break;
-    X509_NAME* const named = X509_get_subject_name(certificate);
-    if (X509_NAME_add_entry_by_txt(
-            named, "CN", MBSTRING_ASC,
-            reinterpret_cast<const unsigned char*>("localhost"), -1, -1,
-            0) != 1)
-      break;
-    // Signed by itself, which is what makes it self-signed.
-    if (X509_set_issuer_name(certificate, named) != 1) break;
-    if (X509_sign(certificate, key, EVP_sha256()) == 0) break;
-
-    BIO* out = BIO_new_file((scratch.path / "cert.pem").string().c_str(), "wb");
-    if (!out) break;
-    const int wroteCertificate = PEM_write_bio_X509(out, certificate);
-    BIO_free(out);
-    if (wroteCertificate != 1) break;
-    out = BIO_new_file((scratch.path / "key.pem").string().c_str(), "wb");
-    if (!out) break;
-    const int wroteKey = PEM_write_bio_PrivateKey(out, key, nullptr, nullptr, 0,
-                                                  nullptr, nullptr);
-    BIO_free(out);
-    if (wroteKey != 1) break;
-    made = true;
-  } while (false);
-  X509_free(certificate);
-  EVP_PKEY_free(key);
-  return made;
-}
-
-/** ONE CONNECTION, CARRYING ITS MESSAGES THE WAY THE URI ASKED: a
- *  unidirectional stream apiece, or a datagram apiece where @p
- *  asDatagrams. What is timed either way is the send, the encryption and
- *  the worker of the library's own the listening feed is delivered
- *  from. */
-void measureQuic(benchmark::State& state, bool asDatagrams) {
-  const size_t size = static_cast<size_t>(state.range(0));
-  const sigil::test::ScratchDir scratch(asDatagrams ? "sigilio_quic_datagram"
-                                                    : "sigilio_quic");
-  if (!standCredentials(scratch)) {
-    state.SkipWithMessage("no certificate could be made on this machine");
-    return;
-  }
-  Hub hub;
-  sigil::io::registerTransports(hub, {"quic"});
-  std::string listening =
-      "quic://:0?cert=" + (scratch.path / "cert.pem").string() +
-      "&key=" + (scratch.path / "key.pem").string();
-  std::string calling = "quic://127.0.0.1:";
-  if (asDatagrams) listening += "&datagrams=1";
-  const Feed listener = hub.listen(listening);
-  if (!listener.state().error.empty()) {
-    state.SkipWithError(listener.state().error);
-    return;
-  }
-  // The self-signed pair is reached the way a machine on a stage is: the
-  // certificate is not checked, and everything crossing is encrypted all
-  // the same.
-  calling += std::to_string(portOf(listener.state().localAddress)) + "?insecure=1";
-  if (asDatagrams) calling += "&datagrams=1";
-  const Feed caller = hub.listen(calling);
-  if (!caller.state().error.empty()) {
-    state.SkipWithError(caller.state().error);
-    return;
-  }
-
-  // THE SMALLEST MESSAGE FIRST. A send is taken as soon as there is a
-  // connection to carry it, and a datagram only once the path has said
-  // how large one may be, so what says both stand is the door taking a
-  // message nothing could refuse for its size.
-  const Bytes smallest = payloadOf(1);
-  if (!waitUntil([&] { return caller.send(smallest); })) {
-    state.SkipWithError("the connection never stood: " + caller.state().error);
-    return;
-  }
-  const Bytes message = payloadOf(size);
-  if (!waitUntil([&] { return caller.send(message); })) {
-    state.SkipWithMessage("this connection carries no message of that size");
-    return;
-  }
-
-  const SendOne sendOne = [&](Moment) { return caller.send(message); };
-  if (!carried(listener, sendOne)) {
-    state.SkipWithError(kNotCarried);
-    return;
-  }
-  for ([[maybe_unused]] auto iteration : state) {
-    if (!carried(listener, sendOne)) {
-      state.SkipWithError(kNotCarried);
-      break;
-    }
-  }
-  countMessages(state, size);
-}
-
-void BM_Quic(benchmark::State& state) {
-  measureQuic(state, /*asDatagrams=*/false);
-}
-BENCHMARK(BM_Quic)->Arg(64)->Arg(1400)->Unit(benchmark::kMicrosecond);
-
-void BM_QuicDatagrams(benchmark::State& state) {
-  measureQuic(state, /*asDatagrams=*/true);
-}
-BENCHMARK(BM_QuicDatagrams)->Arg(64)->Arg(1400)->Unit(benchmark::kMicrosecond);
-
-// --------------------------------------------------------------- webrtc
-
-/** How often the end that called offers its message again while the two
- *  are still being introduced. A message written before a channel
- *  stands goes nowhere and says nothing about it, so one is offered on
- *  a beat rather than on every look: what is waited on is the pair
- *  coming good, and a look that offered nothing leaves nothing behind
- *  it in flight when it does. */
-constexpr auto kOffer = 20ms;
-
-/** A PORT NOTHING HOLDS: one taken and given straight back. Both ends
- *  of a conversation spell the signalling door between them — one holds
- *  it and the other calls it — so its number has to be known before
- *  either end is opened, which makes this the one door here that cannot
- *  be opened at port zero and read back off the feed. Zero where this
- *  machine offered none. */
-uint16_t freePort() {
-  const int probe = ::socket(AF_INET, SOCK_STREAM, 0);
-  if (probe < 0) return 0;
-  sockaddr_in wanted{};
-  wanted.sin_family = AF_INET;
-  wanted.sin_addr.s_addr = htonl(INADDR_ANY);
-  socklen_t room = sizeof(wanted);
-  uint16_t port = 0;
-  if (::bind(probe, reinterpret_cast<const sockaddr*>(&wanted), room) == 0 &&
-      ::getsockname(probe, reinterpret_cast<sockaddr*>(&wanted), &room) == 0)
-    port = ntohs(wanted.sin_port);
-  ::close(probe);
-  return port;
-}
-
-/** Polls @p ready with the hub dispatched on every look, or gives up.
- *  AN INTRODUCTION CROSSES ON THE FRAME: the offer, the answer and the
- *  addresses either end finds are carried by the call a host already
- *  makes once a frame, so a wait that never dispatched would be waiting
- *  on a handshake nothing was carrying. */
-bool waitDispatching(Hub& hub, const std::function<bool()>& ready) {
-  const Moment until = std::chrono::steady_clock::now() + kReach;
-  while (std::chrono::steady_clock::now() < until) {
-    sigil::io::advance(hub);
-    if (ready()) return true;
-    std::this_thread::sleep_for(1ms);
-  }
-  sigil::io::advance(hub);
-  return ready();
-}
-
-/** BOTH ENDS OF ONE CONVERSATION, standing in this process: one holds
- *  the signalling door and the other calls it, and once the two have
- *  found each other what crosses goes straight between them over no
- *  server at all. What is timed is the send, the encryption and the
- *  stream underneath it, and the thread of the library's own the
- *  receiving feed is delivered from — the hub is dispatched to make the
- *  pair and never inside the timed loop, what arrives on a channel
- *  being no part of what a frame carries.
- *
- *  THE ONE CONSTRAINT LEFT is the arrangement itself: two ends in one
- *  process share the single thread the library underneath finds every
- *  end's routes on, which is a handshake this row does not time and a
- *  process the library now survives. What the row says is what this
- *  door carries once it stands. */
-void BM_WebRtc(benchmark::State& state) {
-  const size_t size = static_cast<size_t>(state.range(0));
-  const uint16_t port = freePort();
-  if (port == 0) {
-    state.SkipWithMessage("this machine offered no port to be introduced over");
-    return;
-  }
-  Hub hub;
-  // The door the introductions cross is a websocket one this same hub
-  // opens: a port held at the end that waits, a server called at the
-  // end that takes the room up.
-  sigil::io::registerTransports(hub, {"webrtc"});
-  const Feed waiting = hub.listen(
-      "webrtc://bench?signal=ws://:" + std::to_string(port) + "/signal");
-  if (!waiting.state().error.empty()) {
-    state.SkipWithError(waiting.state().error);
-    return;
-  }
-  const Feed calling =
-      hub.listen("webrtc://bench?signal=ws://127.0.0.1:" + std::to_string(port) +
-               "/signal");
-  if (!calling.state().error.empty()) {
-    state.SkipWithError(calling.state().error);
-    return;
-  }
-
-  const Bytes message = payloadOf(size);
-  // WHAT SAYS THE TWO HAVE FOUND EACH OTHER IS A MESSAGE CROSSING: a
-  // door takes a send whether or not it has a channel to write it on,
-  // so the end that called offers one until the end that waited has
-  // taken it.
-  const uint64_t standing = waiting.state().revision + 1;
-  Moment next = std::chrono::steady_clock::now();
-  const bool stood = waitDispatching(hub, [&] {
-    if (std::chrono::steady_clock::now() >= next) {
-      next = std::chrono::steady_clock::now() + kOffer;
-      calling.send(message);
-    }
-    return waiting.state().revision >= standing;
-  });
-  if (!stood) {
-    const std::string why = !calling.state().error.empty() ? calling.state().error
-                            : !waiting.state().error.empty()
-                                ? waiting.state().error
-                                : "neither end says why";
-    state.SkipWithError("the conversation never stood: " + why);
-    return;
-  }
-
-  const SendOne sendOne = [&](Moment) { return calling.send(message); };
-  if (!carried(waiting, sendOne)) {
-    state.SkipWithError(kNotCarried);
-    return;
-  }
-  for ([[maybe_unused]] auto iteration : state) {
-    if (!carried(waiting, sendOne)) {
-      state.SkipWithError(kNotCarried);
-      break;
-    }
-  }
-  countMessages(state, size);
-}
-BENCHMARK(BM_WebRtc)->Arg(64)->Arg(1400)->Unit(benchmark::kMicrosecond);
 
 }  // namespace

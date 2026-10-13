@@ -477,9 +477,9 @@ verbs are the feed's own — `latest`, `receive`, `send`, `record`,
 `state`, `close` — answering a `Message` whose `payload` is the `Json`
 the bytes read as. The URI's scheme decides the dialect — `osc://` is a
 packet, `midi://` a message off a cable, `artnet://` a universe of
-dimmers and everything else JSON text — so a sketch listening to a desk,
-to a controller, to a lighting desk and to a browser is one piece of
-code over one value. `replay(hub, uri, recording)` is the same door
+dimmers, and the other doors, `udp://`, `ws://`, `wss://` and `shm://`,
+JSON text — so a sketch listening to a desk, to a controller, to a
+lighting desk and to a browser is one piece of code over one value. `replay(hub, uri, recording)` is the same door
 played from a file, IO's `hub.replay` read as values.
 
 ```cpp

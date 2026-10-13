@@ -18,35 +18,29 @@
 namespace sigil::io {
 
 void registerTransports(Hub& hub, const std::vector<std::string>& schemes) {
-  const auto named = [&schemes](std::initializer_list<std::string_view>
-                                    answered) {
+  const auto named = [&schemes](
+                         std::initializer_list<std::string_view> answered) {
     if (schemes.empty()) return true;
-    return std::any_of(answered.begin(), answered.end(),
-                       [&schemes](std::string_view scheme) {
-                         return std::find(schemes.begin(), schemes.end(),
-                                          scheme) != schemes.end();
-                       });
+    return std::any_of(
+        answered.begin(), answered.end(), [&schemes](std::string_view scheme) {
+          return std::find(schemes.begin(), schemes.end(), scheme) !=
+                 schemes.end();
+        });
   };
-  const bool webRtc = named({"webrtc"});
   if (named({"udp", "osc", "artnet"})) detail::registerUdp(hub);
   // The listener first and the caller after it: the caller stands in
   // front of whatever the scheme holds and hands a URI with no host back
   // to it, so the order is what makes both forms open. The secure scheme
   // is emptied first, since nothing listens for it and the caller would
   // otherwise stand in front of the caller an earlier registration left
-  // there. A webrtc feed opens its signalling door through this same hub,
-  // so both ends of that door come with it.
-  if (webRtc || named({"ws", "wss"})) {
+  // there.
+  if (named({"ws", "wss"})) {
     io::registerTransport(hub, "wss", {});
     detail::registerWebSocket(hub);
     detail::registerWebSocketClient(hub);
   }
   if (named({"shm"})) detail::registerSharedMemory(hub);
   if (named({"midi"})) detail::registerMidi(hub);
-  if (named({"serial"})) detail::registerSerial(hub);
-  if (named({"grpc"})) detail::registerGrpc(hub);
-  if (named({"quic"})) detail::registerQuic(hub);
-  if (webRtc) detail::registerWebRtc(hub);
 }
 
 void detail::installLinkedTransports(Hub& hub,
@@ -54,8 +48,8 @@ void detail::installLinkedTransports(Hub& hub,
   // Only the schemes nothing answers yet, of those the hub was made to
   // speak: a transport a host set by hand stands.
   std::vector<std::string> missing;
-  for (const char* scheme : {"udp", "osc", "artnet", "ws", "wss", "shm", "midi",
-                             "serial", "grpc", "quic", "webrtc"}) {
+  for (const char* scheme :
+       {"udp", "osc", "artnet", "ws", "wss", "shm", "midi"}) {
     const bool wanted =
         schemes.empty() ||
         std::find(schemes.begin(), schemes.end(), scheme) != schemes.end();

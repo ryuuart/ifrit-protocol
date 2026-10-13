@@ -41,12 +41,12 @@ that its pixels match the original.
 | Draw · Generative | 5 | 5 | 2 |
 | Draw · Observable reproductions | 15 | 15 | 4 |
 | Draw · Procedural | 8 | 8 | 1 |
-| Kit · API | 77 | 11 | 0 |
+| Kit · API | 75 | 11 | 0 |
 | Kit · Depth | 1 | 1 | 0 |
 | Compose · Typography | 1 | 1 | 1 |
 | Specimen | 13 | 3 | 0 |
 | Scene3D | 11 | 0 | 0 |
-| Data | 12 | 0 | 0 |
+| Data | 9 | 0 | 0 |
 | Media | 5 | 1 | 0 |
 | Catalog · Type | 9 | 5 | 0 |
 | Catalog · Chrome | 2 | 1 | 0 |
@@ -65,17 +65,17 @@ that its pixels match the original.
 | Study · Effects | 1 | 0 | 1 |
 | Study · Lighting | 2 | 0 | 0 |
 | Study · Materials | 10 | 0 | 0 |
-| **All** | **235** | **60** | **10** |
+| **All** | **230** | **60** | **10** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
 
 One surface alone stands between each of these sketches and a translation:
 
-- `sketch::kit::instrument`: `artnet_lights`, `feed_events`, `midi_pads`,
-  `osc_desk` and `phone_sky`.
 - `compose::kit::readout` rows: `grid_layouts`, `optical_kerning`, `pop_prims`,
   `tile map` and `warichu_placeholder`.
+- `sketch::kit::instrument`: `artnet_lights`, `feed_events`, `midi_pads`,
+  `osc_desk` and `phone_sky`.
 - `sketch::kit::plot` chart layers: `data_scales`, `decay_step` and
   `ticker_lanes`.
 - `SkSurfaces::Raster` standalone raster surfaces: `coverage_boundary` and
@@ -114,22 +114,21 @@ needs.
 | `SkSurfaces::Raster` standalone raster surfaces | Skia | 21 |
 | `material::pattern` stock tiles | Material | 17 |
 | Scene3D sketches (`sketch::Scene3DContext`, `describe`) | Sketch host | 16 |
-| `compose::kit::readout` rows | Compose kit | 15 |
 | `geometry::shapes` corner operators | Geometry | 15 |
+| `compose::kit::readout` rows | Compose kit | 14 |
 | `compose::lines::presets` and `compose::brush::presets` | Compose kit | 14 |
-| A declared `available(why)` probe | Sketch host | 13 |
 | `material::Texture` and `Material::slot` | Material | 13 |
 | `sketch::kit::plot` chart layers | Sketch kit | 13 |
-| `compose::kit::table` with `Column` | Compose kit | 11 |
+| A declared `available(why)` probe | Sketch host | 12 |
 | `sketch::kit::Document` content reader | Sketch kit | 11 |
+| `compose::kit::table` with `Column` | Compose kit | 10 |
 | `compose::lines::Line` and `lines::Rails` | Compose | 10 |
-| `geometry::mesh::Cloud` and `mesh::points` | Geometry | 10 |
 | `geometry::shapes` parametric curve generators | Geometry | 10 |
 | `compose::TextureScene` and `Scene2DContext::textureScene` | Compose | 9 |
 | `compose::onEdges` and `compose::inset` adaptors | Compose | 9 |
+| `geometry::mesh::Cloud` and `mesh::points` | Geometry | 9 |
 | `geometry::path::PolarFrame` and `path::Grid` | Geometry | 9 |
 | `material::sdf` shapes and styles | Material | 9 |
-| `sketch::kit::instrument` | Sketch kit | 9 |
 | `compose::Border` and `compose::decorations::border` rules | Compose | 8 |
 | `compose::routers` stock routers | Compose kit | 8 |
 | `compose::textFx` text effects (`tween`, `scramble`, `sequence`) | Compose | 8 |
@@ -141,9 +140,9 @@ No Python name can stand for these surfaces, so the extension cannot judge them
 and every sketch that needs one counts as unbound. Each is a claim the audit
 makes, with its reason:
 
-- A declared `available(why)` probe, needed by 13 sketches. The host decides
-  whether a Python entry is available from the modules it imports; an entry has
-  no probe of its own to declare.
+- A declared `available(why)` probe, needed by twelve sketches. The host
+  decides whether a Python entry is available from the modules it imports; an
+  entry has no probe of its own to declare.
 
 ## Library coverage
 

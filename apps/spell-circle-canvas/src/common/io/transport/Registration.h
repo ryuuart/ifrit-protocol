@@ -26,7 +26,8 @@ void registerUdp(Hub& hub);
  *  ws://:PORT/PATH holds that path on every interface, PORT 0 meaning any
  *  free port and an omitted PATH meaning "/"; a ?pages=URI query answers
  *  HTTP GET out of that directory on the same port. send() reaches every
- *  peer at once and Feed::send() with SendOptions::to one, on a thread per listening feed.
+ *  peer at once and Feed::send() with SendOptions::to one, on a thread
+ *  per listening feed.
  *  @trap There is no client here and no "wss" to hold a port for: a URI
  *  naming a host to CALL opens nothing, and the client in front of it is
  *  what takes those. */
@@ -52,8 +53,8 @@ void registerWebSocketClient(Hub& hub);
  *  @trap A name nobody has made a region under is a door onto NOTHING
  *  rather than one that failed — no error(), and delivery the moment a
  *  writer makes one.
- *  @silent send() and Feed::send() with SendOptions::to: a reader has no way back to a
- *  writer through a region. */
+ *  @silent send() and Feed::send() with SendOptions::to: a reader has no
+ *  way back to a writer through a region. */
 void registerSharedMemory(Hub& hub);
 
 /** Installs the MIDI transport on @p hub for the scheme "midi".
@@ -64,53 +65,8 @@ void registerSharedMemory(Hub& hub);
  *  driver's own callback is the thread a message arrives on.
  *  @trap A PORT IS NAMED AND NEVER NUMBERED, because which port a machine
  *  calls its second depends on what else was plugged in this morning.
- *  @silent send() and Feed::send() with SendOptions::to on an INPUT: what comes back down a
- *  cable is the other cable. */
+ *  @silent send() and Feed::send() with SendOptions::to on an INPUT: what
+ *  comes back down a cable is the other cable. */
 void registerMidi(Hub& hub);
-
-/** Installs the SERIAL transport on @p hub for the scheme "serial".
- *  serial://DEVICE?baud=RATE opens that device file, named whole and
- *  absolute, at that rate; the rest of the wire stands in the same query
- *  — bits=5|6|7|8 (8), parity=none|odd|even (none), stop=1|2 (1),
- *  flow=none|software|hardware (none). A MESSAGE IS A LINE both ways. One
- *  thread per registration, made when its first port opens.
- *  @trap THE RATE IS REQUIRED and there is none to fall back on: two ends
- *  that disagree about it read each other as noise, so a URI carrying
- *  none opens nothing.
- *  @silent Feed::send() with SendOptions::to: a cable holds one peer, so there is no sender
- *  to pick out by name. */
-void registerSerial(Hub& hub);
-
-/** Installs the gRPC transport on @p hub for the scheme "grpc". ONE
- *  SCHEME, TWO SHAPES, and the shape of the URI says which end a feed is:
- *  grpc://:PORT/Service/Method holds that port and serves that one
- *  method, grpc://HOST:PORT/Service/Method calls it there. The method is
- *  SCHEMA-AGNOSTIC — bytes both ways, nothing parsed here. No TLS at
- *  either end, and no thread of this library's.
- *  @trap BOTH ENDS NAME THE METHOD: a URI carrying a service and nothing
- *  after it opens nothing and leaves the reason on the feed. */
-void registerGrpc(Hub& hub);
-
-/** Installs the QUIC transport on @p hub for the scheme "quic". ONE
- *  SCHEME, TWO SHAPES: quic://:PORT?cert=FILE&key=FILE holds that port —
- *  a connection is encrypted or it is not a connection, so the pair is
- *  required — and quic://HOST:PORT calls that end, ?insecure=1 checking
- *  no certificate. A message is one unidirectional stream, or one
- *  unreliable datagram under ?datagrams=1. No thread of this library's.
- *  @trap Two messages sent one after the other may land in the OTHER
- *  order, each stream waiting only on itself. */
-void registerQuic(Hub& hub);
-
-/** Installs the WEBRTC transport on @p hub for the scheme "webrtc".
- *  webrtc://ROOM?signal=URI holds one conversation, named ROOM, and every
- *  message crosses STRAIGHT between the ends. Neither end can dial the
- *  other, so `signal` names the ws:// or wss:// door the introduction
- *  crosses, and the shape of THAT URI says which end this one is: a port
- *  to hold waits, a server to call takes the room up. ?ice=stun:HOST:PORT
- *  may be given more than once.
- *  @trap Hub::advance() is what reads the signalling door and answers
- *  it, so a handshake takes a few frames and a host that never advances
- *  never finishes one. */
-void registerWebRtc(Hub& hub);
 
 }  // namespace sigil::io::detail

@@ -24,15 +24,13 @@ page here.
 
 `sigil::io::registerTransports` installs the transports that answer the
 schemes it is handed, and every transport this feature carries when it is
-handed none: UDP, the OSC name over it, WebSocket at both ends — the
-listener first, and the client in front of it — the shared memory reader,
-MIDI, the serial port, gRPC at both ends, QUIC at both ends, and WebRTC
-over a signalling door of the same hub.
+handed none: UDP, the OSC and Art-Net names over it, WebSocket at both
+ends — the listener first, and the client in front of it — the shared
+memory reader, and MIDI.
 
-Three of them carry no socket at all: a shm:// feed reads a region of
-memory another process on this machine has mapped, a midi:// feed is a
-port on the controller standing beside the screen, and a serial:// feed
-is the device file a board on a cable is plugged into — the same door
+Two of them carry no socket at all: a shm:// feed reads a region of
+memory another process on this machine has mapped, and a midi:// feed
+is a port on the controller standing beside the screen — the same door
 with the network taken out from under it.
 
 ## The network cache

@@ -36,7 +36,6 @@
     },
     "flatbuffers",
     "glm",
-    "grpc",
     "gtest",
     {
       "name": "harfbuzz",
@@ -49,9 +48,7 @@
       ]
     },
     "icu",
-    "libdatachannel",
     "minizip-ng",
-    "msquic",
     "openimageio",
     "pybind11",
     "rtmidi",

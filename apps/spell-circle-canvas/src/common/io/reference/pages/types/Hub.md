@@ -90,7 +90,7 @@ which a caller links to reach them, and both answer an empty handle for
 anything they cannot carry.
 
 ```cpp
-auto out = hub.publish("syphon://SpellCircle");
+auto out = hub.publish("syphon://Grimoire");
 out.send({.texture = texture, .commandBuffer = commands, .width = 1920, .height = 1080});
 auto in = hub.subscribe("syphon://Resolume", {.application = "Arena"});
 if (auto frame = in.latest()) drawTexture(frame->texture, frame->width, frame->height);

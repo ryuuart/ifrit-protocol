@@ -5,8 +5,8 @@
  * The transports a hub opens FEEDS through: a URI scheme, and the socket
  * behind it. Registering them teaches a hub those schemes; a feed the
  * hub is then asked for on one binds or connects a socket of its own,
- * and every message that socket receives arrives in that feed. Three of
- * them carry no socket at all — shm://, midi:// and serial://.
+ * and every message that socket receives arrives in that feed. Two of
+ * them carry no socket at all — shm:// and midi://.
  *
  * What a message MEANS is not decided here: a feed answers bytes, and
  * the library that owns the format decodes them.
@@ -28,9 +28,8 @@ class Hub;
  *  its URI names. A transport answers several schemes and is installed
  *  under all of them when any one is named: "udp", "osc" and "artnet"
  *  are one socket; "ws" and "wss" are the listener with the client in
- *  front of it; "shm", "midi", "serial", "grpc", "quic" and "webrtc" are
- *  one transport each, and "webrtc" brings the websocket ends its
- *  introductions cross. Registering a transport again replaces it.
+ *  front of it; "shm" and "midi" are one transport each. Registering a
+ *  transport again replaces it.
  *  @trap A scheme no transport here answers is passed over: a feed
  *  asked for on it is one whose error() says no transport is
  *  registered. */

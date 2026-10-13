@@ -31,10 +31,10 @@
 namespace {
 
 using boost::asio::ip::udp;
-using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
+using sigil::io::Message;
 using namespace std::chrono_literals;
 
 /** Polls @p ready until it holds, or gives up. The work it waits for
@@ -95,12 +95,12 @@ TEST(IOTransports, NamedSchemesInstallTheTransportsThatAnswerThemAndNoOther) {
   EXPECT_FALSE(sigil::io::transport(named, "ws"));
   EXPECT_FALSE(sigil::io::transport(named, "midi"));
 
-  // A webrtc door is introduced over a websocket one of the same hub, so
-  // naming it brings both ends of that door.
-  sigil::io::registerTransports(named, {"webrtc"});
-  EXPECT_TRUE(sigil::io::transport(named, "webrtc"));
+  // The listener and the client in front of it are one door, so naming
+  // either websocket scheme brings both.
+  sigil::io::registerTransports(named, {"wss"});
   EXPECT_TRUE(sigil::io::transport(named, "ws"));
   EXPECT_TRUE(sigil::io::transport(named, "wss"));
+  EXPECT_FALSE(sigil::io::transport(named, "shm"));
 
   // Registering again replaces rather than stacking a caller in front of
   // a caller: a hostless wss:// URI still has nothing to listen with.
@@ -110,8 +110,8 @@ TEST(IOTransports, NamedSchemesInstallTheTransportsThatAnswerThemAndNoOther) {
 
   Hub everything;
   sigil::io::registerTransports(everything);
-  for (const char* scheme : {"udp", "osc", "artnet", "ws", "wss", "shm", "midi",
-                             "serial", "grpc", "quic", "webrtc"})
+  for (const char* scheme :
+       {"udp", "osc", "artnet", "ws", "wss", "shm", "midi"})
     EXPECT_TRUE(sigil::io::transport(everything, scheme)) << scheme;
 }
 
@@ -153,7 +153,8 @@ TEST_F(IOUdp, AnArrivalNamesTheSenderTheDatagramCameFrom) {
   // The sender is the loopback socket the datagram left, named with the
   // port it took and spelled the way a URI that would reach it is — not
   // the mapping a dual-stack socket holds an IPv4 peer as.
-  EXPECT_TRUE(arrival->sender().starts_with("udp://127.0.0.1:")) << arrival->sender();
+  EXPECT_TRUE(arrival->sender().starts_with("udp://127.0.0.1:"))
+      << arrival->sender();
   EXPECT_EQ(portOf(arrival->sender()), sender) << arrival->sender();
 }
 
@@ -163,7 +164,8 @@ TEST_F(IOUdp, AnOscFeedIsTheSameSocketUnderItsOwnName) {
   // What arrives is bytes either way. The scheme a feed was opened with
   // is the scheme every address it reports is spelled with, so a reader
   // takes the decoding off the URI rather than out of the message.
-  EXPECT_TRUE(listener.state().localAddress.starts_with("osc://")) << listener.state().localAddress;
+  EXPECT_TRUE(listener.state().localAddress.starts_with("osc://"))
+      << listener.state().localAddress;
   const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
@@ -202,8 +204,7 @@ TEST_F(IOUdp, ASendingFeedReachesTheListenerItNames) {
   const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
-  const Feed sender =
-      hub.listen("udp://127.0.0.1:" + std::to_string(port));
+  const Feed sender = hub.listen("udp://127.0.0.1:" + std::to_string(port));
   ASSERT_TRUE(sender.state().error.empty()) << sender.state().error;
   EXPECT_FALSE(sender.state().localAddress.empty());
   EXPECT_TRUE(sender.send(bytesOf("through the door")));
@@ -215,7 +216,8 @@ TEST_F(IOUdp, ASendingFeedReachesTheListenerItNames) {
   EXPECT_FALSE(listener.send(bytesOf("no way back")));
   // The other way round: a feed that holds one peer reaches that peer
   // and nobody else, so naming a sender to answer is not its way out.
-  EXPECT_FALSE(sender.send(bytesOf("by name"), {.to = listener.state().localAddress}));
+  EXPECT_FALSE(
+      sender.send(bytesOf("by name"), {.to = listener.state().localAddress}));
 }
 
 TEST_F(IOUdp, AListenerAnswersTheSenderOfADatagram) {
@@ -239,7 +241,8 @@ TEST_F(IOUdp, AListenerAnswersTheSenderOfADatagram) {
   // the sender an arrival names is an address it can write back to, so
   // the one it is answering it can answer.
   EXPECT_FALSE(listener.send(bytesOf("no way back")));
-  EXPECT_TRUE(listener.send(bytesOf("the sky answers"), {.to = arrival->sender()}));
+  EXPECT_TRUE(
+      listener.send(bytesOf("the sky answers"), {.to = arrival->sender()}));
 
   ASSERT_TRUE(waitUntil([&] { return desk.available() != 0; }));
   std::array<char, 64> answer{};
@@ -256,8 +259,10 @@ TEST_F(IOUdp, ASenderThatIsNoLiteralAddressIsNobodyToAnswer) {
   // Answering a sender waits on nothing, so a name that would have to
   // be looked up is nobody to answer rather than a pause on a resolver,
   // and neither is an address of another scheme or of no scheme at all.
-  EXPECT_FALSE(listener.send(bytesOf("nowhere"), {.to = "udp://desk.local:9001"}));
-  EXPECT_FALSE(listener.send(bytesOf("nowhere"), {.to = "osc://127.0.0.1:9001"}));
+  EXPECT_FALSE(
+      listener.send(bytesOf("nowhere"), {.to = "udp://desk.local:9001"}));
+  EXPECT_FALSE(
+      listener.send(bytesOf("nowhere"), {.to = "osc://127.0.0.1:9001"}));
   EXPECT_FALSE(listener.send(bytesOf("nowhere"), {.to = "127.0.0.1:9001"}));
   EXPECT_FALSE(listener.send(bytesOf("nowhere"), {.to = ""}));
 }

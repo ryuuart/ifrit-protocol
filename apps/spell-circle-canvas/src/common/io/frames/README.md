@@ -94,9 +94,8 @@ So the two ends are not symmetrical, and each says which way round it is:
   turns it over as it draws: a scene-graph node mirrors vertically, a canvas
   draws through a flipped transform, a readback walks the rows backwards.
 
-Seer's capture and preview, and a subscription read as a picture (below), each
-do that turn, so what a reader of this repository's own tools looks at is
-upright.
+A subscription read as a picture (below) does that turn, so what a reader of
+this repository's own tools looks at is upright.
 
 On Metal the publication is appended to the caller's open command buffer and
 not submitted: it runs when the caller commits, and work on one queue runs in
@@ -198,15 +197,12 @@ the frame-notification lifetime independently of a retiring subscription.
 It never waits; the native main event loop receives announcements.
 An unsupported platform returns an empty list.
 
-Seer owns texture inspection, live preview and PNG capture. The publication
-library contains no application target or window implementation.
+The publication library contains no application target or window
+implementation.
 
 ## Build and tests
 
 [docs/overview/testing.md](../../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under. This
 feature has no test binary of its own. The refusals of publish and subscribe belong to
-`io_test`, and the texture capture — row and channel order, and late
-subscription to a static publication — is covered by Seer's own cases,
-which need Metal and carry the `gpu` label for it. A byte or URI
-consumer does not inherit that requirement.
+`io_test`.

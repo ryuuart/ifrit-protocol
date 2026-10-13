@@ -1,12 +1,12 @@
 /** @file
- * feed_sky — one sky, arriving through three doors at once.
+ * feed_sky — one sky, arriving through two doors at once.
  *
  * The scene is the one schema_scene draws from a file: bands crossing
  * the canvas, the wind they drift on, the palette they are tinted from.
  * Here each sky is the newest message on a CONNECTION — a door that keeps
- * delivering — and the sheet holds three of them side by side, so what a
+ * delivering — and the sheet holds two of them side by side, so what a
  * reader compares is the door and nothing else: the same
- * `data::Connection`, the same `latest()`, the same vitals, over three
+ * `data::Connection`, the same `latest()`, the same vitals, over two
  * transports.
  *
  *   UDP · SCHEMA          a datagram per sky, read through `feed_sky.fbs`
@@ -14,16 +14,11 @@
  *                         `feed_sky_generated.h`, and an arrival that does
  *                         not FIT the schema is counted as undecodable
  *                         rather than drawn as a sky missing its fields.
- *   QUIC · JSON           one encrypted stream per sky. There is no
- *                         unencrypted form of this door, so its URI names
- *                         the certificate and key it answers with — the
- *                         two files under `data/`, DEMONSTRATION
- *                         CREDENTIALS, self-signed and vouching for nobody.
  *   SHARED MEMORY · JSON  a region another process on this machine wrote,
  *                         mapped read-only and looked at on a timer: no
  *                         socket, no copy through the kernel.
  *
- * The two JSON doors read every field where it is used, and a field a
+ * The JSON door reads every field where it is used, and a field a
  * message left out falls back to what the reading asks for.
  *
  * ONE DOOR, TWO SOURCES. A URI the hub was told to replay is played back
@@ -33,13 +28,12 @@
  * same string the door is opened on — and reads exactly what a window
  * hears, arrival for arrival, at the same seconds.
  *
- * `sender.py` beside this file sends the UDP and shared memory doors and
- * writes all three recordings; the live side of the QUIC door is Seer,
- * opening `quic://127.0.0.1:27100?insecure=1`.
+ * `sender.py` beside this file sends both doors and writes both
+ * recordings.
  *
  *     python3 sender.py                  # the UDP panel moves
  *     python3 sender.py --door shared    # the shared memory panel moves
- *     python3 sender.py --record         # the three recordings
+ *     python3 sender.py --record         # the two recordings
  *
  * THE SKY IS ELEMENTS. A band is one ribbon of rounded segments, set once
  * per message under a texture cache; its drift and its breath are bound
@@ -47,7 +41,7 @@
  *
  * EDIT THESE FIRST
  *   data/content.json  the words, and each door: its address, its
- *                      recording, its credentials, whether a schema reads it
+ *                      recording, whether a schema reads it
  *   feed_sky.fbs       what a sky is: its bands, its wind and its palette
  *   kSpacing           how far apart the bands stand
  *   kSegment           the length of a ribbon's segments, and kGap after
@@ -89,14 +83,14 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1280, 600};
+constexpr SkSize kCanvas = {1280, 690};
 constexpr double kCaptureAt = 2.0;  // by now several messages have landed
 
 /** THE SKY'S OWN COORDINATES, the ones a message's heights and speeds are
  *  written in, and the width a panel shows it at. */
 constexpr float kSkyWidth = 1280;
 constexpr float kSkyHeight = 720;
-constexpr float kShownWidth = 360;
+constexpr float kShownWidth = 560;
 constexpr float kSkyScale = kShownWidth / kSkyWidth;
 constexpr float kPanelGap = 24;
 
@@ -133,16 +127,6 @@ struct Door {
     return true;
   }
 };
-
-/** The URI a door opens: its address, and for a door that answers with a
- *  certificate, the pair beside this sketch that it answers with. */
-std::string uriOf(const Door& door, const sketch::Scene2DContext& ctx) {
-  std::string uri(door["address"].string());
-  if (!door["certificate"].null())
-    uri += "?cert=" + ctx.local(door["certificate"].string()) +
-           "&key=" + ctx.local(door["key"].string());
-  return uri;
-}
 
 /** Band @p index's colour, taken from the palette in turn; a message with
  *  no palette tints every band a translucent white. */
@@ -192,7 +176,7 @@ struct FeedSky {
     doors.clear();
     for (const data::Json& entry : words["doors"].array()) {
       Door door{.entry = &entry};
-      const std::string uri = uriOf(door, ctx);
+      const std::string uri(entry["address"].string());
       // A CAPTURE READS THE RECORDING, a window opens the door. Replaying
       // the URI from the file is the whole of the difference: every later
       // ask for the URI answers the replaying feed.
@@ -332,7 +316,7 @@ struct FeedSky {
 }  // namespace
 
 SIGIL_SKETCH(FeedSky, "Data",
-             "One sky arriving through three doors side by side — UDP read "
-             "through the sketch's own schema, QUIC over one encrypted "
-             "connection, and a shared memory region — each panel the newest "
-             "message on its connection and the door's own vitals under it.")
+             "One sky arriving through two doors side by side — UDP read "
+             "through the sketch's own schema, and a shared memory region — "
+             "each panel the newest message on its connection and the door's "
+             "own vitals under it.")

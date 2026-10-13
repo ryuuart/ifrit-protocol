@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """The skies feed_sky draws: sent through a door, or written as recordings.
 
-One sky, three doors, each door's sky tinted from a palette of its own so
-the three panels read apart:
+One sky, two doors, each door's sky tinted from a palette of its own so
+the two panels read apart:
 
     python3 sender.py
         sends one JSON datagram every 1/rate seconds to 127.0.0.1:27020
@@ -20,15 +20,8 @@ the three panels read apart:
 
     python3 sender.py --record
         writes every door's messages to its recording under data/ —
-        udp.feed, quic.feed and shared.feed — which is what a capture
-        replays. `--door` narrows it to one.
-
-THE QUIC DOOR HAS NO LIVE SENDER HERE. Speaking quic:// needs a QUIC
-stack and Python ships none in its standard library, so this script
-writes that door's recording only. The live other side is Seer, which
-registers every transport this tree carries and opens
-`quic://127.0.0.1:27100?insecure=1` as a wire like any other;
-`insecure=1` is what reaches the self-signed pair beside the sketch.
+        udp.feed and shared.feed — which is what a capture replays.
+        `--door` narrows it to one.
 
 A message is the sky exactly as feed_sky.fbs states it, in that schema's
 own JSON form:
@@ -38,7 +31,8 @@ own JSON form:
      "palette": [{"r": r, "g": g, "b": b, "a": a}, ...]}
 
 The UDP panel converts every arrival through that schema and counts what
-does not fit; the other two read the same JSON with no schema over it.
+does not fit; the shared memory panel reads the same JSON with no schema
+over it.
 
 The sky is a function of the message's own time and of nothing else, so
 a recording and a live send carry the same messages at the same seconds
@@ -100,7 +94,6 @@ HUE_TURN = 0.035  # how far round the wheel the palette turns per second
 # opaque the first one is — each next is five hundredths clearer.
 DOORS = {
     "udp": {"hue": 0.52, "step": 0.11, "saturation": 0.55, "alpha": 0.58},
-    "quic": {"hue": 0.58, "step": 0.09, "saturation": 0.5, "alpha": 0.6},
     "shared": {"hue": 0.97, "step": 0.06, "saturation": 0.5, "alpha": 0.58},
 }
 
@@ -325,13 +318,6 @@ def main(argv=None):
         return 0
 
     try:
-        if arguments.door == "quic":
-            print(
-                "the QUIC door has no live sender here: open "
-                "quic://127.0.0.1:27100?insecure=1 in Seer",
-                file=sys.stderr,
-            )
-            return 2
         if arguments.door == "shared":
             hand_over(arguments.name, arguments.capacity, arguments.rate)
         else:

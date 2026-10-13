@@ -15,7 +15,6 @@
         "skia",
         "diligent-engine",
         "syphon",
-        "libdatachannel",
         "yoga"
       ]
     }
