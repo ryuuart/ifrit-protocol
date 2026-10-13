@@ -454,3 +454,21 @@ same Metal device does not isolate. The test should prove the release
 another way, such as a weak reference that nils after the destroy and an
 autorelease drain, and the first-frame timing case in `StandIn` should
 likewise be read serially or with a bound that a loaded GPU meets.
+
+## A WebSocket client door reads Open before its handshake has reached the server
+
+`hub.listen("ws://host:port/path")` on a client door reports
+`ReadyState::Open` as soon as the transport hands back an end, while the
+handshake runs later on the client's own thread (`connected` in
+`src/common/io/transport/WebSocketClient.cpp`), so `send()` on a door
+that reads Open returns false until the handshake completes.
+`ReadyState`'s own comment says Open means a door stands and messages
+arrive through it; the state before a door stands is `Connecting`. A
+caller should be able to wait for the client to reach its server without
+probing with a real message. A test should connect a client feed to a
+listener in the same process and read `Connecting` until the handshake
+completes, then `Open`, with the first `send()` after Open returning
+true; a client to a port nobody holds should never read `Open` and should
+carry the reason in `state().error`. `wardnet_live/sender.py` offers its
+first message again for up to five seconds until this is fixed.
+

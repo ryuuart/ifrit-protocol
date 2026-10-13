@@ -1,0 +1,117 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WardNet desk</title>
+
+<!--
+  The page the wardnet_live sketch hands out. The sketch's WebSocket door
+  serves this directory on the port it listens on, so the whole of what
+  a person needs is the address, http://HOST:27031/: open it, and the
+  page's socket connects straight back to the sketch.
+
+  Every button sends one message, as JSON text, in the shape the sketch
+  reads: a row, an alert, a load or a card. Nothing is fetched from
+  anywhere else, because the only server in reach is the sketch.
+-->
+
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0;
+    padding: 16px;
+    background: #04060b;
+    color: #8296ae;
+    font: 14px/1.5 Menlo, ui-monospace, monospace;
+    letter-spacing: 0.06em;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 720px;
+  }
+  h1 { margin: 0; color: #e8eff6; font-size: 20px; letter-spacing: 0.3em; }
+  h2 { margin: 0 0 8px; color: #49596d; font-size: 11px; font-weight: normal; }
+  section { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  section > h2 { flex-basis: 100%; }
+  button, input {
+    font: inherit;
+    letter-spacing: inherit;
+    min-height: 44px;
+    border-radius: 4px;
+    border: 1px solid #22344a;
+    background: #0c121c;
+    color: #e8eff6;
+    padding: 0 14px;
+  }
+  input { flex: 1 1 260px; }
+  input[type=range] { padding: 0; accent-color: #59cbe3; }
+  button:active { background: #22344a; }
+  .TRACE { color: #8296ae; }
+  .INFO, .clear { color: #59cbe3; }
+  .WARN, .warn { color: #f2a33c; }
+  .BREACH, .breach { color: #ff4d5a; }
+  #state { font-size: 12px; color: #49596d; }
+</style>
+
+<h1>WARDNET DESK</h1>
+<div id="state">opening the door…</div>
+
+<section>
+  <h2>A ROW IN THE SCROLLBACK</h2>
+  <input id="body" value="relay/05 jitter above threshold · 41 ms">
+  <button class="TRACE" data-tag="TRACE">TRACE</button>
+  <button class="INFO" data-tag="INFO">INFO</button>
+  <button class="WARN" data-tag="WARN">WARN</button>
+  <button class="BREACH" data-tag="BREACH">BREACH</button>
+</section>
+
+<section>
+  <h2>THE ALERT</h2>
+  <input id="alert" value="BREACH · CHANNEL 9">
+  <button class="clear" data-level="clear">CLEAR</button>
+  <button class="warn" data-level="warn">WARN</button>
+  <button class="breach" data-level="breach">BREACH</button>
+</section>
+
+<section>
+  <h2>THE LOAD</h2>
+  <input id="load" type="range" min="0" max="1" step="0.01" value="0.5">
+</section>
+
+<section>
+  <h2>A CARD</h2>
+  <input id="title" value="RELAY JITTER">
+  <input id="value" value="41 ms">
+  <input id="note" value="relay/05 above threshold">
+  <button id="card">SEND CARD</button>
+</section>
+
+<script>
+  const state = document.getElementById("state");
+  const field = (name) => document.getElementById(name).value;
+
+  // The socket is the address this page came from: the sketch answers
+  // the page and the upgrade on one port, on the path its door names.
+  const scheme = location.protocol === "https:" ? "wss://" : "ws://";
+  const socket = new WebSocket(scheme + location.host + "/wardnet");
+  socket.onopen = () => { state.textContent = "connected to " + location.host; };
+  socket.onclose = () => { state.textContent = "the door is closed"; };
+  socket.onerror = () => { state.textContent = "the door cannot be reached"; };
+
+  function send(message) {
+    if (socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify(message));
+    state.textContent = "sent " + message.kind;
+  }
+
+  for (const button of document.querySelectorAll("[data-tag]"))
+    button.onclick = () => send({ kind: "row", tag: button.dataset.tag, body: field("body") });
+
+  for (const button of document.querySelectorAll("[data-level]"))
+    button.onclick = () => send({ kind: "alert", text: field("alert"), level: button.dataset.level });
+
+  document.getElementById("load").oninput = (event) =>
+    send({ kind: "meter", load: Number(event.target.value) });
+
+  document.getElementById("card").onclick = () =>
+    send({ kind: "card", title: field("title"), value: field("value"), note: field("note") });
+</script>

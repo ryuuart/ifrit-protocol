@@ -41,7 +41,7 @@ ignore = [
 # TouchDesigner injects op/DAT/mod and friends into script globals at
 # runtime; outside TouchDesigner they are undefined names. The import
 # block below predates import sorting.
-"touchdesigner/scripts/cue_deck.py" = ["F821"]
+"touchdesigner/scripts/*.py" = ["F821"]
 "apps/spell-circle-canvas/src/common/compose/test/assets/make_advance_variant_vf.py" = ["I001"]
 # The module is named as the native namespace it binds is spelled.
 "apps/python/sigil/sigil/compose/textFx.py" = ["N999"]
