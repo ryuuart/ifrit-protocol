@@ -223,12 +223,12 @@ in one run and reads the rows, and `sigil.py plates compare <dir-a>
 ### The plate ledger
 
 `scripts/sigil.py plates` drives Grimoire's sweep: three tiers over one
-binary. The CPU tier judges every scene2d sketch on byte identity against one
-baseline manifest and passes every scene3d sketch over, counting them; the device tier
-renders each scene2d sketch through the device and judges it against its CPU
-plate of the same run, per colour channel, and judges each scene3d sketch — drawn on a
-device and nowhere else — on byte identity against a device manifest of its
-own; the promotion tier renders each scene2d sketch with the promoter held off
-and again with every promotable node eagerly baked, and judges the pair
-within one code value. The CPU and device tiers keep baselines. The judgement
-itself is `scripts/README.md`'s.
+binary. The device tier is the reference: it renders every scene2d and
+scene3d sketch on the device and judges each on byte identity against one
+device manifest, which `--rebase` adopts; the CPU tier is a smoke run of
+the raster path, rendering each scene2d sketch on the CPU and reporting
+its drift from the device plate per colour channel, keeping no baseline
+and failing only when a sketch cannot render; the promotion tier renders
+each scene2d sketch with the promoter held off and again with every
+promotable node eagerly baked, and judges the pair within one code value.
+The judgement itself is `scripts/README.md`'s.

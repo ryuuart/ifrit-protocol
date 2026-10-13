@@ -427,14 +427,6 @@ through the same kit readout. A test should call the Python readout over
 a connection after an inlet delivery and find rows for readiness,
 revision, undecodable, dropped and the error.
 
-## `sigil.py plates --sketch` accepts only the filed name
-
-`plates --sketch cue_deck` stops with "not in the registry" because a
-Python sketch stating `NAME` is filed under it, while `Grimoire --sketch`
-answers to the filed name or the file stem. The plates verb should find a
-sketch the way Grimoire does. A test should select, through the verb, a
-sketch whose filed name differs from its stem.
-
 ## Graphite's Metal signal semaphores crash in this Skia build
 
 `skgpu::graphite::MtlCommandBuffer::addSignalSemaphores` in the Skia the

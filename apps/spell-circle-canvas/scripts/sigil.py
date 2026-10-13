@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 VERBS = {
     "setup": "discover Qt and vcpkg, write the presets, configure and build",
     "check": "clang-format, ruff and qmllint over the branch's work; drift",
-    "plates": "plate sweep over the sketch registry: cpu, device, promotion",
+    "plates": "plate sweep over the sketch registry: device, cpu, promotion",
     "bench": "timing sweep: the benchmark binaries, or the window lane",
     "sanitize": "an instrumented tree: address, thread or coverage",
     "docs": "the per-library Doxygen sites, opened or served",

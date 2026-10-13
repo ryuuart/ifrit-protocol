@@ -13,7 +13,7 @@
 #
 #     mise run check -- --fix
 #     mise run sanitize -- --lane thread
-#     mise run plates -- --tier device
+#     mise run plates -- --tier cpu
 #
 # The two tasks that pick a build configuration declare it in `usage`
 # instead, and a task that declares its own arguments CANNOT forward.

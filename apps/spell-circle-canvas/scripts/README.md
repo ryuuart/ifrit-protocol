@@ -275,22 +275,48 @@ inventory the `docs` build writes is what sees those.
 
 ## Plates — `plates`
 
-Three tiers, one binary. `--tier cpu` (the default) steps every scene2d
-sketch to its declared moment and rasterises it on the CPU, so a plate is
-a function of the declaration alone and the tier is judged on byte
-identity against one manifest, `build/plate_baseline_<config>.sha256`,
-keyed by registry name. A scene3d sketch is drawn on a device and nowhere else, so
-this tier passes every scene3d sketch over and prints how many it passed over; the
-device tier below is where a scene3d sketch is judged. A clean sweep is the byte-neutrality verdict; a
-scene over the per-scene ceiling fails by name, and there is no
-per-scene override. `--rebase` adopts; a sweep narrowed by `--kind`,
-`--sketch` or `--scenes` merges into the manifest rather than
-truncating it, and only an unnarrowed rebase rewrites it wholesale.
-`--stability N` re-renders a mover and attributes a self-disagreeing
-scene to the scene. `sigil.py plates compare <dir-a> <dir-b>` differences
-two directories of plates, the first as the reference, one line per
-plate; it exits 0 when every plate was compared, 1 when any was missing,
-unreadable or resized, and 2 when there was nothing to compare.
+Three tiers, one binary, and THE DEVICE IS THE REFERENCE: the product
+draws on the GPU, so the device tier is the one a sketch's picture is
+judged by, and the CPU tier is a smoke run of the raster path beside it.
+The raster and the device need not agree. `--sketch` and `--scenes`
+take a sketch by its filed name or by its file stem — the two spellings
+`Grimoire --sketch` answers to, matched exactly — so a Python sketch
+filed under the `NAME` it states is found by its stem too.
+`sigil.py plates compare <dir-a> <dir-b>` differences two directories of
+plates, the first as the reference, one line per plate; it exits 0 when
+every plate was compared, 1 when any was missing, unreadable or resized,
+and 2 when there was nothing to compare.
+
+**`--tier device`, the default, is the reference.** It asks the binary
+to bring its device up and list the registry (`Grimoire --catalog
+--gpu`), renders every scene2d and scene3d sketch on the device with
+`--gpu` to its declared moment, and judges each plate on byte identity
+against ONE machine-local manifest,
+`build/plate_baseline_<config>_device.sha256`, keyed by filed name. On
+one machine and one driver the same declaration renders the same bytes,
+which is what makes a hash the honest verdict and the manifest
+machine-local. Each row is byte-identical, MOVED (marked `<-- FINDING`,
+naming the two plates), NEW (not in baseline — rebase to adopt) or
+FAILED. `--rebase` adopts; a sweep narrowed by `--kind`, `--sketch` or
+`--scenes` merges into the manifest rather than truncating it, and only
+an unnarrowed rebase rewrites it wholesale. `--stability N` re-renders a
+mover and attributes a self-disagreeing scene to the scene. Without a
+device runtime the tier says so, renders no sketch and exits 0.
+
+**`--tier cpu` is the raster smoke.** It renders every scene2d sketch on
+the CPU, passes every scene3d sketch over and counts them, and reads
+each CPU plate against the device plate the device tier last adopted,
+per colour channel: the **mean** absolute difference, **p99** (the value
+99 channels in a hundred stay under) and **max**, the worst channel
+anywhere. A row is WITHIN or OVER the script's `RASTER_TOLERANCE` for
+that sketch — `(12.0, 128)` for mean and p99 unless a sketch names its
+own — or says why the pair could not be read, a missing device plate
+among them. The rows are a reading, never a verdict: the tier keeps no
+baseline, refuses `--rebase`, and exits non-zero only when a sketch
+fails to render. The CPU rasterises through Skia with its antialiasing
+and the device through a depth buffer with none, so the two agree about
+what the picture is and differ along every edge; a row far OVER is worth
+opening, and what it shows is the raster path's, not the reference's.
 
 The comparison is the sketch library's `sigil::sketch::compare`, read as
 values — one `sigil::sketch::PlateComparison` row per plate — through the
@@ -356,51 +382,6 @@ so the renderer pins those: a headless session is opened with
 `ctx.deterministic` set and `ctx.measured(value, pinned)` returns the
 pinned number. A sketch that reads a clock and does not go through
 `measured()` is the one thing `--stability` still has to catch.
-
-### The device tier
-
-`--tier device` asks the binary to bring its device up and list the
-registry (`Grimoire --catalog --gpu`); without a device runtime it says so
-and exits 0. It then judges two kinds of sketch two ways.
-
-A SCENE3D sketch, and a scene2d sketch available only where a device is — one that
-bakes a scene3d sketch into its page — has no CPU plate. Each is rendered with
-`--gpu` and its bytes hashed against a manifest of device plates this
-machine keeps, `build/plate_baseline_<config>_device.sha256`: the same
-byte-identity question the CPU tier asks, asked of the one rasteriser such
-a sketch has. A device plate is a function of the declaration, the
-driver and the machine, and on one machine and one driver the same
-declaration renders the same bytes, which is what makes a hash the honest
-verdict and the manifest machine-local. `--tier device --rebase` adopts
-these plates, merging when narrowed exactly as the CPU tier does,
-`--stability N` re-renders a mover, and the scene2d sketches are not
-adopted, since they keep no device baseline.
-
-A SCENE2D sketch is rendered on the CPU and on the device and the two
-plates are compared per colour channel — mean and p99 judged within a
-ceiling, max reported — because a scene2d sketch's device plate is a second
-rasteriser's picture of what the CPU tier already holds to its baseline.
-The two directories of plates are differenced by the comparison above,
-which decodes them and answers the distances; what stays here is the
-judgement, because a ceiling is a tolerance about a machine and not a fact
-about two files.
-
-Why a distance there and not a hash: the CPU rasterises through Skia
-with its antialiasing and the device through a depth buffer with none.
-They agree about what the picture is and they differ along every edge,
-so three numbers are taken per colour channel in 0..255 over every pixel:
-the **mean** absolute difference, which is the number that says the two
-pictures ARE the same picture; **p99**, the value 99 channels in a
-hundred stay under, which says the disagreement is confined rather than
-spread; and **max**, the worst channel anywhere, which is an edge, and is
-reported rather than judged.
-
-A scene2d sketch may name its own mean and p99 ceilings in the script's
-`GPU_TOLERANCE`, set from what the two rasterisers actually do rather
-than from a wish; one with no entry is judged by the default,
-`(12.0, 128)`, and today none needs its own. A ceiling is for a sketch the
-two draw the same way and read slightly apart: a sketch that draws
-differently on the two backends is a defect in what drew it.
 
 ### The promotion tier
 
@@ -489,35 +470,36 @@ refuses `--rebase`, because there is nothing here to adopt.
 THE PLATES ARE KEPT, beside the manifest, under
 `build/plates_<config>/` — one directory per tier, one PNG per scene,
 overwritten rather than accumulated, and never committed because
-`build/` is ignored. `baseline/` holds what the manifest was baked from
-and is overwritten on rebase; `cpu/` holds what the last judging sweep
-rendered; the device tier keeps its own baseline beside its manifest
-(`device/baseline`) and what its last judging sweep rendered of the
-device-only sketches (`device/scene3d`); the two comparing halves keep both
-sides (`device/cpu`, `device/gpu`, `promotion/off`, `promotion/on`). A hash says a scene
-MOVED and nothing about where, so each mover's verdict line names its
-two files and the summary prints the `sigil.py plates compare
-build/plates_<config>/baseline build/plates_<config>/cpu` that
-differences them channel by channel.
+`build/` is ignored. `device/baseline/` holds what the device manifest
+was adopted from and is overwritten scene by scene on rebase; it is also
+what the raster smoke reads against. `device/gpu/` holds what the last
+judging device sweep rendered, `cpu/` what the last raster smoke
+rendered, and the promotion tier keeps both its halves (`promotion/off`,
+`promotion/on`). A hash says a scene MOVED and nothing about where, so
+each mover's verdict line names its two files and the summary prints the
+`sigil.py plates compare build/plates_<config>/device/baseline
+build/plates_<config>/device/gpu` that differences them channel by
+channel.
 
-Both manifests are machine-local by design (plates are deterministic per
-machine, not across machines), so a fresh checkout runs
-`sigil.py plates --rebase` and `sigil.py plates --tier device --rebase`
-once before a sweep can judge anything.
+The manifest is machine-local by design (plates are deterministic per
+machine and driver, not across them), so a fresh checkout runs
+`sigil.py plates --rebase` once before a sweep can judge anything, and
+before the raster smoke has a device plate to read against.
 
 A library's own plate cases are the other half of the verb: ctest cases
 labelled `plates`, each a picture the library's testing harness renders
 on the CPU and holds against a baseline COMMITTED beside its test, with
 the faces it was drawn in listed next to it so a machine with another
-font set is told that rather than shown a moved layout. An unnarrowed cpu
+font set is told that rather than shown a moved layout. An unnarrowed device
 sweep runs them after the sketches (`ctest -L plates`) and their verdict
 joins the sweep's; `--rebase` adopts them too, by setting
 `SIGIL_PLATES_REBASE=1` for that run, and the adopted baselines are
 committed with the cause like any other move. A sweep narrowed by
-`--kind`, `--sketch` or `--scenes` leaves them alone. The
-manifest is keyed by the registry NAME, which can carry spaces (`--scenes
-"aero desktop"`); the frame-rate ledger below is keyed by the sketch's
-STEM (`--sketch aero_desktop`).
+`--kind`, `--sketch` or `--scenes` leaves them alone, and a machine with
+no device runtime still judges them, since their harnesses render on
+the CPU. The manifest is keyed by the registry NAME, which can carry
+spaces (`--scenes "aero desktop"`); the frame-rate ledger below is keyed
+by the sketch's STEM (`--sketch aero_desktop`).
 
 A sketch that faults is named: the render for it fails, the report on
 stderr says which entry it was on, the phase (setup, draw, capture) and

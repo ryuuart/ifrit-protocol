@@ -43,10 +43,12 @@ session holds automatic texture promotion off, so `--promotion` is the
 one door that lets the promoter go with every other pin standing, and
 `--no-promotion` pins it off on a backend whose default would not; the
 plate ledger's promotion tier renders each scene both ways and judges
-the pair. The ledger's CPU tier judges scene2d sketches only and counts the
-scene3d sketches it passes over; `sigil.py plates --tier device` judges each scene3d sketch on
-byte identity against a machine-local device manifest, adopted with
-`--rebase`. `--thumbnails [--sketch <name>] [--kind scene2d|scene3d]
+the pair. The ledger's device tier, its default and its reference, judges
+every scene2d and scene3d sketch on byte identity against one machine-local
+device manifest, adopted with `--rebase`; `sigil.py plates --tier cpu` is a
+smoke run of the raster path that reads each scene2d sketch's CPU plate
+against its device plate and fails only for a sketch that did not render.
+Both take a sketch by its filed name or its file stem. `--thumbnails [--sketch <name>] [--kind scene2d|scene3d]
 [--thumbnail-budget <sec>] [--thumbnail-heavy]` renders the browser's
 missing or stale thumbnails headless and exits non-zero naming any that
 failed — the app owns its thumbnails, rendering them on demand into a

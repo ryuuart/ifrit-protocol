@@ -272,8 +272,8 @@ struct DeviceCookedSwatch {
 };
 
 /** Per colour channel, the mean and the 99th percentile of how far two
- *  plates of one size stand apart, in code values — what the device tier
- *  judges a scene2d plate by. */
+ *  plates of one size stand apart, in code values — what the raster smoke
+ *  reports a scene2d plate by. */
 struct ChannelDrift {
   double mean = 256;
   int p99 = 256;
@@ -599,7 +599,7 @@ TEST_F(DeviceSweep, AFrameCookedOnTheDeviceIsThePictureTheRasterPlateShows) {
   ASSERT_TRUE(onRaster);
   ASSERT_TRUE(onDevice);
   const ChannelDrift drift = channelDrift(*onRaster, *onDevice);
-  // The device tier's tolerance, per colour channel.
+  // The raster smoke's tolerance, per colour channel.
   EXPECT_LE(drift.mean, 12.0);
   EXPECT_LE(drift.p99, 128);
   // …and the card holds the cooked leaves, not the black ground.

@@ -135,10 +135,10 @@ ledger over the one registry, narrowed to that kind. It is drawn on the
 device and nowhere else, so its tier is the DEVICE tier: every study is
 rendered on the device to its declared moment and its bytes hashed
 against a manifest of the device plates this machine keeps,
-`build/plate_baseline_<config>_device.sha256`. It is the same question
-the CPU tier asks of a scene2d sketch — did any byte move that I did not
-mean to move — asked of the one rasteriser a study has, on the machine
-in front of you:
+`build/plate_baseline_<config>_device.sha256`, the same manifest every
+scene2d sketch is judged by: did any byte move that I did not mean to
+move, asked of the one rasteriser a study has, on the machine in front of
+you:
 
 ```sh
 python3 scripts/sigil.py plates --kind scene3d --tier device --rebase  # adopt
@@ -147,8 +147,8 @@ python3 scripts/sigil.py plates --kind scene3d --tier device --stability 2
 ```
 
 A sweep narrowed to one kind or one study merges into that manifest
-rather than truncating it. The CPU and promotion tiers pass every study
-over and say how many they passed over: a study has no CPU plate, and
-the runtime a study draws through promotes nothing. With no device the
-device tier reports that and exits green, because a machine with no
-Vulkan runtime has nothing to judge a study with.
+rather than truncating it. The CPU smoke and the promotion tier pass
+every study over and say how many they passed over: a study has no
+raster plate, and the runtime a study draws through promotes nothing.
+With no device the device tier reports that and exits green, because a
+machine with no Vulkan runtime has nothing to judge a study with.

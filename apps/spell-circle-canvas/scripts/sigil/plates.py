@@ -1,29 +1,31 @@
 """Verb: plates — parallel plate sweeps over the sketch registry.
 
-    sigil.py plates --rebase           # bake the baseline manifest, and
-                                       # adopt the library plate cases
-    sigil.py plates                    # sweep + compare + verdict, and
-                                       # judge the library plate cases
+    sigil.py plates --rebase           # adopt the device manifest, and
+                                       # the library plate cases
+    sigil.py plates                    # the device reference: sweep +
+                                       # hash + verdict, and the library
+                                       # plate cases judged
     sigil.py plates --kind scene3d     # only the scene3d sketches
-    sigil.py plates --sketch astral_tome
+    sigil.py plates --sketch astral_tome   # by file stem or filed name
     sigil.py plates --scenes "aero desktop" black_watch
     sigil.py plates --stability 3      # re-render movers 3x to separate
                                        # flappers from code
-    sigil.py plates --tier device      # scene2d sketches on the GPU, and
-                                       # every scene3d sketch
-    sigil.py plates --tier device --rebase   # adopt the scene3d device plates
+    sigil.py plates --tier cpu         # the raster smoke: scene2d on the
+                                       # CPU, read against the device plates
     sigil.py plates --tier promotion   # …and with the promoter let go
     sigil.py plates compare <a> <b>    # two plate directories, differenced
 
 Renders every sketch through `Grimoire --headless --ledger` (the
-benchmark-free exact-stepped capture), N at a time, hashes the plates,
-and compares against a stored baseline manifest. One binary renders all
-three tiers; what separates them is which rasteriser a sketch draws
-through and what the runtime's promoter is allowed to do. A scene3d
-sketch is drawn on the device and nowhere else, so the CPU and promotion
-tiers pass every scene3d sketch over and count them, and the device tier
-holds each scene3d sketch to a device plate of its own, hashed into a
-second machine-local manifest.
+benchmark-free exact-stepped capture), N at a time. One binary renders
+all three tiers; what separates them is which rasteriser a sketch draws
+through and what the runtime's promoter is allowed to do. THE DEVICE IS
+THE REFERENCE: the device tier (the default) renders every scene2d and
+scene3d sketch on the device and holds each to one machine-local
+manifest of device plates on byte identity. The CPU tier is a smoke run
+of the raster path: it renders every scene2d sketch on the CPU, reads
+each against its device plate per colour channel, and fails only for a
+sketch that did not render, because the raster and the device need not
+agree.
 
 What each tier judges, what it refuses and why each ceiling stands where
 it does is scripts/README.md; this refuses to keep a second copy of it.
@@ -35,12 +37,14 @@ the Python extension the build links.
 
 A library's own plate cases are ctest cases labelled `plates`, each a
 picture held against a baseline committed beside its test; an unnarrowed
-cpu sweep runs them after the sketches, and `--rebase` adopts them the way
-it adopts the manifest, by the one environment variable those cases read.
+device sweep runs them after the sketches, and `--rebase` adopts them the
+way it adopts the manifest, by the one environment variable those cases
+read.
 """
 
 import argparse
 import concurrent.futures
+import dataclasses
 import json
 import os
 import shutil
@@ -68,16 +72,19 @@ PROMOTION_ON = ("--promotion",)
 LIBRARY_PLATES_LABEL = "plates"
 LIBRARY_PLATES_REBASE = "SIGIL_PLATES_REBASE"
 
-# How far a SCENE2D sketch's device plate may stand from its CPU plate:
-# (mean, p99) per colour channel in 0..255. Set from what the two
-# rasterisers actually do, and tightened when one of them gets closer to
-# the other rather than loosened when a change moves them apart. A scene3d
-# sketch has no CPU plate and is judged on its own device plate instead.
-DEFAULT_GPU_TOLERANCE = (12.0, 128)
-GPU_TOLERANCE = {}
+# How far a SCENE2D sketch's CPU plate reads from its device plate before
+# the raster smoke calls the pair OVER: (mean, p99) per colour channel in
+# 0..255. Set from what the two rasterisers actually do. It is a reading
+# and never a verdict — the raster and the device need not agree — so a
+# row past it is reported and fails nothing.
+DEFAULT_RASTER_TOLERANCE = (12.0, 128)
+RASTER_TOLERANCE = {}
 
 # The kind that is drawn on the device and nowhere else.
 SCENE3D_KIND = "scene3d"
+
+# The device manifest, the one reference every sketch is judged against.
+DEVICE_MANIFEST = "plate_baseline_{config}_device.sha256"
 
 # How far a promoted plate may stand from the same scene rendered with the
 # promoter held off, and it is THREE BARS because the contract compose
@@ -147,14 +154,13 @@ PROMOTION_ON_COUNTED = PROMOTION_ON + ("--composites",)
 
 
 def registry(binary, kinds, device=False):
-    """What the binary carries for the given kinds: scene -> kind for the
-    ones this machine can render, and scene -> (kind, reason) for the ones
-    it cannot. @p device asks the binary to bring its device up first,
-    without which every scene3d sketch is unavailable; None when that was asked and
-    the machine has no device to bring up.
+    """What the binary carries for the given kinds, as a Listing. @p device
+    asks the binary to bring its device up first, without which every
+    scene3d sketch is unavailable; None when that was asked and the machine
+    has no device to bring up.
 
     Read as values — the catalog's rows, one JSON object each, which carry
-    every entry's filed name, runtime and availability. The registry is
+    every entry's filed name, file stem, runtime and availability. The registry is
     compiled into Grimoire and into nothing a script can import, so its
     rows cross the process as data. A sketch this machine cannot run is a
     row like any other, with the reason: a sketch dropped from the rows
@@ -169,9 +175,25 @@ def registry(binary, kinds, device=False):
     ):
         return None
     result.check_returncode()
-    listed = result.stdout
-    scenes, unavailable = {}, {}
-    for line in listed.splitlines():
+    return catalog_listing(result.stdout, kinds)
+
+
+@dataclasses.dataclass
+class Listing:
+    """The registry as one tier sees it. `scenes` is filed name -> kind for
+    what this machine can render, `unavailable` filed name -> (kind,
+    reason) for what it cannot, and `stems` file stem -> filed name for
+    both, because a sketch answers to either spelling."""
+
+    scenes: dict
+    unavailable: dict
+    stems: dict
+
+
+def catalog_listing(printed: str, kinds) -> Listing:
+    """The rows `Grimoire --catalog` printed, kept to @p kinds."""
+    listing = Listing({}, {}, {})
+    for line in printed.splitlines():
         # A row is one JSON object per line; a device brought up for the
         # listing logs its own lines beside them, which are not rows.
         if not line.startswith("{"):
@@ -179,11 +201,30 @@ def registry(binary, kinds, device=False):
         row = json.loads(line)
         if row["kind"] not in kinds:
             continue
+        name = row["filedName"]
         if row["available"]:
-            scenes[row["filedName"]] = row["kind"]
+            listing.scenes[name] = row["kind"]
         else:
-            unavailable[row["filedName"]] = (row["kind"], row["reason"])
-    return scenes, unavailable
+            listing.unavailable[name] = (row["kind"], row["reason"])
+        if row.get("key"):
+            listing.stems[row["key"]] = name
+    return listing
+
+
+def resolve(queries, listing: Listing):
+    """The filed names @p queries select, and the queries that select
+    nothing. A query is a filed name or a file stem, matched exactly — the
+    two spellings Grimoire's own `--sketch` answers to — and a filed name
+    wins where one sketch's stem is another's filed name."""
+    chosen, unknown = [], []
+    for query in queries:
+        if query in listing.scenes or query in listing.unavailable:
+            chosen.append(query)
+        elif query in listing.stems:
+            chosen.append(listing.stems[query])
+        else:
+            unknown.append(query)
+    return chosen, unknown
 
 
 def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
@@ -372,66 +413,71 @@ def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
     return results, errors, declared
 
 
-def device_sweep(binary, scene2d_scenes, timeout, jobs, host_dir, device_dir):
-    """The device tier's scene2d half: every scene2d sketch rendered BOTH
-    ways and the two plates compared. It has no baseline — the CPU plate
-    of the same sketch IS the reference, and both are made in this run,
-    and both are kept so a scene reported OVER can be looked at rather
-    than only measured."""
-    if not scene2d_scenes:
-        return 0
+def raster_smoke(binary, scenes, timeout, jobs, raster_dir, device_dir):
+    """The CPU tier: every scene2d sketch rendered on the CPU and read
+    against its device plate, the one the device tier last adopted.
+
+    It is a SMOKE RUN of the raster path and keeps no baseline. The device
+    is the reference and the raster and the device need not agree, so a
+    row past the tolerance is reported and fails nothing; the run fails
+    only for a sketch that did not render. The CPU plates are kept beside
+    the device plates so a row can be opened rather than only measured."""
     print("[scene2d on the cpu]")
-    _, cpu_errors, _ = sweep(
+    _, errors, _ = sweep(
         binary,
-        scene2d_scenes,
-        host_dir,
+        scenes,
+        raster_dir,
         timeout,
         jobs,
         PROMOTION_OFF,
         lambda s, d: "rendered",
     )
-    print("[scene2d on the gpu]")
-    _, gpu_errors, _ = sweep(
-        binary,
-        scene2d_scenes,
-        device_dir,
-        timeout,
-        jobs,
-        PROMOTION_OFF + ("--gpu",),
-        lambda s, d: "rendered",
-    )
-    errors = len(cpu_errors) + len(gpu_errors)
-
-    verdict = 0
     print()
-    distances, unusable, refusal = compared(host_dir, device_dir)
+    distances, unusable, refusal = compared(device_dir, raster_dir)
+    status = raster_smoke_report(scenes, errors, distances, unusable, refusal)
+    print(f"plates kept: {raster_dir}\n  read against {device_dir}")
+    return status
+
+
+def raster_smoke_report(scenes, errors, distances, unusable, refusal):
+    """The raster smoke's rows and its exit status: one row per scene that
+    rendered — WITHIN or OVER the tolerance of its device plate, or what
+    kept the pair from being read — and 1 only when a scene failed to
+    render. @p distances and @p unusable are the comparison's answer with
+    the device plates as the reference, and @p refusal is its refusal of
+    the whole pair of directories, which says there is no device plate to
+    read against at all."""
+    within = over = unread = 0
     if refusal:
-        # Nothing was differenced, so every scene below fails for this one
-        # reason rather than for one of its own.
-        print(f"  {refusal}   <-- FINDING")
-    for scene in scene2d_scenes:
+        print(f"  {refusal}: no device plate to read against")
+    for scene in scenes:
+        if scene in errors:
+            continue
         if scene in unusable:
-            print(f"  {unusable[scene].upper()} {scene}   <-- FINDING")
-            verdict = 1
+            print(f"  {unusable[scene].upper()} {scene}")
+            unread += 1
             continue
         if scene not in distances:
-            verdict = 1
+            unread += 1
             continue
         row = distances[scene]
-        mean, p99, worst = row.mean, row.p99, row.worst
-        mean_cap, p99_cap = GPU_TOLERANCE.get(scene, DEFAULT_GPU_TOLERANCE)
-        over = mean > mean_cap or p99 > p99_cap
+        mean_cap, p99_cap = RASTER_TOLERANCE.get(scene, DEFAULT_RASTER_TOLERANCE)
+        apart = row.mean > mean_cap or row.p99 > p99_cap
+        over += apart
+        within += not apart
         print(
-            f"  {'OVER ' if over else 'WITHIN'} {scene:<24} "
-            f"mean {mean:6.2f} (<= {mean_cap:g})  "
-            f"p99 {p99:4d} (<= {p99_cap})  max {worst:3d}"
+            f"  {'OVER ' if apart else 'WITHIN'} {scene:<24} "
+            f"mean {row.mean:6.2f} (<= {mean_cap:g})  "
+            f"p99 {row.p99:4d} (<= {p99_cap})  max {row.worst:3d}"
         )
-        if over:
-            verdict = 1
-    print(f"\nplates kept: {host_dir}\n             {device_dir}")
-    if verdict == 0 and not errors:
-        print("VERDICT: every scene2d sketch stands within tolerance of its CPU plate")
-    return verdict or (1 if errors else 0)
+    print(
+        f"\n{within} within tolerance of the device plate, {over} over, "
+        f"{unread} not read against one, {len(errors)} failed to render"
+    )
+    if errors:
+        return 1
+    print("VERDICT: every scene2d sketch rendered on the CPU")
+    return 0
 
 
 def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
@@ -585,10 +631,10 @@ def hashed_sweep(
     skipped,
 ):
     """Renders @p scenes, hashes each plate and judges it against
-    @p manifest — or, adopting, writes the manifest from them. The CPU
-    tier asks this of every scene2d sketch and the device tier of every
-    scene3d sketch: the same byte-identity question, asked of the one rasteriser each
-    kind has. @p judged and @p stability make the directories a judging
+    @p manifest — or, adopting, writes the manifest from them. The device
+    tier asks this of every sketch, scene2d and scene3d alike: on one
+    machine and one driver the same declaration renders the same bytes,
+    which is what makes a hash the honest verdict. @p judged and @p stability make the directories a judging
     sweep and a stability re-render write into, made only when used.
     Answers the verdict: 0 when nothing moved and nothing failed."""
     # Read BEFORE the sweep so a scene can be judged the moment it lands.
@@ -724,20 +770,22 @@ def main(argv: list) -> int:
     ap = argparse.ArgumentParser(
         prog="sigil.py plates",
         description="plate sweep over the sketch registry, judged against a "
-        "machine-local baseline manifest",
+        "machine-local manifest of device plates",
     )
     ap.add_argument("--config", default="Release", choices=tree.CONFIGURATIONS)
     ap.add_argument("--jobs", type=int, default=max(2, (os.cpu_count() or 8) // 2))
     ap.add_argument(
         "--tier",
-        choices=("cpu", "device", "promotion"),
-        default="cpu",
-        help="cpu (default): every scene2d sketch rendered on the CPU to its "
-        "declared capture moment, judged on byte identity against the "
-        "baseline manifest; scene3d sketches are passed over and counted. "
-        "device: each scene2d sketch on the GPU judged per colour channel "
-        "against its CPU plate of the same run, and each scene3d sketch on "
-        "the GPU judged on byte identity against its own device manifest, which --rebase adopts. "
+        choices=("device", "cpu", "promotion"),
+        default="device",
+        help="device (default), the reference: every scene2d and scene3d "
+        "sketch rendered on the device to its declared capture moment and "
+        "judged on byte identity against the device manifest, which "
+        "--rebase adopts. "
+        "cpu, the raster smoke: every scene2d sketch rendered on the CPU and "
+        "read per colour channel against its device plate; the rows are "
+        "reported and only a sketch that fails to render fails the run; no "
+        "baseline. "
         "promotion: the scene2d sketches rendered with automatic texture "
         "promotion held "
         "off and again with every promotable node eagerly baked, judged "
@@ -751,17 +799,20 @@ def main(argv: list) -> int:
         choices=KINDS,
         help="only the sketches drawn through this runtime (default: both)",
     )
-    ap.add_argument("--scenes", nargs="*", help="subset (registry names)")
-    ap.add_argument("--sketch", metavar="NAME", help="one scene (registry name)")
+    ap.add_argument(
+        "--scenes", nargs="*", help="subset, each a filed name or a file stem"
+    )
+    ap.add_argument(
+        "--sketch", metavar="NAME", help="one scene, by filed name or file stem"
+    )
     ap.add_argument(
         "--rebase",
         action="store_true",
-        help="write the manifest from this sweep — the CPU tier's for the "
-        "scene2d sketches, the device tier's for the scene3d sketches. A "
-        "sweep narrowed by --kind, --sketch or --scenes merges, so only an unnarrowed "
-        "rebase rewrites the file wholesale. An unnarrowed CPU rebase also "
-        "adopts the library plate cases (ctest label plates) into the "
-        "baselines committed beside their tests",
+        help="write the device manifest from this sweep. A sweep narrowed by "
+        "--kind, --sketch or --scenes merges, so only an unnarrowed rebase "
+        "rewrites the file wholesale, and only an unnarrowed one also adopts "
+        "the library plate cases (ctest label plates) into the baselines "
+        "committed beside their tests",
     )
     ap.add_argument(
         "--stability",
@@ -784,34 +835,39 @@ def main(argv: list) -> int:
         "hang the verdict that protects everything else",
     )
     args = ap.parse_args(argv)
+    if args.rebase and args.tier != "device":
+        sys.exit(
+            f"--tier {args.tier} has no baseline to rebase: the device tier "
+            f"is the reference, and this tier reads its plates against "
+            f"plates rendered in the same run or against the device's"
+        )
 
     binary = str(tree.grimoire(args.config))
-
     kinds = (args.kind,) if args.kind else KINDS
-    # A SCENE3D SKETCH IS AVAILABLE ONLY WHERE A DEVICE IS, so the device tier asks
-    # the binary to bring its device up before it lists anything; the
-    # other two tiers list without one and pass every scene3d sketch over.
+    queries = list(args.scenes or []) + ([args.sketch] if args.sketch else [])
+    narrowed = bool(queries or args.kind)
     on_device = args.tier == "device"
+
+    # A SCENE3D SKETCH IS AVAILABLE ONLY WHERE A DEVICE IS, so the device
+    # tier asks the binary to bring its device up before it lists anything;
+    # the other two tiers list without one and pass every scene3d sketch
+    # over.
     listing = registry(binary, kinds, device=on_device)
     if listing is None:
         print("SKIPPED: this machine has no device to render on")
-        return 0
-    listed, unavailable = listing
-    chosen = list(args.scenes or [])
-    if args.sketch:
-        chosen.append(args.sketch)
-    unknown = [
-        scene for scene in chosen if scene not in listed and scene not in unavailable
-    ]
+        # The libraries' own plates are rendered by their harnesses and
+        # need no device, so they are still judged.
+        return library_plates(args.config, args.rebase) if not narrowed else 0
+    chosen, unknown = resolve(queries, listing)
     if unknown:
         sys.exit(f"not in the registry: {', '.join(unknown)}")
-    narrowed = bool(chosen or args.kind)
+    listed, unavailable = listing.scenes, listing.unavailable
 
     def selected(scene):
         return not chosen or scene in chosen
 
-    # Off the device every scene3d sketch is passed over, counted rather than
-    # listed one by one: it has no CPU plate, and its picture is the
+    # Off the device every scene3d sketch is passed over, counted rather
+    # than listed one by one: it has no CPU plate, and its picture is the
     # device tier's to judge.
     passed_over = []
     if not on_device:
@@ -829,82 +885,16 @@ def main(argv: list) -> int:
     # including one named explicitly on the command line, because asking
     # for it by name does not install anything.
     skipped = {scene: why for scene, (_, why) in unavailable.items() if selected(scene)}
-    scenes = {s: k for s, k in listed.items() if selected(s)}
+    scenes = [s for s in listed if selected(s)]
     for scene, why in sorted(skipped.items()):
         print(f"SKIPPED {scene}: {why}")
     if passed_over:
         print(
-            f"PASSED OVER {len(passed_over)} scene3d sketches: a scene3d sketch is "
-            f"drawn on the device, "
-            f"and --tier device judges it against its own device baseline"
+            f"PASSED OVER {len(passed_over)} scene3d sketches: a scene3d sketch "
+            f"is drawn on the device and nowhere else"
         )
-
-    if args.tier == "device":
-        # WHAT HAS NO CPU PLATE is judged on its own device plate: every
-        # scene3d sketch, and a scene2d sketch that is available only where
-        # a device is — one that bakes a scene3d sketch into its page. The
-        # listing without a device says which those are.
-        _, off_device = registry(binary, kinds)
-        scene3d_scenes = [
-            s for s, k in scenes.items() if k == SCENE3D_KIND or s in off_device
-        ]
-        scene2d_scenes = [s for s in scenes if s not in scene3d_scenes]
-        print(
-            f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
-            f"tier device: {len(scene2d_scenes)} scene2d sketches rendered on the "
-            f"CPU and on "
-            f"the device and compared per colour channel, {len(scene3d_scenes)} drawn "
-            f"only on the device and hashed against their device baseline"
-        )
-        if args.rebase and scene2d_scenes and not scene3d_scenes:
-            sys.exit(
-                "--tier device adopts only what is drawn on the device alone: "
-                "a scene2d sketch is judged against the CPU plate the same "
-                "sweep renders. Change GPU_TOLERANCE to move what it accepts."
-            )
-        verdict = 0
-        if scene2d_scenes and not args.rebase:
-            verdict = device_sweep(
-                binary,
-                scene2d_scenes,
-                args.timeout_seconds,
-                args.jobs,
-                plate_dir(args.config, "device", "cpu"),
-                plate_dir(args.config, "device", "gpu"),
-            )
-        if scene3d_scenes:
-            print("[drawn only on the gpu]")
-            verdict = (
-                hashed_sweep(
-                    binary,
-                    scene3d_scenes,
-                    args,
-                    manifest=str(
-                        tree.build_dir() / f"plate_baseline_{args.config}_device.sha256"
-                    ),
-                    kept_baseline=plate_dir(
-                        args.config, "device", "baseline", fresh=False
-                    ),
-                    judged=lambda: plate_dir(args.config, "device", "scene3d"),
-                    stability=lambda: plate_dir(
-                        args.config, "device", "stability", fresh=False
-                    ),
-                    extra_args=PROMOTION_OFF + ("--gpu",),
-                    narrowed=narrowed,
-                    skipped=skipped,
-                )
-                or verdict
-            )
-        return verdict
 
     if args.tier == "promotion":
-        if args.rebase:
-            sys.exit(
-                "--tier promotion has no baseline to rebase: it is judged "
-                "against the same scenes rendered with the promoter held off, "
-                "in the same run. A scene past the ceiling is a defect in the "
-                "promoter, not a plate to adopt."
-            )
         print(
             f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
             f"tier promotion: each rendered with automatic texture promotion "
@@ -912,23 +902,46 @@ def main(argv: list) -> int:
         )
         return promotion_sweep(
             binary,
-            list(scenes),
+            scenes,
             args.timeout_seconds,
             args.jobs,
             plate_dir(args.config, "promotion", "off"),
             plate_dir(args.config, "promotion", "on"),
         )
 
-    print(f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, tier cpu")
+    # The device plates the manifest was adopted from: what the device tier
+    # judges beside and what the raster smoke reads against.
+    device_baseline = plate_dir(args.config, "device", "baseline", fresh=False)
+
+    if args.tier == "cpu":
+        print(
+            f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
+            f"tier cpu: the raster smoke, each scene2d sketch rendered on the "
+            f"CPU and read against its device plate"
+        )
+        return raster_smoke(
+            binary,
+            scenes,
+            args.timeout_seconds,
+            args.jobs,
+            plate_dir(args.config, "cpu"),
+            device_baseline,
+        )
+
+    print(
+        f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
+        f"tier device: every sketch rendered on the device and hashed against "
+        f"the device manifest"
+    )
     verdict = hashed_sweep(
         binary,
-        list(scenes),
+        scenes,
         args,
-        manifest=str(tree.build_dir() / f"plate_baseline_{args.config}.sha256"),
-        kept_baseline=plate_dir(args.config, "baseline", fresh=False),
-        judged=lambda: plate_dir(args.config, "cpu"),
-        stability=lambda: plate_dir(args.config, "stability", fresh=False),
-        extra_args=PROMOTION_OFF,
+        manifest=str(tree.build_dir() / DEVICE_MANIFEST.format(config=args.config)),
+        kept_baseline=device_baseline,
+        judged=lambda: plate_dir(args.config, "device", "gpu"),
+        stability=lambda: plate_dir(args.config, "device", "stability", fresh=False),
+        extra_args=PROMOTION_OFF + ("--gpu",),
         narrowed=narrowed,
         skipped=skipped,
     )
