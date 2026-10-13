@@ -1,7 +1,14 @@
-uniform shader a;
-uniform shader b;
-uniform half uAmt;
+// A layer blended over what is beneath it by the layer's mode, then mixed
+// back toward what is beneath by the layer's amount. What is beneath is
+// read once and handed to the blend, so a stack of partly opaque layers
+// samples each of its inputs once per layer rather than twice as often
+// with every layer beneath.
+uniform shader uUnder;
+uniform shader uLayer;
+uniform blender uMode;
+uniform half uAmount;
 
 half4 main(float2 p) {
-  return mix(a.eval(p), b.eval(p), uAmt);
+  half4 under = uUnder.eval(p);
+  return mix(under, uMode.eval(uLayer.eval(p), under), uAmount);
 }

@@ -352,6 +352,7 @@ sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
                         ? replacement->shader
                         : detail::childShader(child, paintFrame);
   }
+  for (const auto& [name, blender] : live.blenders) b.child(name) = blender;
   if (injectSampling) {
     const glm::mat3 metric =
         paintFrame ? toMatrix(paintFrame->localToSample) : glm::mat3{1};

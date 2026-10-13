@@ -6,6 +6,7 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf
+#include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/ShaderLeaf.h>
 
 #include <algorithm>
@@ -161,6 +162,22 @@ bool PaintAccess::storeSlot(Paint& paint, std::string name, Paint source) {
   }
   paint.detachLive();
   putByName(paint.m_live->slots, std::move(name), std::move(source));
+  return true;
+}
+
+bool PaintAccess::storeBlender(Paint& paint, std::string name,
+                               sk_sp<SkBlender> blender) {
+  if (!paint.m_live) return false;
+  const SkRuntimeEffect::Child* child = paint.m_live->effect->findChild(name);
+  if (!child || child->type != SkRuntimeEffect::ChildType::kBlender) {
+    SkDebugf(
+        "Paint::blender: \"%s\" is not declared by the effect as "
+        "`uniform blender` — ignored\n",
+        name.c_str());
+    return false;
+  }
+  paint.detachLive();
+  putByName(paint.m_live->blenders, std::move(name), std::move(blender));
   return true;
 }
 

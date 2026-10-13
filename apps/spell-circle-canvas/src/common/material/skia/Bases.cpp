@@ -7,6 +7,7 @@
  * lighting channels and effects are read by their own renderers.
  */
 
+#include <include/core/SkBlender.h>
 #include <include/core/SkString.h>
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
@@ -42,8 +43,14 @@ Material asMaterial(Paint paint) {
       std::make_shared<const PaintPart>(std::move(paint))));
 }
 
-Paint maskedLayer(Paint under, Paint over, Paint mask, const Mask& how,
-                  float opacity, bool snapshot) {
+/** @p layer blended over @p under by @p mode, mixed back toward @p under
+ *  by @p mask as @p how reads it and by @p opacity. ONE program reads
+ *  @p under once and blends inside: holding it again inside a blend
+ *  shader would make each masked layer sample everything beneath it
+ *  twice, and a stack of them would bind more textures than a fragment
+ *  program can sample. */
+Paint maskedLayer(Paint under, Paint layer, SkBlendMode mode, Paint mask,
+                  const Mask& how, float opacity, bool snapshot) {
   static const sk_sp<SkRuntimeEffect> effect = [] {
     auto [built, error] = SkRuntimeEffect::MakeForShader(
         SkString(std::string(shaderSource("MaskedLayer.sksl")).c_str()));
@@ -59,7 +66,8 @@ Paint maskedLayer(Paint under, Paint over, Paint mask, const Mask& how,
   PaintAccess::storeUniform(masked, "uInvert", how.invert ? 1.0f : 0.0f);
   PaintAccess::storeUniform(masked, "uOpacity", opacity);
   PaintAccess::storeSlot(masked, "uUnder", std::move(under));
-  PaintAccess::storeSlot(masked, "uOver", std::move(over));
+  PaintAccess::storeSlot(masked, "uLayer", std::move(layer));
+  PaintAccess::storeBlender(masked, "uMode", SkBlender::Mode(mode));
   PaintAccess::storeSlot(masked, "uMask", std::move(mask));
   if (snapshot) PaintAccess::refresh(masked);
   return masked;
@@ -89,10 +97,14 @@ Paint lowerPaint(const Material& material, bool snapshot) {
     Paint top = lowerPaint(layer.source, snapshot);
     const float opacity = layer.options.opacity;
     if (layer.options.mask) {
-      Paint blended = blend({{accumulated, BlendMode::Normal},
-                             {std::move(top), layer.options.blend}});
+      // A layer of nothing leaves what is beneath it; over nothing, the
+      // layer stands alone, unblended.
+      if (top.isNone()) continue;
+      const SkBlendMode mode = accumulated.isNone()
+                                   ? SkBlendMode::kSrc
+                                   : toSkBlendMode(layer.options.blend);
       accumulated =
-          maskedLayer(std::move(accumulated), std::move(blended),
+          maskedLayer(std::move(accumulated), std::move(top), mode,
                       lowerPaint(layer.options.mask->source, snapshot),
                       *layer.options.mask, opacity, snapshot);
       continue;

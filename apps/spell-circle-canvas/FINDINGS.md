@@ -509,3 +509,20 @@ can only ask the whole engine `isRunning()`. A test should assert that a
 Python value animated by a transition answers running while its held
 motion writes it, and not running once it lands.
 
+## A draw sampling more than sixteen textures is dropped on Metal without a refusal
+
+`skia::samplerCount` and `kSamplerLimit` are enforced only where a
+recipe is compiled (`src/common/material/skia/SkiaCompiler.cpp`); a
+composed colour stack lowered by `lowerPaint` is not checked, and
+neither is a surface-map pass (`SurfaceMaps::mapShader`, which binds the
+colour stack and up to nineteen channel inputs). When their textures
+together exceed Metal's sixteen sampler slots, Graphite's pipeline fails
+to compile, the render pass is dropped and the page's maps come out
+(1, 0, 1), with a Skia warning in the log as the only signal. The stated
+rule is that a tree over the limit is refused with both counts named
+rather than built into a pipeline the driver rejects, and it should
+hold for every program built from a material. A test should assert that
+a surface whose colour stack and channel maps together sample seventeen
+or more textures is refused with both counts named and is never painted
+as a dropped pass.
+

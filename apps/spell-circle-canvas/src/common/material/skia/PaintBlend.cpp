@@ -5,6 +5,7 @@
  * draw, and is written once so the two cannot paint different pictures.
  */
 
+#include <include/core/SkBlender.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
@@ -21,11 +22,17 @@
 namespace sigil::material::skia {
 
 namespace {
-/** mix(a, b, t) as one nested shader — what a blend layer's amount()
- *  lerps with (SkShaders has Blend but no Lerp). Compiled once for the
- *  whole process: the body is fixed text, so a second compile of it could
- *  only produce the same program. */
-sk_sp<SkShader> mixShaders(sk_sp<SkShader> a, sk_sp<SkShader> b, float t) {
+/** @p layer blended over @p under by @p mode and mixed back toward
+ *  @p under by @p amount, as ONE program that reads @p under once. A mix
+ *  of `under` with a blend shader over that same `under` would hold it
+ *  twice, and a backend expands every child a shader holds into its own
+ *  copy: a stack of partly opaque layers would then sample its first
+ *  input twice as often with each layer, until one draw binds more
+ *  textures than a fragment program can sample, and the draw is dropped.
+ *  Compiled once for the whole process: the body is fixed text, so a
+ *  second compile of it could only produce the same program. */
+sk_sp<SkShader> mixLayer(sk_sp<SkShader> under, sk_sp<SkShader> layer,
+                         SkBlendMode mode, float amount) {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, err] =
         SkRuntimeEffect::MakeForShader(SkString(shaderSource("Mix.sksl")));
@@ -34,11 +41,12 @@ sk_sp<SkShader> mixShaders(sk_sp<SkShader> a, sk_sp<SkShader> b, float t) {
                err.c_str());
     return effect;
   }();
-  if (!fx) return b;
+  if (!fx) return SkShaders::Blend(mode, std::move(under), std::move(layer));
   SkRuntimeShaderBuilder builder(fx);
-  builder.child("a") = std::move(a);
-  builder.child("b") = std::move(b);
-  builder.uniform("uAmt") = t;
+  builder.child("uUnder") = std::move(under);
+  builder.child("uLayer") = std::move(layer);
+  builder.child("uMode") = SkBlender::Mode(mode);
+  builder.uniform("uAmount") = amount;
   return builder.makeShader();
 }
 }  // namespace
@@ -62,11 +70,11 @@ sk_sp<SkShader> PaintAccess::foldLayers(
     // amount(): composite the layer in full, then mix the result back
     // toward the accumulation — Photoshop layer opacity, not src-alpha
     // thinning (the two differ on every non-porter-duff mode).
-    const float amt = layer.m_amount;
-    sk_sp<SkShader> blended =
-        SkShaders::Blend(toSkBlendMode(mode), acc, std::move(src));
-    acc = amt >= 1.0f ? std::move(blended)
-                      : mixShaders(std::move(acc), std::move(blended), amt);
+    const float amount = layer.m_amount;
+    acc = amount >= 1.0f ? SkShaders::Blend(toSkBlendMode(mode), std::move(acc),
+                                            std::move(src))
+                         : mixLayer(std::move(acc), std::move(src),
+                                    toSkBlendMode(mode), amount);
   }
   return acc;
 }

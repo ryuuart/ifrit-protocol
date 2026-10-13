@@ -11,6 +11,7 @@
  * class, which is why they are opaque in its header.
  */
 
+#include <include/core/SkBlender.h>
 #include <include/core/SkImage.h>  // the recipe holds one
 #include <include/core/SkMatrix.h>
 #include <include/core/SkShader.h>
@@ -118,6 +119,10 @@ struct Paint::Live {
   // parent inherits each child's tier, and resolves every child with the
   // same PaintFrame it got itself.
   std::vector<std::pair<std::string, Paint>> slots;
+  // `uniform blender NAME` children: a blend mode the program applies
+  // itself, so a layer is blended over what lies beneath it inside the
+  // one program that reads what lies beneath. Recipe, as the slots are.
+  std::vector<std::pair<std::string, sk_sp<SkBlender>>> blenders;
   // A coordinate-preserving wrapper leaves its sole child's node frame and
   // root anchoring intact instead of establishing another sampling boundary.
   bool childAnchorsToRoot = false;
@@ -339,6 +344,8 @@ struct PaintAccess {
   static bool storeBinding(Paint& paint, std::string name,
                            motion::Animatable<Color> output);
   static bool storeSlot(Paint& paint, std::string name, Paint source);
+  static bool storeBlender(Paint& paint, std::string name,
+                           sk_sp<SkBlender> blender);
   static void refresh(Paint& paint) {
     paint.m_shader = hold(build(*paint.m_live, nullptr));
   }

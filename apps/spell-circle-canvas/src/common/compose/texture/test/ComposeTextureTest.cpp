@@ -19,6 +19,7 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Texture.h>
+#include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Frame.h>
 #include <sigilskia/graphite/GraphiteContext.h>
@@ -583,6 +584,73 @@ TEST(ComposeTexture, ASceneOnTheSharedDeviceStandsInATextureWithItsOwnChain) {
   const SkColor4f centre = pixels.getColor4f(24, 10);
   EXPECT_NEAR(centre.fB, 1.f, .01f);
   EXPECT_NEAR(centre.fR, 0.f, .01f);
+}
+
+// A STACK OF LAYERS EACH MASKED OR PARTLY OPAQUE, over a texture painted
+// on the CPU and read as data, paints on the shared device what it paints
+// on the CPU. Every such layer mixes what is beneath it with what is
+// beneath it blended under the layer, and what is beneath is one input
+// read once: read twice per layer, the texture would be sampled twice as
+// often with each layer, past the samplers one fragment program can bind
+// on Metal, and the device would paint no picture at all.
+TEST(ComposeTexture, AStackOfMaskedLayersPaintsOnTheSharedDeviceAsOnTheCpu) {
+  namespace material = sigil::material;
+  using material::ColorChannel;
+  SIGIL_ON_DEVICE_OR_SKIP(device);
+  if (!device->gpu() || !device->graphite())
+    GTEST_SKIP() << "no adopted Graphite context on this Vulkan device";
+  const std::shared_ptr<TextureScene> painted =
+      TextureScene::make({8, 32}, fonts(), material::Color{0, 0, 0, 1});
+  ASSERT_TRUE(painted);
+  painted->render(plate({.2f, .6f, .3f, 1}));
+  ASSERT_FALSE(painted->image()->isTextureBacked());
+  const material::Material depth =
+      material::image(painted->texture()
+                          .tile(material::Repeat::Repeat)
+                          .sampling(material::Sampling::Linear)
+                          .colorSpace(sigil::media::ColorSpace::Data));
+  const material::Material stack =
+      material::from(material::Color{.1f, .2f, .7f, 1})
+          .layer(material::Color{.9f, .8f, .1f, 1},
+                 {.mask = {depth, ColorChannel::Luminance, .1f, .9f}})
+          .layer(material::Color{.6f, .1f, .1f, 1},
+                 {.mask = {depth, ColorChannel::Green, .2f, .8f}})
+          .layer(material::Color{.5f, .5f, .5f, 1},
+                 {.blend = material::BlendMode::Multiply, .opacity = .35f})
+          .layer(material::Color{.1f, .7f, .2f, 1},
+                 {.opacity = .8f,
+                  .mask = {depth, ColorChannel::Red, 0, .5f, true}})
+          .layer(material::Color{.3f, .3f, .9f, 1},
+                 {.opacity = .6f, .mask = {depth, ColorChannel::Blue, 0, 1}});
+  const Element tree = box().width(pct(100)).height(pct(100)).fill(stack);
+
+  const auto centreOf = [](const sk_sp<SkImage>& image) {
+    SkBitmap pixels;
+    if (!image || !pixels.tryAllocPixels(SkImageInfo::MakeN32Premul(48, 20)) ||
+        !image->readPixels(nullptr, pixels.pixmap(), 0, 0))
+      return SkColor4f{-1, -1, -1, -1};
+    return pixels.getColor4f(24, 10);
+  };
+  const std::shared_ptr<TextureScene> onTheCpu =
+      TextureScene::make({48, 20}, fonts());
+  ASSERT_TRUE(onTheCpu);
+  onTheCpu->render(tree);
+  const SkColor4f expected = centreOf(onTheCpu->image());
+  ASSERT_GE(expected.fA, 0.f);
+
+  const std::shared_ptr<TextureScene> onTheDevice =
+      TextureScene::make({48, 20}, fonts());
+  ASSERT_TRUE(onTheDevice);
+  {
+    const sigil::geometry::device::Device::QueueLock lock(*device);
+    ASSERT_TRUE(onTheDevice->useDevice(*device->gpu(), *device->graphite()));
+    onTheDevice->render(tree);
+  }
+  const SkColor4f actual = centreOf(onTheDevice->hostImage());
+  EXPECT_NEAR(actual.fR, expected.fR, .02f);
+  EXPECT_NEAR(actual.fG, expected.fG, .02f);
+  EXPECT_NEAR(actual.fB, expected.fB, .02f);
+  EXPECT_NEAR(actual.fA, expected.fA, .02f);
 }
 
 TEST(ComposeTexture, ASceneOnADeviceHandsAForeignRecorderAHostCopy) {

@@ -63,7 +63,8 @@ bool Paint::operator==(const Paint& other) const {
            m_live->constantArrays == other.m_live->constantArrays &&
            m_live->binds == other.m_live->binds &&
            m_live->childAnchorsToRoot == other.m_live->childAnchorsToRoot &&
-           m_live->slots == other.m_live->slots;
+           m_live->slots == other.m_live->slots &&
+           m_live->blenders == other.m_live->blenders;
   }
   if ((m_recipe != nullptr) != (other.m_recipe != nullptr)) return false;
   if (m_recipe) return *m_recipe == *other.m_recipe;

@@ -1,7 +1,11 @@
 // A layer applied through a mask: what is beneath, the layer blended over
-// it, and the mask read by one channel and remapped, mixed by the result.
+// it by the layer's mode, and the mask read by one channel and remapped,
+// mixed by the result. What is beneath is read once and handed to the
+// blend, so a stack of masked layers samples each of its inputs once per
+// layer rather than twice as often with every layer beneath.
 uniform shader uUnder;
-uniform shader uOver;
+uniform shader uLayer;
+uniform blender uMode;
 uniform shader uMask;
 uniform float uChannel;  // 0 alpha, 1 luminance, 2 red, 3 green, 4 blue
 uniform float uLow;
@@ -18,5 +22,6 @@ half4 main(float2 xy) {
                              : float(m.b);
   v = clamp((v - uLow) / max(uHigh - uLow, 1e-5), 0.0, 1.0);
   if (uInvert > 0.5) v = 1.0 - v;
-  return mix(uUnder.eval(xy), uOver.eval(xy), half(v * uOpacity));
+  half4 under = uUnder.eval(xy);
+  return mix(under, uMode.eval(uLayer.eval(xy), under), half(v * uOpacity));
 }
