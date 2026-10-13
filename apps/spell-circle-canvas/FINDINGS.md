@@ -393,29 +393,6 @@ A failed asynchronous build must become a pipeline the frame stands in
 for, never an abort. A test should hand the pipeline cache a program
 that cannot compile and find the body stood in and the error reported.
 
-## Skia's whole-attachment reload for multisampling is keyed to Qualcomm, not MoltenVK
-
-`VulkanCaps::applyDriverCorrectnessWorkarounds` in the Skia the port
-builds sets `fMustLoadFullImageForMSAA` only for Qualcomm's proprietary
-driver, and its own comment describes exactly MoltenVK's defect: the
-device resolves an area larger than the render pass bounds, so Graphite
-reloads a multisample attachment only inside a pass's render area while
-the whole attachment is resolved. The paint-order canvas covers each
-device before a continuing pass (the second `workaround:` in
-`src/common/skia/include/sigilskia/graphite/PaintOrder.h`), which cannot
-see a recording a caller snaps itself (`src/sketch/plate/Sweep.cpp`,
-harmless only because every sweep frame begins with a clear) nor a pass
-Graphite ends inside one recording, such as a `makeImageSnapshot` of a
-surface still being drawn, which corrupts on this machine. Every
-continuing pass should keep what the previous pass drew, whoever ended
-it: a patch in the sigil-vcpkg-registry Skia port setting
-`fMustLoadFullImageForMSAA` for `VK_DRIVER_ID_MOLTENVK`, a Skia rebuild
-and a baseline bump, after which the cover and the closed-recording
-count in `Waits` go. A test should draw a surface multisampled, snapshot
-it with `makeImageSnapshot`, draw one small path, and find every
-flat-coloured pixel of the first drawing kept; and the same after a
-caller's own snap and insert with no clear.
-
 ## The Python kit has no connection readout
 
 `sigil::sketch::kit::connectionReadout` shows a door's state over
@@ -425,22 +402,6 @@ rows, as `cue_deck` does. A Python sketch should show a door's state
 through the same kit readout. A test should call the Python readout over
 a connection after an inlet delivery and find rows for readiness,
 revision, undecodable, dropped and the error.
-
-## Graphite's Metal signal semaphores crash in this Skia build
-
-`skgpu::graphite::MtlCommandBuffer::addSignalSemaphores` in the Skia the
-port builds passes the address of `BackendSemaphores::GetMtlEvent` to
-the command buffer's signal call instead of calling it, where the wait
-path calls it, so any recording inserted on a Metal Graphite context with
-a signal semaphore faults in the Objective-C dispatch with that
-function's address as the receiver. A recording inserted with one Metal
-signal semaphore should raise the semaphore's event to its value once
-the submit completes. The fix is a patch to the Skia port in the
-sigil-vcpkg-registry. Until then the Metal queue orders itself before
-the Vulkan queue through the offscreen surface's own fence signal, the
-event imported with `GpuDevice::importNative` and `waitGpu`. A test should insert a recording on a Metal
-context with one signal semaphore and find a Metal fence's CPU wait
-reach its value.
 
 ## An OSC bundle's elements reach no address handler
 
