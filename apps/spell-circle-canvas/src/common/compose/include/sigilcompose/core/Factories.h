@@ -360,11 +360,12 @@ Element makeMemo(std::any properties,
  *  what was bound where the memo was WRITTEN, not where it runs.
  *
  *  THE SHELL. The element this returns is a shell; the element `fn`
- *  produces is the node's whole look. Three calls on the shell speak for
+ *  produces is the node's whole look. Four calls on the shell speak for
  *  the node: `.key()` names it (the reconciler matches memos by the
- *  shell's key), and `.cache()` and `.cacheScale()` say how the produced
- *  subtree is held — both are carried onto the produce, and an explicit
- *  choice on the shell wins over one made inside `fn`. Every other
+ *  shell's key), `.exit()` says it leaves as it entered, and `.cache()`
+ *  and `.cacheScale()` say how the produced subtree is held — all three
+ *  are carried onto the produce, and an explicit choice on the shell wins
+ *  over one made inside `fn`. Every other
  *  property set on the shell (a fill, a transform, a layout dimension, a
  *  child, a decoration) describes nothing, is warned about once and
  *  ignored: set it on the element produced inside `fn`. A `.cache()`

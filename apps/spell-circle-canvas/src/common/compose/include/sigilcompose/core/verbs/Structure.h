@@ -122,6 +122,17 @@ class StructureVerbs {
    *  for, and what a connector, a rail or a `spans::fit` borrows
    *  geometry by. On a `slot()` it RENAMES the mount, and warns. */
   Derived& key(std::string_view k);
+  /** THIS NODE EXITS AS IT ENTERED. When a later description leaves this
+   *  keyed node out, it is not dropped at once: it keeps its place in the
+   *  layout, stops answering hits, and plays every entrance in its subtree
+   *  backwards — each `motion::animate({.from = a, .to = b})` from where it
+   *  stands back to `a`, over the same duration on its curve run
+   *  backwards, the last to land the first to leave — and is dropped on the
+   *  frame the last of them lands. A description that names the key again
+   *  before then turns it round, forward from where it stands. An unkeyed
+   *  node, a node with no entrance under it, and a node in a settled
+   *  capture such as `snapshot()`, which no clock steps, drop at once. */
+  Derived& exit(bool enabled = true);
   /** WHAT THE PAINTER MAY KEEP OF THIS SUBTREE — record it as a picture,
    *  bake it to a texture, bake it with its children, or nothing at all.
    *  `Cache::Auto` when unstated, which records provably-static subtrees

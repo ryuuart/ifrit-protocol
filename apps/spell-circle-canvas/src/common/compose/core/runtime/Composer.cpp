@@ -201,6 +201,14 @@ bool Composer::isRunning() const {
 }
 
 void Composer::Impl::settleForDraw() {
+  // AN EXIT NEVER OUTLIVES ITS RUN: a leaving node whose motions have all
+  // landed goes on the frame they land, whether or not anything describes
+  // the tree again, and its siblings take up its place in the same layout.
+  if (hasLeaving && root && dropLandedExits(*root)) {
+    rebuildKeyIndex();
+    cascadeDirty = true;
+    volatileDirty = true;
+  }
   ensureLayout();
   if (cascadeDirty) runCascade();
   // Volatility changes only on reconcile or while animations run (and once

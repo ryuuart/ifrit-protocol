@@ -283,7 +283,7 @@ bound = "`keyedShape(key, function)` comparable shapes"
 python = ["compose.keyedShape"]
 
 [[section.surface.item]]
-bound = "the node verbs on `Element` and the text-leaf verbs on `Text`, with named arguments throughout: layout and placement, 2D and 3D transforms, fills, corners, shapes and clips, masks, effects, blending and hit testing, opacity, entrances and transitions, caching"
+bound = "the node verbs on `Element` and the text-leaf verbs on `Text`, with named arguments throughout: layout and placement, 2D and 3D transforms, fills, corners, shapes and clips, masks, effects, blending and hit testing, opacity, entrances, exits and transitions, caching"
 python = [
   "compose.Element.mask",
   "compose.Element.rotateX",
@@ -294,6 +294,7 @@ python = [
   "compose.Element.filter",
   "compose.Element.blendMode",
   "compose.Element.hitTestable",
+  "compose.Element.exit",
   "compose.Element.opacity",
   "compose.Element.transition",
   "compose.Element.cache",

@@ -196,18 +196,19 @@ its parent's. Paint-only, like the transforms.
 | [`preserve3d`](pages/verbs/preserve3d.md) | The children keep their own depth and are painted back to front by it. |
 | `backface` | Whether the back of the plane is drawn once a lane has turned it away. |
 
-## Entrances and transitions
+## Entrances, exits and transitions
 
 An entrance is not a verb. A property enters by being set to
 `motion::animate({.from = a, .to = b})`, which plays `a → b` the frame
 the node mounts — a fade is that at `opacity`, a rise is that at
 `translateY`. A run of siblings entering one after another is not a verb
 either: each child's own tween carries `.delay = motion::stagger(40ms)`,
-resolved from the child's place among its siblings. The verb here says
-how a node's plain values change, never what moves.
+resolved from the child's place among its siblings. The verbs here say
+how a node's plain values change and how it leaves, never what moves.
 
 | Verb | What it says |
 |---|---|
+| `exit` | The keyed node leaves as it entered: left out of a later description, it keeps its place, answers no hit, plays every entrance under it backwards — the run that left together reversed — and goes when the last of them lands; named again first, it turns round. |
 | `transition` | The node's default transition for the plain constants set on it — `.transition(320ms)`, or a `motion::Tween<float>` read for its timing alone (its `from` and `to` are not read). |
 
 ## Caching
@@ -398,6 +399,6 @@ spelling is the feature's.
   that has both these and the text properties.
 - `core/Image.h` — `imageRegion`, and the `Image` leaf that has it.
 - `core/verbs/Structure.h` — the cascade a node names,
-  `applyStyleSheet`, `styleClass` and `role`; `key`, `hitTestable`, `cache`, `cacheScale`, `transition`;
+  `applyStyleSheet`, `styleClass` and `role`; `key`, `hitTestable`, `exit`, `cache`, `cacheScale`, `transition`;
   and `children`.
 - `core/Element.h` — `Children`, the value a `children({…})` run is.

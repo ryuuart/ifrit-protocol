@@ -114,6 +114,36 @@ across the tree for unambiguous keyed queries. Unkeyed siblings match by
 position. Keys on nodes are separate from a keyed drawing's comparison
 key and from local names on marks or stroke passes.
 
+A keyed node that states `Element::exit` leaves as it entered. When a
+later description leaves it out, it keeps its place in the layout, so its
+siblings do not move until it has gone; it answers no hit; and every
+entrance under it plays backwards: each `motion::animate({.from = a, .to
+= b})` from where its value stands back to `a`, over the same duration,
+on its curve run backwards, and a text entrance's track back to the start
+of its schedule. The nodes one description leaves out together leave as
+one run reversed, so a stagger that brought them in one after another
+takes them out last first. The node is dropped on the frame the last of
+those motions lands, whether or not anything is described in between.
+Named again before then, it turns round and plays forward from where it
+stands.
+
+```cpp
+compose::Element row(const Channel& channel) {
+  return compose::box()
+      .key(channel.id)
+      .opacity(motion::animate({.from = 0.0f,
+                                .to = 1.0f,
+                                .duration = std::chrono::milliseconds(300),
+                                .delay = motion::stagger(std::chrono::milliseconds(60))}))
+      .children({compose::text(channel.label)})
+      .exit();
+}
+```
+
+An unkeyed node, a node with nothing under it that entered, and a node in
+a capture that draws settled values, such as `compose::snapshot`, drop at
+once. On a memo, `.exit()` is stated on the shell beside `.key()`.
+
 `memo(props, describe)` skips the component call while the properties and
 captured environment compare equal. It is optional: ordinary value
 properties already compare structurally. Use memo when describing a

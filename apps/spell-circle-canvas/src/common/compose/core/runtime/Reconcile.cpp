@@ -90,6 +90,7 @@ void Composer::Impl::rebuildKeyIndex() {
   additionOwners.clear();
   hasCustomLayout = false;
   hasCenterPins = false;
+  hasLeaving = false;
   // The reconciler fills byKey — a memo shell's key first, else the
   // description's — and the flat borrow lists and the pass gates ride the
   // same walk. Tree order here IS the derive order.
@@ -134,6 +135,7 @@ void Composer::Impl::rebuildKeyIndex() {
           !node.textData->threadTo.empty())
         threadedInstances.push_back(&inst);
       if (inst.computed.layout.centerAt) hasCenterPins = true;
+      if (inst.leaving) hasLeaving = true;
     });
   orderDerivedByReads();
 }

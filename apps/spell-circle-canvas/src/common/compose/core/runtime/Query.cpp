@@ -105,6 +105,9 @@ std::optional<std::string> Composer::Impl::hitInstance(
   const ElementNode& node = *inst.description;
   const ComputedStyle& style = inst.computed;
   if (style.layout.display == Display::None) return std::nullopt;
+  // A leaving node is on its way out: it and everything under it let the
+  // pointer through to whatever stays.
+  if (inst.leaving) return std::nullopt;
 
   const float opacity = std::clamp(
       inst.resolveFloat(Instance::kOpacity, style.paint.opacity), 0.0f, 1.0f);

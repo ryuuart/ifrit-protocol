@@ -422,6 +422,27 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
    *  children new in that patch, so one row appended to a live list enters
    *  at once rather than waiting out its whole-list step. */
   motion::Place mountPlace;
+  /** WHETHER THIS NODE IS LEAVING: a keyed node stating `exit()` that the
+   *  last description of its parent left out, kept in its place while its
+   *  entrances play backwards. A leaving node answers no hit, and nothing
+   *  under it is retargeted. */
+  bool leaving = false;
+  /** The values the exit's motions write, one per entrance under the node
+   *  played backwards: the node is dropped once none of them is moving. */
+  std::vector<motion::Animatable<float>> exitRuns;
+  /** Whether this node or an ancestor is leaving. */
+  [[nodiscard]] bool exiting() const {
+    for (const Instance* node = this; node != nullptr; node = node->parent)
+      if (node->leaving) return true;
+    return false;
+  }
+  /** Whether a leaving node's exit has landed: none of its motions is still
+   *  writing its value. */
+  [[nodiscard]] bool exitLanded() const {
+    for (const motion::Animatable<float>& run : exitRuns)
+      if (run.cell()->moving) return false;
+    return true;
+  }
   // The path kFillLerp's progress runs along: two stops for a change
   // eased by the fill's own curve, one per keyframe after the start for
   // a path.

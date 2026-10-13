@@ -3,25 +3,28 @@
 A page that arrives the way a well-made web page does: a grid of cards
 that opens out from its centre, a strip that wipes in column by column,
 a row of dots that land in a seeded scatter, a queue whose rows arrive
-one after another and later leave in reverse, and a cursor that eases to
-each new stop. The whole file is
+one after another and later leave in reverse, playing their entrances
+backwards, and a cursor that eases to each new stop. The whole file is
 `apps/grimoire/sketches/python_entrances.py`; open it with
 `Grimoire python_entrances.py` and edit it live.
 
-## Entrance or transition
+## Entrance, exit or transition
 
-Both are `motion.animate`, and the difference is one keyword.
+An entrance and a transition are both `motion.animate`, and the
+difference is one keyword. An exit is one word on the node.
 
 | You write | It is | It plays |
 | --- | --- | --- |
 | `animate(from_=a, to=b)` | an entrance | once, when the node first mounts; described again, it starts nothing |
+| `.exit()` on a keyed node | an exit | when a later description leaves the node out: every entrance under it backwards, and then the node goes |
 | `animate(to=b)` | a transition | whenever a later description carries a different `to`, from wherever the value is |
 | `ctx.engine.animate(values, tween)` | a run you hold | when you say so, and as often: it hands back a playback |
 
-An entrance belongs to the node, so it cannot be replayed or reversed:
-it is how the node comes into the world. When something must play
-again, run backwards or wait for a signal, put live values on the
-engine instead and keep the playback.
+An entrance belongs to the node: it is how the node comes into the
+world, and with `.exit()` the same motion played backwards is how it
+leaves. When something must play again on a signal of its own, move
+some other way when it leaves, or wait while it stays, put live values
+on the engine instead and keep the playback.
 
 ## Step 1 — a grid that opens from its centre
 
@@ -116,42 +119,52 @@ def scatter() -> compose.Element:
 
 ## Step 3 — a queue that arrives, then leaves in reverse
 
-The queue's rows read live values, one per row, and the engine runs one
-tween over the whole list. Handed a list, `ctx.engine.animate` runs the
-tween on every value as siblings, resolves the stagger from each value's
-place in the list, and hands back one `Timeline` for the run.
+Each row is keyed by its name and states its own entrance: it fades in
+and slides home from 48 pixels to the right, on a stagger that brings
+the rows in one after another. `.exit()` says the row leaves the way it
+came.
 
 ```python
-        self.arrivals = [motion.animatable(0.0) for _ in QUEUE]
-        self.queue = ctx.engine.animate(
-            self.arrivals,
-            motion.Tween(
-                from_=0,
-                to=1,
-                duration=0.45,
-                delay=stagger(0.12, start=0.2),
-                ease=ease.outCubic,
-            ),
+        .key(name)
+        .opacity(
+            motion.animate(
+                from_=0, to=1, duration=0.45, delay=one_by_one, ease=ease.outCubic
+            )
         )
-        ctx.engine.timer(self.turn, stepRate=1 / 3.5)
+        .translateX(
+            motion.animate(
+                from_=48, to=0, duration=0.45, delay=one_by_one, ease=ease.outCubic
+            )
+        )
+        .exit()
 ```
 
-Each row reads its arrival twice: as its opacity, and through a binding
-that maps 0 to 48 pixels right and 1 to home.
+The rows stand in a column of their own, so the stagger counts them as
+one run of six, and the column keeps their height, so the cursor under
+the queue stays where it is while the queue is empty.
 
 ```python
-        .opacity(arrival)
-        .translateX(motion.bind(arrival, to=(48, 0)))
+def queue(present: bool) -> compose.Element:
+    rows = [queue_row(name, index) for index, name in enumerate(QUEUE)]
+    return (
+        compose.box(*(rows if present else []))
+        .column()
+        .gap(10)
+        .height(len(QUEUE) * 48 + (len(QUEUE) - 1) * 10)
+    )
 ```
 
-The exit is the same run played backwards. Every three and a half
-seconds a timer reverses the playback, so the last row in is the first
-out, on the mirror of the curve that brought it, and the next reversal
-brings them back.
+Every three and a half seconds a timer describes the page again with
+the queue present or empty. A row the description leaves out keeps its
+place, plays its entrance backwards and goes when that lands: the rows
+that left together leave as one run reversed, so the last row in is the
+first out, on the mirror of the curve that brought it. The next turn
+names them again, and they mount and arrive as they did the first time.
 
 ```python
     def turn(self) -> None:
-        self.queue.reverse()
+        self.present = not self.present
+        self.composer.render(self.page())
 ```
 
 ## Step 4 — a cursor that eases on change
@@ -201,10 +214,11 @@ Grimoire python_entrances.py --frame arrivals.png --at 3.8     # the queue leavi
 - **A stated order.** `rankBy=` takes one number per child and deals
   smallest first, so cards can arrive by price, by date or by distance
   from a pointer.
-- **An exit that differs from the entrance.** Run a second tween on the
-  same values, `ctx.engine.animate(self.arrivals, motion.Tween(to=0, ...))`,
-  instead of reversing the first; a second animation on a value takes it
-  over.
+- **An exit that differs from the entrance.** `.exit()` plays the
+  entrance backwards and nothing else. For a leave of its own, keep the
+  rows in the tree, read live values from `motion.animatable`, and run a
+  tween over them on the engine, `ctx.engine.animate(values,
+  motion.Tween(to=0, ...))`, when they should go.
 
 ## The fine print
 
@@ -215,6 +229,10 @@ Grimoire python_entrances.py --frame arrivals.png --at 3.8     # the queue leavi
   place in its own parent, so cards split across two parents are two
   runs. Wrap them in one parent, as the grid does, to stagger them as
   one.
+- **A leaving row is on its way out.** It answers no hit while it
+  leaves, and a description that names it again before it has gone
+  turns it round where it stands. A row with no key, or with nothing
+  that entered, goes at once.
 - **Stills are exact.** The capture steps the session's clock from zero
-  in fixed sixtieths, and every entrance, timer and reversal above runs
-  on that clock, so `--at` shows the page as it stands at that second.
+  in fixed sixtieths, and every entrance, exit and timer above runs on
+  that clock, so `--at` shows the page as it stands at that second.

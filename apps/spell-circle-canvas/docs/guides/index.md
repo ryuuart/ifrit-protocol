@@ -50,8 +50,8 @@ a window server or a network.
 9. **[Entrances and staggers in Python](guide:entrances-and-staggers-python)**
    — a grid of cards that opens from its centre on an eased stagger, a
    wipe along one axis of a grid, a seeded scatter, a queue that arrives
-   row by row and leaves by reversing its playback, and a cursor that
-   eases on change: what an entrance is and what a transition is.
+   row by row and leaves by playing its entrances backwards, and a cursor
+   that eases on change: what an entrance, an exit and a transition are.
 10. **[A title sequence on a timeline, in Python](guide:timelines-python)**
     — labels, `at`, `afterPrevious` and `withPrevious`, a run that
     leaves on a stagger, calls that swap a credit into a slot, a

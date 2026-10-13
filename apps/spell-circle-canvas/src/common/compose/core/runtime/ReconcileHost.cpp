@@ -82,8 +82,8 @@ void staleWorldSpaceBelow(Instance& inst) {
 
 /** What a memo's shell says about the node it stands for, carried onto
  *  the produced description the reconciler retains: which node it is
- *  (the key, which the reconciler matches on itself) and how its
- *  recording is held. The painter reads cacheMode and bakeScale off the
+ *  (the key, which the reconciler matches on itself), how it leaves, and
+ *  how its recording is held. The painter reads cacheMode and bakeScale off the
  *  description alone, so an explicit choice on the shell would otherwise
  *  never reach it. The shell's Cache::Auto and unit bakeScale are its
  *  silence, and the produce's own values stand. */
@@ -94,6 +94,9 @@ void mergeMemoShell(std::shared_ptr<ElementNode>& produced,
   Element merged(std::move(produced));
   if (shell.cacheMode != Cache::Auto) merged.cache(shell.cacheMode);
   if (shell.bakeScale != 1.0f) merged.cacheScale(shell.bakeScale);
+  // How the node leaves is said where its key is, so a row of a keyed list
+  // states it on the memo element the list is made of.
+  if (shell.exits) merged.exit();
   produced = merged.node();
   warnIgnoredMemoShellProps(shell);
 }
@@ -101,9 +104,9 @@ void mergeMemoShell(std::shared_ptr<ElementNode>& produced,
 }  // namespace
 
 /** A property set on a memo's SHELL — the element memo() returned, after
- *  `.key()`, `.cache()` and `.cacheScale()` — that describes nothing: the
- *  produced element is the node's whole look, and the reconciler retains
- *  the produce as the description. Said once per property, because a
+ *  `.key()`, `.exit()`, `.cache()` and `.cacheScale()` — that describes
+ * nothing: the produced element is the node's whole look, and the reconciler
+ * retains the produce as the description. Said once per property, because a
  *  description is rebuilt every frame and a call that silently takes no
  *  effect must not be silent. Each group is judged by the structural
  *  compare itself, over a node carrying only that group, so a lane the
@@ -151,8 +154,8 @@ void detail::warnIgnoredMemoShellProps(const ElementNode& shell) {
     if (!probe.set || !warned.insert(probe.what).second) continue;
     SkDebugf(
         "[compose] memo(...) shell carries %s — ignored. A memo shell "
-        "takes .key(), .cache() and .cacheScale() only; its look is what "
-        "the deferred describe produces, so set this on the element "
+        "takes .key(), .exit(), .cache() and .cacheScale() only; its look is "
+        "what the deferred describe produces, so set this on the element "
         "produced inside it. (warned once)\n",
         probe.what);
   }
@@ -385,6 +388,12 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
 }
 
 void Composer::Impl::reorder(Instance& parent, bool structureChanged) {
+  // What the reconcile means for the children's exits, before anything
+  // reads the list: one may have begun, turned round, or had nothing to
+  // play and gone. A node gone here is freed once the layout lets go.
+  std::vector<std::unique_ptr<Instance>> dropped;
+  structureChanged |= settleExits(parent, dropped);
+
   // Paint order: stable sort by zIndex.
   parent.paintOrder.resize(parent.children.size());
   std::iota(parent.paintOrder.begin(), parent.paintOrder.end(), size_t{0});

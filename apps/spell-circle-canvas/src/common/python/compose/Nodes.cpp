@@ -473,6 +473,14 @@ void bindNodeVerbs(py::class_<Node>& element) {
           "`font` and `paragraph` stand over everything. A later call "
           "replaces the role and its defaults together.")
       .def("hitTestable", &Node::hitTestable, py::arg("enabled"), fluent)
+      .def("exit", &Node::exit, py::arg("enabled") = true, fluent,
+           "This node exits as it entered: when a later description leaves "
+           "this keyed node out, it keeps its place, answers no hit, and "
+           "plays every entrance in its subtree backwards — each "
+           "animate(from_=a, to=b) back to a over the same duration on its "
+           "curve run backwards, the last in the first out — and goes on "
+           "the frame the last of them lands. Named again before then, it "
+           "turns round where it stands.")
       .def("decorationOutline", &Node::decorationOutline, py::arg("source"),
            py::arg("coverage") = 0.5f, fluent)
       .def("filter", &Node::filter, py::arg("effect"), fluent)

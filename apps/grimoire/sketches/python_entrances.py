@@ -125,7 +125,8 @@ def cursor(stop: int) -> compose.Element:
     return compose.box(*stops, pill).row().gap(48).padding(0, 8)
 
 
-def queue_row(name: str, index: int, arrival: motion.Animatable) -> compose.Element:
+def queue_row(name: str, index: int) -> compose.Element:
+    one_by_one = stagger(0.12, start=0.2)
     return (
         compose.box(
             compose.box().width(6).height(28).borderRadius(3).fill(ACCENTS[index]),
@@ -138,8 +139,28 @@ def queue_row(name: str, index: int, arrival: motion.Animatable) -> compose.Elem
         .padding(10, 14)
         .borderRadius(6)
         .fill(PANEL)
-        .opacity(arrival)
-        .translateX(motion.bind(arrival, to=(48, 0)))
+        .key(name)
+        .opacity(
+            motion.animate(
+                from_=0, to=1, duration=0.45, delay=one_by_one, ease=ease.outCubic
+            )
+        )
+        .translateX(
+            motion.animate(
+                from_=48, to=0, duration=0.45, delay=one_by_one, ease=ease.outCubic
+            )
+        )
+        .exit()
+    )
+
+
+def queue(present: bool) -> compose.Element:
+    rows = [queue_row(name, index) for index, name in enumerate(QUEUE)]
+    return (
+        compose.box(*(rows if present else []))
+        .column()
+        .gap(10)
+        .height(len(QUEUE) * 48 + (len(QUEUE) - 1) * 10)
     )
 
 
@@ -147,17 +168,7 @@ def queue_row(name: str, index: int, arrival: motion.Animatable) -> compose.Elem
 class Entrances:
     def setup(self, ctx: Scene2DContext) -> None:
         self.composer = ctx.composer
-        self.arrivals = [motion.animatable(0.0) for _ in QUEUE]
-        self.queue = ctx.engine.animate(
-            self.arrivals,
-            motion.Tween(
-                from_=0,
-                to=1,
-                duration=0.45,
-                delay=stagger(0.12, start=0.2),
-                ease=ease.outCubic,
-            ),
-        )
+        self.present = True
         ctx.engine.timer(self.turn, stepRate=1 / 3.5)
         self.stop = 0
         ctx.engine.timer(self.move_cursor, stepRate=1 / 0.7)
@@ -165,7 +176,8 @@ class Entrances:
         self.composer.renderSlot("cursor", cursor(self.stop))
 
     def turn(self) -> None:
-        self.queue.reverse()
+        self.present = not self.present
+        self.composer.render(self.page())
 
     def move_cursor(self) -> None:
         self.stop = (self.stop + 1) % len(QUEUE)
@@ -177,10 +189,6 @@ class Entrances:
             .letterSpacing(8)
             .textFx(textFx.entrance(textFx.rise(30)))
         )
-        rows = [
-            queue_row(name, index, arrival)
-            for index, (name, arrival) in enumerate(zip(QUEUE, self.arrivals))
-        ]
         left = (
             compose.box(
                 label("GRID · FROM THE CENTRE · EASED"),
@@ -196,7 +204,7 @@ class Entrances:
         right = (
             compose.box(
                 label("QUEUE · IN, THEN OUT IN REVERSE"),
-                *rows,
+                queue(self.present),
                 compose.box().height(18),
                 label("CURSOR · EASES ON CHANGE"),
                 compose.slot("cursor"),

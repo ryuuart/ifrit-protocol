@@ -2,10 +2,12 @@
  * Transitions: the lanes a mounted node carries, enumerated by family;
  * the retarget of every PROPERTY lane from its current value onto the
  * style now computed for the node, the retarget of the positional lanes a
- * patch brings, the ink lane's own retarget, and the mount that plays a
- * declared entrance — all through SigilMotion's lane operations (one
- * motion per (instance, property), retarget-from-current); and the
- * per-frame reads of every animated lane a recording bakes.
+ * patch brings, the ink lane's own retarget, the mount that plays a
+ * declared entrance, and the same entrances played backwards when a node
+ * leaves or forwards again when it is named before it has gone — all
+ * through SigilMotion's lane operations (one motion per (instance,
+ * property), retarget-from-current); and the per-frame reads of every
+ * animated lane a recording bakes.
  *
  * WHO CALLS WHICH. A property lane is retargeted wherever the computed
  * style moves, which is the patch for a node whose own description
@@ -259,9 +261,147 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
   }
 }
 
+namespace {
+
+/** @p ease run backwards: the curve a value retraces, read from its far
+ *  end, when the motion it shapes plays the other way. */
+motion::Easing backwards(motion::Easing ease) {
+  return
+      [ease = std::move(ease)](float unit) { return 1.0f - ease(1.0f - unit); };
+}
+
+/** How long one pass of @p tween lasts: its steps summed when it has a path
+ *  of keyframes, an undurationed step taking an equal share, else its
+ *  duration. */
+motion::Duration passOf(const motion::Tween<float>& tween) {
+  if (tween.keyframes.empty()) return tween.duration.value();
+  const motion::Duration share =
+      tween.duration.value() / (double)tween.keyframes.size();
+  motion::Duration total{};
+  for (const motion::Keyframe<float>& step : tween.keyframes)
+    total += step.duration.value_or(share);
+  return total;
+}
+
+}  // namespace
+
+/** THE ENTRANCES A LEAVING SUBTREE PLAYS BACKWARDS: every lane the mount
+ *  entrances above started from a declared `from` — the fixed slots, the
+ *  positional families and the fill's own progress — at the node and under
+ *  it. A lane is listed whether or not its entrance is still running, since
+ *  the exit retraces it from wherever its value stands. */
+void Composer::Impl::entrancesUnder(Instance& inst, motion::Place place,
+                                    std::vector<EntranceRun>& out) {
+  const auto add = [&out](std::unique_ptr<HeldMotion>& held,
+                          const motion::Animatable<float>* value,
+                          motion::Tween<float> entrance) {
+    const motion::Duration end = entrance.delay.value() + passOf(entrance);
+    out.push_back({&held, value, std::move(entrance), end});
+  };
+  const auto declared = [&](std::unique_ptr<HeldMotion>& held,
+                            const motion::Animatable<float>* value) {
+    if (!value) return;
+    const motion::Tween<float>* described = value->described();
+    if (described && described->isEntrance())
+      add(held, value, described->resolved(place));
+  };
+  // Not the mount's thread-local list: the walk below recurses, and a lane
+  // points into the description of the node it was read from.
+  std::vector<Lane> nodeLanes;
+  lanes(inst.styled(), nodeLanes);
+  for (const Lane& lane : familyLanes(nodeLanes, LaneFamily::Slot))
+    declared(inst.anims[lane.slot.index], lane.value);
+  for (const LaneFamily family : kPositionalFamilies) {
+    const std::span<const Lane> members = familyLanes(nodeLanes, family);
+    std::vector<std::unique_ptr<HeldMotion>>& anims = familyAnims(inst, family);
+    if (anims.size() != members.size()) anims.resize(members.size());
+    for (size_t i = 0; i < members.size(); ++i)
+      declared(anims[i], members[i].value);
+  }
+  // The fill's entrance is a 0→1 progress along the path the mount set out;
+  // backwards it runs to 0, which is the path's first stop.
+  if (inst.computed.paint.fill && !inst.fillPath.empty()) {
+    const motion::Tween<Fill>* described =
+        inst.computed.paint.fill->described();
+    if (described && described->isEntrance()) {
+      const motion::Tween<Fill> tween = described->resolved(place);
+      motion::Tween<float> progress =
+          tween.keyframes.empty() ? motion::transitionOf(*described, place)
+                                  : fillPathOf(tween, tween.start()).second;
+      progress.from = 0.0f;
+      progress.to = 1.0f;
+      add(inst.anims[Instance::kFillLerp], nullptr, std::move(progress));
+    }
+  }
+  for (auto& child : inst.children)
+    if (child && !child->leaving)
+      entrancesUnder(*child, child->mountPlace, out);
+}
+
+bool Composer::Impl::playBackwards(const EntranceRun& run,
+                                   motion::Duration lead) {
+  std::unique_ptr<HeldMotion>& held = *run.held;
+  const motion::Tween<float>& entrance = run.entrance;
+  const float standing =
+      run.value ? motion::valueOf(held.get(), *run.value)
+                : (held && held->started ? held->value() : entrance.rest());
+  // The same path the other way: each step from the far end, over its own
+  // length, on its curve run backwards, so the value retraces the entrance.
+  motion::Tween<float> retrace{
+      .from = standing, .delay = lead, .ease = backwards(entrance.easing())};
+  if (entrance.keyframes.empty()) {
+    retrace.to = entrance.start();
+    retrace.duration = entrance.duration.value();
+  } else {
+    const motion::Duration share =
+        entrance.duration.value() / (double)entrance.keyframes.size();
+    for (size_t index = entrance.keyframes.size(); index-- > 0;) {
+      const motion::Keyframe<float>& step = entrance.keyframes[index];
+      retrace.keyframes.push_back(
+          {.to =
+               index == 0 ? entrance.start() : entrance.keyframes[index - 1].to,
+           .duration = step.duration.value_or(share),
+           .ease = backwards(step.ease ? step.ease : entrance.easing())});
+    }
+  }
+  if (retrace.keyframes.empty() && standing == retrace.rest()) {
+    // Already where the entrance began — one still holding its delay — so
+    // there is nothing to retrace, and the entrance must not go on.
+    if (held && held->started) held->stop();
+    return false;
+  }
+  motion::enter(engine, held, motion::animate(std::move(retrace)));
+  return held && held->isRunning();
+}
+
+void Composer::Impl::playForwards(const EntranceRun& run) {
+  std::unique_ptr<HeldMotion>& held = *run.held;
+  const motion::Tween<float>& entrance = run.entrance;
+  const float rest = entrance.rest();
+  // A patch that met the node on its way back has already turned it.
+  if (held && held->started && held->isRunning() && held->target == rest)
+    return;
+  const float standing = run.value
+                             ? motion::valueOf(held.get(), *run.value)
+                             : (held && held->started ? held->value() : rest);
+  if (entrance.keyframes.empty() && standing == rest) {
+    if (held && held->started) held->stop();
+    return;
+  }
+  // The entrance again, from where the value stands and at once: its
+  // delay was the wait for its turn, and that turn has come.
+  motion::Tween<float> forwards = entrance;
+  forwards.from = standing;
+  forwards.delay = motion::Duration{};
+  motion::enter(engine, held, motion::animate(std::move(forwards)));
+}
+
 void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
                                         std::vector<Lane>& prevLanes,
                                         std::vector<Lane>& nextLanes) {
+  // A leaving subtree plays its entrances backwards and nothing else: a
+  // style moving above it must not send a lane home again.
+  if (inst.exiting()) return;
   const StyledNode next = inst.styled();
   const auto& nd = inst.transitionInForce();
   // Retarget every fixed slot regardless of its role. When a node gains

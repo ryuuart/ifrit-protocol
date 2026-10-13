@@ -414,7 +414,7 @@ bool operatorInputsEqual(const ElementNode& a, const ElementNode& b) {
  * reaches here, because `inst.description` holds the memo's PRODUCED payload;
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 25 &&
+static_assert(kFieldCount<ElementNode> == 26 &&
                   kFieldCount<DeclaredFields::Storage> == 6 &&
                   kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 4 && kFieldCount<CustomData> == 2 &&
@@ -438,7 +438,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   if (a.fields.keywords() && !(*a.fields.keywords() == *b.fields.keywords()))
     return false;
   // Incomparable callables → conservative inequality.
-  if (a.hitTestable != b.hitTestable) return false;
+  if (a.hitTestable != b.hitTestable || a.exits != b.exits) return false;
   if ((bool)a.customData != (bool)b.customData) return false;
   if (a.customData) {
     // custom(key): equal non-empty keys assert equal programs (the

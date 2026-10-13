@@ -1216,6 +1216,16 @@ ladder, a spread from the first child's value to the last's, or a table of
 is a number of seconds or a `datetime.timedelta`, and one read back is a
 number of seconds. Native easing values live in `sigil.motion.ease`.
 
+`.exit()` on a keyed element says it leaves as it entered. When a later
+description leaves it out, it keeps its place in the layout, answers no
+hit, and plays every entrance under it backwards — each `animate(from_=a,
+to=b)` back to `a` over the same duration on its curve run backwards, and
+a text entrance's track back to the start of its schedule — then goes on
+the frame the last of them lands. Rows left out together leave as their
+stagger reversed, the last in the first out; one named again before it
+has gone turns round where it stands. An element with no key or with
+nothing that entered goes at once.
+
 `sigil.weave` supplies native `Type`, `TextStyle`, `ParagraphBlock` and `TypeSheet`
 values. A partial type inherits unspecified fields; a complete text style
 describes its own look. A page applies its theme's stylesheet on its root,

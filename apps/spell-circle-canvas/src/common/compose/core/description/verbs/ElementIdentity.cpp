@@ -1,7 +1,7 @@
 /** @file
  * A node's identity and retained behaviour — the key, whether the node
- * answers a hit, the cache policy and bake scale, the node transition,
- * the child stagger, and the children themselves.
+ * answers a hit, whether it exits as it entered, the cache policy and bake
+ * scale, the node transition, the child stagger, and the children themselves.
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
@@ -42,6 +42,12 @@ Derived& StructureVerbs<Derived>::key(std::string_view k) {
           (int)k.size(), k.data(), node->key.c_str(), node->key.c_str());
   }
   node->key = std::string(k);
+  return self();
+}
+
+template <class Derived>
+Derived& StructureVerbs<Derived>::exit(bool enabled) {
+  declarations()->exits = enabled;
   return self();
 }
 

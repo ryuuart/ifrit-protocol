@@ -64,6 +64,7 @@ sigil_library(SigilComposeCore
     runtime/ComposeRuntime.h
     runtime/Changes.cpp
     runtime/Composer.cpp
+    runtime/Exits.cpp
     runtime/ComposerImpl.h
     runtime/Instance.h
     runtime/Lanes.h
@@ -166,7 +167,7 @@ sigil_test(compose_test
   SOURCES test/ComposeTestLayout.cpp test/ComposeTestGrid.cpp
           test/ComposeTestContent.cpp
           test/ComposeTestReconcile.cpp test/ComposeTestCaching.cpp
-          test/ComposeTestMotion.cpp
+          test/ComposeTestMotion.cpp test/ComposeTestExits.cpp
           test/ComposeTestBakeReuse.cpp test/ComposeTestBakeFormat.cpp
           test/ComposeTestGroupSettling.cpp
           test/ComposeTestFlowAroundCore.cpp

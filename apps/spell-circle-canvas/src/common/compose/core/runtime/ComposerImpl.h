@@ -19,9 +19,11 @@
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cstdlib>
 #include <limits>
 #include <optional>
+#include <string_view>
 
 #include "Instance.h"
 #include "Lanes.h"
@@ -400,14 +402,19 @@ struct Composer::Impl {
   }
   /** THE CHILDREN A NODE RECONCILES: the description's, then what the
    *  adding operators kept under the node — one range, so one pass
-   *  mounts, patches and retires both by key. */
+   *  mounts, patches and retires both by key. Where a child the list no
+   *  longer names is still leaving, the range is one list instead, with
+   *  that child's own description standing where it stood, so the pass
+   *  keeps it in its place. */
   struct ChildRange {
     const std::vector<Element>* authored = nullptr;
     const std::vector<Element>* added = nullptr;
+    std::optional<std::vector<Element>> merged;
     struct Iterator {
       const ChildRange* range = nullptr;
       size_t at = 0;
       const Element& operator*() const {
+        if (range->merged) return (*range->merged)[at];
         const size_t authored = range->authored->size();
         return at < authored ? (*range->authored)[at]
                              : (*range->added)[at - authored];
@@ -418,14 +425,14 @@ struct Composer::Impl {
       }
       bool operator!=(const Iterator& other) const { return at != other.at; }
     };
-    size_t size() const { return authored->size() + added->size(); }
+    size_t size() const {
+      return merged ? merged->size() : authored->size() + added->size();
+    }
     Iterator begin() const { return {this, 0}; }
     Iterator end() const { return {this, size()}; }
   };
-  static ChildRange children(const detail::Instance& inst,
-                             const Description& description) {
-    return {&description->children, &inst.addedChildren};
-  }
+  ChildRange children(const detail::Instance& inst,
+                      const Description& description) const;
   static const Description& descriptionOf(const Element& child) {
     return child.node();
   }
@@ -457,6 +464,23 @@ struct Composer::Impl {
                        const detail::Instance& parent);
   /** Marks the instance's paint dirty up to the root and the content dirty. */
   void invalidate(detail::Instance& inst);
+
+  // ---- exits (Exits.cpp) ----
+  /** Whether some node of the tree is leaving, as the last key index
+   *  rebuild found it. */
+  bool hasLeaving = false;
+  /** WHAT THE LAST RECONCILE OF @p parent's CHILDREN MEANS FOR ITS EXITS:
+   *  a leaving child the description names again turns round, and a child
+   *  it no longer names, kept by children(), begins its exit — the
+   *  children beginning together as one run played backwards. A child
+   *  with nothing to play backwards is moved out into @p dropped, for the
+   *  caller to free once the layout no longer holds it. Answers whether
+   *  the list of children changed. */
+  bool settleExits(detail::Instance& parent,
+                   std::vector<std::unique_ptr<detail::Instance>>& dropped);
+  /** Drops every leaving node whose exit has landed, reattaching its
+   *  parent's children. Answers whether anything was dropped. */
+  bool dropLandedExits(detail::Instance& parent);
   /** An instance that left the tree: retired at once — its destructor
    *  frees its Yoga node and its motions disconnect with their outputs. */
   void destroy(std::unique_ptr<detail::Instance> inst, uint64_t frame);
@@ -588,6 +612,26 @@ struct Composer::Impl {
    *  description brings. */
   void applyTransitions(detail::Instance& inst, detail::StyledNode prev);
   void applyMountTransitions(detail::Instance& inst);
+  /** ONE ENTRANCE IN A LEAVING SUBTREE: the motion that holds it, the
+   *  description's value it was declared on (null for the fill's own
+   *  progress), the entrance resolved where its node stands, and when that
+   *  entrance ends, counted from the mount. */
+  struct EntranceRun {
+    std::unique_ptr<detail::HeldMotion>* held = nullptr;
+    const motion::Animatable<float>* value = nullptr;
+    motion::Tween<float> entrance;
+    motion::Duration end{};
+  };
+  /** Every entrance declared in @p inst's subtree, @p inst's own resolved
+   *  at @p place and each descendant's at the place it mounted in; a
+   *  descendant that is leaving on its own is left to its own exit. */
+  void entrancesUnder(detail::Instance& inst, motion::Place place,
+                      std::vector<EntranceRun>& out);
+  /** Plays @p run backwards from where its value stands, after @p lead.
+   *  Answers whether a motion is writing it. */
+  bool playBackwards(const EntranceRun& run, motion::Duration lead);
+  /** Plays @p run forwards from where its value stands, at once. */
+  void playForwards(const EntranceRun& run);
 
   // ---- volatility & caching (Volatility.cpp) ----
   /** What the walk threads down to a child about the planes above it:

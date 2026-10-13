@@ -636,6 +636,10 @@ struct ElementNode {
   // layout shell with no fill otherwise swallows every hit in the frame,
   // silently and totally.
   bool hitTestable = true;
+  // Element::exit(): when the node is keyed and a later description leaves
+  // it out, it stays in its place and plays every entrance in its subtree
+  // backwards before it is dropped.
+  bool exits = false;
   Cache cacheMode = Cache::Auto;
   float bakeScale = 1.0f;  // Texture-bake resolution multiplier (see Element)
   // The node's own `transition()`, boxed: a tween is several times the

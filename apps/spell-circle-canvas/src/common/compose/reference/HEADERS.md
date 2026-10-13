@@ -164,7 +164,7 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Structure.h` — `StructureVerbs`: what a node IS rather
   than how it looks — the cascade it NAMES with `applyStyleSheet`,
   `role` and `styleClass`, its identity with `key`,
-  `hitTestable`, `cache`,
+  `hitTestable`, `exit`, `cache`,
   `cacheScale` and `transition`, and `children`.
 - `core/verbs/Node.h` — `NodeVerbs`: the verb families EVERY node has,
   gathered so the list is stated once. A kind of node with verbs of its
@@ -325,7 +325,9 @@ scale out of a base, a slide, a spin — is `motion::animate({.from = a,
 strip says as it arrives is `opacity(motion::animate({.from = 0.0f, .to
 = 1.0f}))` and reads the same way as the rest. A property with an
 entrance is at `b` once the motion lands and behaves from then on as any
-other stated value does.
+other stated value does. Nor has an exit a motion of its own: `exit`, on
+a keyed node, says only that the node leaves by playing those same
+entrances backwards.
 
 What compose OWNS is resolution, not the value. An `Animatable` is
 resolved against a `PaintContext`, taking node transitions, the child's
