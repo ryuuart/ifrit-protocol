@@ -9,7 +9,7 @@ if(NOT DOXYGEN_FOUND)
   message(STATUS "Doxygen not found -- the `docs` target is unavailable")
 endif()
 
-option(SPELLCIRCLE_DOCS_WARN_UNDOCUMENTED
+option(SIGIL_DOCS_WARN_UNDOCUMENTED
        "Warn about undocumented entities when building the docs" OFF)
 
 # Records one library. Nothing is generated here: a site's cross-library
@@ -88,7 +88,7 @@ function(sigil_finalize_docs)
   else()
     set(have_dot NO)
   endif()
-  if(SPELLCIRCLE_DOCS_WARN_UNDOCUMENTED)
+  if(SIGIL_DOCS_WARN_UNDOCUMENTED)
     set(warn_undocumented YES)
   else()
     set(warn_undocumented NO)

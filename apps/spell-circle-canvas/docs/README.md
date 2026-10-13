@@ -181,7 +181,7 @@ cross-reference would break that.
 `/** */` block whose first sentence is its summary, and that
 self-evident fields and one-line accessors under a documented type do
 not repeat it. Undocumented entities are therefore not warned about by
-default; `-DSPELLCIRCLE_DOCS_WARN_UNDOCUMENTED=ON` turns the warnings on
+default; `-DSIGIL_DOCS_WARN_UNDOCUMENTED=ON` turns the warnings on
 for an audit. Under that flag, an undocumented **type** is a real
 finding and an undocumented one-line accessor usually is not.
 
@@ -284,8 +284,8 @@ build context:
 
 ```sh
 cmake --build build --target docs
-docker build -t spellcircle-docs build/docs
-docker run --rm -p 8080:80 spellcircle-docs
+docker build -t sigil-docs build/docs
+docker run --rm -p 8080:80 sigil-docs
 ```
 
 Then <http://localhost:8080>. The image is nginx plus static files — no

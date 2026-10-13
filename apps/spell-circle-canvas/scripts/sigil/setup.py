@@ -351,6 +351,6 @@ def main(argv: list) -> int:
         return code
 
     print(
-        f"\nBuild complete.  Binary: {tree.bin_dir(arguments.config) / 'SpellCircle'}"
+        f"\nBuild complete.  Binary: {tree.bin_dir(arguments.config) / 'Grimoire.app'}"
     )
     return 0

@@ -38,8 +38,9 @@
  *     build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
  *         --sketch guest_body
  *
- * `Seer --list-textures` says what is being offered under what name, which is
- * what to check when the screen keeps waiting.
+ * `sigil::io::frames::publications()` says what is being offered under what
+ * name, and so does any Syphon client's list, which is what to check when the
+ * screen keeps waiting.
  *
  * EDIT THESE FIRST
  *   kPublication  the name this screen waits on

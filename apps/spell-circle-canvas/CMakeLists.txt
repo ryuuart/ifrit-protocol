@@ -3,7 +3,7 @@
 # visible in every directory.
 cmake_minimum_required(VERSION 3.31)
 
-project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
+project(Sigil VERSION 0.1 LANGUAGES CXX)
 
 option(SIGIL_BUILD_APPS "Build the Qt applications, Grimoire and its sketch catalogue among them" ON)
 option(SIGIL_BUILD_PYTHON "Build Python bindings and the Python package" ON)
@@ -143,13 +143,4 @@ if(SIGIL_BUILD_PYTHON AND SIGIL_TYPING_PYTHON)
 endif()
 if(PROJECT_IS_TOP_LEVEL AND COMMAND sigil_finalize_sketch_link_surfaces)
   sigil_finalize_sketch_link_surfaces()
-endif()
-
-include(GNUInstallDirs)
-if(TARGET Seer)
-  install(TARGETS Seer
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  )
 endif()

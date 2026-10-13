@@ -1,2 +1,2 @@
 [tool.uv.workspace]
-members = ["spellcircle", "sigil"]
+members = ["sigil"]

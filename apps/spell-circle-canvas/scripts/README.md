@@ -1,6 +1,6 @@
 # Scripts
 
-The build's administration is ONE command with ten verbs:
+The build's administration is ONE command with nine verbs:
 
 ```sh
 python3 scripts/sigil.py <verb> [flags]
@@ -8,7 +8,7 @@ python3 scripts/sigil.py <verb> --help
 ```
 
 `setup`, `check`, `plates`, `bench`, `sanitize`, `docs`, `assets`,
-`flags`, `flatbuffers`, `workspace`. Each is a module in `scripts/sigil/`, over two
+`flags`, `workspace`. Each is a module in `scripts/sigil/`, over two
 shared ones: `tree.py` is where the build tree is and how to talk to it —
 which directory a preset builds into, where a configuration's binaries
 land, where Grimoire sits inside its bundle, what tests a configured
@@ -128,11 +128,9 @@ by Python living beside its source, and has a `--check` that fails when
 the file no longer says what its generator would; that check is a ctest
 case named `*_drift`, and `sigil.py check` runs them all. The one
 `generate` target calls those generators in order and holds no
-generation logic of its own. Two committed derived files are exceptions
-still: the FlatBuffers Python modules, which `sigil.py flatbuffers`
-regenerates when asked and nothing checks, and the binary schema
-`apps/python/sigil/test/assets/coverage.bfbs`, compiled from
-`coverage.fbs` beside it by no generator in the tree.
+generation logic of its own. One committed derived file is an exception
+still: the binary schema `apps/python/sigil/test/assets/coverage.bfbs`,
+compiled from `coverage.fbs` beside it by no generator in the tree.
 
 A build product is rewritten by every build that needs it, so it cannot
 drift from its source, and it never enters the checkout. Most are
@@ -147,9 +145,8 @@ as a script run with `-P` or a `configure_file`.
 | The built extension, the sketch registrations and the audit in `typing/ledger` | `apps/python/sigil/PARITY.md`, except the prose between its markers | `typing/parity.py` | `--check`, as `python_parity_drift`, which is skipped for an extension built without a licensed SDK |
 | Each library's README and chapters, against its headers | `<Library>ApiDocProbes.cpp` in the build tree, one probe for each name the prose spells | `src/test/docs/api_doc_probes.py`, through `sigil_doc_probes()` | `<library>_api_doc_probes` compiles; `api_doc_probes_self_test` |
 | The headers, through Doxygen's XML, and the declarations | A reference page's Syntax, both languages, in the site under `build/docs` | `sigil.py docs`, the reference layer under `scripts/sigil/reference` | written with the site, never committed; `reference_generator` |
-| `SpellCircle.fbs` | The Python schema modules under `apps/python/spellcircle` | `sigil.py flatbuffers`, by hand | none yet |
 | `apps/python/sigil/test/assets/coverage.fbs` | `coverage.bfbs` beside it, committed | none: `flatc -b --schema`, by hand | none yet |
-| `SpellCircle.fbs`, a sketch's `<stem>/<stem>.fbs`, and the test schemas of SigilData and Seer | `<stem>_generated.h` in the build tree, with the binary schema beside it and embedded in it wherever a reader needs one; for a Python entry, only `<stem>.bfbs`, beside the entry, which git ignores | `flatc`, from the CMakeLists beside each schema | a build product |
+| A sketch's `<stem>/<stem>.fbs` and the test schemas of SigilData | `<stem>_generated.h` in the build tree, with the binary schema beside it and embedded in it wherever a reader needs one; for a Python entry, only `<stem>.bfbs`, beside the entry, which git ignores | `flatc`, from the CMakeLists beside each schema | a build product |
 | A sketch's own schema and SigilData's test schemas | `<stem>_values.h` in the build tree | `sigil_schema_values`, the C++ tool in `src/common/data/values` | a build product; `data_test` round-trips what it writes |
 | A host's Python sketch entries | `<target>.cpp`, their registrations | `src/sketch/python/cmake/register_sketches.py`, through `sigil_python_sketches()` | a build product |
 | `compile_commands.json` | `sketch_flags.rsp`, the flags a hot-reloaded sketch compiles with | `src/sketch/cmake/SketchFlags.py`, through `sigil_sketch_flags()` with the host's anchor | a build product |
@@ -275,7 +272,7 @@ inventory the `docs` build writes is what sees those.
 
 ## Plates — `plates`
 
-Three tiers, one binary, and THE DEVICE IS THE REFERENCE: the product
+Two tiers, one binary, and THE DEVICE IS THE REFERENCE: the product
 draws on the GPU, so the device tier is the one a sketch's picture is
 judged by, and the CPU tier is a smoke run of the raster path beside it.
 The raster and the device need not agree. `--sketch` and `--scenes`
@@ -343,11 +340,6 @@ nothing else: Grimoire owns the thumbnails it shows, rendering them on
 demand into its own cache and warming them with `Grimoire
 --thumbnails`.
 
-Every render a hash judges carries `--no-promotion`. Automatic texture
-promotion re-bakes by a measured per-frame cost, which load can tip
-either way, so it is the one renderer feature a byte-identity gate has
-to hold off; with it off, hashes are load-immune.
-
 Every scene prints one line as it finishes — its running count, how it
 stands, its name and what it took — in completion order, so the scene
 the sweep is still waiting on is the one that has not printed yet. Each
@@ -383,88 +375,6 @@ so the renderer pins those: a headless session is opened with
 pinned number. A sketch that reads a clock and does not go through
 `measured()` is the one thing `--stability` still has to catch.
 
-### The promotion tier
-
-`--tier promotion` renders the scene2d sketches twice on the CPU — once
-with automatic texture promotion held off, once with every promotable
-node eagerly baked — and judges the pair against the contract compose
-states. It exists because nothing else exercises the promoter: a
-headless session is opened deterministic and a deterministic session
-holds promotion off, so every other tier renders the runtime with that
-feature switched out.
-
-The ON half is eager so the tier tests the same node set on every
-machine. The runtime's own rule is a stopwatch — a node is baked once
-its paint has measured over a millisecond for eight consecutive frames —
-which on an idle machine promotes nothing and on a loaded one promotes a
-different handful each run, and a tier that measures the machine
-measures nothing. Eager bakes every node the rules admit, from its first
-frame, and changes nothing about what a bake may do.
-
-THE CEILING IS THREE BARS, and not one is a tolerance anyone chose. Each
-differing pixel is judged by what it stands on, read off the HELD-OFF
-plate — the reference — and off the two plates' own pixels around it.
-
-Where that pixel is TRANSPARENT BLACK the bar is one code value. What a
-bake holds is an image of eight bits a channel, premultiplied by the
-coverage it was drawn with, and the blit composites from that — so a
-shaded pixel can land one value from the live paint and nothing may land
-further.
-
-Where it holds CONTENT the bar is two PER COMPOSITE the pixel stood
-under. There the bake lands on something, so the node's own coverage is
-composited twice where the live paint composited once — into the bake,
-and again when the bake is blitted — and Skia's blit of a raster image
-is not the arithmetic of its direct shader draw. A texel whose alpha is
-between none and all can settle one value further out over a bright
-backdrop, and taking the bake at higher precision does not remove it.
-
-PER COMPOSITE, because a bake is one composite and a pixel can stand
-under many. Nothing nests — a node inside a bake is not baked again —
-but independent nodes overlap, and a stack of concentric rings each
-promoted on its own puts seven or nine cached rasters over one pixel.
-Each of them rounds and the rounding does not decay: a flat wash through
-N bakes stands N code values from the same wash painted live, measured in
-plain Skia over every destination value, every source alpha and a spread
-of source colours. So the ON half is rendered with `--composites`, which
-writes a plane beside each plate saying how many cached rasters were
-blitted over each pixel, and the comparison reports the content difference
-already divided by it. The bar itself never moves with a picture's
-depth; a run with no plane prices every pixel at one composite, which is
-the bound this bar carried before it could count.
-
-Where the difference is CONFINED TO AN ANTIALIASED EDGE BOTH PLATES DRAW
-the bar is sixty-four. One rounding along such an edge is one step of
-that pixel's coverage, and what a step costs is not a code value but
-whatever quantizer stands there: nothing along an edge that meets the
-grid squarely, and a whole supersample step where a curve runs nearly
-TANGENT to one. The sixty-four is that quantizer's own size and no
-scene's: Skia's supersampled scan converter samples four rows of each
-pixel, so coverage moves in quarters, and a quarter of the widest
-contrast an eight-bit plate can carry is 64 code values. A bar taken from
-whichever picture happened to graze the hardest would move every time one
-of those pictures was fixed; this one does not. A scene standing under it
-says so on its verdict line, with the number of pixels it was.
-
-A SCENE MAY DECLARE THAT IT CANNOT BE JUDGED THIS WAY. A sketch whose
-picture is not linear in what went into it — `ctx.nonlinearPicture()`,
-declared where a view rounds each channel to a palette or a bright pass
-runs through a smoothstep gate — holds the promoter off from its own
-setup, so the eager half is not eager for it. There is no bound between
-a difference under such a stage and the difference it shows: the one
-code value a bake is allowed arrives as a whole step. The tier names
-those scenes on their verdict lines and again in its summary, and the
-declaration lives in the sketch that has to explain it rather than in a
-list here.
-
-Past any of the three is a picture that MOVED — a bake somewhere else,
-rasterised against another clip, or gone stale — which is a defect to
-file against the promoter. The comparison reports the worst difference
-under each bar (`worstOverClear`, `worstOverContent`, `worstOverGraze`
-and `worstPerComposite` on a row; `clear`, `content`, `graze` and
-`composited` on its line), which is what lets them be judged apart. The tier keeps no baseline and
-refuses `--rebase`, because there is nothing here to adopt.
-
 ### Where the plates go
 
 THE PLATES ARE KEPT, beside the manifest, under
@@ -473,9 +383,8 @@ overwritten rather than accumulated, and never committed because
 `build/` is ignored. `device/baseline/` holds what the device manifest
 was adopted from and is overwritten scene by scene on rebase; it is also
 what the raster smoke reads against. `device/gpu/` holds what the last
-judging device sweep rendered, `cpu/` what the last raster smoke
-rendered, and the promotion tier keeps both its halves (`promotion/off`,
-`promotion/on`). A hash says a scene MOVED and nothing about where, so
+judging device sweep rendered, and `cpu/` what the last raster smoke
+rendered. A hash says a scene MOVED and nothing about where, so
 each mover's verdict line names its two files and the summary prints the
 `sigil.py plates compare build/plates_<config>/device/baseline
 build/plates_<config>/device/gpu` that differences them channel by
@@ -625,9 +534,7 @@ for the targets of a suite-name filter.
 
 A tree of its own per lane, because switching a tree's flags recompiles
 every object in it. Only the C++ flags are set: every `.mm` in this tree
-compiles through the C++ compiler, and SpellCircleMac's Swift sources go
-through swiftc, which rejects them, so `src/spellcircle/mac/` takes them
-back off that one executable's link line. `-fno-omit-frame-pointer` is
+compiles through the C++ compiler. `-fno-omit-frame-pointer` is
 on every lane because reports unwind through frame pointers and without
 them the stacks degrade to unusable fragments; the instrumented trees
 build RelWithDebInfo, since the instrumentation reads optimised code
@@ -809,15 +716,6 @@ per-object bookkeeping (the two flags naming this object and the
 dependency-file flags the generator appends) and re-escapes the double
 quotes the database unquoted, so a define whose value is a string
 literal still means what the compile line meant.
-
-`sigil.py flatbuffers` (`mise run flatbuffers`) regenerates the
-committed Python schema modules. Only the Python side: the C++ header is
-generated into the build tree by the `SpellCircleSchema` target and is
-not committed, while `apps/python/spellcircle` is installed and imported — by
-TouchDesigner among others — with no CMake build in reach. The generator
-writes a package, and the `SpellCircle/__init__.py` it emits is a name
-already taken by the hand-written public API, so generation goes to a
-staging directory and only the schema modules are copied over.
 
 `sigil.py assets --stage <archive>`
 puts an archive nobody can download without an account into the vcpkg

@@ -76,9 +76,9 @@ Ui.AppWindow {
         }
     }
 
-    // Deferred like the SpellCircle menu bar: creating the native menu bar
-    // while the window adopts a Settings-restored frame trips an AppKit
-    // over-release in structural-region tracking (macOS 26 + Qt 6.11).
+    // workaround: creating the native menu bar while the window adopts a
+    // Settings-restored frame trips an AppKit over-release in
+    // structural-region tracking (macOS 26 + Qt 6.11), so it is deferred.
     Loader {
         Component.onCompleted: {
             if (Qt.platform.os === "osx")

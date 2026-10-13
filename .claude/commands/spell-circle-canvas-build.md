@@ -1,5 +1,5 @@
 ---
-description: Configure and build the spell-circle-canvas Qt/C++ app
+description: Configure and build the Sigil libraries and Grimoire under apps/spell-circle-canvas
 argument-hint: Optional flags, e.g. --config Release --force
 ---
 

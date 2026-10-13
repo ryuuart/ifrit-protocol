@@ -7,8 +7,8 @@
 # build's intermediates live beside it in docs-build/.
 #
 #     cmake --build build --target docs
-#     docker build -t spellcircle-docs build/docs
-#     docker run --rm -p 8080:80 spellcircle-docs
+#     docker build -t sigil-docs build/docs
+#     docker run --rm -p 8080:80 sigil-docs
 #
 # Doxygen is not in this image and does not need to be. The pages are
 # static files by the time they get here, so the image carries no

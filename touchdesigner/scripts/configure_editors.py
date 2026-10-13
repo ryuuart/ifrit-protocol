@@ -135,8 +135,8 @@ def main() -> None:
     # Point Pylance at the venv's own interpreter (not TD's raw bundled one) so it
     # recognizes .venv/lib/.../site-packages as *the* environment's site-packages.
     # That's what makes it apply setuptools' editable-install finder (MAPPING dict
-    # in __editable___*_finder.py) and resolve SpellCircle's real source for
-    # autocomplete/types — a plain extraPaths entry doesn't get that treatment.
+    # in __editable___*_finder.py) and resolve an editable package's real source
+    # for autocomplete/types — a plain extraPaths entry doesn't get that treatment.
     environment_python = VENV_DIR / "bin" / python_version_tag
     analysis_paths = [str(touchdesigner_site_packages)]
 

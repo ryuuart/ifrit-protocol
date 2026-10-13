@@ -14,7 +14,7 @@
       "cwd": "$ZED_WORKTREE_ROOT",
     },
     // The program to debug. This field supports path resolution with ~ or . symbols.
-    "program": "$ZED_WORKTREE_ROOT/build/bin/Debug/SpellCircle.app/Contents/MacOS/SpellCircle",
+    "program": "$ZED_WORKTREE_ROOT/build/bin/Debug/Grimoire.app/Contents/MacOS/Grimoire",
     // cwd: defaults to the current working directory of your project ($ZED_WORKTREE_ROOT)
   },
 ]

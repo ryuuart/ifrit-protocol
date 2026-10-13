@@ -5,11 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "ifrit-protocol-apps",
+    "flatbuffers",
 ]
-
-[tool.uv.sources]
-ifrit-protocol-apps = { path = "../apps/python/spellcircle" }
 
 [tool.touchdesigner.TDPyEnvManagerContext]
 contextVersion = 2

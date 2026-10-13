@@ -45,7 +45,7 @@ TRUNK = "main"
 # own) and ruff.toml's extend-exclude, so the selection holds even when a
 # tool predates its ignore mechanism.
 EXCLUDED_FRAGMENTS = (
-    "SpellCircle_generated",
+    "_generated.h",
     "vcpkg_installed/",
 )
 
@@ -212,7 +212,7 @@ def check_qmllint(files: list) -> bool:
     if not qmllint.exists():
         tree.fail(f"qmllint not found at {qmllint}")
     # The build tree's qml/ holds the repository's own compiled modules
-    # (Ifrit.Qt, SpellCircle.*); without it every project import is
+    # (Ifrit.Qt, Sigil.*); without it every project import is
     # unresolvable and the lint is meaningless.
     import_dir = tree.build_dir() / "qml"
     command = [qmllint]

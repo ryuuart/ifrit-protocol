@@ -48,12 +48,12 @@ SANITIZER_LANES = ("address", "thread")
 
 # Source paths the coverage report never counts: prebuilt dependencies,
 # Qt/moc-generated sources, the build tree's own generated files, and the
-# FlatBuffers-generated header.
+# FlatBuffers-generated headers.
 IGNORE_ALWAYS = [
     r"vcpkg_installed/",
     r"_autogen/",
     r"build-coverage/",
-    r"SpellCircle_generated\.h",
+    r"_generated\.h",
 ]
 
 # Test sources, left out of the report unless --include-tests asks for

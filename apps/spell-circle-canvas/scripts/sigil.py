@@ -4,7 +4,7 @@
     python3 scripts/sigil.py <verb> [flags]
     python3 scripts/sigil.py <verb> --help
 
-Ten verbs over one package. `scripts/README.md` is the canon for what
+Nine verbs over one package. `scripts/README.md` is the canon for what
 each does and what it refuses; `--help` on a verb is the canon for its
 flags. Every mise task is one of these under a one-word name.
 """
@@ -18,13 +18,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 VERBS = {
     "setup": "discover Qt and vcpkg, write the presets, configure and build",
     "check": "clang-format, ruff and qmllint over the branch's work; drift",
-    "plates": "plate sweep over the sketch registry: device, cpu, promotion",
+    "plates": "plate sweep over the sketch registry: device, cpu",
     "bench": "timing sweep: the benchmark binaries, or the window lane",
     "sanitize": "an instrumented tree: address, thread or coverage",
     "docs": "the per-library Doxygen sites, opened or served",
     "assets": "fetch the demo assets, or stage an SDK archive",
     "flags": "lift the sketch compile line out of the compilation database",
-    "flatbuffers": "regenerate the committed Python schema modules",
     "workspace": "scaffold a folder a sketch lives in, outside this tree",
 }
 

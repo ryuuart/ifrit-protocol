@@ -4,7 +4,6 @@ requires-python = ">=3.12"
 
 [manifest]
 members = [
-    "ifrit-protocol-apps",
     "sigil-sketch",
 ]
 
@@ -19,25 +18,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/38/ee/8d0b6806338b13526
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b2/84/c1e1e845d0453253a98d1ba188d68597f0ba7e552eeabea514d9395d418a/basedpyright-1.40.1-py3-none-any.whl", hash = "sha256:222dc0382caf9816eb23a27cb7059fa96356ddc500b3b7b306072848fd650244", size = 13689276, upload-time = "2026-09-10T23:17:20.322Z" },
 ]
-
-[[package]]
-name = "flatbuffers"
-version = "25.12.19"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl", hash = "sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4", size = 26661, upload-time = "2025-12-19T23:16:13.622Z" },
-]
-
-[[package]]
-name = "ifrit-protocol-apps"
-version = "0.2.0"
-source = { editable = "spellcircle" }
-dependencies = [
-    { name = "flatbuffers" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "flatbuffers" }]
 
 [[package]]
 name = "nodejs-wheel-binaries"

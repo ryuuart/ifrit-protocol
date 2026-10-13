@@ -139,7 +139,7 @@ CONTINUE = " \\\n" + " " * 25
 
 SOURCE_PATTERNS = ("*.h", "*.hpp", "*.md", "*.dox")
 
-CONTAINER = "spellcircle-docs"
+CONTAINER = "sigil-docs"
 
 
 class Library:
@@ -542,7 +542,7 @@ WAYS_IN = (
     (
         "overview/index.html",
         "Overview",
-        "What SpellCircle is, and what the libraries are",
+        "What the Sigil libraries are, and how they fit",
     ),
     ("guides/index.html", "Guides", "One thing you want to do, start to finish"),
     (
@@ -584,7 +584,7 @@ def write_index(manifest: Manifest) -> None:
         """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SpellCircle</title>
+<title>Sigil</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 16px/1.6 -apple-system, system-ui, sans-serif;
@@ -601,9 +601,10 @@ def write_index(manifest: Manifest) -> None:
   b { display: block; }
   span { color: GrayText; font-size: .9rem; }
 </style></head><body>
-<h1>SpellCircle</h1>
-<p class="lede">A receiver for network-driven vector diagrams, over a
-set of independent libraries that draw, lay out, set type and move.</p>
+<h1>Sigil</h1>
+<p class="lede">A GPU-forward 2D renderer whose pages are materials on 3D
+surfaces, over a set of independent libraries that draw, lay out, set
+type and move.</p>
 <ul>
 """
         + ways

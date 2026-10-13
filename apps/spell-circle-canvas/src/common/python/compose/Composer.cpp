@@ -157,42 +157,12 @@ bool registered() {
   return py::detail::get_type_info(typeid(Native)) != nullptr;
 }
 
-/** The row-major plane as a read-only two-dimensional byte buffer, rows
- *  first, so an array library reads the counts without copying them. */
-py::buffer_info planeBuffer(Composer::CompositePlane& plane) {
-  const auto width = static_cast<py::ssize_t>(plane.width);
-  const auto height = static_cast<py::ssize_t>(plane.height);
-  return py::buffer_info(
-      plane.counts.data(), sizeof(std::uint8_t),
-      py::format_descriptor<std::uint8_t>::format(), 2, {height, width},
-      {width * static_cast<py::ssize_t>(sizeof(std::uint8_t)),
-       static_cast<py::ssize_t>(sizeof(std::uint8_t))},
-      true);
-}
-
 void bindReports(py::class_<ComposerHandle>& composer) {
   py::enum_<Composer::CacheState>(composer, "CacheState")
       .value("Live", Composer::CacheState::Live)
       .value("Picture", Composer::CacheState::Picture)
       .value("Texture", Composer::CacheState::Texture)
-      .value("Promoted", Composer::CacheState::Promoted)
-      .value("SplitOwn", Composer::CacheState::SplitOwn)
       .value("Group", Composer::CacheState::Group);
-
-  py::enum_<Composer::Promotion>(composer, "Promotion")
-      .value("Cheap", Composer::Promotion::Cheap)
-      .value("Warming", Composer::Promotion::Warming)
-      .value("Promoted", Composer::Promotion::Promoted)
-      .value("AskedFor", Composer::Promotion::AskedFor)
-      .value("OptedOut", Composer::Promotion::OptedOut)
-      .value("Volatile", Composer::Promotion::Volatile)
-      .value("Composited", Composer::Promotion::Composited)
-      .value("Transformed", Composer::Promotion::Transformed)
-      .value("Filtered", Composer::Promotion::Filtered)
-      .value("ReadsBackdrop", Composer::Promotion::ReadsBackdrop)
-      .value("TooBig", Composer::Promotion::TooBig)
-      .value("SplitBaked", Composer::Promotion::SplitBaked)
-      .value("HostsSpace", Composer::Promotion::HostsSpace);
 
   // A record, registered by hand because it is nested in the class it
   // reports about: constructible from keywords, copyable, and answering
@@ -208,30 +178,9 @@ void bindReports(py::class_<ComposerHandle>& composer) {
       .def_readwrite("totalMs", &Composer::NodeCost::totalMs)
       .def_readwrite("depth", &Composer::NodeCost::depth)
       .def_readwrite("cacheState", &Composer::NodeCost::cacheState)
-      .def_readwrite("promotion", &Composer::NodeCost::promotion)
-      .def_readwrite("refusals", &Composer::NodeCost::refusals)
       .def_readwrite("effectDeferred", &Composer::NodeCost::effectDeferred)
-      .def("refused", &Composer::NodeCost::refused, py::arg("promotion"),
-           "Whether this condition is among the ones that refused a bake, "
-           "which holds every refusal where `promotion` holds the first.")
       .def("cached", &Composer::NodeCost::cached);
   copyProtocol(cost);
-
-  py::class_<Composer::CompositePlane> plane(composer, "CompositePlane",
-                                             py::buffer_protocol());
-  plane.def_readonly("width", &Composer::CompositePlane::width)
-      .def_readonly("height", &Composer::CompositePlane::height)
-      .def_property_readonly(
-          "counts",
-          [](const Composer::CompositePlane& value) {
-            return py::bytes(reinterpret_cast<const char*>(value.counts.data()),
-                             value.counts.size());
-          },
-          "One saturating count per device pixel, row-major, copied.")
-      .def("at", &Composer::CompositePlane::at, py::arg("x"), py::arg("y"))
-      .def("copy", [](const Composer::CompositePlane& value) { return value; })
-      .def_buffer(&planeBuffer);
-  copyProtocol(plane);
 }
 
 void bindDescribePath(py::class_<ComposerHandle>& composer) {
@@ -353,12 +302,6 @@ void bindIntrospection(py::class_<ComposerHandle>& composer) {
            [](const ComposerHandle& self) -> Composer::Stats {
              return self.get().stats();
            })
-      .def_static(
-          "promotionReason",
-          [](Composer::Promotion promotion) {
-            return std::string(Composer::promotionReason(promotion));
-          },
-          py::arg("promotion"))
       .def(
           "setProfiling",
           [](const ComposerHandle& self, bool on) {
@@ -370,47 +313,11 @@ void bindIntrospection(py::class_<ComposerHandle>& composer) {
       .def("profile",
            [](const ComposerHandle& self) -> std::vector<Composer::NodeCost> {
              return self.get().profile();
-           })
-      .def(
-          "setCompositeCounting",
-          [](const ComposerHandle& self, bool on) {
-            self.get().setCompositeCounting(on);
-          },
-          py::arg("on"))
-      .def("compositeCounting",
-           [](const ComposerHandle& self) {
-             return self.get().compositeCounting();
-           })
-      .def("compositePlane",
-           [](const ComposerHandle& self) -> Composer::CompositePlane {
-             return self.get().compositePlane();
            });
 }
 
 void bindSettings(py::class_<ComposerHandle>& composer) {
   composer
-      // The policy stands ahead of the two-state form, so a policy is
-      // read as one and only a plain truth value reaches the second.
-      .def(
-          "setAutoTexturePromotion",
-          [](const ComposerHandle& self, compose::PromotionPolicy policy) {
-            self.get().setAutoTexturePromotion(policy);
-          },
-          py::arg("policy"))
-      .def(
-          "setAutoTexturePromotion",
-          [](const ComposerHandle& self, bool on) {
-            self.get().setAutoTexturePromotion(on);
-          },
-          py::arg("on"))
-      .def("autoTexturePromotionPolicy",
-           [](const ComposerHandle& self) {
-             return self.get().autoTexturePromotionPolicy();
-           })
-      .def("autoTexturePromotion",
-           [](const ComposerHandle& self) {
-             return self.get().autoTexturePromotion();
-           })
       .def(
           "setBakeDensity",
           [](const ComposerHandle& self, float devicePixelsPerUnit) {
@@ -437,15 +344,6 @@ void bindSettings(py::class_<ComposerHandle>& composer) {
 
 void bindComposeComposer(py::module_& module) {
   auto composition = submodule(module, "compose");
-
-  // What decides a promotion is a value a paint context carries too, so
-  // whichever registration reaches it first names it and the other is
-  // handed the same class.
-  if (!registered<compose::PromotionPolicy>())
-    py::enum_<compose::PromotionPolicy>(composition, "PromotionPolicy")
-        .value("Off", compose::PromotionPolicy::Off)
-        .value("ByCost", compose::PromotionPolicy::ByCost)
-        .value("Eager", compose::PromotionPolicy::Eager);
 
   // ONE COMPOSER CLASS, WHOEVER OWNS THE TREE. A host hands its own out
   // as a borrowed handle, so a sketch's composer and one a body builds

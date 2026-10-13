@@ -3,13 +3,13 @@
 #include <include/core/SkPath.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilpython/Bindings.h>
@@ -99,8 +99,7 @@ py::function callable(py::handle value, const char* refusal) {
 /** How many of the @p offered parameters @p function names, counted
  *  from the first. A callable Python cannot read a signature from names
  *  @p unreadable of them; one that names more than is offered raises. */
-int namedParameters(const py::function& function, int offered,
-                    int unreadable) {
+int namedParameters(const py::function& function, int offered, int unreadable) {
   try {
     return py::module_::import("sigil._callbacks")
         .attr("arity")(function, offered)
@@ -234,7 +233,8 @@ compose::PaintProgram paintProgram(py::handle value) {
   auto function = callable(value, "A paint program is a callable.");
   const int named = namedParameters(function, 2, 1);
   auto held = retainCallback(std::move(function));
-  return [held, named](sigil::draw::Pen& pen, const compose::PaintContext& context) {
+  return [held, named](sigil::draw::Pen& pen,
+                       const compose::PaintContext& context) {
     SkCanvas& canvas = *pen.canvas();
     const py::gil_scoped_acquire lock;
     const py::function program = held->get();
@@ -300,14 +300,6 @@ void bindComposePaintPrograms(py::module_& module) {
   using compose::VarTable;
   auto composition = submodule(module, "compose");
 
-  // The composer's dials name this policy too, and whichever of the two
-  // files is registered first gives it its Python name.
-  if (!py::detail::get_type_info(typeid(compose::PromotionPolicy)))
-    py::enum_<compose::PromotionPolicy>(composition, "PromotionPolicy")
-        .value("Off", compose::PromotionPolicy::Off)
-        .value("ByCost", compose::PromotionPolicy::ByCost)
-        .value("Eager", compose::PromotionPolicy::Eager);
-
   auto keyState =
       bindRecord<KeyState>(composition, "KeyState", "Unknown KeyState field: ");
   keyState.def_readwrite("pressed", &KeyState::pressed)
@@ -367,21 +359,19 @@ void bindComposePaintPrograms(py::module_& module) {
   // Every reading copies, so nothing Python keeps points into the
   // composer once the paint call has returned.
   context
-      .def_property_readonly(
-          "size",
-          [](const BorrowedPaintContext& self) {
-            return geometry::path::toSkSize(self.get().size);
-          })
-      .def_property_readonly(
-          "outline",
-          [](const BorrowedPaintContext& self) {
-            return geometry::path::toSk(self.get().outline);
-          })
-      .def_property_readonly("silhouette",
+      .def_property_readonly("size",
                              [](const BorrowedPaintContext& self) {
-                               return geometry::path::toSk(
-                                   self.get().silhouette);
+                               return geometry::path::toSkSize(self.get().size);
                              })
+      .def_property_readonly("outline",
+                             [](const BorrowedPaintContext& self) {
+                               return geometry::path::toSk(self.get().outline);
+                             })
+      .def_property_readonly(
+          "silhouette",
+          [](const BorrowedPaintContext& self) {
+            return geometry::path::toSk(self.get().silhouette);
+          })
       .def_property_readonly("elapsedSeconds",
                              [](const BorrowedPaintContext& self) {
                                return self.get().elapsedSeconds;
@@ -408,18 +398,18 @@ void bindComposePaintPrograms(py::module_& module) {
             return geometry::path::toSk(self.get().borrowedPath(key));
           },
           py::arg("key"))
-      .def_property_readonly(
-          "toRoot",
-          [](const BorrowedPaintContext& self) {
-            return geometry::path::toSk(self.get().toRoot);
-          })
+      .def_property_readonly("toRoot",
+                             [](const BorrowedPaintContext& self) {
+                               return geometry::path::toSk(self.get().toRoot);
+                             })
       .def_property_readonly(
           "rootSize",
           [](const BorrowedPaintContext& self) {
             return geometry::path::toSkSize(self.get().rootSize);
           })
       .def_property_readonly(
-          "ink", [](const BorrowedPaintContext& self) { return self.get().ink; })
+          "ink",
+          [](const BorrowedPaintContext& self) { return self.get().ink; })
       .def_property_readonly(
           "font",
           [](const BorrowedPaintContext& self) { return self.get().font; })
@@ -443,10 +433,7 @@ void bindComposePaintPrograms(py::module_& module) {
       .def_property_readonly("bakeDensity",
                              [](const BorrowedPaintContext& self) {
                                return self.get().bakeDensity;
-                             })
-      .def_property_readonly("promotion", [](const BorrowedPaintContext& self) {
-        return self.get().promotion;
-      });
+                             });
 
   composition.def(
       "custom",

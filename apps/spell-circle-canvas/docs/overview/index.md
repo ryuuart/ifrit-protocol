@@ -1,14 +1,12 @@
 # What this is
 
-SpellCircle draws network-driven vector diagrams for live production. An
-external process — a Python script, a TouchDesigner patch — describes a
-scene and sends it as a FlatBuffers datagram over UDP. SpellCircle
-receives it, draws it with Skia on the GPU, and publishes the result as a
-transparent-background texture over Syphon, where a VJ or compositing
-tool picks it up.
+The Sigil libraries make a GPU-forward 2D renderer whose pages are
+materials on 3D surfaces. A page is laid out, typeset and drawn with
+Skia on the GPU, and the world renders it as the material of a lit
+surface, live, at the pace of a game. Grimoire is the host that runs it.
 
-That application is thin. Almost everything in this repository is a set
-of independent C++ libraries under it — a layout and composition engine,
+Almost everything in this repository is a set of independent C++
+libraries — a layout and composition engine,
 a text engine, a paint and material model, geometry, motion, data,
 resource access, video, a 3D world — each usable on its own, each with
 its own README, and each with the same values reachable from Python.
@@ -26,15 +24,13 @@ Three things a reader usually wants next:
 
 ## The data path
 
-The product's path, end to end:
+A frame's path, end to end:
 
-1. **A sender describes a scene.** Circles, points placed on those
-   circles' perimeters, edges between points, and labelled boxes. The
-   wire schema is `SpellCircle.fbs`, and the Python package
-   `apps/python/spellcircle` builds and sends one with no renderer in
-   reach.
-2. **A datagram arrives over UDP.** Scenes may arrive at animation frame
-   rates, so a sender can use the receiver as a live output surface.
+1. **What arrived is read.** A door on a resource hub — UDP, OSC,
+   WebSocket, shared memory, MIDI — holds what an external process sent,
+   a TouchDesigner patch among them, and the frame takes it out in order.
+2. **A sketch describes the scene.** In C++ or in Python, from its own
+   state and whatever arrived.
 3. **The scene is turned into a description.** Not into draw calls: a
    value-typed tree describing what the frame should look like, built
    fresh and thrown away.
@@ -49,12 +45,12 @@ The product's path, end to end:
 6. **The tree paints.** In an explicit CSS-like stacking order, onto an
    `SkCanvas` the caller owns, with nodes cached as pictures or textures
    where they are provably still.
-7. **The texture is published.** Over Syphon, under the server name
-   `SpellCircle`.
+7. **The texture is published.** With `--publish`, Grimoire offers the
+   frame over Syphon under the name it is given.
 
-## The other way in
+## Sketches
 
-The same engine hosts **sketches**: one file that declares a scene,
+Everything renderable is a **sketch**: one file that declares a scene,
 opened live, hot-swapped on every save. That is how the libraries are
 exercised and how most of the pictures in this documentation were drawn.
 A sketch is C++ or Python, and the two spell the same API:

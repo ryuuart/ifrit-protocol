@@ -81,12 +81,12 @@ class Shell:
             f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{html.escape(title)} — SpellCircle</title>
+<title>{html.escape(title)} — Sigil</title>
 <link rel="stylesheet" href="{up}{STYLE}">
 <script>window.referenceRoot = "{up}";</script>
 </head><body>
 <header class="masthead">
-  <a class="wordmark" href="{up}index.html">SpellCircle</a>
+  <a class="wordmark" href="{up}index.html">Sigil</a>
   <nav class="primary">{navigation}</nav>
   <form class="find" role="search"><input type="search" id="find"
     placeholder="Search — try accepts:Fill or kind:verb" autocomplete="off"></form>

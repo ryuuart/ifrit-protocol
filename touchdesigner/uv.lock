@@ -15,17 +15,6 @@ name = "ifrit-protocol"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "ifrit-protocol-apps" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "ifrit-protocol-apps", directory = "../apps/python/spellcircle" }]
-
-[[package]]
-name = "ifrit-protocol-apps"
-version = "0.2.0"
-source = { directory = "../apps/python/spellcircle" }
-dependencies = [
     { name = "flatbuffers" },
 ]
 

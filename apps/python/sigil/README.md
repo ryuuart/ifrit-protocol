@@ -370,9 +370,7 @@ uses the same dependency flags with external installed dependency directories.
 The wheel build does not build the sketch catalogue or application bundles.
 `uv build --package sigil-sketch --sdist` from the workspace builds only the source archive;
 building its wheel still requires the native dependencies. These commands
-publish no distributions. The `ifrit-protocol-apps` peer project in
-`apps/python/spellcircle/` owns the lightweight SpellCircle package and has no
-dependency on the native extension.
+publish no distributions.
 
 An editable install uses the same native dependency settings. Its `sigil`
 Python modules are read directly from this project, while the compiled
@@ -820,11 +818,8 @@ around it. `--publish` without a name publishes under the sketch file's stem.
 Ctrl-P toggles output in the window, and the status line shows the publication
 name. Drawing with either Python or C++ uses this same path.
 
-Seer, the wire and texture reader built beside Grimoire, is the client to
-check it with: `Seer --list-textures` names what is being offered,
-`Seer --texture "Live Sketch"` opens a window on it, and
-`Seer --texture "Live Sketch" --grab frame.png` writes its newest frame to a
-file.
+Any Syphon client checks it: the client lists what is being offered by name,
+and `Live Sketch` among them is the sketch's canvas.
 
 A ground with alpha below one publishes as it reads, so a sketch meant to be
 composited over another application's scene declares one:
