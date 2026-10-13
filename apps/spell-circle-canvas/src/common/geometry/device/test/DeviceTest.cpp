@@ -658,14 +658,13 @@ SkBitmap rasterise(const SkImageInfo& info,
 // A pass the fence cut in two must keep what the pass before it drew.
 // Graphite antialiases a large path by rendering it multisampled and
 // resolving the samples onto the target, and a pass that begins where
-// another ended reloads the multisample attachment from the target first
-// — but only inside the area its own draws cover, while a backend that
-// resolves the whole attachment writes undefined samples over everything
-// outside that area: the ground and whatever the first pass drew on it
-// come back as garbage. The scene here is the smallest one that asks for
-// both: a path big enough to take the multisample renderer on either side
-// of a draw whose blend the hardware cannot express, which is what ends
-// the pass between them.
+// another ended reloads the multisample attachment from the target first.
+// A backend that resolves the whole attachment whatever area the pass
+// names keeps the ground and whatever the first pass drew on it only if
+// that reload reaches the whole attachment too. The scene here is the
+// smallest one that asks for both: a path big enough to take the
+// multisample renderer on either side of a draw whose blend the hardware
+// cannot express, which is what ends the pass between them.
 //
 // Antialiased edges are the one thing two rasterisers are allowed to
 // disagree about, so the claim is made where neither is guessing: every
@@ -720,7 +719,7 @@ TEST(AdoptedGraphite, AFencedPassKeepsWhatThePassBeforeItDrew) {
 // whoever ended that pass. Here Graphite ends it itself, inside one
 // recording, because a snapshot of the surface is taken while the surface
 // is still being drawn; nothing in this repository sees that pass end, so
-// the canvas is the surface's own and nothing covers the device. The
+// the canvas is the surface's own and the pass continues the target. The
 // pass that follows holds one small path, so the area its draws cover is a
 // corner of the target and everything the first drawing left outside that
 // corner has to come through the multisample attachment's reload.
@@ -768,7 +767,7 @@ TEST(AdoptedGraphite, ASnapshotTakenMidSceneKeepsWhatThePassBeforeItDrew) {
 // The same promise across a recording a caller closes itself: the first
 // drawing is snapped and inserted by the test rather than through this
 // repository, and the recording after it begins with no clear, so the
-// pass it opens continues the target and nothing covers the device.
+// pass it opens continues the target and the pass continues the target.
 TEST(AdoptedGraphite, ACallersOwnSnapKeepsWhatThePassBeforeItDrew) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
   skia::GraphiteContext* ctx = on->graphite();

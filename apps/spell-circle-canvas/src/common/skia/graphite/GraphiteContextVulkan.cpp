@@ -72,10 +72,10 @@ std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
   skgpu::graphite::ContextOptions options = makeContextOptions();
   // Graphite's internal multisampling stays at its default, so a path is
   // filled on the device rather than rasterised into an atlas on the CPU.
-  // A scene here is painted through the canvas that keeps painting order
-  // (<sigilskia/graphite/PaintOrder.h>), which ends passes mid-scene and
-  // covers each device a pass resumes on, so the multisample attachment
-  // is reloaded whole and the resolve keeps what the pass before drew.
+  // A pass that resumes on a device — after the canvas that keeps painting
+  // order (<sigilskia/graphite/PaintOrder.h>) ends one mid-scene, or after
+  // any other snap — has Skia reload the whole multisample attachment, so
+  // the resolve keeps what the pass before drew.
 
   std::unique_ptr<skgpu::graphite::Context> context =
       skgpu::graphite::ContextFactory::MakeVulkan(backendContext, options);
