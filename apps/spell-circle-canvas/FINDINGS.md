@@ -526,29 +526,27 @@ a surface whose colour stack and channel maps together sample seventeen
 or more textures is refused with both counts named and is never painted
 as a dropped pass.
 
-## A bare text entrance never plays
-
-`textFx::entrance(tween, track)` fills the track's effect and its own
-tween but leaves `Track::progress` at its default constant of one, so a
-text leaf under `textFx::entrance(textFx::rise(20))` with no stated
-progress mounts with every glyph already at rest; the entrance, and so
-its exit, plays only when the caller also writes
-`.progress = motion::animate({.from = 0, .to = 1, ...})`. The entrance
-header's own example, the text effects reference and the Python README
-all describe the entrance as playing once when the text mounts, and the
-header's example spells a `with(1.0f, ...)` that does not exist. A test
-should assert that a leaf under a bare `textFx::entrance(...)` has every
-beat's local progress below one on the frame after it mounts and at one
-after the track's schedule span.
-
-## nostromo_monitor renders differently on every device run
+## Two sketches render differently on every device run
 
 Three device-tier sweeps in a row gave three different hashes for
 `nostromo_monitor` against its manifest entry, with no change to the
-sketch between them. A headless capture at a declared moment should hash
+sketch between them, and `borges_library.py` (The Library of Babel)
+disagrees with itself across four renders under `--stability 3`; neither
+uses a text track. A headless capture at a declared moment should hash
 the same every time; the sketch's `Tube.sksl` and `Wall.sksl` programs
 are where to look. A test should assert that two device renders of
 `nostromo_monitor` at its capture moment are byte-identical, and the
 plate run's `--stability` pass should attribute the scene to itself
 until they are.
+
+## `Composer.beatsOf` is missing in Python
+
+`src/common/python/compose/Composer.cpp` defines `beatsOf` only when
+`registered<compose::Beat>()`, and no binding registers `compose::Beat`,
+so the method is never there and `test_compose_elements_composer.py`
+skips its `beatsOf` case without saying so. A Python author was meant to
+read a track's schedule back as C++ does. A test should assert that
+`Composer` has `beatsOf`, and that a text leaf under a track at progress
+one reports one `Beat` per unit with `localProgress` one and a non-empty
+`rect`.
 

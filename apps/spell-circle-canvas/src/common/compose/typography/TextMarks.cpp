@@ -259,11 +259,18 @@ bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
   out.track = &tracks[trackIndex];
   if (!out.track->effect) return false;
 
-  // The layout the last draw() left standing — the path one where the run
-  // rides a curve, so the beats are on the curve the letters are on.
+  // The layout the letters are drawn from — the path one where the run
+  // rides a curve, so the beats are on the curve the letters are on. A
+  // curve resolves against the node's box, so it is laid out here when no
+  // draw has done so yet for the box the node stands in.
   if (inst.description->textData) {
     const std::optional<TextPath>& path = inst.description->textData->onPath;
     if (path.has_value()) out.onPath = &path.value();
+  }
+  if (out.onPath) {
+    const SkRect rect = inst.owner->instanceRect(inst);
+    ensurePathLayout(*inst.owner, inst, *out.onPath,
+                     {rect.width(), rect.height()});
   }
   out.ridesPath = out.onPath && textStateOf(inst).pathValid;
   if (out.onPath && !out.ridesPath) return false;

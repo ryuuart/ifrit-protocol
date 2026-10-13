@@ -7,13 +7,17 @@
  * (`textFx::Displaced`), the path home one `motion::Tween` of them makes
  * (`textFx::enter`, an effect over one unit of local progress), and that
  * tween whole on a track (`textFx::entrance`, its timing the track's
- * schedule).
+ * schedule), which plays once when the leaf mounts.
  *
  *   text(u8"KINETIC", display)
- *       .textFx(textFx::entrance(
- *           {.from = textFx::Displaced{.dy = 26}, .duration = 480ms,
- *            .delay = motion::stagger(28ms), .ease = motion::ease::outExpo},
- *           {.progress = with(1.0f, {900ms, motion::ease::outQuad})}));
+ *       .textFx(textFx::entrance({.from = textFx::Displaced{.dy = 26},
+ *                                 .duration = 480ms,
+ *                                 .delay = motion::stagger(28ms),
+ *                                 .ease = motion::ease::outExpo}));
+ *
+ *   // The same entrance held wherever a live value scrubs it.
+ *   text(u8"KINETIC", display)
+ *       .textFx(textFx::entrance(textFx::rise(26), {.progress = scrub}));
  *
  * The stock entrances over it — rise, slide, pop, spinIn, scatter, typeOn,
  * variableAxisSweep — are plain tween values in
@@ -202,8 +206,9 @@ struct Displaced {
         m.dy = dy;
         m.rotateDeg = lean;
         if (from.scale != 1) m.scale = now.scale;
-        m.alpha = now.opacity *
-                  (from.fadeOver > 0 ? std::min(1.0f, t / from.fadeOver) : 1.0f);
+        m.alpha =
+            now.opacity *
+            (from.fadeOver > 0 ? std::min(1.0f, t / from.fadeOver) : 1.0f);
         m.axis = now.axis;
         return m;
       },
@@ -218,6 +223,15 @@ struct Displaced {
  *  `.loopDelay` and `.alternate` the track's schedule. @p track supplies
  *  the rest of the track — which glyphs, what a unit is, the master
  *  progress — and its effect and tween are this entrance's.
+ *
+ *  IT PLAYS ONCE WHEN THE LEAF MOUNTS. A track whose progress is left at
+ *  its default gets the mount entrance as its progress: 0 to 1, straight
+ *  — every unit carries its own curve — over the track's schedule span
+ *  (`Track::progressOverSpan`), so the master arrives at 1 as the last
+ *  beat closes, and repeating as `.loop` says; a leaf mounted again plays
+ *  it again. A progress @p track states — a constant other than that
+ *  default one, a motion of its own, a live value — stands as written.
+ *  A leaving leaf that states `exit()` runs it back to its start.
  *
  *      text(u8"KINETIC", display)
  *          .textFx(textFx::entrance({.from = textFx::Displaced{.dy = 26},
@@ -237,6 +251,18 @@ struct Displaced {
                  .loop = tween.loop,
                  .loopDelay = tween.loopDelay,
                  .alternate = tween.alternate};
+  // The default progress is a track at rest; an entrance replaces it with
+  // its own run over the span. A looping schedule wraps the master once a
+  // period, so the run repeats as often as the schedule does.
+  const float* stated = track.progress.constant();
+  if (stated && *stated == 1.0f) {
+    track.progress =
+        motion::animate(motion::Tween<float>{.from = 0.0f,
+                                             .to = 1.0f,
+                                             .ease = motion::ease::linear,
+                                             .loop = tween.loop});
+    track.progressOverSpan = true;
+  }
   return track;
 }
 

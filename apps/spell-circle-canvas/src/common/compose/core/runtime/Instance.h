@@ -530,6 +530,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // NUMBER of tracks drops the running motions rather than carrying them
   // onto a progress that now drives a different effect.
   std::vector<std::unique_ptr<HeldMotion>> trackAnims;
+  /** WHEN THIS LEAF MOUNTED, on the engine's clock, while a track's
+   *  progress waits for its span: a progress that runs over the schedule's
+   *  span (`Track::progressOverSpan`) holds at its start until the text is
+   *  laid out and the span is known, and then runs as though it had started
+   *  at the mount. Empty once every such progress has started. */
+  std::optional<motion::Duration> trackSpansOwedSince;
 
   // Caching
   sk_sp<SkPicture> picture;

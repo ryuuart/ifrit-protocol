@@ -701,8 +701,8 @@ combinators, and the `textFx::effect` door; `typography/Entrance.h` —
 entrance every unit-offset reveal is a setting of: ONE `motion::Tween` of the
 `textFx::Displaced` lanes (`.from` where a glyph starts, `.ease` any
 SigilMotion easing, `.duration`, `.delay` and `.loop` the track's schedule)
-made a `Track`, with `textFx::enter` the same path as an effect for the
-combinators; `typography/Presets.h` — the stock values over it,
+made a `Track` that plays once when its leaf mounts, with `textFx::enter`
+the same path as an effect for the combinators; `typography/Presets.h` — the stock values over it,
 `textFx::rise`, `textFx::slide`, `textFx::pop`, `textFx::spinIn`,
 `textFx::scatter`, `textFx::typeOn` and `textFx::variableAxisSweep`, every one a
 `motion::Tween<textFx::Displaced>`, with `textFx::waveLoop` the one effect

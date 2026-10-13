@@ -224,5 +224,107 @@ class Scene:
         self.assertTrue(red_in(70, 110))
 
 
+class MountEntrance(unittest.TestCase):
+    """A bare text entrance plays once when its leaf mounts, over the span
+    its schedule takes, and an exit runs it back to its start; a progress
+    the track states stands as written. Each case reads the picture at a
+    moment of the scene's clock: the leaf mounts in `setup`, at zero."""
+
+    # Four letters of 450ms, each opening 30ms after the one before.
+    SPAN = 0.54
+
+    def render(self, body, at, leave=None):
+        """The pixels at `at` seconds of a sketch whose `setup` renders
+        `body`, an expression that may name `sans`, the instrument face set
+        at 24 pixels in white; past `leave` seconds it renders an empty box
+        in its place."""
+        source = (
+            HEAD
+            + f"""@sketch(size=(200, 60), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        hub = ctx.assets.hub()
+        sans = Type(size=24, color="#ffffff",
+                    face=hub.load(skia.Typeface, ctx.local("data/Sans.ttf")))
+        self.left = False
+        ctx.render(box().children([{body}]))
+
+    def update(self, elapsed, ctx):
+        if {leave!r} is not None and elapsed >= {leave!r} and not self.left:
+            self.left = True
+            ctx.render(box())
+"""
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            data = Path(folder) / "data"
+            data.mkdir()
+            shutil.copy(INSTRUMENTS / "Sans.ttf", data / "Sans.ttf")
+            path = Path(folder) / "entrance.py"
+            output = Path(folder) / "entrance.png"
+            path.write_text(source)
+            render_file(path, output, at=at)
+            return media.load(output).frameAt(0).image.rgba()
+
+    @staticmethod
+    def bright(pixels):
+        """How many pixels stand nearly white: a glyph home and opaque."""
+        return TextEffects.count(pixels, lambda r, g, b: min(r, g, b) > 200)
+
+    BARE = 'text("RISE").font(sans).textFx(textFx.entrance(textFx.rise(20)))'
+    # The same effect on a track at rest, which nothing plays.
+    REST = 'text("RISE").font(sans).textFx(textFx.enter(textFx.rise(20)), progress=1)'
+
+    def test_a_bare_entrance_plays_once_over_its_span(self):
+        rest = self.render(self.REST, at=1.0)
+        self.assertGreater(self.bright(rest), 0)
+        # One frame in, every glyph is below its rest and still faint.
+        self.assertEqual(self.bright(self.render(self.BARE, at=1 / 60)), 0)
+        # The last letter is still on its way just before the span closes,
+        # and every letter is home once it has.
+        self.assertNotEqual(self.render(self.BARE, at=self.SPAN - 0.02), rest)
+        self.assertEqual(self.render(self.BARE, at=self.SPAN + 0.02), rest)
+
+    def test_a_progress_the_track_states_stands(self):
+        self.assertTrue(textFx.entrance(textFx.rise(20)).progressOverSpan)
+        held = textFx.entrance(textFx.rise(20), compose.Track(progress=0.5))
+        self.assertFalse(held.progressOverSpan)
+        # Long past the span the glyphs still stand where 0.5 puts them.
+        self.assertEqual(
+            self.render(
+                'text("RISE").font(sans).textFx(textFx.entrance(textFx.rise(20), '
+                "compose.Track(progress=0.5)))",
+                at=1.0,
+            ),
+            self.render(
+                'text("RISE").font(sans).textFx(textFx.enter(textFx.rise(20)), '
+                "progress=0.5)",
+                at=1.0,
+            ),
+        )
+        # A motion of its own keeps its own two seconds.
+        driven = (
+            'text("RISE").font(sans).textFx(textFx.entrance(textFx.rise(20), '
+            "compose.Track(progress=motion.animate(from_=0, to=1, duration=2, "
+            "ease=motion.ease.linear))))"
+        )
+        rest = self.render(self.REST, at=1.0)
+        self.assertNotEqual(self.render(driven, at=self.SPAN + 0.1), rest)
+        self.assertEqual(self.render(driven, at=2.05), rest)
+
+    def test_an_exit_runs_a_bare_entrance_back_to_its_start(self):
+        leaving = (
+            'text("RISE").font(sans).key("title").exit()'
+            ".textFx(textFx.entrance(textFx.rise(20)))"
+        )
+        rest = self.render(self.REST, at=1.0)
+        self.assertEqual(self.render(leaving, at=0.58, leave=0.6), rest)
+        # On its way back, then all but back at its start, then gone.
+        self.assertNotEqual(self.render(leaving, at=0.8, leave=0.6), rest)
+        self.assertGreater(self.bright(self.render(leaving, at=0.8, leave=0.6)), 0)
+        self.assertEqual(self.bright(self.render(leaving, at=1.1, leave=0.6)), 0)
+        gone = self.render(leaving, at=1.2, leave=0.6)
+        self.assertEqual(TextEffects.count(gone, lambda r, g, b: max(r, g, b) > 0), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

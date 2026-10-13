@@ -612,6 +612,17 @@ struct Composer::Impl {
    *  description brings. */
   void applyTransitions(detail::Instance& inst, detail::StyledNode prev);
   void applyMountTransitions(detail::Instance& inst);
+  /** Whether some leaf mounted a track whose progress waits for its span,
+   *  as `Instance::trackSpansOwedSince` records. */
+  bool trackSpansOwed = false;
+  /** Starts every progress waiting for its span in @p inst's subtree whose
+   *  text is laid out, caught up to the time since its leaf mounted.
+   *  Answers whether any still waits. */
+  bool startTrackSpans(detail::Instance& inst);
+  /** The span track @p trackIndex of @p inst maps its progress onto, as
+   *  the text engine resolves it against the layout in force; zero where
+   *  the track runs nothing. */
+  motion::Duration trackSpanOf(detail::Instance& inst, size_t trackIndex);
   /** ONE ENTRANCE IN A LEAVING SUBTREE: the motion that holds it, the
    *  description's value it was declared on (null for the fill's own
    *  progress), the entrance resolved where its node stands, and when that

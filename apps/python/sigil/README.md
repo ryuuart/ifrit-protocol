@@ -1342,7 +1342,11 @@ The native entrance runs on a text leaf's glyphs as a track:
 `variableAxisSweep`, or a `textFx.DisplacedTween` of your own — and its
 duration and stagger are the track's schedule; a `compose.Track` passed
 beside it says which glyphs, by what unit, and the master `progress`, which
-binds any motion value.
+binds any motion value. It plays once when the text mounts: a track whose
+`progress` is left at its default of one runs from 0 to 1, straight, over
+the span its schedule takes on the laid-out text (`Track.progressOverSpan`),
+so the last glyph lands as the run ends; a progress the track states, such
+as `compose.Track(progress=reveal)`, stands as written.
 
 Every other effect a track runs is a `textFx.TextEffect` value, handed to
 `Text.textFx` with the track's other fields as keywords —

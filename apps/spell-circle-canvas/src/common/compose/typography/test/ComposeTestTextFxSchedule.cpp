@@ -4,8 +4,9 @@
 //
 // The text binary's share of the content suites, one file per subject.
 
-#include "DressedTypeProbes.h"
 #include <sigilmotion/ease/Ease.h>
+
+#include "DressedTypeProbes.h"
 
 namespace {
 
@@ -63,20 +64,22 @@ TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
         {text(u8"AA BB CC DD", whiteStyle(16))
              .key("p")
              .width(360)
-             .textFx({.where = sigil::weave::selectors::each(
-                                   sigil::weave::Unit::Word)
-                                   .take(1) &
-                               sigil::weave::selectors::words(1, 4),
-                      .effect = textFx::enter(textFx::rise(6)),
-                      .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
-                      .unit = sigil::weave::Unit::Word,
-                      .beatsOver = numbering})
-             .textFx({.where = sigil::weave::selectors::each(
-                                   sigil::weave::Unit::Word)
-                                   .drop(1),
-                      .effect = textFx::enter(textFx::rise(6)),
-                      .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
-                      })}));
+             .textFx(
+                 {.where =
+                      sigil::weave::selectors::each(sigil::weave::Unit::Word)
+                          .take(1) &
+                      sigil::weave::selectors::words(1, 4),
+                  .effect = textFx::enter(textFx::rise(6)),
+                  .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
+                  .unit = sigil::weave::Unit::Word,
+                  .beatsOver = numbering})
+             .textFx({
+                 .where =
+                     sigil::weave::selectors::each(sigil::weave::Unit::Word)
+                         .drop(1),
+                 .effect = textFx::enter(textFx::rise(6)),
+                 .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
+             })}));
     host.frame();
     return std::pair(host.composer.beatsOf("p", 0),
                      host.composer.beatsOf("p", 1));
@@ -122,11 +125,12 @@ TEST(ComposeTextFx, ATrackOverTheSelectionBeatsOnceForEachExtentItNamed) {
         {text(u8"AA BB AA BB AA", whiteStyle(16))
              .key("p")
              .width(460)
-             .textFx({.where = sigil::weave::selectors::text(u8"AA"),
-                      .effect = textFx::enter(textFx::rise(6)),
-                      .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
-                      .unit = sigil::weave::Unit::Selection,
-                      .beatsOver = numbering})}));
+             .textFx(
+                 {.where = sigil::weave::selectors::text(u8"AA"),
+                  .effect = textFx::enter(textFx::rise(6)),
+                  .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
+                  .unit = sigil::weave::Unit::Selection,
+                  .beatsOver = numbering})}));
     host.frame();
     return host.composer.beatsOf("p", 0);
   };
@@ -187,7 +191,8 @@ TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
            .key("p")
            .width(360)
            .textFx({.effect = textFx::enter(textFx::rise(6)),
-                    .tween = {.duration = 100ms, .delay = motion::cues({0ms, 200ms})},
+                    .tween = {.duration = 100ms,
+                              .delay = motion::cues({0ms, 200ms})},
                     .unit = sigil::weave::Unit::Word})}));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -290,8 +295,8 @@ TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
   // the 100x100 at the origin: every beat must be OUT there, on the curve.
   SkRect union_ = SkRect::MakeEmpty();
   for (const Beat& beat : beats) {
-    const float radius =
-        std::hypot(beat.rect.centre().x - 200.0f, beat.rect.centre().y - 100.0f);
+    const float radius = std::hypot(beat.rect.centre().x - 200.0f,
+                                    beat.rect.centre().y - 100.0f);
     EXPECT_NEAR(radius, 60.0f, 14.0f)
         << "a beat left the baseline it was supposed to be reading";
     union_.join(geometry::path::toSk(beat.rect));
@@ -325,11 +330,12 @@ TEST(ComposeTextFx, BeatsOfCompoundsANestedSchedule) {
       {text(u8"AB CD", whiteStyle(16))
            .key("p")
            .width(360)
-           .textFx({.effect = textFx::enter(textFx::rise(6)),
-                    .tween = {.duration = 100ms, .delay = motion::stagger(300ms)},
-                    .within = motion::stagger(40ms),
-                    .unit = sigil::weave::Unit::Word,
-                    .innerUnit = sigil::weave::Unit::Cluster})}));
+           .textFx(
+               {.effect = textFx::enter(textFx::rise(6)),
+                .tween = {.duration = 100ms, .delay = motion::stagger(300ms)},
+                .within = motion::stagger(40ms),
+                .unit = sigil::weave::Unit::Word,
+                .innerUnit = sigil::weave::Unit::Cluster})}));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
   ASSERT_EQ(beats.size(), 4u) << "one beat per letter, two letters per word";
@@ -370,9 +376,10 @@ TEST(ComposeTextFx, ScheduleSpanIsWhatTheMasterProgressMapsOnto) {
       {text(u8"AA BB CC DD", whiteStyle(16))
            .key("p")
            .width(360)
-           .textFx({.effect = textFx::enter(textFx::rise(6)),
-                    .tween = {.duration = timing.duration, .delay = timing.delay},
-                    .unit = sigil::weave::Unit::Word})}));
+           .textFx(
+               {.effect = textFx::enter(textFx::rise(6)),
+                .tween = {.duration = timing.duration, .delay = timing.delay},
+                .unit = sigil::weave::Unit::Word})}));
   host.frame();
   const float span = inMilliseconds(host.composer.scheduleSpan("p", 0));
   EXPECT_FLOAT_EQ(span, 500.0f) << "duration + step·(N−1) over 4 words";
@@ -410,11 +417,12 @@ TEST(ComposeTextFx, ScheduleSpanCompoundsNestingAndReadsTheTable) {
         {text(u8"AB CD", whiteStyle(16))
              .key("p")
              .width(360)
-             .textFx({.effect = textFx::enter(textFx::rise(6)),
-                      .tween = {.duration = nested.duration, .delay = nested.delay},
-                      .within = nested.within,
-                      .unit = sigil::weave::Unit::Word,
-                      .innerUnit = sigil::weave::Unit::Cluster})}));
+             .textFx(
+                 {.effect = textFx::enter(textFx::rise(6)),
+                  .tween = {.duration = nested.duration, .delay = nested.delay},
+                  .within = nested.within,
+                  .unit = sigil::weave::Unit::Word,
+                  .innerUnit = sigil::weave::Unit::Cluster})}));
     host.frame();
     const float span = inMilliseconds(host.composer.scheduleSpan("p", 0));
     EXPECT_FLOAT_EQ(span, 440.0f) << "300·1 + 40·1 + 100";
@@ -428,8 +436,8 @@ TEST(ComposeTextFx, ScheduleSpanCompoundsNestingAndReadsTheTable) {
   // A cue table's extent is the table's own: the LATEST time any unit
   // reads plus the duration — a max, not the final entry, because a table
   // is not required to ascend.
-  const motion::Timing cued{
-      .delay = motion::cues({0ms, 340ms, 720ms, 1180ms}), .duration = 180ms};
+  const motion::Timing cued{.delay = motion::cues({0ms, 340ms, 720ms, 1180ms}),
+                            .duration = 180ms};
   {
     Host host(400, 120);
     host.composer.render(box().padding(6).children(
@@ -444,11 +452,11 @@ TEST(ComposeTextFx, ScheduleSpanCompoundsNestingAndReadsTheTable) {
     EXPECT_FLOAT_EQ(span, 1360.0f) << "the table's last time plus one beat";
     EXPECT_FLOAT_EQ(inMilliseconds(cued.span(4)), span);
   }
-  EXPECT_FLOAT_EQ(inMilliseconds(motion::Timing{.delay = motion::cues(
-                                                     {0ms, 900ms, 300ms}),
-                                                 .duration = 100ms}
-                                      .span(3)),
-                  1000.0f)
+  EXPECT_FLOAT_EQ(
+      inMilliseconds(motion::Timing{.delay = motion::cues({0ms, 900ms, 300ms}),
+                                    .duration = 100ms}
+                         .span(3)),
+      1000.0f)
       << "an out-of-order table spans to its LATEST time, not its last entry";
 }
 
@@ -479,11 +487,13 @@ std::vector<Beat> loopBeatsAt(Host& host, float master) {
       {text(u8"AA BB CC", whiteStyle(16))
            .key("p")
            .width(360)
-           .textFx(
-               {.effect = textFx::enter(textFx::rise(6)),
-                .tween = {.duration = 200ms, .delay = motion::stagger(100ms), .loop = -1, .loopDelay = 400ms - 200ms},
-                .unit = sigil::weave::Unit::Word,
-                .progress = master})}));
+           .textFx({.effect = textFx::enter(textFx::rise(6)),
+                    .tween = {.duration = 200ms,
+                              .delay = motion::stagger(100ms),
+                              .loop = -1,
+                              .loopDelay = 400ms - 200ms},
+                    .unit = sigil::weave::Unit::Word,
+                    .progress = master})}));
   host.frame();
   return host.composer.beatsOf("p", 0);
 }
@@ -532,7 +542,8 @@ TEST(ComposeTextFx, ALoopingScheduleReopensEachUnitOnItsOwnCycle) {
   EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("p", 0)), 400.0f);
   const motion::Timing looping{.delay = motion::stagger(100ms),
                                .duration = 200ms,
-                               .loop = true, .loopDelay = 400ms - 200ms};
+                               .loop = true,
+                               .loopDelay = 400ms - 200ms};
   EXPECT_FLOAT_EQ(inMilliseconds(looping.span(3)), 400.0f);
 
   // A start PAST the period folds mod it — the beat still re-opens once
@@ -542,11 +553,13 @@ TEST(ComposeTextFx, ALoopingScheduleReopensEachUnitOnItsOwnCycle) {
         {text(u8"AA BB CC", whiteStyle(16))
              .key("p")
              .width(360)
-             .textFx(
-                 {.effect = textFx::enter(textFx::rise(6)),
-                  .tween = {.duration = 200ms, .delay = motion::stagger(300ms), .loop = -1, .loopDelay = 400ms - 200ms},
-                  .unit = sigil::weave::Unit::Word,
-                  .progress = 0.75f})}));  // virtual 300
+             .textFx({.effect = textFx::enter(textFx::rise(6)),
+                      .tween = {.duration = 200ms,
+                                .delay = motion::stagger(300ms),
+                                .loop = -1,
+                                .loopDelay = 400ms - 200ms},
+                      .unit = sigil::weave::Unit::Word,
+                      .progress = 0.75f})}));  // virtual 300
     host.frame();
     const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
     ASSERT_EQ(beats.size(), 3u);
@@ -569,7 +582,8 @@ TEST(ComposeTextFx, AZeroLoopIsTheOneShotSchedule) {
   EXPECT_FALSE(defaultedTiming ==
                (motion::Timing{.delay = motion::stagger(100ms),
                                .duration = 200ms,
-                               .loop = true, .loopDelay = 400ms - 200ms}));
+                               .loop = true,
+                               .loopDelay = 400ms - 200ms}));
 
   const auto render = [](const motion::Timing& timing) {
     Host host(400, 120);
@@ -578,7 +592,11 @@ TEST(ComposeTextFx, AZeroLoopIsTheOneShotSchedule) {
              .key("p")
              .width(360)
              .textFx({.effect = textFx::enter(textFx::rise(6)),
-                      .tween = {.duration = timing.duration, .delay = timing.delay, .loop = timing.loop ? -1 : 0, .loopDelay = timing.loopDelay, .alternate = timing.alternate},
+                      .tween = {.duration = timing.duration,
+                                .delay = timing.delay,
+                                .loop = timing.loop ? -1 : 0,
+                                .loopDelay = timing.loopDelay,
+                                .alternate = timing.alternate},
                       .unit = sigil::weave::Unit::Word,
                       .progress = 0.25f})}));
     host.frame();
@@ -612,7 +630,10 @@ TEST(ComposeTextFx, AHeldEffectOnALoopingCascadeHasNothingLeftToVeto) {
         {text(u8"AA BB", whiteStyle(28))
              .key("p")
              .textFx({.effect = textFx::hold(textFx::enter(textFx::rise(24))),
-                      .tween = {.duration = 100ms, .delay = motion::stagger(300ms), .loop = -1, .loopDelay = loop - 100ms},
+                      .tween = {.duration = 100ms,
+                                .delay = motion::stagger(300ms),
+                                .loop = -1,
+                                .loopDelay = loop - 100ms},
                       .unit = sigil::weave::Unit::Word,
                       .progress = 0.25f})});
   };
@@ -651,11 +672,13 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
   live.composer.render(box().padding(10).children(
       {text(u8"LOOP", whiteStyle(28))
            .key("p")
-           .textFx(
-               {.effect = textFx::enter(textFx::rise(24)),
-                .tween = {.duration = 200ms, .delay = motion::stagger(100ms), .loop = -1, .loopDelay = 400ms - 200ms},
-                .unit = sigil::weave::Unit::Cluster,
-                .progress = phase})}));
+           .textFx({.effect = textFx::enter(textFx::rise(24)),
+                    .tween = {.duration = 200ms,
+                              .delay = motion::stagger(100ms),
+                              .loop = -1,
+                              .loopDelay = 400ms - 200ms},
+                    .unit = sigil::weave::Unit::Cluster,
+                    .progress = phase})}));
   live.frame();
   double clock = 0.0;
   for (int i = 0; i < 24; ++i) {  // three settle windows, several wraps
@@ -671,14 +694,15 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
   still.composer.render(box().padding(10).children(
       {text(u8"LOOP", whiteStyle(28))
            .key("p")
-           .textFx({.effect = textFx::enter(textFx::rise(24)),
-                    .tween = {.duration = 200ms, .delay = motion::stagger(100ms)},
-                    .unit = sigil::weave::Unit::Cluster,
-                    .progress = motion::animate(
-                        {.from = 0.0f,
-                         .to = 1.0f,
-                         .duration = 200ms,
-                         .ease = motion::ease::linear})})}));
+           .textFx(
+               {.effect = textFx::enter(textFx::rise(24)),
+                .tween = {.duration = 200ms, .delay = motion::stagger(100ms)},
+                .unit = sigil::weave::Unit::Cluster,
+                .progress =
+                    motion::animate({.from = 0.0f,
+                                     .to = 1.0f,
+                                     .duration = 200ms,
+                                     .ease = motion::ease::linear})})}));
   for (int i = 0; i < 24; ++i) still.frame(0.016);
   unsigned settledPaints = 0;
   for (int i = 0; i < 4; ++i) {
@@ -688,4 +712,93 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
   EXPECT_EQ(settledPaints, 0u)
       << "the one-shot control kept painting live after its entrance "
          "settled";
+}
+
+TEST(ComposeTextFx, ABareEntrancePlaysOnceWhenItsLeafMounts) {
+  // An entrance whose track states no progress runs its whole schedule from
+  // the start when the leaf mounts, straight over the track's span: the
+  // first frame finds every beat short of home and the first one as far in
+  // as the clock has gone, the last beat lands as the span closes, and
+  // nothing moves after that.
+  Host host;
+  host.composer.render(box().padding(20).children(
+      {text(u8"RISE", whiteStyle(24))
+           .key("title")
+           .textFx(textFx::entrance(textFx::rise(20)))}));
+  host.frame(1.0 / 60.0);
+  const std::vector<Beat> first = host.composer.beatsOf("title", 0);
+  ASSERT_EQ(first.size(), 4u);
+  for (const Beat& beat : first) EXPECT_LT(beat.localProgress, 1.0f);
+  EXPECT_NEAR(first.front().localProgress, (1000.0f / 60.0f) / 450.0f, 1e-3f)
+      << "the run counts from the mount, not from the first layout";
+  EXPECT_TRUE(host.composer.isRunning());
+
+  const float span = inMilliseconds(host.composer.scheduleSpan("title", 0));
+  EXPECT_FLOAT_EQ(span, 540.0f) << "450 + 30·3 over four letters";
+  host.frame((span - 20.0f) / 1000.0f - 1.0 / 60.0);  // 20ms short of it
+  const std::vector<Beat> late = host.composer.beatsOf("title", 0);
+  ASSERT_EQ(late.size(), 4u);
+  EXPECT_FLOAT_EQ(late.front().localProgress, 1.0f);
+  EXPECT_LT(late.back().localProgress, 1.0f)
+      << "the last beat closes with the span, not before it";
+
+  host.frame(0.03);  // past the span
+  for (const Beat& beat : host.composer.beatsOf("title", 0))
+    EXPECT_FLOAT_EQ(beat.localProgress, 1.0f);
+  host.frame(1.0 / 60.0);
+  EXPECT_FALSE(host.composer.isRunning());
+}
+
+TEST(ComposeTextFx, AnEntranceKeepsTheProgressItsTrackStates) {
+  // Left at its default, the progress is the entrance's own run over the
+  // span; stated, it stands as written — a constant holds the glyphs where
+  // it puts them, and a motion keeps its own duration.
+  const Track bare = textFx::entrance(textFx::rise(20));
+  EXPECT_TRUE(bare.progressOverSpan);
+  const motion::Tween<float>* run = bare.progress.described();
+  ASSERT_NE(run, nullptr);
+  EXPECT_TRUE(run->isEntrance());
+  EXPECT_FLOAT_EQ(run->start(), 0.0f);
+  EXPECT_FLOAT_EQ(run->rest(), 1.0f);
+
+  const Track held = textFx::entrance(textFx::rise(20), {.progress = 0.5f});
+  EXPECT_FALSE(held.progressOverSpan);
+  ASSERT_NE(held.progress.constant(), nullptr);
+  EXPECT_FLOAT_EQ(*held.progress.constant(), 0.5f);
+
+  const auto driven = [] {
+    return textFx::entrance(
+        textFx::rise(20),
+        {.progress = motion::animate({.from = 0.0f,
+                                      .to = 1.0f,
+                                      .duration = 2s,
+                                      .ease = motion::ease::linear})});
+  };
+  EXPECT_FALSE(driven().progressOverSpan);
+
+  Host host(200, 160);
+  host.composer.render(box().padding(20).children(
+      {text(u8"HOLD", whiteStyle(24))
+           .key("held")
+           .textFx(textFx::entrance(textFx::rise(20), {.progress = 0.5f})),
+       text(u8"MOVE", whiteStyle(24)).key("driven").textFx(driven())}));
+  host.frame(1.0 / 60.0);
+  const std::vector<Beat> before = host.composer.beatsOf("held", 0);
+  host.frame(0.6);  // past the 540ms span an entrance of its own would take
+  const std::vector<Beat> after = host.composer.beatsOf("held", 0);
+  ASSERT_EQ(after.size(), 4u);
+  ASSERT_EQ(before.size(), after.size());
+  for (size_t index = 0; index < after.size(); ++index)
+    EXPECT_FLOAT_EQ(after[index].localProgress, before[index].localProgress);
+  // Master 0.5 is 270ms into the 540ms schedule: the first letter is
+  // 270ms into its 450ms beat and the last, opening at 90ms, 180ms in.
+  EXPECT_FLOAT_EQ(after.front().localProgress, 0.6f);
+  EXPECT_FLOAT_EQ(after.back().localProgress, 0.4f);
+  const std::vector<Beat> moving = host.composer.beatsOf("driven", 0);
+  ASSERT_EQ(moving.size(), 4u);
+  EXPECT_LT(moving.back().localProgress, 1.0f)
+      << "a motion the track states keeps its own two seconds";
+  host.frame(1.5);
+  for (const Beat& beat : host.composer.beatsOf("driven", 0))
+    EXPECT_FLOAT_EQ(beat.localProgress, 1.0f);
 }

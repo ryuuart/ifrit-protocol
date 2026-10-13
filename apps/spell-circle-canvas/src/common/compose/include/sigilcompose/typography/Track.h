@@ -13,11 +13,11 @@
  * schedule read back where the text put it.
  */
 
-#include <sigilgeometry/path/Outline.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilcompose/typography/TextUnit.h>
 #include <sigilcore/comparable/Fields.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/values/Animatable.h>
@@ -57,7 +57,7 @@ inline constexpr Beats Text = Beats::Text;
  *  master progress that drives it.
  *
  *  `progress` takes the full Animatable treatment — a plain constant,
- *  a `with()`/`animate()` transition (retarget-safe: each track owns its
+ *  a `motion::animate()` transition (retarget-safe: each track owns its
  *  own transition slot, so retargeting the second track leaves the first
  *  alone), or a live value. One-shot effects consume 0→1; loop
  *  effects read a WRAPPING bound phase. While any track's progress moves
@@ -86,8 +86,9 @@ struct Track {
    *
    *  Written whole, a tween takes `motion::Tween`'s own defaults: no
    *  delay (every unit together) and 250ms. */
-  motion::Tween<float> tween{.duration = std::chrono::milliseconds(450),
-                             .delay = motion::stagger(std::chrono::milliseconds(30))};
+  motion::Tween<float> tween{
+      .duration = std::chrono::milliseconds(450),
+      .delay = motion::stagger(std::chrono::milliseconds(30))};
   /** A second stagger inside every beat, over `innerUnit`: words, then the
    *  letters inside each word. */
   std::optional<motion::Staggered<motion::Duration>> within;
@@ -110,6 +111,17 @@ struct Track {
    *  as one `loop` governs both periods. */
   Beats beatsOver = Beats::Selection;
   motion::Animatable<float> progress = 1.0f;
+  /** THE PROGRESS RUNS OVER THE SCHEDULE'S SPAN: a `progress` described as
+   *  a motion takes the track's span — the moment the last beat closes, or
+   *  one period of a looping schedule — as its duration, whatever duration
+   *  it names. The span counts units, and units are known only once the
+   *  text is laid out, so the composer starts that motion then, counted
+   *  from the moment the leaf mounted. `textFx::entrance()` sets it beside
+   *  the mount entrance it writes; a caller who then writes a motion of
+   *  their own into `progress` clears it too, or that motion runs over the
+   *  span instead of the duration it names. A constant or live progress
+   *  ignores it. */
+  bool progressOverSpan = false;
   /** Pixels beyond the element's box this track may paint, which the
    *  recording cull grows by. Negative means "ask the effect", which is
    *  what every preset answers for itself; set it when a keyed lambda
@@ -140,7 +152,8 @@ struct Track {
    *  in its own beat, 0 to 1 — for the unit at @p place among the
    *  siblings: `from` to `to` on the tween's curve, through its keyframes.
    *  A tween naming none of them reads @p local itself. */
-  [[nodiscard]] float unitProgress(float local, motion::Place place = {}) const {
+  [[nodiscard]] float unitProgress(float local,
+                                   motion::Place place = {}) const {
     if (!tween.from && !tween.to && tween.keyframes.empty() && !tween.ease)
       return local;
     const float start = tween.from ? tween.from->at(place) : 0.0f;
@@ -164,7 +177,8 @@ struct Track {
     for (const motion::Keyframe<float>& step : tween.keyframes) {
       const motion::Duration length = step.duration.value_or(share);
       if (into <= length) {
-        const float unit = length > motion::Duration{} ? (float)(into / length) : 1.0f;
+        const float unit =
+            length > motion::Duration{} ? (float)(into / length) : 1.0f;
         return motion::interpolate(at, step.to, shaped(step.ease, unit));
       }
       into -= length;
@@ -188,9 +202,10 @@ struct Track {
   bool sameShape(const Track& other) const {
     return where == other.where && effect == other.effect &&
            motion::tweenEqual(tween, other.tween) && within == other.within &&
-           unit == other.unit &&
-           innerUnit == other.innerUnit && beatsOver == other.beatsOver &&
-           reach == other.reach && continuous == other.continuous;
+           unit == other.unit && innerUnit == other.innerUnit &&
+           beatsOver == other.beatsOver &&
+           progressOverSpan == other.progressOverSpan && reach == other.reach &&
+           continuous == other.continuous;
   }
   /** Full equality: the shape above plus the progress. */
   bool operator==(const Track& other) const {
@@ -209,10 +224,10 @@ struct Track {
  *  this one is spelled out. Defined here, never called. */
 inline void trackFieldPin(Track& track) {
   auto& [where, effect, tween, within, unit, innerUnit, beatsOver, progress,
-         reach, continuous] = track;
+         progressOverSpan, reach, continuous] = track;
   (void)where, (void)effect, (void)tween, (void)within, (void)unit,
-      (void)innerUnit, (void)beatsOver, (void)progress, (void)reach,
-      (void)continuous;
+      (void)innerUnit, (void)beatsOver, (void)progress, (void)progressOverSpan,
+      (void)reach, (void)continuous;
 }
 
 /** ONE BEAT OF A RESOLVED SCHEDULE, WHERE THE TEXT PUT IT — what

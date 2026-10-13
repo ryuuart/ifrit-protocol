@@ -30,8 +30,11 @@ and scale and alpha multiplying. The seam is three headers:
   `textFx::entrance` is ONE `motion::Tween` of a glyph's
   `textFx::Displaced` lanes — `.from` where it starts, `.ease` how it comes
   home, `.duration`, `.delay` and `.loop` the track's schedule — made a
-  track; `textFx::enter` is the same path as an effect, for the
-  combinators, where the track around it says when.
+  track that plays once when its leaf mounts: a track whose `progress` is
+  left at its default constant of one gets a run from 0 to 1, straight,
+  over the track's span (`Track::progressOverSpan`), and a progress the
+  track states stands as written. `textFx::enter` is the same path as an
+  effect, for the combinators, where the track around it says when.
 - `typography/Presets.h` — the stock values an example reaches for. Every
   entrance there is a `motion::Tween<textFx::Displaced>` a caller may copy
   and change: `rise`, `slide`, `pop`, `spinIn`, `scatter`, `typeOn` (the
@@ -202,7 +205,14 @@ progress duration must equal for a schedule to run at its authored times
 spans exactly the span — and the number anything sequenced *after* the
 schedule offsets from. It is computed by the same resolved schedule the
 glyphs and `beatsOf` read, so the three cannot disagree; an unknown key
-or track index resolves to zero, silently. `Track::span` is the same
+or track index resolves to zero, silently. A track that states
+`Track::progressOverSpan` names no such duration: its progress, described
+as a motion, takes the span as its duration. The span counts units, which
+only the laid-out text knows, so the composer holds that progress at its
+start until the first layout after the leaf mounts and then runs it as
+though it had started at the mount. `textFx::entrance` sets it beside the
+mount entrance it writes, which is how a bare entrance lands its last
+letter as its master arrives at one. `Track::span` is the same
 number at *declare* time, computed from unit counts alone for the site
 that needs it before any node exists — above all the progress
 transition written right next to the stagger:

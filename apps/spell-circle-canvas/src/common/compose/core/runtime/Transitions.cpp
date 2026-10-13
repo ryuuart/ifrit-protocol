@@ -14,7 +14,11 @@
  * changed and the CASCADE PASS for one that takes its answer from above;
  * a positional lane lives in a block of the description and so moves only
  * at a patch; an entrance belongs to the mount, where the fact "there is
- * no previous value" lives.
+ * no previous value" lives. The one entrance that cannot start there is a
+ * text track's progress over its span, which counts units the text has
+ * only once it is laid out: the mount holds it at its start, and the draw
+ * that first lays the text out starts it where it would stand had it
+ * started at the mount.
  *
  * WHEN EACH BEGINS. A lane starts where the pass that found its change
  * runs, and both passes belong to the DESCRIBE — the patch and then the
@@ -132,6 +136,17 @@ std::span<const Lane> familyLanes(const std::vector<Lane>& lanes,
 constexpr LaneFamily kPositionalFamilies[] = {
     LaneFamily::Span, LaneFamily::Gate, LaneFamily::Track};
 
+/** The entrance track @p index of @p styled's text runs its progress on
+ *  when that progress runs over the track's span (`Track::progressOverSpan`),
+ *  else null: its duration is the span, which only a laid-out text knows. */
+const motion::Tween<float>* spanEntranceOf(StyledNode styled, size_t index) {
+  if (!styled.node.textData) return nullptr;
+  const std::vector<Track>& tracks = styled.node.textData->tracks;
+  if (index >= tracks.size() || !tracks[index].progressOverSpan) return nullptr;
+  const motion::Tween<float>* described = tracks[index].progress.described();
+  return described && described->isEntrance() ? described : nullptr;
+}
+
 /** Appends each term's endpoints in declaration order, continuing the
  *  family's ordinal across stroke passes or masks. */
 void appendSpanLanes(const Spans& spans, LaneFamily family, size_t& ordinal,
@@ -225,12 +240,33 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
   lanes(inst.styled(), nodeLanes);
   for (const Lane& lane : familyLanes(nodeLanes, LaneFamily::Slot))
     if (lane.value) entranceAt(inst.anims[lane.slot.index], *lane.value);
+  bool waitsForSpan = false;
   for (const LaneFamily family : kPositionalFamilies) {
     const std::span<const Lane> members = familyLanes(nodeLanes, family);
     std::vector<std::unique_ptr<HeldMotion>>& anims = familyAnims(inst, family);
     anims.resize(members.size());
-    for (size_t i = 0; i < members.size(); ++i)
-      entranceAt(anims[i], *members[i].value);
+    for (size_t i = 0; i < members.size(); ++i) {
+      // A track's progress over its span: the text is shaped and laid out
+      // after this pass, so it holds at its start until startTrackSpans()
+      // knows how long it runs.
+      const motion::Tween<float>* overSpan =
+          family == LaneFamily::Track ? spanEntranceOf(inst.styled(), i)
+                                      : nullptr;
+      if (!overSpan) {
+        entranceAt(anims[i], *members[i].value);
+        continue;
+      }
+      std::unique_ptr<HeldMotion>& held = anims[i];
+      if (!held) held = std::make_unique<HeldMotion>();
+      held->live = overSpan->start();
+      held->started = true;
+      held->target = overSpan->rest();
+      waitsForSpan = true;
+    }
+  }
+  if (waitsForSpan) {
+    inst.trackSpansOwedSince = engine.elapsed();
+    trackSpansOwed = true;
   }
 
   // The kFillLerp row (SlotRole::Bespoke): from → to through a synthesized
@@ -259,6 +295,45 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
       }
     }
   }
+}
+
+motion::Duration Composer::Impl::trackSpanOf(Instance& inst,
+                                             size_t trackIndex) {
+  const TextPainterOperations* painter = textPainterOf(inst);
+  if (!painter) painter = detail::registeredTextEngine();
+  return painter ? painter->scheduleSpan(inst, trackIndex) : motion::Duration{};
+}
+
+bool Composer::Impl::startTrackSpans(Instance& inst) {
+  bool waiting = false;
+  // A leaf that leaves before its text was laid out never entered, so its
+  // progress stays at its start and nothing plays it out.
+  if (inst.trackSpansOwedSince && inst.leaving)
+    inst.trackSpansOwedSince.reset();
+  if (inst.trackSpansOwedSince) {
+    if (!inst.paragraph || inst.measuredRev != inst.contentRev) {
+      waiting = true;
+    } else {
+      const double since =
+          (engine.elapsed() - *inst.trackSpansOwedSince).count();
+      inst.trackSpansOwedSince.reset();
+      for (size_t i = 0; i < inst.trackAnims.size(); ++i) {
+        const motion::Tween<float>* overSpan = spanEntranceOf(inst.styled(), i);
+        if (!overSpan) continue;
+        motion::Tween<float> run = overSpan->resolved(inst.mountPlace);
+        run.duration = trackSpanOf(inst, i);
+        std::unique_ptr<HeldMotion>& held = inst.trackAnims[i];
+        motion::enter(engine, held, motion::animate(std::move(run)));
+        // The run began when the leaf mounted, and the clock has moved
+        // since; it takes up where it would stand had it started then.
+        if (since > 0.0 && held && held->running) held->running->advance(since);
+      }
+      inst.markPaintDirtyUp();
+    }
+  }
+  for (auto& child : inst.children)
+    if (child) waiting |= startTrackSpans(*child);
+  return waiting;
 }
 
 namespace {
@@ -315,8 +390,20 @@ void Composer::Impl::entrancesUnder(Instance& inst, motion::Place place,
     const std::span<const Lane> members = familyLanes(nodeLanes, family);
     std::vector<std::unique_ptr<HeldMotion>>& anims = familyAnims(inst, family);
     if (anims.size() != members.size()) anims.resize(members.size());
-    for (size_t i = 0; i < members.size(); ++i)
-      declared(anims[i], members[i].value);
+    for (size_t i = 0; i < members.size(); ++i) {
+      const motion::Tween<float>* overSpan =
+          family == LaneFamily::Track ? spanEntranceOf(inst.styled(), i)
+                                      : nullptr;
+      if (!overSpan) {
+        declared(anims[i], members[i].value);
+        continue;
+      }
+      // A progress over its span came in over the span, so it goes back
+      // over the span too.
+      motion::Tween<float> entrance = overSpan->resolved(place);
+      entrance.duration = trackSpanOf(inst, i);
+      add(anims[i], members[i].value, std::move(entrance));
+    }
   }
   // The fill's entrance is a 0→1 progress along the path the mount set out;
   // backwards it runs to 0, which is the path's first stop.

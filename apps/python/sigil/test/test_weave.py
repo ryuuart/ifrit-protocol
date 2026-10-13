@@ -13,12 +13,12 @@ from sigil.sketch import render_file
 
 
 class Typography(unittest.TestCase):
-    def render(self, source):
+    def render(self, source, at=0):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "typography.py"
             output = Path(folder) / "typography.png"
             path.write_text(source)
-            render_file(path, output, at=0)
+            render_file(path, output, at=at)
             return media.load(output).frameAt(0).image.rgba()
 
     def test_rich_runs_keep_inheritance_and_resolve_names_by_value(self):
@@ -222,18 +222,21 @@ class Scene:
         self.assertIsInstance(typed, compose.Track)
         self.assertEqual(typed, textFx.entrance(textFx.typeOn()))
 
-        def revealed(progress):
-            pixels = self.render(f"""from sigil import compose
+        def revealed(track, at=0):
+            pixels = self.render(
+                f"""from sigil import compose
 from sigil.compose import box, text, textFx
 from sigil.sketch import sketch
 from sigil.weave import Type
 @sketch(size=(240, 40), background="#000000")
 class Scene:
     def setup(self, ctx):
-        track = textFx.entrance(textFx.typeOn(), compose.Track(progress={progress}))
+        track = {track}
         ctx.render(box().width(240).height(40).children(
             text("MMMMMMMMMMMM").font(Type(size=16, color="#ffffff")).textFx(track)))
-""")
+""",
+                at=at,
+            )
             columns = [
                 any(pixels[(y * 240 + x) * 4] > 128 for y in range(40))
                 for x in range(240)
@@ -241,9 +244,17 @@ class Scene:
             inked = [x for x, ink in enumerate(columns) if ink]
             return (min(inked), max(inked)) if inked else None
 
-        self.assertIsNone(revealed(0))
-        whole = revealed(1)
-        half = revealed(0.5)
+        def held(progress):
+            return (
+                f"textFx.entrance(textFx.typeOn(), compose.Track(progress={progress}))"
+            )
+
+        self.assertIsNone(revealed(held(0)))
+        # Left at its default, the progress is the entrance's own: nothing
+        # when the text mounts, every glyph once the 780ms span has passed.
+        self.assertIsNone(revealed("textFx.entrance(textFx.typeOn())"))
+        whole = revealed("textFx.entrance(textFx.typeOn())", at=1.0)
+        half = revealed(held(0.5))
         self.assertIsNotNone(whole)
         self.assertIsNotNone(half)
         assert whole is not None and half is not None

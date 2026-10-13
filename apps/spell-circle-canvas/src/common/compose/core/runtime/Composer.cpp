@@ -211,6 +211,12 @@ void Composer::Impl::settleForDraw() {
   }
   ensureLayout();
   if (cascadeDirty) runCascade();
+  // A track's progress over its span starts once its text is laid out,
+  // which is now, before anything asks whether it moves.
+  if (trackSpansOwed && root) {
+    trackSpansOwed = startTrackSpans(*root);
+    volatileDirty = true;
+  }
   // Volatility changes only on reconcile or while animations run (and once
   // more on the frame they settle) — skip the walk otherwise. Bindings the
   // host drives directly are the exception this scan covers: such a live value

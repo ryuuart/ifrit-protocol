@@ -177,3 +177,38 @@ TEST(ComposeExits, ALeavingTextEntranceRunsItsTrackBackwards) {
   EXPECT_FALSE(host.composer.bounds("title").has_value());
   EXPECT_FALSE(anyWhiteIn(host, {0, 0, 200, 80}));
 }
+
+TEST(ComposeExits, ALeavingBareTextEntranceRunsItsTrackBackToItsStart) {
+  // An entrance stating no progress plays on mount over its span, and the
+  // exit runs that span backwards: the last letter in goes first, and the
+  // text goes as the track arrives back at zero.
+  Host host;
+  const auto title = [] {
+    return text(u8"EXIT", whiteStyle(24))
+        .key("title")
+        .exit()
+        .textFx(textFx::entrance(textFx::rise(20)));
+  };
+  host.composer.render(box().padding(20).children({title()}));
+  host.frame(0.6);  // the 540ms span has passed
+  ASSERT_TRUE(anyWhiteIn(host, {0, 0, 200, 80}));
+  const std::vector<Beat> rested = host.composer.beatsOf("title", 0);
+  ASSERT_EQ(rested.size(), 4u);
+  for (const Beat& beat : rested) EXPECT_FLOAT_EQ(beat.localProgress, 1.0f);
+
+  host.composer.render(box().padding(20));
+  host.frame(0.2);
+  const std::vector<Beat> early = host.composer.beatsOf("title", 0);
+  ASSERT_EQ(early.size(), 4u);
+  EXPECT_LT(early.back().localProgress, early.front().localProgress);
+  EXPECT_LT(early.back().localProgress, 1.0f);
+  host.frame(0.3);  // 40ms short of the span: nearly back at the start
+  const std::vector<Beat> nearly = host.composer.beatsOf("title", 0);
+  ASSERT_EQ(nearly.size(), 4u);
+  EXPECT_FLOAT_EQ(nearly.back().localProgress, 0.0f);
+  for (const Beat& beat : nearly) EXPECT_LT(beat.localProgress, 0.1f);
+
+  host.frame(0.05);  // the track is back at zero: the text is gone
+  EXPECT_FALSE(host.composer.bounds("title").has_value());
+  EXPECT_FALSE(anyWhiteIn(host, {0, 0, 200, 80}));
+}

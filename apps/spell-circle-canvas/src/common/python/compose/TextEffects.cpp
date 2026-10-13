@@ -70,6 +70,11 @@ void bindTrack(py::module_& composition) {
           [](Track& self, py::handle value) {
             self.progress = motionAnimatable(value);
           })
+      .def_readwrite("progressOverSpan", &Track::progressOverSpan,
+                     "Whether a progress described as a motion runs over the "
+                     "track's schedule span instead of the duration it "
+                     "names. An entrance sets it beside the mount entrance it "
+                     "writes.")
       .def_readwrite("reach", &Track::reach)
       .def_readwrite("continuous", &Track::continuous)
       .def(
@@ -260,10 +265,12 @@ void bindComposeTextEffects(pybind11::module_& module) {
   namespace textFx = compose::textFx;
   auto composition = submodule(module, "compose");
   auto effects = submodule(module, "compose.textFx");
-  bindTrack(composition);
+  // The effect is registered before the track that names it, so the
+  // track's effect field and parameter are declared by the effect's type.
   bindDisplaced(effects);
   bindMotionDisplacedTween(effects);
   bindTextEffect(effects);
+  bindTrack(composition);
   bindGlyphModifier(effects);
 
   effects.def(
@@ -275,7 +282,9 @@ void bindComposeTextEffects(pybind11::module_& module) {
       "THE ENTRANCE, as a track: the tween says what every glyph does — "
       "from_ where it starts — and when, its duration, delay, loop and "
       "alternate the track's schedule. `track` supplies which glyphs, the "
-      "unit and the master progress.");
+      "unit and the master progress. It plays once when the text mounts: a "
+      "track whose progress is left at its default runs 0 to 1 over its "
+      "schedule span; a progress the track states stands as written.");
   effects.def("rise", &textFx::rise, py::arg("distancePx") = 26.0f,
               "Each glyph rises from below.");
   effects.def("slide", &textFx::slide, py::arg("distancePx") = -32.0f,
