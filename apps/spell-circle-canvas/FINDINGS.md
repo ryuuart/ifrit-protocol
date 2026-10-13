@@ -440,3 +440,17 @@ carry the recorder's waits, which wants a door that submits a recorder
 with its waits (`PendingWaits` is private to `Waits.*`). A test should
 time a scene3d sweep frame and find the picture's presented-fence wait
 attached.
+
+## A retain-count assertion in the hardware event test is order-sensitive under a parallel run
+
+`HardwareVulkanOverMetal.AMetalEventHoldsThisQueueUntilMetalRaisesIt`
+(`src/common/core/hardware/test/VulkanOverMetalTest.mm`) asserts that
+the shared event's retain count returns to what it was before the fence
+was imported; under a six-wide ctest run on one GPU the count reads one
+higher, while the case passes alone and repeated. The claim is that the
+device keeps no reference to a maker's event once the fence is
+destroyed, which a retain count read while other processes drive the
+same Metal device does not isolate. The test should prove the release
+another way, such as a weak reference that nils after the destroy and an
+autorelease drain, and the first-frame timing case in `StandIn` should
+likewise be read serially or with a bound that a loaded GPU meets.
