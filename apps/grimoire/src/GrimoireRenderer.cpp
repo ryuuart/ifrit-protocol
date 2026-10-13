@@ -17,6 +17,14 @@
 #include <sigilskia/graphite/Readback.h>
 #include <sigilskia/qt/QtInterop.h>
 #endif
+#ifdef SIGIL_GRIMOIRE_GPU
+#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgeometry/device/Device.h>
+#include <sigilsketch/core/Device.h>
+#ifdef __APPLE__
+#include <rhi/qrhi_platform.h>
+#endif
+#endif
 
 #include <TexturePublisher.h>
 #include <include/core/SkBitmap.h>
@@ -88,7 +96,49 @@ std::string nameOf(int index) {
 
 GrimoireRenderer::GrimoireRenderer()
     : m_publishing(GrimoireView::publishAtStart) {}
-GrimoireRenderer::~GrimoireRenderer() = default;
+GrimoireRenderer::~GrimoireRenderer() {
+#ifdef SIGIL_GRIMOIRE_GPU
+  withdrawPagesFromTheWindow();
+#endif
+}
+
+#ifdef SIGIL_GRIMOIRE_GPU
+void GrimoireRenderer::paintPagesThroughTheWindow(QRhi* rhi) {
+#ifdef __APPLE__
+  // ONE METAL CONTEXT FOR THE WINDOW AND ITS PAGES. The shared device
+  // paints its pages on Metal; handed the window's own queue and context,
+  // a page is painted where the window draws, an overlay page is drawn as
+  // it stands rather than read back, and the window's frame and the
+  // pages share one set of atlases and pipelines. The device refuses a
+  // queue on another Metal device and keeps its own then.
+  sigil::geometry::device::Device* shared = sketch::device();
+  if (!shared || !rhi || !m_graphiteContext || rhi->backend() != QRhi::Metal)
+    return;
+  const auto* handles =
+      static_cast<const QRhiMetalNativeHandles*>(rhi->nativeHandles());
+  if (!handles) return;
+  sigil::core::hardware::NativeDevice native;
+  native.backend = sigil::core::hardware::Backend::Metal;
+  native.mtlDevice = handles->dev;
+  native.mtlCommandQueue = handles->cmdQueue;
+  m_windowDevice = sigil::core::hardware::GpuDevice::adopt(native);
+  if (!m_windowDevice ||
+      !shared->paintWith(m_windowDevice.get(), m_graphiteContext.get()))
+    m_windowDevice.reset();
+#else
+  (void)rhi;
+#endif
+}
+
+void GrimoireRenderer::withdrawPagesFromTheWindow() {
+  if (!m_windowDevice) return;
+  // The device may already be gone at the end of the run, and then there
+  // is nothing to take back.
+  if (sigil::geometry::device::Device* shared = sketch::device())
+    (void)shared->paintWith(nullptr, nullptr);
+  m_windowDevice.reset();
+}
+#endif
 
 void GrimoireRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   QRhi* currentRhi = rhi();
@@ -108,6 +158,9 @@ void GrimoireRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   // …and the warm-up goes before the context too: it is precompiling
   // through the very context below, on another thread.
   if (m_pipelineWarmup.valid()) m_pipelineWarmup.wait();
+  // …and so does the shared device's hold on it, which paints pages
+  // through it.
+  withdrawPagesFromTheWindow();
   m_graphiteContext.reset();
   // Metal only: the Vulkan adapter does not yet hand the image's final
   // layout back to QRhi's state tracker, so Qt's later sampling of it
@@ -115,6 +168,7 @@ void GrimoireRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   if (currentRhi && currentRhi->backend() == QRhi::Metal)
     m_graphiteContext = sigil::skia::createGraphiteContext(currentRhi);
   g_backend.store(m_graphiteContext ? 1 : 2);
+  paintPagesThroughTheWindow(currentRhi);
   // THE PROGRAMS THE FIRST SKETCH WOULD OTHERWISE WAIT FOR. Here and
   // not at startup, because the warm-up precompiles THROUGH a context
   // and this is where the window's first exists; on a worker, because

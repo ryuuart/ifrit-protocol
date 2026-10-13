@@ -22,6 +22,7 @@
 #include <sigilgeometry/device/Device.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/advanced/Device.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <boost/container/map.hpp>
@@ -79,15 +80,17 @@ struct SampledImage {
   uint64_t used = 0;
 };
 
-/** A PAGE WRAPPED WHERE IT STANDS, in its own format, and the chain a
- *  body wearing it at a distance reads: the page's level zero copied
- *  under levels the device derives, refilled on the first draw of every
- *  frame that wears it, since a page may be painted again between two
- *  frames and nothing says when. `filled` is the frame it was last filled
- *  on; `used` the frame it was last drawn with. */
+/** A PAGE WRAPPED WHERE IT STANDS, in its own format and with the levels
+ *  it was made with. Its painter painted level zero, so the levels below
+ *  are filled IN PLACE, from level zero, once in every frame that wears
+ *  it — a page may be painted again between two frames and nothing says
+ *  when. `levelZero` is the same page described at its one painted
+ *  level, for a draw that asks for no smaller copies; it is made the
+ *  first time one does. `filled` is the frame the levels were last
+ *  filled on; `used` the frame it was last drawn with. */
 struct WrappedImage {
   Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
-  Diligent::RefCntAutoPtr<Diligent::ITexture> chain;
+  Diligent::RefCntAutoPtr<Diligent::ITexture> levelZero;
   uint64_t used = 0;
   uint64_t filled = UINT64_MAX;
 };
@@ -114,16 +117,30 @@ class TextureResidency {
    *  textures.
    *
    *  A WRAP IS DESCRIBED AS THE PAGE IS: in the format the page was made
-   *  in, so a half-float page keeps the values above one it holds. Where
-   *  @p form asks for the smaller copies and the page is wide enough to
-   *  halve, what a draw samples is the page's chain — its level zero
-   *  copied on the device under the levels the device derives, once a
-   *  frame — so a body wearing a page at a distance reads a level its
-   *  size calls for rather than aliasing across level zero. Nothing
-   *  crosses through host memory for either. */
+   *  in, so a half-float page keeps the values above one it holds, and
+   *  with the levels the page was made with. Where @p form asks for the
+   *  smaller copies and the page carries a chain, what a draw samples is
+   *  that chain, its levels below zero filled in place from level zero
+   *  once a frame, so a body wearing a page at a distance reads a level
+   *  its size calls for rather than aliasing across level zero; where it
+   *  asks for none, a draw reads level zero alone. Nothing crosses through
+   *  host memory for either, and no second texture is kept.
+   *
+   *  A PAGE ANOTHER QUEUE PAINTS is waited for: the first page met in a
+   *  frame has the device's queue wait for every painting submitted
+   *  before it (`Device::waitForPainting`), and a frame that wore one has
+   *  the next painting wait for the device's queue at `endFrame`. */
   Diligent::ITexture* sample(const material::Texture& map,
                              const MapForm& form = {},
                              std::chrono::duration<double> time = {});
+
+  /** THE PAGE @p map NAMES AT @p time, MADE READY BEFORE THE FRAME'S
+   *  PASSES: wrapped and waited for as `sample` would, with the levels of
+   *  its chain filled for this frame — so a draw inside a pass finds them
+   *  filled and does not break its pass to fill them. Nothing for a map
+   *  that is not a page standing on this device. */
+  void prepare(const material::Texture& map,
+               std::chrono::duration<double> time = {});
 
   /** THE PANORAMA on the device: one texture whose levels are the map's
    *  prefiltered chain, uploaded once per map and kept.
@@ -148,16 +165,27 @@ class TextureResidency {
   Diligent::ITexture* panorama(const std::vector<sk_sp<SkImage>>& levels);
   Diligent::ITexture* convolution(const sk_sp<SkImage>& lobe);
 
-  /** Closes the frame: the maps no draw has named lately are released. */
+  /** Closes the frame: a frame that wore a page has the next painting
+   *  wait for it, and the maps no draw has named lately are released. */
   void endFrame();
 
  private:
-  /** The chain @p held is worn through, filled for this frame; null when
-   *  the device refused it. */
-  Diligent::ITexture* chainOf(WrappedImage& held);
+  /** The page @p where names, wrapped and waited for this frame; null
+   *  when it is not a page standing on this device or the device refused
+   *  the wrap. */
+  WrappedImage* wrap(const media::DeviceFrame& where);
+  /** @p held with the levels below zero filled for this frame; false when
+   *  it carries none the device can fill. */
+  bool fill(WrappedImage& held);
+  /** @p held as its one painted level; null when the device refused it. */
+  Diligent::ITexture* levelZeroOf(WrappedImage& held);
 
   Device* m_device = nullptr;
   uint64_t m_frame = 0;
+  /** The frame the device's queue last waited for the painting in. */
+  uint64_t m_waited = UINT64_MAX;
+  /** Whether a draw of this frame wore a page. */
+  bool m_woreAPage = false;
   /** Maps whose pixels already stand on this device, under the name the
    *  API gave them. Nothing crosses through host memory for one of
    *  these. */

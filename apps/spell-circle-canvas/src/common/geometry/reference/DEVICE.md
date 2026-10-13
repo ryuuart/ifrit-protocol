@@ -9,10 +9,15 @@ library is the front page.
 `device::Device::create(config, &error)` brings the one GPU device up:
 Diligent creates a Vulkan device and its immediate context, and
 SigilCore's hardware device adopts the Vulkan device, queue and loader
-entry points it made, with Graphite recording onto that same queue. A
-texture named on `gpu()` is then an image both APIs reach — 2D drawing
-through `graphite()` lands in it and a 3D pass samples it, with no copy
-in either direction and one handle table naming both.
+entry points it made. A texture named on `gpu()` is then an image both
+APIs reach — 2D drawing through `graphite()` lands in it and a 3D pass
+samples it, with no copy in either direction and one handle table naming
+both. Where `graphite()` stands depends on the driver: elsewhere it
+records onto that same Vulkan queue; on Apple, where the driver runs
+Vulkan over Metal, it is Graphite's Metal backend on a queue of its own
+on the Metal device the driver runs over, painting the Metal texture the
+driver keeps behind each image, and the device makes no Vulkan Graphite
+at all.
 
 ```cpp
 #include <sigilgeometry/device/Device.h>
@@ -29,14 +34,15 @@ core::hardware::GpuDevice& gpu = *device->gpu();
 core::hardware::TextureDescription desc;
 desc.width = desc.height = 512;
 const core::hardware::TextureHandle texture = gpu.createTexture(desc);
-const core::hardware::FenceHandle fence = gpu.createFence();
 
-// Paint 2D into a texture a 3D pass will sample. Everything that submits
-// on the shared queue happens under the lock.
-geometry::device::Device::QueueLock lock(*device);
-skia::OffscreenSurface surface(*device->graphite(), gpu, texture);
-surface.canvas()->clear(SK_ColorBLUE);
-surface.submit(gpu, fence);
+// Paint 2D into a texture a 3D pass will sample, and have the device's
+// queue wait on the GPU for the painting before the pass is submitted.
+{
+  skia::OffscreenSurface surface(*device->graphite(), gpu, texture);
+  surface.canvas()->clear(SK_ColorBLUE);
+  surface.submit();
+}
+device->waitForPainting();
 ```
 
 **`device/Device.h` is the whole of what this feature says in public,
@@ -57,13 +63,37 @@ adopted side and are null together when the adoption failed — a driver
 without timeline semaphores, for instance, since that is what a hardware
 fence is. A failed adoption costs the shared 2D path and nothing else.
 
-**The queue is shared, and sharing has a rule.** Graphite's submissions
-and Diligent's passes go into one queue in submission order, which is
-what lets a submit stay asynchronous and still be correct — but only
-while the two streams never interleave. Every Graphite submit, and every
-fence signal or wait on `gpu()`, is made under a `QueueLock`. Diligent
-takes the same lock from inside its own submissions, which is why the
-lock does not nest: no Diligent call may be made while one is held.
+**The queue is shared, and sharing has a rule.** Diligent's passes, and
+where 2D shares the queue Graphite's submissions, go into one queue in
+submission order, which is what lets a submit stay asynchronous and
+still be correct — but only while the two streams never interleave.
+Every Graphite submit on that queue, and every fence signal or wait on
+`gpu()`, is made under a `QueueLock`. Diligent takes the same lock from
+inside its own submissions, which is why the lock does not nest: no
+Diligent call may be made while one is held.
+
+**Two queues keep two orders, on the GPU.** Where 2D paints on Metal,
+`waitForPainting()` has the Vulkan queue wait for everything
+`graphite()` submitted before it — one call covers every texture painted
+so far, so a frame makes it once, before a pass samples one — and
+`holdPaintingUntilSampled()` submits what the device has recorded and
+has the next submission `graphite()`'s own recorder makes wait for all
+of it, which a frame makes after its last pass that wore a painted
+texture, since the next painting repaints part of that texture in place.
+Both take the queue lock themselves, and both do nothing where 2D shares
+the queue. The texture residency below makes both calls, so a renderer
+wearing pages through it never does.
+
+**A host may hand its own Metal queue over.** `paintWith(painter,
+graphite)` makes a host's Metal device and Graphite context — a window's,
+adopted from the queue its frames are drawn on — what `graphite()`
+answers, so the window and the pages it shows stand on one context and
+each draws the other's images as they stand. Both orders cover the
+host's queue from then on, and the device's own as well, for a texture
+adopted before the host came. A host on another Metal device, or half a
+pair, is refused with nothing changed; `paintWith(nullptr, nullptr)`
+gives the device's own back, and a host does that before its device or
+context goes.
 
 **A queue made on Metal itself reaches the device through its Metal
 objects.** Where the driver runs Vulkan over Metal, every texture and
@@ -99,13 +129,14 @@ for a mesh that carries no normals, uvs or tint — and `meshLayout()` is
 that layout as a pipeline states it, with the primitive lane declared or
 not over the same stride. `device::TextureResidency` (`device/residency/Textures.h`)
 is the same story for maps: pixels that already stand on this very
-device are wrapped where they are, in the format they were painted in,
-and nothing crosses through host memory — a page worn with its smaller
-copies is read through a chain of the residency's own, its level zero
-copied from the page on the device once a frame and the levels under it
-derived, so a body wearing a page at a distance does not alias across it
-— everything else is brought over once and held under the image it came
-from, and the
+device are wrapped where they are, in the format they were painted in and
+with the levels they were made with, and nothing crosses through host
+memory — a page made with a chain is worn through that chain, its levels
+below zero filled in place from level zero once a frame, so a body
+wearing a page at a distance does not alias across it, and a renderer
+that has the residency make its pages ready before a pass opens has them
+filled there, so no draw breaks its pass to do it — everything else is brought over once and held
+under the image it came from, and the
 prefiltered panorama and its cosine convolution are uploaded once per
 sky as half floats, because a sky holds values above one. `endFrame()`
 on either lets go of what no draw has named lately, so a window sliding

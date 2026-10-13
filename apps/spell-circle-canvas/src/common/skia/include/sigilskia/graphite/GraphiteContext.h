@@ -198,4 +198,11 @@ class GraphiteContext {
  *  this library did not make, whose device it cannot name. */
 void* deviceOf(const skgpu::graphite::Recorder& recorder);
 
+/** THE CONTEXT @p recorder RECORDS FOR, for every recorder a context here
+ *  made: its own `recorder()` and every one from `makeRecorder()`. Two
+ *  contexts may stand on one device, and an image one of them painted is
+ *  drawn as it stands only by a recorder of that same context. Null for
+ *  a recorder this library did not make. */
+const GraphiteContext* contextOf(const skgpu::graphite::Recorder& recorder);
+
 }  // namespace sigil::skia

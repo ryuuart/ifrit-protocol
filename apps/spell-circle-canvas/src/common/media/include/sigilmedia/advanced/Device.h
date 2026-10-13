@@ -31,8 +31,10 @@ struct DeviceFrame {
   /** Which surface the frame is. */
   enum class Kind {
     None,         ///< No device surface; the frame is a raster image only.
-    PixelBuffer,  ///< A platform video buffer — on Apple a `CVPixelBuffer` in `storage`.
-    Texture,      ///< A graphics API texture named by `device`, `pointer` and `handle`.
+    PixelBuffer,  ///< A platform video buffer — on Apple a `CVPixelBuffer` in
+                  ///< `storage`.
+    Texture,      ///< A graphics API texture named by `device`, `pointer` and
+                  ///< `handle`.
   };
   /** The colour matrix a planar surface's luma and chroma were coded in. */
   enum class YuvMatrix { Bt601, Bt709, Bt2020 };
@@ -50,6 +52,11 @@ struct DeviceFrame {
   uint32_t layout = 0;
   int width = 0;
   int height = 0;
+  /** Levels a `Texture` carries, level 0 at `width` x `height` and each
+   *  one after it half the size of the last; one for a texture with no
+   *  chain. Whoever wears the texture fills the levels below zero from
+   *  level zero, since what painted it painted level zero alone. */
+  int mipLevels = 1;
   YuvMatrix yuvMatrix = YuvMatrix::Bt601;
   /** Whether a planar surface's samples span the full range rather than
    *  the studio range the matrix otherwise implies. */

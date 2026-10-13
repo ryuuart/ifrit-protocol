@@ -62,10 +62,21 @@ struct DeviceConfig {
  * drawing through `graphite()` lands in it and a 3D pass samples it,
  * with no copy in either direction and one handle table naming both.
  *
+ * WHERE 2D PAINTS DEPENDS ON THE DRIVER. Elsewhere `graphite()` records
+ * onto the Vulkan queue the 3D side draws on. On Apple, where the driver
+ * runs Vulkan over Metal, `graphite()` is Graphite's METAL backend on a
+ * queue of its own on the Metal device the driver runs over, painting
+ * the Metal texture the driver keeps behind each image — the same memory
+ * — so a page is painted by Metal and sampled by Vulkan with no copy,
+ * and the device makes no Vulkan Graphite at all. Two queues then need
+ * two orders between them, which `waitForPainting()` and
+ * `holdPaintingUntilSampled()` keep on the GPU.
+ *
  * `gpu()` and `graphite()` are null when the adoption failed — a driver
  * without timeline semaphores, for instance, since that is what a
- * SigilSkia fence is. `renderDevice()` and `context()` are unaffected
- * by that: 3D is whole without the shared 2D path.
+ * SigilSkia fence is, or on Apple a driver that cannot name its Metal
+ * objects. `renderDevice()` and `context()` are unaffected by that: 3D is
+ * whole without the shared 2D path.
  */
 class Device {
  public:
@@ -85,10 +96,49 @@ class Device {
   Diligent::IRenderDevice* renderDevice() const;
   Diligent::IDeviceContext* context() const;
 
-  /** The adopted device and Skia's Graphite context standing on it, for
-   *  painting 2D into a texture a 3D pass reads. Both null together. */
+  /** The adopted device and Skia's Graphite context painting into the
+   *  textures it names, for painting 2D into a texture a 3D pass reads —
+   *  on Apple a Metal context, the device's own or the one a host handed
+   *  `paintWith`, elsewhere one on the Vulkan queue. Both null
+   *  together. */
   core::hardware::GpuDevice* gpu() const;
   skia::GraphiteContext* graphite() const;
+
+  /** THE 3D QUEUE WAITS FOR THE 2D PAINTING: nothing submitted to the
+   *  Vulkan queue after this runs until everything `graphite()` submitted
+   *  before it has finished on the GPU. One call covers every texture
+   *  painted so far, so a frame makes it once, before its first pass
+   *  samples one; a wait queued while that pass is still being recorded
+   *  holds it too, since nothing recorded is submitted until later.
+   *  Nothing where 2D shares the Vulkan queue, whose submission order is
+   *  the order. Takes the queue lock; call it without one held. */
+  void waitForPainting();
+  /** …AND THE NEXT 2D PAINTING WAITS FOR THE 3D QUEUE: everything
+   *  recorded on the device so far is submitted, and the next submission
+   *  `graphite()` makes through its own recorder waits on the GPU until
+   *  all of it has finished. A frame makes it after its last pass that
+   *  sampled a painted texture, because the next painting repaints a part
+   *  of that very texture in place, over what a pass may still be
+   *  reading. Nothing where 2D shares the Vulkan queue. Takes the queue
+   *  lock; call it without one held. */
+  void holdPaintingUntilSampled();
+
+  /** A HOST'S OWN METAL QUEUE PAINTS THE 2D from here on: @p painter, a
+   *  Metal device on the Metal device the Vulkan driver runs over — a
+   *  window's, adopted — and @p graphite, Graphite on it, are what
+   *  `graphite()` answers in place of the device's own, so a window and
+   *  the pages it shows stand on one context and each draws the other's
+   *  images as they stand. Both orders between the queues cover the
+   *  host's queue too, and the device's own while a texture adopted
+   *  before the host came still paints there. Null for both gives the
+   *  device's own back. False, with nothing changed, where 2D does not
+   *  paint on Metal here, where only one of the two is given, or where
+   *  they stand on another Metal device. Both must outlive their use
+   *  here: a host withdraws them before either goes, and the device
+   *  waits for its queue to drain when one is withdrawn. Call it from the
+   *  thread that paints, without the queue lock held. */
+  bool paintWith(core::hardware::GpuDevice* painter,
+                 skia::GraphiteContext* graphite);
 
   /** The driver's cache every pipeline built on this device is made
    *  through, kept where `DeviceConfig::pipelineStore` says; null when the
@@ -109,15 +159,17 @@ class Device {
   void* metalTexture(Diligent::ITexture* texture) const;
   void* metalEvent(core::hardware::FenceHandle fence) const;
 
-  /** Holds the one command queue for as long as it lives.
+  /** Holds the one Vulkan command queue for as long as it lives.
    *
-   *  Graphite's submissions and Diligent's passes go into that one
-   *  queue, so later work observes finished textures with no CPU
-   *  synchronization — but only while nothing interleaves the two
-   *  streams. Every Graphite submit on `graphite()`, and every fence
-   *  signal or wait taken on `gpu()`, is therefore made while one of
-   *  these is held. Diligent takes the same lock from inside its own
-   *  submissions, which is why the lock does not nest. */
+   *  Diligent's passes go into that queue, and where 2D shares it
+   *  Graphite's submissions do too, so later work observes finished
+   *  textures with no CPU synchronization — but only while nothing
+   *  interleaves the two streams. Every Graphite submit on a `graphite()`
+   *  that shares the queue, and every fence signal or wait taken on
+   *  `gpu()`, is therefore made while one of these is held; a Graphite
+   *  submit on Apple goes to a Metal queue and needs none. Diligent takes
+   *  the same lock from inside its own submissions, which is why the lock
+   *  does not nest. */
   class QueueLock {
    public:
     explicit QueueLock(Device& device);
@@ -131,6 +183,9 @@ class Device {
 
  private:
   Device();
+  /** Stands `graphite()` up where this platform paints 2D, over the
+   *  adopted `gpu()`; leaves it null with the reason in @p error. */
+  void paintOnTheDevice(std::string* error);
   struct Impl;
   std::unique_ptr<Impl> m_impl;
 };

@@ -185,7 +185,10 @@ which is how a sketch's real figures are looked at in a written frame.
 The app brings a device up and every scene3d sketch draws through it.
 `--no-gpu` brings none up, and every scene3d sketch is listed unavailable; a device that will
 not come up is reported and the app carries on the same way — unlike the
-sweep's `--gpu`, which fails the run.
+sweep's `--gpu`, which fails the run. On a Mac the window hands that
+device its own Metal queue and Graphite context, so the pages a sketch
+paints are painted where the window draws: one context for both, and a
+page laid over the canvas is drawn as it stands rather than read back.
 
 **The canvas zooms without growing what it draws into.** The live view
 sits in a pan-zoom pasteboard, but it is not scaled by it: the item fills

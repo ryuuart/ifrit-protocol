@@ -1,9 +1,10 @@
 /** @file
  * geometry_device_bench — the way in and what the device then costs:
  * bringing the one device up and turning it into a device both APIs draw
- * on, then naming a texture on it, borrowing one, signalling a fence and
- * wrapping a texture as a Graphite surface. Run a Release build; Debug
- * numbers say nothing. Needs a Vulkan runtime and reports a skip without
+ * on, then naming a texture on it, borrowing one, signalling a fence,
+ * wrapping a texture as a Graphite surface and ordering a painted texture
+ * between the painting queue and the device's both ways. Run a Release build;
+ * Debug numbers say nothing. Needs a Vulkan runtime and reports a skip without
  * one.
  *
  * THE TIMED ARM IS A PROPERTY OF THIS LIBRARY, because the bench ledger
@@ -14,6 +15,8 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkColor.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilmeasure/Measure.h>
@@ -197,5 +200,47 @@ void BM_Adopted_Wrap_Handle(benchmark::State& state) {
   dev->destroy(handle);
 }
 BENCHMARK(BM_Adopted_Wrap_Handle);
+
+/** A FRAME'S TWO ORDERS BETWEEN THE QUEUES, where 2D paints on a queue of
+ *  its own: a texture painted and submitted, the device's queue made to
+ *  wait for it, the next painting made to wait for the device's queue,
+ *  and the CPU waiting for the device's queue behind both, so no
+ *  iteration hides in queue depth. Where 2D shares the device's queue the
+ *  two orders are nothing, and this is the painting and the drain
+ *  alone. */
+void BM_Adopted_PaintingOrderedBothWays(benchmark::State& state) {
+  std::string why;
+  Device* device = sharedDevice(&why);
+  core::hardware::GpuDevice* dev = device ? device->gpu() : nullptr;
+  skia::GraphiteContext* ctx = device ? device->graphite() : nullptr;
+  if (!dev || !ctx) {
+    state.SkipWithMessage("no Graphite on the adopted device: " + why);
+    return;
+  }
+  const core::hardware::TextureHandle handle = target(*dev);
+  const FenceHandle drained = dev->createFence();
+  for ([[maybe_unused]] auto iteration : state) {
+    {
+      skia::OffscreenSurface surface(*ctx, *dev, handle);
+      surface.canvas()->clear(SK_ColorBLUE);
+      surface.submit();
+    }
+    device->waitForPainting();
+    FenceValue value = kFenceInitialValue;
+    {
+      const Device::QueueLock lock(*device);
+      value = dev->signal(drained);
+    }
+    device->holdPaintingUntilSampled();
+    if (dev->waitCpu(drained, value) != FenceWait::Reached) {
+      state.SkipWithError("the device's queue did not drain");
+      break;
+    }
+  }
+  state.SetItemsProcessed(state.iterations());
+  dev->destroyFence(drained);
+  dev->destroy(handle);
+}
+BENCHMARK(BM_Adopted_PaintingOrderedBothWays);
 
 }  // namespace

@@ -9,6 +9,7 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilcore/hardware/GpuDevice.h>
@@ -19,6 +20,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilmedia/core/Frame.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/Readback.h>
 
@@ -534,12 +536,53 @@ TEST(ComposeTexture,
 }
 
 TEST(ComposeTexture,
-     HalfFloatVulkanKeepsHdrProfilesAndRefusesF32WithoutStateLoss) {
+     HalfFloatOnTheSharedDeviceKeepsHdrProfilesAndRefusesF32WithoutStateLoss) {
   SIGIL_ON_DEVICE_OR_SKIP(device);
   if (!device->gpu() || !device->graphite())
     GTEST_SKIP() << "no adopted Graphite context on this Vulkan device";
   const sigil::geometry::device::Device::QueueLock lock(*device);
   expectDevicePrecision(*device->gpu(), *device->graphite());
+}
+
+// A SCENE ON THE DEVICE 2D AND 3D SHARE stands in a texture that device
+// made, with the whole chain its size can hold, and says so: the image
+// the device names, the levels below the one painted for its wearer to
+// fill, and — where the device paints its 2D through Metal — the Metal
+// texture behind that image, which is what was painted.
+TEST(ComposeTexture, ASceneOnTheSharedDeviceStandsInATextureWithItsOwnChain) {
+  SIGIL_ON_DEVICE_OR_SKIP(device);
+  if (!device->gpu() || !device->graphite())
+    GTEST_SKIP() << "no adopted Graphite context on this Vulkan device";
+  const std::shared_ptr<TextureScene> scene =
+      TextureScene::make({48, 20}, fonts());
+  ASSERT_TRUE(scene);
+  {
+    const sigil::geometry::device::Device::QueueLock lock(*device);
+    ASSERT_TRUE(scene->useDevice(*device->gpu(), *device->graphite()));
+    scene->render(plate({0, 0, 1, 1}));
+  }
+  const sigil::material::DeviceImage where = scene->deviceImage();
+  ASSERT_TRUE(where);
+  EXPECT_EQ(where.device, device->gpu());
+  EXPECT_NE(where.handle, 0u);
+  EXPECT_EQ(where.mipLevels, sigil::core::hardware::mipLevelsFor(48, 20));
+  const sigil::media::Frame frame = scene->texture().source().frameAt({});
+  EXPECT_EQ(frame.device.mipLevels, where.mipLevels);
+  EXPECT_EQ(frame.device.handle, where.handle);
+#ifdef __APPLE__
+  if (device->graphite()->recorder()->backend() == skgpu::BackendApi::kMetal)
+    EXPECT_NE(where.pointer, nullptr);
+#endif
+  // …and the pixels are the scene's, read back through the context that
+  // painted them.
+  const sk_sp<SkImage> copy = scene->hostImage();
+  ASSERT_TRUE(copy);
+  SkBitmap pixels;
+  ASSERT_TRUE(pixels.tryAllocPixels(SkImageInfo::MakeN32Premul(48, 20)));
+  ASSERT_TRUE(copy->readPixels(nullptr, pixels.pixmap(), 0, 0));
+  const SkColor4f centre = pixels.getColor4f(24, 10);
+  EXPECT_NEAR(centre.fB, 1.f, .01f);
+  EXPECT_NEAR(centre.fR, 0.f, .01f);
 }
 
 TEST(ComposeTexture, ASceneOnADeviceHandsAForeignRecorderAHostCopy) {

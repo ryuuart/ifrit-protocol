@@ -127,8 +127,13 @@ TEST(VideoDevice, ARecorderThatCannotSampleTheFrameIsHandedItsHostCopy) {
   std::string error;
   static const std::unique_ptr<sigil::geometry::device::Device> vulkan =
       sigil::geometry::device::Device::create({}, &error);
-  if (!vulkan || !vulkan->graphite()) GTEST_SKIP() << "no Vulkan Graphite: " << error;
-  skgpu::graphite::Recorder* recorder = vulkan->graphite()->recorder();
+  if (!vulkan || !vulkan->gpu()) GTEST_SKIP() << "no Vulkan device: " << error;
+  // A Vulkan Graphite made over the device: the recorder that cannot
+  // sample a Metal plane, whatever context the device paints with.
+  static const std::unique_ptr<sigil::skia::GraphiteContext> graphiteOverVulkan =
+      sigil::skia::GraphiteContext::create(*vulkan->gpu());
+  if (!graphiteOverVulkan) GTEST_SKIP() << "no Vulkan Graphite over the device";
+  skgpu::graphite::Recorder* recorder = graphiteOverVulkan->recorder();
   ASSERT_EQ(recorder->backend(), skgpu::BackendApi::kVulkan);
 
   const sk_sp<SkImage> image = media::deviceImage(frame, recorder);

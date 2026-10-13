@@ -150,7 +150,10 @@ nowhere else, so without `--gpu` its kind is unavailable and the capture
 is refused with that reason. On Apple, a capture of a pure
 scene2d kind owns a Metal device and Graphite context without starting
 World or Vulkan. A kind that declares device work prepares the shared
-Geometry and World executor before its availability probe and setup.
+Geometry and World executor before its availability probe and setup; on
+Apple that device's 2D paints on Metal, through a Metal Graphite context
+on the Metal device the Vulkan driver runs over, into the device's own
+textures, so its still and its pages are Metal's pixels too.
 Scene2D bodies declare that work with `static constexpr bool needsDevice =
 true;`; a supplied non-CPU painter also requires it. `--bench` keeps its
 raster frame path; `--gpu` selects the device executor for scene3d and mesh

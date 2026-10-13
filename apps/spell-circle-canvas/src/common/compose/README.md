@@ -547,12 +547,17 @@ draw. Its size factory makes an N32 raster scene. Its `SkImageInfo` factory
 accepts premultiplied RGBA/BGRA byte, RGBA F16 and RGBA F32 formats and keeps
 the color space. F16 retains HDR values; F32 is raster-only. Device adoption
 keeps the requested format and profile, leaves the scene intact on failure,
-and clears its pixels and caches on success. Fonts, device and context must
-outlive the scene and its texture values. A device `image()` belongs to its
-Graphite context; it is not a portable raster readback, so the scene's
-texture names its pixels on the device and answers a recorder of that
-device with the image as it stands and any other recorder, or none, with
-a host copy read once per revision (`TextureScene::recorder` names the
+and clears its pixels and caches on success. On a device the scene paints
+level zero of a texture the device makes with the whole chain its size
+holds, and whoever wears it fills the levels below; a Metal context over a
+Vulkan device whose driver runs over Metal paints the Metal texture the
+driver keeps behind that image, which is how a page stands on Apple. Fonts,
+device and context must outlive the scene and its texture values. A device
+`image()` belongs to its Graphite context; it is not a portable raster
+readback, so the scene's texture names its pixels on the device and answers
+a recorder of that same context with the image as it stands and any other
+recorder — another context on the same device included — or none, with a
+host copy read once per revision (`TextureScene::recorder` names the
 scene's own). `SceneSource` reads the latest scene image and compares by
 its captured revision, rather than preserving historical pixels.
 

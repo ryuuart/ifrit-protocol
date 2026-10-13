@@ -157,6 +157,10 @@ device at all, and `sigil::skia::deviceOf(recorder)` names the device —
 an `id<MTLDevice>` or a `VkDevice` — that any recorder a context here
 made draws on, its own `recorder()` and every one from `makeRecorder()`
 alike; a recorder made outside the library has none to name.
+`sigil::skia::contextOf(recorder)` names the context such a recorder
+records for: two contexts may stand on one device, each with resources
+of its own, and an image one of them painted is drawn as it stands only
+by a recorder of that same context.
 
 **A texture that must cross to another device is READ, not wrapped.**
 A wrap names one texture on one recorder, so it has nothing to give a
@@ -223,7 +227,15 @@ for (;;) {
 rather than raw handles: it takes whichever API the device is and calls
 the matching bring-up. A stale handle wraps nothing — `canvas()` stays
 null — so a texture destroyed under a host's feet stops it drawing
-rather than reaching whatever now holds the slot. What a device is, how a
+rather than reaching whatever now holds the slot. The wrap over a handle
+is in the CONTEXT's API: a context recording on Metal paints the Metal
+texture a Vulkan device whose driver runs over Metal names beside its
+own image — the same memory — so a texture the Vulkan device made is
+painted by Metal Graphite and sampled by the Vulkan device with no copy,
+and a texture on another Metal device wraps nothing. The signalling
+submit signals on the device it is handed, which must be the one the
+context was made on: a signal on another queue stands behind nothing
+the context submitted. What a device is, how a
 handle goes stale and what a fence promises are SigilCoreHardware's;
 what is here is only what Graphite does over one.
 

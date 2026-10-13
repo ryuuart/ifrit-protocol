@@ -164,15 +164,15 @@ TEST_F(PresentedPicture, ACaptureIsReadBack) {
 TEST(PresentedOnQueue, AFrameOnTheDevicesOwnGraphiteIsSampledWhereItStands) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  skia::GraphiteContext* own = on.device->graphite();
-  if (!own) GTEST_SKIP() << "the device carries no Graphite of its own";
+  skia::GraphiteContext* own = diligent::vulkanGraphite(*on.device);
+  if (!own) GTEST_SKIP() << "the device carries no Graphite on its own queue";
   motion::Engine engine;
   Scene scene(engine);
   engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
   scene.render(lit(on.runtime));
 
-  // A canvas of the device's own Graphite, which records onto the queue
-  // the picture was drawn on; its pixels are read once it is submitted,
+  // A canvas of Graphite on the device's own queue, the queue the
+  // picture was drawn on; its pixels are read once it is submitted,
   // under the lock every submission on that queue takes.
   const auto shown = [&](world::Presentation how) {
     const SkImageInfo info = SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y);
@@ -204,10 +204,10 @@ TEST(PresentedOnQueue, AFrameOnTheDevicesOwnGraphiteIsSampledWhereItStands) {
 TEST(PresentedOnQueue, ASecondRecorderOfTheDevicesGraphiteSamplesInPlaceToo) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  skia::GraphiteContext* own = on.device->graphite();
-  if (!own) GTEST_SKIP() << "the device carries no Graphite of its own";
-  // A recorder made from the device's own Graphite for another thread:
-  // it records onto the same queue the picture was drawn on.
+  skia::GraphiteContext* own = diligent::vulkanGraphite(*on.device);
+  if (!own) GTEST_SKIP() << "the device carries no Graphite on its own queue";
+  // A recorder made for another thread from Graphite on the device's own
+  // queue: it records onto the same queue the picture was drawn on.
   std::unique_ptr<skgpu::graphite::Recorder> second = own->makeRecorder();
   ASSERT_NE(second, nullptr);
   motion::Engine engine;

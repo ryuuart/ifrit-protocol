@@ -75,13 +75,19 @@ namespace {
  *  cleared wholesale. */
 class CachingImageProvider final : public skgpu::graphite::ImageProvider {
  public:
-  /** A provider for a recorder drawing on @p device, which it names to
-   *  `deviceOf` for as long as the recorder holds it; null for one whose
-   *  device is not known. */
-  explicit CachingImageProvider(void* device = nullptr) : m_device(device) {}
+  /** A provider for a recorder drawing on @p device through @p context,
+   *  which it names to `deviceOf` and `contextOf` for as long as the
+   *  recorder holds it; null for one whose device or context is not
+   *  known. */
+  explicit CachingImageProvider(void* device = nullptr,
+                                const GraphiteContext* context = nullptr)
+      : m_device(device), m_context(context) {}
 
   /** The device the recorder holding this provider draws on. */
   void* device() const { return m_device; }
+  /** The context whose recordings the recorder holding this provider
+   *  makes. */
+  const GraphiteContext* context() const { return m_context; }
 
   sk_sp<SkImage> findOrCreate(skgpu::graphite::Recorder* recorder,
                               const SkImage* image,
@@ -164,6 +170,7 @@ class CachingImageProvider final : public skgpu::graphite::ImageProvider {
 
   static constexpr size_t kMaxEntries = 256;
   void* m_device = nullptr;
+  const GraphiteContext* m_context = nullptr;
   boost::unordered_flat_map<uint64_t, sk_sp<SkImage>> m_cache;
   std::shared_ptr<Gone> m_gone = std::make_shared<Gone>();
 };
@@ -322,11 +329,12 @@ skgpu::graphite::ContextOptions GraphiteContext::makeContextOptions() {
 namespace {
 
 /** The options every recorder is made with, its provider naming the
- *  device it draws on. */
-skgpu::graphite::RecorderOptions recorderOptions(void* device) {
+ *  device it draws on and the context it records for. */
+skgpu::graphite::RecorderOptions recorderOptions(
+    void* device, const GraphiteContext* context) {
   skgpu::graphite::RecorderOptions options =
       GraphiteContext::makeRecorderOptions();
-  options.fImageProvider = sk_make_sp<CachingImageProvider>(device);
+  options.fImageProvider = sk_make_sp<CachingImageProvider>(device, context);
   return options;
 }
 
@@ -354,12 +362,12 @@ GraphiteContext::GraphiteContext(
     std::unique_ptr<skgpu::graphite::Context> context, void* device)
     : m_context(std::move(context)), m_device(device) {
   if (m_context)
-    m_recorder = m_context->makeRecorder(recorderOptions(m_device));
+    m_recorder = m_context->makeRecorder(recorderOptions(m_device, this));
 }
 
 std::unique_ptr<skgpu::graphite::Recorder> GraphiteContext::makeRecorder()
     const {
-  return m_context ? m_context->makeRecorder(recorderOptions(m_device))
+  return m_context ? m_context->makeRecorder(recorderOptions(m_device, this))
                    : nullptr;
 }
 
@@ -367,6 +375,12 @@ void* deviceOf(const skgpu::graphite::Recorder& recorder) {
   const auto* provider =
       dynamic_cast<const CachingImageProvider*>(recorder.clientImageProvider());
   return provider ? provider->device() : nullptr;
+}
+
+const GraphiteContext* contextOf(const skgpu::graphite::Recorder& recorder) {
+  const auto* provider =
+      dynamic_cast<const CachingImageProvider*>(recorder.clientImageProvider());
+  return provider ? provider->context() : nullptr;
 }
 
 GraphiteContext::~GraphiteContext() {

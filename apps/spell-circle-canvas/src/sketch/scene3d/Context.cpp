@@ -26,7 +26,10 @@ namespace {
  *  device, and the body that wears the result samples the very texture
  *  they painted, with no upload between. On the CPU every one of those
  *  programs is interpreted pixel by pixel, once per map, which for a page
- *  of material is a third of a second a frame.
+ *  of material is a third of a second a frame. The texture is the
+ *  device's and the painting is the device's own 2D context: on Apple a
+ *  Metal one painting the Metal texture behind the device's image, and
+ *  the frame that wears the page waits for it on the GPU.
  *
  *  A PAGE stands there in a capture too: the capture that holds a device
  *  paints its pages where the window paints them, so the two are the same

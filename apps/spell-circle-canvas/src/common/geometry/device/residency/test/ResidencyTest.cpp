@@ -43,6 +43,7 @@ struct StandingSource {
     frame.device.layout = image.vkLayout;
     frame.device.width = image.width;
     frame.device.height = image.height;
+    frame.device.mipLevels = image.mipLevels;
     return frame;
   }
   bool isRunning() const { return false; }
@@ -51,15 +52,18 @@ struct StandingSource {
   }
 };
 
-/** A page of @p side in @p format painted one colour on @p on's device,
- *  or an empty handle where the device carries no 2D side. */
+/** A page of @p side in @p format, with @p levels levels, painted one
+ *  colour at level zero on @p on's device, or an empty handle where the
+ *  device carries no 2D side. */
 hardware::TextureHandle paintedPage(device::Device& on,
-                                    hardware::TextureFormat format, int side) {
+                                    hardware::TextureFormat format, int side,
+                                    int levels = 1) {
   hardware::GpuDevice* gpu = on.gpu();
   if (!gpu || !on.graphite()) return {};
   hardware::TextureDescription description;
   description.width = description.height = side;
   description.format = format;
+  description.mipLevels = levels;
   const hardware::TextureHandle page = gpu->createTexture(description);
   if (!page) return {};
   const device::Device::QueueLock lock(on);
@@ -236,30 +240,62 @@ TEST(TextureResidency, APageIsWornInTheFormatItWasPaintedIn) {
   on->context()->WaitForIdle();
 }
 
-// A PAGE WORN WITH ITS SMALLER COPIES is read through a chain as deep as
-// an uploaded map of its size carries, in the page's own format, and one
-// draw after another in the same frame reads the same chain.
-TEST(TextureResidency, APageWornWithItsSmallerCopiesCarriesAChain) {
+// A PAGE MADE WITH A CHAIN IS WORN THROUGH THAT CHAIN, as deep as an
+// uploaded map of its size carries and in the page's own format, its
+// levels filled in place: one draw after another in the same frame reads
+// the page itself, and nothing else is kept for it. Worn without smaller
+// copies, a draw reads its level zero alone.
+TEST(TextureResidency, APageMadeWithAChainIsWornThroughItsOwnChain) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
   hardware::GpuDevice* gpu = on->gpu();
   if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
   const hardware::TextureHandle page =
-      paintedPage(*on, hardware::TextureFormat::RGBA16Float, 64);
+      paintedPage(*on, hardware::TextureFormat::RGBA16Float, 64,
+                  device::mapMipLevels(64, 64));
   ASSERT_TRUE(gpu->isValid(page));
+  const hardware::NativeTexture image = gpu->exportNative(page);
+  ASSERT_EQ(image.mipLevels, device::mapMipLevels(64, 64));
   const sigil::material::Texture map(
-      sigil::media::PixelSource(StandingSource{gpu, gpu->exportNative(page)}));
+      sigil::media::PixelSource(StandingSource{gpu, image}));
   device::TextureResidency resident(*on);
+  resident.prepare(map);
   Diligent::ITexture* worn = resident.sample(map);
   ASSERT_NE(worn, nullptr);
   EXPECT_EQ(worn->GetDesc().MipLevels,
             (Diligent::Uint32)device::mapMipLevels(64, 64));
   EXPECT_EQ(worn->GetDesc().Format, Diligent::TEX_FORMAT_RGBA16_FLOAT);
   EXPECT_EQ(resident.sample(map), worn);
-  // …and worn without them, the same page is the page itself.
+  // THE PAGE ITSELF: the very image the page was painted into.
+  EXPECT_EQ(worn->GetNativeHandle(), image.vkImage);
+  // …and worn without them, a draw reads level zero alone.
   Diligent::ITexture* flat = resident.sample(map, {.mipmaps = false});
   ASSERT_NE(flat, nullptr);
   EXPECT_NE(flat, worn);
   EXPECT_EQ(flat->GetDesc().MipLevels, 1u);
+  resident.endFrame();
+  on->context()->Flush();
+  on->context()->WaitForIdle();
+  gpu->destroy(page);
+}
+
+// A PAGE MADE WITH NO CHAIN IS WORN AS IT STANDS, whatever the draw asks
+// for: there is no level below zero to fill, and no copy is made to hold
+// one.
+TEST(TextureResidency, APageMadeWithNoChainIsWornAsItStands) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  hardware::GpuDevice* gpu = on->gpu();
+  if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
+  const hardware::TextureHandle page =
+      paintedPage(*on, hardware::TextureFormat::RGBA8Unorm, 64);
+  ASSERT_TRUE(gpu->isValid(page));
+  const sigil::material::Texture map(
+      sigil::media::PixelSource(StandingSource{gpu, gpu->exportNative(page)}));
+  device::TextureResidency resident(*on);
+  Diligent::ITexture* worn = resident.sample(map);
+  ASSERT_NE(worn, nullptr);
+  EXPECT_EQ(worn->GetDesc().MipLevels, 1u);
+  EXPECT_EQ(resident.sample(map, {.mipmaps = false}), worn);
+  resident.endFrame();
   on->context()->Flush();
   on->context()->WaitForIdle();
   gpu->destroy(page);

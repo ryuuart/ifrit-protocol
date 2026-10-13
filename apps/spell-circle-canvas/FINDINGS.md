@@ -427,3 +427,16 @@ publication, and row and channel order. A `gpu`-labelled `io_test` case
 should publish a two-by-two quadrant texture over a `syphon://` name,
 find it listed, and have two subscribers that join after drawing stops
 each receive the same four quadrants in order.
+
+## The sweep's flush inserts its own recordings without the recorder's waits
+
+`flushHook` in `src/sketch/plate/Sweep.cpp` inserts the recordings of a
+timed frame itself, so the GPU waits SigilSkia registered on that
+recorder, such as the presented World picture's fence, are not attached
+to those inserts; with 2D on Metal a discarded frame can sample a
+presented picture before the device finishes it. Plates are unaffected,
+since the read-back carries the waits. Every insert the tree makes should
+carry the recorder's waits, which wants a door that submits a recorder
+with its waits (`PendingWaits` is private to `Waits.*`). A test should
+time a scene3d sweep frame and find the picture's presented-fence wait
+attached.

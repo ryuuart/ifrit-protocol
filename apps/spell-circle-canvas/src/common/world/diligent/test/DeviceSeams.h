@@ -17,6 +17,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImageInfo.h>
+#include <include/gpu/graphite/Recorder.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -171,6 +172,22 @@ inline SkColor4f at(const SkBitmap& plate, float x, float y) {
                           (int)(y * (float)plate.height()));
 }
 
+/** GRAPHITE ON THE DEVICE'S OWN VULKAN QUEUE: the device's `graphite()`
+ *  where 2D shares that queue, and where it paints through Metal instead,
+ *  a Vulkan context made over the adopted device and kept for the process
+ *  — the context a host without Metal stands on. Null where the device
+ *  was not adopted or this Skia carries no Vulkan backend. */
+inline skia::GraphiteContext* vulkanGraphite(geometry::device::Device& device) {
+  skia::GraphiteContext* own = device.graphite();
+  if (own && own->recorder() &&
+      own->recorder()->backend() == skgpu::BackendApi::kVulkan)
+    return own;
+  if (!device.gpu()) return nullptr;
+  static const std::unique_ptr<skia::GraphiteContext> made =
+      skia::GraphiteContext::create(*device.gpu());
+  return made.get();
+}
+
 /** WHAT THE 2D PATH PAINTED ON THIS DEVICE: the handle it was painted
  *  through, and the same texture as the graphics API's own object. Both
  *  are empty when the device carries no adopted 2D side. The caller owns
@@ -180,13 +197,15 @@ struct PaintedTexture {
   core::hardware::NativeTexture native;
 };
 
-/** Paint a page of @p side in @p format on @p device through the 2D path,
- *  drawn by @p paint, and hand back the graphics API's own object for it
- *  — the pixels a 3D pass then binds where they already stand. */
+/** Paint a page of @p side in @p format, with @p levels levels, on
+ *  @p device through the 2D path, drawn by @p paint at level zero, and
+ *  hand back the graphics API's own object for it — the pixels a 3D pass
+ *  then binds where they already stand, once the frame that wears them
+ *  has had its queue wait for the painting. */
 template <class Paint>
 inline PaintedTexture paintOnDevice(geometry::device::Device& device, int side,
                                     core::hardware::TextureFormat format,
-                                    const Paint& paint) {
+                                    const Paint& paint, int levels = 1) {
   PaintedTexture out;
   core::hardware::GpuDevice* gpu = device.gpu();
   skia::GraphiteContext* graphite = device.graphite();
@@ -195,11 +214,13 @@ inline PaintedTexture paintOnDevice(geometry::device::Device& device, int side,
   core::hardware::TextureDescription desc;
   desc.width = desc.height = side;
   desc.format = format;
+  desc.mipLevels = levels;
   out.handle = gpu->createTexture(desc);
   if (!out.handle) return out;
   {
-    // The surface has to be gone before the texture is exported, and the
-    // queue is shared with every other runtime on this device.
+    // The surface has to be gone before the texture is exported, and where
+    // 2D shares the device's queue that queue is shared with every other
+    // runtime on this device.
     const geometry::device::Device::QueueLock lock(device);
     skia::OffscreenSurface surface(*graphite, *gpu, out.handle);
     if (!surface.canvas()) return out;

@@ -2,8 +2,12 @@
 // handle. Dependencies point one way: Graphite stands on the hardware
 // device, and the hardware device knows nothing of Skia.
 
+#include <include/gpu/GpuTypes.h>
+#include <include/gpu/graphite/Recorder.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/TextureImage.h>
 // The fenced canvas the surface hands out: a constructor here must be able
 // to destroy one.
 #include <sigilskia/graphite/PaintOrder.h>
@@ -14,12 +18,26 @@ namespace sigil::skia {
 
 namespace {
 
-/** The wrap the texture's own API needs, over the native objects behind
- *  a handle. An empty export — what a stale or null handle yields — has
- *  no texture in it, so the wrap fails and `canvas()` stays null. */
+/** The wrap the CONTEXT's API needs, over the native objects behind a
+ *  handle: a context recording on Metal paints the Metal texture, which a
+ *  Vulkan device whose driver runs over Metal names beside its own image,
+ *  and any other context paints the texture in its own API. An empty
+ *  export — what a stale or null handle yields — has no texture in it, so
+ *  the wrap fails and `canvas()` stays null. */
 OffscreenSurface wrapNative(GraphiteContext& context,
                             const core::hardware::NativeTexture& native,
                             sk_sp<SkColorSpace> colorSpace) {
+#ifdef __APPLE__
+  const skgpu::graphite::Recorder* recorder = context.recorder();
+  if (recorder && recorder->backend() == skgpu::BackendApi::kMetal) {
+    // A texture on another Metal device is one this context cannot reach.
+    void* texture = drawsOnDeviceOf(*recorder, native.mtlTexture)
+                        ? native.mtlTexture
+                        : nullptr;
+    return OffscreenSurface(context, texture, native.width, native.height,
+                            std::move(colorSpace));
+  }
+#endif
   if (native.backend == core::hardware::Backend::Vulkan) {
     VulkanImage image;
     image.image = native.vkImage;
@@ -27,16 +45,13 @@ OffscreenSurface wrapNative(GraphiteContext& context,
     image.format = native.vkFormat;
     image.width = native.width;
     image.height = native.height;
+    image.mipLevels = native.mipLevels;
     return OffscreenSurface(context, image, std::move(colorSpace));
   }
-#ifdef __APPLE__
-  return OffscreenSurface(context, native.mtlTexture, native.width,
-                          native.height, std::move(colorSpace));
-#else
-  // A Metal texture cannot exist here, and an empty Vulkan image is the
-  // one wrap that is always available to fail with.
+  // A Metal texture on a context that does not record on Metal cannot be
+  // painted, and an empty Vulkan image is the one wrap that is always
+  // available to fail with.
   return OffscreenSurface(context, VulkanImage{}, std::move(colorSpace));
-#endif
 }
 
 }  // namespace

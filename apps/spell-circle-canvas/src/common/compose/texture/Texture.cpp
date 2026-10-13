@@ -233,10 +233,14 @@ bool TextureScene::useDevice(core::hardware::GpuDevice& device,
                              skia::GraphiteContext& context) {
   Impl& impl = *m_impl;
   // The usage left at its default is the one a scene needs: a shader
-  // reads the texture and a canvas paints into it.
+  // reads the texture and a canvas paints into it. THE TEXTURE CARRIES
+  // ITS OWN CHAIN: a body wearing the scene smaller than it is reads a
+  // level its size calls for, and whoever wears it fills the levels below
+  // the one painted here in place, so no second texture is kept for them.
   core::hardware::TextureDescription desc;
   desc.width = impl.info.width();
   desc.height = impl.info.height();
+  desc.mipLevels = core::hardware::mipLevelsFor(desc.width, desc.height);
   switch (impl.info.colorType()) {
     case kRGBA_8888_SkColorType:
       desc.format = core::hardware::TextureFormat::RGBA8Unorm;
@@ -326,9 +330,11 @@ namespace {
 
 /** A SCENE PAINTED ON A DEVICE, AS THE IMAGE A RECORDER DRAWS. The
  *  snapshot the scene keeps belongs to the Graphite context it painted
- *  through, so only a recorder of that same device may draw it; any other
- *  recorder, and none, is handed the pixels read back to host memory,
- *  read once per revision of the scene. */
+ *  through, so only a recorder of that same context may draw it — two
+ *  contexts on one device each keep their own resources, and neither may
+ *  draw an image the other made. Any other recorder, and none, is handed
+ *  the pixels read back to host memory, read once per revision of the
+ *  scene. */
 class SceneBinding final : public media::DeviceBinding {
  public:
   explicit SceneBinding(std::shared_ptr<const TextureScene> scene)
@@ -338,7 +344,8 @@ class SceneBinding final : public media::DeviceBinding {
     const sk_sp<SkImage> painted = m_scene->image();
     if (!painted) return nullptr;
     if (recorder && m_scene->recorder() &&
-        skia::deviceOf(*recorder) == skia::deviceOf(*m_scene->recorder()))
+        skia::contextOf(*recorder) == skia::contextOf(*m_scene->recorder()) &&
+        skia::contextOf(*recorder))
       return painted;
     std::lock_guard lock(m_mutex);
     if (m_read && m_readFrom == painted) return m_read;
@@ -376,6 +383,7 @@ media::Frame SceneSource::frameAt(std::chrono::duration<double>) const {
   frame.device.layout = where.layout;
   frame.device.width = where.width;
   frame.device.height = where.height;
+  frame.device.mipLevels = where.mipLevels;
   return frame;
 }
 SkISize TextureScene::size() const { return m_impl->info.dimensions(); }
@@ -415,6 +423,7 @@ material::DeviceImage TextureScene::deviceImage() const {
   out.layout = native.vkLayout;
   out.width = native.width;
   out.height = native.height;
+  out.mipLevels = native.mipLevels;
   return out;
 }
 

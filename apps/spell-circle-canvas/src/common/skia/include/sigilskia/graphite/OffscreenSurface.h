@@ -29,7 +29,9 @@ class PaintOrderCanvas;
 /** A VULKAN IMAGE TO DRAW INTO, as opaque values so this header pulls in
  *  no Vulkan header: `image` is the VkImage, a 64-bit non-dispatchable
  *  handle, `layout` and `format` are the VkImageLayout and VkFormat
- *  enumerators it currently has, and the size is in pixels. Its memory
+ *  enumerators it currently has, the size is in pixels, and `mipLevels`
+ *  says whether it carries a chain — the whole one its size holds — or
+ *  level zero alone; a draw lands in level zero either way. Its memory
  *  stays the caller's.
  *  @trap It must have been created for colour attachment, input
  *  attachment, sampling and transfer both ways. */
@@ -39,6 +41,7 @@ struct VulkanImage {
   uint32_t format = 0;
   int width = 0;
   int height = 0;
+  int mipLevels = 1;
 };
 
 /** AN EXISTING NATIVE TEXTURE AS AN SkSurface, with no copy, so SkCanvas
@@ -63,11 +66,16 @@ class OffscreenSurface {
   OffscreenSurface(GraphiteContext& context, const VulkanImage& image,
                    sk_sp<SkColorSpace> colorSpace = nullptr);
 
-  /** The texture @p texture names on @p device, whichever API that
-   *  device is: the wrap a host holding a GpuDevice reaches for, in
-   *  place of the native handle its API spells. `canvas()` is null when
-   *  the handle is stale or the wrap failed. Defined by the hardware
-   *  feature's device value.
+  /** The texture @p texture names on @p device, in whichever API
+   *  @p context records: the wrap a host holding a GpuDevice reaches for,
+   *  in place of the native handle its API spells. A context recording on
+   *  Metal paints the Metal texture, which a Vulkan device whose driver
+   *  runs over Metal names beside its own image — so a texture the Vulkan
+   *  device made is painted on Metal where the context is Metal's — and
+   *  any other context paints the texture in its own API. `canvas()` is
+   *  null when the handle is stale, when the context cannot reach the
+   *  texture, or when the wrap failed. Defined by the hardware feature's
+   *  device value.
    *  @trap A Vulkan image is wrapped in the layout the device last knew,
    *  undefined for one nothing has drawn into, so its contents before
    *  the first draw are not preserved. */
@@ -100,7 +108,10 @@ class OffscreenSurface {
   void submit();
 
   /** Submits as `submit()` does, then queues a signal of @p fence on
-   *  @p device behind it and returns the value the fence will reach —
+   *  @p device behind it and returns the value the fence will reach.
+   *  @p device is the one the context was made on, whose queue the
+   *  submit goes to: a signal on another queue stands behind nothing
+   *  this surface submitted. Answers
    *  kFenceInitialValue for a stale handle, and for a moved-from surface,
    *  which submits nothing to signal. Defined by the device feature.
    *  @trap The wait belongs on another queue or on the CPU: Graphite

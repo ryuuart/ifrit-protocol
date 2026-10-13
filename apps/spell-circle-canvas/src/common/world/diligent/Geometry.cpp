@@ -1940,6 +1940,37 @@ int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
   return (int64_t)redrawn;
 }
 
+/** THE PAGES THE FRAME'S BODIES WEAR, made ready before any target is
+ *  opened: every map a body's material holds, at any depth of its tree,
+ *  that names a page standing on the device is wrapped, waited for and
+ *  has its levels filled here — so the draws inside a pass find them
+ *  filled and none of them breaks its pass to fill one. A material two
+ *  bodies share is walked once. */
+void preparePages(Gpu& gpu, const View& view) {
+  const std::chrono::duration<double> time(gpu.seconds);
+  std::vector<const material::Material*> pending;
+  std::vector<const material::Material*> walked;
+  for (const Draw& body : view.draws) {
+    if (body.texture) gpu.maps.prepare(*body.texture, time);
+    if (body.material) pending.push_back(body.material);
+    for (const material::Material& slot : body.slots) pending.push_back(&slot);
+  }
+  while (!pending.empty()) {
+    const material::Material* worn = pending.back();
+    pending.pop_back();
+    if (std::find(walked.begin(), walked.end(), worn) != walked.end()) continue;
+    walked.push_back(worn);
+    for (const auto& [name, slot] : worn->slots()) {
+      if (slot.material) {
+        pending.push_back(slot.material.get());
+      } else if (const auto* map =
+                     dynamic_cast<const material::Texture*>(slot.leaf.get())) {
+        gpu.maps.prepare(*map, time);
+      }
+    }
+  }
+}
+
 }  // namespace
 
 /** WHETHER @p body TINTS A LIGHT PASSING THROUGH IT: it says it casts, it
@@ -2088,6 +2119,9 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     return;
   }
 
+  // THE PAGES' CHAINS, before any target is opened: the shadow stage
+  // below reads a page's opacity and transmission too.
+  preparePages(gpu, view);
   // THE PANORAMA'S FILTERED CHAIN, before the target is opened: made on
   // the device the first time a sky is met, which draws into a target of
   // its own.

@@ -51,6 +51,7 @@ class NativeSource {
     frame.device.layout = native.vkLayout;
     frame.device.width = native.width;
     frame.device.height = native.height;
+    frame.device.mipLevels = native.mipLevels;
     return frame;
   }
   bool isRunning() const { return false; }

@@ -610,9 +610,9 @@ canvas, Presentation::OnDevice)` asks the executor for an image the
 canvas samples where the device drew it: the final stage is drawn into
 a texture handed to the canvas's queue, a fence is signalled behind it
 on the device's queue, and the canvas's next submission waits on the
-GPU for that signal — the same order a compose texture sampled by a 3D
-pass keeps by riding one queue, made explicit because a window draws on
-a queue of its own. A canvas recorded by any recorder of the device's
+GPU for that signal — the order a page painted on another queue and
+sampled by a 3D pass keeps too, in the other direction, made explicit
+because a window draws on a queue of its own. A canvas recorded by any recorder of the device's
 own Graphite — its main one, or one made from it for another thread —
 stands on the very queue the picture was drawn on, so the texture is
 handed over behind a barrier alone, with no fence. A texture is drawn
@@ -790,6 +790,19 @@ the image it came from. So a compose scene painted into a texture on the
 shared device is sampled by a 3D pass with no copy in either direction,
 and the two libraries still know nothing about each other.
 
+**A page another queue paints is waited for on the GPU.** On Apple the
+shared device paints its 2D through Metal, on a queue of its own, into
+the Metal texture behind each of its images. Every geometry pass first
+makes the pages its bodies wear ready — wrapped, the device's queue made
+to wait once a frame for every painting submitted before it, and the
+levels below the one painted filled in place from it — before it opens
+a target, so no draw breaks its pass to fill a chain. A frame that wore
+a page has the next painting wait for the device's queue at its end,
+because a page is repainted in part, in place, over what the frame may
+still be reading; a readback and a headless frame end the same way.
+Neither direction blocks a thread, and where 2D shares the device's
+queue neither waits at all.
+
 ## The host contract
 
 `Scene::Impl` implements SigilCore's `ReconcileHost` operations on
@@ -961,7 +974,8 @@ make. What it takes to put a mesh or a map on the device at all is
 judged where that code lives, in SigilGeometry's `Device` suite.
 `DeviceSeams.h` holds the two seam values that stand on a device, the
 two cameras every case looks through, the card it photographs, the
-texture the 2D path paints on the device, and the worst channel two
+texture the 2D path paints on the device, Graphite on the device's own
+Vulkan queue for the cases about that queue, and the worst channel two
 plates differ by; **the device itself is SigilGeometryDevice's**, whose
 `test/support/OnDevice.h` brings up ONE for the process, because that
 library is the one point in the tree where a device can be created at
@@ -986,6 +1000,18 @@ bound frame, light twice white surviving to the final stage and an unlit
 colour leaving it to the byte under every curve, a bloom spreading only
 what passes its threshold, a card fading where it meets a wall, and a
 card facing the camera the same shape from two places.
+`PageAcrossQueuesTest.cpp` is a page on Apple, where the device's 2D
+paints on Metal: a page with a multiply over earlier draws painted on
+Metal into a texture the device made and worn by a lit card with nothing
+uploaded and one crossing back, the frame the same page painted on the
+CPU and uploaded makes; two frames in a row, the page repainted in part
+between them, the second showing the repainted page whole; a page worn
+smaller than it is read through the chain filled from its painted level,
+the grey an uploaded page shows and not the aliasing its level alone
+would; a texture Metal made imported into the device and worn as it
+stands; and the painting order a page needs holding on Metal with a
+plain canvas. `PresentTest.cpp` is a picture presented where it was
+drawn, on a Metal canvas and on Graphite on the device's own queue.
 `StackTest.cpp` is what `material::over` composes
 for this target: that the composed recipe compiles, and that what it
 shades where the mask is half is a picture neither operand alone

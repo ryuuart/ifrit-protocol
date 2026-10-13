@@ -58,7 +58,8 @@ DeviceImage Texture::deviceImage() const {
           .format = frame.device.format,
           .layout = frame.device.layout,
           .width = frame.device.width,
-          .height = frame.device.height};
+          .height = frame.device.height,
+          .mipLevels = frame.device.mipLevels};
 }
 
 bool Texture::operator==(const Texture& other) const {

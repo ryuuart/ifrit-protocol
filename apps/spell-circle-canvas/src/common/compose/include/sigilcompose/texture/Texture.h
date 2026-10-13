@@ -72,9 +72,15 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
   TextureScene(const TextureScene&) = delete;
   TextureScene& operator=(const TextureScene&) = delete;
 
-  /** Adopt a device surface of the scene's format and color space. The
-   *  context must use that device. F32 remains raster-only. Failure keeps
-   *  the current surface and pixels; success drops pixels and cache contents
+  /** Adopt a device surface of the scene's format and color space: a
+   *  texture @p device makes, with the whole chain of levels its size can
+   *  hold, painted at level zero through @p context. The context draws on
+   *  that device — or, where the device is Vulkan over a driver that runs
+   *  over Metal, on the Metal device under it, painting the Metal texture
+   *  the driver keeps behind the image, so a pass on the device samples
+   *  what Metal painted with no copy. Whoever wears the scene fills the
+   *  levels below zero. F32 remains raster-only. Failure keeps the
+   *  current surface and pixels; success drops pixels and cache contents
    *  so the next render paints the retained tree on the new surface. */
   bool useDevice(sigil::core::hardware::GpuDevice& device,
                  sigil::skia::GraphiteContext& context);
@@ -98,8 +104,9 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
    *  raster surface or before the first paint on the current surface. */
   material::DeviceImage deviceImage() const;
   /** The recorder the scene paints through on a device; null on the
-   *  raster surface. A recorder of the same device draws `image()` as it
-   *  stands; any other, and none, is handed a host copy of it. */
+   *  raster surface. A recorder of the same Graphite context draws
+   *  `image()` as it stands; any other, and none, is handed a host copy
+   *  of it. */
   skgpu::graphite::Recorder* recorder() const;
   /** The latest pixels as an image any canvas draws: `image()` itself on
    *  the raster surface, and on a device the surface read back to host

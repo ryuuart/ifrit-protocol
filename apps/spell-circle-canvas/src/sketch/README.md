@@ -373,7 +373,9 @@ moment before anything draws a body. The session keeps what the page paints
 into until the body declares again, as it keeps a texture scene; the page is
 painted on the device the process draws on — in a window and in a capture
 alike, so a capture's page is the page the window shows — and on the CPU
-where the process holds no device.
+where the process holds no device. On a Mac that painting is Metal's, into
+the device's own texture, and the frame wearing the page waits for it on
+the GPU.
 
 ```cpp
 struct Plaque {

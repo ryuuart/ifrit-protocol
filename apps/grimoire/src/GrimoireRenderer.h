@@ -44,6 +44,10 @@ class GraphiteContext;
 class PaintOrderCanvas;
 }  // namespace sigil::skia
 
+namespace sigil::core::hardware {
+class GpuDevice;
+}  // namespace sigil::core::hardware
+
 class GrimoireRenderer final : public QQuickRhiItemRenderer {
  public:
   /** Declared out of line so the Graphite handles below stay forward
@@ -120,8 +124,19 @@ class GrimoireRenderer final : public QQuickRhiItemRenderer {
    *  device-backed images that cannot replay onto a raster canvas, so
    *  every session gets this as it is built rather than only the first. */
   void installCaptureBackend(sigil::sketch::Host& host);
+  /** Hands the shared device this window's own Metal queue and context to
+   *  paint pages through, where the device paints its 2D on Metal; the
+   *  device keeps its own wherever this one cannot stand. */
+  void paintPagesThroughTheWindow(QRhi* rhi);
+  /** …and takes them back, before the context goes. */
+  void withdrawPagesFromTheWindow();
 
 #ifdef SIGIL_GRIMOIRE_GPU
+  /** THE WINDOW'S METAL DEVICE AND QUEUE, adopted, which the process's
+   *  shared device paints its pages through while this window stands, so
+   *  the pages and the window share the context below. Declared before
+   *  the context, so the context goes first. */
+  std::unique_ptr<sigil::core::hardware::GpuDevice> m_windowDevice;
   std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
   /** THE DEVICE PROGRAMS STOOD UP BEFORE THE FIRST SKETCH DRAWS, off
    *  this thread — building one costs exactly what waiting for it

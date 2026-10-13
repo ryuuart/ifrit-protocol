@@ -413,14 +413,16 @@ float spreadAtTheMiddle(const SkBitmap& plate) {
 }  // namespace
 
 // A PAGE WORN AT A DISTANCE IS READ FROM A SMALLER LEVEL: a page standing
-// on the device, worn by a card a few of its pixels across, reads as the
-// grey its squares average to, as the same page uploaded from host memory
-// does — and worn with no smaller copies, as the squares it lands on.
+// on the device, made with its chain and painted at level zero, worn by a
+// card a few of its pixels across, reads as the grey its squares average
+// to, as the same page uploaded from host memory does — and worn with no
+// smaller copies, as the squares it lands on.
 TEST(SurfaceSlots, APageWornAtADistanceIsReadFromASmallerLevel) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   const diligent::PaintedTexture painted = diligent::paintOnDevice(
-      *on.device, 64, core::hardware::TextureFormat::RGBA8Unorm, checkerboard);
+      *on.device, 64, core::hardware::TextureFormat::RGBA8Unorm, checkerboard,
+      core::hardware::mipLevelsFor(64, 64));
   if (!painted.native) GTEST_SKIP() << "2D on the 3D device is unavailable";
   const material::Texture page =
       world::diligent::importNative(*on.device, painted.native);

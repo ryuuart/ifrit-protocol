@@ -1,15 +1,20 @@
 /** @file
- * A PAGE PAINTED ON METAL AND WORN BY A BODY ON THE DEVICE: Graphite on a
- * Metal queue paints a page into a texture both APIs name, the device's
- * queue waits on the GPU for the painting, and a lit card in a frame
- * wears the texture where it stands. Two ways for the texture to come to
- * be: the device makes it and Metal paints what the driver exports, or
- * Metal makes it and the device names what the driver imports. Either
- * frame is the frame the same page painted on the CPU and uploaded makes.
+ * A PAGE PAINTED ON METAL AND WORN BY A BODY ON THE DEVICE. On Apple the
+ * device's own 2D paints through Graphite's Metal backend into a texture
+ * the Vulkan device made, the frame that wears it has the Vulkan queue
+ * wait on the GPU for the painting, and the next painting waits for the
+ * frame: a lit card wears the page where it stands, with nothing
+ * uploaded, and is the frame the same page painted on the CPU and
+ * uploaded makes — a page repainted in part between two frames included,
+ * and a page worn smaller than it is, read through the chain filled from
+ * the level Metal painted.
  *
- * And the painting order a page needs, held on Metal with a plain canvas:
- * a draw whose blend reads the destination neither buries what was
- * described after it nor loses what was drawn before it.
+ * And the two ways a texture comes to stand in both APIs: the device
+ * makes it and Metal paints what the driver exports, as a page does, or
+ * Metal makes it and the device names what the driver imports. And the
+ * painting order a page needs, held on Metal with a plain canvas: a draw
+ * whose blend reads the destination neither buries what was described
+ * after it nor loses what was drawn before it.
  *
  * Every case SKIPS where there is no Vulkan runtime, no Metal device to
  * stand a second queue on, or a driver that cannot hand objects across.
@@ -93,13 +98,37 @@ void paintPage(SkCanvas& canvas) {
   canvas.drawRect(SkRect::MakeXYWH(40, 8, 16, 16), square);
 }
 
-/** The page painted on the CPU, as an image a texture uploads. */
-sk_sp<SkImage> pageOnTheCpu() {
+/** WHAT A PARTIAL REPAINT ADDS over the page, and nothing anywhere else:
+ *  a red bar across the disc and the multiplied half, drawn over what the
+ *  page holds with no clear. */
+void repaintPart(SkCanvas& canvas) {
+  SkPaint bar;
+  bar.setColor(SkColorSetRGB(200, 30, 30));
+  canvas.drawRect(SkRect::MakeXYWH(8, 40, 40, 12), bar);
+}
+
+/** A PAGE FINER THAN A SMALL CARD CAN SHOW: stripes one pixel wide, black
+ *  and white, which a card drawn smaller than the page reads as grey only
+ *  through a chain filled from them. */
+constexpr int kFinePage = 256;
+void paintStripes(SkCanvas& canvas) {
+  canvas.clear(SK_ColorWHITE);
+  SkPaint black;
+  black.setColor(SK_ColorBLACK);
+  for (int x = 0; x < kFinePage; x += 2)
+    canvas.drawRect(SkRect::MakeXYWH((float)x, 0, 1, (float)kFinePage), black);
+}
+
+/** A page of @p side painted on the CPU by @p paint, as an image a
+ *  texture uploads. */
+template <class Paint>
+sk_sp<SkImage> pageOnTheCpu(const Paint& paint, int side = kPage) {
   sk_sp<SkSurface> raster =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kPage, kPage));
-  paintPage(*raster->getCanvas());
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
+  paint(*raster->getCanvas());
   return raster->makeImageSnapshot();
 }
+sk_sp<SkImage> pageOnTheCpu() { return pageOnTheCpu(paintPage); }
 
 /** A SOURCE WHOSE PIXELS STAND ON A DEVICE AND NOWHERE ELSE: its frame
  *  carries no image and no binding, so a frame that shows the page shows
@@ -115,6 +144,7 @@ struct StandingSource {
     frame.device.layout = where.layout;
     frame.device.width = where.width;
     frame.device.height = where.height;
+    frame.device.mipLevels = where.mipLevels;
     return frame;
   }
   bool isRunning() const { return false; }
@@ -123,12 +153,28 @@ struct StandingSource {
   }
 };
 
-/** A white lit surface wearing @p map on a card, lit by one sun. */
-Frame wearing(material::Texture map) {
+/** The texture @p image names on @p device, as a map a body wears, with
+ *  the levels it was made with. */
+material::Texture standingOn(hardware::GpuDevice* device,
+                             const hardware::NativeTexture& image) {
+  material::DeviceImage where;
+  where.device = device;
+  where.handle = image.vkImage;
+  where.format = image.vkFormat;
+  where.layout = image.vkLayout;
+  where.width = image.width;
+  where.height = image.height;
+  where.mipLevels = image.mipLevels;
+  return material::Texture(StandingSource{where});
+}
+
+/** A white lit surface wearing @p map on a card, lit by one sun, in a
+ *  frame of @p extent. */
+Frame wearing(material::Texture map, glm::ivec2 extent = kExtent) {
   material::Material surface =
       material::surface::program({.baseColor = {1, 1, 1, 1}});
   surface.slot(material::surface::kBaseColorSlot, std::move(map));
-  return diligent::card(surface, kExtent);
+  return diligent::card(surface, extent);
 }
 
 /** One frame rendered and read back, and what the frame counted. */
@@ -137,7 +183,8 @@ struct Photographed {
   SceneStats stats;
 };
 
-Photographed photograph(const Frame& frame, const Runtime& runtime) {
+Photographed photograph(const Frame& frame, const Runtime& runtime,
+                        glm::ivec2 extent = kExtent) {
   motion::Engine engine;
   Scene scene(engine);
   Frame copy = frame;
@@ -145,7 +192,7 @@ Photographed photograph(const Frame& frame, const Runtime& runtime) {
   engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
   scene.render(copy);
   Photographed out;
-  out.pixels.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+  out.pixels.allocPixels(SkImageInfo::MakeN32Premul(extent.x, extent.y));
   SkCanvas canvas(out.pixels);
   canvas.clear(SK_ColorBLACK);
   draw(scene, canvas);
@@ -280,7 +327,7 @@ void expectTheUploadedFrame(const Photographed& worn,
   const int apart = diligent::pixelsApart(
       worn.pixels, reference.pixels, SkIRect::MakeWH(kExtent.x, kExtent.y), 2);
   std::printf(
-      "[ probe    ] worst channel %d, pixels more than two levels "
+      "[ page     ] worst channel %d, pixels more than two levels "
       "apart %d of %d\n",
       worst, apart, kExtent.x * kExtent.y);
   EXPECT_LE(worst, kEdgeLevels);
@@ -291,51 +338,147 @@ void expectTheUploadedFrame(const Photographed& worn,
   EXPECT_GT(middle.fR + middle.fG + middle.fB, 0.3f);
 }
 
+/** THE DEVICE'S OWN 2D, painting on Metal, or null — with the case
+ *  skipped by its caller — where it paints elsewhere. */
+skia::GraphiteContext* pagesOnMetal(geometry::device::Device& device) {
+  skia::GraphiteContext* pages = device.graphite();
+  if (!pages || !pages->recorder() ||
+      pages->recorder()->backend() != skgpu::BackendApi::kMetal)
+    return nullptr;
+  return pages;
+}
+
 }  // namespace
 
-TEST_F(PageAcrossQueues, APagePaintedOnMetalIsWornByABodyUnderAFence) {
-  // THE DEVICE MAKES THE TEXTURE, as a texture scene does today, and
-  // Metal paints the object the driver exports for it.
-  hardware::TextureDescription description;
-  description.width = description.height = kPage;
-  description.format = hardware::TextureFormat::RGBA8Unorm;
-  const hardware::TextureHandle page = device->createTexture(description);
-  ASSERT_TRUE(device->isValid(page));
-  void* texture = device->exportNative(page).mtlTexture;
-  if (!texture) {
-    device->destroy(page);
-    GTEST_SKIP() << "this driver does not name the Metal objects behind its "
-                    "own";
-  }
-  // ONE DEVICE UNDER BOTH QUEUES: the Metal context draws on the device
-  // the exported texture stands on.
-  ASSERT_TRUE(skia::drawsOnDeviceOf(*painter->recorder(), texture));
-  std::printf(
-      "[ probe    ] exported texture hazard tracking %lu "
-      "(1 untracked, 2 tracked)\n",
-      hazardTrackingOf(texture));
-  EXPECT_EQ(hazardTrackingOf(texture), 2u);
-
-  const hardware::FenceHandle painted = metal->createFence();
-  {
-    skia::OffscreenSurface surface(*painter, texture, kPage, kPage);
-    ASSERT_NE(surface.surface(), nullptr);
-    if (!paintAcross(surface, painted)) {
-      metal->destroyFence(painted);
-      device->destroy(page);
-      GTEST_SKIP() << "this driver does not bring a Metal event over";
-    }
-  }
+// A PAGE THE DEVICE'S OWN 2D PAINTS ON METAL — a multiply over earlier
+// draws among it, a blend Metal reads its destination for — into a
+// texture the Vulkan device made with its whole chain, worn by a lit card
+// with nothing uploaded and nothing waited for by hand: the frame waits
+// for the painting itself.
+TEST_F(PageAcrossQueues, APagePaintedOnMetalIsWornByABodyWithNoUpload) {
+  if (!pagesOnMetal(*on.device))
+    GTEST_SKIP() << "the device paints its 2D somewhere other than Metal";
+  const diligent::PaintedTexture page = diligent::paintOnDevice(
+      *on.device, kPage, hardware::TextureFormat::RGBA8Unorm,
+      [](SkCanvas& canvas) { paintPage(canvas); },
+      hardware::mipLevelsFor(kPage, kPage));
+  ASSERT_TRUE(page.native);
+  // THE PAGE IS THE DEVICE'S, painted where Metal names it.
+  EXPECT_NE(page.native.vkImage, 0u);
+  EXPECT_NE(page.native.mtlTexture, nullptr);
+  EXPECT_EQ(page.native.mipLevels, hardware::mipLevelsFor(kPage, kPage));
 
   const Photographed worn =
-      photograph(wearing(standing(device->exportNative(page))), on.runtime);
+      photograph(wearing(standingOn(device, page.native)), on.runtime);
   // ONE CROSSING BACK, and it is the photograph's own: the page was
   // sampled where it stands, since the source carries no image at all.
   EXPECT_EQ(worn.stats.readbacks, 1);
   expectTheUploadedFrame(worn, uploaded());
+  device->destroy(page.handle);
+}
 
-  metal->destroyFence(painted);
-  device->destroy(page);
+// A PAGE PAINTED THROUGH A HOST'S OWN METAL CONTEXT — a window's, handed
+// to the device — is worn the same: the frame waits for the host's queue
+// as it waits for the device's own, and the picture is the CPU page's.
+TEST_F(PageAcrossQueues,
+       APagePaintedThroughAHostsOwnMetalContextIsWornTheSame) {
+  if (!pagesOnMetal(*on.device))
+    GTEST_SKIP() << "the device paints its 2D somewhere other than Metal";
+  ASSERT_TRUE(on.device->paintWith(metal.get(), painter.get()));
+  // Handed back however the case ends, before the host's context goes.
+  struct Withdraw {
+    geometry::device::Device& device;
+    ~Withdraw() { (void)device.paintWith(nullptr, nullptr); }
+  } withdraw{*on.device};
+  ASSERT_EQ(on.device->graphite(), painter.get());
+  const diligent::PaintedTexture page = diligent::paintOnDevice(
+      *on.device, kPage, hardware::TextureFormat::RGBA8Unorm,
+      [](SkCanvas& canvas) { paintPage(canvas); },
+      hardware::mipLevelsFor(kPage, kPage));
+  ASSERT_TRUE(page.native);
+  const Photographed worn =
+      photograph(wearing(standingOn(device, page.native)), on.runtime);
+  EXPECT_EQ(worn.stats.readbacks, 1);
+  expectTheUploadedFrame(worn, uploaded());
+  device->destroy(page.handle);
+}
+
+// TWO FRAMES IN A ROW, THE PAGE REPAINTED IN PART BETWEEN THEM, over what
+// the first frame sampled: the second frame shows the page as repainted,
+// whole — the part painted again and everything the first painting left
+// around it — which is the frame the repainted page made on the CPU and
+// uploaded makes.
+TEST_F(PageAcrossQueues, ASecondFrameShowsThePageRepaintedInPartSinceTheFirst) {
+  skia::GraphiteContext* pages = pagesOnMetal(*on.device);
+  if (!pages)
+    GTEST_SKIP() << "the device paints its 2D somewhere other than Metal";
+  const diligent::PaintedTexture page = diligent::paintOnDevice(
+      *on.device, kPage, hardware::TextureFormat::RGBA8Unorm,
+      [](SkCanvas& canvas) { paintPage(canvas); },
+      hardware::mipLevelsFor(kPage, kPage));
+  ASSERT_TRUE(page.native);
+  const material::Texture map = standingOn(device, page.native);
+
+  const Photographed first = photograph(wearing(map), on.runtime);
+  expectTheUploadedFrame(first, uploaded());
+
+  {
+    skia::OffscreenSurface surface(*pages, *device, page.handle);
+    ASSERT_NE(surface.canvas(), nullptr);
+    repaintPart(*surface.canvas());
+    surface.submit();
+  }
+  const Photographed second = photograph(wearing(map), on.runtime);
+  EXPECT_EQ(second.stats.readbacks, 1);
+  const Photographed repainted =
+      photograph(wearing(material::Texture(pageOnTheCpu([](SkCanvas& canvas) {
+                   paintPage(canvas);
+                   repaintPart(canvas);
+                 }))),
+                 on.runtime);
+  expectTheUploadedFrame(second, repainted);
+  // …and the repaint reached the picture: the bar stands where the first
+  // frame showed the disc.
+  EXPECT_GT(diligent::worstChannel(first.pixels, second.pixels), 64);
+  device->destroy(page.handle);
+}
+
+// A PAGE WORN SMALLER THAN IT IS reads the chain filled from the level
+// Metal painted: a card a fraction of the page's size shows the stripes
+// as the grey the same page uploaded from the CPU shows, through levels
+// the device filled the same way — and not the stripes' own black and
+// white, which a page worn at its painted level alone would alias into.
+TEST_F(PageAcrossQueues, APageWornSmallerThanItIsReadsTheChainFilledFromIt) {
+  if (!pagesOnMetal(*on.device))
+    GTEST_SKIP() << "the device paints its 2D somewhere other than Metal";
+  constexpr glm::ivec2 kSmall{64, 48};
+  const auto stripes = [](SkCanvas& canvas) { paintStripes(canvas); };
+  const diligent::PaintedTexture chained = diligent::paintOnDevice(
+      *on.device, kFinePage, hardware::TextureFormat::RGBA8Unorm, stripes,
+      hardware::mipLevelsFor(kFinePage, kFinePage));
+  const diligent::PaintedTexture flat = diligent::paintOnDevice(
+      *on.device, kFinePage, hardware::TextureFormat::RGBA8Unorm, stripes);
+  ASSERT_TRUE(chained.native);
+  ASSERT_TRUE(flat.native);
+
+  const Photographed worn = photograph(
+      wearing(standingOn(device, chained.native), kSmall), on.runtime, kSmall);
+  const Photographed reference = photograph(
+      wearing(material::Texture(pageOnTheCpu(stripes, kFinePage)), kSmall),
+      on.runtime, kSmall);
+  const Photographed aliased = photograph(
+      wearing(standingOn(device, flat.native), kSmall), on.runtime, kSmall);
+  const int worst = diligent::worstChannel(worn.pixels, reference.pixels);
+  const int unfiltered =
+      diligent::worstChannel(aliased.pixels, reference.pixels);
+  std::printf(
+      "[ chain    ] worst channel against the uploaded page: filled chain "
+      "%d, painted level alone %d\n",
+      worst, unfiltered);
+  EXPECT_LE(worst, 4);
+  EXPECT_GT(unfiltered, 24);
+  device->destroy(chained.handle);
+  device->destroy(flat.handle);
 }
 
 TEST_F(PageAcrossQueues, AMetalTextureImportedIntoTheDeviceIsWornAsItStands) {
@@ -401,7 +544,7 @@ TEST_F(PageAcrossQueues, AMetalTextureImportedIntoTheDeviceIsWornAsItStands) {
 TEST_F(PageAcrossQueues, PaintingOrderHoldsOnMetalWithNoFence) {
   std::printf("[ probe    ] destination reads: Metal %s",
               destinationReadOf(*painter));
-  if (skia::GraphiteContext* own = on.device->graphite())
+  if (skia::GraphiteContext* own = diligent::vulkanGraphite(*on.device))
     std::printf(", the device's Vulkan %s", destinationReadOf(*own));
   std::printf("\n");
 

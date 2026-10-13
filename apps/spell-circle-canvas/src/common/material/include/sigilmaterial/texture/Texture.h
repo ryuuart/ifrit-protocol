@@ -51,6 +51,11 @@ struct DeviceImage {
   uint32_t layout = 0;
   int width = 0;
   int height = 0;
+  /** Levels the texture carries, level 0 at `width` x `height` and each
+   *  one after it half the size of the last. One is a texture with no
+   *  chain; a renderer filling the levels below zero fills them from
+   *  level zero. */
+  int mipLevels = 1;
 
   explicit operator bool() const {
     return device != nullptr && (pointer != nullptr || handle != 0);

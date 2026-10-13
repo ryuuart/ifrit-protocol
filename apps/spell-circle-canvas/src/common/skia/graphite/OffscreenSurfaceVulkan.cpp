@@ -35,10 +35,12 @@ OffscreenSurface::OffscreenSurface(GraphiteContext& context,
   // transfer for clears and readbacks — so an image created with less
   // fails the wrap rather than the draw. Sample count and mip state live on the
   // info's base and are spelled explicitly: a default-constructed info does not
-  // describe a one-sample, unmipped image.
+  // describe a one-sample image, and an image carrying a chain is described
+  // as carrying one rather than as level zero alone.
   const skgpu::graphite::VulkanTextureInfo info(
-      VK_SAMPLE_COUNT_1_BIT, skgpu::Mipmapped::kNo, /*flags=*/0,
-      static_cast<VkFormat>(image.format), VK_IMAGE_TILING_OPTIMAL,
+      VK_SAMPLE_COUNT_1_BIT,
+      image.mipLevels > 1 ? skgpu::Mipmapped::kYes : skgpu::Mipmapped::kNo,
+      /*flags=*/0, static_cast<VkFormat>(image.format), VK_IMAGE_TILING_OPTIMAL,
       static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) |
           static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT) |
           static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_SAMPLED_BIT) |

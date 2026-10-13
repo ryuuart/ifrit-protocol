@@ -288,6 +288,11 @@ int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
     }
   } capture;
   if (gpu) {
+    // THE CONTEXT THE CAPTURE PAINTS THROUGH: the device's own where the
+    // sketch needs the device, which on Apple is a Metal context on the
+    // Metal device the Vulkan driver runs over, so the still, the pages it
+    // wears and the window's canvas are all Metal's; and on Apple a pure
+    // scene2d capture's own Metal context, which starts no device at all.
     sigil::skia::GraphiteContext* graphite = nullptr;
 #ifdef __APPLE__
     graphite = host.needsDevice() ? sketch::deviceGraphite() : canvasGraphite;
