@@ -1,8 +1,8 @@
 {
  "config": "Release",
- "host": "MacBookPro.control",
+ "host": "sigil.local",
  "machine": "arm64",
- "taken": "2026-09-15T14:35:50+00:00",
+ "taken": "2026-10-13T15:23:59+00:00",
  "benches": {
   "compose_bench": {
    "BM_Mount_Cold/100": {
@@ -3863,6 +3863,12 @@
     "real_ns": 16552.75159671212,
     "cpu_ns": 16552.260890149195,
     "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Adopted_PaintingOrderedBothWays": {
+    "real_ns": 404542.246799877,
+    "cpu_ns": 71460.02621232069,
+    "unit": "ns",
     "repetitions": 4
    }
   },
