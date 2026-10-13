@@ -41,6 +41,31 @@ a window server or a network.
    settles; one sketch reading all three as the same `data.Json`, a
    recording a still replays, and the canvas published back to the
    patch over Syphon.
+8. **[A console driven from outside, in Python](guide:console-driven-from-outside-python)**
+   — the WardNet console fed by JSON messages over UDP and a WebSocket
+   that serves its own page of buttons: keyed rows that mount with an
+   entrance, an alert chip and marquee that follow the newest alert, a
+   meter eased on the engine and followed through a binding, a
+   TouchDesigner script, and a recording a still replays.
+9. **[Entrances and staggers in Python](guide:entrances-and-staggers-python)**
+   — a grid of cards that opens from its centre on an eased stagger, a
+   wipe along one axis of a grid, a seeded scatter, a queue that arrives
+   row by row and leaves by reversing its playback, and a cursor that
+   eases on change: what an entrance is and what a transition is.
+10. **[A title sequence on a timeline, in Python](guide:timelines-python)**
+    — labels, `at`, `afterPrevious` and `withPrevious`, a run that
+    leaves on a stagger, calls that swap a credit into a slot, a
+    transport timer that pauses, resumes and seeks, and why a still at
+    `--at` is exact.
+11. **[Live values and bindings in Python](guide:live-values-and-bindings-python)**
+    — one number from an oscillator followed by a dial, a meter, a peak
+    lamp and a stepped readout, each through its own binding: a range,
+    an envelope, a wiggle and `quantize`; and the same panel fed from
+    JSON arrivals.
+12. **[Springs and oscillators in Python](guide:springs-and-oscillators-python)**
+    — a panel that snaps between two places on a spring stepped from a
+    timer, a colour that settles, `flash` and `decay` for a hit, three
+    waves at one rate, and the three words for stillness.
 
 ## What to read next
 

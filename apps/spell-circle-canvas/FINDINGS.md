@@ -487,3 +487,25 @@ under an identity track at progress one renders byte-identical to the
 same leaf without the track; if whole-pixel placement under any track is
 the rule, the text effects reference should say so instead.
 
+## A Python curve or Oscillator in a binding never compares equal
+
+In Python, `motion.Binding(envelope=motion.envelope.shaped(oscillator))`
+compares unequal to a second binding built the same way over the same
+`Oscillator` object, and so does `ease=` given one Python function;
+only the native `ease` values compare equal. In C++ an `Oscillator` is
+comparable and callable, so it plugs into `ease` or `envelope.shaped`
+and keeps the binding's identity, which is why a curve is carried as a
+value rather than a closure; the Python binding wraps it as an opaque
+callable, so a tree described again re-patches every node bound through
+it. A test should assert that two bindings built with
+`envelope=envelope.shaped(oscillator)` or `ease=oscillator` over equal
+oscillators compare equal and differ when the oscillators differ.
+
+## Python has no per-value "running" answer
+
+`isRunning(held, value)`, the middle of the three stillness words, has
+no Python spelling because `HeldMotion` is not bound; a Python sketch
+can only ask the whole engine `isRunning()`. A test should assert that a
+Python value animated by a transition answers running while its held
+motion writes it, and not running once it lands.
+

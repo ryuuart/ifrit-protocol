@@ -112,6 +112,12 @@ last acknowledgment. Headless captures replay synthetic arrivals without
 opening a socket or writing a file; the live waiting state labels its
 reference traces until a sender arrives.
 
+`python_text_fx.py` runs the text effect family from Python on one page: a
+title decoding through a held scramble, a word whose keyframe stops flash in
+the page's `--flash` custom property before settling to its ink, a line a
+tint sings across word by word, a sequence that drops each letter in and then
+squashes it, and a wave loop on a wrapping phase.
+
 `cue_deck/` reads a TouchDesigner patch's cues through three doors: JSON
 text with no schema, OSC messages gathered by address pattern, and a
 FlatBuffer read through the `cue_deck.bfbs` the build compiles beside
@@ -119,6 +125,14 @@ the entry from `cue_deck.fbs`. All three hand the page the same
 `data.Json`, and the page names the door the newest cue came through.
 Its README and the guide it links say how the patch is wired and how the
 canvas returns to TouchDesigner over Syphon.
+
+`wardnet_live/` is the WardNet console driven from outside: JSON messages
+over UDP and over a WebSocket door that serves the sketch's own page of
+buttons add keyed rows that mount with an entrance, set the alert chip
+and the marquee, place cards and ease the load meter. `sender.py` plays a
+scripted show over either door and writes the recording a capture
+replays; `touchdesigner/scripts/wardnet_live.py` sends from a patch. Its
+README and the guide it links say how each sender reaches it.
 
 The table below is every sketch filed under a `Study ·` category — the
 studies that rebuild a REFERENCE — with what each one puts under load.
@@ -196,6 +210,10 @@ directory reaches for them, so a rename has somewhere to be noticed:
 | `guest_picture` | The only sketch whose subject is not in this repository: it wears whatever another application on this machine is publishing under the name `Guest`. `frames/README.md` points at it as what a subscription looks like in a scene, and its plate is the waiting card, because a capture subscribes to nothing. |
 | `guest_body` | `guest_picture`'s subject on a BODY: the same publication in a surface's base-colour slot, on a screen turning in a lit scene. `frames/README.md` points at it as what a subscription looks like on a body, and its plate is the waiting card it paints itself, because a capture subscribes to nothing. |
 | `alpha_ground` | The one sketch grounded in `{0, 0, 0, 0}`: what `sketch_transparent_ground` sweeps, on the raster surface and the device, to prove a ground's alpha survives the clear, and what the publication door in `../README.md` points at as a frame meant to be composited. `python_alpha_ground` is its twin. |
+| `python_entrances` | What the guide `entrances-and-staggers-python` quotes, line for line: staggered entrances over a grid and an axis, a seeded scatter, an engine run that reverses, and a transition. |
+| `python_timeline` | What the guide `timelines-python` quotes, line for line: a title sequence on one timeline with labels, positions, calls into a slot and a transport timer. |
+| `python_bindings` | What the guide `live-values-and-bindings-python` quotes, line for line: one oscillator-driven live value followed through ranges, an envelope, a wiggle and `quantize`. |
+| `python_springs` | What the guide `springs-and-oscillators-python` quotes, line for line: springs stepped from a timer, `flash` and `decay` for a hit, oscillators, and the three words for stillness. |
 
 The Evangelion studies share their type and whole-screen CRT treatment in
 `eva_magi_interior/EvangelionUi.h`. The screen uses SigilMaterial's CRT kit
