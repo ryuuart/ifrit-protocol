@@ -129,10 +129,10 @@ def swatches() -> Element:
     )
 
 
-@sketch(size=(900, 560), capture_at=1.1, background="transparent")
+@sketch(size=(900, 560), captureAt=1.1, background="transparent")
 class SpellCircle:
     def setup(self, ctx: Scene2DContext) -> None:
-        look = kit.house_theme()
+        look = kit.houseTheme()
         look.palette.ground = (0, 0, 0, 0)
         look.palette.ink = "#273d41"
         look.palette.ash = "#627471"
