@@ -53,12 +53,12 @@ def cell(caption: str, leaf: compose.Element) -> compose.Element:
     )
 
 
-@sketch(size=(620, 260), background=GROUND, capture_at=0)
+@sketch(size=(620, 260), background=GROUND, captureAt=0)
 class ImageElement:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         picture = checker()
         # Nearest sampling on the container reaches every image leaf
         # under it, which is what a grid of pixels wants and a photograph

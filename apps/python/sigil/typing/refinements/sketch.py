@@ -8,7 +8,9 @@ from .table import Table
 def register(table: Table) -> None:
     table.erased("_sigil.Context", "background", "_t.ColorLike")
     table.returns("_sigil.Context", "size", "tuple[float, float]")
-    table.erased("_sigil.sketch.kit", "stage", "_sigil.Context")
+    table.erased(
+        "_sigil.sketch.kit", "stage", "_sigil.Context | _sigil.sketch.Scene3DContext"
+    )
     table.erased("_sigil.sketch.kit.Theme", "font style", "_t.ColorLike")
     table.erased(
         "_sigil.sketch.kit.Provide",

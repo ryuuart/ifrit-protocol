@@ -20,14 +20,12 @@ in it, polished copper, and copper that glows.
 import math
 
 from sigil import compose, material, motion, world
-from sigil.draw import Pen
 from sigil.geometry import mesh
-from sigil.material import hexColor
 from sigil.motion import ease
-from sigil.sketch import Scene2DContext, sketch
+from sigil.sketch import Scene3DContext, sketch
 
-WIDTH, HEIGHT = 960, 540              # the canvas
-PAGE_WIDTH, PAGE_HEIGHT = 768, 384    # the page the plaque wears, in page pixels
+WIDTH, HEIGHT = 960, 540  # the canvas
+PAGE_WIDTH, PAGE_HEIGHT = 768, 384  # the page the plaque wears, in page pixels
 PLATE_WIDTH, PLATE_HEIGHT = 320, 160  # the plaque's size in the scene
 GROUND = "#0f1216"
 STONE = "#d9d0b8"
@@ -74,8 +72,9 @@ def plaque_face() -> compose.Element:
         compose.box(
             title,
             compose.box().width(540).height(6).borderRadius(3).fill(GLOWING_RULE),
-            compose.text("compose paints the maps · world lights them", size=26, color=INK)
-            .ink(CAPTION_INK),
+            compose.text(
+                "compose paints the maps · world lights them", size=26, color=INK
+            ).ink(CAPTION_INK),
         )
         .width(PAGE_WIDTH)
         .height(PAGE_HEIGHT)
@@ -92,9 +91,13 @@ hand: the page derives every map from the materials its fills state.
 
 ## Step 3 — the page as a surface
 
+The plaque is a scene3d sketch: its `describe(seconds)` returns a
+`world.Frame`, and the annotation `-> world.Frame` is what tells the host
+to draw it on the device. `setup` is handed a `Scene3DContext`.
 `ctx.page(size)` makes the page; the session keeps it. `page.render(tree)`
-is a pass the baked frame carries, and `page.surface()` is the material
-the quad wears.
+is a pass on the frame `describe` returns, and `page.surface()` is the
+material the quad wears. `ctx.camera(lens)` is the lens the frame is seen
+through.
 
 ```python
 STUDIO = world.kit.environmentMap(
@@ -107,18 +110,13 @@ STUDIO = world.kit.environmentMap(
 )
 
 
-@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=2.0)
+@sketch(size=(WIDTH, HEIGHT), background=GROUND, captureAt=2.0)
 class Plaque:
-    needsDevice = True            # the bake draws on the host's device
-
-    def setup(self, ctx: Scene2DContext) -> None:
+    def setup(self, ctx: Scene3DContext) -> None:
         self.page = ctx.page((PAGE_WIDTH, PAGE_HEIGHT))
         self.face = plaque_face()
         self.plate = mesh.quad(PLATE_WIDTH, PLATE_HEIGHT)
-        self.lens = mesh.camera.Camera()
-        self.lens.eye = (0, 150, 330)
-        self.lens.target = (0, 0, 0)
-        self.lens.fovYDeg = 36
+        ctx.camera(mesh.camera.Camera(eye=(0, 150, 330), target=(0, 0, 0), fovYDeg=36))
 ```
 
 The face is built once, so the page paints once and keeps what it
@@ -133,36 +131,35 @@ plaque on its quad wearing the page, the studio environment for the
 copper to reflect, the page's pass, and a bloom pass.
 
 ```python
-    def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
-        seconds = pen.millis() / 1000
-        pulse = 0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 3)
-        swing = 0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 8)
-        key_angle = math.radians(-60 + 120 * swing)
+    def describe(self, seconds: float) -> world.Frame:
+        pulse = 0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 3)  # a three-second breath
+        key_angle = math.radians(
+            -60 + 120 * (0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 8))
+        )
         model = world.group(
             world.directionalLight(
-                (math.sin(key_angle), -0.7, -0.5), intensity=2.2 + 0.8 * pulse, castShadow=True
+                (math.sin(key_angle), -0.7, -0.5),
+                intensity=2.2 + 0.8 * pulse,
+                castShadow=True,
             ).key("key"),
-            world.hemisphereLight(color="#9fb3c8", groundColor="#2a241c", intensity=0.35),
+            world.hemisphereLight(
+                color="#9fb3c8", groundColor="#2a241c", intensity=0.35
+            ),
             world.mesh(self.plate)
             .key("plaque")
             .rotateX(-12)
             .rotateY(motion.animate(from_=-90, to=0, duration=1.6, ease=ease.outCubic))
             .fill(self.page.surface()),
         ).key("scene")
-        frame = (
+        return (
             world.Frame(model)
             .environment(STUDIO, intensity=1.2)
             .pass_(self.page.render(self.face))
             .pass_(world.bloom(threshold=1.8, intensity=0.6, radius=28))
         )
-        still = ctx.bakeScene3D(
-            frame, (WIDTH, HEIGHT), camera=self.lens, background=hexColor(0x0F1216), at=seconds
-        )
-        if still is not None:
-            pen.image(still, 0, 0)
 ```
 
-**A value from the clock.** `pulse` and `swing` are numbers computed
+**A value from the clock.** `pulse` and `key_angle` are numbers computed
 from `seconds` and written into the description: the key's intensity and
 direction. The scene is described fresh each frame, so this is the
 simplest timeline there is, a function of time, exact at any moment,
@@ -170,9 +167,9 @@ which is what a still at `--at` needs.
 
 **An entrance the runtime owns.** `rotateY(motion.animate(from_=-90,
 to=0, duration=1.6, ease=ease.outCubic))` is a tween on the node's lane.
-It plays once from the moment the plaque mounts; the bake samples it at
-the moment handed in `at`, so a still at 0.6 seconds is mid-swing and one
-at 2 seconds has landed. Describing the tween again does not restart it.
+It plays once from the moment the plaque mounts and the frame samples it
+at the scene time, so a still at 0.6 seconds is mid-swing and one at 2
+seconds has landed. Describing the tween again does not restart it.
 Any scalar lane — `rotateX`, `scale`, `translateY`, a light's
 `intensity` — takes the same value.
 
@@ -184,9 +181,9 @@ Grimoire python_plaque.py --frame plaque.png --gpu --at 0.6    # mid-swing
 Grimoire python_plaque.py --frame plaque.png --gpu --at 2.0    # landed
 ```
 
-A Python bake needs the device, which the window brings up and a still
-asks for with `--gpu`; `needsDevice = True` on the class tells the host
-before the sketch opens.
+A scene3d sketch needs the device, which the window brings up and a still
+asks for with `--gpu`; the host reads the kind from the `-> world.Frame`
+on `describe` when it lists the sketch, before it opens.
 
 ## What to change next
 
@@ -194,7 +191,7 @@ before the sketch opens.
   and the copper lies in the cut.
 - **Glaze the stone.** Add `clearcoat=1.0, clearcoatRoughness=0.08` to
   `STONE_FACE`'s surface and the soft boxes reflect in a coat over it.
-- **Move the page.** Build the face inside `draw` from `seconds` and the
+- **Move the page.** Build the face inside `describe` from `seconds` and the
   page repaints each frame; a sliding caption or a reading that ticks
   over is then part of the material.
 - **Brush the copper.** `anisotropy=0.8` on `COPPER_METAL` stretches its

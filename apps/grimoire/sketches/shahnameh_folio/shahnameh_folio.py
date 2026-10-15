@@ -1831,7 +1831,7 @@ def label(
     return at(leaf_text, x, y, w, h)
 
 
-@sketch(size=(W * 1.5, H * 1.5), background="#17252b", capture_at=3.0)
+@sketch(size=(W * 1.5, H * 1.5), background="#17252b", captureAt=3.0)
 class ShahnamehFolio:
     def setup(self, ctx):
         # Only the spark overlay animates; the folio's geometry and text remain retained.

@@ -164,7 +164,7 @@ def queue(present: bool) -> compose.Element:
     )
 
 
-@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=0.8)
+@sketch(size=(WIDTH, HEIGHT), background=GROUND, captureAt=0.8)
 class Entrances:
     def setup(self, ctx: Scene2DContext) -> None:
         self.composer = ctx.composer

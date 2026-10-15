@@ -8,7 +8,7 @@ from pathlib import Path
 from sigil import compose, material, media, motion, skia, weave
 from sigil.geometry import mesh
 from sigil.material import field
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 Paint = material.Paint
 
@@ -77,7 +77,7 @@ class Values(unittest.TestCase):
                 "from sigil import compose, material\n"
                 "from sigil.compose import Composer\n"
                 "from sigil.sketch import sketch\n"
-                "@sketch(size=(64, 64), capture_at=0)\n"
+                "@sketch(size=(64, 64), captureAt=0)\n"
                 "class Cells:\n"
                 "    def draw(self, pen):\n"
                 "        composer = Composer()\n"
@@ -86,7 +86,7 @@ class Values(unittest.TestCase):
                 "            .fill(material.noise(1 / 32, cellular=True, jitter=0)))\n"
                 "        composer.draw(canvas=pen.canvas())\n"
             )
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             picture = media.decode(media.Image, output.read_bytes()).frameAt(0).image
             pixels = picture.rgba()
             width = picture.width()
@@ -106,7 +106,7 @@ class Values(unittest.TestCase):
             source.write_text("""from sigil.sketch import sketch
 from sigil.material import Paint
 from sigil.geometry import mesh
-@sketch(size=(96, 96), capture_at=0.02, background="#000000")
+@sketch(size=(96, 96), captureAt=0.02, background="#000000")
 class Scene:
     def setup(self, ctx):
         self.fill = Paint.sksl("uniform shader source; half4 main(float2 p) { return source.eval(p); }").slot("source", Paint.solid("#22cc88"))
@@ -119,7 +119,7 @@ class Scene:
         pen.background(self.fill)
         mesh.render.drawMesh(pen, self.body, mesh.camera.place(), self.camera, self.style)
 """)
-            render_file(source, output)
+            renderFile(source, output)
             raster = media.load(output).frameAt(0).image
             pixels = raster.rgba()
             self.assertEqual(pixels[:4], bytes([34, 204, 136, 255]))

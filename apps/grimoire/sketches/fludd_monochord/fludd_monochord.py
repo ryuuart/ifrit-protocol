@@ -209,7 +209,7 @@ def curved_labels():
     ]
 
 
-@sketch(size=(WIDTH, HEIGHT), background="#282B28", capture_at=0.36)
+@sketch(size=(WIDTH, HEIGHT), background="#282B28", captureAt=0.36)
 class FluddMonochord:
     def setup(self, ctx: Scene2DContext):
         hub = ctx.assets.hub()

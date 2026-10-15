@@ -9,7 +9,7 @@ from pathlib import Path
 from sigil import media
 from sigil.protocol import Clock, Session
 from sigil.protocol.clock import Policy
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 from sigil.testing import InProcess
 
 SCENE = """from sigil import material
@@ -17,7 +17,7 @@ from sigil.compose import box
 from sigil.sketch import sketch
 
 
-@sketch(size=(32, 32), background="#000000", capture_at=0)
+@sketch(size=(32, 32), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         program = material.shader(ctx.assets.hub(), ctx.local({name!r}))
@@ -33,7 +33,7 @@ class ShaderFile(unittest.TestCase):
             source = Path(folder) / "scene.py"
             output = Path(folder) / "scene.png"
             source.write_text(SCENE.format(name=name))
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             pixels = media.load(output).frameAt(0).image.rgba()
             offset = (at[1] * 32 + at[0]) * 4
             return bytes(pixels[offset : offset + 4])

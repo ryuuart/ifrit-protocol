@@ -10,7 +10,7 @@ from _sigil import compose as raw
 from sigil import media
 from sigil.compose import Element, box, column, graphics, row, text
 from sigil.motion import animate
-from sigil.sketch import render_file, sketch
+from sigil.sketch import renderFile, sketch
 
 
 class Context:
@@ -45,7 +45,7 @@ class Authoring(unittest.TestCase):
             def setup(self, ctx):
                 ctx.calls.append(("setup", self))
 
-        cls = self.decorate(Body, size=(300, 200), background="#abcdef", capture_at=2.5)
+        cls = self.decorate(Body, size=(300, 200), background="#abcdef", captureAt=2.5)
         body, ctx = cls(), Context()
         body.setup(ctx)
         self.assertIs(cls, Body)
@@ -115,7 +115,7 @@ from sigil.sketch import sketch
 from sigil.weave import Type
 
 
-@sketch(size=(192, 64), capture_at=0, background="#000000")
+@sketch(size=(192, 64), captureAt=0, background="#000000")
 class Inheritance:
     def setup(self, ctx):
         font = Type()
@@ -138,7 +138,7 @@ class Inheritance:
             .children(panels)
         )
 """)
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             pixels = media.load(output).frameAt(0).image.rgba()
             panels = [
                 b"".join(
@@ -158,7 +158,7 @@ class Inheritance:
             source.write_text("""from sigil.compose import box
 from sigil.sketch import sketch
 
-@sketch(size=(12, 32), capture_at=0)
+@sketch(size=(12, 32), captureAt=0)
 class Children:
     def setup(self, ctx):
         a, b, c = [box().size(4, 4).fill(color) for color in ("#ff0000", "#00ff00", "#0000ff")]
@@ -181,7 +181,7 @@ class Children:
         rows[7].children(iter(items))
         ctx.render(box().column().children(rows))
 """)
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             pixels = media.load(output).frameAt(0).image.rgba()
             line = bytes((255, 0, 0, 255)) * 4
             line += bytes((0, 255, 0, 255)) * 4
@@ -196,7 +196,7 @@ class Children:
 from sigil.compose.layouts import Grid, px
 from sigil.sketch import sketch
 
-@sketch(size=(12, 28), capture_at=0)
+@sketch(size=(12, 28), captureAt=0)
 class Containers:
     def setup(self, ctx):
         def marks():
@@ -212,7 +212,7 @@ class Containers:
         ]
         ctx.render(column(row.size(12, 4).flexShrink(0) for row in rows))
 """)
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             pixels = media.load(output).frameAt(0).image.rgba()
             line = bytes((255, 0, 0, 255)) * 4
             line += bytes((0, 255, 0, 255)) * 4
@@ -267,7 +267,7 @@ def draw(p):
     p.line(start=(40, 40), end=(48, 48))
 
 
-@sketch(size=(12, 24), capture_at=0)
+@sketch(size=(12, 24), captureAt=0)
 class Keywords:
     def setup(self, ctx):
         colors = ("#ff0000", "#00ff00", "#0000ff")
@@ -277,7 +277,7 @@ class Keywords:
         ))
         ctx.render(element=column().children(composed, pen(key="drawing", program=draw).size(12, 12)))
 """)
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             pixels = media.load(output).frameAt(0).image.rgba()
             self.assertEqual(pixels[: 12 * 12 * 4], pixels[12 * 12 * 4 :])
             self.assertEqual(pixels[:4], bytes((255, 0, 0, 255)))
@@ -321,7 +321,7 @@ class Keywords:
         with self.assertRaises(TypeError):
             sketch(size="300,200")
         with self.assertRaises(ValueError):
-            sketch(capture_at=-1)
+            sketch(captureAt=-1)
 
     def test_multiple_sketch_exports_are_rejected(self):
         class First:

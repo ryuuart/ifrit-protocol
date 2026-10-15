@@ -27,7 +27,7 @@ from pathlib import Path
 from _sigil.compose import instancing as native
 from sigil import compose, material, media, motion, skia
 from sigil.compose import box, instancing
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 LANES = (
     "PointLane",
@@ -847,7 +847,7 @@ class Session(unittest.TestCase):
             "    probe = Composer()\n"
             "    probe.setSize((64, 48))\n"
             "    return probe\n"
-            "@sketch(size=(64, 48), capture_at=0)\n"
+            "@sketch(size=(64, 48), captureAt=0)\n"
             "class Scene:\n"
             "    def setup(self, ctx):\n"
             "        pass\n"
@@ -857,7 +857,7 @@ class Session(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        render_file(source, output, at=0)
+        renderFile(source, output, at=0)
         return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y):

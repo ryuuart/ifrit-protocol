@@ -81,7 +81,7 @@ void bindCanvasSpecification(py::module_& sketches) {
       sketches, "CanvasSpecification", "Unknown canvas property: ");
   field(declared, "size", &CanvasSpecification::size);
   field(declared, "background", &CanvasSpecification::background);
-  field(declared, "captureSeconds", &CanvasSpecification::captureSeconds);
+  field(declared, "captureAt", &CanvasSpecification::captureSeconds);
   field(declared, "oversample", &CanvasSpecification::oversample);
   field(declared, "paintDiscardedFrames",
         &CanvasSpecification::paintDiscardedFrames);

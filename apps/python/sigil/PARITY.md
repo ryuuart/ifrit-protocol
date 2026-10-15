@@ -45,7 +45,7 @@ that its pixels match the original.
 | Kit · Depth | 1 | 1 | 0 |
 | Compose · Typography | 1 | 1 | 1 |
 | Specimen | 13 | 3 | 0 |
-| Scene3D | 11 | 0 | 0 |
+| Scene3D | 11 | 1 | 0 |
 | Data | 9 | 0 | 0 |
 | Media | 5 | 1 | 0 |
 | Catalog · Type | 9 | 6 | 0 |
@@ -65,7 +65,7 @@ that its pixels match the original.
 | Study · Effects | 1 | 0 | 1 |
 | Study · Lighting | 2 | 0 | 0 |
 | Study · Materials | 10 | 0 | 0 |
-| **All** | **230** | **62** | **10** |
+| **All** | **230** | **63** | **10** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -83,21 +83,25 @@ One surface alone stands between each of these sketches and a translation:
 - `compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`):
   `bullets_dropcap` and `threaded_story`.
 - `compose::routers` stock routers: `connect_by_lane` and `routers_straight`.
+- `geometry::mesh::Cloud` and `mesh::points`: `deformed_cloud` and `pop_math`.
 - `geometry::shapes` corner operators: `corner_notched` and `horizontal_flow`.
+- `material::EnvironmentMap` and kit environments: `env_lanes` and
+  `reflection_lab`.
 - `material::pattern` stock tiles: `gerstner grid` and `zellige`.
+- `world::PlacementVerbs::along` and the node read-back: `key_light` and
+  `set_stagger`.
 - A declared `available(why)` probe: `sticker_collection`.
-- Scene3D sketches (`sketch::Scene3DContext`, `describe`): `lantern_room`.
 - `compose::Composer::beatsOf` and `units`: `karaoke_wipe`.
 - `compose::LayeredBrush` stroke layers: `lain_navi`.
 - `compose::kit::bars` over a table's two columns: `data_sources`.
-- `geometry::mesh::Cloud` and `mesh::points`: `pop_math`.
+- `geometry::mesh::codec`: `scattered_model`.
+- `geometry::mesh::curve::Spline3` and frames: `glow_trail`.
 - `geometry::path::Contour` corners, poses and offsets: `contour_poses`.
 - `geometry::path::PolarFrame` and `path::Grid`: `frame_grid`.
 - `geometry::path::operations` chain and outline effects: `path_booleans`.
 - `geometry::path` crossings and crossing rules: `crossing_rule`.
 - `geometry::shapers` and `path::Shaper`: `formation_bands`.
 - `geometry::shapes` parametric curve generators: `curve_shelf`.
-- `material::EnvironmentMap` and kit environments: `env_lanes`.
 - `material::sdf` shapes and styles: `sdf_star`.
 - `material::skia::PixelBuffer` and `skia::buffer`: `paint_shelf`.
 - `material::skia::paint` SkShader interop: `text_paints`.
@@ -110,7 +114,6 @@ needs.
 | --- | --- | ---: |
 | `SkSurfaces::Raster` standalone raster surfaces | Skia | 21 |
 | `material::pattern` stock tiles | Material | 17 |
-| Scene3D sketches (`sketch::Scene3DContext`, `describe`) | Sketch host | 16 |
 | `geometry::shapes` corner operators | Geometry | 15 |
 | `compose::kit::readout` rows | Compose kit | 14 |
 | `compose::lines::presets` and `compose::brush::presets` | Compose kit | 14 |
@@ -167,7 +170,7 @@ These public modules are registered and export nothing yet:
 
 | Surface | Bound | Not yet bound |
 | --- | --- | --- |
-| Scene2D sketches | `@sketch` classes, whose `setup`, `update` and `draw` may omit trailing arguments of `setup(ctx)`, `update(elapsed, ctx)` and `draw(pen, ctx)`, and which the catalogue and external workspaces discover; undecorated classes with `setup` and an optional `update`, which open only from their file path; a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `render`, `measure`, `snapshot`, `measured`, `local` and the session readings) that rejects use after teardown or from another thread; checked assets (`hub`, `root`); a fresh import of the source and its local modules each time a sketch opens; catalogue metadata read without running the module: docstrings, `TAGS`, `REQUIRES`, and a literal `NAME` and `CATEGORY` a bundled sketch is registered under while its file stem stays its key; `render_file` through the native host; `bakeScene3D`, `canvas` over a `CanvasSpecification` (whose `paintDiscardedFrames` lets unobserved capture steps go unpainted) and `key` on the context; `page` on the context, with a `compose.SurfaceRange` stating what its maps stand for at their white, whose `sketch.Page` paints a tree as a surface's maps through `render(tree)`, the pass a baked frame carries, and dresses a baked body with `surface()` or one region of the page with `surface(region)`; `sketch.Guest`; `requireCached` | Scene3D sketches: `sketch::Scene3DContext` and `describe(now)` returning a `world::Frame`; `Scene2DContext::textureScene` and `fonts`; `painterRuntime` and `device`; a declared `available(why)` probe; the per-sketch `<stem>.fbs` schema rule, which runs only for C++ entries; `sketch::scry` settling |
+| Scene2D sketches | `@sketch` classes, whose `setup`, `update` and `draw` may omit trailing arguments of `setup(ctx)`, `update(elapsed, ctx)` and `draw(pen, ctx)`, and which the catalogue and external workspaces discover; undecorated classes with `setup` and an optional `update`, which open only from their file path; a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `render`, `measure`, `snapshot`, `measured`, `local` and the session readings) that rejects use after teardown or from another thread; checked assets (`hub`, `root`); a fresh import of the source and its local modules each time a sketch opens; catalogue metadata read without running the module: docstrings, `TAGS`, `REQUIRES`, and a literal `NAME` and `CATEGORY` a bundled sketch is registered under while its file stem stays its key; `renderFile` through the native host; `sketch.Scene3DContext`; `bakeScene3D`, `canvas` over a `CanvasSpecification` (whose `paintDiscardedFrames` lets unobserved capture steps go unpainted) and `key` on the context; `page` on the context, with a `compose.SurfaceRange` stating what its maps stand for at their white, whose `sketch.Page` paints a tree as a surface's maps through `render(tree)`, the pass a baked frame carries, and dresses a baked body with `surface()` or one region of the page with `surface(region)`; `sketch.Guest`; `requireCached` | `Scene2DContext::textureScene` and `fonts`; `painterRuntime` and `device`; a declared `available(why)` probe; the per-sketch `<stem>.fbs` schema rule, which runs only for C++ entries; `sketch::scry` settling |
 | Composer | Checked `ctx.composer`: `render`, `renderSlot`, `bounds`, `hitTest`, `settling`, `isRunning`, `dirty`, `purgeCaches` and owned `stats`; `scheduleSpan`, in seconds; `setInherited` and `setView`; `setProfiling` with `profile` and `setBakeDensity`; a standalone `compose.Composer` over an optional `motion.Engine`, driven through `setSize`, `draw`, `setPointer` and `setKey` | `paragraphLayout`, `beatsOf` and `units` |
 | Engine | Checked `ctx.engine`: `animate` over a live value, `timeline` with `add`, `call` and `label` at `at`, `afterEnd`, `afterPrevious`, `withPrevious` and `atLabel`, and `timer` with a callback of zero to two arguments that returns `False` to stop, a `stepRate` with its catch-up limit, `betweenSteps` and `droppedTime`, a `frameRate`, a `duration` and a `delay`; `elapsed` and `isRunning`; every `Playback` verb: `play`, `pause`, `resume`, `restart`, `reverse`, `alternate`, `seek`, `complete`, `cancel`, `revert` and `onComplete`, with `isRunning`, `isPaused`, `isCompleted`, `currentTime` and `progress`; a World scene moves its own engine through `Scene.advance`; a standalone `motion.Engine` over `EngineOptions`, moved by `advance` or `advanceWall`, under a `ClockPolicy` and a budget, held, sped and restarted | Nothing |
 | Memo | `compose.memo(properties, describe)`: a deep-copied model compared with Python equality, native reconciliation, the inherited environment restored around the deferred builder, and builder failures reported with a traceback | `copy.deepcopy` on every bound value type, which the enumerations and several values still refuse, so a model cannot hold every bound value; Python values in `core::environment` (`Provide`, `inherited`, `inheritedOr`, `bound`), so a Python kit's own theme is not a captured dependency |
@@ -187,8 +190,8 @@ Python environment.
 | Selector sheets | `compose.selector(cssText)` and the same value built name by name under `compose.select` (`styleClass`, `role`, `any`, `is_`, `where`, `notAnyOf`, `has`); the four combinators as `child`, `descendant`, `next` and `sibling`; every structural pseudo-class, with `nthChild` and `nthLastChild` taking `of`; `\|`, `&` and `~` for the list, the compound and the negation CSS's `!` spells; `specificity()` over a comparable, ordered `Specificity` and `matchesNothing()`; `compose.Rule` from either door with the node's own declaration verbs — the box, the flex line, placement, corners and overflow, the fill, `opacity` and `blendMode`, the 2D transform, the cascade (`font`, `paragraph`, `ink`, `var`, `varDefaults`, `imageRendering`, `inherit`, `initial` and `unset`), `transition` and the text properties — reading its `selector` and `type` back; `Dimension` arithmetic for what CSS writes as `calc()`; `compose.StyleSheet` from an iterable of rules and sheets, with `rules`, `size`, iteration, `+` and value equality; `Element.applyStyleSheet`, whose sheet sees only its own subtree | `Rule::inkVar` and `Rule::vars`, which name a `VarTable` registered later in the assembly; the `Rule` readers `inkMaterial`, `inkAnchor`, `inkUnit` and `statesInk` |
 | Decorations | `Decoration` over `PathFormat` (stroke fill, alignment, dashes, caps, joins, stamps, trims and animated phases) or `Shadow`; `stroke`, `shadow`, and a material's effects through `Element.fill`; `relief`, a material over the rounded relief of the outline it decorates, with its `shoulder` and `depth`; overlay, background, foreground and stroke layers; span passes over `spans` selections; `Element.decorationOutline` and `Boundary`; `compose.brush.ribbon`: a band swept along the outline `stroke()` gives it, as wide as a width law says, a calligraphic nib at `nibAngleDeg` with its `nibContrast`, or a taper from the start's width to `widthEnd`, painted with a colour, a fill or a material; `Ribbon.band` hands back the region it fills | `Slice`, `ContourWalk`, `Wash`, `Border` and the `decorations::` borders and washes; `onEdges` and `inset`; the `brush::` solids, weaves, scatters, patterns, corner art and art; `Brush` shaped layer stacks and `brush::restyle`; `LayeredBrush`; `lines::Line`, `Rails`, `Hatch` and `RadialHatch`; the `styles::` bevel pair, brackets and tick rails, each inked with a material; `PathFormat::effect`; shadow offsets driven by motion outputs; decoration schemes written in Python |
 | Compose kit | `compose.kit` records `Sheet`, `Panel`, `Board`, `Well`, `WellContent`, `Caption`, `Cells`, `PanelGrid`, `Line` and `Ladder` with every native field, their factories, `centred`, `at`, `disc`, `dot`, `ring` and `figure`, with caption, sheet and panel lines as Python callables; `compose.layouts` `Grid` with tracks, areas and dense flow, `Radial`, `Diagonal`, `BaselineGrid`, `Jittered` and `AlongPath`; the connecting operators `compose.connect.Between` and `ByLane` with their router, gap, wire and bleed | the rows (`section`, `readout`, `table`, `bars`); typesetting (`ruby`, `kenten`, `bullets`, `textColumns`, `rules`, `nestedRun`); `annotate` with `Beside` and `Anchored`; `trackMeter` and `restGhost`; `marquee`; legibility (`scrim`, `haloed`, `shaded`, `emboldened` and `drawHaloed`); `plate`, `console` and `tinted`; `routers::`; `instancing::place::`; the stroke and brush presets; sprites and pixel type; the named default leaves |
-| Document kit | Every `compose::document` component and property: `article`, `section`, `list`, `quote`, `heading` and `h1` to `h6`, `paragraph` over a string or rich text, `lead`, `caption`, `label`, `eyebrow`, `footer`, `code`, `item`, `figure` and `rule`; `measure`, `gap`, `list_gap` and `quote_inset`; roles resolved through inherited stylesheets | Nothing |
-| Specimen kit | `sketch.kit` `Palette`, `Register`, `TypeScale`, `Spacing` and a comparable `Theme` with `font`, `style`, `styleSheet` and `voice`; `house_face`, `house_theme`, `study_theme`, `feature_theme` with `Density`, and `theme`; a checked `Provide`; `stage`, `page`, `well`, `caption`, `cell`, `cells`, `panel_grid` and `comparison`; `verdict` with `Verdict`, `VerdictRows` and `Column`, and the control surface `controls` with `Controls`, `ControlsView`, `Control`, `Option`, `Widget` and `controls_of`; `section_header` and `section` with `SectionHeader` | `specimenTheme`, `Theme::sans` and `Theme::mono`; `stage(Scene3DContext)`; `passage`; `Document`; `Instrument`; the heading `titleCard`; the legends `legend`, `swatchStrip` and `chip`; `meter` and `gauge`; the charts `plot`, `axis`, `rules`, `trace`, `area`, `path`, `marks`, `bands`, `segments` and `label`; `scrollbar`; `backdrop`, `panel` and `frame`; `console`; `ticker` and `timeline`; `Channel`; `connectionReadout` over a connection's state |
+| Document kit | Every `compose::document` component and property: `article`, `section`, `list`, `quote`, `heading` and `h1` to `h6`, `paragraph` over a string or rich text, `lead`, `caption`, `label`, `eyebrow`, `footer`, `code`, `item`, `figure` and `rule`; `measure`, `gap`, `listGap` and `quoteInset`; roles resolved through inherited stylesheets | Nothing |
+| Specimen kit | `sketch.kit` `Palette`, `Register`, `TypeScale`, `Spacing` and a comparable `Theme` with `font`, `style`, `styleSheet` and `voice`; `houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, and `theme`; a checked `Provide`; `stage`, `page`, `well`, `caption`, `cell`, `cells`, `panelGrid` and `comparison`; `verdict` with `Verdict`, `VerdictRows` and `Column`, and the control surface `controls` with `Controls`, `ControlsView`, `Control`, `Option`, `Widget` and `controlsOf`; `sketch.Scene3DContext`; `sectionHeader` and `section` with `SectionHeader` | `specimenTheme`, `Theme::sans` and `Theme::mono`; `passage`; `Document`; `Instrument`; the heading `titleCard`; the legends `legend`, `swatchStrip` and `chip`; `meter` and `gauge`; the charts `plot`, `axis`, `rules`, `trace`, `area`, `path`, `marks`, `bands`, `segments` and `label`; `scrollbar`; `backdrop`, `panel` and `frame`; `console`; `ticker` and `timeline`; `Channel`; `connectionReadout` over a connection's state |
 
 <!-- prose: composition -->
 <!-- /prose -->
@@ -416,7 +419,7 @@ model, arithmetic and data become Python code and are not listed.
 | `channel_bind` | OSC connection on the hub; kit channels writing outputs; binding chains; recording replay; readout kit | `compose::kit::readout` rows; `sketch::kit::Channel` address follower |
 | `cjk_rules` | Vertical Japanese blocks; stock and house kinsoku; hanging punctuation table; mojikumi bracket spacing; tsume | — |
 | `codec_roundtrip` | PLY encode and decode of meshes and clouds; model merge, bounds and fit; point attributes; billboard splats; mesh painter | `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec` |
-| `compute_variant` | scene3d hosting; wave rail; compute pass cooking a point chain; stamped geometry pass; variant repaint; readback callback | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `geometry::mesh::curve::Spline3` and frames; `world::computePass` passes and `world::readback` |
+| `compute_variant` | scene3d hosting; wave rail; compute pass cooking a point chain; stamped geometry pass; variant repaint; readback callback | `geometry::mesh::curve::Spline3` and frames; `world::computePass` passes and `world::readback` |
 | `connect_by_lane` | Facts read by an arranging operator; wires attached by lane and by hand; stock orthogonal and arc routers; nested scopes; comparison kit | `compose::routers` stock routers |
 | `contour_poses` | Measured contours; poses by distance with wrap policies; corner detection and windows; shape generator; pen leaves | `geometry::path::Contour` corners, poses and offsets |
 | `corner_notched` | Corner treatments as comparable shapes: rounding wrapper, chamfers and notches with corner masks; comparison kit | `geometry::shapes` corner operators |
@@ -443,7 +446,7 @@ model, arithmetic and data become Python code and are not listed.
 | `half_float` | Float raster surface; half-float and byte pixel readback; image from pixels; comparison kit | `SkSurfaces::Raster` standalone raster surfaces; `skia::isFloatImage` / `halfFloatPixels` float readback |
 | `hit_slots` | Slots; hit test and bounds queries; wires keyed by the pair they join; star and blob silhouettes; readout rows | `compose::kit::readout` rows; `compose::routers` stock routers |
 | `hub_reload` | Standalone hub mount, text, image and poll; custom decoder; offscreen pen to PNG; readout rows | `compose::kit::readout` rows; `SkSurfaces::Raster` standalone raster surfaces; `io::Hub` typed probes and `registerDecoder` for further types |
-| `import_native` | scene3d hosting; compose texture scene; material texture slots; Scry web view frames; world elements, lights, quads | Scene3D sketches (`sketch::Scene3DContext`, `describe`); A declared `available(why)` probe; `sketch::scry` shared engine, settling and sequences; `compose::TextureScene` and `Scene2DContext::textureScene`; `material::Texture` and `Material::slot`; `scry::WebEngine` / `WebView` / `WebImage` |
+| `import_native` | scene3d hosting; compose texture scene; material texture slots; Scry web view frames; world elements, lights, quads | A declared `available(why)` probe; `sketch::scry` shared engine, settling and sequences; `compose::TextureScene` and `Scene2DContext::textureScene`; `material::Texture` and `Material::slot`; `scry::WebEngine` / `WebView` / `WebImage` |
 | `keeps_and_frames` | Rich stories; paragraph keeps; threaded frames; first-baseline and distribution placement; comparison kit | — |
 | `lane_retarget` | Standalone ticker; animated float lanes; slot and family retargeting; chart kit plots; readout rows | `compose::kit::readout` rows; `sketch::kit::plot` chart layers; `motion::Lane` retargeting over `HeldMotions` |
 | `live_settling` | Offscreen composer frame driving; live Knuth-Plass passages; settling reports; comparison kit; readout rows | `compose::kit::readout` rows; `SkSurfaces::Raster` standalone raster surfaces |
@@ -517,17 +520,17 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
-| `dart_flight` | scene3d hosting; kit winding spline; swept rail; along-curve placement; revolved and torus meshes; PBR surfaces; lit set kit | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `geometry::mesh::curve::Spline3` and frames; `geometry::mesh::pop::sweep` and `geometry::sections`; `world::PlacementVerbs::along` and the node read-back |
-| `deformed_cloud` | scene3d hosting; surface point scatter; masked point-operator chain; stamped facets; PBR surface; lit set kit | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `geometry::mesh::Cloud` and `mesh::points` |
-| `first_light` | scene3d hosting; kit wave and rail curves; pose along; swept tube; windowed stamp chain; directional and point lights; turntable | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `geometry::mesh::curve::Spline3` and frames; `geometry::mesh::pop::sweep` and `geometry::sections` |
-| `glow_trail` | scene3d hosting with camera; kit wave curve; windowed stamp chain; collection-joined geometry and post passes with previous-frame feedback | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `geometry::mesh::curve::Spline3` and frames |
-| `key_light` | scene3d hosting; a key light's strength and colour bound to live values; three-point rig; lit set | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `world::PlacementVerbs::along` and the node read-back |
-| `lantern_room` | scene3d hosting; sun, spot and point emitters; unlit emissive and PBR surfaces; superellipsoids; turntable camera | Scene3D sketches (`sketch::Scene3DContext`, `describe`) |
-| `material_lab` | scene3d hosting on the device tier; texture-slotted PBR surfaces; masked material stack; usage-keyed texture set; generated maps | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `material::Texture` and `Material::slot`; `material::over` layering and masks; `material::surface::program` over `texture::TextureMaps` |
-| `reflection_lab` | scene3d hosting; environment maps with crossfade and backdrop; chrome, metal, dielectric and glass surface presets | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `material::EnvironmentMap` and kit environments |
-| `scattered_model` | scene3d hosting; resource hub fetch; glTF mesh decode and fit; surface scatter chain; stamped facets; unlit core | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `geometry::mesh::codec` |
-| `scene_surfaces` | scene3d hosting; compose scenes rendered to textures; base-colour texture slots with tiling; swept ribbon; unlit screens | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `compose::TextureScene` and `Scene2DContext::textureScene`; `geometry::mesh::curve::Spline3` and frames; `geometry::mesh::pop::sweep` and `geometry::sections`; `material::Texture` and `Material::slot` |
-| `set_stagger` | scene3d hosting with camera; world child stagger by spread; entrance transitions; collection-narrowed passes; three-point rig | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `world::PlacementVerbs::along` and the node read-back |
+| `dart_flight` | scene3d hosting; kit winding spline; swept rail; along-curve placement; revolved and torus meshes; PBR surfaces; lit set kit | `geometry::mesh::curve::Spline3` and frames; `geometry::mesh::pop::sweep` and `geometry::sections`; `world::PlacementVerbs::along` and the node read-back |
+| `deformed_cloud` | scene3d hosting; surface point scatter; masked point-operator chain; stamped facets; PBR surface; lit set kit | `geometry::mesh::Cloud` and `mesh::points` |
+| `first_light` | scene3d hosting; kit wave and rail curves; pose along; swept tube; windowed stamp chain; directional and point lights; turntable | `geometry::mesh::curve::Spline3` and frames; `geometry::mesh::pop::sweep` and `geometry::sections` |
+| `glow_trail` | scene3d hosting with camera; kit wave curve; windowed stamp chain; collection-joined geometry and post passes with previous-frame feedback | `geometry::mesh::curve::Spline3` and frames |
+| `key_light` | scene3d hosting; a key light's strength and colour bound to live values; three-point rig; lit set | `world::PlacementVerbs::along` and the node read-back |
+| `lantern_room` | scene3d hosting; sun, spot and point emitters; unlit emissive and PBR surfaces; superellipsoids; turntable camera | — |
+| `material_lab` | scene3d hosting on the device tier; texture-slotted PBR surfaces; masked material stack; usage-keyed texture set; generated maps | `material::Texture` and `Material::slot`; `material::over` layering and masks; `material::surface::program` over `texture::TextureMaps` |
+| `reflection_lab` | scene3d hosting; environment maps with crossfade and backdrop; chrome, metal, dielectric and glass surface presets | `material::EnvironmentMap` and kit environments |
+| `scattered_model` | scene3d hosting; resource hub fetch; glTF mesh decode and fit; surface scatter chain; stamped facets; unlit core | `geometry::mesh::codec` |
+| `scene_surfaces` | scene3d hosting; compose scenes rendered to textures; base-colour texture slots with tiling; swept ribbon; unlit screens | `compose::TextureScene` and `Scene2DContext::textureScene`; `geometry::mesh::curve::Spline3` and frames; `geometry::mesh::pop::sweep` and `geometry::sections`; `material::Texture` and `Material::slot` |
+| `set_stagger` | scene3d hosting with camera; world child stagger by spread; entrance transitions; collection-narrowed passes; three-point rig | `world::PlacementVerbs::along` and the node read-back |
 
 ### Data
 
@@ -547,7 +550,7 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
-| `guest_body` | scene3d world frame; published texture subscription; texture scene; material texture slot; lit meshes | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `compose::TextureScene` and `Scene2DContext::textureScene`; `material::Texture` and `Material::slot` |
+| `guest_body` | scene3d world frame; published texture subscription; texture scene; material texture slot; lit meshes | `compose::TextureScene` and `Scene2DContext::textureScene`; `material::Texture` and `Material::slot` |
 | `guest_picture` | Published frame subscription on canvas recorder; specimen page, caption and well; document waiting card | — |
 | `sticker_collection` | Animated image assets; streamed video frames; cached-resource gate; pen image transforms; document header | A declared `available(why)` probe |
 | `video_compose` | Compose video leaves; streaming decoders; playback scheduler; module grid arrangement; ticker-driven cover | A declared `available(why)` probe; `compose::video` leaf and `compose::VideoOptions` |
@@ -584,7 +587,7 @@ model, arithmetic and data become Python code and are not listed.
 | `loot grid` | Instanced atlas stamps; bevel emboss panel; recessed wells; noise recipes; pattern tiles; path silhouettes; legends; bound outputs | `sketch::kit::legend` and `swatchStrip`; `compose::instancing::place` placers |
 | `passive tree` | SDF sockets with bound glow uniform; wires with the orbit router; layered brush presets; stock silhouettes; span trims; legend; title card | `sketch::kit::titleCard`; `sketch::kit::legend` and `swatchStrip`; `compose::lines::presets` and `compose::brush::presets`; `compose::routers` stock routers; `material::sdf` shapes and styles; `material::Paint::offset` bound to motion values |
 | `persona menu` | Runtime shader on a 6 Hz stepped clock; stock silhouettes; fixed wedge path; spring cursor; staggered entrances; text outlines and glow | — |
-| `world hud` | scene3d world frame; HUD texture scene on camera-fitted quad; voxel mesh; kit wells; instanced stamps; tick rail; silhouettes | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `compose::TextureScene` and `Scene2DContext::textureScene`; `compose::styles` tick rails over the lattice sources `material::pattern::scanlines` and `stipple`; `material::Texture` and `Material::slot` |
+| `world hud` | scene3d world frame; HUD texture scene on camera-fitted quad; voxel mesh; kit wells; instanced stamps; tick rail; silhouettes | `compose::TextureScene` and `Scene2DContext::textureScene`; `compose::styles` tick rails over the lattice sources `material::pattern::scanlines` and `stipple`; `material::Texture` and `Material::slot` |
 
 #### Catalog · Generative
 
@@ -689,7 +692,7 @@ model, arithmetic and data become Python code and are not listed.
 | `ksp_mapview` | Instanced starfield; live-bound SDF and globe materials; conic paths; stock and keyed shapes; filament, hatch and tick lines; readout rows | `sketch::kit::Document` content reader; `compose::lines::Line` and `lines::Rails`; `compose::LayeredBrush` stroke layers; `compose::lines::presets` and `compose::brush::presets`; `compose::kit::readout` rows; `geometry::path::Conic` conic sections; `material::sdf` shapes and styles; `material::Recipe` authoring; `material::Paint::offset` bound to motion values |
 | `psx_doom_fire` | Fixed-step ticker; RGBA image blits; pen text and clipping; retained guest header; kinetic glyph rise; motion cascade | — |
 | `thaumonomicon` | Stamped brushes and shapers; hatches; routed wires; silhouettes; pixel sprites; baked pixel type; lattice hash; grain; bound motion | `compose::lines::Line` and `lines::Rails`; `compose::Brush` shaped layer stacks; `compose::brush` scatter, pattern and art brushes; `compose::PaintProgram` canvas decorations; `compose::lines::Hatch` and `lines::RadialHatch`; `compose::LayeredBrush` stroke layers; `compose::routers` stock routers; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `compose::kit` pixel sprites (`Sprite`, `PixelInk`); `SkCanvas` layers, `drawPaint` and `drawImageRect`; `core::noise::hash` / `lattice` positional hashes; `geometry::path::PolarFrame` and `path::Grid`; `geometry::shapers` and `path::Shaper` |
-| `vagrant_story_target` | Device scene3d hosting; lit meshes and lights; compose texture on material slot; frustum extent; baked pixel type; kit meter | Scene3D sketches (`sketch::Scene3DContext`, `describe`); `sketch::kit::meter` and `gauge`; `compose::TextureScene` and `Scene2DContext::textureScene`; `compose::Border` and `compose::decorations::border` rules; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `material::Texture` and `Material::slot` |
+| `vagrant_story_target` | Device scene3d hosting; lit meshes and lights; compose texture on material slot; frustum extent; baked pixel type; kit meter | `sketch::kit::meter` and `gauge`; `compose::TextureScene` and `Scene2DContext::textureScene`; `compose::Border` and `compose::decorations::border` rules; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `material::Texture` and `Material::slot` |
 | `xcom_battlescape` | Instanced atlas pools; palette lookup shader; index sprites; coverage pixel type; pattern tiles; check table; lattice hash; composer queries | `compose::kit::table` with `Column`; `compose::Pattern` tiled fills; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `compose::kit` pixel sprites (`Sprite`, `PixelInk`); `core::noise::hash` / `lattice` positional hashes; `geometry::path::PolarFrame` and `path::Grid`; `material::pattern` stock tiles |
 
 #### Study · Effects
@@ -754,12 +757,16 @@ covers it:
   tool.
 
 Some bound spellings differ from native, so a translation written with the
-native spelling needs the Python one: a tween's and a binding's `from` is
-`from_=`; `mesh::platonic`'s
-circumradius is `radius=`; `houseFace` takes `italic=` in place of a slant and
-cannot request an oblique; `Theme::font` takes `ink=` for its color;
-`world::Selection::None` is `Selection.All`; and `camera.Orbit()` starts at
-distance 480 where the native `Orbit` starts at 0.
+native spelling needs the Python one: a tween's `from` and `to` come first
+and are given by position, `animate(0, 1)` and `Tween(0, 1)`, or by keyword as
+`from_=` and `to=`, and a binding's `from` is `from_=`; `Frame::pass` is
+`pass_`, and `Frame(scene, passes=[...])` adds a list of them as the frame is
+made; `measure::Check::pass` and `CheckTable::pass` are `pass_`; an enumerator
+named `None` is `None_`, so `world::Selection::None` is `Selection.None_`;
+`mesh::platonic`'s circumradius is `radius=`; `houseFace` takes `italic=` in
+place of a slant and cannot request an oblique; `Theme::font` takes `ink=` for
+its color; and `camera.Orbit()` starts at distance 480 where the native `Orbit`
+starts at 0.
 
 A texture-scene bake has no adapter that runs before the first frame. Drawing
 the scene into a `draw.Graphics` buffer with `pen.element` on the first draw is
@@ -779,7 +786,7 @@ PYTHONPATH=../spell-circle-canvas/build/python python3 -m unittest discover \
 
 The suites cover:
 
-- `test_pen.py` renders raster sessions through `render_file`: canvas expiry,
+- `test_pen.py` renders raster sessions through `renderFile`: canvas expiry,
   clipping, batched points from iterables, float32 arrays, memoryviews and
   NumPy with dtype, byte-order, shape and stride rejection; offscreen buffers
   that keep pixels across resize, reopen under another host and close after an

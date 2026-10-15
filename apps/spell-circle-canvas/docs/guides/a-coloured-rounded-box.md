@@ -61,12 +61,12 @@ GROUND = "#11151a"
 ACCENT = "#e2714b"
 
 
-@sketch(size=(480, 320), background=GROUND, capture_at=0)
+@sketch(size=(480, 320), background=GROUND, captureAt=0)
 class FirstBox:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(
                 compose.box().width(220).height(140).borderRadius(16).fill(ACCENT)

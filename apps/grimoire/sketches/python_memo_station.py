@@ -16,7 +16,7 @@ from sigil.compose import (
     rule,
     text,
 )
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.motion import animate, ease
 from sigil.sketch import Scene2DContext, kit, sketch
 from sigil.weave import Type
@@ -49,7 +49,7 @@ def instrument(reading):
         .gap(20)
         .opacity(animate(from_=0, to=1, duration=0.4, ease=ease.outQuad))
         .children(
-            doc.label(reading.label),
+            document.label(reading.label),
             (
                 row()
                 .gap(12)
@@ -71,18 +71,18 @@ def instrument(reading):
                 )
             ),
             marks,
-            doc.label("SIGNAL LOCKED").ink(reading.accent),
+            document.label("SIGNAL LOCKED").ink(reading.accent),
         )
     )
 
 
-@sketch(size=(960, 480), capture_at=2.4)
+@sketch(size=(960, 480), captureAt=2.4)
 class MemoStation:
     def setup(self, ctx: Scene2DContext) -> None:
         self.last = None
-        self.look = kit.feature_theme(kit.Density.Spacious)
+        self.look = kit.featureTheme(kit.Density.Spacious)
         with kit.provide(self.look):
-            kit.stage(ctx, size=(960, 480), capture_at=2.4)
+            kit.stage(ctx, size=(960, 480), captureAt=2.4)
         self.sheet = StyleSheet(
             [
                 rule(".readout").font(Type(size=66, track=-2)),

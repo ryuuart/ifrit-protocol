@@ -52,7 +52,7 @@ def credit(index: int) -> compose.Element:
     )
 
 
-@sketch(size=(WIDTH, HEIGHT), background=NIGHT, capture_at=1.4)
+@sketch(size=(WIDTH, HEIGHT), background=NIGHT, captureAt=1.4)
 class TitleSequence:
     def setup(self, ctx: Scene2DContext) -> None:
         self.composer = ctx.composer

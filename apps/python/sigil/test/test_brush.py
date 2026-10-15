@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from sigil.draw import brush
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class Brush(unittest.TestCase):
@@ -133,7 +133,7 @@ class Brush(unittest.TestCase):
             from sigil.draw import brush
             from sigil.sketch import sketch
             builtins._brush_calls = 0
-            @sketch(size=(160, 120), background="#f5eedc", capture_at=0)
+            @sketch(size=(160, 120), background="#f5eedc", captureAt=0)
             class Study:
                 def draw(self, pen):
                     pen.noLoop()
@@ -158,7 +158,7 @@ class Brush(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sigil_brush_test_") as directory:
             entry, image = Path(directory) / "study.py", Path(directory) / "study.png"
             entry.write_text(textwrap.dedent(source))
-            render_file(entry, image, at=0)
+            renderFile(entry, image, at=0)
             content = image.read_bytes()
             self.assertEqual(content[:8], b"\x89PNG\r\n\x1a\n")
             self.assertEqual(struct.unpack(">II", content[16:24]), (160, 120))
@@ -173,7 +173,7 @@ class Brush(unittest.TestCase):
             import weakref
             from sigil.draw import brush
             from sigil.sketch import sketch
-            @sketch(size=(32, 32), capture_at=0)
+            @sketch(size=(32, 32), captureAt=0)
             class Study:
                 def setup(self, ctx):
                     builtins._brush_owner = weakref.ref(self)
@@ -192,7 +192,7 @@ class Brush(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sigil_brush_lifetime_") as directory:
             entry, image = Path(directory) / "study.py", Path(directory) / "study.png"
             entry.write_text(textwrap.dedent(source))
-            render_file(entry, image, at=0)
+            renderFile(entry, image, at=0)
         gc.collect()
         self.assertIsNone(builtins._brush_owner())
 

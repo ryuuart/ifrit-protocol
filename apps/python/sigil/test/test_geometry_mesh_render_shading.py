@@ -21,7 +21,7 @@ from pathlib import Path
 from _sigil.geometry.mesh import render as native
 from sigil import media
 from sigil.geometry.mesh import camera, render
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 PLATE = 32
 # The smallest picture with a seam down the middle and another across it,
@@ -147,13 +147,13 @@ class Panels(unittest.TestCase):
             "def frustum():\n"
             "    lens = camera.Camera()\n"
             "    return lens.extentAt(lens.eye[2], 1)\n"
-            f"@sketch(size=({PLATE}, {PLATE}), capture_at=0)\n"
+            f"@sketch(size=({PLATE}, {PLATE}), captureAt=0)\n"
             "class Panel:\n"
             "    def draw(self, pen):\n"
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        render_file(source, output, at=0)
+        renderFile(source, output, at=0)
         return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y):

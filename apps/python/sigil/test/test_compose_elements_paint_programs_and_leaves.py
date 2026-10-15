@@ -17,7 +17,7 @@ from pathlib import Path
 
 from _sigil import compose as native
 from sigil import material, media, skia, weave
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 RESULTS = "_sigil_paint_program_results"
 
@@ -203,12 +203,12 @@ class PaintProgramRenders(unittest.TestCase):
             "from sigil import material, media, skia, weave\n"
             "from sigil.sketch import sketch\n"
             f"results = builtins.{RESULTS}\n"
-            f"@sketch(size={size!r}, background='#000000', capture_at=0)\n"
+            f"@sketch(size={size!r}, background='#000000', captureAt=0)\n"
             "class Scene:\n"
             + textwrap.indent(textwrap.dedent(body).strip("\n"), "    ")
             + "\n"
         )
-        render_file(source, output, at=at)
+        renderFile(source, output, at=at)
         return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y, size):

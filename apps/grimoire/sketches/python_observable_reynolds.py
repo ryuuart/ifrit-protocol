@@ -19,7 +19,7 @@ def steer(desired, velocity):
     return limited(direction * 8 - velocity, 0.05)
 
 
-@sketch(size=(900, 720), capture_at=5)
+@sketch(size=(900, 720), captureAt=5)
 class ReynoldsSteering:
     def setup(self, ctx: Scene2DContext) -> None:
         self.boids = []

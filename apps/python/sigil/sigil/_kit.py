@@ -12,7 +12,7 @@ NODES = (Element, Text, Image, Band)
 
 
 def specification(record_type, value, properties):
-    """Copy a native props value and apply snake_case keyword fields."""
+    """Copy a native props value and apply keyword fields by their native names."""
     if value is None:
         result = record_type()
     elif isinstance(value, record_type):
@@ -20,13 +20,25 @@ def specification(record_type, value, properties):
     else:
         raise TypeError(f"expected {record_type.__name__}, got {type(value).__name__}")
     for name, item in properties.items():
-        first, *rest = name.split("_")
-        field = first + "".join(part.title() for part in rest)
-        descriptor = getattr(record_type, field, None)
+        descriptor = getattr(record_type, name, None)
         if not isinstance(descriptor, property):
-            raise TypeError(f"unknown {record_type.__name__} property {name!r}")
-        setattr(result, field, item)
+            raise TypeError(unknown(record_type, name))
+        setattr(result, name, item)
     return result
+
+
+def unknown(record_type, name):
+    """Name the field a keyword missed, and its spelling when only the case differs.
+
+    A record's fields are spelled as the native record spells them, so
+    ``padding_y`` is not a field of a record that has ``paddingY``.
+    """
+    message = f"unknown {record_type.__name__} property {name!r}"
+    first, *rest = name.split("_")
+    field = first + "".join(part[:1].upper() + part[1:] for part in rest)
+    if rest and isinstance(getattr(record_type, field, None), property):
+        message += f"; the field is spelled {field!r}"
+    return message
 
 
 def children(values, ancestors=None):

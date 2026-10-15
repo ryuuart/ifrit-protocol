@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from sigil import io, material, media, motion
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 FLAT = "half4 main(float2 p) { return half4(ink.rgb * level, 1); }"
 
@@ -24,7 +24,7 @@ from sigil.compose import box
 from sigil.sketch import sketch
 
 
-@sketch(size=(8, 8), background="#000000", capture_at=0)
+@sketch(size=(8, 8), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         flat = material.shader({source!r}, {{"ink": material.Color(0, 0, 1, 1), "level": 1.0}})
@@ -135,7 +135,7 @@ class Shader(unittest.TestCase):
             from sigil import compose, material, motion
             from sigil.sketch import sketch
 
-            @sketch(size=(8, 8), background="#000000", capture_at=0)
+            @sketch(size=(8, 8), background="#000000", captureAt=0)
             class Scene:
                 def setup(self, ctx):
                     self.tint = motion.animatable("#ff0000")
@@ -178,7 +178,7 @@ class Shader(unittest.TestCase):
                     (1, (0, 0, 128, 255)),
                 ):
                     with self.subTest(mode=mode, seconds=seconds):
-                        render_file(source, output, at=seconds)
+                        renderFile(source, output, at=seconds)
                         pixels = media.load(output).frameAt(0).image.rgba()
                         if mode == "material":
                             reference[seconds] = bytes(pixels)
@@ -195,7 +195,7 @@ class Shader(unittest.TestCase):
             source = Path(folder) / "scene.py"
             output = Path(folder) / "scene.png"
             source.write_text(SCENE.format(source=FLAT))
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             pixels = media.load(output).frameAt(0).image.rgba()
             offset = (4 * 8 + 4) * 4
             self.assertEqual(
@@ -239,7 +239,7 @@ SHIFT = material.shader(
 )
 
 
-@sketch(size=(32, 8), background="#000000", capture_at=0)
+@sketch(size=(32, 8), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         mark = box().width(8).height(8).left(12).fill("#ff0000")
@@ -255,7 +255,7 @@ class LayerPrograms(unittest.TestCase):
             source = Path(folder) / "scene.py"
             output = Path(folder) / "scene.png"
             source.write_text(LAYER.replace("FILTER", filter_spelling))
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             return media.load(output).frameAt(0).image.rgba()
 
     def red(self, pixels, x):
@@ -364,7 +364,7 @@ def sheet():
     )
 
 
-@sketch(size=(8, 8), background="#000000", capture_at=0)
+@sketch(size=(8, 8), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         options = material.FlipbookOptions(columns=2, rows=2, framesPerSecond=0, frame=FRAME)
@@ -465,7 +465,7 @@ class Texture(unittest.TestCase):
             ):
                 with self.subTest(frame=frame):
                     source.write_text(SHEET.replace("FRAME", str(frame)))
-                    render_file(source, output, at=0)
+                    renderFile(source, output, at=0)
                     pixels = media.load(output).frameAt(0).image.rgba()
                     offset = (4 * 8 + 4) * 4
                     for actual, channel in zip(pixels[offset : offset + 3], expected):
@@ -482,7 +482,7 @@ class Texture(unittest.TestCase):
             source.write_text(playing)
             for seconds, expected in ((0.5, (255, 0, 0)), (2.5, (0, 0, 255))):
                 with self.subTest(seconds=seconds):
-                    render_file(source, output, at=seconds)
+                    renderFile(source, output, at=seconds)
                     pixels = media.load(output).frameAt(0).image.rgba()
                     offset = (4 * 8 + 4) * 4
                     for actual, channel in zip(pixels[offset : offset + 3], expected):

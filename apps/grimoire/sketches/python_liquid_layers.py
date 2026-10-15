@@ -57,7 +57,7 @@ def liquid_nib(color, width):
     )
 
 
-@sketch(size=(960, 700), background="#040912", capture_at=0.8)
+@sketch(size=(960, 700), background="#040912", captureAt=0.8)
 class LiquidLayers:
     def setup(self, ctx: Scene2DContext) -> None:
         self.grid = [

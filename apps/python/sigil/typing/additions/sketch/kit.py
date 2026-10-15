@@ -6,22 +6,22 @@ from .._kit import children as _children
 from .._kit import specification as _specification
 
 
-def house_theme():
+def houseTheme():
     """Return an editable copy of the native house theme."""
     return _native.houseTheme()
 
 
-def study_theme():
+def studyTheme():
     """Return an editable copy of the native study theme."""
     return _native.studyTheme()
 
 
-def feature_theme(density=Density.Compact):
+def featureTheme(density=Density.Compact):
     """Return an editable feature theme with compact or spacious margins."""
     return _native.featureTheme(density)
 
 
-def house_face(voice, weight=400, italic=False):
+def houseFace(voice, weight=400, italic=False):
     return _native.houseFace(voice, weight, italic)
 
 
@@ -40,7 +40,7 @@ def page(content, props=None, **properties):
     return _native.page(_specification(Page, props, properties), content)
 
 
-def section_header(props=None, **properties):
+def sectionHeader(props=None, **properties):
     """Announce a section with a label, a rule and a supporting note."""
     return _native.sectionHeader(_specification(SectionHeader, props, properties))
 
@@ -71,7 +71,7 @@ def cells(*children, props=None, **properties):
     return _native.cells(run)
 
 
-def panel_grid(*children, props=None, **properties):
+def panelGrid(*children, props=None, **properties):
     grid = _specification(PanelGrid, props, properties)
     if children:
         grid.cells = list(_children(children))

@@ -127,7 +127,7 @@ so a red case is read from the layer below.
 
 In Python the same host is `sigil.testing.InProcess(state)`, spoken to by
 the generated domain classes exactly as `sigil.protocol.connect` is, and
-`sigil.sketch.render_file` is a harness session over one file: opened
+`sigil.sketch.renderFile` is a harness session over one file: opened
 under Advance, stepped to its moment and photographed under that moving
 clock, which is the still `--frame` writes and the sweep's plate. `sigil.protocol.launch(state=…)` starts
 a served Grimoire and connects to it.

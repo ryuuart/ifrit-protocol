@@ -21,7 +21,7 @@ from sigil.compose import (
     text,
     var,
 )
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.compose import selectors as selected
 from sigil.sketch import Scene2DContext, kit, sketch
 from sigil.skia import PathBuilder
@@ -150,7 +150,7 @@ def curved() -> Element:
             TextPath(path=curve, at=0.5, align=TextPath.Align.Center, exactTangent=True)
         )
     )
-    legend = row(doc.label("PATH"), doc.caption("one cubic / exact tangent"))
+    legend = row(document.label("PATH"), document.caption("one cubic / exact tangent"))
     legend = legend.gap(14).absolute().left(18).top(209)
     return specimen(box(guide, inscription, legend).height(244), 244, padding=0)
 
@@ -164,10 +164,10 @@ def part(eyebrow: str, *cases: tuple[str, str, Element, str]) -> Element:
         measure=1020,
         gap=18,
     )
-    return column(doc.eyebrow(eyebrow), comparison).gap(16).flexShrink(0)
+    return column(document.eyebrow(eyebrow), comparison).gap(16).flexShrink(0)
 
 
-@sketch(size=SIZE, capture_at=0.05)
+@sketch(size=SIZE, captureAt=0.05)
 class TypeAtelier:
     def setup(self, ctx: Scene2DContext) -> None:
         # The opening paragraph alone carries the initial letter and the
@@ -181,8 +181,8 @@ class TypeAtelier:
             spaceAfter=12,
         )
         article = Story(rich().add(ARTICLE)).paragraphs((opening,))
-        with kit.provide(kit.feature_theme(kit.Density.Spacious)):
-            kit.stage(ctx, size=SIZE, capture_at=0.05)
+        with kit.provide(kit.featureTheme(kit.Density.Spacious)):
+            kit.stage(ctx, size=SIZE, captureAt=0.05)
             runs = part(
                 "01 / WHAT A RUN CAN CARRY",
                 (

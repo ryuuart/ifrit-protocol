@@ -25,7 +25,7 @@ from pathlib import Path
 from _sigil import compose as native
 from sigil import compose, material, media, motion, skia, weave
 from sigil.compose import Composer, box, slot
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 # Every name this package nests inside the class it reports about.
 NESTED = ("CacheState", "NodeCost")
@@ -283,7 +283,7 @@ class Session(unittest.TestCase):
             "results = builtins._sigil_composer_results\n"
             "def plate():\n"
             "    return box().key('plate').width(30).height(20).fill('#ff0000')\n"
-            "@sketch(size=(48, 32), capture_at=0)\n"
+            "@sketch(size=(48, 32), captureAt=0)\n"
             "class Scene:\n"
             "    def setup(self, ctx):\n"
             + textwrap.indent(textwrap.dedent(setup).strip(), "        ")
@@ -293,7 +293,7 @@ class Session(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        render_file(source, output, at=at)
+        renderFile(source, output, at=at)
         return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y):

@@ -523,10 +523,20 @@ session system; Grimoire is one that does. Saving imports a fresh body without c
 dependencies. A `pyproject.toml` configures the environment; it does not select
 the entry module. Helpers remain ordinary imports.
 
-A Python sketch is a scene2d sketch: it shows a lit scene by baking a frame,
-and dresses a body in Compose through `ctx.page((width, height))`, whose
-`render(tree)` is the pass the baked frame carries and whose `surface()` the
-body wears. `python_plaque` is one.
+One `@sketch` decorator serves both kinds, and the class says which. A
+class whose `describe(self, seconds)` is annotated `-> world.Frame` is a
+scene3d sketch: its kind's runtime is `scene3d`, a session opens it
+through `openScene3D` exactly as it opens a C++ body, and its setup is
+handed a `Scene3DContext` bound to Python — `ctx.camera(lens)`,
+`ctx.page((width, height))` and `ctx.textureScene(...)` — while it runs.
+The kind is read from the file's text when the sketch is listed, a
+`describe` whose return annotation names `Frame`, so a listing asks no
+interpreter; the decorator applies the same rule to the class it loads.
+`python_plaque` is one. Any other class is a scene2d sketch: `setup` may
+return the tree to render, a `describe(self, seconds)` returning a tree is
+rendered again at every step, and `draw(self, pen)` is a full-canvas pen.
+A scene2d sketch can still bake one frame into a picture with
+`ctx.bakeScene3D`, declaring `needsDevice = True` on a line of its own.
 
 Reusable bindings belong to SigilPython. SigilSketchPython adds sketch sessions
 and kit support without adding Python to the core library, and its

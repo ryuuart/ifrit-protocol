@@ -328,7 +328,7 @@ def reading(p: Pen) -> None:
     p.pop()
 
 
-@sketch(size=(WIDTH, HEIGHT), background="#0F1617", capture_at=14.8)
+@sketch(size=(WIDTH, HEIGHT), background="#0F1617", captureAt=14.8)
 class VoyagerInstructionPlate:
     def setup(self, ctx: Scene2DContext) -> None:
         cover = load(LOCAL / "data" / "cover.svg", width=DISC_SIZE, height=DISC_SIZE)

@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 from sigil import compose, media
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 SCENE = """
 from sigil import compose, motion
@@ -37,7 +37,7 @@ def page(leaving):
     return compose.box(*rows)
 
 
-@sketch(size=(64, 24), background="#000000", capture_at=0)
+@sketch(size=(64, 24), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         self.left = False
@@ -55,7 +55,7 @@ class Exits(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sigil_exit_") as folder:
             entry, output = Path(folder) / "scene.py", Path(folder) / "scene.png"
             entry.write_text(textwrap.dedent(SCENE))
-            render_file(entry, output, at=at)
+            renderFile(entry, output, at=at)
             image = media.load(output).frameAt(0).image
             pixels, width = image.rgba(), image.width()
         return lambda x, y: tuple(pixels[(y * width + x) * 4 : (y * width + x) * 4 + 4])

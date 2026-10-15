@@ -24,12 +24,12 @@ def row(caption: str, leaf: compose.Element) -> compose.Element:
     return compose.box(compose.text(caption, size=12, color=ASH), leaf).column().gap(6)
 
 
-@sketch(size=(620, 300), background=GROUND, capture_at=0)
+@sketch(size=(620, 300), background=GROUND, captureAt=0)
 class TextElement:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(
                 row("text(utf8)", compose.text("Set in the font and ink in force.")),

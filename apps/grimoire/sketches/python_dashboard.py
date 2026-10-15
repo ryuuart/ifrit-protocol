@@ -5,10 +5,9 @@ TAGS: Geometry/Layout, Typography/Interface, Motion/Animation
 
 from math import sin
 
-from sigil.compose import box, column, row, text
-from sigil.compose import document as doc
+from sigil.compose import Element, box, column, document, row, text
 from sigil.motion import animate
-from sigil.sketch import Scene2DContext, kit, sketch
+from sigil.sketch import kit, sketch
 
 READINGS = [
     dict(
@@ -52,7 +51,7 @@ def metric(label, value, detail, accent, level, index):
                 .alignItems("center")
                 .children(
                     (box().width(7).height(7).borderRadius(4).fill(accent)),
-                    doc.label(label),
+                    document.label(label),
                 )
             ),
             text(value).styleClass("readout").fontSize(46),
@@ -72,7 +71,7 @@ def metric(label, value, detail, accent, level, index):
                     ),
                 )
             ),
-            doc.caption(detail),
+            document.caption(detail),
         )
     )
 
@@ -96,8 +95,8 @@ def signal_panel():
                         column()
                         .gap(6)
                         .children(
-                            doc.h2("Signal envelope"),
-                            doc.caption("A composed view of 48 observations"),
+                            document.h2("Signal envelope"),
+                            document.caption("A composed view of 48 observations"),
                         )
                     ),
                     text("NORMALIZED  /  0—1").styleClass("control"),
@@ -140,22 +139,17 @@ def signal_panel():
     )
 
 
-@sketch(size=(1100, 660), capture_at=2.0)
+@sketch(size=(1100, 660), captureAt=2.0, theme=kit.featureTheme(kit.Density.Spacious))
 class Dashboard:
-    def setup(self, ctx: Scene2DContext) -> None:
-        with kit.provide(kit.feature_theme(kit.Density.Spacious)):
-            kit.stage(ctx, size=(1100, 660), capture_at=2.0)
-            ctx.render(
-                kit.page(
-                    column(
-                        row(
-                            metric(**reading, index=i)
-                            for i, reading in enumerate(READINGS)
-                        ).gap(18),
-                        signal_panel(),
-                    ).gap(24),
-                    title="A quiet instrument",
-                    subtitle="Retained components / three readings and a continuous signal envelope",
-                    footer="Observation 002 · ordinary Python descriptions · native entrance motion",
-                )
-            )
+    def setup(self) -> Element:
+        return kit.page(
+            column(
+                row(
+                    metric(**reading, index=i) for i, reading in enumerate(READINGS)
+                ).gap(18),
+                signal_panel(),
+            ).gap(24),
+            title="A quiet instrument",
+            subtitle="Retained components / three readings and a continuous signal envelope",
+            footer="Observation 002 · ordinary Python descriptions · native entrance motion",
+        )

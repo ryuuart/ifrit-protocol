@@ -81,12 +81,12 @@ GROUND = "#11151a"
 INK = "#e8eef2"
 
 
-@sketch(size=(640, 360), background=GROUND, capture_at=0)
+@sketch(size=(640, 360), background=GROUND, captureAt=0)
 class TitleCard:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(compose.text("A title card", size=32, color=INK))
             .cover()
@@ -168,7 +168,7 @@ def chip(index: int) -> compose.Element:
 
 
 class TitleCard:
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         chips = compose.box(*[chip(i) for i in range(CHIPS)]).row().gap(12)
         return (
             compose.box(
@@ -242,13 +242,13 @@ class TitleCard:
     def setup(self, ctx: Scene2DContext) -> None:
         self.accent = motion.animatable(compose.Fill.color(COOL))
         ctx.engine.timer(self.pulse)
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
     def pulse(self, delta: float, elapsed: float) -> None:
         phase = (elapsed % 2.0) / 2.0
         self.accent.set(material.lerpOklab(COOL, HOT, phase))
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         title = compose.text("A title card", size=32, color=INK).opacity(
             motion.animate(from_=0.0, to=1.0, duration=0.6)
         )
@@ -299,7 +299,7 @@ import math
 from sigil.draw import Pen
 
 
-@sketch(size=(640, 360), background=GROUND, capture_at=1.5)
+@sketch(size=(640, 360), background=GROUND, captureAt=1.5)
 class TitleCard:
     def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
         if pen.frameCount == 1:
@@ -323,10 +323,11 @@ host's pointer and keys each frame; there is no event callback to wire.
 
 Now the chips become bodies on a plinth under lights. A **scene3d**
 sketch describes a `world::Frame` as a function of the scene time, and
-a device draws it. In C++ this is a second body contract: `describe(now)`
-in place of `setup` rendering a tree. Python has no scene3d kind of its
-own; a Python sketch stays scene2d and **bakes** the frame into an image
-it then places on the page, which is what the Python column does.
+a device draws it. This is a second body contract: `describe(now)`
+returning the frame, in place of `setup` rendering a tree. In Python the
+same decorator reads it off the class: a `describe(self, seconds)`
+annotated `-> world.Frame` makes the sketch scene3d, and its `setup` is
+handed a `Scene3DContext`.
 
 ```cpp
 #include <sigilgeometry/kit/Solids.h>
@@ -376,30 +377,23 @@ SIGIL_SKETCH(TitleScene, "Guide", "the title card as a scene in space")
 
 ```python
 from sigil import world
-from sigil.draw import Pen
 from sigil.geometry import mesh
-from sigil.material import hexColor
 from sigil.material import surface as surfaces
+from sigil.sketch import Scene3DContext
 
 
 def tinted(color) -> material.Material:
     return surfaces.program(surfaces.SurfaceParameters(baseColor=color, roughness=0.5))
 
 
-@sketch(size=(640, 360), background=GROUND, capture_at=1.5)
+@sketch(size=(640, 360), background=GROUND, captureAt=1.5)
 class TitleScene:
-    # A sketch that bakes a 3D frame draws it on the host's device.
-    needsDevice = True
-
-    def setup(self, ctx: Scene2DContext) -> None:
+    def setup(self, ctx: Scene3DContext) -> None:
         self.plinth = mesh.box((-200, -9, -120), (200, 9, 120))
         self.chip = mesh.torus(22, 8)
-        self.lens = mesh.camera.Camera()
-        self.lens.eye = (0, 170, 420)
-        self.lens.target = (0, 0, 0)
+        ctx.camera(mesh.camera.Camera(eye=(0, 170, 420), target=(0, 0, 0)))
 
-    def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
-        seconds = pen.millis() / 1000
+    def describe(self, seconds: float) -> world.Frame:
         chips = [
             world.mesh(self.chip)
             .key(f"chip{i}")
@@ -414,11 +408,7 @@ class TitleScene:
             world.mesh(self.plinth).key("plinth").at((0, -74, 0)).fill(tinted("#29363f")),
             world.group(chips).key("chips"),
         ).key("card")
-        still = ctx.bakeScene3D(
-            world.Frame(model), (640, 360), camera=self.lens, background=hexColor(0x11151A)
-        )
-        if still is not None:
-            pen.image(still, 0, 0)
+        return world.Frame(model)
 ```
 
 Open the C++ file as before; a scene3d sketch needs the device, which
@@ -439,7 +429,7 @@ vocabulary of step 3 applies unchanged. The meshes are **SigilGeometry**:
 `box`, `torus`, `quad`, `revolve`, `extrude` and the rest of the solids
 kit. The camera on a rail is the World kit's `turntable`; the Python
 column states a fixed lens, since a tree with no camera is seen through
-the one the bake is handed. In C++ a plain colour on `fill` is lit at
+the one `ctx.camera` hands the host. In C++ a plain colour on `fill` is lit at
 the stock surface response; in Python a mesh's `fill` takes a
 `Material`, which the next step makes.
 
@@ -468,9 +458,8 @@ brass = surfaces.program(
 )
 glaze = surfaces.program(surfaces.SurfaceParameters(baseColor="#87b9ad", roughness=0.45))
 
-# in draw(): .fill(brass if i % 2 else glaze) on each chip, and
-frame = world.Frame(model).pass_(world.bloom(threshold=1.0, intensity=0.4, radius=32))
-still = ctx.bakeScene3D(frame, (640, 360), camera=self.lens, background=hexColor(0x11151A))
+# in describe(): .fill(brass if i % 2 else glaze) on each chip, and
+return world.Frame(model).pass_(world.bloom(threshold=1.0, intensity=0.4, radius=32))
 ```
 
 **What you used.** `material::surface::program` is the lit surface of
@@ -538,7 +527,8 @@ words.
   still asks with `--gpu`. A scene2d body that bakes a 3D frame or paints
   meshes on the device says `static constexpr bool needsDevice = true;`
   in C++ and `needsDevice = True` on the class in Python, so a host
-  brings the device up before the sketch opens.
+  brings the device up before the sketch opens; a Python scene3d sketch
+  needs no such line, since its kind is read off `describe`.
 - **Names are the domain's own.** Compose spells CSS (`justifyContent`,
   `borderRadius`), World spells USD, Blender and three.js
   (`directionalLight`, `lightLink`, `castShadow`), and the pen spells

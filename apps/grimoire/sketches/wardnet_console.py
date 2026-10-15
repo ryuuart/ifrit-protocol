@@ -99,7 +99,7 @@ def log_row(index: int, tag: str, body: str, cursor: bool) -> compose.Element:
     return row
 
 
-@sketch(size=(WIDTH, HEIGHT), background=VOID, capture_at=4.0)
+@sketch(size=(WIDTH, HEIGHT), background=VOID, captureAt=4.0)
 class WardNet:
     def setup(self, ctx: Scene2DContext) -> None:
         self.composer = ctx.composer

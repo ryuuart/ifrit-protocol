@@ -53,6 +53,13 @@ assert_type(
     motion.animate(from_=compose.Fill.none(), to=compose.Fill.color("#fff")),
     motion.FillAnimatable,
 )
+assert_type(motion.Tween(0, 1), motion.Tween)
+assert_type(motion.ColorTween("#000", "#fff"), motion.ColorTween)
+assert_type(motion.animate(0, 1, duration=0.6), motion.Animatable)
+assert_type(motion.animate(0, to=1), motion.Animatable)
+assert_type(motion.animate("#000", "#fff"), motion.ColorAnimatable)
+assert_type(world.Frame(world.group(), passes=[world.postPass("grade")]), world.Frame)
+assert_type(world.Selection.None_, world.Selection)
 assert_type(motion.animatable(0.5), motion.Animatable)
 assert_type(motion.stagger(0.04), motion.Staggered)
 assert_type(motion.phase(timedelta(seconds=1), 2), float)
@@ -118,7 +125,7 @@ assert_type(data.Flag(True) < False, bool)
 assert_type(data.Flag(True) == data.Flag(False), bool)
 assert_type(sorted([data.Instant(1), data.Instant(0)]), list[data.Instant])
 assert_type({data.Flag(True): data.Instant(0)}, dict[data.Flag, data.Instant])
-document = data.Json({"ok": [True, None]}).to_python()
+document = data.Json({"ok": [True, None]}).toPython()
 if isinstance(document, dict):
     assert_type(next(iter(document)), str)
 assert_type(

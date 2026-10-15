@@ -664,7 +664,7 @@ void bindWorld(py::module_& root) {
   bindEnvironment(module, kit);
   py::enum_<world::Selection>(module, "Selection")
       .value("Auto", world::Selection::Auto)
-      .value("All", world::Selection::None)
+      .value("None_", world::Selection::None)
       .value("Cull", world::Selection::Cull)
       .value("Mask", world::Selection::Mask)
       .value("Variant", world::Selection::Variant);
@@ -743,7 +743,16 @@ void bindWorld(py::module_& root) {
   module.def("geometryPass", &world::geometryPass, py::arg("name"));
   module.def("postPass", &world::postPass, py::arg("name"));
   py::class_<world::Frame>(module, "Frame")
-      .def(py::init<world::Node>(), py::arg("scene") = world::Node{})
+      .def(py::init([](world::Node scene, std::vector<world::Pass> passes) {
+             world::Frame frame(std::move(scene));
+             for (auto& each : passes) frame.pass(std::move(each));
+             return frame;
+           }),
+           py::arg("scene") = world::Node{}, py::kw_only(),
+           py::arg("passes") = std::vector<world::Pass>{},
+           "A frame of `scene` with `passes` added in the order given, as "
+           "`pass_` adds them one at a time; `pass` is a word Python "
+           "reserves.")
       .def("copy", [](const world::Frame& self) { return self; })
       .def("scene", py::overload_cast<world::Node>(&world::Frame::scene),
            py::arg("scene"), fluent)

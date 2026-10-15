@@ -9,7 +9,7 @@ from sigil import compose, media, skia, weave
 from sigil import compose as raw
 from sigil.compose import Align, Dimension, Fill, box, pct, stroke
 from sigil.motion import animatable
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class Compose(unittest.TestCase):
@@ -17,7 +17,7 @@ class Compose(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             source, output = Path(folder) / "scene.py", Path(folder) / "scene.png"
             source.write_text(body)
-            render_file(source, output, at=at)
+            renderFile(source, output, at=at)
             return media.load(output).frameAt(0).image.rgba()
 
     def setUp(self):
@@ -167,7 +167,7 @@ def bar(key, element):
     return element.key(key).children([box().key(key + "In").width(10).height(10)])
 
 
-@sketch(size=(200, 60), capture_at=0)
+@sketch(size=(200, 60), captureAt=0)
 class Edges:
     def setup(self, ctx):
         ctx.render(
@@ -221,7 +221,7 @@ from sigil.compose import box, pct
 from sigil.sketch import sketch
 
 
-@sketch(size=(200, 100), capture_at=0)
+@sketch(size=(200, 100), captureAt=0)
 class Placed:
     def setup(self, ctx):
         ctx.render(
@@ -300,7 +300,7 @@ def item(key, width=20):
     return box().key(key).size(width, 10)
 
 
-@sketch(size=(100, 60), capture_at=0)
+@sketch(size=(100, 60), captureAt=0)
 class Keywords:
     def setup(self, ctx):
         reverse = box().size(100, 10).flexDirection(FlexDirection.RowReverse)
@@ -479,7 +479,7 @@ from sigil.compose import text
 from sigil.sketch import sketch
 
 
-@sketch(size=(120, 60), capture_at=0)
+@sketch(size=(120, 60), captureAt=0)
 class Measure:
     def setup(self, ctx):
         ctx.render(text("a measure seventy pixels wide").key("leaf").width(70))
@@ -559,7 +559,7 @@ from sigil.sketch import sketch, kit
 class Scene:
     def __init__(self):
         self.initial = kit.theme().type.title.size
-        custom = kit.house_theme()
+        custom = kit.houseTheme()
         custom.type.title.size = 99
         self.abandoned = kit.provide(custom)
         self.abandoned.__enter__()

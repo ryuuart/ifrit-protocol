@@ -29,12 +29,12 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
     )
 
 
-@sketch(size=(620, 240), background=GROUND, capture_at=0)
+@sketch(size=(620, 240), background=GROUND, captureAt=0)
 class StrokeVerb:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(
                 cell("stroke(brush)", compose.box().stroke(compose.stroke(2, EDGE))),

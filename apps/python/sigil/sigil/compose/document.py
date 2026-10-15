@@ -29,14 +29,14 @@ from _sigil.compose.document import (
     label,
     lead,
     list,
+    listGap,
     measure,
     paragraph,
     quote,
+    quoteInset,
     rule,
     section,
 )
-from _sigil.compose.document import listGap as list_gap
-from _sigil.compose.document import quoteInset as quote_inset
 
 __all__ = [
     "article",
@@ -57,11 +57,11 @@ __all__ = [
     "label",
     "lead",
     "list",
-    "list_gap",
+    "listGap",
     "measure",
     "paragraph",
     "quote",
-    "quote_inset",
+    "quoteInset",
     "rule",
     "section",
 ]

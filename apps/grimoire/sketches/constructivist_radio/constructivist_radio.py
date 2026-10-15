@@ -393,7 +393,7 @@ def words(
     )
 
 
-@sketch(size=SIZE, background=PAPER, capture_at=4)
+@sketch(size=SIZE, background=PAPER, captureAt=4)
 class ConstructivistRadio:
     def setup(self, ctx: Scene2DContext):
         letters = [

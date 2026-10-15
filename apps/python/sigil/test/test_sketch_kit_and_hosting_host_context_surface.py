@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from _sigil.sketch import CanvasSpecification, Guest, requireCached
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 def png_extent(encoded: bytes) -> tuple[int, int]:
@@ -33,7 +33,7 @@ class HostContextSurface(unittest.TestCase):
             entry.write_text(textwrap.dedent(source))
             for name, value in (files or {}).items():
                 (root / name).write_text(value)
-            render_file(entry, output, at=at)
+            renderFile(entry, output, at=at)
             return output.read_bytes()
 
     def test_canvas_specification_carries_every_field_the_host_reads_back(self):
@@ -44,13 +44,13 @@ class HostContextSurface(unittest.TestCase):
             from sigil.sketch import sketch
 
 
-            @sketch(size=(20, 20), capture_at=1.0)
+            @sketch(size=(20, 20), captureAt=1.0)
             class Declared:
                 def setup(self, ctx):
                     wanted = CanvasSpecification(
                         size=(64, 48),
                         background="#204080",
-                        captureSeconds=0,
+                        captureAt=0,
                         oversample=1,
                         paintDiscardedFrames=False,
                         plateOnly=True,
@@ -72,7 +72,7 @@ class HostContextSurface(unittest.TestCase):
         # The record outlives the session that read it, and its copy is
         # independent of the original.
         self.assertEqual((wanted.size.width(), wanted.size.height()), (64, 48))
-        self.assertEqual(wanted.captureSeconds, 0)
+        self.assertEqual(wanted.captureAt, 0)
         self.assertEqual(wanted.oversample, 1)
         self.assertFalse(wanted.paintDiscardedFrames)
         self.assertTrue(CanvasSpecification().paintDiscardedFrames)
@@ -89,7 +89,7 @@ class HostContextSurface(unittest.TestCase):
             from sigil.sketch import sketch
 
 
-            @sketch(size=(30, 30), capture_at=0)
+            @sketch(size=(30, 30), captureAt=0)
             class Refused:
                 def setup(self, ctx):
                     refusals = []
@@ -121,7 +121,7 @@ class HostContextSurface(unittest.TestCase):
             from sigil.sketch import sketch
 
 
-            @sketch(size=(20, 20), capture_at=0)
+            @sketch(size=(20, 20), captureAt=0)
             class Keyed:
                 def setup(self, ctx):
                     builtins._sigil_host_context = (
@@ -154,7 +154,7 @@ class HostContextSurface(unittest.TestCase):
             from sigil.sketch import sketch
 
 
-            @sketch(size=(80, 80), capture_at=0)
+            @sketch(size=(80, 80), captureAt=0)
             class Baked:
                 def setup(self, ctx):
                     lens = mesh.camera.Camera()
@@ -218,7 +218,7 @@ class HostContextSurface(unittest.TestCase):
             from sigil.sketch import Page, sketch
 
 
-            @sketch(size=(80, 80), capture_at=0)
+            @sketch(size=(80, 80), captureAt=0)
             class Paged:
                 def setup(self, ctx):
                     first = ctx.page((32, 32))
@@ -277,7 +277,7 @@ class HostContextSurface(unittest.TestCase):
             from sigil.sketch import sketch
 
 
-            @sketch(size=(80, 80), capture_at=0)
+            @sketch(size=(80, 80), captureAt=0)
             class Paged:
                 def setup(self, ctx):
                     stated = compose.SurfaceRange(emission=8, thickness=2)
@@ -352,7 +352,7 @@ class HostContextSurface(unittest.TestCase):
             from sigil.sketch import sketch
 
 
-            @sketch(size=(24, 24), capture_at=0)
+            @sketch(size=(24, 24), captureAt=0)
             class Wearing:
                 def setup(self, ctx):
                     self.guest = Guest(
@@ -389,7 +389,7 @@ class HostContextSurface(unittest.TestCase):
             from sigil.sketch import sketch
 
 
-            @sketch(size=(20, 20), capture_at=0)
+            @sketch(size=(20, 20), captureAt=0)
             class Escaped:
                 def setup(self, ctx):
                     builtins._sigil_host_context = ctx

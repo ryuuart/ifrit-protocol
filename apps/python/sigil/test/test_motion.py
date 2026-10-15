@@ -42,7 +42,7 @@ from sigil.motion import (
     stagger,
     stepIndex,
 )
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class Motion(unittest.TestCase):
@@ -71,7 +71,7 @@ class Motion(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sigil_motion_") as folder:
             entry, output = Path(folder) / "scene.py", Path(folder) / "scene.png"
             entry.write_text(textwrap.dedent(source))
-            render_file(entry, output, at=at)
+            renderFile(entry, output, at=at)
             pixels = media.load(output).frameAt(0).image.rgba()
         return lambda x, y: pixels[(y * width + x) * 4 : (y * width + x + 1) * 4]
 
@@ -114,6 +114,31 @@ class Motion(unittest.TestCase):
             Tween(to=1, duration=-1)
         with self.assertRaises(ValueError):
             animate()
+
+    def test_the_start_and_the_end_are_given_by_position_or_by_keyword(self):
+        # `from` is a word Python reserves, so the start and the end come
+        # first and are named by position; `from_=` still names the start.
+        self.assertEqual(
+            animate(0, 1, duration=0.6), animate(from_=0, to=1, duration=0.6)
+        )
+        self.assertEqual(animate(0, to=1), animate(from_=0, to=1))
+        self.assertEqual(Tween(0, 1, duration=0.6), Tween(from_=0, to=1, duration=0.6))
+        self.assertEqual((Tween(2, 5).from_, Tween(2, 5).to), (2, 5))
+        self.assertIsInstance(animate("#ff0000", "#0000ff"), ColorAnimatable)
+        self.assertEqual(
+            native.ColorTween("#ff0000", "#0000ff"),
+            native.ColorTween(from_="#ff0000", to="#0000ff"),
+        )
+        self.assertEqual(
+            native.FillTween(Fill.color("#ff0000"), Fill.color("#0000ff")).to,
+            Fill.color("#0000ff"),
+        )
+        # A tween handed over alone still stands for the whole motion, and
+        # one handed over with fields beside it is refused.
+        self.assertEqual(animate(Tween(0, 1)), animate(0, 1))
+        self.assertEqual(animate(tween=Tween(0, 1)), animate(0, 1))
+        with self.assertRaises(TypeError):
+            animate(Tween(0, 1), 2)
 
     def test_keyframes_are_read_with_no_engine(self):
         path = Tween(
@@ -268,7 +293,7 @@ class Motion(unittest.TestCase):
                 pixel = self.render("""
                     import builtins
                     from sigil.sketch import sketch
-                    @sketch(size=(64, 24), background="#000000", capture_at=0)
+                    @sketch(size=(64, 24), background="#000000", captureAt=0)
                     class Scene:
                         def setup(self, ctx):
                             ctx.render(builtins._motion_tree.copy())
@@ -287,7 +312,7 @@ from sigil.motion import animatable
 from sigil.sketch import sketch
 
 
-@sketch(size=(64, 24), background="#000000", capture_at=0)
+@sketch(size=(64, 24), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         self.x = animatable(4)
@@ -309,7 +334,7 @@ class Scene:
         pixel = self.render("""
             import builtins
             from sigil.sketch import sketch
-            @sketch(size=(64, 24), background="#000000", capture_at=0)
+            @sketch(size=(64, 24), background="#000000", captureAt=0)
             class Scene:
                 def setup(self, ctx):
                     ctx.render(builtins._motion_node.copy())
@@ -326,7 +351,7 @@ from sigil.motion import animatable, bind
 from sigil.sketch import sketch
 
 
-@sketch(size=(64, 24), background="#000000", capture_at=0)
+@sketch(size=(64, 24), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         self.seconds = animatable(0)
@@ -364,7 +389,7 @@ from sigil.motion import Keyframe, animate, ease
 from sigil.sketch import sketch
 
 
-@sketch(size=(64, 24), background="#000000", capture_at=0)
+@sketch(size=(64, 24), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         ctx.render(
@@ -399,7 +424,7 @@ from sigil.motion import animate
 from sigil.sketch import sketch
 
 
-@sketch(size=(64, 24), background="#000000", capture_at=0)
+@sketch(size=(64, 24), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         builtins._motion_curve_owner = weakref.ref(self)
@@ -426,7 +451,7 @@ from sigil.motion import Tween, animatable, ease
 from sigil.sketch import sketch
 
 
-@sketch(size=(64, 24), background="#000000", capture_at=0)
+@sketch(size=(64, 24), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         x = animatable(0)
@@ -445,7 +470,7 @@ class Scene:
             """
             import builtins
             from sigil.sketch import sketch
-            @sketch(size=(64, 24), background="#000000", capture_at=0)
+            @sketch(size=(64, 24), background="#000000", captureAt=0)
             class Scene:
                 def setup(self, ctx):
                     builtins._motion_fixed_steps = []
@@ -478,7 +503,7 @@ class Scene:
             """
             import builtins
             from sigil.sketch import sketch
-            @sketch(size=(64, 24), capture_at=0)
+            @sketch(size=(64, 24), captureAt=0)
             class Scene:
                 def setup(self, ctx):
                     builtins._motion_retired_calls = []

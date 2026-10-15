@@ -18,8 +18,8 @@ from _sigil.compose.layouts import (
     fr,
     minmax,
     px,
+    repeatTrack,
 )
-from _sigil.compose.layouts import repeatTrack as repeat_track
 
 __all__ = [
     "AlongPath",
@@ -36,5 +36,5 @@ __all__ = [
     "fr",
     "minmax",
     "px",
-    "repeat_track",
+    "repeatTrack",
 ]

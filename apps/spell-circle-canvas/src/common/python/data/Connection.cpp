@@ -165,7 +165,7 @@ void bindDataConnection(py::module_& root) {
              return py::bytes(text.data(), text.size());
            })
       .def("empty", &data::Message::empty)
-      .def("to_python", [](const data::Message& value) {
+      .def("toPython", [](const data::Message& value) {
         return dataPython(value.payload);
       });
 

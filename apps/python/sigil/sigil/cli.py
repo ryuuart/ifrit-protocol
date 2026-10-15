@@ -257,7 +257,7 @@ def main(argv=None):
         parser.error("render requires a source file or --example NAME")
 
     from ._requirements import missing_requirements
-    from .sketch import render_file
+    from .sketch import renderFile
 
     def _render(source, output):
         # A sketch names the modules it needs, and the browser marks an
@@ -269,7 +269,7 @@ def main(argv=None):
                 f"{Path(source).name} declares modules this interpreter does "
                 "not have: " + ", ".join(missing)
             )
-        render_file(source, output, at=options.at)
+        renderFile(source, output, at=options.at)
 
     try:
         output = options.output.resolve()

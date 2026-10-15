@@ -9,7 +9,7 @@ from sigil.draw import ROUND, Pen
 from sigil.sketch import Scene2DContext, sketch
 
 
-@sketch(size=(800, 800), capture_at=0.05)
+@sketch(size=(800, 800), captureAt=0.05)
 class LSystemTree:
     def setup(self, ctx: Scene2DContext) -> None:
         self.sentence = "F"

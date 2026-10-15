@@ -5,7 +5,7 @@ TAGS: Geometry/Layout, Typography/Interface
 
 from sigil import compose as raw
 from sigil.compose import box, column, layout, memo, row, text
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.compose import kit as marks
 from sigil.compose.layouts import AlongPath, BaselineGrid, Diagonal, Jittered, Radial
 from sigil.motion import animate
@@ -139,7 +139,7 @@ def captured_palette(properties):
             .gap(18)
             .children(
                 swatches,
-                doc.caption(properties[0]).fontSize(11).ink(look.palette.ink),
+                document.caption(properties[0]).fontSize(11).ink(look.palette.ink),
             )
         )
         .width(WIDTH)
@@ -157,12 +157,12 @@ def specimen(picture, index, label, note):
     ).opacity(animate(from_=0, to=1, duration=0.45, delay=index * 0.05))
 
 
-@sketch(size=(1200, 760), capture_at=1.1)
+@sketch(size=(1200, 760), captureAt=1.1)
 class OrderSpecimen:
     def setup(self, ctx: Scene2DContext) -> None:
-        look = kit.feature_theme(kit.Density.Spacious)
+        look = kit.featureTheme(kit.Density.Spacious)
         with kit.provide(look):
-            kit.stage(ctx, size=(1200, 760), capture_at=1.1)
+            kit.stage(ctx, size=(1200, 760), captureAt=1.1)
             inset = look.copy()
             inset.palette.ink = "#e9efda"
             inset.palette.figure = "#dab26a"

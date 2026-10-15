@@ -375,7 +375,7 @@ def cursor(p: Pen):
     p.line(6, 15, 12, 23)
 
 
-@sketch(size=(WIDTH, HEIGHT), background="#D5DED5", capture_at=4.6)
+@sketch(size=(WIDTH, HEIGHT), background="#D5DED5", captureAt=4.6)
 class MacrodataRefinement:
     def setup(self, ctx: Scene2DContext):
         self.seconds = animatable(0.0)

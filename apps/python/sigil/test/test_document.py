@@ -8,7 +8,7 @@ from _sigil import compose as raw
 from sigil import media
 from sigil.compose import Element, Text, box
 from sigil.compose import document as doc
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 from sigil.weave import Type, em, rich
 
 
@@ -17,7 +17,7 @@ class Document(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             entry, output = Path(folder) / "document.py", Path(folder) / "document.png"
             entry.write_text(source)
-            render_file(entry, output, at=0)
+            renderFile(entry, output, at=0)
             return media.load(output).frameAt(0).image.rgba()
 
     def test_factories_are_native_and_named_arguments_remain_available(self):
@@ -49,8 +49,8 @@ class Document(unittest.TestCase):
         ):
             with self.subTest(kind=kind.__name__):
                 self.assertIs(type(element), kind)
-        self.assertEqual(doc.list_gap, raw.document.listGap)
-        self.assertEqual(doc.quote_inset, raw.document.quoteInset)
+        self.assertEqual(doc.listGap, raw.document.listGap)
+        self.assertEqual(doc.quoteInset, raw.document.quoteInset)
         for level in (0, 7):
             with self.assertRaises(IndexError):
                 doc.heading(level, "Outside the hierarchy")

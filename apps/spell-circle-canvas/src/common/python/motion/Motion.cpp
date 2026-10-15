@@ -210,8 +210,8 @@ py::class_<motion::Tween<T>> bindTween(py::module_& module, const char* name,
              return tweenOf<T>(from, to, keyframes, duration, delay, ease, loop,
                                loopDelay, alternate, composition);
            }),
-           py::kw_only(), py::arg("from_") = py::none(),
-           py::arg("to") = py::none(), py::arg("keyframes") = py::none(),
+           py::arg("from_") = py::none(), py::arg("to") = py::none(),
+           py::kw_only(), py::arg("keyframes") = py::none(),
            py::arg("duration") = 0.25, py::arg("delay") = 0.0,
            py::arg("ease") = py::none(), py::arg("loop") = 0,
            py::arg("loopDelay") = 0.0, py::arg("alternate") = false,
@@ -604,10 +604,24 @@ void bindMotion(py::module_& root) {
       "property, and the property follows.");
   module.def(
       "animate",
-      [](py::handle described, py::handle from, py::handle to,
-         py::handle keyframes, py::handle duration, py::handle delay,
-         py::handle easing, int loop, motion::Duration loopDelay,
-         bool alternate, motion::Composition composition) -> py::object {
+      [](py::handle from, py::handle to, py::handle keyframes,
+         py::handle duration, py::handle delay, py::handle easing, int loop,
+         motion::Duration loopDelay, bool alternate,
+         motion::Composition composition, py::handle tween) -> py::object {
+        // A tween handed over alone stands where `from` does, so
+        // `animate(tween)` and `animate(0, 1)` are both one positional call.
+        const bool handedTween =
+            py::isinstance<motion::Tween<float>>(from) ||
+            py::isinstance<motion::Tween<material::Color>>(from) ||
+            py::isinstance<motion::Tween<compose::Fill>>(from);
+        py::handle described = tween;
+        if (handedTween) {
+          if (!described.is_none() || !to.is_none() || !keyframes.is_none())
+            throw py::type_error(
+                "animate() takes a Tween, or a tween's fields, not both.");
+          described = from;
+          from = py::none();
+        }
         if (py::isinstance<motion::Tween<float>>(described))
           return py::cast(
               motion::animate(py::cast<motion::Tween<float>>(described)));
@@ -647,16 +661,18 @@ void bindMotion(py::module_& root) {
             tweenOf<material::Color>(from, to, frames, length, delay, easing,
                                      loop, loopDelay, alternate, composition)));
       },
-      py::arg("tween") = py::none(), py::kw_only(),
-      py::arg("from_") = py::none(), py::arg("to") = py::none(),
+      py::arg("from_") = py::none(), py::arg("to") = py::none(), py::kw_only(),
       py::arg("keyframes") = py::none(), py::arg("duration") = py::none(),
       py::arg("delay") = py::none(), py::arg("ease") = py::none(),
       py::arg("loop") = 0, py::arg("loopDelay") = 0.0,
       py::arg("alternate") = false,
       py::arg("composition") = motion::Composition::Replace,
+      py::arg("tween") = py::none(),
       "A property value that moves: the tween given, or one written out of "
       "the fields named. A number, a colour and a fill each make their own "
-      "animatable.");
+      "animatable. The start and the end come first and may be given by "
+      "position, `animate(0, 1)`, since `from` is a word Python reserves; "
+      "`from_=` names the start by keyword.");
 
   module.def("phase", &motion::phase, py::arg("time"), py::arg("period"));
   module.def(

@@ -31,7 +31,7 @@ BLUE = (0, 0, 255)
 PROBE = f"""from sigil.sketch import sketch
 
 
-@sketch(size={CANVAS!r}, background="#0000ff", capture_at=0)
+@sketch(size={CANVAS!r}, background="#0000ff", captureAt=0)
 class Held:
     def draw(self, pen, ctx):
         pen.background(0, 0, 255)

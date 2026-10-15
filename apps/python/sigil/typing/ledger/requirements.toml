@@ -423,7 +423,7 @@ python = ["sketch.kit.scrollbar", "sketch.kit.Scrolled"]
 [requirement.kit-section-header]
 native = "`sketch::kit::sectionHeader`"
 library = "Sketch kit"
-python = ["sketch.kit.section_header"]
+python = ["sketch.kit.sectionHeader"]
 
 [requirement.kit-ticker]
 native = "`sketch::kit::ticker` marquee strip"

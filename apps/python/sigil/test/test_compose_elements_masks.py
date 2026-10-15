@@ -21,7 +21,7 @@ from pathlib import Path
 from _sigil import compose as native
 from sigil import compose, material, media, motion, skia
 from sigil.compose import box, spans
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 by = native.by
 parts = native.parts
@@ -381,14 +381,14 @@ class Session(unittest.TestCase):
             f"    return box().width({size}).height({size}).fill('#ffffff')\n"
             f"LEFT_HALF = Region.rect((0, 0, {half}, {size}))\n"
             f"TOP_HALF = Region.rect((0, 0, {size}, {half}))\n"
-            f"@sketch(size=({size}, {size}), background='#000000', capture_at=0)\n"
+            f"@sketch(size=({size}, {size}), background='#000000', captureAt=0)\n"
             "class Scene:\n"
             "    def setup(self, ctx):\n"
             "        ctx.render(box().children([\n"
             + textwrap.indent(textwrap.dedent(element).strip(), "            ")
             + "\n        ]))\n"
         )
-        render_file(source, output, at=0)
+        renderFile(source, output, at=0)
         self.picture = media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, point):

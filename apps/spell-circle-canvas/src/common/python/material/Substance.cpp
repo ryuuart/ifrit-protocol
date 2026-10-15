@@ -49,7 +49,8 @@ material::Material substance(const HubHandle& hub, const std::string& uri,
                              py::kwargs inputs) {
   material::SubstanceOptions options;
   options.preset = preset;
-  if (!engine.is_none()) options.engine = engine.cast<material::sbsar::Engine>();
+  if (!engine.is_none())
+    options.engine = engine.cast<material::sbsar::Engine>();
   if (!seed.is_none()) options.seed = seed.cast<int>();
   options.resolution = resolution;
   options.graph = graph;
@@ -129,13 +130,13 @@ void bindMaterialSubstance(py::module_& module) {
       .def_readonly("description", &Input::description)
       .def_readonly("type", &Input::type)
       .def_readonly("widget", &Input::widget)
-      .def_readonly("default_value", &Input::defaultValue)
+      .def_readonly("defaultValue", &Input::defaultValue)
       .def_readonly("minimum", &Input::minimum)
       .def_readonly("maximum", &Input::maximum)
       .def_readonly("step", &Input::step)
       .def_readonly("clamp", &Input::clamp)
       .def_readonly("choices", &Input::choices)
-      .def_readonly("visible_if", &Input::visibleIf);
+      .def_readonly("visibleIf", &Input::visibleIf);
   py::class_<Output>(sbsar, "Output")
       .def_readonly("name", &Output::name)
       .def_readonly("label", &Output::label)

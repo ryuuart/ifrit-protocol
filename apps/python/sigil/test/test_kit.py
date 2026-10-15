@@ -12,7 +12,7 @@ from sigil import weave
 from sigil.compose import Element, box, text
 from sigil.compose import kit as neutral
 from sigil.compose.layouts import Grid, fr, px
-from sigil.sketch import kit, render_file
+from sigil.sketch import kit, renderFile
 
 
 class Kit(unittest.TestCase):
@@ -22,14 +22,14 @@ class Kit(unittest.TestCase):
             entry = root / "kit_fixture.py"
             output = root / "kit_fixture.png"
             entry.write_text(source)
-            render_file(entry, output, at=at)
+            renderFile(entry, output, at=at)
             self.assertTrue(output.is_file())
 
     def test_theme_is_a_native_value_and_reads_are_owned_snapshots(self):
         ambient = kit.theme()
         for factory, native in (
-            (kit.house_theme, raw.kit.houseTheme),
-            (kit.study_theme, raw.kit.studyTheme),
+            (kit.houseTheme, raw.kit.houseTheme),
+            (kit.studyTheme, raw.kit.studyTheme),
         ):
             with self.subTest(factory=factory.__name__):
                 original = factory()
@@ -51,16 +51,16 @@ class Kit(unittest.TestCase):
                 self.assertEqual(kit.theme(), ambient)
 
     def test_theme_answers_the_copy_protocol_a_memo_model_is_snapshotted_with(self):
-        original = kit.house_theme()
+        original = kit.houseTheme()
         for made in (copy.copy(original), copy.deepcopy(original)):
             self.assertIsInstance(made, raw.kit.Theme)
             self.assertEqual(made, original)
             made.spacing.cellGap += 1
             self.assertNotEqual(made, original)
-        self.assertEqual(original, kit.house_theme())
+        self.assertEqual(original, kit.houseTheme())
 
     def test_theme_font_and_style_name_the_same_register_across_overloads(self):
-        look = kit.house_theme()
+        look = kit.houseTheme()
         plain = look.font(line=look.type.title)
         self.assertIsInstance(plain, weave.Type)
         self.assertEqual(plain, look.font(look.type.title))
@@ -128,7 +128,7 @@ class Kit(unittest.TestCase):
         held = []
 
         def worker():
-            provider = kit.provide(kit.house_theme())
+            provider = kit.provide(kit.houseTheme())
             provider.__enter__()
             held.append(provider)
 
@@ -148,10 +148,53 @@ class Kit(unittest.TestCase):
         )
         self.assertIsInstance(neutral.line(length=80, thickness=2), Element)
         self.assertIsInstance(
-            neutral.sheet(content, title="Neutral", margin_x=20), Element
+            neutral.sheet(content, title="Neutral", marginX=20), Element
         )
         with self.assertRaisesRegex(TypeError, "unknown Page property 'titlle'"):
             kit.page(content, titlle="typo")
+
+    def test_kit_names_and_fields_are_spelled_as_the_native_kit_spells_them(self):
+        from sigil.compose import document, layouts
+
+        for module, names in (
+            (
+                kit,
+                (
+                    "featureTheme",
+                    "houseTheme",
+                    "studyTheme",
+                    "houseFace",
+                    "controlsOf",
+                    "sectionHeader",
+                    "panelGrid",
+                ),
+            ),
+            (neutral, ("captionLabel", "captionNote", "panelGrid")),
+            (document, ("listGap", "quoteInset")),
+            (layouts, ("repeatTrack",)),
+        ):
+            for name in names:
+                with self.subTest(module=module.__name__, name=name):
+                    self.assertTrue(hasattr(module, name))
+                    snake = "".join(
+                        "_" + letter.lower() if letter.isupper() else letter
+                        for letter in name
+                    )
+                    self.assertFalse(hasattr(module, snake))
+                    self.assertNotIn(snake, module.__all__)
+        self.assertIsInstance(kit.featureTheme(kit.Density.Spacious), raw.kit.Theme)
+        self.assertEqual(kit.well(paddingY=6).__class__, Element)
+        # A field is one spelling: the snake form of a camelCase field is
+        # refused with the spelling it missed.
+        for call, field in (
+            (lambda: kit.well(padding_y=6), "paddingY"),
+            (lambda: kit.panelGrid(box(), row_gap=4), "rowGap"),
+            (lambda: neutral.sheet(box(), margin_x=20), "marginX"),
+            (lambda: neutral.panelGrid(box(), divider_width=1), "dividerWidth"),
+        ):
+            with self.subTest(field=field):
+                with self.assertRaisesRegex(TypeError, f"spelled '{field}'"):
+                    call()
 
     def test_every_kind_of_node_is_a_child_of_a_kit_piece(self):
         # A typed leaf is a class of its own rather than a subclass of
@@ -178,7 +221,7 @@ from sigil.compose.layouts import Grid, px, fr
 from sigil.sketch import sketch
 
 
-@sketch(size=(160, 80), capture_at=0.05)
+@sketch(size=(160, 80), captureAt=0.05)
 class GridSheet:
     def setup(self, ctx):
         ctx.render(
@@ -233,13 +276,13 @@ class GridSheet:
 from sigil.sketch import kit, sketch
 
 
-@sketch(size=(8, 8), capture_at=0)
+@sketch(size=(8, 8), captureAt=0)
 class Sheet:
     def setup(self, ctx):
-        look = kit.house_theme()
+        look = kit.houseTheme()
         look.palette.ground = "#123456"
         with kit.provide(look):
-            kit.stage(ctx, size=(160, 100), capture_at=0, oversample=1)
+            kit.stage(ctx, size=(160, 100), captureAt=0, oversample=1)
             assert ctx.width == 160 and ctx.height == 100
             ctx.render(kit.page(text("Stage"), title="Native page"))
 """)
@@ -252,10 +295,10 @@ from sigil.compose import box
 from sigil.sketch import kit, sketch
 
 
-@sketch(size=(32, 32), capture_at=0)
+@sketch(size=(32, 32), captureAt=0)
 class LeakedScope:
     def setup(self, ctx):
-        look = kit.house_theme()
+        look = kit.houseTheme()
         look.palette.ink = "#ff0000"
         builtins._sigil_kit_scope = kit.provide(look)
         builtins._sigil_kit_scope.__enter__()
@@ -278,10 +321,10 @@ def describe(properties):
     return box().width(20).height(20).fill("#abcdef")
 
 
-@sketch(size=(32, 32), capture_at=0)
+@sketch(size=(32, 32), captureAt=0)
 class Deferred:
     def setup(self, ctx):
-        look = kit.house_theme()
+        look = kit.houseTheme()
         look.type.title.size = 37
         with kit.provide(look):
             tree = memo(("held",), describe)
@@ -300,11 +343,11 @@ from sigil.compose import box, memo
 from sigil.sketch import kit, sketch
 
 
-@sketch(size=(8, 8), capture_at=0)
+@sketch(size=(8, 8), captureAt=0)
 class DeferredClose:
     def setup(self, ctx):
         original = kit.theme()
-        look = kit.house_theme()
+        look = kit.houseTheme()
         look.type.title.size = 99
         results = builtins._sigil_kit_scope_close
         with kit.provide(look) as provider:
@@ -343,7 +386,7 @@ class DeferredClose:
                     check = "assert ctx.width == 80" if draw_count == 2 else "pass"
                     self.render(f"""import builtins
 from sigil.sketch import sketch
-@sketch(size=(80, 48), capture_at=0)
+@sketch(size=(80, 48), captureAt=0)
 class Prefixes:
     def setup(self{setup_args}):
         self.ready = True

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from sigil import data, io, material, media, weave
 from sigil.compose import Annotation, text
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class LibraryCoverage(unittest.TestCase):
@@ -35,7 +35,7 @@ class LibraryCoverage(unittest.TestCase):
         packet = data.encode(
             data.oscMessage("/level", (0.5, True, "hello")), Dialect.Osc
         )
-        message = data.decode(packet, Dialect.Osc).to_python()
+        message = data.decode(packet, Dialect.Osc).toPython()
         self.assertEqual(message["address"], "/level")
         self.assertEqual(message["arguments"], [0.5, True, "hello"])
         self.assertEqual(data.encode(message, Dialect.Osc), packet)
@@ -48,7 +48,7 @@ class LibraryCoverage(unittest.TestCase):
             data.encode({"kind": "Dmx", "channels": [255, 64, 8]}, Dialect.ArtNet),
             Dialect.ArtNet,
         )
-        self.assertEqual(dmx["channels"].to_python(), [255, 64, 8, 0])
+        self.assertEqual(dmx["channels"].toPython(), [255, 64, 8, 0])
         for dialect in (Dialect.Osc, Dialect.Midi, Dialect.ArtNet):
             self.assertIsNone(data.decode(b"", dialect))
 
@@ -154,6 +154,21 @@ class LibraryCoverage(unittest.TestCase):
         with self.assertRaises(ValueError):
             material.rampBracket((), 0.5)
         self.assertIsNotNone(text("native color", color=middle))
+
+    def test_a_verdict_is_read_as_pass_the_word_python_reserves(self):
+        from sigil import measure
+
+        held = measure.check("whole", 3, 3)
+        missed = measure.check("whole", 3, 4)
+        self.assertTrue(held.pass_)
+        self.assertFalse(missed.pass_)
+        table = measure.CheckTable()
+        table.add(held)
+        self.assertTrue(table.pass_())
+        table.add(missed)
+        self.assertFalse(table.pass_())
+        self.assertFalse(hasattr(held, "passed"))
+        self.assertFalse(hasattr(table, "passed"))
 
     def test_paragraph_editing_measurements_and_font_thread_ownership(self):
         fonts = weave.FontContext()
@@ -278,7 +293,7 @@ class ParagraphSketch:
         pen.background("#000000")
         self.layout.drawBatched(pen, self.paragraph)
 """)
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             pixels = media.load(output).frameAt(0).image.rgba()
             self.assertGreater(sum(pixels[0::4]), 1000)
 

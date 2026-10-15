@@ -10,7 +10,7 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 @unittest.skipUnless(
@@ -27,7 +27,7 @@ class CaptureParity(unittest.TestCase):
                 from pathlib import Path
                 from sigil.sketch import sketch
 
-                @sketch(size=(64.25, 48.25), capture_at=0)
+                @sketch(size=(64.25, 48.25), captureAt=0)
                 class Scene:
                     def setup(self):
                         self.times = []
@@ -49,7 +49,7 @@ class CaptureParity(unittest.TestCase):
             for at in (None, 0.0, 0.025):
                 with self.subTest(at=at):
                     api = root / "api.png"
-                    render_file(source, api, at=at)
+                    renderFile(source, api, at=at)
                     api_times = json.loads(source.with_suffix(".json").read_text())
                     native = root / "native.png"
                     arguments = [
@@ -107,7 +107,7 @@ class CaptureParity(unittest.TestCase):
                 from pathlib import Path
                 from sigil.sketch import sketch
 
-                @sketch(size=(64, 8), background="#000000", capture_at=0)
+                @sketch(size=(64, 8), background="#000000", captureAt=0)
                 class Edge:
                     def setup(self):
                         self.times = []

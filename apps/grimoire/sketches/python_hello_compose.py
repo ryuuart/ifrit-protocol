@@ -9,7 +9,7 @@ TAGS: Runtime/Starter, Geometry/Layout, Materials/Gradients, Motion/Animation
 """
 
 from sigil.compose import Element, row
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.material import Paint
 from sigil.motion import animate
 from sigil.sketch import Scene2DContext, kit, sketch
@@ -28,9 +28,9 @@ def wash(accent: str) -> Paint:
 
 def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
     return (
-        doc.article(
-            doc.h2(title).fontSize(26),
-            doc.paragraph(detail).fontSize(14).ink("#dce6e9"),
+        document.article(
+            document.h2(title).fontSize(26),
+            document.paragraph(detail).fontSize(14).ink("#dce6e9"),
         )
         .gap(14)
         .padding(24)
@@ -45,12 +45,12 @@ def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
     )
 
 
-@sketch(size=(900, 360), capture_at=1.1)
+@sketch(size=(900, 360), captureAt=1.1)
 class HelloCompose:
     def setup(self, ctx: Scene2DContext) -> None:
-        look = kit.feature_theme(kit.Density.Spacious)
+        look = kit.featureTheme(kit.Density.Spacious)
         with kit.provide(look):
-            kit.stage(ctx, size=(900, 360), capture_at=1.1)
+            kit.stage(ctx, size=(900, 360), captureAt=1.1)
             ctx.render(
                 kit.page(
                     (

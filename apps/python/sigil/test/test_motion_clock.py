@@ -41,7 +41,7 @@ from sigil.motion import (
     ease,
     withPrevious,
 )
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 # A step rate and a frame length that share no common step: twenty frames
 # of this length run the whole second's steps, one or two per frame,
@@ -382,7 +382,7 @@ class Sessions(unittest.TestCase):
             from sigil.motion import Tween, animatable
             from sigil.sketch import sketch
 
-            @sketch(size=(64, 24), background="#000000", capture_at=0)
+            @sketch(size=(64, 24), background="#000000", captureAt=0)
             class Scene:
                 def setup(self, ctx):
                     ramped = animatable(0)
@@ -396,7 +396,7 @@ class Sessions(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sigil_clock_") as folder:
             entry = Path(folder) / "scene.py"
             entry.write_text(textwrap.dedent(source))
-            render_file(entry, Path(folder) / "scene.png", at=0.5)
+            renderFile(entry, Path(folder) / "scene.png", at=0.5)
         self.assertAlmostEqual(builtins._clock_ramped.value, 32.0, places=4)
         self.assertTrue(builtins._clock_timeline.isCompleted())
         with self.assertRaisesRegex(RuntimeError, "session"):

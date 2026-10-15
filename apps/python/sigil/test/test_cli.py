@@ -327,7 +327,7 @@ class RenderCommand(unittest.TestCase):
             "from sigil.compose import box\n"
             "from sigil.sketch import sketch\n"
             "\n\n"
-            "@sketch(size=(20, 20), capture_at=0)\n"
+            "@sketch(size=(20, 20), captureAt=0)\n"
             "class Study:\n"
             "    def setup(self, ctx):\n"
             '        ctx.render(box().width(20).height(20).fill("#000000"))\n'
@@ -371,7 +371,7 @@ class ExampleCommands(unittest.TestCase):
             "from sigil.compose import box\n"
             "from sigil.sketch import sketch\n"
             "\n\n"
-            "@sketch(size=(20, 20), capture_at=0)\n"
+            "@sketch(size=(20, 20), captureAt=0)\n"
             "class NightStudy:\n"
             "    def setup(self, ctx):\n"
             '        ctx.render(box().width(20).height(20).fill("#000000"))\n'

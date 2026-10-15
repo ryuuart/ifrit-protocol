@@ -11,7 +11,7 @@ from pathlib import Path
 
 from _sigil import data as native
 from sigil import data, io
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class Data(unittest.TestCase):
@@ -30,11 +30,11 @@ class Data(unittest.TestCase):
         encoded = data.encode(document, data.Dialect.Json)
         self.assertEqual(data.decode(encoded, data.Dialect.Json), document)
         self.assertEqual(
-            document.to_python(), {"name": "fern", "values": [1, None, True]}
+            document.toPython(), {"name": "fern", "values": [1, None, True]}
         )
         del document
         gc.collect()
-        self.assertEqual([value.to_python() for value in values], [1, None, True])
+        self.assertEqual([value.toPython() for value in values], [1, None, True])
         duplicate = data.Json.fromPairs([("x", 2), ("x", 4)])
         self.assertEqual(data.encode(duplicate, data.Dialect.Json), b'{"x":2,"x":4}')
         self.assertIsNone(data.decode("not json", data.Dialect.Json))
@@ -57,7 +57,7 @@ class Data(unittest.TestCase):
         try:
             sys.setrecursionlimit(100)
             with self.assertRaises(RecursionError):
-                document.to_python()
+                document.toPython()
             with self.assertRaises(RecursionError):
                 data.Json(nested)
         finally:
@@ -214,7 +214,7 @@ from sigil.compose import box
 from sigil.sketch import sketch
 
 
-@sketch(size=(24, 24), capture_at=0)
+@sketch(size=(24, 24), captureAt=0)
 class Cached:
     def setup(self, ctx):
         hub = ctx.assets.hub()
@@ -222,7 +222,7 @@ class Cached:
         ctx.render(box().width(24).height(24).fill("#45827b"))
 """)
             )
-            render_file(entry, root / "frame.png", at=0)
+            renderFile(entry, root / "frame.png", at=0)
             cached = builtins._sigil_read_only
             with self.assertRaisesRegex(RuntimeError, "read-only"):
                 cached.query("DELETE FROM totals")
@@ -308,7 +308,7 @@ from sigil.compose import box
 from sigil.sketch import sketch
 
 
-@sketch(size=(24, 24), capture_at=0)
+@sketch(size=(24, 24), captureAt=0)
 class Resources:
     def setup(self, ctx):
         hub = ctx.assets.hub()
@@ -322,7 +322,7 @@ class Resources:
         ctx.render((box().width(24).height(24).fill("#45827b")))
 """)
             )
-            render_file(entry, root / "frame.png", at=0)
+            renderFile(entry, root / "frame.png", at=0)
             hub, document, table, database = builtins._sigil_data
             gc.collect()
             with self.assertRaisesRegex(RuntimeError, "session"):

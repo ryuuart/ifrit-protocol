@@ -7,7 +7,7 @@ TAGS: Data/Visualization, Drawing/Charts, Typography/Editorial
 """
 
 from sigil.compose import box, column, graphics, row, text
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.data import Order, Scale, Transform, decodeCsv
 from sigil.draw import CENTER, LEFT, RIGHT
 from sigil.sketch import Scene2DContext, kit, sketch
@@ -29,7 +29,7 @@ Royal fern,88,68,95,C
 ROOMS = {"A": "#6c9981", "B": "#c59e68", "C": "#ab7868"}
 
 
-@sketch(size=(1000, 780), capture_at=0)
+@sketch(size=(1000, 780), captureAt=0)
 class DataGarden:
     def setup(self, ctx: Scene2DContext) -> None:
         self.table = decodeCsv(CSV)
@@ -41,12 +41,12 @@ class DataGarden:
             range=(12, 361), transform=Transform.Band, steps=12, padding=0.42
         )
         self.bar = Scale(domain=(0, 80), range=(0, 130))
-        self.look = kit.feature_theme(kit.Density.Spacious)
+        self.look = kit.featureTheme(kit.Density.Spacious)
         with kit.provide(self.look):
-            kit.stage(ctx, size=(1000, 780), capture_at=0)
-            ctx.render(self.describe())
+            kit.stage(ctx, size=(1000, 780), captureAt=0)
+            ctx.render(self.redraw())
 
-    def describe(self):
+    def redraw(self):
         summary = (
             row()
             .width(892)
@@ -57,7 +57,7 @@ class DataGarden:
                     column()
                     .gap(5)
                     .children(
-                        doc.label("SPECIMENS"),
+                        document.label("SPECIMENS"),
                         text("12").styleClass("readout").fontSize(33),
                     )
                 ),
@@ -65,7 +65,7 @@ class DataGarden:
                     column()
                     .gap(5)
                     .children(
-                        doc.label("ROOMS"),
+                        document.label("ROOMS"),
                         text("03").styleClass("readout").fontSize(33),
                     )
                 ),
@@ -73,7 +73,7 @@ class DataGarden:
                     column()
                     .gap(9)
                     .children(
-                        doc.label("OBSERVATION"),
+                        document.label("OBSERVATION"),
                         text("Week 08").styleClass("readout").fontSize(25),
                     )
                 ),
@@ -81,7 +81,7 @@ class DataGarden:
                     column()
                     .gap(12)
                     .children(
-                        doc.label("BUBBLE AREA"),
+                        document.label("BUBBLE AREA"),
                         text("Water / ml").styleClass("readout").fontSize(19),
                     )
                 ),
@@ -97,7 +97,7 @@ class DataGarden:
                         .gap(7)
                         .children(
                             (box().width(8).height(8).fill(ink).borderRadius(4)),
-                            doc.label(f"ROOM {room}").ink(self.look.palette.ash),
+                            document.label(f"ROOM {room}").ink(self.look.palette.ash),
                         )
                     )
                     for room, ink in ROOMS.items()
@@ -121,7 +121,7 @@ class DataGarden:
                                     .width(560)
                                     .justifyContent("space_between")
                                     .children(
-                                        doc.label("LIGHT × HEIGHT"),
+                                        document.label("LIGHT × HEIGHT"),
                                         legend,
                                     )
                                 ),
@@ -130,7 +130,7 @@ class DataGarden:
                                     .width(560)
                                     .height(416)
                                 ),
-                                doc.caption(
+                                document.caption(
                                     "Illustrative measurements  ·  relative light / final height in cm"
                                 )
                                 .fontSize(11)
@@ -143,13 +143,13 @@ class DataGarden:
                             .width(276)
                             .gap(15)
                             .children(
-                                doc.label("HEIGHT / SORTED"),
+                                document.label("HEIGHT / SORTED"),
                                 (
                                     graphics("greenhouse-ranking", self.bars)
                                     .width(276)
                                     .height(416)
                                 ),
-                                doc.footer("NATIVE TABLE → SORT → BAND SCALE")
+                                document.footer("NATIVE TABLE → SORT → BAND SCALE")
                                 .fontSize(9)
                                 .ink(self.look.palette.ash),
                             )

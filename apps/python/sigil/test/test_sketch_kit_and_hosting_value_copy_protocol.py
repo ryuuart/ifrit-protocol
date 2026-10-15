@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sigil import material
 from sigil.compose import kit as neutral
-from sigil.sketch import kit, render_file
+from sigil.sketch import kit, renderFile
 
 
 class ValueCopyProtocol(unittest.TestCase):
@@ -17,7 +17,7 @@ class ValueCopyProtocol(unittest.TestCase):
             entry = Path(folder) / "copy_protocol.py"
             output = Path(folder) / "copy_protocol.png"
             entry.write_text(source)
-            render_file(entry, output, at=at)
+            renderFile(entry, output, at=at)
             self.assertTrue(output.is_file())
 
     def setUp(self):
@@ -28,7 +28,7 @@ class ValueCopyProtocol(unittest.TestCase):
         # The records that declare equality natively; a record without it
         # is compared field by field further down.
         for original in (
-            kit.house_theme(),
+            kit.houseTheme(),
             kit.Palette(ground="#112233", ink="#eeeeee"),
             kit.Register(size=18, mono=True),
         ):
@@ -43,12 +43,12 @@ class ValueCopyProtocol(unittest.TestCase):
                     self.assertIsNot(made, original)
 
     def test_a_deep_copy_of_a_theme_does_not_follow_the_original(self):
-        original = kit.house_theme()
+        original = kit.houseTheme()
         made = copy.deepcopy(original)
         made.type.title.size += 3
         made.palette.ground = "#244466"
         self.assertNotEqual(made, original)
-        self.assertEqual(original, kit.house_theme())
+        self.assertEqual(original, kit.houseTheme())
 
     def test_a_deep_copy_of_a_colour_is_a_colour_of_its_own(self):
         original = material.Color(0.25, 0.5, 0.75, 1)
@@ -73,7 +73,7 @@ class ValueCopyProtocol(unittest.TestCase):
 
         def label(words):
             calls.append(words)
-            return neutral.caption_label(words)
+            return neutral.captionLabel(words)
 
         original = neutral.Caption(label=label)
         made = copy.deepcopy(original)
@@ -82,7 +82,7 @@ class ValueCopyProtocol(unittest.TestCase):
         self.assertEqual(calls, ["first", "second"])
 
     def test_the_memo_dictionary_keeps_one_copy_per_aliased_record(self):
-        original = kit.house_theme()
+        original = kit.houseTheme()
         first, second = copy.deepcopy([original, original])
         self.assertIs(first, second)
         self.assertEqual(first, original)
@@ -104,7 +104,7 @@ class Scene:
 
     def update(self, elapsed, ctx):
         self.frame += 1
-        look = kit.house_theme()
+        look = kit.houseTheme()
         if self.frame >= 3:
             look.type.title.size = 40
 
@@ -127,10 +127,10 @@ from sigil.compose import box
 from sigil.sketch import kit, sketch
 
 
-@sketch(size=(16, 16), capture_at=0)
+@sketch(size=(16, 16), captureAt=0)
 class Scene:
     def setup(self, ctx):
-        look = kit.house_theme()
+        look = kit.houseTheme()
         look.palette.ground = "#112233"
         builtins._sigil_copy_protocol.append(copy.deepcopy(look))
         ctx.render(box().width(16).height(16))
@@ -140,7 +140,7 @@ class Scene:
         (held,) = builtins._sigil_copy_protocol
         self.assertIsInstance(held, kit.Theme)
         self.assertEqual(held.palette.ground, material.Color("#112233"))
-        expected = kit.house_theme()
+        expected = kit.houseTheme()
         expected.palette.ground = "#112233"
         self.assertEqual(held, expected)
 

@@ -429,7 +429,7 @@ drops it (`sigil::sketch::plateExtent`).
 taken through the runtime's own `Session::still` — `Host::photograph` —
 so `--frame --at 1 --scale 2`, the sweep's plate at `--at 1 --scale 2`,
 a protocol session stepped a second and photographed at density 2,
-and `sigil.sketch.render_file` are one picture, byte for byte. A scene2d
+and `sigil.sketch.renderFile` are one picture, byte for byte. A scene2d
 sketch re-renders its still in one more frame of no length: the picture is
 the scene at the moment named, the sketch ran one more update at that
 moment to draw it, and the printed `t=` is the time the pixels show. A

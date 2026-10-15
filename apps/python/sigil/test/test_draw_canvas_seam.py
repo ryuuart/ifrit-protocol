@@ -8,7 +8,7 @@ from array import array
 from pathlib import Path
 
 from sigil import draw, media
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class CanvasSeamContracts(unittest.TestCase):
@@ -27,7 +27,7 @@ class CanvasSeamContracts(unittest.TestCase):
             "from sigil import draw, skia\n"
             "from sigil.sketch import sketch\n"
             "results = builtins._sigil_canvas_results\n"
-            "@sketch(size=(32, 32), capture_at=0)\n"
+            "@sketch(size=(32, 32), captureAt=0)\n"
             "class Drawing:\n"
             "    def setup(self, ctx):\n"
             + textwrap.indent(textwrap.dedent(setup).strip(), "        ")
@@ -35,7 +35,7 @@ class CanvasSeamContracts(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        render_file(source, output, at=0)
+        renderFile(source, output, at=0)
         return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y):

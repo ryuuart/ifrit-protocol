@@ -9,7 +9,7 @@ from sigil import compose, geometry, material, media, skia, weave
 from sigil.compose import SpanStyle, Text, TextPath, frame, text
 from sigil.compose import selectors as composition_selectors
 from sigil.motion import animatable
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class Typography(unittest.TestCase):
@@ -18,7 +18,7 @@ class Typography(unittest.TestCase):
             path = Path(folder) / "typography.py"
             output = Path(folder) / "typography.png"
             path.write_text(source)
-            render_file(path, output, at=at)
+            renderFile(path, output, at=at)
             return media.load(output).frameAt(0).image.rgba()
 
     def test_rich_runs_keep_inheritance_and_resolve_names_by_value(self):
@@ -409,7 +409,7 @@ class GlyphShadowsAndPageDirection(unittest.TestCase):
             path = Path(folder) / "shadow.py"
             output = Path(folder) / "shadow.png"
             path.write_text(source)
-            render_file(path, output, at=0)
+            renderFile(path, output, at=0)
             return media.load(output).frameAt(0).image.rgba()
 
     def glowBeside(self, opacity):

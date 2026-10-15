@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 from sigil import media
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 SKETCH = Path(__file__).resolve().parents[3] / "grimoire" / "sketches" / "wardnet_live"
 SETTLED = 1.5  # seconds: every entrance has played and the meter has eased
@@ -55,7 +55,7 @@ from . import wardnet_live as console
 HERE = Path(__file__).resolve().parent
 
 
-@sketch(size=(console.WIDTH, console.HEIGHT), capture_at=0)
+@sketch(size=(console.WIDTH, console.HEIGHT), captureAt=0)
 class Probe(console.WardNetLive):
     def setup(self, ctx):
         super().setup(ctx)
@@ -102,7 +102,7 @@ class WardNetLiveDoors(unittest.TestCase):
             )
             (root / "arrivals.json").write_text(json.dumps(ARRIVALS))
             (root / "probe.py").write_text(textwrap.dedent(PROBE))
-            render_file(root / "probe.py", root / "still.png", at=SETTLED)
+            renderFile(root / "probe.py", root / "still.png", at=SETTLED)
             image = media.decode(media.Image, (root / "still.png").read_bytes())
             return builtins._wardnet_live, image.frameAt(0).image
 

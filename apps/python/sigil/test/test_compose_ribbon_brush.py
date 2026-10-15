@@ -14,7 +14,7 @@ from pathlib import Path
 
 from sigil import compose, material, media
 from sigil.geometry import path
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 POINTS = [(20, 100), (70, 40), (130, 160), (180, 100)]
 
@@ -117,7 +117,7 @@ class Strokes(unittest.TestCase):
             "from sigil.geometry import path\n"
             "from sigil.sketch import sketch\n"
             f"POINTS = {POINTS!r}\n"
-            "@sketch(size=(200, 200), capture_at=0)\n"
+            "@sketch(size=(200, 200), captureAt=0)\n"
             "class Scene:\n"
             "    def draw(self, pen):\n"
             "        pen.background('#000000')\n"
@@ -129,7 +129,7 @@ class Strokes(unittest.TestCase):
             f"            .stroke({textwrap.dedent(stroke).strip()}))\n"
             "        composer.draw(canvas=pen.canvas())\n"
         )
-        render_file(source, output, at=0)
+        renderFile(source, output, at=0)
         picture = media.decode(media.Image, output.read_bytes()).frameAt(0).image
         return picture.width(), picture.rgba()
 

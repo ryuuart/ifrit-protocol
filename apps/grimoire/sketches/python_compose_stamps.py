@@ -4,17 +4,17 @@ TAGS: Drawing/Brushes, Geometry/Layout, Typography/Interface
 """
 
 from sigil.compose import Element, box, text
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.draw import Pen, brush
 from sigil.sketch import Scene2DContext, kit, sketch
 
 
 def card(label: str, accent: str) -> Element:
     return (
-        doc.article(
-            doc.label("COMPOSE").fontSize(11),
-            doc.h2(label).fontSize(22),
-            doc.caption("Layout + type + paint").fontSize(11).ink("#ffffff"),
+        document.article(
+            document.label("COMPOSE").fontSize(11),
+            document.h2(label).fontSize(22),
+            document.caption("Layout + type + paint").fontSize(11).ink("#ffffff"),
         )
         .gap(8)
         .padding(18)
@@ -24,12 +24,12 @@ def card(label: str, accent: str) -> Element:
     )
 
 
-@sketch(size=(740, 370), capture_at=0)
+@sketch(size=(740, 370), captureAt=0)
 class ComposeStamps:
     def setup(self, ctx: Scene2DContext) -> None:
-        self.look = kit.feature_theme()
+        self.look = kit.featureTheme()
         with kit.provide(self.look):
-            kit.stage(ctx, size=(740, 370), capture_at=0)
+            kit.stage(ctx, size=(740, 370), captureAt=0)
         self.cards = [
             card(label, accent).applyStyleSheet(self.look.styleSheet())
             for label, accent in (

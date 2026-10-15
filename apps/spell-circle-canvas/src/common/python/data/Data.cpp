@@ -4,15 +4,15 @@
 
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
-#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Csv.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Json.h>
 #include <sigildata/decode/Schema.h>
 #include <sigildata/query/Database.h>
 #include <sigildata/read/Read.h>
 #include <sigildata/scale/Scale.h>
-#include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Decoding.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/data/Convert.h>
 #include <sigilpython/data/Registration.h>
@@ -22,8 +22,8 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <string>
 #include <span>
+#include <string>
 #include <type_traits>
 #include <unordered_set>
 #include <vector>
@@ -359,7 +359,7 @@ void bindData(py::module_& root) {
              return data::Json::Object(value.object().begin(),
                                        value.object().end());
            })
-      .def("to_python", &pythonJson,
+      .def("toPython", &pythonJson,
            "A detached Python value; duplicate object keys keep the first "
            "member.")
       .def(
@@ -811,9 +811,10 @@ void bindData(py::module_& root) {
       [](py::handle input, data::Dialect dialect,
          std::optional<data::Schema> schema) -> std::optional<data::Json> {
         // Text is read as its UTF-8 bytes; anything else as a buffer.
-        const std::string source = py::isinstance<py::str>(input)
-                                       ? py::cast<std::string>(input)
-                                       : py::cast<py::bytes>(input).cast<std::string>();
+        const std::string source =
+            py::isinstance<py::str>(input)
+                ? py::cast<std::string>(input)
+                : py::cast<py::bytes>(input).cast<std::string>();
         return data::decode(std::as_bytes(std::span(source)), dialect,
                             schema.value_or(data::Schema{}));
       },
@@ -822,8 +823,8 @@ void bindData(py::module_& root) {
       "encode",
       [](py::handle value, data::Dialect dialect,
          std::optional<data::Schema> schema) {
-        const std::vector<std::byte> result = data::encode(
-            json(value), dialect, schema.value_or(data::Schema{}));
+        const std::vector<std::byte> result =
+            data::encode(json(value), dialect, schema.value_or(data::Schema{}));
         return py::bytes(reinterpret_cast<const char*>(result.data()),
                          result.size());
       },

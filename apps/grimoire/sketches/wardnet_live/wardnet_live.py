@@ -165,7 +165,7 @@ def marquee_pass(message: str, ink: str) -> compose.Element:
     )
 
 
-@sketch(size=(WIDTH, HEIGHT), background=VOID, capture_at=CAPTURE_AT)
+@sketch(size=(WIDTH, HEIGHT), background=VOID, captureAt=CAPTURE_AT)
 class WardNetLive:
     def setup(self, ctx: Scene2DContext) -> None:
         self.composer = ctx.composer

@@ -89,11 +89,12 @@ def register(table: Table) -> None:
             f"def animate(tween: {MOTION}.{prefix}Tween) -> "
             f"{MOTION}.{prefix}Animatable: ...\n"
         )
-    # The keyword form reads the family off the first value named, so each
-    # family is declared three times — led by `from_`, by `to` alone, or by
-    # `keyframes` alone — and no two families accept the same leading
+    # The field form reads the family off the first value named, so each
+    # family is declared three times — led by the start, by `to` alone, or
+    # by `keyframes` alone — and no two families accept the same leading
     # value: the number comes first, then the fill, and a colour is what
-    # is left.
+    # is left. The start and the end may be given by position,
+    # `animate(0, 1)`, because `from` is a word Python reserves.
     timing = (
         f"duration: {TIMES} | None = None, delay: {TIMES} | None = None, "
         "ease: _t.EaseLike = None, loop: typing.SupportsInt = 0, "
@@ -107,12 +108,13 @@ def register(table: Table) -> None:
         steps = f"collections.abc.Iterable[{keyframe} | {value}]"
         result = f"{MOTION}.{prefix}Animatable"
         for lead in (
-            f"from_: {field_type}, to: {field_type} | None = None, "
+            f"from_: {field_type}, to: {field_type} | None = None, *, "
             f"keyframes: {steps} | None = None",
-            f"from_: None = None, to: {field_type}, keyframes: {steps} | None = None",
-            f"from_: None = None, to: None = None, keyframes: {steps}",
+            f"from_: None = None, *, to: {field_type}, "
+            f"keyframes: {steps} | None = None",
+            f"*, from_: None = None, to: None = None, keyframes: {steps}",
         ):
             declarations.append(
-                f"@typing.overload\ndef animate(*, {lead}, {timing}) -> {result}: ...\n"
+                f"@typing.overload\ndef animate({lead}, {timing}) -> {result}: ...\n"
             )
     table.declares(MOTION, "animate", "".join(declarations))

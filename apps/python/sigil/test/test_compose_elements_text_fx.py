@@ -7,7 +7,7 @@ from pathlib import Path
 
 from sigil import compose, media
 from sigil.compose import textFx
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 INSTRUMENTS = (
     Path(__file__).resolve().parents[3] / "spell-circle-canvas/src/test/assets"
@@ -51,7 +51,7 @@ class Scene:
             path = Path(folder) / "effects.py"
             output = Path(folder) / "effects.png"
             path.write_text(source)
-            render_file(path, output, at=0)
+            renderFile(path, output, at=0)
             return media.load(output).frameAt(0).image.rgba()
 
     @staticmethod
@@ -262,7 +262,7 @@ class Scene:
             path = Path(folder) / "entrance.py"
             output = Path(folder) / "entrance.png"
             path.write_text(source)
-            render_file(path, output, at=at)
+            renderFile(path, output, at=at)
             return media.load(output).frameAt(0).image.rgba()
 
     @staticmethod

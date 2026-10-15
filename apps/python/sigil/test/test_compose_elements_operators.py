@@ -26,7 +26,7 @@ from pathlib import Path
 
 from _sigil import compose as native
 from sigil import compose, media, skia
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 RESULTS = "_sigil_operator_results"
 
@@ -379,12 +379,12 @@ class Session(unittest.TestCase):
         source.write_text(
             self.PRELUDE
             + textwrap.dedent(prelude)
-            + f"\n@sketch(size={self.SIZE!r}, background='#000000', capture_at=0)\n"
+            + f"\n@sketch(size={self.SIZE!r}, background='#000000', captureAt=0)\n"
             "class Scene:\n"
             + textwrap.indent(textwrap.dedent(body).strip("\n"), "    ")
             + "\n"
         )
-        render_file(source, output, at=0)
+        renderFile(source, output, at=0)
         return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def frame(self, drawing, prelude=""):

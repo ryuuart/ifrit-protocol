@@ -19,13 +19,13 @@ from _sigil.compose.kit import (
     Well,
     WellContent,
     at,
+    captionLabel,
+    captionNote,
     disc,
     dot,
     figure,
     ring,
 )
-from _sigil.compose.kit import captionLabel as caption_label
-from _sigil.compose.kit import captionNote as caption_note
 
 from ..._kit import children as _children
 from ..._kit import specification as _specification
@@ -50,7 +50,7 @@ def cells(*children, props=None, **properties):
     return _native.cells(run)
 
 
-def panel_grid(*children, props=None, **properties):
+def panelGrid(*children, props=None, **properties):
     grid = _specification(PanelGrid, props, properties)
     if children:
         grid.cells = list(_children(children))
@@ -104,8 +104,8 @@ __all__ = [
     "at",
     "bevels",
     "board",
-    "caption_label",
-    "caption_note",
+    "captionLabel",
+    "captionNote",
     "cell",
     "cells",
     "centred",
@@ -115,7 +115,7 @@ __all__ = [
     "ladder",
     "line",
     "panel",
-    "panel_grid",
+    "panelGrid",
     "ring",
     "sheet",
     "well",

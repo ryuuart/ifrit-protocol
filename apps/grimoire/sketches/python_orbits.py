@@ -16,7 +16,7 @@ ORBITS = [
 ]
 
 
-@sketch(size=(1100, 740), background="#111b27", capture_at=3.0)
+@sketch(size=(1100, 740), background="#111b27", captureAt=3.0)
 class Orbits:
     def draw(self, pen: Pen) -> None:
         t = pen.millis() / 1000

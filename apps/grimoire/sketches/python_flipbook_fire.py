@@ -1,4 +1,4 @@
-"""Two braziers burning a generated flame flipbook, flowing coals and embers, baked on the device."""
+"""Two braziers burning a generated flame flipbook, flowing coals and embers, lit on the device."""
 
 # TAGS: World/Scenes, Materials/Lighting, Effects
 
@@ -6,11 +6,10 @@ import itertools
 import math
 
 from sigil import material, media, world
-from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
 from sigil.material import Color
 from sigil.material import surface as surfaces
-from sigil.sketch import Scene2DContext, sketch
+from sigil.sketch import Scene3DContext, sketch
 
 TAU = math.tau
 # The loop: the flame's 64 frames at 32 a second, and every flicker a
@@ -26,7 +25,6 @@ CELL = 64
 RIM = 92.0
 APART = 175.0
 WIDTH, HEIGHT = 960, 600
-MUTED = "#93a4aa"
 
 
 def smooth(edge0: float, edge1: float, x: float) -> float:
@@ -320,13 +318,9 @@ def flicker(seconds: float, offset: float) -> float:
     )
 
 
-@sketch(size=(WIDTH, HEIGHT), background="#030304", capture_at=0.6)
+@sketch(size=(WIDTH, HEIGHT), background="#030304", captureAt=0.6)
 class PythonFlipbookFire:
-    # A sheet that bakes a 3D frame draws it on the host's device, so the
-    # host brings the device up before this sketch opens.
-    needsDevice = True
-
-    def setup(self, ctx: Scene2DContext) -> None:
+    def setup(self, ctx: Scene3DContext) -> None:
         self.sheet = flame_sheet()
         self.iron = surfaces.program(
             surfaces.SurfaceParameters(
@@ -343,10 +337,10 @@ class PythonFlipbookFire:
         self.coal_bed = mesh.revolve(
             [(0, 0), (52, 0), (50, 4), (34, 12), (0, 16)], segments=64
         )
-        self.lens = mesh.camera.Camera()
-        self.lens.eye = (0, 175, 560)
-        self.lens.target = (0, 120, 0)
-        self.lens.fovYDeg = 40
+        self.lens = mesh.camera.Camera(
+            eye=(0, 175, 560), target=(0, 120, 0), fovYDeg=40
+        )
+        ctx.camera(self.lens)
 
     def fire(
         self, key: str, x: float, blend_frames: bool, start_frame: float, seconds: float
@@ -382,8 +376,7 @@ class PythonFlipbookFire:
             .at((x, 0, 0))
         )
 
-    def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
-        seconds = pen.millis() / 1000
+    def describe(self, seconds: float) -> world.Frame:
         model = world.group(
             world.camera(self.lens, exposure=1.4, toneCurve=world.ToneCurve.Neutral),
             world.hemisphereLight(
@@ -398,24 +391,6 @@ class PythonFlipbookFire:
             self.fire("blended", -APART, True, 0, seconds),
             self.fire("stepped", APART, False, 23, seconds),
         ).key("set")
-        frame = world.Frame(model).pass_(
+        return world.Frame(model).pass_(
             world.bloom(threshold=1.0, intensity=0.7, radius=48)
         )
-        # A scene3d frame is drawn on a device and nowhere else: the bake
-        # answers None where the host brought none up, and the sheet says so.
-        still = ctx.bakeScene3D(
-            frame,
-            (WIDTH, HEIGHT),
-            camera=self.lens,
-            background=Color(0.012, 0.012, 0.016, 1),
-            at=seconds,
-        )
-        if still is not None:
-            pen.image(still, 0, 0)
-        else:
-            pen.background("#030304")
-            pen.noStroke()
-            pen.fill(MUTED)
-            pen.textAlign(LEFT, TOP)
-            pen.textSize(15)
-            pen.text("This sheet bakes its set on a device, and none is here.", 48, 280)

@@ -550,3 +550,45 @@ read a track's schedule back as C++ does. A test should assert that
 one reports one `Beat` per unit with `localProgress` one and a non-empty
 `rect`.
 
+## The element factory comments call free row and column factories that only Python has
+
+The comments in `src/common/compose/include/sigilcompose/core/Factories.h`
+near lines 86, 109 and 128 spell free `row()` and `column()` factories
+as the way to build a flex line, but C++ has no such factories; only the
+Python package offers them, as sugar over `box().row()` and
+`box().column()`. Either the factories should exist in C++, so the
+comment is true and the two languages spell the same thing, or the
+comments should spell the verbs that exist. A test should assert that
+every call a header comment spells compiles, which the README probes do
+for READMEs and not for header comments.
+
+## Thumbnail workers open Python kinds on the process device
+
+`onRuntime` and `onPainterRuntime` in the sketch host act only on the
+C++ `Scene3DKind` and `Scene2DKind` through a `dynamic_cast`, so a
+Python source or loaded kind passes through unchanged and a thumbnail
+worker opens a Python scene3d sketch, or any scene2d sketch that bakes,
+on the process device from a worker thread. The empty runtime a
+thumbnail states is meant to reach every kind. A test should assert
+that `thumbnailAvailable` on a Python scene3d entry answers unavailable
+when `thumbnailKind` states an empty runtime.
+
+## The compose texture scene is bound from the sketch adapter
+
+`compose.TextureScene` (`render`, `texture`, `revision`, `size`) is
+bound in `src/sketch/python/host/WorldScene3D.cpp` and registered into
+`_sigil.compose`, because a Python scene3d sketch paints an overlay
+into one; its home is the compose bindings under
+`src/common/python/compose/`, beside `SurfaceScene`, so that a consumer
+without the sketch adapter can make one. Moving it is one binding and
+its registration; a test should assert that `sigil.compose.TextureScene`
+imports with the compose module alone.
+
+## The protocol clock policy is the one snake_case name left
+
+`clock.set_policy(budget_seconds=)` in `sigil.protocol` is spelled in
+snake_case while every other public name in the package is camelCase
+matching its C++ twin. It should be `setPolicy(budgetSeconds=)`, and the
+package's naming test should cover the protocol module so no snake name
+returns.
+

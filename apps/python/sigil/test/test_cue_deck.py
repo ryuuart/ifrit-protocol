@@ -20,7 +20,7 @@ import unittest
 from pathlib import Path
 
 from sigil import media
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 SKETCH = Path(__file__).resolve().parents[3] / "grimoire" / "sketches" / "cue_deck"
 SCHEMA = SKETCH / "cue_deck.bfbs"
@@ -51,7 +51,7 @@ from . import cue_deck as deck
 HERE = Path(__file__).resolve().parent
 
 
-@sketch(size=(deck.WIDTH, deck.HEIGHT), capture_at=0)
+@sketch(size=(deck.WIDTH, deck.HEIGHT), captureAt=0)
 class Probe(deck.Deck):
     def setup(self, ctx):
         super().setup(ctx)
@@ -65,7 +65,7 @@ class Probe(deck.Deck):
         door, cue = self.newest()
         builtins._cue_deck = (
             door,
-            cue.to_python(),
+            cue.toPython(),
             {name: state.revision for name, state in self.shown.items()},
             sum(state.undecodable for state in self.shown.values()),
         )
@@ -106,7 +106,7 @@ class CueDeckDoors(unittest.TestCase):
             arrivals = {"door": door, "datagrams": [each.hex() for each in datagrams]}
             (root / "arrivals.json").write_text(json.dumps(arrivals))
             (root / "probe.py").write_text(textwrap.dedent(PROBE))
-            render_file(root / "probe.py", root / "still.png", at=0)
+            renderFile(root / "probe.py", root / "still.png", at=0)
             image = media.decode(media.Image, (root / "still.png").read_bytes())
             return builtins._cue_deck, image.frameAt(0).image
 

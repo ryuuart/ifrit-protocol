@@ -514,7 +514,7 @@ def spectrum(p):
         p.endShape()
 
 
-@sketch(size=(W, H), background="#020910", capture_at=4.2)
+@sketch(size=(W, H), background="#020910", captureAt=4.2)
 class MetroidScanVisor:
     def setup(self, ctx):
         hub = ctx.assets.hub()

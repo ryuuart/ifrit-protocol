@@ -4,7 +4,7 @@ Open in Grimoire, then run with the matching installed package:
   python -m sigil.examples.tools.send_live_signals --export reply.json
 
 Send {"sequence": 1, "pressure": 0.62, "flow": 0.35} to UDP port 27021.
-Both channels are normalized from 0 to 1. Edit PORT, colors or describe().
+Both channels are normalized from 0 to 1. Edit PORT, colors or redraw().
 Headless captures replay synthetic arrivals and never open a socket.
 
 TAGS: Data/Visualization, Runtime/Live Input, Drawing/Charts
@@ -16,7 +16,7 @@ from json import dumps
 from math import isfinite, sin
 
 from sigil.compose import Element, box, column, graphics, row, text
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.data import Dialect, decode
 from sigil.draw import CENTER, LEFT, RIGHT, Pen
 from sigil.io import Feed, ListenOptions, ReadyState
@@ -57,10 +57,10 @@ def encoded(signal: Signal) -> bytes:
 
 
 def decoded(payload: bytes) -> Signal:
-    document = decode(payload, Dialect.Json)
-    if document is None:
+    parsed = decode(payload, Dialect.Json)
+    if parsed is None:
         raise ValueError("The datagram is not valid JSON.")
-    value = document.to_python()
+    value = parsed.toPython()
     if not isinstance(value, dict):
         raise TypeError("Send a JSON object with sequence, pressure and flow.")
     sequence = value.get("sequence")
@@ -110,21 +110,21 @@ def metric(label: str, value: str, detail: str, accent: str) -> Element:
                 .alignItems("center")
                 .children(
                     (box().width(6).height(6).borderRadius(3).fill(accent)),
-                    doc.label(label),
+                    document.label(label),
                 )
             ),
             text(value).styleClass("readout").fontSize(43),
-            doc.caption(detail),
+            document.caption(detail),
         )
     )
 
 
-@sketch(size=(1100, 720), capture_at=4.0)
+@sketch(size=(1100, 720), captureAt=4.0)
 class LiveSignals:
     def setup(self, ctx: Scene2DContext) -> None:
-        self.look = kit.feature_theme(kit.Density.Spacious)
+        self.look = kit.featureTheme(kit.Density.Spacious)
         with kit.provide(self.look):
-            kit.stage(ctx, size=(1100, 720), capture_at=4.0)
+            kit.stage(ctx, size=(1100, 720), captureAt=4.0)
         self.replay = ctx.deterministic
         self.samples: deque[Signal] = deque(
             (reference(index) for index in range(180)), maxlen=180
@@ -150,7 +150,7 @@ class LiveSignals:
             self.feed = ctx.assets.hub().listen(f"udp://:{PORT}", options)
         self.rebuild_traces()
         with kit.provide(self.look):
-            ctx.render(self.describe(0))
+            ctx.render(self.redraw(0))
 
     def update(self, elapsed: float, ctx: Scene2DContext) -> None:
         if self.replay:
@@ -203,7 +203,7 @@ class LiveSignals:
         if elapsed - self.last_description >= 0.1:
             self.last_description = elapsed
             with kit.provide(self.look):
-                ctx.render(self.describe(elapsed))
+                ctx.render(self.redraw(elapsed))
 
     def rebuild_traces(self) -> None:
         self.pressure_path = trace([sample.pressure for sample in self.samples])
@@ -251,7 +251,7 @@ class LiveSignals:
             f"Receiving from {self.peer}. Every valid arrival gets a JSON acknowledgment.",
         )
 
-    def describe(self, elapsed: float) -> Element:
+    def redraw(self, elapsed: float) -> Element:
         return kit.page(
             self.content(elapsed),
             title="Signals, received.",
@@ -268,8 +268,8 @@ class LiveSignals:
             .gap(16)
             .children(
                 row(
-                    doc.label("JSON IN · JSON OUT"),
-                    doc.label(status).ink(accent),
+                    document.label("JSON IN · JSON OUT"),
+                    document.label(status).ink(accent),
                 ).justifyContent("space_between"),
                 (
                     row()
@@ -313,7 +313,7 @@ class LiveSignals:
                                     .width(606)
                                     .justifyContent("space_between")
                                     .children(
-                                        doc.label("RECENT ARRIVALS"),
+                                        document.label("RECENT ARRIVALS"),
                                         (
                                             row()
                                             .gap(8)
@@ -359,9 +359,9 @@ class LiveSignals:
                             .gap(16)
                             .width(334)
                             .children(
-                                doc.h2("A small contract."),
+                                document.h2("A small contract."),
                                 (
-                                    doc.code(
+                                    document.code(
                                         '{\n  "sequence": 1,\n  "pressure": 0.62,\n  "flow": 0.35\n}'
                                     )
                                     .fontSize(16)
@@ -374,7 +374,7 @@ class LiveSignals:
                                     .fill(self.look.palette.rule)
                                 ),
                                 (
-                                    doc.paragraph(
+                                    document.paragraph(
                                         "The reply echoes sequence, counts accepted samples and returns mean pressure."
                                     )
                                     .fontSize(13)
@@ -394,7 +394,7 @@ class LiveSignals:
                             column()
                             .gap(7)
                             .children(
-                                doc.caption(detail)
+                                document.caption(detail)
                                 .fontSize(13)
                                 .ink(self.look.palette.ink),
                             )

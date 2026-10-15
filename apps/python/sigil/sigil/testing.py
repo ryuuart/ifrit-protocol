@@ -51,9 +51,9 @@ class InProcess(_Envelopes):
         return self._native.readout()
 
     @property
-    def state_directory(self):
+    def stateDirectory(self):
         """Where the host keeps its state and writes its stills."""
-        return self._native.state_directory
+        return self._native.stateDirectory
 
 
 __all__ = [

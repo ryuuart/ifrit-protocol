@@ -21,7 +21,7 @@ from pathlib import Path
 from _sigil.compose import feed as native
 from sigil import compose, weave
 from sigil.compose import Composer, box, feed, text
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 # Every name this package registers under the feed module.
 NAMES = (
@@ -468,7 +468,7 @@ class Session(unittest.TestCase):
             "def sheet():\n"
             "    base = weave.textStyle(weave.Type(size=8, color='#ffffff'))\n"
             "    return weave.TypeSheet(base)\n"
-            "@sketch(size=(96, 96), capture_at=0)\n"
+            "@sketch(size=(96, 96), captureAt=0)\n"
             "class Scene:\n"
             "    def setup(self, ctx):\n"
             + textwrap.indent(textwrap.dedent(setup).strip(), "        ")
@@ -476,7 +476,7 @@ class Session(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        render_file(source, output, at=0)
+        renderFile(source, output, at=0)
 
 
 class Frames(Session):

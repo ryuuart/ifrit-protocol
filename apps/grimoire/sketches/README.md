@@ -75,6 +75,9 @@ subjects. A root `.py` file or `<name>/<name>.py` entry declaring a `@sketch`
 class joins on the next build; helper modules stay out of the registry.
 Its drawing code stays Python and reloads on save. A literal
 `REQUIRES` tuple names optional installed modules for availability checks.
+A class whose `describe(self, seconds)` is annotated `-> world.Frame` is a
+scene3d sketch drawn on the device, as `python_plaque.py` and
+`python_world_study.py` are; any other is a scene2d sketch.
 
 Two Python starters appear in the Python collection and under Runtime /
 Starter in Subjects. `python_hello.py` draws a greeting and moving circle in
@@ -90,7 +93,9 @@ Feature demonstrations use the shared SketchKit feature theme, page,
 section headings and comparison tracks. Compact density keeps fixed specimen
 grids at their authored measure; spacious density gives explanatory pages
 larger margins and headings. Bind the theme where each tree is described,
-including update functions that rebuild it. Reference studies and authored
+including update functions that rebuild it; a Python sketch states it once
+as `@sketch(theme=kit.featureTheme(...))`, which provides it around every
+hook. Reference studies and authored
 catalog reconstructions retain their source's visual language; an image whose
 drawing is the subject does not need specimen furniture around it.
 

@@ -1,26 +1,70 @@
-"""A native World frame baked on the device: one vessel, three finishes, one moving rig."""
+"""A native World frame lit on the device: one vessel, three finishes, one moving rig."""
 
 # TAGS: World/Scenes, Geometry/Meshes, Materials/Surfaces
 
-from sigil import world
+from sigil import compose, world
 from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
-from sigil.material import hexColor
 from sigil.material import surface as surfaces
-from sigil.sketch import Scene2DContext, sketch
+from sigil.sketch import Scene3DContext, sketch
 
 INK = "#ebeee7"
 MUTED = "#93a4aa"
 PAPER = "#141d25"
+WIDTH, HEIGHT = 1200, 820
 
 
-@sketch(size=(1200, 820), background=PAPER, capture_at=1.0)
+def labels(pen: Pen) -> None:
+    """The sheet's words, laid over the lit set: the heading above it and a
+    caption under each station."""
+    pen.noStroke()
+    pen.textAlign(LEFT, TOP)
+    pen.fill(MUTED)
+    pen.textSize(12)
+    pen.text("WORLD STUDY  /  01", 48, 36)
+    pen.fill(INK)
+    pen.textSize(38)
+    pen.text("One form. Three surfaces.", 48, 68)
+    pen.fill(MUTED)
+    pen.textSize(15)
+    pen.text(
+        "One shared mesh and light rig; only the material’s base color changes.",
+        50,
+        123,
+    )
+
+    for x, number, title, detail, color in (
+        (48, "01", "Celadon glaze", "base color · #87b9ad", "#87b9ad"),
+        (424, "02", "Terracotta glaze", "base color · #dfa573", "#dfa573"),
+        (800, "03", "Porcelain glaze", "base color · #bdcbd8", "#bdcbd8"),
+    ):
+        pen.stroke("#364550")
+        pen.strokeWeight(1)
+        pen.line(x, 662, x + 352, 662)
+        pen.noStroke()
+        pen.fill(color)
+        pen.textSize(12)
+        pen.text(number, x, 679)
+        pen.fill(INK)
+        pen.textSize(19)
+        pen.text(title, x + 32, 675)
+        pen.fill(MUTED)
+        pen.textSize(13)
+        pen.text(detail, x + 32, 705)
+
+    pen.fill(MUTED)
+    pen.textSize(12)
+    pen.text("WORLD FRAME / DEVICE EXECUTOR", 48, 751)
+    pen.text(
+        "Dielectric surfaces share roughness 0.45. This light rig has no environment reflections.",
+        48,
+        776,
+    )
+
+
+@sketch(size=(WIDTH, HEIGHT), background=PAPER, captureAt=1.0)
 class WorldStudy:
-    # A sheet that bakes a 3D frame draws it on the host's device, so the
-    # host brings the device up before this sketch opens.
-    needsDevice = True
-
-    def setup(self, ctx: Scene2DContext) -> None:
+    def setup(self, ctx: Scene3DContext) -> None:
         self.vessel = mesh.revolve(
             [
                 (0, -64),
@@ -50,14 +94,18 @@ class WorldStudy:
         self.base = surfaces.program(
             surfaces.SurfaceParameters(baseColor="#283642", roughness=0.9)
         )
-        self.camera = mesh.camera.Camera()
-        self.camera.eye = (0, 175, 510)
-        self.camera.target = (0, -6, 0)
-        self.camera.fovYDeg = 30
+        # The lens is wide enough that the set fills the band between the
+        # heading and the captions, its centre a few pixels above the
+        # canvas's.
+        ctx.camera(
+            mesh.camera.Camera(eye=(0, 175, 510), target=(0, -9, 0), fovYDeg=46.6)
+        )
+        # The words stand on a screen laid over the finished frame, painted
+        # once and kept while the tree is unchanged.
+        self.words = ctx.textureScene((WIDTH, HEIGHT))
+        self.sheet = compose.graphics("labels", labels).width(WIDTH).height(HEIGHT)
 
-    def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
-        pen.background(PAPER)
-        seconds = pen.millis() / 1000
+    def describe(self, seconds: float) -> world.Frame:
         pieces = [
             world.group(
                 world.mesh(self.vessel)
@@ -87,63 +135,5 @@ class WorldStudy:
                 )
             ),
         ).key("study")
-        # A scene3d frame is drawn on a device and nowhere else: the bake
-        # answers None where the host brought none up, and the sheet says so.
-        still = ctx.bakeScene3D(
-            world.Frame(model),
-            (1104, 510),
-            camera=self.camera,
-            background=hexColor(0x141D25),
-        )
-        if still is not None:
-            pen.image(still, 48, 150)
-        else:
-            pen.noStroke()
-            pen.fill(MUTED)
-            pen.textAlign(LEFT, TOP)
-            pen.textSize(15)
-            pen.text("This sheet bakes its set on a device, and none is here.", 48, 380)
-
-        pen.noStroke()
-        pen.textAlign(LEFT, TOP)
-        pen.fill(MUTED)
-        pen.textSize(12)
-        pen.text("WORLD STUDY  /  01", 48, 36)
-        pen.fill(INK)
-        pen.textSize(38)
-        pen.text("One form. Three surfaces.", 48, 68)
-        pen.fill(MUTED)
-        pen.textSize(15)
-        pen.text(
-            "One shared mesh and light rig; only the material’s base color changes.",
-            50,
-            123,
-        )
-
-        for x, number, title, detail, color in (
-            (48, "01", "Celadon glaze", "base color · #87b9ad", "#87b9ad"),
-            (424, "02", "Terracotta glaze", "base color · #dfa573", "#dfa573"),
-            (800, "03", "Porcelain glaze", "base color · #bdcbd8", "#bdcbd8"),
-        ):
-            pen.stroke("#364550")
-            pen.strokeWeight(1)
-            pen.line(x, 662, x + 352, 662)
-            pen.noStroke()
-            pen.fill(color)
-            pen.textSize(12)
-            pen.text(number, x, 679)
-            pen.fill(INK)
-            pen.textSize(19)
-            pen.text(title, x + 32, 675)
-            pen.fill(MUTED)
-            pen.textSize(13)
-            pen.text(detail, x + 32, 705)
-
-        pen.fill(MUTED)
-        pen.textSize(12)
-        pen.text("WORLD FRAME / DEVICE EXECUTOR", 48, 751)
-        pen.text(
-            "Dielectric surfaces share roughness 0.45. This light rig has no environment reflections.",
-            48,
-            776,
-        )
+        self.words.render(self.sheet, seconds)
+        return world.Frame(model).overlay(self.words.texture())

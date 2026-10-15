@@ -15,12 +15,12 @@ BADGE = "#d8603f"
 WASH = "#0d11168c"
 
 
-@sketch(size=(520, 300), background=GROUND, capture_at=0)
+@sketch(size=(520, 300), background=GROUND, captureAt=0)
 class StackElement:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return compose.box(
             compose.stack(
                 # The plate's own ground, filling the box it stands in.

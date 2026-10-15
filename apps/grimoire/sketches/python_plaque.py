@@ -5,11 +5,9 @@
 import math
 
 from sigil import compose, material, motion, world
-from sigil.draw import Pen
 from sigil.geometry import mesh
-from sigil.material import hexColor
 from sigil.motion import ease
-from sigil.sketch import Scene2DContext, sketch
+from sigil.sketch import Scene3DContext, sketch
 
 WIDTH, HEIGHT = 960, 540  # the canvas
 PAGE_WIDTH, PAGE_HEIGHT = 768, 384  # the page the plaque wears, in page pixels
@@ -78,26 +76,18 @@ STUDIO = world.kit.environmentMap(
 )
 
 
-@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=2.0)
+@sketch(size=(WIDTH, HEIGHT), background=GROUND, captureAt=2.0)
 class Plaque:
-    # A sheet that bakes a 3D frame draws it on the host's device, so the
-    # host brings the device up before this sketch opens.
-    needsDevice = True
-
-    def setup(self, ctx: Scene2DContext) -> None:
-        # One page, asked for once. Every frame's bake carries its pass over
-        # the same face, which the page paints the first time and keeps
-        # while the face is unchanged; the plaque wears what it painted.
+    def setup(self, ctx: Scene3DContext) -> None:
+        # One page, asked for once. Every frame carries its pass over the
+        # same face, which the page paints the first time and keeps while
+        # the face is unchanged; the plaque wears what it painted.
         self.page = ctx.page((PAGE_WIDTH, PAGE_HEIGHT))
         self.face = plaque_face()
         self.plate = mesh.quad(PLATE_WIDTH, PLATE_HEIGHT)
-        self.lens = mesh.camera.Camera()
-        self.lens.eye = (0, 150, 330)
-        self.lens.target = (0, 0, 0)
-        self.lens.fovYDeg = 36
+        ctx.camera(mesh.camera.Camera(eye=(0, 150, 330), target=(0, 0, 0), fovYDeg=36))
 
-    def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
-        seconds = pen.millis() / 1000
+    def describe(self, seconds: float) -> world.Frame:
         pulse = 0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 3)  # a three-second breath
         key_angle = math.radians(
             -60 + 120 * (0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 8))
@@ -117,18 +107,9 @@ class Plaque:
             .rotateY(motion.animate(from_=-90, to=0, duration=1.6, ease=ease.outCubic))
             .fill(self.page.surface()),
         ).key("scene")
-        frame = (
+        return (
             world.Frame(model)
             .environment(STUDIO, intensity=1.2)
             .pass_(self.page.render(self.face))
             .pass_(world.bloom(threshold=1.8, intensity=0.6, radius=28))
         )
-        still = ctx.bakeScene3D(
-            frame,
-            (WIDTH, HEIGHT),
-            camera=self.lens,
-            background=hexColor(0x0F1216),
-            at=seconds,
-        )
-        if still is not None:
-            pen.image(still, 0, 0)

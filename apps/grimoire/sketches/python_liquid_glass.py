@@ -100,7 +100,7 @@ FILAMENT = r"""
 """
 
 
-@sketch(size=(720, 720), background="#02050e", capture_at=0.05)
+@sketch(size=(720, 720), background="#02050e", captureAt=0.05)
 class LiquidGlass:
     def setup(self, ctx: Scene2DContext) -> None:
         self.source = Paint(

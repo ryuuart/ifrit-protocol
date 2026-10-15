@@ -33,12 +33,12 @@ def card(title: str, body: str) -> compose.Element:
     )
 
 
-@sketch(size=(640, 260), background=GROUND, capture_at=0)
+@sketch(size=(640, 260), background=GROUND, captureAt=0)
 class BoxElement:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(
                 card("Describe", "A box with no children is a leaf."),

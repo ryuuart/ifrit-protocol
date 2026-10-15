@@ -49,12 +49,12 @@ def tile(caption: str, plate: compose.Element) -> compose.Element:
     )
 
 
-@sketch(size=(620, 250), background=GROUND, capture_at=0)
+@sketch(size=(620, 250), background=GROUND, captureAt=0)
 class ForegroundVerb:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(
                 # Under the fill and under the children: the child covers it.

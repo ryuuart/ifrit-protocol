@@ -29,7 +29,7 @@ TICKS = 24
 RADIUS = 84
 
 
-@sketch(size=(640, 360), background=(0, 0, 0, 0), capture_at=1.5)
+@sketch(size=(640, 360), background=(0, 0, 0, 0), captureAt=1.5)
 class AlphaGround:
     def draw(self, pen: Pen) -> None:
         # Nothing lays a ground down: what this leaves untouched is what a

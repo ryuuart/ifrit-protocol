@@ -5,12 +5,12 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from sigil.sketch import PlateOutcome, PlateSide, compare, render_file
+from sigil.sketch import PlateOutcome, PlateSide, compare, renderFile
 
 SCENE = textwrap.dedent("""
     from sigil.sketch import sketch
 
-    @sketch(size=(48, 32), background="#101418", capture_at=0.5)
+    @sketch(size=(48, 32), background="#101418", captureAt=0.5)
     class Scene:
         def draw(self, pen):
             pen.noStroke()
@@ -28,10 +28,10 @@ class PlateComparisons(unittest.TestCase):
             first, second, moved = root / "first", root / "second", root / "moved"
             for plates in (first, second, moved):
                 plates.mkdir()
-            render_file(source, first / "plate_scene.png")
-            render_file(source, second / "plate_scene.png")
-            render_file(source, moved / "plate_scene.png", at=0.0)
-            render_file(source, first / "plate_alone.png")
+            renderFile(source, first / "plate_scene.png")
+            renderFile(source, second / "plate_scene.png")
+            renderFile(source, moved / "plate_scene.png", at=0.0)
+            renderFile(source, first / "plate_alone.png")
 
             comparison = compare(first, second)
             self.assertEqual(comparison.refusal, "")

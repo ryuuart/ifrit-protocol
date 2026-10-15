@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 from sigil import material, media
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class Remap(unittest.TestCase):
@@ -29,12 +29,12 @@ class Remap(unittest.TestCase):
             "from _sigil import compose\n"
             "from sigil import material\n"
             "from sigil.sketch import sketch\n"
-            f"@sketch(size={size!r}, background='#000000', capture_at=0)\n"
+            f"@sketch(size={size!r}, background='#000000', captureAt=0)\n"
             "class Scene:\n"
             + textwrap.indent(textwrap.dedent(body).strip("\n"), "    ")
             + "\n"
         )
-        render_file(source, output, at=0)
+        renderFile(source, output, at=0)
         return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def grey(self, picture, x, y, size):

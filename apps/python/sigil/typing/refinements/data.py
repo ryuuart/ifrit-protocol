@@ -37,7 +37,7 @@ def register(table: Table) -> None:
         "_sigil.data.Json.fromPairs",
         items="collections.abc.Iterable[tuple[str, _t.JsonInput]]",
     )
-    table.returns("_sigil.data.Json", "to_python", "_t.JsonValue")
+    table.returns("_sigil.data.Json", "toPython", "_t.JsonValue")
     table.erased("_sigil.data", "tableFromJson", "_t.JsonInput")
     table.returns("_sigil.data", "tableFromJson", "Table | None")
     table.erased("_sigil.data.Table", "add derive", "ColumnType | None")

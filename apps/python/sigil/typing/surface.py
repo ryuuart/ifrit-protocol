@@ -139,23 +139,7 @@ PUBLIC_MODULES: dict[str, str] = {
 # instead. A wrapper in the module's addition may then shadow the renamed
 # name with one that takes Python's keyword forms.
 RENAMES: dict[str, dict[str, str]] = {
-    "sigil.compose.document": {"listGap": "list_gap", "quoteInset": "quote_inset"},
-    "sigil.compose.kit": {
-        "captionLabel": "caption_label",
-        "captionNote": "caption_note",
-        "panelGrid": "panel_grid",
-    },
-    "sigil.compose.layouts": {"repeatTrack": "repeat_track"},
     "sigil.sketch": {"Context": "Scene2DContext"},
-    "sigil.sketch.kit": {
-        "controlsOf": "controls_of",
-        "featureTheme": "feature_theme",
-        "houseFace": "house_face",
-        "houseTheme": "house_theme",
-        "panelGrid": "panel_grid",
-        "sectionHeader": "section_header",
-        "studyTheme": "study_theme",
-    },
 }
 
 # The raw modules a build may not carry, because the SDK behind the native

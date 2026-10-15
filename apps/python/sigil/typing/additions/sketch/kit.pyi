@@ -12,11 +12,9 @@ Column = sigil.compose.kit.Column
 
 class _StageProperties(typing.TypedDict, total=False):
     size: _t.SizeLike
-    capture_at: float
     captureAt: float
     background: _t.ColorLike | None
     oversample: int
-    plate_only: bool
     plateOnly: bool
 
 class _PageProperties(typing.TypedDict, total=False):
@@ -32,12 +30,10 @@ class _WellProperties(typing.TypedDict, total=False):
     height: _t.DimensionLike
     ground: _t.FillLike | None
     padding: float | None
-    padding_y: float | None
     paddingY: float | None
     clip: bool
     corners: float | None
     keyline: _t.FillLike | None
-    keyline_width: float
     keylineWidth: float
     placed: bool
     content: WellContent | None
@@ -59,7 +55,6 @@ class _PanelGridProperties(typing.TypedDict, total=False):
     cells: collections.abc.Sequence[_t.NodeLike]
     columns: int
     gap: float | None
-    row_gap: float | None
     rowGap: float | None
     ruled: bool
     align: _t.AlignLike
@@ -68,17 +63,16 @@ class _PanelGridProperties(typing.TypedDict, total=False):
 class _ComparisonProperties(typing.TypedDict, total=False):
     measure: float
     gap: float | None
-    track_gap: float | None
     trackGap: float | None
 
-def house_theme() -> Theme: ...
-def study_theme() -> Theme: ...
-def house_face(
+def houseTheme() -> Theme: ...
+def studyTheme() -> Theme: ...
+def houseFace(
     voice: Voice, weight: typing.SupportsInt = ..., italic: bool = ...
 ) -> sigil.skia.Typeface: ...
 def provide(look: Theme) -> Provide: ...
 def stage(
-    ctx: sigil.sketch.Scene2DContext,
+    ctx: sigil.sketch.Scene2DContext | sigil.sketch.Scene3DContext,
     props: Stage | None = ...,
     **properties: typing.Unpack[_StageProperties],
 ) -> None: ...
@@ -117,7 +111,7 @@ def cells(
     props: Run | None = ...,
     **properties: typing.Unpack[_RunProperties],
 ) -> sigil.compose.Element: ...
-def panel_grid(
+def panelGrid(
     *children: _t.ChildLike,
     props: PanelGrid | None = ...,
     **properties: typing.Unpack[_PanelGridProperties],

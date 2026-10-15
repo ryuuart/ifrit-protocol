@@ -19,8 +19,10 @@ PYBIND11_MODULE(_sigil, module) {
   sigil::sketch::python::bindSketchCatalog(module);
   sigil::sketch::python::bindSketchSchema(module);
   sigil::sketch::python::bindSketchDeviceRuntimes(module);
-  sigil::sketch::python::bindSketchScene3DSketches(module);
+  // The texture scene before the scene3d context, so the context's
+  // `textureScene` is declared as answering the class an author imports.
   sigil::sketch::python::bindSketchWorldScene3D(module);
+  sigil::sketch::python::bindSketchScene3DSketches(module);
   sigil::sketch::python::bindSketchTesting(module);
   sigil::sketch::python::bindSketchKit(module);
   sigil::sketch::python::bindSketchKitContent(module);

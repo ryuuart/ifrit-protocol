@@ -37,12 +37,12 @@ def cell(caption: str, label: compose.Element) -> compose.Element:
     )
 
 
-@sketch(size=(600, 250), background=GROUND, capture_at=0)
+@sketch(size=(600, 250), background=GROUND, captureAt=0)
 class TextStrokeVerb:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(
                 cell(

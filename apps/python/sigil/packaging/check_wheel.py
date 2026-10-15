@@ -35,10 +35,10 @@ def content(words):
     )
 
 
-@sketch(size=(240, 160), background="#142333", capture_at=0.5)
+@sketch(size=(240, 160), background="#142333", captureAt=0.5)
 class InstalledSketch:
     def setup(self, ctx):
-        look = kit.house_theme()
+        look = kit.houseTheme()
         look.palette.cellGround = "#142333"
         look.palette.ink = "#e8eef2"
         look.palette.figure = "#8bd0bd"
@@ -171,7 +171,7 @@ from sigil import compose, data, io, material, motion, sketch
 from sigil.compose import kit as compose_kit
 from sigil.motion import Animatable
 from sigil.sketch import kit as sketch_kit
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 root = pathlib.Path(sys.prefix).resolve()
 assert pathlib.Path(sigil.__file__).resolve().is_relative_to(root)
@@ -197,7 +197,7 @@ assert Animatable is motion.Animatable
 assert data.Json.__module__ == "sigil.data"
 assert io.Hub.__module__ == "sigil.io"
 payload = {"values": [1, 2, 3], "label": "installed"}
-assert data.decode(data.encode(payload, data.Dialect.Json), data.Dialect.Json).to_python() == payload
+assert data.decode(data.encode(payload, data.Dialect.Json), data.Dialect.Json).toPython() == payload
 assert data.Scale(domain=(0, 100), range=(20, 420))(25) == 120
 assert compose_kit.line(length=24, thickness=2).__class__ is compose.Element
 hub = io.Hub()
@@ -231,7 +231,7 @@ finally:
     peer.close()
     listener.close()
 search_path = tuple(sys.path)
-render_file(sys.argv[1], sys.argv[2])
+renderFile(sys.argv[1], sys.argv[2])
 assert tuple(sys.path) == search_path, "Rendering changed Python's package search path"
 print("Installed", version("sigil-sketch"), "from", sigil.__file__)
 """

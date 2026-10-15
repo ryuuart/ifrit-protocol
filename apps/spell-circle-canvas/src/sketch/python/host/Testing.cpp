@@ -89,7 +89,7 @@ void bindSketchTesting(py::module_& module) {
            "host.describe's answer, the clock as it stands and the last "
            "still's path: what a failing case prints first.")
       .def_property_readonly(
-          "state_directory",
+          "stateDirectory",
           [](const testing::InProcessHost& host) {
             return host.stateDirectory();
           },

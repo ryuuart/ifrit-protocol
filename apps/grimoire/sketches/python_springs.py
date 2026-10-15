@@ -55,7 +55,7 @@ def answer(word: str, question: str, yes: bool) -> compose.Element:
     )
 
 
-@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=0.3)
+@sketch(size=(WIDTH, HEIGHT), background=GROUND, captureAt=0.3)
 class Springs:
     def setup(self, ctx: Scene2DContext) -> None:
         self.composer = ctx.composer

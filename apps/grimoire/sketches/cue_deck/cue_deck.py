@@ -31,7 +31,7 @@ from math import ceil
 
 from sigil import data
 from sigil.compose import Element, Overflow, box, column, row, text
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.io import ReadyState
 from sigil.motion import animatable, bind
 from sigil.sketch import Scene2DContext, kit, sketch
@@ -110,7 +110,7 @@ def meter(name: str, level: float, color: str, look: kit.Theme) -> Element:
                 .height(METER_HEIGHT * level)
                 .fill(color)
             ),
-            doc.label(name),
+            document.label(name),
         )
     )
 
@@ -163,16 +163,16 @@ def door_row(label: str, value: str, ink=None) -> Element:
         row()
         .justifyContent("space_between")
         .width(SIDE - 48)
-        .children(doc.label(label), reading)
+        .children(document.label(label), reading)
     )
 
 
-@sketch(size=(WIDTH, HEIGHT), capture_at=CAPTURE_AT)
+@sketch(size=(WIDTH, HEIGHT), captureAt=CAPTURE_AT)
 class Deck:
     def setup(self, ctx: Scene2DContext) -> None:
-        self.look = kit.feature_theme(kit.Density.Spacious)
+        self.look = kit.featureTheme(kit.Density.Spacious)
         with kit.provide(self.look):
-            kit.stage(ctx, size=(WIDTH, HEIGHT), capture_at=CAPTURE_AT)
+            kit.stage(ctx, size=(WIDTH, HEIGHT), captureAt=CAPTURE_AT)
         hub = ctx.assets.hub()
         # A CAPTURE OPENS NO SOCKET: every later ask for a door's URI
         # answers the recording replayed there instead.
@@ -214,7 +214,7 @@ class Deck:
         # nothing is described again between two cues.
         self.clock = animatable(0)
         ctx.engine.timer(lambda delta, elapsed: self.clock.set(elapsed))
-        self.describe(ctx)
+        self.redraw(ctx)
 
     # ── the OSC door's handlers, run as each message is read ──────────
 
@@ -266,7 +266,7 @@ class Deck:
         states = self.states()
         if states != self.shown:
             self.shown = states
-            self.describe(ctx)
+            self.redraw(ctx)
 
     def newest(self) -> tuple[str, data.Json]:
         """The door the newest message came through, and the cue it holds."""
@@ -282,7 +282,7 @@ class Deck:
             return name, self.osc_cue()
         return name, self.doors[name].latest().payload
 
-    def describe(self, ctx: Scene2DContext) -> None:
+    def redraw(self, ctx: Scene2DContext) -> None:
         door, cue = self.newest()
         with kit.provide(self.look):
             ctx.render(
@@ -330,7 +330,11 @@ class Deck:
                             for channel in channels
                         )
                         if channels
-                        else [doc.caption("The meters stand here once a cue arrives.")]
+                        else [
+                            document.caption(
+                                "The meters stand here once a cue arrives."
+                            )
+                        ]
                     ),
                     self.door_column(color, door),
                 ),
@@ -342,7 +346,7 @@ class Deck:
                     .justifyContent("space_between")
                     .width(RULER)
                     .children(
-                        doc.label("THE BAR"),
+                        document.label("THE BAR"),
                         text(f"BEAT {cue['beat'].number():04.1f} / {BAR}").styleClass(
                             "control"
                         ),
@@ -386,7 +390,7 @@ class Deck:
             .gap(14)
             .width(SIDE)
             .children(
-                doc.label("THE DOORS"),
+                document.label("THE DOORS"),
                 door_row("STATE", status, ink),
                 *(
                     door_row(name, f"{state.revision}", self.ink(state))
@@ -404,7 +408,7 @@ class Deck:
                     box().width(18).height(18).borderRadius(4).fill(color),
                     text(color.upper()).styleClass("control"),
                 ),
-                doc.caption(
+                document.caption(
                     f"The newest cue came through the {door} door, "
                     f"{self.doors[door].uri()}."
                     if door

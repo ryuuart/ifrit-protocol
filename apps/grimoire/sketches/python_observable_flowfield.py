@@ -15,7 +15,7 @@ from sigil.sketch import Scene2DContext, sketch
 REQUIRES = ("numpy",)
 
 
-@sketch(size=(720, 720), capture_at=0.05)
+@sketch(size=(720, 720), captureAt=0.05)
 class FlowField:
     def setup(self, ctx: Scene2DContext) -> None:
         self.samples = np.array(

@@ -28,12 +28,10 @@ impressed rather than raised.
 import math
 
 from sigil import compose, material, motion, world
-from sigil.draw import Pen
 from sigil.geometry import mesh, path
-from sigil.material import hexColor
 from sigil.material import surface as surfaces
 from sigil.motion import ease
-from sigil.sketch import Scene2DContext, sketch
+from sigil.sketch import Scene3DContext, sketch
 
 WIDTH, HEIGHT = 1280, 720  # the canvas
 PAGE_WIDTH, PAGE_HEIGHT = 1024, 576  # the page the sheet wears, in page pixels
@@ -508,17 +506,16 @@ STUDIO = world.kit.environmentMap(
 )
 ```
 
-The faces are built once in `setup`, so each page paints once and keeps
-what it painted. Everything that moves is in the scene.
+The sheet is a scene3d sketch: `describe(seconds)` returns a
+`world.Frame`, which the host draws on its device, and `setup` is handed a
+`Scene3DContext` to ask for the pages and the lens. The faces are built
+once in `setup`, so each page paints once and keeps what it painted.
+Everything that moves is in the scene.
 
 ```python
-@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=2.0)
+@sketch(size=(WIDTH, HEIGHT), background=GROUND, captureAt=2.0)
 class MixedMaterials:
-    # A sheet that bakes a 3D frame draws it on the host's device, so the
-    # host brings the device up before this sketch opens.
-    needsDevice = True
-
-    def setup(self, ctx: Scene2DContext) -> None:
+    def setup(self, ctx: Scene3DContext) -> None:
         # The faces are built once: each page paints the first time and
         # keeps it. A face that changed every frame would repaint every map
         # of its page every frame, so everything that moves is in the scene,
@@ -538,13 +535,9 @@ class MixedMaterials:
             type=mesh.curve.Spline3.Type.CatmullRom,
         )
         self.key_rail_length = self.key_rail.length()
-        self.lens = mesh.camera.Camera()
-        self.lens.eye = (0, 90, 520)
-        self.lens.target = (0, -6, 0)
-        self.lens.fovYDeg = 34
+        ctx.camera(mesh.camera.Camera(eye=(0, 90, 520), target=(0, -6, 0), fovYDeg=34))
 
-    def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
-        seconds = pen.millis() / 1000
+    def describe(self, seconds: float) -> world.Frame:
         pulse = 0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 1.6)
         # The key rides its rail from the right end to the left and back.
         swing = 0.5 - 0.5 * math.sin(seconds * 2 * math.pi / 7)
@@ -590,22 +583,13 @@ class MixedMaterials:
                 motion.animate(from_=-80, to=-14, duration=1.4, ease=ease.outCubic)
             ),
         ).key("scene")
-        frame = (
+        return (
             world.Frame(model)
             .environment(STUDIO, intensity=1.4)
             .pass_(self.backing_page.render(self.backing_face))
             .pass_(self.page.render(self.face))
             .pass_(world.bloom(threshold=1.5, intensity=0.3 + 1.1 * pulse, radius=36))
         )
-        still = ctx.bakeScene3D(
-            frame,
-            (WIDTH, HEIGHT),
-            camera=self.lens,
-            background=hexColor(0x0D1014),
-            at=seconds,
-        )
-        if still is not None:
-            pen.image(still, 0, 0)
 ```
 
 **The key rides a rail.** `setup` builds the rail once: a Catmull-Rom

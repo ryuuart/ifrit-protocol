@@ -6,7 +6,7 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class Runtime(unittest.TestCase):
@@ -21,14 +21,14 @@ class Runtime(unittest.TestCase):
             entry.write_text(textwrap.dedent(source))
             for name, value in (files or {}).items():
                 (root / name).write_text(value)
-            render_file(entry, output, at=at)
+            renderFile(entry, output, at=at)
             return output.read_bytes()
 
     def test_declared_zero_and_explicit_zero_capture_the_same_instant(self):
         source = """
             import builtins
             from sigil.sketch import sketch
-            @sketch(size=(20, 20), capture_at=0)
+            @sketch(size=(20, 20), captureAt=0)
             class Clock:
                 def update(self, elapsed, ctx):
                     builtins._sigil_runtime = elapsed
@@ -51,7 +51,7 @@ from sigil.compose import box, slot
 from sigil.sketch import sketch
 
 
-@sketch(size=(80, 48), capture_at=0)
+@sketch(size=(80, 48), captureAt=0)
 class Queries:
     def setup(self, ctx):
         ctx.composer.render(
@@ -107,7 +107,7 @@ from sigil.media import Image
 from sigil.sketch import sketch
 
 
-@sketch(size=(20, 20), capture_at=0)
+@sketch(size=(20, 20), captureAt=0)
 class Resources:
     def setup(self, ctx):
         hub = ctx.assets.hub()
@@ -140,7 +140,7 @@ from sigil.compose import box, picture
 from sigil.sketch import sketch
 
 
-@sketch(size=(60, 40), capture_at=0)
+@sketch(size=(60, 40), captureAt=0)
 class Measured:
     def setup(self, ctx):
         tree = box().children(
@@ -170,7 +170,7 @@ from sigil.compose import box
 from sigil.sketch import sketch
 
 
-@sketch(size=(20, 20), capture_at=0)
+@sketch(size=(20, 20), captureAt=0)
 class Threads:
     def setup(self, ctx):
         views = [ctx, ctx.composer, ctx.assets, ctx.assets.hub(), ctx.engine]

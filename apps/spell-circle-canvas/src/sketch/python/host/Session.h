@@ -19,6 +19,7 @@
 #include <sigilpython/Bindings.h>
 #include <sigilpython/io/Hub.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 
 #include <memory>
 #include <stdexcept>
@@ -113,6 +114,37 @@ class Context {
 class AssetsView : public Context {
  public:
   using Context::Context;
+};
+
+/** WHAT A SCENE3D BODY LENDS PYTHON WHILE ITS SETUP RUNS: the context the
+ *  session hands once, at setup. The body clears it when setup returns,
+ *  because a scene3d sketch's every frame is a function of the scene time
+ *  and nothing it asks of the context after that could reach a frame. */
+struct Scene3DLoan {
+  Scene3DContext* context = nullptr;
+  std::thread::id thread;
+};
+
+/** A scene3d context as Python holds it: answers while its setup runs and
+ *  refuses afterwards, naming why. */
+class Scene3DContextView {
+ public:
+  explicit Scene3DContextView(const std::shared_ptr<Scene3DLoan>& loan)
+      : m_loan(loan) {}
+  Scene3DContext& context() const {
+    const auto loan = m_loan.lock();
+    if (!loan || !loan->context)
+      throw std::runtime_error(
+          "A scene3d sketch's context is handed at setup; ask for its pages, "
+          "screens and camera there");
+    if (loan->thread != std::this_thread::get_id())
+      throw std::runtime_error(
+          "Sketch context operations run on the sketch thread");
+    return *loan->context;
+  }
+
+ private:
+  std::weak_ptr<Scene3DLoan> m_loan;
 };
 
 }  // namespace sigil::sketch::python::detail

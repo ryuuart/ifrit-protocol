@@ -22,7 +22,7 @@ def cells(*children, props=None, **properties):
     return _native.cells(run)
 
 
-def panel_grid(*children, props=None, **properties):
+def panelGrid(*children, props=None, **properties):
     grid = _specification(PanelGrid, props, properties)
     if children:
         grid.cells = list(_children(children))

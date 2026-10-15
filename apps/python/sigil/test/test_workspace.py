@@ -61,7 +61,7 @@ from pathlib import Path
 from workspace_dependency import COLOR
 from sigil.sketch import sketch
 
-@sketch(size=(96, 64), background=COLOR, capture_at=0)
+@sketch(size=(96, 64), background=COLOR, captureAt=0)
 class Scene:
     def setup(self, ctx):
         Path(__file__).with_suffix(".json").write_text(json.dumps({"prefix": sys.prefix}))
@@ -122,7 +122,7 @@ from pathlib import Path
 import _sigil
 from sigil.sketch import sketch
 
-@sketch(size=(96, 64), background='#8bd0bd', capture_at=0)
+@sketch(size=(96, 64), background='#8bd0bd', captureAt=0)
 class Scene:
     def setup(self, ctx):
         Path(__file__).with_suffix(".json").write_text(json.dumps({

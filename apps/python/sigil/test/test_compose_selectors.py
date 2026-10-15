@@ -21,7 +21,7 @@ from pathlib import Path
 from _sigil import compose as native
 from sigil import compose, material, media, motion, weave
 from sigil.compose import select
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 ElementSelector = compose.ElementSelector
 Rule = compose.Rule
@@ -447,7 +447,7 @@ class Matching(unittest.TestCase):
             source = Path(folder) / "scene.py"
             output = Path(folder) / "scene.png"
             source.write_text(body)
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             pixels = media.load(output).frameAt(0).image.rgba()
         return [
             self.cell(pixels, width, height, start, span)

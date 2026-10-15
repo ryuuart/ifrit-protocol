@@ -11,7 +11,7 @@ from pathlib import Path
 
 from sigil import draw, media
 from sigil.core import chance
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 
 class PenContracts(unittest.TestCase):
@@ -31,7 +31,7 @@ class PenContracts(unittest.TestCase):
             "from sigil import compose\n"
             "from sigil.sketch import sketch\n"
             "results = builtins._sigil_pen_results\n"
-            "@sketch(size=(32, 32), capture_at=0)\n"
+            "@sketch(size=(32, 32), captureAt=0)\n"
             "class Drawing:\n"
             "    def setup(self, ctx):\n"
             + textwrap.indent(textwrap.dedent(setup).strip(), "        ")
@@ -39,7 +39,7 @@ class PenContracts(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        render_file(source, output, at=at)
+        renderFile(source, output, at=at)
         return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y):

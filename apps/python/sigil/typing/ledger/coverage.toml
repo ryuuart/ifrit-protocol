@@ -56,8 +56,8 @@ bound = "a fresh import of the source and its local modules each time a sketch o
 bound = "catalogue metadata read without running the module: docstrings, `TAGS`, `REQUIRES`, and a literal `NAME` and `CATEGORY` a bundled sketch is registered under while its file stem stays its key"
 
 [[section.surface.item]]
-bound = "`render_file` through the native host"
-python = ["sketch.render_file"]
+bound = "`renderFile` through the native host"
+python = ["sketch.renderFile"]
 
 [[section.surface.item]]
 native = "Scene3D sketches: `sketch::Scene3DContext` and `describe(now)` returning a `world::Frame`"
@@ -783,7 +783,7 @@ native = "the named default leaves"
 name = "Document kit"
 
 [[section.surface.item]]
-bound = "Every `compose::document` component and property: `article`, `section`, `list`, `quote`, `heading` and `h1` to `h6`, `paragraph` over a string or rich text, `lead`, `caption`, `label`, `eyebrow`, `footer`, `code`, `item`, `figure` and `rule`; `measure`, `gap`, `list_gap` and `quote_inset`"
+bound = "Every `compose::document` component and property: `article`, `section`, `list`, `quote`, `heading` and `h1` to `h6`, `paragraph` over a string or rich text, `lead`, `caption`, `label`, `eyebrow`, `footer`, `code`, `item`, `figure` and `rule`; `measure`, `gap`, `listGap` and `quoteInset`"
 python = [
   "compose.document.article",
   "compose.document.section",
@@ -804,8 +804,8 @@ python = [
   "compose.document.rule",
   "compose.document.measure",
   "compose.document.gap",
-  "compose.document.list_gap",
-  "compose.document.quote_inset",
+  "compose.document.listGap",
+  "compose.document.quoteInset",
 ]
 
 [[section.surface.item]]
@@ -829,12 +829,12 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`house_face`, `house_theme`, `study_theme`, `feature_theme` with `Density`, and `theme`"
+bound = "`houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, and `theme`"
 python = [
-  "sketch.kit.house_face",
-  "sketch.kit.house_theme",
-  "sketch.kit.study_theme",
-  "sketch.kit.feature_theme",
+  "sketch.kit.houseFace",
+  "sketch.kit.houseTheme",
+  "sketch.kit.studyTheme",
+  "sketch.kit.featureTheme",
   "sketch.kit.Density",
   "sketch.kit.theme",
 ]
@@ -844,7 +844,7 @@ bound = "a checked `Provide`"
 python = ["sketch.kit.Provide"]
 
 [[section.surface.item]]
-bound = "`stage`, `page`, `well`, `caption`, `cell`, `cells`, `panel_grid` and `comparison`"
+bound = "`stage`, `page`, `well`, `caption`, `cell`, `cells`, `panelGrid` and `comparison`"
 python = [
   "sketch.kit.stage",
   "sketch.kit.page",
@@ -852,12 +852,12 @@ python = [
   "sketch.kit.caption",
   "sketch.kit.cell",
   "sketch.kit.cells",
-  "sketch.kit.panel_grid",
+  "sketch.kit.panelGrid",
   "sketch.kit.comparison",
 ]
 
 [[section.surface.item]]
-bound = "`verdict` with `Verdict`, `VerdictRows` and `Column`, and the control surface `controls` with `Controls`, `ControlsView`, `Control`, `Option`, `Widget` and `controls_of`"
+bound = "`verdict` with `Verdict`, `VerdictRows` and `Column`, and the control surface `controls` with `Controls`, `ControlsView`, `Control`, `Option`, `Widget` and `controlsOf`"
 python = [
   "sketch.kit.verdict",
   "sketch.kit.Verdict",
@@ -869,7 +869,7 @@ python = [
   "sketch.kit.Control",
   "sketch.kit.Option",
   "sketch.kit.Widget",
-  "sketch.kit.controls_of",
+  "sketch.kit.controlsOf",
 ]
 
 [[section.surface.item]]
@@ -897,8 +897,8 @@ native = "`Instrument`"
 python = ["sketch.kit.Instrument"]
 
 [[section.surface.item]]
-bound = "`section_header` and `section` with `SectionHeader`"
-python = ["sketch.kit.section_header", "sketch.kit.section", "sketch.kit.SectionHeader"]
+bound = "`sectionHeader` and `section` with `SectionHeader`"
+python = ["sketch.kit.sectionHeader", "sketch.kit.section", "sketch.kit.SectionHeader"]
 
 [[section.surface.item]]
 native = "the heading `titleCard`"

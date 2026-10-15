@@ -343,6 +343,34 @@ class World(unittest.TestCase):
         scene.render(world.Frame(body()).defaultCamera(camera()))
         self.assertEqual(scene.error, "")
 
+    def test_a_frame_takes_its_passes_as_a_list_beside_one_at_a_time(self):
+        # `pass` is a word Python reserves: `passes=` adds them in order on
+        # the frame being made, as `pass_` adds one to a frame already made.
+        scene = world.Scene()
+        listed = world.Frame(
+            body(), passes=[world.geometryPass("main").writes(("color",))]
+        )
+        with self.assertRaisesRegex(ValueError, "device"):
+            scene.render(listed.defaultCamera(camera()).extent((96, 96)))
+        broken = world.Frame(
+            body(),
+            passes=[
+                world.postPass("a").reads("second").writes("first"),
+                world.postPass("b").reads("first").writes("second"),
+            ],
+        ).extent((96, 96))
+        with self.assertRaises(ValueError):
+            scene.render(broken)
+        scene.render(world.Frame(body(), passes=[]).defaultCamera(camera()))
+        self.assertEqual(scene.error, "")
+
+    def test_the_selection_that_keeps_every_body_is_spelled_as_its_native(self):
+        self.assertEqual(
+            {name for name in world.Selection.__members__},
+            {"Auto", "None_", "Cull", "Mask", "Variant"},
+        )
+        self.assertFalse(hasattr(world.Selection, "All"))
+
     def test_motion_is_sampled_and_keeps_a_live_value_alive(self):
         angle = animatable(0)
         reference = weakref.ref(angle)

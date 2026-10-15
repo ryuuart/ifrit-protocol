@@ -26,12 +26,12 @@ def swatch(square: compose.Element, spelling: str) -> compose.Element:
     )
 
 
-@sketch(size=(600, 220), background=GROUND, capture_at=0)
+@sketch(size=(600, 220), background=GROUND, captureAt=0)
 class FillVerb:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(
                 swatch(compose.box().fill(ACCENT), "fill(colour)"),

@@ -38,12 +38,12 @@ def chip(index: int, total: int) -> compose.Element:
     return compose.box().width(54).height(54).borderRadius(10).fill(tint)
 
 
-@sketch(size=(620, 260), background=GROUND, capture_at=1.0)
+@sketch(size=(620, 260), background=GROUND, captureAt=1.0)
 class FirstPythonSketch:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         chips = compose.box(*[chip(i, 7) for i in range(7)]).row().gap(12)
         caption = compose.text("seven chips along a ramp", size=14, color=INK)
         return (
@@ -70,13 +70,13 @@ sigil open first_python_sketch.py
 ```
 
 Omitting `--at` uses the capture moment the sketch declared —
-`capture_at` above — or 1.5 seconds if none is declared. From Python
-itself the same renderer is `render_file`:
+`captureAt` above — or 1.5 seconds if none is declared. From Python
+itself the same renderer is `renderFile`:
 
 ```python
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
-render_file("first_python_sketch.py", "preview.png", at=2.0)
+renderFile("first_python_sketch.py", "preview.png", at=2.0)
 ```
 
 ## How the Python spelling maps to the C++ one
@@ -111,7 +111,7 @@ them.
 | `sigil.motion` | `animate`, `animatable`, `bind`, `Tween`, `Transition`, the easing curves |
 | `sigil.weave` | the text styles, the paragraph vocabulary |
 | `sigil.skia` | the raw Skia values a canvas program uses: paths, images, `Paint` as Skia means it |
-| `sigil.sketch` | `sketch`, `Scene2DContext`, `render_file`, and the sketch kit |
+| `sigil.sketch` | `sketch`, `Scene2DContext`, `renderFile`, and the sketch kit |
 
 One name exists in two modules and it is worth fixing in your head once.
 `sigil.skia.Paint` is Skia's own draw paint — a style, a stroke width, a

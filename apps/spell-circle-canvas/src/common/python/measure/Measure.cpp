@@ -110,11 +110,12 @@ void bindRun(py::module_& module) {
       module, "Histogram",
       "Equal bins across a range and the weight that fell in each; what "
       "falls outside is counted in below() and above(), never clamped.")
-      .def(py::init([](double low, double high, size_t bins) {
-             return measure::Histogram({.low = low, .high = high, .bins = bins});
-           }),
-           py::kw_only(), py::arg("low") = 0.0, py::arg("high") = 0.0,
-           py::arg("bins") = 20)
+      .def(
+          py::init([](double low, double high, size_t bins) {
+            return measure::Histogram({.low = low, .high = high, .bins = bins});
+          }),
+          py::kw_only(), py::arg("low") = 0.0, py::arg("high") = 0.0,
+          py::arg("bins") = 20)
       .def_static(
           "over",
           [](const py::iterable& values, size_t bins, double low, double high,
@@ -192,8 +193,7 @@ void bindStream(py::module_& module) {
           [](const Window& window) { return copied(window.values()); },
           "The held values, oldest first — a sparkline's run.")
       .def(
-          "times",
-          [](const Window& window) { return seconds(window.times()); },
+          "times", [](const Window& window) { return seconds(window.times()); },
           "When each held value was stamped, in seconds, oldest first.");
 
   py::class_<measure::Smoothed>(
@@ -208,9 +208,8 @@ void bindStream(py::module_& module) {
                                        .weight = weight,
                                        .peak = peak});
            }),
-           py::arg("over") = 0.0, py::kw_only(),
-           py::arg("timeConstant") = 0.0, py::arg("weight") = 0.0,
-           py::arg("peak") = false)
+           py::arg("over") = 0.0, py::kw_only(), py::arg("timeConstant") = 0.0,
+           py::arg("weight") = 0.0, py::arg("peak") = false)
       .def(
           "add",
           [](measure::Smoothed& smoothed, double value,
@@ -225,17 +224,16 @@ void bindStream(py::module_& module) {
       .def("value", &measure::Smoothed::value)
       .def("empty", &measure::Smoothed::empty);
 
-  py::class_<measure::Rate>(
-      module, "Rate", "Events per second over the last span seconds.")
+  py::class_<measure::Rate>(module, "Rate",
+                            "Events per second over the last span seconds.")
       .def(py::init<measure::Duration>(), py::arg("span") = 1.0)
       .def("mark", &measure::Rate::mark, py::arg("at"))
       .def("advance", &measure::Rate::advance, py::arg("now"))
       .def("clear", &measure::Rate::clear)
       .def("count", &measure::Rate::count)
       .def("perSecond", &measure::Rate::perSecond)
-      .def("times", [](const measure::Rate& rate) {
-        return seconds(rate.times());
-      });
+      .def("times",
+           [](const measure::Rate& rate) { return seconds(rate.times()); });
 }
 
 void bindChecks(py::module_& module) {
@@ -253,7 +251,8 @@ void bindChecks(py::module_& module) {
       .def_readonly("label", &measure::Check::label)
       .def_readonly("expected", &measure::Check::expected)
       .def_readonly("actual", &measure::Check::actual)
-      .def_readonly("passed", &measure::Check::pass)
+      .def_readonly("pass_", &measure::Check::pass,
+                    "Whether the claim held; `pass` is a word Python reserves.")
       .def_readonly("standing", &measure::Check::standing)
       .def("judged", &measure::Check::judged);
 
@@ -316,21 +315,18 @@ void bindChecks(py::module_& module) {
       .def(py::init<>())
       .def(
           "add",
-          [](measure::CheckTable& table,
-             const measure::Check& row) -> measure::CheckTable& {
-            return table.add(row);
-          },
+          [](measure::CheckTable& table, const measure::Check& row)
+              -> measure::CheckTable& { return table.add(row); },
           py::arg("row"), py::return_value_policy::reference_internal)
       .def_readonly("rows", &measure::CheckTable::rows)
       .def("failures", &measure::CheckTable::failures)
       .def("findings", &measure::CheckTable::findings)
       .def("checks", &measure::CheckTable::checks)
-      .def("passed", &measure::CheckTable::pass,
-           "Whether every claim held.")
+      .def("pass_", &measure::CheckTable::pass,
+           "Whether every claim held; `pass` is a word Python reserves.")
       .def(
           "lines",
-          [](const measure::CheckTable& table, int labelWidth,
-             int valueWidth) {
+          [](const measure::CheckTable& table, int labelWidth, int valueWidth) {
             return table.lines(
                 {.labelWidth = labelWidth, .valueWidth = valueWidth});
           },

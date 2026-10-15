@@ -36,12 +36,12 @@ def surface(color, *, gloss=0.8):
     return style
 
 
-@sketch(size=(1400, 900), capture_at=0.5)
+@sketch(size=(1400, 900), captureAt=0.5)
 class MeshObservatory:
     def setup(self, ctx: Scene2DContext) -> None:
-        self.look = kit.feature_theme(kit.Density.Spacious)
+        self.look = kit.featureTheme(kit.Density.Spacious)
         with kit.provide(self.look):
-            kit.stage(ctx, size=(1400, 900), capture_at=0.5)
+            kit.stage(ctx, size=(1400, 900), captureAt=0.5)
         self.knot = mesh.grid(180, 22, knot)
         self.vase = mesh.revolve(
             [

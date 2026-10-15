@@ -36,8 +36,14 @@ callback and feed leases, and file rendering through the native host.
 `host/Plates.cpp` binds the comparison of two directories of plates as the
 rows a script judges, and `host/Catalog.cpp` the registry and a catalog of
 sketch files as the rows a browser shows. `host/Page.cpp` binds the page a
-baked frame lights, which `Module.cpp` registers before the context so the
-context's `page` answers the class an author imports. `kit/Specimen.cpp` binds sketch specimen values and
+frame lights, which `Module.cpp` registers before the contexts so their
+`page` answers the class an author imports. `host/Scene3DSketches.cpp` binds
+the `Scene3DContext` a scene3d sketch's setup is handed, and
+`host/WorldScene3D.cpp` the `compose.TextureScene` that context hands out,
+registered before it for the same reason. `host/Runtime.cpp` opens a
+class the decorator marked scene3d through `openScene3D`, and reads the
+kind of a source it has not loaded from its text: a `describe` whose
+return annotation names `Frame`. `kit/Specimen.cpp` binds sketch specimen values and
 typed theme providers.
 
 ## Registration

@@ -26,7 +26,7 @@ from sigil.draw import Pen
 from sigil.material import Paint
 from sigil.media import load
 from sigil.motion import animatable, animate, bind
-from sigil.sketch import Scene2DContext, kit, render_file, sketch
+from sigil.sketch import Scene2DContext, kit, renderFile, sketch
 from sigil.weave import Type, em, rich, textStyle
 
 document_items = [doc.item("One"), doc.item(body=doc.paragraph("Two"), marker="2.")]
@@ -90,12 +90,12 @@ def title_part(words: str, props: marks.Sheet) -> Text:
     return text(words, size=props.marginX)
 
 
-@sketch(size=(720, 420), capture_at=1)
+@sketch(size=(720, 420), captureAt=1)
 class TypedSketch:
     model = Reading("One native scene", 0.7)
 
     def setup(self, ctx: Scene2DContext) -> None:
-        look = kit.house_theme()
+        look = kit.houseTheme()
         look.palette.ground = "#13252e"
         look.type.title.size = 34
         progress = animatable(1)
@@ -132,8 +132,8 @@ assert_type(
     ),
     Element,
 )
-assert_type(marks.sheet(text("Body"), title_line=title_part), Element)
-assert_type(render_file(Path("scene.py"), Path("preview.png"), at=0), str)
+assert_type(marks.sheet(text("Body"), titleLine=title_part), Element)
+assert_type(renderFile(Path("scene.py"), Path("preview.png"), at=0), str)
 
 assert_type(text("Relative", size=em(1.2)), Text)
 assert_type(text("Explicit", textStyle(Type(size=20))), Text)
@@ -185,7 +185,7 @@ def banded(leaf: Band) -> Element:
 def themed_page() -> Element:
     """A page returned from inside a theme's scope: the scope suppresses
     nothing, so every path through the function returns an element."""
-    with kit.provide(kit.house_theme()):
+    with kit.provide(kit.houseTheme()):
         return kit.page(text("Inside the scope"), title="A themed page")
 
 

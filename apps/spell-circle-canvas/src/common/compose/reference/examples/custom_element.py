@@ -30,12 +30,12 @@ def rings(pen: Pen) -> None:
         pen.circle(centre_x, centre_y, 28.0 * ring)
 
 
-@sketch(size=(520, 280), background=GROUND, capture_at=0)
+@sketch(size=(520, 280), background=GROUND, captureAt=0)
 class CustomElement:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(
                 # The key is the program's identity: one key, one

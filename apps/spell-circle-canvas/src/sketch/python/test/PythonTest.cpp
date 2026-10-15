@@ -606,11 +606,11 @@ TEST(SketchPython, ADeclaredUnpaintedCaptureStepLeavesTheDrawToTheStill) {
                "import builtins\n"
                "from sigil.sketch import CanvasSpecification, sketch\n"
                "builtins._sigil_capture_counts = {'draw': 0, 'update': 0}\n"
-               "@sketch(size=(64, 48), capture_at=0.5)\n"
+               "@sketch(size=(64, 48), captureAt=0.5)\n"
                "class Study:\n"
                "    def setup(self, ctx):\n"
                "        ctx.canvas(CanvasSpecification(size=(64, 48),\n"
-               "            captureSeconds=0.5, paintDiscardedFrames=False))\n"
+               "            captureAt=0.5, paintDiscardedFrames=False))\n"
                "    def update(self):\n"
                "        builtins._sigil_capture_counts['update'] += 1\n"
                "    def draw(self, pen):\n"
@@ -851,7 +851,7 @@ TEST_F(SketchPythonBakes, APageThePythonSketchPaintsIsWornByTheBakedCard) {
       "from sigil.geometry import mesh\n"
       "from sigil.sketch import sketch\n"
       "\n"
-      "@sketch(size=(128, 96), background='#1a1a1a', capture_at=0)\n"
+      "@sketch(size=(128, 96), background='#1a1a1a', captureAt=0)\n"
       "class Paged:\n"
       "    needsDevice = True\n"
       "\n"
@@ -915,7 +915,7 @@ TEST_F(SketchPythonBakes, TwoCardsWearTheTwoHalvesOfOnePage) {
       "from sigil.geometry import mesh\n"
       "from sigil.sketch import sketch\n"
       "\n"
-      "@sketch(size=(128, 64), background='#000000', capture_at=0)\n"
+      "@sketch(size=(128, 64), background='#000000', captureAt=0)\n"
       "class Halves:\n"
       "    needsDevice = True\n"
       "\n"
@@ -965,7 +965,7 @@ TEST_F(SketchPythonBakes, AStatedEmissionRangeKeepsABrighterEmissionUnclipped) {
       "from sigil.geometry import mesh\n"
       "from sigil.sketch import sketch\n"
       "\n"
-      "@sketch(size=(128, 64), background='#000000', capture_at=0)\n"
+      "@sketch(size=(128, 64), background='#000000', captureAt=0)\n"
       "class Ranged:\n"
       "    needsDevice = True\n"
       "\n"
@@ -1018,7 +1018,7 @@ TEST_F(SketchPythonBakes, ASizedLightsShadowIsSofterFartherFromItsCaster) {
       "from sigil.geometry import mesh\n"
       "from sigil.sketch import sketch\n"
       "\n"
-      "@sketch(size=(512, 256), background='#000000', capture_at=0)\n"
+      "@sketch(size=(512, 256), background='#000000', captureAt=0)\n"
       "class Shadowed:\n"
       "    needsDevice = True\n"
       "\n"
@@ -1108,7 +1108,7 @@ std::pair<SkBitmap, SkBitmap> firstAndSecondDescriptions(
       "from sigil.geometry import mesh\n"
       "from sigil.sketch import sketch\n"
       "\n"
-      "@sketch(size=(192, 96), background='#000000', capture_at=0)\n"
+      "@sketch(size=(192, 96), background='#000000', captureAt=0)\n"
       "class Described:\n"
       "    needsDevice = True\n"
       "\n"
@@ -1200,7 +1200,7 @@ TEST_F(SketchPythonBakes, AKeyframedTurnBakedAtAMomentStandsBetweenItsSteps) {
       "\n"
       "MOMENTS = (0.0, 0.5, 1.0, 5.0)\n"
       "\n"
-      "@sketch(size=(384, 96), background='#000000', capture_at=0)\n"
+      "@sketch(size=(384, 96), background='#000000', captureAt=0)\n"
       "class Turned:\n"
       "    needsDevice = True\n"
       "\n"
@@ -1252,6 +1252,223 @@ TEST_F(SketchPythonBakes, AKeyframedTurnBakedAtAMomentStandsBetweenItsSteps) {
       << "half way through the first step the card has turned toward 0";
   EXPECT_LT(turned, whole * 92 / 100)
       << "half way through the first step the card is still turned";
+}
+
+/** One frame of @p session, @p seconds after the last, drawn into a
+ *  raster canvas of @p width by @p height and read back. */
+SkBitmap drawnFrame(sketch::Session& session, int width, int height,
+                    double seconds) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
+  session.frame(*surface->getCanvas(), seconds);
+  SkBitmap pixels;
+  pixels.allocPixels(SkImageInfo::MakeN32Premul(width, height));
+  if (!surface->readPixels(pixels, 0, 0)) return {};
+  return pixels;
+}
+
+TEST(SketchPython, ASetupThatReturnsATreeRendersIt) {
+  PythonSource source("sigil_python_setup_returns");
+  source.write("entry.py",
+               "from sigil.compose import box\n"
+               "from sigil.sketch import sketch\n"
+               "@sketch(size=(64, 48), background='#000000', captureAt=0)\n"
+               "class Study:\n"
+               "    def setup(self):\n"
+               "        return box().width(64).height(48).fill('#00ff00')\n");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  EXPECT_EQ(kind->runtime(), "scene2d");
+  auto session = kind->open(fonts(), assets(), true, "returned");
+  const SkBitmap pixels = drawnFrame(*session, 64, 48, 1.0 / 60.0);
+  ASSERT_FALSE(pixels.isNull());
+  EXPECT_EQ(pixels.getColor(32, 24), SK_ColorGREEN);
+}
+
+TEST(SketchPython, ADescribedTreeIsRenderedAgainAtEveryStep) {
+  PythonSource source("sigil_python_describe_tree");
+  // Red before half a second, green after: the frame drawn at each step
+  // is the tree described at that step's moment.
+  source.write("entry.py",
+               "from sigil.compose import Element, box\n"
+               "from sigil.sketch import sketch\n"
+               "@sketch(size=(64, 48), background='#000000', captureAt=0)\n"
+               "class Study:\n"
+               "    def describe(self, seconds: float) -> Element:\n"
+               "        colour = '#ff0000' if seconds < 0.5 else '#00ff00'\n"
+               "        return box().width(64).height(48).fill(colour)\n");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  EXPECT_EQ(kind->runtime(), "scene2d");
+  EXPECT_EQ(sketch::python::source(source.entry())->runtime(), "scene2d");
+  auto session = kind->open(fonts(), assets(), true, "described");
+  const SkBitmap early = drawnFrame(*session, 64, 48, 0.1);
+  ASSERT_FALSE(early.isNull());
+  EXPECT_EQ(early.getColor(32, 24), SK_ColorRED);
+  const SkBitmap late = drawnFrame(*session, 64, 48, 0.6);
+  ASSERT_FALSE(late.isNull());
+  EXPECT_EQ(late.getColor(32, 24), SK_ColorGREEN);
+}
+
+TEST(SketchPython,
+     TheDecoratorsThemeStagesTheCanvasAndIsProvidedAroundEachStep) {
+  PythonSource source("sigil_python_decorator_theme");
+  // The theme's ground is the canvas's background where none is stated,
+  // and the theme is the one in scope in setup, describe and update.
+  source.write("entry.py",
+               "import builtins\n"
+               "from sigil.compose import Element, box\n"
+               "from sigil.sketch import kit, sketch\n"
+               "LOOK = kit.featureTheme(kit.Density.Spacious)\n"
+               "palette = LOOK.palette\n"
+               "palette.ground = '#336699'\n"
+               "LOOK.palette = palette\n"
+               "builtins._sigil_theme_seen = []\n"
+               "def seen(where):\n"
+               "    ground = tuple(kit.theme().palette.ground)\n"
+               "    builtins._sigil_theme_seen.append((where, ground))\n"
+               "@sketch(size=(96, 72), captureAt=0.25, theme=LOOK)\n"
+               "class Study:\n"
+               "    def setup(self, ctx):\n"
+               "        seen('setup')\n"
+               "    def update(self, elapsed):\n"
+               "        seen('update')\n"
+               "    def describe(self, seconds) -> Element:\n"
+               "        seen('describe')\n"
+               "        return box().width(10).height(10)\n");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  auto session = kind->open(fonts(), assets(), true, "themed");
+  const SkBitmap pixels = drawnFrame(*session, 96, 72, 1.0 / 60.0);
+  ASSERT_FALSE(pixels.isNull());
+  EXPECT_EQ(session->canvas().size, SkSize::Make(96, 72));
+  EXPECT_DOUBLE_EQ(session->canvas().captureSeconds, 0.25);
+  const sigil::material::Color ground = session->canvas().background;
+  EXPECT_NEAR(ground.r, 0x33 / 255.0f, 1e-3f);
+  EXPECT_NEAR(ground.g, 0x66 / 255.0f, 1e-3f);
+  EXPECT_NEAR(ground.b, 0x99 / 255.0f, 1e-3f);
+  const pybind11::gil_scoped_acquire lock;
+  pybind11::module_ builtins = pybind11::module_::import("builtins");
+  const pybind11::list seen = builtins.attr("_sigil_theme_seen");
+  std::vector<std::string> places;
+  for (pybind11::handle entry : seen) {
+    const auto where = entry[pybind11::int_(0)].cast<std::string>();
+    const pybind11::tuple colour = entry[pybind11::int_(1)];
+    places.push_back(where);
+    ASSERT_GE(colour.size(), 3u);
+    EXPECT_NEAR(colour[0].cast<float>(), 0x33 / 255.0f, 1e-3f) << where;
+    EXPECT_NEAR(colour[2].cast<float>(), 0x99 / 255.0f, 1e-3f) << where;
+  }
+  builtins.attr("__dict__").attr("pop")("_sigil_theme_seen");
+  for (const char* where : {"setup", "update", "describe"})
+    EXPECT_NE(std::find(places.begin(), places.end(), where), places.end())
+        << where << " ran without the decorator's theme";
+}
+
+TEST(SketchPython, TheDecoratorStatesTheCaptureMomentAsCaptureAt) {
+  PythonSource source("sigil_python_capture_moment");
+  source.write("entry.py",
+               "from sigil.sketch import sketch\n"
+               "@sketch(size=(40, 30), captureAt=1.75)\n"
+               "class Study:\n"
+               "    def setup(self, ctx):\n"
+               "        pass\n");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  auto session = kind->open(fonts(), assets(), true, "moment");
+  EXPECT_DOUBLE_EQ(session->canvas().captureSeconds, 1.75);
+  EXPECT_EQ(session->canvas().size, SkSize::Make(40, 30));
+}
+
+/** A scene3d sketch in Python: one green page worn by a card, lit by
+ *  nothing it does not state, described as a function of the scene time. */
+constexpr std::string_view kScene3DSketch = R"PY(
+from sigil import compose, world
+from sigil.geometry import mesh
+from sigil.sketch import Scene3DContext, sketch
+
+
+@sketch(size=(128, 96), background="#1a1a1a", captureAt=0)
+class Paged:
+    def setup(self, ctx: Scene3DContext) -> None:
+        self.page = ctx.page((32, 32))
+        self.tree = compose.box().width(32).height(32).fill("#00ff00")
+        ctx.camera(mesh.camera.Camera(eye=(0, 0, 300), target=(0, 0, 0)))
+
+    def describe(
+        self, seconds: float
+    ) -> world.Frame:
+        card = world.mesh(mesh.quad(100, 60)).key("card").fill(self.page.surface())
+        sun = world.directionalLight((0, 0, -1)).key("sun")
+        return world.Frame(world.group(sun, card).key("set")).pass_(
+            self.page.render(self.tree)
+        )
+)PY";
+
+TEST(SketchPython,
+     AScene3DSketchIsKnownFromItsTextAndUnavailableWithoutADevice) {
+  PythonSource source("sigil_python_scene3d_listed");
+  source.write("entry.py", kScene3DSketch);
+  sketch::useRuntime({});
+  std::string expected;
+  EXPECT_FALSE(sketch::runtimeAvailable(&expected));
+  // The listing reads the kind from the file's text, before any import.
+  const sketch::Kind listed = sketch::python::source(source.entry());
+  EXPECT_EQ(listed->runtime(), "scene3d");
+  EXPECT_TRUE(listed->needsDevice());
+  std::string why;
+  EXPECT_FALSE(listed->available(&why));
+  EXPECT_EQ(why, expected);
+  // The loaded class says the same, by the same rule.
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  EXPECT_EQ(kind->runtime(), "scene3d");
+  EXPECT_TRUE(kind->needsDevice());
+  EXPECT_FALSE(kind->available(&why));
+  EXPECT_THROW((void)kind->open(fonts(), assets(), true, "paged"),
+               std::runtime_error);
+}
+
+TEST_F(SketchPythonBakes, AScene3DSketchDescribesAFrameTheDeviceDraws) {
+  PythonSource source("sigil_python_scene3d_frame");
+  source.write("entry.py", kScene3DSketch);
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  ASSERT_EQ(kind->runtime(), "scene3d");
+  ASSERT_TRUE(kind->available(nullptr));
+  auto session = kind->open(fonts(), assets(), true, "paged");
+  EXPECT_EQ(session->canvas().size, SkSize::Make(128, 96));
+  EXPECT_TRUE(session->hasViewpoint());
+  const SkBitmap pixels = drawnFrame(*session, 128, 96, 1.0 / 60.0);
+  ASSERT_FALSE(pixels.isNull());
+  // The page's green is the card's base colour, lit by the sun.
+  const SkColor middle = pixels.getColor(64, 48);
+  EXPECT_GT(SkColorGetG(middle), 100u);
+  EXPECT_GT(SkColorGetG(middle), SkColorGetR(middle) + 60);
+  EXPECT_GT(SkColorGetG(middle), SkColorGetB(middle) + 60);
+  // Off the card is the background the frame was cleared to.
+  EXPECT_LT(SkColorGetG(pixels.getColor(1, 1)), 50u);
+}
+
+TEST_F(SketchPythonBakes, AScene3DContextAnswersOnlyWhileSetupRuns) {
+  PythonSource source("sigil_python_scene3d_loan");
+  source.write("entry.py",
+               "from sigil import world\n"
+               "from sigil.sketch import sketch\n"
+               "@sketch(size=(32, 32), captureAt=0)\n"
+               "class Kept:\n"
+               "    def setup(self, ctx):\n"
+               "        self.ctx = ctx\n"
+               "    def describe(self, seconds) -> world.Frame:\n"
+               "        self.ctx.captureAt(1)\n"
+               "        sun = world.directionalLight((0, 0, -1)).key('sun')\n"
+               "        return world.Frame(world.group(sun).key('set'))\n");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  auto session = kind->open(fonts(), assets(), true, "kept");
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(32, 32));
+  try {
+    session->frame(*surface->getCanvas(), 1.0 / 60.0);
+    ADD_FAILURE() << "a context kept past setup answered";
+  } catch (const std::runtime_error& error) {
+    EXPECT_NE(std::string(error.what()).find("handed at setup"),
+              std::string::npos)
+        << error.what();
+  }
 }
 
 }  // namespace

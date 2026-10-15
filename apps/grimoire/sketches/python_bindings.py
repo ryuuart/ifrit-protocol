@@ -140,7 +140,7 @@ def stepped(level: motion.Animatable) -> compose.Element:
     return compose.box(*lights).row().gap(6)
 
 
-@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=3.4)
+@sketch(size=(WIDTH, HEIGHT), background=GROUND, captureAt=3.4)
 class Bindings:
     def setup(self, ctx: Scene2DContext) -> None:
         self.level = motion.animatable(SOURCE.at(0))

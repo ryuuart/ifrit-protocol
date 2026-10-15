@@ -1,6 +1,7 @@
 """Each marked line must produce its specified strict diagnostic."""
 
 from sigil import compose, data, draw, io, material, motion, skia, weave
+from sigil.sketch import kit
 
 compose.box().width({"pixels": 20})  # error: reportArgumentType
 compose.box().opacity("opaque")  # error: reportArgumentType
@@ -14,7 +15,7 @@ weave.Type(misspelled=12)  # error: reportCallIssue
 material.Paint.sksl("code", {"gain": object()})  # error: reportArgumentType
 not_a_picture = {"content": 3}
 material.shader("code", textures=not_a_picture)  # error: reportArgumentType
-motion.animate(42)  # error: reportCallIssue,reportArgumentType
+motion.animate(duration=1)  # error: reportCallIssue
 data.Table().filter(lambda row: "yes")  # error: reportArgumentType
 io.Hub().write("output.json", {"value": 1})  # error: reportArgumentType
 io.Hub().listen(42)  # error: reportArgumentType
@@ -28,3 +29,4 @@ def invalid(pen: draw.Pen) -> None:
     pen.shape(skia.Path(), 0, 0, 10, 10)  # error: reportArgumentType
     canvas = pen.canvas()
     canvas.drawPoints(draw.PointMode.Lines, [], "paint")  # error: reportArgumentType
+kit.well(padding_y=4)  # error: reportCallIssue

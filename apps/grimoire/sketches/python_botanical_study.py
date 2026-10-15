@@ -88,7 +88,7 @@ def veins(pen, at, pigment):
             brush.line(pen, lead, at(t), at(t + 0.055, side), 0.68, 0.06)
 
 
-@sketch(size=(1100, 780), background="#f7f1de", capture_at=0)
+@sketch(size=(1100, 780), background="#f7f1de", captureAt=0)
 class BotanicalStudy:
     def setup(self, ctx: Scene2DContext) -> None:
         self.brushes = brush.Engine()

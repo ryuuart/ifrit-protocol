@@ -36,7 +36,7 @@ SCENE = """
     from sigil.sketch import sketch
 
 
-    @sketch(size=(32, 16), background="#000000", capture_at=0.5)
+    @sketch(size=(32, 16), background="#000000", captureAt=0.5)
     class Scene:
         def setup(self, ctx):
             self.node = box().width(8).height(8).fill("#ff0000")

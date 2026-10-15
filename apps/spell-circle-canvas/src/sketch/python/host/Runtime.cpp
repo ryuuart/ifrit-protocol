@@ -23,6 +23,7 @@
 #include <span>
 #include <stdexcept>
 #include <system_error>
+#include <thread>
 
 #include "../kit/Registration.h"
 #include "Registration.h"
@@ -35,6 +36,8 @@ namespace py = pybind11;
 
 using detail::AssetsView;
 using detail::Context;
+using detail::Scene3DContextView;
+using detail::Scene3DLoan;
 using detail::State;
 
 namespace {
@@ -156,10 +159,13 @@ struct Generation {
   std::shared_ptr<Object> body;
   std::string package;
   /** The body class's own `needsDevice`, read once when it is loaded: a
-   *  sketch that bakes a 3D frame says so there, as a C++ body does with
-   *  its `static constexpr bool needsDevice`, and a host brings the device
-   *  up before the session opens. */
+   *  scene2d sketch that bakes a 3D frame says so there, as a C++ body
+   *  does with its `static constexpr bool needsDevice`, and a host brings
+   *  the device up before the session opens. */
   bool needsDevice = false;
+  /** Whether the body describes a world frame, as the `@sketch` decorator
+   *  found it: a `describe` whose return annotation names `Frame`. */
+  bool scene3d = false;
 
   ~Generation() {
     if (!Py_IsInitialized()) return;
@@ -245,6 +251,77 @@ class Body final : public Scene2DBody {
   int m_updateArity = 0;
 };
 
+/** A SCENE3D BODY WRITTEN IN PYTHON: an optional `setup(ctx)` handed the
+ *  scene3d context while it runs, and `describe(seconds)` returning the
+ *  world frame at a scene time. The session that drives it holds the
+ *  interpreter around every call. */
+class Scene3DPythonBody final : public Scene3DBody {
+ public:
+  Scene3DPythonBody(const std::shared_ptr<Generation>& generation,
+                    const std::shared_ptr<State>& state)
+      : m_generation(generation), m_state(state) {
+    const sigil::python::CallbackBoundary themes;
+    const py::object instance = generation->body->get()();
+    m_instance = std::make_shared<Object>(instance);
+    const py::object arity =
+        py::module_::import("sigil._callbacks").attr("arity");
+    if (py::hasattr(instance, "setup")) {
+      const py::object setup = instance.attr("setup");
+      m_setup = std::make_shared<Object>(setup);
+      m_setupArity = arity(setup, 1).cast<int>();
+    }
+    const py::object describe = instance.attr("describe");
+    m_describe = std::make_shared<Object>(describe);
+    m_describeArity = arity(describe, 1).cast<int>();
+    m_state->valid = true;
+  }
+
+  ~Scene3DPythonBody() override { m_state->close(); }
+
+  void setup(Scene3DContext& ctx) override {
+    if (!m_setup) return;
+    const auto loan = std::make_shared<Scene3DLoan>();
+    loan->context = &ctx;
+    loan->thread = std::this_thread::get_id();
+    // The context answers only while setup runs, whichever way it ends.
+    struct Returned {
+      Scene3DLoan& loan;
+      ~Returned() { loan.context = nullptr; }
+    } returned{*loan};
+    const sigil::python::CallbackBoundary themes;
+    try {
+      if (m_setupArity == 0)
+        m_setup->get()();
+      else
+        m_setup->get()(Scene3DContextView(loan));
+    } catch (py::error_already_set& error) {
+      m_state->valid = false;
+      throw std::runtime_error(error.what());
+    }
+  }
+
+  world::Frame describe(motion::Duration now) override {
+    const sigil::python::CallbackBoundary themes;
+    const py::object described = m_describeArity == 0
+                                     ? m_describe->get()()
+                                     : m_describe->get()(now.count());
+    if (!py::isinstance<world::Frame>(described))
+      throw std::runtime_error(
+          "A scene3d sketch's describe(seconds) returns a world.Frame, not " +
+          std::string(py::str(py::type::of(described).attr("__name__"))));
+    return described.cast<world::Frame>();
+  }
+
+ private:
+  std::shared_ptr<Generation> m_generation;
+  std::shared_ptr<State> m_state;
+  std::shared_ptr<Object> m_instance;
+  std::shared_ptr<Object> m_setup;
+  std::shared_ptr<Object> m_describe;
+  int m_setupArity = 0;
+  int m_describeArity = 1;
+};
+
 class PythonSession final : public Session {
  public:
   PythonSession(std::unique_ptr<Session> session, std::shared_ptr<State> state)
@@ -305,6 +382,13 @@ class PythonSession final : public Session {
   void key(std::string_view name, int code, bool pressed) override {
     invoke([&] { m_session->key(name, code, pressed); });
   }
+  bool hasViewpoint() const override { return m_session->hasViewpoint(); }
+  std::optional<geometry::mesh::camera::Orbit> orbit() const override {
+    return m_session->orbit();
+  }
+  void viewpoint(float yawDeg, float pitchDeg, float distance) override {
+    invoke([&] { m_session->viewpoint(yawDeg, pitchDeg, distance); });
+  }
 
  private:
   template <class Function>
@@ -342,14 +426,18 @@ class PythonKind final : public KindOperations {
   bool operator==(const PythonKind& other) const {
     return m_generation == other.m_generation;
   }
-  std::string_view runtime() const override { return "scene2d"; }
-  bool needsDevice() const override { return m_generation->needsDevice; }
-  /** A sketch that bakes a 3D frame draws on the device runtime the
-   *  process installed, so where none is it is listed unavailable with
-   *  the one message every device door speaks, rather than opened to
-   *  draw its fallback. */
+  std::string_view runtime() const override {
+    return m_generation->scene3d ? "scene3d" : "scene2d";
+  }
+  bool needsDevice() const override {
+    return m_generation->scene3d || m_generation->needsDevice;
+  }
+  /** A sketch that describes or bakes a 3D frame draws on the device
+   *  runtime the process installed, so where none is it is listed
+   *  unavailable with the one message every device door speaks, rather
+   *  than opened to draw its fallback. */
   bool available(std::string* why) const override {
-    return !m_generation->needsDevice || runtimeAvailable(why);
+    return !needsDevice() || runtimeAvailable(why);
   }
   std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
                                 bool deterministic,
@@ -359,6 +447,16 @@ class PythonKind final : public KindOperations {
       const auto state = std::make_shared<State>();
       const sigil::python::CallbackScope callbacks(state->callbacks);
       const sigil::python::CallbackBoundary themes;
+      if (m_generation->scene3d) {
+        // Refused before a body is made, so a scene3d sketch that cannot be
+        // drawn runs none of its own Python.
+        std::string why;
+        if (!runtimeAvailable(&why)) throw std::runtime_error(why);
+        auto body = std::make_unique<Scene3DPythonBody>(m_generation, state);
+        auto session = openScene3D(std::move(body), fonts, assets,
+                                   deterministic, sketch::runtime());
+        return std::make_unique<PythonSession>(std::move(session), state);
+      }
       auto body = std::make_unique<Body>(m_generation, state);
       auto session =
           openScene2D(std::move(body), fonts, assets, deterministic, key);
@@ -399,6 +497,49 @@ bool declaresDevice(const std::filesystem::path& source) {
   return false;
 }
 
+/** Whether the sketch written in @p source describes a world frame: a
+ *  method `describe` whose return annotation names `Frame` — `-> Frame`,
+ *  `-> world.Frame`, quoted or not — read from the text by the rule the
+ *  `@sketch` decorator applies to the class it loads, so a listing and an
+ *  opened session agree on the kind without importing the file. A
+ *  signature may run over several lines; it ends at the line whose text
+ *  ends with its colon. A file that cannot be read describes none. */
+bool describesFrame(const std::filesystem::path& source) {
+  std::ifstream file(source);
+  std::string line;
+  while (std::getline(file, line)) {
+    std::string_view text = line;
+    const auto first = text.find_first_not_of(" \t");
+    if (first == std::string_view::npos || first == 0) continue;
+    text.remove_prefix(first);
+    constexpr std::string_view kSignature = "def describe(";
+    if (!text.starts_with(kSignature)) continue;
+    std::string signature(text);
+    constexpr int kLongestSignature = 12;
+    for (int more = 0; more < kLongestSignature; ++more) {
+      const auto last = signature.find_last_not_of(" \t\r");
+      if (last != std::string::npos && signature[last] == ':') break;
+      if (!std::getline(file, line)) break;
+      signature += ' ';
+      signature += line;
+    }
+    const auto arrow = signature.rfind("->");
+    if (arrow == std::string::npos) continue;
+    std::string_view annotation = std::string_view(signature).substr(arrow + 2);
+    const auto colon = annotation.rfind(':');
+    if (colon != std::string_view::npos)
+      annotation = annotation.substr(0, colon);
+    const auto begin = annotation.find_first_not_of(" \t\"'");
+    const auto end = annotation.find_last_not_of(" \t\r\"'");
+    if (begin == std::string_view::npos) continue;
+    annotation = annotation.substr(begin, end - begin + 1);
+    const auto dot = annotation.rfind('.');
+    if (dot != std::string_view::npos) annotation.remove_prefix(dot + 1);
+    if (annotation == "Frame") return true;
+  }
+  return false;
+}
+
 class SourceKind final : public KindOperations {
  public:
   explicit SourceKind(std::filesystem::path source)
@@ -406,10 +547,14 @@ class SourceKind final : public KindOperations {
   bool operator==(const SourceKind& other) const {
     return m_source == other.m_source;
   }
-  std::string_view runtime() const override { return "scene2d"; }
-  bool needsDevice() const override { return declaresDevice(m_source); }
+  std::string_view runtime() const override {
+    return describesFrame(m_source) ? "scene3d" : "scene2d";
+  }
+  bool needsDevice() const override {
+    return describesFrame(m_source) || declaresDevice(m_source);
+  }
   bool available(std::string* why) const override {
-    return !declaresDevice(m_source) || runtimeAvailable(why);
+    return !needsDevice() || runtimeAvailable(why);
   }
   std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
                                 bool deterministic,
@@ -560,6 +705,9 @@ Kind load(const std::filesystem::path& source) {
     generation->package = result[1].cast<std::string>();
     generation->needsDevice =
         py::getattr(result[0], "needsDevice", py::bool_(false)).cast<bool>();
+    generation->scene3d =
+        py::str(py::getattr(result[0], "__sigil_kind__", py::str("scene2d")))
+            .cast<std::string>() == "scene3d";
     return Kind{PythonKind(std::move(generation))};
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());
@@ -567,6 +715,10 @@ Kind load(const std::filesystem::path& source) {
 }
 
 void stageContext(py::handle value, const kit::Stage& stage) {
+  if (py::isinstance<Scene3DContextView>(value)) {
+    kit::stage(value.cast<const Scene3DContextView&>().context(), stage);
+    return;
+  }
   const auto state = value.cast<const Context&>().state();
   auto context = state->context();
   kit::stage(context, stage);
@@ -589,7 +741,7 @@ void bindRuntime(py::module_& module) {
            })
       .def("root",
            [](const AssetsView& v) { return v.state()->assets->root(); });
-  module.def("render_file", &renderFile, py::arg("source"), py::arg("output"),
+  module.def("renderFile", &renderFile, py::arg("source"), py::arg("output"),
              py::arg("at") = py::none());
 }
 

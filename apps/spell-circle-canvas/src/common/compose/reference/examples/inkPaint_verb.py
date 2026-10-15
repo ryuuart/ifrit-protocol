@@ -30,12 +30,12 @@ def chrome() -> material.Paint:
     )
 
 
-@sketch(size=(620, 260), background=GROUND, capture_at=0)
+@sketch(size=(620, 260), background=GROUND, captureAt=0)
 class TextFillVerb:
     def setup(self, ctx: Scene2DContext) -> None:
-        ctx.render(self.describe())
+        ctx.render(self.redraw())
 
-    def describe(self) -> compose.Element:
+    def redraw(self) -> compose.Element:
         return (
             compose.box(
                 compose.text("CHROME", size=64).letterSpacing(2).ink(chrome()),

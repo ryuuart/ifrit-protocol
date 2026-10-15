@@ -87,7 +87,7 @@ CHILD = (
 )
 
 
-@sketch(size=(96, 64), background="#142333", capture_at=0)
+@sketch(size=(96, 64), background="#142333", captureAt=0)
 class EnvironmentSketch:
     def setup(self, ctx):
         child = subprocess.run(

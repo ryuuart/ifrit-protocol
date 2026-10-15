@@ -1,16 +1,17 @@
-"""Sketch declarations and file rendering through the native scene2d session."""
+"""Sketch declarations and file rendering through the native sketch sessions."""
 
 import sys as _sys
+from contextlib import nullcontext as _nullcontext
 from functools import wraps as _wraps
 from math import isfinite as _isfinite
 from numbers import Real as _Real
 from os import fspath as _fspath
 
-from _sigil import render_file as _native_render_file
+from _sigil import renderFile as _native_render_file
 
 
-def render_file(source, output, *, at=None):
-    """Render a sketch file to PNG using the native headless scene2d session."""
+def renderFile(source, output, *, at=None):
+    """Render a sketch file to PNG through the native headless session."""
     return _native_render_file(_fspath(source), _fspath(output), at=at)
 
 
@@ -23,20 +24,120 @@ def _number(value, name, *, positive=False):
     return value
 
 
-def sketch(*, size=(960, 640), background="#121720", capture_at=1.0):
-    """Declare a scene2d sketch with optional setup, update and draw methods.
+def _return_annotation(function):
+    """The return annotation of function as the source text spells it, or
+    None where it states none. Read as text so a name the module imports
+    under any spelling, or one not yet defined, is never evaluated."""
+    try:
+        import annotationlib
 
-    ``setup(self, ctx)`` initializes state and may render a native element.
-    ``update(self, elapsed, ctx)`` runs on the session clock when present.
-    ``draw(self, pen, ctx)`` supplies a full-canvas drawing program when present.
-    Methods may omit trailing arguments, including all context arguments.
-    An explicit render in setup replaces that default drawing node.
+        annotations = annotationlib.get_annotations(
+            function, format=annotationlib.Format.STRING
+        )
+    except ImportError:
+        import inspect
+
+        annotations = inspect.get_annotations(function)
+    annotation = annotations.get("return")
+    if annotation is None or isinstance(annotation, str):
+        return annotation
+    return getattr(annotation, "__qualname__", repr(annotation))
+
+
+def _describes_frame(describe):
+    """Whether describe states that it returns a world frame: its return
+    annotation names ``Frame``, alone or after a module. The host reads the
+    file's text by the same rule, so a listing and an opened session agree
+    on the kind."""
+    annotation = _return_annotation(describe)
+    if not annotation:
+        return False
+    return annotation.strip().strip("\"'").rpartition(".")[2] == "Frame"
+
+
+def _check_describe(describe):
+    """Refuse a describe that cannot be handed the scene time alone: the
+    word is the sketch's own, like setup, update and draw."""
+    import inspect
+
+    signature = inspect.signature(describe, follow_wrapped=False)
+    try:
+        signature.bind(None, 0.0)
+    except TypeError:
+        raise TypeError(
+            "describe is a sketch hook: describe(self, seconds) returns the "
+            f"frame or tree at a scene time, and this one takes {signature}"
+        ) from None
+
+
+def _caller(method, count):
+    """A call of method on an instance that hands it as many of count
+    leading arguments as it names, measured once rather than at every
+    step."""
+    from .._callbacks import arity
+
+    named = max(arity(method, count + 1) - 1, 0)
+
+    def call(owner, *arguments):
+        return method(owner, *arguments[:named])
+
+    return call
+
+
+def sketch(
+    *,
+    size=(960, 640),
+    background=None,
+    captureAt=None,
+    theme=None,
+):
+    """Declare a sketch class; what it defines decides its kind.
+
+    A class whose ``describe(self, seconds)`` is annotated ``-> world.Frame``
+    is a scene3d sketch: the host draws the frame it returns on the device,
+    every step, and ``setup(self, ctx)`` is handed a ``Scene3DContext`` to
+    ask for the lens, pages and screens there. Any other class is a scene2d
+    sketch: ``setup(self, ctx)`` may return the tree to render,
+    ``describe(self, seconds)`` returns the tree again at every step,
+    ``update(self, elapsed, ctx)`` runs on the session clock, and
+    ``draw(self, pen, ctx)`` supplies a full-canvas drawing program.
+    ``setup``, ``update``, ``draw`` and ``describe`` are the hook words: each
+    is engaged only when the class defines it, and ``describe`` takes exactly
+    one argument, the seconds. setup, update and draw may omit trailing
+    arguments, including all context arguments.
+
+    ``size``, ``background`` and ``captureAt`` declare the canvas, what is
+    behind it and the moment a still is taken at. ``theme``, a kit theme, is
+    provided around setup, update, describe and draw, and stages the canvas
+    with the theme's ground where no background is given.
     """
     if not isinstance(size, (tuple, list)) or len(size) != 2:
         raise TypeError("size must contain a width and a height")
     width = _number(size[0], "canvas width", positive=True)
     height = _number(size[1], "canvas height", positive=True)
-    capture_at = _number(capture_at, "capture_at")
+    moment = _number(1.0 if captureAt is None else captureAt, "captureAt")
+    if theme is None and background is None:
+        background = "#121720"
+
+    def provided():
+        if theme is None:
+            return _nullcontext()
+        from .kit import provide
+
+        return provide(theme)
+
+    def declare(ctx):
+        if theme is not None:
+            from .kit import stage
+
+            properties = dict(size=(width, height), captureAt=moment)
+            if background is not None:
+                properties["background"] = background
+            stage(ctx, **properties)
+            return
+        ctx.canvas(width, height)
+        ctx.background(background)
+        ctx.captureAt(moment)
 
     def decorate(cls):
         if not isinstance(cls, type):
@@ -44,53 +145,121 @@ def sketch(*, size=(960, 640), background="#121720", capture_at=1.0):
         if "__sigil_decorated__" in cls.__dict__:
             raise TypeError("a sketch class can only be decorated once")
         setup = getattr(cls, "setup", None)
+        update = getattr(cls, "update", None)
         draw = getattr(cls, "draw", None)
-        if setup is None and draw is None:
-            raise TypeError("a sketch class needs setup(self, ctx) or draw(self, pen)")
-        for name in ("setup", "update", "draw"):
-            method = getattr(cls, name, None)
+        describe = getattr(cls, "describe", None)
+        for name, method in (
+            ("setup", setup),
+            ("update", update),
+            ("draw", draw),
+            ("describe", describe),
+        ):
             if method is not None and not callable(method):
                 raise TypeError(f"sketch {name} must be callable")
         module = _sys.modules[cls.__module__]
         existing = getattr(module, "__sigil_sketch__", None)
         if existing is not None and existing is not cls:
             raise ValueError("a module can export only one @sketch class")
-
-        def configure(self, ctx):
-            from .._callbacks import arity
-
-            ctx.canvas(width, height)
-            ctx.background(background)
-            ctx.captureAt(capture_at)
-            if draw is not None:
-                from ..compose import graphics
-
-                paint = draw.__get__(self, cls)
-                count = arity(paint, 2)
-                if count == 0:
-
-                    def program(pen):
-                        paint()
-                elif count == 1:
-                    program = paint
-                else:
-
-                    def program(pen):
-                        paint(pen, ctx)
-
-                ctx.render(graphics("sketch.draw", program).absolute().inset(0))
-            if setup is not None:
-                initialize = setup.__get__(self, cls)
-                if arity(initialize, 1) == 0:
-                    initialize()
-                else:
-                    initialize(ctx)
-
-        if setup is not None:
-            configure = _wraps(setup)(configure)
-        cls.setup = configure
+        if describe is not None:
+            _check_describe(describe)
+        if describe is not None and _describes_frame(describe):
+            _scene3d(cls, setup, update, draw, describe, declare, provided)
+        else:
+            _scene2d(cls, setup, update, draw, describe, declare, provided)
         cls.__sigil_decorated__ = True
         module.__sigil_sketch__ = cls
         return cls
 
     return decorate
+
+
+def _scene3d(cls, setup, update, draw, describe, declare, provided):
+    if update is not None or draw is not None:
+        raise TypeError(
+            "a scene3d sketch is a function of the scene time: describe "
+            "returns its frame, and it has no update or draw"
+        )
+
+    initialize = _caller(setup, 1) if setup is not None else None
+    described = _caller(describe, 1)
+
+    def configure(self, ctx):
+        with provided():
+            declare(ctx)
+            if initialize is not None and initialize(self, ctx) is not None:
+                raise TypeError(
+                    "a scene3d sketch's setup returns nothing; describe "
+                    "returns its frame"
+                )
+
+    def frame(self, seconds):
+        with provided():
+            return described(self, seconds)
+
+    if setup is not None:
+        configure = _wraps(setup)(configure)
+    cls.setup = configure
+    cls.describe = _wraps(describe)(frame)
+    cls.__sigil_kind__ = "scene3d"
+
+
+def _scene2d(cls, setup, update, draw, describe, declare, provided):
+    if setup is None and draw is None and describe is None:
+        raise TypeError(
+            "a sketch class needs setup(self, ctx), describe(self, seconds) "
+            "or draw(self, pen)"
+        )
+    if draw is not None and describe is not None:
+        raise TypeError(
+            "draw(pen) and describe(seconds) each render the whole sketch; define one"
+        )
+
+    def render(ctx, tree):
+        from _sigil.world import Frame
+
+        if isinstance(tree, Frame):
+            raise TypeError(
+                "describe returned a world.Frame; annotate it "
+                "`-> world.Frame` so the host draws this sketch as a scene3d "
+                "sketch"
+            )
+        ctx.render(tree)
+
+    initialize = _caller(setup, 1) if setup is not None else None
+    advanced = _caller(update, 2) if update is not None else None
+    painted = _caller(draw, 2) if draw is not None else None
+    described = _caller(describe, 1) if describe is not None else None
+
+    def configure(self, ctx):
+        with provided():
+            declare(ctx)
+            if painted is not None:
+                from ..compose import graphics
+
+                def program(pen):
+                    with provided():
+                        painted(self, pen, ctx)
+
+                ctx.render(graphics("sketch.draw", program).absolute().inset(0))
+            if initialize is not None:
+                returned = initialize(self, ctx)
+                if returned is not None:
+                    render(ctx, returned)
+            if described is not None:
+                render(ctx, described(self, ctx.elapsed))
+
+    def advance(self, elapsed, ctx):
+        with provided():
+            if advanced is not None:
+                advanced(self, elapsed, ctx)
+            if described is not None:
+                render(ctx, described(self, elapsed))
+
+    if setup is not None:
+        configure = _wraps(setup)(configure)
+    cls.setup = configure
+    if update is not None or describe is not None:
+        if update is not None:
+            advance = _wraps(update)(advance)
+        cls.update = advance
+    cls.__sigil_kind__ = "scene2d"

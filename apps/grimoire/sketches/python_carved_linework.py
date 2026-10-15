@@ -6,11 +6,9 @@ import math
 import random
 
 from sigil import compose, material, media, motion, world
-from sigil.draw import Pen
 from sigil.geometry import mesh, path
-from sigil.material import hexColor
 from sigil.motion import ease
-from sigil.sketch import CanvasSpecification, Scene2DContext, sketch
+from sigil.sketch import Scene3DContext, sketch
 
 WIDTH, HEIGHT = 1280, 720  # the canvas
 PAGE_WIDTH, PAGE_HEIGHT = 1024, 576  # the page the slab wears, in page pixels
@@ -232,26 +230,11 @@ STUDIO = world.kit.environmentMap(
 )
 
 
-@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=2.0)
+@sketch(size=(WIDTH, HEIGHT), background=GROUND, captureAt=2.0)
 class CarvedLinework:
-    # A sheet that bakes a 3D frame draws it on the host's device, so the
-    # host brings the device up before this sketch opens.
-    needsDevice = True
-
-    def setup(self, ctx: Scene2DContext) -> None:
-        # Everything a frame shows is read at the bake's moment, so a
-        # capture's pre-roll steps need not paint: the still is the frame
-        # at its own time either way.
-        ctx.canvas(
-            CanvasSpecification(
-                size=(WIDTH, HEIGHT),
-                background=GROUND,
-                captureSeconds=2.0,
-                paintDiscardedFrames=False,
-            )
-        )
+    def setup(self, ctx: Scene3DContext) -> None:
         # The face is described once and held; the pulse moves by its own
-        # live window, read at each bake's moment.
+        # live window, read at each frame's moment.
         self.page = ctx.page((PAGE_WIDTH, PAGE_HEIGHT))
         self.face = slab_face()
         self.slab = mesh.quad(SLAB_WIDTH, SLAB_HEIGHT)
@@ -262,13 +245,9 @@ class CarvedLinework:
             type=mesh.curve.Spline3.Type.CatmullRom,
         )
         self.key_rail_length = self.key_rail.length()
-        self.lens = mesh.camera.Camera()
-        self.lens.eye = (0, 90, 520)
-        self.lens.target = (0, -6, 0)
-        self.lens.fovYDeg = 34
+        ctx.camera(mesh.camera.Camera(eye=(0, 90, 520), target=(0, -6, 0), fovYDeg=34))
 
-    def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
-        seconds = pen.millis() / 1000
+    def describe(self, seconds: float) -> world.Frame:
         # The key rides its rail from one end to the other and back.
         swing = 0.5 - 0.5 * math.cos(seconds * 2 * math.pi / 8)
         panel_width, panel_height, panel_distance = 380.0, 90.0, 380.0
@@ -306,18 +285,9 @@ class CarvedLinework:
                 motion.animate(from_=-80, to=-16, duration=1.4, ease=ease.outCubic)
             ),
         ).key("scene")
-        frame = (
+        return (
             world.Frame(model)
             .environment(STUDIO, intensity=1.3)
             .pass_(self.page.render(self.face))
             .pass_(world.bloom(threshold=3.0, intensity=0.9, radius=30))
         )
-        still = ctx.bakeScene3D(
-            frame,
-            (WIDTH, HEIGHT),
-            camera=self.lens,
-            background=hexColor(0x0C0F12),
-            at=seconds,
-        )
-        if still is not None:
-            pen.image(still, 0, 0)

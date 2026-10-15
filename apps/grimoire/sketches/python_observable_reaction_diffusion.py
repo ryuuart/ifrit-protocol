@@ -23,7 +23,7 @@ def laplace(field):
     )
 
 
-@sketch(size=(720, 720), capture_at=5)
+@sketch(size=(720, 720), captureAt=5)
 class ReactionDiffusion:
     def setup(self, ctx: Scene2DContext) -> None:
         self.a = np.ones((144, 144), dtype=np.float32)

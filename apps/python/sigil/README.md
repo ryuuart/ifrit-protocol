@@ -179,6 +179,16 @@ for example, `pen.line(x1, y1, x2, y2)` and
 Positional APIs, such as `.children(*children)`, declare that distinction in
 their overloads.
 
+Every name is the native one, camelCase as SigilSketch and the libraries
+spell it: `kit.featureTheme`, `kit.panelGrid`, `document.listGap`,
+`Json.toPython`, and a kit record's fields, `paddingY=` and `rowGap=`. A
+native name that is a Python keyword takes a trailing underscore — `from_`,
+`pass_`, `with_`, `is_`, `in_`, and `None_` for an enumerator named `None` —
+and where a value can stand without its name it does: `animate(0, 1)` and
+`Tween(0, 1)` take the start and the end by position, `element.mask(gate)`
+takes its gate by position, and `world.Frame(scene, passes=[...])` takes a
+frame's passes as a list beside `frame.pass_(...)`.
+
 A callback is handed the longest run of leading positional arguments it
 accepts, so a positional parameter with a default receives the host's
 argument: a paint program `lambda pen, width=64: …` is called with the
@@ -241,9 +251,9 @@ checkout. `python -m sigil render ...` is the same command. The Python API
 is also available from the installed environment:
 
 ```python
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
-render_file("sketch.py", "preview.png", at=2.0)
+renderFile("sketch.py", "preview.png", at=2.0)
 ```
 
 The renderer accepts strings and `pathlib.Path` objects. Omitting `at`
@@ -280,7 +290,7 @@ for plate in compare("plates/before", "plates/after").plates:
         print(plate)  # the row as one line
 ```
 
-`render_file` is one session driven through SigilProtocol, and a script
+`renderFile` is one session driven through SigilProtocol, and a script
 can drive one itself, by either of two routes that answer the same
 generated domain classes. `sigil.testing.InProcess(state)` is a sketch
 host in this process — the registry, session and clock agents, with every
@@ -618,7 +628,7 @@ from sigil.draw import Pen
 from sigil.sketch import sketch
 
 
-@sketch(size=(640, 420), background="#121720", capture_at=2.0)
+@sketch(size=(640, 420), background="#121720", captureAt=2.0)
 class Orbit:
     def draw(self, pen: Pen) -> None:
         t = pen.millis() / 1000
@@ -636,13 +646,54 @@ the element's retained canvas. Time comes from the scene clock through
 
 An optional `setup(self, ctx)` can initialize ordinary Python state. It
 runs after the decorator configures the canvas and installs the drawing
-element. If setup explicitly calls `ctx.render(...)`, that tree replaces
-the default drawing element. An optional `update(self, elapsed, ctx)`
-reads elapsed scene seconds before the next frame. Methods may omit trailing arguments: `setup()` or `setup(ctx)`,
-`update()`, `update(elapsed)` or `update(elapsed, ctx)`, and `draw()`,
-`draw(pen)` or `draw(pen, ctx)`. The adapter resolves each signature when
-the instance or drawing program is created. A drawing with two arguments
+element. A setup that returns a tree renders it, and that tree replaces
+the default drawing element, as an explicit `ctx.render(...)` does. An
+optional `update(self, elapsed, ctx)` reads elapsed scene seconds before
+the next frame.
+
+The decorator reads four hook words off the class, `setup`, `update`,
+`draw` and `describe`, and engages each only when the class defines it.
+`describe(self, seconds)` returns the sketch at a scene time and takes
+exactly one argument, the seconds; a class that defines `describe` with
+any other signature is refused with a `TypeError` naming the expected
+one. A `describe` that returns a tree makes a scene2d sketch that is
+described again at every step, and the reconciler patches what changed:
+
+```python
+from sigil.compose import Element, box
+from sigil.sketch import sketch
+
+
+@sketch(size=(320, 120), captureAt=1.5)
+class Bar:
+    def describe(self, seconds: float) -> Element:
+        return box().width(40 + 160 * min(seconds, 1.5)).height(24).fill("#f1bb7b")
+```
+
+A `describe` annotated `-> world.Frame` makes a scene3d sketch, described
+under [Retained 3D scenes](#retained-3d-scenes). `draw` and `describe`
+each render the whole sketch, so a class defines one of them.
+
+`setup`, `update` and `draw` may omit trailing arguments: `setup()` or
+`setup(ctx)`, `update()`, `update(elapsed)` or `update(elapsed, ctx)`,
+and `draw()`, `draw(pen)` or `draw(pen, ctx)`. The adapter resolves each
+signature when the class is decorated. A drawing with two arguments
 receives the same checked session context as setup.
+
+`size`, `background` and `captureAt`, the scene time a still is taken
+at, declare the canvas. `theme=`, a kit theme, is provided around setup,
+update, describe and draw, and stages the canvas with the theme's ground
+where no background is given:
+
+```python
+from sigil.sketch import kit, sketch
+
+
+@sketch(size=(640, 360), captureAt=0, theme=kit.featureTheme(kit.Density.Spacious))
+class Sheet:
+    def setup(self):
+        return kit.page(kit.well(width=240, height=160), title="A specimen sheet")
+```
 
 The host owns scheduling and teardown. Keep model data freely on the
 sketch, and use a pen during the drawing callback that supplied it.
@@ -859,7 +910,7 @@ def metric(label, value, accent):
         .fill("#1b2735")
         .borderRadius(16)
         .flexGrow(1)
-        .opacity(animate(from_=0, to=1, duration=0.6))
+        .opacity(animate(0, 1, duration=0.6))
         .children(
             text(label, size=13, color="#92a4b6"),
             text(value, size=42, color=accent),
@@ -867,7 +918,7 @@ def metric(label, value, accent):
     )
 
 
-@sketch(size=(800, 320), background="#101923", capture_at=1.0)
+@sketch(size=(800, 320), background="#101923", captureAt=1.0)
 class Metrics:
     def setup(self, ctx):
         readings = [("RESONANCE", "0.86", "#e5b677"), ("COHERENCE", "94%", "#8bc9bc")]
@@ -1047,29 +1098,34 @@ The specimen kit supplies the native page furniture and theme:
 from sigil.compose import text
 from sigil.sketch import kit
 
-look = kit.house_theme()
+look = kit.houseTheme()
 look.palette.ground = "#f4f0e6"
 look.palette.ink = "#30372f"
 look.type.title.size = 28
 
-# Inside setup(self, ctx):
+# Inside setup(self, ctx), where the decorator states no theme:
 with kit.provide(look):
-    kit.stage(ctx, size=(640, 360), capture_at=0)
+    kit.stage(ctx, size=(640, 360), captureAt=0)
     picture = kit.well(width=240, height=160).children(text("A specimen"))
     content = kit.caption(picture, label="Native type", note="One shared theme")
     page = kit.page(content, title="A specimen sheet", footer="Sigil")
 ctx.render(page)
 ```
 
-`stage`, `page`, `well`, `caption`, `cell`, `cells` and `panel_grid` call
+`@sketch(theme=look)` says the same in one place: the decorator provides
+the theme around every hook and stages the canvas over it.
+
+`stage`, `page`, `well`, `caption`, `cell`, `cells` and `panelGrid` call
 SigilSketchKit. The neutral `sigil.compose.kit` supplies native wells,
 captioned cells, sheets, panels, boards, construction circles, lines and
 ladders. Both return the same native `Element`. Python normalizes keyword
 fields and ordered children; native components own arrangement and
-painting. Lowercase wrappers accept snake_case properties; native record
-classes such as `Page`, `Well` and `Spacing` retain their native field names.
+painting. The wrappers take each field by its native name, as the native
+record classes such as `Page`, `Well` and `Spacing` spell it: `paddingY=`,
+`rowGap=`. A snake_case spelling such as `padding_y=` is refused with a
+`TypeError` that names the field it missed.
 
-`house_theme()` supplies the default stock theme; `study_theme()` supplies
+`houseTheme()` supplies the default stock theme; `studyTheme()` supplies
 the stock theme for typographic studies. Both factories and `theme()` return
 owned native values. Their embedded palette, type and spacing fields are
 editable parts of the value.
@@ -1099,22 +1155,22 @@ any extra `styleClass` names the author gives it.
 
 ```python
 from sigil.compose import StyleSheet, rule
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.weave import ParagraphBlock, Leading, Type, em
 
-content = doc.article(
-    doc.eyebrow("FIELD JOURNAL"),
-    doc.h1("A field worth noticing"),
-    doc.paragraph("An ordinary observation can become a small story."),
-    doc.list(doc.item("Notice the light."), doc.item("Follow its movement.")),
-    doc.quote("Let the words find a comfortable measure."),
+content = document.article(
+    document.eyebrow("FIELD JOURNAL"),
+    document.h1("A field worth noticing"),
+    document.paragraph("An ordinary observation can become a small story."),
+    document.list(document.item("Notice the light."), document.item("Follow its movement.")),
+    document.quote("Let the words find a comfortable measure."),
 )
 look = StyleSheet([
     rule("h1").font(Type(size=34, color="#88492e")),
     rule("paragraph").paragraph(ParagraphBlock(leading=Leading.multiple(1.45))),
     rule("quote").font(Type(color="#687969")),
 ])
-page = content.applyStyleSheet(look).var(doc.measure, em(34))
+page = content.applyStyleSheet(look).var(document.measure, em(34))
 ```
 
 A rule for the bare word `h1` styles every heading with that role in the
@@ -1127,8 +1183,8 @@ specimen theme uses `h1`, `lead`, `h2`, `label`, `caption`, `eyebrow` and `foote
 for its document lines; its editable type-register field names remain `title`,
 `subtitle`, `captionLabel` and `captionNote`.
 
-`article` bounds the reading measure. The inherited properties `doc.measure`,
-`doc.gap`, `doc.list_gap` and `doc.quote_inset` control document geometry;
+`article` bounds the reading measure. The inherited properties `document.measure`,
+`document.gap`, `document.listGap` and `document.quoteInset` control document geometry;
 set them with `.var(name, value)` on an ancestor or the document itself.
 Fallbacks are 38 em, 1 em, 0.4 em and 1 em respectively. A custom component can
 declare a role using `.role("notice")` or `.role("notice", font=Type(...))`
@@ -1136,8 +1192,8 @@ and fallback properties with `.varDefaults({...})`. An ancestor's authored
 property takes precedence over those fallback values.
 
 Document containers accept individual Elements or one iterable, including
-lists, tuples and generators. `doc.quote("words")` is also valid;
-`doc.paragraph(rich_text)` retains a single native rich passage. `doc.item`
+lists, tuples and generators. `document.quote("words")` is also valid;
+`document.paragraph(rich_text)` retains a single native rich passage. `document.item`
 accepts words or an Element body and an optional marker. These are semantic
 components; arbitrary text does not become an implicit child of an article.
 `python_document.py` shows one description under two complete role themes.
@@ -1203,13 +1259,15 @@ clamp=(e, f))` follows a live number through those stages, which run in
 that order whatever order they are named in; `envelope.cosine()`,
 `square()`, `trapezoid()` and `shaped()` shape the phase.
 
-`animate(from_=start, to=end, duration=..., delay=..., ease=...)` declares
-an entrance; `animate(to=target, ...)` alone eases the property whenever a
-later description changes its target; `keyframes=[Keyframe(value,
+`animate(start, end, duration=..., delay=..., ease=...)` declares an
+entrance; the start and the end come first by position, because `from` is a
+word Python reserves, and `from_=` and `to=` name them by keyword.
+`animate(to=target, ...)` alone eases the property whenever a later
+description changes its target; `keyframes=[Keyframe(value,
 duration=...), ...]` declares a path, which is an entrance too: with no
 `from_` it sets out from where it rests, and a first keyframe lasting
-nothing is where it visibly begins. `Tween(...)` is the same description
-as a value, which `animate(tween)` and `ctx.engine.animate` take. `from_`,
+nothing is where it visibly begins. `Tween(start, end, ...)` is the same
+description as a value, which `animate(tween)` and `ctx.engine.animate` take. `from_`,
 `to`, `duration` and `delay` each take a `stagger(...)` as well — a delay
 ladder, a spread from the first child's value to the last's, or a table of
 `cues` — which the host resolves at each child's `Place`. A length of time
@@ -1388,7 +1446,7 @@ the decoder on it.
 
 `sigil.data` supplies native `Json`, `Column`, `Table`, `Scale` and database
 query values. Ordinary Python dictionaries and lists can construct JSON;
-`to_python()` returns ordinary Python data. Native decoders read JSON and
+`toPython()` returns ordinary Python data. Native decoders read JSON and
 CSV, and a table's cells are Python numbers, strings, booleans or native
 `Instant` values. An `Instant` and a `Flag` compare, sort and hash as the
 value each holds, and a `Flag` compares with the Python `bool` a boolean
@@ -1484,7 +1542,7 @@ paint.
 The native `sigil.material.surface.SurfaceParameters` record and its
 `program` and `unlit` factories describe mesh surfaces: base color, roughness, metallic
 response, emission and transmission. A surface is shaded by the World device
-executor, which a sketch reaches through `Scene2DContext.bakeScene3D` on a host
+executor, which a scene3d sketch reaches by describing a `world.Frame` on a host
 that brought a device up. The returned `sigil.material.Material`
 is the same value a World element accepts. `surface.normalFromHeight(height,
 HeightNormalOptions(depth=..., step=..., directX=...))` differentiates a
@@ -1573,42 +1631,51 @@ CPU executor into the `mesh.Instances` or `mesh.Mesh` a World body wears.
 
 ## Retained 3D scenes
 
-`sigil.world` exposes native retained scene declarations. A scene3d sketch is drawn on
-a device and nowhere else, and a Python process brings none up, so a
-`world.Scene` holds and reconciles a description — its nodes, placements,
-lights and camera — and draws nothing. A scene2d sketch that shows a scene3d frame bakes it
-with `ctx.bakeScene3D(frame, size, camera=…, background=…, at=…)`, which draws
-on the device the host brought up and answers `None` where there is none.
-A sketch class that bakes declares `needsDevice = True` on a line of its
-own; a host reads it from the file's text when the sketch is listed, and
-brings the device up before the sketch opens. Import meshes and cameras from `sigil.geometry.mesh`, materials from
-`sigil.material`, and animation values from `sigil.motion`. These are the
-same values used by the direct bindings.
+`sigil.world` exposes native retained scene declarations. A scene3d
+sketch is a class whose `describe(self, seconds)` is annotated
+`-> world.Frame`: the host describes it at every step and draws the frame
+on its device, as it draws a C++ scene3d sketch, and lists the sketch
+unavailable where there is no device. The host reads the kind from the
+file's text when the sketch is listed, by the same rule the decorator
+applies when it loads the class, so a scene3d sketch states nothing else.
+An optional `setup(self, ctx)` is handed a `sketch.Scene3DContext` while
+it runs: `ctx.camera(lens)` is the lens a frame holding no camera of its
+own is seen through, and `ctx.page(...)` and `ctx.textureScene(...)` hand
+out the pages and screens its bodies wear. The context answers only
+during setup; `describe` is a function of the scene time and is handed
+nothing else. A scene3d sketch has no `update` or `draw`, and its setup
+returns nothing. Import meshes and cameras from `sigil.geometry.mesh`,
+materials from `sigil.material`, and animation values from `sigil.motion`.
+These are the same values used by the direct bindings.
 
 ```python
 from sigil import world
-from sigil.compose import box, image
 from sigil.geometry import mesh
 from sigil.material import surface as surfaces
-from sigil.sketch import sketch
+from sigil.sketch import Scene3DContext, sketch
 
 
-@sketch(size=(640, 480), background="#141d25")
+@sketch(size=(640, 480), background="#141d25", captureAt=1.0)
 class Vessel:
-    def setup(self, ctx):
-        finish = surfaces.program(
+    def setup(self, ctx: Scene3DContext) -> None:
+        self.finish = surfaces.program(
             surfaces.SurfaceParameters(baseColor="#87b9ad", roughness=0.45)
         )
-        model = (world.mesh(mesh.torus(65, 20)).key("vessel")
-                 .fill(finish).rotateX(25))
-        lens = mesh.camera.Camera()
-        lens.eye = (0, 120, 420)
-        frame = world.Frame(world.kit.litSet(model, world.kit.Set(ground=0),
-                                             now=1))
-        still = ctx.bakeScene3D(frame, (640, 480), camera=lens,
-                            background="#141d25")
-        ctx.render(image(still) if still is not None else box())
+        self.torus = mesh.torus(65, 20)
+        ctx.camera(mesh.camera.Camera(eye=(0, 120, 420), target=(0, 0, 0)))
+
+    def describe(self, seconds: float) -> world.Frame:
+        model = (world.mesh(self.torus).key("vessel")
+                 .fill(self.finish).rotateX(25).rotateY(seconds * 20))
+        return world.Frame(world.kit.litSet(model, world.kit.Set(ground=0),
+                                            now=seconds))
 ```
+
+A scene2d sketch can still show one frame as a picture:
+`ctx.bakeScene3D(frame, size, camera=…, background=…, at=…)` draws it on
+the device the host brought up and answers `None` where there is none,
+and a class that bakes declares `needsDevice = True` on a line of its own
+so the host brings the device up before the sketch opens.
 
 A scene is typed nodes: `world.group(...)` holds children, given as
 variadic nodes or one iterable, including a tuple; `world.mesh(m)` is a body
@@ -1634,11 +1701,12 @@ A `Frame` names its camera by key, its environment —
 `world.kit.environmentMap(...)` bakes from a gradient and soft boxes — a
 pixel extent and passes. `geometryPass` writes named resources; `postPass`
 can read, blur, grade and composite them. Add a pass with
-`frame.pass_(pass_value)` and choose the image with
+`frame.pass_(pass_value)`, or hand the frame its passes as it is made with
+`world.Frame(scene, passes=[...])`, and choose the image with
 `frame.present("resource")`. Pass `reads` and `writes` accept variadic names
 or one iterable; `only` takes a collection's name or a `world.Collection`,
 whose `include` and `exclude` hold collection names and `/key` subtrees;
-`Selection.All` disables selection filtering. Invalid frame graphs raise `ValueError`, and so
+`Selection.None_`, the native `Selection::None`, disables selection filtering. Invalid frame graphs raise `ValueError`, and so
 does a frame that declares passes to a `Scene`, which has no device to run
 them on.
 
@@ -1664,8 +1732,8 @@ in `setup` and hold it. `page.render(tree)` is the pass that paints the tree
 as the maps of a surface — base colour, normal, roughness, metalness,
 occlusion, emission and clear coat, each where the tree's materials state
 them — and `page.surface()` is the material a body wears to show it. Put the
-pass on the frame the sketch bakes with `frame.pass_(...)`; the bake runs it
-at its moment, before anything draws a body, and a body wearing the surface
+pass on the frame `describe` returns with `frame.pass_(...)`; the frame runs
+it at its moment, before anything draws a body, and a body wearing the surface
 on a frame without the pass is an error naming both. Every lit material in
 the tree paints its own maps — a `surface(...)` fill, an `ink`, a
 `compose.relief(...)` decoration for raised or impressed type — and content
@@ -1679,21 +1747,23 @@ scene behind where the page transmits, and an `emissionStrength` past one
 keeps its light past white.
 
 ```python
-@sketch(size=(960, 540), capture_at=2.0)
+@sketch(size=(960, 540), captureAt=2.0)
 class Plaque:
-    needsDevice = True
-
-    def setup(self, ctx):
+    def setup(self, ctx: Scene3DContext) -> None:
         self.page = ctx.page((768, 384))
         self.plate = mesh.quad(320, 160)
+        ctx.camera(lens)
 
-    def draw(self, pen, ctx):
+    def describe(self, seconds: float) -> world.Frame:
         body = world.mesh(self.plate).key("plaque").fill(self.page.surface())
-        frame = world.Frame(world.group(light, body)).pass_(self.page.render(face()))
-        still = ctx.bakeScene3D(frame, (960, 540), camera=lens, at=pen.millis() / 1000)
-        if still is not None:
-            pen.image(still, 0, 0)
+        return world.Frame(world.group(light, body)).pass_(self.page.render(face()))
 ```
+
+A 2D picture that is its own light, or that lies over the finished frame,
+is a `compose.TextureScene`: `ctx.textureScene((width, height))` at setup,
+then in `describe` `screen.render(tree, seconds)` and `screen.texture()` in
+a material's slot or on the frame with `frame.overlay(...)`.
+`python_world_study` lays its words over its set that way.
 
 The device runtime itself, texture-map sets, point clouds,
 sweeps, custom pass callbacks and readbacks remain unbound; the Python API

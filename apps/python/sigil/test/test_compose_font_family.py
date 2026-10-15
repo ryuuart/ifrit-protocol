@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from sigil import media
-from sigil.sketch import render_file
+from sigil.sketch import renderFile
 
 SCENE = """from sigil.compose import SpanStyle, StyleSheet, box, rule, text
 from sigil.sketch import sketch
@@ -22,7 +22,7 @@ def words():
     return text(WORDS).fontSize(28).ink("#ffffff")
 
 
-@sketch(size=(320, 48), background="#000000", capture_at=0)
+@sketch(size=(320, 48), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
         if WHERE == "element":
@@ -43,7 +43,7 @@ class FontFamilyList(unittest.TestCase):
             source = Path(folder) / "scene.py"
             output = Path(folder) / "scene.png"
             source.write_text(SCENE.format(family=family, where=where))
-            render_file(source, output, at=0)
+            renderFile(source, output, at=0)
             return media.load(output).frameAt(0).image.rgba()
 
     def test_a_list_is_set_in_its_first_installed_family(self):

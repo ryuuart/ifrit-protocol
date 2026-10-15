@@ -7,7 +7,7 @@ TAGS: Motion/Animation, Drawing/Generative, Typography/Interface
 """
 
 from sigil.compose import box, column, text
-from sigil.compose import document as doc
+from sigil.compose import document
 from sigil.motion import Keyframe, Wiggle, animatable, animate, bind, ease, envelope
 from sigil.sketch import Scene2DContext, kit, sketch
 
@@ -71,8 +71,8 @@ def signal_row(number, title, detail, signal, accent):
                 .width(168)
                 .children(
                     text(f"0{number}").styleClass("control").ink(accent),
-                    doc.label(title),
-                    doc.caption(detail),
+                    document.label(title),
+                    document.caption(detail),
                 )
             ),
             track,
@@ -80,15 +80,15 @@ def signal_row(number, title, detail, signal, accent):
     )
 
 
-@sketch(size=(960, 800), capture_at=1.1)
+@sketch(size=(960, 800), captureAt=1.1)
 class MotionSignals:
     def setup(self, ctx: Scene2DContext) -> None:
         seconds = animatable(0)
         ctx.engine.timer(lambda delta, elapsed: seconds.set(elapsed))
         folded = bind(seconds, from_=(0, 5), wrap=1)
         cycle = (0, 5)
-        with kit.provide(kit.feature_theme(kit.Density.Spacious)):
-            kit.stage(ctx, size=(960, 800), capture_at=1.1)
+        with kit.provide(kit.featureTheme(kit.Density.Spacious)):
+            kit.stage(ctx, size=(960, 800), captureAt=1.1)
             rows = [
                 signal_row(
                     1,

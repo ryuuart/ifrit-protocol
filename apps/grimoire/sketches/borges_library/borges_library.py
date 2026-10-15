@@ -781,7 +781,7 @@ def label(
     return node
 
 
-@sketch(size=SIZE, background=GROUND, capture_at=4.0)
+@sketch(size=SIZE, background=GROUND, captureAt=4.0)
 class BorgesLibrary:
     def setup(self, ctx: Scene2DContext):
         self.seconds = animatable(0)
