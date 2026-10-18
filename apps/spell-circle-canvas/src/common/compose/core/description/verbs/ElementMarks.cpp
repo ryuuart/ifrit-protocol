@@ -95,7 +95,7 @@ Derived& DecorationVerbs<Derived>::decorationOutline(Boundary source,
 
 template <class Derived>
 Derived& DecorationVerbs<Derived>::stroke(material::Material material,
-                                          material::StrokeOptions options) {
+                                          StrokeOptions options) {
   std::optional<material::Material> surfaced =
       detail::surfacedForMaps(material);
   return foreground(Decoration(detail::MaterialStroke{

@@ -7,8 +7,8 @@
 // TAGS: Compose/Materials, Materials/Metal, Materials/Lighting,
 // Geometry/3D
 
-#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/verbs/Decoration.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -17,7 +17,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Builder.h>
 #include <sigilgeometry/path/Outline.h>
-#include <sigilgeometry/path/Profile.h>
+#include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
@@ -205,26 +205,18 @@ std::string svg(const std::vector<glm::vec2>& points) {
   return data;
 }
 
-/** A band along @p points, laid by @p brush. */
-Element band(const std::vector<glm::vec2>& points,
-             compose::brush::Ribbon brush) {
+/** A TRACE'S RUN: @p plating keylined along @p points, @p width wide,
+ *  rounded at its ends and its bends. The plating's relief and brushing
+ *  are cut from that same band. */
+Element run(const std::vector<glm::vec2>& points, float width,
+            material::Material plating) {
   return compose::kit::at(0, 0, kWidth, kDepth)
       .shape(compose::heldPath(path::Outline::svg(svg(points))))
-      .stroke(std::move(brush));
-}
-
-compose::brush::Ribbon ribbon(float width, compose::Fill fill) {
-  auto brush = compose::brush::ribbon(path::Profile{{0, width}, {1, width}},
-                                      std::move(fill));
-  brush.join = path::Join::Round;
-  return brush;
-}
-
-compose::brush::Ribbon ribbon(float width, material::Material plating) {
-  auto brush = compose::brush::ribbon(path::Profile{{0, width}, {1, width}},
-                                      std::move(plating));
-  brush.join = path::Join::Round;
-  return brush;
+      .stroke(std::move(plating),
+              {.width = width,
+               .position = material::StrokePosition::Center,
+               .cap = path::Cap::Round,
+               .join = path::Join::Round});
 }
 
 Element disc(glm::vec2 centre, float radius, compose::Fill fill) {
@@ -241,9 +233,10 @@ Element disc(glm::vec2 centre, float radius, material::Material finish) {
       .fill(std::move(finish));
 }
 
-/** THE PLATING'S HEIGHT, white highest: the board's glass weave low and
- *  faint, each trace a soft shoulder under a flat top with a slight
- *  crown, each pad a disc, each via's drill a pit. */
+/** THE BOARD'S HEIGHT, white highest: the glass weave low and faint,
+ *  each pad a disc with a soft shoulder, each via's drill a pit. The
+ *  traces stand on their own relief, cut from the bands they are keyed
+ *  into. */
 Element heightPage() {
   const auto weave =
       material::from(grey(.1f))
@@ -260,18 +253,6 @@ Element heightPage() {
                                         .stretch = .33f}),
                  {.blend = material::BlendMode::Multiply, .opacity = .35f});
   std::vector<Element> marks;
-  for (const Trace& trace : traces()) {
-    const auto points = spine(trace);
-    marks.push_back(
-        band(points, ribbon(trace.width + 6, compose::Fill::color(grey(.5f))))
-            .filter(material::Filter::blur(3)));
-    marks.push_back(
-        band(points, ribbon(trace.width, compose::Fill::color(grey(.62f))))
-            .filter(material::Filter::blur(1)));
-    marks.push_back(band(points, ribbon(trace.width * .45f,
-                                        compose::Fill::color(grey(.68f))))
-                        .filter(material::Filter::blur(trace.width * .2f)));
-  }
   for (const Pad& pad : pads()) {
     marks.push_back(
         disc(pad.at, pad.radius + 3, compose::Fill::color(grey(.5f)))
@@ -286,38 +267,6 @@ Element heightPage() {
       std::move(marks));
 }
 
-/** THE BRUSHING: every short leg of every spine painted in its own
- *  direction — red and green the direction as a normal map encodes one,
- *  green pointing up the page — at full strength in blue; the board and
- *  the pads stay at zero strength, so they are not brushed. */
-Element directionPage() {
-  std::vector<Element> legs;
-  for (const Trace& trace : traces()) {
-    const auto points = spine(trace);
-    for (size_t index = 0; index + 1 < points.size(); ++index) {
-      const glm::vec2 from = points[index], to = points[index + 1];
-      if (glm::length(to - from) < .01f) continue;
-      const glm::vec2 along = glm::normalize(to - from);
-      const material::Color direction{along.x * .5f + .5f, -along.y * .5f + .5f,
-                                      1, 1};
-      // Each leg reaches a little past its ends so the next one meets it
-      // without a seam on the outside of a bend.
-      const glm::vec2 reach = along * (trace.width * .5f);
-      legs.push_back(
-          band({from - reach, to + reach},
-               ribbon(trace.width + 10, compose::Fill::color(direction))));
-    }
-  }
-  for (const Pad& pad : pads())
-    legs.push_back(
-        disc(pad.at, pad.radius + 2, compose::Fill::color({.5f, .5f, 0, 1})));
-  return compose::stack()
-      .width(kWidth)
-      .height(kDepth)
-      .fill(material::Color{.5f, .5f, 0, 1})
-      .children(std::move(legs));
-}
-
 material::Material image(const std::shared_ptr<compose::TextureScene>& scene) {
   return material::image(scene->texture()
                              .tile(material::Repeat::Pad)
@@ -327,23 +276,27 @@ material::Material image(const std::shared_ptr<compose::TextureScene>& scene) {
 material::Color copperColour() { return hexColor(0xe08a5a); }
 material::Color silverColour() { return hexColor(0xd8dbe0); }
 
-/** THE PLATING: metal over the relief's normal, polished and brushed
- *  along the direction map. */
-material::Material plating(material::Color colour,
-                           const material::Material& normal,
-                           const material::Material& direction) {
-  return material::from(colour).surface({.metallic = 1.0f,
-                                         .roughness = .2f,
-                                         .normal = normal,
-                                         .anisotropy = .9f,
-                                         .anisotropyDirection = direction});
+/** A PAD'S PLATING: polished metal over the board's height. */
+material::Material padPlating(material::Color colour,
+                              const material::Material& normal) {
+  return material::from(colour).surface(
+      {.metallic = 1.0f, .roughness = .2f, .normal = normal});
 }
 
-/** THE COLOUR PAGE: the substrate dark and rough, each trace a ribbon of
+/** A TRACE'S PLATING: polished metal standing proud of the board on a
+ *  soft shoulder cut from the trace's own band, and brushed along it, so
+ *  its highlight turns with the trace through every bend. */
+material::Material tracePlating(material::Color colour) {
+  return material::from(colour)
+      .surface({.metallic = 1.0f, .roughness = .2f})
+      .relief({.shoulder = 4, .depth = .6f})
+      .brushed({.strength = .9f});
+}
+
+/** THE COLOUR PAGE: the substrate dark and rough, each trace a run of
  *  plating, each pad a polished disc with its drill dark, and two lines
  *  of silkscreen ink. */
-Element boardPage(const material::Material& height,
-                  const material::Material& direction) {
+Element boardPage(const material::Material& height) {
   const auto normal = material::surface::normalFromHeight(
       height, {.depth = 6, .step = .8f, .directX = true});
   const auto substrate =
@@ -358,14 +311,17 @@ Element boardPage(const material::Material& height,
                     .normal = normal,
                     .normalDirectX = true,
                     .specular = .6f});
-  const auto copper = plating(copperColour(), normal, direction);
-  const auto silver = plating(silverColour(), normal, direction);
+  const auto copper = tracePlating(copperColour());
+  const auto silver = tracePlating(silverColour());
+  const auto copperPad = padPlating(copperColour(), normal);
+  const auto silverPad = padPlating(silverColour(), normal);
   std::vector<Element> content;
   for (const Trace& trace : traces())
-    content.push_back(band(
-        spine(trace), ribbon(trace.width, trace.copper ? copper : silver)));
+    content.push_back(
+        run(spine(trace), trace.width, trace.copper ? copper : silver));
   for (const Pad& pad : pads()) {
-    content.push_back(disc(pad.at, pad.radius, pad.copper ? copper : silver));
+    content.push_back(
+        disc(pad.at, pad.radius, pad.copper ? copperPad : silverPad));
     if (pad.via)
       content.push_back(
           disc(pad.at, pad.radius * .5f,
@@ -408,7 +364,7 @@ gm::Mesh ring(float outer) {
 }
 
 struct MetalLinework {
-  std::shared_ptr<compose::TextureScene> height, direction;
+  std::shared_ptr<compose::TextureScene> height;
   sketch::Page board;
   Element boardTree = compose::stack();
   world::EnvironmentMap room;
@@ -433,10 +389,8 @@ struct MetalLinework {
                              .background = hexColor(0x0a0b0c)});
     height = ctx.textureScene({int(kWidth), int(kDepth)}, kBlack);
     height->render(heightPage());
-    direction = ctx.textureScene({int(kWidth), int(kDepth)}, {.5f, .5f, 0, 1});
-    direction->render(directionPage());
     board = ctx.page({int(kWidth), int(kDepth)});
-    boardTree = boardPage(image(height), image(direction));
+    boardTree = boardPage(image(height));
 
     slab = gm::box({-kWidth / 2, -24, -kDepth / 2},
                    {kWidth / 2, -.5f, kDepth / 2});

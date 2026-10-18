@@ -105,23 +105,6 @@ and a captured native text leaf, assert matching optical output, and make
 the near and broad halo roles visible when either strength is zero.
 
 
-## Authoring gap: material strokes separate cap and join control from surface relief
-
-`Element::stroke(Material, StrokeOptions)` states width and placement, but
-does not expose cap or join choices. `PathFormat` carries those geometry
-choices over a Fill, whose lowering preserves the colour stack rather than
-the full surface response. The `metal_linework` study therefore asks Skia
-for closed stroke coverage, retains it as a Compose shape and attaches
-outline relief to that shape. The geometry is correct, but a simple plated
-line requires several authoring steps.
-
-Wanted: a stroke over a full Material with the geometry library's cap and
-join values, and optional contour relief derived from that same coverage.
-A regression should compare its silhouette with Skia's stroke construction
-for round, miter and bevel joins and butt, round and square caps. Cover zero
-and fractional widths, miter limits, open and closed contours, clipped ends,
-signed relief and material effects.
-
 ## A sized light's highlight is a representative point's, not the lobe's integral
 
 `src/common/world/diligent/shaders/Surface.slang` lights the specular side

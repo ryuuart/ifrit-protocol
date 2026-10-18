@@ -24,7 +24,7 @@ glyphs is [`textStroke`](textStroke.md).
 
 ```cpp
 Element& stroke(Decoration brush, std::string name = {});
-Element& stroke(material::Material material, material::StrokeOptions options = {});
+Element& stroke(material::Material material, StrokeOptions options = {});
 Element& stroke(Spans where, Decoration what, std::string name = {});
 ```
 
@@ -32,6 +32,8 @@ Element& stroke(Spans where, Decoration what, std::string name = {});
 def stroke(self, decoration: DecorationLike, name: str = '') -> Element: ...
 def stroke(self, material: Material, width: float = 1,
            position: StrokePosition = ...) -> Element: ...
+def stroke(self, material: Material, options: StrokeOptions) -> Element: ...
+def stroke(self, color: ColorLike, options: StrokeOptions) -> Element: ...
 def stroke(self, spans: Spans, decoration: DecorationLike,
            name: str = '') -> Element: ...
 ```
@@ -43,6 +45,7 @@ def stroke(self, spans: Spans, decoration: DecorationLike,
 | `Decoration` | The mark: anything answering `paint(pen, PaintContext)`. | [`Decoration`](../../VALUES.md#the-marks), usually a [`PathFormat`](../types/PathFormat.md) |
 | `Spans` | Which runs of the boundary this pass claims. | [`Spans`](../../VALUES.md#the-marks): `spans::corners`, `spans::edges`, `spans::upTo`, `spans::every`, and `\|` between them |
 | `material::Material` | A keyline painted with a material, `options.width` wide on the side `options.position` names (`Outside` by default). An open contour has no inside and so no side: it takes one band centred on it. | a colour, a gradient, `material::from(…).layer(…)` |
+| `StrokeOptions` | How the keyline is widened: `width`, `position`, the `cap` an open contour ends with (`Butt` by default), the `join` its corners meet with (`Miter` by default) and the `miterLimit`, in widths, past which a miter is bevelled (4 by default). Cap and join are `geometry::path::Cap` and `geometry::path::Join`. | `{.width = 14, .cap = geometry::path::Cap::Round}`; in Python `compose.StrokeOptions(width=14, cap=path.Cap.Round)` |
 | `name` | A LOCAL label for this mark, for `parts::named` and `spans::rest(name)`. | Any string; it is not a query key |
 
 In Python a decoration is a `compose.Decoration`, a `compose.PathFormat`
@@ -85,6 +88,18 @@ a further mask over the marks cuts this pass to the intersection, which
 is how reticle brackets light up as a sweep reaches them. The one thing
 the pass form does that the mask spelling does not is claim its run and
 join the overlap check.
+
+**A material keyline is the silhouette Skia strokes.** Every cap and
+join, the miter limit and a fractional width cut the band Skia's stroker
+cuts; on a side of a closed contour the band is that stroke at twice the
+width, kept on that side. A width of zero or less draws nothing, where
+Skia would draw a hairline. The band is also the unit the material reads:
+a `material::Material::relief` is cut from it, caps and corners included,
+with positive depth raising it and negative impressing it, and a
+`material::Material::brushed` runs along the outline's tangent. On a page
+painted as surface maps the keyline paints its material's map there, so a
+rough metal keyline lays its roughness and its metal over exactly that
+band.
 
 **Decorations dress the outline, and `overflow` does not clip them.** A clip
 cuts the fill, the content and the children; an outer stroke, a glow and

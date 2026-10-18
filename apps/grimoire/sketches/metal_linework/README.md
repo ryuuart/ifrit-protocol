@@ -9,13 +9,13 @@ trace's own direction. Copper and silver runs stand a little proud of
 the board with soft shoulders, annular vias stand on their pads as real
 plated rings that throw short shadows, solder beads at the connector
 pads catch a bright point each, and one silver line carries a pulse of
-light that runs its length and blooms. The effects that make it are a
-page whose height map becomes the plating's normal, an anisotropy
-direction map painted from the same spines the traces are drawn along,
-roughness that parts the polished plating from the rough substrate,
-revolved rings and superellipsoid beads under a swinging key and a soft
-panel the plating mirrors, and an emissive stamp chain riding one spine
-with a bloom pass.
+light that runs its length and blooms. The effects that make it are
+material keylines whose relief and brushing are cut from the band each
+trace covers, a page whose height map becomes the board's and the pads'
+normal, roughness that parts the polished plating from the rough
+substrate, revolved rings and superellipsoid beads under a swinging key
+and a soft panel the plating mirrors, and an emissive stamp chain riding
+one spine with a bloom pass.
 
 ## What it shows
 
@@ -33,17 +33,19 @@ line once a loop.
 - **The spines** are corner lists filleted into dense polylines, written
   as SVG for Compose and lifted to 3D for the pulse, so every layer reads
   the same routes.
-- **The height page** (`compose::brush::ribbon` along each spine, wide and
-  blurred for the shoulder, narrow for the crown; pads as discs; a
-  `material::noise` grain stretched both ways for the weave) feeds
-  `material::surface::normalFromHeight`.
-- **The direction page** strokes each short leg of every spine in its own
-  direction, encoded as a normal map is, with blue the brushing's
-  strength; it is the plating's `anisotropyDirection` under
-  `anisotropy` near one. Pads carry no brushing.
-- **The colour page** (`sketch::Page`) fills the substrate rough and dark
-  and draws each trace as a ribbon of copper or silver plating, metallic
-  and polished; the silkscreen caption is flat ink on the substrate.
+- **The traces** are material keylines along the spines,
+  `stroke(plating, {.width, .cap = Round, .join = Round})`: the plating
+  is metallic and polished, its `relief` raises the band the keyline cuts
+  on a soft shoulder, and `brushed` runs its anisotropy along the
+  keyline's tangent, so the brushing turns with every bend without a map
+  of its own.
+- **The height page** (pads as discs, drills as pits, a `material::noise`
+  grain stretched both ways for the weave) feeds
+  `material::surface::normalFromHeight` for the substrate and the pads.
+  Pads carry no brushing.
+- **The colour page** (`sketch::Page`) fills the substrate rough and dark,
+  lays the traces and the pads over it, and sets the silkscreen caption
+  as flat ink on the substrate.
 - **The bodies**: vias are `gm::revolve`d rings standing on their pads,
   solder beads are `gm::superellipsoid`s, the board is a `gm::box` slab
   under the page.

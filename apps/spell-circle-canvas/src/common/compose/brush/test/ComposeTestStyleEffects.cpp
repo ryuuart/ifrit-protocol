@@ -44,7 +44,8 @@ TEST(ComposeStyleEffects, StrokesKeepOnlyTheStatedSideOfTheOutline) {
       const material::StrokeOptions options{.width = 8, .position = position};
       Element node = box().fill(Fill::color(kGrey));
       if (materialStroke)
-        node.stroke(material::from(red), options);
+        node.stroke(material::from(red),
+                    {.width = options.width, .position = options.position});
       else
         node.fill(material::from(kGrey).effects(
             material::Filter::stroke(red, options)));

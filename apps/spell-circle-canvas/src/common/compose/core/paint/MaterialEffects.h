@@ -9,6 +9,7 @@
 
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Shape.h>
+#include <sigilcompose/core/verbs/Decoration.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/filter/Filter.h>
 
@@ -40,7 +41,7 @@ struct CoverageMark {
  *  page painted as surface maps. */
 struct MaterialStroke {
   material::Paint source;
-  material::StrokeOptions options;
+  StrokeOptions options;
   std::optional<material::Material> surfaced;
   bool operator==(const MaterialStroke&) const = default;
   bool isRunning() const;
@@ -49,12 +50,9 @@ struct MaterialStroke {
    *  closed contour stays within it, but an open contour has no inside and
    *  takes one band centred on it, half of it past a box edge the curve
    *  runs along; the outline is not known here, so inside answers that
-   *  half. */
-  float bleed() const {
-    return options.position == material::StrokePosition::Inside
-               ? options.width / 2
-               : options.width;
-  }
+   *  half. A square cap reaches its half width past the end on either
+   *  side of it, and a mitred corner up to its limit. */
+  float bleed() const;
   void paint(draw::Pen& pen, const PaintContext& context) const;
 };
 

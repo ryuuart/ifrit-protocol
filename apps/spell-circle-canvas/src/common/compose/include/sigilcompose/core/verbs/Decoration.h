@@ -10,6 +10,7 @@
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/filter/Filter.h>
 
@@ -17,6 +18,31 @@
 #include <string>
 
 namespace sigil::compose {
+
+/** HOW A MATERIAL KEYLINE IS WIDENED from the outline it dresses: how wide,
+ *  on which side, how an open contour ends and how corners meet — the
+ *  decisions Skia's stroker makes, in the geometry library's words, so the
+ *  band is the silhouette Skia strokes. A closed contour has no ends and
+ *  reads no cap. What the band looks like is its material's: a
+ *  `material::Material::relief` is cut from this band's own coverage and a
+ *  `material::Material::brushed` runs along the outline's tangent. */
+struct StrokeOptions {
+  /** Local pixels across the band. Zero or less draws nothing. */
+  float width = 1;
+  /** Which side of a closed contour the band stands on. An open contour
+   *  has no inside, so its band is centred on it whatever this says. */
+  material::StrokePosition position = material::StrokePosition::Outside;
+  /** How an open contour's band ends: flush, a half-width arc past the
+   *  end, or a half-width square. */
+  geometry::path::Cap cap = geometry::path::Cap::Butt;
+  /** How the band meets itself at a corner of the outline. */
+  geometry::path::Join join = geometry::path::Join::Miter;
+  /** How long a mitred corner may grow, as a multiple of the band's width
+   *  measured from its inner to its outer point, before it is bevelled
+   *  instead; read under `Join::Miter` alone. */
+  float miterLimit = 4;
+  bool operator==(const StrokeOptions&) const = default;
+};
 
 /** THE DECORATION SLOTS. Backgrounds paint below the fill, overlays
  *  above it and below the content and children, foregrounds above
@@ -50,11 +76,11 @@ class DecorationVerbs {
    *  unqualified strokes always paint under the span passes. */
   Derived& stroke(Decoration brush, std::string name = {});
   /** A KEYLINE around the node's boundary painted with @p material, @p
-   *  options' width wide on the side it names (outside by default). An
-   *  open contour has no inside and so no side: it takes one band of that
-   *  width centred on it. It appends to the foregrounds as a brush does. */
-  Derived& stroke(material::Material material,
-                  material::StrokeOptions options = {});
+   *  options' width wide on the side it names (outside by default), its
+   *  ends and corners as @p options state. An open contour has no inside
+   *  and so no side: it takes one band of that width centred on it. It
+   *  appends to the foregrounds as a brush does. */
+  Derived& stroke(material::Material material, StrokeOptions options = {});
   /** THE STROKE SLOT: `where` on the boundary, painted by `what`.
    *  Span-qualified passes CLAIM the runs they resolve to, and two
    *  claims that overlap are reported out loud, naming both passes and

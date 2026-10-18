@@ -179,57 +179,73 @@ SkPath insideOf(const PaintContext& context, const SkPath& closed) {
                                     : geometry::path::toSk(context.silhouette);
 }
 
-/** Strokes @p outline with @p paint on the side @p position names. An open
- *  contour has no side, so it is stroked centred at the stated width. */
-void strokeSide(SkCanvas& canvas, const PaintContext& context, SkPaint paint,
-                float width, material::StrokePosition position) {
+/** @p paint widened as @p options state: their width, the cap an open
+ *  contour ends with, and the join and miter limit its corners meet with. */
+SkPaint widened(SkPaint paint, const StrokeOptions& options, float width) {
   paint.setStyle(SkPaint::kStroke_Style);
+  paint.setStrokeWidth(width);
+  paint.setStrokeCap(geometry::path::toSk(options.cap));
+  paint.setStrokeJoin(geometry::path::toSk(options.join));
+  paint.setStrokeMiter(options.miterLimit);
+  return paint;
+}
+
+/** Whether @p options state a band at all: a width of zero or less, or one
+ *  that is not a number, draws nothing rather than Skia's hairline. */
+bool drawsBand(const StrokeOptions& options) {
+  return options.width > 0 && std::isfinite(options.width);
+}
+
+/** Strokes @p outline with @p paint on the side @p options name. An open
+ *  contour has no side, so it is stroked centred at the stated width. */
+void strokeSide(SkCanvas& canvas, const PaintContext& context,
+                const SkPaint& paint, const StrokeOptions& options) {
+  if (!drawsBand(options)) return;
+  const float width = options.width;
   const ContoursBySide contours =
       contoursBySide(geometry::path::toSk(context.outline));
-  if (!contours.open.isEmpty()) {
-    SkPaint centred = paint;
-    centred.setStrokeWidth(width);
-    canvas.drawPath(contours.open, centred);
-  }
+  if (!contours.open.isEmpty())
+    canvas.drawPath(contours.open, widened(paint, options, width));
   if (contours.closed.isEmpty()) return;
   canvas.save();
   // Inside or outside: clip to that side and stroke at double width, so
-  // the half that is kept is the stated width.
-  switch (position) {
+  // the half that is kept is the stated width. A miter limit is a ratio of
+  // the width, so the doubled band's corners are the stated band's.
+  float stroked = width * 2;
+  switch (options.position) {
     case material::StrokePosition::Inside:
       canvas.clipPath(insideOf(context, contours.closed), true);
-      paint.setStrokeWidth(width * 2);
       break;
     case material::StrokePosition::Outside:
       canvas.clipPath(insideOf(context, contours.closed), SkClipOp::kDifference,
                       true);
-      paint.setStrokeWidth(width * 2);
       break;
     case material::StrokePosition::Center:
-      paint.setStrokeWidth(width);
+      stroked = width;
       break;
   }
-  canvas.drawPath(contours.closed, paint);
+  canvas.drawPath(contours.closed, widened(paint, options, stroked));
   canvas.restore();
 }
 
-/** The band a keyline @p width wide on the side @p position names covers
- *  around @p outline, whose inside is @p shape when it is not empty and
- *  otherwise the outline's closed contours. An open contour's band is
- *  centred on it, as `strokeSide` draws it. */
-SkPath strokeBand(const SkPath& outline, const SkPath& shape, float width,
-                  material::StrokePosition position) {
+/** The band a keyline as @p options state covers around @p outline, whose
+ *  inside is @p shape when it is not empty and otherwise the outline's
+ *  closed contours. An open contour's band is centred on it, as
+ *  `strokeSide` draws it. */
+SkPath strokeBand(const SkPath& outline, const SkPath& shape,
+                  const StrokeOptions& options) {
+  if (!drawsBand(options)) return {};
+  const float width = options.width;
   const ContoursBySide contours = contoursBySide(outline);
-  SkPaint centred;
-  centred.setStyle(SkPaint::kStroke_Style);
-  centred.setStrokeWidth(width);
-  const SkPath openBand =
-      skpathutils::FillPathWithPaint(contours.open, centred);
+  const SkPath openBand = skpathutils::FillPathWithPaint(
+      contours.open, widened(SkPaint(), options, width));
   if (contours.closed.isEmpty()) return openBand;
-  SkPaint stroke = centred;
-  stroke.setStrokeWidth(
-      position == material::StrokePosition::Center ? width : width * 2);
-  SkPath band = skpathutils::FillPathWithPaint(contours.closed, stroke);
+  const material::StrokePosition position = options.position;
+  SkPath band = skpathutils::FillPathWithPaint(
+      contours.closed,
+      widened(SkPaint(), options,
+              position == material::StrokePosition::Center ? width
+                                                           : width * 2));
   if (position != material::StrokePosition::Center) {
     const SkPath& inside = shape.isEmpty() ? contours.closed : shape;
     band =
@@ -291,8 +307,9 @@ void CoverageMark::paint(draw::Pen& pen, const PaintContext& context) const {
       return;
     }
     case Step::Stroke:
-      strokeSide(canvas, context, painted(effect.color), effect.stroke.width,
-                 effect.stroke.position);
+      strokeSide(canvas, context, painted(effect.color),
+                 {.width = effect.stroke.width,
+                  .position = effect.stroke.position});
       return;
     case Step::Bevel: {
       const material::BevelOptions& bevel = effect.bevel;
@@ -352,6 +369,19 @@ void CoverageMark::paintBevelFace(draw::Pen& pen,
   pen.canvas()->drawPath(shapeOf(context), paint);
 }
 
+float MaterialStroke::bleed() const {
+  const float width = std::max(options.width, 0.0f);
+  const float miter = options.join == geometry::path::Join::Miter
+                          ? std::max(options.miterLimit, 1.0f)
+                          : 1.0f;
+  const float cap =
+      options.cap == geometry::path::Cap::Square ? std::sqrt(2.0f) : 1.0f;
+  // An open contour's band, centred on it, is the one a cap ends.
+  const float centred = width / 2 * std::max(miter, cap);
+  if (options.position == material::StrokePosition::Inside) return centred;
+  return std::max(centred, width * miter);
+}
+
 bool MaterialStroke::isRunning() const {
   return surfaced ? surfaced->isRunning() : source.isRunning();
 }
@@ -391,7 +421,7 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
                        context.silhouette.empty()
                            ? SkPath()
                            : geometry::path::toSk(context.silhouette),
-                       options.width, options.position);
+                       options);
         unit.density = density;
         if (surfaced->surface()->anisotropyAlongUnit)
           unit.directionMap = tangentAlong(
@@ -408,8 +438,7 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
     if (!shader) return;
     stroke.setShader(shader);
     markSurfaceMap(stroke);
-    strokeSide(canvas, context, std::move(stroke), options.width,
-               options.position);
+    strokeSide(canvas, context, stroke, options);
     return;
   }
   if (source.isSolid()) {
@@ -420,8 +449,7 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
   } else {
     return;
   }
-  strokeSide(canvas, context, std::move(stroke), options.width,
-             options.position);
+  strokeSide(canvas, context, stroke, options);
 }
 
 EffectMarks effectMarksOf(const material::Filter& effects) {

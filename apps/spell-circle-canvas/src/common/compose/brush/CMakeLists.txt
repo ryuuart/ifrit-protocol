@@ -29,7 +29,7 @@ sigil_test(compose_test
           test/ComposeTestPaintValues.cpp test/ComposeTestFields.cpp
           test/ComposeTestPixelStyles.cpp test/ComposeTestStyleEffects.cpp
           test/ComposeTestStrokePresets.cpp test/ComposeTestRelief.cpp
-          test/ComposeTestReliefRibbon.cpp
+          test/ComposeTestReliefRibbon.cpp test/ComposeTestMaterialStroke.cpp
           test/ComposeTestTextAndLayout.cpp
           test/ComposeTestTextureBake.cpp test/ComposeTestTemporalCache.cpp
           test/ComposeTestGroupBake.cpp
