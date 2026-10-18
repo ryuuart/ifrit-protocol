@@ -327,9 +327,9 @@ BENCHMARK(BM_Draw_DenseText_TextureBlit_Graphite);
  *  atlas cardinality this produces is the library's, not the benchmark's.
  *
  *  To price atlas eviction, run this arm once at the default atlas budget
- *  and again with SIGILSKIA_GLYPH_ATLAS_BYTES set to something smaller
- *  (the environment knob makeContextOptions reads); the difference between
- *  the two runs is the eviction cost. */
+ *  and again after `skia::GraphiteContext::capGlyphAtlas(bytes)` with a
+ *  smaller budget; the difference between the two runs is the eviction
+ *  cost. */
 static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
   const int lines = (int)state.range(0);
   GraphiteTarget target(state, 800, 1200);

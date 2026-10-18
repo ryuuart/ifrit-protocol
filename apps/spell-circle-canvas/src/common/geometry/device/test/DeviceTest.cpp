@@ -34,14 +34,19 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <initializer_list>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "GraphiteReadback.h"
 #include "OnDevice.h"
+#include "ScratchDir.h"
 
 using namespace sigil;
 
@@ -376,6 +381,68 @@ TEST(Device, DiligentSideStandsOnItsOwn) {
   EXPECT_EQ(d->renderDevice()->GetDeviceInfo().Type,
             Diligent::RENDER_DEVICE_TYPE_VULKAN);
   EXPECT_TRUE(clearThroughDiligent(*d));
+}
+
+/** THE KEPT PIPELINES ARE HANDED TO THE DRIVER ONLY AS A DRIVER WROTE
+ *  THEM. The driver rebuilds every shader library a kept set holds while
+ *  the device is made and trusts what it rebuilds, so a set torn by two
+ *  processes closing at once, cut short, or written by anything else is
+ *  refused before the driver reads it: the device comes up on an empty
+ *  cache, and what it keeps when it goes reads back whole. */
+TEST(Device, AKeptPipelineSetThatDoesNotHoldIsRefusedBeforeTheDriverReadsIt) {
+  SIGIL_ON_DEVICE_OR_SKIP(shared);
+  const sigil::test::ScratchDir store("sigil_device_pipeline_store");
+  const std::filesystem::path file = store.path / "device pipelines.bin";
+  const auto writeFile = [&](const std::vector<char>& bytes) {
+    std::ofstream out(file, std::ios::binary | std::ios::trunc);
+    out.write(bytes.data(), (std::streamsize)bytes.size());
+  };
+  const auto readFile = [&] {
+    std::ifstream in(file, std::ios::binary);
+    return std::vector<char>(std::istreambuf_iterator<char>(in),
+                             std::istreambuf_iterator<char>());
+  };
+  geometry::device::DeviceConfig config;
+  config.pipelineStore = store.path;
+
+  // Bytes no driver wrote.
+  std::vector<char> foreign(4096);
+  for (size_t at = 0; at < foreign.size(); ++at)
+    foreign[at] = (char)((at * 131u + 7u) & 0xff);
+  writeFile(foreign);
+  {
+    std::string error;
+    const auto device = geometry::device::Device::create(config, &error);
+    ASSERT_TRUE(device) << error;
+    EXPECT_NE(device->pipelineStateCache(), nullptr);
+  }
+  const std::vector<char> kept = readFile();
+  ASSERT_GT(kept.size(), 8u) << "the device kept nothing when it went";
+  EXPECT_EQ(std::string(kept.data(), 8), "SigilPSO") << "kept unframed";
+  for (const auto& entry : std::filesystem::directory_iterator(store.path))
+    EXPECT_EQ(entry.path(), file) << "a partial write was left behind";
+
+  // A whole set, read back by the next device.
+  {
+    std::string error;
+    const auto device = geometry::device::Device::create(config, &error);
+    ASSERT_TRUE(device) << error;
+    EXPECT_NE(device->pipelineStateCache(), nullptr);
+  }
+
+  // The same set torn: its first half followed by bytes another writer
+  // left at the same offsets.
+  std::vector<char> torn = readFile();
+  for (size_t at = torn.size() / 2; at < torn.size(); ++at)
+    torn[at] = foreign[at % foreign.size()];
+  writeFile(torn);
+  {
+    std::string error;
+    const auto device = geometry::device::Device::create(config, &error);
+    ASSERT_TRUE(device) << error;
+    EXPECT_NE(device->pipelineStateCache(), nullptr);
+  }
+  EXPECT_EQ(std::string(readFile().data(), 8), "SigilPSO");
 }
 
 // ---------------------------------------------------------------------------
@@ -756,8 +823,19 @@ TEST(AdoptedGraphite, RenderTargetClearsAndReadsBack) {
 // reject what the original order buried; where the destination read costs
 // the depth attachment, the blending fill lands over the box that was
 // described after it and the box comes back with a hole in it.
-// PaintOrder.h states the whole of it. The claim here is the one a plate
-// is judged on: the device picture is the CPU's, pixel for pixel.
+// The claim here is the one a plate is judged on: the device picture is
+// the CPU's, pixel for pixel.
+#ifdef __APPLE__
+// Vulkan on an Apple platform is MoltenVK, the driver that loses depth
+// across the restart a destination read costs, so its context is fenced.
+TEST(AdoptedGraphite, OnAppleTheVulkanContextIsFencedForItsDriver) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  skia::GraphiteContext* ctx = vulkanGraphite(*on);
+  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+  EXPECT_TRUE(skia::PaintOrderCanvas::needed(*ctx));
+}
+#endif
+
 TEST(AdoptedGraphite, PaintingOrderHoldsThroughADestinationRead) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
   skia::GraphiteContext* ctx = vulkanGraphite(*on);
