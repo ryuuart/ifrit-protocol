@@ -67,7 +67,7 @@
         "declares. Raise both together."
       ],
       "name": "skia",
-      "version>=": "151#5",
+      "version>=": "151#6",
       "features": [
         "avif",
         "default-visibility",
