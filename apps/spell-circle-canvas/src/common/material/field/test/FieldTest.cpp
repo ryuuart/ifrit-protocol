@@ -174,10 +174,10 @@ TEST(Field, CellularNoiseHasASlangSurface) {
   EXPECT_NE(built.uniform("uResolution"), nullptr);
 }
 
-// The noise, the halftone ramp and the ripple are the same fields on a
-// device: each compiles as a surface reading the numbers the page's body
-// reads, at the region's size.
-TEST(Field, NoiseHalftoneAndRippleHaveSlangSurfaces) {
+// The noise, the halftone ramp, the ripple and the grain are the same
+// fields on a device: each compiles as a surface reading the numbers the
+// page's body reads.
+TEST(Field, NoiseHalftoneRippleAndGrainHaveSlangSurfaces) {
   const struct {
     const char* name;
     Material material;
@@ -192,6 +192,9 @@ TEST(Field, NoiseHalftoneAndRippleHaveSlangSurfaces) {
       {"ripple",
        field::ripple(3, 20, 0.5f),
        {"uAmp", "uFreq", "uPhase", "uResolution"}},
+      {"grain",
+       field::grain(0.3f, 3, 4.0f, 1.5f),
+       {"uFreq", "uSeed", "uContrast"}},
   };
   for (const auto& each : cases) {
     slang::Compiled built;

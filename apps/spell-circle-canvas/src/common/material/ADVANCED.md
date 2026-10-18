@@ -295,9 +295,16 @@ not, a GPU backend inlines the whole tree of effects into one fragment
 program, and Metal binds fragment textures at sixteen indices — so a
 program carrying another language's slots spends a device's whole budget
 on samplers it never reads. `skia::samplerCount(material)` is what one
-lowering asks for, `skia::kSamplerLimit` is what a program may declare,
-and a tree over it is refused with both counts named rather than built
-into a pipeline the driver silently rejects.
+lowering asks for, `skia::samplerCount(paint)` what a lowered paint's tree
+holds, `skia::kSamplerLimit` is what a program may declare, and a tree
+over it is refused with both counts named rather than built into a
+pipeline the driver silently rejects. The rule holds for every program
+built from a material: a recipe's builder, a colour stack lowered to one
+paint, and each surface map pass. A surface map pass binds the colour
+stack and only the channels its own role samples — never more than three
+— so a surface whose colour and channel maps sample more textures in all
+than one program may hold still has every map drawn, and only a role
+whose own inputs pass the limit is refused.
 
 **A leaf is a child no recipe computes.** `Leaf` is the core's seam for
 an image with its sampling, a rendered frame, anything a backend binds

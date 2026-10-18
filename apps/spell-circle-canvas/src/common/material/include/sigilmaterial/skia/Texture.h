@@ -42,8 +42,7 @@ sk_sp<SkShader> shader(const Texture& texture, const FrameData& frame);
 
 /** The filter Skia reads a texture between pixels with. */
 SkFilterMode toSkFilterMode(Sampling sampling);
-/** A pixel rectangle as Skia's, and back. */
+/** A pixel rectangle as Skia's. */
 SkIRect toSkIRect(const PixelRect& rect);
-PixelRect toPixelRect(const SkIRect& rect);
 
 }  // namespace sigil::material::skia

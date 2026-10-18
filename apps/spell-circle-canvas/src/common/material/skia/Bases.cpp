@@ -11,8 +11,10 @@
 #include <include/core/SkString.h>
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilshaders/MaterialSkia.h>
 
 #include <string>
@@ -172,9 +174,80 @@ bool detail::paintUsesWorldSpace(const Material& material) {
   return false;
 }
 
-Paint paint(const Material& material) { return lowerPaint(material, true); }
+int PaintAccess::samplerCount(const Paint& paint) {
+  if (paint.m_isSolid) return 0;
+  if (paint.m_backed) return skia::samplerCount(paint.m_backed->material);
+  int count = 0;
+  if (paint.m_recipe) {
+    switch (paint.m_recipe->kind) {
+      case Paint::Recipe::Kind::Image:
+      case Paint::Recipe::Kind::Buffer:
+        count += 1;
+        break;
+      case Paint::Recipe::Kind::Blend:
+        for (const auto& [layer, mode] : paint.m_recipe->layers)
+          count += samplerCount(layer);
+        break;
+      default:
+        break;
+    }
+  }
+  if (paint.m_live) {
+    for (const auto& [name, child] : paint.m_live->slots)
+      count += samplerCount(child);
+  } else if (!paint.m_recipe) {
+    // A raw shader says what it is only when it is one image.
+    if (const sk_sp<SkShader>& shader = snapshot(paint);
+        shader && shader->isAImage())
+      count += 1;
+  }
+  return count;
+}
+
+int samplerCount(const Paint& paint) {
+  return PaintAccess::samplerCount(paint);
+}
+
+int detail::baseSamplerCount(const Material& material) {
+  const auto* part = dynamic_cast<const PaintPart*>(material.source());
+  return part ? samplerCount(part->paint) : 0;
+}
+
+namespace {
+
+/** Whether @p material's colour stack, lowered as one shader, stays within
+ *  the samplers one fragment program may declare — said once, with both
+ *  counts, when it does not. A recipe standing alone is not asked here:
+ *  its builder refuses it by the same rule. */
+bool stackWithinSamplerLimit(const Material& material) {
+  if (!material.isComposed()) return true;
+  const int samplers = samplerCount(material);
+  if (samplers <= kSamplerLimit) return true;
+  const std::string base = material.hasProgram()
+                               ? "recipe \"" + material.recipe().name() + "\""
+                               : std::string("a paint");
+  reportOnce("samplers:stack:" + base + ":" + std::to_string(samplers),
+             "a colour stack of " + std::to_string(material.layers().size()) +
+                 " layers over " + base + " lowers to " +
+                 std::to_string(samplers) +
+                 " image samplers and a fragment program may declare " +
+                 std::to_string(kSamplerLimit) + ", so it is not painted");
+  return false;
+}
+
+}  // namespace
+
+// REFUSED HERE, LOUDLY, RATHER THAN ON THE DEVICE, QUIETLY. A colour stack
+// lowers to one shader, which a GPU backend inlines into one fragment
+// program; past the sampler limit the driver rejects that program, the pass
+// is dropped and nothing names the material that asked.
+Paint paint(const Material& material) {
+  if (!stackWithinSamplerLimit(material)) return {};
+  return lowerPaint(material, true);
+}
 
 Paint PaintAccess::prepareMaterial(const Material& material) {
+  if (!stackWithinSamplerLimit(material)) return {};
   return lowerPaint(material, false);
 }
 

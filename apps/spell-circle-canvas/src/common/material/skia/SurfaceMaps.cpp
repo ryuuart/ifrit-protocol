@@ -10,8 +10,10 @@
 #include <include/core/SkString.h>
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
@@ -20,7 +22,9 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 
@@ -103,16 +107,103 @@ std::optional<size_t> surfaceMapIndex(texture::Role role) {
 /** The number of roles a surface map pass answers. */
 constexpr size_t kSurfaceMapRoles = 19;
 
+/** The role at each position, as a refusal names it. */
+constexpr std::array<std::string_view, kSurfaceMapRoles> kSurfaceMapRoleNames{
+    "base colour",     "normal",
+    "roughness",       "metallic",
+    "occlusion",       "emission",
+    "packed",          "clear coat",
+    "sheen",           "sheen and specular",
+    "specular colour", "anisotropy",
+    "iridescence",     "clear coat normal",
+    "transmission",    "thickness",
+    "distortion",      "volume",
+    "attenuation"};
+
+/** THE CHANNEL INPUTS THE PASS FOR THE ROLE AT @p index SAMPLES, beside
+ *  the colour stack every role samples for its coverage. A pass binds
+ *  these and leaves every other child of the program empty: a device
+ *  inlines each bound child into the one fragment program, so a pass
+ *  binding every channel would spend the surface's whole budget of image
+ *  samplers on the maps of roles it never writes. No role samples more
+ *  than three channels. */
+std::span<const std::string_view> channelSlotsSampled(size_t index) {
+  static constexpr std::string_view kNormal[] = {"uNormal"};
+  static constexpr std::string_view kRoughness[] = {"uRoughnessMap"};
+  static constexpr std::string_view kMetallic[] = {"uMetallicMap"};
+  static constexpr std::string_view kOcclusion[] = {"uOcclusionMap"};
+  static constexpr std::string_view kEmission[] = {"uEmissionMap"};
+  static constexpr std::string_view kPacked[] = {
+      "uOcclusionMap", "uRoughnessMap", "uMetallicMap"};
+  static constexpr std::string_view kClearcoat[] = {"uClearcoatMap",
+                                                    "uClearcoatRoughnessMap"};
+  static constexpr std::string_view kSheen[] = {"uSheenColorMap"};
+  static constexpr std::string_view kSheenSpecular[] = {"uSheenRoughnessMap",
+                                                        "uSpecularMap"};
+  static constexpr std::string_view kSpecularColor[] = {"uSpecularColorMap"};
+  static constexpr std::string_view kAnisotropy[] = {"uAnisotropyMap"};
+  static constexpr std::string_view kIridescence[] = {
+      "uIridescenceMap", "uIridescenceThicknessMap"};
+  static constexpr std::string_view kClearcoatNormal[] = {"uClearcoatNormal"};
+  static constexpr std::string_view kTransmission[] = {"uTransmissionMap"};
+  static constexpr std::string_view kThickness[] = {"uThicknessMap"};
+  static constexpr std::string_view kDistortion[] = {"uDistortionMap"};
+  switch (index) {
+    case 1:
+      return kNormal;
+    case 2:
+      return kRoughness;
+    case 3:
+      return kMetallic;
+    case 4:
+      return kOcclusion;
+    case 5:
+      return kEmission;
+    case 6:
+      return kPacked;
+    case 7:
+      return kClearcoat;
+    case 8:
+      return kSheen;
+    case 9:
+      return kSheenSpecular;
+    case 10:
+      return kSpecularColor;
+    case 11:
+      return kAnisotropy;
+    case 12:
+      return kIridescence;
+    case 13:
+      return kClearcoatNormal;
+    case 14:
+      return kTransmission;
+    case 15:
+      return kThickness;
+    case 16:
+      return kDistortion;
+    default:
+      return {};
+  }
+}
+
+/** Whether the pass for the role at @p index samples the child @p slot. */
+bool samplesChannel(size_t index, std::string_view slot) {
+  for (std::string_view sampled : channelSlotsSampled(index))
+    if (sampled == slot) return true;
+  return false;
+}
+
 /** The listener standing on this thread, innermost first. */
 thread_local LobeListener* tCurrentListener = nullptr;
 
-/** A colour channel into the pass: its map in the slot and white, or its
- *  colour with no map. */
-void colorChannel(Paint& pass, const ColorInput& value,
+/** A colour channel into the pass for the role at @p index: its map in
+ *  the slot, when that role samples it, and white; or its colour with no
+ *  map. */
+void colorChannel(Paint& pass, size_t index, const ColorInput& value,
                   const std::optional<Paint>& lowered, const char* map,
                   const char* hasMap, const char* colour) {
   if (lowered) {
-    PaintAccess::storeSlot(pass, map, *lowered);
+    if (samplesChannel(index, map)) PaintAccess::storeSlot(pass, map, *lowered);
     PaintAccess::storeUniform(pass, hasMap, 1.0f);
     PaintAccess::storeUniform(pass, colour, Color{1, 1, 1, 1});
   } else {
@@ -121,13 +212,14 @@ void colorChannel(Paint& pass, const ColorInput& value,
   }
 }
 
-/** A channel into the pass: its map in the slot and a factor of one, or
- *  its number with no map. */
-void channel(Paint& pass, const Channel& value,
+/** A channel into the pass for the role at @p index: its map in the slot,
+ *  when that role samples it, and a factor of one; or its number with no
+ *  map. */
+void channel(Paint& pass, size_t index, const Channel& value,
              const std::optional<Paint>& lowered, const char* map,
              const char* hasMap, const char* number) {
   if (lowered) {
-    PaintAccess::storeSlot(pass, map, *lowered);
+    if (samplesChannel(index, map)) PaintAccess::storeSlot(pass, map, *lowered);
     PaintAccess::storeUniform(pass, hasMap, 1.0f);
     PaintAccess::storeUniform(pass, number, 1.0f);
   } else {
@@ -218,6 +310,33 @@ struct SurfaceMaps::Inputs {
     LobeListener::hear(stated);
     if (clearcoatNormal) LobeListener::hearClearcoatNormal();
     LobeListener::hearReach(reachOf(surface, stated));
+  }
+
+  /** The lowered map the pass binds as the child @p slot, or null for a
+   *  name that is not a channel's. */
+  const std::optional<Paint>* channelInput(std::string_view slot) const {
+    const std::pair<std::string_view, const std::optional<Paint>*> table[] = {
+        {"uNormal", &normal},
+        {"uRoughnessMap", &roughness},
+        {"uMetallicMap", &metallic},
+        {"uOcclusionMap", &occlusion},
+        {"uEmissionMap", &emission},
+        {"uClearcoatMap", &clearcoat},
+        {"uClearcoatRoughnessMap", &clearcoatRoughness},
+        {"uSheenColorMap", &sheenColor},
+        {"uSheenRoughnessMap", &sheenRoughness},
+        {"uSpecularMap", &specular},
+        {"uSpecularColorMap", &specularColor},
+        {"uAnisotropyMap", &anisotropyDirection},
+        {"uIridescenceMap", &iridescence},
+        {"uIridescenceThicknessMap", &iridescenceThickness},
+        {"uClearcoatNormal", &clearcoatNormal},
+        {"uTransmissionMap", &transmission},
+        {"uThicknessMap", &thickness},
+        {"uDistortionMap", &distortion}};
+    for (const auto& [name, input] : table)
+      if (name == slot) return input;
+    return nullptr;
   }
 };
 
@@ -325,37 +444,15 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
     if (!result || input.isSolid()) return result;
     return result->makeWithLocalMatrix(mapping);
   };
-  std::array<PaintAccess::ChildOverride, 20> children;
+  // The colour stack and the channels this role samples, the children the
+  // pass holds; every other child of the program stays empty.
+  std::array<PaintAccess::ChildOverride, 4> children;
   size_t count = 0;
-  const auto input = [&](const char* name, const Paint& lowered) {
-    children[count++] = {name, mapped(lowered)};
-  };
-  input("uColor", m_inputs->colours);
-  if (m_inputs->normal) input("uNormal", *m_inputs->normal);
-  if (m_inputs->roughness) input("uRoughnessMap", *m_inputs->roughness);
-  if (m_inputs->metallic) input("uMetallicMap", *m_inputs->metallic);
-  if (m_inputs->occlusion) input("uOcclusionMap", *m_inputs->occlusion);
-  if (m_inputs->emission) input("uEmissionMap", *m_inputs->emission);
-  if (m_inputs->clearcoat) input("uClearcoatMap", *m_inputs->clearcoat);
-  if (m_inputs->clearcoatRoughness)
-    input("uClearcoatRoughnessMap", *m_inputs->clearcoatRoughness);
-  if (m_inputs->sheenColor) input("uSheenColorMap", *m_inputs->sheenColor);
-  if (m_inputs->sheenRoughness)
-    input("uSheenRoughnessMap", *m_inputs->sheenRoughness);
-  if (m_inputs->specular) input("uSpecularMap", *m_inputs->specular);
-  if (m_inputs->specularColor)
-    input("uSpecularColorMap", *m_inputs->specularColor);
-  if (m_inputs->anisotropyDirection)
-    input("uAnisotropyMap", *m_inputs->anisotropyDirection);
-  if (m_inputs->iridescence) input("uIridescenceMap", *m_inputs->iridescence);
-  if (m_inputs->iridescenceThickness)
-    input("uIridescenceThicknessMap", *m_inputs->iridescenceThickness);
-  if (m_inputs->clearcoatNormal)
-    input("uClearcoatNormal", *m_inputs->clearcoatNormal);
-  if (m_inputs->transmission)
-    input("uTransmissionMap", *m_inputs->transmission);
-  if (m_inputs->thickness) input("uThicknessMap", *m_inputs->thickness);
-  if (m_inputs->distortion) input("uDistortionMap", *m_inputs->distortion);
+  children[count++] = {"uColor", mapped(m_inputs->colours)};
+  for (std::string_view slot : channelSlotsSampled(*surfaceMapIndex(role)))
+    if (const std::optional<Paint>* lowered = m_inputs->channelInput(slot);
+        lowered && *lowered)
+      children[count++] = {slot, mapped(**lowered)};
   const PaintFrame frame = paintFrameOf(nodeFrame);
   return PaintAccess::build(*PaintAccess::live(pass), &frame, false,
                             std::span(children).first(count));
@@ -436,6 +533,35 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
     if (const std::optional<Paint>& held = m_maps->maps[*index]) return *held;
   }
   const Material& material = m_inputs->material;
+  // REFUSED BY NAME RATHER THAN DROPPED ON THE DEVICE. The pass is one
+  // fragment program holding the colour stack and the channels this role
+  // samples; past the sampler limit a device rejects it after Skia has
+  // accepted it, and the map would come out of a pass that never ran.
+  int samplers = samplerCount(m_inputs->colours);
+  int channels = 0;
+  for (std::string_view slot : channelSlotsSampled(*index))
+    if (const std::optional<Paint>* lowered = m_inputs->channelInput(slot);
+        lowered && *lowered) {
+      samplers += samplerCount(**lowered);
+      ++channels;
+    }
+  if (samplers > kSamplerLimit) {
+    const std::string role(kSurfaceMapRoleNames[*index]);
+    const std::string base = material.hasProgram()
+                                 ? "recipe \"" + material.recipe().name() + "\""
+                                 : std::string("a paint or colour");
+    reportOnce(
+        "samplers:map:" + role + ":" + base + ":" + std::to_string(samplers),
+        "the " + role + " map of a surface over " + base +
+            " samples its colour stack and " + std::to_string(channels) +
+            " channel maps, which lower to " + std::to_string(samplers) +
+            " image samplers, and a fragment program may declare " +
+            std::to_string(kSamplerLimit) + ", so the map is not painted");
+    const std::lock_guard lock(m_maps->mutex);
+    std::optional<Paint>& held = m_maps->maps[*index];
+    if (!held) held = Paint();
+    return *held;
+  }
   const bool writesNormal =
       role == texture::Role::Normal || role == texture::Role::ClearcoatNormal;
   const sk_sp<SkRuntimeEffect>& effect =
@@ -459,47 +585,47 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
   const SurfaceOptions& surface = stated && !unlit ? *stated : stock;
   PaintAccess::storeUniform(pass, "uHasNormal",
                             !unlit && surface.normal ? 1.0f : 0.0f);
-  if (m_inputs->normal)
+  if (m_inputs->normal && samplesChannel(*index, "uNormal"))
     PaintAccess::storeSlot(pass, "uNormal", *m_inputs->normal);
   PaintAccess::storeUniform(pass, "uNormalScale", surface.normalScale);
   PaintAccess::storeUniform(pass, "uNormalDirectX",
                             surface.normalDirectX ? 1.0f : 0.0f);
-  channel(pass, surface.roughness, m_inputs->roughness, "uRoughnessMap",
+  channel(pass, *index, surface.roughness, m_inputs->roughness, "uRoughnessMap",
           "uHasRoughnessMap", "uRoughness");
-  channel(pass, surface.metallic, m_inputs->metallic, "uMetallicMap",
+  channel(pass, *index, surface.metallic, m_inputs->metallic, "uMetallicMap",
           "uHasMetallicMap", "uMetallic");
-  channel(pass, surface.occlusion, m_inputs->occlusion, "uOcclusionMap",
+  channel(pass, *index, surface.occlusion, m_inputs->occlusion, "uOcclusionMap",
           "uHasOcclusionMap", "uOcclusion");
   PaintAccess::storeUniform(pass, "uHasEmissionMap",
                             !unlit && surface.emissionMap ? 1.0f : 0.0f);
-  if (m_inputs->emission)
+  if (m_inputs->emission && samplesChannel(*index, "uEmissionMap"))
     PaintAccess::storeSlot(pass, "uEmissionMap", *m_inputs->emission);
   PaintAccess::storeUniform(pass, "uEmission", surface.emission);
   PaintAccess::storeUniform(pass, "uEmissionStrength",
                             surface.emissionStrength);
-  channel(pass, surface.clearcoat, m_inputs->clearcoat, "uClearcoatMap",
+  channel(pass, *index, surface.clearcoat, m_inputs->clearcoat, "uClearcoatMap",
           "uHasClearcoatMap", "uClearcoat");
-  channel(pass, surface.clearcoatRoughness, m_inputs->clearcoatRoughness,
-          "uClearcoatRoughnessMap", "uHasClearcoatRoughnessMap",
-          "uClearcoatRoughness");
-  colorChannel(pass, surface.sheenColor, m_inputs->sheenColor, "uSheenColorMap",
-               "uHasSheenColorMap", "uSheenColor");
-  channel(pass, surface.sheenRoughness, m_inputs->sheenRoughness,
+  channel(pass, *index, surface.clearcoatRoughness,
+          m_inputs->clearcoatRoughness, "uClearcoatRoughnessMap",
+          "uHasClearcoatRoughnessMap", "uClearcoatRoughness");
+  colorChannel(pass, *index, surface.sheenColor, m_inputs->sheenColor,
+               "uSheenColorMap", "uHasSheenColorMap", "uSheenColor");
+  channel(pass, *index, surface.sheenRoughness, m_inputs->sheenRoughness,
           "uSheenRoughnessMap", "uHasSheenRoughnessMap", "uSheenRoughness");
-  channel(pass, surface.specular, m_inputs->specular, "uSpecularMap",
+  channel(pass, *index, surface.specular, m_inputs->specular, "uSpecularMap",
           "uHasSpecularMap", "uSpecular");
-  colorChannel(pass, surface.specularColor, m_inputs->specularColor,
+  colorChannel(pass, *index, surface.specularColor, m_inputs->specularColor,
                "uSpecularColorMap", "uHasSpecularColorMap", "uSpecularColor");
   PaintAccess::storeUniform(pass, "uAnisotropy", surface.anisotropy);
   PaintAccess::storeUniform(pass, "uAnisotropyRotation",
                             surface.anisotropyRotation);
   PaintAccess::storeUniform(pass, "uHasAnisotropyMap",
                             m_inputs->anisotropyDirection ? 1.0f : 0.0f);
-  if (m_inputs->anisotropyDirection)
+  if (m_inputs->anisotropyDirection && samplesChannel(*index, "uAnisotropyMap"))
     PaintAccess::storeSlot(pass, "uAnisotropyMap",
                            *m_inputs->anisotropyDirection);
-  channel(pass, surface.iridescence, m_inputs->iridescence, "uIridescenceMap",
-          "uHasIridescenceMap", "uIridescence");
+  channel(pass, *index, surface.iridescence, m_inputs->iridescence,
+          "uIridescenceMap", "uHasIridescenceMap", "uIridescence");
   PaintAccess::storeUniform(
       pass, "uIridescenceThickness",
       surface.iridescenceThickness / texture::kIridescenceThicknessRange);
@@ -508,17 +634,18 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
                                 texture::kIridescenceThicknessRange);
   PaintAccess::storeUniform(pass, "uHasIridescenceThicknessMap",
                             m_inputs->iridescenceThickness ? 1.0f : 0.0f);
-  if (m_inputs->iridescenceThickness)
+  if (m_inputs->iridescenceThickness &&
+      samplesChannel(*index, "uIridescenceThicknessMap"))
     PaintAccess::storeSlot(pass, "uIridescenceThicknessMap",
                            *m_inputs->iridescenceThickness);
   PaintAccess::storeUniform(pass, "uHasClearcoatNormal",
                             m_inputs->clearcoatNormal ? 1.0f : 0.0f);
-  if (m_inputs->clearcoatNormal)
+  if (m_inputs->clearcoatNormal && samplesChannel(*index, "uClearcoatNormal"))
     PaintAccess::storeSlot(pass, "uClearcoatNormal",
                            *m_inputs->clearcoatNormal);
-  channel(pass, surface.transmission, m_inputs->transmission,
+  channel(pass, *index, surface.transmission, m_inputs->transmission,
           "uTransmissionMap", "uHasTransmissionMap", "uTransmission");
-  channel(pass, surface.thickness, m_inputs->thickness, "uThicknessMap",
+  channel(pass, *index, surface.thickness, m_inputs->thickness, "uThicknessMap",
           "uHasThicknessMap", "uThickness");
   // A distortion is carried only with its map, at a strength other than
   // zero; without one, what stands behind stays still.
@@ -526,7 +653,7 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
   PaintAccess::storeUniform(pass, "uHasDistortionMap", distorts ? 1.0f : 0.0f);
   PaintAccess::storeUniform(pass, "uDistortionStrength",
                             surface.distortionStrength);
-  if (m_inputs->distortion)
+  if (m_inputs->distortion && samplesChannel(*index, "uDistortionMap"))
     PaintAccess::storeSlot(pass, "uDistortionMap", *m_inputs->distortion);
   PaintAccess::storeUniform(pass, "uIor", surface.ior);
   PaintAccess::storeUniform(pass, "uDispersion", surface.dispersion);

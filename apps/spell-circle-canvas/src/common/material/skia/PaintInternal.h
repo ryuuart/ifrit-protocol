@@ -359,6 +359,9 @@ struct PaintAccess {
   }
   /** Sampled sources may bind different images for each recorder. */
   static bool usesRecorder(const Paint& paint);
+  /** The image samplers @p paint's shader declares once a device inlines
+   *  it into one fragment program; `skia::samplerCount(paint)`. */
+  static int samplerCount(const Paint& paint);
   static uint32_t recorderId(skgpu::graphite::Recorder* recorder);
   static std::shared_ptr<const Paint::Backed::Sources> sampledSources(
       const Paint::Backed& backed);

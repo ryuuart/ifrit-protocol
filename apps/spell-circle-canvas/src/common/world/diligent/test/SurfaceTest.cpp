@@ -275,15 +275,20 @@ TEST(SurfaceSlots, AChannelThatIsAMaterialReadsAsEmptyAndSaysSo) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
-  // A normal given as luminance grain is a material the device has no body
-  // for, so its slot binds the same white texel an undressed one does —
-  // the card is the plain card exactly — and the slot is named once on
-  // the diagnostic stream, because the picture alone would show a flat
-  // surface and no reason for it.
+  // A normal given as a material whose only body is a page's is one the
+  // device has no body for, so its slot binds the same white texel an
+  // undressed one does — the card is the plain card exactly — and the
+  // slot is named once on the diagnostic stream, because the picture
+  // alone would show a flat surface and no reason for it.
+  struct NoParameters {};
+  const material::Material pageOnly(std::make_shared<const material::Recipe>(
+      material::Recipe::of<NoParameters>("world.test.pageOnlyNormal")
+          .body(material::Target::SkSL,
+                "half4 main(float2 p) { return half4(1, 0.5, 0.5, 1); }")));
   const material::Color grey{0.8f, 0.8f, 0.8f, 1.0f};
   const material::Material plain = material::from(grey).surface({});
   const material::Material derived =
-      material::from(grey).surface({.normal = material::field::grain(0.05f)});
+      material::from(grey).surface({.normal = pageOnly});
 
   const SkBitmap bare = cardOn(plain, on.runtime);
   testing::internal::CaptureStderr();
@@ -762,6 +767,7 @@ TEST(SurfaceSlots, EveryFieldPatternAndBakeVariesAcrossADeviceBody) {
   const material::Material cells = material::field::cellular(6.0f);
   std::vector<std::pair<std::string, material::Material>> cards = {
       {"field.noise", material::field::noise(6.0f, 3, 2.0f)},
+      {"field.grain.4", material::field::grain(12.0f)},
       {"field.ripple",
        material::field::ripple(0.08f, 0.3f).slot("content", cells)},
       {"field.halftoneRamp",

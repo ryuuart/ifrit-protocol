@@ -220,7 +220,7 @@ WarmupResult warmup(std::span<const Material> materials, Variant variant) {
 }
 
 int samplerCount(const Material& material) {
-  int count = 0;
+  int count = detail::baseSamplerCount(material);
   for (const Layer& layer : material.layers()) {
     count += samplerCount(layer.source);
     if (layer.options.mask) count += samplerCount(layer.options.mask->source);

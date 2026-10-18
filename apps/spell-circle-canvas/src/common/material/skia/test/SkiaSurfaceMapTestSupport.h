@@ -13,6 +13,7 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>

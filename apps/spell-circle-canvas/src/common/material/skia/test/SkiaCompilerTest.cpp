@@ -166,6 +166,47 @@ TEST(SkiaCompiler, AComposedChildExceedingTheImageSamplerLimitIsRefused) {
   EXPECT_EQ(skia::shader(sampler, {}), nullptr);
 }
 
+TEST(SkiaCompiler, AColourStackExceedingTheImageSamplerLimitIsRefusedByName) {
+  // A stack lowers to one shader a device inlines into one program, so its
+  // layers' images are that program's samplers. Seventeen are refused
+  // when the stack is lowered, with both counts, and paint nothing.
+  Material layered(Color{0, 0, 0, 0});
+  for (int i = 0; i < 17; ++i)
+    layered.layer(image(Texture(
+        test::solid(SkColorSetARGB(255, 255 - i * 7, i * 11, i * 7), 8, 8))));
+  EXPECT_EQ(skia::samplerCount(layered), 17);
+  testing::internal::CaptureStderr();
+  const Paint lowered = skia::paint(layered);
+  const std::string said = testing::internal::GetCapturedStderr();
+  EXPECT_TRUE(lowered.isNone());
+  EXPECT_NE(said.find("17 image samplers"), std::string::npos) << said;
+  EXPECT_NE(said.find("may declare 16"), std::string::npos) << said;
+  // Sixteen are within the limit and lowered.
+  Material sixteen(Color{0, 0, 0, 0});
+  for (int i = 0; i < 16; ++i)
+    sixteen.layer(image(Texture(test::solid(SK_ColorRED, 8, 8))));
+  EXPECT_FALSE(skia::paint(sixteen).isNone());
+}
+
+TEST(SkiaCompiler, APaintCountsTheImagesItsTreeSamples) {
+  const Paint picture = skia::image(test::solid(SK_ColorRED, 8, 8));
+  EXPECT_EQ(skia::samplerCount(picture), 1);
+  EXPECT_EQ(skia::samplerCount(Paint::solid(Color{1, 0, 0, 1})), 0);
+  EXPECT_EQ(skia::samplerCount(Paint::linearGradient(
+                {0, 0}, {1, 0}, {Color{1, 0, 0, 1}, Color{0, 0, 1, 1}})),
+            0);
+  EXPECT_EQ(skia::samplerCount(
+                Paint::blend({{picture, BlendMode::Normal},
+                              {skia::image(test::solid(SK_ColorBLUE, 8, 8)),
+                               BlendMode::Multiply}})),
+            2);
+  // A paint made a material's base counts where the material is asked.
+  EXPECT_EQ(skia::samplerCount(
+                from(skia::base(picture))
+                    .layer(image(Texture(test::solid(SK_ColorBLUE, 8, 8))))),
+            2);
+}
+
 TEST(SkiaCompiler, ABodyThatDoesNotCompileResolvesToNoProgram) {
   auto broken = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("broken").body(Target::SkSL, "half4 main("));

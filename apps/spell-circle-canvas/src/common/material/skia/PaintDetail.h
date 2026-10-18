@@ -124,6 +124,11 @@ namespace detail {
 
 void ensureCompiler();
 
+/** The image samplers a material's base asks a device for when the base
+ *  is a paint only this executor supplies — an image, a caller-owned
+ *  buffer, a runtime effect — and zero for any other base. */
+int baseSamplerCount(const Material& material);
+
 /** Root-coordinate reads in a material's paint tree, without resolving sources.
  *  Surface and effect dependencies belong to their executors. */
 bool paintUsesWorldSpace(const Material& material);

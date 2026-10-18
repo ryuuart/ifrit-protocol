@@ -1,8 +1,8 @@
 /** @file
  * The field bodies: the staggered dot grid under a vertical swell, the
- * pass-through over Skia's Perlin generator, the value-noise fBm unrolled
- * per octave count, the nearest two seeds of a jittered lattice, and the
- * sine displacement.
+ * pass-through over Skia's Perlin generator, the value-noise fBm with its
+ * octave count written into both bodies, the nearest two seeds of a
+ * jittered lattice, and the sine displacement.
  */
 
 #include "sigilmaterial/field/Field.h"
@@ -122,12 +122,18 @@ const std::shared_ptr<const Recipe>& grainRecipe(int octaves) {
   static std::mutex mutex;
   const std::lock_guard lock(mutex);
   if (cache[(size_t)n]) return cache[(size_t)n];
-  std::string src(shaderSource("Grain.sksl"));
-  replace(src, "const int kOctaves = 1;",
-          "const int kOctaves = " + std::to_string(n) + ";");
+  // Both bodies carry the count as the same constant, so a page and a
+  // body sum the same octaves.
+  const std::string octaveCount =
+      "const int kOctaves = " + std::to_string(n) + ";";
+  std::string page(shaderSource("Grain.sksl"));
+  replace(page, "const int kOctaves = 1;", octaveCount);
+  std::string body(shaderSource("Grain.slang"));
+  replace(body, "const int kOctaves = 1;", octaveCount);
   cache[(size_t)n] = std::make_shared<const Recipe>(
       Recipe::of<GrainParameters>("field.grain." + std::to_string(n))
-          .body(Target::SkSL, src));
+          .body(Target::SkSL, page)
+          .body(Target::Slang, body));
   return cache[(size_t)n];
 }
 

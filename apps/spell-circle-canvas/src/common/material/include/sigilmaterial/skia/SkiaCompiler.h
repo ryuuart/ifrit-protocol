@@ -12,8 +12,9 @@
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/advanced/FrameData.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Program.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/paint/Paint.h>
 
 #include <cstddef>
 #include <memory>
@@ -77,6 +78,13 @@ inline constexpr int kSamplerLimit = 16;
  *  that itself samples several images counts as the one slot it fills,
  *  which is all a material can know about it. */
 int samplerCount(const Material& material);
+
+/** The image samplers @p paint's shader asks a device for: one per image
+ *  or caller-owned buffer, one per leaf bound into a material it carries,
+ *  summed down every blend and every filled slot, since the whole tree is
+ *  inlined into one fragment program. A raw shader counts one when it is
+ *  an image and none otherwise. */
+int samplerCount(const Paint& paint);
 
 /** The builder for @p material at @p frame: its program's effect with
  *  every uniform set from the resolved bytes and every slot bound —

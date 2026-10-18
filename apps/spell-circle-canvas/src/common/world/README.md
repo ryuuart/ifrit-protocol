@@ -752,12 +752,12 @@ Slang body.** A material in a slot is written into the body it fills
 (`material::inlined`), so a flipbook, a flow map or one channel of a
 packed texture plays on a body as it does on a page, and a normal derived
 from a height shades a body as the same normal supplied as a texture does.
-Fractal and cellular noise, the halftone ramp, the ripple, scanlines, the
-stipple and the OpenColorIO bakes each carry one. A body's region is one
+Fractal and cellular noise, luminance grain, the halftone ramp, the
+ripple, scanlines, the stipple and the OpenColorIO bakes each carry one. A body's region is one
 unit across, so a field's frequency or a pattern's period, stated in pixels
 on a page, is per that unit on a body. A channel filled with a material
-that has no Slang body — a gradient, luminance grain — has nothing the
-device can compile: it reports the slot once and the slot reads as empty.
+that has no Slang body — a gradient — has nothing the device can
+compile: it reports the slot once and the slot reads as empty.
 
 **World does not link SigilCompose and no world header names a compose
 type.** The arrow runs the other way: `SigilComposeTexture` keeps a

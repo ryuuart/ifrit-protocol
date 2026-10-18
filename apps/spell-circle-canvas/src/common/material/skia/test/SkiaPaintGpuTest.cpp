@@ -12,6 +12,8 @@
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
@@ -269,7 +271,11 @@ TEST_F(SkiaPaintGpu,
       sigil::material::shader("half4 main(float2 p) { return source.eval(p); }",
                               ShaderOptions{.textures = {{"source", {}}}});
   sampled.slot("source", layered);
-  for (Material material : {pixels, layered, sampled}) {
+  // The base colour's pass samples the colour stack and no channel, so it
+  // reads the normal's texture only where the stack masks with it.
+  const std::pair<Material, bool> cases[] = {
+      {pixels, false}, {layered, true}, {sampled, true}};
+  for (auto [material, stackReadsNormal] : cases) {
     binding->resetReads();
     normals->resetReads();
     material.surface({.roughness = 1.f, .normal = normal});
@@ -283,7 +289,7 @@ TEST_F(SkiaPaintGpu,
     ASSERT_TRUE(shader);
     expectTile(shader, kFirstDeviceColor, first.get());
     EXPECT_GT(binding->devices[0].reads, 0);
-    EXPECT_GT(normals->devices[0].reads, 0);
+    EXPECT_EQ(normals->devices[0].reads > 0, stackReadsNormal);
     EXPECT_EQ(binding->rasterReads, 0);
     EXPECT_EQ(normals->rasterReads, 0);
     const int colorReads = binding->devices[0].reads;
@@ -301,11 +307,19 @@ TEST_F(SkiaPaintGpu,
                    skia::toSkMatrix(unitToNode)),
                kRasterColor);
     EXPECT_GT(binding->rasterReads, 0);
-    EXPECT_GT(normals->rasterReads, 0);
+    EXPECT_EQ(normals->rasterReads > 0, stackReadsNormal);
     const int rasterColorReads = binding->rasterReads;
     const int rasterNormalReads = normals->rasterReads;
     prepared.asMap(texture::Role::BaseColor);
     EXPECT_EQ(binding->rasterReads, rasterColorReads);
+    EXPECT_EQ(normals->rasterReads, rasterNormalReads);
+    // The normal's own pass binds the normal on the device it is drawn on.
+    const int deviceNormalReads = normals->devices[0].reads;
+    const auto normalMap = prepared.mapShader(texture::Role::Normal,
+                                              frame(first.get()), unitToNode);
+    ASSERT_TRUE(normalMap);
+    ASSERT_FALSE(draw(normalMap, first.get()).empty());
+    EXPECT_GT(normals->devices[0].reads, deviceNormalReads);
     EXPECT_EQ(normals->rasterReads, rasterNormalReads);
   }
 }
@@ -496,7 +510,6 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<DevicePaintCase>& test) {
       return test.param.name;
     });
-#endif
 
 TEST_F(SkiaPaintGpu, ALongRampReadsTheSameLookupOnTheDeviceAsOnTheRaster) {
   // A ramp of many stops is read from a lookup made once: the device
@@ -522,3 +535,60 @@ TEST_F(SkiaPaintGpu, ALongRampReadsTheSameLookupOnTheDeviceAsOnTheRaster) {
             << x << ", " << y << " channel " << channel;
     }
 }
+
+namespace {
+
+/** An opaque image of one colour, its own texture. */
+Material opaqueImage(SkColor colour) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(8, 8, true);
+  bitmap.eraseColor(colour);
+  bitmap.setImmutable();
+  return image(bitmap.asImage(), {.repeat = Repeat::Pad});
+}
+
+}  // namespace
+
+TEST_F(SkiaPaintGpu,
+       ASurfacesMapsWithinTheSamplerLimitPerRoleAreDrawnOnTheDevice) {
+  // Thirteen images of colour and seven channel maps: twenty textures in
+  // all, which no one program could sample on this device. Each role's
+  // pass samples the colour stack and its own channels only — the packed
+  // map, the widest, sixteen — so every map is drawn rather than dropped,
+  // and reads what the raster canvas reads.
+  Material colour(Color{0, 0, 0, 0});
+  for (int layer = 0; layer < 12; ++layer)
+    colour.layer(opaqueImage(SkColorSetRGB(layer * 9, 200 - layer * 9, 40)));
+  colour.layer(opaqueImage(SkColorSetRGB(204, 102, 51)));
+  const Material material = Material(colour).surface(
+      {.metallic = opaqueImage(SkColorSetRGB(64, 0, 0)),
+       .roughness = opaqueImage(SkColorSetRGB(153, 0, 0)),
+       .occlusion = opaqueImage(SkColorSetRGB(230, 0, 0)),
+       .normal = opaqueImage(SkColorSetRGB(128, 204, 230)),
+       .emission = {1, 1, 1, 1},
+       .emissionStrength = 1,
+       .emissionMap = opaqueImage(SkColorSetRGB(26, 51, 77)),
+       .clearcoat = opaqueImage(SkColorSetRGB(204, 0, 0)),
+       .sheenColor = opaqueImage(SkColorSetRGB(51, 102, 153))});
+  ASSERT_EQ(skia::samplerCount(colour), 13);
+  const skia::SurfaceMaps prepared(material);
+  for (const texture::Role role :
+       {texture::Role::BaseColor, texture::Role::Packed, texture::Role::Normal,
+        texture::Role::Emissive, texture::Role::Clearcoat,
+        texture::Role::Sheen}) {
+    const Paint map = prepared.asMap(role);
+    ASSERT_FALSE(map.isNone());
+    const SkBitmap raster = draw(skia::shader(map, frame()));
+    const SkBitmap device =
+        draw(skia::shader(map, frame(first.get())), first.get());
+    ASSERT_FALSE(raster.empty());
+    ASSERT_FALSE(device.empty());
+    const SkColor4f expected = raster.getColor4f(8, 8);
+    const SkColor4f actual = device.getColor4f(8, 8);
+    EXPECT_NEAR(actual.fA, 1, .005f) << "role " << (int)role << " is drawn";
+    for (int channel = 0; channel < 4; ++channel)
+      EXPECT_NEAR(actual[channel], expected[channel], .005f)
+          << "role " << (int)role << " channel " << channel;
+  }
+}
+#endif

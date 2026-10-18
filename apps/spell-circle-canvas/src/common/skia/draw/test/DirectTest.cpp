@@ -313,3 +313,44 @@ TEST(DirectDraws, TheStatedBlendIsHowEachSpriteMeetsTheDestination) {
     EXPECT_NEAR((int)SkColorGetB(inside), expected, 2);
   }
 }
+
+TEST(DirectDraws, AnImageDrawnBelowItsSmallestMipmapLevelLaysItsArea) {
+  // A disc filling a 32 pixel image covers about three quarters of it.
+  // Drawn 0.35 pixels across with linear mipmap sampling, the request lies
+  // past the chain's 1x1 level; that level is the disc's whole area
+  // averaged, so wherever the image lands it lays about three quarters of
+  // its own area as alpha. Read from the full-size image instead, a pixel
+  // takes the one texel its centre maps to: the whole disc at one
+  // placement and nothing at the next.
+  SkBitmap disc;
+  disc.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
+  disc.eraseColor(SK_ColorTRANSPARENT);
+  {
+    SkCanvas painter(disc);
+    SkPaint ink;
+    ink.setAntiAlias(true);
+    ink.setColor(SK_ColorWHITE);
+    painter.drawCircle(16, 16, 16, ink);
+  }
+  disc.setImmutable();
+  const sk_sp<SkImage> image = disc.asImage();
+  constexpr float kSide = 0.35f;
+  for (const float across : {0.0f, 0.2f, 0.45f, 0.7f, 0.9f})
+    for (const float down : {0.0f, 0.3f, 0.6f, 0.85f}) {
+      Raster raster;
+      raster.canvas().clear(SK_ColorTRANSPARENT);
+      SkPaint smooth;
+      smooth.setAntiAlias(true);
+      raster.canvas().drawImageRect(
+          image, SkRect::MakeWH(32, 32),
+          SkRect::MakeXYWH(40 + across, 60 + down, kSide, kSide),
+          SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear),
+          &smooth, SkCanvas::kFast_SrcRectConstraint);
+      double laid = 0;
+      for (int y = 58; y < 64; ++y)
+        for (int x = 38; x < 44; ++x)
+          laid += SkColorGetA(raster.pixel(x, y)) / 255.0;
+      EXPECT_NEAR(laid / (kSide * kSide), 0.75, 0.1)
+          << "the disc at " << 40 + across << ", " << 60 + down;
+    }
+}

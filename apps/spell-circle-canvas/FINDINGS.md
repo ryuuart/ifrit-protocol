@@ -129,15 +129,10 @@ nothing at another. The smallest level should be used. Narrow sprites
 are spread to a pixel before they reach this, so sprite runs no longer
 show it; other raster draws still do. A test should draw a 32 pixel disc
 at 0.35 pixels with linear mipmap sampling and find about three quarters
-of its area laid as alpha at every placement.
-
-## Luminance grain has no Slang body
-
-`field.grain` (`material/field/shaders/Grain.sksl`, whose octave count is
-written into the body) has no Slang body, so on a World body it reads as
-empty and is reported once. Grain is a channel a body can wear, like the
-other fields. A test should put `field::grain` on a World card's base
-colour and find it varying across the card.
+of its area laid as alpha at every placement. The port patch
+`018-raster-mipmap-smallest-level.patch` is prepared in the registry as
+skia 151#6 and the test `DirectDraws.AnImageDrawnBelowItsSmallestMipmapLevelLaysItsArea`
+fails until that Skia is built.
 
 ## A window bench of a named sketch prints no row
 
@@ -191,23 +186,6 @@ same Metal device does not isolate. The test should prove the release
 another way, such as a weak reference that nils after the destroy and an
 autorelease drain, and the first-frame timing case in `StandIn` should
 likewise be read serially or with a bound that a loaded GPU meets.
-
-## A draw sampling more than sixteen textures is dropped on Metal without a refusal
-
-`skia::samplerCount` and `kSamplerLimit` are enforced only where a
-recipe is compiled (`src/common/material/skia/SkiaCompiler.cpp`); a
-composed colour stack lowered by `lowerPaint` is not checked, and
-neither is a surface-map pass (`SurfaceMaps::mapShader`, which binds the
-colour stack and up to nineteen channel inputs). When their textures
-together exceed Metal's sixteen sampler slots, Graphite's pipeline fails
-to compile, the render pass is dropped and the page's maps come out
-(1, 0, 1), with a Skia warning in the log as the only signal. The stated
-rule is that a tree over the limit is refused with both counts named
-rather than built into a pipeline the driver rejects, and it should
-hold for every program built from a material. A test should assert that
-a surface whose colour stack and channel maps together sample seventeen
-or more textures is refused with both counts named and is never painted
-as a dropped pass.
 
 ## Two sketches render differently on every device run
 

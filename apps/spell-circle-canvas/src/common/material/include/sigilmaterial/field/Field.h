@@ -70,7 +70,9 @@ struct GrainParameters {
  *  shift. @p contrast scales the field about 0.5; @p stretch divides the
  *  x frequency and multiplies the y one, so above 1 it runs the fibre
  *  lengthwise. One recipe per octave count, the count a constant in the
- *  body rather than a uniform a loop breaks against.
+ *  body rather than a uniform a loop breaks against. The body exists for
+ *  Skia and for Slang: a page reads it at its pixels, a body at its
+ *  texture coordinates, a region one unit across.
  *  @trap Keep `frequency · stretch · 2^(octaves-1)` under roughly 0.4 or
  *  the y axis aliases. The shader returns its own OPAQUE luminance, so
  *  multiply it over an opaque ground rather than modulating one. */

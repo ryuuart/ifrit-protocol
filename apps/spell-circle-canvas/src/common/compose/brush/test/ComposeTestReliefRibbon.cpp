@@ -38,7 +38,9 @@ TEST(ComposeRelief, AStrokeKeepsLiveSurfaceMapsUnderAutomaticCaching) {
   const SkColor polished = held.pixel(60, 23);
   const int colours = *colourReads, normals = *normalReads;
   ASSERT_GT(colours, 0);
-  ASSERT_GT(normals, 0);
+  // The roughness map samples the colour stack for its coverage and the
+  // roughness, and no other channel, so the normal's picture is never read.
+  EXPECT_EQ(normals, 0);
   roughness = 1.0f;
   EXPECT_TRUE(held.composer.isRunning());
   held.frame();

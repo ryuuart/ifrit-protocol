@@ -42,7 +42,10 @@ class SurfaceMaps {
   explicit SurfaceMaps(const Material& material);
 
   /** The surface's map for @p role, unshaded; see `asMap(material, role)`.
-   *  Holds one pass per role for as long as this value. */
+   *  Holds one pass per role for as long as this value. A pass binds the
+   *  colour stack and the channels its role samples, and nothing else; one
+   *  whose inputs together sample more images than `kSamplerLimit` is
+   *  refused, said once with both counts, and is a paint of nothing. */
   Paint asMap(texture::Role role) const;
   /** `asMap(role)` resolved for one draw whose input unit square maps into
    *  the node through @p paintToLocal. Colour and channel inputs share the
@@ -51,7 +54,8 @@ class SurfaceMaps {
    *  height-derived normals receive logical-pixel sampling steps through
    *  the mapping. Projective mappings keep colours and encoded normals but
    *  flatten height-derived relief. Null for a role `asMap` answers
-   *  nothing for, and for a nonfinite or noninvertible mapping. */
+   *  nothing for or refuses, and for a nonfinite or noninvertible
+   *  mapping. */
   sk_sp<SkShader> mapShader(texture::Role role, const FrameData& nodeFrame,
                             const glm::mat3& paintToLocal) const;
 

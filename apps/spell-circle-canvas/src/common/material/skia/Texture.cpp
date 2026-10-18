@@ -57,8 +57,4 @@ SkIRect toSkIRect(const PixelRect& rect) {
   return SkIRect::MakeXYWH(rect.x, rect.y, rect.width, rect.height);
 }
 
-PixelRect toPixelRect(const SkIRect& rect) {
-  return {rect.left(), rect.top(), rect.width(), rect.height()};
-}
-
 }  // namespace sigil::material::skia

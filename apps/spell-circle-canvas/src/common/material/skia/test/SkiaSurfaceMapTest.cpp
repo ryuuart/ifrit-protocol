@@ -199,3 +199,71 @@ TEST(SkiaSurfaceMap, ARoleWithNoMapPaintsNothing) {
   EXPECT_TRUE(skia::isSurfaceMapRole(Role::Packed));
   EXPECT_TRUE(skia::isSurfaceMapRole(Role::Clearcoat));
 }
+
+namespace {
+
+/** A colour stack of @p count opaque images, each its own texture, the
+ *  last one @p top. */
+Material stackOfImages(int count, SkColor top) {
+  Material stack(Color{0, 0, 0, 0});
+  for (int layer = 0; layer + 1 < count; ++layer)
+    stack.layer(solidImage(SkColorSetRGB(layer * 9, 200 - layer * 9, 40)));
+  stack.layer(solidImage(top));
+  return stack;
+}
+
+}  // namespace
+
+TEST(SkiaSurfaceMap, ARoleWhoseInputsPassTheSamplerLimitIsRefusedByName) {
+  // Fifteen images in the colour stack and a normal of two: the normal's
+  // pass samples seventeen, one more than a fragment program may declare,
+  // and is refused with both counts rather than handed to a device that
+  // would drop it. The base colour samples fifteen and is painted.
+  const Material normal = from(solidImage(SkColorSetRGB(128, 128, 255)))
+                              .layer(solidImage(SkColorSetRGB(128, 204, 230)));
+  ASSERT_EQ(skia::samplerCount(normal), 2);
+  const Material material =
+      Material(stackOfImages(15, SkColorSetRGB(204, 102, 51)))
+          .surface({.normal = normal});
+  ASSERT_EQ(skia::samplerCount(material), 15);
+  const skia::SurfaceMaps prepared(material);
+  testing::internal::CaptureStderr();
+  const Paint refused = prepared.asMap(Role::Normal);
+  const std::string said = testing::internal::GetCapturedStderr();
+  EXPECT_TRUE(refused.isNone());
+  EXPECT_EQ(prepared.mapShader(Role::Normal, {}, glm::mat3{1}), nullptr);
+  EXPECT_NE(said.find("normal map"), std::string::npos) << said;
+  EXPECT_NE(said.find("17 image samplers"), std::string::npos) << said;
+  EXPECT_NE(said.find("may declare 16"), std::string::npos) << said;
+  expectPixel(sampled(prepared.asMap(Role::BaseColor)), .8f, .4f, .2f, 1);
+}
+
+TEST(SkiaSurfaceMap, EachRoleSamplesOnlyItsOwnChannelsBesideTheColourStack) {
+  // Thirteen images of colour and seven channel maps sample twenty textures
+  // between them, more than one program may hold, but no role's pass
+  // samples more than sixteen: the packed map, the widest, reads the colour
+  // stack and three channels.
+  const Material material =
+      Material(stackOfImages(13, SkColorSetRGB(204, 102, 51)))
+          .surface({.metallic = solidImage(SkColorSetRGB(64, 0, 0)),
+                    .roughness = solidImage(SkColorSetRGB(153, 0, 0)),
+                    .occlusion = solidImage(SkColorSetRGB(230, 0, 0)),
+                    .normal = solidImage(SkColorSetRGB(128, 204, 230)),
+                    .emission = {1, 1, 1, 1},
+                    .emissionStrength = 1,
+                    .emissionMap = solidImage(SkColorSetRGB(26, 51, 77)),
+                    .clearcoat = solidImage(SkColorSetRGB(204, 0, 0)),
+                    .sheenColor = solidImage(SkColorSetRGB(51, 102, 153))});
+  const skia::SurfaceMaps prepared(material);
+  testing::internal::CaptureStderr();
+  expectPixel(sampled(prepared.asMap(Role::BaseColor)), .8f, .4f, .2f, 1);
+  expectPixel(sampled(prepared.asMap(Role::Packed)), .9f, .6f, .25f, 1);
+  expectPixel(sampled(prepared.asMap(Role::Normal)), .5f, .8f, .9f, 1);
+  expectPixel(sampled(prepared.asMap(Role::Emissive)), .1f, .2f, .3f, 1);
+  expectPixel(sampled(prepared.asMap(Role::Clearcoat)), .8f, 0, 0, 1);
+  expectPixel(sampled(prepared.asMap(Role::Sheen)), .2f, .4f, .6f, 1);
+  for (Role role : {Role::Roughness, Role::Metallic, Role::Occlusion})
+    EXPECT_NE(prepared.mapShader(role, {}, glm::mat3{1}), nullptr);
+  EXPECT_EQ(testing::internal::GetCapturedStderr().find("image samplers"),
+            std::string::npos);
+}
