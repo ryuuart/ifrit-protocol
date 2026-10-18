@@ -119,21 +119,6 @@ full-frame pane under a casting light against the same pane under a light
 that casts nothing, and find the shadow's share within a stated bound of
 the opaque card's.
 
-## A raster image drawn below its smallest mipmap level is point-sampled from the base
-
-Skia's raster mipmap accessor falls back to the full-size level with no
-mipmapping when the requested level lies past the image's smallest, so a
-raster image drawn below one over two to the levels of its size is
-point-sampled from the base and lays its whole area at one placement and
-nothing at another. The smallest level should be used. Narrow sprites
-are spread to a pixel before they reach this, so sprite runs no longer
-show it; other raster draws still do. A test should draw a 32 pixel disc
-at 0.35 pixels with linear mipmap sampling and find about three quarters
-of its area laid as alpha at every placement. The port patch
-`018-raster-mipmap-smallest-level.patch` is prepared in the registry as
-skia 151#6 and the test `DirectDraws.AnImageDrawnBelowItsSmallestMipmapLevelLaysItsArea`
-fails until that Skia is built.
-
 ## A window bench of a named sketch prints no row
 
 `Grimoire --window-bench 6 --sketch wet_glass_console` (with or without
