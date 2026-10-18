@@ -85,63 +85,6 @@ film-title sketch uses retained vector contours; that avoids this text case
 without establishing that the underlying coverage issue is fixed.
 
 
-## API request: curved inscriptions must repeat the figure's resolved geometry
-
-The cosmic-monochord study draws musical-interval arcs and places shaped
-Latin inscriptions along those same curves. `TextPath::path` accepts a
-`Shape`, resolved against the text leaf's own width and height. It cannot
-name a keyed figure's resolved outline. Consequently the study's arc and
-label factories repeat the bounds, start angle and sweep; changing one
-without the other silently separates the inscription from its bracket.
-
-This is an ergonomics request, not a claim that curved text is absent.
-`Text::textOnPath` already shapes and places a whole run correctly.
-`strand::from(key)` in `sigilcompose/core/Stroke.h` already borrows a
-resolved outline for a decoration, and `PaintContext::borrowedPath` supplies
-that outline after derive. That value is a StrandPath, not the Shape
-`TextPath::path` takes; the existing borrow does not connect this text case.
-
-Wanted: a curve source for TextPath that can either hold authored shape
-geometry or name a keyed node, with the existing declared-read and cycle
-rules. A natural declaration would be
-`text("Diatessaron formalis").textOnPath({.path = baseline::from("formal.quart"), .at = 0.5f})`.
-A shared helper that emits both arc and text remains possible, but requires
-the sketch author to manage their relationship.
-
-A regression should place an arc and its inscription in a transformed
-parent, resize and move the keyed arc, and assert that the text follows its
-resolved baseline without duplicated coordinates. The run should remain
-shaped once when only the borrowed curve's placement changes, and the
-borrow should obey the same missing-key and cycle policy as other derived
-geometry.
-
-
-## Authoring difficulty: C++ studies depend on the mutable library header set
-
-While another pass edits public library headers, an existing Grimoire
-host refuses to compile a new C++ study. `Host::startCompile` checks every
-public framework header against the running image's stamp; the refusal
-correctly prevents a new object layout from entering an older host. The
-result is that reference drawing and visual refinement stop until a
-matching host is rebuilt, even when the study needs only existing APIs.
-Python studies can continue through that host's already compiled bindings.
-
-A narrowed registry via `SIGIL_SKETCH_ONLY` already reduces the sketches a
-separate build tree must compile. It does not provide a coherent immutable
-header set for an already running host. Wanted: an authoring SDK snapshot
-that pairs a host with its public headers, compiler/link flags and native
-artifacts, so a study can select a consistent runtime while library work
-continues elsewhere. This request must preserve the ABI refusal; it is not
-a request to disable the guard or adjust file timestamps.
-
-A regression should compile and render an external study against a selected
-SDK snapshot while the working checkout changes public headers. The live
-compiler should use the selected snapshot's headers and artifacts, reject
-an explicitly mismatched set, and leave the last working session intact
-when compilation fails. A later snapshot should let the same study be
-reviewed against the changed library without changing its lookup key.
-
-
 ## Authoring difficulty: optical bloom has no shared parameter preview
 
 The macrodata-terminal study can express its narrow luminous text with
@@ -163,76 +106,6 @@ and a captured native text leaf, assert matching optical output, and make
 the near and broad halo roles visible when either strength is zero.
 
 
-## API request: retained subtree filters cannot sample a previous frame
-
-The Nostromo monitor's native tube filter bends and modulates the current
-rendered screen. Stock bloom spreads the current layer spatially; these
-filters do not carry a prior-frame input for temporal phosphor decay.
-SigilDraw's Graphics buffers already retain pixels and copy them on resize,
-so accumulation exists for immediate drawing. Using that route for this
-screen would require the author to redraw its native text and diagram into
-the manual buffer, or manage capture and feedback outside the subtree.
-
-Wanted: a runtime-owned prior-frame input that a retained Compose subtree
-can use with decay measured in scene time. This is an API desire, not a
-demonstrated rendering defect or a claim that Graphics cannot accumulate.
-The monitor currently uses spatial optics without simulated persistence.
-
-A regression should flash a subtree, remove its current content and assert
-that the residual fades with elapsed scene time. Identical fixed-step
-captures should reproduce the same history. Resize and session reload
-should follow an explicit reset or preservation policy, and a skipped
-frame should not silently change the stated decay law.
-
-The Passage optical study adds a related desire: a bounded exposure window
-over an arbitrary retained source. Analytic procedural samples and the
-existing `slitscan_2001` weighted sprite construction already express a
-finite exposure without stored history. Python exposes those sprite
-seams, including per-instance additive blending; no new history API is
-required for that construction.
-
-The remaining source contract matters when the exposed subject is an
-arbitrary retained composition. `SceneSource::frameAt` currently returns
-its latest image without evaluating the requested time, and
-`TextureScene::render` advances its engine by a nonnegative time delta.
-These are current-image semantics, not random-access scene history.
-The requested temporal window should distinguish sources that can be
-reconstructed at a time from live sources requiring buffered frames. Its
-exposure interval, sample weights, history bound and reset behavior should
-be explicit. This is a source-backed API request, not a failed runtime
-probe or a rendering defect.
-
-Acceptance should compare a reconstructed exposure after direct seeking
-with one reached by sequential stepping, preserve integrated energy when
-sample count changes, evict frames beyond the stated window and expose a
-defined reset/resize policy. Capture cadence should not change the
-exposure's duration.
-
-
-## API request: a tonal screen cannot use an arbitrary child material
-
-The radio poster screens a shaded metal horn with positive ink dots and
-negative paper holes. The stock pattern halftone exposes a fixed-radius
-tile; the field halftone ramp varies radius vertically. Neither accepts an
-arbitrary luminance child such as a metal surface with a throat, rolled
-rim and reflected light. The generic shader API can express it, but the
-author must implement area mapping, the dot-to-hole crossover and sampling
-at device scale each time.
-
-The custom poster shader initially used a fine logical-pixel screen whose
-cells became unresolved at the fitted window scale. Both raster and
-Graphite showed the same moiré islands. Using the existing content-scale
-uniform for edge filtering and unresolved mean coverage corrects the
-study. This was an authoring error, not a renderer defect.
-
-Wanted: a stock tonal-screen operator over a child material, with pitch,
-angle and ink/paper colors, positive dots, negative holes and device-scale
-mean coverage. A regression should verify solid ink/paper endpoints,
-continuous coverage through the dot-to-hole crossover, and matching mean
-coverage above and below the scale where individual cells are resolvable.
-The unresolved screen should not form large alternating islands.
-
-
 ## Authoring gap: material strokes separate cap and join control from surface relief
 
 `Element::stroke(Material, StrokeOptions)` states width and placement, but
@@ -249,25 +122,6 @@ A regression should compare its silhouette with Skia's stroke construction
 for round, miter and bevel joins and butt, round and square caps. Cover zero
 and fractional widths, miter limits, open and closed contours, clipped ends,
 signed relief and material effects.
-
-## Authoring gap: a persistent Compose drawing hides its sampled output
-
-`draw::Graphics::image()` already supplies an ordinary texture through
-`material::Texture(buffer.image())` with the media Skia adapter included.
-The author can refresh that snapshot in a shader slot and re-describe its
-consumer after painting. No additional Graphics texture wrapper is needed.
-The persistent buffer inside `compose::graphics` is private to its node,
-however, so that node's accumulated marks cannot also be sampled directly
-by a sibling material. An author must own a separate Graphics buffer or
-render an independent tree through `TextureScene`.
-
-Wanted: share a persistent drawing's output through the existing pixel-source
-seam where authors need both the retained node and a sampled input. Keep
-brush tools, material slot declarations and retained layout in their owning
-libraries, and state whether publication is a snapshot or live. A regression
-should paint successive strokes, preserve their history, update a shader
-consumer once per publication and reuse it between edits. Cover clear,
-resize, density mapping, source lifetime and compatible device sampling.
 
 ## A sized light's highlight is a representative point's, not the lobe's integral
 
@@ -312,17 +166,6 @@ shadow than for its glass. A test should time the seen phase of a
 full-frame pane under a casting light against the same pane under a light
 that casts nothing, and find the shadow's share within a stated bound of
 the opaque card's.
-
-## Design question: the window's endpoint has no client clock or session access
-
-`Grimoire <file> --frame … --gpu` photographs a scene2d sketch on
-Graphite and reports its backend and each frame's time, which is the
-capture route a client has. The window's own endpoint mounts neither the
-clock nor the session: the window's host lives on the Qt render thread
-under `GrimoireView::hostMutex`, while a `SessionAgent` opens and owns a
-host of its own. Mounting them needs either an agent that adopts an
-external host and hops its calls to the render thread, or a different
-split; the choice is the owner's.
 
 ## A raster image drawn below its smallest mipmap level is point-sampled from the base
 
