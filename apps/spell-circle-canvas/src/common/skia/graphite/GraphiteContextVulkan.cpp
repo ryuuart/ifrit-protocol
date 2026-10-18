@@ -28,6 +28,38 @@
 
 namespace sigil::skia {
 
+namespace {
+
+/** Whether @p physicalDevice is driven by MoltenVK, read from the driver
+ *  properties Vulkan 1.2 reports. A device that cannot report a driver
+ *  counts as MoltenVK on Apple platforms, where every Vulkan runs over
+ *  Metal, and as not MoltenVK elsewhere. */
+bool drivenByMoltenVk(
+    VkInstance instance, VkPhysicalDevice physicalDevice,
+    core::hardware::VulkanHandles::GetInstanceProcAddr getInstanceProcAddr) {
+  auto getProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2>(
+      getInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2"));
+  if (!getProperties)
+    getProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2>(
+        getInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR"));
+  VkPhysicalDeviceDriverProperties driver{};
+  driver.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+  if (getProperties) {
+    VkPhysicalDeviceProperties2 properties{};
+    properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    properties.pNext = &driver;
+    getProperties(physicalDevice, &properties);
+  }
+  if (driver.driverID != 0) return driver.driverID == VK_DRIVER_ID_MOLTENVK;
+#ifdef __APPLE__
+  return true;
+#else
+  return false;
+#endif
+}
+
+}  // namespace
+
 std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
     const core::hardware::VulkanHandles& handles) {
   if (!handles.instance || !handles.physicalDevice || !handles.device ||
@@ -84,6 +116,8 @@ std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
   std::unique_ptr<GraphiteContext> made(
       new GraphiteContext(std::move(context), handles.device));
   if (!made->recorder()) return nullptr;
+  made->m_restartLosesDepth = drivenByMoltenVk(
+      instance, backendContext.fPhysicalDevice, getInstanceProcAddr);
   return made;
 }
 

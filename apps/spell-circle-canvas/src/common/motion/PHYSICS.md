@@ -28,7 +28,7 @@ for (int i = 0; i < 40; ++i) cloth.add({i * 10.0f, 0}, {}, 1.0f, i % 8 == 0);
 for (int i = 1; i < 40; ++i) weave.push_back(distance(i - 1, i, 10.0f));
 
 const std::vector<Force> forces{gravity({0, 980}), wind(breeze, 40.0f),
-                                repel(cursor, 6000.0f, 120.0f)};
+                                drag(0.2f)};
 const Verlet stepper{.timeStep = 1s / 120.0, .damping = 0.4f, .iterations = 8};
 
 engine.timer([&] { stepper.step(cloth, forces, weave); }, {.stepRate = 120.0});
@@ -68,7 +68,8 @@ timer with a `TimerOptions::stepRate`, which is exactly this shape.
 
 **One force value with a kind, one constraint value with a kind.** A
 force is `Uniform` (an acceleration, so weight does not enter it),
-`Drag`, `Attract` (negative strength is `repel`), `Wind` (a
+`Drag`, `Attract` (a pull towards a point that falls off with distance;
+a negative strength pushes), `Wind` (a
 `core::noise::Field` read at the point and taken as an angle), `Flock`
 (the three steerings over the neighbours within a radius, sharing one
 grid between them) or `Body`, the caller's own captureless function. A

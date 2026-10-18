@@ -18,6 +18,16 @@
 
 namespace sigil::data::wire {
 
+/** @p value held inside [@p low, @p high]. A number outside what its
+ *  place on a wire holds is written at the nearer end, since wrapping it
+ *  would send a value nobody meant — a fixture dark that was meant at
+ *  full, a note nobody played; a value that is not a number lands at the
+ *  low end, having no side to be on. */
+inline double clamped(double value, double low, double high) {
+  if (!(value > low)) return low;
+  return value > high ? high : value;
+}
+
 /** The document in @p text, or nothing when it is not JSON. */
 std::optional<Json> readJson(std::string_view text);
 

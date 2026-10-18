@@ -63,6 +63,11 @@ inline float length(glm::vec2 v) { return std::sqrt(v.x * v.x + v.y * v.y); }
 /** Distance between two points, rounding as `length` does. */
 inline float distance(glm::vec2 a, glm::vec2 b) { return length(b - a); }
 
+/** The z of the 3D cross product of two planar vectors: positive when
+ *  @p b turns clockwise from @p a in Skia's y-down space, and zero when
+ *  the two are parallel. */
+inline float cross(glm::vec2 a, glm::vec2 b) { return a.x * b.y - a.y * b.x; }
+
 /** `t` wrapped into [0, period). */
 inline float wrap(float t, float period) {
   const float r = std::fmod(t, period);

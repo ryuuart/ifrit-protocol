@@ -317,8 +317,8 @@ in no header.
   resource key and a text cache fold with the same arithmetic.
 - **`path/Numeric.h`** — `kPi`, `kTau`, the degree/radian factors and
   `radians()`/`degrees()` over them (one rounding, where a hand-written
-  `deg * 3.14159f / 180.0f` rounds twice), `bisect()` over a predicate
-  and `wrap()` into a period.
+  `deg * 3.14159f / 180.0f` rounds twice), `bisect()` over a predicate,
+  the planar `cross()` and `wrap()` into a period.
 - **`path/Arrange.h`** — namespace `arrange`. Where item i of n goes,
   and which way it faces there: the one place in the tree an angle
   becomes a point, over glm and `Rect` with no renderer type. `Turn`
@@ -600,10 +600,9 @@ in no header.
   same circle reached the maker's way, through three of its points.
   `ProjectionScheme` is the seam — anything with `at()` out and `from()`
   home — so the catalogue is open: `projection::stereographic()`,
-  `gnomonic()`, `orthographic()`, `azimuthalEquidistant()`,
-  `equirectangular()` and `mercator()` make the stock ones over
-  `ProjectionOptions`, and `projection::custom(key, forward, inverse)` is
-  a `CustomProjection` for any other.
+  `gnomonic()`, `orthographic()` and `equirectangular()` make the stock
+  ones over `ProjectionOptions`, and `projection::custom(key, forward,
+  inverse)` is a `CustomProjection` for any other.
   `Rotation` is the sphere turned: `aboutX/Y/Z`, `zyz` (the three-angle
   form an epoch-to-epoch precession is published in), `then()`,
   `inverse()`, applied to a vector or to a `Spherical`. WHICH angles is

@@ -28,6 +28,7 @@ class PrecompileContext;
 class Recorder;
 struct RecorderOptions;
 struct ContextOptions;
+enum class SyncToCpu : bool;
 }  // namespace skgpu::graphite
 
 /** SKIA ON A DEVICE SOMEBODY ELSE OWNS. Graphite brought up against a
@@ -94,6 +95,21 @@ class GraphiteContext {
     return std::unique_lock<std::mutex>(m_contextMutex);
   }
 
+  /** SUBMITS WHAT @p recorder RECORDED since it last snapped: the
+   *  recording is inserted into `context()` carrying every wait registered
+   *  on the recorder — the fence of a texture another queue writes, which
+   *  a draw in it samples — and the context is submitted, waiting on the
+   *  CPU for the work to finish when @p sync says so. Under
+   *  `lockContext()`, so any thread's recorder may come through here.
+   *
+   *  The door for a caller that inserts its own recording: an insert made
+   *  any other way carries no wait, and a draw in it may sample a texture
+   *  before the queue writing it is done. False when nothing was recorded
+   *  or the insert was refused; the context is submitted either way, so
+   *  work already inserted still goes. */
+  bool submit(skgpu::graphite::Recorder& recorder,
+              skgpu::graphite::SyncToCpu sync) const;
+
   /** THE OPTIONS EVERY RECORDER MUST BE MADE WITH — pass them to
    *  `makeRecorder()`: the caching image provider, and ordered replay.
    *  @silent a recorder built without them draws any raster image,
@@ -102,11 +118,17 @@ class GraphiteContext {
    *  order: a skipped ID kills the recorder for the rest of the run. */
   static skgpu::graphite::RecorderOptions makeRecorderOptions();
   /** ONE FUNNEL FOR ContextOptions TOO, both backends: the glyph-atlas
-   *  texture budget SIGILSKIA_GLYPH_ATLAS_BYTES caps, unset leaving
-   *  Skia's own, and the one process-wide pool every context builds its
-   *  device pipelines on. The pool is never released, because Skia
+   *  texture budget `capGlyphAtlas` sets, none leaving Skia's own, and
+   *  the one process-wide pool every context builds its device pipelines
+   *  on. The pool is never released, because Skia
    *  requires it to outlive every context built over it. */
   static skgpu::graphite::ContextOptions makeContextOptions();
+
+  /** THE GLYPH ATLAS'S TEXTURE BUDGET, in bytes, for every context this
+   *  factory builds AFTERWARDS; zero restores Skia's own. Process-wide
+   *  and read when a context is created: what a benchmark varies to
+   *  price atlas eviction against the default. */
+  static void capGlyphAtlas(size_t bytes);
 
   /** WHERE A SHADER THAT WOULD NOT COMPILE IS REPORTED. Process-wide,
    *  and given to every context this factory builds AFTERWARDS, so set
@@ -185,11 +207,19 @@ class GraphiteContext {
   GraphiteContext(std::unique_ptr<skgpu::graphite::Context> context,
                   void* device);
 
+  /** The paint-order canvas reads whether this context's driver loses
+   *  depth across a render-pass restart. */
+  friend class PaintOrderCanvas;
+
   std::unique_ptr<skgpu::graphite::Context> m_context;
   /** The device every recorder made here draws on. */
   void* m_device = nullptr;
   std::unique_ptr<skgpu::graphite::Recorder> m_recorder;
   mutable std::mutex m_contextMutex;
+  /** Whether the driver serves a destination read by restarting the
+   *  render pass and loses the depth attachment across the restart:
+   *  set by the Vulkan bring-up for MoltenVK, false everywhere else. */
+  bool m_restartLosesDepth = false;
 };
 
 /** THE DEVICE @p recorder DRAWS ON — an id<MTLDevice> or a VkDevice,

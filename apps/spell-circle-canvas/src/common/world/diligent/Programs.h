@@ -16,11 +16,19 @@
  * SigilMaterial's Slang backend — <sigilmaterial/slang/SlangCompiler.h>.
  */
 
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 
 #include <cstdint>
 
 namespace sigil::world::diligent {
+
+/** THE LOBES @p material's PROGRAM STATES: those its lit recipe carries,
+ *  and those its Slang body writes the variable of, which is how a stack
+ *  states what its operands state. Classified once per recipe and
+ *  remembered, so a body asked every frame costs a lookup; none for a
+ *  material with no program. */
+material::Lobes statedLobes(const material::Material& material);
 
 /** THE SCAFFOLD ON ITS OWN, in each of its two builds. It is what a body
  *  whose material has no Slang body is drawn with — the colour the frame

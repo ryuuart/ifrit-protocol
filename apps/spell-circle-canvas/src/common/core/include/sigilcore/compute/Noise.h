@@ -156,14 +156,6 @@ inline constexpr uint64_t xorshift64Next(uint64_t& state) {
   return state;
 }
 
-/** `xorshift64Next` squeezed to [0, 1) through 24 bits taken from above
- *  the low eleven — the 24 a float's mantissa holds exactly, off the end
- *  a 64-bit xorshift mixes best. */
-inline constexpr float xorshift64UnitNext(uint64_t& state) {
-  return (float)((xorshift64Next(state) >> 11u) & 0xffffffu) *
-         (1.0f / 16777216.0f);
-}
-
 /** THE LATTICE MIXER: three integer coordinates and a seed to one
  *  well-mixed word — what value noise asks at each corner of a cell,
  *  and what anything indexed by a grid position asks for a stable draw.

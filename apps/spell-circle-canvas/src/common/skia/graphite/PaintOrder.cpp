@@ -62,8 +62,7 @@ PaintOrderCanvas::PaintOrderCanvas(GraphiteContext& context, SkCanvas* target)
       m_fencing(needed(context)) {}
 
 bool PaintOrderCanvas::needed(const GraphiteContext& context) {
-  const skgpu::graphite::Context* on = context.context();
-  return on && on->backend() == skgpu::BackendApi::kVulkan;
+  return context.context() && context.m_restartLosesDepth;
 }
 
 skgpu::graphite::Recorder* PaintOrderCanvas::recorder() const {

@@ -61,8 +61,9 @@ be the same kind of thing, held in a variable and swapped.
 `at(direction)` laying a direction on the plane and `from(point)`
 reading it back. The stock `Projection` is one, and
 `sigil::geometry::path::projection::stereographic`, `gnomonic`,
-`orthographic`, `azimuthalEquidistant`, `equirectangular` and `mercator`
-make each over the shared `ProjectionOptions`. A figure written against
+`orthographic` and `equirectangular` make each over the shared
+`ProjectionOptions`; the other schemes are stood up by naming their
+`Scheme` on a `Projection`. A figure written against
 the concept takes any other through
 `sigil::geometry::path::projection::custom`, which carries a forward
 and an inverse function and compares by the key it is given.

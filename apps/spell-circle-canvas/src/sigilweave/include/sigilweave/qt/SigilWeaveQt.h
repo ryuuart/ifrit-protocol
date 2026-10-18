@@ -14,8 +14,6 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -23,16 +21,13 @@
 
 #include <QColor>
 #include <QFont>
-#include <QPointF>
-#include <QRectF>
 #include <QString>
 #include <string_view>
 
-/** QT'S TYPES AND THE ENGINE'S, CONVERTED BOTH WAYS: `QString` as text
- *  the engine can shape, `QFont` as a `TextStyle`, and Skia's rects and
- *  points as Qt's. Text crosses without copying, both sides storing
- *  UTF-16. It is a separate target, so the engine stays free of Qt and
- *  only a Qt application links this. */
+/** QT'S TYPES AS THE ENGINE'S: `QString` as text the engine can shape,
+ *  `QFont` as a `TextStyle`, `QColor` as Skia's colour. Text crosses
+ *  without copying, both sides storing UTF-16. It is a separate target,
+ *  so the engine stays free of Qt and only a Qt application links this. */
 namespace sigil::weave::qt {
 
 /** @name Text (zero-copy: QString is UTF-16, and so is Paragraph)
@@ -45,11 +40,6 @@ namespace sigil::weave::qt {
 inline std::u16string_view toU16(const QString& text) {
   return {reinterpret_cast<const char16_t*>(text.constData()),
           static_cast<size_t>(text.size())};
-}
-
-/** Copies a UTF-16 view into a QString. */
-inline QString toQString(std::u16string_view text) {
-  return QString::fromUtf16(text.data(), static_cast<qsizetype>(text.size()));
 }
 
 /** Appends QString text without transcoding its UTF-16 storage. */
@@ -77,7 +67,7 @@ inline std::vector<sigil::weave::CharRange> findAllOccurrences(
 
 /** @} */
 
-/** @name Geometry / color
+/** @name Color
  *  @{
  */
 
@@ -85,19 +75,6 @@ inline std::vector<sigil::weave::CharRange> findAllOccurrences(
 inline SkColor toSkColor(const QColor& color) {
   return SkColorSetARGB(color.alpha(), color.red(), color.green(),
                         color.blue());
-}
-
-/** Converts a QPointF to a float SkPoint. */
-inline SkPoint toSkPoint(const QPointF& point) {
-  return {static_cast<float>(point.x()), static_cast<float>(point.y())};
-}
-
-/** Converts a QRectF to a float SkRect. */
-inline SkRect toSkRect(const QRectF& rectangle) {
-  return SkRect::MakeXYWH(static_cast<float>(rectangle.x()),
-                          static_cast<float>(rectangle.y()),
-                          static_cast<float>(rectangle.width()),
-                          static_cast<float>(rectangle.height()));
 }
 
 /** @} */

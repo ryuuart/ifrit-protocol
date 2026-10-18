@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Operations.h"
 
 namespace sigil::geometry::path::operations {
@@ -19,7 +20,6 @@ glm::vec2 unitOf(glm::vec2 v) {
   const float l = std::sqrt(v.x * v.x + v.y * v.y);
   return l > 1e-9f ? glm::vec2{v.x / l, v.y / l} : glm::vec2{0, 0};
 }
-float cross(glm::vec2 a, glm::vec2 b) { return a.x * b.y - a.y * b.x; }
 /** The normal a quarter turn to the LEFT of travel. */
 glm::vec2 leftOf(glm::vec2 u) { return {-u.y, u.x}; }
 

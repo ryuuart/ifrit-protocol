@@ -75,7 +75,7 @@ set_tests_properties(sigil_build_helpers PROPERTIES TIMEOUT 120
 # never touch the shared build tree.
 add_test(NAME sigil_build_slot
   COMMAND ${Python3_EXECUTABLE}
-    "${CMAKE_CURRENT_SOURCE_DIR}/sketch-pass/test_buildslot.py")
+    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test_buildslot.py")
 set_tests_properties(sigil_build_slot PROPERTIES TIMEOUT 120)
 
 # THE ADMINISTRATION'S OWN TESTS: how a tree names its registered tests

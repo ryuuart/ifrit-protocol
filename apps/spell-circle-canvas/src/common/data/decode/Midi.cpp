@@ -12,11 +12,11 @@
  * than taken from a package.
  */
 
-#include "Wire.h"
-
 #include <cstdint>
 #include <string_view>
 #include <utility>
+
+#include "Wire.h"
 
 namespace sigil::data {
 
@@ -63,15 +63,6 @@ constexpr int kChannels = 16;
  *  counts: the two halves put together make 0 to 16383, and `bend` is
  *  measured from the centre of that travel. */
 constexpr int kBendCentre = 8192;
-
-/** @p value held inside [@p low, @p high]. A value outside what its
- *  place on the wire holds is written at the nearer end, since wrapping
- *  it would put a note nobody played on the cable; a value that is not
- *  a number lands at the low end, having no side to be on. */
-double clamped(double value, double low, double high) {
-  if (!(value > low)) return low;
-  return value > high ? high : value;
-}
 
 uint8_t byteAt(std::span<const std::byte> message, size_t at) {
   return std::to_integer<uint8_t>(message[at]);
@@ -152,7 +143,7 @@ const char* systemKind(uint8_t status) {
 
 std::byte dataByte(double value) {
   return static_cast<std::byte>(
-      static_cast<int>(clamped(value, 0, kDataCeiling)));
+      static_cast<int>(wire::clamped(value, 0, kDataCeiling)));
 }
 
 std::vector<std::byte> messageOf(int status) {
@@ -275,15 +266,16 @@ std::vector<std::byte> wire::writeMidi(const Json& message) {
     bytes.reserve(verbatim.size());
     for (const Json& one : verbatim.array())
       bytes.push_back(static_cast<std::byte>(
-          static_cast<int>(clamped(one.number(), 0, 255))));
+          static_cast<int>(wire::clamped(one.number(), 0, 255))));
     return bytes;
   }
 
   const std::string_view kind = message["kind"].string();
   // A message that names no channel is on the first one, which is where
   // a controller with no channel of its own speaks.
-  const int channel =
-      static_cast<int>(clamped(message["channel"].number(1), 1, kChannels)) - 1;
+  const int channel = static_cast<int>(wire::clamped(
+                          message["channel"].number(1), 1, kChannels)) -
+                      1;
 
   if (kind == "NoteOn")
     return messageOf(kNoteOn | channel, message["note"].number(),
@@ -302,9 +294,10 @@ std::vector<std::byte> wire::writeMidi(const Json& message) {
   if (kind == "Aftertouch")
     return messageOf(kAftertouch | channel, message["pressure"].number());
   if (kind == "PitchBend") {
-    const int bend = static_cast<int>(clamped(message["bend"].number(),
-                                              -kBendCentre, kBendCentre - 1)) +
-                     kBendCentre;
+    const int bend =
+        static_cast<int>(wire::clamped(message["bend"].number(), -kBendCentre,
+                                       kBendCentre - 1)) +
+        kBendCentre;
     return messageOf(kPitchBend | channel, bend & kDataCeiling, bend >> 7);
   }
   if (kind == "Clock") return messageOf(kClock);

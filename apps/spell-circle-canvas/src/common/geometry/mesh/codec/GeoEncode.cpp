@@ -5,12 +5,12 @@
 
 #include <cmath>
 #include <cstdio>
-#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "sigilgeometry/mesh/codec/Encode.h"
+#include "sigilio/source/Sink.h"
 
 namespace sigil::geometry::mesh::codec::encode {
 
@@ -69,13 +69,6 @@ void attribute(std::string& out, std::string_view name, int size, size_t count,
     out += ']';
   }
   out += "]]]]";
-}
-
-bool writeFile(const std::filesystem::path& file, const std::string& bytes) {
-  std::ofstream stream(file, std::ios::binary);
-  if (!stream) return false;
-  stream.write(bytes.data(), (std::streamsize)bytes.size());
-  return (bool)stream;
 }
 
 /** The document's opening: the version the reader looks for in the first
@@ -242,12 +235,12 @@ std::string geo(const Mesh& mesh) {
 
 bool geo(const std::filesystem::path& file, const Cloud& cloud) {
   const std::string bytes = geo(cloud);
-  return !bytes.empty() && writeFile(file, bytes);
+  return !bytes.empty() && io::writeBytes(file, bytes.data(), bytes.size());
 }
 
 bool geo(const std::filesystem::path& file, const Mesh& mesh) {
   const std::string bytes = geo(mesh);
-  return !bytes.empty() && writeFile(file, bytes);
+  return !bytes.empty() && io::writeBytes(file, bytes.data(), bytes.size());
 }
 
 }  // namespace sigil::geometry::mesh::codec::encode

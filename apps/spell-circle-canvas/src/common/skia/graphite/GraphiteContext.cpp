@@ -184,6 +184,13 @@ std::atomic<skgpu::ShaderErrorHandler*>& shaderErrorSink() {
   return sink;
 }
 
+/** The glyph atlas's texture budget for every context built after it is
+ *  set; zero leaves Skia's own. */
+std::atomic<size_t>& glyphAtlasBudget() {
+  static std::atomic<size_t> bytes{0};
+  return bytes;
+}
+
 /** Where a pipeline Graphite builds or finds is reported, for every
  *  context built after it is set. Atomic for the same reason as the
  *  handler above. An add is reported from the pool thread that built
@@ -236,6 +243,10 @@ std::vector<sk_sp<SkRuntimeEffect>>& knownRuntimeEffects() {
 }
 
 }  // namespace
+
+void GraphiteContext::capGlyphAtlas(size_t bytes) {
+  glyphAtlasBudget().store(bytes, std::memory_order_relaxed);
+}
 
 void GraphiteContext::reportShaderErrorsTo(skgpu::ShaderErrorHandler* handler) {
   shaderErrorSink().store(handler, std::memory_order_relaxed);
@@ -315,14 +326,8 @@ skgpu::graphite::ContextOptions GraphiteContext::makeContextOptions() {
   if (!knownRuntimeEffects().empty())
     options.fUserDefinedKnownRuntimeEffects =
         SkSpan<sk_sp<SkRuntimeEffect>>(knownRuntimeEffects());
-  // The glyph-atlas texture budget, overridable from the environment so
-  // it can be varied under a benchmark without a rebuild. Unparseable or
-  // non-positive values are ignored, so an unset or malformed variable
-  // leaves Skia's own default in place and default behaviour never
-  // depends on the environment.
-  if (const char* bytes = std::getenv("SIGILSKIA_GLYPH_ATLAS_BYTES"))
-    if (const long parsed = std::strtol(bytes, nullptr, 10); parsed > 0)
-      options.fGlyphCacheTextureMaximumBytes = (size_t)parsed;
+  if (const size_t bytes = glyphAtlasBudget().load(std::memory_order_relaxed))
+    options.fGlyphCacheTextureMaximumBytes = bytes;
   return options;
 }
 

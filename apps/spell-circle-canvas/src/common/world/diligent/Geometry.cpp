@@ -1117,15 +1117,8 @@ bool blended(const Draw& body, const Blending& blending, bool flat) {
  *  drawn over the body never does. */
 bool seesThrough(const Draw& body, bool flat) {
   if (flat || !body.material) return false;
-  const material::Lobes carried = material::surface::lobes(*body.material);
-  if (carried.transmission || carried.distortion) return true;
-  // A STACK states what its operands state, in the body composed out of
-  // theirs, which writes a lobe's variables only when an operand does.
-  if (!body.material->hasProgram()) return false;
-  const std::string* text =
-      body.material->recipe().body(material::Target::Slang);
-  return text && (text->find("gSurfaceTransmission") != std::string::npos ||
-                  text->find("gSurfaceDistortion") != std::string::npos);
+  const material::Lobes stated = statedLobes(*body.material);
+  return stated.transmission || stated.distortion;
 }
 
 /** WHERE A BODY STANDS IN THE PICTURE: the rectangle its box covers, in
@@ -1164,8 +1157,8 @@ int levelsRead(const Draw& body, int levels) {
   const material::Schema& fields = worn.recipe().parameters();
   const material::Field* roughness = fields.find("roughness");
   const material::Field* ior = fields.find("ior");
-  if (!material::surface::lobes(worn).transmission)
-    return material::surface::lobes(worn).distortion ? 0 : levels - 1;
+  const material::Lobes carried = material::surface::lobes(worn);
+  if (!carried.transmission) return carried.distortion ? 0 : levels - 1;
   if (!roughness || !ior || roughness->floats != 1 || ior->floats != 1)
     return levels - 1;
   const float rough = std::clamp(worn.get<float>("roughness"), 0.0f, 1.0f);
@@ -1981,12 +1974,7 @@ bool tints(const Draw& body) {
   if (!seesThrough(body, false)) return false;
   const Blending blending = blendingOf(body, body.baseColor, false);
   if (blending.blend != SkBlendMode::kSrcOver || blending.fades) return false;
-  const std::string* text =
-      body.material->hasProgram()
-          ? body.material->recipe().body(material::Target::Slang)
-          : nullptr;
-  return material::surface::lobes(*body.material).transmission ||
-         (text && text->find("gSurfaceTransmission") != std::string::npos);
+  return statedLobes(*body.material).transmission;
 }
 
 /** THE TINT BESIDE THE SHADOW MAPS: for every map the stage laid out, the

@@ -1,11 +1,11 @@
 #include <sigildata/decode/Dialect.h>
 
-#include "Wire.h"
-
 #include <bit>
 #include <cstdint>
 #include <string>
 #include <utility>
+
+#include "Wire.h"
 
 namespace sigil::data {
 
@@ -36,15 +36,6 @@ size_t paddedLength(size_t length) { return (length + 4) & ~size_t{3}; }
 /** @p length rounded up to the multiple of four the wire aligns to. */
 size_t roundedUp(size_t length) { return (length + 3) & ~size_t{3}; }
 
-/** @p value held inside [@p low, @p high]. A number outside what its
- *  place on the wire holds is written at the nearer end, since wrapping
- *  it would put a value there that nobody meant; a number that is not a
- *  number lands at the low end, having no side to be on. */
-double clamped(double value, double low, double high) {
-  if (!(value > low)) return low;
-  return value > high ? high : value;
-}
-
 /** The four bytes of a packed argument, most significant first, which
  *  is the order the wire writes them in. */
 Json fourBytes(uint32_t packed) {
@@ -59,8 +50,8 @@ Json fourBytes(uint32_t packed) {
 uint32_t packedBytes(const Json& bytes) {
   uint32_t packed = 0;
   for (size_t at = 0; at < 4; ++at)
-    packed = (packed << 8) |
-             static_cast<uint32_t>(clamped(bytes[at].number(), 0.0, 255.0));
+    packed = (packed << 8) | static_cast<uint32_t>(
+                                 wire::clamped(bytes[at].number(), 0.0, 255.0));
   return packed;
 }
 
@@ -328,7 +319,7 @@ void appendBlob(std::vector<std::byte>& bytes, const Json& blob) {
   appendWord(bytes, static_cast<uint32_t>(blob.size()));
   for (const Json& value : blob.array())
     bytes.push_back(static_cast<std::byte>(
-        static_cast<unsigned char>(clamped(value.number(), 0.0, 255.0))));
+        static_cast<unsigned char>(wire::clamped(value.number(), 0.0, 255.0))));
   for (size_t pad = roundedUp(blob.size()) - blob.size(); pad > 0; --pad)
     bytes.push_back(std::byte{0});
 }
@@ -355,8 +346,9 @@ void writeRecord(const Json& record, std::string& tags,
   }
   if (const Json& whole = record["int"]; whole.kind() == Json::Kind::Number) {
     tags.push_back('i');
-    appendWord(content, static_cast<uint32_t>(static_cast<int32_t>(clamped(
-                            whole.number(), smallestInt32, largestInt32))));
+    appendWord(content,
+               static_cast<uint32_t>(static_cast<int32_t>(wire::clamped(
+                   whole.number(), smallestInt32, largestInt32))));
     return;
   }
   if (const Json& wide = record["double"]; wide.kind() == Json::Kind::Number) {
@@ -420,7 +412,7 @@ std::optional<Json> wire::readOsc(std::span<const std::byte> packet) {
 }
 
 std::vector<std::byte> wire::writeOsc(std::string_view address,
-                                 const Json& arguments) {
+                                      const Json& arguments) {
   // An address pattern opens with a slash, and a message without one is
   // addressed to nothing.
   if (!address.starts_with('/')) return {};

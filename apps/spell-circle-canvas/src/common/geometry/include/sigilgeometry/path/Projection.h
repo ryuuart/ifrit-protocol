@@ -16,11 +16,11 @@
  * would turn a stereographic's circles into ellipses.
  */
 
+#include <concepts>
+#include <functional>
 #include <glm/mat3x3.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
-#include <concepts>
-#include <functional>
 #include <optional>
 #include <string>
 
@@ -252,11 +252,11 @@ struct Projection {
  *  of functions through the same door, so a figure written against the
  *  seam takes a projection nobody here has named. */
 template <typename P>
-concept ProjectionScheme = requires(const P& projection, Spherical direction,
-                                    glm::vec2 point) {
-  { projection.at(direction) } -> std::convertible_to<glm::vec2>;
-  { projection.from(point) } -> std::convertible_to<Spherical>;
-};
+concept ProjectionScheme =
+    requires(const P& projection, Spherical direction, glm::vec2 point) {
+      { projection.at(direction) } -> std::convertible_to<glm::vec2>;
+      { projection.from(point) } -> std::convertible_to<Spherical>;
+    };
 
 /** The dials every stock projection shares. */
 struct ProjectionOptions {
@@ -292,9 +292,7 @@ namespace projection {
 Projection stereographic(ProjectionOptions options = {});
 Projection gnomonic(ProjectionOptions options = {});
 Projection orthographic(ProjectionOptions options = {});
-Projection azimuthalEquidistant(ProjectionOptions options = {});
 Projection equirectangular(ProjectionOptions options = {});
-Projection mercator(ProjectionOptions options = {});
 /** Any projection: @p forward lays a direction on the plane and
  *  @p inverse reads it back; @p key is its identity. */
 CustomProjection custom(std::string key,

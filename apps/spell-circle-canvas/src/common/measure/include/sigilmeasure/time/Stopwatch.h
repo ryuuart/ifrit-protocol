@@ -2,9 +2,11 @@
 
 /** @file
  * @ingroup measure-time
- * How long something took: the one duration every reading in the library
- * answers, a stopwatch on the steady clock, and a block timed in one call.
+ * How long something took: a stopwatch on the steady clock, and a block
+ * timed in one call, each answering SigilMotion's `motion::Duration`.
  */
+
+#include <sigilmotion/time/Duration.h>
 
 #include <chrono>
 #include <utility>
@@ -14,15 +16,16 @@
  *  summary, quantile and histogram of a run in hand; the window, smoothed
  *  reading and rate of a live stream; and the check whose printed verdict
  *  is computed from the values it reports. Reach for it wherever code
- *  measures itself — no other Sigil library stands under this one, so
- *  anything may. */
+ *  measures itself — only SigilMotion's time unit stands under this one,
+ *  so anything may. */
 namespace sigil::measure {
 
-/** A SPAN OF TIME, in seconds held as a double: the one unit every
- *  reading in this library answers. A `std::chrono` literal (`380ms`,
- *  `4s`) converts into it, and it converts into any floating-point unit a
- *  printout wants — `Milliseconds(watch.elapsed()).count()`. */
-using Duration = std::chrono::duration<double>;
+/** A SPAN OF TIME is SigilMotion's `motion::Duration`, seconds held as a
+ *  double: the one unit every reading in this library answers. A
+ *  `std::chrono` literal (`380ms`, `4s`) converts into it, and it converts
+ *  into any floating-point unit a printout wants —
+ *  `Milliseconds(watch.elapsed()).count()`. This name is that type. */
+using Duration = motion::Duration;
 
 /** A span in milliseconds held as a double, for a printout or a field
  *  that states its unit. */
@@ -44,7 +47,9 @@ class Stopwatch {
   Stopwatch() : m_start(Clock::now()) {}
 
   /** The span since construction or the last restart. */
-  [[nodiscard]] Duration elapsed() const { return Clock::now() - m_start; }
+  [[nodiscard]] motion::Duration elapsed() const {
+    return Clock::now() - m_start;
+  }
   /** Starts the span again from now. */
   void restart() { m_start = Clock::now(); }
 
@@ -56,7 +61,7 @@ class Stopwatch {
  *  block returns is discarded; a caller that needs it keeps it from
  *  inside the block. */
 template <class Block>
-[[nodiscard]] Duration timed(Block&& block) {
+[[nodiscard]] motion::Duration timed(Block&& block) {
   const Stopwatch watch;
   std::forward<Block>(block)();
   return watch.elapsed();

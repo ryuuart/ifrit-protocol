@@ -157,7 +157,7 @@ class BuildslotTest(unittest.TestCase):
                             pass
 
     def test_a_killed_runner_is_abandoned_and_retention_removes_it(self):
-        helper = self.root / "sketch-pass" / "buildslot.py"
+        helper = self.root / "scripts" / "buildslot.py"
         helper.parent.mkdir()
         shutil.copyfile(HELPER, helper)
         name = "killed"
@@ -298,7 +298,7 @@ class BuildslotTest(unittest.TestCase):
             self.assertEqual(buildslot.follow("evicted"), 9)
 
     def test_detached_job_finishes_after_the_calling_process_is_killed(self):
-        helper = self.root / "sketch-pass" / "buildslot.py"
+        helper = self.root / "scripts" / "buildslot.py"
         helper.parent.mkdir()
         shutil.copyfile(HELPER, helper)
         caller = subprocess.Popen(

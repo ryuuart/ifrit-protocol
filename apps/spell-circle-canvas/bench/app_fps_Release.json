@@ -962,17 +962,6 @@
    "submit": 1.35,
    "headroom": 597.0
   },
-  "manuscript": {
-   "window": "1440x900@2",
-   "canvas": "777x1080",
-   "kind": "scene2d",
-   "fps": 118.9,
-   "work": 0.13,
-   "p99": 0.38,
-   "draw": 0.11,
-   "submit": 0.31,
-   "headroom": 7967.2
-  },
   "material_atlas": {
    "window": "1440x900@2",
    "canvas": "1100x660",
@@ -983,17 +972,6 @@
    "draw": 0.32,
    "submit": 0.29,
    "headroom": 2974.4
-  },
-  "material_child": {
-   "window": "1440x900@2",
-   "canvas": "1060x690",
-   "kind": "scene2d",
-   "fps": 119.5,
-   "work": 0.41,
-   "p99": 2.1,
-   "draw": 0.39,
-   "submit": 0.41,
-   "headroom": 2435.6
   },
   "material_lab": {
    "window": "1440x900@2",
@@ -1423,17 +1401,6 @@
    "draw": 0.21,
    "submit": 0.32,
    "headroom": 4589.2
-  },
-  "paragraph_paints": {
-   "window": "1440x900@2",
-   "canvas": "1200x900",
-   "kind": "scene2d",
-   "fps": 119.9,
-   "work": 0.38,
-   "p99": 0.86,
-   "draw": 0.35,
-   "submit": 0.9,
-   "headroom": 2653.3
   },
   "paragraph_sheet": {
    "window": "1440x900@2",
@@ -2017,17 +1984,6 @@
    "draw": 0.18,
    "submit": 0.2,
    "headroom": 5407.3
-  },
-  "volatility_cost": {
-   "window": "1440x900@2",
-   "canvas": "1320x980",
-   "kind": "scene2d",
-   "fps": 119.7,
-   "work": 2.05,
-   "p99": 2.57,
-   "draw": 2.02,
-   "submit": 0.4,
-   "headroom": 488.5
   },
   "warichu_placeholder": {
    "window": "1440x900@2",

@@ -348,9 +348,11 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
   for (Bucket& bucket : std::span<Bucket>(buckets.data(), activeBucketCount)) {
     if (bucket.glyphs.empty()) continue;
     sk_sp<SkTypeface> typeface = bucket.typeface;
+    // A driven coordinate moves every frame, so its face is one the font
+    // context does not keep: the bucket holds it for this draw alone.
     if (liveVariations && liveVariations->fonts &&
         !liveVariations->variations.empty())
-      typeface = liveVariations->fonts->variedTypeface(
+      typeface = liveVariations->fonts->variedTypefaceTransient(
           typeface, liveVariations->variations);
     bucket.font =
         makeFont(typeface, bucket.fontSize, bucket.scaleX, bucket.aliased);

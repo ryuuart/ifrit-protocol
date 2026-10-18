@@ -10,9 +10,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
 
 #include "sigilgeometry/mesh/codec/Encode.h"
+#include "sigilio/source/Sink.h"
 
 namespace sigil::geometry::mesh::codec::encode {
 
@@ -237,27 +237,16 @@ std::string ply(const Mesh& mesh, const PlyOptions& options) {
   return out;
 }
 
-namespace {
-
-bool writeFile(const std::filesystem::path& file, const std::string& bytes) {
-  std::ofstream stream(file, std::ios::binary);
-  if (!stream) return false;
-  stream.write(bytes.data(), (std::streamsize)bytes.size());
-  return (bool)stream;
-}
-
-}  // namespace
-
 bool ply(const std::filesystem::path& file, const Cloud& cloud,
          const PlyOptions& options) {
   const std::string bytes = ply(cloud, options);
-  return !bytes.empty() && writeFile(file, bytes);
+  return !bytes.empty() && io::writeBytes(file, bytes.data(), bytes.size());
 }
 
 bool ply(const std::filesystem::path& file, const Mesh& mesh,
          const PlyOptions& options) {
   const std::string bytes = ply(mesh, options);
-  return !bytes.empty() && writeFile(file, bytes);
+  return !bytes.empty() && io::writeBytes(file, bytes.data(), bytes.size());
 }
 
 }  // namespace sigil::geometry::mesh::codec::encode

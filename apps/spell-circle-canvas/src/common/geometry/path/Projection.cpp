@@ -260,14 +260,8 @@ Projection gnomonic(ProjectionOptions options) {
 Projection orthographic(ProjectionOptions options) {
   return stock(Scheme::Orthographic, options);
 }
-Projection azimuthalEquidistant(ProjectionOptions options) {
-  return stock(Scheme::AzimuthalEquidistant, options);
-}
 Projection equirectangular(ProjectionOptions options) {
   return stock(Scheme::Equirectangular, options);
-}
-Projection mercator(ProjectionOptions options) {
-  return stock(Scheme::Mercator, options);
 }
 
 CustomProjection custom(std::string key,

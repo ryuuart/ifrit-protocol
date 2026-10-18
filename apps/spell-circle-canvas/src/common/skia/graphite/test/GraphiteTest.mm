@@ -33,11 +33,14 @@
 #include <sigilskia/draw/Direct.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/PaintOrder.h>
 #include <sigilskia/graphite/Readback.h>
 #include <sigilskia/graphite/TextureImage.h>
 
 #include <algorithm>
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -197,6 +200,12 @@ TEST(SigilSkiaGraphite, CreatesOnTheSystemDevice) {
   EXPECT_NE(ctx->recorder(), nullptr);
 }
 
+// Metal keeps depth across every pass, so nothing on it is fenced.
+TEST(SigilSkiaGraphite, AMetalContextNeedsNoPaintOrderFence) {
+  SKIP_WITHOUT_METAL();
+  EXPECT_FALSE(sigil::skia::PaintOrderCanvas::needed(*graphite()));
+}
+
 TEST(SigilSkiaGraphite, NullHandlesMakeNoContext) {
   EXPECT_EQ(GraphiteContext::createMetal(nullptr, (__bridge void *)queue()), nullptr);
   EXPECT_EQ(GraphiteContext::createMetal((__bridge void *)device(), nullptr), nullptr);
@@ -235,6 +244,56 @@ TEST(SigilSkiaGraphite, ReadbackRescalesPixelsAndPreservesRowPadding) {
   }
   const SkPixmap invalid(output.info(), nullptr, 16);
   EXPECT_FALSE(sigil::skia::readbackPixels(*ctx, *surface, invalid));
+}
+
+// A readback's GPU work waits on an event nothing but the CPU raises, so
+// the read cannot finish until a second thread raises it — and that thread
+// raises it only once it holds the context. A readback that kept the
+// context across its wait would starve the second thread until it gave up.
+TEST(SigilSkiaGraphite, AReadbackWaitingOnTheGpuLeavesTheContextFree) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr);
+  const FenceHandle fence = dev->createFence();
+  ASSERT_TRUE(dev->isValid(fence));
+  void *event = dev->exportNative(fence).mtlSharedEvent;
+  ASSERT_NE(event, nullptr);
+  const FenceValue value = dev->completedValue(fence) + 1;
+
+  const auto surface = SkSurfaces::RenderTarget(ctx->recorder(), SkImageInfo::MakeN32Premul(4, 4));
+  ASSERT_NE(surface, nullptr);
+  sigil::skia::waitBeforeSampling(*ctx->recorder(), event, value);
+  surface->getCanvas()->clear(SK_ColorBLUE);
+
+  // The context's own mutex, so the second thread can try it without
+  // blocking: a blocking take behind a readback that kept it would never
+  // return, since the readback is waiting on that very thread.
+  std::mutex *const contextMutex = ctx->lockContext().mutex();
+  std::atomic<bool> heldWhileWaiting{false};
+  std::thread raiser([&] {
+    // Long enough for the read to be submitted and waiting on the event.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    const auto giveUp = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (std::chrono::steady_clock::now() < giveUp) {
+      if (contextMutex->try_lock()) {
+        heldWhileWaiting = true;
+        contextMutex->unlock();
+        break;
+      }
+      std::this_thread::yield();
+    }
+    ((__bridge id<MTLSharedEvent>)event).signaledValue = value;
+  });
+  std::array<uint8_t, 64> storage{};
+  const SkPixmap output(SkImageInfo::MakeN32Premul(4, 4), storage.data(), 16);
+  const bool read = sigil::skia::readbackPixels(*ctx, *surface, output);
+  raiser.join();
+
+  EXPECT_TRUE(heldWhileWaiting);
+  EXPECT_TRUE(read);
+  EXPECT_EQ(output.getColor(0, 0), SK_ColorBLUE);
+  dev->destroyFence(fence);
 }
 
 TEST(SigilSkiaGraphite, DirectDrawsReuseTheImageProvidersTexture) {

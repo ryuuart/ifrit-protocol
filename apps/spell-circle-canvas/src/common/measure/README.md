@@ -4,14 +4,15 @@ How long something took, what a run of numbers amounts to, and whether a
 claim about it held. A stopwatch and a timed block; the summary, quantile
 and histogram of a run in hand; the window, smoothed reading and rate of
 a live stream; and `Check` — a claim whose printed verdict is computed
-from the values it reports. It has no domain-library dependency, so every
-other library can measure itself without pulling in another Sigil layer,
-and a sketch can read its own numbers with the same instruments.
+from the values it reports. It stands on no domain library but
+SigilMotion's header-only time unit, so every other library can measure
+itself without pulling in another Sigil layer, and a sketch can read its
+own numbers with the same instruments.
 
-Namespace `sigil::measure`, target `SigilMeasure`. Every duration is a
-`std::chrono` span: `measure::Duration` is seconds held as a double, a
-literal such as `380ms` converts into it, and `measure::Milliseconds`
-turns it back into a number for a printout. The one outside link,
+Namespace `sigil::measure`, target `SigilMeasure`. Every duration is
+SigilMotion's `std::chrono` span: `motion::Duration` is seconds held as a
+double, a literal such as `380ms` converts into it, and
+`measure::Milliseconds` turns it back into a number for a printout. The one outside link,
 Boost.Container, stays behind the implementation of the counter table;
 no public header includes it.
 
@@ -24,6 +25,7 @@ One include, `<sigilmeasure/Measure.h>`, and every call on one screen:
 
 using namespace sigil::measure;
 using namespace std::chrono_literals;
+using sigil::motion::Duration;
 
 // ── HOW LONG ─────────────────────────────────────────────────────────────
 Stopwatch watch;                                      // starts now

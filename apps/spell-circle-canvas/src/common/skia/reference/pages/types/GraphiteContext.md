@@ -52,9 +52,9 @@ preconditions, and violating either fails silently rather than loudly.
    to throw the result away.
 
 `sigil::skia::GraphiteContext::makeContextOptions` is one funnel for
-ContextOptions too (both backends). It reads `SIGILSKIA_GLYPH_ATLAS_BYTES`
-to cap the Graphite glyph-atlas texture budget; unset leaves Skia's own
-default in place.
+ContextOptions too (both backends). It carries the glyph-atlas texture
+budget `sigil::skia::GraphiteContext::capGlyphAtlas` set; none leaves
+Skia's own default in place.
 
 Every context is given one process-wide thread pool to build its device
 pipelines on. Without it Graphite compiles each one serially on the

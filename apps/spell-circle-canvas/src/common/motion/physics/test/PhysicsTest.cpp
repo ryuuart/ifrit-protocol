@@ -10,10 +10,6 @@
  * it) answer rather than dividing.
  */
 
-#include <glm/geometric.hpp>
-#include <glm/vec2.hpp>
-#include "support/StandsAlone.h"
-
 #include <gtest/gtest.h>
 #include <sigilmotion/physics/Constraints.h>
 #include <sigilmotion/physics/Forces.h>
@@ -22,8 +18,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <vector>
 
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion::physics;
 using sigil::motion::Duration;
@@ -39,9 +38,14 @@ float apart(const Points& points, size_t a, size_t b) {
 }  // namespace
 
 TEST(Physics, TheSameStepTwiceIsTheSameRun) {
-  const Verlet stepper{.timeStep = 1s / 120.0, .damping = 0.4f, .iterations = 6};
-  const std::vector<Force> forces{gravity({0, 900}), drag(0.2f),
-                                  attract({40, 40}, 300.0f, 200.0f)};
+  const Verlet stepper{
+      .timeStep = 1s / 120.0, .damping = 0.4f, .iterations = 6};
+  const std::vector<Force> forces{gravity({0, 900}),
+                                  drag(0.2f),
+                                  {.kind = ForceKind::Attract,
+                                   .point = {40, 40},
+                                   .strength = 300.0f,
+                                   .radius = 200.0f}};
   const std::vector<Constraint> sticks{distance(0, 1, 30.0f)};
 
   auto run = [&] {
@@ -77,7 +81,8 @@ TEST(Physics, GravityLandsOnTheClosedForm) {
 }
 
 TEST(Physics, APinnedSpringSettlesOnItsRestLength) {
-  const Verlet stepper{.timeStep = 1s / 120.0, .damping = 2.0f, .iterations = 8};
+  const Verlet stepper{
+      .timeStep = 1s / 120.0, .damping = 2.0f, .iterations = 8};
   const std::vector<Force> forces{gravity({0, 400})};
   const std::vector<Constraint> sticks{spring(0, 1, 50.0f, 0.6f)};
   Points points;
@@ -300,8 +305,10 @@ TEST(Physics, AStepOfNoTimeMovesNothing) {
   for (Duration step : {Duration{}, -1s / 60.0}) {
     const Verlet stepper{.timeStep = step};
     stepper.step(points, forces, stick);
-    EXPECT_EQ(points.position, before) << "at a step of " << step.count() << "s";
-    EXPECT_EQ(points.velocity, speeds) << "at a step of " << step.count() << "s";
+    EXPECT_EQ(points.position, before)
+        << "at a step of " << step.count() << "s";
+    EXPECT_EQ(points.velocity, speeds)
+        << "at a step of " << step.count() << "s";
   }
 }
 
@@ -387,7 +394,8 @@ TEST(Physics, AnAttractorPullsNoHarderThanItsStrengthAtTheCentre) {
   // of the strength would become a million times it. `strength` is the
   // pull at one unit away and is the most there is.
   const float strength = 300.0f;
-  const std::vector<Force> forces{attract({0, 0}, strength)};
+  const std::vector<Force> forces{
+      {.kind = ForceKind::Attract, .point = {0, 0}, .strength = strength}};
   const Verlet stepper{.timeStep = 1s / 60.0};
   // A step leaves the force lane empty, so what the pull WAS is read off
   // the speed it bought: a unit mass gains the push times the step, and
@@ -424,5 +432,6 @@ TEST(Physics, ABodyForceWithNothingInItPushesNothing) {
   stepper.step(points, forces);
   EXPECT_EQ(points.force[0], (glm::vec2{0, 0}));
   // It coasts on the speed it had and nothing else touched it.
-  EXPECT_EQ(points.position[0], (before[0] + glm::vec2{1, 1} * (float)stepper.timeStep.count()));
+  EXPECT_EQ(points.position[0],
+            (before[0] + glm::vec2{1, 1} * (float)stepper.timeStep.count()));
 }

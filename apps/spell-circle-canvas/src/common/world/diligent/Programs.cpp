@@ -6,6 +6,7 @@
 
 #include "Programs.h"
 
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilshaders/WorldDiligent.h>
 #include <sigilworld/advanced/Diligent.h>
 #include <sigilworld/diligent/Runtime.h>
@@ -16,6 +17,7 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace sigil::world::diligent {
 
@@ -23,27 +25,36 @@ namespace {
 
 using material::slang::Compiled;
 
+/** WHICH VARIABLE OPENS WHICH LOBE: a body that writes a lobe's variable
+ *  states that lobe. The variables are the scaffold's, so this is the one
+ *  place that knows the names. */
+struct LobeVariable {
+  std::string_view variable;
+  std::string_view definition;
+  bool material::Lobes::* lobe;
+};
+constexpr LobeVariable kLobeVariables[] = {
+    {"gSurfaceSheenColor", "#define SIGIL_SHEEN 1\n", &material::Lobes::sheen},
+    {"gSurfaceAnisotropy", "#define SIGIL_ANISOTROPY 1\n",
+     &material::Lobes::anisotropy},
+    {"gSurfaceIridescence", "#define SIGIL_IRIDESCENCE 1\n",
+     &material::Lobes::iridescence},
+    {"gSurfaceSpecular", "#define SIGIL_SPECULAR 1\n",
+     &material::Lobes::specular},
+    {"gSurfaceTransmission", "#define SIGIL_TRANSMISSION 1\n",
+     &material::Lobes::transmission},
+    {"gSurfaceDistortion", "#define SIGIL_DISTORTION 1\n",
+     &material::Lobes::distortion},
+    {"gSurfaceClearcoat", "#define SIGIL_CLEARCOAT 1\n",
+     &material::Lobes::clearcoat},
+};
+
 /** THE LOBES A BODY STATES, as the definitions that compile the scaffold's
- *  terms for them in: a body that writes a lobe's variable states that
- *  lobe, and one that writes none of them is compiled against exactly the
- *  scaffold every other body is. The variables are the scaffold's, so this
- *  is the one place that knows which name opens which lobe. */
+ *  terms for them in; one that writes none of them is compiled against
+ *  exactly the scaffold every other body is. */
 std::string lobeDefinitions(std::string_view body) {
-  struct Lobe {
-    std::string_view variable;
-    std::string_view definition;
-  };
-  static constexpr Lobe kLobes[] = {
-      {"gSurfaceSheenColor", "#define SIGIL_SHEEN 1\n"},
-      {"gSurfaceAnisotropy", "#define SIGIL_ANISOTROPY 1\n"},
-      {"gSurfaceIridescence", "#define SIGIL_IRIDESCENCE 1\n"},
-      {"gSurfaceSpecular", "#define SIGIL_SPECULAR 1\n"},
-      {"gSurfaceTransmission", "#define SIGIL_TRANSMISSION 1\n"},
-      {"gSurfaceDistortion", "#define SIGIL_DISTORTION 1\n"},
-      {"gSurfaceClearcoat", "#define SIGIL_CLEARCOAT 1\n"},
-  };
   std::string out;
-  for (const Lobe& lobe : kLobes)
+  for (const LobeVariable& lobe : kLobeVariables)
     if (body.find(lobe.variable) != std::string_view::npos)
       out += lobe.definition;
   return out;
@@ -68,6 +79,36 @@ constexpr uint32_t kLightVariants =
     kVariantTintedShadows;
 
 }  // namespace
+
+material::Lobes statedLobes(const material::Material& material) {
+  if (!material.hasProgram()) return {};
+  const std::shared_ptr<const material::Recipe>& recipe =
+      material.recipePointer();
+  struct Classified {
+    std::weak_ptr<const material::Recipe> recipe;
+    material::Lobes lobes;
+  };
+  static std::mutex mutex;
+  static std::unordered_map<const material::Recipe*, Classified> classified;
+  const std::lock_guard lock(mutex);
+  // A recipe is told from a later one at the same address by its owner,
+  // so an entry outliving its recipe is classified again.
+  const auto held = classified.find(recipe.get());
+  if (held != classified.end() && !held->second.recipe.owner_before(recipe) &&
+      !recipe.owner_before(held->second.recipe))
+    return held->second.lobes;
+  material::Lobes stated = material::surface::lobes(material);
+  if (const std::string* body = recipe->body(material::Target::Slang))
+    for (const LobeVariable& lobe : kLobeVariables)
+      if (body->find(lobe.variable) != std::string::npos)
+        stated.*lobe.lobe = true;
+  if (held == classified.end() && classified.size() >= 256)
+    std::erase_if(classified, [](const auto& entry) {
+      return entry.second.recipe.expired();
+    });
+  classified[recipe.get()] = {recipe, stated};
+  return stated;
+}
 
 const Compiled& scaffold(bool lit, uint32_t lights) {
   const auto build = [](bool shaded, uint32_t reaching) {

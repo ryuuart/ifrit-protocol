@@ -15,12 +15,12 @@
  * of near-identical structs.
  */
 
-#include <glm/geometric.hpp>
-#include <glm/vec2.hpp>
 #include <sigilcore/compute/Field.h>
 #include <sigilmotion/physics/Points.h>
 
 #include <cstdint>
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 
 namespace sigil::motion::physics {
 
@@ -136,26 +136,6 @@ struct Force {
  *  coasts. */
 [[nodiscard]] inline Force drag(float perSecond) {
   return {.kind = ForceKind::Drag, .strength = perSecond};
-}
-
-/** A PULL TOWARDS @p centre, @p strength at one unit away, falling off
- *  with distance and reaching nothing past @p radius. Zero radius
- *  reaches everywhere, and nothing inside one unit of the centre is
- *  pulled harder than @p strength. */
-[[nodiscard]] inline Force attract(glm::vec2 centre, float strength,
-                                   float radius = 0.0f) {
-  return {.kind = ForceKind::Attract,
-          .point = centre,
-          .strength = strength,
-          .radius = radius};
-}
-
-/** THE SAME THING PUSHING: an attraction with the sign turned over, so
- *  the two are one value and a scene can flip a cursor from pulling to
- *  pushing by negating a number rather than by swapping a type. */
-[[nodiscard]] inline Force repel(glm::vec2 centre, float strength,
-                                 float radius = 0.0f) {
-  return attract(centre, -strength, radius);
 }
 
 /** A PUSH ALONG A FLOW: @p field read at each point's position and taken

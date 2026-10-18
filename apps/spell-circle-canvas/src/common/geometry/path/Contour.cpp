@@ -19,8 +19,8 @@
 #include <utility>
 
 #include "OffsetInternal.h"
-#include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilgeometry/path/Numeric.h"
 
 namespace sigil::geometry::path {
 
@@ -70,9 +70,8 @@ std::vector<Contour> contoursOf(const SkPath& path, bool forceClosed) {
   while (sk_sp<SkContourMeasure> m = iter.next())
     if (m->length() > 0)
       out.push_back(ContourAccess::make(std::shared_ptr<const SkContourMeasure>(
-          m.release(), [](const SkContourMeasure* measure) {
-            SkSafeUnref(measure);
-          })));
+          m.release(),
+          [](const SkContourMeasure* measure) { SkSafeUnref(measure); })));
   return out;
 }
 
@@ -91,13 +90,18 @@ float Contour::lengthOf(const Outline& outline) {
   return path::lengthOf(toSk(outline));
 }
 
-float Contour::length() const { return m_measure ? ContourAccess::measure(*this)->length() : 0; }
+float Contour::length() const {
+  return m_measure ? ContourAccess::measure(*this)->length() : 0;
+}
 
-bool Contour::closed() const { return m_measure && ContourAccess::measure(*this)->isClosed(); }
+bool Contour::closed() const {
+  return m_measure && ContourAccess::measure(*this)->isClosed();
+}
 
 std::optional<Contour::Sample> Contour::at(float distance) const {
   if (!m_measure) return std::nullopt;
-  return sampleOf(*ContourAccess::measure(*this), std::clamp(distance, 0.0f, length()));
+  return sampleOf(*ContourAccess::measure(*this),
+                  std::clamp(distance, 0.0f, length()));
 }
 
 Contour::Sample Contour::around(float distance) const {
@@ -270,9 +274,9 @@ std::vector<OffsetJoin> offsetJoins(
   // fast the offset grows along it. Zero growth is the tangent itself,
   // to the bit.
   const auto slanted = [](glm::vec2 tangent, float rate) {
-    return glm::vec2{tangent.x - tangent.y * rate, tangent.y + tangent.x * rate};
+    return glm::vec2{tangent.x - tangent.y * rate,
+                     tangent.y + tangent.x * rate};
   };
-  const auto cross = [](glm::vec2 a, glm::vec2 b) { return a.x * b.y - a.y * b.x; };
   std::vector<OffsetJoin> joins;
   for (size_t k = 0; k < count; ++k) {
     const Contour::Corner& hit = corners[k];
@@ -468,9 +472,8 @@ SkPath parallel(const SkPath& path, float across, float step, Join join,
   SkPathBuilder out(path.getFillType());
   for (const Contour& contour : contoursOf(path)) {
     const float len = contour.length();
-    const std::vector<OffsetJoin> joins =
-        offsetJoins(contour, [across](float) { return across; }, stride, join,
-                    miterLimit);
+    const std::vector<OffsetJoin> joins = offsetJoins(
+        contour, [across](float) { return across; }, stride, join, miterLimit);
     size_t next = 0;
     bool started = false;
     for (float d = 0;; d += stride) {

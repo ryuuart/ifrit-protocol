@@ -431,14 +431,13 @@ happens to a number after it is taken is the same for both. A narrowed
 sweep merges on `--rebase`, a SLOWER row beyond its band fails the run,
 NEW and MISSING rows do not. Use a Release build for either.
 
-**What the two measure.** The frame-time gate behind `--bench` renders
-onto a raster surface at the sketch's declared size and presents
-nothing: it is the sketch's own cost isolated, which is what makes it a
-gate. The window lane draws through the surface the window presents, at
-the window's pixels and its device pixel ratio, and the numbers carry
-the host's own overhead — the submit or texture upload that puts the
-frame on screen, and for a scene3d sketch the device readback and blit its paint
-phase performs. Neither replaces the other. A presented rate is bounded
+**What the two measure.** A library benchmark times one mechanism in
+isolation. The window lane draws through the surface the window
+presents, at the window's pixels and its device pixel ratio, and the
+numbers carry the host's own overhead — the submit or texture upload
+that puts the frame on screen, and for a scene3d sketch the device
+readback and blit its paint phase performs. Neither replaces the other.
+A presented rate is bounded
 by the compositor, which means the display: a sketch comfortably inside
 its budget reads at the refresh rate and says nothing more, so the
 interesting rows are the ones BELOW it and `work` beside them says how
@@ -730,3 +729,17 @@ The overlay triplet `cmake/triplets/arm64-osx.cmake` is hashed WHOLE into
 every port's ABI key — its comments with the rest of it — so editing one
 character of it rebuilds every dependency from source. Say what has to be
 said there, and say it once.
+
+## One builder at a time — `buildslot.py`
+
+`scripts/buildslot.py` is not a verb: it is the lock several hands take
+before they write into the one shared build tree. `build <target> …`
+runs `cmake --build build --config Release --target …` from the
+application root; `run --who <name> -- <command>` runs anything else
+that writes into the tree or needs it quiet — ctest, a headless
+Grimoire sweep, stub generation. Each job waits for the slot, runs
+detached from the calling shell so a tool timeout cannot orphan ninja,
+and writes a bounded log under `buildslot/` that the caller follows;
+`wait <job>` picks a log back up and `status` lists the jobs. The
+module's docstring is the canon for its limits and retention, and
+`test_buildslot.py` beside it is ctest's `sigil_build_slot`.

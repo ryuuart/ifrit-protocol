@@ -354,9 +354,9 @@ does not preserve what is in it — the first thing drawn into one must be
 what fills it. Nothing hands Skia's final layout back to the device, so a
 host that needs a particular layout afterwards transitions it itself.
 
-**`SIGILSKIA_GLYPH_ATLAS_BYTES`** caps the Graphite glyph-atlas texture
-budget from the environment. Unset leaves Skia's default in place; it
-exists so the budget can be varied while measuring.
+**`GraphiteContext::capGlyphAtlas`** caps the Graphite glyph-atlas
+texture budget for every context built after it; zero leaves Skia's
+default in place. It exists so a benchmark can vary the budget.
 
 **A shader that will not compile is a log line, not an error.** Graphite
 builds the fragment program for a draw at record time and compiles it on
@@ -502,8 +502,9 @@ express — so that draw is the last of its render pass and the ones
 described after it begin a pass of their own. The picture is then the
 CPU's, pixel for pixel; the cost is one render pass per blending draw,
 which for a dense scene is a handful. `PaintOrderCanvas::needed()` says
-whether the backend needs it at all; a canvas over one that does not
-forwards everything and closes nothing, so a host wraps unconditionally.
+whether the context needs it at all — true only where the Vulkan bring-up
+found the MoltenVK driver; a canvas over any other forwards everything and
+closes nothing, so a host wraps unconditionally.
 
 `OffscreenSurface::canvas()` already answers a fenced canvas, so a host
 that draws through a wrapped texture pays nothing to be right. A host

@@ -121,8 +121,10 @@ blobs.
 
 `ParagraphLayout::LiveVariations` is a draw-time font-variation override,
 valid only for ADVANCE-INVARIANT axes. Every shaped bucket's typeface is
-swapped for its varied clone, memoized by the font context, while the
-glyph positions computed at shaping time are reused as they are. That is
+swapped for a varied clone the font context does not keep — a driven
+coordinate moves every frame, so keeping each one would keep a clone per
+frame — while the glyph positions computed at shaping time are reused as
+they are. That is
 correct exactly when driving the axis leaves every glyph advance alone —
 GRAD behaves that way on faces that have it, whereas `wght` moves
 advances on most faces and would leave the glyphs sitting at the wrong

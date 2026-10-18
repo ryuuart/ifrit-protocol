@@ -19,19 +19,14 @@
 #include <glm/geometric.hpp>
 #include <limits>
 
-#include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilgeometry/path/Numeric.h"
 
 namespace sigil::geometry::path {
 
 namespace {
 
 float segmentLength(glm::vec2 a, glm::vec2 b) { return distance(a, b); }
-
-/** The z of the 3D cross product of two planar vectors: positive when
- *  `b` turns clockwise from `a` in Skia's y-down space, and zero when
- *  the two are parallel. */
-float cross(glm::vec2 a, glm::vec2 b) { return a.x * b.y - a.y * b.x; }
 
 /** Farthest any interior control point sits from the chord: the flatness
  *  measure that decides how many segments a curve needs. */
@@ -382,8 +377,7 @@ static SkPath polylineSkPath(const Polyline& line) {
   return builder.detach();
 }
 
-static SkPath smoothThroughSk(std::span<const glm::vec2> points,
-                              bool closed) {
+static SkPath smoothThroughSk(std::span<const glm::vec2> points, bool closed) {
   SkPathBuilder builder;
   const size_t n = points.size();
   if (n < 2) return builder.detach();

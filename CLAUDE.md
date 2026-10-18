@@ -129,7 +129,7 @@ Every workflow is also a mise task (`mise tasks`; arguments after `--`
 are forwarded); mise is optional. `sigil.py setup` discovers Qt 6.11+ and
 vcpkg and writes the uncommitted `CMakeUserPresets.json`; a library
 whose SDK is a licensed download carries its own find module
-(`src/common/substance/cmake`, `src/common/scry/cmake`), which looks
+(`src/common/material/cmake`, `src/common/scry/cmake`), which looks
 under `~/.local/opt/<name>/<version>/`. Ports for `choreograph`,
 `skia`, `diligent-engine`, `shader-slang` and `syphon` come from
 https://github.com/ryuuart/sigil-vcpkg-registry (checked out at

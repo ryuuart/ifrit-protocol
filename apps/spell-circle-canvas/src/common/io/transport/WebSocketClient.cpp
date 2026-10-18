@@ -51,11 +51,14 @@ constexpr size_t kReadCeiling = 64u * 1024u;
  *  was not reached. */
 constexpr long kConnectMilliseconds = 10000;
 
-/** How long a read or a send waits before trying again. Nothing on this
- *  connection blocks, so a thread with nothing to do comes back rather
- *  than sleeping on a socket — which is also how long a close waits to
- *  be noticed, and how late a message can be. */
-constexpr std::chrono::milliseconds kBetweenTries{1};
+/** The longest a reader sleeps on its socket before asking again. A
+ *  message wakes it as it arrives and a close wakes it at once; this
+ *  bounds only a wake the socket never gives. */
+constexpr int kReadWaitMilliseconds = 1000;
+
+/** The longest a send blocked on a full connection sleeps on its socket
+ *  before looking again at whether the session closed. */
+constexpr int kSendWaitMilliseconds = 100;
 
 /** How long a send keeps trying for room on a connection that is not
  *  draining before it gives the message up. A send answers whether it
@@ -117,6 +120,7 @@ bool namesPort(std::string_view authority) {
  *  there. */
 struct Session {
   ~Session() {
+    if (waiter) curl_multi_cleanup(waiter);
     if (handle) curl_easy_cleanup(handle);
   }
 
@@ -126,6 +130,13 @@ struct Session {
    *  stop a writer from sending. */
   std::mutex gate;
   CURL* handle = nullptr;
+  /** What the reading thread sleeps in until its socket has something:
+   *  libcurl's wait over that one socket, which a close interrupts from
+   *  any thread. It holds no transfer of its own. Only the reading
+   *  thread waits in it. */
+  CURLM* waiter = nullptr;
+  /** The connection's socket, read once the handshake is through. */
+  curl_socket_t socket = CURL_SOCKET_BAD;
   /** Raised once the handshake is through, before the feed is handed
    *  the end it sends through. Nothing calls the handle until it is: the
    *  thread running the handshake has it to itself. */
@@ -184,6 +195,7 @@ void carry(const std::shared_ptr<Session>& session) {
     }
     return;
   }
+  curl_easy_getinfo(session->handle, CURLINFO_ACTIVESOCKET, &session->socket);
   session->connected.store(true, std::memory_order_release);
   // THE DOOR STANDS NOW, and not before: the server has switched
   // protocols and holds this client as a peer, so the first send after
@@ -216,17 +228,20 @@ void carry(const std::shared_ptr<Session>& session) {
       }
     }
     if (read == CURLE_AGAIN) {
-      // Nothing is there yet. The wait is outside the lock, so a send is
+      // Nothing is there yet: sleep on the socket until it has something
+      // or a close interrupts. The wait is outside the lock, so a send is
       // not kept behind a message that has not come.
-      std::this_thread::sleep_for(kBetweenTries);
+      curl_waitfd readable{session->socket, CURL_WAIT_POLLIN, 0};
+      curl_multi_poll(session->waiter, &readable, 1, kReadWaitMilliseconds,
+                      nullptr);
       continue;
     }
     if (read != CURLE_OK) {
       // A session closed here ended as it was meant to; any other
       // ending is what the feed is told, in libcurl's own words.
       if (!session->closed.load(std::memory_order_acquire))
-        session->inlet.fail(session->url + " ended: " +
-                            curl_easy_strerror(read));
+        session->inlet.fail(session->url +
+                            " ended: " + curl_easy_strerror(read));
       return;
     }
     if ((flags & CURLWS_CLOSE) != 0) {
@@ -273,6 +288,8 @@ struct Door {
 
 void Door::close() {
   if (session->closed.exchange(true)) return;
+  // A reader asleep on its socket is woken to find the flag raised.
+  if (session->waiter) curl_multi_wakeup(session->waiter);
   // The server is told the conversation is over rather than left to
   // find a socket that stopped answering. There is nothing to tell
   // where the handshake never finished.
@@ -304,6 +321,8 @@ bool sendOver(Session& session, const Bytes& message) {
   // much that was; what is left goes out in the calls after this one as
   // the same message continued, never as a fragment of its own.
   const auto deadline = std::chrono::steady_clock::now() + kSendCeiling;
+  const auto release = [](CURLM* waiter) { curl_multi_cleanup(waiter); };
+  std::unique_ptr<CURLM, decltype(release)> roomWaiter(nullptr, release);
   while (true) {
     size_t taken = 0;
     CURLcode wrote = CURLE_OK;
@@ -318,11 +337,17 @@ bool sendOver(Session& session, const Bytes& message) {
     left -= moved;
     if (wrote == CURLE_OK && left == 0) return true;
     if (moved != 0) continue;
-    // Nothing moved: the connection has no room. The wait is outside
-    // the lock, so a message arriving is not kept behind one going out.
+    // Nothing moved: the connection has no room. Sleep on the socket
+    // until it can take more, outside the lock, so a message arriving is
+    // not kept behind one going out. A blocked send makes a socket wait
+    // of its own, since the reader's admits one sleeper.
     if (std::chrono::steady_clock::now() >= deadline) return false;
     if (session.closed.load(std::memory_order_acquire)) return false;
-    std::this_thread::sleep_for(kBetweenTries);
+    if (!roomWaiter) roomWaiter.reset(curl_multi_init());
+    if (!roomWaiter) return false;
+    curl_waitfd writable{session.socket, CURL_WAIT_POLLOUT, 0};
+    curl_multi_poll(roomWaiter.get(), &writable, 1, kSendWaitMilliseconds,
+                    nullptr);
   }
 }
 
@@ -358,8 +383,16 @@ TransportEnd openFeed(std::string_view uri, const Inlet& into) {
     return refuse(into, "could not reach " + std::string(uri) +
                             ": no connection could be made");
 
+  CURLM* const waiter = curl_multi_init();
+  if (waiter == nullptr) {
+    curl_easy_cleanup(handle);
+    return refuse(into, "could not reach " + std::string(uri) +
+                            ": no connection could be made");
+  }
+
   const auto door = std::make_shared<Door>();
   door->session->handle = handle;
+  door->session->waiter = waiter;
   door->session->inlet = into;
   door->session->url = std::string(uri);
   curl_easy_setopt(handle, CURLOPT_URL, door->session->url.c_str());
@@ -421,10 +454,11 @@ void detail::registerWebSocketClient(Hub& hub) {
   // Nothing listens for wss:// unless something was registered for it,
   // the sockets a listener is built on carrying no TLS.
   Transport listening = io::transport(hub, "ws");
-  io::registerTransport(hub, "ws", openWebSocket(std::move(listening), calling));
+  io::registerTransport(hub, "ws",
+                        openWebSocket(std::move(listening), calling));
   Transport listeningSecurely = io::transport(hub, "wss");
   io::registerTransport(hub, "wss",
-                       openWebSocket(std::move(listeningSecurely), calling));
+                        openWebSocket(std::move(listeningSecurely), calling));
 }
 
 }  // namespace sigil::io

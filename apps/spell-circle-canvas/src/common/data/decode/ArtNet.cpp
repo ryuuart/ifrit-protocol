@@ -12,12 +12,12 @@
  * taken from a package.
  */
 
-#include "Wire.h"
-
 #include <algorithm>
 #include <cstdint>
 #include <string_view>
 #include <utility>
+
+#include "Wire.h"
 
 namespace sigil::data {
 
@@ -73,16 +73,6 @@ constexpr double kLevelCeiling = 255;
 constexpr double kUniverseCeiling = 0x7FFF;
 constexpr int kNetMask = 0x7F;
 
-/** @p value held inside [@p low, @p high]. A level outside what its
- *  place on the wire holds is written at the nearer end, since wrapping
- *  it would put a fixture at nothing that was meant to stand at full; a
- *  value that is not a number lands at the low end, having no side to
- *  be on. */
-double clamped(double value, double low, double high) {
-  if (!(value > low)) return low;
-  return value > high ? high : value;
-}
-
 uint8_t byteAt(std::span<const std::byte> packet, size_t at) {
   return std::to_integer<uint8_t>(packet[at]);
 }
@@ -127,7 +117,7 @@ void appendHeader(std::vector<std::byte>& packet, uint16_t opcode) {
 
 std::byte levelByte(double value) {
   return static_cast<std::byte>(
-      static_cast<int>(clamped(value, 0, kLevelCeiling)));
+      static_cast<int>(wire::clamped(value, 0, kLevelCeiling)));
 }
 
 /** HOW MANY DIMMERS @p channels GOES OUT AS: what it holds, padded up
@@ -212,7 +202,7 @@ std::vector<std::byte> wire::writeArtNet(const Json& message) {
     packet.push_back(levelByte(message["sequence"].number()));
     packet.push_back(levelByte(message["physical"].number()));
     const int universe = static_cast<int>(
-        clamped(message["universe"].number(), 0, kUniverseCeiling));
+        wire::clamped(message["universe"].number(), 0, kUniverseCeiling));
     // The address goes out in the two halves the wire carries it in,
     // the sub-universe first.
     packet.push_back(static_cast<std::byte>(universe & 0xFF));

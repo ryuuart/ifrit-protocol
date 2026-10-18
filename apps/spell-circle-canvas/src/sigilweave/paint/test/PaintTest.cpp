@@ -12,8 +12,10 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/paint/Paint.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <utility>
 #include <vector>
@@ -34,6 +36,34 @@ enum class LineFit { Letters, Glyphs };
 class FittedPaint : public ::testing::TestWithParam<LineFit> {};
 
 }  // namespace
+
+// A driven axis moves every frame and a page is drawn at several sizes as
+// it settles, so a face kept per coordinate would be a clone per frame per
+// size, kept for the process. The draw asks for a face it holds alone.
+TEST(LiveVariations, ADrivenAxisAcrossSizesKeepsNoCloneInTheFontContext) {
+  sigil::weave::FontContext fonts(ports::systemFontManager());
+  TextStyle style;
+  style.shaping.typeface = sigil::test::instrument::variable();
+  ASSERT_TRUE(style.shaping.typeface);
+  ASSERT_TRUE(fonts.axisIsAdvanceInvariant(style.shaping.typeface, "GRAD"));
+  // The gate keeps the two extremes it sampled; the drive keeps nothing.
+  const size_t keptByTheGate = fonts.variedTypefaceCount();
+  for (const float fontSize : {12.0f, 18.0f, 27.0f, 40.0f}) {
+    style.shaping.fontSize = fontSize;
+    Paragraph paragraph = paragraphIn(u8"Driven grade", style);
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
+    const ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow);
+    ASSERT_FALSE(layout.runs.empty());
+    for (int frame = 0; frame < 30; ++frame) {
+      const std::vector<FontVariation> grade = {
+          {"GRAD", -100.0f + 7.0f * (float)frame}};
+      sigil::test::GlyphCanvas canvas(400, 100);
+      const ParagraphLayout::LiveVariations driven{&fonts, grade};
+      layout.drawBatched(&canvas, paragraph, nullptr, &driven);
+    }
+  }
+  EXPECT_EQ(fonts.variedTypefaceCount(), keptByTheGate);
+}
 
 TEST_P(FittedPaint, BatchedDrawingKeepsThePositionsAndScaleOfTheFittedBlobs) {
   Paragraph paragraph = makeParagraph(u8"Alone.\nAlone.", 20.0f);

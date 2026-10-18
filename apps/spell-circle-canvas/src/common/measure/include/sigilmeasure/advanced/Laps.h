@@ -34,29 +34,31 @@ class Laps {
   Laps() : m_mark(Clock::now()) {}
 
   /** Ends the phase named @p name here; returns how long it took. */
-  Duration mark(std::string_view name) {
+  motion::Duration mark(std::string_view name) {
     const Clock::time_point now = Clock::now();
-    const Duration lap = now - m_mark;
+    const motion::Duration lap = now - m_mark;
     m_mark = now;
     m_laps.emplace_back(name, lap);
     return lap;
   }
   /** A literal names its phase with no conversion to choose between. */
-  Duration mark(const char* name) { return mark(std::string_view(name)); }
+  motion::Duration mark(const char* name) {
+    return mark(std::string_view(name));
+  }
   /** A name that dies at the end of the statement cannot be read back. */
-  Duration mark(std::string&& name) = delete;
+  motion::Duration mark(std::string&& name) = delete;
 
   /** Visits `(name, lap)` for every mark laid, oldest first. */
-  void each(
-      const std::function<void(std::string_view, Duration)>& visit) const {
+  void each(const std::function<void(std::string_view, motion::Duration)>&
+                visit) const {
     for (const auto& [name, lap] : m_laps) visit(name, lap);
   }
   /** How many marks have been laid. */
   [[nodiscard]] size_t size() const { return m_laps.size(); }
   /** The sum of every lap — the span from construction (or the last
    *  reset()) to the last mark. */
-  [[nodiscard]] Duration total() const {
-    Duration sum{};
+  [[nodiscard]] motion::Duration total() const {
+    motion::Duration sum{};
     for (const auto& lap : m_laps) sum += lap.second;
     return sum;
   }
@@ -69,7 +71,7 @@ class Laps {
 
  private:
   Clock::time_point m_mark;
-  std::vector<std::pair<std::string_view, Duration>> m_laps;
+  std::vector<std::pair<std::string_view, motion::Duration>> m_laps;
 };
 
 /** Writes the time a scope took into the value it was given, at scope
@@ -80,13 +82,13 @@ class ScopedDuration {
  public:
   /** Starts timing; @p out receives the elapsed time at scope exit and
    *  must outlive this guard. */
-  explicit ScopedDuration(Duration& out) : m_out(out) {}
+  explicit ScopedDuration(motion::Duration& out) : m_out(out) {}
   ScopedDuration(const ScopedDuration&) = delete;
   ScopedDuration& operator=(const ScopedDuration&) = delete;
   ~ScopedDuration() { m_out = m_watch.elapsed(); }
 
  private:
-  Duration& m_out;
+  motion::Duration& m_out;
   Stopwatch m_watch;
 };
 
