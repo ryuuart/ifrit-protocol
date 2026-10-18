@@ -188,10 +188,9 @@ struct Connection::State {
     return io::Bytes(std::move(bytes));
   }
 
-  /** ONE FRAME'S MESSAGES, drained in order: each that reads is latched
-   *  under nothing and under its own name, queued where a queue is
-   *  open, and handed to every handler whose pattern names it before
-   *  the next is taken. */
+  /** ONE FRAME'S MESSAGES, drained in order: each arrival that reads is
+   *  taken as the messages it holds — one, or on an OSC door every
+   *  message a bundle holds — before the next arrival is read. */
   void advance() {
     if (!feed) return;
     while (std::optional<io::Message> arrival = feed.receive()) {
@@ -200,39 +199,73 @@ struct Connection::State {
         ++undecodable;
         continue;
       }
-      const std::string name(nameOf(*payload));
-      latest = Message(std::move(*payload), std::move(*arrival), name, schema);
-      if (!name.empty()) latch(name, latest);
-      if (queuing) {
-        unread.push_back(latest);
-        while (capacity != 0 && unread.size() > capacity) unread.pop_front();
+      if (dialect == Dialect::Osc && isBundle(*payload)) {
+        takeBundle(*payload, *arrival);
+        continue;
       }
+      take(std::move(*payload), *arrival);
+    }
+  }
 
-      // The message is held, not referred to, so a handler that asks for
-      // the latest or replies reads the one it was given even when it
-      // registers another handler; one registered from inside a handler
-      // runs from the next message.
-      const Message handled = latest;
-      handling = &handled;
-      const size_t registered = handlers.size();
-      bool matched = false;
-      for (size_t index = 0; index != registered; ++index) {
-        const std::string_view pattern = handlers[index].first;
-        const bool every = pattern == "*";
-        if (!every && !matchesAddress(pattern, name)) continue;
-        if (!every) matched = true;
-        const Handler handler = handlers[index].second;
+  /** Whether @p payload is an OSC bundle as the codec reads one: its
+   *  elements under "bundle", and the time they are for. */
+  static bool isBundle(const Json& payload) {
+    return payload.kind() == Json::Kind::Object &&
+           payload["bundle"].kind() == Json::Kind::Array;
+  }
+
+  /** EVERY MESSAGE A BUNDLE HOLDS, in the order it holds them, a bundle
+   *  inside it taken where it stands. Each is a message of its own off
+   *  the one arrival, so a handler on its address runs for it and its
+   *  address latches it. The time a bundle is for is not waited on: its
+   *  messages are taken on the advance that drains the arrival. The
+   *  codec bounds how deep bundles nest, so this recursion is bounded
+   *  too. */
+  void takeBundle(const Json& bundle, const io::Message& arrival) {
+    for (const Json& element : bundle["bundle"].array()) {
+      if (isBundle(element))
+        takeBundle(element, arrival);
+      else
+        take(element, arrival);
+    }
+  }
+
+  /** ONE MESSAGE: latched under nothing and under its own name, queued
+   *  where a queue is open, and handed to every handler whose pattern
+   *  names it before the next is taken. */
+  void take(Json payload, const io::Message& arrival) {
+    const std::string name(nameOf(payload));
+    latest = Message(std::move(payload), arrival, name, schema);
+    if (!name.empty()) latch(name, latest);
+    if (queuing) {
+      unread.push_back(latest);
+      while (capacity != 0 && unread.size() > capacity) unread.pop_front();
+    }
+
+    // The message is held, not referred to, so a handler that asks for
+    // the latest or replies reads the one it was given even when it
+    // registers another handler; one registered from inside a handler
+    // runs from the next message.
+    const Message handled = latest;
+    handling = &handled;
+    const size_t registered = handlers.size();
+    bool matched = false;
+    for (size_t index = 0; index != registered; ++index) {
+      const std::string_view pattern = handlers[index].first;
+      const bool every = pattern == "*";
+      if (!every && !matchesAddress(pattern, name)) continue;
+      if (!every) matched = true;
+      const Handler handler = handlers[index].second;
+      handler(handled);
+    }
+    if (!matched) {
+      const size_t unmatched = otherwise.size();
+      for (size_t index = 0; index != unmatched; ++index) {
+        const Handler handler = otherwise[index];
         handler(handled);
       }
-      if (!matched) {
-        const size_t unmatched = otherwise.size();
-        for (size_t index = 0; index != unmatched; ++index) {
-          const Handler handler = otherwise[index];
-          handler(handled);
-        }
-      }
-      handling = nullptr;
     }
+    handling = nullptr;
   }
 };
 

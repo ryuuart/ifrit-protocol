@@ -549,6 +549,16 @@ than `"*"` matched reaches `Connection::otherwise()`. `latest(address)`
 is the newest message under a name or a pattern, one latch per name
 bounded by the capacity, the name written longest ago dropped first.
 
+**An OSC bundle is the messages it holds.** On an `osc://` door a bundle
+reaches no handler as itself: every message inside it, those of a bundle
+nested in it included, is a message of its own, taken in the order the
+bundle holds them — latched under its address, queued, and handed to
+every handler whose pattern names it — each carrying the one arrival's
+sender, time and revision. THE TIME A BUNDLE IS FOR IS NOT WAITED ON:
+its messages are dispatched on the advance that drains its arrival, as a
+bundle for now is, and a reader that schedules by that time reads the
+bundle whole through `feed()` and `decode()`.
+
 **Going back out.** `send(value)` writes in the door's dialect to its
 peer, and `send(value, {.to = message.sender()})` to one sender, which is
 how a door holding many peers answers one later. `reply(value)` answers

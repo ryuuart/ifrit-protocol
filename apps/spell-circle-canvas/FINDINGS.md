@@ -7,8 +7,7 @@ The rotating text bands in `rota_convocationis` and the retained ink in
 materials stay fixed, but their cached pixels are resampled onto the
 capture's grid, since `src/common/compose/core/cache/TextureBake.cpp`
 bakes at the declared density and a turning node can take no
-device-aligned bake; disabling automatic promotion does not disable an
-author's explicit `Cache::Texture`. A deterministic capture keeps the
+device-aligned bake. A deterministic capture keeps the
 explicit bakes, so a plate is what the window shows, and the plate tier
 states a tolerance for a drawing with explicit bakes. A test should
 compare a turning text ring and a seeded fibre stroke at the same moment
@@ -246,31 +245,6 @@ through the same kit readout. A test should call the Python readout over
 a connection after an inlet delivery and find rows for readiness,
 revision, undecodable, dropped and the error.
 
-## An OSC bundle's elements reach no address handler
-
-`data::Connection` reads an OSC bundle as one message with no name
-(`nameOf` in `src/common/data/connection/Connection.cpp`), so only
-`on("*")` and `otherwise()` see it and `latest(address)` latches none of
-its elements, while a single message is dispatched to every handler whose
-pattern matches. OSC dispatch delivers each message inside a bundle to
-the methods matching it. A test should deliver a bundle holding `/a/x 1`
-and `/a/y 2` to an `osc://` connection, find an `on("/a/*")` handler run
-twice, and find both `latest("/a/x")` and `latest("/a/y")` non-empty. An
-OSC Out CHOP set to send bundles draws nothing until then.
-
-## SigilIO's frames delivery and capture have no test of their own
-
-`io_test` covers only the refusals of `publish` and `subscribe`; the
-cases that proved delivery and capture lived beside the removed wire
-tester, which carried a static frame to clients that subscribed after
-drawing stopped and checked a captured frame's rows and channels.
-`io::frames` should keep its own guarantees under test: discovery through
-`sigil::io::frames::publications()`, late subscription to a static
-publication, and row and channel order. A `gpu`-labelled `io_test` case
-should publish a two-by-two quadrant texture over a `syphon://` name,
-find it listed, and have two subscribers that join after drawing stops
-each receive the same four quadrants in order.
-
 ## The sweep's flush inserts its own recordings without the recorder's waits
 
 `flushHook` in `src/sketch/plate/Sweep.cpp` inserts the recordings of a
@@ -297,23 +271,6 @@ same Metal device does not isolate. The test should prove the release
 another way, such as a weak reference that nils after the destroy and an
 autorelease drain, and the first-frame timing case in `StandIn` should
 likewise be read serially or with a bound that a loaded GPU meets.
-
-## A WebSocket client door reads Open before its handshake has reached the server
-
-`hub.listen("ws://host:port/path")` on a client door reports
-`ReadyState::Open` as soon as the transport hands back an end, while the
-handshake runs later on the client's own thread (`connected` in
-`src/common/io/transport/WebSocketClient.cpp`), so `send()` on a door
-that reads Open returns false until the handshake completes.
-`ReadyState`'s own comment says Open means a door stands and messages
-arrive through it; the state before a door stands is `Connecting`. A
-caller should be able to wait for the client to reach its server without
-probing with a real message. A test should connect a client feed to a
-listener in the same process and read `Connecting` until the handshake
-completes, then `Open`, with the first `send()` after Open returning
-true; a client to a port nobody holds should never read `Open` and should
-carry the reason in `state().error`. `wardnet_live/sender.py` offers its
-first message again for up to five seconds until this is fixed.
 
 ## A settled track that moves nothing places its glyphs on whole pixels
 
@@ -434,4 +391,13 @@ snake_case while every other public name in the package is camelCase
 matching its C++ twin. It should be `setPolicy(budgetSeconds=)`, and the
 package's naming test should cover the protocol module so no snake name
 returns.
+
+## The protocol endpoint test resends its first message until one goes out
+
+`dial()` in `src/common/protocol/endpoint/test/EndpointTest.cpp` offers
+its first message again until a send returns true, compensating for a
+client door that read Open before its handshake had reached the server.
+The door now reads Connecting until the handshake is through, so the
+helper should wait for `client.state().isOpen()` and send once, and a
+test should find that first send returning true.
 

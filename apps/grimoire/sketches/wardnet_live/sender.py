@@ -126,30 +126,21 @@ def udp_sender(host):
 def websocket_sender(uri):
     """A send over the WebSocket, through a SigilIO hub's client door.
 
-    The client calls the server on a thread of its own and answers before
-    the handshake is through, and a send before then goes nowhere and
-    returns False. So the first message is offered again until the
-    server takes it, for up to five seconds, and every later one once."""
+    The client calls the server on a thread of its own, and its door
+    reads Open once the handshake is through, from when a send goes out.
+    So the show starts once the door is Open, and stops before it starts
+    with the reason when the server cannot be reached."""
     from sigil.io import Hub, registerTransports
 
     hub = Hub()
     registerTransports(hub, ["ws"])
     door = hub.listen(uri)
-    reached = False
-
-    def send(payload):
-        nonlocal reached
-        deadline = time.monotonic() + (0 if reached else 5.0)
-        while not door.send(payload):
-            if door.state().error or time.monotonic() >= deadline:
-                if not reached:
-                    raise SystemExit(f"{uri}: {door.state().error or 'no answer'}")
-                return False
-            time.sleep(0.05)
-        reached = True
-        return True
-
-    return send
+    deadline = time.monotonic() + 15.0
+    while not door.state().isOpen():
+        if door.state().error or time.monotonic() >= deadline:
+            raise SystemExit(f"{uri}: {door.state().error or 'no answer'}")
+        time.sleep(0.05)
+    return door.send
 
 
 def play(send):

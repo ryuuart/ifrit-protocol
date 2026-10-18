@@ -58,6 +58,15 @@ struct TransportEnd {
   /** The local end as the transport bound it, "udp://[::]:52341";
    *  empty when it has none. */
   std::string localAddress;
+  /** WHETHER THE DOOR STANDS as this end is handed back. A conversation
+   *  that stands only once a handshake is through answers false, with
+   *  the `close` that gives the handshake up and the `localAddress` it
+   *  is reaching: the feed reads `ReadyState::Connecting`, and another
+   *  ask for its URI waits on this handshake rather than starting a
+   *  second one. The end that stands follows through `Inlet::open`, or
+   *  the reason it never will through `Inlet::fail` and then an end
+   *  with nothing in it. */
+  bool standing = true;
 };
 
 /** THE PRODUCER'S SIDE OF ONE FEED: what a transport delivers through.
@@ -91,8 +100,14 @@ class Inlet {
   void fail(std::string why) const;
 
   /** Hands the feed an end opened after the transport answered — a
-   *  conversation that stands only once its handshake is done. Once: a
-   *  second end, and one handed to a feed that is already closed, is
+   *  conversation that stands only once its handshake is done, whose
+   *  answer was an end that is not `TransportEnd::standing`. What this
+   *  end leaves out of its `close` and its `localAddress` is taken from
+   *  that answer, and it may arrive before the answer itself has been
+   *  taken. An end with nothing in it, handed over after `fail()`, says
+   *  the handshake never got through: the feed stays unopened with the
+   *  reason standing, for the next ask for its URI to open again. Once:
+   *  a second end, and one handed to a feed that is already closed, is
    *  closed rather than kept. */
   void open(TransportEnd end) const;
 

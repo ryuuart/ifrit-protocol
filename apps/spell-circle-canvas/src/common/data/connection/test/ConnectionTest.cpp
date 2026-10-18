@@ -16,6 +16,7 @@
 #include <sigilio/advanced/Time.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <initializer_list>
 #include <memory>
@@ -88,6 +89,37 @@ Bytes bytesOf(std::vector<std::byte> packet) {
   return Bytes(std::move(packet));
 }
 
+/** One OSC message on the wire: @p address with the one float
+ *  @p argument. */
+std::vector<std::byte> oscPacket(std::string_view address, double argument) {
+  return encode(oscMessage(address, Json(Json::Array{Json(argument)})), Dialect::Osc);
+}
+
+/** The one timetag the protocol spends on a word rather than a time: a
+ *  bundle carrying it is for now. */
+constexpr uint64_t immediately = 1;
+
+/** One OSC bundle on the wire, written by hand because a bundle is what
+ *  a desk sends and nothing here writes one: the word it is named by,
+ *  the 64-bit time its elements are for, then each element behind its
+ *  length, every number big-endian. */
+std::vector<std::byte> oscBundle(uint64_t timeTag,
+                                 std::initializer_list<std::vector<std::byte>> elements) {
+  std::vector<std::byte> packet;
+  const auto append = [&packet](uint64_t value, int bytes) {
+    for (int shift = (bytes - 1) * 8; shift >= 0; shift -= 8)
+      packet.push_back(static_cast<std::byte>((value >> shift) & 0xFFu));
+  };
+  for (const char letter : std::string_view("#bundle\0", 8))
+    packet.push_back(static_cast<std::byte>(letter));
+  append(timeTag, 8);
+  for (const std::vector<std::byte>& element : elements) {
+    append(element.size(), 4);
+    packet.insert(packet.end(), element.begin(), element.end());
+  }
+  return packet;
+}
+
 std::string textOf(const std::vector<std::byte>& raw) {
   return std::string(reinterpret_cast<const char*>(raw.data()), raw.size());
 }
@@ -142,6 +174,67 @@ TEST(DataConnection, AnOscPacketIsItsAddressAndReachesTheHandlerOnThatAddress) {
   EXPECT_EQ(desk.latest()["address"].string(), "/sky/gust");
   ASSERT_EQ(desk.latest()["arguments"].size(), 1u);
   EXPECT_DOUBLE_EQ(desk.latest()["arguments"][0].number(), 0.5);
+}
+
+TEST(DataConnection, EachMessageInAnOscBundleReachesTheHandlersOnItsAddress) {
+  Hub hub;
+  sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>()));
+
+  Connection desk = connect(hub, "osc://:9000");
+  std::vector<std::string> heard;
+  desk.on("/a/*", [&heard](const Message& message) {
+    heard.emplace_back(message.address());
+  });
+  int every = 0;
+  desk.on("*", [&every](const Message&) { ++every; });
+  int strangers = 0;
+  desk.otherwise([&strangers](const Message&) { ++strangers; });
+
+  // A bundle for now holding two messages, and a bundle inside it, for a
+  // later time, holding a third: the time a bundle is for is not waited
+  // on, so all three are taken on the advance that drains the arrival.
+  const std::vector<std::byte> inner =
+      oscBundle(uint64_t{3913056000} << 32, {oscPacket("/a/z", 3)});
+  const std::vector<std::byte> packet = oscBundle(
+      immediately, {oscPacket("/a/x", 1), oscPacket("/a/y", 2), inner});
+  inletOf(desk.feed()).deliver(bytesOf(packet), "udp://10.0.0.4:9001");
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
+
+  // In the order the bundle holds them, the nested one where it stands.
+  EXPECT_EQ(heard, (std::vector<std::string>{"/a/x", "/a/y", "/a/z"}));
+  EXPECT_EQ(every, 3);
+  EXPECT_EQ(strangers, 0);
+  ASSERT_FALSE(desk.latest("/a/x").empty());
+  ASSERT_FALSE(desk.latest("/a/y").empty());
+  ASSERT_FALSE(desk.latest("/a/z").empty());
+  EXPECT_DOUBLE_EQ(desk.latest("/a/x").number(), 1.0);
+  EXPECT_DOUBLE_EQ(desk.latest("/a/y").number(), 2.0);
+  EXPECT_DOUBLE_EQ(desk.latest("/a/z").number(), 3.0);
+  // The newest of all is the last message the bundle held, and each
+  // carries the one arrival's sender, so a reply answers who sent the
+  // bundle.
+  EXPECT_EQ(desk.latest().address(), "/a/z");
+  EXPECT_EQ(desk.latest("/a/x").sender(), "udp://10.0.0.4:9001");
+  EXPECT_EQ(desk.state().revision, 1u);
+  EXPECT_EQ(desk.state().undecodable, 0u);
+}
+
+TEST(DataConnection, EachMessageInAnOscBundleIsQueuedInOrder) {
+  Hub hub;
+  sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>()));
+
+  Connection desk = connect(hub, "osc://:9000", {.queue = true});
+  inletOf(desk.feed()).deliver(bytesOf(
+      oscBundle(immediately, {oscPacket("/a/x", 1), oscPacket("/a/y", 2)})));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
+
+  const std::optional<Message> first = desk.receive();
+  const std::optional<Message> second = desk.receive();
+  ASSERT_TRUE(first.has_value());
+  ASSERT_TRUE(second.has_value());
+  EXPECT_EQ(first->address(), "/a/x");
+  EXPECT_EQ(second->address(), "/a/y");
+  EXPECT_FALSE(desk.receive().has_value());
 }
 
 /** THE OTHER WIRE OF THE PERFORMANCE ROOM, standing beside the OSC one:

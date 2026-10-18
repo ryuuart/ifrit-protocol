@@ -204,5 +204,12 @@ implementation.
 
 [docs/overview/testing.md](../../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under. This
-feature has no test binary of its own. The refusals of publish and subscribe belong to
-`io_test`.
+feature has no test binary of its own: its cases join `io_test`. The
+refusals of publish and subscribe run everywhere. `FramesDelivery`,
+labelled `gpu` and built on macOS, publishes a two-by-two frame over a
+`syphon://` name in the test's own process, finds it through
+`sigil::io::frames::publications()`, and has two subscribers that join
+after drawing stops each receive it, bottom row first and every channel
+where it was drawn; it turns the run loop itself, as a command-line
+receiver does, and skips without a Metal device. `ReceivedFrame`, also
+`gpu`, binds an arrival for a recorder that cannot sample it.

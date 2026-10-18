@@ -14,12 +14,15 @@ namespace sigil::io {
 
 /** WHETHER A DOOR STANDS: a feed's, or a frame subscription's. */
 enum class ReadyState {
-  /** No door yet: nothing is opened, or what was asked for could not be
-   *  and the next ask for the URI tries again; `FeedState::error` says
-   *  why when something stood in the way. */
+  /** No door yet: nothing is opened, a handshake is still running, or
+   *  what was asked for could not be and the next ask for the URI tries
+   *  again; `FeedState::error` says why when something stood in the
+   *  way. */
   Connecting,
-  /** A door stands — an end its transport opened, or the recording it
-   *  plays back instead of one — and messages arrive through it. */
+  /** A door stands — an end its transport opened, its handshake
+   *  through, or the recording it plays back instead of one — and
+   *  messages arrive through it, and a send goes out where the way is
+   *  two-way. */
   Open,
   /** The door has been shut; nothing more arrives, and what was received
    *  stays readable. */

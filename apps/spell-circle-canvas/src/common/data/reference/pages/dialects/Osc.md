@@ -35,6 +35,11 @@ way the packet nests them:
 {"bundle": [{"address": "/sky/wind", "arguments": [0.5]}], "at": null}
 ```
 
+A connection on an `osc://` door reads a bundle as the messages it holds:
+each reaches the handlers on its own address and latches under it, in
+the order the bundle holds them, on the advance that drains the bundle.
+The time a bundle is for is decoded and not waited on.
+
 ### What an argument reads as
 
 Every number the wire carries — a 32- or 64-bit whole number, a single

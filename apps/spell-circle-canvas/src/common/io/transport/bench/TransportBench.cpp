@@ -223,12 +223,12 @@ void BM_WebSocket(benchmark::State& state) {
   }
 
   const Bytes message = payloadOf(size);
-  // The handshake runs on the client's own thread, so what says the
-  // session is up at this end is the first send that goes out over it,
-  // and what says the listener has the peer to publish to is that
-  // message arriving there.
+  // The client reads Open once its handshake is through, and what says
+  // the listener has the peer to publish to is the first message sent
+  // after that arriving there.
   const uint64_t standing = server.state().revision + 1;
-  if (!waitUntil([&] { return client.send(message); }) ||
+  if (!waitUntil([&] { return client.state().isOpen(); }) ||
+      !client.send(message) ||
       !waitUntil([&] { return server.state().revision >= standing; })) {
     state.SkipWithError("the session never stood: " + client.state().error);
     return;

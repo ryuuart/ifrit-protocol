@@ -155,9 +155,11 @@ split into, `send()` writes one whole message back as bytes, and both
 the `state().localAddress` the feed reports and the sender every arrival names are
 the server it dialled — the one peer a client has, so `Feed::send` with `SendOptions::to`
 is false on it. The handshake runs on that same thread: a feed is
-answered before its server has been reached, `state().error` carries the
-reason when it cannot be, and a `send()` before then goes nowhere and
-says so. A server that ends the session closes the feed.
+answered before its server has been reached and reads `Connecting` until
+the server has switched protocols, then `Open`, so the first `send()`
+after `Open` goes out; one whose server cannot be reached never reads
+`Open`, `state().error` carries the reason, and the next ask for its URI
+calls again. A server that ends the session closes the feed.
 
 The shared memory reader takes `shm://`, and it is the one transport
 here with no network under it. `shm://NAME` maps the shared memory

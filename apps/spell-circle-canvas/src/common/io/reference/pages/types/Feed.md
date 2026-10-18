@@ -36,8 +36,9 @@ queued, so draining through `Feed::receive` leaves it standing.
 
 `Feed::state` answers one `sigil::io::FeedState`, read out together:
 `FeedState::readiness` — a `sigil::io::ReadyState`, `Connecting` before a
-door stands or while one that could not be opened waits for the next ask,
-`Open` while messages arrive through it, `Closed` once it is shut — with
+door stands — a handshake still running included — or while one that
+could not be opened waits for the next ask, `Open` while messages arrive
+through it, a send going out where the way is two-way, `Closed` once it is shut — with
 `FeedState::revision`, `FeedState::dropped`, the `FeedState::localAddress`
 the transport bound and the `FeedState::error` that says what went wrong.
 The value compares field by field, so a reader that keeps what it last

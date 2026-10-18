@@ -126,10 +126,9 @@ struct Session {
    *  stop a writer from sending. */
   std::mutex gate;
   CURL* handle = nullptr;
-  /** Raised once the handshake is through. Nothing calls the handle
-   *  until it is: the thread running the handshake has it to itself,
-   *  and a send before then says it went nowhere rather than writing
-   *  into a connection that carries no session yet. */
+  /** Raised once the handshake is through, before the feed is handed
+   *  the end it sends through. Nothing calls the handle until it is: the
+   *  thread running the handshake has it to itself. */
   std::atomic<bool> connected{false};
   /** Raised before the close frame goes out, so a read racing it ends
    *  instead of speaking to a session that is being taken down. */
@@ -149,6 +148,10 @@ int stillWanted(void* held, curl_off_t, curl_off_t, curl_off_t, curl_off_t) {
   const auto* const session = static_cast<const Session*>(held);
   return session->closed.load(std::memory_order_acquire) ? 1 : 0;
 }
+
+/** Writes @p message over @p session as one whole binary message,
+ *  answering whether it went. */
+bool sendOver(Session& session, const Bytes& message);
 
 /** Runs one session: the handshake, then every message the server sends
  *  until the feed is let go, the session is closed, or the server ends
@@ -170,14 +173,27 @@ void carry(const std::shared_ptr<Session>& session) {
   curl_easy_setopt(session->handle, CURLOPT_ERRORBUFFER, nullptr);
   if (reached != CURLE_OK) {
     // A session closed before its handshake finished was given up on
-    // purpose, and there is nobody it has to be explained to.
-    if (!session->closed.load(std::memory_order_acquire))
+    // purpose, and there is nobody it has to be explained to. Any other
+    // ending is the reason, and then an end with nothing in it: the feed
+    // never opened, and the next ask for its URI calls again.
+    if (!session->closed.load(std::memory_order_acquire)) {
       session->inlet.fail("could not reach " + session->url + ": " +
                           (trouble[0] != '\0' ? std::string(trouble)
                                               : curl_easy_strerror(reached)));
+      session->inlet.open(TransportEnd{});
+    }
     return;
   }
   session->connected.store(true, std::memory_order_release);
+  // THE DOOR STANDS NOW, and not before: the server has switched
+  // protocols and holds this client as a peer, so the first send after
+  // the feed reads Open goes out. The close and the address are the ones
+  // the feed was answered with.
+  TransportEnd standing;
+  standing.send = [session](const Bytes& message) {
+    return sendOver(*session, message);
+  };
+  session->inlet.open(std::move(standing));
 
   std::vector<std::byte> message;
   std::vector<std::byte> piece(kReadCeiling);
@@ -250,7 +266,6 @@ struct Door {
   ~Door() { close(); }
 
   void close();
-  bool send(const Bytes& message);
 
   std::shared_ptr<Session> session = std::make_shared<Session>();
   std::thread thread;
@@ -278,9 +293,9 @@ void Door::close() {
   thread.join();
 }
 
-bool Door::send(const Bytes& message) {
-  if (session->closed.load(std::memory_order_acquire)) return false;
-  if (!session->connected.load(std::memory_order_acquire)) return false;
+bool sendOver(Session& session, const Bytes& message) {
+  if (session.closed.load(std::memory_order_acquire)) return false;
+  if (!session.connected.load(std::memory_order_acquire)) return false;
   const std::byte* remaining = message.data();
   size_t left = message.size();
   // One whole message in one frame, which is what a feed's message is,
@@ -293,8 +308,8 @@ bool Door::send(const Bytes& message) {
     size_t taken = 0;
     CURLcode wrote = CURLE_OK;
     {
-      const std::lock_guard<std::mutex> lock(session->gate);
-      wrote = curl_ws_send(session->handle, remaining, left, &taken, 0,
+      const std::lock_guard<std::mutex> lock(session.gate);
+      wrote = curl_ws_send(session.handle, remaining, left, &taken, 0,
                            CURLWS_BINARY);
     }
     if (wrote != CURLE_OK && wrote != CURLE_AGAIN) return false;
@@ -306,7 +321,7 @@ bool Door::send(const Bytes& message) {
     // Nothing moved: the connection has no room. The wait is outside
     // the lock, so a message arriving is not kept behind one going out.
     if (std::chrono::steady_clock::now() >= deadline) return false;
-    if (session->closed.load(std::memory_order_acquire)) return false;
+    if (session.closed.load(std::memory_order_acquire)) return false;
     std::this_thread::sleep_for(kBetweenTries);
   }
 }
@@ -324,9 +339,10 @@ TransportEnd refuse(const Inlet& into, std::string why) {
  *  The handshake is left to that thread rather than waited for here,
  *  because a server that answers slowly, or is not there at all, would
  *  otherwise hold whoever asked for the feed for as long as connecting
- *  takes. What it decided reaches the feed either way: as arrivals, or
- *  as the sentence `state().error` answers. Until it is through, a send says it
- *  went nowhere. */
+ *  takes. So the answer is an end that does not stand yet — the close
+ *  that gives the handshake up, and the server being called — and the
+ *  feed reads Connecting until that thread hands over the end that
+ *  sends, or the sentence `state().error` answers. */
 TransportEnd openFeed(std::string_view uri, const Inlet& into) {
   const std::optional<std::string_view> server = namedServer(uri);
   if (!server || !namesPort(*server))
@@ -371,7 +387,7 @@ TransportEnd openFeed(std::string_view uri, const Inlet& into) {
   // reach it at.
   opened.localAddress = door->session->url;
   opened.close = [door] { door->close(); };
-  opened.send = [door](const Bytes& message) { return door->send(message); };
+  opened.standing = false;
   return opened;
 }
 

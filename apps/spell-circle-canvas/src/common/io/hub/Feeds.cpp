@@ -95,9 +95,10 @@ Feed Hub::listen(std::string_view uri, ListenOptions options) {
         // device not plugged in yet — may be gone by now; the ask is
         // what tries it again, into the same feed every reader is
         // already holding. One that has a door is handed back as it
-        // stands, and so is one that has closed.
-        if (held->state().readiness != ReadyState::Connecting)
-          return Feed(std::move(held));
+        // stands, and so is one that has closed, and one another ask is
+        // opening — a handshake still running — which this ask waits on
+        // rather than starting a second.
+        if (!held->beginOpening()) return Feed(std::move(held));
         made = std::move(held);
         again = true;
         break;
@@ -110,9 +111,17 @@ Feed Hub::listen(std::string_view uri, ListenOptions options) {
     if (!made) {
       made = std::make_shared<detail::FeedDoor>(std::string(uri),
                                                 std::move(options));
+      made->beginOpening();
       m_feeds.emplace_back(std::string(uri), made);
     }
   }
+
+  // An ask that cannot reach a transport says why and hands back no end,
+  // which leaves the feed unopened for the next ask to try again.
+  const auto refuse = [&made](std::string why) {
+    made->fail(std::move(why));
+    made->answer(TransportEnd{});
+  };
 
   // The reason the ask before this one left is taken off before this
   // one tries: it is about a door being opened again, and either what
@@ -132,14 +141,14 @@ Feed Hub::listen(std::string_view uri, ListenOptions options) {
     if (auto recorded = readRecording(recording))
       made->replay(std::move(*recorded));
     else
-      made->fail("not a feed recording: " + recording.string());
+      refuse("not a feed recording: " + recording.string());
     return Feed(std::move(made));
   }
 
   const std::string_view scheme = feedScheme(uri);
   if (scheme.empty()) {
-    made->fail("no scheme in \"" + std::string(uri) +
-               "\": a feed opens through the transport its scheme names");
+    refuse("no scheme in \"" + std::string(uri) +
+           "\": a feed opens through the transport its scheme names");
     return Feed(std::move(made));
   }
   Transport transport = feedTransport(scheme);
@@ -161,14 +170,15 @@ Feed Hub::listen(std::string_view uri, ListenOptions options) {
     }
   }
   if (!transport) {
-    made->fail("no feed transport registered for \"" + std::string(scheme) +
-               "\"");
+    refuse("no feed transport registered for \"" + std::string(scheme) +
+           "\"");
     return Feed(std::move(made));
   }
   // Called with no lock held: opening a door binds a socket, and the
-  // transport may deliver into the feed before it has answered.
+  // transport may deliver into the feed, or hand over the end its
+  // handshake came to, before it has answered.
   const Inlet inlet(made);
-  inlet.open(transport(uri, inlet));
+  made->answer(transport(uri, inlet));
   return Feed(std::move(made));
 }
 

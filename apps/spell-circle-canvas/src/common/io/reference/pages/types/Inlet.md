@@ -74,9 +74,19 @@ earlier ask left is taken off before the open that follows it, not after.
 
 What the transport hands back is the end the feed closes and sends
 through, `sigil::io::TransportEnd`. A conversation that stands only once a
-handshake is done hands its end over later through `Inlet::open`
-instead. Either way a feed takes one end: a second one, and one handed
-to a feed that is already closed, is closed rather than kept.
+handshake is done answers with an end whose `TransportEnd::standing` is
+false — the close that gives the handshake up, and the address it is
+reaching — and the feed reads `Connecting`, another ask for its URI
+waiting on that handshake rather than starting a second. Once the
+handshake is through, the transport hands over the end that sends
+through `Inlet::open`, which may leave the close and the address out to
+keep the answer's, and may arrive from the transport's own thread before
+the answer has been taken; the feed reads `Open` from then on. A
+handshake that never gets through says why through `Inlet::fail` and
+then hands over an end with nothing in it, which leaves the feed
+unopened for the next ask. Either way a feed takes one end: a second
+one, and one handed to a feed that is already closed, is closed rather
+than kept.
 
 `Inlet::close` shuts the door from the transport's side — the far end
 ended the conversation — after which nothing more arrives; what was

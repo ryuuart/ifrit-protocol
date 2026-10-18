@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <utility>
+#include <vector>
 
 #include "sigilio/hub/Recording.h"
 
@@ -136,6 +137,19 @@ std::function<void()> FeedDoor::closeLocked() {
   m_recorder.reset();
   std::function<void()> ending = std::move(m_openedEnd.close);
   m_openedEnd.close = nullptr;
+  // An end that arrived ahead of its answer is shut with the door: the
+  // answer that would have adopted it will now find the feed closed.
+  if (m_early && m_early->close) {
+    std::function<void()> early = std::move(m_early->close);
+    ending = ending ? [answered = std::move(ending), early = std::move(early)] {
+      answered();
+      early();
+    }
+                    : std::move(early);
+  }
+  m_early.reset();
+  m_opening = false;
+  m_answered = false;
   return ending;
 }
 
@@ -149,34 +163,94 @@ void FeedDoor::close() {
   if (ending) ending();
 }
 
-void FeedDoor::open(TransportEnd opened) {
-  std::function<void()> unwanted;
+bool FeedDoor::beginOpening() {
+  const std::lock_guard lock(m_mutex);
+  if (m_closed || m_wasOpened || m_opening) return false;
+  m_opening = true;
+  m_answered = false;
+  m_early.reset();
+  return true;
+}
+
+void FeedDoor::settleLocked(TransportEnd end, TransportEnd answered,
+                            std::vector<std::function<void()>>& closing) {
+  m_opening = false;
+  m_answered = false;
+  // AN END WITH NOTHING IN IT, HANDED TO A FEED CARRYING A REASON, IS NO
+  // END: a transport that could not open the URI left the reason here
+  // and has nothing to give back. The feed stays unopened with that
+  // reason standing, which is what tells the next ask for this URI to
+  // open it again; a handshake that was given up has its answer shut.
+  const bool nothing = !end.close && !end.send && !end.sendTo && !end.peers &&
+                       end.localAddress.empty();
+  if (nothing && !m_error.empty()) {
+    if (answered.close) closing.push_back(std::move(answered.close));
+    m_openedEnd = {};
+    return;
+  }
+  if (!end.close) end.close = std::move(answered.close);
+  if (end.localAddress.empty()) end.localAddress = std::move(answered.localAddress);
+  end.standing = true;
+  m_wasOpened = true;
+  m_openedEnd = std::move(end);
+  // What a door says about itself as it opens is left standing: a
+  // transport that answered from one thread and failed on another
+  // before this ran is a door with a reason, and the reason an earlier
+  // ask left was taken off before this open began.
+}
+
+void FeedDoor::answer(TransportEnd answered) {
+  std::vector<std::function<void()>> closing;
   {
     const std::lock_guard lock(m_mutex);
-    if (!m_wasOpened && !m_closed) {
-      // AN END WITH NOTHING IN IT, HANDED TO A FEED CARRYING A REASON,
-      // IS NO END: a transport that could not open the URI left the
-      // reason here and has nothing to give back. The feed stays
-      // unopened with that reason standing, which is what tells the
-      // next ask for this URI to open it again, and there is nothing
-      // to close.
-      const bool nothing = !opened.close && !opened.send && !opened.sendTo &&
-                           opened.localAddress.empty();
-      if (nothing && !m_error.empty()) return;
-      m_wasOpened = true;
-      m_openedEnd = std::move(opened);
-      // What a door says about itself as it opens is left standing: a
-      // transport that answered from one thread and failed on another
-      // before this ran is a door with a reason, and the reason an
-      // earlier ask left was taken off before this open began.
-      return;
+    if (m_closed || m_wasOpened) {
+      // A feed takes one end. One handed to a feed that is already
+      // closed, or that a recording opened meanwhile, is closed here
+      // instead of kept: otherwise a door nobody can read through stays
+      // open.
+      if (answered.close) closing.push_back(std::move(answered.close));
+    } else if (answered.standing) {
+      settleLocked(std::move(answered), TransportEnd{}, closing);
+    } else if (m_early) {
+      // The handshake got through, or failed, before this answer was
+      // taken: what it came to settles the door now.
+      TransportEnd late = std::move(*m_early);
+      m_early.reset();
+      settleLocked(std::move(late), std::move(answered), closing);
+    } else {
+      // A handshake is running: the feed reads Connecting, sends go
+      // nowhere, and closing it gives the handshake up.
+      m_openedEnd = std::move(answered);
+      m_answered = true;
     }
-    // A feed takes one end. A second one, and one handed to a feed that
-    // is already closed, is closed here instead of kept: otherwise a
-    // door nobody can read through stays open.
-    unwanted = std::move(opened.close);
   }
-  if (unwanted) unwanted();
+  for (const std::function<void()>& shut : closing) shut();
+}
+
+void FeedDoor::open(TransportEnd opened) {
+  std::vector<std::function<void()>> closing;
+  {
+    const std::lock_guard lock(m_mutex);
+    if (m_closed || m_wasOpened) {
+      // A feed takes one end. A second one, and one handed to a feed
+      // that is already closed, is closed here instead of kept.
+      if (opened.close) closing.push_back(std::move(opened.close));
+    } else if (m_opening && !m_answered) {
+      // The transport's own thread got here before the ask that started
+      // it handed its answer over: held for that answer to settle.
+      if (m_early) {
+        if (opened.close) closing.push_back(std::move(opened.close));
+      } else {
+        m_early = std::move(opened);
+      }
+    } else {
+      TransportEnd answered = std::exchange(m_openedEnd, TransportEnd{});
+      settleLocked(std::move(opened), std::move(answered), closing);
+    }
+  }
+  // Outside the lock, and destroyed there too: shutting an end down may
+  // call back into this feed.
+  for (const std::function<void()>& shut : closing) shut();
 }
 
 std::optional<Message> FeedDoor::latest() const {
@@ -270,6 +344,8 @@ void FeedDoor::replay(std::vector<Message> recording) {
   // handed the feed as it stands rather than reading the file again
   // over a playback that is already running.
   m_wasOpened = true;
+  m_opening = false;
+  m_answered = false;
 }
 
 void FeedDoor::advance(std::chrono::duration<double> time) {

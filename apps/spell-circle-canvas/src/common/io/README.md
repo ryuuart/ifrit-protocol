@@ -309,6 +309,7 @@ over the source and the hub.
 | `IOWebSocketClient` | a listener this same process is holding, so both ends stand in one binary |
 | `IOSharedMemory` | regions this binary writes through `SharedMemoryWriter` and reads back, one case writing without pause from a thread of its own while another reads — the only way the count that brackets a message can be shown to work |
 | `IOMidi` | a port this binary MAKES and then opens back: a virtual cable by name. Each case skips, with the reason, where the system offers no such port |
+| `FramesDelivery` | a `syphon://` publication this binary makes and subscribes to twice, the run loop turned by the case itself, as a command-line receiver turns it |
 
 The hub cases open most of themselves from a `MountedHub` fixture — one
 scratch directory mounted at `res://`, which is the whole of what a hub
@@ -319,6 +320,7 @@ filesystem's timestamp granularity is not this test's running time.
 | Label | On | Means |
 |---|---|---|
 | `oiio` | `IOOiio` | the EXR cases, compiled only where OpenImageIO is found at configure time. The test uses it to *write* its fixtures; the library itself never calls it |
+| `gpu` | `FramesDelivery`, `ReceivedFrame` | a Metal device, built on macOS only; each case skips where there is none |
 | `network` | `IONetwork.LiveFetchThenOfflineRoundTrip` | a route: the case fetches a pinned immutable URL once and reads it back through a fresh hub locked `Offline`. It skips itself where there is none, so `-LE network` is how a run leaves it out rather than how it avoids failing |
 
 Every other network case is a pre-seeded disk cache, with a stub

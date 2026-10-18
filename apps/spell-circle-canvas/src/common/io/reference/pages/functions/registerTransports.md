@@ -128,9 +128,11 @@ split into, naming the server as its sender; `Feed::send` writes one
 whole message back to it, a client having the one peer it dialled, which
 is also the `FeedState::localAddress` it reports. Each feed runs one session on a
 thread of its own, and the handshake runs there too: a feed is answered
-before its server is reached, `FeedState::error` carries the reason when it
-cannot be, and a send before then goes nowhere and says so. A server that
-ends the session closes the feed.
+before its server is reached and reads `ReadyState::Connecting` until the
+handshake is through, then `ReadyState::Open`, from which the first send
+goes out; one that cannot be reached never reads `ReadyState::Open`, and
+`FeedState::error` carries the reason. A server that ends the session
+closes the feed.
 
 ### shm://
 

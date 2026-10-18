@@ -116,7 +116,11 @@ class Connection {
    *  of a set, `{wind,gust}` one of a list, none of them crossing a `/` —
    *  so a plain name matches itself alone; `"*"` names every message, one
    *  with no name included. Handlers run on advance, in the order the
-   *  messages arrived and then in the order they were registered.
+   *  messages arrived and then in the order they were registered. On an
+   *  OSC door each message a bundle holds, nested bundles' included, is
+   *  a message of its own, in the order the bundle holds them, taken on
+   *  the advance that drains the bundle rather than at the time it is
+   *  for.
    *  @trap A handler registered after a message arrived does not see it;
    *  latest() is how a late reader catches up. */
   void on(std::string_view pattern, Handler handler);

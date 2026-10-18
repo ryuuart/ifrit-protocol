@@ -65,4 +65,12 @@ if(APPLE)
     LIBRARIES SigilIOFrames SigilSkiaGraphite SigilGeometryDevice ${metal}
     SUITES ReceivedFrame LABELS gpu
     ARC)
+  # A frame carried from a publisher to subscribers in this same process:
+  # discovery by name, a static frame reaching subscribers that join after
+  # drawing stops, and the rows and channels it arrives in.
+  sigil_test(io_test
+    SOURCES test/DeliveryTest.mm
+    LIBRARIES SigilIOFrames ${metal}
+    SUITES FramesDelivery LABELS gpu
+    ARC)
 endif()

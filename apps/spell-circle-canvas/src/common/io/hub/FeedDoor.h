@@ -97,14 +97,30 @@ class FeedDoor {
    *  reason takes off what stood there. The feed stays open. */
   void fail(std::string why);
 
-  /** Takes the end its transport opened. Once: a second end, and one
-   *  handed to a feed that is already closed, is closed rather than
-   *  kept. An end that stands is kept with whatever the transport has
-   *  said about it by then.
+  /** Claims the next opening of this door for one ask: true when the
+   *  ask is to run the transport, false when the door already stands,
+   *  has closed, or another ask is opening it — a handshake still
+   *  running included — so two asks never open two doors onto one
+   *  feed. */
+  bool beginOpening();
+
+  /** Takes the transport's ANSWER to the ask that opened it. An end
+   *  that stands is the door; one that does not is a handshake still
+   *  running, kept for its close and its address while the feed reads
+   *  `ReadyState::Connecting`, until open() hands over what it came to.
    *  @trap AN END WITH NOTHING IN IT, HANDED TO A FEED CARRYING A
    *  REASON, IS NO END: the feed stays unopened with that reason
    *  standing, so the next ask for its URI opens it again into this
    *  same feed. */
+  void answer(TransportEnd end);
+
+  /** Takes an end its transport opened AFTER answering: the handshake
+   *  is through, or, as an end with nothing in it after a reason, it
+   *  never will be. What it leaves out of its close and its address is
+   *  the answer's. One that arrives before the answer has been taken is
+   *  held until it is, the transport's own thread having nothing to
+   *  wait on. Once: a second end, and one handed to a feed that is
+   *  already closed, is closed rather than kept. */
   void open(TransportEnd end);
 
   /** Reads @p recording instead of a transport: advance() is then what
@@ -139,6 +155,14 @@ class FeedDoor {
    *  a lock held across that call would be taken twice by one thread. */
   std::function<void()> closeLocked();
 
+  /** SETTLES WHETHER THE DOOR STANDS on @p end, with @p answered the
+   *  transport's earlier answer whose close and address fill what
+   *  @p end leaves out. An end with nothing in it, on a feed carrying a
+   *  reason, leaves the feed unopened, and the answer's close joins
+   *  @p closing, run by the caller once the lock is released. */
+  void settleLocked(TransportEnd end, TransportEnd answered,
+                    std::vector<std::function<void()>>& closing);
+
   const std::string m_uri;
   const ListenOptions m_options;
   const std::chrono::steady_clock::time_point m_made =
@@ -158,8 +182,18 @@ class FeedDoor {
   uint64_t m_dropped = 0;
   bool m_closed = false;
   std::string m_error;
+  /** The end the feed closes and sends through, or, while a handshake
+   *  runs, the answer that is not standing yet. */
   TransportEnd m_openedEnd;
   bool m_wasOpened = false;
+  /** An ask is opening the door: its transport has not settled whether
+   *  the door stands. */
+  bool m_opening = false;
+  /** The transport's answer to that ask has been taken. */
+  bool m_answered = false;
+  /** An end handed through open() before the answer it follows was
+   *  taken. */
+  std::optional<TransportEnd> m_early;
   /** The recording being written, shared with the Recording handle
    *  that stops it; null when nothing is being written. */
   std::shared_ptr<detail::RecordingSlot> m_recorder;

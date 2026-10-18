@@ -92,10 +92,12 @@ class Message {
   }
 
   /** 1 for the first message on its feed, counting up from there; 0 on
-   *  the empty message. */
+   *  the empty message. The messages one OSC bundle held share its
+   *  arrival's. */
   uint64_t revision() const { return m_arrival.revision(); }
 
-  /** The bytes as they arrived, unread; null on the empty message. */
+  /** The bytes as they arrived, unread; null on the empty message. A
+   *  message an OSC bundle held carries the whole bundle's. */
   const std::shared_ptr<const io::Bytes>& bytes() const {
     return m_arrival.payload;
   }
