@@ -453,7 +453,15 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
   // Measured along TRAVEL even under Radial orientation, so `offset`
   // keeps meaning "how far off the baseline the type rides" regardless of
   // which way the glyph ends up facing.
-  position += glm::vec2{dirY * ctx.onPath->offset, -dirX * ctx.onPath->offset};
+  //
+  // Under a fit by size the offset is the declared type's and scales as the
+  // type does, so a run written to straddle its baseline at the size it
+  // was declared at straddles it at the size the fit finds.
+  const float offset =
+      ctx.onPath->offset * (ctx.onPath->fit == TextPath::Fit::Size
+                                ? ctx.inst->textState->pathTypeScale
+                                : 1.0f);
+  position += glm::vec2{dirY * offset, -dirX * offset};
   // Radial: the glyph's BASELINE runs along the radius, so the run reads
   // outward from the centre like a spoke. That is how an astrolabe limb,
   // a compass rose and a radial axis label their divisions — you turn the

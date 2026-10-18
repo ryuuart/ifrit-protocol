@@ -44,8 +44,8 @@ makes the dashes MARCH. `PathFormat::stampPath` and
 `PathFormat::stampAdvance` repeat a path along the contour, rotated to
 follow it — vines, chains, ornament runs. `PathFormat::effect` is the
 escape hatch, and supersedes both: the renderer's own path effect held
-opaquely, built by `pathEffect()` in `<sigilcompose/advanced/PathEffect.h>`,
-which a consumer includes by name.
+opaquely, a `PathEffect` from `<sigilcompose/advanced/PathEffect.h>` held
+in a shared pointer, which a consumer includes by name.
 
 `PathFormat::trimStart`, `PathFormat::trimEnd` and
 `PathFormat::trimOffset` are a window on the arc length, per DECORATION

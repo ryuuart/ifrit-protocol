@@ -133,8 +133,11 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
       // A run fitted by size reaches as far as the size it was fitted to.
       const float typeScale =
           inst.textState ? inst.textState->pathTypeScale : 1.0f;
+      // Its offset is the declared type's, and scales with it.
+      const float offset =
+          spec.offset * (spec.fit == TextPath::Fit::Size ? typeScale : 1.0f);
       const float reach = std::max(band.ascent, band.descent) * typeScale +
-                          std::abs(spec.offset) + bleed;
+                          std::abs(offset) + bleed;
       SkRect curve = baseline.getBounds();
       curve.outset(reach, reach);
       local.join(curve);

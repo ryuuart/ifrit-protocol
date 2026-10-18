@@ -130,7 +130,6 @@ class Scope {
    *  to read back. */
   std::vector<Node>& mutableNodes();
   const std::vector<Attachment>& attachments() const { return m_attachments; }
-  std::vector<Attachment>& mutableAttachments() { return m_attachments; }
 
  private:
   std::vector<Node> m_nodes;

@@ -37,7 +37,9 @@ scales the type until the run spans `TextPath::fill` of it, keeping the
 tracking and word spacing, which are lengths; `Spacing` keeps the type's
 size and stretches every advance by one factor. At a fill of 1 a ring's
 lettering closes on its own beginning, and a change of face or words fits
-again with nothing measured beside the tree.
+again with nothing measured beside the tree. Under `Size` the offset is
+written against the declared type and scales with it, so a run set to
+straddle its baseline keeps straddling it at the size the fit finds.
 
 ```cpp
 text(u8"ECCE SIGNUM").textOnPath({.path = geometry::shapes::circle(),

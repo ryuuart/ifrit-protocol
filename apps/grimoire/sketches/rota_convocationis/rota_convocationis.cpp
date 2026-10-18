@@ -371,6 +371,18 @@ Element turning(const Standing& piece, motion::Animatable<float> rotation,
                      .children({std::move(content)})});
 }
 
+/** The size every ring's run is declared at. Its ring's fit scales the type
+ *  until the run girds its circle, and the offset that sets the letters
+ *  astride the circle scales with it. */
+constexpr float kDeclaredSize = 20;
+
+/** Where one band may be cut into standing pieces, in degrees, and the size
+ *  its fitted run comes near, which is how far a piece reaches. */
+struct BandCuts {
+  std::vector<float> degrees;
+  float fittedSize = kDeclaredSize;
+};
+
 struct RotaConvocationis {
   sketch::kit::Document content;
   StyleSheet registers;
@@ -380,29 +392,11 @@ struct RotaConvocationis {
   std::array<motion::Animatable<float>, kTurnings> kindle{};
   motion::Animatable<float> ruled, breath;
   std::array<motion::Animatable<float>, kStations> sealKindle{};
-  std::array<float, std::size(kBands)> bandSize{};
-  std::array<std::vector<float>, std::size(kBands)> bandCuts{};
-  std::array<float, kStations> sealSize{};
+  std::array<BandCuts, std::size(kBands)> bandCuts{};
 
   /** The bound rotation of @p layer, starting @p from degrees round. */
   motion::Animatable<float> turn(Turning layer, float from = 0) {
     return motion::bind(phase[layer], {.to = {from, from + 360.0f}});
-  }
-
-  /** The size at which @p run girds a circle of @p radius px, measured
-   *  twice because tracking is px and does not scale with the type. */
-  float fit(sketch::Scene2DContext& context, const Text& run, float radius,
-            float fill) const {
-    float size = 20;
-    for (int pass = 0; pass < 2; ++pass) {
-      Element probe = run;
-      probe.font({.size = size}).applyStyleSheet(registers);
-      const SkSize measured = context.measure(probe);
-      if (measured.width() > 1)
-        size *=
-            2 * std::numbers::pi_v<float> * radius * fill / measured.width();
-    }
-    return size;
   }
 
   Text bandRun(const Band& band) const {
@@ -421,12 +415,12 @@ struct RotaConvocationis {
    *  bakes. */
   Element script(size_t index) {
     const Band& band = kBands[index];
-    const float size = bandSize[index];
+    const float size = bandCuts[index].fittedSize;
     const float px = band.radius * kRadius;
     // The letters stand about half a size either side of the circle; the
     // names' glow reaches three sigmas further.
     const float reach = size * 0.62f + (band.turning == kNames ? 18.0f : 2.0f);
-    const std::vector<float>& cuts = bandCuts[index];
+    const std::vector<float>& cuts = bandCuts[index].degrees;
     return sheet().children(each(cuts.size(), [&, px, size, reach](int wedge) {
       const float from = cuts[wedge];
       const float to = wedge + 1 < int(cuts.size()) ? cuts[wedge + 1]
@@ -435,7 +429,7 @@ struct RotaConvocationis {
       const float home = -90.0f - (from + to) * 0.5f;
       const Standing piece = standing(to - from, px - reach, px + reach);
       Text run = bandRun(band);
-      run.font({.size = size}).ink(band.ink).rotate(home);
+      run.font({.size = kDeclaredSize}).ink(band.ink).rotate(home);
       if (band.stop)
         run.span(weave::selectors::text(band.stop),
                  SpanStyle().ink(band.stopInk));
@@ -444,7 +438,10 @@ struct RotaConvocationis {
           piece, turn(band.turning, -home), kindle[band.turning],
           kit::at(std::move(run), piece.eye().x - px, piece.eye().y - px,
                   2 * px, 2 * px)
-              .textOnPath({.path = shapes::circle(), .offset = -size * 0.34f}));
+              .textOnPath({.path = shapes::circle(),
+                           .offset = -kDeclaredSize * 0.34f,
+                           .fit = TextPath::Fit::Size,
+                           .fill = band.fill}));
     }));
   }
 
@@ -484,23 +481,26 @@ struct RotaConvocationis {
 
   /** Where a band may be cut: the middle of every space between words,
    *  as degrees clockwise from due east, where the circle's baseline
-   *  starts. The measure is whole pixels and leaves a trailing space out,
-   *  which a cut in the middle of a space has room for. Of those, the
-   *  ones nearest an even division of the ring, so each wedge holds about
-   *  as much lettering as its neighbours. */
-  std::vector<float> cutsOf(sketch::Scene2DContext& context, const Band& band,
-                            float size) const {
+   *  starts, read as the share of the run before it at the declared size
+   *  carried round the share of the ring the run fills. The measure is
+   *  whole pixels and leaves a trailing space out, which a cut in the
+   *  middle of a space has room for. Of those, the ones nearest an even
+   *  division of the ring, so each wedge holds about as much lettering as
+   *  its neighbours. The run's own fit sets its type; the size it comes
+   *  near is read off the same measure, for how far a wedge reaches. */
+  BandCuts cutsOf(sketch::Scene2DContext& context, const Band& band) const {
     const std::string words{content[band.words].string()};
     const auto width = [&](const std::string& run) {
       Element probe = text(run)
                           .styleClass(band.voice)
-                          .font({.size = size, .track = band.track});
+                          .font({.size = kDeclaredSize, .track = band.track});
       probe.applyStyleSheet(registers);
       return context.measure(probe).width();
     };
     const float space = width("A A") - width("AA");
-    const float degreesPerPixel =
-        180.0f / (std::numbers::pi_v<float> * band.radius * kRadius);
+    const float whole = std::max(width(words), 1.0f);
+    const float girth = 2 * std::numbers::pi_v<float> * band.radius * kRadius;
+    const float degreesPerPixel = 360.0f * band.fill / whole;
     std::vector<float> spaces;
     for (size_t at = 1; at < words.size(); ++at)
       if (words[at] == ' ' && words[at - 1] != ' ')
@@ -518,7 +518,7 @@ struct RotaConvocationis {
           best = candidate;
       if (best > cuts.back()) cuts.push_back(best);
     }
-    return cuts;
+    return {std::move(cuts), kDeclaredSize * girth * band.fill / whole};
   }
 
   /** THE GROUND, drawn once: night lifted toward the eye with smoke
@@ -792,13 +792,15 @@ struct RotaConvocationis {
                   }),
              kit::at(text(seal["words"].string())
                          .styleClass("band")
-                         .font({.size = sealSize[index], .track = 1.4f})
+                         .font({.size = kDeclaredSize, .track = 1.4f})
                          .ink(kBone),
                      kSealRadius - kSealBaseline, kSealRadius - kSealBaseline,
                      2 * kSealBaseline, 2 * kSealBaseline)
                  .textOnPath({.path = shapes::circle(),
                               .at = float(index) / kStations,
-                              .offset = -sealSize[index] * 0.34f}),
+                              .offset = -kDeclaredSize * 0.34f,
+                              .fit = TextPath::Fit::Size,
+                              .fill = 0.97f}),
              text(seal["ordinal"].string())
                  .styleClass("mono")
                  .font({.size = 12, .track = 1})
@@ -886,18 +888,8 @@ struct RotaConvocationis {
         rule(".mono").font({.face = weave::ports::face(
                                 {"Menlo", "SF Mono", "Courier New"}, 500)})};
 
-    for (size_t index = 0; index < std::size(kBands); ++index) {
-      bandSize[index] = fit(context, bandRun(kBands[index]),
-                            kBands[index].radius * kRadius, kBands[index].fill);
-      bandCuts[index] = cutsOf(context, kBands[index], bandSize[index]);
-    }
-    const auto seals = content["seals"].array();
-    for (size_t index = 0; index < seals.size() && index < kStations; ++index)
-      sealSize[index] = fit(context,
-                            text(seals[index]["words"].string())
-                                .styleClass("band")
-                                .font({.track = 1.4f}),
-                            kSealBaseline, 0.97f);
+    for (size_t index = 0; index < std::size(kBands); ++index)
+      bandCuts[index] = cutsOf(context, kBands[index]);
     context.composer.render(describe());
   }
 

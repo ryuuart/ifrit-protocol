@@ -3,6 +3,11 @@
 
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/program/Shader.h>
+
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include "support/ParagraphTestSupport.h"
 
@@ -178,6 +183,145 @@ TEST(ComposeBoundary, ABevelOnAnOverlaidCopyStaysOnTheGlyphs) {
 
 namespace {
 
+/** The uniform the changing ink reads: the grey its letters are painted. */
+struct InkLevel {
+  float level = 0.5f;
+};
+
+/** A grey ink that a bound level changes on the clock with no new
+ *  description, as a reflection moving across lettering does. */
+material::Material changingInk(motion::Animatable<float> level) {
+  return material::shader(
+             "half4 main(float2 p) { return half4(half3(half(level)), 1); }",
+             InkLevel{})
+      .bind("level", std::move(level));
+}
+
+/** The stationary edge treatment: a bevel in red and blue, so what it
+ *  adds is told apart from any grey the ink paints. */
+material::Filter stationaryBevel() {
+  return material::Filter::bevel(
+      {.depth = 3, .size = 4, .highlight = {1, 0, 0, 1}, .shadow = {0, 0, 1, 1}});
+}
+
+/** "HO" at one place on a black ground, on the glyph boundary, set in the
+ *  font it inherits so that its own ink is the one it is painted in. */
+Text boundaryWord(const char* key, material::Material ink) {
+  return text(u8"HO")
+      .key(key)
+      .font({.face = sigil::test::instrument::sans(), .size = 110})
+      .absolute()
+      .left(20.0f)
+      .top(20.0f)
+      .width(300.0f)
+      .height(150.0f)
+      .decorationOutline(Boundary::Glyphs)
+      .ink(std::move(ink));
+}
+
+/** The word in @p ink, with the bevel on the ink's own material when
+ *  @p together, else on a clear copy laid over it. */
+Element bevelledInk(material::Material ink, bool together) {
+  std::vector<Element> words;
+  if (together) {
+    words.push_back(boundaryWord("word", ink.effects(stationaryBevel())));
+  } else {
+    words.push_back(boundaryWord("word", std::move(ink)));
+    words.push_back(boundaryWord(
+        "bevel",
+        material::from(material::Color{0, 0, 0, 0}).effects(stationaryBevel())));
+  }
+  return box().fill(Fill::color({0, 0, 0, 1})).children({std::move(words)});
+}
+
+/** Pixels where @p dressed differs from @p plain, counted on and off the
+ *  letters @p plain inks. */
+struct EdgeSpread {
+  int onTheLetters = 0;
+  int offTheLetters = 0;
+};
+EdgeSpread edgeSpread(Host& plain, Host& dressed, int width, int height) {
+  EdgeSpread spread;
+  for (int y = 0; y < height; ++y)
+    for (int x = 0; x < width; ++x) {
+      const bool letter = plain.pixel(x, y) != SK_ColorBLACK;
+      const bool changed = dressed.pixel(x, y) != plain.pixel(x, y);
+      spread.offTheLetters += changed && !letter;
+      spread.onTheLetters += changed && letter;
+    }
+  return spread;
+}
+
+}  // namespace
+
+TEST(ComposeBoundary, ABevelKeepsTheGlyphBoundaryWhetherTheInkChangesOrNot) {
+  // Constant and changing ink on identical shaped text, the bevel on the
+  // ink's own material and on a clear copy over it: every edge treatment
+  // stands on the letters, and the two compositions draw one picture.
+  constexpr int kWidth = 360, kHeight = 200;
+  for (const bool changing : {false, true}) {
+    motion::Animatable<float> level = motion::animatable(0.5f);
+    const auto ink = [&] {
+      return changing ? changingInk(level)
+                      : material::from(material::Color{0.5f, 0.5f, 0.5f, 1});
+    };
+    Host plain(kWidth, kHeight), together(kWidth, kHeight),
+        apart(kWidth, kHeight);
+    plain.composer.render(box()
+                              .fill(Fill::color({0, 0, 0, 1}))
+                              .children({boundaryWord("word", ink())}));
+    together.composer.render(bevelledInk(ink(), true));
+    apart.composer.render(bevelledInk(ink(), false));
+    // A second frame after the light moves: the edge stands where it
+    // stood, and the ink under it is the new one.
+    for (Host* host : {&plain, &together, &apart}) host->frame();
+    level = 0.75f;
+    for (Host* host : {&plain, &together, &apart}) host->frame(0.016);
+    for (Host* host : {&together, &apart}) {
+      const EdgeSpread spread = edgeSpread(plain, *host, kWidth, kHeight);
+      EXPECT_GT(spread.onTheLetters, 100)
+          << (changing ? "changing" : "constant") << " ink: the bevel drew nothing";
+      EXPECT_EQ(spread.offTheLetters, 0)
+          << (changing ? "changing" : "constant") << " ink, bevel "
+          << (host == &together ? "on the ink" : "on a copy")
+          << ": the edge treatment left the glyphs";
+    }
+    EXPECT_TRUE(identicalPixels(together, apart, kWidth, kHeight))
+        << (changing ? "changing" : "constant")
+        << " ink: the bevel on a copy drew apart from the bevel on the ink";
+  }
+}
+
+TEST(ComposeBoundary, AStationaryBevelApartFromChangingInkIsNotCutAgain) {
+  // The bevel on a clear copy states nothing that moves, so a change of
+  // light in the ink beneath it paints the ink alone: the copy's edge
+  // coverage is recorded once and replayed across every light-only update.
+  motion::Animatable<float> level = motion::animatable(0.5f);
+  Host host(360, 200);
+  host.composer.setProfiling(true);
+  host.composer.render(bevelledInk(changingInk(level), false));
+  host.frame();
+  for (int frame = 0; frame < 4; ++frame) host.frame(0.016);
+  const auto stateOf = [&](std::string_view key) {
+    for (const Composer::NodeCost& row : host.composer.profile())
+      if (row.label.starts_with(key)) return row.cacheState;
+    ADD_FAILURE() << "no profile row for " << key;
+    return Composer::CacheState::Live;
+  };
+  for (const float next : {0.6f, 0.7f, 0.8f}) {
+    level = next;
+    host.frame(0.016);
+    EXPECT_EQ(stateOf("word"), Composer::CacheState::Live)
+        << "the changing ink did not paint";
+    EXPECT_EQ(stateOf("bevel"), Composer::CacheState::Picture)
+        << "a light-only update painted the stationary bevel again";
+    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+        << "a light-only update recorded the stationary bevel again";
+  }
+}
+
+namespace {
+
 /** "I H" in a clear ink whose material carries only a bevel in red and
  *  blue, on the glyph boundary; the H, the last word, under
  *  a track widening it to twice its width at @p progress, where one is
@@ -245,3 +389,4 @@ TEST(ComposeBoundary, ABevelUnderATrackAtRestIsTheBevelOfStillText) {
   resting.frame();
   EXPECT_TRUE(identicalPixels(still, resting, 400, 160));
 }
+

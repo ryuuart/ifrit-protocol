@@ -187,7 +187,7 @@ void paintThroughPicture(PaintPass& pass) {
   if (pass.profile.row != SIZE_MAX)
     impl.profileRows[pass.profile.row].cacheState =
         Composer::CacheState::Picture;
-  pass.profDraw("replay", [&] { impl.pictureBake->replay(target); });
+  impl.pictureBake->replay(target);
 }
 
 void paintLive(PaintPass& pass) {
@@ -198,9 +198,8 @@ void paintLive(PaintPass& pass) {
   const float leafOpacity = pass.leafOpacity;
 
   if (!impl.coverageTrace) impl.stats.nodesPainted++;
-  pass.profDraw("live", [&] {
-    impl.paintContent(inst, canvas, impl.hostScale, leafBlend, leafOpacity);
-  });
+  impl.paintContent(inst, canvas, impl.hostScale, leafBlend, leafOpacity);
+
   inst.paintDirty = false;
 }
 

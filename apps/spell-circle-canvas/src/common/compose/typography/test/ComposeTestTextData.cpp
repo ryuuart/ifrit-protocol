@@ -920,7 +920,8 @@ struct FittedRun {
   std::vector<SkRect> letters;
 };
 
-FittedRun fittedRun(std::u8string_view letters, TextPath::Fit fit) {
+FittedRun fittedRun(std::u8string_view letters, TextPath::Fit fit,
+                    float offset = 0.0f) {
   Host host((int)kFitRing, (int)kFitRing);
   host.composer.render(
       box().children({text(letters, whiteStyle(24))
@@ -931,6 +932,7 @@ FittedRun fittedRun(std::u8string_view letters, TextPath::Fit fit) {
                           .left(0)
                           .top(0)
                           .textOnPath({.path = geometry::shapes::circle(),
+                                       .offset = offset,
                                        .orient = TextPath::Orient::Upright,
                                        .fit = fit})
                           .textFx({.effect = textFx::enter(textFx::rise(6)),
@@ -976,6 +978,30 @@ TEST(ComposeText, ASizeFitClosesARingRunOnItsSeamWhateverItsLength) {
   // The fewer letters are set larger to gird the same ring.
   EXPECT_GT(shortRun.letters.front().height(),
             longRun.letters.front().height() * 1.5f);
+}
+
+TEST(ComposeText, ASizeFitScalesTheOffsetWithTheType) {
+  // An offset is written against the size the run is declared at, so a
+  // fit by size carries it as far off the baseline as it carries the
+  // type: the letters ride inward by the offset times the fit's scale.
+  const auto meanRadius = [](const FittedRun& run) {
+    double sum = 0;
+    for (const SkRect& letter : run.letters)
+      sum += SkPoint::Distance({letter.centerX(), letter.centerY()},
+                               {kFitRing * 0.5f, kFitRing * 0.5f});
+    return (float)(sum / (double)run.letters.size());
+  };
+  // Forty letters, so each is narrow beside the ring and its centre moves
+  // with its pen.
+  const std::u8string letters(40, u8'O');
+  const FittedRun declared = fittedRun(letters, TextPath::Fit::None);
+  const FittedRun onBaseline = fittedRun(letters, TextPath::Fit::Size);
+  const FittedRun inward = fittedRun(letters, TextPath::Fit::Size, -6.0f);
+  ASSERT_EQ(inward.letters.size(), 40u);
+  const float scale =
+      onBaseline.letters.front().height() / declared.letters.front().height();
+  ASSERT_GT(scale, 1.2f) << "the fit did not grow the type";
+  EXPECT_NEAR(meanRadius(onBaseline) - meanRadius(inward), 6.0f * scale, 0.5f);
 }
 
 TEST(ComposeText, ASpacingFitClosesARingRunAndKeepsItsTypeSize) {

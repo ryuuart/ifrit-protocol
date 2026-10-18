@@ -2,15 +2,13 @@
 
 /** @file
  * What a paint costs, per node: the row a node contributes to the
- * composer's profile, the scope that times it, and the COMPOSE_PROF
- * threshold above which a single draw prints itself.
+ * composer's profile, and the scope that times it.
  */
 
 #include <include/core/SkRect.h>
 #include <sigilmeasure/time/Stopwatch.h>
 
 #include <cstddef>
-#include <cstdlib>  // std::getenv, std::strtod
 #include <optional>
 #include <string>
 
@@ -22,21 +20,6 @@ namespace sigil::compose {
  *  key() when there is one (that is what they will search for), else the
  *  node kind and its painted size, which is usually enough to find it. */
 std::string profileLabel(const detail::Instance& inst, const SkRect& rect);
-
-/** The threshold COMPOSE_PROF=<ms> sets: any draw above it prints itself —
- *  cached-texture blits, picture replays (which re-EXECUTE recorded ops on
- *  raster), live paints, and the bakes themselves, which are the cost a
- *  blit is bought with. Nested lines overlap (inclusive of children); any
- *  unparsable value means 4ms, and an unset variable means never. */
-inline double profileThresholdMs() {
-  static const double ms = [] {
-    const char* environment = getenv("COMPOSE_PROF");
-    if (!environment) return -1.0;
-    const double v = std::strtod(environment, nullptr);
-    return v > 0.0 ? v : 4.0;
-  }();
-  return ms;
-}
 
 /** Scoped per-node timer. RAII because paint() has several early returns
  *  and a half-written row would be worse than no row at all. */

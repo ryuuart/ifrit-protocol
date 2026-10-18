@@ -62,8 +62,8 @@ is placed.
 | Verb | What it says |
 |---|---|
 | `flexDirection` | Which way the main axis runs and from which end: `FlexDirection::Column`, `ColumnReverse`, `Row`, `RowReverse`. |
-| `row` | `flexDirection(FlexDirection::Row)`: the children run left to right. |
-| `column` | `flexDirection(FlexDirection::Column)`: top to bottom, which is what a node does unasked. |
+| `row` | `flexDirection(FlexDirection::Row)`: the children run left to right. The free factory `row(…)` starts a box saying it, its children given in the call. |
+| `column` | `flexDirection(FlexDirection::Column)`: top to bottom, which is what a node does unasked. The free factory `column(…)` starts a box saying it, its children given in the call. |
 | `flexWrap` | What becomes of children that overflow the main axis: `FlexWrap::NoWrap`, `Wrap`, `WrapReverse`. The bare call wraps. |
 | `alignItems` | Where the children sit on the cross axis. |
 | `alignSelf` | Where THIS child sits on its parent's cross axis, whatever the parent said. |
@@ -132,7 +132,7 @@ content and children, then foregrounds and the unqualified strokes.
 |---|---|
 | [`fill`](pages/verbs/fill.md) | The paint of the node's own box — a colour, a paint, a transition or a live binding — stretched over the `PaintBox` it names. |
 | [`ink`](pages/verbs/ink.md) | The colour text under this node is set in, and every mark that names none; a paint is stretched over the `PaintBox` it names, and may restart on each glyph, word or line. Inherits. |
-| [`stroke`](pages/verbs/stroke.md) | Dress the node's boundary with a brush, whole or on the runs a span claims. |
+| [`stroke`](pages/verbs/stroke.md) | Dress the node's boundary with a brush, whole or on the runs a span claims, or keyline it with a material, its ends and corners cut as `StrokeOptions` state. |
 | [`background`](pages/verbs/background.md) | A decoration painted BENEATH the fill. |
 | [`overlay`](pages/verbs/overlay.md) | A decoration painted over the fill and under the content and children. |
 | [`foreground`](pages/verbs/foreground.md) | A decoration painted OVER the children. |
@@ -379,8 +379,9 @@ spelling is the feature's.
   `inherit`, `initial`, `unset`.
 - `core/verbs/Paint.h` — `fill`.
 - `core/verbs/Decoration.h` — the decoration slots `stroke`,
-  `background`, `overlay`, `foreground`, and what they
-  dress: `decorationOutline`.
+  `background`, `overlay`, `foreground`, what they
+  dress: `decorationOutline`, and how a material keyline is widened:
+  `StrokeOptions`.
 - `core/verbs/Effects.h` — `filter`, `backdropFilter`, `blendMode`,
   `opacity`.
 - `core/verbs/Transform.h` — the transform lanes `translateX`,

@@ -1,19 +1,5 @@
 # Findings
 
-## Explicit texture bakes are resampled onto a capture's grid within no stated bound
-
-The rotating text bands in `rota_convocationis` and the retained ink in
-`thunder_fulu` request local texture bakes. Their content, geometry and
-materials stay fixed, but their cached pixels are resampled onto the
-capture's grid, since `src/common/compose/core/cache/TextureBake.cpp`
-bakes at the declared density and a turning node can take no
-device-aligned bake. A deterministic capture keeps the
-explicit bakes, so a plate is what the window shows, and the plate tier
-states a tolerance for a drawing with explicit bakes. A test should
-compare a turning text ring and a seeded fibre stroke at the same moment
-and fractional capture density against the same drawing without its
-bakes, and find the difference within that bound.
-
 ## A stack's programs cannot be stood up before the sketch wearing it is read
 
 Grimoire's warm-up (`apps/grimoire/src/PipelineWarm.cpp`) describes a
@@ -67,22 +53,6 @@ sketch's own assertions run (a sketch-side check printed at startup, as
 `black_watch` prints its invariants; a test binary over the sketches'
 headers; or the text paints lifted into a kit that a library test can
 reach).
-
-## Separating a text bevel from changing ink can change its coverage
-
-A stationary bevel on an overlaid text copy can produce rectangular coverage
-where the material was intended to follow the glyphs. Keeping the bevel on the
-same material as the changing reflection preserves the glyph boundary, but
-repeats edge work when that ink changes. A text leaf's declared glyph boundary
-should remain the same when the ink and its stationary edge treatment are
-composed separately.
-
-A regression should compare constant and changing ink on identical shaped
-text, assert that both edge treatments follow the glyph boundary, and assert
-reuse of stationary edge coverage across light-only updates. The machined
-film-title sketch uses retained vector contours; that avoids this text case
-without establishing that the underlying coverage issue is fixed.
-
 
 ## Authoring difficulty: optical bloom has no shared parameter preview
 
@@ -185,13 +155,6 @@ binds the path's fields one by one with no `Fit` enum. A Python
 `TextPath(fit=..., fill=...)` should round-trip, and a ring run with a
 size fit should close on its seam.
 
-## Two sketches still hand-fit ring text
-
-`rota_convocationis` measures and rescales its twelve seals and four
-bands with `Scene2DContext::measure`, and `cosmati`'s onyx roundel ring
-is sized by eye. Both can declare `.fit = TextPath::Fit::Size` and drop
-the measurement; their plates move by the fit's residual.
-
 ## A window bench of a named sketch prints no row
 
 `Grimoire --window-bench 6 --sketch wet_glass_console` (with or without
@@ -254,21 +217,6 @@ same Metal device does not isolate. The test should prove the release
 another way, such as a weak reference that nils after the destroy and an
 autorelease drain, and the first-frame timing case in `StandIn` should
 likewise be read serially or with a bound that a loaded GPU meets.
-
-## A settled track that moves nothing places its glyphs on whole pixels
-
-A text leaf under a track whose effect displaces nothing and whose
-progress is settled, such as `textFx({.effect = textFx::tween({})})` at
-progress one, places its glyphs on whole pixels, while the same leaf with
-no track keeps fractional glyph origins, so the two pictures differ by
-up to half a pixel per glyph. `TextEffect::displaces` says only a run
-whose effect displaces and whose progress is live moves to the finer
-grid, so a settled track that changes nothing should place its run as
-the bare leaf does; otherwise adding or removing a track, as when an
-entrance ends, shifts the letters. A test should assert that a leaf
-under an identity track at progress one renders byte-identical to the
-same leaf without the track; if whole-pixel placement under any track is
-the rule, the text effects reference should say so instead.
 
 ## A Python curve or Oscillator in a binding never compares equal
 
@@ -333,18 +281,6 @@ read a track's schedule back as C++ does. A test should assert that
 one reports one `Beat` per unit with `localProgress` one and a non-empty
 `rect`.
 
-## The element factory comments call free row and column factories that only Python has
-
-The comments in `src/common/compose/include/sigilcompose/core/Factories.h`
-near lines 86, 109 and 128 spell free `row()` and `column()` factories
-as the way to build a flex line, but C++ has no such factories; only the
-Python package offers them, as sugar over `box().row()` and
-`box().column()`. Either the factories should exist in C++, so the
-comment is true and the two languages spell the same thing, or the
-comments should spell the verbs that exist. A test should assert that
-every call a header comment spells compiles, which the README probes do
-for READMEs and not for header comments.
-
 ## Thumbnail workers open Python kinds on the process device
 
 `onRuntime` and `onPainterRuntime` in the sketch host act only on the
@@ -383,4 +319,23 @@ client door that read Open before its handshake had reached the server.
 The door now reads Connecting until the handshake is through, so the
 helper should wait for `client.state().isOpen()` and send once, and a
 test should find that first send returning true.
+
+## A leaf set in a whole text style ignores its own colour ink
+
+A leaf built with a whole `TextStyle`, `text(utf8, style)`, draws in the
+style's colour when given `.ink(Color)` or a colour material, while a
+non-colour material ink applies; one rule should hold for both kinds of
+ink, so that a clear copy of a leaf can be written the same way whatever
+its ink is. A test should give such a leaf a clear colour ink and find
+it drawing nothing.
+
+## A bevel or inner shadow on a glyph or shape boundary blurs its band on every replay
+
+Only `Boundary::Coverage` holds its band masks (`HeldCoverageMasks`); a
+bevel or inner shadow on a glyph or shape boundary blurs its band again
+at every replay, so a stationary edge treatment beside a changing ink is
+cut again on each light-only update. Holding the masks for every outline
+reuses the edge coverage across ink changes; every bevel plate moves
+when it lands. A test should replay a bevelled leaf under a changing
+shader ink and find the band blurred once.
 

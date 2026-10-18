@@ -6,11 +6,11 @@ sigil_library(SigilComposeDraw
 
 sigil_test(compose_test
   SOURCES test/ComposeTestDraw.cpp test/ComposeTestGraphics.cpp
-          test/ComposeTestMaterialInput.cpp
+          test/ComposeTestMaterialInput.cpp test/ComposeTestBakeResampling.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/../../draw/test
   LIBRARIES SigilComposeDraw SigilComposeTesting SigilDrawBrush
             SigilMaterialProgram SigilMaterialSkia SigilWeavePorts
-  SUITES DrawNode GraphicsNode MaterialInput RetainedElement
+  SUITES BakeResampling DrawNode GraphicsNode MaterialInput RetainedElement
          PenAndGraphics/DrawProgramRecovery
   LABELS integration)
 

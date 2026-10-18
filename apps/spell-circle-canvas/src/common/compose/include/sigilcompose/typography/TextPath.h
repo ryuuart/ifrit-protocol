@@ -61,7 +61,10 @@ struct TextPath {
   Align align = Align::Start;  ///< what `at` pins on the curve
   /** Perpendicular offset in px, positive to the LEFT of travel — which on
    *  a clockwise circle is outward. The path is the baseline, so this is
-   *  how far off it the type rides. */
+   *  how far off it the type rides. Under `Fit::Size` it is the declared
+   *  type's offset and scales with the type, so a run written to straddle
+   *  its baseline at the size it is declared at still straddles it at the
+   *  size the fit finds. */
   float offset = 0.0f;
   /** Flip glyphs that would come out upside down, so lettering on the
    *  lower half of a ring reads right way up.

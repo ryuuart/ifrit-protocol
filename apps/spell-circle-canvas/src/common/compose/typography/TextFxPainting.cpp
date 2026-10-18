@@ -245,6 +245,28 @@ GlyphPlacement placementOf(const GlyphModifier& modifier, const RestPose& pose,
   return placement;
 }
 
+/** One glyph's place at rest and every track's deviation of it, composed
+ *  for one frame. A glyph with no rest pose is not drawn. */
+struct GlyphDeviation {
+  bool posed = false;
+  RestPose pose;
+  GlyphModifier modifier;
+  bool continuous = false;
+};
+
+/** Whether any track that draws carries a progress still in motion. A
+ *  folded span-axis track stands past the end of the instance's held
+ *  motions and reads its progress at rest. */
+bool anyTrackRunning(const Instance& inst, std::span<const Track> tracks) {
+  for (size_t i = 0; i < tracks.size(); ++i) {
+    if (!tracks[i].effect) continue;
+    const HeldMotion* held =
+        i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
+    if (motion::isRunning(held, tracks[i].progress)) return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
@@ -309,6 +331,75 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // deviation and rests on the curve.
   if (used == 0 && !ridesPath) return;
   const std::span<const Resolved> live(resolved.data(), used);
+
+  const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
+
+  // Span inks keep their resolved foregrounds. Restarting ink maps onto
+  // each unit at rest in this layout, including its curve placement;
+  // a moving letter samples that field where the letter is now.
+  static thread_local GlyphInk glyphInk;
+  const SkScopeExit releaseGlyphs([&] { glyphInk.clear(); });
+  const bool byGlyph = ink.hasGlyphStyles();
+  if (byGlyph) resolveGlyphInk(layout, inst, structure, poseCtx, ink, glyphInk);
+  const sigil::weave::PaintStyle* override = ink.override();
+  const auto styleOf = [&](uint32_t g, const sigil::weave::PlacedGlyph& placed)
+      -> const sigil::weave::PaintStyle& {
+    if (byGlyph && g < glyphInk.styleOfGlyph.size() &&
+        glyphInk.styleOfGlyph[g] < glyphInk.styles.size())
+      return glyphInk.styles[glyphInk.styleOfGlyph[g]];
+    return override ? *override : *placed.paint;
+  };
+
+  // EVERY GLYPH'S DEVIATION, composed once before anything is drawn: the
+  // glyph draw below reads it back, and whether the run stands as laid is
+  // read off it first. One composition per glyph per frame, so an effect
+  // that records what it was asked is asked once.
+  static thread_local std::vector<GlyphDeviation> deviations;
+  const SkScopeExit releaseDeviations([&] { deviations.clear(); });
+  deviations.assign(count, GlyphDeviation{});
+  bool everyGlyphAsLaid = true;
+  uint32_t walked = 0;
+  sigil::weave::forEachPlacedGlyph(
+      layout, paragraphOfLayout(inst, layout),
+      [&](const sigil::weave::PlacedGlyph& placed) {
+        const uint32_t g = walked++;
+        if (g >= count) return;
+        GlyphDeviation& deviation = deviations[g];
+        deviation.posed = restPoseOf(poseCtx, placed, deviation.pose);
+        if (!deviation.posed) return;
+        GlyphInfo info = structure.glyphs[g];
+        info.painted = &ctx;
+        info.ink =
+            material::skia::toColor(styleOf(g, placed).foreground.getColor4f());
+        deviation.modifier =
+            deviationOf(live, g, info, deviation.continuous);
+        everyGlyphAsLaid &= deviation.modifier == GlyphModifier{};
+      });
+
+  // A RUN THE TRACKS LEAVE AS LAID, AND WILL GO ON LEAVING, IS THE BARE
+  // LEAF: every glyph's deviation is the identity, no pass shades it and no
+  // track's progress is live, so it is drawn exactly as the kernel draws a
+  // leaf with no track — the same glyph placement, ink and bands. Adding a
+  // settled track that changes nothing, or an entrance reaching its end,
+  // then moves no letter. A track whose progress is live keeps its run on
+  // the tracks' own draw even on a frame it changes nothing, so a letter
+  // does not change grid for one frame of a running loop.
+  if (!onPath && everyGlyphAsLaid &&
+      std::none_of(live.begin(), live.end(),
+                   [](const Resolved& r) {
+                     return (bool)r.track->effect.passMaterial();
+                   }) &&
+      !anyTrackRunning(inst, tracks)) {
+    if (byGlyph)
+      inst.textLayout.drawBatched(
+          &canvas, *inst.paragraph,
+          sigil::weave::ParagraphLayout::GlyphStyles{glyphInk.styleOfGlyph,
+                                                     glyphInk.styles},
+          override);
+    else
+      inst.textLayout.drawBatched(&canvas, *inst.paragraph, override);
+    return;
+  }
 
   // A TRACK DRAWS ITS OWN GLYPHS, in batched buckets, and a bucket carries
   // glyphs alone — so the band a span asked for (an underline, a
@@ -390,40 +481,18 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   for (const std::unique_ptr<PassLane>& lane : passes)
     lane->batches.subpixel = batches.subpixel;
 
-  const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
-
-  // Span inks keep their resolved foregrounds. Restarting ink maps onto
-  // each unit at rest in this layout, including its curve placement;
-  // a moving letter samples that field where the letter is now.
-  static thread_local GlyphInk glyphInk;
-  const SkScopeExit releaseGlyphs([&] { glyphInk.clear(); });
-  const bool byGlyph = ink.hasGlyphStyles();
-  if (byGlyph) resolveGlyphInk(layout, inst, structure, poseCtx, ink, glyphInk);
-  const sigil::weave::PaintStyle* override = ink.override();
-  const auto styleOf = [&](uint32_t g, const sigil::weave::PlacedGlyph& placed)
-      -> const sigil::weave::PaintStyle& {
-    if (byGlyph && g < glyphInk.styleOfGlyph.size() &&
-        glyphInk.styleOfGlyph[g] < glyphInk.styles.size())
-      return glyphInk.styles[glyphInk.styleOfGlyph[g]];
-    return override ? *override : *placed.paint;
-  };
-
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
       layout, paragraphOfLayout(inst, layout),
       [&](const sigil::weave::PlacedGlyph& placed) {
         const uint32_t g = ordinal++;
         if (g >= count) return;
-        RestPose pose;
-        if (!restPoseOf(poseCtx, placed, pose)) return;
-        GlyphInfo info = structure.glyphs[g];
-        info.painted = &ctx;
-        info.ink =
-            material::skia::toColor(styleOf(g, placed).foreground.getColor4f());
-
-        // Every track that addresses this glyph, composed.
-        bool continuous = false;
-        const GlyphModifier modifier = deviationOf(live, g, info, continuous);
+        const GlyphDeviation& deviation = deviations[g];
+        if (!deviation.posed) return;
+        const RestPose& pose = deviation.pose;
+        // Every track that addresses this glyph, composed above.
+        const bool continuous = deviation.continuous;
+        const GlyphModifier& modifier = deviation.modifier;
         // THE BEAT IS NOTED BEFORE THE INK IS. A glyph the deviation faded
         // or shrank away draws nothing, but it is still a member of its
         // beat, and a pass's uniform arrays are numbered against the beats

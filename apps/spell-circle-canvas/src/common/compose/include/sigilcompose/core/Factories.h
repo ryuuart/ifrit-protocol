@@ -4,9 +4,9 @@
  * @ingroup compose-core
  *
  * SigilCompose factories — the functions that start an Element: `box`,
- * `stack`, `positioned`, `text` in its three content forms and `frame`
- * over a story, `image`, `picture`, `pathFigure`, `custom`, `layout`,
- * `slot` and `memo`.
+ * `row` and `column`, `stack`, `positioned`, `text` in its three content
+ * forms and `frame` over a story, `image`, `picture`, `pathFigure`,
+ * `custom`, `layout`, `slot` and `memo`.
  */
 
 #include <include/core/SkImage.h>
@@ -23,6 +23,7 @@
 #include <sigilweave/style/Style.h>
 
 #include <any>
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -30,6 +31,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace sigil::weave {
@@ -52,6 +54,31 @@ namespace sigil::compose {
  *  The one to reach for by default — a box with a fill is a panel, a
  *  box with a shape is a drawing, and a box with neither is layout. */
 Element box();
+/** A FLEX LINE RUNNING LEFT TO RIGHT: `box().row()` with its children
+ *  given in the call, each an element, a typed leaf or a list `each()`
+ *  made — `row(icon, label)` is `box().row().children({icon, label})`, and
+ *  `row()` with nothing is the bare line a later `children({…})` fills. */
+template <class... Runs>
+  requires(std::constructible_from<Children, Runs> && ...)
+[[nodiscard]] Element row(Runs&&... runs) {
+  Element node = box();
+  node.row();
+  if constexpr (sizeof...(Runs) > 0)
+    node.children({Children(std::forward<Runs>(runs))...});
+  return node;
+}
+/** A FLEX LINE RUNNING TOP TO BOTTOM: `box().column()` with its children
+ *  given in the call, as `row` takes them. A box is a column when it says
+ *  nothing; this states it, so the direction reads where the line starts. */
+template <class... Runs>
+  requires(std::constructible_from<Children, Runs> && ...)
+[[nodiscard]] Element column(Runs&&... runs) {
+  Element node = box();
+  node.column();
+  if constexpr (sizeof...(Runs) > 0)
+    node.children({Children(std::forward<Runs>(runs))...});
+  return node;
+}
 /** Overlap container: children share the box, painted in (zIndex,
  *  declaration order). EVERY child is absolute — the container sets it
  *  after the child's own layout properties, so a child cannot rejoin the flex

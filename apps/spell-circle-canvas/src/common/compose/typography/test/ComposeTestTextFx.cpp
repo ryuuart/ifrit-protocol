@@ -575,6 +575,31 @@ TEST(ComposeTextFx, SettledMultiTrackTextStopsPaintingLive) {
       << "the second track moved and nothing re-declared";
 }
 
+TEST(ComposeTextFx, ASettledTrackThatChangesNothingPlacesItsRunAsTheBareLeaf) {
+  // Below the size where a shaped run snaps to whole pixels, a bare leaf
+  // keeps fractional glyph origins. A track at rest that leaves every glyph
+  // as the layout laid it changes nothing about the run, so adding one, or
+  // an entrance reaching its end, must not move a letter: only a run whose
+  // effect displaces and whose progress is live takes the finer grid.
+  const auto render = [](std::optional<TextEffect> effect) {
+    Host host(320, 60);
+    Text leaf = text(u8"Settled lettering, quietly.", whiteStyle(17)).key("k");
+    if (effect) leaf.textFx({.effect = *effect});
+    host.composer.render(box().padding(10.37f).children({std::move(leaf)}));
+    host.frame();
+    return surfaceBytes(host, 320, 60);
+  };
+  const std::vector<uint8_t> bare = render(std::nullopt);
+  EXPECT_TRUE(render(textFx::tween({})) == bare)
+      << "an identity track at progress one moved the run off the bare leaf's "
+         "placement";
+  EXPECT_TRUE(render(textFx::enter(textFx::rise(12))) == bare)
+      << "an entrance at its end placed its run apart from the bare leaf";
+  // A settled track that does change the glyphs still draws them changed.
+  EXPECT_FALSE(render(fixed("dimmed", GlyphModifier{.alpha = 0.5f})) == bare)
+      << "a settled fade drew as the bare leaf";
+}
+
 TEST(ComposeTextFx, ATrackBoundToAHeldValueKeepsItsBake) {
   // A bound progress costs what it changes. A clock the engine keeps
   // running, stretched and clamped so the tracks read exactly 1, is the

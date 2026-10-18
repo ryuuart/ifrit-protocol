@@ -135,13 +135,10 @@ bool paintTextureBake(PaintPass& pass) {
       // A refused replacement must paint live, never replay the old
       // image under the new geometry.
       inst.textureImage.reset();
-      sk_sp<SkImage> baked;
-      pass.profDraw("bake", [&] {
-        baked = pass.takeDeviceBake(deviceR, [&](SkCanvas& lc) {
-          const BakeLayerScope bakeLayer(&impl, lc);
-          impl.paintContent(inst, lc,
-                            impl.hostScale);  // no leaf blend: bakes isolate
-        });
+      sk_sp<SkImage> baked = pass.takeDeviceBake(deviceR, [&](SkCanvas& lc) {
+        const BakeLayerScope bakeLayer(&impl, lc);
+        impl.paintContent(inst, lc,
+                          impl.hostScale);  // no leaf blend: bakes isolate
       });
       if (baked) {
         inst.textureImage = std::move(baked);
@@ -169,19 +166,17 @@ bool paintTextureBake(PaintPass& pass) {
       // Identity CTM is global canvas space even inside a saveLayer (the
       // layer device carries its own origin), so an opacity/blend bake
       // still composites through the layer above.
-      pass.profDraw("blit", [&] {
-        if (deferBlendToBlit) {
-          // The node's blend and opacity on the ONE draw it composites
-          // as — cheaper and slightly MORE exact than the layer it
-          // replaces: no full-canvas intermediate, one less rounding.
-          SkPaint blit;
-          blit.setAlphaf(opacity);
-          blit.setBlendMode(style.paint.blendMode);
-          pass.deviceBlit(inst.textureImage, deviceR, &blit);
-        } else {
-          pass.deviceBlit(inst.textureImage, deviceR, nullptr);
-        }
-      });
+      if (deferBlendToBlit) {
+        // The node's blend and opacity on the ONE draw it composites
+        // as — cheaper and slightly MORE exact than the layer it
+        // replaces: no full-canvas intermediate, one less rounding.
+        SkPaint blit;
+        blit.setAlphaf(opacity);
+        blit.setBlendMode(style.paint.blendMode);
+        pass.deviceBlit(inst.textureImage, deviceR, &blit);
+      } else {
+        pass.deviceBlit(inst.textureImage, deviceR, nullptr);
+      }
       return true;
     }
   }
@@ -305,11 +300,11 @@ bool paintTextureBake(PaintPass& pass) {
       layer->getCanvas()->scale(scale, scale);
       layer->getCanvas()->translate(-bake.left(), -bake.top());
       const bool outerRead = std::exchange(impl.contentScaleRead, false);
-      pass.profDraw("bake", [&] {  // no leaf blend: bakes isolate
+      {  // no leaf blend: bakes isolate
         const BakeLayerScope bakeLayer(&impl, *layer->getCanvas());
         impl.paintContent(inst, *layer->getCanvas(), scale,
                           SkBlendMode::kSrcOver, 1.0f, Phase::All, deferEffect);
-      });
+      }
       const float readScale = impl.contentScaleRead ? impl.hostScale : 0.0f;
       impl.contentScaleRead = impl.contentScaleRead || outerRead;
       // THE STATIC EFFECT, RUN OVER THE CONTENT BAKE. One image draw
@@ -329,13 +324,12 @@ bool paintTextureBake(PaintPass& pass) {
           fc->translate(-bake.left(), -bake.top());
           SkPaint fp;
           fp.setImageFilter(deferredFilter);
-          pass.profDraw("bake effect", [&] {
-            fc->drawImageRect(
-                content,
-                SkRect::MakeXYWH(bake.left(), bake.top(), (float)pw / scale,
-                                 (float)ph / scale),
-                SkSamplingOptions(), &fp);
-          });
+          fc->drawImageRect(
+              content,
+              SkRect::MakeXYWH(bake.left(), bake.top(), (float)pw / scale,
+                               (float)ph / scale),
+              SkSamplingOptions(), &fp);
+
           layer = std::move(filtered);
         } else {
           // The content omitted its filter, so it is not a complete bake.
@@ -379,9 +373,8 @@ bool paintTextureBake(PaintPass& pass) {
       const SkRect content = impl.recordBounds(inst);
       canvas.saveLayer(&content, &layerPaint);
     }
-    pass.profDraw("live", [&] {
-      impl.paintContent(inst, canvas, impl.hostScale, leafBlend, leafOpacity);
-    });
+    impl.paintContent(inst, canvas, impl.hostScale, leafBlend, leafOpacity);
+
     if (deferBlendToBlit) canvas.restore();
     return true;
   }
@@ -405,39 +398,37 @@ bool paintTextureBake(PaintPass& pass) {
   if (inst.textureContentScale != 0.0f)
     impl.recording.narrowScaleWindow(inst.textureContentScale,
                                      inst.textureContentScale);
-  pass.profDraw("blit", [&] {
-    SkPaint blit;
-    bool dressed = false;
-    if (deferBlendToBlit) {  // same rule as the device blit above
-      blit.setAlphaf(opacity);
-      blit.setBlendMode(style.paint.blendMode);
-      dressed = true;
-    }
-    // The deferred layer effect, applied to the bake rather than to the
-    // content: the canvas stands at the node's own matrix here, which is
-    // the matrix the effect's saveLayer stood under, so the filter reads
-    // its parameters in the units they were declared in. Skia grows the
-    // draw for the filter's own reach, so nothing the effect spreads
-    // outside the bake rect is lost.
-    //
-    // THE BLEED RULE, which both deferred tiers ask of the bake: the
-    // filter reads the bake's own margin — the transparent band a node's
-    // paint bounds carry around its ink — and it reads NOTHING else,
-    // because outside the bake there are no pixels. So a node wearing a
-    // deferred effect must carry the effect's reach as that margin, which
-    // is what a declared bleed is for; a reach the paint bounds do not
-    // hold is spread from a cut edge.
-    if (deferLiveEffect) {
-      blit.setImageFilter(deferredFilter);
-      dressed = true;
-    }
-    // Keep the blit in the node's coordinate system. A device-space region
-    // cannot follow a local bake through a changed capture scale or a
-    // filtered layer's intermediate surface.
-    canvas.drawImageRect(inst.textureImage, dst,
-                         SkSamplingOptions(SkFilterMode::kLinear),
-                         dressed ? &blit : nullptr);
-  });
+  SkPaint blit;
+  bool dressed = false;
+  if (deferBlendToBlit) {  // same rule as the device blit above
+    blit.setAlphaf(opacity);
+    blit.setBlendMode(style.paint.blendMode);
+    dressed = true;
+  }
+  // The deferred layer effect, applied to the bake rather than to the
+  // content: the canvas stands at the node's own matrix here, which is
+  // the matrix the effect's saveLayer stood under, so the filter reads
+  // its parameters in the units they were declared in. Skia grows the
+  // draw for the filter's own reach, so nothing the effect spreads
+  // outside the bake rect is lost.
+  //
+  // THE BLEED RULE, which both deferred tiers ask of the bake: the
+  // filter reads the bake's own margin — the transparent band a node's
+  // paint bounds carry around its ink — and it reads NOTHING else,
+  // because outside the bake there are no pixels. So a node wearing a
+  // deferred effect must carry the effect's reach as that margin, which
+  // is what a declared bleed is for; a reach the paint bounds do not
+  // hold is spread from a cut edge.
+  if (deferLiveEffect) {
+    blit.setImageFilter(deferredFilter);
+    dressed = true;
+  }
+  // Keep the blit in the node's coordinate system. A device-space region
+  // cannot follow a local bake through a changed capture scale or a
+  // filtered layer's intermediate surface.
+  canvas.drawImageRect(inst.textureImage, dst,
+                       SkSamplingOptions(SkFilterMode::kLinear),
+                       dressed ? &blit : nullptr);
   return false;
 }
 

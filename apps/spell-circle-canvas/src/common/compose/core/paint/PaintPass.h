@@ -15,8 +15,6 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
-#include <include/core/SkTypes.h>  // SkDebugf
-#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cstdint>
 #include <functional>
@@ -239,24 +237,6 @@ struct PaintPass {
    *  context the node's own paint builds, minus the marks outline, because
    *  nothing of the node has been painted yet. */
   sk_sp<SkImageFilter> resolveLayerFilter();
-
-  /** Time one draw against the COMPOSE_PROF threshold, printing it when it
-   *  runs over. */
-  template <class Draw>
-  void profDraw(const char* what, Draw&& draw) {
-    const double threshold = profileThresholdMs();
-    if (threshold < 0.0) {
-      draw();
-      return;
-    }
-    const measure::Stopwatch watch;
-    draw();
-    const double ms = measure::Milliseconds(watch.elapsed()).count();
-    if (ms > threshold)
-      SkDebugf("[prof] %s %s kind=%d rect=%.0fx%.0f %.1fms\n", what,
-               node.key.empty() ? "(anon)" : node.key.c_str(), (int)node.kind,
-               rect.width(), rect.height(), ms);
-  }
 
   SkRect localPaintBounds = SkRect::MakeEmpty();
   bool localBoundsDone = false;

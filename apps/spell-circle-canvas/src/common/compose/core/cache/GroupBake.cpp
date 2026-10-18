@@ -86,10 +86,10 @@ bool paintGroupLocalBake(PaintPass& pass, const LocalGroupBake& plan) {
     layer->getCanvas()->scale(scale, scale);
     layer->getCanvas()->translate(-bake.left(), -bake.top());
     const bool outerRead = std::exchange(impl.contentScaleRead, false);
-    pass.profDraw("group bake", [&] {
+    {
       const BakeLayerScope bakeLayer(&impl, *layer->getCanvas());
       impl.paintContent(inst, *layer->getCanvas(), scale);
-    });
+    }
     const float readScale = impl.contentScaleRead ? impl.hostScale : 0.0f;
     impl.contentScaleRead = impl.contentScaleRead || outerRead;
     inst.textureImage = layer->makeImageSnapshot();
@@ -121,10 +121,9 @@ bool paintGroupLocalBake(PaintPass& pass, const LocalGroupBake& plan) {
   const SkRect covered = SkRect::MakeXYWH(
       bake.left(), bake.top(), (float)inst.textureImage->width() / scale,
       (float)inst.textureImage->height() / scale);
-  pass.profDraw("group blit", [&] {
-    canvas.drawImageRect(inst.textureImage, covered,
-                         SkSamplingOptions(SkFilterMode::kLinear), nullptr);
-  });
+  canvas.drawImageRect(inst.textureImage, covered,
+                       SkSamplingOptions(SkFilterMode::kLinear), nullptr);
+
   return true;
 }
 
@@ -236,9 +235,8 @@ bool paintGroupBake(PaintPass& pass) {
           impl.profileRows[pass.profile.row].cacheState =
               Composer::CacheState::Group;
         }
-        pass.profDraw("group blit", [&] {
-          pass.deviceBlit(inst.textureImage, device, nullptr);
-        });
+        pass.deviceBlit(inst.textureImage, device, nullptr);
+
         return true;
       }
     }

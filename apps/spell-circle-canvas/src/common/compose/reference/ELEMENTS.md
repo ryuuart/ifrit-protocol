@@ -32,6 +32,8 @@ its own; nothing on this page needs it.
 | Element | What it is | Children |
 |---|---|---|
 | [`box`](pages/elements/box.md) | A flex container, and a leaf when it has no children. | Laid out in a row or a column. |
+| `row` | A box whose line runs left to right, its children given in the call: `row(a, b)` is `box().row().children({a, b})`. | Laid out left to right. |
+| `column` | A box whose line runs top to bottom, its children given in the call: `column(a, b)` is `box().column().children({a, b})`. | Laid out top to bottom. |
 | [`stack`](pages/elements/stack.md) | An overlap container: every child shares the box. | Absolute, painted in zIndex then declaration order. |
 | `positioned` | A container whose children carry their own rects and skip flexbox entirely. | Placed by their own insets, Yoga-free. |
 | [`point`](pages/elements/point.md) | A node with no extent that carries a key and facts and draws nothing. | None; it is out of the flow and out of hit testing. |
@@ -79,7 +81,9 @@ it is what a connecting operator attaches, from where the nodes settled —
 The children go in the CALL, not only in a verb: `compose.box(a, b)` and
 `compose.box([a, b])` are both the block that C++ writes as
 `box().children({a, b})`, and `.children(...)` is there as well. Every
-container factory takes them that way.
+container factory takes them that way. `compose.row(a, b)` and
+`compose.column(a, b)` are spelled as C++ spells `row(a, b)` and
+`column(a, b)`.
 
 `compose.picture(picture, width, height)` takes the recorded size as two
 numbers where C++ takes one size value. `compose.pen` and
@@ -92,9 +96,9 @@ content.
 
 ## Where they live
 
-- `core/Factories.h` — `box`, `stack`, `positioned`, `point`, `text`,
-  `frame`, `image`, `picture`, `pathFigure`, `custom`, `layout`, `slot`, `memo`
-  and `each`; `image` takes any `media::PixelSource` — a still, an
+- `core/Factories.h` — `box`, `row`, `column`, `stack`, `positioned`,
+  `point`, `text`, `frame`, `image`, `picture`, `pathFigure`, `custom`,
+  `layout`, `slot`, `memo` and `each`; `image` takes any `media::PixelSource` — a still, an
   animation, a video on the motion clock, a publication, a scene — and the
   fit a picture meets its box under is `material::Fit`.
 - `core/Derive.h` — `band`, with the `Anchor` a wire is strung through

@@ -176,7 +176,9 @@ sound model; nothing below them changes kernel semantics.
   by. This is the header a consumer includes: it brings
   every verb family and every kind of node with it, and a family's own
   header is for a value that inherits the family.
-- `core/Factories.h` — the functions that start one: `box`, `stack`,
+- `core/Factories.h` — the functions that start one: `box`, `row` and
+  `column` (a box with its flex line set and its children given in the
+  call, `row(a, b)` being `box().row().children({a, b})`), `stack`,
   `positioned`, `text`, `frame`, `image` (an `media::Image`, or a
   raw `SkImage` with a `material::Fit` — `Stretch`, `Contain`,
   `Cover` or `Native` — which is

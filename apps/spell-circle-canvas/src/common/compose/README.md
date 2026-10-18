@@ -225,7 +225,9 @@ context on its owning layout thread. On device loss, call
 
 ## Layout and resolved queries
 
-`box()` is a column by default; `.row()` changes its main axis. Dimensions,
+`box()` is a column by default; `.row()` changes its main axis.
+`compose::row(a, b)` and `compose::column(a, b)` start a box with its
+line stated and its children given in the call. Dimensions,
 flex properties, gaps, padding, margins and baseline alignment describe
 layout. `stack()` overlaps its children and makes them absolute.
 `positioned()` accepts nested explicit rectangles and skips Yoga below
@@ -493,6 +495,29 @@ band. `brush::ribbon(profile, material)` keeps the full material; its `Fill`
 overload paints only the colour stack. Layer brushes with `brush::layers`
 when several marks need to share one outline.
 
+A material keyline is the stroke said over the node's own outline:
+`stroke(material, options)` widens the outline by `compose::StrokeOptions`
+— `width` on the side `position` names, an open contour ended with `cap`,
+corners met with `join` and cut back past `miterLimit` — in the geometry
+library's words, and the band is the silhouette Skia strokes. That band is
+the unit its material reads: `relief` raises or impresses it, caps and
+corners included, and `brushed` runs along the outline's tangent through
+every bend. A width of zero or less draws nothing.
+
+```cpp
+auto trace = compose::box()
+    .shape(compose::heldPath(spine))
+    .stroke(copper.relief({.shoulder = 4, .depth = 0.6f}).brushed({}),
+            {.width = 14,
+             .position = material::StrokePosition::Center,
+             .cap = geometry::path::Cap::Round,
+             .join = geometry::path::Join::Round});
+```
+
+Here `spine` and `copper` are the caller's; the options are
+`<sigilcompose/core/verbs/Decoration.h>`'s and the cap and join
+`<sigilgeometry/path/Stroke.h>`'s.
+
 Elements can also supply information to a material instead of appearing
 as separate visible layers. Bake an independent tree with `texture()` or
 hold a `TextureScene` for an editable tree. Paint white marks on an opaque
@@ -634,7 +659,6 @@ Draw adapter cases reuse the pen's raster fixture and carry the
 
 Committed test fonts keep ordinary cases independent of the machine.
 Device and platform-font cases carry labels for their dependencies.
-Use the benchmark for scaling and `Composer::profile` for a costly node;
-`COMPOSE_PROF=<ms>` reports slow paints through Skia's debug output when a
-host has not enabled profiling. Compose's warnings use that same output
-channel and suppress repeated causes.
+Use the benchmark for scaling and `Composer::profile` for a costly node.
+Compose's warnings go through Skia's debug output and suppress repeated
+causes.

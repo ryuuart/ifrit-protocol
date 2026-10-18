@@ -104,6 +104,9 @@ constexpr float kBorderPitch =
 /** The quincunx: the onyx roundel and its lettered ring, the loop the band
  *  makes about them, and the four orbiting roundels with theirs. */
 constexpr float kOnyx = 50;
+// The share of its circle the onyx roundel's lettering fills: the rest is
+// the space before the reading begins again at twelve o'clock.
+constexpr float kRingFill = 0.95f;
 constexpr float kLetterRing = 68;
 constexpr float kCentreLoop = 76;
 constexpr float kOrbit = 150;
@@ -679,9 +682,8 @@ struct Cosmati {
                               .textAlign(weave::TextAlignment::kCenter)
                               .textFx(setting(from, from + beat * 1.4f))})});
     }
-    // The ring's run stops short of its seam: a run on a closed baseline
-    // cannot be fitted to the baseline's length, so its size is chosen to
-    // come near.
+    // The ring's run is fitted to all but a little of its circle, so it
+    // stops short of its seam where the reading starts at twelve o'clock.
     const float ringRadius = kOnyx + 7;
     brassWork.children(
         {text(words.phrase(words["inscription"]["ring"]))
@@ -691,7 +693,9 @@ struct Cosmati {
              .centerAt({kCentre, kCentre})
              .textOnPath({.path = shapes::arc(-90.0f, 359.9f),
                           .at = 0.0f,
-                          .align = TextPath::Align::Start})
+                          .align = TextPath::Align::Start,
+                          .fit = TextPath::Fit::Size,
+                          .fill = kRingFill})
              .textFx(setting(kLettersFrom + beat * 4, kLettersTo))});
     return brassWork;
   }

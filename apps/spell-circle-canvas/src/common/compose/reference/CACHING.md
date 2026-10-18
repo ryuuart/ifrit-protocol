@@ -122,6 +122,15 @@ bake is taken once no declaration above or on the node moves. A
 local space while it or an ancestor moves, or its device rect does, and in
 device space once all of them hold still.
 
+**A local bake reads as the drawing it holds, within a stated bound.** Its
+texels are resampled onto the device grid once more than the unbaked
+drawing is, which softens an edge by up to a texel and leaves every
+interior as it was. Captured at a density that puts no texel on a whole
+pixel, a turning bake reads from the same drawing unbaked by at most 2 on
+average per colour channel in 0..255, and by at most 48 at the
+ninety-ninth percentile, which is where its edges are. The deterministic
+capture keeps every explicit bake, so a plate is what the window shows.
+
 A group needs two observations before holding its pixels. An eligible group
 inside a retained picture requests one follow-up draw, including after its
 content or destination format changes. The picture revisits it even when an

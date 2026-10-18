@@ -10,14 +10,14 @@
  * types.
  *
  *     PathFormat format = stroke(2, ink);
- *     format.effect = pathEffect(SkCornerPathEffect::Make(6));
+ *     format.effect = std::make_shared<const PathEffect>(
+ *         PathEffect{SkCornerPathEffect::Make(6)});
  */
 
 #include <include/core/SkPathEffect.h>
 #include <sigilcompose/brush/Decorations.h>
 
 #include <memory>
-#include <utility>
 
 namespace sigil::compose {
 
@@ -26,11 +26,5 @@ namespace sigil::compose {
 struct PathEffect {
   sk_sp<SkPathEffect> skia;
 };
-
-/** @p effect as the value `PathFormat::effect` holds; null for none. */
-inline std::shared_ptr<const PathEffect> pathEffect(sk_sp<SkPathEffect> effect) {
-  if (!effect) return nullptr;
-  return std::make_shared<const PathEffect>(PathEffect{std::move(effect)});
-}
 
 }  // namespace sigil::compose

@@ -87,6 +87,35 @@ TEST(ComposeFlex, RowAndColumnAreTheDirectionsShorthand) {
   EXPECT_EQ(boundsOf(restated, "second"), SkRect::MakeXYWH(0, 50, 30, 30));
 }
 
+TEST(ComposeFlex, TheRowAndColumnFactoriesAreABoxWithItsLineSet) {
+  // The free factories are the box with the direction stated and the
+  // children given in the call, so each describes the same tree the
+  // longhand does, a list `each()` made included.
+  const Element first = box().key("first").width(50).height(50);
+  const Text label = text(u8"label", whiteStyle(12)).key("label");
+  const std::vector<Element> tail =
+      each(2, [](size_t index) { return box().width(10.0f + (float)index); });
+  EXPECT_TRUE(sameDescription(row(first, label, tail),
+                              box().row().children({first, label, tail})));
+  EXPECT_TRUE(sameDescription(column(first, label, tail),
+                              box().column().children({first, label, tail})));
+  EXPECT_TRUE(sameDescription(row(), box().row()));
+  EXPECT_TRUE(sameDescription(column(), box().column()));
+  EXPECT_FALSE(sameDescription(row(first), column(first)));
+
+  // …and they lay out as the longhand does.
+  Host factory, longhand;
+  factory.composer.render(row(box().key("first").width(50).height(50),
+                              box().key("second").width(30).height(30)));
+  longhand.composer.render(
+      box().row().children({box().key("first").width(50).height(50),
+                            box().key("second").width(30).height(30)}));
+  factory.frame();
+  longhand.frame();
+  EXPECT_EQ(boundsOf(factory, "second"), boundsOf(longhand, "second"));
+  EXPECT_EQ(boundsOf(factory, "second").left(), 50.0f);
+}
+
 TEST(ComposeFlex, AWrappingRowFlowsOntoASecondLine) {
   Host host;
   host.composer.render(box().children(
