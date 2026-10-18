@@ -40,7 +40,7 @@ Answers `DescribeResult`: Everything a client asks first, in one answer.
 
 Where the host keeps its state.
 
-In Python, Host.state_root.
+In Python, Host.stateRoot.
 
 Answered at once.
 
@@ -94,7 +94,7 @@ What the host tells a client that enabled it.
 
 The host has let this client go: nothing more arrives on its connection.
 
-In Python, Host.on_detached.
+In Python, Host.onDetached.
 
 Carries `DetachedEvent`: The host has let this client go.
 

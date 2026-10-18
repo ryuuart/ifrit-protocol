@@ -688,6 +688,14 @@ void bindCompose(py::module_& module) {
       .value("Tangent", TextPath::Orient::Tangent)
       .value("Radial", TextPath::Orient::Radial)
       .value("Upright", TextPath::Orient::Upright);
+  py::enum_<TextPath::Fit>(
+      textPath, "Fit",
+      "How a run is fitted to its baseline's whole length: not at all, by "
+      "scaling its type, or by spreading its letters; a fitted run on a "
+      "closed baseline meets itself at the seam.")
+      .value("None_", TextPath::Fit::None)
+      .value("Size", TextPath::Fit::Size)
+      .value("Spacing", TextPath::Fit::Spacing);
   textPath
       .def_property(
           "path", [](const TextPath& value) { return value.path; },
@@ -701,7 +709,9 @@ void bindCompose(py::module_& module) {
       .def_readwrite("offset", &TextPath::offset)
       .def_readwrite("autoFlip", &TextPath::autoFlip)
       .def_readwrite("orient", &TextPath::orient)
-      .def_readwrite("exactTangent", &TextPath::exactTangent);
+      .def_readwrite("exactTangent", &TextPath::exactTangent)
+      .def_readwrite("fit", &TextPath::fit)
+      .def_readwrite("fill", &TextPath::fill);
   auto textSelections = composition.def_submodule("selectors");
   textSelections.def("style", &selectors::style, py::arg("name"))
       .def("inFrame", &selectors::inFrame, py::arg("key"));

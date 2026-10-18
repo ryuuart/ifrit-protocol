@@ -18,6 +18,7 @@ sigil_library(SigilPython
     compose/Lines.cpp compose/Masks.cpp
     compose/MediaLeaves.cpp compose/PaintPrograms.cpp compose/PixelStyles.cpp
     compose/Schemes.cpp compose/Selectors.cpp compose/Sheets.cpp
+    compose/StrokeOptions.cpp
     compose/TextEffects.cpp
     compose/TextureScene.cpp core/Compute.cpp core/Features.cpp
     core/RecordProtocol.cpp core/Values.cpp data/Connection.cpp
@@ -95,7 +96,6 @@ if(TARGET SigilScry)
 endif()
 if(TARGET SigilComposeWeb)
   target_link_libraries(SigilPython PRIVATE SigilComposeWeb)
-  target_compile_definitions(SigilPython PUBLIC SIGIL_PYTHON_HAS_WEB)
 endif()
 
 target_include_directories(SigilPython SYSTEM PUBLIC ${Python3_INCLUDE_DIRS})

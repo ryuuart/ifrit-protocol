@@ -13,6 +13,7 @@ from __future__ import annotations
 import collections.abc
 import dataclasses
 import enum
+import re
 import typing
 
 if typing.TYPE_CHECKING:
@@ -53,11 +54,17 @@ def members(value: Json, table: type[DataclassInstance]) -> dict[str, Json]:
     member the table declares."""
     if not isinstance(value, dict):
         raise MessageError(f"{table.__name__} is read from a JSON object")
-    declared = {field.name for field in dataclasses.fields(table)}
+    declared = {wireName(field.name) for field in dataclasses.fields(table)}
     unknown = sorted(value.keys() - declared)
     if unknown:
         raise MessageError(f"{table.__name__} declares no {', '.join(unknown)}")
     return value
+
+
+def wireName(attribute: str) -> str:
+    """The member a table's attribute is carried as on the wire:
+    ``budget_seconds`` of ``budgetSeconds``."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", attribute).lower()
 
 
 def required(fields: dict[str, Json], name: str) -> Json:
@@ -95,7 +102,7 @@ def text(fields: dict[str, Json], name: str, default: str) -> str:
     return value
 
 
-def required_text(fields: dict[str, Json], name: str) -> str:
+def requiredText(fields: dict[str, Json], name: str) -> str:
     """Text the definition requires, which the object must carry."""
     return text({name: required(fields, name)}, name, "")
 
@@ -104,10 +111,10 @@ def enumeration[Value: enum.Enum](
     fields: dict[str, Json], name: str, default: Value
 ) -> Value:
     """One value of the enumeration @p default is a value of."""
-    return one_of(type(default), name, text(fields, name, default.value))
+    return oneOf(type(default), name, text(fields, name, default.value))
 
 
-def one_of[Value: enum.Enum](kind: type[Value], name: str, value: str) -> Value:
+def oneOf[Value: enum.Enum](kind: type[Value], name: str, value: str) -> Value:
     try:
         return kind(value)
     except ValueError as error:
@@ -124,7 +131,7 @@ def table[Value](
     return None if value is None else read(value)
 
 
-def required_table[Value](
+def requiredTable[Value](
     fields: dict[str, Json],
     name: str,
     read: collections.abc.Callable[[Json], Value],
@@ -133,27 +140,27 @@ def required_table[Value](
     return read(required(fields, name))
 
 
-def optional_boolean(fields: dict[str, Json], name: str) -> bool | None:
+def optionalBoolean(fields: dict[str, Json], name: str) -> bool | None:
     return None if fields.get(name) is None else boolean(fields, name, False)
 
 
-def optional_integer(fields: dict[str, Json], name: str) -> int | None:
+def optionalInteger(fields: dict[str, Json], name: str) -> int | None:
     return None if fields.get(name) is None else integer(fields, name, 0)
 
 
-def optional_real(fields: dict[str, Json], name: str) -> float | None:
+def optionalReal(fields: dict[str, Json], name: str) -> float | None:
     return None if fields.get(name) is None else real(fields, name, 0.0)
 
 
-def optional_text(fields: dict[str, Json], name: str) -> str | None:
+def optionalText(fields: dict[str, Json], name: str) -> str | None:
     return None if fields.get(name) is None else text(fields, name, "")
 
 
-def optional_enumeration[Value: enum.Enum](
+def optionalEnumeration[Value: enum.Enum](
     fields: dict[str, Json], name: str, kind: type[Value]
 ) -> Value | None:
-    value = optional_text(fields, name)
-    return None if value is None else one_of(kind, name, value)
+    value = optionalText(fields, name)
+    return None if value is None else oneOf(kind, name, value)
 
 
 def items(fields: dict[str, Json], name: str) -> list[Json]:
@@ -183,7 +190,7 @@ def texts(fields: dict[str, Json], name: str) -> tuple[str, ...]:
 def enumerations[Value: enum.Enum](
     fields: dict[str, Json], name: str, kind: type[Value]
 ) -> tuple[Value, ...]:
-    return tuple(one_of(kind, name, item) for item in texts(fields, name))
+    return tuple(oneOf(kind, name, item) for item in texts(fields, name))
 
 
 def tables[Value](

@@ -131,14 +131,6 @@ show it; other raster draws still do. A test should draw a 32 pixel disc
 at 0.35 pixels with linear mipmap sampling and find about three quarters
 of its area laid as alpha at every placement.
 
-## Python lacks a flat back
-
-`material::SurfaceOptions::flatBack` and `surface::SurfaceParameters::flatBack`
-exist, but `python/material/Core.cpp` and `python/material/Environment.cpp`
-bind neither. Every surface option should reach Python. A test should
-build a surface in Python with `flatBack=True` and read it back from its
-parameters.
-
 ## Luminance grain has no Slang body
 
 `field.grain` (`material/field/shaders/Grain.sksl`, whose octave count is
@@ -146,14 +138,6 @@ written into the body) has no Slang body, so on a World body it reads as
 empty and is reported once. Grain is a channel a body can wear, like the
 other fields. A test should put `field::grain` on a World card's base
 colour and find it varying across the card.
-
-## Python lacks a text path's fit
-
-`TextPath::fit` (none, size or spacing) and `TextPath::fill` resolve a
-run against a closed baseline's length, but `python/compose/Elements.cpp`
-binds the path's fields one by one with no `Fit` enum. A Python
-`TextPath(fit=..., fill=...)` should round-trip, and a ring run with a
-size fit should close on its seam.
 
 ## A window bench of a named sketch prints no row
 
@@ -181,16 +165,6 @@ A failed asynchronous build must become a pipeline the frame stands in
 for, never an abort. A test should hand the pipeline cache a program
 that cannot compile and find the body stood in and the error reported.
 
-## The Python kit has no connection readout
-
-`sigil::sketch::kit::connectionReadout` shows a door's state over
-`data::Connection::state()` in C++, and `sigil.sketch.kit` binds no
-equivalent, so a Python sketch over a connection draws its own state
-rows, as `cue_deck` does. A Python sketch should show a door's state
-through the same kit readout. A test should call the Python readout over
-a connection after an inlet delivery and find rows for readiness,
-revision, undecodable, dropped and the error.
-
 ## The sweep's flush inserts its own recordings without the recorder's waits
 
 `flushHook` in `src/sketch/plate/Sweep.cpp` inserts the recordings of a
@@ -217,28 +191,6 @@ same Metal device does not isolate. The test should prove the release
 another way, such as a weak reference that nils after the destroy and an
 autorelease drain, and the first-frame timing case in `StandIn` should
 likewise be read serially or with a bound that a loaded GPU meets.
-
-## A Python curve or Oscillator in a binding never compares equal
-
-In Python, `motion.Binding(envelope=motion.envelope.shaped(oscillator))`
-compares unequal to a second binding built the same way over the same
-`Oscillator` object, and so does `ease=` given one Python function;
-only the native `ease` values compare equal. In C++ an `Oscillator` is
-comparable and callable, so it plugs into `ease` or `envelope.shaped`
-and keeps the binding's identity, which is why a curve is carried as a
-value rather than a closure; the Python binding wraps it as an opaque
-callable, so a tree described again re-patches every node bound through
-it. A test should assert that two bindings built with
-`envelope=envelope.shaped(oscillator)` or `ease=oscillator` over equal
-oscillators compare equal and differ when the oscillators differ.
-
-## Python has no per-value "running" answer
-
-`isRunning(held, value)`, the middle of the three stillness words, has
-no Python spelling because `HeldMotion` is not bound; a Python sketch
-can only ask the whole engine `isRunning()`. A test should assert that a
-Python value animated by a transition answers running while its held
-motion writes it, and not running once it lands.
 
 ## A draw sampling more than sixteen textures is dropped on Metal without a refusal
 
@@ -270,17 +222,6 @@ are where to look. A test should assert that two device renders of
 plate run's `--stability` pass should attribute the scene to itself
 until they are.
 
-## `Composer.beatsOf` is missing in Python
-
-`src/common/python/compose/Composer.cpp` defines `beatsOf` only when
-`registered<compose::Beat>()`, and no binding registers `compose::Beat`,
-so the method is never there and `test_compose_elements_composer.py`
-skips its `beatsOf` case without saying so. A Python author was meant to
-read a track's schedule back as C++ does. A test should assert that
-`Composer` has `beatsOf`, and that a text leaf under a track at progress
-one reports one `Beat` per unit with `localProgress` one and a non-empty
-`rect`.
-
 ## Thumbnail workers open Python kinds on the process device
 
 `onRuntime` and `onPainterRuntime` in the sketch host act only on the
@@ -291,25 +232,6 @@ on the process device from a worker thread. The empty runtime a
 thumbnail states is meant to reach every kind. A test should assert
 that `thumbnailAvailable` on a Python scene3d entry answers unavailable
 when `thumbnailKind` states an empty runtime.
-
-## The compose texture scene is bound from the sketch adapter
-
-`compose.TextureScene` (`render`, `texture`, `revision`, `size`) is
-bound in `src/sketch/python/host/WorldScene3D.cpp` and registered into
-`_sigil.compose`, because a Python scene3d sketch paints an overlay
-into one; its home is the compose bindings under
-`src/common/python/compose/`, beside `SurfaceScene`, so that a consumer
-without the sketch adapter can make one. Moving it is one binding and
-its registration; a test should assert that `sigil.compose.TextureScene`
-imports with the compose module alone.
-
-## The protocol clock policy is the one snake_case name left
-
-`clock.set_policy(budget_seconds=)` in `sigil.protocol` is spelled in
-snake_case while every other public name in the package is camelCase
-matching its C++ twin. It should be `setPolicy(budgetSeconds=)`, and the
-package's naming test should cover the protocol module so no snake name
-returns.
 
 ## The protocol endpoint test resends its first message until one goes out
 
@@ -338,4 +260,21 @@ cut again on each light-only update. Holding the masks for every outline
 reuses the edge coverage across ink changes; every bevel plate moves
 when it lands. A test should replay a bevelled leaf under a changing
 shader ink and find the band blurred once.
+
+## Texture sets are unbound in Python
+
+`src/common/python/material/TextureSets.cpp` is an empty stub, so
+`material::TextureMaps`, `Volume` and `fromFiles` have no Python
+spelling, while every other material door is bound. A Python author
+should load a texture set from files and wear it as C++ does. A test
+should build a texture set from the demo assets in Python and read its
+maps back.
+
+## A few kit parts and the typeface door still answer the old types
+
+`Ruler.tickLine` (a Python callable as the part), `kit::Channel`,
+`specimenTheme`, and the compose kit's `table` and `bars` are unbound,
+and `weave.typeface(family, weight, italic)` answers a `skia.Typeface`
+where the rest of the package now answers a `weave.Face`. Each should
+reach Python in the same shape as its C++ twin, with a test per name.
 

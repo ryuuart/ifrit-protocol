@@ -110,6 +110,7 @@ void bindLibraries(pybind11::module_& module) {
   bindComposeBrushMarks(module);
   bindComposeLines(module);
   bindComposePixelStyles(module);
+  bindComposeStrokeOptions(module);
   bindPen(module);
   bindDrawStandalonePen(module);
   bindWeaveLayout(module);

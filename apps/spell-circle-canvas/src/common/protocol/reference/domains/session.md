@@ -44,7 +44,7 @@ Answers `Summary`: A session as a list shows it.
 
 Pins the device the session draws with.
 
-In Python, Session.pin_device.
+In Python, Session.pinDevice.
 
 Answered at once.
 
@@ -60,7 +60,7 @@ Answers nothing but that it was done.
 
 Pins the density every raster the session bakes is formed at, from the first frame of each session opened after it and from now on in the one open. A still at that density of a session pinned before it opened is the plate a sweep takes of the same moment; a bake formed before the pin is formed again only when its node describes again.
 
-In Python, Session.pin_density.
+In Python, Session.pinDensity.
 
 Answered at once.
 
@@ -204,7 +204,7 @@ What the session tells a client that enabled it.
 
 A session opened, by a client or by a person.
 
-In Python, Session.on_opened.
+In Python, Session.onOpened.
 
 Carries `OpenedEvent`: A session opened.
 
@@ -216,7 +216,7 @@ Carries `OpenedEvent`: A session opened.
 
 The session closed.
 
-In Python, Session.on_closed.
+In Python, Session.onClosed.
 
 Carries `ClosedEvent`: A session closed.
 
@@ -228,7 +228,7 @@ Carries `ClosedEvent`: A session closed.
 
 A session could not be opened, or rebuilt after an edit.
 
-In Python, Session.on_failed.
+In Python, Session.onFailed.
 
 Carries `FailedEvent`: A session could not be opened, or could not be rebuilt after an edit.
 

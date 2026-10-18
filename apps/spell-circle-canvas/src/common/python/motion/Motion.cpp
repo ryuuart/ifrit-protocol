@@ -11,6 +11,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/values/Oscillator.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilpython/Bindings.h>
@@ -385,6 +386,11 @@ motion::Easing motionEase(py::handle value) {
   if (py::isinstance<Easing>(value)) return py::cast<Easing>(value).value;
   if (py::isinstance<motion::ease::Curve>(value))
     return py::cast<motion::ease::Curve>(value);
+  // An oscillator is held as the value it is, so a binding shaped by one
+  // compares equal to another shaped by an equal one; a Python function
+  // can only be held as an opaque callable, which compares to nothing.
+  if (py::isinstance<motion::Oscillator>(value))
+    return py::cast<motion::Oscillator>(value);
   if (!PyCallable_Check(value.ptr()))
     throw py::type_error("An easing must be a native curve or a callable.");
   auto held = retainCallback(py::reinterpret_borrow<py::function>(value));

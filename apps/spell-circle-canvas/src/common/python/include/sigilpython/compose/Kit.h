@@ -10,12 +10,19 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
+#include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
 
 #include <array>
 #include <optional>
+#include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
+
+namespace sigil::compose {
+struct PathFormat;
+}  // namespace sigil::compose
 
 namespace sigil::python {
 
@@ -41,6 +48,13 @@ struct Vector : std::false_type {};
 template <class T, class Allocator>
 struct Vector<std::vector<T, Allocator>> : std::true_type {};
 
+/** Whether T is a pair, whose two halves are each read as their own
+ *  type, so a pair of a word and a colour takes a CSS string. */
+template <class T>
+struct Pair : std::false_type {};
+/** The pair case. */
+template <class First, class Second>
+struct Pair<std::pair<First, Second>> : std::true_type {};
 /** @p value read as a T, through this library's own reading for the
  *  types Python spells more loosely than C++ does — a colour, a point,
  *  a size, a dimension, a fill, an alignment, a string — and pybind11's
@@ -69,6 +83,26 @@ T converted(py::handle value) {
     return justification(value);
   } else if constexpr (std::is_same_v<T, compose::Utf8>) {
     return py::cast<std::string>(value);
+  } else if constexpr (std::is_same_v<T, compose::PathFormat>) {
+    // A pen is most often only its width, so a number is one.
+    if (PyNumber_Check(value.ptr()) && !py::isinstance<py::bool_>(value))
+      return T{.width = py::cast<float>(value)};
+    return py::cast<T>(value);
+  } else if constexpr (std::is_same_v<T, compose::Element>) {
+    return node(value);
+  } else if constexpr (std::is_same_v<T, motion::Animatable<float>>) {
+    return motionAnimatable(value);
+  } else if constexpr (Pair<T>::value) {
+    const auto halves = py::cast<py::sequence>(value);
+    if (py::len(halves) != 2)
+      throw py::type_error("A pair is two values.");
+    return T{converted<typename T::first_type>(halves[0]),
+             converted<typename T::second_type>(halves[1])};
+  } else if constexpr (Vector<T>::value) {
+    T run;
+    for (py::handle item : py::iter(value))
+      run.push_back(converted<typename T::value_type>(item));
+    return run;
   } else {
     return py::cast<T>(value);
   }
@@ -92,6 +126,20 @@ void field(py::class_<T>& type, const char* name, M T::* member) {
         [member](const T& value) {
           const auto& bytes = (value.*member).bytes();
           return std::string(bytes.begin(), bytes.end());
+        },
+        [member](T& value, py::handle input) {
+          value.*member = converted<M>(input);
+        });
+  } else if constexpr (std::is_same_v<M, std::vector<compose::Utf8>>) {
+    type.def_property(
+        name,
+        [member](const T& value) {
+          std::vector<std::string> words;
+          for (const compose::Utf8& each : value.*member) {
+            const auto& bytes = each.bytes();
+            words.emplace_back(bytes.begin(), bytes.end());
+          }
+          return words;
         },
         [member](T& value, py::handle input) {
           value.*member = converted<M>(input);

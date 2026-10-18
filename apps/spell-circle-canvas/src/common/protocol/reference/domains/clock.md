@@ -19,7 +19,7 @@ The clock a session's frames are drawn at: who moves it, how fast, and when it i
 
 Replaces how the clock moves, from the next frame on, and the budget with it. A session is opened for its clock — under any policy but Wall it pins what the sketch measured about itself and holds the runtime's own re-baking off from its first frame — so a change between the wall's clock and any other opens the session again, at its own zero. What a client sets goes when it detaches.
 
-In Python, Clock.set_policy.
+In Python, Clock.setPolicy.
 
 Answered at once.
 
@@ -96,7 +96,7 @@ Answers nothing but that it was done.
 
 Sets how many clock seconds pass per wall second.
 
-In Python, Clock.set_time_scale.
+In Python, Clock.setTimeScale.
 
 Answered at once.
 
@@ -132,7 +132,7 @@ What the clock tells a client that enabled it.
 
 The budget setPolicy set has run out.
 
-In Python, Clock.on_budget_expired.
+In Python, Clock.onBudgetExpired.
 
 Carries `BudgetExpiredEvent`: The budget setPolicy set has run out.
 

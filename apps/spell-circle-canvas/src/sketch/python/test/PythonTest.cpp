@@ -17,6 +17,7 @@
 #include <sigilpython/skia/Values.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/python/Python.h>
 #include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/advanced/Skia.h>
@@ -1422,6 +1423,48 @@ TEST(SketchPython,
   EXPECT_FALSE(kind->available(&why));
   EXPECT_THROW((void)kind->open(fonts(), assets(), true, "paged"),
                std::runtime_error);
+}
+
+/** A device runtime that draws nothing, so a case can install one for
+ *  the process without a device. */
+struct InstalledRuntime : sigil::world::Executor {
+  void execute(const sigil::world::PassWork&, const sigil::world::View&,
+               sigil::world::Targets&) const override {}
+  bool operator==(const InstalledRuntime&) const { return true; }
+};
+
+/** The kind the registry entry below makes, set by the case that reads
+ *  it: an entry names its kind through a plain function. */
+sketch::Kind g_entryKind;
+sketch::Kind entryKind() { return g_entryKind; }
+
+/** A THUMBNAIL STATES NO DEVICE, AND A PYTHON KIND HEARS IT. A still is
+ *  drawn on a worker beside a window that is presenting, so the empty
+ *  runtime it states reaches every kind — the kind a listing reads from
+ *  the file's text and the kind the import makes alike — and a scene3d
+ *  sketch is then unavailable with the one message every device door
+ *  speaks, though the process installed a device runtime. */
+TEST(SketchPython, AThumbnailOfAScene3DSketchStatesNoDeviceWhateverTheProcessHolds) {
+  PythonSource source("sigil_python_scene3d_thumbnail");
+  source.write("entry.py", kScene3DSketch);
+  sketch::useRuntime(sigil::world::Runtime(InstalledRuntime{}));
+  std::string expected;
+  EXPECT_FALSE(sketch::runtimeAvailable(sigil::world::Runtime{}, &expected));
+
+  for (const sketch::Kind& kind : {sketch::python::source(source.entry()),
+                                   sketch::python::load(source.entry())}) {
+    g_entryKind = kind;
+    const sketch::Entry entry{.key = "python_scene3d_thumbnail",
+                              .name = "python scene3d thumbnail",
+                              .kind = &entryKind};
+    EXPECT_TRUE(entry.available()) << "the process installed a runtime";
+    std::string why;
+    EXPECT_FALSE(sketch::thumbnailAvailable(entry, &why));
+    EXPECT_EQ(why, expected);
+    EXPECT_FALSE(sketch::onRuntime(kind, {})->available(nullptr));
+  }
+  g_entryKind = {};
+  sketch::useRuntime({});
 }
 
 TEST_F(SketchPythonBakes, AScene3DSketchDescribesAFrameTheDeviceDraws) {

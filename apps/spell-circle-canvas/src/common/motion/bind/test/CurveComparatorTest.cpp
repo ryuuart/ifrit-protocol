@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 #include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/values/Oscillator.h>
 
 #include <functional>
 
@@ -54,6 +55,22 @@ TEST(BindingEquality, ACurveComparesByItsShapeAndItsSettings) {
   // Two empty slots are the same slot: a binding that shapes nothing
   // must not re-patch against another that shapes nothing.
   EXPECT_TRUE(easeEqual({}, {}));
+}
+
+TEST(BindingEquality, AnOscillatorComparesByItsSettings) {
+  // An oscillator is a comparable value as well as a callable one, so a
+  // binding shaped by it keeps its identity across a description built
+  // again.
+  const Oscillator flicker{.wave = Wave::Triangle, .hertz = 3.0f};
+  const Oscillator slower{.wave = Wave::Triangle, .hertz = 1.5f};
+  EXPECT_TRUE(easeEqual(flicker, flicker));
+  EXPECT_TRUE(easeEqual(flicker, Oscillator(flicker)));
+  EXPECT_FALSE(easeEqual(flicker, slower));
+  EXPECT_FALSE(easeEqual(flicker, ease::inQuad));
+  EXPECT_TRUE((Binding{.envelope = envelope::shaped(flicker)}) ==
+              (Binding{.envelope = envelope::shaped(flicker)}));
+  EXPECT_TRUE((Binding{.ease = flicker}) == (Binding{.ease = flicker}));
+  EXPECT_FALSE((Binding{.ease = flicker}) == (Binding{.ease = slower}));
 }
 
 TEST(BindingEquality, TwoBindingsThatShapeNothingAreEqual) {

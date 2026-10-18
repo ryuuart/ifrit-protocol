@@ -32,6 +32,7 @@ from math import ceil
 from sigil import data
 from sigil.compose import Element, Overflow, box, column, row, text
 from sigil.compose import document
+from sigil.compose import kit as neutral
 from sigil.io import ReadyState
 from sigil.motion import animatable, bind
 from sigil.sketch import Scene2DContext, kit, sketch
@@ -153,18 +154,6 @@ def ruler(
         .fill(look.palette.figure)
     )
     return box().width(RULER).height(64).children(*ticks, *flags, playhead)
-
-
-def door_row(label: str, value: str, ink=None) -> Element:
-    reading = text(value).styleClass("control")
-    if ink is not None:
-        reading = reading.ink(ink)
-    return (
-        row()
-        .justifyContent("space_between")
-        .width(SIDE - 48)
-        .children(document.label(label), reading)
-    )
 
 
 @sketch(size=(WIDTH, HEIGHT), captureAt=CAPTURE_AT)
@@ -381,9 +370,16 @@ class Deck:
         )
 
     def door_column(self, color: str, door: str) -> Element:
-        """The doors' own account of themselves, read from their states,
-        and the one the drawn cue came through."""
+        """The account the drawn cue's door gives of itself, through the
+        kit's readout, the other doors' counts after it, and the colour the
+        cue is lit in."""
         status, ink = self.status()
+        shown = door or "JSON"
+        others = [
+            neutral.Reading(name=name.lower(), value=f"{state.revision}", ink=self.ink(state))
+            for name, state in self.shown.items()
+            if name != shown
+        ]
         return (
             kit.well(padding=24, corners=6)
             .column()
@@ -391,15 +387,14 @@ class Deck:
             .width(SIDE)
             .children(
                 document.label("THE DOORS"),
-                door_row("STATE", status, ink),
-                *(
-                    door_row(name, f"{state.revision}", self.ink(state))
-                    for name, state in self.shown.items()
-                ),
-                door_row("NEWEST", door or "NONE"),
-                door_row(
-                    "NOT A CUE",
-                    f"{sum(state.undecodable for state in self.shown.values())}",
+                kit.connectionReadout(
+                    self.doors[shown],
+                    door=shown,
+                    rows=neutral.Rows(measure=SIDE - 48, gap=8),
+                    readings=[
+                        *others,
+                        neutral.Reading(name="status", value=status, ink=ink),
+                    ],
                 ),
                 row()
                 .gap(10)

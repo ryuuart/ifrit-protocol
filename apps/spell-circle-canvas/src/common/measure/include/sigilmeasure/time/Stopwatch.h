@@ -20,13 +20,6 @@
  *  so anything may. */
 namespace sigil::measure {
 
-/** A SPAN OF TIME is SigilMotion's `motion::Duration`, seconds held as a
- *  double: the one unit every reading in this library answers. A
- *  `std::chrono` literal (`380ms`, `4s`) converts into it, and it converts
- *  into any floating-point unit a printout wants —
- *  `Milliseconds(watch.elapsed()).count()`. This name is that type. */
-using Duration = motion::Duration;
-
 /** A span in milliseconds held as a double, for a printout or a field
  *  that states its unit. */
 using Milliseconds = std::chrono::duration<double, std::milli>;

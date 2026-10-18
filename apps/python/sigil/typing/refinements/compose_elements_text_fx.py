@@ -12,6 +12,9 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    # The unit's range is answered as the paragraph's own range class,
+    # registered with the layout after the composer that reads units.
+    table.returns("_sigil.compose.TextUnit", "range", "_sigil.weave.CharRange")
     effects = "_sigil.compose.textFx"
     displaced = effects + ".Displaced"
     keyframe = effects + ".DisplacedKeyframe"

@@ -9,6 +9,7 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 #include <sigilmeasure/Measure.h>
+#include <sigilmotion/time/Duration.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/measure/Registration.h>
@@ -36,10 +37,10 @@ std::vector<double> copied(std::span<const double> values) {
   return {values.begin(), values.end()};
 }
 
-std::vector<double> seconds(std::span<const measure::Duration> spans) {
+std::vector<double> seconds(std::span<const motion::Duration> spans) {
   std::vector<double> out;
   out.reserve(spans.size());
-  for (const measure::Duration span : spans) out.push_back(span.count());
+  for (const motion::Duration span : spans) out.push_back(span.count());
   return out;
 }
 
@@ -160,16 +161,16 @@ void bindStream(py::module_& module) {
       module, "Window",
       "The last few values of a stream, oldest first: the last count, what "
       "was stamped in the last span seconds, or both.")
-      .def(py::init([](size_t count, measure::Duration span) {
+      .def(py::init([](size_t count, motion::Duration span) {
              // No bound at all is the last 120, as the one-number form is.
-             if (count == 0 && span <= measure::Duration::zero()) count = 120;
+             if (count == 0 && span <= motion::Duration::zero()) count = 120;
              return Window({.count = count, .span = span});
            }),
            py::arg("count") = 0, py::kw_only(), py::arg("span") = 0.0)
       .def(
           "add",
           [](Window& window, double value,
-             std::optional<measure::Duration> at) {
+             std::optional<motion::Duration> at) {
             if (at)
               window.add(value, *at);
             else
@@ -201,7 +202,7 @@ void bindStream(py::module_& module) {
       "A value followed slowly: the exponential mean over about the last "
       "`over` values, a stated `weight`, or a `timeConstant` in seconds; "
       "with peak, a marker that rises at once and falls slowly.")
-      .def(py::init([](double over, measure::Duration timeConstant,
+      .def(py::init([](double over, motion::Duration timeConstant,
                        double weight, bool peak) {
              return measure::Smoothed({.over = over,
                                        .timeConstant = timeConstant,
@@ -213,7 +214,7 @@ void bindStream(py::module_& module) {
       .def(
           "add",
           [](measure::Smoothed& smoothed, double value,
-             std::optional<measure::Duration> elapsed) {
+             std::optional<motion::Duration> elapsed) {
             if (elapsed)
               smoothed.add(value, *elapsed);
             else
@@ -226,7 +227,7 @@ void bindStream(py::module_& module) {
 
   py::class_<measure::Rate>(module, "Rate",
                             "Events per second over the last span seconds.")
-      .def(py::init<measure::Duration>(), py::arg("span") = 1.0)
+      .def(py::init<motion::Duration>(), py::arg("span") = 1.0)
       .def("mark", &measure::Rate::mark, py::arg("at"))
       .def("advance", &measure::Rate::advance, py::arg("now"))
       .def("clear", &measure::Rate::clear)

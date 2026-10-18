@@ -16,6 +16,7 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Query.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <thread>
@@ -694,6 +695,57 @@ void bindWeaveLayout(py::module_& root) {
       .def_readwrite("width", &FaceStyle::width)
       .def_readwrite("slant", &FaceStyle::slant)
       .def(py::self == py::self);
+  py::class_<FaceValue>(
+      module, "Face",
+      "A typeface a style is set in. Copies share the one face, and two are "
+      "equal when they are the same face, which is what a style compares "
+      "by. A Skia typeface is taken wherever a face is, and a face wherever "
+      "a typeface is; None is no face, the default family.")
+      .def(py::init([](const sk_sp<SkTypeface>& typeface) {
+             if (!typeface)
+               throw py::value_error("A face holds a typeface.");
+             return FaceValue{weave::fromSk(typeface)};
+           }),
+           py::arg("typeface"))
+      .def(
+          "familyName",
+          [](const FaceValue& value) { return value.face.familyName(); },
+          "The family the face belongs to, as its font names it.")
+      .def(
+          "style", [](const FaceValue& value) { return value.face.style(); },
+          "The face's weight, width and slant, as its font states them.")
+      .def(
+          "variationAxes",
+          [](const FaceValue& value) { return value.face.variationAxes(); },
+          "The variation axes the face carries, in the font's order; empty "
+          "for a face that varies along none.")
+      .def(
+          "typeface",
+          [](const FaceValue& value) { return weave::toSk(value.face); },
+          "The face as the Skia typeface it holds.")
+      .def(
+          "__eq__",
+          [](const FaceValue& left, const FaceValue& right) {
+            return left.face == right.face;
+          },
+          py::arg("other"))
+      .def("__hash__",
+           [](const FaceValue& value) {
+             return std::hash<const void*>{}(value.face.identity());
+           })
+      .def("copy", [](const FaceValue& value) { return value; })
+      .def("__copy__", [](const FaceValue& value) { return value; })
+      .def(
+          "__deepcopy__",
+          [](const FaceValue& value, const DeepCopyMemo&) { return value; },
+          py::arg("memo"));
+  // A face is handed wherever a Skia typeface is taken, as the native face
+  // converts to one.
+  py::reinterpret_borrow<py::class_<SkTypeface, sk_sp<SkTypeface>>>(
+      py::type::of<SkTypeface>())
+      .def(py::init([](const FaceValue& value) { return weave::toSk(value.face); }),
+           py::arg("face"));
+  py::implicitly_convertible<FaceValue, SkTypeface>();
   py::enum_<GlyphOutlineAnchor>(module, "GlyphOutlineAnchor")
       .value("Centre", GlyphOutlineAnchor::Centre)
       .value("Baseline", GlyphOutlineAnchor::Baseline);

@@ -149,6 +149,23 @@ void bindTheme(py::module_& module) {
           },
           py::arg("line"), py::arg("ink"))
       .def("styleSheet", &sketchKit::Theme::styleSheet)
+      .def(
+          "sans",
+          [](const sketchKit::Theme& value, float size, py::handle color,
+             float track) {
+            return value.sans(size, sigil::python::color(color), track);
+          },
+          py::arg("size"), py::arg("color"), py::arg("track") = 0.0f,
+          "A line in the sheet's sans face at an arbitrary size, for the "
+          "text none of the registers covers.")
+      .def(
+          "mono",
+          [](const sketchKit::Theme& value, float size, py::handle color,
+             float track) {
+            return value.mono(size, sigil::python::color(color), track);
+          },
+          py::arg("size"), py::arg("color"), py::arg("track") = 0.0f,
+          "The same in the sheet's mono face.")
       .def("voice", &sketchKit::Theme::voice, py::arg("noteMeasure"))
       .def(
           "style",
@@ -161,14 +178,9 @@ void bindTheme(py::module_& module) {
       .value("Book", sketchKit::Voice::Book)
       .value("Terminal", sketchKit::Voice::Terminal)
       .value("Interface", sketchKit::Voice::Interface);
-  module.def(
-      "houseFace",
-      [](sketchKit::Voice voice, int weight, bool italic) {
-        return sketchKit::houseFace(
-            voice, weight,
-            italic ? weave::FaceSlant::Italic : weave::FaceSlant::Upright);
-      },
-      py::arg("voice"), py::arg("weight") = 400, py::arg("italic") = false);
+  module.def("houseFace", &sketchKit::houseFace, py::arg("voice"),
+             py::arg("weight") = 400,
+             py::arg("slant") = weave::FaceSlant::Upright);
   module.def("houseTheme", [] { return sketchKit::houseTheme(); });
   module.def("studyTheme", [] { return sketchKit::studyTheme(); });
   py::enum_<sketchKit::Density>(module, "Density")

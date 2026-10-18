@@ -20,6 +20,10 @@ walks through every file here step by step.
 
 Both doors hand their messages to the same handlers, so a browser, a
 terminal and a TouchDesigner patch can all drive the console at once.
+Under the side column the busier door gives its own account of itself
+through the kit's `connectionReadout`, set in the scrollback's terminal
+voice, with the other door's count and where a browser finds the page
+after it.
 
 ## The messages
 

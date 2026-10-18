@@ -23,8 +23,7 @@ the installed extension use that assembly.
 
 * `host/Registration.h` — `bindRuntime`, `bindSketchCatalog`,
   `bindSketchContextSurface`, `bindSketchDeviceRuntimes`, `bindSketchEntries`,
-  `bindSketchPage`, `bindSketchPlates`, `bindSketchSchema`, `bindSketchScene3DSketches`,
-  `bindSketchWorldScene3D`
+  `bindSketchPage`, `bindSketchPlates`, `bindSketchSchema`, `bindSketchScene3DSketches`
 * `kit/Registration.h` — `bindSketchKit`, `bindSketchKitCharts`,
   `bindSketchKitContent`, `bindSketchKitControls`, `bindSketchKitLegends`,
   `bindSketchKitPanels`,
@@ -38,13 +37,19 @@ rows a script judges, and `host/Catalog.cpp` the registry and a catalog of
 sketch files as the rows a browser shows. `host/Page.cpp` binds the page a
 frame lights, which `Module.cpp` registers before the contexts so their
 `page` answers the class an author imports. `host/Scene3DSketches.cpp` binds
-the `Scene3DContext` a scene3d sketch's setup is handed, and
-`host/WorldScene3D.cpp` the `compose.TextureScene` that context hands out,
-registered before it for the same reason. `host/Runtime.cpp` opens a
+the `Scene3DContext` a scene3d sketch's setup is handed; the
+`compose.TextureScene` that context hands out is the compose bindings' own,
+registered with the libraries ahead of every sketch feature. `host/Runtime.cpp` opens a
 class the decorator marked scene3d through `openScene3D`, and reads the
 kind of a source it has not loaded from its text: a `describe` whose
 return annotation names `Frame`. `kit/Specimen.cpp` binds sketch specimen values and
-typed theme providers.
+typed theme providers; `kit/Charts.cpp` the plot frame and its layers,
+calling a curve written in Python as the plot is laid out and a row reader
+once as its layer is made; `kit/Legends.cpp` the key, the swatch strip,
+the chip, the meter and the dial; `kit/Panels.cpp` the headings, the
+title card, the backdrop, panel and frame, the scrollbar, the ticker and
+the timeline; `kit/Content.cpp` the instrument; and `kit/Streams.cpp` the
+console over text rings and the readout of a connection's state.
 
 ## Registration
 

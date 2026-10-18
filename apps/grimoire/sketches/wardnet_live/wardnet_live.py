@@ -36,7 +36,8 @@ from math import ceil
 from sigil import compose, data, material, motion
 from sigil.material import pattern
 from sigil.motion import animatable, bind, ease
-from sigil.sketch import Scene2DContext, sketch
+from sigil.compose import kit as neutral
+from sigil.sketch import Scene2DContext, kit, sketch
 
 NAME = "WardNet, live"
 CATEGORY = "Data"
@@ -69,6 +70,14 @@ EMBER = "#f2a33c"
 MONO = "Menlo, SF Mono, monospace"
 
 TAG_INK = {"TRACE": DIM, "INFO": ACCENT, "WARN": EMBER, "BREACH": ALERT}
+# The door's readout set in the scrollback's terminal voice: its names in
+# the dim chrome, its figures in the accent.
+TERMINAL_ROWS = compose.StyleSheet(
+    [
+        compose.rule("caption").fontFamily(MONO).fontSize(10).letterSpacing(1.5).ink(DIM),
+        compose.rule(".readout").fontFamily(MONO).fontSize(10).ink(ACCENT),
+    ]
+)
 LEVEL_INK = {"clear": ACCENT, "warn": EMBER, "breach": ALERT}
 # How an alert breathes at each level: the fill it falls back to, and
 # the seconds one breath out takes. A breach breathes fastest.
@@ -337,26 +346,28 @@ class WardNetLive:
         return compose.box(heading, track).column().gap(8)
 
     def door_readout(self, ctx: Scene2DContext) -> compose.Element:
-        """Each door's count of arrivals, and where a browser finds the page."""
-        lines = [
-            compose.box(
-                label(f"{name} {self.doors[name].uri().split('?')[0]}", 10, DIM),
-                label(
-                    f"{state.revision}",
-                    10,
-                    ALERT if state.error else ACCENT if state.revision else DIM,
-                ),
+        """The busiest door's own account of itself, through the kit's
+        readout, the other door's count after it, and where a browser
+        finds the page."""
+        newest = max(self.shown, key=lambda name: self.shown[name].revision)
+        others = [
+            neutral.Reading(
+                name=name.lower(),
+                value=f"{state.revision}",
+                ink=ALERT if state.error else ACCENT if state.revision else DIM,
             )
-            .row()
-            .justifyContent("space_between")
             for name, state in self.shown.items()
+            if name != newest
         ]
-        status = (
-            "REPLAY" if self.replaying else f"OPEN http://localhost:{WEBSOCKET_PORT}/"
-        )
+        status = "replay" if self.replaying else f"http://localhost:{WEBSOCKET_PORT}/"
         if self.strangers:
-            status += f" · {self.strangers} NOT UNDERSTOOD"
-        return compose.box(*lines, label(status, 10, CHROME)).column().gap(4)
+            status += f" · {self.strangers} not understood"
+        return kit.connectionReadout(
+            self.doors[newest],
+            door=f"{newest} {self.doors[newest].uri().split('?')[0]}",
+            rows=neutral.Rows(measure=METER_WIDTH, gap=2),
+            readings=[*others, neutral.Reading(name="status", value=status)],
+        ).applyStyleSheet(TERMINAL_ROWS)
 
     def page(self) -> compose.Element:
         header = (

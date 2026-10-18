@@ -402,8 +402,7 @@ written yet still compiles and links: its bind function has an empty
 body until its author fills it in. A library whose SDK is a licensed
 download may be absent from a build, and then its target does not exist,
 its sources are left out, and the definition that says it is there —
-`SIGIL_PYTHON_HAS_SCRY`, `SIGIL_PYTHON_HAS_WEB`, `SIGIL_PYTHON_HAS_VIDEO` —
-is not defined. The module those bindings would register is then not
+`SIGIL_PYTHON_HAS_SCRY` — is not defined. The module those bindings would register is then not
 registered either, so a Python process asks `importlib.util.find_spec`
 whether it is there; the package's surface table names those modules as
 the ones a build may lack, and its generator leaves their declarations

@@ -42,7 +42,7 @@ import urllib.parse
 
 from . import messages
 from .host import Host
-from .shared import Error, ErrorCode, ProtocolError, Revision, client_refusal
+from .shared import Error, ErrorCode, ProtocolError, Revision, clientRefusal
 
 ADDRESS_FILE = "protocol-address"
 """The file under a host's state root that names the address it listens on."""
@@ -85,19 +85,19 @@ class Envelopes:
             answer = json.loads(text)
         except json.JSONDecodeError as error:
             raise ProtocolError(
-                client_refusal(
+                clientRefusal(
                     ErrorCode.unreadable, method, f"the answer is no JSON: {error}"
                 )
             ) from error
         if not isinstance(answer, dict):
             raise ProtocolError(
-                client_refusal(
+                clientRefusal(
                     ErrorCode.unreadable, method, "the answer is no JSON object"
                 )
             )
         fields = typing.cast(dict[str, messages.Json], answer)
         if "error" in fields:
-            raise ProtocolError(Error.from_json(fields["error"]))
+            raise ProtocolError(Error.fromJson(fields["error"]))
         return fields.get("result", {})
 
     def listen(
@@ -144,7 +144,7 @@ class Connection(Envelopes):
         if revision.breaking != Revision().breaking:
             self.close()
             raise ProtocolError(
-                client_refusal(
+                clientRefusal(
                     ErrorCode.unreadable,
                     "host.describe",
                     f"the host speaks revision {revision.breaking}.{revision.compatible}, "
@@ -170,7 +170,7 @@ class Connection(Envelopes):
             message = self._receive(self._timeout)
             if message is None:
                 raise ProtocolError(
-                    client_refusal(
+                    clientRefusal(
                         ErrorCode.notSent, "request", "the host closed the socket"
                     )
                 )

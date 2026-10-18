@@ -89,6 +89,9 @@ void bindComposeSelectors(pybind11::module_& module);
 /** Registers one-shot measurement, run metrics, tiles and shelves on @p
  *  module. */
 void bindComposeSheets(pybind11::module_& module);
+/** Registers the material keyline's options and its options form on @p
+ *  module. */
+void bindComposeStrokeOptions(pybind11::module_& module);
 /** Registers text effects, tracks, beats and text units on @p module. */
 void bindComposeTextEffects(pybind11::module_& module);
 /** Registers compose scenes painted into a texture on @p module. */

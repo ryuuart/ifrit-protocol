@@ -5,8 +5,7 @@ TAGS: Typography/Documents, Typography/Styles, Runtime/Python
 
 from sigil.compose import Element, StyleSheet, document, row, rule
 from sigil.sketch import kit, sketch
-from sigil.skia import Typeface
-from sigil.weave import Leading, ParagraphBlock, Type
+from sigil.weave import Face, Leading, ParagraphBlock, Type
 
 
 def passage() -> Element:
@@ -43,7 +42,7 @@ def passage() -> Element:
 
 
 def voice(
-    ink: str, muted: str, accent: str, *, size: float, face: Typeface
+    ink: str, muted: str, accent: str, *, size: float, face: Face
 ) -> StyleSheet:
     return StyleSheet(
         [

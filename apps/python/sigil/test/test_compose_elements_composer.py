@@ -9,8 +9,7 @@ wrapper that outlives its session answers.
 
 A query is valid once a layout has run, and layout runs inside a draw,
 so every case that reads a rect draws first. The two text queries answer
-in the typography vocabulary and are registered with it, so the cases
-that read them stand down where that vocabulary is not there yet.
+in the typography vocabulary, `compose.Beat` and `compose.TextUnit`.
 """
 
 import builtins
@@ -140,14 +139,18 @@ class Owned(unittest.TestCase):
             (settling.live, settling.reused, settling.degraded), (False, 0, 0)
         )
 
-    @unittest.skipUnless(hasattr(Composer, "beatsOf"), "no text effects")
+    def test_the_text_queries_answer_in_the_typography_vocabulary(self):
+        self.assertTrue(callable(Composer.beatsOf))
+        self.assertTrue(callable(Composer.units))
+        self.assertTrue(issubclass(compose.Beat, motion.Beat))
+        self.assertIs(compose.TextUnit, native.TextUnit)
+
     def test_a_schedule_on_an_unknown_key_is_empty(self):
         composer = Composer()
         composer.render(plate())
         self.assertEqual(composer.beatsOf("missing", 0), [])
         self.assertEqual(composer.beatsOf(key="plate", trackIndex=0), [])
 
-    @unittest.skipUnless(hasattr(Composer, "units"), "no text units")
     def test_units_on_an_unknown_key_are_empty(self):
         composer = Composer()
         composer.render(plate())
@@ -414,7 +417,74 @@ class Frames(Session):
         with self.assertRaisesRegex(RuntimeError, "closed session"):
             self.results["probe"].dirty()
 
-    @unittest.skipUnless(hasattr(Composer, "units"), "no text units")
+    def test_a_track_at_rest_reads_back_one_beat_per_unit(self):
+        self.render("""
+            pen.background('#000000')
+            probe = Composer()
+            probe.setSize((96, 32))
+            probe.render(box().children([
+                compose.text('a b c', 10).key('line')
+                .textFx(compose.textFx.enter(compose.textFx.rise(6)),
+                        unit=weave.Unit.Word, progress=1)]))
+            probe.draw(pen.canvas())
+            results['beats'] = probe.beatsOf('line', 0)
+            results['bounds'] = probe.bounds('line')
+        """)
+        beats, bounds = self.results["beats"], self.results["bounds"]
+        self.assertEqual(len(beats), 3)
+        self.assertEqual([beat.unitIndex for beat in beats], [0, 1, 2])
+        for beat in beats:
+            self.assertIsInstance(beat, compose.Beat)
+            self.assertAlmostEqual(beat.localProgress, 1.0)
+            self.assertGreater(beat.rect.width(), 0)
+            self.assertGreater(beat.rect.height(), 0)
+            self.assertGreaterEqual(beat.rect.left() + 0.5, bounds.left())
+            self.assertLessEqual(beat.rect.right() - 0.5, bounds.right())
+
+    def ring(self, letters, fit):
+        """The rect of each letter of a ring run, read back from its track."""
+        self.render(f"""
+            pen.background('#000000')
+            probe = Composer()
+            probe.setSize((160, 160))
+            probe.render(box().children([
+                compose.text('{letters}', 24).key('ring')
+                .width(160).height(160).absolute().left(0).top(0)
+                .textOnPath(compose.TextPath(
+                    path=skia.Path.Circle(80, 80, 64),
+                    orient=compose.TextPath.Orient.Upright,
+                    fit=compose.TextPath.Fit.{fit}))
+                .textFx(compose.textFx.enter(compose.textFx.rise(6)), progress=1)]))
+            probe.draw(pen.canvas())
+            results['letters'] = [beat.rect for beat in probe.beatsOf('ring', 0)]
+        """)
+        return self.results["letters"]
+
+    @staticmethod
+    def chords(letters):
+        """From each letter's middle to the next one's, and last across the
+        seam from the last letter back to the first."""
+        middles = [
+            ((rect.left() + rect.right()) / 2, (rect.top() + rect.bottom()) / 2)
+            for rect in letters
+        ]
+        return [
+            ((middles[(index + 1) % len(middles)][0] - middle[0]) ** 2
+             + (middles[(index + 1) % len(middles)][1] - middle[1]) ** 2) ** 0.5
+            for index, middle in enumerate(middles)
+        ]
+
+    def test_a_ring_run_fitted_by_size_closes_on_its_seam(self):
+        fitted = self.ring("OOOOO", "Size")
+        self.assertEqual(len(fitted), 5)
+        chords = self.chords(fitted)
+        for index, chord in enumerate(chords):
+            with self.subTest(chord=index):
+                self.assertAlmostEqual(chord, chords[0], delta=1.0)
+        # Without a fit the five letters do not reach round the ring.
+        unfitted = self.chords(self.ring("OOOOO", "None_"))
+        self.assertGreater(unfitted[-1], unfitted[0] + 10)
+
     def test_units_land_inside_the_node_that_set_them(self):
         self.render("""
             pen.background('#ffffff')

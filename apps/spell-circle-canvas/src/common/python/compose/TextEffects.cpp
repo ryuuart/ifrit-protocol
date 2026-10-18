@@ -6,6 +6,7 @@
 #include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/TextUnit.h>
 #include <sigilcompose/typography/Track.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
@@ -81,6 +82,57 @@ void bindTrack(py::module_& composition) {
           "__eq__",
           [](const Track& left, const Track& right) { return left == right; },
           py::arg("other"));
+}
+
+/** What a composer reads back about a laid-out text: one beat of a track's
+ *  schedule where the text put it, and one unit a selector addressed. */
+void bindReadings(py::module_& composition) {
+  auto beat = py::class_<compose::Beat, motion::Beat>(
+      composition, "Beat",
+      "One beat of a track's resolved schedule and where the text put it: "
+      "the schedule's own reading, and the rect of the glyphs the beat "
+      "addresses in the composer's space.");
+  beat.def_readonly("rect", &compose::Beat::rect)
+      .def("copy", [](const compose::Beat& value) { return value; })
+      .def(
+          "__eq__",
+          [](const compose::Beat& left, const compose::Beat& right) {
+            return left == right;
+          },
+          py::arg("other"));
+  copyProtocol(beat);
+  auto unit = py::class_<compose::TextUnit>(
+      composition, "TextUnit",
+      "One unit a selector addressed in a laid-out text: its rect in the "
+      "composer's space, its ordinal, the baseline or column axis it stands "
+      "on, the band it occupies, and the line it landed on.");
+  unit.def_readonly("rect", &compose::TextUnit::rect)
+      .def_readonly("index", &compose::TextUnit::index)
+      .def_readonly("axis", &compose::TextUnit::axis)
+      .def_readonly("pitch", &compose::TextUnit::pitch)
+      .def_readonly("ascent", &compose::TextUnit::ascent)
+      .def_readonly("descent", &compose::TextUnit::descent)
+      .def_readonly("writingMode", &compose::TextUnit::writingMode)
+      .def_readonly("verticalForm", &compose::TextUnit::verticalForm)
+      .def_property_readonly(
+          "range",
+          // The range's class is registered with the paragraph layout,
+          // after the composer that answers these units.
+          [](const compose::TextUnit& value) -> py::object {
+            return py::cast(value.range);
+          },
+          "The text the unit covers, as a weave.CharRange of UTF-16 units "
+          "into the node's paragraph.")
+      .def_readonly("style", &compose::TextUnit::style)
+      .def_readonly("lineIndex", &compose::TextUnit::lineIndex)
+      .def("copy", [](const compose::TextUnit& value) { return value; })
+      .def(
+          "__eq__",
+          [](const compose::TextUnit& left, const compose::TextUnit& right) {
+            return left == right;
+          },
+          py::arg("other"));
+  copyProtocol(unit);
 }
 
 void bindDisplaced(py::module_& effects) {
@@ -271,6 +323,7 @@ void bindComposeTextEffects(pybind11::module_& module) {
   bindMotionDisplacedTween(effects);
   bindTextEffect(effects);
   bindTrack(composition);
+  bindReadings(composition);
   bindGlyphModifier(effects);
 
   effects.def(

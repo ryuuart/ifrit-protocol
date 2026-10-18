@@ -54,7 +54,7 @@ for (const std::string& line : table.lines()) std::puts(line.c_str());
 return table.failures();                              // an exit code a build can read
 ```
 
-- `time/Stopwatch.h` — `Duration`, `Milliseconds`, `Microseconds`, `Stopwatch`, `timed`
+- `time/Stopwatch.h` — `Milliseconds`, `Microseconds`, `Stopwatch`, `timed`
 - `stats/Summary.h` — `Summary`, `summary`
 - `stats/Quantile.h` — `quantile`, `Measurable`, `ReadingOf`
 - `stats/Histogram.h` — `Histogram`, `HistogramOptions`

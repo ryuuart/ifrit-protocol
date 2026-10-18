@@ -13,6 +13,7 @@
 #include <sigilio/testing/Testing.h>
 #include <sigilio/transport/Transport.h>
 #include <sigilmedia/advanced/Resource.h>
+#include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/data/Convert.h>
 #include <sigilpython/io/Hub.h>
@@ -464,12 +465,16 @@ void bindIO(py::module_& module) {
                                  std::const_pointer_cast<media::Video>(video))
                            : py::none();
             }
-            // A font file is asked for as the typeface Python holds, and
-            // answered with the face the hub keeps for that URI, so a
-            // sketch in either language reads the same face.
+            // A font file is asked for as a face or as the Skia typeface
+            // it holds, and answered with the face the hub keeps for that
+            // URI, so a sketch in either language reads the same face.
             if (type.is(py::type::of<SkTypeface>())) {
               auto face = unlocked([&] { return hub.load<weave::Face>(uri); });
               return face ? py::cast(weave::toSk(*face)) : py::none();
+            }
+            if (type.is(py::type::of<FaceValue>())) {
+              auto face = unlocked([&] { return hub.load<weave::Face>(uri); });
+              return face ? py::cast(*face) : py::none();
             }
             return loadData(hub, type, uri);
           },

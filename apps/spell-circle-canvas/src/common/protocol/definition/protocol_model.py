@@ -119,10 +119,18 @@ def last_word(qualified: str) -> str:
     return qualified.rpartition(".")[2]
 
 
-def snake(name: str) -> str:
-    """A definition's camelCase name as the Python client spells it:
-    ``set_policy`` of ``setPolicy``."""
-    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+def camel(name: str) -> str:
+    """A definition's field name as the Python client spells the attribute:
+    ``budgetSeconds`` of ``budget_seconds``, as every other name of the
+    package is spelled after its C++ twin."""
+    head, *rest = name.split("_")
+    return head + "".join(word[:1].upper() + word[1:] for word in rest)
+
+
+def listener(name: str) -> str:
+    """The method a client hands an event's listener to: ``onBudgetExpired``
+    of ``budgetExpired``."""
+    return "on" + name[:1].upper() + name[1:]
 
 
 def _documented(raw: dict[str, typing.Any]) -> dict[str, typing.Any]:

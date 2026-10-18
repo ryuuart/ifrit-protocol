@@ -12,6 +12,11 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    # A field reads back as the kind it was declared: a number, a colour,
+    # or the numbers of a wider field.
+    table.returns(
+        "_sigil.material.Material", "get", "float | _sigil.material.Color | list[float]"
+    )
     # A layer's mask is a Mask, or the mask's own fields in order: the
     # source and its channel, then optionally the range and the inversion.
     table.parameters(

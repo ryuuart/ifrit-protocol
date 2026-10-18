@@ -21,14 +21,14 @@ class CatalogParameters:
     paths: tuple[str, ...] = ()
     """Files beyond the registry to catalog as well."""
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["paths"] = list(self.paths)
         return out
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> CatalogParameters:
+    def fromJson(cls, value: messages.Json) -> CatalogParameters:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
@@ -43,18 +43,18 @@ class CatalogResult:
     rows: tuple[CatalogRow, ...] = ()
     """Each row."""
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
-        out["rows"] = [item.to_json() for item in self.rows]
+        out["rows"] = [item.toJson() for item in self.rows]
         return out
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> CatalogResult:
+    def fromJson(cls, value: messages.Json) -> CatalogResult:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
-            rows=messages.tables(fields, "rows", CatalogRow.from_json),
+            rows=messages.tables(fields, "rows", CatalogRow.fromJson),
         )
 
 
@@ -112,10 +112,10 @@ class CatalogRow:
     plate: str = ""
     """Where its thumbnail is, where one has been taken."""
 
-    video_exportable: bool = False
+    videoExportable: bool = False
     """Whether it can be written out as a video."""
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["name"] = self.name
@@ -134,11 +134,11 @@ class CatalogRow:
         out["background"] = self.background
         out["moment"] = self.moment
         out["plate"] = self.plate
-        out["video_exportable"] = self.video_exportable
+        out["video_exportable"] = self.videoExportable
         return out
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> CatalogRow:
+    def fromJson(cls, value: messages.Json) -> CatalogRow:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
@@ -158,7 +158,7 @@ class CatalogRow:
             background=messages.text(fields, "background", ""),
             moment=messages.real(fields, "moment", -1.0),
             plate=messages.text(fields, "plate", ""),
-            video_exportable=messages.boolean(fields, "video_exportable", False),
+            videoExportable=messages.boolean(fields, "video_exportable", False),
         )
 
 
@@ -169,14 +169,14 @@ class ChangedEvent:
     names: tuple[str, ...] = ()
     """The sketches added, removed or rebuilt."""
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["names"] = list(self.names)
         return out
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> ChangedEvent:
+    def fromJson(cls, value: messages.Json) -> ChangedEvent:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
@@ -203,7 +203,7 @@ class Entry:
     reason: str = ""
     """Why it cannot, where it cannot."""
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["name"] = self.name
@@ -214,7 +214,7 @@ class Entry:
         return out
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> Entry:
+    def fromJson(cls, value: messages.Json) -> Entry:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
@@ -233,14 +233,14 @@ class ListParameters:
     kind: str = ""
     """The runtime to list, scene2d or scene3d; empty for every one."""
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["kind"] = self.kind
         return out
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> ListParameters:
+    def fromJson(cls, value: messages.Json) -> ListParameters:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
@@ -255,18 +255,18 @@ class ListResult:
     sketches: tuple[Entry, ...] = ()
     """Each one, in the registry's order."""
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
-        out["sketches"] = [item.to_json() for item in self.sketches]
+        out["sketches"] = [item.toJson() for item in self.sketches]
         return out
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> ListResult:
+    def fromJson(cls, value: messages.Json) -> ListResult:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
-            sketches=messages.tables(fields, "sketches", Entry.from_json),
+            sketches=messages.tables(fields, "sketches", Entry.fromJson),
         )
 
 
@@ -285,8 +285,8 @@ class Registry:
     def list(self, *, kind: str = "") -> ListResult:
         """The sketches the registry holds, of one runtime or of all."""
         parameters = ListParameters(kind=kind)
-        answer = self._caller.call("registry.list", parameters.to_json())
-        return _shared.answer("registry.list", ListResult.from_json, answer)
+        answer = self._caller.call("registry.list", parameters.toJson())
+        return _shared.answer("registry.list", ListResult.fromJson, answer)
 
     def catalog(self, *, paths: tuple[str, ...] = ()) -> CatalogResult:
         """The rows a browser shows before a sketch is opened.
@@ -294,20 +294,20 @@ class Registry:
         EXPERIMENTAL: its shape may still change.
         """
         parameters = CatalogParameters(paths=paths)
-        answer = self._caller.call("registry.catalog", parameters.to_json())
-        return _shared.answer("registry.catalog", CatalogResult.from_json, answer)
+        answer = self._caller.call("registry.catalog", parameters.toJson())
+        return _shared.answer("registry.catalog", CatalogResult.fromJson, answer)
 
     def enable(self) -> None:
         """Starts this client's registry events."""
         answer = self._caller.call("registry.enable", {})
-        _shared.answer("registry.enable", _shared.Empty.from_json, answer)
+        _shared.answer("registry.enable", _shared.Empty.fromJson, answer)
 
     def disable(self) -> None:
         """Stops this client's registry events."""
         answer = self._caller.call("registry.disable", {})
-        _shared.answer("registry.disable", _shared.Empty.from_json, answer)
+        _shared.answer("registry.disable", _shared.Empty.fromJson, answer)
 
-    def on_changed(
+    def onChanged(
         self, listener: collections.abc.Callable[[ChangedEvent], None]
     ) -> None:
         """Sketches were added, removed or rebuilt.
@@ -316,6 +316,6 @@ class Registry:
         client has called enable.
         """
         hear = _shared.hearing(
-            self._caller, "registry.changed", ChangedEvent.from_json, listener
+            self._caller, "registry.changed", ChangedEvent.fromJson, listener
         )
         self._caller.listen("registry.changed", hear)

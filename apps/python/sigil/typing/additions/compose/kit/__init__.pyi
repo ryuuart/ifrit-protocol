@@ -103,6 +103,16 @@ class _LadderProperties(typing.TypedDict, total=False):
     column: bool
     fill: _t.FillLike
 
+class _RowsProperties(typing.TypedDict, total=False):
+    measure: float
+    nameMeasure: float
+    gap: float
+    labelGap: float
+    divider: _t.FillLike
+    dividerWidth: float
+    swatchSide: float
+    swatchCorners: float
+
 def well(
     surface: _t.NodeLike | None = ...,
     props: Well | None = ...,
@@ -148,3 +158,13 @@ def ladder(
     props: Ladder | None = ..., **properties: typing.Unpack[_LadderProperties]
 ) -> sigil.compose.Element: ...
 def centred(*children: _t.ChildLike) -> sigil.compose.Element: ...
+def reading(
+    one: Reading,
+    props: Rows | None = ...,
+    **properties: typing.Unpack[_RowsProperties],
+) -> sigil.compose.Element: ...
+def readout(
+    readings: collections.abc.Iterable[Reading],
+    props: Rows | None = ...,
+    **properties: typing.Unpack[_RowsProperties],
+) -> sigil.compose.Element: ...

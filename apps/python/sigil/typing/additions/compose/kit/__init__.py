@@ -57,3 +57,15 @@ def centred(*children):
     if children:
         element.children(list(_children(children)))
     return element
+
+
+
+def reading(one, props=None, **properties):
+    """One row: a reading's name at the left and its figure at the right of
+    the rows' measure."""
+    return _native.reading(one, _specification(Rows, props, properties))
+
+
+def readout(readings, props=None, **properties):
+    """A stack of readings ranged on their figures, one row each."""
+    return _native.readout(list(readings), _specification(Rows, props, properties))

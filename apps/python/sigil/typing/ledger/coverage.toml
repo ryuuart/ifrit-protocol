@@ -717,8 +717,17 @@ bound = "the connecting operators `compose.connect.Between` and `ByLane` with th
 python = ["compose.connect.Between", "compose.connect.ByLane"]
 
 [[section.surface.item]]
-native = "the rows (`section`, `readout`, `table`, `bars`)"
-python = ["compose.kit.readout", "compose.kit.table", "compose.kit.bars"]
+bound = "`reading` and `readout` over `Reading` and `Rows`"
+python = [
+  "compose.kit.reading",
+  "compose.kit.readout",
+  "compose.kit.Reading",
+  "compose.kit.Rows",
+]
+
+[[section.surface.item]]
+native = "the rows `section`, `table` and `bars`"
+python = ["compose.kit.table", "compose.kit.bars"]
 
 [[section.surface.item]]
 native = "typesetting (`ruby`, `kenten`, `bullets`, `textColumns`, `rules`, `nestedRun`)"
@@ -873,12 +882,12 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`specimenTheme`, `Theme::sans` and `Theme::mono`"
-python = [
-  "sketch.kit.specimenTheme",
-  "sketch.kit.Theme.sans",
-  "sketch.kit.Theme.mono",
-]
+native = "`Theme::sans` and `Theme::mono`"
+python = ["sketch.kit.Theme.sans", "sketch.kit.Theme.mono"]
+
+[[section.surface.item]]
+native = "`specimenTheme`"
+python = ["sketch.kit.specimenTheme"]
 
 [[section.surface.item]]
 native = "`stage(Scene3DContext)`"
@@ -938,7 +947,7 @@ python = ["sketch.kit.Channel"]
 
 [[section.surface.item]]
 native = "`connectionReadout` over a connection's state"
-python = ["sketch.kit.connection_readout"]
+python = ["sketch.kit.connectionReadout", "sketch.kit.ConnectionReadout"]
 
 [[section]]
 title = "Typography"
@@ -1013,12 +1022,16 @@ bound = "`weave.selectors` and Compose `selectors`"
 python = ["weave.selectors.word", "compose.selectors.style"]
 
 [[section.surface.item]]
-bound = "`TextPath`; Compose `Annotation`"
-python = ["compose.TextPath", "compose.Annotation"]
+bound = "`TextPath` with its `Fit` and `fill`; Compose `Annotation`"
+python = ["compose.TextPath", "compose.TextPath.Fit", "compose.Annotation"]
 
 [[section.surface.item]]
 bound = "vertical writing through `ParagraphBlock.writingMode` and `Type.verticalForm`"
 python = ["weave.ParagraphBlock.writingMode", "weave.Type.verticalForm"]
+
+[[section.surface.item]]
+bound = "`Face`, read from a Skia typeface and handed wherever one is taken, with `familyName`, `style` and `variationAxes`"
+python = ["weave.Face"]
 
 [[section.surface.item]]
 native = "`weave::reshapes` and a stated `defaultFace`"
@@ -1302,14 +1315,25 @@ bound = "times in seconds or `datetime.timedelta`, read back in seconds"
 
 [[section.surface.item]]
 native = "`HeldMotion` and held-motion resolution"
-python = ["motion.HeldMotion"]
+bound_text = "`HeldMotion` with `retarget`, `enter`, `valueOf` and the per-value `isRunning(held, value)`"
+python = [
+  "motion.HeldMotion",
+  "motion.retarget",
+  "motion.enter",
+  "motion.valueOf",
+  "motion.isRunning",
+]
 
 [[section.surface.item]]
 native = "`Lane` with `retargetFixed` and `retargetPositional`"
 python = ["motion.Lane", "motion.retargetFixed", "motion.retargetPositional"]
 
 [[section.surface.item]]
-native = "curve shape read-back, without which a Python-authored curve compares unequal"
+bound = "an `Oscillator` held as a curve through `ease=` and `envelope.shaped`, compared by its settings as the native eases are"
+python = ["motion.Oscillator", "motion.envelope.shaped"]
+
+[[section.surface.item]]
+native = "curve shape read-back for a Python function, which is held as an opaque callable and compares unequal to every other"
 
 [[section.surface]]
 name = "Schedule"

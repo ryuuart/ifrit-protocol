@@ -241,12 +241,14 @@ nowhere, handing either to the caller's `refused` through
 `sigil::protocol::reportRefusal` — or to the standard error where it
 has none, so no event is lost unseen. An error the host answered is handed on as it
 came. The Python client, `sigil.protocol`, is the same shape in the
-package's own spelling: one class per domain, one snake_case method per
-command — `Clock.set_policy` sends `clock.setPolicy` — taking the
-parameter table's fields as keywords and answering the result as a
-frozen dataclass, and one `on_…` method per event; its refusals are
-`ProtocolError`s carrying the same codes, and a table's `from_json`
-refuses a member the table does not declare, as the C++ reading does.
+camelCase the rest of the package is spelled in: one class per domain,
+one method per command under the command's own name — `Clock.setPolicy`
+sends `clock.setPolicy` — taking the parameter table's fields as keywords
+(`budgetSeconds`, carried on the wire as `budget_seconds`) and answering
+the result as a frozen dataclass, and one `on…` method per event
+(`onBudgetExpired`); its refusals are `ProtocolError`s carrying the same
+codes, and a table's `fromJson` refuses a member the table does not
+declare, as the C++ reading does.
 Both clients write the same JSON for every table, which a self-check
 holds, so a test in the same process and a script over the socket
 exercise one path. The Python package's transport is written by hand

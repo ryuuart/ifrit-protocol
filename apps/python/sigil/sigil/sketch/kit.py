@@ -5,27 +5,58 @@
 
 from _sigil.sketch import kit as _native
 from _sigil.sketch.kit import (
+    Anchor,
+    Area,
+    Axis,
+    Backdrop,
     Cell,
+    Chip,
     Column,
     Comparison,
     ComparisonCase,
+    ConnectionReadout,
+    Console,
     Control,
     Controls,
     ControlsView,
+    Datum,
     Density,
+    Frame,
+    Gauge,
+    Instrument,
+    Label,
+    Layer,
+    Legend,
+    LegendEntry,
+    Line,
+    Meter,
     Option,
     Page,
     Palette,
+    Panel,
     PanelGrid,
+    Path,
+    Plot,
+    Polar,
     Provide,
     Recess,
     Register,
     Relief,
+    Ruler,
+    Rules,
     Run,
+    Scrollbar,
+    Scrolled,
     SectionHeader,
     Spacing,
     Stage,
+    SwatchStrip,
     Theme,
+    Thumb,
+    Ticker,
+    Timeline,
+    TitleCard,
+    Trace,
     TypeScale,
     Verdict,
     VerdictRows,
@@ -33,9 +64,14 @@ from _sigil.sketch.kit import (
     Well,
     WellContent,
     Widget,
+    bands,
     controlsOf,
+    marks,
+    plot,
+    segments,
     theme,
 )
+from _sigil.weave import FaceSlant as _FaceSlant
 
 from .._kit import children as _children
 from .._kit import specification as _specification
@@ -56,8 +92,12 @@ def featureTheme(density=Density.Compact):
     return _native.featureTheme(density)
 
 
-def houseFace(voice, weight=400, italic=False):
-    return _native.houseFace(voice, weight, italic)
+def houseFace(voice, weight=400, slant=None, *, italic=False):
+    """The house face for a voice at a weight, resolved once and held;
+    ``italic=True`` is ``slant=weave.FaceSlant.Italic``."""
+    if slant is None:
+        slant = _FaceSlant.Italic if italic else _FaceSlant.Upright
+    return _native.houseFace(voice, weight, slant)
 
 
 def provide(look):
@@ -130,28 +170,189 @@ def controls(surface, props=None, **properties):
     return _native.controls(surface, _specification(ControlsView, props, properties))
 
 
+def legend(*entries, props=None, **properties):
+    """The key to a picture: each entry a colour and what it stands for."""
+    key = _specification(Legend, props, properties)
+    if entries:
+        key.entries = list(entries)
+    return _native.legend(key)
+
+
+def swatchStrip(props=None, **properties):
+    """A ramp's steps in order, each a patch, with its word under it."""
+    return _native.swatchStrip(_specification(SwatchStrip, props, properties))
+
+
+def chip(props=None, **properties):
+    """One word set inside a patch."""
+    return _native.chip(_specification(Chip, props, properties))
+
+
+def meter(props=None, **properties):
+    """A level as a bar along a track, with its label and reading."""
+    return _native.meter(_specification(Meter, props, properties))
+
+
+def gauge(props=None, **properties):
+    """A level as an arc round a dial, with its reading in the middle."""
+    return _native.gauge(_specification(Gauge, props, properties))
+
+
+def backdrop(props=None, **properties):
+    """The ground a scene stands on, with its vignette and grain."""
+    return _native.backdrop(_specification(Backdrop, props, properties))
+
+
+def panel(content, props=None, **properties):
+    """A region of a sheet: eyebrow, title and note over a well of content."""
+    return _native.panel(_specification(Panel, props, properties), content)
+
+
+def frame(content=None, props=None, **properties):
+    """A device's chrome round what its screen shows, or the chrome alone;
+    `screen=` is the screen's own fill."""
+    chrome = _specification(Frame, props, properties)
+    return _native.frame(chrome) if content is None else _native.frame(chrome, content)
+
+
+def scrollbar(props=None, **properties):
+    """A scrollbar's arrows and thumb, sized from what it measures."""
+    return _native.scrollbar(_specification(Scrollbar, props, properties))
+
+
+def ticker(content, props=None, **properties):
+    """A strip that runs one pass of its content past forever."""
+    strip = _specification(Ticker, props, properties)
+    strip.content = content
+    return _native.ticker(strip)
+
+
+def timeline(*marks, props=None, **properties):
+    """A rail with its marks: ticks at fractions along it, and their words."""
+    scale = _specification(Timeline, props, properties)
+    if marks:
+        scale.marks = list(marks)
+    return _native.timeline(scale)
+
+
+def titleCard(props=None, **properties):
+    """The card a sequence opens on: eyebrow, title, subtitle and notes.
+    A line may be given as its words alone."""
+    for name in ("eyebrow", "title", "subtitle"):
+        if isinstance(properties.get(name), str):
+            properties[name] = Line(words=properties[name])
+    if "notes" in properties:
+        properties["notes"] = [
+            Line(words=note) if isinstance(note, str) else note
+            for note in properties["notes"]
+        ]
+    return _native.titleCard(_specification(TitleCard, props, properties))
+
+
+def console(*feeds, props=None, **properties):
+    """The log panel a study prints into, over the text rings given."""
+    return _native.console(_specification(Console, props, properties), list(feeds))
+
+
+def connectionReadout(connection, props=None, **properties):
+    """A door's state as rows: where it is, whether it stands, its revision,
+    what it dropped and what was no message, and who sent the newest."""
+    return _native.connectionReadout(
+        connection, _specification(ConnectionReadout, props, properties)
+    )
+
+
+def instrument(picture, readings, props=None, **properties):
+    """A live picture beside its readings, on one page."""
+    return _native.instrument(
+        _specification(Instrument, props, properties), picture, readings
+    )
+
+
+def axis(props=None, **properties):
+    """A plot's axis: its line, its ticks and their numbers."""
+    return _native.axis(_specification(Ruler, props, properties))
+
+
+def rules(props=None, **properties):
+    """Hairlines across a plot's field at the domain values named."""
+    return _native.rules(_specification(Rules, props, properties))
+
+
+def trace(curve, props=None, **properties):
+    """A curve across a plot's x domain: a function of one number, or a
+    measured series spread across it."""
+    return _native.trace(curve, _specification(Trace, props, properties))
+
+
+def area(curve, props=None, **properties):
+    """The band between a curve and a base."""
+    return _native.area(curve, _specification(Area, props, properties))
+
+
+def path(at, props=None, **properties):
+    """A curve walked over a parameter in both coordinates."""
+    return _native.path(at, _specification(Path, props, properties))
+
+
+def label(words, x, y, props=None, **properties):
+    """A word at a point of a plot's field."""
+    return _native.label(words, x, y, _specification(Label, props, properties))
+
+
 __all__ = [
+    "Anchor",
+    "Area",
+    "Axis",
+    "Backdrop",
     "Cell",
+    "Chip",
     "Column",
     "Comparison",
     "ComparisonCase",
+    "ConnectionReadout",
+    "Console",
     "Control",
     "Controls",
     "ControlsView",
+    "Datum",
     "Density",
+    "Frame",
+    "Gauge",
+    "Instrument",
+    "Label",
+    "Layer",
+    "Legend",
+    "LegendEntry",
+    "Line",
+    "Meter",
     "Option",
     "Page",
     "Palette",
+    "Panel",
     "PanelGrid",
+    "Path",
+    "Plot",
+    "Polar",
     "Provide",
     "Recess",
     "Register",
     "Relief",
+    "Ruler",
+    "Rules",
     "Run",
+    "Scrollbar",
+    "Scrolled",
     "SectionHeader",
     "Spacing",
     "Stage",
+    "SwatchStrip",
     "Theme",
+    "Thumb",
+    "Ticker",
+    "Timeline",
+    "TitleCard",
+    "Trace",
     "TypeScale",
     "Verdict",
     "VerdictRows",
@@ -159,23 +360,48 @@ __all__ = [
     "Well",
     "WellContent",
     "Widget",
+    "area",
+    "axis",
+    "backdrop",
+    "bands",
     "caption",
     "cell",
     "cells",
+    "chip",
     "comparison",
+    "connectionReadout",
+    "console",
     "controls",
     "controlsOf",
     "featureTheme",
+    "frame",
+    "gauge",
     "houseFace",
     "houseTheme",
+    "instrument",
+    "label",
+    "legend",
+    "marks",
+    "meter",
     "page",
+    "panel",
     "panelGrid",
+    "path",
+    "plot",
     "provide",
+    "rules",
+    "scrollbar",
     "section",
     "sectionHeader",
+    "segments",
     "stage",
     "studyTheme",
+    "swatchStrip",
     "theme",
+    "ticker",
+    "timeline",
+    "titleCard",
+    "trace",
     "verdict",
     "well",
 ]

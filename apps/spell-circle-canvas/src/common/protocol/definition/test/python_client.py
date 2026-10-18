@@ -104,13 +104,13 @@ class TablesAgree(unittest.TestCase):
     def test_every_table_is_a_class_of_the_client(self) -> None:
         for name in self.forms:
             with self.subTest(table=name):
-                self.assertTrue(hasattr(table_class(name), "from_json"))
+                self.assertTrue(hasattr(table_class(name), "fromJson"))
 
     def test_every_form_reads_and_writes_the_same_object(self) -> None:
         for name, forms in self.forms.items():
             for form in forms:
                 with self.subTest(table=name, form=form):
-                    self.assertEqual(form, table_class(name).from_json(form).to_json())
+                    self.assertEqual(form, table_class(name).fromJson(form).toJson())
 
     def test_nothing_set_writes_the_c_plus_plus_default(self) -> None:
         # A table with a required member has no value made with nothing
@@ -123,16 +123,16 @@ class TablesAgree(unittest.TestCase):
             ):
                 continue
             with self.subTest(table=name):
-                self.assertEqual(forms[0], kind().to_json())
+                self.assertEqual(forms[0], kind().toJson())
 
     def test_a_member_the_table_does_not_declare_is_refused(self) -> None:
         for name, forms in self.forms.items():
             with self.subTest(table=name), self.assertRaises(messages.MessageError):
-                table_class(name).from_json({**forms[0], "no_such_member": 1})
+                table_class(name).fromJson({**forms[0], "no_such_member": 1})
 
     def test_a_required_member_left_out_is_refused(self) -> None:
         with self.assertRaises(messages.MessageError):
-            protocol.session.OpenParameters.from_json({"kind": "scene2d"})
+            protocol.session.OpenParameters.fromJson({"kind": "scene2d"})
 
 
 class ClientSpeaksTheDefinition(unittest.TestCase):
@@ -142,7 +142,7 @@ class ClientSpeaksTheDefinition(unittest.TestCase):
     def test_a_method_sends_the_definitions_name(self) -> None:
         board = Board({"clock.current": {"policy": "Advance", "frame": 120}})
         clock_client = protocol.Clock(board)
-        clock_client.set_policy(policy=clock.Policy.Advance, budget_seconds=2.0)
+        clock_client.setPolicy(policy=clock.Policy.Advance, budgetSeconds=2.0)
         now = clock_client.current()
         self.assertEqual(
             [
@@ -165,7 +165,7 @@ class ClientSpeaksTheDefinition(unittest.TestCase):
     def test_an_event_that_is_no_table_reaches_the_callers_refused(self) -> None:
         board = Board({})
         heard: list[registry.ChangedEvent] = []
-        protocol.Registry(board).on_changed(heard.append)
+        protocol.Registry(board).onChanged(heard.append)
         board.listeners["registry.changed"]({"names": ["hello", "cascade"]})
         self.assertEqual([("hello", "cascade")], [event.names for event in heard])
         self.assertEqual([], board.refusals)

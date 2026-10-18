@@ -62,10 +62,10 @@ class InProcessRoute(unittest.TestCase):
         described = Host(self.host).describe()
         self.assertEqual(described.domains, ("clock", "host", "registry", "session"))
         self.assertEqual(described.version.program, "sigil.testing")
-        self.assertEqual(Path(described.state_root), self.root / "state")
+        self.assertEqual(Path(described.stateRoot), self.root / "state")
 
     def test_a_file_stepped_under_advance_is_photographed_where_it_was_stepped(self):
-        Clock(self.host).set_policy(policy=Policy.Advance)
+        Clock(self.host).setPolicy(policy=Policy.Advance)
         opened = Session(self.host).open(sketch=str(self.source))
         self.assertEqual((opened.width, opened.height), (32.0, 16.0))
         self.assertEqual(opened.moment, 0.5)
@@ -91,16 +91,16 @@ class InProcessRoute(unittest.TestCase):
     def test_a_budget_tells_a_client_that_enabled_the_clock(self):
         heard = []
         clock = Clock(self.host)
-        clock.on_budget_expired(lambda event: heard.append(event.seconds))
+        clock.onBudgetExpired(lambda event: heard.append(event.seconds))
         clock.enable()
-        clock.set_policy(policy=Policy.Advance, budget_seconds=0.25)
+        clock.setPolicy(policy=Policy.Advance, budgetSeconds=0.25)
         Session(self.host).open(sketch=str(self.source))
         clock.step(seconds=0.5)
         self.assertEqual(len(heard), 1)
         self.assertAlmostEqual(heard[0], 0.25)
 
     def test_the_readout_names_the_last_still(self):
-        Clock(self.host).set_policy(policy=Policy.Advance)
+        Clock(self.host).setPolicy(policy=Policy.Advance)
         Session(self.host).open(sketch=str(self.source))
         still = Session(self.host).still()
         self.assertIn(still.path, self.host.readout())
@@ -165,10 +165,10 @@ class SocketRoute(unittest.TestCase):
         expected = media.load(plate).frameAt(0).image
         state = self.root / "state"
         with launch(executable=self.grimoire, state=state) as host:
-            Clock(host).set_policy(policy=Policy.Advance)
+            Clock(host).setPolicy(policy=Policy.Advance)
             # Baked on the plate's grid from the first frame, as the sweep
             # bakes: zero pins the density a plate is photographed at.
-            Session(host).pin_density(density=0)
+            Session(host).pinDensity(density=0)
             opened = Session(host).open(sketch=self.SCENE)
             self.assertEqual(opened.kind, "scene2d")
             self.assertEqual(Clock(host).step(seconds=1).frame, 60)
@@ -208,8 +208,8 @@ class SocketRoute(unittest.TestCase):
         )
         state = self.root / "state"
         with launch(executable=self.grimoire, state=state) as host:
-            Clock(host).set_policy(policy=Policy.Advance)
-            Session(host).pin_density(density=2)
+            Clock(host).setPolicy(policy=Policy.Advance)
+            Session(host).pinDensity(density=2)
             Session(host).open(sketch=self.SCENE)
             Clock(host).step(seconds=1)
             still = Session(host).still(density=2, path="stepped.png")

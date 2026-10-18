@@ -9,6 +9,7 @@
 #include <pybind11/stl.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/advanced/ClockPolicy.h>
+#include <sigilmotion/advanced/Held.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/motion/Convert.h>
@@ -39,6 +40,96 @@ std::vector<motion::Animatable<T>> liveRun(const py::sequence& targets) {
     run.push_back(target);
   }
   return run;
+}
+
+/** The motion a consumer holds for one number, as Python keeps it: empty
+ *  until a retarget or an entrance starts one, and the same slot every
+ *  later one bends. */
+struct HeldSlot {
+  std::unique_ptr<motion::HeldMotion> motion;
+};
+
+/** The transition a change eases by: None snaps, a number of seconds or
+ *  a Tween is read for its timing. */
+std::optional<motion::Tween<float>> heldTransition(py::handle value) {
+  if (value.is_none()) return std::nullopt;
+  return motionTransition(value);
+}
+
+void bindHeldMotion(py::module_& module) {
+  py::class_<HeldSlot, std::shared_ptr<HeldSlot>>(
+      module, "HeldMotion",
+      "The motion held for one number while a change eases it: what "
+      "retarget and enter start and bend, and what isRunning(held, value) "
+      "reads to say whether the number is moving now.")
+      .def(py::init<>())
+      .def(
+          "isRunning",
+          [](const HeldSlot& held) {
+            return held.motion && held.motion->isRunning();
+          },
+          "Whether a motion is writing the number now.")
+      .def(
+          "value",
+          [](const HeldSlot& held) -> std::optional<float> {
+            if (!held.motion || !held.motion->started) return std::nullopt;
+            return held.motion->value();
+          },
+          "The number this frame, or None before a motion started.")
+      .def(
+          "stop",
+          [](HeldSlot& held) {
+            if (held.motion) held.motion->stop();
+          },
+          "Stops the motion writing the number; it stays where the motion "
+          "left it.")
+      .def_property_readonly(
+          "target",
+          [](const HeldSlot& held) -> std::optional<float> {
+            if (!held.motion || !held.motion->started) return std::nullopt;
+            return held.motion->target;
+          },
+          "Where the running motion is headed, or None before one started.");
+  module.def(
+      "retarget",
+      [](const EngineHandle& engine, HeldSlot& held, py::handle previous,
+         py::handle next, py::handle transition) {
+        return motion::retarget(engine.get(), held.motion,
+                                motionAnimatable(previous),
+                                motionAnimatable(next),
+                                heldTransition(transition));
+      },
+      py::arg("engine"), py::arg("held"), py::arg("previous"), py::arg("next"),
+      py::arg("transition") = py::none(),
+      "Starts or bends the motion held for a number whose value changed "
+      "from previous to next: a described value eases by its own timing, "
+      "a constant by transition, and a live value or a constant with no "
+      "transition snaps. Answers whether a motion is running.");
+  module.def(
+      "enter",
+      [](const EngineHandle& engine, HeldSlot& held, py::handle value) {
+        motion::enter(engine.get(), held.motion, motionAnimatable(value));
+      },
+      py::arg("engine"), py::arg("held"), py::arg("value"),
+      "Plays the entrance a described value states the first time it "
+      "appears: from its own from, through its keyframes, to where it "
+      "rests. A value with no entrance starts nothing.");
+  module.def(
+      "isRunning",
+      [](const HeldSlot& held, py::handle value) {
+        return motion::isRunning(held.motion.get(), motionAnimatable(value));
+      },
+      py::arg("held"), py::arg("value"),
+      "Whether the number is moving now: a live value always is, and a "
+      "held one while a motion is writing it.");
+  module.def(
+      "valueOf",
+      [](const HeldSlot& held, py::handle value) {
+        return motion::valueOf(held.motion.get(), motionAnimatable(value));
+      },
+      py::arg("held"), py::arg("value"),
+      "The number this frame: a live value's own, then a running motion's, "
+      "then the value's constant.");
 }
 
 motion::Tween<material::Color> colorTween(py::handle value) {
@@ -510,6 +601,9 @@ void bindMotionClock(py::module_& root) {
       .def("restart", [](const EngineHandle& handle) {
         handle.ownedEngine(kHostMoves).restart();
       });
+  // After the engine, so the functions that run a held motion on one are
+  // declared as taking the class an author imports.
+  bindHeldMotion(module);
 }
 
 }  // namespace sigil::python

@@ -13,7 +13,10 @@ and each hands the page the same `data.Json`:
 | `udp://:27027` | a `Cue` FlatBuffer, one datagram a cue | through `cue_deck.bfbs`, into the schema's JSON form |
 
 The page draws the newest cue, whichever door it came through, and names
-that door. The canvas is 1280 × 800.
+that door; that door's own account of itself — where it is, whether it
+stands, its revision, what it dropped, what was no cue and who sent the
+newest — is the kit's `connectionReadout`, with the other doors' counts
+and the page's status after it. The canvas is 1280 × 800.
 
 [The guide](../../../spell-circle-canvas/docs/guides/sigilio-flatbuffers-touchdesigner.md)
 walks through every file here, the TouchDesigner patch and the Syphon

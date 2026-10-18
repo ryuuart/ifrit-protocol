@@ -123,11 +123,18 @@ the page's `--flash` custom property before settling to its ink, a line a
 tint sings across word by word, a sequence that drops each letter in and then
 squashes it, and a wave loop on a wrapping phase.
 
+`python_kit_pieces.py` sets nine pieces of the sketch kit on one sheet from
+Python, each from keywords alone: a plot with its axes, rules, area, trace,
+marks and label, a legend, meters and a dial, a ticker over a timeline, a
+scrollbar, a console over a ring of rows, an instrument, a panel and a
+title card.
+
 `cue_deck/` reads a TouchDesigner patch's cues through three doors: JSON
 text with no schema, OSC messages gathered by address pattern, and a
 FlatBuffer read through the `cue_deck.bfbs` the build compiles beside
 the entry from `cue_deck.fbs`. All three hand the page the same
-`data.Json`, and the page names the door the newest cue came through.
+`data.Json`, and the page names the door the newest cue came through,
+whose own account of itself is the kit's `connectionReadout`.
 Its README and the guide it links say how the patch is wired and how the
 canvas returns to TouchDesigner over Syphon.
 
@@ -161,7 +168,7 @@ were read off; the rule above is written for all of them.
 | [glass_forms](glass_forms/README.md) | Glass and liquid forms in front of a patterned wall | Transmission through the scene behind at two indices, frosted roughness, dispersion, Beer–Lambert tint at two thicknesses, a liquid shell and heat-haze distortion, one layer deep, under a drifting eye. |
 | [shadow_play](shadow_play/README.md) | Forms on a ground before a wall under three lights that cast | A turning sun's three cascades, a circling spot's perspective map with a softer filter, a lamp's six faces among the forms, instanced stones each casting, a held ring whose shadow stands apart, a slab left out of one light's shadow link and a cube that casts nothing, in one closed loop. |
 | [soft_boxes](soft_boxes/README.md) | A row from mirror to matte under a softbox, a strip, a sphere and a disk light | Rect, sphere and disk lights shading diffuse and specular from their size, each seen as a panel or ball beside it, a clear coat answering them, the softbox casting from its centre; a gliding, turning softbox whose rectangle slides across the ground and the balls in one closed loop. |
-| [metal_linework](metal_linework/README.md) | Silver and copper routing linework and material lettering | Stroke caps and joins as coverage, pressure ribbons, brushed normals, masked plating, roughness and metallic endpoints. |
+| [metal_linework](metal_linework/README.md) | Plated copper and silver traces on a dark glass-weave board | Material keylines with round caps and joins whose relief and brushing are cut from each trace's own band, revolved vias, solder beads, and an emissive pulse with bloom. |
 | `black_watch` | The Government sett, from Douglas's 1949 *Scotch Tartan Setts* | A tartan as CLOTH — 24 integers and a mod-4 rule, 63,504 emergent cells, ten invariants computed and printed |
 | `chaucer_astrolabe` | A planispheric astrolabe of the English "Chaucer" type, computed for Oxford 51° 50′ | A working instrument that tells the time — every radius out of φ and ε, proving itself to 5.55e-16 R on the canvas |
 | `cde_motif` | CDE 1.0 on OSF/Motif 2.1 (1995) | A desktop as the OUTPUT of a published function — `XmGetColors` derives four colours from one background, byte-exact including C's truncating division |

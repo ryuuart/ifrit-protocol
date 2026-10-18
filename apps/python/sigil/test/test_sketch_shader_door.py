@@ -59,7 +59,7 @@ class ShaderFile(unittest.TestCase):
             source.write_text(SCENE.format(name="fill.sksl"))
             host = InProcess(root / "state")
             clock, session = Clock(host), Session(host)
-            clock.set_policy(policy=Policy.Advance)
+            clock.setPolicy(policy=Policy.Advance)
             session.open(sketch=str(source))
 
             def pixel():

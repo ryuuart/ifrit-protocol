@@ -4,6 +4,8 @@
 
 #include "sigilmotion/ease/Ease.h"
 
+#include "sigilmotion/values/Oscillator.h"
+
 namespace sigil::motion {
 
 bool easeEqual(const Easing& left, const Easing& right) {
@@ -16,10 +18,15 @@ bool easeEqual(const Easing& left, const Easing& right) {
     return rightPointer && *leftPointer == *rightPointer;
   }
   // A shaped curve keeps its shape and its numbers where they can be read
-  // back; anything else is a lambda and stays unequal.
+  // back, and so does an oscillator; anything else is a lambda and stays
+  // unequal.
   if (const ease::Curve* leftCurve = left.target<ease::Curve>(); leftCurve) {
     const ease::Curve* rightCurve = right.target<ease::Curve>();
     return rightCurve && *leftCurve == *rightCurve;
+  }
+  if (const Oscillator* leftWave = left.target<Oscillator>(); leftWave) {
+    const Oscillator* rightWave = right.target<Oscillator>();
+    return rightWave && *leftWave == *rightWave;
   }
   return false;
 }

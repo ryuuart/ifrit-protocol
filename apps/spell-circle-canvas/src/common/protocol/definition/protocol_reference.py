@@ -81,7 +81,7 @@ def fields_table(model: Model, table: Table, heading: str) -> str:
 
 def command_section(model: Model, domain: Domain, command: Command) -> str:
     out = f"### {command.method}\n\n{prose(command)}\n\n"
-    python = f"{domain.service}.{protocol_model.snake(command.name)}"
+    python = f"{domain.service}.{command.name}"
     out += f"In Python, {python}.\n\n"
     if command.dispatcher:
         out += (
@@ -146,7 +146,7 @@ def page(model: Model, domain: Domain) -> str:
             payload = model.table(event.payload)
             name = protocol_model.last_word(payload.name)
             out += f"### {event.method}\n\n{prose(event)}\n\n"
-            python = f"{domain.service}.on_{protocol_model.snake(event.name)}"
+            python = f"{domain.service}.{protocol_model.listener(event.name)}"
             out += f"In Python, {python}.\n\n"
             out += f"Carries `{name}`: {prose(payload)}\n\n"
             out += fields_table(model, payload, "Field")

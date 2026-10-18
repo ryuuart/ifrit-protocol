@@ -81,7 +81,7 @@ What the registry tells a client that enabled it.
 
 Sketches were added, removed or rebuilt.
 
-In Python, Registry.on_changed.
+In Python, Registry.onChanged.
 
 Carries `ChangedEvent`: The registry changed.
 

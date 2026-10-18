@@ -185,6 +185,18 @@ class Typography(unittest.TestCase):
         self.assertIs(node.paragraphStyles(names=("heading", "body")), node)
         self.assertIs(node.paragraphStyles(blocks=(weave.ParagraphStyle(),)), node)
 
+    def test_a_text_path_carries_its_fit_and_its_fill(self):
+        path = TextPath(fit=TextPath.Fit.Size, fill=0.5)
+        self.assertEqual(path.fit, TextPath.Fit.Size)
+        self.assertEqual(path.fill, 0.5)
+        path.fit = TextPath.Fit.Spacing
+        self.assertEqual(path.copy().fit, TextPath.Fit.Spacing)
+        self.assertEqual(TextPath().fit, TextPath.Fit.None_)
+        self.assertEqual(TextPath().fill, 1.0)
+        self.assertEqual(
+            list(TextPath.Fit.__members__), ["None_", "Size", "Spacing"]
+        )
+
     def test_a_run_lays_out_along_a_curve_built_from_geometry_alone(self):
         # An arch through three points, made by sigil.geometry with no Skia
         # spelling, carries the run: ink rises to the arch's crown and

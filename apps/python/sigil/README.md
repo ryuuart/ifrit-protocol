@@ -306,11 +306,18 @@ from sigil.protocol.clock import Policy
 from sigil.testing import InProcess
 
 host = InProcess("state")                    # or launch(state="state")
-Clock(host).set_policy(policy=Policy.Advance)
+Clock(host).setPolicy(policy=Policy.Advance)
 Session(host).open(sketch="sketch.py")
 Clock(host).step(seconds=2)
 print(Session(host).still(density=2).path)   # written under state/
 ```
+
+The client is spelled in the package's camelCase: a command is its own
+name (`setPolicy`, `setTimeScale`, `pinDensity`), an event's listener is
+`on` and the event's name (`onBudgetExpired`), and a table's fields are
+attributes such as `budgetSeconds`, carried on the wire under the
+definition's own member names (`budget_seconds`) by `toJson` and
+`fromJson`.
 
 Under Advance nothing moves but by a step, and a still taken then is the
 plate a sweep writes of that moment; a paused clock photographs the
@@ -1125,6 +1132,21 @@ record classes such as `Page`, `Well` and `Spacing` spell it: `paddingY=`,
 `rowGap=`. A snake_case spelling such as `padding_y=` is refused with a
 `TypeError` that names the field it missed.
 
+The rest of the sketch kit is bound the same way, each piece a record of
+keyword properties and the function that sets it: `legend(*entries)` over
+`LegendEntry`, `swatchStrip` and `chip`; `meter` and `gauge`; `ticker(content)`
+and `timeline(*marks)` with `Timeline.Mark`; `scrollbar` over a `Scrolled`;
+`backdrop`, `panel(content)` and `frame(screen)`; `titleCard`, whose lines
+may be given as their words; `console(*rings)` over `compose.feed.TextRing`s;
+`instrument(picture, readings)`; and `connectionReadout(connection)`, a
+door's state as the compose kit's `readout` rows, followed by the sketch's
+own `compose.kit.Reading`s. A chart is `plot(key, frame, layers)` over a
+`Plot` of two `data.Scale`s: `axis`, `rules`, `trace` (a function of one
+number or a measured series), `area`, `path` and `label` take keywords;
+`marks`, `bands` and `segments` read each row through `x=` and `y=`
+functions; and a Python function of the frame, the key and the index is a
+layer too. `python_kit_pieces` sets nine of them on one sheet.
+
 `houseTheme()` supplies the default stock theme; `studyTheme()` supplies
 the stock theme for typographic studies. Both factories and `theme()` return
 owned native values. Their embedded palette, type and spacing fields are
@@ -1259,6 +1281,27 @@ clamp=(e, f))` follows a live number through those stages, which run in
 that order whatever order they are named in; `envelope.cosine()`,
 `square()`, `trapezoid()` and `shaped()` shape the phase.
 
+A curve is part of a binding's identity, so a tree described again with an
+equal binding patches nothing. A native ease from `sigil.motion.ease` and an
+`Oscillator` are values: handed to `ease=` or `envelope.shaped(...)`, they
+compare by their settings, and two bindings built the same way compare
+equal. A Python function is held as an opaque callable — nothing outside
+the function can say what it computes — so a binding shaped by one compares
+equal to no other, itself included, and a node bound through it is patched
+every time it is described; state the curve as an `Oscillator` or a native
+ease where it can be one.
+
+Stillness is asked in three words. `value.isRunning()` says a value is
+DECLARED to move — a live value always is. `motion.isRunning(held, value)`
+says it is moving NOW: a `motion.HeldMotion` is the motion a consumer keeps
+for one number, started or bent by `motion.retarget(engine, held, previous,
+next, transition=0.3)` or `motion.enter(engine, held, value)`, and it runs
+while a motion is writing it and stops when it lands; `motion.valueOf(held,
+value)` reads the number this frame. Whether a value has provably held
+still is the third question, which only comparing it across frames
+answers; an engine's own `isRunning()` asks whether anything it runs is
+declared to move.
+
 `animate(start, end, duration=..., delay=..., ease=...)` declares an
 entrance; the start and the end come first by position, because `from` is a
 word Python reserves, and `from_=` and `to=` name them by keyword.
@@ -1392,6 +1435,14 @@ value's `runs()` and a story's `blocks()` return independent snapshots.
 `TextPath` and `textOnPath` place text on a native shape — a
 `geometry.path.Outline` such as `path.curveThrough(points)` as well as a Skia
 path — and accept shared motion values for progress.
+`TextPath(fit=TextPath.Fit.Size)` scales a run's type until it girds its
+baseline's whole length, and `Fit.Spacing` spreads its letters instead,
+so a ring run meets itself at the seam; `fill` is the share of the length
+the fitted run takes, and `Fit.None_` leaves the run as it is set.
+`Composer.beatsOf(key, trackIndex)` reads a track's schedule back as
+`compose.Beat` values — the unit, its start, its local progress and the
+rect the text put it in — and `Composer.units(key, selector, unit)` the
+units a selector addresses as `compose.TextUnit` values.
 
 The native entrance runs on a text leaf's glyphs as a track:
 `text("KINETIC").textFx(textFx.entrance(textFx.rise(26)))`. A tween of
@@ -1433,10 +1484,16 @@ the resolver a sketch session installs; drawn where no resolver is installed,
 the pass keeps its Skia paint. The parity table tracks the remaining work
 independently of which native libraries are linked.
 
+A face is `weave.Face`, as it is in C++: `kit.houseFace(kit.Voice.Book)`
+answers one, a theme's `type.sans` and `type.mono` are its two (None is the
+default family), and `Theme.sans(size, color)` and `Theme.mono(...)` set a
+line in either. A face is taken wherever a Skia typeface is and the other
+way round, since the two hold one typeface shared; `face.typeface()` and
+`weave.Face(typeface)` say so explicitly.
 A font file a sketch carries is a resource like an image: on a session's
-hub, `ctx.assets.hub().load(skia.Typeface, ctx.local("data/Face.ttf"))`
-answers the face it holds, which `pen.textFont` and a shaping style's
-`typeface` take. The hub keeps one face per resource, so a C++ sketch
+hub, `ctx.assets.hub().load(weave.Face, ctx.local("data/Face.ttf"))`
+answers the face it holds — `load(skia.Typeface, ...)` the same face as a
+typeface — which `pen.textFont` and a shaping style's `typeface` take. The hub keeps one face per resource, so a C++ sketch
 asking `hub.load<weave::Face>` for the same URI gets the same face, and a
 file edited on disk is read again as a new face the next time it is asked
 for. An owned hub knows no font until `weave.registerDecoders(hub)` puts
@@ -1744,7 +1801,13 @@ since the page last painted is not painted again. `python_plaque` wears one.
 A fill stating `material.from_(c).surface(transmission=1.0, ior=1.33,
 thickness=20)` on the page is glass on the body that wears it, seeing the
 scene behind where the page transmits, and an `emissionStrength` past one
-keeps its light past white.
+keeps its light past white. Every field of the native surface options is a
+keyword of `surface(...)` under its native name — `flatBack=True` for a
+plano-convex body whose back is the plane at its own zero depth,
+`relief=material.ReliefOptions(...)` and `anisotropyAlongUnit=True` among
+them — and `material.surface.lower(material)` answers the program it
+states, whose fields `Material.get(name)` reads back; a
+`surface.SurfaceParameters` carries every number the native one does.
 
 ```python
 @sketch(size=(960, 540), captureAt=2.0)
@@ -1760,7 +1823,8 @@ class Plaque:
 ```
 
 A 2D picture that is its own light, or that lies over the finished frame,
-is a `compose.TextureScene`: `ctx.textureScene((width, height))` at setup,
+is a `compose.TextureScene` — a class of the compose bindings, which imports
+with `sigil.compose` alone: `ctx.textureScene((width, height))` at setup,
 then in `describe` `screen.render(tree, seconds)` and `screen.texture()` in
 a material's slot or on the frame with `frame.overlay(...)`.
 `python_world_study` lays its words over its set that way.

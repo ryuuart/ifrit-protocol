@@ -12,6 +12,8 @@ def register(table: Table) -> None:
         "_sigil.sketch.kit", "stage", "_sigil.Context | _sigil.sketch.Scene3DContext"
     )
     table.erased("_sigil.sketch.kit.Theme", "font style", "_t.ColorLike")
+    for member in ("sans", "mono"):
+        table.parameters(f"_sigil.sketch.kit.Theme.{member}", color="_t.ColorLike")
     table.erased(
         "_sigil.sketch.kit.Provide",
         "__exit__",

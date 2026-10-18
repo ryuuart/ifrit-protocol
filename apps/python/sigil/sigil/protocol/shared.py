@@ -60,12 +60,12 @@ class Empty:
     result of one that answers only that it was done.
     """
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         return {}
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> Empty:
+    def fromJson(cls, value: messages.Json) -> Empty:
         """The table a JSON object carries; MessageError where it does not fit."""
         messages.members(value, cls)
         return cls()
@@ -83,7 +83,7 @@ class Error:
     parameter or the reason.
     """
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["code"] = self.code.value
@@ -91,7 +91,7 @@ class Error:
         return out
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> Error:
+    def fromJson(cls, value: messages.Json) -> Error:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
@@ -113,7 +113,7 @@ class Revision:
     compatible: int = 0
     """Raised by a change a client built against the last still speaks."""
 
-    def to_json(self) -> dict[str, messages.Json]:
+    def toJson(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
         out: dict[str, messages.Json] = {}
         out["breaking"] = self.breaking
@@ -121,7 +121,7 @@ class Revision:
         return out
 
     @classmethod
-    def from_json(cls, value: messages.Json) -> Revision:
+    def fromJson(cls, value: messages.Json) -> Revision:
         """The table a JSON object carries; MessageError where it does not fit."""
         fields = messages.members(value, cls)
         return cls(
@@ -140,7 +140,7 @@ class ProtocolError(Exception):
         self.error = error
 
 
-def client_refusal(code: ErrorCode, method: str, what: str) -> Error:
+def clientRefusal(code: ErrorCode, method: str, what: str) -> Error:
     """A refusal the client made, about the command or event @p method."""
     return Error(code=code, message=f"client: {method}: {what}")
 
@@ -156,7 +156,7 @@ def answer[Result](
         return read(value)
     except messages.MessageError as error:
         what = f"the answer does not read as its result: {error}"
-        refusal = client_refusal(ErrorCode.unreadable, method, what)
+        refusal = clientRefusal(ErrorCode.unreadable, method, what)
         raise ProtocolError(refusal) from error
 
 
@@ -175,7 +175,7 @@ def hearing[Event](
             event = read(value)
         except messages.MessageError as error:
             what = f"the event does not read as its table: {error}"
-            caller.refused(client_refusal(ErrorCode.unreadable, method, what))
+            caller.refused(clientRefusal(ErrorCode.unreadable, method, what))
             return
         listener(event)
 

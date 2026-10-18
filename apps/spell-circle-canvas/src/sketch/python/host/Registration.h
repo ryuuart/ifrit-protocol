@@ -37,9 +37,6 @@ void bindSketchPage(pybind11::module_& module);
 /** Registers the context a Python scene3d sketch is handed at setup on
  *  @p module. */
 void bindSketchScene3DSketches(pybind11::module_& module);
-/** Registers the compose scene painted into a texture that a scene3d
- *  context hands out on @p module. */
-void bindSketchWorldScene3D(pybind11::module_& module);
 /** Registers a sketch host in this process, spoken to through the
  *  protocol, on @p module. */
 void bindSketchTesting(pybind11::module_& module);

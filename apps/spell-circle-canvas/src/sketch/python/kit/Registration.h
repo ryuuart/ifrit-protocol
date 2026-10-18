@@ -20,14 +20,13 @@ namespace sigil::sketch::python {
 void bindSketchKit(pybind11::module_& module);
 /** Registers the plot frame and every chart layer on @p module. */
 void bindSketchKitCharts(pybind11::module_& module);
-/** Registers theme extras, passage, Document and Instrument on @p
- *  module. */
+/** Registers the instrument on @p module. */
 void bindSketchKitContent(pybind11::module_& module);
 /** Registers legends, swatch strips, chips, meters and gauges on @p
  *  module. */
 void bindSketchKitLegends(pybind11::module_& module);
-/** Registers backdrop, panel, frame, scrollbar, ticker and timeline on
- *  @p module. */
+/** Registers the headings and title card, backdrop, panel, frame,
+ *  scrollbar, ticker and timeline on @p module. */
 void bindSketchKitPanels(pybind11::module_& module);
 /** Registers the verdict of a run of checks on @p module, with the
  *  compose kit's table column it is set in. */
@@ -35,7 +34,8 @@ void bindSketchKitVerdict(pybind11::module_& module);
 /** Registers the control surface a study puts beside a material on
  *  @p module. */
 void bindSketchKitControls(pybind11::module_& module);
-/** Registers the console and the channel on @p module. */
+/** Registers the console and the readout of a connection on @p
+ *  module. */
 void bindSketchKitStreams(pybind11::module_& module);
 
 /** Declares a stage through a validated session context. */

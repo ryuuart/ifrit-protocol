@@ -12,6 +12,7 @@
 #include <pybind11/stl/filesystem.h>
 #include <sigildata/connection/Connection.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/testing/Testing.h>
 #include <sigilpython/data/Convert.h>
 #include <sigilpython/data/Registration.h>
 #include <sigilpython/io/Hub.h>
@@ -104,6 +105,10 @@ data::ConnectOptions optionsOf(size_t capacity, std::string peer,
 }
 
 }  // namespace
+
+std::shared_ptr<data::Connection> connectionOf(py::handle value) {
+  return py::cast<const ConnectionHandle&>(value).get();
+}
 
 void bindDataConnection(py::module_& root) {
   auto module = root.def_submodule("data");
@@ -228,6 +233,16 @@ void bindDataConnection(py::module_& root) {
              unlocked([&] { connection->close(); });
            })
       .def("uri", [](ConnectionHandle& value) { return value.get()->uri(); });
+
+  // A test puts arrivals on a connection's own feed through its inlet, as
+  // it does on a feed it opened itself.
+  auto testing = root.attr("io").attr("testing").cast<py::module_>();
+  testing.def(
+      "inletOf",
+      [](ConnectionHandle& value) {
+        return sigil::io::testing::inletOf(value.get()->feed());
+      },
+      py::arg("connection"));
 
   module.def(
       "connect",

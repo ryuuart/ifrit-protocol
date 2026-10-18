@@ -4,13 +4,14 @@ for the tables every domain shares with what the client refuses, the
 readings every module stands on, and the package index.
 
 A table is a frozen dataclass whose fields are the definition's, in its
-order and under its names, with its defaults; `to_json()` and
-`from_json()` cross the JSON object the wire carries, and `from_json()`
-refuses a member the table does not declare, as the C++ reading does. A
-domain is a class over a caller, one method per command taking the
-parameter table's fields as keywords and answering the result's table,
-and one `on_…` method per event. Methods are the package's snake_case;
-the method each sends is the definition's own name, `clock.setPolicy`.
+order, with its defaults, under the camelCase every name of the package is
+spelled in — `budgetSeconds` for the wire's `budget_seconds`; `toJson()` and
+`fromJson()` cross the JSON object the wire carries under the definition's
+own member names, and `fromJson()` refuses a member the table does not
+declare, as the C++ reading does. A domain is a class over a caller, one
+method per command taking the parameter table's fields as keywords and
+answering the result's table, and one `on…` method per event. A method is
+the definition's own name, `setPolicy` sending `clock.setPolicy`.
 
 Every file is written as `ruff format` leaves it and as `ruff check`
 passes it, so the committed client is held by the tree's lint as well as
@@ -21,6 +22,7 @@ the formatter splits it.
 from __future__ import annotations
 
 import pathlib
+import re
 import typing
 
 import protocol_model
@@ -67,6 +69,7 @@ from __future__ import annotations
 import collections.abc
 import dataclasses
 import enum
+import re
 import typing
 
 if typing.TYPE_CHECKING:
@@ -107,11 +110,17 @@ def members(value: Json, table: type[DataclassInstance]) -> dict[str, Json]:
     member the table declares."""
     if not isinstance(value, dict):
         raise MessageError(f"{table.__name__} is read from a JSON object")
-    declared = {field.name for field in dataclasses.fields(table)}
+    declared = {wireName(field.name) for field in dataclasses.fields(table)}
     unknown = sorted(value.keys() - declared)
     if unknown:
         raise MessageError(f"{table.__name__} declares no {', '.join(unknown)}")
     return value
+
+
+def wireName(attribute: str) -> str:
+    """The member a table's attribute is carried as on the wire:
+    ``budget_seconds`` of ``budgetSeconds``."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", attribute).lower()
 
 
 def required(fields: dict[str, Json], name: str) -> Json:
@@ -149,7 +158,7 @@ def text(fields: dict[str, Json], name: str, default: str) -> str:
     return value
 
 
-def required_text(fields: dict[str, Json], name: str) -> str:
+def requiredText(fields: dict[str, Json], name: str) -> str:
     """Text the definition requires, which the object must carry."""
     return text({name: required(fields, name)}, name, "")
 
@@ -158,10 +167,10 @@ def enumeration[Value: enum.Enum](
     fields: dict[str, Json], name: str, default: Value
 ) -> Value:
     """One value of the enumeration @p default is a value of."""
-    return one_of(type(default), name, text(fields, name, default.value))
+    return oneOf(type(default), name, text(fields, name, default.value))
 
 
-def one_of[Value: enum.Enum](kind: type[Value], name: str, value: str) -> Value:
+def oneOf[Value: enum.Enum](kind: type[Value], name: str, value: str) -> Value:
     try:
         return kind(value)
     except ValueError as error:
@@ -178,7 +187,7 @@ def table[Value](
     return None if value is None else read(value)
 
 
-def required_table[Value](
+def requiredTable[Value](
     fields: dict[str, Json],
     name: str,
     read: collections.abc.Callable[[Json], Value],
@@ -187,27 +196,27 @@ def required_table[Value](
     return read(required(fields, name))
 
 
-def optional_boolean(fields: dict[str, Json], name: str) -> bool | None:
+def optionalBoolean(fields: dict[str, Json], name: str) -> bool | None:
     return None if fields.get(name) is None else boolean(fields, name, False)
 
 
-def optional_integer(fields: dict[str, Json], name: str) -> int | None:
+def optionalInteger(fields: dict[str, Json], name: str) -> int | None:
     return None if fields.get(name) is None else integer(fields, name, 0)
 
 
-def optional_real(fields: dict[str, Json], name: str) -> float | None:
+def optionalReal(fields: dict[str, Json], name: str) -> float | None:
     return None if fields.get(name) is None else real(fields, name, 0.0)
 
 
-def optional_text(fields: dict[str, Json], name: str) -> str | None:
+def optionalText(fields: dict[str, Json], name: str) -> str | None:
     return None if fields.get(name) is None else text(fields, name, "")
 
 
-def optional_enumeration[Value: enum.Enum](
+def optionalEnumeration[Value: enum.Enum](
     fields: dict[str, Json], name: str, kind: type[Value]
 ) -> Value | None:
-    value = optional_text(fields, name)
-    return None if value is None else one_of(kind, name, value)
+    value = optionalText(fields, name)
+    return None if value is None else oneOf(kind, name, value)
 
 
 def items(fields: dict[str, Json], name: str) -> list[Json]:
@@ -237,7 +246,7 @@ def texts(fields: dict[str, Json], name: str) -> tuple[str, ...]:
 def enumerations[Value: enum.Enum](
     fields: dict[str, Json], name: str, kind: type[Value]
 ) -> tuple[Value, ...]:
-    return tuple(one_of(kind, name, item) for item in texts(fields, name))
+    return tuple(oneOf(kind, name, item) for item in texts(fields, name))
 
 
 def tables[Value](
@@ -260,7 +269,7 @@ class ProtocolError(Exception):
         self.error = error
 
 
-def client_refusal(code: ErrorCode, method: str, what: str) -> Error:
+def clientRefusal(code: ErrorCode, method: str, what: str) -> Error:
     """A refusal the client made, about the command or event @p method."""
     return Error(code=code, message=f"client: {method}: {what}")
 
@@ -276,7 +285,7 @@ def answer[Result](
         return read(value)
     except messages.MessageError as error:
         what = f"the answer does not read as its result: {error}"
-        refusal = client_refusal(ErrorCode.unreadable, method, what)
+        refusal = clientRefusal(ErrorCode.unreadable, method, what)
         raise ProtocolError(refusal) from error
 
 
@@ -295,7 +304,7 @@ def hearing[Event](
             event = read(value)
         except messages.MessageError as error:
             what = f"the event does not read as its table: {error}"
-            caller.refused(client_refusal(ErrorCode.unreadable, method, what))
+            caller.refused(clientRefusal(ErrorCode.unreadable, method, what))
             return
         listener(event)
 
@@ -376,6 +385,14 @@ class FieldForm:
     def __init__(self, module: Module, field: Field) -> None:
         self.module = module
         self.field = field
+        self.attribute = protocol_model.camel(field.name)
+        # The wire member is read back from the attribute by the messages
+        # module, so the two spellings have to carry each other exactly.
+        wire = re.sub(r"(?<!^)(?=[A-Z])", "_", self.attribute).lower()
+        if wire != field.name:
+            raise ValueError(
+                f"{field.name} cannot be spelled as an attribute and read back"
+            )
 
     @property
     def is_enumeration(self) -> bool:
@@ -438,17 +455,17 @@ class FieldForm:
         name = f'"{field.name}"'
         kind = field.type
         if kind == "table":
-            read = f"{self.referenced}.from_json"
+            read = f"{self.referenced}.fromJson"
             if field.vector:
                 return "messages.tables", ["fields", name, read]
             if field.required:
-                return "messages.required_table", ["fields", name, read]
+                return "messages.requiredTable", ["fields", name, read]
             return "messages.table", ["fields", name, read]
         if self.is_enumeration:
             if field.vector:
                 return "messages.enumerations", ["fields", name, self.referenced]
             if field.optional:
-                return "messages.optional_enumeration", [
+                return "messages.optionalEnumeration", [
                     "fields",
                     name,
                     self.referenced,
@@ -465,19 +482,19 @@ class FieldForm:
             plural = {"text": "texts", "boolean": "booleans", "integer": "integers"}
             return f"messages.{plural.get(word, 'reals')}", ["fields", name]
         if kind == "string" and field.required:
-            return "messages.required_text", ["fields", name]
+            return "messages.requiredText", ["fields", name]
         if field.optional:
-            return f"messages.optional_{word}", ["fields", name]
+            return f"messages.optional{word.capitalize()}", ["fields", name]
         return f"messages.{word}", ["fields", name, typing.cast("str", self.default())]
 
     def writing(self, indent: str) -> str:
         """The lines that write this field into ``out``."""
         field = self.field
-        here = f"self.{field.name}"
+        here = f"self.{self.attribute}"
         key = f'out["{field.name}"]'
         if field.vector:
             if field.type == "table":
-                value = f"[item.to_json() for item in {here}]"
+                value = f"[item.toJson() for item in {here}]"
             elif self.is_enumeration:
                 value = f"[item.value for item in {here}]"
             else:
@@ -493,7 +510,7 @@ class FieldForm:
             return f"{indent}{key} = {value}\n"
         value = here
         if field.type == "table":
-            value = f"{here}.to_json()"
+            value = f"{here}.toJson()"
         elif self.is_enumeration:
             value = f"{here}.value"
         if self.may_be_absent:
@@ -520,9 +537,9 @@ def table_text(module: Module, table: Table) -> str:
     for form in forms:
         default = form.default()
         written = f" = {default}" if default is not None else ""
-        out += f"\n    {form.field.name}: {form.annotation()}{written}\n"
+        out += f"\n    {form.attribute}: {form.annotation()}{written}\n"
         out += docstring(form.field, "    ")
-    out += "\n    def to_json(self) -> dict[str, messages.Json]:\n"
+    out += "\n    def toJson(self) -> dict[str, messages.Json]:\n"
     out += '        """This table as the JSON object the wire carries."""\n'
     if not forms:
         out += "        return {}\n"
@@ -532,7 +549,7 @@ def table_text(module: Module, table: Table) -> str:
             out += form.writing("        ")
         out += "        return out\n"
     out += "\n    @classmethod\n"
-    out += f"    def from_json(cls, value: messages.Json) -> {name}:\n"
+    out += f"    def fromJson(cls, value: messages.Json) -> {name}:\n"
     out += (
         '        """The table a JSON object carries; MessageError where it does'
         ' not fit."""\n'
@@ -545,7 +562,7 @@ def table_text(module: Module, table: Table) -> str:
     out += "        return cls(\n"
     for form in forms:
         function, arguments = form.reading()
-        out += split("            ", f"{form.field.name}={function}(", arguments, "),")
+        out += split("            ", f"{form.attribute}={function}(", arguments, "),")
     out += "        )\n"
     return out
 
@@ -562,10 +579,10 @@ def command_text(module: Module, model: Model, command: Command) -> str:
         for form in forms:
             default = form.default()
             written = f" = {default}" if default is not None else ""
-            arguments.append(f"{form.field.name}: {form.annotation()}{written}")
+            arguments.append(f"{form.attribute}: {form.annotation()}{written}")
     out = "\n" + split(
         "    ",
-        f"def {protocol_model.snake(command.name)}(",
+        f"def {command.name}(",
         arguments,
         f") -> {result}:",
     )
@@ -575,14 +592,14 @@ def command_text(module: Module, model: Model, command: Command) -> str:
     if nothing_in:
         sent = "{}"
     else:
-        given = [f"{form.field.name}={form.field.name}" for form in forms]
+        given = [f"{form.attribute}={form.attribute}" for form in forms]
         out += split(
             "        ", f"parameters = {module.spell(command.parameters)}(", given, ")"
         )
-        sent = "parameters.to_json()"
+        sent = "parameters.toJson()"
     out += split("        ", "answer = self._caller.call(", [method, sent], ")")
     shared = module.alias(SHARED) if module.space != BASE else ""
-    read = f"{module.spell(command.result)}.from_json"
+    read = f"{module.spell(command.result)}.fromJson"
     check = f"{shared}.answer" if shared else "answer"
     head = f"{check}(" if nothing_out else f"return {check}("
     out += split("        ", head, [method, read, "answer"], ")")
@@ -594,7 +611,7 @@ def event_text(module: Module, event: protocol_model.Event) -> str:
     listener = f"collections.abc.Callable[[{payload}], None]"
     out = "\n" + split(
         "    ",
-        f"def on_{protocol_model.snake(event.name)}(",
+        f"def {protocol_model.listener(event.name)}(",
         ["self", f"listener: {listener}"],
         ") -> None:",
     )
@@ -608,7 +625,7 @@ def event_text(module: Module, event: protocol_model.Event) -> str:
     out += split(
         "        ",
         f"hear = {hearing}(",
-        ["self._caller", method, f"{payload}.from_json", "listener"],
+        ["self._caller", method, f"{payload}.fromJson", "listener"],
         ")",
     )
     out += split("        ", "self._caller.listen(", [method, "hear"], ")")

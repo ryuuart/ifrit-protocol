@@ -44,6 +44,14 @@ class DeepCopyMemo : public pybind11::dict {
   using pybind11::dict::dict;
 };
 
+/** THE CLASS `weave.Face` IS IN PYTHON: one face held, shared by every
+ *  copy, as the native face is. It stands apart from the face itself so
+ *  that a face can be read from a Skia typeface and from None as well as
+ *  from one of these. */
+struct FaceValue {
+  sigil::weave::Face face;
+};
+
 }  // namespace sigil::python
 
 namespace pybind11::detail {
@@ -286,16 +294,24 @@ struct type_caster<SkColor4f> {
   }
 };
 
-/** A FACE IN PYTHON IS THE SKIA TYPEFACE IT HOLDS: the engine's face value
- *  and Skia's typeface are one typeface shared, so an author meets one
- *  class, and None is no face — the default family. */
+/** A FACE IN PYTHON IS `weave.Face`, as it is in C++, and it is read from
+ *  a Skia typeface as readily, since the two hold one typeface shared;
+ *  None is no face — the default family — both ways. */
 template <>
 struct type_caster<sigil::weave::Face> {
-  PYBIND11_TYPE_CASTER(sigil::weave::Face, const_name<SkTypeface>());
+  PYBIND11_TYPE_CASTER(
+      sigil::weave::Face,
+      io_name("_sigil.weave.Face | _sigil.skia.Typeface | None",
+              "_sigil.weave.Face | None"));
 
   bool load(handle input, bool convert) {
     if (input.is_none()) {
       value = nullptr;
+      return true;
+    }
+    make_caster<sigil::python::FaceValue> held;
+    if (held.load(input, false)) {
+      value = cast_op<const sigil::python::FaceValue&>(held).face;
       return true;
     }
     make_caster<sk_sp<SkTypeface>> typeface;
@@ -304,11 +320,11 @@ struct type_caster<sigil::weave::Face> {
     return true;
   }
 
-  static handle cast(const sigil::weave::Face& input, return_value_policy policy,
+  static handle cast(const sigil::weave::Face& input, return_value_policy,
                      handle parent) {
     if (!input) return none().release();
-    return make_caster<sk_sp<SkTypeface>>::cast(sigil::weave::toSk(input),
-                                                policy, parent);
+    return make_caster<sigil::python::FaceValue>::cast(
+        sigil::python::FaceValue{input}, return_value_policy::move, parent);
   }
 };
 

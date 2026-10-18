@@ -1,5 +1,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
@@ -10,7 +11,10 @@
 #include <sigilpython/material/Registration.h>
 #include <sigilpython/motion/Convert.h>
 
+#include <cstring>
 #include <optional>
+#include <span>
+#include <vector>
 #include <string>
 #include <utility>
 
@@ -66,6 +70,15 @@ void bindMaterialCore(py::module_& module) {
            py::arg("low") = 0.0f, py::arg("high") = 1.0f,
            py::arg("invert") = false)
       .def(py::self == py::self);
+  bindRecord<material::ReliefOptions>(materials, "ReliefOptions",
+                                      "Unknown ReliefOptions field: ")
+      .def_readwrite("shoulder", &material::ReliefOptions::shoulder)
+      .def_readwrite("depth", &material::ReliefOptions::depth)
+      .def(py::self == py::self)
+      .doc() =
+      "The unit a material is painted into, raised or impressed: the "
+      "shoulder width in logical pixels and the height relative to it, "
+      "positive raising and negative impressing.";
 }
 
 void bindMaterialBuilder(py::module_& module) {
@@ -91,7 +104,9 @@ void bindMaterialBuilder(py::module_& module) {
           [](material::Material& self, material::Channel metallic,
              material::Channel roughness, material::Channel occlusion,
              std::optional<material::Material> normal, float normalScale,
-             bool normalDirectX, const material::Color& emission,
+             bool normalDirectX,
+             std::optional<material::ReliefOptions> relief,
+             const material::Color& emission,
              float emissionStrength,
              std::optional<material::Material> emissionMap, float alphaCutoff,
              material::Channel clearcoat, material::Channel clearcoatRoughness,
@@ -99,13 +114,15 @@ void bindMaterialBuilder(py::module_& module) {
              material::ColorInput sheenColor, material::Channel sheenRoughness,
              float anisotropy, float anisotropyRotation,
              std::optional<material::Material> anisotropyDirection,
-             material::Channel iridescence, float iridescenceIor,
+             bool anisotropyAlongUnit, material::Channel iridescence,
+             float iridescenceIor,
              float iridescenceThickness, float iridescenceThicknessMinimum,
              std::optional<material::Material> iridescenceThicknessMap,
              material::Channel specular, material::ColorInput specularColor,
              material::Channel transmission, float ior,
              material::Channel thickness, std::string thicknessAttribute,
-             const material::Color& attenuationColor, float attenuationDistance,
+             bool flatBack, const material::Color& attenuationColor,
+             float attenuationDistance,
              float dispersion, std::optional<material::Material> distortion,
              float distortionStrength, float reflectionWeight, bool unlit,
              material::BlendMode blend, std::optional<bool> depthWrite,
@@ -116,7 +133,7 @@ void bindMaterialBuilder(py::module_& module) {
                                  std::move(normal),
                                  normalScale,
                                  normalDirectX,
-                                 std::nullopt,
+                                 relief,
                                  emission,
                                  emissionStrength,
                                  std::move(emissionMap),
@@ -129,7 +146,7 @@ void bindMaterialBuilder(py::module_& module) {
                                  anisotropy,
                                  anisotropyRotation,
                                  std::move(anisotropyDirection),
-                                 false,
+                                 anisotropyAlongUnit,
                                  std::move(iridescence),
                                  iridescenceIor,
                                  iridescenceThickness,
@@ -141,7 +158,7 @@ void bindMaterialBuilder(py::module_& module) {
                                  ior,
                                  std::move(thickness),
                                  std::move(thicknessAttribute),
-                                 false,
+                                 flatBack,
                                  attenuationColor,
                                  attenuationDistance,
                                  dispersion,
@@ -157,7 +174,7 @@ void bindMaterialBuilder(py::module_& module) {
           py::arg_v("roughness", material::Channel(0.5f), "0.5"),
           py::arg_v("occlusion", material::Channel(1.0f), "1.0"),
           py::arg("normal") = py::none(), py::arg("normalScale") = 1.0f,
-          py::arg("normalDirectX") = false,
+          py::arg("normalDirectX") = false, py::arg("relief") = py::none(),
           py::arg_v("emission", material::Color{0, 0, 0, 1},
                     "Color(0, 0, 0, 1)"),
           py::arg("emissionStrength") = 0.0f,
@@ -171,6 +188,7 @@ void bindMaterialBuilder(py::module_& module) {
           py::arg_v("sheenRoughness", material::Channel(0.0f), "0.0"),
           py::arg("anisotropy") = 0.0f, py::arg("anisotropyRotation") = 0.0f,
           py::arg("anisotropyDirection") = py::none(),
+          py::arg("anisotropyAlongUnit") = false,
           py::arg_v("iridescence", material::Channel(0.0f), "0.0"),
           py::arg("iridescenceIor") = 1.3f,
           py::arg("iridescenceThickness") = 400.0f,
@@ -183,7 +201,7 @@ void bindMaterialBuilder(py::module_& module) {
           py::arg_v("transmission", material::Channel(0.0f), "0.0"),
           py::arg("ior") = 1.5f,
           py::arg_v("thickness", material::Channel(0.0f), "0.0"),
-          py::arg("thicknessAttribute") = "",
+          py::arg("thicknessAttribute") = "", py::arg("flatBack") = false,
           py::arg_v("attenuationColor", material::Color{1, 1, 1, 1},
                     "Color(1, 1, 1, 1)"),
           py::arg("attenuationDistance") = 0.0f, py::arg("dispersion") = 0.0f,
@@ -235,6 +253,31 @@ void bindMaterialBuilder(py::module_& module) {
             return self.bind(name, motionAnimatable(value));
           },
           py::arg("name"), py::arg("value"), fluent)
+      .def(
+          "get",
+          [](const material::Material& self,
+             const std::string& name) -> py::object {
+            // The field's declared kind says how its bytes read back: a
+            // number, a colour, or the run of numbers any other kind is.
+            const material::Field* field =
+                self.recipe().parameters().find(name);
+            if (field == nullptr)
+              throw py::key_error("The material's program has no field "
+                                  "named '" + name + "'.");
+            if (field->kind == material::ParameterType::Float)
+              return py::cast(self.get<float>(name));
+            if (field->kind == material::ParameterType::Color)
+              return py::cast(self.get<material::Color>(name));
+            const std::span<const std::byte> bytes = self.bytes();
+            std::vector<float> values(field->floats);
+            std::memcpy(values.data(), bytes.data() + field->offset,
+                        field->floats * sizeof(float));
+            return py::cast(values);
+          },
+          py::arg("name"),
+          "The value of the field name of the material's program as it was "
+          "set: a number, a colour, or the numbers of a wider field. A "
+          "material whose base is not a program has no fields.")
       .def("hasProgram", &material::Material::hasProgram)
       .def("isRunning", &material::Material::isRunning)
       .def("base", &material::Material::base)

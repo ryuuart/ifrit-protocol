@@ -11,6 +11,7 @@
 #include <string>
 
 namespace sigil::data {
+class Connection;
 class Database;
 class Json;
 }
@@ -31,5 +32,8 @@ pybind11::object dataDatabase(std::shared_ptr<const data::Database> database);
  *  it. */
 pybind11::object loadData(sigil::io::Hub& hub, pybind11::handle type,
                           const std::string& uri);
+/** The native connection a Python `data.Connection` holds; refused for a
+ *  connection whose session has closed. */
+std::shared_ptr<data::Connection> connectionOf(pybind11::handle value);
 
 }  // namespace sigil::python

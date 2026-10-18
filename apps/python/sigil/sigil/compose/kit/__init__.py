@@ -15,6 +15,8 @@ from _sigil.compose.kit import (
     LineCompanion,
     Panel,
     PanelGrid,
+    Reading,
+    Rows,
     Sheet,
     Well,
     WellContent,
@@ -87,6 +89,18 @@ def centred(*children):
     return element
 
 
+
+def reading(one, props=None, **properties):
+    """One row: a reading's name at the left and its figure at the right of
+    the rows' measure."""
+    return _native.reading(one, _specification(Rows, props, properties))
+
+
+def readout(readings, props=None, **properties):
+    """A stack of readings ranged on their figures, one row each."""
+    return _native.readout(list(readings), _specification(Rows, props, properties))
+
+
 __all__ = [
     "Board",
     "Caption",
@@ -98,6 +112,8 @@ __all__ = [
     "LineCompanion",
     "Panel",
     "PanelGrid",
+    "Reading",
+    "Rows",
     "Sheet",
     "Well",
     "WellContent",
@@ -116,6 +132,8 @@ __all__ = [
     "line",
     "panel",
     "panelGrid",
+    "reading",
+    "readout",
     "ring",
     "sheet",
     "well",

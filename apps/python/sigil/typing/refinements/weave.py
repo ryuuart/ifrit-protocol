@@ -12,8 +12,10 @@ def register(table: Table) -> None:
     # A glyph outline stands its anchor on a point of the plane.
     table.accessor("_sigil.weave.GlyphOutlineOptions", "at", "_t.Vec2", "_t.Vec2Like")
     # No face is None, which asks for the options' family instead.
-    face = "_sigil.skia.Typeface | None"
-    table.accessor("_sigil.weave.GlyphOutlineOptions", "face", face, face)
+    face = "_sigil.weave.Face | _sigil.skia.Typeface | None"
+    table.accessor(
+        "_sigil.weave.GlyphOutlineOptions", "face", "_sigil.weave.Face | None", face
+    )
     table.parameters(
         "_sigil.weave.GlyphOutlineOptions.__init__", at="_t.Vec2Like", face=face
     )

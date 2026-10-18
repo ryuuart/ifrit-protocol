@@ -48,6 +48,8 @@ void bindMaterialEnvironment(py::module_& module) {
       .def_readwrite("transmission", &Parameters::transmission)
       .def_readwrite("ior", &Parameters::ior)
       .def_readwrite("thickness", &Parameters::thickness)
+      .def_readwrite("thicknessAttribute", &Parameters::thicknessAttribute)
+      .def_readwrite("flatBack", &Parameters::flatBack)
       .def_readwrite("attenuationDistance", &Parameters::attenuationDistance)
       .def_readwrite("dispersion", &Parameters::dispersion)
       .def_readwrite("distortionStrength", &Parameters::distortionStrength)
@@ -71,7 +73,10 @@ void bindMaterialEnvironment(py::module_& module) {
       .def_readwrite("iridescenceThicknessChannel",
                      &Parameters::iridescenceThicknessChannel)
       .def_readwrite("specular", &Parameters::specular)
-      .def_readwrite("specularChannel", &Parameters::specularChannel);
+      .def_readwrite("specularChannel", &Parameters::specularChannel)
+      .def_readwrite("blend", &Parameters::blend)
+      .def_readwrite("depthWrite", &Parameters::depthWrite)
+      .def_readwrite("depthFade", &Parameters::depthFade);
   py::enum_<material::surface::Reflection>(surface, "Reflection")
       .value("SplitSum", material::surface::Reflection::SplitSum)
       .value("Additive", material::surface::Reflection::Additive);
@@ -83,6 +88,11 @@ void bindMaterialEnvironment(py::module_& module) {
       py::arg("reflection") = material::surface::Reflection::SplitSum);
   surface.def("unlit", &material::surface::unlit,
               py::arg("parameters") = Parameters{});
+  surface.def("lower", &material::surface::lower, py::arg("material"),
+              "The surface program a material states: its base as the base "
+              "colour and each surface channel in its map slot, the unlit "
+              "program for an unlit surface, and the base unlit for a "
+              "material that states no surface.");
   bindRecord<material::surface::HeightNormalOptions>(
       surface, "HeightNormalOptions", "Unknown HeightNormalOptions field: ")
       .def_readwrite("depth", &material::surface::HeightNormalOptions::depth)
