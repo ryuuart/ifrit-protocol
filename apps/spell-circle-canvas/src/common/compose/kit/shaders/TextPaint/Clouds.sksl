@@ -1,0 +1,114 @@
+// CLOUDS: a sky ramp under clouds built from layered simplex noise: a
+// ridged sum and a smooth sum give the clouds their shape, two finer sums
+// their tone, each layer travelling at its own speed.
+float2 cloudHash(float2 point) {
+  point = float2(dot(point, float2(127.1, 311.7)),
+                 dot(point, float2(269.5, 183.3)));
+  return -1.0 + 2.0 * fract(sin(point) * 43758.5453123);
+}
+
+float cloudNoise(float2 point) {
+  float skew = 0.366025404;
+  float unskew = 0.211324865;
+  float2 corner = floor(point + (point.x + point.y) * skew);
+  float2 first = point - corner + (corner.x + corner.y) * unskew;
+  float2 middleStep = (first.x > first.y) ? float2(1.0, 0.0) : float2(0.0, 1.0);
+  float2 second = first - middleStep + unskew;
+  float2 third = first - 1.0 + 2.0 * unskew;
+  float3 falloff = max(0.5 - float3(dot(first, first), dot(second, second),
+                                    dot(third, third)),
+                       0.0);
+  float3 contributions =
+      falloff * falloff * falloff * falloff *
+      float3(dot(first, cloudHash(corner + 0.0)),
+             dot(second, cloudHash(corner + middleStep)),
+             dot(third, cloudHash(corner + 1.0)));
+  return dot(contributions, float3(70.0));
+}
+
+float cloudFractal(float2 point, float2x2 turn) {
+  float total = 0.0;
+  float amplitude = 0.1;
+  for (int octave = 0; octave < 7; octave++) {
+    total += cloudNoise(point) * amplitude;
+    point = turn * point;
+    amplitude *= 0.4;
+  }
+  return total;
+}
+
+half4 main(float2 point) {
+  float cloudScale = 1.1;
+  float cloudSpeed = 0.03;
+  float cloudDark = 0.5;
+  float cloudLight = 0.3;
+  float cloudCover = 0.2;
+  float cloudAlpha = 8.0;
+  float skyTint = 0.5;
+  float3 skyLow = float3(0.2, 0.4, 0.6);
+  float3 skyHigh = float3(0.4, 0.7, 1.0);
+  float2x2 turn = float2x2(1.6, 1.2, -1.2, 1.6);
+
+  float2 position = (point - origin) / extent;
+  float2 coordinate = position * float2(extent.x / extent.y, 1.0);
+  float travel = time * cloudSpeed;
+  float base = cloudFractal(coordinate * cloudScale * 0.5, turn);
+
+  float ridges = 0.0;
+  coordinate *= cloudScale;
+  coordinate -= base - travel;
+  float weight = 0.8;
+  for (int octave = 0; octave < 8; octave++) {
+    ridges += abs(weight * cloudNoise(coordinate));
+    coordinate = turn * coordinate + travel;
+    weight *= 0.7;
+  }
+
+  float shape = 0.0;
+  coordinate = position * float2(extent.x / extent.y, 1.0);
+  coordinate *= cloudScale;
+  coordinate -= base - travel;
+  weight = 0.7;
+  for (int octave = 0; octave < 8; octave++) {
+    shape += weight * cloudNoise(coordinate);
+    coordinate = turn * coordinate + travel;
+    weight *= 0.6;
+  }
+
+  shape *= ridges + shape;
+
+  float tone = 0.0;
+  float travelTwice = time * cloudSpeed * 2.0;
+  coordinate = position * float2(extent.x / extent.y, 1.0);
+  coordinate *= cloudScale * 2.0;
+  coordinate -= base - travelTwice;
+  weight = 0.4;
+  for (int octave = 0; octave < 7; octave++) {
+    tone += weight * cloudNoise(coordinate);
+    coordinate = turn * coordinate + travelTwice;
+    weight *= 0.6;
+  }
+
+  float fineTone = 0.0;
+  float travelThrice = time * cloudSpeed * 3.0;
+  coordinate = position * float2(extent.x / extent.y, 1.0);
+  coordinate *= cloudScale * 3.0;
+  coordinate -= base - travelThrice;
+  weight = 0.4;
+  for (int octave = 0; octave < 7; octave++) {
+    fineTone += abs(weight * cloudNoise(coordinate));
+    coordinate = turn * coordinate + travelThrice;
+    weight *= 0.6;
+  }
+  tone += fineTone;
+
+  float3 sky = mix(skyHigh, skyLow, position.y);
+  float3 cloudColour =
+      float3(1.1, 1.1, 0.9) * clamp(cloudDark + cloudLight * tone, 0.0, 1.0);
+
+  shape = cloudCover + cloudAlpha * shape * ridges;
+
+  float3 result = mix(sky, clamp(skyTint * sky + cloudColour, 0.0, 1.0),
+                      clamp(shape + tone, 0.0, 1.0));
+  return half4(half3(result), 1.0);
+}

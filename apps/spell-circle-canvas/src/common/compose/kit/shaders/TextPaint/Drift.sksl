@@ -1,0 +1,6 @@
+// The slow drift every text paint's field moves along: a Lissajous figure
+// across two axes, read from the moment the paint stands at, so a field
+// whose time is bound drifts as it plays.
+float2 textPaintDrift() {
+  return float2(sin(time * 0.83), cos(time * 0.61));
+}

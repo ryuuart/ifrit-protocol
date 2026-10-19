@@ -576,7 +576,7 @@ Link the feature you use:
 | `SigilComposeCore` | Elements, Composer, layout, transitions, basic text and paint. |
 | `SigilComposeTypography` | Text effects, paths, readings and the text executor. |
 | `SigilComposeBrush` | Stroke and decoration execution, brushes and masks. |
-| `SigilComposeKit` | Stock layouts, components, document roles and drawing recipes. |
+| `SigilComposeKit` | Stock layouts, components, document roles, drawing recipes and the text paints (`kit::textPaint`). |
 | `SigilComposeDraw` | A SigilDraw pen hosted in a tree, and retained elements drawn by a pen. |
 | `SigilComposeTexture` | A composer and owned surface exposed as a texture value, and a tree rendered as a surface's maps. |
 | `SigilComposeWeb` | Web content as a leaf, when the Ultralight SDK is available. |

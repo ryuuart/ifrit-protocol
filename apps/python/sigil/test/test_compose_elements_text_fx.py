@@ -274,15 +274,43 @@ class Scene:
     # The same effect on a track at rest, which nothing plays.
     REST = 'text("RISE").font(sans).textFx(textFx.enter(textFx.rise(20)), progress=1)'
 
+    # The sketch is 200 pixels wide; the instrument's letters stand on an
+    # advance of 14.4 pixels at 24, so the first letter's ink lies in the
+    # first 15 columns and the last letter's between columns 43 and 58.
+    WIDTH = 200
+    FIRST_LETTER = range(0, 15)
+    LAST_LETTER = range(43, 58)
+
+    @classmethod
+    def columns(cls, pixels, span):
+        """The pixels of the columns in `span`, row by row."""
+        return b"".join(
+            pixels[(row * cls.WIDTH + span.start) * 4:(row * cls.WIDTH + span.stop) * 4]
+            for row in range(len(pixels) // (cls.WIDTH * 4))
+        )
+
     def test_a_bare_entrance_plays_once_over_its_span(self):
         rest = self.render(self.REST, at=1.0)
         self.assertGreater(self.bright(rest), 0)
         # One frame in, every glyph is below its rest and still faint.
         self.assertEqual(self.bright(self.render(self.BARE, at=1 / 60)), 0)
-        # The last letter is still on its way just before the span closes,
-        # and every letter is home once it has.
-        self.assertNotEqual(self.render(self.BARE, at=self.SPAN - 0.02), rest)
+        # The letters land in turn: at 0.28 s the first letter, 0.62 of its
+        # way through an ease-out-expo rise of 20 pixels, is within a
+        # third of a pixel of home, which a glyph's vertical place rounds
+        # away, while the last, which started 90 ms later, is still a pixel
+        # short of it.
+        landing = self.render(self.BARE, at=0.28)
+        self.assertEqual(
+            self.columns(landing, self.FIRST_LETTER),
+            self.columns(rest, self.FIRST_LETTER),
+        )
+        self.assertNotEqual(
+            self.columns(landing, self.LAST_LETTER),
+            self.columns(rest, self.LAST_LETTER),
+        )
+        # Every letter is home once the span closes, and stays home.
         self.assertEqual(self.render(self.BARE, at=self.SPAN + 0.02), rest)
+        self.assertEqual(self.render(self.BARE, at=self.SPAN * 3), rest)
 
     def test_a_progress_the_track_states_stands(self):
         self.assertTrue(textFx.entrance(textFx.rise(20)).progressOverSpan)

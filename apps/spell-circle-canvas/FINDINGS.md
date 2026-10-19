@@ -23,27 +23,6 @@ footprints. A test should hold `BM_Draw_CoverageSheet_TurningChild`'s
 dressed arm under a stated ratio of the child's arm on the Graphite arm,
 where sampling a turned mask is cheap.
 
-## `text_paints::sparkle`'s cells follow the run's extent, and no test binary can hold that
-
-`Sparkle.sksl`'s cell (`kSparkleSkSL` in `text_paints/TextPaints.h`) is
-now `extent.y * 22/70`, so as a fill over a 220 × 70 box it is the 22 px
-cell it was, a word twice the size takes cells twice as large, and inked
-on the unit box of `PaintBox::Element` several cells stand across a
-passage; `text_paints` states its SPARKLE OVER A BASE ink there.
-
-What is not done is the test the fix wants: ink a word with
-`sparkle(SkRect::MakeWH(1, 1), t)` on `PaintBox::Element` and assert that
-light lands on several separate glyphs, that the same word at twice the
-size takes cells twice as large, and that the fill over 220 × 70 is
-unchanged. The paint is a look the sketch keeps beside itself, and no
-test binary compiles sketch code: `compose_test` including a sketch's
-header would import a sketch into a library's tests, and `sketch_test`
-covers the host library, not sketches. It needs a decision on where a
-sketch's own assertions run (a sketch-side check printed at startup, as
-`black_watch` prints its invariants; a test binary over the sketches'
-headers; or the text paints lifted into a kit that a library test can
-reach).
-
 ## A sized light's highlight is a representative point's, not the lobe's integral
 
 `src/common/world/diligent/shaders/Surface.slang` lights the specular side
@@ -150,4 +129,24 @@ itself, as the compose, scry and media benches do, so the waits
 registered on the recorder are not attached to those inserts; every
 insert should go through `GraphiteContext::submit`. A test should insert
 a scry page after a registered wait and find `pendingWaits` at zero.
+
+## The sparkle stretched over a passage is one streak, not points of light
+
+An ink maps its unit square onto the passage's box and the program
+cannot see that box's aspect, so on a wide word a sparkle cell spans
+about a third of the word and a box holds about ten cells; the SIGIL
+wordmark shows one streak across its S where points of light across the
+word were meant. The ink would have to hand the program its box size,
+which `TextInk.cpp` pins to one by one; that is core or material work,
+not the kit's. A test should ink the SIGIL wordmark with the sparkle at
+its capture moment and find at least three separate lit regions on at
+least three glyphs.
+
+## The kit text paint has no Python spelling
+
+`compose::kit::textPaint` and its `TextPaint` record are new in the kit
+and unbound, so the ledger's `text_paints` entry requires it and the
+sketch cannot be written in Python. A test should ink a word with
+`kit.textPaint(field=kit.TextField.Sparkle, time=6.4)` from Python and
+find it painted.
 

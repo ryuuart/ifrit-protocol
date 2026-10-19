@@ -528,11 +528,6 @@ native = "`material::skia::paint` SkShader interop"
 library = "Material"
 python = ["material.Paint.shader"]
 
-[requirement.painter-runtime]
-native = "`sketch::painterRuntime` mesh executor query"
-library = "Sketch host"
-python = ["sketch.Scene2DContext.painterRuntime"]
-
 [requirement.particles]
 native = "`motion::physics::Emitter` and `Particles`"
 library = "Motion"
@@ -634,14 +629,6 @@ python = ["skia.Surface.raster"]
 native = "`material::Recipe` authoring"
 library = "Material"
 python = ["material.Recipe"]
-
-[requirement.render-runtime]
-native = "`geometry::mesh::render::Runtime` selection"
-library = "Geometry"
-python = [
-  "geometry.mesh.render.Runtime.cpu",
-  "geometry.mesh.render.Runtime.device",
-]
 
 [requirement.require-cached]
 native = "`sketch::requireCached`"
@@ -923,3 +910,8 @@ python = ["world.kit.wave", "world.kit.winding", "world.kit.rail"]
 native = "`material::pattern` woven cloth"
 library = "Material"
 python = ["material.pattern.clothTile"]
+
+[requirement.kit-text-paint]
+name = "compose::kit::textPaint"
+what = "The kit text paint family: one options record with a field selector (water, mesh gradient, sparkle, star nest, clouds, tunnel), an animatable time and a box, as a material for an ink or a fill"
+binding = "src/common/python/compose"

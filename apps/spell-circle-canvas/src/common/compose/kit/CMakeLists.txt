@@ -2,15 +2,20 @@ sigil_library(SigilComposeKit
   SOURCES Bevels.cpp Board.cpp Connect.cpp Document.cpp Frame.cpp
           Instruments.cpp Layouts.cpp Outline.cpp Pin.cpp PixelType.cpp Routers.cpp Rows.cpp Specimen.cpp
           Sprites.cpp
-          Stamp.cpp
+          Stamp.cpp TextPaint.cpp
   HEADERS Board.h Chrome.h Connect.h Document.h Feed.h Frame.h
           Annotations.h Outline.h Pin.h Stamp.h
           Typeset.h Instruments.h Kit.h Layouts.h Marquee.h
           PixelType.h Placers.h Routers.h Rows.h Specimen.h Sprites.h
+          TextPaint.h
   # Bevels reuse private kernel material lowering and coverage painting.
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
          SigilGeometryKit SigilCoreCompute SigilMaterial SigilWeave SigilWeavePorts)
+# The text paints' programs are the files under shaders/, each a field's
+# body over the drift they share.
+sigil_shader_sources(SigilComposeKit
+  DIR ${CMAKE_CURRENT_LIST_DIR}/shaders NAMESPACE sigil::compose::kit)
 
 # The italic-overhang case requires system fonts; other cases use instruments.
 sigil_test(compose_test
@@ -26,7 +31,8 @@ sigil_test(compose_test
           test/ComposeTestQueries.cpp test/ComposeTestRouters.cpp
           test/ComposeTestRows.cpp test/ComposeTestShapeValues.cpp
           test/ComposeTestSpecimen.cpp test/ComposeTestSprites.cpp
-          test/ComposeTestStudio.cpp test/ComposeTestTiling.cpp
+          test/ComposeTestStudio.cpp test/ComposeTestTextPaint.cpp
+          test/ComposeTestTiling.cpp
           test/ComposeTestTravel.cpp test/ComposeTestFactsAcrossImages.cpp
   LIBRARIES SigilComposeKit SigilComposeBrush SigilMeasure
             SigilComposeTesting SigilWeavePorts

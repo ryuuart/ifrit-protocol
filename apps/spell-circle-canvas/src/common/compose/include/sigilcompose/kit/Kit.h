@@ -29,4 +29,5 @@
 #include "sigilcompose/kit/Specimen.h"
 #include "sigilcompose/kit/Sprites.h"
 #include "sigilcompose/kit/Stamp.h"
+#include "sigilcompose/kit/TextPaint.h"
 #include "sigilcompose/kit/Typeset.h"

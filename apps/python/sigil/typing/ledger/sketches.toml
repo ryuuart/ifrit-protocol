@@ -287,7 +287,7 @@ needs = "Vertical Japanese blocks; stock and house kinsoku; hanging punctuation 
 requires = ["stock-tables"]
 
 [sketch.codec_roundtrip]
-needs = "PLY encode and decode of meshes and clouds; model merge, bounds and fit; point attributes; billboard splats; mesh painter"
+needs = "PLY encode and decode of meshes and clouds; model merge, bounds and fit; point attributes; billboard splats; baked world frames"
 requires = ["kit-section-header", "clouds", "mesh-codec"]
 
 [sketch.compute_variant]
@@ -565,8 +565,8 @@ requires = [
 ]
 
 [sketch.floating_panels]
-needs = "Compose texture bakes; gauge kit; image panels; textured cylinder and grid meshes; process painter runtime"
-requires = ["painter-runtime", "kit-meter", "texture-scene", "render-runtime"]
+needs = "Compose texture bakes; gauge kit; textured quad, cylinder and grid bodies in a baked world frame"
+requires = ["kit-meter", "texture-scene"]
 
 [sketch.flourish]
 needs = "Its own ornament and gilt border pieces; contour walks; nine-slice; paint programs; routed wires; layer blur; runtime shaders; silhouettes; pen overlays"
@@ -814,11 +814,11 @@ needs = "Vertical writing mode; silhouette exclusions; clamped column ellipsis; 
 requires = ["silhouettes"]
 
 [sketch.mesh_generators]
-needs = "Extrude, revolve, torus, superellipsoid; spline sweep; spline points with frame lanes; instanced quads; lit mesh draws"
+needs = "Extrude, revolve, torus, superellipsoid; spline sweep; spline points with frame lanes; instanced quads; a baked world frame"
 requires = ["silhouettes", "clouds", "splines", "sweeps"]
 
 [sketch.mesh_normal_bridge]
-needs = "Offscreen normal and UV mesh passes; environment reflection recipes; bevel normals; shader coverage compositing; squircle silhouette"
+needs = "Baked world frames in environments; environment reflection recipes; bevel normals; shader coverage compositing; squircle silhouette"
 requires = [
   "canvas-layers",
   "silhouettes",
@@ -1022,15 +1022,6 @@ requires = []
 needs = "Radial, conical, sweep and unit gradients; world-space paint; revisioned pixel buffer paint; specimen section headers"
 requires = ["kit-section-header", "pixel-buffer"]
 
-[sketch.painter_gpu]
-needs = "Mesh painter with selectable runtime; perspective image panels; element trees baked to textures; specimen furniture"
-requires = [
-  "painter-runtime",
-  "kit-section-header",
-  "texture-scene",
-  "render-runtime",
-]
-
 [sketch.paragraph_sheet]
 needs = "Paragraph styles: leading kinds, spacing, indents, justification, tab stops, vertical writing; caption kit; panel grids, ladders"
 requires = ["hyphenation-patterns"]
@@ -1112,11 +1103,11 @@ needs = "Point chain with depth-lane ramp and order permutation; unsorted billbo
 requires = ["compose-readout", "raster-surfaces", "point-operators", "clouds"]
 
 [sketch.pop_prims]
-needs = "Mesh primitive lanes and vertex bake; primitive-colour mesh style; promoted point Id stamps; OKLab ramp; readouts"
+needs = "Mesh primitive lanes and vertex bake; a world body tinted by its primitive colour; promoted point Id stamps; OKLab ramp; readouts"
 requires = ["compose-readout", "point-operators", "primitive-lanes"]
 
 [sketch.pop_stamps]
-needs = "Silhouette motifs baked to atlas; point chains swept into tubes, stamped quads, profile sweeps, windowed ribbon; mesh painter"
+needs = "Silhouette motifs baked to atlas; point chains swept into tubes, stamped quads, profile sweeps, windowed ribbon; baked world frames"
 requires = ["texture-scene", "silhouettes", "point-operators", "sweeps"]
 
 [sketch.psx_doom_fire]
@@ -1342,7 +1333,7 @@ requires = ["text-fx", "kinetic-presets", "schedules"]
 
 [sketch.text_paints]
 needs = "One ink across a word, a paragraph and a cropped long run; eight inks on display and body type from one sheet; chrome ramps; justified Knuth-Plass text with pattern hyphenation; measured passage files; wells and comparisons"
-requires = ["hyphenation-patterns", "paint-shader"]
+requires = ["hyphenation-patterns", "kit-text-paint"]
 
 [sketch.text_wrap]
 needs = "`textWrap` and `textJustify` longhands over one passage at one measure; themed specimen page"
@@ -1569,7 +1560,7 @@ requires = [
 ]
 
 [sketch.yarn_marquee]
-needs = "Winding spline; parallel-transport and hung rail frames; frame sweep with line section; textured two-sided mesh painter"
+needs = "Winding spline; parallel-transport and hung rail frames; frame sweep with line section; a textured two-sided body in a baked world frame"
 requires = ["raster-surfaces", "splines", "sweeps", "world-rails"]
 
 [sketch.zellige]

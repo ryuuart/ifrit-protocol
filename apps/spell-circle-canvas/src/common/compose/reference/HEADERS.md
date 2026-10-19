@@ -969,7 +969,17 @@ over a `kit::ColumnSet`, N frames of one story threaded in order, with the
 `kit/Annotations.h` (`kit::annotate` under `kit::Beside`, which does the
 arithmetic of the reading direction, or `kit::Anchored`, which takes the offset
 the author states; the unit is offered to the overlay it builds, so a mark that
-is the same at every unit names nothing) — and, shipped with the tiers whose
+is the same at every unit names nothing), the text paints in
+`kit/TextPaint.h` (`kit::textPaint` over a `kit::TextPaint`: one procedural
+field — a `kit::TextField`, water, a mesh gradient, sparkle, a star nest,
+clouds or a tunnel — at a moment, over a box, each field one program embedded
+from the kit's `shaders/` directory over the same box, moment and drift; the
+box defaults to the unit square an ink's `PaintBox` stretches over its
+passage, a fill reads its node's own pixels and names that box instead, and a
+time that is not a constant is bound to the material's `time`, so the field
+and its drift play; every field spaces what it repeats in shares of its box,
+so the sparkle's square cell is 22/70 of the box's height and a word twice
+the size takes cells twice as large) — and, shipped with the tiers whose
 types they are spelled in, `kit/Strokes.h`'s finished lines, braid, bracket
 spans, brush presets and `kit::groove` — the engraved cut across a disc's
 stroke, a radial ramp concentric with the circle so it is dark on the inner

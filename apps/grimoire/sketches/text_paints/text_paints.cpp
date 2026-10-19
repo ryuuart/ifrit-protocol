@@ -13,7 +13,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilmaterial/skia/Paint.h>
+#include <sigilcompose/kit/TextPaint.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/kit/Hyphenation.h>
@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "../y2k_chrome/ChromeType.h"
-#include "TextPaints.h"
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -51,33 +50,33 @@ struct Ink {
   PaintBox box = PaintBox::Element;
 };
 
-material::Material field(material::Material recipe) { return recipe; }
-
 std::vector<Ink> inks() {
-  // An ink on the default box hands its paint the unit square, so the
-  // fields are authored over it rather than over any run's pixels.
-  const SkRect unit = SkRect::MakeWH(1, 1);
+  // A text paint is authored over the unit square, which an ink on the
+  // default box stretches over its passage.
+  const auto field = [](kit::TextField which) {
+    return kit::textPaint({.field = which, .time = kMoment});
+  };
   return {
-      {"water", "WATER", "water(unit, t)",
+      {"water", "WATER", "TextField::Water",
        "Fine highlights in a blue field; at body size they read as grain.",
-       field(text_paints::water(unit, kMoment))},
-      {"mesh", "MESH", "meshGradient(unit, t)",
+       field(kit::TextField::Water)},
+      {"mesh", "MESH", "TextField::MeshGradient",
        "Four colour regions, crossed by the word and by the column alike.",
-       field(text_paints::meshGradient(unit, kMoment))},
-      {"sparkle", "SPARKLE OVER A BASE", "sparkle(unit, t) · plus",
+       field(kit::TextField::MeshGradient)},
+      {"sparkle", "SPARKLE OVER A BASE", "TextField::Sparkle · plus",
        "Points of light across the word, each cell a share of the type.",
        material::from(sigil::material::Color{0.23f, 0.30f, 0.46f, 1})
-           .layer(field(text_paints::sparkle(unit, kMoment)),
+           .layer(field(kit::TextField::Sparkle),
                   {.blend = material::BlendMode::PlusLighter})},
-      {"star-nest", "STAR NEST", "starNest(unit, t)",
+      {"star-nest", "STAR NEST", "TextField::StarNest",
        "Dense light inside the letterforms; small type keeps its warmth.",
-       field(text_paints::starNest(unit, kMoment))},
-      {"clouds", "CLOUDS", "clouds(unit, t)",
+       field(kit::TextField::StarNest)},
+      {"clouds", "CLOUDS", "TextField::Clouds",
        "Broad, soft changes of value that hold an even grey.",
-       field(text_paints::clouds(unit, kMoment))},
-      {"tunnel", "TUNNEL", "tunnel(unit, t)",
+       field(kit::TextField::Clouds)},
+      {"tunnel", "TUNNEL", "TextField::Tunnel",
        "A high-contrast field; its dark rings eat whole words.",
-       field(text_paints::tunnel(unit, kMoment))},
+       field(kit::TextField::Tunnel)},
       {"sunset", "SUNSET CHROME", "sunsetChromeType()",
        "A hard horizon at half cap height; a column takes one band of it.",
        y2k::sunsetChromeType()},
@@ -244,7 +243,7 @@ struct TextPaints {
                            "spreads it across its lines; the long run's top "
                            "slice never reaches it."},
                       {.title = "A BROAD COLOUR FIELD",
-                       .control = "meshGradient(unit, t)",
+                       .control = "TextField::MeshGradient",
                        .figure = pageProof("mesh", words, completeDepth),
                        .note = "The same four regions cover every run. A long "
                                "passage samples them far more slowly down the "

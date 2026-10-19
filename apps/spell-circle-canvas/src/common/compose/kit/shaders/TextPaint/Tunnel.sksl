@@ -1,0 +1,21 @@
+// TUNNEL: a ray marched down a twisting lattice of cosines, its depth
+// coloured through a sine, so dark rings stand between bright walls.
+float tunnelDistance(float3 position, float driftAcross) {
+  position.z -= time * 10.0;
+  float angle = position.z * 0.1 + driftAcross * 0.3;
+  float2x2 turn = float2x2(cos(angle), sin(angle), -sin(angle), cos(angle));
+  position.xy = turn * position.xy;
+  return 0.1 - length(cos(position.xy) + sin(position.yz));
+}
+
+half4 main(float2 point) {
+  float2 drift = textPaintDrift();
+  float2 offset = point - origin;
+  float3 direction = 0.5 - float3(offset, extent.y) / extent.y;
+  float3 position = float3(0.0);
+  for (int march = 0; march < 32; march++) {
+    position += tunnelDistance(position, drift.x) * direction;
+  }
+  float3 color = (sin(position) + float3(2.0, 5.0, 12.0)) / length(position);
+  return half4(half3(color), 1.0);
+}
