@@ -558,6 +558,12 @@ rendered again at every step, and `draw(self, pen)` is a full-canvas pen.
 A scene2d sketch can still bake one frame into a picture with
 `ctx.bakeScene3D`, declaring `needsDevice = True` on a line of its own.
 
+A file with no class at all is a sketch too, when it defines `setup`,
+`draw` or `describe` as functions at its top level: the loader wraps
+them into the class the decorator makes, and a listing reads the kind and
+`needsDevice` from the file's text by the same rules, at the top level as
+inside a class. A file that has both runs its class.
+
 Reusable bindings belong to SigilPython. SigilSketchPython adds sketch sessions
 and kit support without adding Python to the core library, and its
 `sigil_python_sketches()` turns a host's Python sketches into registry
@@ -585,9 +591,29 @@ against its own headers, and refuses to when those headers are newer than
 the running image, because the boundary between a sketch and the libraries is
 their whole C++ vocabulary; it imports a Python sketch through its importer.
 Either way it adopts a replacement only once the replacement's session opens.
-Grimoire is one host over it and owns its windows, Python environments and
+Grimoire is one host over it and owns its Python environments and
 navigation; it reaches the framework through the public headers and
-targets alone, as any custom host would. The exported framework symbols, the libraries a sketch can reach,
+targets alone, as any custom host would.
+
+The window a host shows a sketch in is `SigilSketchWindow`, the one part
+of the framework that links a window system, built where the applications
+are. `sketch::Window::open` takes `sketch::WindowOptions` and answers a
+window on the calling thread, which must be the main one; `show` hands it
+a `sketch::Host`, `pump` handles its events and draws a frame where one
+is due, on that same thread, `still` writes a picture and `close` ends
+it. A headless window steps its host without a window system. The pane
+inside it draws through `sketch::WindowPainter` — Graphite on the
+window's own Metal device, the shared device lent that queue for its
+pages, the host's captures routed through the same context, and a raster
+buffer uploaded where no Metal device stands — and places the canvas with
+`sketch::placeCanvas` and `sketch::drawPane`. Grimoire's pane stands up
+its context, lends its pages and routes its captures through the same
+painter. The header of the door names no Qt, and
+`sigil_sketch_window_open` reaches it by name, so an ordinary Python
+interpreter loads the window library the first time a script opens one
+and resolves every framework symbol out of the extension it already
+loaded. A host made for a body it already holds, with no file behind it,
+sets `sketch::Host::Options::kind`. The exported framework symbols, the libraries a sketch can reach,
 workspaces and mapped-code lifetime are defined in [HOST.md](HOST.md). The protocol API is in [PROTOCOL.md](PROTOCOL.md).
 
 ## Source layout and targets
@@ -600,13 +626,14 @@ workspaces and mapped-code lifetime are defined in [HOST.md](HOST.md). The proto
 | `plate/` | captures, sweeps, comparisons and thumbnails |
 | `kit/`, `scry/` | specimen furniture and optional web integration |
 | `python/` | the Python adapter and a host's Python sketch registry |
+| `window/` | the window a host shows a sketch in, the one Qt part |
 | `cmake/` | the captured sketch flags and the exported link surface a host's build calls |
 | `testing/`, `test/support/` | host harnesses and shared test fixtures |
 
 `SigilSketch` is the runtime archive. `SigilSketchKit` supplies specimen
 components; `SigilSketchRegistryAgent` and `SigilSketchSessionAgent` supply
-protocol agents. `SigilSketchTesting` and `SigilSketchTestingHarness` supply
-test support. `SigilSketchVocabulary` names every library a sketch may
+protocol agents. `SigilSketchWindow` is the window, over Qt Quick.
+`SigilSketchTesting` and `SigilSketchTestingHarness` supply test support. `SigilSketchVocabulary` names every library a sketch may
 include, so a host's catalogue links it and adds what its own sketches need
 beyond it. This directory holds no sketch and no application: Grimoire's
 `SigilSketches` is its catalogue's object library and `Grimoire` its host.

@@ -216,3 +216,52 @@ so `weave.fonts.family(name, ctx.fonts)` lists a bundled family, while
 faces the same way. The two contexts should answer the same services. A
 test should list a bundled family from a scene3d sketch's context.
 
+## A sketch without a pen cannot read input
+
+The scene2d context answers no pointer or key reading: `Composer` has
+`setPointer` and `setKey` and no getter, so only a pen or a paint
+program inside a node sees input, a function sketch with no `draw` reads
+its input globals at rest, and its input hooks never fire; and no
+protocol route feeds pointer or key input to a session, so input hooks
+cannot be driven end to end. `update` and `describe` hooks should read
+input too, and a session should take pointer and key input over the
+protocol. A test should set a pointer on the host before a step and find
+`ctx.pointer` in `update` reflecting it, and a session-level pointer
+call followed by a step firing `mousePressed`.
+
+## The workspace scan misses a file of functions
+
+Grimoire's workspace scan (`apps/grimoire/src/Workspace.cpp`,
+`entrySource`) finds only `@sketch` classes, so a file of top-level
+`setup`, `draw` or `describe` functions opens by path but is not
+discovered in a workspace. A test should put such a file in a workspace
+and find it listed.
+
+## `overflow("hidden")` is refused
+
+Compose accepts only `visible` and `clip` for overflow, while CSS's most
+common value is `hidden`; it should clip as `clip` does. A test should
+set `overflow("hidden")` and find the content clipped.
+
+## A JSON number that is an integer comes back as a float
+
+`data.Json.toPython()` answers `1792390191489.0` for `1792390191489` and
+`0.0` for `0`, so a recording loaded through the hub hands a sketch
+different types than `json.loads` of the same text. Integers should stay
+integers. A test should decode `{"n": 1}` and find `n` an `int`. The hub's
+JSON decoder also reads exactly one document, so a JSON-lines recording
+has no door; one value per line, or a named dialect, should exist.
+
+## Axis tick labels for large values print in exponent form
+
+`kit.axis` prints ticks such as 82800 as `e+04` and clips them past the
+plot's left edge. Ticks should print as plain numbers inside the plot's
+bounds. A test should put ticks of 82800 and 82810 on an axis and find
+them printed plainly within the plot.
+
+## Directory Python studies are missing from the parity ledger
+
+`typing/parity.py` globs only top-level `python_*.py`, so
+`python_bundled_type` and `python_market_tape` never appear in
+PARITY.md; the study list should include `python_<stem>/python_<stem>.py`.
+

@@ -117,6 +117,16 @@ last acknowledgment. Headless captures replay synthetic arrivals without
 opening a socket or writing a file; the live waiting state labels its
 reference traces until a sender arrives.
 
+`python_market_tape/` is a live ticker fed by two third-party Python
+libraries with nothing between them and the page: `websockets` subscribes
+to Binance's public BTC/USDT trade stream and `httpx` polls Open-Meteo's
+current weather, each an asyncio task on `self.loop`, the event loop the
+sketch package turns once a frame on the sketch thread, writing every
+arrival onto the sketch as a Python dict. Both libraries are dependencies
+of this directory's `pyproject.toml`. A capture replays `data/tape.json`
+and `data/weather.json`, which its `record.py` writes from the same two
+libraries, at the seconds each arrival landed.
+
 `python_text_fx.py` runs the text effect family from Python on one page: a
 title decoding through a held scramble, a word whose keyframe stops flash in
 the page's `--flash` custom property before settling to its ink, a line a

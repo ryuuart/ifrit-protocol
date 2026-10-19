@@ -42,6 +42,19 @@ class Registration(unittest.TestCase):
             self.assertIn('"qualified", "qualified", "Python"', registered)
             self.assertEqual(registered.count("sigil::sketch::add("), 2)
 
+    def test_a_file_of_hook_functions_joins_the_catalogue_under_its_stem(self):
+        registered = self.generate(
+            {
+                "bounce.py": "def setup(): pass\ndef draw(pen): pass\n",
+                "page.py": "def describe(seconds): return None\n",
+                "helpers.py": "def update(elapsed): pass\ndef paint(pen): pass\n",
+                "nested.py": "class Helper:\n    def draw(self, pen): pass\n",
+            }
+        )
+        self.assertIn('"bounce", "bounce", "Python"', registered)
+        self.assertIn('"page", "page", "Python"', registered)
+        self.assertEqual(registered.count("sigil::sketch::add("), 2)
+
     def test_a_study_states_its_name_and_category_and_keeps_its_stem(self):
         # The module raises the moment it runs, so a registration that
         # reads its declarations by importing it fails here.

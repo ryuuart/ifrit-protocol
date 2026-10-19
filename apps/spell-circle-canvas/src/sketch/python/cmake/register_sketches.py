@@ -19,7 +19,18 @@ def declares_sketch(source):
                 and target.attr == "sketch"
             ):
                 return True
-    return False
+    return defines_hooks(source)
+
+
+def defines_hooks(source):
+    """Whether the module defines setup, draw or describe as functions at
+    its top level: a file of functions is a sketch as a decorated class is,
+    and the loader wraps them into one."""
+    return any(
+        isinstance(statement, ast.FunctionDef)
+        and statement.name in ("setup", "draw", "describe")
+        for statement in source.body
+    )
 
 
 def declarations(source):

@@ -76,6 +76,17 @@ a window server or a network.
     a colour changed, a card added, a value set moving, the font
     families listed and one set, a still taken, and `:reload` to start
     over, each line run between two frames of the sketch on screen.
+15. **[Data from any Python library](guide:data-from-any-python-library)**
+    — a live ticker fed by `websockets` and `httpx` as asyncio tasks on
+    the sketch's own loop, `self.loop`, turned once a frame on the
+    sketch thread: each arrival a dict written straight onto the model,
+    the tasks cancelled with the session, and a recording a still
+    replays.
+16. **[A sketch like p5.js, in Python](guide:a-sketch-like-p5-python)**
+    — a file of functions with no class: `setup`, `draw(pen)` and
+    `mousePressed` over `width`, `seconds` and `mouseX` read as plain
+    names, `size()` for the canvas, and a page returned whole from
+    `describe(seconds)`, the way HTML states one.
 
 ## What to read next
 

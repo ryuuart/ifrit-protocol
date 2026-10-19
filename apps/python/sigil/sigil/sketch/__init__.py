@@ -128,6 +128,88 @@ def _current(name, count):
     return call
 
 
+# How long the end of a session waits for its cancelled tasks to finish
+# what they do on the way out, such as a WebSocket's closing handshake,
+# before the loop closes under whatever is still pending.
+_FAREWELL_SECONDS = 0.25
+
+
+class _EventLoop:
+    """``self.loop`` on a scene2d sketch: an asyncio event loop of the
+    sketch's own, made the first time it is asked for and turned once a
+    frame on the sketch thread.
+
+    A turn is asyncio's documented single pass, ``loop.stop()`` and then
+    ``loop.run_forever()``: the selector is polled once without waiting,
+    and every callback that was ready, or that the poll made ready, runs.
+    A task therefore resumes on the thread that runs ``update`` and
+    ``describe``, and the next description reads what it wrote onto the
+    sketch as it stands, with no queue between them. A frame never waits
+    on the network: a task awaiting a socket resumes on the first turn
+    after its bytes arrive.
+
+    The turn is a timer on the session's engine, so the loop turns on
+    every frame the session steps, whichever hooks the class defines. The
+    session lets the timer go when it closes, and that cancels every task
+    still pending and closes the loop.
+    """
+
+    def __get__(self, owner, cls=None):
+        if owner is None:
+            return self
+        return _event_loop(owner)
+
+
+def _event_loop(owner):
+    state = vars(owner)
+    loop = state.get("__sigil_loop__")
+    if loop is not None and not loop.is_closed():
+        return loop
+    ctx = state.get("__sigil_context__")
+    if ctx is None:
+        raise RuntimeError(
+            "a sketch's loop turns on its session's clock; ask for it from "
+            "setup, update, describe or draw"
+        )
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    ctx.engine.timer(_turn(loop))
+    state["__sigil_loop__"] = loop
+    return loop
+
+
+def _turn(loop):
+    """One pass of loop for each frame, and the loop's end once the session
+    lets the pass go: nothing but the engine's timer holds it."""
+    import weakref
+
+    def turn():
+        if not loop.is_closed():
+            loop.stop()
+            loop.run_forever()
+
+    weakref.finalize(turn, _finish, loop)
+    return turn
+
+
+def _finish(loop):
+    """Cancel what still runs on loop, let it unwind briefly, close it."""
+    import asyncio
+
+    if loop.is_closed():
+        return
+    for patience in (_FAREWELL_SECONDS, 0):
+        pending = asyncio.all_tasks(loop)
+        if not pending:
+            break
+        for task in pending:
+            task.cancel()
+        loop.run_until_complete(asyncio.wait(pending, timeout=patience))
+    loop.run_until_complete(loop.shutdown_asyncgens())
+    loop.close()
+
+
 def sketch(
     *,
     size=(960, 640),
@@ -149,6 +231,12 @@ def sketch(
     is engaged only when the class defines it, and ``describe`` takes exactly
     one argument, the seconds. setup, update and draw may omit trailing
     arguments, including all context arguments.
+
+    A scene2d sketch also has ``self.loop``, an asyncio event loop turned
+    once a frame on the sketch thread: a task started there with
+    ``self.loop.create_task`` writes onto the sketch directly, and is
+    cancelled when the session closes. A class that defines its own
+    ``loop`` keeps it.
 
     ``size``, ``background`` and ``captureAt`` declare the canvas, what is
     behind it and the moment a still is taken at. ``theme``, a kit theme, is
@@ -281,6 +369,7 @@ def _scene2d(cls, setup, update, draw, describe, declare, provided):
     described = _current("describe", 1) if describe is not None else None
 
     def configure(self, ctx):
+        vars(self)["__sigil_context__"] = ctx
         with provided():
             declare(ctx)
             if painted is not None:
@@ -308,6 +397,8 @@ def _scene2d(cls, setup, update, draw, describe, declare, provided):
     if setup is not None:
         configure = _wraps(setup)(configure)
     cls.setup = configure
+    if getattr(cls, "loop", None) is None:
+        cls.loop = _EventLoop()
     if update is not None or describe is not None:
         if update is not None:
             advance = _wraps(update)(advance)

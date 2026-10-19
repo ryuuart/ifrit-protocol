@@ -47,8 +47,8 @@ the `Scene3DContext` a scene3d sketch's setup is handed; the
 `compose.TextureScene` that context hands out is the compose bindings' own,
 registered with the libraries ahead of every sketch feature. `host/Runtime.cpp` opens a
 class the decorator marked scene3d through `openScene3D`, and reads the
-kind of a source it has not loaded from its text: a `describe` whose
-return annotation names `Frame`. `kit/Specimen.cpp` binds sketch specimen values and
+kind of a source it has not loaded from its text: a `describe`, method or
+top-level function, whose return annotation names `Frame`. `kit/Specimen.cpp` binds sketch specimen values and
 typed theme providers; `kit/Charts.cpp` the plot frame and its layers,
 calling a curve written in Python as the plot is laid out and a row reader
 once as its layer is made; `kit/Legends.cpp` the key, the swatch strip,
@@ -61,7 +61,8 @@ console over text rings and the readout of a connection's state.
 
 `cmake/register_sketches.py` writes the registry entries for the Python
 sketches a host bundles, reading each source as a syntax tree and never
-running it: a file joins only when it declares a `@sketch` class. The key
+running it: a file joins only when it declares a `@sketch` class or
+defines `setup`, `draw` or `describe` as functions at its top level. The key
 is the file's stem. A literal `NAME` and `CATEGORY` string in the module
 give the name the entry is filed under and its category, defaulting to
 the stem and `Python`; `REQUIRES` names the modules its availability
