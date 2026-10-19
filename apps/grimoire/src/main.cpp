@@ -63,6 +63,12 @@
  *                                              host a client drives over
  *                                              the protocol until it is
  *                                              interrupted
+ *   … [--repl]                                 the evaluate door: the
+ *                                              window, or a headless
+ *                                              --inspect host, runs any
+ *                                              code a client on this
+ *                                              machine sends inside the
+ *                                              running sketch
  *   … --python-executable <path> --python-abi <abi>
  *                                              the Python environment
  *
@@ -138,6 +144,7 @@
 #include "VideoLane.h"
 #include "WindowBench.h"
 #include "WindowCapture.h"
+#include "WindowEvaluation.h"
 #include "Workspace.h"
 
 namespace sketch = sigil::sketch;
@@ -369,6 +376,23 @@ int main(int argc, char* argv[]) {
   // output is written has nothing to serve: `--inspect` is refused there,
   // since a client attaching to it would find the run already gone. A
   // sweep mounts it between its sketches; the window mounts it unasked.
+  // THE EVALUATE DOOR STANDS ON A SESSION a client reaches: the window's,
+  // or the one `--headless --inspect` serves. A sweep and every run that
+  // ends once its output is written hold none for it to open onto.
+  if (args.repl &&
+      (args.list || args.catalog || args.warmThumbnails ||
+       !args.compareOptions.first.empty() ||
+       !args.storyOptions.outputPath.empty() ||
+       !args.capture.outputPath.empty() ||
+       (args.headless && (!args.inspectPort || args.headlessDirectoryNamed ||
+                          !args.selected.empty() || !args.kind.empty())))) {
+    std::fprintf(stderr,
+                 "--repl: evaluates text inside a session a client drives — "
+                 "the window's, or the one `--headless --inspect` serves — "
+                 "and this run holds none\n");
+    return 2;
+  }
+
   if (args.inspectPort && (args.list || args.catalog || args.warmThumbnails ||
                            !args.compareOptions.first.empty() ||
                            !args.storyOptions.outputPath.empty() ||
@@ -717,6 +741,16 @@ int main(int argc, char* argv[]) {
   QObject::connect(&inspectionPump, &QTimer::timeout,
                    [&inspection] { inspection.advance(); });
   if (inspection.listening()) inspectionPump.start(kInspectionPumpMilliseconds);
+  // THE EVALUATE DOOR, only when asked: whatever a client on this machine
+  // sends runs inside the sketch on screen. Declared before the engine,
+  // so it goes after the render thread that answers it has stopped.
+  std::optional<WindowEvaluation> evaluation;
+  if (args.repl && inspection.listening()) {
+    evaluation.emplace(inspection.dispatcher(), inspectionStateRoot());
+    std::fprintf(stderr,
+                 "[grimoire] --repl: session.evaluate runs any code a client "
+                 "on this machine sends inside the running sketch\n");
+  }
 
   finishMaterialWarmup(materialWarmup);
   // AND THE SECOND COMPILE, DECLARED BEFORE ANYTHING CAN DRAW. The

@@ -209,6 +209,11 @@ class Host {
   bool frame(double fixedDt);
 
   [[nodiscard]] bool compiling() const { return m_compile.valid(); }
+  /** How long this host has run in its own time, in seconds: the stated
+   *  steps under a fixed step, the wall's when it runs free. */
+  [[nodiscard]] double elapsedSeconds() const {
+    return m_clock.elapsed().count();
+  }
   [[nodiscard]] bool live() const { return m_session != nullptr; }
   [[nodiscard]] int generation() const { return m_generation; }
   /** Reopens the current kind as a fresh runtime session without compiling
@@ -216,6 +221,14 @@ class Host {
    *  stay warm, while setup, clocks, Outputs and mount transitions all start
    *  over. Returns false when no kind has loaded yet. */
   bool restartSession();
+  /** RUNS @p code INSIDE THE RUNNING SESSION — `Session::evaluate` — on
+   *  the calling thread, which is the one that draws it, between two of
+   *  its frames. Nothing, with the reason in @p why, where nothing is
+   *  live, the session has failed, or its runtime evaluates no text. Text
+   *  whose evaluation leaves the session failed is answered with what it
+   *  raised, and the next frame fails as one that raises does. */
+  std::optional<Evaluation> evaluate(std::string_view code,
+                                     EvaluationMode mode, std::string* why);
   /** The running session, for a host that needs more than a frame from
    *  it — its counters, its viewpoint, its per-node costs. Null until
    *  something has loaded. */

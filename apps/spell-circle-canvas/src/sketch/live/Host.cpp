@@ -421,6 +421,33 @@ bool Host::restartSession() {
   return m_session != nullptr;
 }
 
+std::optional<Evaluation> Host::evaluate(std::string_view code,
+                                         EvaluationMode mode,
+                                         std::string* why) {
+  const auto refuse = [why](std::string reason) -> std::optional<Evaluation> {
+    if (why) *why = std::move(reason);
+    return std::nullopt;
+  };
+  if (!m_session) return refuse("no sketch is running");
+  if (m_runtimeFailed)
+    return refuse("the sketch has failed and waits for its file to be saved");
+  PhaseMark mark(Phase::Setup);
+  try {
+    std::optional<Evaluation> evaluated = m_session->evaluate(code, mode);
+    if (!evaluated)
+      return refuse(
+          "the running sketch is compiled ahead of time and evaluates no "
+          "text");
+    return evaluated;
+  } catch (const std::exception& error) {
+    sessionFailed(error);
+    return refuse(std::string("the sketch failed: ") + error.what());
+  } catch (...) {
+    sessionFailed("the sketch threw an unknown exception while evaluating");
+    return refuse("the sketch threw an unknown exception while evaluating");
+  }
+}
+
 void Host::resetMetrics() {
   // The interval running when this was called spans the boundary, so it
   // is not one of the intervals that follow it: the next presentation

@@ -196,6 +196,12 @@ switch its capture backend. `Host::needsDevice` reports the accepted kind's
 requirement, so a capture host can choose its backend after a successful load.
 
 `Host::restartSession` reopens the accepted kind without compiling.
+`Host::evaluate` runs text inside the running session through
+`Session::evaluate`, on the thread that draws it and between two frames:
+a Python session runs it in its sketch's module and answers what it
+evaluated to, printed and raised, and a compiled session evaluates
+nothing. A host hands it text only from a door a person opened, since
+the text has the sketch's whole reach.
 `Host::status` reports progress, and `Host::errorLog` reports compiler,
 loader, setup and resource failures. Resources with problems may continue
 rendering their library's fallback; the host replaces only a successfully

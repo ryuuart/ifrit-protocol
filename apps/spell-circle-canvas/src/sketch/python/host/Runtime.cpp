@@ -207,6 +207,15 @@ class Body final : public Scene2DBody {
 
   ~Body() override { m_state->close(); }
 
+  /** The running instance, as a client's evaluated text reaches it. */
+  [[nodiscard]] const std::shared_ptr<Object>& instance() const {
+    return m_instance;
+  }
+  /** The context its hooks are handed. */
+  [[nodiscard]] const std::shared_ptr<Context>& context() const {
+    return m_context;
+  }
+
   void setup(Scene2DContext& ctx) override {
     m_state->update(ctx);
     // Keep existing transports open while setup reacquires its declarations.
@@ -278,6 +287,11 @@ class Scene3DPythonBody final : public Scene3DBody {
 
   ~Scene3DPythonBody() override { m_state->close(); }
 
+  /** The running instance, as a client's evaluated text reaches it. */
+  [[nodiscard]] const std::shared_ptr<Object>& instance() const {
+    return m_instance;
+  }
+
   void setup(Scene3DContext& ctx) override {
     if (!m_setup) return;
     const auto loan = std::make_shared<Scene3DLoan>();
@@ -322,10 +336,41 @@ class Scene3DPythonBody final : public Scene3DBody {
   int m_describeArity = 1;
 };
 
+/** WHAT TEXT A CLIENT SENDS IS EVALUATED AGAINST: the running instance,
+ *  whose class names the module the text runs in, and the context its
+ *  hooks are handed — none for a scene3d sketch, whose context answers
+ *  only while its setup runs. */
+struct Evaluated {
+  std::shared_ptr<Object> instance;
+  std::shared_ptr<Context> context;
+};
+
+/** The exception a native error carries in its words, read back from the
+ *  form the interpreter's error takes — `Type: message`, then the trace —
+ *  where the error crossed into native code before it could be read. */
+EvaluationError errorFromText(const std::string& text) {
+  EvaluationError error;
+  const std::string first = text.substr(0, text.find('\n'));
+  const auto colon = first.find(": ");
+  if (colon != std::string::npos &&
+      first.substr(0, colon).find(' ') == std::string::npos) {
+    error.type = first.substr(0, colon);
+    error.message = first.substr(colon + 2);
+  } else {
+    error.type = "RuntimeError";
+    error.message = first;
+  }
+  error.traceback = text;
+  return error;
+}
+
 class PythonSession final : public Session {
  public:
-  PythonSession(std::unique_ptr<Session> session, std::shared_ptr<State> state)
-      : m_session(std::move(session)), m_state(std::move(state)) {}
+  PythonSession(std::unique_ptr<Session> session, std::shared_ptr<State> state,
+                Evaluated evaluated)
+      : m_session(std::move(session)),
+        m_state(std::move(state)),
+        m_evaluated(std::move(evaluated)) {}
 
   ~PythonSession() override {
     const py::gil_scoped_acquire lock;
@@ -391,6 +436,57 @@ class PythonSession final : public Session {
     invoke([&] { m_session->viewpoint(yawDegrees, pitchDegrees, distance); });
   }
 
+  /** THE TEXT RUN IN THE SKETCH'S MODULE by the package's evaluator, which
+   *  catches whatever it raises, then — where it ran to its end and the
+   *  body declares its tree in setup — the body declared again. A
+   *  declaration that raises fails the session as a frame that raises
+   *  does, and is answered as the error. */
+  std::optional<Evaluation> evaluate(std::string_view code,
+                                     EvaluationMode mode) override {
+    const py::gil_scoped_acquire lock;
+    if (m_state->failed) throw std::runtime_error(m_error);
+    Evaluation evaluation;
+    bool redescribe = false;
+    {
+      const sigil::python::CallbackScope callbacks(m_state->callbacks);
+      const sigil::python::CallbackBoundary themes;
+      try {
+        const py::object context =
+            m_evaluated.context ? py::cast(m_evaluated.context) : py::none();
+        const py::tuple answered =
+            py::module_::import("sigil._evaluation")
+                .attr("evaluate")(m_evaluated.instance->get(), context,
+                                  py::str(code.data(), code.size()),
+                                  mode == EvaluationMode::Expression);
+        evaluation.value = answered[0].cast<std::string>();
+        evaluation.output = answered[1].cast<std::string>();
+        if (!answered[2].is_none()) {
+          const py::tuple raised = answered[2].cast<py::tuple>();
+          evaluation.error = EvaluationError{raised[0].cast<std::string>(),
+                                             raised[1].cast<std::string>(),
+                                             raised[2].cast<std::string>()};
+        }
+        redescribe = answered[3].cast<bool>();
+      } catch (const py::error_already_set& error) {
+        // The evaluator catches what the text raises; reaching here means
+        // the evaluator itself could not run, and the sketch is untouched.
+        evaluation.error = errorFromText(error.what());
+        return evaluation;
+      }
+    }
+    if (evaluation.error || !redescribe) return evaluation;
+    try {
+      invoke([&] { m_session->redeclare(); });
+    } catch (const std::exception& error) {
+      evaluation.error = errorFromText(error.what());
+      evaluation.error->message +=
+          " — raised as the sketch described itself again after the text "
+          "ran, so the sketch has stopped until its file is saved or "
+          "reloaded";
+    }
+    return evaluation;
+  }
+
  private:
   template <class Function>
   void invoke(Function&& function) {
@@ -417,6 +513,7 @@ class PythonSession final : public Session {
 
   std::unique_ptr<Session> m_session;
   std::shared_ptr<State> m_state;
+  Evaluated m_evaluated;
   std::string m_error;
 };
 
@@ -482,14 +579,18 @@ class PythonKind final : public KindOperations, public OpensOnRuntime {
         std::string why;
         if (!runtimeAvailable(opening, &why)) throw std::runtime_error(why);
         auto body = std::make_unique<Scene3DPythonBody>(m_generation, state);
+        Evaluated evaluated{body->instance(), nullptr};
         auto session =
             openScene3D(std::move(body), fonts, assets, deterministic, opening);
-        return std::make_unique<PythonSession>(std::move(session), state);
+        return std::make_unique<PythonSession>(std::move(session), state,
+                                               std::move(evaluated));
       }
       auto body = std::make_unique<Body>(m_generation, state);
+      Evaluated evaluated{body->instance(), body->context()};
       auto session = openScene2D(std::move(body), fonts, assets, deterministic,
                                  key, m_stated.runtime);
-      return std::make_unique<PythonSession>(std::move(session), state);
+      return std::make_unique<PythonSession>(std::move(session), state,
+                                             std::move(evaluated));
     } catch (const py::error_already_set& error) {
       throw std::runtime_error(error.what());
     }

@@ -89,6 +89,7 @@ qt_add_executable(Grimoire
   src/ThumbnailWarm.cpp src/ThumbnailWarm.h
   src/VideoLane.cpp src/VideoLane.h
   src/WindowBench.cpp src/WindowBench.h src/Conditions.cpp src/Conditions.h
+  src/WindowEvaluation.cpp src/WindowEvaluation.h
 )
 sigil_qt_target(Grimoire)
 

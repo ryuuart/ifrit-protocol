@@ -20,6 +20,7 @@
 #include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/python/Python.h>
 #include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilsketch/testing/InProcessHost.h>
 #include <sigilweave/advanced/Skia.h>
 #include <sigilweave/ports/Resource.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -1266,6 +1267,114 @@ SkBitmap drawnFrame(sketch::Session& session, int width, int height,
   pixels.allocPixels(SkImageInfo::MakeN32Premul(width, height));
   if (!surface->readPixels(pixels, 0, 0)) return {};
   return pixels;
+}
+
+/** A HOST IN THIS PROCESS ON @p entry, under the clock a client steps,
+ *  with the evaluate door as @p evaluates says. */
+std::unique_ptr<sketch::testing::InProcessHost> evaluatingHost(
+    const PythonSource& source, bool evaluates) {
+  sketch::testing::InProcessHostOptions options;
+  options.stateDirectory = source.scratch.path / "state";
+  options.session.fonts = &fonts();
+  options.session.pythonLoader = &sketch::python::load;
+  options.session.evaluates = evaluates;
+  auto host =
+      std::make_unique<sketch::testing::InProcessHost>(std::move(options));
+  EXPECT_TRUE(host->clock(sigil::protocol::clock::Policy_Advance));
+  const auto opened = host->open(source.entry().string());
+  EXPECT_TRUE(opened) << (opened ? "" : opened.error().message);
+  return host;
+}
+
+constexpr std::string_view kEvaluated =
+    "from sigil.compose import box\n"
+    "from sigil.sketch import sketch\n"
+    "COLOUR = '#ff0000'\n"
+    "@sketch(size=(64, 48), background='#000000', captureAt=0)\n"
+    "class Study:\n"
+    "    described = 0\n"
+    "    def setup(self):\n"
+    "        self.described += 1\n"
+    "        return box().width(64).height(48).fill(COLOUR)\n";
+
+TEST(SketchPython, EvaluatedTextRunsInTheSketchsModuleAndDescribesItAgain) {
+  PythonSource source("sigil_python_evaluate");
+  source.write("entry.py", kEvaluated);
+  const auto host = evaluatingHost(source, true);
+  ASSERT_TRUE(host->step(1.0 / 60.0));
+  using sigil::protocol::session::EvaluationMode_Statements;
+
+  // An expression answers its value, read from the running instance as
+  // `self`; every evaluation that runs to its end has a sketch that declares
+  // its tree in setup asked for it again, after the text ran.
+  const auto described = host->evaluate("self.described");
+  ASSERT_TRUE(described) << described.error().message;
+  EXPECT_EQ(described.result().value, "1");
+  EXPECT_FALSE(described.result().error);
+  EXPECT_EQ(host->evaluate("self.described").result().value, "2");
+  const auto colour = host->evaluate("COLOUR");
+  ASSERT_TRUE(colour);
+  EXPECT_EQ(colour.result().value, "'#ff0000'");
+  const auto context = host->evaluate("ctx is not None and sigil is not None");
+  ASSERT_TRUE(context);
+  EXPECT_EQ(context.result().value, "True");
+
+  // Statements change the module's own names and answer what they printed.
+  const auto changed =
+      host->evaluate("COLOUR = '#00ff00'\nprint('changed', COLOUR)",
+                     EvaluationMode_Statements);
+  ASSERT_TRUE(changed) << changed.error().message;
+  EXPECT_EQ(changed.result().value, "");
+  EXPECT_EQ(changed.result().output, "changed #00ff00\n");
+  EXPECT_FALSE(changed.result().error);
+  EXPECT_EQ(host->evaluate("COLOUR").result().value, "'#00ff00'");
+  EXPECT_TRUE(host->step(1.0 / 60.0));
+}
+
+TEST(SketchPython, EvaluatedTextThatRaisesIsAnsweredAndTheSketchRunsOn) {
+  PythonSource source("sigil_python_evaluate_raises");
+  source.write("entry.py", kEvaluated);
+  const auto host = evaluatingHost(source, true);
+  ASSERT_TRUE(host->step(1.0 / 60.0));
+  using sigil::protocol::session::EvaluationMode_Statements;
+  EXPECT_EQ(host->evaluate("self.described").result().value, "1");
+
+  const auto raised = host->evaluate(
+      "print('before')\nCOLOUR = '#0000ff'\n1 / 0", EvaluationMode_Statements);
+  ASSERT_TRUE(raised) << raised.error().message;
+  ASSERT_TRUE(raised.result().error);
+  EXPECT_EQ(raised.result().error->type, "ZeroDivisionError");
+  EXPECT_EQ(raised.result().error->message, "division by zero");
+  EXPECT_NE(raised.result().error->traceback.find("<prompt"), std::string::npos)
+      << raised.result().error->traceback;
+  EXPECT_EQ(raised.result().output, "before\n");
+  // What ran before the raise stands, nothing is described again, and the
+  // session draws on.
+  EXPECT_EQ(host->evaluate("self.described").result().value, "2");
+  EXPECT_EQ(host->evaluate("COLOUR").result().value, "'#0000ff'");
+  const auto syntax = host->evaluate("def", EvaluationMode_Statements);
+  ASSERT_TRUE(syntax);
+  ASSERT_TRUE(syntax.result().error);
+  EXPECT_EQ(syntax.result().error->type, "SyntaxError");
+  const auto leaving =
+      host->evaluate("raise SystemExit(3)", EvaluationMode_Statements);
+  ASSERT_TRUE(leaving);
+  ASSERT_TRUE(leaving.result().error);
+  EXPECT_EQ(leaving.result().error->type, "SystemExit");
+  EXPECT_TRUE(host->step(1.0 / 60.0)) << host->readout();
+  EXPECT_TRUE(host->still(1.0)) << host->readout();
+}
+
+TEST(SketchPython, AHostThatWasNotToldToEvaluatesNothing) {
+  PythonSource source("sigil_python_evaluate_shut");
+  source.write("entry.py", kEvaluated);
+  const auto host = evaluatingHost(source, false);
+  const auto refused = host->evaluate("COLOUR");
+  ASSERT_FALSE(refused);
+  EXPECT_EQ(refused.error().code, sigil::protocol::ErrorCode_failed);
+  EXPECT_EQ(refused.error().message.rfind("session.evaluate:", 0), 0u)
+      << refused.error().message;
+  EXPECT_TRUE(host->step(1.0 / 60.0));
 }
 
 TEST(SketchPython, ASetupThatReturnsATreeRendersIt) {

@@ -623,6 +623,35 @@ modules remain process-scoped. An exception during update or drawing
 stops that session until the next edit; its canvas may include drawing
 performed before the exception.
 
+### A prompt inside the running sketch
+
+`sigil repl sketch.py` is Python's interactive prompt, with each input run
+inside the sketch Grimoire is drawing, between two of its frames:
+
+```sh
+uv run sigil repl sketch.py
+>>> COLOR = "#7fd1c7"
+>>> SPEED * 2
+2.4
+```
+
+The input runs in the sketch module's own namespace, beside the running
+instance as `self`, its context as `ctx`, and the `sigil` modules the
+module did not import itself. An expression prints its value, a statement
+what it printed, and a raise its traceback; the sketch runs on either way.
+A sketch whose `setup` returns its tree is asked for it again after every
+input that ran to its end, and a `draw` or `describe` assigned on the
+class is the one the next frame calls. `:reload` imports the file again
+as saving it does, `:still path.png` writes the sketch on screen as a
+picture, and `:quit` leaves.
+
+The prompt reaches Grimoire through its protocol's `session.evaluate`,
+which runs any code a client on this machine sends, so Grimoire opens that
+door only when started with `--repl`. With no Grimoire answering, `sigil
+repl sketch.py` starts its window on the file with the door open, finding
+it as `sigil open` does, and ends it on `:quit`; `--to HOST:PORT` or
+`--state DIRECTORY` names a Grimoire already running with `--repl`.
+
 The native developer build also places the package and extension in
 `apps/spell-circle-canvas/build/python`. That directory is for tests and development;
 the wheel is the installation artifact.
@@ -982,7 +1011,9 @@ Font selection follows the host's native font context. `fontFamily` takes
 CSS's family list as one string, on an element, a rule and a `SpanStyle`
 alike: `.fontFamily("Inter, Helvetica Neue, sans-serif")` sets the run in
 the first family installed, and the generic names `serif`, `sans-serif`,
-`monospace` and `system-ui` are the platform's own families.
+`monospace` and `system-ui` are the platform's own families. A font file
+the sketch carries is a family too once its hub has loaded it, as the
+fonts passage under Typography shows.
 `textShadow(TextShadow(offset=(2, 2), blur=4, color=…))`, or a list of them,
 casts a shadow from each glyph, CSS's `text-shadow`, which fades, tints and
 deforms with its glyph; its `color` is a colour, `Fill.var(name)` read where
@@ -1484,20 +1515,73 @@ the resolver a sketch session installs; drawn where no resolver is installed,
 the pass keeps its Skia paint. The parity table tracks the remaining work
 independently of which native libraries are linked.
 
-A face is `weave.Face`, as it is in C++: `kit.houseFace(kit.Voice.Book)`
-answers one, a theme's `type.sans` and `type.mono` are its two (None is the
-default family), and `Theme.sans(size, color)` and `Theme.mono(...)` set a
-line in either. A face is taken wherever a Skia typeface is and the other
-way round, since the two hold one typeface shared; `face.typeface()` and
-`weave.Face(typeface)` say so explicitly.
-A font file a sketch carries is a resource like an image: on a session's
-hub, `ctx.assets.hub().load(weave.Face, ctx.local("data/Face.ttf"))`
-answers the face it holds — `load(skia.Typeface, ...)` the same face as a
-typeface — which `pen.textFont` and a shaping style's `typeface` take. The hub keeps one face per resource, so a C++ sketch
-asking `hub.load<weave::Face>` for the same URI gets the same face, and a
-file edited on disk is read again as a new face the next time it is asked
-for. An owned hub knows no font until `weave.registerDecoders(hub)` puts
-the decoder on it.
+### Fonts
+
+A family is named, the way CSS names one: `.fontFamily("Avenir Next,
+Helvetica Neue, sans-serif")` on an element, a rule or a span sets the run
+in the first family the session has. A font file the sketch carries is one
+of those families after one line that loads it:
+
+```python
+from sigil import compose, weave
+
+
+def setup(self, ctx):
+    ctx.assets.hub().load(weave.Face, ctx.local("data/MachineType.ttf"))
+    ctx.render(compose.text("SIGNAL 42").fontFamily("Muthur Study"))
+```
+
+The hub reads the file as it reads an image, keeps the face and watches the
+file, and the session's font context adopts the face under the family the
+file names, so every later `fontFamily("Muthur Study")` — and Weave's own
+`ctx.fonts.familyTypeface("Muthur Study")` — answers that held face. A file
+edited on disk is read again, its new face takes the family over, and the
+declaration that re-runs is set in it. Load the files a sketch names; a
+host shares one font context among the sessions it opens, so a family
+another sketch loaded may answer too, but only by the order they ran. Where
+the face is already in hand, `.fontFamily(face)` states it directly, with
+no lookup by name.
+
+#### Exploring type
+
+`weave.fonts` reads the type there is as values to print and look through:
+
+```python
+from sigil import weave
+
+weave.fonts.families()            # every installed family name
+weave.fonts.family("Avenir Next")  # Family(Avenir Next · 12 styles: Regular, … · installed)
+for style in weave.fonts.family("Avenir Next").styles:
+    print(style)                   # Style(Demi Bold Italic · 600 Semi Bold · width 5 · italic)
+weave.fonts.find("Avenir Next", weave.FaceStyle(weight=600))  # Face(Avenir Next, 600)
+```
+
+A `Style` carries `weight`, its CSS name `weightName`, `width`, `slant`,
+the font's own `name` for it and, for a bundled face, the `uri` it was read
+from; `style.faceStyle()` is what `find` takes. A `Family` carries its
+`styles`, the variation `axes` its faces carry and whether it is
+`bundled`. Handed a font context — `ctx.fonts` in a sketch — each answers
+the families its hub loaded first, marked bundled:
+`weave.fonts.family("Muthur Study", ctx.fonts)`.
+`weave.fonts.weightName(600)` is "Semi Bold".
+
+#### Faces and styles
+
+Underneath a family name is a face, `weave.Face`, as in C++: the load
+above answers one, `kit.houseFace(kit.Voice.Book)` answers one, a theme's
+`type.sans` and `type.mono` are its two (None is the default family), and
+`Theme.sans(size, color)` and `Theme.mono(...)` set a line in either. A
+face is taken wherever a Skia typeface is and the other way round, since
+the two hold one typeface shared; `face.typeface()` and
+`weave.Face(typeface)` say so explicitly, and `load(skia.Typeface, ...)`
+answers the same face as a typeface. A face goes into a style as
+`weave.Type(face=face)`, which `.font(...)`, a style sheet's rule,
+`pen.textFont` and a shaping style's `typeface` take. The hub keeps one
+face per resource, so a C++ sketch asking `hub.load<weave::Face>` for the
+same URI gets the same face. A font context of a program's own,
+`weave.FontContext()`, adopts a face by hand with
+`fonts.adopt(face, origin)`, and an owned hub knows no font until
+`weave.registerDecoders(hub)` puts the decoder on it.
 
 ## Data values and native resources
 

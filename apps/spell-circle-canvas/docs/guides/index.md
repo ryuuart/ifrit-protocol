@@ -66,6 +66,16 @@ a window server or a network.
     — a panel that snaps between two places on a spring stepped from a
     timer, a colour that settles, `flash` and `decay` for a hit, three
     waves at one rate, and the three words for stillness.
+13. **[A bundled typeface in Python](guide:a-bundled-typeface-python)**
+    — a font file the sketch carries, loaded once through the session's
+    hub and named by its family with `fontFamily`, beside an installed
+    family, and the family read back from `weave.fonts` as a specimen
+    line per style.
+14. **[Explore a running sketch from a prompt, in Python](guide:exploring-in-the-repl-python)**
+    — `sigil repl` on `python_hello` with Grimoire's evaluate door open:
+    a colour changed, a card added, a value set moving, the font
+    families listed and one set, a still taken, and `:reload` to start
+    over, each line run between two frames of the sketch on screen.
 
 ## What to read next
 

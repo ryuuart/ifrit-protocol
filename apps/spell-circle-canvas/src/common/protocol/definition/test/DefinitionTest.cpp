@@ -124,11 +124,12 @@ TEST(ProtocolDefinition, TheMarksTheParserCannotKnowSurvive) {
     }
   }
   // A user attribute is kept whatever the flags.
-  EXPECT_EQ((std::set<std::string>{"catalog", "measured", "profile"}),
+  EXPECT_EQ((std::set<std::string>{"catalog", "evaluate", "measured",
+                                    "profile"}),
             experimental);
-  EXPECT_EQ(
-      (std::set<std::string>{"open", "profile", "sequence", "step", "still"}),
-      asynchronous);
+  EXPECT_EQ((std::set<std::string>{"evaluate", "open", "profile", "sequence",
+                                    "step", "still"}),
+            asynchronous);
 }
 
 }  // namespace

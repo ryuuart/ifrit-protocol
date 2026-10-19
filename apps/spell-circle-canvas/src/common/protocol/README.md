@@ -316,15 +316,34 @@ host's other ways to a picture — a sweep, a written still, a window —
 run on the host's own clock, stepped as their flags say, and no client
 reaches them through this domain.
 
+## The evaluate door
+
+`session.evaluate` sends text into the running sketch: the host runs it
+between two frames, on the thread that draws them, in the sketch's own
+namespace, and answers the expression's value, what the text printed,
+and what it raised with its traceback, in an `EvaluateResult`. A text
+that raised is answered, never ends the host, and leaves the sketch
+running; one that ran to its end has the sketch describe itself again,
+so the next frame shows the change. `EvaluationMode` says whether the
+text is one expression or statements, which is whether a value comes
+back.
+
+It runs whatever a client sends with the sketch's whole reach over the
+machine, so it is a door a host opens only when a person asks: shut, it
+is refused naming `session.evaluate`, and open, it is still reached only
+from loopback, as every command is unless the host states peers. The
+Python package's `sigil repl` is a prompt over it.
+
 ## The command line that remains
 
-Two flags this protocol adds to a host, and only these: `--inspect`,
+Three flags this protocol adds to a host, and only these: `--inspect`,
 with an optional port, which mounts the endpoint where a host does not
-by default; and `--state` with a directory, the state root the address
-file, the stills and every cache are kept under. Every other flag a
-host keeps becomes a short script of commands run in process: a still at
-two seconds at double density is `clock.setPolicy` to `Advance`,
-`clock.step` to two seconds, and `session.still` at density two.
+by default; `--state` with a directory, the state root the address file,
+the stills and every cache are kept under; and `--repl`, which opens the
+evaluate door. Every other flag a host keeps becomes a short script of
+commands run in process: a still at two seconds at double density is
+`clock.setPolicy` to `Advance`, `clock.step` to two seconds, and
+`session.still` at density two.
 
 ## Headers
 

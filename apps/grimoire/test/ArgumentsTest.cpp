@@ -90,6 +90,13 @@ TEST(GrimoireArguments, InspectTakesAnOptionalPortOnce) {
   EXPECT_FALSE(parse({"--inspect", "--inspect=1"}));
 }
 
+TEST(GrimoireArguments, TheEvaluateDoorIsShutUnlessAsked) {
+  EXPECT_FALSE(parse({})->repl);
+  EXPECT_FALSE(parse({"--headless", "--inspect"})->repl);
+  EXPECT_TRUE(parse({"--repl"})->repl);
+  EXPECT_TRUE(parse({"--headless", "--inspect", "--repl"})->repl);
+}
+
 TEST(GrimoireArguments, TheDeterministicFlagsNameAClockPolicy) {
   EXPECT_EQ(parse({"--deterministic"})->clockPolicy,
             sigil::motion::ClockPolicy::Advance);

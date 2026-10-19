@@ -81,6 +81,26 @@ std::string numbered(uint64_t number, const char* stem, const char* extension) {
 
 }  // namespace
 
+values::EvaluateResult evaluationResult(const Evaluation& evaluation) {
+  values::EvaluateResult result;
+  result.value = evaluation.value;
+  result.output = evaluation.output;
+  if (evaluation.error) {
+    values::EvaluationError error;
+    error.type = evaluation.error->type;
+    error.message = evaluation.error->message;
+    error.traceback = evaluation.error->traceback;
+    result.error = std::move(error);
+  }
+  return result;
+}
+
+EvaluationMode evaluationMode(protocol::session::EvaluationMode mode) {
+  return mode == protocol::session::EvaluationMode_Expression
+             ? EvaluationMode::Expression
+             : EvaluationMode::Statements;
+}
+
 SessionAgent::SessionAgent(protocol::Dispatcher& dispatcher,
                            SessionAgentOptions options)
     : m_dispatcher(dispatcher), m_options(std::move(options)) {
@@ -512,6 +532,34 @@ void SessionAgent::profile(const values::ProfileParameters& parameters,
     m_pendingProfile->reply(refusal(
         ErrorCode_failed, "session.profile: replaced by another profile"));
   m_pendingProfile = PendingProfile{parameters.limit, std::move(reply)};
+}
+
+// --- evaluation ------------------------------------------------------------
+
+void SessionAgent::evaluate(const values::EvaluateParameters& parameters,
+                            protocol::Reply<values::EvaluateResult> reply) {
+  if (!m_options.evaluates) {
+    reply(refusal(ErrorCode_failed,
+                  "session.evaluate: this host evaluates no text a client "
+                  "sends; it opens the door only when told to, as Grimoire "
+                  "does under --repl"));
+    return;
+  }
+  if (!m_host || m_pendingOpen || !m_host->live()) {
+    reply(refusal(ErrorCode_failed,
+                  m_pendingOpen ? "session.evaluate: the session is still "
+                                  "opening"
+                                : "session.evaluate: no session is open"));
+    return;
+  }
+  std::string why;
+  const std::optional<Evaluation> evaluated =
+      m_host->evaluate(parameters.code, evaluationMode(parameters.mode), &why);
+  if (!evaluated) {
+    reply(refusal(ErrorCode_failed, "session.evaluate: " + why));
+    return;
+  }
+  reply(evaluationResult(*evaluated));
 }
 
 // --- the clock -------------------------------------------------------------

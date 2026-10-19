@@ -101,6 +101,14 @@ class InProcessHost {
   protocol::Answer<protocol::session::values::StillResult> still(
       double density = 1.0, const std::string& path = {});
 
+  /** Runs @p code inside the running sketch — one expression, or
+   *  statements — and answers what it evaluated to, printed and raised;
+   *  refused unless `SessionAgentOptions::evaluates` opened the door. */
+  protocol::Answer<protocol::session::values::EvaluateResult> evaluate(
+      const std::string& code,
+      protocol::session::EvaluationMode mode =
+          protocol::session::EvaluationMode_Expression);
+
   /** ONE ENVELOPE'S TEXT, answered as envelope text: the socket's words
    *  in process. */
   std::string send(std::string_view envelope);

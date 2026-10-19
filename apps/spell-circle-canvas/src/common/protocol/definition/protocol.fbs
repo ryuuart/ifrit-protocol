@@ -74,7 +74,7 @@ table Revision {
   /// Raised by a change that breaks a client built against the last.
   breaking: uint = 1;
   /// Raised by a change a client built against the last still speaks.
-  compatible: uint = 0;
+  compatible: uint = 1;
 }
 
 // workaround: flatc embeds the reflected definition beside the generated
@@ -351,6 +351,46 @@ table ProfileResult {
   rows: [string];
 }
 
+/// How evaluate reads the text it is sent.
+enum EvaluationMode : byte {
+  /// One expression, whose value is answered.
+  Expression = 0,
+  /// Statements, run for what they do; the value answered is empty.
+  Statements = 1
+}
+
+/// What evaluate is asked.
+table EvaluateParameters {
+  /// The source text, in the language the running sketch is written in.
+  code: string (required);
+  /// Whether the text is one expression or statements.
+  mode: EvaluationMode;
+}
+
+/// What stopped an evaluation: the exception the text raised, in the
+/// language's own words.
+table EvaluationError {
+  /// The exception's type, by its name.
+  type: string;
+  /// The exception's message.
+  message: string;
+  /// The traceback, as the language prints it, from the evaluated text
+  /// down.
+  traceback: string;
+}
+
+/// What an evaluation answered.
+table EvaluateResult {
+  /// The expression's value as the language represents it; empty for
+  /// statements and where the text raised.
+  value: string;
+  /// What the text wrote to the standard output and the standard error
+  /// while it ran, in the order written.
+  output: string;
+  /// What the text raised; absent where it ran to its end.
+  error: EvaluationError;
+}
+
 /// A session opened.
 table OpenedEvent {
   /// The session.
@@ -372,8 +412,8 @@ table FailedEvent {
 }
 
 /// The one running sketch a host holds: opening it, pinning what a
-/// repeatable run needs pinned, photographing it, and reading back what
-/// its last frame cost.
+/// repeatable run needs pinned, photographing it, reading back what its
+/// last frame cost, and evaluating text inside it.
 rpc_service Session {
   /// Opens a sketch by registry name or by path, replacing the session
   /// open, and answers once it is set up: under the wall's clock once its
@@ -407,6 +447,18 @@ rpc_service Session {
   /// Attributes what the next frame spends to what spent it, and answers
   /// the most expensive rows once that frame is drawn.
   profile(ProfileParameters): ProfileResult (asynchronous, experimental);
+  /// Runs text in the running sketch's own namespace, between two of its
+  /// frames, on the thread that draws them, and answers what it evaluated
+  /// to, what it printed and what it raised. Names the sketch's module
+  /// binds are in scope, beside the running sketch as `self` and its
+  /// context as `ctx`. Text that ran to its end describes the sketch again
+  /// — a sketch that declares its tree is asked for it again — so the next
+  /// frame shows the change; text that raised changes nothing more, and
+  /// the sketch runs on. A sketch compiled ahead of time evaluates
+  /// nothing and refuses it. A host opens this door only when it is told
+  /// to, and refuses it otherwise, because it runs whatever a client
+  /// sends.
+  evaluate(EvaluateParameters): EvaluateResult (asynchronous, experimental);
   /// Starts this client's session events.
   enable(sigil.protocol.Empty): sigil.protocol.Empty;
   /// Stops this client's session events.

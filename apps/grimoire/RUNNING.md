@@ -43,6 +43,11 @@ Grimoire --shot <png> [--sketch <name>] [--at <sec>]
 Grimoire --headless --inspect[=<port>] [--state <dir>]
                                             # no window: a host a client
                                             # drives over the protocol
+… [--repl]                                  # the evaluate door: the window
+                                            # or a served host runs ANY
+                                            # code a client on this machine
+                                            # sends inside the running
+                                            # sketch
 ```
 
 A file opened by path — a `.cpp` entry or a `.py` module, anywhere on
@@ -236,8 +241,8 @@ inside it, which the library tree's build writes as
 
 ## What Grimoire mounts
 
-Grimoire's command line carries two protocol flags: `--inspect`, with
-an optional `=PORT`, and `--state` with a directory.
+Grimoire's command line carries three protocol flags: `--inspect`, with
+an optional `=PORT`, `--state` with a directory, and `--repl`.
 
 - **The window** mounts an endpoint on loopback whether or not it was
   asked — any free port, or the one named — answering `host` and
@@ -254,6 +259,19 @@ an optional `=PORT`, and `--state` with a directory.
   sketches; nothing a plate holds depends on it.
 - **Every other lane refuses `--inspect`**: it ends once its output is
   written, and a client would have nothing to drive.
+- **`--repl` opens the evaluate door**, and nothing opens it unasked,
+  because it runs any code a client on this machine sends with the
+  sketch's whole reach over the machine. The window mounts
+  `session.evaluate` and `session.still` beside `host` and `registry`,
+  each handed to the render thread and run there between two frames of
+  the sketch on screen — the still is that sketch as it stands, its
+  clock untouched, written under the state root — and every other
+  session command and the clock stay unmounted. `--headless --inspect
+  --repl` opens the session agent's door. Unasked, the window answers
+  `session.evaluate` `notMounted` and a served host refuses it, each
+  naming the command; a sweep and every lane that ends once its output
+  is written refuse `--repl`. `sigil repl` is the prompt that speaks
+  through it.
 
 The state root is `--state`, or the platform's own location for
 Grimoire. `--deterministic` and `--no-deterministic` name the clock

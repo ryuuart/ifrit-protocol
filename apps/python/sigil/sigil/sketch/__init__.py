@@ -111,6 +111,23 @@ def _caller(method, count):
     return call
 
 
+def _current(name, count):
+    """A call of the hook the instance's class holds under name at the
+    moment it is called, so a method assigned on the class while the sketch
+    runs is the one the next step calls; each function is measured once."""
+    measured = {}
+
+    def call(owner, *arguments):
+        method = getattr(type(owner), name)
+        caller = measured.get(method)
+        if caller is None:
+            measured.clear()
+            caller = measured[method] = _caller(method, count)
+        return caller(owner, *arguments)
+
+    return call
+
+
 def sketch(
     *,
     size=(960, 640),
@@ -228,6 +245,9 @@ def _scene3d(cls, setup, update, draw, describe, declare, provided):
     cls.setup = configure
     cls.describe = _wraps(describe)(frame)
     cls.__sigil_kind__ = "scene3d"
+    # describe is asked for the frame at every step, so text evaluated inside
+    # the running sketch shows at the next one without asking again.
+    cls.__sigil_redescribes__ = False
 
 
 def _scene2d(cls, setup, update, draw, describe, declare, provided):
@@ -254,8 +274,11 @@ def _scene2d(cls, setup, update, draw, describe, declare, provided):
 
     initialize = _caller(setup, 1) if setup is not None else None
     advanced = _caller(update, 2) if update is not None else None
-    painted = _caller(draw, 2) if draw is not None else None
-    described = _caller(describe, 1) if describe is not None else None
+    # draw and describe stay on the class as written, so each step calls the
+    # one the class holds then: one assigned while the sketch runs takes over
+    # at the next frame.
+    painted = _current("draw", 2) if draw is not None else None
+    described = _current("describe", 1) if describe is not None else None
 
     def configure(self, ctx):
         with provided():
@@ -290,6 +313,10 @@ def _scene2d(cls, setup, update, draw, describe, declare, provided):
             advance = _wraps(update)(advance)
         cls.update = advance
     cls.__sigil_kind__ = "scene2d"
+    # Whether text evaluated inside the running sketch asks it for its tree
+    # again: a setup declares the tree once, where draw and describe are
+    # asked at every step anyway.
+    cls.__sigil_redescribes__ = setup is not None
 
 
 __all__ = [

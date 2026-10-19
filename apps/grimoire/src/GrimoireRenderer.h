@@ -92,6 +92,9 @@ class GrimoireRenderer final : public QQuickRhiItemRenderer {
    *  on screen and what leaves. */
   [[nodiscard]] sk_sp<SkImage> renderPublication(const QRhiTexture& window);
   void runPendingCaptures();  // hostMutex must be held
+  /** Runs the work a client sent the sketch on screen, now that a frame
+   *  of it is drawn; hostMutex must be held. */
+  void runSketchWork();
   void refreshThumbnail();    // hostMutex must be held
   /** Passes on the stills the writer has finished, which it reports on
    *  its own thread. The view is the render thread's to name, so the

@@ -3,7 +3,7 @@
 
 # The session domain
 
-The one running sketch a host holds: opening it, pinning what a repeatable run needs pinned, photographing it, and reading back what its last frame cost.
+The one running sketch a host holds: opening it, pinning what a repeatable run needs pinned, photographing it, reading back what its last frame cost, and evaluating text inside it.
 
 | | |
 | --- | --- |
@@ -180,6 +180,31 @@ Answers `ProfileResult`: What the profiled frame spent, the most expensive first
 | --- | --- | --- | --- |
 | `rows` | list of string | empty | Each row in the runtime's own words: what spent the time, and how much. |
 
+### session.evaluate
+
+Runs text in the running sketch's own namespace, between two of its frames, on the thread that draws them, and answers what it evaluated to, what it printed and what it raised. Names the sketch's module binds are in scope, beside the running sketch as `self` and its context as `ctx`. Text that ran to its end describes the sketch again — a sketch that declares its tree is asked for it again — so the next frame shows the change; text that raised changes nothing more, and the sketch runs on. A sketch compiled ahead of time evaluates nothing and refuses it. A host opens this door only when it is told to, and refuses it otherwise, because it runs whatever a client sends.
+
+**Experimental**: its shape may still change.
+
+In Python, Session.evaluate.
+
+Answered later, through the reply the agent is handed, once the work is done.
+
+Takes `EvaluateParameters`: What evaluate is asked.
+
+| Parameter | Type | Default | |
+| --- | --- | --- | --- |
+| `code` | string, required | "" | The source text, in the language the running sketch is written in. |
+| `mode` | EvaluationMode (enumeration) | Expression | Whether the text is one expression or statements. |
+
+Answers `EvaluateResult`: What an evaluation answered.
+
+| Field | Type | Default | |
+| --- | --- | --- | --- |
+| `value` | string | "" | The expression's value as the language represents it; empty for statements and where the text raised. |
+| `output` | string | "" | What the text wrote to the standard output and the standard error while it ran, in the order written. |
+| `error` | EvaluationError (table) | absent | What the text raised; absent where it ran to its end. |
+
 ### session.enable
 
 Starts this client's session events.
@@ -247,6 +272,25 @@ What a session draws with.
 | --- | --- |
 | `Cpu` | Skia's raster backend: the reference every plate is judged against. |
 | `Gpu` | The GPU, through the host's device. |
+
+### EvaluationMode
+
+How evaluate reads the text it is sent.
+
+| Value | |
+| --- | --- |
+| `Expression` | One expression, whose value is answered. |
+| `Statements` | Statements, run for what they do; the value answered is empty. |
+
+### EvaluationError
+
+What stopped an evaluation: the exception the text raised, in the language's own words.
+
+| Field | Type | Default | |
+| --- | --- | --- | --- |
+| `type` | string | "" | The exception's type, by its name. |
+| `message` | string | "" | The exception's message. |
+| `traceback` | string | "" | The traceback, as the language prints it, from the evaluated text down. |
 
 ### LaneCost
 

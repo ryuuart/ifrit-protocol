@@ -93,7 +93,7 @@ TEST(ProtocolRoundTrip, AValueMadeWithNothingSetHoldsTheDeclaredDefaults) {
   EXPECT_FALSE(protocol::clock::values::StepParameters{}.seconds);
   EXPECT_TRUE(protocol::clock::values::PauseParameters{}.paused);
   EXPECT_EQ(1u, protocol::values::Revision{}.breaking);
-  EXPECT_EQ(0u, protocol::values::Revision{}.compatible);
+  EXPECT_EQ(1u, protocol::values::Revision{}.compatible);
 }
 
 /** Every sample, each handed to @p visit with its value type, the name

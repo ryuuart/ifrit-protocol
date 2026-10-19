@@ -154,6 +154,11 @@ struct DecliningSession : protocol::session::SessionAgent {
                Reply<protocol::session::values::ProfileResult> reply) override {
     reply(declined("session.profile"));
   }
+  void evaluate(
+      const protocol::session::values::EvaluateParameters&,
+      Reply<protocol::session::values::EvaluateResult> reply) override {
+    reply(declined("session.evaluate"));
+  }
 };
 
 struct DecliningRegistry : protocol::registry::RegistryAgent {
@@ -182,9 +187,10 @@ TEST(ProtocolWiring, EachDomainMountsTheCommandsItsAgentAnswers) {
                 "clock.current", "clock.pause", "clock.setPolicy",
                 "clock.setTimeScale", "clock.step", "host.describe",
                 "host.stateRoot", "host.version", "registry.catalog",
-                "registry.list", "session.measured", "session.open",
-                "session.pinDensity", "session.pinDevice", "session.profile",
-                "session.sequence", "session.still", "session.timing"}),
+                "registry.list", "session.evaluate", "session.measured",
+                "session.open", "session.pinDensity", "session.pinDevice",
+                "session.profile", "session.sequence", "session.still",
+                "session.timing"}),
             board.methods());
 }
 

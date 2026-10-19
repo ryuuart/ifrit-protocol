@@ -48,7 +48,22 @@ struct SessionAgentOptions {
   /** The importer for a Python file; null leaves Python files
    *  unavailable. */
   Kind (*pythonLoader)(const std::filesystem::path&) = nullptr;
+  /** WHETHER `session.evaluate` RUNS WHAT A CLIENT SENDS. Off, it is
+   *  refused naming the command: the text runs with the sketch's own reach
+   *  over the machine, so a host opens the door only when a person asked
+   *  for it. */
+  bool evaluates = false;
 };
+
+/** What an evaluation answered, as the session domain spells it: what a
+ *  host that answers `session.evaluate` on a thread of its own replies
+ *  with, as this agent does. */
+[[nodiscard]] protocol::session::values::EvaluateResult evaluationResult(
+    const Evaluation& evaluation);
+
+/** How the session domain's evaluate asks its text to be read. */
+[[nodiscard]] EvaluationMode evaluationMode(
+    protocol::session::EvaluationMode mode);
 
 /** THE ONE RUNNING SKETCH A PROTOCOL HOST HOLDS, answered over the
  *  session domain, and the policy clock its frames are drawn at, which
@@ -120,6 +135,12 @@ class SessionAgent final : public protocol::session::SessionAgent {
   void profile(
       const protocol::session::values::ProfileParameters& parameters,
       protocol::Reply<protocol::session::values::ProfileResult> reply) override;
+  /** Runs the text in the running sketch at once, on this thread — the
+   *  one that draws it — and answers through @p reply before it returns;
+   *  refused where `SessionAgentOptions::evaluates` is off. */
+  void evaluate(const protocol::session::values::EvaluateParameters& parameters,
+                protocol::Reply<protocol::session::values::EvaluateResult>
+                    reply) override;
 
   // --- the clock, as the clock domain's agent drives it -------------------
 

@@ -81,6 +81,26 @@ the speed and the density pin are each kept against the client that set
 them, and when it detaches the session is opened again for the wall's
 clock and the runtime's own density.
 
+**Evaluate runs text inside the running sketch**, and the door is shut
+unless the host opened it: `SessionAgentOptions::evaluates` is off by
+default, and `session.evaluate` is then refused naming the command,
+because the text runs with the sketch's whole reach over the machine.
+Open, the text reaches the session through `Host::evaluate` and
+`Session::evaluate`, on the thread that draws the sketch and between two
+of its frames — this agent's, which is the frame's — and is answered at
+once. A Python sketch runs it in the namespace of the module its class
+was written in, with the running instance as `self`, its context as
+`ctx` and the `sigil` package's modules the module did not bind, and
+answers the expression's value as `repr` writes it, what the text
+printed, and what it raised with its traceback. Text that raised is
+answered and changes nothing more: the session draws on. Text that ran
+to its end has a sketch whose `setup` declares its tree declare it
+again, so the next frame shows the change; a `draw` or a `describe` is
+asked at every step anyway, and one assigned on the class takes over at
+the next. A declaration that raises after the text ran fails the session
+as a frame that raises does, and the answer says so. A C++ sketch is
+compiled ahead of time and evaluates nothing; it is refused saying that.
+
 Two commands are answered with a refusal that names why, and are the
 ones this agent leaves open: `session.measured`, because a value a sketch
 passes through `Scene2DContext::measured` carries no name to answer it
@@ -135,8 +155,10 @@ a served Grimoire and connects to it.
 ## Headers
 
 - `core/agent/RegistryAgent.h` — `RegistryAgent`: the registry domain.
-- `live/agent/SessionAgent.h` — `SessionAgentOptions`, `SessionAgent`:
-  the session domain and the policy clock its frames are drawn at.
+- `live/agent/SessionAgent.h` — `SessionAgentOptions`, `SessionAgent`,
+  `evaluationResult`, `evaluationMode`: the session domain, the policy
+  clock its frames are drawn at, and an evaluation as the domain spells
+  it for a host that answers evaluate on a thread of its own.
 - `live/agent/ClockAgent.h` — `ClockAgent`, `policyOf`: the clock
   domain.
 - `live/agent/HostAgents.h` — `HostAgents`: the three, mounted together.

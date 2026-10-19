@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <utility>
 
 #include "CanvasView.h"
 #include "GrimoireRenderer.h"
@@ -34,6 +35,34 @@ bool GrimoireView::oneSessionAtATime = false;
 // QMutex's constructor does not throw
 // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 QMutex GrimoireView::hostMutex;
+
+namespace {
+
+/** The work waiting for the render thread, under its own lock so that
+ *  handing work over never waits on a frame. */
+struct SketchWork {
+  QMutex mutex;
+  std::vector<std::function<void(sketch::Host*)>> waiting;
+};
+
+SketchWork& sketchWork() {
+  static SketchWork work;
+  return work;
+}
+
+}  // namespace
+
+void GrimoireView::runOnSketchThread(std::function<void(sketch::Host*)> work) {
+  SketchWork& queue = sketchWork();
+  QMutexLocker lock(&queue.mutex);
+  queue.waiting.push_back(std::move(work));
+}
+
+std::vector<std::function<void(sketch::Host*)>> GrimoireView::takeSketchWork() {
+  SketchWork& queue = sketchWork();
+  QMutexLocker lock(&queue.mutex);
+  return std::exchange(queue.waiting, {});
+}
 
 GrimoireView::GrimoireView(QQuickItem* parent)
     : QQuickRhiItem(parent), m_publishing(publishAtStart) {

@@ -753,6 +753,10 @@ void GrimoireRenderer::reportWrittenThumbnails() {
         Qt::QueuedConnection);
 }
 
+void GrimoireRenderer::runSketchWork() {
+  for (auto& work : GrimoireView::takeSketchWork()) work(GrimoireView::host);
+}
+
 void GrimoireRenderer::runPendingCaptures() {
   sketch::Host* host = GrimoireView::host;
   while (m_pendingCaptures > 0) {
@@ -950,6 +954,7 @@ void GrimoireRenderer::render(QRhiCommandBuffer* commandBuffer) {
         refreshThumbnail();
         reportWrittenThumbnails();
         runPendingCaptures();
+        runSketchWork();
         if (m_metricsDirty) {
           m_metricsDirty = false;
           publishMetrics();
@@ -1012,6 +1017,7 @@ void GrimoireRenderer::render(QRhiCommandBuffer* commandBuffer) {
     refreshThumbnail();
     reportWrittenThumbnails();
     runPendingCaptures();
+    runSketchWork();
     if (m_metricsDirty) {
       m_metricsDirty = false;
       publishMetrics();

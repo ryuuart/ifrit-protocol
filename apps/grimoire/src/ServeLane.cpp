@@ -65,6 +65,7 @@ int runServe(const Arguments& args, const std::filesystem::path& flagsFile,
             : args.assetsOverride;
     session.flagsFile = flagsFile;
     session.pythonLoader = &sketch::python::load;
+    session.evaluates = args.repl;
     sketch::HostAgents agents(dispatcher, std::move(session),
                               sketch::CatalogSources{SIGIL_SKETCH_DIR, {}, {}});
     protocol::EndpointPolicy policy;
@@ -75,6 +76,11 @@ int runServe(const Arguments& args, const std::filesystem::path& flagsFile,
       result = 1;
     } else {
       std::printf("protocol at %s\n", endpoint.address().c_str());
+      if (args.repl)
+        std::fprintf(stderr,
+                     "[grimoire] --repl: session.evaluate runs any code a "
+                     "client on this machine sends inside the running "
+                     "sketch\n");
       std::fflush(stdout);
       std::signal(SIGINT, endServing);
       std::signal(SIGTERM, endServing);

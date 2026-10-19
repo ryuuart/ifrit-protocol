@@ -16,6 +16,7 @@
 #include <QtQuick/QQuickRhiItem>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -191,6 +192,16 @@ class GrimoireView : public QQuickRhiItem {
    *  that belongs to the window and not to the sketch being read. */
   static bool oneSessionAtATime;
   static QMutex hostMutex;
+
+  /** WORK FOR THE SKETCH ON SCREEN, from a thread that is not the one
+   *  drawing it: @p work runs on the render thread, between two frames,
+   *  with `hostMutex` held, and is handed the presented host — null where
+   *  none is. What a protocol client sends the running sketch reaches it
+   *  this way, so it runs where the sketch's own hooks run. */
+  static void runOnSketchThread(std::function<void(sigil::sketch::Host*)> work);
+  /** The work waiting for the next frame, taken by the renderer. */
+  static std::vector<std::function<void(sigil::sketch::Host*)>>
+  takeSketchWork();
 
  Q_SIGNALS:
   void sketchIndexChanged();

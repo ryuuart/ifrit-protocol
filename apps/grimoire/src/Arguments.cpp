@@ -47,6 +47,8 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
         }
         args.inspectPort = (uint16_t)value;
       }
+    } else if (arg == "--repl") {
+      args.repl = true;
     } else if (arg == "--list") {
       args.list = true;
     } else if (arg == "--catalog") {

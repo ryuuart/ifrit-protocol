@@ -37,6 +37,36 @@ struct Timing {
   double drawMilliseconds = 0;
 };
 
+/** How text handed to `Session::evaluate` is read. */
+enum class EvaluationMode {
+  /** One expression, whose value is answered. */
+  Expression,
+  /** Statements, run for what they do. */
+  Statements,
+};
+
+/** WHAT EVALUATED TEXT RAISED, in its language's own words. */
+struct EvaluationError {
+  /** The exception's type, by its name. */
+  std::string type;
+  /** Its message. */
+  std::string message;
+  /** The traceback as the language prints it, from the text down. */
+  std::string traceback;
+};
+
+/** WHAT ONE EVALUATION ANSWERED: the expression's value as its language
+ *  represents it, what the text printed while it ran, and what it raised
+ *  where it did not run to its end. */
+struct Evaluation {
+  /** The value; empty for statements and for text that raised. */
+  std::string value;
+  /** The standard output and standard error the text wrote, in order. */
+  std::string output;
+  /** What the text raised; nothing where it ran to its end. */
+  std::optional<EvaluationError> error;
+};
+
 /** ONE RUNNING SKETCH — a body, the runtime it draws through, and the
  *  state that runtime keeps between frames.
  *
@@ -100,6 +130,22 @@ class Session {
    *  sketch reads changed underneath it. A runtime whose body declares
    *  nothing up front has nothing to do. */
   virtual void redeclare() {}
+
+  /** RUNS @p code INSIDE THE RUNNING BODY, on the thread that draws it and
+   *  between two of its frames, in the namespace the body was written in,
+   *  and answers what it evaluated to, printed and raised. Text that ran
+   *  to its end has the body describe again where it declares its tree up
+   *  front, so the next frame shows the change; text that raised leaves
+   *  the body as the text left it and the session running. Nothing for a
+   *  runtime whose body is compiled ahead of time and evaluates no text.
+   *  @trap It runs whatever it is handed with the body's own reach: a host
+   *  hands it text only from a door it was told to open. */
+  virtual std::optional<Evaluation> evaluate(std::string_view code,
+                                             EvaluationMode mode) {
+    (void)code;
+    (void)mode;
+    return std::nullopt;
+  }
 
   /** How the last frame split. Zero until the first one lands. */
   [[nodiscard]] virtual Timing timing() const = 0;

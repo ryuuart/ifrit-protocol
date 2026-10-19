@@ -128,6 +128,17 @@ Answer<protocol::session::values::StillResult> InProcessHost::still(
   return wait(answered);
 }
 
+Answer<protocol::session::values::EvaluateResult> InProcessHost::evaluate(
+    const std::string& code, protocol::session::EvaluationMode mode) {
+  std::optional<Answer<protocol::session::values::EvaluateResult>> answered;
+  protocol::session::values::EvaluateParameters parameters;
+  parameters.code = code;
+  parameters.mode = mode;
+  protocol::session::SessionClient(caller()).evaluate(parameters,
+                                                      into(answered));
+  return wait(answered);
+}
+
 std::string InProcessHost::send(std::string_view envelope) {
   std::optional<std::string> heard;
   m_client->send(envelope, [&heard](std::string answer) {

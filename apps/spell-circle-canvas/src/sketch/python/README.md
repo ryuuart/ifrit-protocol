@@ -33,7 +33,11 @@ the installed extension use that assembly.
 
 `host/Runtime.cpp` owns interpreter selection for embedded hosts, fresh
 source imports, sketch instances, checked context and service views,
-callback and feed leases, and file rendering through the native host.
+callback and feed leases, file rendering through the native host, and a
+session's evaluate: the text a client sends handed, with the running
+instance and its context, to the package's `sigil._evaluation`, which runs
+it in the sketch's module and catches what it raises, and the body declared
+again where its class says a setup declares its tree.
 `host/Plates.cpp` binds the comparison of two directories of plates as the
 rows a script judges, and `host/Catalog.cpp` the registry and a catalog of
 sketch files as the rows a browser shows. `host/Page.cpp` binds the page a

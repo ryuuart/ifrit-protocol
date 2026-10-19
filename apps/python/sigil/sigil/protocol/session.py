@@ -2,8 +2,8 @@
 # edit the definition, not this file.
 
 """The one running sketch a host holds: opening it, pinning what a
-repeatable run needs pinned, photographing it, and reading back what
-its last frame cost.
+repeatable run needs pinned, photographing it, reading back what its
+last frame cost, and evaluating text inside it.
 """
 
 from __future__ import annotations
@@ -26,6 +26,16 @@ class Device(enum.Enum):
 
     Gpu = "Gpu"
     """The GPU, through the host's device."""
+
+
+class EvaluationMode(enum.Enum):
+    """How evaluate reads the text it is sent."""
+
+    Expression = "Expression"
+    """One expression, whose value is answered."""
+
+    Statements = "Statements"
+    """Statements, run for what they do; the value answered is empty."""
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -94,6 +104,106 @@ class DeviceParameters:
         fields = messages.members(value, cls)
         return cls(
             device=messages.enumeration(fields, "device", Device.Cpu),
+        )
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class EvaluateParameters:
+    """What evaluate is asked."""
+
+    code: str
+    """The source text, in the language the running sketch is written in."""
+
+    mode: EvaluationMode = EvaluationMode.Expression
+    """Whether the text is one expression or statements."""
+
+    def toJson(self) -> dict[str, messages.Json]:
+        """This table as the JSON object the wire carries."""
+        out: dict[str, messages.Json] = {}
+        out["code"] = self.code
+        out["mode"] = self.mode.value
+        return out
+
+    @classmethod
+    def fromJson(cls, value: messages.Json) -> EvaluateParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
+        return cls(
+            code=messages.requiredText(fields, "code"),
+            mode=messages.enumeration(fields, "mode", EvaluationMode.Expression),
+        )
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class EvaluateResult:
+    """What an evaluation answered."""
+
+    value: str = ""
+    """The expression's value as the language represents it; empty for
+    statements and where the text raised.
+    """
+
+    output: str = ""
+    """What the text wrote to the standard output and the standard error
+    while it ran, in the order written.
+    """
+
+    error: EvaluationError | None = None
+    """What the text raised; absent where it ran to its end."""
+
+    def toJson(self) -> dict[str, messages.Json]:
+        """This table as the JSON object the wire carries."""
+        out: dict[str, messages.Json] = {}
+        out["value"] = self.value
+        out["output"] = self.output
+        if self.error is not None:
+            out["error"] = self.error.toJson()
+        return out
+
+    @classmethod
+    def fromJson(cls, value: messages.Json) -> EvaluateResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
+        return cls(
+            value=messages.text(fields, "value", ""),
+            output=messages.text(fields, "output", ""),
+            error=messages.table(fields, "error", EvaluationError.fromJson),
+        )
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class EvaluationError:
+    """What stopped an evaluation: the exception the text raised, in the
+    language's own words.
+    """
+
+    type: str = ""
+    """The exception's type, by its name."""
+
+    message: str = ""
+    """The exception's message."""
+
+    traceback: str = ""
+    """The traceback, as the language prints it, from the evaluated text
+    down.
+    """
+
+    def toJson(self) -> dict[str, messages.Json]:
+        """This table as the JSON object the wire carries."""
+        out: dict[str, messages.Json] = {}
+        out["type"] = self.type
+        out["message"] = self.message
+        out["traceback"] = self.traceback
+        return out
+
+    @classmethod
+    def fromJson(cls, value: messages.Json) -> EvaluationError:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
+        return cls(
+            type=messages.text(fields, "type", ""),
+            message=messages.text(fields, "message", ""),
+            traceback=messages.text(fields, "traceback", ""),
         )
 
 
@@ -524,8 +634,8 @@ class TimingResult:
 
 class Session:
     """The one running sketch a host holds: opening it, pinning what a
-    repeatable run needs pinned, photographing it, and reading back what
-    its last frame cost.
+    repeatable run needs pinned, photographing it, reading back what its
+    last frame cost, and evaluating text inside it.
 
     One method per command, sending its parameters through the caller
     and answering its result's table, and one per event, handing each
@@ -623,6 +733,29 @@ class Session:
         parameters = ProfileParameters(limit=limit)
         answer = self._caller.call("session.profile", parameters.toJson())
         return _shared.answer("session.profile", ProfileResult.fromJson, answer)
+
+    def evaluate(
+        self, *, code: str, mode: EvaluationMode = EvaluationMode.Expression
+    ) -> EvaluateResult:
+        """Runs text in the running sketch's own namespace, between two of its
+        frames, on the thread that draws them, and answers what it evaluated
+        to, what it printed and what it raised. Names the sketch's module
+        binds are in scope, beside the running sketch as `self` and its
+        context as `ctx`. Text that ran to its end describes the sketch again
+        — a sketch that declares its tree is asked for it again — so the next
+        frame shows the change; text that raised changes nothing more, and
+        the sketch runs on. A sketch compiled ahead of time evaluates
+        nothing and refuses it. A host opens this door only when it is told
+        to, and refuses it otherwise, because it runs whatever a client
+        sends.
+
+        EXPERIMENTAL: its shape may still change.
+
+        Answered once the work is done.
+        """
+        parameters = EvaluateParameters(code=code, mode=mode)
+        answer = self._caller.call("session.evaluate", parameters.toJson())
+        return _shared.answer("session.evaluate", EvaluateResult.fromJson, answer)
 
     def enable(self) -> None:
         """Starts this client's session events."""

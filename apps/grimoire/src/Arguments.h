@@ -69,6 +69,11 @@ struct Arguments {
    *  for it: the port to hold, 0 for any free one. Unstated, the window
    *  mounts it on a free port anyway and every other run mounts none. */
   std::optional<uint16_t> inspectPort;
+  /** THE EVALUATE DOOR, as `--repl` asked for it: `session.evaluate`
+   *  runs whatever text a client on this machine sends inside the sketch
+   *  that is running. Off unless asked, because that text has the
+   *  sketch's whole reach over the machine. */
+  bool repl = false;
 };
 
 /** Reads the whole command line. Nothing when a flag was not understood
