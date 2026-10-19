@@ -146,7 +146,12 @@ The writer signals an event behind its drawing, and
 the next recording this library inserts from that recorder wait for it
 on the GPU, so neither thread waits. It is registered before the
 sampling draw is recorded, and only this library's own inserts — a
-surface's submit, a paint-order fence, a readback — attach it. The wrap
+surface's submit, a paint-order fence, a readback — attach it. A caller
+that submits a recorder of its own does so through
+`sigil::skia::GraphiteContext::submit(recorder, sync)`, which snaps it and
+inserts the recording with its waits, and
+`sigil::skia::pendingWaits(recorder)` says how many waits the next insert
+will carry. The wrap
 that tells its owner when the texture is free again —
 `wrapImage(recorder, mtlTexture, width, height, alpha, colourSpace,
 released, context)` — calls `released` once the image is gone and every

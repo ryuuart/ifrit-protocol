@@ -193,6 +193,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // printed, and a run of a hundred is where that costs the most.
     noteSketch(entry.name);
     notePlates((int)plates);
+    if (options.opening) options.opening(entry);
     io::clearProblems(assets.hub());
     const auto reportProblems = [&] {
       const auto problems = assets.hub().problems();
@@ -243,14 +244,12 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       surface = SkSurfaces::RenderTarget(graphite->recorder(), info);
       // Serialize each frame to completion so a frame's cost cannot hide
       // in queue depth. Real hosts pipeline — this is the honest
-      // worst-case bound the frame-time floor is judged on.
+      // worst-case bound the frame-time floor is judged on. Through the
+      // door that carries the recorder's waits, so a frame sampling a
+      // presented world picture waits for the device to finish it.
       flushHook = [&graphite] {
-        if (auto recording = graphite->recorder()->snap()) {
-          skgpu::graphite::InsertRecordingInfo insert;
-          insert.fRecording = recording.get();
-          graphite->context()->insertRecording(insert);
-        }
-        graphite->context()->submit(skgpu::graphite::SyncToCpu::kYes);
+        (void)graphite->submit(*graphite->recorder(),
+                               skgpu::graphite::SyncToCpu::kYes);
       };
     }
     if (!surface) surface = SkSurfaces::Raster(info);

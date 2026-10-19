@@ -17,6 +17,7 @@
 #include <sigilsketch/core/Members.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
+#include <sigilsketch/scene3d/OpensOnRuntime.h>
 #include <sigilsketch/scene3d/Page.h>
 #include <sigilworld/World.h>
 #include <sigilworld/advanced/Runtime.h>
@@ -201,7 +202,7 @@ class Scene3DBodyOf final : public Scene3DBody {
  *  drawn on the device runtime the process brought up. A scene3d sketch is
  *  drawn on a device and nowhere else: where there is none, the kind is
  *  unavailable and says so, and no session opens. */
-class Scene3DKind final : public KindOperations {
+class Scene3DKind final : public KindOperations, public OpensOnRuntime {
  public:
   using Factory = Scene3DBody* (*)();
   explicit Scene3DKind(Factory factory) : m_factory(factory) {}
@@ -230,6 +231,9 @@ class Scene3DKind final : public KindOperations {
     Scene3DKind stated = *this;
     stated.m_runtime = runtime;
     return stated;
+  }
+  [[nodiscard]] Kind opensOn(const world::Runtime& runtime) const override {
+    return Kind{on(runtime)};
   }
 
   [[nodiscard]] std::string_view runtime() const override { return "scene3d"; }
@@ -265,11 +269,14 @@ class Scene3DKind final : public KindOperations {
 /** @p kind WITH THE RUNTIME ITS SESSIONS DRAW THROUGH STATED, rather
  *  than read off the process when each opens.
  *
- *  A kind that draws through no such runtime — scene2d, a pen — is
- *  returned unchanged, so a host may say this about whatever it is
+ *  Every kind that draws through such a runtime is an `OpensOnRuntime` —
+ *  a scene3d kind, a scene2d kind for the world frames it bakes, a Python
+ *  sketch of either — and is told; a kind that draws through none, a pen,
+ *  is returned unchanged, so a host may say this about whatever it is
  *  holding. An empty runtime is no device: a scene3d kind stated on one is
- *  unavailable, which is what a caller that must not reach the process's
- *  device — a background still on a worker — asks for. */
+ *  unavailable, as is a kind that declared it needs a device, which is
+ *  what a caller that must not reach the process's device — a background
+ *  still on a worker — asks for. */
 [[nodiscard]] Kind onRuntime(const Kind& kind, const world::Runtime& runtime);
 
 /** The factory SIGIL_SKETCH takes the ADDRESS of; see the 2D one for why

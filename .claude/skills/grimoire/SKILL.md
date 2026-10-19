@@ -1,6 +1,6 @@
 ---
 name: grimoire
-description: Run Grimoire, the SigilSketch host, from the command line - headless plate sweeps, one still, bench and window-bench, video montage, plate comparison, thumbnails and the protocol endpoint a client drives
+description: Run Grimoire, the SigilSketch host, from the command line - headless plate sweeps, one still, window-bench, video montage, plate comparison, thumbnails and the protocol endpoint a client drives
 ---
 
 # Grimoire from the command line
@@ -20,10 +20,10 @@ build/bin/<config>/Grimoire.app/Contents/MacOS/Grimoire \
 
 Pointed at a file with no `--headless`, Grimoire opens on it, from
 anywhere on disk, and hot-swaps the recompiled sketch on every save;
-`--frame out.png` renders one still, `--bench` measures it against the
-60 FPS gate on a raster surface — a scene3d sketch is drawn on a device and nowhere
-else, so every lane that draws one (`--frame`, `--bench`, `--headless`,
-`--video`) needs `--gpu`, and without it the scene3d sketch is refused, skipped or
+`--frame out.png` renders one still and `--window-bench` measures the
+rate it reaches the screen at in a window of its own — a scene3d sketch
+is drawn on a device and nowhere else, so every headless lane that draws
+one (`--frame`, `--headless`, `--video`) needs `--gpu`, and without it the scene3d sketch is refused, skipped or
 listed unavailable with one reason; `--list --gpu` and `--catalog --gpu`
 list the scene3d sketches a device can draw — `--window-bench` presents it in the
 real window, `--shot <png>` captures the app. `--video <out.mp4>
@@ -56,7 +56,9 @@ files in `builds/`, the thumbnails in `thumbnails/`, the recorded device
 programs in `pipelines/`, and the settings and recent workspaces in
 `settings/`. A window or command the run starts is handed the same root,
 so a scripted run that names a fresh one reads nothing an earlier run
-left and leaves nothing behind.
+left and leaves nothing behind. `--pipeline-names` puts one line on
+stderr per device program built or replayed, naming it — how to see which
+program a first frame still had to build.
 
 The window mounts the protocol's endpoint on loopback without being
 asked; `--inspect[=<port>]` only picks the port. `Grimoire --headless
@@ -68,8 +70,8 @@ drives over the protocol until it is interrupted, with its address in
 and `sigil.testing` drives the same host in process. `Grimoire
 --headless <dir> --inspect ...` is a sweep that answers `host` and
 `registry` between sketches, with its plates unchanged. `--inspect` is
-refused on `--frame`, `--bench`, `--video`, `--list`, `--catalog`,
+refused on `--frame`, `--video`, `--list`, `--catalog`,
 `--compare` and `--thumbnails`. `--deterministic` and `--no-deterministic`
 name the clock policy a `--frame` session is opened for, `Advance` or the
-wall's; the defaults stand: a still is taken under `Advance`, and
-`--bench` runs under the wall's clock.
+wall's; the defaults stand: a still is taken under `Advance`, and a
+window under the wall's clock.

@@ -89,7 +89,7 @@ TEST(SketchHost, RestartsTheRuntimeSessionWithoutBuildingAgain) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 90));
   host.frame(*surface->getCanvas(), 1.0 / 60.0);
-  EXPECT_GT(host.frameTimes().work().mean(), sigil::measure::Duration::zero());
+  EXPECT_GT(host.frameTimes().work().mean(), sigil::motion::Duration::zero());
 
   EXPECT_TRUE(host.restartSession());
   EXPECT_EQ(Restarted::setups, 2);
@@ -558,7 +558,7 @@ TEST(SketchHost,
   EXPECT_DOUBLE_EQ(CaptureClock::updates.back(), .025);
   EXPECT_EQ(CaptureClock::paints, 0);
   EXPECT_FALSE(host.frameTimes().work().empty());
-  EXPECT_EQ(host.drawTimes().mean(), sigil::measure::Duration::zero());
+  EXPECT_EQ(host.drawTimes().mean(), sigil::motion::Duration::zero());
 
   const auto surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 90));
   ASSERT_TRUE(host.frame(*surface->getCanvas(), 1.0 / 60.0));

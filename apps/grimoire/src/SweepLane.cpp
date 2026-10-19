@@ -5,6 +5,7 @@
 #include "SweepLane.h"
 
 #include <sigilsketch/core/Crash.h>
+#include <sigilsketch/core/Registry.h>
 #include <sigilsketch/plate/Graphite.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilskia/graphite/GraphiteContext.h>
@@ -52,11 +53,18 @@ int runSweep(const Arguments& args, int chosen,
   // recipe's program and installing a reporter would be a warm-up for a
   // store this lane can neither read nor write.
   finishMaterialWarmup(materialWarmup);
-  if (args.gpu) openPipelineWarmup(pipelines::storeDirectory());
+  if (args.gpu)
+    openPipelineWarmup(pipelines::storeDirectory(), args.namePipelines);
   if (args.gpu && !useDevice()) return 1;
   const sigil::skia::GraphiteContext* graphite = sketch::deviceGraphite();
-  if (graphite && graphite->context())
+  if (graphite && graphite->context()) {
     recordPipelinesForAColdStore(*graphite->context());
+    // Each sketch's programs are written down under the key a window
+    // opens it by.
+    options.opening = [](const sketch::Entry& entry) {
+      pipelinesDrawnFor(entry.key);
+    };
+  }
   SharedWebEngineScope sharedWebEngine;
   // A SWEEP HAS A GUEST TOO, and it has a hundred of them in one
   // process: without the reporter a faulting sketch takes the run down

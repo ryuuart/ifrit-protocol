@@ -468,8 +468,8 @@ struct UiParticles {
     syncPool(posts, *postPool, 0.0, 0.0f);
 
     // A FIXED STEP, and the leftover fraction of one as the render
-    // interpolant. Integrating by the frame delta would make the window,
-    // `--video` and `--bench` run a different simulation from the sweep,
+    // interpolant. Integrating by the frame delta would make the window
+    // and `--video` run a different simulation from the sweep,
     // so what a plate shows would be a claim about the machine that took
     // it rather than about the declaration.
     const auto fixedClock = ticker.timer(

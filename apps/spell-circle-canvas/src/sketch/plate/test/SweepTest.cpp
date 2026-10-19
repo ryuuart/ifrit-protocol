@@ -13,6 +13,9 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <include/core/SkSurface.h>
+#include <include/gpu/graphite/GraphiteTypes.h>
+#include <include/gpu/graphite/Surface.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
@@ -29,7 +32,11 @@
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/plate/Graphite.h>
 #include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/PaintOrder.h>
+#include <sigilskia/graphite/TextureImage.h>
 #include <sigilworld/World.h>
 #include <sigilworld/frame/Frame.h>
 
@@ -562,6 +569,58 @@ TEST_F(DeviceSweep, AFrameCookedOnTheDeviceIsThePictureTheRasterPlateShows) {
   EXPECT_GT(inked, 0) << "the device plate's card is empty";
   EXPECT_LT(drift.mean, 2.0) << "one picture on both backends";
 }
+
+#ifdef __APPLE__
+/** A TIMED FRAME CARRIES THE RECORDER'S WAITS. The sweep times a frame by
+ *  drawing it through the paint-order canvas on the device's Graphite and
+ *  submitting the recorder itself, through the one door that attaches
+ *  every wait registered on it. A scene3d session drawn live presents its
+ *  world picture on the device behind a fence the device signals — a
+ *  capture reads its picture back instead, and so registers none — and
+ *  the insert that carries the frame has to wait for that fence or a draw
+ *  samples the picture before the device has finished it. So a live
+ *  session's frame is drawn the way the sweep draws one, the presented
+ *  fence's wait is found registered, and the door is found to have taken
+ *  it onto the insert. */
+TEST_F(DeviceSweep, ATimedScene3DFrameCarriesThePresentedPicturesWait) {
+  const sigil::geometry::device::test::OnDevice on =
+      sigil::geometry::device::test::onDevice();
+  if (!on->graphite()) GTEST_SKIP() << "the device carries no Graphite";
+  useDevice(on.device);
+  struct Uninstall {
+    ~Uninstall() { useDevice(nullptr); }
+  } uninstall;
+  sigil::skia::GraphiteContext* graphite = deviceGraphite();
+  ASSERT_NE(graphite, nullptr);
+  const int index = find("initial_set_probe");
+  ASSERT_GE(index, 0);
+  std::unique_ptr<Session> session = registry()[index].kind()->open(
+      fonts(), assets(), false, "initial_set_probe");
+  ASSERT_TRUE(session);
+  const SkSize size = session->canvas().size;
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphite->recorder(),
+      SkImageInfo::MakeN32Premul((int)size.width(), (int)size.height()));
+  ASSERT_TRUE(surface);
+  // Whatever an earlier case left registered goes out first.
+  (void)graphite->submit(*graphite->recorder(),
+                         skgpu::graphite::SyncToCpu::kYes);
+  ASSERT_EQ(sigil::skia::pendingWaits(*graphite->recorder()), 0u);
+  for (int frame = 0; frame < 3; ++frame) {
+    {
+      sigil::skia::PaintOrderCanvas ordered(*graphite, surface->getCanvas());
+      ordered.clear(SK_ColorBLACK);
+      session->frame(ordered, 1.0 / 60.0);
+    }
+    EXPECT_GT(sigil::skia::pendingWaits(*graphite->recorder()), 0u)
+        << "frame " << frame << " presented no picture behind a fence";
+    EXPECT_TRUE(graphite->submit(*graphite->recorder(),
+                                 skgpu::graphite::SyncToCpu::kYes));
+    EXPECT_EQ(sigil::skia::pendingWaits(*graphite->recorder()), 0u)
+        << "frame " << frame << "'s insert left the picture's wait behind";
+  }
+}
+#endif
 
 TEST(Sweep, PassesOverASketchWhoseProbeSaysThisMachineCannotDrawIt) {
   // A skip is not a failure and not a mover: the run still succeeds, and

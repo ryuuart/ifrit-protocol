@@ -115,8 +115,9 @@ SketchActions::SketchActions(QObject* parent)
 
   // ONE LINE OUT OF A RUN THAT PRINTS MANY. Each action answers on a line
   // of its own — `--frame` and `--video` name the file they wrote, and
-  // `--bench` prefixes its verdict so a collector can find it — so the panel
-  // keeps the marked line and drops the rest rather than growing a log pane.
+  // `--window-bench` prefixes its row so a collector can find it — so the
+  // panel keeps the marked line and drops the rest rather than growing a
+  // log pane.
   connect(&m_task, &QProcess::finished, this, [this](int code) {
     const QStringList output =
         QString::fromUtf8(m_task.readAll()).split(QLatin1Char('\n'));
@@ -395,8 +396,11 @@ void SketchActions::video(const QVariantMap& row, const QUrl& output) {
 void SketchActions::bench(const QVariantMap& row) {
   if (row.value(QStringLiteral("path")).toString().isEmpty()) return;
   const QString file = row.value(QStringLiteral("path")).toString();
+  // THE WINDOW'S OWN RATE: the file presented in a window of its own for
+  // the stated stretch, through the surface a window presents, which is
+  // what a reader of this sketch on screen waits on.
   run(row.value(QStringLiteral("name")).toString(),
-      {file, QStringLiteral("--bench")}, QStringLiteral("BENCH"));
+      {file, QStringLiteral("--window-bench")}, QStringLiteral("WINDOW"));
 }
 
 void SketchActions::reveal(const QVariantMap& row) {

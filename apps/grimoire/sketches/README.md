@@ -129,6 +129,15 @@ marks and label, a legend, meters and a dial, a ticker over a timeline, a
 scrollbar, a console over a ring of rows, an instrument, a panel and a
 title card.
 
+`python_bloom_specimen.py` states the optical bloom filter's coupled
+controls together: extraction threshold and knee, the near halo's sigma
+and strength, the broad halo's spread and tail, and the core's whitening,
+dilation and deepening, each cell captioned with its whole
+`BloomOptions` set. Starting configurations for fine luminous type and
+for a broad emissive surface sit beside an unfiltered reference, and a
+third row shows the near and the broad halo each alone with the other's
+strength at zero. Edit `FINE_TYPE`, `BROAD_SURFACE` or `HALO_BASE`.
+
 `cue_deck/` reads a TouchDesigner patch's cues through three doors: JSON
 text with no schema, OSC messages gathered by address pattern, and a
 FlatBuffer read through the `cue_deck.bfbs` the build compiles beside

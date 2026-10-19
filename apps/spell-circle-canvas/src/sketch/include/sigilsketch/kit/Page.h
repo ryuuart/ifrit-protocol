@@ -49,8 +49,8 @@ struct Stage {
   /** Device pixels per canvas pixel a PLATE is taken at; 0 lets the host
    *  pick. */
   int oversample = 0;
-  /** This sketch is a plate rather than a live scene: `--bench` judges
-   *  it on the cost of its capture. */
+  /** This sketch is a plate rather than a live scene: a background still
+   *  stands it down unless it was asked to walk plates. */
   bool plateOnly = false;
 };
 

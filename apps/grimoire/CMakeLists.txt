@@ -469,27 +469,39 @@ add_test(NAME sketch_window_bench_file
 set_tests_properties(sketch_window_bench_file PROPERTIES
   LABELS window TIMEOUT 300)
 
+# ONE REGISTRY ENTRY, NAMED: the window lane narrowed by `--sketch` prints
+# exactly one row, and it names the entry it presented.
+add_test(NAME sketch_window_bench_entry
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/window_orientation.py
+    --benchmark-entry wet_glass_console
+    --grimoire $<TARGET_FILE:Grimoire>
+    --work ${CMAKE_BINARY_DIR}/sketch_window_bench_entry)
+set_tests_properties(sketch_window_bench_entry PROPERTIES
+  LABELS window TIMEOUT 300)
+
 # WHAT A SECOND OPEN NO LONGER BUILDS, which only a window can say. The
 # device program a draw waits for is built by the context behind the
 # presented canvas, so neither a still nor a headless sweep reaches it:
-# this opens the real window twice over one recorded set and reads the
-# tally each run closes with. A machine with no device behind the window
-# reports so and passes, having measured nothing.
+# this opens the real window twice over one store, on a sketch wearing a
+# stack, and reads what its first frame built and the tally each run
+# closes with. A machine with no device behind the window reports so and
+# passes, having measured nothing.
 add_test(NAME sketch_pipeline_warmup
   COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_LIST_DIR}/test/pipeline_warmup.py
     --grimoire $<TARGET_FILE:Grimoire>
-    --sketch crt_bloom
+    --sketch ${CMAKE_CURRENT_LIST_DIR}/test/stack_probe.cpp
     --work ${CMAKE_BINARY_DIR}/sketch_pipeline_warmup)
 set_tests_properties(sketch_pipeline_warmup PROPERTIES
   LABELS "window;gpu" TIMEOUT 300)
 
 # WHAT A BATCH LANE LEAVES BEHIND, which needs no window: a headless
 # sweep on the device draws the programs an open window draws, so it
-# writes them down for a machine whose store stands empty — and only
-# then, because a run that drew a selection knows less about the next
-# launch than a window run that drew one sketch. Two sweeps over one
-# store: the first seeds it, the second records its own and writes none.
+# writes each sketch's down where that sketch has none — and only then,
+# because a capture draws less of a sketch than a window that showed it.
+# Three sweeps over one store: the first seeds one sketch, the second
+# seeds another beside it, the third repeats the first and writes none.
 add_test(NAME sketch_pipeline_cold_store
   COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_LIST_DIR}/test/pipeline_cold_store.py
@@ -499,6 +511,22 @@ add_test(NAME sketch_pipeline_cold_store
     --work ${CMAKE_BINARY_DIR}/sketch_pipeline_cold_store)
 set_tests_properties(sketch_pipeline_cold_store PROPERTIES
   LABELS gpu TIMEOUT 300)
+
+# ONE PICTURE PER DECLARATION, on the device: a sketch captured twice at
+# its declared moment is the same bytes twice. One sketch here reads its
+# layer beside the pixel it shades and the other draws through textures it
+# caches, the two ways a capture can come to depend on more than the
+# declaration.
+foreach(_stable_sketch IN ITEMS nostromo_monitor borges_library)
+  add_test(NAME sketch_stable_plate_${_stable_sketch}
+    COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_LIST_DIR}/test/stable_plate.py
+      --grimoire $<TARGET_FILE:Grimoire>
+      --sketch ${_stable_sketch}
+      --work ${CMAKE_BINARY_DIR}/sketch_stable_plate_${_stable_sketch})
+  set_tests_properties(sketch_stable_plate_${_stable_sketch} PROPERTIES
+    LABELS gpu TIMEOUT 300)
+endforeach()
 
 # Every sketch stem a document names, resolved against this catalogue.
 # A README points its reader at the sketches that draw the feature beside

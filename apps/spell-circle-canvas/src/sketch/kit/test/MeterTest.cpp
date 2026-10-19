@@ -57,7 +57,7 @@ TEST(SketchKitMeter, AnInstrumentIsItsReadingAsAFraction) {
                               .width = compose::Dimension(200)})));
   sigil::measure::Rate arrivals{std::chrono::seconds(2)};
   for (double at : {0.1, 0.5, 0.9, 1.3, 1.7, 1.9})
-    arrivals.mark(sigil::measure::Duration(at));
+    arrivals.mark(sigil::motion::Duration(at));
   EXPECT_TRUE(
       sameDrawing(kit::meter(arrivals, 6.0, {.width = compose::Dimension(200)}),
                   kit::meter({.fraction = 0.5f,

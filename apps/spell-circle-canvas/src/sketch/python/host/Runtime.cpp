@@ -419,12 +419,39 @@ class PythonSession final : public Session {
   std::string m_error;
 };
 
-class PythonKind final : public KindOperations {
+/** WHERE A KIND A PYTHON SOURCE MAKES OPENS, when a host said so: the
+ *  device runtime a world frame is drawn on — null being the process's
+ *  own. A thumbnail states it empty, and a kind that keeps it reaches
+ *  neither the process's device nor its queue. */
+struct StatedRuntimes {
+  std::shared_ptr<const world::Runtime> runtime;
+
+  bool operator==(const StatedRuntimes& other) const {
+    return runtime == other.runtime ||
+           (runtime && other.runtime && *runtime == *other.runtime);
+  }
+  /** The device runtime a session opens on. */
+  [[nodiscard]] const world::Runtime& opening() const {
+    return runtime ? *runtime : sketch::runtime();
+  }
+  /** @p kind, told what was stated here. */
+  [[nodiscard]] Kind applied(Kind kind) const {
+    if (runtime) kind = onRuntime(kind, *runtime);
+    return kind;
+  }
+};
+
+class PythonKind final : public KindOperations, public OpensOnRuntime {
  public:
   explicit PythonKind(std::shared_ptr<Generation> generation)
       : m_generation(std::move(generation)) {}
   bool operator==(const PythonKind& other) const {
-    return m_generation == other.m_generation;
+    return m_generation == other.m_generation && m_stated == other.m_stated;
+  }
+  Kind opensOn(const world::Runtime& runtime) const override {
+    PythonKind told = *this;
+    told.m_stated.runtime = std::make_shared<const world::Runtime>(runtime);
+    return Kind{std::move(told)};
   }
   std::string_view runtime() const override {
     return m_generation->scene3d ? "scene3d" : "scene2d";
@@ -433,11 +460,11 @@ class PythonKind final : public KindOperations {
     return m_generation->scene3d || m_generation->needsDevice;
   }
   /** A sketch that describes or bakes a 3D frame draws on the device
-   *  runtime the process installed, so where none is it is listed
-   *  unavailable with the one message every device door speaks, rather
-   *  than opened to draw its fallback. */
+   *  runtime it was told, or the one the process installed, so where
+   *  that is none it is listed unavailable with the one message every
+   *  device door speaks, rather than opened to draw its fallback. */
   bool available(std::string* why) const override {
-    return !needsDevice() || runtimeAvailable(why);
+    return !needsDevice() || runtimeAvailable(m_stated.opening(), why);
   }
   std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
                                 bool deterministic,
@@ -450,16 +477,18 @@ class PythonKind final : public KindOperations {
       if (m_generation->scene3d) {
         // Refused before a body is made, so a scene3d sketch that cannot be
         // drawn runs none of its own Python.
+        const world::Runtime& opening = m_stated.opening();
         std::string why;
-        if (!runtimeAvailable(&why)) throw std::runtime_error(why);
+        if (!runtimeAvailable(opening, &why)) throw std::runtime_error(why);
         auto body = std::make_unique<Scene3DPythonBody>(m_generation, state);
         auto session = openScene3D(std::move(body), fonts, assets,
-                                   deterministic, sketch::runtime());
+                                   deterministic, opening);
         return std::make_unique<PythonSession>(std::move(session), state);
       }
       auto body = std::make_unique<Body>(m_generation, state);
-      auto session =
-          openScene2D(std::move(body), fonts, assets, deterministic, key);
+      auto session = openScene2D(
+          std::move(body), fonts, assets, deterministic, key,
+          m_stated.runtime);
       return std::make_unique<PythonSession>(std::move(session), state);
     } catch (const py::error_already_set& error) {
       throw std::runtime_error(error.what());
@@ -468,6 +497,7 @@ class PythonKind final : public KindOperations {
 
  private:
   std::shared_ptr<Generation> m_generation;
+  StatedRuntimes m_stated;
 };
 
 /** Whether the sketch written in @p source declares `needsDevice = True`
@@ -540,12 +570,17 @@ bool describesFrame(const std::filesystem::path& source) {
   return false;
 }
 
-class SourceKind final : public KindOperations {
+class SourceKind final : public KindOperations, public OpensOnRuntime {
  public:
   explicit SourceKind(std::filesystem::path source)
       : m_source(std::move(source)) {}
   bool operator==(const SourceKind& other) const {
-    return m_source == other.m_source;
+    return m_source == other.m_source && m_stated == other.m_stated;
+  }
+  Kind opensOn(const world::Runtime& runtime) const override {
+    SourceKind told = *this;
+    told.m_stated.runtime = std::make_shared<const world::Runtime>(runtime);
+    return Kind{std::move(told)};
   }
   std::string_view runtime() const override {
     return describesFrame(m_source) ? "scene3d" : "scene2d";
@@ -554,17 +589,21 @@ class SourceKind final : public KindOperations {
     return describesFrame(m_source) || declaresDevice(m_source);
   }
   bool available(std::string* why) const override {
-    return !needsDevice() || runtimeAvailable(why);
+    return !needsDevice() || runtimeAvailable(m_stated.opening(), why);
   }
+  /** The imported kind is told what this one was, so the stated
+   *  runtimes reach the session whichever kind the source turns out to
+   *  make. */
   std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
                                 bool deterministic,
                                 std::string_view key) const override {
-    const Kind imported = load(m_source);
+    const Kind imported = m_stated.applied(load(m_source));
     return imported->open(fonts, assets, deterministic, key);
   }
 
  private:
   std::filesystem::path m_source;
+  StatedRuntimes m_stated;
 };
 
 /** The answer's result, or the refusal it carries raised as the error a

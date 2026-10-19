@@ -51,6 +51,9 @@ struct Arguments {
   bool publish = false;
   std::string publishName;
   bool thumbnailHeavy = false;
+  /** Whether each device program is named on stderr as it is built or
+   *  replayed: `--pipeline-names`. */
+  bool namePipelines = false;
   std::chrono::milliseconds thumbnailBudget = sigil::sketch::kThumbnailBudget;
   /** Where this run keeps everything it writes for a later run — builds,
    *  thumbnails, recorded device programs, settings and recents — each

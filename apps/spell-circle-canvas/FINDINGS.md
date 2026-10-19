@@ -1,15 +1,5 @@
 # Findings
 
-## A stack's programs cannot be stood up before the sketch wearing it is read
-
-Grimoire's warm-up (`apps/grimoire/src/PipelineWarm.cpp`) describes a
-selected sketch's stacks to Graphite's precompile only once the sketch is
-read, and cuts the keys it writes down at a fixed count, so a stack's
-programs are built on first draw rather than ahead of it. The host's
-sketch description should be enough to stand a stack's programs up before
-the sketch opens. A test should warm a sketch wearing a stack and find
-its first frame building no program.
-
 ## A run of driven variation instances costs its atlas entries at every device size
 
 A run whose letters are each a driven variation instance costs an atlas
@@ -98,92 +88,6 @@ full-frame pane under a casting light against the same pane under a light
 that casts nothing, and find the shadow's share within a stated bound of
 the opaque card's.
 
-## A window bench of a named sketch prints no row
-
-`Grimoire --window-bench 6 --sketch wet_glass_console` (with or without
-`--kind scene3d` and `--window-scale 2`) opens the window, stands its
-pipelines up and exits after the stretch with no `WINDOW` row, neither a
-reading nor a `SKIPPED` or `FAILED` line, so the presented rate the row
-carries cannot be read for one sketch. The cadence evidently never
-reaches its read step: the entry on screen is matched by the path the
-registry names, and a selection by name may not be what the host opened.
-A bench of one named sketch should print exactly one row. A test should
-run the window bench for one registry entry and find a `WINDOW` row
-naming it.
-
-## An asynchronous pipeline build can abort inside the Metal compiler
-
-With pipelines built on a worker, one run aborted on a dispatch queue in
-Metal's `newLibraryWithSource` under MoltenVK's shader library compiler,
-through an assertion the crash report does not quote
-(`Grimoire-2026-10-11-192549`). The Metal compiler is being driven from
-a worker thread while the window's own Metal work proceeds; whether the
-assertion is a compile error the synchronous path would have reported
-as a failed pipeline, or a threading rule of the compiler, is not known.
-A failed asynchronous build must become a pipeline the frame stands in
-for, never an abort. A test should hand the pipeline cache a program
-that cannot compile and find the body stood in and the error reported.
-
-## The sweep's flush inserts its own recordings without the recorder's waits
-
-`flushHook` in `src/sketch/plate/Sweep.cpp` inserts the recordings of a
-timed frame itself, so the GPU waits SigilSkia registered on that
-recorder, such as the presented World picture's fence, are not attached
-to those inserts; with 2D on Metal a discarded frame can sample a
-presented picture before the device finishes it. Plates are unaffected,
-since the read-back carries the waits. Every insert the tree makes should
-carry the recorder's waits, which wants a door that submits a recorder
-with its waits (`PendingWaits` is private to `Waits.*`). A test should
-time a scene3d sweep frame and find the picture's presented-fence wait
-attached.
-
-## A retain-count assertion in the hardware event test is order-sensitive under a parallel run
-
-`HardwareVulkanOverMetal.AMetalEventHoldsThisQueueUntilMetalRaisesIt`
-(`src/common/core/hardware/test/VulkanOverMetalTest.mm`) asserts that
-the shared event's retain count returns to what it was before the fence
-was imported; under a six-wide ctest run on one GPU the count reads one
-higher, while the case passes alone and repeated. The claim is that the
-device keeps no reference to a maker's event once the fence is
-destroyed, which a retain count read while other processes drive the
-same Metal device does not isolate. The test should prove the release
-another way, such as a weak reference that nils after the destroy and an
-autorelease drain, and the first-frame timing case in `StandIn` should
-likewise be read serially or with a bound that a loaded GPU meets.
-
-## Two sketches render differently on every device run
-
-Three device-tier sweeps in a row gave three different hashes for
-`nostromo_monitor` against its manifest entry, with no change to the
-sketch between them, and `borges_library.py` (The Library of Babel)
-disagrees with itself across four renders under `--stability 3`; neither
-uses a text track. A headless capture at a declared moment should hash
-the same every time; the sketch's `Tube.sksl` and `Wall.sksl` programs
-are where to look. A test should assert that two device renders of
-`nostromo_monitor` at its capture moment are byte-identical, and the
-plate run's `--stability` pass should attribute the scene to itself
-until they are.
-
-## Thumbnail workers open Python kinds on the process device
-
-`onRuntime` and `onPainterRuntime` in the sketch host act only on the
-C++ `Scene3DKind` and `Scene2DKind` through a `dynamic_cast`, so a
-Python source or loaded kind passes through unchanged and a thumbnail
-worker opens a Python scene3d sketch, or any scene2d sketch that bakes,
-on the process device from a worker thread. The empty runtime a
-thumbnail states is meant to reach every kind. A test should assert
-that `thumbnailAvailable` on a Python scene3d entry answers unavailable
-when `thumbnailKind` states an empty runtime.
-
-## The protocol endpoint test resends its first message until one goes out
-
-`dial()` in `src/common/protocol/endpoint/test/EndpointTest.cpp` offers
-its first message again until a send returns true, compensating for a
-client door that read Open before its handshake had reached the server.
-The door now reads Connecting until the handshake is through, so the
-helper should wait for `client.state().isOpen()` and send once, and a
-test should find that first send returning true.
-
 ## A leaf set in a whole text style ignores its own colour ink
 
 A leaf built with a whole `TextStyle`, `text(utf8, style)`, draws in the
@@ -219,4 +123,31 @@ maps back.
 and `weave.typeface(family, weight, italic)` answers a `skia.Typeface`
 where the rest of the package now answers a `weave.Face`. Each should
 reach Python in the same shape as its C++ twin, with a test per name.
+
+## A sketch's own runtime effects build on its first frame
+
+A program over an effect made while the sketch's setup runs, such as
+`crt_bloom`'s overlay made after the Graphite context exists, carries no
+key, so no recorded key set can stand it up and `crt_bloom` builds two
+programs on every open. The host is meant to stand up every program a
+sketch's first frame needs. A test should open `crt_bloom` twice and
+find the second open's first frame building no program.
+
+## A raw effect program cannot state a sampling reach
+
+`Filter.program` in Python and `material::skia::program` in C++ always
+pass a sampling radius of zero, so a body that reads its neighbours
+reads undefined texture slack past the layer's right and bottom edge,
+which is why `nostromo_monitor` states its reach through `Filter.of`
+instead. The raw-effect door should state a reach as `Filter.of` does.
+A test should apply a neighbour-reading program through it with a stated
+reach and capture byte-identically twice.
+
+## Scry inserts its own recording without the recorder's waits
+
+`src/common/scry/gpu/metal/MetalInterop.mm` calls `insertRecording`
+itself, as the compose, scry and media benches do, so the waits
+registered on the recorder are not attached to those inserts; every
+insert should go through `GraphiteContext::submit`. A test should insert
+a scry page after a registered wait and find `pendingWaits` at zero.
 

@@ -64,6 +64,7 @@ show how those operations compose into a complete picture.
 | Timelines from Python | [python_timeline](python_timeline.py) | Labels and four positions (`at`, `atLabel`, `withPrevious`, `afterPrevious`) placing tweens, a staggered run and calls on one timeline; a call swapping a keyed credit into a slot; a timer that pauses, resumes, seeks and replays the playback and writes its progress to a bound playhead. |
 | Bindings from Python | [python_bindings](python_bindings.py) | One live value written from an oscillator, read by a dial through a range and a wiggle, a meter through a clamp, a lamp through a trapezoid envelope and twelve lights through per-slice `quantize`. |
 | Springs and oscillators from Python | [python_springs](python_springs.py) | Two springs stepped from a timer, one ringing and one critically damped into an OKLab colour; `flash` and `decay` read from the age of a hit; three waves at one rate; the declared, running and settled answers in a slot re-rendered when one changes. |
+| Optical bloom from Python | [python_bloom_specimen](python_bloom_specimen.py) | One `Filter.bloom` over `BloomOptions` with its coupled controls captioned together: three starting configurations on a line of fine luminous type and two on a lit surface with dark lettering, each beside the unfiltered subject; the near and the broad halo shown apart by zeroing `tail` and then `strength`. A cell paints exactly what a bare text leaf given the same configuration paints. |
 
 ## What a sketch cannot certify
 

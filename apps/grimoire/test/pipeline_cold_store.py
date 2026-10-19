@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""A batch lane fills a store that stands empty, and never replaces one.
+"""A batch lane fills a sketch's set where none stands, and never
+replaces one.
 
 A headless sweep on the device draws the programs an open window draws,
-with nobody waiting on any of them, so what it built is worth writing
-down for a machine that has nothing written down yet — that is what
-makes the FIRST interactive open of a machine the cheap one rather than
-the second.
+with nobody waiting on any of them, so what each sketch's draws built is
+worth writing down for a sketch that has nothing written down yet — that
+is what makes the FIRST interactive open of that sketch the cheap one
+rather than the second.
 
-It must not do more than that. A run that drew a whole selection knows
-less about what the next launch will open than a window run that drew
-one sketch, so a store that already answers for this declaration has to
-keep its answer, whatever a later batch run recorded.
+It must not do more than that. A capture draws a sketch at its moment,
+which is less than a window that showed it draws, so a sketch that
+already has a set keeps it, whatever a later batch run recorded.
 
-So: one sweep over an empty store, which must leave exactly one set
-holding everything its draws wanted; then a sweep of a DIFFERENT sketch
-over that same store, which must record its own programs and write none
-of them, leaving the first set byte for byte. A machine with no device
-reports so and passes, having measured nothing.
+So: one sweep of a sketch over an empty store, which must leave exactly
+one set holding everything its draws wanted; then a sweep of a DIFFERENT
+sketch, which seeds that sketch's own set and leaves the first byte for
+byte; then the first sketch again, which records its programs and writes
+none of them. A machine with no device reports so and passes, having
+measured nothing.
 
 Usage (invoked by the build; the paths are all absolute):
   pipeline_cold_store.py --grimoire <Grimoire binary> \\
@@ -133,26 +134,40 @@ def main() -> None:
     seeded = digest(written[0])
     print(f"seeded {written[0].name}, {written[0].stat().st_size} bytes")
 
-    # A SECOND BATCH RUN LEAVES IT ALONE. It records its own programs —
-    # otherwise this would pass on a lane that stopped recording at all —
-    # and writes none of them.
-    warm = tally_of(
+    # ANOTHER SKETCH IS COLD FOR ITSELF: its set is seeded beside the
+    # first, which is left as it was.
+    other = tally_of(
         sweep(arguments.grimoire, arguments.second, out, state),
-        "the warm store",
+        "another sketch",
+    )
+    if other.written == 0:
+        sys.exit("the second sketch's sweep seeded no set of its own")
+    both = sorted(store.glob("*.keys"))
+    if len(both) != 2 or written[0] not in both:
+        sys.exit(f"expected the first set and one beside it, found {both}")
+    if digest(written[0]) != seeded:
+        sys.exit(f"{written[0].name} was rewritten by another sketch's sweep")
+
+    # THE FIRST SKETCH AGAIN LEAVES ITS SET ALONE. It records its own
+    # programs — otherwise this would pass on a lane that stopped
+    # recording at all — and writes none of them.
+    warm = tally_of(
+        sweep(arguments.grimoire, arguments.first, out, state),
+        "the warm sketch",
     )
     if warm.recorded == 0:
-        sys.exit("the second sweep recorded nothing, so it proves nothing")
+        sys.exit("the third sweep recorded nothing, so it proves nothing")
     if warm.written != 0:
         sys.exit(
-            f"the second sweep wrote {warm.written} keys over a store that "
+            f"the third sweep wrote {warm.written} keys over a set that "
             "already answered"
         )
     again = sorted(store.glob("*.keys"))
-    if [one.name for one in again] != [one.name for one in written]:
-        sys.exit(f"the store's sets changed: {written} became {again}")
-    if digest(again[0]) != seeded:
-        sys.exit(f"{again[0].name} was rewritten by the second sweep")
-    print(f"{again[0].name} stands as the first sweep left it", flush=True)
+    if again != both:
+        sys.exit(f"the store's sets changed: {both} became {again}")
+    if digest(written[0]) != seeded:
+        sys.exit(f"{written[0].name} was rewritten by the third sweep")
+    print(f"{written[0].name} stands as the first sweep left it", flush=True)
 
 
 if __name__ == "__main__":

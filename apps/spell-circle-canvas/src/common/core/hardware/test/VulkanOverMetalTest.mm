@@ -386,41 +386,62 @@ TEST_F(HardwareVulkanOverMetal, ATextureInAFormatNoTextureHereHasIsRefused) {
 // raises it, so the signal standing still is the wait and not a slow
 // queue.
 TEST_F(HardwareVulkanOverMetal, AMetalEventHoldsThisQueueUntilMetalRaisesIt) {
-  id<MTLSharedEvent> event = [metal newSharedEvent];
-  // NOLINTNEXTLINE(clang-analyzer-osx.cocoa.RetainCount)
-  ASSERT_NE(event, nil);
-  const NSUInteger before = CFGetRetainCount((CFTypeRef)event);
-  NativeFence given;
-  given.backend = Backend::Metal;
-  given.mtlSharedEvent = (void *)event;
-  const FenceHandle painted = device->importNative(given);
-  ASSERT_TRUE(device->isValid(painted));
-  const NativeFence native = device->exportNative(painted);
-  EXPECT_EQ(native.backend, Backend::Vulkan);
-  EXPECT_NE(native.vkSemaphore, 0u);
-  EXPECT_EQ(native.mtlSharedEvent, (void *)event) << "the very event it was brought over from";
-  EXPECT_EQ(device->signal(painted), kFenceInitialValue) << "the other queue numbers it";
+  // THE EVENT STAYS ITS MAKER'S, proven by its going: once the fence is
+  // destroyed and the maker lets go, a weak reference to the event reads
+  // nothing. A retain count read here would not prove it, because other
+  // processes driving the same Metal device move what the count reads
+  // while the claim holds.
+  NSHashTable *watched = [NSHashTable weakObjectsHashTable];
+  @autoreleasepool {
+    id<MTLSharedEvent> event = [metal newSharedEvent];
+    // NOLINTNEXTLINE(clang-analyzer-osx.cocoa.RetainCount)
+    ASSERT_NE(event, nil);
+    [watched addObject:event];
+    NativeFence given;
+    given.backend = Backend::Metal;
+    given.mtlSharedEvent = (void *)event;
+    const FenceHandle painted = device->importNative(given);
+    ASSERT_TRUE(device->isValid(painted));
+    const NativeFence native = device->exportNative(painted);
+    EXPECT_EQ(native.backend, Backend::Vulkan);
+    EXPECT_NE(native.vkSemaphore, 0u);
+    EXPECT_EQ(native.mtlSharedEvent, (void *)event) << "the very event it was brought over from";
+    EXPECT_EQ(device->signal(painted), kFenceInitialValue) << "the other queue numbers it";
 
-  const FenceHandle after = device->createFence();
-  device->waitGpu(painted, 1);
-  const FenceValue reached = device->signal(after);
-  EXPECT_EQ(device->waitCpu(after, reached, std::chrono::milliseconds(50)), FenceWait::TimedOut)
-      << "the queue ran past a wait nothing had raised";
+    const FenceHandle after = device->createFence();
+    device->waitGpu(painted, 1);
+    const FenceValue reached = device->signal(after);
+    EXPECT_EQ(device->waitCpu(after, reached, std::chrono::milliseconds(50)), FenceWait::TimedOut)
+        << "the queue ran past a wait nothing had raised";
 
-  id<MTLCommandQueue> queue = [metal newCommandQueue];
-  id<MTLCommandBuffer> raise = [queue commandBuffer];
-  [raise encodeSignalEvent:event value:1];
-  [raise commit];
-  EXPECT_EQ(device->waitCpu(after, reached), FenceWait::Reached);
-  EXPECT_EQ(device->waitCpu(painted, 1), FenceWait::Reached);
-  EXPECT_GE(device->completedValue(painted), 1u);
+    id<MTLCommandQueue> queue = [metal newCommandQueue];
+    id<MTLCommandBuffer> raise = [queue commandBuffer];
+    [raise encodeSignalEvent:event value:1];
+    [raise commit];
+    EXPECT_EQ(device->waitCpu(after, reached), FenceWait::Reached);
+    EXPECT_EQ(device->waitCpu(painted, 1), FenceWait::Reached);
+    EXPECT_GE(device->completedValue(painted), 1u);
+    // The buffer that raised it holds what it encoded until it completes.
+    [raise waitUntilCompleted];
 
-  device->destroyFence(painted);
-  device->destroyFence(after);
-  EXPECT_EQ(CFGetRetainCount((CFTypeRef)event), before) << "the event stays its maker's";
-  EXPECT_FALSE(device->importNative(NativeFence{}));
-  CFRelease((CFTypeRef)queue);
-  CFRelease((CFTypeRef)event);
+    device->destroyFence(painted);
+    device->destroyFence(after);
+    EXPECT_FALSE(device->importNative(NativeFence{}));
+    CFRelease((CFTypeRef)queue);
+    CFRelease((CFTypeRef)event);
+  }
+  // Metal lets go of a completed buffer's references on a thread of its
+  // own, so the reference is read until it reads nothing for as long as
+  // that can take; a reference the device kept never would.
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+  bool released = false;
+  while (!released && std::chrono::steady_clock::now() < deadline) {
+    @autoreleasepool {
+      released = [watched anyObject] == nil;
+    }
+    if (!released) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  EXPECT_TRUE(released) << "the device kept a reference to the maker's event";
 }
 
 // …and the other way round: a fence made here is the event a queue on

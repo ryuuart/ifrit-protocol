@@ -30,12 +30,12 @@ namespace pipelines {
 /** WHERE GRIMOIRE KEEPS THE KEYS IT HAS RECORDED: `pipelines` under
  *  the process's state root when the run named one, otherwise the
  *  platform cache location, under this app's own name and beside the
- *  thumbnails. The
- *  store is the app's alone: a window run replays it and writes back
- *  what its own draws wanted, and a headless sweep on the device writes
- *  into it only where it stands empty, so a run that drew a whole
- *  selection can seed a machine but never displace what a window
- *  learned. Losing it costs one launch's worth of compiling. */
+ *  thumbnails. The store is the app's alone: a window run replays each
+ *  sketch's set before the sketch opens and writes back what its draws
+ *  wanted, and a headless sweep on the device writes a sketch's set only
+ *  where none stands, so a run that drew a whole selection can seed a
+ *  machine but never displace what a window learned. Losing it costs
+ *  one open's worth of compiling per sketch. */
 std::filesystem::path storeDirectory();
 
 /** THE FILE A SET RECORDED AGAINST @p name STANDS IN, under @p
@@ -54,6 +54,20 @@ std::filesystem::path keySetFile(const std::filesystem::path& directory,
  *  the list is how such a set is thrown away instead of believed. */
 std::string keySetName(std::span<const sk_sp<SkRuntimeEffect>> effects,
                        std::string_view backend);
+
+/** WHAT NAMES ONE SKETCH'S SET under a recorded declaration: @p set, the
+ *  name `keySetName` gives the declaration and backend, followed by a
+ *  digest of @p sketch — the sketch as the host names it before opening
+ *  it, a registry key or a file's path. Each sketch keeps the programs
+ *  its own draws wanted, so standing one sketch's set up builds nothing
+ *  another sketch needed and the set is never cut to make room. */
+std::string sketchKeySetName(std::string_view set, std::string_view sketch);
+
+/** WHETHER ANY SKETCH'S SET is written down under @p set in @p
+ *  directory: a store that holds none is one a launch has nothing to
+ *  replay from. */
+bool holdsAnySketchSet(const std::filesystem::path& directory,
+                       std::string_view set);
 
 /** ONE RECORDED PROGRAM: what rebuilds it, and what it was called when
  *  it was written down.

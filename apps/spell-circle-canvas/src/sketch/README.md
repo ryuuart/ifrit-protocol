@@ -411,8 +411,13 @@ runtime it would open on is empty, its kind answers `available()` false with
 the one message `sketch::runtimeAvailable` writes, so a listing greys it, a
 sweep skips it and a host refuses to open it, each saying why. Each session
 keeps the runtime it opened with; `sketch::onPainterRuntime` and
-`sketch::onRuntime` let a host choose one for a particular kind, and a scene3d
-kind stated on an empty runtime is unavailable.
+`sketch::onRuntime` let a host choose one for a particular kind. They reach
+every kind that opens on one — a kind is told through
+`sketch::OpensOnPainter` and `sketch::OpensOnRuntime`, which the scene2d and
+scene3d kinds and a Python sketch's kind all answer — so a scene3d kind, or a
+kind that declared it needs a device, stated on an empty runtime is
+unavailable, and a scene2d kind bakes its world frames on the runtime it was
+told.
 `sketch::device()` is the optional device handle for operations such as native
 texture import; a scene2d sketch needing it supplies a fallback or an
 availability probe.

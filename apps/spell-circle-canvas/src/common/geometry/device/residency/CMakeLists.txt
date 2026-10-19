@@ -52,4 +52,4 @@ sigil_test(geometry_test
   SOURCES test/ResidencyTest.cpp
   LIBRARIES SigilGeometryDeviceResidency
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
-  SUITES MapUpload MeshResidency TextureResidency LABELS gpu)
+  SUITES MapUpload MeshResidency PipelineCache TextureResidency LABELS gpu)

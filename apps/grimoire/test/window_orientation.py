@@ -18,7 +18,9 @@ way up.
 
 Usage (invoked by the build; the paths are all absolute):
   window_orientation.py --grimoire <Grimoire binary> \\
-      --probe <orientation_probe.cpp> --work <scratch dir>
+      --probe <orientation_probe.cpp> --work <scratch dir> [--benchmark]
+  window_orientation.py --grimoire <Grimoire binary> \\
+      --benchmark-entry <stem> --work <scratch dir>
 """
 
 import argparse
@@ -229,18 +231,68 @@ SIGIL_SKETCH(BrokenShader, "Test", "a shader fallback fails the benchmark")
         sys.exit(f"the window benchmark accepted a shader fallback: {rows}")
 
 
+def benchmark_entry(grimoire: Path, stem: str, work: Path, environment: dict):
+    """The window lane, narrowed to one registry entry by name, prints
+    exactly one row and it names that entry.
+
+    The entry is asked for the way a reader asks for it — by its stem,
+    narrowed to its kind, on a window of a stated scale — and the row is
+    read whatever it says, because a run that presents the entry and
+    closes without a row is the defect: the rate it carried cannot then
+    be read at all. A machine that cannot draw the entry names it SKIPPED
+    with what is missing, which still answers the question."""
+    command = [
+        str(grimoire),
+        "--state",
+        str(work / "state"),
+        "--window-bench",
+        "0.5",
+        "--window-size",
+        "900x700",
+        "--window-scale",
+        "2",
+        "--sketch",
+        stem,
+    ]
+    print("$ " + " ".join(command), flush=True)
+    result = subprocess.run(
+        command, capture_output=True, text=True, env=environment, timeout=240
+    )
+    sys.stdout.write(result.stdout)
+    sys.stderr.write(result.stderr)
+    rows = [
+        line for line in result.stdout.splitlines() if line.startswith("WINDOW ")
+    ]
+    if len(rows) != 1:
+        sys.exit(f"expected one WINDOW row for {stem}, the run printed {rows}")
+    row = rows[0]
+    if row.startswith(f"WINDOW {stem} SKIPPED"):
+        print(f"{stem} cannot be drawn on this machine: {row}")
+        return
+    if not re.match(rf"WINDOW {stem} window=\S+ canvas=\S+ kind=\S+ fps=", row):
+        sys.exit(f"the row does not carry {stem}'s reading: {row}")
+    if result.returncode != 0:
+        sys.exit(f"exited {result.returncode} after a reading")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--grimoire", type=Path, required=True)
-    parser.add_argument("--probe", type=Path, required=True)
+    parser.add_argument("--probe", type=Path)
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--benchmark", action="store_true")
+    parser.add_argument("--benchmark-entry", metavar="STEM")
     args = parser.parse_args()
 
     work = args.work
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ)
+    if args.benchmark_entry:
+        benchmark_entry(args.grimoire, args.benchmark_entry, work, environment)
+        return
+    if args.probe is None:
+        sys.exit("--probe is required unless --benchmark-entry names an entry")
     if args.benchmark:
         benchmark_file(args.grimoire, args.probe, work, environment)
         return

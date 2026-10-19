@@ -559,12 +559,12 @@ std::unique_ptr<Session> Scene3DKind::open(weave::FontContext& fonts,
 }
 
 Kind onRuntime(const Kind& kind, const world::Runtime& runtime) {
-  // The concrete kind is asked for by type because the runtime is a scene3d
-  // sketch's own vocabulary: a scene2d sketch and a pen have no frame to run
-  // through one, and a host holding a mixed selection says this about every
-  // kind it holds rather than sorting them first.
-  if (const auto* scene3d = dynamic_cast<const Scene3DKind*>(kind.get()))
-    return scene3d->on(runtime);
+  // Asked of the kind through the one interface every kind that draws
+  // through a runtime answers, whoever made it: a host holding a mixed
+  // selection says this about every kind it holds rather than sorting
+  // them first, and a kind that draws through none comes back as it went.
+  if (const auto* opens = dynamic_cast<const OpensOnRuntime*>(kind.get()))
+    return opens->opensOn(runtime);
   return kind;
 }
 

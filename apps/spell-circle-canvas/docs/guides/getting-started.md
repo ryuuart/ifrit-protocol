@@ -475,9 +475,9 @@ a light reaches are the World README's subject.
 
 Every sketch is also a plate. `--frame` writes one still at the moment
 the sketch declared, or at `--at`; `--headless` sweeps a catalogue of
-them; `--bench` says whether a sketch holds its frame rate; a workspace
-is a folder of sketches outside this repository that Grimoire opens as
-one.
+them; `--window-bench` says the rate a sketch reaches the screen at; a
+workspace is a folder of sketches outside this repository that Grimoire
+opens as one.
 
 ```sh
 Grimoire title_card.cpp --frame card.png --at 2

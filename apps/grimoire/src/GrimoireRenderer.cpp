@@ -50,6 +50,7 @@
 #include <QtQuick/QQuickWindow>
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <exception>
@@ -89,6 +90,19 @@ std::string nameOf(int index) {
   const int external = externalAt(index);
   if (external >= 0 && external < (int)SketchCatalog::externals.size())
     return SketchCatalog::externals[external].stem().string();
+  return {};
+}
+
+/** HOW THE HOST NAMES THE SKETCH AT @p index before opening it — a
+ *  registry entry's key, or the path of the file the session was pointed
+ *  at — which is what the programs its draws want are written down
+ *  under. Empty when the index selects neither. */
+std::string recordedAs(int index) {
+  const auto& entries = sketch::registry();
+  if (index >= 0 && index < (int)entries.size()) return entries[index].key;
+  const int external = externalAt(index);
+  if (external >= 0 && external < (int)SketchCatalog::externals.size())
+    return SketchCatalog::externals[external].string();
   return {};
 }
 
@@ -194,6 +208,9 @@ void GrimoireRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
       m_framesHeldForWarmup = 0;
     }
   }
+  // Every sketch's set is stood up again on a new context: the programs
+  // are the context's.
+  m_sketchesWarmed.clear();
 #else
   g_backend.store(2);
 #endif
@@ -300,6 +317,14 @@ std::unique_ptr<sketch::Host> GrimoireRenderer::openSketch(int index) {
       });
   GrimoireView::host = presented.host;
   if (!GrimoireView::host) return std::move(presented.evicted);
+#ifdef SIGIL_GRIMOIRE_GPU
+  // What this sketch's draws ask for from here on is written down under
+  // the name it was warmed by, and its first frame's builds are counted.
+  if (m_graphiteContext) {
+    pipelinesDrawnFor(recordedAs(index));
+    m_firstFrameCounted = false;
+  }
+#endif
   // Residency keeps the expensive host/compiler warm, but PRESENTATION is
   // a fresh run. In particular, a retained Composer's mount transitions have
   // already finished; merely resuming it makes entrance-heavy sketches look
@@ -312,6 +337,11 @@ std::unique_ptr<sketch::Host> GrimoireRenderer::openSketch(int index) {
 std::unique_ptr<sketch::Host> GrimoireRenderer::updateSession() {
   const int replayIndex = std::exchange(m_replayIndex, -1);
   if (m_index != m_requestedIndex) {
+#ifdef SIGIL_GRIMOIRE_GPU
+    // The programs it wanted last time go up first; the selection is
+    // opened on a frame after they stand.
+    if (warmBeforeOpening(m_requestedIndex)) return nullptr;
+#endif
     m_index = m_requestedIndex;
     return openSketch(m_index);
   }
@@ -320,6 +350,33 @@ std::unique_ptr<sketch::Host> GrimoireRenderer::updateSession() {
     resetPresentation();
   return nullptr;
 }
+
+#ifdef SIGIL_GRIMOIRE_GPU
+bool GrimoireRenderer::warmBeforeOpening(int index) {
+  if (!m_graphiteContext || !m_graphiteContext->context()) return false;
+  const std::string sketch = recordedAs(index);
+  if (sketch.empty() || m_sketchesWarmed.count(sketch) != 0) return false;
+  // A warm-up still under way past its hold is let finish first: the
+  // selection waits a frame at a time rather than this thread waiting.
+  using namespace std::chrono_literals;
+  if (m_pipelineWarmup.valid() &&
+      m_pipelineWarmup.wait_for(0s) != std::future_status::ready)
+    return true;
+  m_sketchesWarmed.insert(sketch);
+  const std::string backend =
+      graphiteBackendName(*m_graphiteContext->context());
+  if (!hasRecordedPipelines(sketch, backend)) return false;
+  std::unique_ptr<skgpu::graphite::PrecompileContext> precompile =
+      m_graphiteContext->makePrecompileContext();
+  if (!precompile) return false;
+  // On a worker, through the helper made here, exactly as the stock
+  // warm-up is: the frames that follow are held until it lands.
+  m_pipelineWarmup = std::async(std::launch::async, warmSketchPipelines,
+                                std::move(precompile), backend, sketch);
+  m_framesHeldForWarmup = 0;
+  return true;
+}
+#endif
 
 void GrimoireRenderer::resetPresentation() {
   m_frameCount = 0;
@@ -876,6 +933,13 @@ void GrimoireRenderer::render(QRhiCommandBuffer* commandBuffer) {
         drawSketch(*canvas, pixelSize, published.get());
         const sigil::measure::Stopwatch submitWatch;
         surface.submit();
+        // THE FIRST FRAME OF THE SESSION ON SCREEN HAS LEFT, and with it
+        // every program its draws had to build.
+        if (!m_firstFrameCounted && GrimoireView::host &&
+            GrimoireView::host->presentedFrames() > 0) {
+          m_firstFrameCounted = true;
+          pipelinesFirstFrameDrawn();
+        }
         const double submitMs =
             sigil::measure::Milliseconds(submitWatch.elapsed()).count();
         m_submitMsAverage = m_submitMsAverage == 0.0

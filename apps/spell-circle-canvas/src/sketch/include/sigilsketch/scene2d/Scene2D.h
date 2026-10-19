@@ -51,7 +51,6 @@
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/texture/SurfaceRange.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilsketch/core/Assets.h>
@@ -60,6 +59,7 @@
 #include <sigilsketch/core/Members.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
+#include <sigilsketch/scene3d/OpensOnRuntime.h>
 #include <sigilsketch/scene3d/Page.h>
 
 #include <algorithm>
@@ -74,6 +74,7 @@ class TextureScene;
 }  // namespace sigil::compose
 namespace sigil::world {
 class Frame;
+class Runtime;
 }
 
 /** EVERY RENDERABLE THING AS ONE SKETCH: a single file, addressed by its
@@ -137,6 +138,9 @@ struct Scene2DContext {
    *  `assets.hub().load<media::Image>()` take as they take any URI. Empty
    *  when the session was opened without a key. */
   std::string_view key;
+  /** Host-owned: the device runtime `bakeScene3D` draws on, where the
+   *  session was opened on one of its own; null is the process's. */
+  const sigil::world::Runtime* bakeRuntime = nullptr;
   [[nodiscard]] std::string local(std::string_view name) const {
     return "sketch://" + std::string(key) + "/" + std::string(name);
   }
@@ -149,7 +153,8 @@ struct Scene2DContext {
       bool deterministicIn = false,
       std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn = nullptr,
       std::string_view keyIn = {},
-      std::vector<std::shared_ptr<compose::SurfaceScene>>* pagesIn = nullptr)
+      std::vector<std::shared_ptr<compose::SurfaceScene>>* pagesIn = nullptr,
+      const sigil::world::Runtime* bakeRuntimeIn = nullptr)
       : composer(composerIn),
         engine(engineIn),
         assets(assetsIn),
@@ -159,6 +164,7 @@ struct Scene2DContext {
         scenes(scenesIn),
         pages(pagesIn),
         key(keyIn),
+        bakeRuntime(bakeRuntimeIn),
         deterministic(deterministicIn) {}
   Scene2DContext(const Scene2DContext&) = delete;
   Scene2DContext& operator=(const Scene2DContext&) = delete;
@@ -351,12 +357,12 @@ struct Scene2DContext {
     if (specification) specification->oversample = std::max(1, perCanvasPixel);
   }
   /** DECLARE THIS SKETCH A PLATE, not a live scene. Its subject is the
-   *  size of the sheet it draws, so `--bench` judges it on the cost of
-   *  the still it is photographed as rather than on holding 60 FPS at
-   *  that size. Nothing else changes: the plate sweep steps and captures
-   *  it exactly as before, and this is never a timeout override.
+   *  size of the sheet it draws rather than a frame rate held at that
+   *  size, so a background still stands it down unless it was asked to
+   *  walk plates. Nothing else changes: the plate sweep steps and
+   *  captures it exactly as before, and this is never a timeout override.
    *
-   *      ctx.plate(); // a 2400×1600 sheet, judged on its capture */
+   *      ctx.plate(); // a 2400×1600 sheet, photographed as a plate */
   void plate() {
     if (specification) specification->plateOnly = true;
   }
@@ -412,6 +418,14 @@ class Scene2DBody {
     std::unique_ptr<Scene2DBody> body, weave::FontContext& fonts,
     Assets& assets, bool deterministic = false, std::string_view key = {});
 
+/** …with the world frames it bakes drawn on @p runtime — null being the
+ *  process's own and an empty one no device. This is how a host that was
+ *  told where a kind opens reaches a body it makes itself. */
+[[nodiscard]] std::unique_ptr<Session> openScene2D(
+    std::unique_ptr<Scene2DBody> body, weave::FontContext& fonts,
+    Assets& assets, bool deterministic, std::string_view key,
+    std::shared_ptr<const world::Runtime> runtime);
+
 /** ONE SKETCH OF TYPE @p SketchType, OWNED, answering those calls with
  *  the parameters it named — so a body spelling `setup()` is set up with
  *  nothing, and one spelling no `update` at all is stepped by doing
@@ -434,46 +448,32 @@ class Scene2DBodyOf final : public Scene2DBody {
 
 /** THE 2D KIND: a compose Element tree, reconciled by a Composer and
  *  painted onto a canvas, driven by a clock the host owns. */
-class Scene2DKind final : public KindOperations {
+class Scene2DKind final : public KindOperations, public OpensOnRuntime {
  public:
   using Factory = Scene2DBody* (*)();
   /** @p needsDevice declares body work that uses the host's device, such as
-   *  compute, foreign textures or the device mesh painter. */
+   *  compute, foreign textures or a baked world frame. */
   explicit Scene2DKind(Factory factory, bool needsDevice = false)
       : m_factory(factory), m_needsDevice(needsDevice) {}
   /** Written out rather than defaulted: the operations a kind answers
    *  are an abstract base, and a defaulted comparison would try to
    *  compare that. What identifies a kind is the body it opens and the
-   *  painter it opens it on, including its device requirement. */
-  bool operator==(const Scene2DKind& other) const {
-    return m_factory == other.m_factory && m_painter == other.m_painter &&
-           m_needsDevice == other.m_needsDevice;
-  }
+   *  runtime it opens it on, including its device requirement. */
+  bool operator==(const Scene2DKind& other) const;
 
-  /** THIS KIND, OPENING ITS SESSIONS ON @p painter — an empty one being
-   *  the CPU mesh executor.
-   *
-   *  A session takes its painter once, when it opens, and every mesh its
-   *  body stands up goes through that one: what a host installed on the
-   *  process is the DEFAULT a session takes, not a value it re-reads.
-   *  So a host that must draw somewhere other than where the process's
-   *  device stands — a background still on a thread that shares no queue
-   *  with the one presenting — says so here, and the sessions it opens
-   *  are unaffected by what any other thread installed. */
-  [[nodiscard]] Scene2DKind on(
-      const geometry::mesh::render::Runtime& painter) const {
-    Scene2DKind stated = *this;
-    stated.m_painter = painter;
-    return stated;
-  }
+  /** THIS KIND, ITS SESSIONS BAKING WORLD FRAMES ON @p runtime — an empty
+   *  one being no device, which leaves a kind that declared it needs a
+   *  device unavailable and draws every bake as none. */
+  [[nodiscard]] Kind opensOn(const world::Runtime& runtime) const override;
 
   [[nodiscard]] std::string_view runtime() const override { return "scene2d"; }
 
-  [[nodiscard]] bool needsDevice() const override {
-    return m_needsDevice ||
-           (m_painter && *m_painter &&
-            *m_painter != geometry::mesh::render::Runtime::cpu());
-  }
+  [[nodiscard]] bool needsDevice() const override { return m_needsDevice; }
+
+  /** False where the kind declared it needs a device and was told a
+   *  runtime that is none, with the one message `runtimeAvailable`
+   *  writes; a kind told nothing answers as it is listed. */
+  [[nodiscard]] bool available(std::string* why) const override;
 
   [[nodiscard]] std::unique_ptr<Session> open(
       weave::FontContext& fonts, Assets& assets, bool deterministic,
@@ -482,53 +482,9 @@ class Scene2DKind final : public KindOperations {
  private:
   Factory m_factory;
   bool m_needsDevice = false;
-  /** Unset is the process's own — the painter a host installed once. */
-  std::optional<geometry::mesh::render::Runtime> m_painter;
+  /** Null is the process's own — the runtime a host installed once. */
+  std::shared_ptr<const world::Runtime> m_runtime;
 };
-
-/** @p kind WITH THE MESH PAINTER ITS SESSIONS DRAW THROUGH STATED,
- *  rather than read off the process when each opens.
- *
- *  A kind that stands no mesh up of its own — scene3d, a pen — is returned
- *  unchanged, so a host may say this about whatever it is holding. An
- *  empty painter is the CPU mesh executor, which is what a caller that
- *  must not reach the process's device asks for. */
-[[nodiscard]] Kind onPainterRuntime(
-    const Kind& kind, const geometry::mesh::render::Runtime& painter);
-
-/** THE MESH PAINTER EVERY 2D SKETCH DRAWS THROUGH, for this process.
- *
- *  A scene2d sketch that stands geometry up in space hands this to a
- *  `MeshStyle`, and the mesh is then rasterised on whatever device the
- *  host brought up:
- *
- *      style.runtime = sketch::painterRuntime();
- *
- *  Without a device it is the CPU mesh executor, which is what a machine
- *  with no device renders on and what a byte-identity plate is hashed
- *  from — so the line above is written once and is correct on both, and
- *  a sketch never asks whether a device is here.
- *
- *  A host that brought one up says so ONCE, because a device is a
- *  property of the process and not of a sketch. It is the 2D twin of the
- *  runtime a scene3d sketch draws through: that one is a whole frame's, this
- *  one is a single mesh draw's, and a process on a device installs both.
- *  Installing an empty runtime — what a host does when it lets its
- *  device go — puts the CPU executor back rather than leaving a value
- *  that draws nothing.
- *
- *  IT IS READ AT OPEN, not at every draw: a session keeps the painter it
- *  opened with and answers that one while it is drawing, so installing
- *  another does not reach into a session already running, and
- *  `onPainterRuntime` above is how a host opens one somewhere else.
- *
- *  Its own words are SigilGeometry's, from
- *  `<sigilgeometry/mesh/render/Runtime.h>`.
- *
- *  A call that takes the DEVICE itself rather than a runtime over it
- *  reaches `sketch::device()`, from `<sigilsketch/core/Device.h>`. */
-void usePainterRuntime(const geometry::mesh::render::Runtime& runtime);
-[[nodiscard]] const geometry::mesh::render::Runtime& painterRuntime();
 
 /** The factory SIGIL_SKETCH takes the ADDRESS of, rather than a lambda
  *  whose body it would carry: taking a function's address cannot throw,

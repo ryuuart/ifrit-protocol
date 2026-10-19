@@ -161,13 +161,15 @@ class ProtocolEndpoint : public ::testing::Test {
     return named;
   }
 
-  /** A client on @p endpoint, once its first send has gone out. */
+  /** A client on @p endpoint, its first message sent once its door is
+   *  open. The door reads Connecting until its handshake has reached the
+   *  host, so the one send that follows goes out the first time. */
   sigil::io::Feed dial(const protocol::Endpoint& endpoint,
-                                        std::string_view first) {
-    sigil::io::Feed client =
-        clientHub.listen(endpoint.address());
-    EXPECT_TRUE(waitUntil([&] { return client.send(bytesOf(first)); }))
+                       std::string_view first) {
+    sigil::io::Feed client = clientHub.listen(endpoint.address());
+    EXPECT_TRUE(waitUntil([&] { return client.state().isOpen(); }))
         << client.state().error;
+    EXPECT_TRUE(client.send(bytesOf(first))) << client.state().error;
     return client;
   }
 

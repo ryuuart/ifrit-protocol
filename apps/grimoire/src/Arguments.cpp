@@ -14,11 +14,6 @@
 
 namespace {
 
-/** The default `--jitter-dt` amplitude: ±35% around the nominal
- *  interval, which is the spread a windowed host delivers when it is
- *  comfortably inside its budget and the compositor is merely uneven. */
-constexpr double kDefaultJitter = 0.35;
-
 bool isSketchPath(const std::string& text) {
   const auto extension = std::filesystem::path(text).extension();
   return extension == ".cpp" || extension == ".py";
@@ -144,6 +139,8 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     } else if (arg == "--thumbnail-budget" && i + 1 < argc) {
       args.thumbnailBudget = std::chrono::milliseconds(
           (long long)std::lround(std::strtod(argv[++i], nullptr) * 1000.0));
+    } else if (arg == "--pipeline-names") {
+      args.namePipelines = true;
     } else if (arg == "--thumbnail-heavy") {
       args.thumbnailHeavy = true;
     } else if (arg == "--window-bench") {
@@ -196,26 +193,10 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       }
       args.storyOptions.framesPerSecond =
           std::max(1, (int)std::lround(args.capture.fps));
-    } else if (arg == "--bench") {
-      args.capture.bench = true;
-    } else if (arg == "--bench-frames" && i + 1 < argc) {
-      args.capture.benchFrames = std::max(1, std::stoi(argv[++i]));
     } else if (arg == "--deterministic") {
       args.clockPolicy = sigil::motion::ClockPolicy::Advance;
     } else if (arg == "--no-deterministic") {
       args.clockPolicy = sigil::motion::ClockPolicy::Wall;
-    } else if (arg == "--jitter-dt") {
-      // The amplitude is optional: a bare flag takes the default, and
-      // only a following token that reads as a number is consumed.
-      args.capture.jitterDt = kDefaultJitter;
-      if (i + 1 < argc) {
-        const std::string next = argv[i + 1];
-        if (!next.empty() &&
-            (std::isdigit((unsigned char)next[0]) || next[0] == '.')) {
-          args.capture.jitterDt = std::stod(next);
-          ++i;
-        }
-      }
     } else if (args.sketchFile.empty() && isSketchPath(arg)) {
       args.sketchFile = arg;
     } else {

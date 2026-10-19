@@ -17,6 +17,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkYUVAInfo.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <span>
 
@@ -88,10 +89,16 @@ bool drawsOnDeviceOf(const skgpu::graphite::Recorder& recorder,
  *  the wait; an event only rises, so a later value of one event replaces
  *  an earlier one still waiting.
  *  @trap Only the inserts this library makes attach it — an
- *  `OffscreenSurface` submit, a paint-order fence, a readback. A caller
- *  inserting the recording itself orders nothing. */
+ *  `OffscreenSurface` submit, a paint-order fence, a readback,
+ *  `GraphiteContext::submit`. A caller inserting the recording itself
+ *  orders nothing. */
 void waitBeforeSampling(skgpu::graphite::Recorder& recorder,
                         void* mtlSharedEvent, uint64_t value);
+
+/** HOW MANY WAITS THE NEXT RECORDING @p recorder INSERTS WILL CARRY: the
+ *  ones registered since its last insert through this library, which an
+ *  insert takes. Zero once one has. */
+[[nodiscard]] size_t pendingWaits(const skgpu::graphite::Recorder& recorder);
 
 /** @p mtlTexture's pixels READ BACK INTO HOST MEMORY, as an image any
  *  canvas and any renderer can draw. Read as the format the texture

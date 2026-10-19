@@ -12,7 +12,7 @@ from pathlib import Path
 
 from sigil.compose import Cache, MotionPath, Overflow, box, heldPath, pen, text
 from sigil.draw import RGB, SHAPE, Pen
-from sigil.material import BloomOptions, Filter, Paint
+from sigil.material import BloomOptions, Filter, Paint, shader
 from sigil.motion import animatable, bind, envelope
 from sigil.sketch import Scene2DContext, sketch
 from sigil.skia import PathBuilder
@@ -400,16 +400,23 @@ class NostromoMonitor:
             animatable(0.0),
         )
         self.circuit_visible, self.inquiry_visible = (animatable(0.0), animatable(0.0))
-        wall = program_filter(
-            "Wall.sksl",
-            "uniform shader content; uniform float2 uSize; uniform float4 uIvory; uniform float4 uGrime; uniform float4 uLight; uniform float uDepth;\n",
-            {
-                "uSize": (WIDTH, HEIGHT),
-                "uIvory": (0.72, 0.64, 0.49, 1),
-                "uGrime": (0.11, 0.075, 0.042, 1),
-                "uLight": (-0.5, -0.65, 0.72, 0),
-                "uDepth": 29,
-            },
+        # The wall reads the panel's height three pixels either side of the
+        # one it shades, and says so: past the panel's edge it then reads
+        # nothing, rather than whatever the texture holds beyond it.
+        wall = Filter.of(
+            shader(
+                ctx.assets.hub(),
+                ctx.local("Wall.sksl"),
+                {
+                    "uSize": (WIDTH, HEIGHT),
+                    "uIvory": (0.72, 0.64, 0.49, 1),
+                    "uGrime": (0.11, 0.075, 0.042, 1),
+                    "uLight": (-0.5, -0.65, 0.72, 0),
+                    "uDepth": 29,
+                },
+                textures={"content": None},
+            ),
+            sampleRadius=3,
         )
         tube = program_filter(
             "Tube.sksl",

@@ -6,14 +6,15 @@
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilio/advanced/Time.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmeasure/advanced/Laps.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/paint/Paint.h>
+#include <sigilworld/advanced/Runtime.h>
 
 #include <array>
 #include <cstdio>
@@ -29,18 +30,7 @@ namespace {
 
 namespace {
 
-/** The process's mesh painter. It starts as the CPU executor rather than
- *  as nothing, so a sketch that hands it to a style draws on a machine
- *  where no host ever installed one — an empty runtime draws no mesh at
- *  all, which would read as a bug in the sketch. */
-geometry::mesh::render::Runtime& processPainter() {
-  static geometry::mesh::render::Runtime painter =
-      geometry::mesh::render::Runtime::cpu();
-  return painter;
-}
-
-/** THE PROCESS'S TEXT MATERIAL RESOLVER, for the same reason the painter
- *  above starts as the CPU executor. A text pass carrying a material is
+/** THE PROCESS'S TEXT MATERIAL RESOLVER. A text pass carrying a material is
  *  shaded through a resolver the paint feature holds and does not supply,
  *  because that feature links no renderer; with none installed the pass
  *  draws its plain paint, which reads as a bug in the sketch rather than
@@ -68,30 +58,6 @@ void installTextMaterialResolver() {
       });
 }
 
-/** The painter the calling thread is drawing a session through, or null
- *  where no session is drawing on it. */
-const geometry::mesh::render::Runtime*& threadPainter() {
-  thread_local const geometry::mesh::render::Runtime* painter = nullptr;
-  return painter;
-}
-
-/** THE SESSION'S PAINTER, FOR AS LONG AS THIS STANDS. A sketch body asks
- *  for the painter from inside its own describe, so the answer has to be
- *  the one the session opened with rather than whatever the process last
- *  installed — a still drawn on a worker beside a window that is
- *  presenting is the case that makes the difference. */
-class PainterScope {
- public:
-  explicit PainterScope(const geometry::mesh::render::Runtime& painter)
-      : m_was(std::exchange(threadPainter(), &painter)) {}
-  ~PainterScope() { threadPainter() = m_was; }
-  PainterScope(const PainterScope&) = delete;
-  PainterScope& operator=(const PainterScope&) = delete;
-
- private:
-  const geometry::mesh::render::Runtime* m_was;
-};
-
 }  // namespace
 
 /** ONE 2D SKETCH, RUNNING.
@@ -104,20 +70,17 @@ class Scene2DSession final : public Session {
  public:
   Scene2DSession(std::unique_ptr<Scene2DBody> sketch, weave::FontContext& fonts,
                  Assets& assets, bool deterministic,
-                 const geometry::mesh::render::Runtime& painter,
-                 std::string_view key = {})
+                 std::string_view key = {},
+                 std::shared_ptr<const world::Runtime> runtime = nullptr)
       : m_fonts(fonts),
         m_assets(assets),
         m_sketch(std::move(sketch)),
-        m_painter(painter ? painter : geometry::mesh::render::Runtime::cpu()),
+        m_runtime(std::move(runtime)),
         m_key(key),
         m_deterministic(deterministic) {
     // Before the body describes anything: a material on a text pass shades
     // in every session this runtime opens, whoever opened it.
     installTextMaterialResolver();
-    // Setup declares too, so the painter is the session's from the first
-    // line of the body onward.
-    const PainterScope on(m_painter);
     m_composer = std::make_unique<compose::Composer>(m_engine, m_fonts);
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
@@ -147,7 +110,6 @@ class Scene2DSession final : public Session {
   }
 
   void repaint(SkCanvas& canvas) override {
-    const PainterScope on(m_painter);
     m_composer->draw(canvas);
     m_paintSkipped = false;
   }
@@ -161,7 +123,6 @@ class Scene2DSession final : public Session {
   [[nodiscard]] float oversample() const override { return 2.0f; }
 
   void redeclare() override {
-    const PainterScope on(m_painter);
     // The body declares everything again, its texture scenes and pages
     // included, so the ones it asked for last time are let go before it
     // asks.
@@ -251,7 +212,6 @@ class Scene2DSession final : public Session {
 
  private:
   void step(SkCanvas& canvas, double dt, bool discarded) {
-    const PainterScope on(m_painter);
     m_laps.reset();
     // A STATED step and a wall-clock frame move the same engine, so a
     // stepped run and a live one differ in where the number came from and
@@ -319,7 +279,8 @@ class Scene2DSession final : public Session {
                           m_deterministic,
                           &m_scenes,
                           m_key,
-                          &m_pages};
+                          &m_pages,
+                          m_runtime.get()};
   }
 
   weave::FontContext& m_fonts;
@@ -346,43 +307,57 @@ class Scene2DSession final : public Session {
   std::array<LaneCost, 4> m_lanes{};
   bool m_paintSkipped = false;
   SkSize m_applied = m_specification.size;  // what the composer was last told
-  geometry::mesh::render::Runtime m_painter;
+  /** Where this session's bakes draw a world frame; null is the
+   *  process's own. */
+  std::shared_ptr<const world::Runtime> m_runtime;
   bool m_deterministic;
 };
 
 }  // namespace
+
+bool Scene2DKind::operator==(const Scene2DKind& other) const {
+  const bool sameRuntime =
+      m_runtime == other.m_runtime ||
+      (m_runtime && other.m_runtime && *m_runtime == *other.m_runtime);
+  return m_factory == other.m_factory && m_needsDevice == other.m_needsDevice && sameRuntime;
+}
+
+Kind Scene2DKind::opensOn(const world::Runtime& runtime) const {
+  Scene2DKind stated = *this;
+  stated.m_runtime = std::make_shared<const world::Runtime>(runtime);
+  return Kind{std::move(stated)};
+}
+
+bool Scene2DKind::available(std::string* why) const {
+  // Only a runtime this kind was TOLD decides it: listed against the
+  // process's own, a scene2d sketch draws whatever its body can without
+  // one, and a bake on no device draws as none.
+  if (m_needsDevice && m_runtime) return runtimeAvailable(*m_runtime, why);
+  return true;
+}
 
 std::unique_ptr<Session> Scene2DKind::open(weave::FontContext& fonts,
                                            Assets& assets, bool deterministic,
                                            std::string_view key) const {
   return std::make_unique<Scene2DSession>(
       std::unique_ptr<Scene2DBody>(m_factory()), fonts, assets, deterministic,
-      m_painter ? *m_painter : painterRuntime(), key);
+      key, m_runtime);
 }
 
 std::unique_ptr<Session> openScene2D(std::unique_ptr<Scene2DBody> body,
                                      weave::FontContext& fonts, Assets& assets,
                                      bool deterministic, std::string_view key) {
   return std::make_unique<Scene2DSession>(std::move(body), fonts, assets,
-                                          deterministic, painterRuntime(), key);
+                                          deterministic, key);
 }
 
-Kind onPainterRuntime(const Kind& kind,
-                      const geometry::mesh::render::Runtime& painter) {
-  // The painter is a 2D kind's own vocabulary, so only a 2D kind answers
-  // to it and everything else comes back as it went in.
-  if (const auto* canvas = dynamic_cast<const Scene2DKind*>(kind.get()))
-    return canvas->on(painter);
-  return kind;
-}
-
-void usePainterRuntime(const geometry::mesh::render::Runtime& runtime) {
-  processPainter() = runtime ? runtime : geometry::mesh::render::Runtime::cpu();
-}
-
-const geometry::mesh::render::Runtime& painterRuntime() {
-  const geometry::mesh::render::Runtime* const session = threadPainter();
-  return session ? *session : processPainter();
+std::unique_ptr<Session> openScene2D(
+    std::unique_ptr<Scene2DBody> body, weave::FontContext& fonts,
+    Assets& assets, bool deterministic, std::string_view key,
+    std::shared_ptr<const world::Runtime> runtime) {
+  return std::make_unique<Scene2DSession>(std::move(body), fonts, assets,
+                                          deterministic, key,
+                                          std::move(runtime));
 }
 
 }  // namespace sigil::sketch

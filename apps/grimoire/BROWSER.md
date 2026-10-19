@@ -9,8 +9,8 @@ what follows is how this application shows them.
 The window composes four responsibilities: `SketchCatalog` supplies rows
 and thumbnails, `Browser` filters and selects those rows,
 `CanvasPane` owns the viewport, input gestures and compile-error panel, and
-`SketchActions` runs frame, video and benchmark commands from a supplied
-row. Selection does not launch work. Commands own their subprocess and
+`SketchActions` runs frame, video and window-bench commands from a
+supplied row. Selection does not launch work. Commands own their subprocess and
 status, so exporting a sketch does not change the catalog or the live
 canvas. A shared notice keeps command progress and its result visible outside
 the details drawer until dismissed. An empty command row selects the full

@@ -1,9 +1,13 @@
 // What this library notes about a recorder: the GPU waits its next
-// inserted recording carries.
+// inserted recording carries, and the door that submits a recorder with
+// them.
 
 #include "Waits.h"
 
+#include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
+#include <include/gpu/graphite/Recording.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/TextureImage.h>
 #ifdef __APPLE__
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
@@ -67,6 +71,13 @@ void waitBeforeSampling(skgpu::graphite::Recorder& recorder,
   }
   list.push_back({mtlSharedEvent, value});
 }
+
+size_t pendingWaits(const skgpu::graphite::Recorder& recorder) {
+  Registry& store = registry();
+  const std::lock_guard<std::mutex> lock(store.mutex);
+  const auto found = store.waits.find(&recorder);
+  return found == store.waits.end() ? 0 : found->second.size();
+}
 #endif
 
 PendingWaits::PendingWaits(const skgpu::graphite::Recorder* recorder) {
@@ -92,6 +103,24 @@ void PendingWaits::attach(skgpu::graphite::InsertRecordingInfo& insert) {
   if (m_semaphores.empty()) return;
   insert.fNumWaitSemaphores = m_semaphores.size();
   insert.fWaitSemaphores = m_semaphores.data();
+}
+
+bool GraphiteContext::submit(skgpu::graphite::Recorder& recorder,
+                             skgpu::graphite::SyncToCpu sync) const {
+  std::unique_ptr<skgpu::graphite::Recording> recording = recorder.snap();
+  const std::unique_lock<std::mutex> lock = lockContext();
+  bool inserted = false;
+  if (recording) {
+    skgpu::graphite::InsertRecordingInfo insert;
+    insert.fRecording = recording.get();
+    // Taken right after the snap, so the waits registered for the draws
+    // in this recording ride on this insert and on no later one.
+    PendingWaits waits(&recorder);
+    waits.attach(insert);
+    inserted = static_cast<bool>(m_context->insertRecording(insert));
+  }
+  m_context->submit(skgpu::graphite::SubmitInfo(sync));
+  return inserted;
 }
 
 }  // namespace sigil::skia

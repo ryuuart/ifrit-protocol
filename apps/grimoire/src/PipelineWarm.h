@@ -2,14 +2,15 @@
 
 /** @file
  * The device programs a sketch's first frame would otherwise wait for,
- * stood up before it: which runtime effects a recorded key may name,
- * the keys this machine wrote down last time, and the stock effect
- * stages built ahead of any draw.
+ * stood up before it: which runtime effects a recorded key may name, the
+ * keys each sketch's draws asked for last time, and the stock effect
+ * stages built ahead of any draw on a machine with nothing written down.
  */
 
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace skgpu::graphite {
 class Context;
@@ -28,12 +29,14 @@ class PrecompileContext;
  *  every stock recipe's program: a key that names an undeclared effect
  *  cannot be written down at all, so anything left out of this list is
  *  left out of every recorded set. @p storeDirectory is where those
- *  sets are read from and written back to. */
-void openPipelineWarmup(const std::filesystem::path& storeDirectory);
+ *  sets are read from and written back to; @p namesEveryProgram puts
+ *  one line on stderr per program built or replayed, naming it. */
+void openPipelineWarmup(const std::filesystem::path& storeDirectory,
+                        bool namesEveryProgram = false);
 
-/** THE PROGRAMS, BUILT, on whichever thread calls this — which must not
- *  be the thread that presents, since standing a program up costs
- *  exactly what waiting for it would.
+/** THE STOCK PROGRAMS, BUILT, on whichever thread calls this — which
+ *  must not be the thread that presents, since standing a program up
+ *  costs exactly what waiting for it would.
  *
  *  @p precompile is the helper the context made, and it is ALL this
  *  touches: the context itself belongs to the thread that draws, so a
@@ -43,16 +46,46 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory);
  *  same way and for the same reason — it is part of which recorded set
  *  is this machine's.
  *
- *  Replays the set recorded against the same declaration and the same
- *  backend, which is the whole of what the last run's draws needed.
- *  Where there is no such set — a fresh machine, an edited shader, a
- *  new Skia — it stands up the effect stages instead, so a first frame
- *  wearing one of them finds it standing.
+ *  A store that holds a sketch's set for the same declaration and the
+ *  same backend is answered sketch by sketch, by `warmSketchPipelines`
+ *  before each opens, and this builds nothing. Where there is none — a
+ *  fresh machine, an edited shader, a new Skia — it stands up the effect
+ *  stages, so a first frame wearing one of them finds it standing.
  *
  *  Does nothing when `openPipelineWarmup` was not called. */
 void warmStockPipelines(
     std::unique_ptr<skgpu::graphite::PrecompileContext> precompile,
     std::string backend);
+
+/** WHETHER A SET IS WRITTEN DOWN FOR @p sketch — the sketch as the host
+ *  names it before opening it, a registry key or a file's path —
+ *  against this declaration and @p backend. False when
+ *  `openPipelineWarmup` was not called. */
+bool hasRecordedPipelines(std::string_view sketch, const std::string& backend);
+
+/** THE PROGRAMS @p sketch's DRAWS ASKED FOR LAST TIME, BUILT, before the
+ *  sketch opens — on whichever thread calls this, which must not be the
+ *  thread that presents, through @p precompile, the helper the context
+ *  made, exactly as `warmStockPipelines` is handed one.
+ *
+ *  The host's name for the sketch is all it needs: the set holds every
+ *  program the sketch's draws wanted, its stacks inlined into theirs, so
+ *  nothing about the sketch has to be read first, and a first frame drawn
+ *  after it builds none of them. A key that no longer describes what it
+ *  described is dropped rather than built as something else. */
+void warmSketchPipelines(
+    std::unique_ptr<skgpu::graphite::PrecompileContext> precompile,
+    std::string backend, std::string sketch);
+
+/** THE SKETCH WHOSE DRAWS COME NEXT, named as the host names it: every
+ *  program a draw asks for from here on is written down under it, and
+ *  its first frame's are counted until `pipelinesFirstFrameDrawn`. */
+void pipelinesDrawnFor(std::string sketch);
+
+/** THE FIRST FRAME OF THE SKETCH NAMED LAST HAS BEEN SUBMITTED: one line
+ *  on stderr says how many programs its draws had to build. Once per
+ *  `pipelinesDrawnFor`. */
+void pipelinesFirstFrameDrawn();
 
 /** LETS A LANE WITH NO FRAME TO HOLD WRITE ITS PROGRAMS DOWN, for a
  *  machine that has none written down yet.
@@ -64,32 +97,28 @@ void warmStockPipelines(
  *  protect, and replaying would put the store's state inside a lane
  *  whose output has to depend on nothing but the sketch.
  *
- *  What the set is worth to that open follows what the sweep drew. A
- *  selection of a few sketches leaves those sketches' programs; the
- *  whole registry wants more than the ceiling a written set is cut at,
- *  and what survives the cut is what the run drew FIRST rather than
- *  anything chosen for the sketch someone opens next.
+ *  Each sketch it draws leaves its own set, named by
+ *  `pipelinesDrawnFor`, so a sweep of the whole registry seeds every
+ *  sketch it drew.
  *
- *  It never REPLACES a set. A run that opened the whole registry knows
- *  less about what the next launch will draw than a run that opened one
- *  sketch, so a store that already answers for this declaration keeps
- *  its answer and this run's set is dropped at the end.
+ *  It never REPLACES a set. A capture draws the sketch at its moment,
+ *  which is less than a window that showed it draws, so a sketch that
+ *  already has a set keeps it and this run's set for it is dropped at
+ *  the end.
  *
  *  Called after `openPipelineWarmup`, on the thread that owns @p
  *  context, once that context exists. */
 void recordPipelinesForAColdStore(const skgpu::graphite::Context& context);
 
-/** WRITES BACK WHAT THIS RUN'S DRAWS WANTED, and says on stderr what
- *  the run cost in programs. Called once, after the last context is
- *  gone, so the set is everything the run needed rather than everything
- *  it had needed by then.
+/** WRITES BACK WHAT EACH SKETCH'S DRAWS WANTED, one set per sketch, and
+ *  says on stderr what the run cost in programs. Called once, after the
+ *  last context is gone, so each set is everything the sketch needed
+ *  rather than everything it had needed by then.
  *
  *  ONLY the programs a draw asked for. A program stood up from the file
  *  is reported as built again, so writing back everything recorded
- *  would write back the replay as well and the set would become every
- *  program every sketch ever opened here needed — each one a program a
- *  later launch stands up before its canvas draws whether it is opening
- *  that sketch or not.
+ *  would write back the replay as well and a sketch's set would become
+ *  every program every sketch ever opened here needed.
  *
  *  Says nothing where no context was ever warmed — a window with no
  *  Graphite behind it neither records nor replays, and a tally of

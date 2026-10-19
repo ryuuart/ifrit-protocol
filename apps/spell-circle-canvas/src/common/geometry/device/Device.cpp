@@ -11,15 +11,21 @@
 #endif
 
 #include <Common/interface/RefCntAutoPtr.hpp>
+
 #include <atomic>
+#include <cstdint>
+#include <cstring>
+#include <string>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
+#include <span>
 #include <system_error>
 #include <vector>
 
 #include "AdoptDevice.h"
+#include "KeptPipelines.h"
 
 namespace sigil::geometry::device {
 namespace dg = Diligent;
@@ -83,27 +89,16 @@ std::filesystem::path pipelineFileIn(const std::filesystem::path& store) {
   return store / "device pipelines.bin";
 }
 
-/** What the cache held when the device went, written beside the file and
- *  moved over it, so a run that stops halfway through leaves the last
- *  whole one. */
+/** What the cache held when the device went, kept in @p file. */
 void keepPipelines(dg::IPipelineStateCache* cache,
                    const std::filesystem::path& file) {
   if (!cache || file.empty()) return;
   dg::RefCntAutoPtr<dg::IDataBlob> blob;
   cache->GetData(&blob);
   if (!blob || blob->GetSize() == 0) return;
-  std::error_code error;
-  std::filesystem::create_directories(file.parent_path(), error);
-  std::filesystem::path partial = file;
-  partial += ".partial";
-  {
-    std::ofstream out(partial, std::ios::binary | std::ios::trunc);
-    if (!out) return;
-    out.write(static_cast<const char*>(blob->GetConstDataPtr()),
-              (std::streamsize)blob->GetSize());
-    if (!out) return;
-  }
-  std::filesystem::rename(partial, file, error);
+  (void)writeKeptPipelines(
+      file, std::span(static_cast<const char*>(blob->GetConstDataPtr()),
+                      blob->GetSize()));
 }
 
 }  // namespace
@@ -213,10 +208,7 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
   // THE DRIVER'S PIPELINE CACHE, seeded with what the last run kept.
   if (!config.pipelineStore.empty()) {
     const std::filesystem::path file = pipelineFileIn(config.pipelineStore);
-    std::vector<char> kept;
-    if (std::ifstream in{file, std::ios::binary})
-      kept.assign(std::istreambuf_iterator<char>(in),
-                  std::istreambuf_iterator<char>());
+    const std::vector<char> kept = readKeptPipelines(file);
     PipelineStateCacheCreateInfo cacheInfo;
     cacheInfo.Desc.Name = "device pipelines";
     cacheInfo.Desc.Mode = PSO_CACHE_MODE_LOAD_STORE;

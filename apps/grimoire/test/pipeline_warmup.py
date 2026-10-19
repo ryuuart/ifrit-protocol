@@ -4,10 +4,11 @@
 A backend builds one device program per distinct draw and the thread
 that recorded the draw waits for it, so a sketch whose root wears a
 chain of runtime-shader stages pays one program per stage on its first
-frame. Which programs a run needed is written down as it goes, under the
-platform cache location, and read back at the next launch: the set is
-replayed on a worker before the first frame, so the frame finds the
-programs standing instead of building them.
+frame. Which programs a sketch's draws needed is written down as it
+goes, under the name the host knows the sketch by, and read back the
+next time the sketch is selected: the set is replayed on a worker before
+the sketch opens, so its first frame finds every program standing and
+builds none.
 
 Nothing in a still can say so — `--frame` opens no window and a headless
 still draws through another context — so this opens the real window
@@ -15,15 +16,16 @@ twice over one store and reads the tally each run closes with.
 
 The first run starts on an empty store: it has nothing to replay, stands
 up what it can of the stock stages, builds the rest as the draws ask for
-them, and writes down the ones its draws wanted. The second run replays
-that set, and its draws must find programs standing that the first run
-had to build — and must write back a set no larger than the one they
-read, because a replayed program is reported as built again and a run
-writing back everything it recorded would grow the file at every launch.
+them, and writes down the ones the sketch's draws wanted. The second run
+replays that set before the sketch opens, and the sketch's first frame
+must build no program at all — and the run must write back a set no
+larger than the one it read, because a replayed program is reported as
+built again and a run writing back everything it recorded would grow the
+file at every launch.
 
 Usage (invoked by the build; the paths are all absolute):
-  pipeline_warmup.py --grimoire <Grimoire binary> --sketch <name> \\
-      --work <scratch dir>
+  pipeline_warmup.py --grimoire <Grimoire binary> \\
+      --sketch <name or file> --work <scratch dir>
 """
 
 import argparse
@@ -74,6 +76,30 @@ def run(command: list[str]) -> tuple[str, str]:
     return result.stdout, result.stderr
 
 
+FIRST_FRAME = re.compile(
+    r"\[grimoire\] pipelines: the first frame of (\S+) built (\d+) programs "
+    r"for its draws"
+)
+
+
+def names(reported: str, sketch: str) -> bool:
+    """Whether the name a line carries is @p sketch: a registry key, or
+    the path of a file the window was pointed at."""
+    return reported == sketch or (
+        sketch.endswith((".cpp", ".py")) and Path(reported) == Path(sketch).resolve()
+    )
+
+
+def first_frame_of(reported: str, sketch: str, what: str) -> int:
+    """How many programs the first frame of @p sketch built."""
+    for match in FIRST_FRAME.finditer(reported):
+        if names(match.group(1), sketch):
+            built = int(match.group(2))
+            print(f"{what}: its first frame built {built} programs", flush=True)
+            return built
+    sys.exit(f"{what}: no first-frame count was printed for {sketch}")
+
+
 def tally_of(reported: str, what: str) -> Tally:
     match = TALLY.search(reported)
     if not match:
@@ -99,15 +125,35 @@ def main() -> None:
     state = work / "state"
     store = state / "pipelines"
 
+    # A registry key is selected by name; a file is opened by its path.
+    opening = (
+        [str(Path(arguments.sketch).resolve())]
+        if arguments.sketch.endswith((".cpp", ".py"))
+        else ["--sketch", arguments.sketch]
+    )
     shot = [
         str(arguments.grimoire),
         "--state",
         str(state),
-        "--sketch",
-        arguments.sketch,
+        *opening,
         "--shot",
         str(work / "window.png"),
     ]
+
+    # A FILE IS BUILT FIRST, by a still over the same state root: the build
+    # it leaves is what both windows open on, so neither spends its run
+    # compiling and the first open's tally is the sketch's own draws.
+    if arguments.sketch.endswith((".cpp", ".py")):
+        run(
+            [
+                str(arguments.grimoire),
+                *opening,
+                "--state",
+                str(state),
+                "--frame",
+                str(work / "still.png"),
+            ]
+        )
 
     _, first = run(shot)
     if "renderer: Graphite GPU" not in first:
@@ -128,7 +174,7 @@ def main() -> None:
     print(f"recorded {written[0].name}, {first_bytes} bytes")
 
     _, second = run(shot)
-    if "stood up before the first frame" not in second:
+    if not re.search(r"recorded programs stood up before \S+ opened", second):
         sys.exit("the second open replayed nothing it had recorded")
     again = tally_of(second, "the second open")
     if again.replayed == 0:
@@ -138,17 +184,20 @@ def main() -> None:
             "the second open's draws found no program that had been stood "
             "up ahead of them — the replay reached nothing they wanted"
         )
-    if again.built_for_a_draw >= opening.built_for_a_draw:
+    # THE SKETCH'S FIRST FRAME BUILDS NOTHING: every program its draws
+    # wanted, the stack's chain inlined into them among them, was stood up
+    # from the set before the sketch opened.
+    first_built = first_frame_of(first, arguments.sketch, "the first open")
+    if first_built == 0:
         sys.exit(
-            f"the second open still built {again.built_for_a_draw} programs "
-            f"for a draw against the first open's "
-            f"{opening.built_for_a_draw} — the recorded set removed nothing"
+            "the first open's first frame built no program, so the second "
+            "cannot show one it no longer had to build"
         )
-    print(
-        f"the second open built {again.built_for_a_draw} programs for a draw "
-        f"where the first built {opening.built_for_a_draw}",
-        flush=True,
-    )
+    if first_frame_of(second, arguments.sketch, "the second open") != 0:
+        sys.exit(
+            "the second open's first frame still built programs its "
+            "recorded set should have stood up before it opened"
+        )
 
     # THE SET IS WHAT THE DRAWS WANTED, NOT EVERYTHING THAT WAS BUILT. A
     # replayed program is reported as built again, so a run that wrote

@@ -14,6 +14,7 @@
 #include <sigilmeasure/stats/Window.h>
 #include <sigilmotion/advanced/ClockPolicy.h>
 #include <sigilmotion/clock/Engine.h>
+#include <sigilmotion/time/Duration.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
@@ -234,14 +235,6 @@ class Host {
     return m_kind && m_kind->needsDevice();
   }
 
-  /** WHETHER THE LOADED SKETCH DECLARED ITSELF A PLATE rather than a live
-   *  scene — a sheet whose subject is its own size, judged on the cost of
-   *  the still it is photographed as and not on holding 60 FPS. Read off
-   *  the running session's declared canvas; false before one has loaded. */
-  [[nodiscard]] bool plateOnly() const {
-    return m_session && m_session->canvas().plateOnly;
-  }
-
   /** The lifecycle a status display reads: Compiling wins even while a
    *  previous build keeps rendering underneath. */
   enum class State { Waiting, Compiling, Live, Failed };
@@ -263,7 +256,7 @@ class Host {
    *  drawn on a device it is where the readback and the blit onto the canvas
    *  land — the host cost a frame-time gate rendering onto a raster
    *  surface never pays. */
-  [[nodiscard]] const measure::Window<measure::Duration>& drawTimes() const {
+  [[nodiscard]] const measure::Window<motion::Duration>& drawTimes() const {
     return m_drawTimes;
   }
   void markPresented();
@@ -499,7 +492,7 @@ class Host {
   std::chrono::steady_clock::time_point m_compileStart;
   unsigned long long m_presentedFrames = 0;
   measure::FrameTimer m_frameTimes{{.pause = std::chrono::seconds(1)}};
-  measure::Window<measure::Duration> m_drawTimes{120};
+  measure::Window<motion::Duration> m_drawTimes{120};
   std::string m_status = "waiting for first build";
   std::string m_errorLog;
   /** What `noteProblems` last put in the error log, so that it takes

@@ -29,10 +29,6 @@
  *                                              its session is opened for:
  *                                              Advance (the default) or
  *                                              the wall's
- *   Grimoire <file.cpp> --bench [--bench-frames <n>]
- *              [--jitter-dt [<amplitude>]] [--at <s>] [--scale <n>]
- *              [--fps <n>] [--gpu]
- *                                              a file, measured
  *   Grimoire <file.cpp>                      the app, on that file
  *   Grimoire <stem>/<stem>.cpp               …either way, a sketch that
  *                                              is a directory, by its entry
@@ -53,6 +49,9 @@
  *   … [--state <dir>]                          where this run keeps builds,
  *                                              thumbnails, recorded device
  *                                              programs and settings
+ *   … [--pipeline-names]                       each device program named
+ *                                              on stderr as it is built or
+ *                                              replayed
  *   … [--inspect[=<port>]]                     the protocol's endpoint on
  *                                              loopback, on the port named
  *                                              or any free one; the window
@@ -229,7 +228,7 @@ int main(int argc, char* argv[]) {
                          !args.warmThumbnails &&
                          args.compareOptions.first.empty() &&
                          args.storyOptions.outputPath.empty() &&
-                         args.capture.outputPath.empty() && !args.capture.bench;
+                         args.capture.outputPath.empty();
   const bool remembersWindow =
       windowRun && args.shotPath.empty() && args.windowBench.seconds <= 0;
   QSettings workspaceSettings;
@@ -360,7 +359,7 @@ int main(int argc, char* argv[]) {
       (args.headless || args.list || args.catalog || args.warmThumbnails ||
        !args.compareOptions.first.empty() ||
        !args.storyOptions.outputPath.empty() ||
-       !args.capture.outputPath.empty() || args.capture.bench)) {
+       !args.capture.outputPath.empty())) {
     std::fprintf(stderr,
                  "--publish: what is offered is a live window's frames, "
                  "and this run opens no window\n");
@@ -375,7 +374,7 @@ int main(int argc, char* argv[]) {
       (args.list || args.catalog || args.warmThumbnails ||
        !args.compareOptions.first.empty() ||
        !args.storyOptions.outputPath.empty() ||
-       !args.capture.outputPath.empty() || args.capture.bench)) {
+       !args.capture.outputPath.empty())) {
     std::fprintf(stderr,
                  "--inspect: this run ends once its output is written, and "
                  "a client has nothing to drive; `--headless --inspect` "
@@ -502,12 +501,11 @@ int main(int argc, char* argv[]) {
   // into its own plate differs from itself between two runs — so a pixel
   // sweep reports it as changed by a patch that changed nothing. Its
   // session is opened for the Advance policy, which pins those numbers;
-  // a measurement and the live host keep the wall's clock and their real
-  // numbers, which is where they are wanted.
+  // the live host keeps the wall's clock and its real numbers, which is
+  // where they are wanted.
   options.clock = args.clockPolicy.value_or(
-      !args.capture.outputPath.empty() && !args.capture.bench
-          ? sigil::motion::ClockPolicy::Advance
-          : sigil::motion::ClockPolicy::Wall);
+      !args.capture.outputPath.empty() ? sigil::motion::ClockPolicy::Advance
+                                       : sigil::motion::ClockPolicy::Wall);
   // WHAT MOUNTS AT res:// unless `--assets` says otherwise: for a sketch
   // of this repository the demo assets root, and for a file anywhere else
   // on disk the assets beside it, which the host defaults to when this is
@@ -520,14 +518,12 @@ int main(int argc, char* argv[]) {
   options.sketchesDirectory = sketchDirectory;
   options.flagsFile = flagsFileNear(executableDirectory(argv[0]));
 
-  if (!args.capture.outputPath.empty() || args.capture.bench) {
+  if (!args.capture.outputPath.empty()) {
     if (args.sketchFile.empty() || !std::filesystem::exists(args.sketchFile)) {
       std::fprintf(stderr,
                    "usage: Grimoire <sketch.cpp|sketch.py> [--frame <out.png>] "
                    "[--at <sec>] [--scale <n>]\n"
-                   "         [--frames <count>] [--fps <n>] [--bench] "
-                   "[--bench-frames <n>]\n"
-                   "         [--gpu] [--jitter-dt [amplitude]] "
+                   "         [--frames <count>] [--fps <n>] [--gpu] "
                    "[--deterministic | --no-deterministic]\n");
       return 2;
     }
@@ -570,7 +566,7 @@ int main(int argc, char* argv[]) {
       sketch::Host host(std::move(options), fonts());
       if (!awaitFirstBuild(host)) result = 1;
 #ifdef __APPLE__
-      if (!result && args.gpu && !args.capture.bench && !host.needsDevice()) {
+      if (!result && args.gpu && !host.needsDevice()) {
         std::string error;
         canvasDevice = sigil::core::hardware::GpuDevice::createOwned(&error);
         if (!canvasDevice) {
@@ -587,11 +583,8 @@ int main(int argc, char* argv[]) {
         }
       }
 #endif
-      if (!result && args.capture.bench) {
-        result = runBench(host, args.capture, host.sketchPath());
-      } else if (!result) {
+      if (!result)
         result = runFrames(host, args.capture, args.gpu, canvasGraphite.get());
-      }
     }
     // The session goes before the device does: it holds textures and
     // pipelines the device made, and releasing the device first takes
@@ -736,7 +729,7 @@ int main(int argc, char* argv[]) {
   // the next launch — but only for a paint tree whose runtime effects
   // were declared before the context was created, which is here: the
   // window's context is made on the render thread, after this.
-  openPipelineWarmup(pipelines::storeDirectory());
+  openPipelineWarmup(pipelines::storeDirectory(), args.namePipelines);
   // A SCENE3D SKETCH'S SURFACE PROGRAMS, kept beside them: each one a run
   // compiled is read back by the next instead of compiled again on the
   // thread that draws while the scene3d sketch opens.

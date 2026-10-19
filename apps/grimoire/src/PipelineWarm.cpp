@@ -28,12 +28,14 @@
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
+#include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <span>
 #include <string>
 #include <unordered_set>
@@ -48,26 +50,19 @@ namespace material = sigil::material;
 namespace {
 
 /** Whether each program is named on stderr as it is built or replayed.
- *  Off unless the environment asks, because it is one line per program
+ *  Off unless `--pipeline-names` asks, because it is one line per program
  *  and there are hundreds — and on, it is the only way to see WHICH
- *  program a first frame still had to build. */
+ *  program a first frame still had to build. Set before any context
+ *  exists, read from the pool that builds the programs. */
+std::atomic<bool> g_namesEveryPipeline{false};
+
 bool namesEveryPipeline() {
-  static const bool asked = [] {
-    const char* set = std::getenv("SIGIL_GRIMOIRE_PIPELINE_NAMES");
-    return set && *set;
-  }();
-  return asked;
+  return g_namesEveryPipeline.load(std::memory_order_relaxed);
 }
 
-/** THE CEILING ON A WRITTEN SET, which a run that opened a handful of
- *  sketches does not reach. What ordinarily bounds the file is that
- *  only the programs a run's own draws wanted go into it; this is for
- *  the run that walked the whole registry, whose draws wanted more
- *  programs than any later launch should stand up before drawing. */
-constexpr size_t kMostKeysWrittenDown = 256;
-
 /** WHAT THIS RUN'S PROGRAMS WERE: one key per program built, which of
- *  them a draw asked for, and the counts the closing line reports.
+ *  them each sketch's draws asked for, and the counts the closing line
+ *  reports.
  *
  *  Reached from the pool every context builds its programs on and from
  *  every thread that records a draw, at the same time, so everything
@@ -80,13 +75,15 @@ class PipelineRecord final
   void added(const std::string& label, std::uint32_t uniqueHash,
              bool fromPrecompile, sk_sp<SkData> key) override {
     const std::lock_guard<std::mutex> held(m_lock);
-    if (fromPrecompile)
+    if (fromPrecompile) {
       ++m_builtAhead;
-    else
+    } else {
       ++m_builtForADraw;
-    // A program built for a draw is one a draw wanted, there and then.
-    // One built ahead is a guess until a draw finds it.
-    if (!fromPrecompile) m_wanted.insert(uniqueHash);
+      if (m_countingFirstFrame) ++m_builtInFirstFrame;
+    }
+    // A program built for a draw is one the sketch drawing wanted, there
+    // and then. One built ahead is a guess until a draw finds it.
+    if (!fromPrecompile) m_wantedBy[m_drawing].insert(uniqueHash);
     if (namesEveryPipeline())
       std::fprintf(stderr, "[grimoire] pipeline %s %08x%s: %s\n",
                    fromPrecompile ? "ahead" : "for a draw", uniqueHash,
@@ -103,27 +100,54 @@ class PipelineRecord final
     // A draw asking for a program and getting one wanted it, however it
     // came to be standing — which is how a key stood up from the file
     // earns its place in the next one.
-    m_wanted.insert(uniqueHash);
+    m_wantedBy[m_drawing].insert(uniqueHash);
   }
 
-  /** THE SET TO WRITE BACK, at most @p most of them: the programs this
-   *  run's DRAWS wanted, and only those.
+  /** THE SKETCH WHOSE DRAWS COME NEXT, and the start of its first
+   *  frame's count. */
+  void drawing(std::string sketch) {
+    const std::lock_guard<std::mutex> held(m_lock);
+    m_drawing = std::move(sketch);
+    m_countingFirstFrame = true;
+    m_builtInFirstFrame = 0;
+  }
+
+  /** The end of the first frame's count: the sketch's name and how many
+   *  programs its first frame's draws built, once; nothing after. */
+  std::optional<std::pair<std::string, size_t>> firstFrameDrawn() {
+    const std::lock_guard<std::mutex> held(m_lock);
+    if (!m_countingFirstFrame) return std::nullopt;
+    m_countingFirstFrame = false;
+    return std::pair{m_drawing, m_builtInFirstFrame};
+  }
+
+  /** Every sketch some draw was made for, by the name it was drawn
+   *  under. */
+  std::vector<std::string> sketchesDrawn() const {
+    const std::lock_guard<std::mutex> held(m_lock);
+    std::vector<std::string> sketches;
+    for (const auto& [sketch, wanted] : m_wantedBy)
+      if (!sketch.empty() && !wanted.empty()) sketches.push_back(sketch);
+    return sketches;
+  }
+
+  /** THE SET TO WRITE BACK FOR @p sketch: the programs its DRAWS
+   *  wanted in this run, and only those.
    *
    *  A program stood up from the file is reported as built again, so a
    *  run that wrote back everything it recorded would write back its
    *  own replay: the set would then be every program every sketch ever
-   *  opened on the machine needed, each one a program a later launch
-   *  stands up before its canvas draws whether that launch is opening
-   *  that sketch or not. What a run's draws wanted is the scope that
-   *  keeps the next launch's warm-up about the work in front of it. */
-  std::vector<pipelines::RecordedPipeline> toWriteDown(size_t most) const {
+   *  opened on the machine needed. What one sketch's draws wanted is the
+   *  scope that keeps the warm-up before it opens about the work in
+   *  front of it, which is why no set is ever cut to a size. */
+  std::vector<pipelines::RecordedPipeline> toWriteDown(
+      const std::string& sketch) const {
     const std::lock_guard<std::mutex> held(m_lock);
     std::vector<pipelines::RecordedPipeline> writing;
-    writing.reserve(std::min(most, m_recorded.size()));
-    for (const Built& one : m_recorded) {
-      if (writing.size() >= most) break;
-      if (m_wanted.count(one.hash) != 0) writing.push_back(one.program);
-    }
+    const auto wanted = m_wantedBy.find(sketch);
+    if (wanted == m_wantedBy.end()) return writing;
+    for (const Built& one : m_recorded)
+      if (wanted->second.count(one.hash) != 0) writing.push_back(one.program);
     return writing;
   }
 
@@ -148,7 +172,12 @@ class PipelineRecord final
   mutable std::mutex m_lock;
   std::vector<Built> m_recorded;
   std::unordered_set<std::uint32_t> m_seen;
-  std::unordered_set<std::uint32_t> m_wanted;
+  /** What each sketch's draws wanted, by the name the host drew it
+   *  under; the empty name holds what was drawn before any sketch. */
+  std::map<std::string, std::unordered_set<std::uint32_t>> m_wantedBy;
+  std::string m_drawing;
+  bool m_countingFirstFrame = false;
+  size_t m_builtInFirstFrame = 0;
   size_t m_builtForADraw = 0;
   size_t m_builtAhead = 0;
   size_t m_found = 0;
@@ -176,9 +205,9 @@ std::filesystem::path g_storeDirectory;
 /** WHAT THE WARM-UPS SHARE, and the lock over it. A window stands more
  *  than one canvas up, each with a context and a warm-up of its own —
  *  the programs are a context's, so each has to build its own — and
- *  they run at the same time on their own workers. The file they read
- *  and write back is one file, so only one of them is inside here at a
- *  time and the name is worked out once.
+ *  they run at the same time on their own workers. The files they read
+ *  and write back are the store's, so only one of them is inside here at
+ *  a time and the name the sets answer to is worked out once.
  *
  *  The flag is under the same lock as everything it gates, and for the
  *  same reason: it is set on the thread the process starts on and
@@ -187,7 +216,9 @@ std::filesystem::path g_storeDirectory;
  *  written. */
 std::mutex g_warmupLock;
 bool g_open = false;
-std::filesystem::path g_keySetFile;
+/** The name every sketch's set answers to under this declaration and
+ *  backend; empty until a context was warmed or recorded for. */
+std::string g_setName;
 size_t g_replayed = 0;
 /** Whether this run may only FILL the store — see
  *  `recordPipelinesForAColdStore`. */
@@ -261,10 +292,10 @@ skgpu::graphite::RenderPassProperties presentedPass() {
  *
  *  So this reaches a stage that maps the layer and nothing else, and it
  *  cannot reach a STACK: a backend inlines a whole chain into one
- *  program, and which chains a sketch will wear is not knowable before
- *  the sketch has been read. Those are built when the draw that needs
- *  them is first recorded, and recorded, so the launch after this one
- *  replays them exactly. */
+ *  program, and a described chain expands into every combination it
+ *  allows. A stack's programs are the ones a sketch's own draws asked
+ *  for, written down under the name the host knows the sketch by, and
+ *  stood up from that set before the sketch next opens. */
 size_t buildStagesAhead(skgpu::graphite::PrecompileContext& precompile,
                         std::span<const sk_sp<SkRuntimeEffect>> effects) {
   const skgpu::graphite::RenderPassProperties pass = presentedPass();
@@ -317,7 +348,9 @@ std::string graphiteBackendName(const skgpu::graphite::Context& context) {
   }
 }
 
-void openPipelineWarmup(const std::filesystem::path& storeDirectory) {
+void openPipelineWarmup(const std::filesystem::path& storeDirectory,
+                        bool namesEveryProgram) {
+  g_namesEveryPipeline.store(namesEveryProgram, std::memory_order_relaxed);
   const std::lock_guard<std::mutex> alone(g_warmupLock);
   g_storeDirectory = storeDirectory;
   const std::vector<sk_sp<SkRuntimeEffect>> declarable =
@@ -345,11 +378,10 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory) {
 void recordPipelinesForAColdStore(const skgpu::graphite::Context& context) {
   const std::string backend = graphiteBackendName(context);
   const std::lock_guard<std::mutex> alone(g_warmupLock);
-  // A lane that already named the file is a lane that replayed from it,
+  // A lane that already named the sets is a lane that replays from them,
   // and a run does one or the other.
-  if (!g_open || !g_keySetFile.empty()) return;
-  g_keySetFile = pipelines::keySetFile(
-      g_storeDirectory, pipelines::keySetName(g_declared, backend));
+  if (!g_open || !g_setName.empty()) return;
+  g_setName = pipelines::keySetName(g_declared, backend);
   g_fillsAColdStoreOnly = true;
 }
 
@@ -359,11 +391,45 @@ void warmStockPipelines(
   if (!precompile) return;
   const std::lock_guard<std::mutex> alone(g_warmupLock);
   if (!g_open) return;
-  if (g_keySetFile.empty())
-    g_keySetFile = pipelines::keySetFile(
-        g_storeDirectory, pipelines::keySetName(g_declared, backend));
+  if (g_setName.empty())
+    g_setName = pipelines::keySetName(g_declared, backend);
+  // A STORE THAT ANSWERS FOR THIS BUILD stands each sketch's programs up
+  // before that sketch opens, and nothing here is a better guess.
+  if (pipelines::holdsAnySketchSet(g_storeDirectory, g_setName)) return;
+  // NOTHING WRITTEN DOWN: a fresh machine, an edited shader, a Skia that
+  // no longer reads the last run's keys. The effect stages are what can
+  // be known without having read a sketch.
+  const size_t stages = buildStagesAhead(*precompile, g_stages);
+  std::fprintf(stderr,
+               "[grimoire] pipelines: no recorded set for this build, %zu "
+               "effect stages stood up instead\n",
+               stages);
+}
+
+bool hasRecordedPipelines(std::string_view sketch, const std::string& backend) {
+  const std::lock_guard<std::mutex> alone(g_warmupLock);
+  if (!g_open || sketch.empty()) return false;
+  const std::string set = g_setName.empty()
+                              ? pipelines::keySetName(g_declared, backend)
+                              : g_setName;
+  std::error_code error;
+  return std::filesystem::exists(
+      pipelines::keySetFile(g_storeDirectory,
+                            pipelines::sketchKeySetName(set, sketch)),
+      error);
+}
+
+void warmSketchPipelines(
+    std::unique_ptr<skgpu::graphite::PrecompileContext> precompile,
+    std::string backend, std::string sketch) {
+  if (!precompile) return;
+  const std::lock_guard<std::mutex> alone(g_warmupLock);
+  if (!g_open) return;
+  if (g_setName.empty())
+    g_setName = pipelines::keySetName(g_declared, backend);
   const std::vector<pipelines::RecordedPipeline> recorded =
-      pipelines::readKeySet(g_keySetFile);
+      pipelines::readKeySet(pipelines::keySetFile(
+          g_storeDirectory, pipelines::sketchKeySetName(g_setName, sketch)));
   size_t replayed = 0;
   size_t stale = 0;
   for (const pipelines::RecordedPipeline& one : recorded) {
@@ -384,52 +450,57 @@ void warmStockPipelines(
     if (precompile->precompile(one.key)) ++replayed;
   }
   g_replayed += replayed;
-  // WHAT THE SET WAS WORTH, said whenever there was one. A store whose
-  // every key has gone stale is the one state an operator has to be
-  // able to see: a set silently dropped whole reads as a warm-up that
-  // helps and costs nothing while being neither.
+  // WHAT THE SET WAS WORTH, said whenever there was one. A set whose
+  // every key has gone stale is the one state an operator has to be able
+  // to see: a set silently dropped whole reads as a warm-up that helps
+  // and costs nothing while being neither.
   if (!recorded.empty())
     std::fprintf(stderr,
                  "[grimoire] pipelines: %zu of %zu recorded programs stood "
-                 "up before the first frame, %zu no longer described what "
-                 "they described\n",
-                 replayed, recorded.size(), stale);
-  if (replayed > 0) return;
-  // NOTHING STOOD UP: a fresh machine, an edited shader, a Skia that no
-  // longer reads the last run's keys. The effect stages are what can be
-  // known without having read a sketch.
-  const size_t stages = buildStagesAhead(*precompile, g_stages);
+                 "up before %s opened, %zu no longer described what they "
+                 "described\n",
+                 replayed, recorded.size(), sketch.c_str(), stale);
+}
+
+void pipelinesDrawnFor(std::string sketch) {
+  recorder()->drawing(std::move(sketch));
+}
+
+void pipelinesFirstFrameDrawn() {
+  const std::optional<std::pair<std::string, size_t>> counted =
+      recorder()->firstFrameDrawn();
+  if (!counted) return;
   std::fprintf(stderr,
-               "[grimoire] pipelines: %s, %zu effect stages stood up "
-               "instead\n",
-               recorded.empty()
-                   ? "no recorded set for this build"
-                   : "none of the recorded set still described what it "
-                     "described",
-               stages);
+               "[grimoire] pipelines: the first frame of %s built %zu "
+               "programs for its draws\n",
+               counted->first.c_str(), counted->second);
 }
 
 void finishPipelineWarmup() {
   const std::lock_guard<std::mutex> alone(g_warmupLock);
   if (!g_open) return;
   g_open = false;
-  // No file name means no context was ever warmed: this run drew
-  // through no Graphite, nothing was recorded or replayed, and a tally
-  // of zeroes on a lane the warm-up cannot serve says only that.
-  if (g_keySetFile.empty()) return;
-  const std::vector<pipelines::RecordedPipeline> keys =
-      recorder()->toWriteDown(kMostKeysWrittenDown);
-  // THE SWEEP FILLS A COLD STORE AND NEVER REPLACES A WARM ONE. What it
-  // drew was a selection rather than the sketch someone is about to
-  // open, so its set is the better answer only where there is no answer
-  // at all.
-  if (g_fillsAColdStoreOnly && std::filesystem::exists(g_keySetFile)) {
-    recorder()->report(g_replayed, 0);
-    return;
+  // No name means no context was ever warmed: this run drew through no
+  // Graphite, nothing was recorded or replayed, and a tally of zeroes on
+  // a lane the warm-up cannot serve says only that.
+  if (g_setName.empty()) return;
+  size_t written = 0;
+  for (const std::string& sketch : recorder()->sketchesDrawn()) {
+    const std::filesystem::path file = pipelines::keySetFile(
+        g_storeDirectory, pipelines::sketchKeySetName(g_setName, sketch));
+    // THE SWEEP FILLS A COLD STORE AND NEVER REPLACES A WARM ONE. What
+    // it drew was a capture of the sketch rather than the sketch someone
+    // is looking at, so its set is the better answer only where there is
+    // no answer at all.
+    if (g_fillsAColdStoreOnly && std::filesystem::exists(file)) continue;
+    const std::vector<pipelines::RecordedPipeline> keys =
+        recorder()->toWriteDown(sketch);
+    if (keys.empty()) continue;
+    if (pipelines::writeKeySet(file, keys))
+      written += keys.size();
+    else
+      std::fprintf(stderr, "[grimoire] pipelines: could not write %s\n",
+                   file.c_str());
   }
-  recorder()->report(g_replayed, keys.size());
-  if (keys.empty()) return;
-  if (!pipelines::writeKeySet(g_keySetFile, keys))
-    std::fprintf(stderr, "[grimoire] pipelines: could not write %s\n",
-                 g_keySetFile.c_str());
+  recorder()->report(g_replayed, written);
 }

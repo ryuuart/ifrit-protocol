@@ -19,6 +19,8 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <set>
+#include <string>
 #include <vector>
 
 #include "CanvasView.h"
@@ -102,6 +104,13 @@ class GrimoireRenderer final : public QQuickRhiItemRenderer {
   /** Applies selection or replay requests with hostMutex held. A request
    *  for a selection that has since changed is discarded. */
   [[nodiscard]] std::unique_ptr<sigil::sketch::Host> updateSession();
+#ifdef SIGIL_GRIMOIRE_GPU
+  /** STANDS UP THE PROGRAMS the sketch at @p index wanted last time, on a
+   *  worker, before it opens — once per sketch per context. True when a
+   *  warm-up started, in which case the selection opens on a later frame,
+   *  once it has landed. */
+  bool warmBeforeOpening(int index);
+#endif
   void resetPresentation();  // hostMutex must be held
   void publishMetrics();     // hostMutex must be held
   /** Stands the publisher up, or says why this window has nothing to
@@ -151,6 +160,11 @@ class GrimoireRenderer final : public QQuickRhiItemRenderer {
    *  a warm-up gone wrong is a late sketch rather than no sketch. */
   static constexpr int kFramesHeldForWarmup = 120;
   int m_framesHeldForWarmup = 0;
+  /** The sketches whose recorded programs this context has stood up. */
+  std::set<std::string> m_sketchesWarmed;
+  /** Whether the session on screen has had its first frame's builds
+   *  reported. */
+  bool m_firstFrameCounted = true;
   /** Kept alive for the length of a capture: the fence the still on a
    *  device is described through. */
   std::unique_ptr<sigil::skia::PaintOrderCanvas> m_captureCanvas;

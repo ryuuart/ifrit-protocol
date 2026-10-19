@@ -47,7 +47,10 @@ This is not a frame reconstruction or a functional ship circuit.
 The wall is one cached grayscale height field. Its nested molded steps
 are softened with native blur, then an original material reads neighboring
 heights for normals, contact recesses, dull sheen and painted surface
-variation. The stock bevel-normal primitive addresses an outer silhouette;
+variation. It reads up to three pixels from the one it shades and declares
+that reach on its filter, so past the panel's edge it reads nothing rather
+than whatever the layer's texture holds beyond it, and two captures are
+one picture. The stock bevel-normal primitive addresses an outer silhouette;
 the interior steps here require distinct heights inside that outline.
 
 The acrylic edge and fasteners are separate cached geometry. Native type
@@ -113,7 +116,9 @@ The movie is made only from these native frames.
 ## Authoring findings
 
 The material-to-filter conversion snapshots its uniforms. This study uses
-the supported direct runtime-program filter for a live beam clock.
+the supported direct runtime-program filter for the tube's live beam
+clock; the wall, whose uniforms stand still, goes through the material
+door because only that door states how far a body reads its layer.
 A binding-preserving conversion would remove that assembly step.
 
 Python supports family-based typeface lookup, but the inspected compiled

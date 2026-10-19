@@ -17,14 +17,14 @@ Grimoire --catalog [<file.cpp>] [--gpu]   # the browser's rows, one JSON each
 Grimoire <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
                                   [--deterministic | --no-deterministic]
-Grimoire <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Grimoire --headless [<outdir>] [--gpu] [--sketch <name>] [--kind <k>]
            [--at <sec>] [--scale <n>] [--ledger]
 Grimoire --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--video-bitrate <bits>] [--fps <n>] [--sketch <name>]
            [--kind <k>] [--gpu]
 Grimoire --compare <dir-a> <dir-b>        # two sweeps' plates, differenced
-Grimoire --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
+Grimoire [<file.cpp>] --window-bench [<sec>] [--window-size <WxH>]
+           [--window-scale <n>] [--sketch <name>] [--kind <k>]
 Grimoire --thumbnails [--sketch <name>] [--kind scene2d|scene3d]
            [--thumbnail-budget <sec>] [--thumbnail-heavy]
 Grimoire --publish [<name>] [--sketch <name>]
@@ -35,6 +35,8 @@ Grimoire --shot <png> [--sketch <name>] [--at <sec>]
 … [--assets <dir>]                          # what mounts at res://
 … [--state <dir>]                           # where the run keeps what it
                                             # writes for a later run
+… [--pipeline-names]                        # each device program named on
+                                            # stderr as it is built
 … [--inspect[=<port>]]                      # the protocol's endpoint: the
                                             # window mounts it unasked, a
                                             # sweep when asked
@@ -62,12 +64,10 @@ below what each lane here mounts.
 
 `--frame` and `--headless` with `--gpu` draw scene2d stills through
 Graphite and scene3d sketches through the World device executor. A missing
-device context fails instead of producing a raster substitute. `--bench`
-keeps its raster scene2d frame path, with the selected device executor for
-scene3d and mesh work.
+device context fails instead of producing a raster substitute.
 
 **A scene3d sketch is drawn on a device and nowhere else.** Every lane
-that draws one — `--frame`, `--bench`, `--headless`, `--video` — needs
+that draws one — `--frame`, `--headless`, `--video` — needs
 `--gpu`. Without it no device comes up and every scene3d sketch is
 unavailable with one reason, the one SigilSketch writes: a still or a
 measurement of one refuses with it, a sweep skips each one and prints it,
@@ -177,10 +177,10 @@ Grimoire's own interpreter: in a plain one `registryRows` is empty and
 **A capture is taken under a client's clock and a live run under the
 wall's.** A session is opened for the clock policy it is drawn at, and
 under any but the wall's anything a sketch measured about its own
-execution is pinned, so a `--frame` can be diffed while the app and
-`--bench` show the machine's own numbers. `--deterministic` names the
-Advance policy and `--no-deterministic` the wall's, for either lane,
-which is how a sketch's real figures are looked at in a written frame.
+execution is pinned, so a `--frame` can be diffed while the app shows
+the machine's own numbers. `--deterministic` names the Advance policy
+and `--no-deterministic` the wall's, which is how a sketch's real
+figures are looked at in a written frame.
 
 The app brings a device up and every scene3d sketch draws through it.
 `--no-gpu` brings none up, and every scene3d sketch is listed unavailable; a device that will
@@ -285,57 +285,56 @@ so the stages of a scene wearing a chain of effects are built beside each
 other rather than one after another, and the window's canvas stands them up
 before its first frame rather than inside it.
 
-**Which programs a launch stands up is what the last launch needed.** As the
-app comes up, and before any Graphite context exists, it declares every SkSL
-body the effects are made of and every stock recipe's program to SigilSkia —
-the precondition for a program built over one of them having a name that
-survives the run. Every program the run then builds is recorded, with the key
-that rebuilds it and the description it was built under, and written at exit
-under the platform cache location beside the thumbnails
-(`Grimoire/pipelines/<digest>.keys`; `pipelines/` under a `--state`
-root instead). The digest is over the declared bodies, in the order they were
-declared, and the backend's name: an edited shader, a recipe added or a
-different device is a different file rather than a set of keys describing
-other programs. The next launch replays that set on a worker as soon as the
-canvas's context exists, and **the canvas draws nothing until it lands** —
-skipping frames rather than blocking the thread that presents, and for a
-bounded number of them, because a warm-up gone wrong must be a late sketch
-and not an empty one. A first frame recorded beside the warm-up would ask for
-the very programs it is building, which is the stall moved rather than
-removed.
+**Which programs a sketch stands up is what its draws needed last time.**
+As the app comes up, and before any Graphite context exists, it declares
+every SkSL body the effects are made of and every stock recipe's program to
+SigilSkia — the precondition for a program built over one of them having a
+name that survives the run. Every program the run then builds is recorded,
+with the key that rebuilds it and the description it was built under, and
+every program a draw asks for is written down under the sketch drawing it —
+by the name the host knows it by before opening it, a registry key or a
+file's path. At exit each sketch's set is written under the platform cache
+location beside the thumbnails (`Grimoire/pipelines/<digest>-<sketch
+digest>.keys`; `pipelines/` under a `--state` root instead). The first
+digest is over the declared bodies, in the order they were declared, and the
+backend's name: an edited shader, a recipe added or a different device is a
+different file rather than a set of keys describing other programs.
 
-**What is written back is what the run's DRAWS wanted**, not everything it
-built: a program a draw asked for, whether it was built for that draw or
-found standing because the replay had stood it up. A replayed program is
-reported as built again, so a run writing back everything it recorded would
-write back its own replay, and the set would grow into every program every
-sketch ever opened here needed — each one a program a later launch stands
-up before its canvas draws, whether that launch is opening that sketch or
-not, and the canvas holds its frames for the warm-up only so long. A sketch
-that stops being opened therefore falls out of the set rather than being
-stood up forever, and a run that walked the whole registry is cut at a
-ceiling no later launch should be made to warm.
+**A selected sketch's set stands up before the sketch opens.** The host's
+name for the sketch is all the warm-up needs: the set holds every program
+its draws wanted, the chain of a stack inlined into theirs, so nothing
+about the sketch is read first. It is replayed on a worker, once per sketch
+per context, and **the canvas draws nothing until it lands** — skipping
+frames rather than blocking the thread that presents, and for a bounded
+number of them, because a warm-up gone wrong must be a late sketch and not
+an empty one. A first frame recorded beside the warm-up would ask for the
+very programs it is building, which is the stall moved rather than removed.
 
-**A headless sweep on the device fills a store that stands empty.** It
-draws the programs an open window draws, with nobody waiting on any of
-them, so it declares and records exactly as a launch does and leaves its
-set behind, and the FIRST interactive open of a machine then has
-something to replay rather than nothing. What that is worth follows what
-was swept: a selection of a few sketches leaves those sketches'
-programs, while the whole registry wants far more than the ceiling a
-written set is cut at, and what survives the cut is what the run drew
-first — not a set chosen for the sketch someone opens next. It never
-replaces a set either: a run that drew a whole selection knows less
-about what the next launch will open than a window run that drew one
-sketch, so a store that already answers for this declaration keeps its
-answer and the sweep's set is dropped. And it stands nothing up ahead of
-itself — there is no frame to protect, and replaying would put the
-store's state inside a lane whose picture has to depend on nothing but
-the sketch. A sweep with no `--gpu` does not warm at all, because it
-builds no device program to record. Neither does `--frame`: it
-photographs a scene2d sketch on a raster surface so the picture is
-reproducible, and a scene3d sketch is drawn by the device's own renderer, so a capture builds no
-Graphite program either.
+**What is written back is what each sketch's DRAWS wanted**, not
+everything the run built: a program a draw asked for, whether it was built
+for that draw or found standing because the replay had stood it up. A
+replayed program is reported as built again, so a run writing back
+everything it recorded would write back its own replay, and a sketch's set
+would grow into every program every sketch ever opened here needed. Kept
+per sketch, a set is the work in front of that sketch alone, so none is
+ever cut to a size, and a sketch that stops being opened costs nothing to
+any other.
+
+**A headless sweep on the device fills a sketch's set where none
+stands.** It draws the programs an open window draws, with nobody waiting
+on any of them, so it declares and records exactly as a launch does and
+leaves each swept sketch's set behind, and the FIRST interactive open of
+that sketch then has something to replay rather than nothing. It never
+replaces a set: a capture draws a sketch at its moment, which is less than
+a window that showed it draws, so a sketch that already has a set keeps it
+and the sweep's is dropped. And it stands nothing up ahead of itself —
+there is no frame to protect, and replaying would put the store's state
+inside a lane whose picture has to depend on nothing but the sketch. A
+sweep with no `--gpu` does not warm at all, because it builds no device
+program to record. Neither does `--frame`: it photographs a scene2d sketch
+on a raster surface so the picture is reproducible, and a scene3d sketch is
+drawn by the device's own renderer, so a capture builds no Graphite program
+either.
 
 A key is replayed only if its description still reads back the same. A key
 names the pieces a program is inlined out of by number, and a piece the
@@ -345,25 +344,25 @@ that made one is unreadable by a run where nothing has. Such a key is dropped
 and its program is built when a draw asks for it, which is one program rather
 than a walk off the end of a name.
 
-With no set to replay — a fresh machine, an edited shader, a Skia that no
-longer reads the keys — the same worker stands up the effects' own bodies as
-stages instead, and only those that declare no child: a described paint is
-expanded into every combination it allows, so a body with two children is
-hundreds of programs a device is asked to hold and a driver that stops
-compiling. That reaches a stage drawn alone; it cannot reach a STACK, because
-a backend inlines a whole chain into one program and which chains a sketch
-wears is not known before the sketch is read. Those are built as the draws
-ask for them, and recorded, which is what makes the second launch the cheap
-one. Each run says on stderr what it spent: how many programs it built for a
-draw, how many it stood up ahead of one, how many draws found a program
-already standing, and how many of the keys it recorded it wrote down. A run
-that found a set says how much of it stood up and how much of it no longer
-described what it described — a store gone wholly stale reads as a
-warm-up that is neither helping nor free, and is the one state worth
-seeing. A run with no Graphite behind its window says nothing at all: it
-neither records nor replays, so the tally would be zeroes.
-`SIGIL_GRIMOIRE_PIPELINE_NAMES` adds one line per program, naming it, which
-is how to see which program a first frame still had to build.
+With no set written down for this declaration at all — a fresh machine, an
+edited shader, a Skia that no longer reads the keys — a worker stands up the
+effects' own bodies as stages as soon as the canvas's context exists, and
+only those that declare no child: a described paint is expanded into every
+combination it allows, so a body with two children is hundreds of programs a
+device is asked to hold and a driver that stops compiling. A stack's chain
+is built as the draws ask for it, and recorded under the sketch, which is
+what makes that sketch's second open the cheap one. Each run says on stderr
+what it spent: how many programs it built for a draw, how many it stood up
+ahead of one, how many draws found a program already standing, and how many
+of the keys it recorded it wrote down; and for each sketch it opens, how many
+programs its first frame's draws had to build. A sketch whose set was found
+says how much of it stood up and how much of it no longer described what it
+described — a set gone wholly stale reads as a warm-up that is neither
+helping nor free, and is the one state worth seeing. A run with no Graphite
+behind its window says nothing at all: it neither records nor replays, so
+the tally would be zeroes.
+`--pipeline-names` adds one line per program, naming it, which is how to
+see which program a first frame still had to build.
 
 `--video-frames` changes each sketch's share of the edit, `--video-size`
 changes the even output dimensions, `--video-bitrate` sets H.264 bits per
@@ -437,10 +436,6 @@ sequence of `--frames` is spaced at `1/--fps` exactly, and each of its
 frames is printed with the time it shows and the file it went to; the
 `backend:` line names the surface every frame was drawn on, Graphite under
 `--gpu` and the CPU raster otherwise.
-`--bench` keeps the 1.5 s default
-whatever the sketch declared: its `--at` is a warm-up that has only to
-get programs, bakes and atlases hot, and pinning it keeps the measured
-run the same run for every sketch.
 
 `--fps` sets the PRE-ROLL step as well as the capture rate. Steps longer
 than the session clock's maximum delta are subdivided so the clock reaches
@@ -449,56 +444,17 @@ using a fixed-rate steppable has a catch-up clamp, so pre-rolling far
 below its own rate discards simulated time and lands earlier than you
 asked for. Keep `--fps` near the rate you would actually draw at.
 
-## `--bench`: the 60 FPS gate
-
-One machine-readable line, prefixed `BENCH` so a collector can find it,
-carrying the sketch, its canvas, the frame count, the step regime, the
-percentiles and a verdict — then a human line naming which phase
-dominated, and the runtime's own lanes under it.
-
-The gate is **p99 under 16.6 ms** — a sustained 60 FPS at the sketch's
-own declared canvas size. It exits 0 whenever it measured: the verdict is
-the output, not the exit status, so a slow sketch can sit in a pipeline.
-A sketch that never built, or a surface that could not be allocated,
-exits 1.
-
-**A sketch that declares `ctx.plate()` is judged on its capture cost, not
-on 60 FPS.** Some sketches are plates rather than live scenes: a large
-sheet over an expensive material stack whose subject is the sheet's own
-size. A canvas the sketch cannot present at is a different statement from
-a live sketch that drops frames, so a marked sketch reports the cost of
-the still it is photographed as and the verdict reads `PLATE` rather than
-`PASS`/`FAIL`. It is never a timeout override, and it changes nothing
-about the plate sweep — only what the interactive gate asserts.
-`chaucer_astrolabe` is one.
-
-What it does, and why it is not `--frame`'s numbers: the capture path
-steps the clock on a tiny scratch surface where every draw is clipped
-away, so a sketch whose whole cost is one full-canvas shader reads as
-free. `--bench` allocates the real canvas, warms it to `--at` so
-programs, bakes, snapshots and glyph atlases are hot, then times real
-frames. On a failure it prints the most expensive nodes with how each
-produced its pixels.
-
-`--jitter-dt` steps a varying frame interval instead of the fixed one. A
-fixed step is not a neutral simplification for anything that memoizes on
-a per-frame value: under it the values a scene visits repeat on the
-scene's own period, so a cost that grows per distinct value reads as
-free. A wall-clock host never revisits a value. The sequence is a
-golden-ratio rotation — irrational, so it never repeats a step, and
-deterministic, so two runs measure the same frames.
-
-## `--window-bench`: the same frames, in the real window
+## `--window-bench`: each sketch, in the real window
 
 ```sh
-Grimoire --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
-           [--sketch <name>] [--kind scene2d|scene3d]
+Grimoire [<file.cpp>] --window-bench [<sec>] [--window-size <WxH>]
+           [--window-scale <n>] [--sketch <name>] [--kind scene2d|scene3d]
 ```
 
 Opens the window at a stated size and device pixel ratio, presents each
-selected sketch for a stretch after a warm-up, and prints one
-machine-readable line each — prefixed `WINDOW`, the way `--bench`
-prefixes `BENCH` — carrying the presented rate, the frame's work mean
+selected sketch — or the file named, from its live session — for a
+stretch after a warm-up, and prints one machine-readable line each,
+prefixed `WINDOW` so a collector can find it, carrying the presented rate, the frame's work mean
 and p99, its paint phase, the submit, and the headroom the work alone
 would allow; then what opening the sketch cost, kept out of every
 number before it: `open`, the seconds from the ask to the first frame
@@ -526,9 +482,9 @@ the final stage the window's picture leaves through. The stages are
 timed with the device's timestamps only over the measured stretch, so
 the rest of the run writes none; the stage that dominates `frame` is the
 one to cut. `gpu=unavailable` is a device that writes no timestamps, and
-a scene2d sketch, which has no device stages, carries no field. `--bench`
-prints the same breakdown on its `device (mean ms)` line. A sketch this machine cannot run is
-named `SKIPPED` with what is missing, and no line is written for it.
+a scene2d sketch, which has no device stages, carries no field. A sketch
+this machine cannot run is named `SKIPPED` with what is missing, and no
+other line is written for it.
 
 **Each row is the sketch that was on screen.** Selecting a sketch is an
 ask: the session opens on the render thread and its first frame — the
@@ -553,15 +509,13 @@ warm behind it and being let go in the middle of a later sketch's
 frames. So what a sketch reads in a sweep is what it reads presented
 alone, which is the only way a row means anything on its own.
 
-**It measures what `--bench` cannot.** The gate renders onto a raster
-surface at the sketch's declared size and presents nothing, which is
-what makes it a gate: the sketch's own cost, isolated. Here the frame is
-drawn through the surface the window presents, at the window's pixels
-and its device pixel ratio, and the numbers carry the host's own
-overhead with them — the submit or texture upload that puts the frame on
-screen, and, for a scene3d sketch drawn on a device, the readback and blit its
-paint phase performs. Selection goes through the same property a click
-sets, so a switch takes the path a reader's click takes.
+**It measures the frame a reader waits on.** The frame is drawn through
+the surface the window presents, at the window's pixels and its device
+pixel ratio, and the numbers carry the host's own overhead with them —
+the submit or texture upload that puts the frame on screen, and, for a
+scene3d sketch drawn on a device, the readback and blit its paint phase
+performs. Selection goes through the same property a click sets, so a
+switch takes the path a reader's click takes.
 
 The window declares the process user-facing to the system while any of
 it is on screen, in front of other applications or behind them, so a

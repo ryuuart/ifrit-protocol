@@ -40,8 +40,10 @@ Page Scene2DContext::page(glm::ivec2 size, compose::SurfaceRange range) {
 sk_sp<SkImage> Scene2DContext::bakeScene3D(const world::Frame& frame,
                                            SkISize size,
                                            BakeScene3DOptions options) {
-  // A scene3d sketch is drawn on a device and nowhere else.
-  if (!runtimeAvailable()) return nullptr;
+  // A scene3d sketch is drawn on a device and nowhere else: the one the
+  // session was opened on, or the process's.
+  const world::Runtime& drawnOn = bakeRuntime ? *bakeRuntime : runtime();
+  if (!runtimeAvailable(drawnOn, nullptr)) return nullptr;
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(size.width(), size.height()));
   if (!surface) return nullptr;
@@ -54,7 +56,7 @@ sk_sp<SkImage> Scene2DContext::bakeScene3D(const world::Frame& frame,
   world::Frame framed = frame;
   framed.extent(glm::ivec2(size.width(), size.height()))
       .defaultCamera(options.camera)
-      .runtime(runtime());
+      .runtime(drawnOn);
   // A frame whose passes paint no bodies — none at all, texture passes
   // alone, or a bloom alone — is drawn through the stock geometry pass,
   // put first so a post pass reads what it painted.

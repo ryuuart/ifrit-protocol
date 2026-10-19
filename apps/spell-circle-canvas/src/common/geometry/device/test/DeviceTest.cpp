@@ -45,6 +45,7 @@
 #include <vector>
 
 #include "GraphiteReadback.h"
+#include "KeptPipelines.h"
 #include "OnDevice.h"
 #include "ScratchDir.h"
 
@@ -387,62 +388,95 @@ TEST(Device, DiligentSideStandsOnItsOwn) {
  *  THEM. The driver rebuilds every shader library a kept set holds while
  *  the device is made and trusts what it rebuilds, so a set torn by two
  *  processes closing at once, cut short, or written by anything else is
- *  refused before the driver reads it: the device comes up on an empty
- *  cache, and what it keeps when it goes reads back whole. */
-TEST(Device, AKeptPipelineSetThatDoesNotHoldIsRefusedBeforeTheDriverReadsIt) {
-  SIGIL_ON_DEVICE_OR_SKIP(shared);
-  const sigil::test::ScratchDir store("sigil_device_pipeline_store");
+ *  refused whole, and two writers closing at once leave one of their
+ *  sets whole rather than a mixture of both. No device is needed: these
+ *  are bytes on a disk. */
+TEST(Device, AKeptPipelineSetIsReadBackOnlyWhole) {
+  const sigil::test::ScratchDir store("sigil_device_kept_pipelines");
   const std::filesystem::path file = store.path / "device pipelines.bin";
-  const auto writeFile = [&](const std::vector<char>& bytes) {
-    std::ofstream out(file, std::ios::binary | std::ios::trunc);
-    out.write(bytes.data(), (std::streamsize)bytes.size());
+  const auto bytes = [](size_t size, unsigned seed) {
+    std::vector<char> made(size);
+    for (size_t at = 0; at < size; ++at)
+      made[at] = (char)((at * 131u + seed * 7919u + 7u) & 0xffu);
+    return made;
   };
   const auto readFile = [&] {
     std::ifstream in(file, std::ios::binary);
     return std::vector<char>(std::istreambuf_iterator<char>(in),
                              std::istreambuf_iterator<char>());
   };
-  geometry::device::DeviceConfig config;
-  config.pipelineStore = store.path;
+  const auto writeFile = [&](const std::vector<char>& written) {
+    std::ofstream out(file, std::ios::binary | std::ios::trunc);
+    out.write(written.data(), (std::streamsize)written.size());
+  };
 
-  // Bytes no driver wrote.
-  std::vector<char> foreign(4096);
-  for (size_t at = 0; at < foreign.size(); ++at)
-    foreign[at] = (char)((at * 131u + 7u) & 0xff);
-  writeFile(foreign);
-  {
-    std::string error;
-    const auto device = geometry::device::Device::create(config, &error);
-    ASSERT_TRUE(device) << error;
-    EXPECT_NE(device->pipelineStateCache(), nullptr);
-  }
-  const std::vector<char> kept = readFile();
-  ASSERT_GT(kept.size(), 8u) << "the device kept nothing when it went";
-  EXPECT_EQ(std::string(kept.data(), 8), "SigilPSO") << "kept unframed";
+  const std::vector<char> set = bytes(1 << 16, 1);
+  ASSERT_TRUE(geometry::device::writeKeptPipelines(file, set));
+  EXPECT_EQ(geometry::device::readKeptPipelines(file), set);
   for (const auto& entry : std::filesystem::directory_iterator(store.path))
     EXPECT_EQ(entry.path(), file) << "a partial write was left behind";
 
-  // A whole set, read back by the next device.
-  {
-    std::string error;
-    const auto device = geometry::device::Device::create(config, &error);
-    ASSERT_TRUE(device) << error;
-    EXPECT_NE(device->pipelineStateCache(), nullptr);
-  }
+  // Bytes no run framed are refused.
+  writeFile(bytes(4096, 2));
+  EXPECT_TRUE(geometry::device::readKeptPipelines(file).empty());
 
-  // The same set torn: its first half followed by bytes another writer
-  // left at the same offsets.
+  // A whole set torn: its first half, then what another writer left at
+  // the same offsets.
+  ASSERT_TRUE(geometry::device::writeKeptPipelines(file, set));
   std::vector<char> torn = readFile();
-  for (size_t at = torn.size() / 2; at < torn.size(); ++at)
-    torn[at] = foreign[at % foreign.size()];
+  const std::vector<char> other = bytes(torn.size(), 3);
+  std::copy(other.begin() + (long)torn.size() / 2, other.end(),
+            torn.begin() + (long)torn.size() / 2);
   writeFile(torn);
+  EXPECT_TRUE(geometry::device::readKeptPipelines(file).empty());
+
+  // Cut short.
+  ASSERT_TRUE(geometry::device::writeKeptPipelines(file, set));
+  std::vector<char> cut = readFile();
+  cut.resize(cut.size() - 100);
+  writeFile(cut);
+  EXPECT_TRUE(geometry::device::readKeptPipelines(file).empty());
+
+  // Two writers at once, many times over: what stands is always one of
+  // the two sets, whole.
+  const std::vector<char> second = bytes(1 << 17, 4);
+  for (int round = 0; round < 8; ++round) {
+    std::thread one(
+        [&] { (void)geometry::device::writeKeptPipelines(file, set); });
+    std::thread two(
+        [&] { (void)geometry::device::writeKeptPipelines(file, second); });
+    one.join();
+    two.join();
+    const std::vector<char> standing = geometry::device::readKeptPipelines(file);
+    EXPECT_TRUE(standing == set || standing == second)
+        << "round " << round << " left " << standing.size() << " bytes";
+  }
+}
+
+/** …and a device made over a store holding a set that does not hold comes
+ *  up on an empty cache, and keeps a framed one when it goes. A process
+ *  makes one device, so this one is made only where no other case in the
+ *  process made one first. */
+TEST(Device, ADeviceOverATornPipelineSetComesUpOnAnEmptyCache) {
+  const sigil::test::ScratchDir store("sigil_device_pipeline_store");
+  const std::filesystem::path file = store.path / "device pipelines.bin";
+  {
+    std::vector<char> foreign(4096);
+    for (size_t at = 0; at < foreign.size(); ++at)
+      foreign[at] = (char)((at * 131u + 7u) & 0xffu);
+    std::ofstream out(file, std::ios::binary | std::ios::trunc);
+    out.write(foreign.data(), (std::streamsize)foreign.size());
+  }
+  geometry::device::DeviceConfig config;
+  config.pipelineStore = store.path;
   {
     std::string error;
     const auto device = geometry::device::Device::create(config, &error);
-    ASSERT_TRUE(device) << error;
+    if (!device) GTEST_SKIP() << "no device of its own here: " << error;
     EXPECT_NE(device->pipelineStateCache(), nullptr);
   }
-  EXPECT_EQ(std::string(readFile().data(), 8), "SigilPSO");
+  EXPECT_FALSE(geometry::device::readKeptPipelines(file).empty())
+      << "the device kept no framed set when it went";
 }
 
 // ---------------------------------------------------------------------------

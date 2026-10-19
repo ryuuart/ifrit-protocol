@@ -18,6 +18,7 @@ class FontContext;
 namespace sigil::sketch {
 
 class Assets;
+struct Entry;
 
 /** How a plate file is named: this, the sketch's filed name, `.png`. The
  *  name is what a baseline manifest holds, so it is spelled once. */
@@ -97,6 +98,11 @@ struct SweepOptions {
    *  answers a protocol while it sweeps dispatches its hub. Empty runs
    *  nothing, and nothing a plate holds depends on it. */
   std::function<void()> betweenSketches;
+  /** Run with each entry the sweep is about to open, on the thread it
+   *  draws on, before the entry's session opens: what a host that writes
+   *  down each sketch's device programs names the sketch by. Empty runs
+   *  nothing, and nothing a plate holds depends on it. */
+  std::function<void(const Entry&)> opening;
 };
 
 /** Runs the sweep. Returns 0 when every selected sketch rendered. */

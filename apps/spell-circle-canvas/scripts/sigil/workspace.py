@@ -125,7 +125,7 @@ restart Grimoire before opening this again.
 Grimoire @STEM@.cpp                      # the window, live
 Grimoire @STEM@.cpp --frame out.png      # one still
       [--at <sec>] [--scale <n>] [--frames <n>] [--gpu]
-Grimoire @STEM@.cpp --bench              # the frame-time gate
+Grimoire @STEM@.cpp --window-bench       # the rate it reaches the screen at
 Grimoire @STEM@.cpp --gpu --publish      # the frames, to other applications
 ```
 
@@ -135,8 +135,8 @@ with Ctrl-P.
 
 **The registry lanes are not for a file opened by path.** `--headless`
 and `--video` walk the compiled-in registry, which this file is not in —
-a sketch here is photographed with `--frame` and measured with `--bench`,
-one file at a time.
+a sketch here is photographed with `--frame` and measured with
+`--window-bench`, one file at a time.
 
 ## Where its files come from
 

@@ -17,8 +17,10 @@
 #include <sigilskia/graphite/OffscreenSurface.h>
 
 #include <chrono>
+#include <thread>
 
 #include "Meshes.h"
+#include "Pipelines.h"
 #include "OnDevice.h"
 #include "Textures.h"
 
@@ -90,6 +92,35 @@ mesh::Mesh triangle() {
 }
 
 }  // namespace
+
+/** A PROGRAM THE DEVICE CANNOT BUILD IS REFUSED, never an abort. The
+ *  build runs on the device's workers, through the driver's own compiler;
+ *  a program with no entry point is one no driver can turn into a
+ *  pipeline. The build ends refused, the cache answers no pipeline for it
+ *  — which is what a frame stands a body in for — and remembers the
+ *  refusal, so the program is not attempted again on every draw. */
+TEST(PipelineCache, AProgramThatCannotBeBuiltIsRefusedAndRemembered) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  device::PipelineCache cache(*on);
+  // A module header and nothing after it: well formed enough to reach the
+  // driver's compiler, with nothing in it to compile.
+  sigil::material::slang::Compiled broken;
+  broken.vertex = {0x07230203u, 0x00010000u, 0u, 1u, 0u};
+  broken.fragment = broken.vertex;
+  device::PipelineKey key;
+  key.program = &broken;
+  key.fullscreen = true;
+
+  cache.prepare(key);
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(30);
+  while (cache.building() > 0 && std::chrono::steady_clock::now() < deadline)
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  EXPECT_EQ(cache.ready(key), nullptr);
+  EXPECT_EQ(cache.pipeline(key), nullptr) << "a refused build answered a pipeline";
+  EXPECT_EQ(cache.building(), 0u);
+  EXPECT_EQ(cache.pipeline(key), nullptr) << "the refusal was not remembered";
+}
 
 TEST(MapUpload, AMapTooSmallToHalveAsksForNoChainAtAll) {
   // A map wider than one texel wears the whole chain, because a surface

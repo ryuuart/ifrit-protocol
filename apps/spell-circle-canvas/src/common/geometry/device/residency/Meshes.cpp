@@ -28,7 +28,8 @@ constexpr uint64_t kMeshLifetime = 2;
  *
  *  A PRIMITIVE lane makes the vertices unshared: its value belongs to a
  *  triangle, and a vertex two triangles meet at cannot hold two of them.
- *  Without one the mesh's own indices stand. */
+ *  Its colour is multiplied into each corner's vertex colour. Without one
+ *  the mesh's own indices stand. */
 void fillVertices(const mesh::Mesh& mesh, std::string_view primitiveColorLane,
                   std::vector<MeshVertex>* vertices,
                   std::vector<uint32_t>* indices) {
@@ -55,7 +56,10 @@ void fillVertices(const mesh::Mesh& mesh, std::string_view primitiveColorLane,
     const glm::vec2 uv = hasUvs ? mesh.uvs[i] : glm::vec2{0, 0};
     v.uv[0] = uv.x;
     v.uv[1] = uv.y;
-    const glm::vec4 c = hasColors ? mesh.colors[i] : glm::vec4{1, 1, 1, 1};
+    // A triangle's own colour reaches every program the way a vertex
+    // colour does: multiplied into it.
+    const glm::vec4 c =
+        (hasColors ? mesh.colors[i] : glm::vec4{1, 1, 1, 1}) * tint;
     v.color[0] = c.r;
     v.color[1] = c.g;
     v.color[2] = c.b;

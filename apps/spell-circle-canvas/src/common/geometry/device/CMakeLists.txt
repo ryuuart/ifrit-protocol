@@ -61,7 +61,8 @@ enable_language(C)
 find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(unofficial-diligent-engine CONFIG REQUIRED)
 sigil_library(SigilGeometryDevice
-  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp MetalObjects.cpp
+  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp KeptPipelines.cpp
+          KeptPipelines.h MetalObjects.cpp
           Resources.cpp Resources.h
           VolkShim.c
   HEADERS Device.h
@@ -94,6 +95,7 @@ sigil_test(geometry_test
   LIBRARIES SigilGeometryDevice
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test/support
                ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
+               ${CMAKE_CURRENT_LIST_DIR}
   SUITES AdoptedDevice AdoptedGraphite Device LABELS gpu)
 
 sigil_bench(geometry_bench

@@ -59,13 +59,13 @@ struct CanvasSpecification {
 
   /** A PLATE, NOT A LIVE SCENE. A sketch whose subject is the size of the
    *  sheet it draws — a large document over an expensive material stack —
-   *  is judged on the cost of the still it is photographed as, not on
-   *  holding 60 FPS at that size, because a canvas the sketch cannot
-   *  present at is a different statement from a live sketch that drops
-   *  frames. `--bench`'s verdict reads this: a marked sketch reports its
-   *  capture cost and passes the frame-time gate by declaration rather
-   *  than by measurement. It is not a timeout override — nothing about
-   *  the plate sweep changes — only what the interactive gate asserts. */
+   *  is for the still it is photographed as, not for holding a frame rate
+   *  at that size, because a canvas the sketch cannot present at is a
+   *  different statement from a live sketch that drops frames. A
+   *  background still reads this: the walk to such a sketch's moment is
+   *  the one most likely to spend a whole budget, so it is stood down
+   *  unless the run was asked to walk plates. It is not a timeout
+   *  override, and nothing about the plate sweep changes. */
   bool plateOnly = false;
 };
 

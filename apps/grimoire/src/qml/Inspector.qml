@@ -315,7 +315,7 @@ Ui.Panel {
                     enabled: !rail.taskRunning
                     ToolTip.visible: hovered
                     ToolTip.delay: 700
-                    ToolTip.text: "Measure this sketch against the 60 FPS target"
+                    ToolTip.text: "Present this sketch in a window of its own and measure the rate it reaches the screen at"
                     onClicked: rail.benchRequested()
                 }
                 ToolButton {

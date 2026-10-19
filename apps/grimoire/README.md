@@ -79,7 +79,7 @@ run names with `--state <dir>`.
 
 - [RUNNING.md](RUNNING.md) — every command line, the window's lanes, what
   each mounts for a protocol client, the montage, stills, comparisons and
-  the frame-time gates.
+  the window's own frame rate.
 - [BROWSER.md](BROWSER.md) — the window's browser: selection and
   presentation, grouping and search, and the thumbnails it keeps.
 - [TESTING.md](TESTING.md) — the application's cases, the whole-host

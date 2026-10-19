@@ -54,7 +54,7 @@ set(SIGIL_SKETCH_HEADERS
   core/Kind.h core/Members.h core/Placement.h core/Registry.h core/Session.h
   core/Sources.h core/State.h
   scene2d/Guest.h scene2d/Scene2D.h
-  scene3d/Page.h scene3d/Scene3D.h
+  scene3d/OpensOnRuntime.h scene3d/Page.h scene3d/Scene3D.h
   live/Host.h live/Residency.h
   plate/Compare.h plate/Graphite.h plate/Story.h
   plate/Sweep.h plate/ThumbnailQueue.h plate/Thumbnails.h

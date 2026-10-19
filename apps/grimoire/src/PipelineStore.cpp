@@ -93,6 +93,25 @@ std::string keySetName(std::span<const sk_sp<SkRuntimeEffect>> effects,
   return hex;
 }
 
+std::string sketchKeySetName(std::string_view set, std::string_view sketch) {
+  const std::uint64_t digest = foldIn(0xcbf29ce484222325ull, sketch);
+  char hex[17];
+  std::snprintf(hex, sizeof hex, "%016llx", (unsigned long long)digest);
+  return std::string(set) + "-" + hex;
+}
+
+bool holdsAnySketchSet(const fs::path& directory, std::string_view set) {
+  const std::string prefix = std::string(set) + "-";
+  std::error_code error;
+  for (auto entry = fs::directory_iterator(directory, error);
+       !error && entry != fs::directory_iterator(); entry.increment(error)) {
+    const std::string name = entry->path().filename().string();
+    if (name.starts_with(prefix) && entry->path().extension() == ".keys")
+      return true;
+  }
+  return false;
+}
+
 std::vector<RecordedPipeline> readKeySet(const fs::path& file) {
   std::vector<RecordedPipeline> recorded;
   std::FILE* open = std::fopen(file.c_str(), "rb");

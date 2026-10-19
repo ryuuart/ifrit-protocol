@@ -40,16 +40,13 @@ struct WindowBench {
 /** THE LANE OVER THE REAL WINDOW: each selected sketch presented for a
  *  stated stretch, one machine-readable line each.
  *
- *  What it measures that the frame-time gate cannot. `--bench` renders
- *  onto a raster surface at the sketch's declared size and presents
- *  nothing — it is the sketch's own cost and nothing else, which is what
- *  makes it a gate. Here the frame is drawn through the surface the
- *  window presents, at the window's pixels and its device pixel ratio,
- *  and the numbers carry the host's own overhead with them: the submit
- *  or texture upload that puts the frame on screen, and for a scene3d sketch
- * the device readback and blit that its paint phase performs. The presented
- *  rate is the compositor's answer, so it is bounded by the display and
- *  a sketch inside its budget reads at the refresh rate.
+ *  What it measures is the frame a reader waits on: drawn through the
+ *  surface the window presents, at the window's pixels and its device
+ *  pixel ratio, with the host's own overhead in the numbers — the submit
+ *  or texture upload that puts the frame on screen, and for a scene3d
+ *  sketch the device readback and blit that its paint phase performs.
+ *  The presented rate is the compositor's answer, so it is bounded by the
+ *  display and a sketch inside its budget reads at the refresh rate.
  *
  *  WHAT IS MEASURED IS THE SKETCH THAT IS ON SCREEN. Selection goes
  *  through the same property QML sets, and setting it is an ask, not an

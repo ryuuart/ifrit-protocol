@@ -138,8 +138,8 @@ Compiled-in entries open their compiled-in bodies before any source
 edit. Grimoire keeps the last three selected sessions resident; returning
 to one reuses it, and a rebuild starts that session afresh. A custom host
 chooses its own residency policy. In Grimoire a file opened by path is
-photographed with `--frame` and measured with `--bench`, and `--headless`
-walks the compiled-in registry.
+photographed with `--frame` and measured in a window of its own with
+`--window-bench`, and `--headless` walks the compiled-in registry.
 
 ## Captures on the device
 
@@ -155,9 +155,7 @@ Apple that device's 2D paints on Metal, through a Metal Graphite context
 on the Metal device the Vulkan driver runs over, into the device's own
 textures, so its still and its pages are Metal's pixels too.
 Scene2D bodies declare that work with `static constexpr bool needsDevice =
-true;`; a supplied non-CPU painter also requires it. `--bench` keeps its
-raster frame path; `--gpu` selects the device executor for scene3d and mesh
-work during that measurement.
+true;`; a supplied non-CPU painter also requires it.
 
 ## Mapped-code lifetime
 

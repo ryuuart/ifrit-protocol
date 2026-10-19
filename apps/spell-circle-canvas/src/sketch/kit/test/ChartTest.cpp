@@ -128,7 +128,8 @@ TEST(SketchKitChart, ABandFillsItsOwnBandFromTheBaseToItsValue) {
                 .height(kFieldTall)));
   const data::Scale across = frame.scale(kit::Axis::X, kBox);
   const data::Scale up = frame.scale(kit::Axis::Y, kBox);
-  const std::optional<sigil::geometry::path::Rect> box = drawn.composer.bounds("b-bar0-2");
+  const std::optional<sigil::geometry::path::Rect> box =
+      drawn.composer.bounds("b-bar0-2");
   ASSERT_TRUE(box.has_value());
   EXPECT_NEAR(box->left(), (float)across.apply(2), 0.51f);
   EXPECT_NEAR(box->width(), (float)across.bandwidth(), 0.51f);
@@ -168,7 +169,8 @@ TEST(SketchKitChart, APolarWedgeStandsInTheBoundsOfItsOwnSector) {
       sheet(kit::plot("w", frame, {kit::bands(rows, {.y = &kit::Datum::y})})
                 .width(kWheel.width())
                 .height(kWheel.height())));
-  const std::optional<sigil::geometry::path::Rect> box = drawn.composer.bounds("w-bar0-1");
+  const std::optional<sigil::geometry::path::Rect> box =
+      drawn.composer.bounds("w-bar0-1");
   ASSERT_TRUE(box.has_value());
 
   // The wedge occupies a twelfth of the wheel, and its box is the room
@@ -195,7 +197,8 @@ TEST(SketchKitChart, APolarWedgeStandsInTheBoundsOfItsOwnSector) {
 
   // The shortest wedge still gets the smaller box, because its bounds are
   // its own radius and not the wheel's.
-  const std::optional<sigil::geometry::path::Rect> shortest = drawn.composer.bounds("w-bar0-0");
+  const std::optional<sigil::geometry::path::Rect> shortest =
+      drawn.composer.bounds("w-bar0-0");
   ASSERT_TRUE(shortest.has_value());
   EXPECT_LT(shortest->width() * shortest->height(),
             box->width() * box->height());
@@ -213,7 +216,8 @@ TEST(SketchKitChart, BandsAlongTheYScaleAreARowReading) {
                         .height(kFieldTall)));
   const data::Scale across = frame.scale(kit::Axis::X, kBox);
   const data::Scale down = frame.scale(kit::Axis::Y, kBox);
-  const std::optional<sigil::geometry::path::Rect> box = drawn.composer.bounds("r-bar0-2");
+  const std::optional<sigil::geometry::path::Rect> box =
+      drawn.composer.bounds("r-bar0-2");
   ASSERT_TRUE(box.has_value());
   // The band is handed out DOWN and the bar grows ACROSS, from the base.
   EXPECT_NEAR(box->left(), (float)across.apply(0), 0.51f);
@@ -236,8 +240,10 @@ TEST(SketchKitChart, ABaseOffZeroPutsAShortfallOnOneSideOfTheRule) {
                 .height(kFieldTall)));
   const data::Scale up = frame.scale(kit::Axis::Y, kBox);
   const float rule = (float)up.apply(1.0);
-  const std::optional<sigil::geometry::path::Rect> under = drawn.composer.bounds("d-bar0-0");
-  const std::optional<sigil::geometry::path::Rect> over = drawn.composer.bounds("d-bar0-1");
+  const std::optional<sigil::geometry::path::Rect> under =
+      drawn.composer.bounds("d-bar0-0");
+  const std::optional<sigil::geometry::path::Rect> over =
+      drawn.composer.bounds("d-bar0-1");
   ASSERT_TRUE(under.has_value());
   ASSERT_TRUE(over.has_value());
   EXPECT_NEAR(under->top(), rule, 0.51f);
@@ -277,9 +283,11 @@ TEST(SketchKitChart, ARecordedSeriesIsWalkedAtItsOwnIndex) {
                      .height(kFieldTall));
   };
   Drawn drawn(tree(series));
-  const std::optional<sigil::geometry::path::Rect> curve = drawn.composer.bounds("s-trace0");
+  const std::optional<sigil::geometry::path::Rect> curve =
+      drawn.composer.bounds("s-trace0");
   ASSERT_TRUE(curve.has_value());
-  EXPECT_EQ(sigil::geometry::path::toSk(*curve), SkRect::MakeWH(kField, kFieldTall));
+  EXPECT_EQ(sigil::geometry::path::toSk(*curve),
+            SkRect::MakeWH(kField, kFieldTall));
   // A run that did not change is not walked again.
   drawn.composer.render(tree(series));
   EXPECT_EQ(drawn.composer.stats().patchedNodes, 0u);
@@ -299,10 +307,10 @@ TEST(SketchKitChart, AWindowTracesTheRunItHolds) {
                      .height(kFieldTall));
   };
   sigil::measure::Window<double> numbers{4};
-  sigil::measure::Window<sigil::measure::Duration> times{4};
+  sigil::measure::Window<sigil::motion::Duration> times{4};
   for (double value : {10.0, 90.0, 40.0, 70.0, 20.0}) {
     numbers.add(value);
-    times.add(sigil::measure::Duration(value));
+    times.add(sigil::motion::Duration(value));
   }
   const std::vector<double> held{90.0, 40.0, 70.0, 20.0};
   EXPECT_TRUE(sameDrawing(tree(kit::trace(numbers)),
@@ -321,9 +329,11 @@ TEST(SketchKitChart, APathWalksOneParameterIntoBothCoordinates) {
                      {.samples = 32, .over = {0.0, 1.0}})})
           .width(kField)
           .height(kFieldTall)));
-  const std::optional<sigil::geometry::path::Rect> curve = drawn.composer.bounds("p-path0");
+  const std::optional<sigil::geometry::path::Rect> curve =
+      drawn.composer.bounds("p-path0");
   ASSERT_TRUE(curve.has_value());
-  EXPECT_EQ(sigil::geometry::path::toSk(*curve), SkRect::MakeWH(kField, kFieldTall));
+  EXPECT_EQ(sigil::geometry::path::toSk(*curve),
+            SkRect::MakeWH(kField, kFieldTall));
 }
 
 TEST(SketchKitChart, ASegmentStandsInTheBoundsOfItsOwnTwoEnds) {
