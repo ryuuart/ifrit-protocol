@@ -1,28 +1,5 @@
 # Findings
 
-## A run of driven variation instances costs its atlas entries at every device size
-
-A run whose letters are each a driven variation instance costs an atlas
-entry per instance at every device size inside the atlas range: on
-Graphite a varied page costs several times at zoom two what it does at
-zoom one while the same run undriven is flat, and a settle across sizes
-rasterises every instance again. Above the atlas range the glyphs draw
-as paths and the cost vanishes. SigilWeave's glyph batches should draw a
-driven face as a path above a device size where an atlas entry per
-instance is wasteful. `BM_Draw_ZoomedPage_Steady_Graphite` varied and
-plain at zoom two should then agree within a stated ratio.
-
-## A dressed sheet over a turning child costs many times the child on the raster
-
-A sheet's coverage decorations over a turning child are drawn from held
-masks, each part's coverage and blurred coverage kept in its own frame
-and sampled where the part stands, so nothing is blurred anew. On the CPU
-raster the dressed sheet still costs many times the turning child alone:
-what remains is the per-pixel sampling of three turned masks over their
-footprints. A test should hold `BM_Draw_CoverageSheet_TurningChild`'s
-dressed arm under a stated ratio of the child's arm on the Graphite arm,
-where sampling a turned mask is cheap.
-
 ## A sized light's highlight is a representative point's, not the lobe's integral
 
 `src/common/world/diligent/shaders/Surface.slang` lights the specular side
@@ -149,4 +126,24 @@ and unbound, so the ledger's `text_paints` entry requires it and the
 sketch cannot be written in Python. A test should ink a word with
 `kit.textPaint(field=kit.TextField.Sparkle, time=6.4)` from Python and
 find it painted.
+
+## Held coverage masks are remade on the CPU at each settle
+
+`HeldCoverageMasks` remakes a part's cast mask on the CPU raster, blur
+included, whenever the density changes, so every zoom settle
+re-rasterises and re-blurs each held mask at full size on the processor
+even on a device, where the mask should be made and blurred on the
+device. A settle-style Graphite arm of `BM_Draw_CoverageSheet_TurningChild`
+that alternates density should cost within a stated ratio of the steady
+arm; the change moves every device plate that uses held coverage.
+
+## A pass lane misses the canvas scale in the outline route
+
+A `textFx::pass` lane records into its own picture with an identity
+canvas, and the outline route reads only the replay scale there, so a
+driven letter inside a pass under a canvas zoom can stay in the atlas
+past the device size where it should draw as an outline; the lane's
+batches should read the full device scale, replay times canvas. A test
+should put a driven pass lane under a canvas scale past the threshold
+and find its picture reached as outlines.
 

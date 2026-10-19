@@ -71,6 +71,10 @@ struct GlyphRSXformBatches {
     /// Bucket key, by identity as a style compares it: the material the
     /// pass is shaded by, or none, where the paint alone draws it.
     std::shared_ptr<const sigil::material::Material> material;
+    /// Bucket key: the face is a driven clone — `GlyphDress::face` — and
+    /// not the shaped word's own, so its glyphs above
+    /// `kDrivenPathEmPixels` on the device draw as outlines.
+    bool driven = false;
     std::vector<SkGlyphID> glyphs;      ///< parallel to `transforms`
     std::vector<SkRSXform> transforms;  ///< per-glyph scale/rotate/translate
     /// The glyphs of this bucket that an RSXform cannot place — a shear,
@@ -80,6 +84,28 @@ struct GlyphRSXformBatches {
     std::vector<SkGlyphID> matrixGlyphs;  ///< parallel to `matrices`
     std::vector<SkMatrix> matrices;
   };
+  /** THE DEVICE EM, IN PIXELS, ABOVE WHICH A DRIVEN FACE DRAWS AS
+   *  OUTLINES rather than through the glyph atlas. Every coordinate a driven
+   *  axis reaches is its own face, and every face its own atlas entry per
+   *  glyph, so a run of driven letters mints entries as fast as its axes
+   *  move. Below this an entry is small and the atlas holds a run's whole
+   *  loop; above it an entry is a large part of an atlas page, the atlas
+   *  holds fewer instances than a loop mints and evicts what the next loop
+   *  needs, so each frame rasterises its letters again and uploads them.
+   *  An outline costs the same at every coordinate and holds nothing. The
+   *  device em is the font size under the glyph's own scale, the canvas's
+   *  and `replayScale`; a canvas under perspective leaves the choice to
+   *  Skia. */
+  static constexpr float kDrivenPathEmPixels = 128.0f;
+
+  /** THE SCALE THE CANVAS'S DRAWS REACH THE DEVICE UNDER beyond its own
+   *  matrix: 1 where the canvas is the device, the replay's scale where it
+   *  records a picture that lands on the device under a zoom. The device em
+   *  `kDrivenPathEmPixels` is read against is the font size under the
+   *  glyph's scale, the canvas's and this one; zero or less leaves the
+   *  choice to Skia, as a perspective does. Back to 1 on `clear`. */
+  float replayScale = 1.0f;
+
   /** THE GLYPHS ADDED HERE MOVE BETWEEN FRAMES, so their origins go on
    *  Skia's SUBPIXEL PHASE GRID instead of on whole pixels: a run creeping
    *  by a fraction of a pixel advances a quarter pixel at a time rather
@@ -96,7 +122,8 @@ struct GlyphRSXformBatches {
   /** Returns the batch for one shaped word's font and one resolved pass.
    * `face` overrides the shaped word's own typeface when it is non-null —
    * the varied clone a driven variable-font axis asks for — and is part of
-   * the key, so the same word set at two axis coordinates is two buckets. */
+   * the key, so the same word set at two axis coordinates is two buckets,
+   * each marked `driven`. */
   [[nodiscard]] Batch& batchForPass(
       const ShapedWord* font, const sk_sp<SkTypeface>& face,
       const SkPaint& paint, SkVector offset, PassBand band,
@@ -157,7 +184,9 @@ struct GlyphRSXformBatches {
   /** Draws every batch — underlay buckets, then foreground buckets, then
    * overlay buckets, each band in creation order — and returns the number
    * of glyph draws it issued, one per glyph per pass. A bucket with a
-   * material asks the resolver once for its shader. */
+   * material asks the resolver once for its shader. A glyph of a driven
+   * bucket whose device em passes `kDrivenPathEmPixels` draws as its
+   * outline, filled or stroked as the pass's paint says. */
   int draw(SkCanvas* canvas) const;
 
  private:
@@ -194,7 +223,8 @@ struct GlyphRSXformBatches {
                                 sk_sp<SkColorFilter> under);
 
   /** One bucket's draws: the shared RSXform lane, then its matrix lane. */
-  static int drawBatch(SkCanvas* canvas, const Batch& batch, bool subpixel);
+  static int drawBatch(SkCanvas* canvas, const Batch& batch, bool subpixel,
+                       float replayScale);
 };
 
 }  // namespace sigil::weave

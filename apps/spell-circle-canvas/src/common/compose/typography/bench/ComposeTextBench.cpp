@@ -359,7 +359,10 @@ BENCHMARK(BM_Draw_KineticText_Graphite)->Arg(14)->Arg(56);
 
 /** The zoomed page on Graphite, where a glyph is rasterised into the atlas
  *  at the size it is drawn: each frame is waited for, so the number is
- *  what the frame cost the device as well as the recorder. */
+ *  what the frame cost the device as well as the recorder. At every zoom
+ *  the varied run stays within a quarter of the plain one: past the
+ *  device em the glyph batches name, a driven letter draws as an outline
+ *  and mints no atlas entry per coordinate. */
 static void BM_Draw_ZoomedPage_Steady_Graphite(benchmark::State& state) {
   GraphiteTarget target(state, kPaneWidth, kPaneHeight);
   if (!target.ok()) return;

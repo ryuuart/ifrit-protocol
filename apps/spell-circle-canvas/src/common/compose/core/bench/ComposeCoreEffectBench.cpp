@@ -471,10 +471,9 @@ Element turningWheel(const sigil::motion::Animatable<float>& turn) {
   return wheel;
 }
 
-static void BM_Draw_CoverageSheet_TurningChild(benchmark::State& state) {
-  const bool dressed = state.range(0) == 1;
-  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
-  Host host(1600, 1200);
+/** The sheet, dressed or bare, over the turning wheel. */
+Element coverageSheet(const sigil::motion::Animatable<float>& turn,
+                      bool dressed) {
   Element sheet = box().absolute().left(0).top(0).width(1600).height(1200);
   if (dressed)
     sheet.decorationOutline(Boundary::Coverage)
@@ -487,7 +486,14 @@ static void BM_Draw_CoverageSheet_TurningChild(benchmark::State& state) {
                        .shadow = {0.1f, 0.05f, 0, 0.55f}})))
         .background(shadow(sigil::material::Color{0, 0, 0, 0.55f}, {7, 9}, 8));
   sheet.children({turningWheel(turn)});
-  host.composer.render(box().children({std::move(sheet)}));
+  return box().children({std::move(sheet)});
+}
+
+static void BM_Draw_CoverageSheet_TurningChild(benchmark::State& state) {
+  const bool dressed = state.range(0) == 1;
+  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
+  Host host(1600, 1200);
+  host.composer.render(coverageSheet(turn, dressed));
   host.draw();
   float t = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -503,3 +509,37 @@ BENCHMARK(BM_Draw_CoverageSheet_TurningChild)
     ->Arg(0)
     ->Arg(1)
     ->Unit(benchmark::kMillisecond);
+
+#ifdef SIGIL_BENCH_GPU
+
+/** The same sheet on Graphite, where each held mask reaches the device
+ *  once and stays there, and sampling a turned one is the device's work:
+ *  each frame is waited
+ *  for, so the number is what the frame cost the device as well as the
+ *  recorder. The dressed arm stays under twice the wheel's arm; the
+ *  raster arms above carry no such bound, since there every turned mask
+ *  is sampled pixel by pixel on the processor. */
+static void BM_Draw_CoverageSheet_TurningChild_Graphite(
+    benchmark::State& state) {
+  const bool dressed = state.range(0) == 1;
+  sigil::compose::bench::GraphiteTarget target(state, 1600, 1200);
+  if (!target.ok()) return;
+  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
+  Host host(1600, 1200);
+  host.composer.render(coverageSheet(turn, dressed));
+  host.composer.draw(target.canvas());
+  target.submitSynced();
+  float t = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    turn = (t += 0.002f);
+    host.composer.draw(target.canvas());
+    target.submitSynced();
+  }
+  state.counters["dressed"] = dressed ? 1 : 0;
+}
+BENCHMARK(BM_Draw_CoverageSheet_TurningChild_Graphite)
+    ->Arg(0)
+    ->Arg(1)
+    ->Unit(benchmark::kMillisecond);
+
+#endif  // SIGIL_BENCH_GPU

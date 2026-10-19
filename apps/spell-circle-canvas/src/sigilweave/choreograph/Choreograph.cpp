@@ -9,6 +9,7 @@
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkMatrix.h>
+#include <include/core/SkPath.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkSpan.h>
 #include <include/core/SkTextBlob.h>
@@ -22,6 +23,7 @@
 #include <cstring>
 #include <list>
 #include <numbers>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -169,8 +171,9 @@ GlyphRSXformBatches::Batch& GlyphRSXformBatches::batchForPass(
     SkVector offset, PassBand band,
     const std::shared_ptr<const material::Material>& material) {
   const sk_sp<SkTypeface> resolved = face ? face : toSk(font->typeface);
+  const bool driven = face != nullptr;
   auto matches = [&](const Batch& batch) {
-    return batch.typeface.get() == resolved.get() &&
+    return batch.typeface.get() == resolved.get() && batch.driven == driven &&
            batch.fontSize == font->fontSize && batch.scaleX == font->scaleX &&
            batch.aliased == font->aliased && batch.offset == offset &&
            batch.band == band && batch.material == material &&
@@ -203,6 +206,7 @@ GlyphRSXformBatches::Batch& GlyphRSXformBatches::batchForPass(
   batch.offset = offset;
   batch.band = band;
   batch.material = material;
+  batch.driven = driven;
   return batch;
 }
 
@@ -292,6 +296,7 @@ void GlyphRSXformBatches::clear() {
   // Back to whole-pixel origins: the motion declaration belongs to the run
   // that is about to be added, never to the one that just drew.
   subpixel = false;
+  replayScale = 1.0f;
   if (batches.size() > kRetainedBucketCap) {
     batches.clear();
     return;
@@ -300,6 +305,7 @@ void GlyphRSXformBatches::clear() {
     batch.paint = SkPaint{};
     batch.material.reset();
     batch.typeface.reset();
+    batch.driven = false;
     batch.glyphs.clear();
     batch.transforms.clear();
     batch.matrixGlyphs.clear();
@@ -313,13 +319,13 @@ int GlyphRSXformBatches::draw(SkCanvas* canvas) const {
        {PassBand::Underlay, PassBand::Foreground, PassBand::Overlay})
     for (const Batch& batch : batches) {
       if (batch.band != band) continue;
-      total += drawBatch(canvas, batch, subpixel);
+      total += drawBatch(canvas, batch, subpixel, replayScale);
     }
   return total;
 }
 
 int GlyphRSXformBatches::drawBatch(SkCanvas* canvas, const Batch& batch,
-                                   bool subpixel) {
+                                   bool subpixel, float replayScale) {
   if (batch.glyphs.empty() && batch.matrixGlyphs.empty()) return 0;
   int total = 0;
   SkFont font =
@@ -340,8 +346,65 @@ int GlyphRSXformBatches::drawBatch(SkCanvas* canvas, const Batch& batch,
       paint = &shaded;
     }
   }
-  if (!batch.glyphs.empty()) {
-    total += static_cast<int>(batch.glyphs.size());
+  // A DRIVEN BUCKET'S LARGE GLYPHS DRAW AS OUTLINES, glyph by glyph, under
+  // the placement each would have drawn under: see `kDrivenPathEmPixels`
+  // for why the atlas is the wrong home for them.
+  const SkMatrix& canvasMatrix = canvas->getTotalMatrix();
+  const float canvasScale =
+      canvasMatrix.hasPerspective() || !(replayScale > 0)
+          ? -1.0f
+          : canvasMatrix.getMaxScale() * replayScale;
+  const auto asOutline = [&](float glyphScale) {
+    return batch.driven && canvasScale > 0 &&
+           batch.fontSize * glyphScale * canvasScale > kDrivenPathEmPixels;
+  };
+  // Each outline is drawn under its glyph's placement, as a glyph is: a
+  // stroke and a blur scale with the glyph. A glyph placed by an RSXform
+  // reads its pass's shader where the run stands, not turned with the
+  // glyph, so that shader is held still under the placement; a glyph of
+  // the matrix lane reads it under its matrix, as that lane always does.
+  const auto drawOutline = [&](SkGlyphID glyph, const SkMatrix& placement,
+                               bool shaderStandsWithTheRun) {
+    const std::optional<SkPath> outline = font.getPath(glyph);
+    if (!outline) return;
+    const SkMatrix placed =
+        SkMatrix::Translate(batch.offset.x(), batch.offset.y())
+            .preConcat(placement);
+    SkPaint outlinePaint = *paint;
+    outlinePaint.setAntiAlias(!batch.aliased);
+    if (SkMatrix unplaced; shaderStandsWithTheRun && paint->getShader() &&
+                           placed.invert(&unplaced))
+      outlinePaint.setShader(paint->getShader()->makeWithLocalMatrix(unplaced));
+    canvas->save();
+    canvas->concat(placed);
+    canvas->drawPath(*outline, outlinePaint);
+    canvas->restore();
+  };
+  // The atlas lane keeps every glyph the outline lane does not take, in
+  // the order they were added.
+  static thread_local std::vector<SkGlyphID> atlasGlyphs;
+  static thread_local std::vector<SkRSXform> atlasTransforms;
+  const std::vector<SkGlyphID>* laneGlyphs = &batch.glyphs;
+  const std::vector<SkRSXform>* laneTransforms = &batch.transforms;
+  if (batch.driven && canvasScale > 0) {
+    atlasGlyphs.clear();
+    atlasTransforms.clear();
+    for (size_t index = 0; index < batch.glyphs.size(); ++index) {
+      const SkRSXform& transform = batch.transforms[index];
+      if (asOutline(std::hypot(transform.fSCos, transform.fSSin))) {
+        drawOutline(batch.glyphs[index], SkMatrix().setRSXform(transform),
+                    true);
+        ++total;
+        continue;
+      }
+      atlasGlyphs.push_back(batch.glyphs[index]);
+      atlasTransforms.push_back(transform);
+    }
+    laneGlyphs = &atlasGlyphs;
+    laneTransforms = &atlasTransforms;
+  }
+  if (!laneGlyphs->empty()) {
+    total += static_cast<int>(laneGlyphs->size());
     // workaround: a turned-and-placed glyph run handed to the canvas
     // directly is quick-rejected against bounds Skia computes with the
     // rotation and the translation swapped over, so the bounds describe a
@@ -355,13 +418,13 @@ int GlyphRSXformBatches::drawBatch(SkCanvas* canvas, const Batch& batch,
     // the same draw inside the device, so this is the identical pixels with
     // bounds that hold.
     SkTextBlobBuilder builder;
-    const int count = static_cast<int>(batch.glyphs.size());
+    const int count = static_cast<int>(laneGlyphs->size());
     const SkTextBlobBuilder::RunBuffer& run =
         builder.allocRunRSXform(font, count);
-    std::memcpy(run.glyphs, batch.glyphs.data(),
-                batch.glyphs.size() * sizeof(SkGlyphID));
-    std::memcpy(run.xforms(), batch.transforms.data(),
-                batch.transforms.size() * sizeof(SkRSXform));
+    std::memcpy(run.glyphs, laneGlyphs->data(),
+                laneGlyphs->size() * sizeof(SkGlyphID));
+    std::memcpy(run.xforms(), laneTransforms->data(),
+                laneTransforms->size() * sizeof(SkRSXform));
     canvas->drawTextBlob(builder.make(), batch.offset.x(), batch.offset.y(),
                          *paint);
   }
@@ -371,6 +434,12 @@ int GlyphRSXformBatches::drawBatch(SkCanvas* canvas, const Batch& batch,
   // put over it.
   constexpr SkPoint kAtTheMatrixOrigin{0, 0};
   for (size_t index = 0; index < batch.matrixGlyphs.size(); ++index) {
+    if (batch.driven && canvasScale > 0 &&
+        asOutline(batch.matrices[index].getMaxScale())) {
+      drawOutline(batch.matrixGlyphs[index], batch.matrices[index], false);
+      ++total;
+      continue;
+    }
     canvas->save();
     canvas->translate(batch.offset.x(), batch.offset.y());
     canvas->concat(batch.matrices[index]);

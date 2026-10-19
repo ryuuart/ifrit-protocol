@@ -1,7 +1,8 @@
 /** @file
  * The paint-complete batched draw: what mints a bucket and what does not,
  * the order the passes reach the canvas in, the alpha scale, the tint, a
- * driven face, the matrix lane a glyph rides when no RSXform can carry it,
+ * driven face and the outlines its large glyphs draw as, the matrix lane a
+ * glyph rides when no RSXform can carry it,
  * the pivot a centre offset moves, and what clear() keeps.
  */
 
@@ -12,6 +13,7 @@
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <include/utils/SkNoDrawCanvas.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmedia/advanced/Skia.h>
@@ -322,6 +324,145 @@ TEST(GlyphBatches, ADrivenFaceIsItsOwnBucket) {
   ASSERT_EQ(batches.batches.size(), 2u);
   EXPECT_NE(batches.batches[0].typeface.get(),
             batches.batches[1].typeface.get());
+}
+
+namespace {
+
+/// Counts the draws that reach it by route: a run through the glyph atlas,
+/// or an outline.
+class RouteCountingCanvas : public SkNoDrawCanvas {
+ public:
+  RouteCountingCanvas() : SkNoDrawCanvas(4096, 4096) {}
+  int runs = 0;
+  int outlines = 0;
+
+ protected:
+  void onDrawTextBlob(const SkTextBlob*, SkScalar, SkScalar,
+                      const SkPaint&) override {
+    ++runs;
+  }
+  void onDrawGlyphRunList(const sktext::GlyphRunList&,
+                          const SkPaint&) override {
+    ++runs;
+  }
+  void onDrawPath(const SkPath&, const SkPaint&) override { ++outlines; }
+};
+
+/// Every glyph of a 32-pixel "AB", sheared onto the matrix lane when
+/// @p sheared, through its shaped face named as the driven one when
+/// @p driven, drawn on a canvas under @p zoom; the counter says which way
+/// each reached it.
+void drawAB(bool driven, bool sheared, float zoom, RouteCountingCanvas& into) {
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
+  auto [paragraph, layout] = laidOut(u8"AB", 32.0f, flow);
+  GlyphRSXformBatches batches;
+  sigil::geometry::path::Transform shear;
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    GlyphDress dress;
+    dress.center = glyph.rest + glm::vec2{glyph.advance * 0.5f, 0};
+    // The shaped face itself stands in for a varied clone: what makes a
+    // bucket driven is that a face was handed in, not which.
+    if (driven) dress.face = glyph.shaped->typeface;
+    if (sheared) {
+      SkMatrix placed = SkMatrix::Translate(dress.center.x, dress.center.y);
+      placed.preConcat(SkMatrix::MakeAll(1, -0.5f, 0, 0, 1, 0, 0, 0, 1));
+      shear = sigil::geometry::path::fromSk(placed);
+      dress.matrix = &shear;
+    }
+    batches.addGlyph(glyph, dress);
+  });
+  into.save();
+  into.scale(zoom, zoom);
+  EXPECT_EQ(batches.draw(&into), 2) << "each glyph is one draw either way";
+  into.restore();
+}
+
+}  // namespace
+
+TEST(GlyphBatches, ADrivenFaceDrawsItsLargeGlyphsAsOutlines) {
+  // A driven face is a face per coordinate, and each its own atlas entry
+  // per glyph: above the device em the batches name, its glyphs draw as
+  // outlines instead, which cost the same at every coordinate.
+  constexpr float kEm = 32.0f;
+  const float below = GlyphRSXformBatches::kDrivenPathEmPixels / kEm * 0.75f;
+  const float above = GlyphRSXformBatches::kDrivenPathEmPixels / kEm * 1.5f;
+
+  RouteCountingCanvas small;
+  drawAB(true, false, below, small);
+  EXPECT_EQ(small.runs, 1) << "below the device em a driven run is a run";
+  EXPECT_EQ(small.outlines, 0);
+
+  RouteCountingCanvas large;
+  drawAB(true, false, above, large);
+  EXPECT_EQ(large.runs, 0) << "above the device em the atlas was still used";
+  EXPECT_EQ(large.outlines, 2);
+
+  RouteCountingCanvas sheared;
+  drawAB(true, true, above, sheared);
+  EXPECT_EQ(sheared.runs, 0) << "the matrix lane kept a large driven glyph";
+  EXPECT_EQ(sheared.outlines, 2);
+
+  RouteCountingCanvas plain;
+  drawAB(false, false, above, plain);
+  EXPECT_EQ(plain.runs, 1) << "a face that holds still keeps the atlas";
+  EXPECT_EQ(plain.outlines, 0);
+}
+
+TEST(GlyphBatches, ADrivenOutlineCoversWhatItsGlyphWould) {
+  // The outline route is a route, not a look: the same turned run, once
+  // driven and drawn as outlines and once at rest and drawn as glyphs,
+  // covers the same pixels within the antialiasing of an edge, and a
+  // gradient over the run stays where the run stands rather than turning
+  // with each letter.
+  constexpr float kEm = 64.0f;
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 100}));
+  auto [paragraph, layout] = laidOut(u8"HO", kEm, flow);
+  const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
+  ASSERT_EQ(lines.size(), 1u);
+  PaintStyle style;
+  style.foreground.setAntiAlias(true);
+  style.foreground.setShader(horizontalGradient(
+      lines[0].left, lines[0].right, SK_ColorRED, SK_ColorGREEN));
+  paragraph.setPaint(0, 2, style);
+  const float zoom = GlyphRSXformBatches::kDrivenPathEmPixels / kEm * 1.5f;
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(
+      (int)std::ceil(300 * zoom), (int)std::ceil(100 * zoom));
+  const auto drawn = [&](bool driven) {
+    GlyphRSXformBatches batches;
+    forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+      GlyphDress dress;
+      dress.center = glyph.rest + glm::vec2{glyph.advance * 0.5f, 0};
+      quantizeAngle(0.3f, dress.cosine, dress.sine);
+      if (driven) dress.face = glyph.shaped->typeface;
+      batches.addGlyph(glyph, dress);
+    });
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
+    surface->getCanvas()->clear(SK_ColorWHITE);
+    surface->getCanvas()->scale(zoom, zoom);
+    batches.draw(surface->getCanvas());
+    return surface;
+  };
+  const sk_sp<SkSurface> outlines = drawn(true);
+  const sk_sp<SkSurface> glyphs = drawn(false);
+  SkPixmap outlinePixels, glyphPixels;
+  ASSERT_TRUE(outlines->peekPixels(&outlinePixels));
+  ASSERT_TRUE(glyphs->peekPixels(&glyphPixels));
+  int inked = 0, apart = 0;
+  for (int y = 0; y < info.height(); ++y)
+    for (int x = 0; x < info.width(); ++x) {
+      const SkColor outline = outlinePixels.getColor(x, y);
+      const SkColor glyph = glyphPixels.getColor(x, y);
+      if (glyph != SK_ColorWHITE) ++inked;
+      const int difference = std::max(
+          {std::abs((int)SkColorGetR(outline) - (int)SkColorGetR(glyph)),
+           std::abs((int)SkColorGetG(outline) - (int)SkColorGetG(glyph)),
+           std::abs((int)SkColorGetB(outline) - (int)SkColorGetB(glyph))});
+      // An edge pixel may differ by its coverage; an inside one may not.
+      if (difference > 96) ++apart;
+    }
+  ASSERT_GT(inked, 1000) << "the run drew nothing to compare";
+  EXPECT_LT(apart, inked / 50)
+      << "the outlines stand somewhere else, or wear the ramp elsewhere";
 }
 
 TEST(GlyphBatches, AMatrixGlyphRidesItsOwnLaneInsideItsBucket) {

@@ -476,10 +476,19 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
                     (inst.anims[Instance::kTextPathAt] &&
                      inst.anims[Instance::kTextPathAt]->isRunning()));
   batches.subpixel = pathDriven || inst.placementUnderMotion;
+  // Inside a recording the canvas reads the recording's matrix, not the
+  // device's: the replay carries the rest of the scale a driven letter
+  // reaches the device at, which is what decides whether it draws as an
+  // outline.
+  batches.replayScale = impl.recording.replay.hasPerspective()
+                            ? -1.0f
+                            : impl.recording.replay.getMaxScale();
   // A pass lane draws the same run into its own layer, and a letter must
   // not sit one place inside a pass and another outside it.
-  for (const std::unique_ptr<PassLane>& lane : passes)
+  for (const std::unique_ptr<PassLane>& lane : passes) {
     lane->batches.subpixel = batches.subpixel;
+    lane->batches.replayScale = batches.replayScale;
+  }
 
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(

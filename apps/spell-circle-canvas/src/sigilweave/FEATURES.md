@@ -330,7 +330,10 @@ this archive.
   `advanced/Skia.h`.
 - **`choreograph/GlyphBatches.h`** — `GlyphRSXformBatches`, which
   collapses thousands of animated letters into a few `drawGlyphsRSXform`
-  calls.
+  calls. A bucket drawn through a driven face is a face per coordinate and
+  an atlas entry per glyph per face, so its glyphs above
+  `GlyphRSXformBatches::kDrivenPathEmPixels` on the device draw as
+  outlines, which hold nothing between coordinates.
 - **`choreograph/Choreograph.h`** — the three above.
 
 **Text service — `layout/TextContext.h`:** `TextContext` owns or borrows a
