@@ -11,6 +11,7 @@
 #include <sigilpython/compose/Composer.h>
 #include <sigilpython/compose/Kit.h>
 #include <sigilpython/motion/Convert.h>
+#include <sigilpython/weave/FontContext.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/scene2d/Guest.h>
@@ -154,6 +155,17 @@ void bindContext(py::module_& module) {
           })
       .def_property_readonly(
           "assets", [](const Context& ctx) { return AssetsView(ctx.state()); })
+      // The session's own font context, lent: every font the session's hub
+      // loads is adopted there under its family, so `weave.fonts` handed it
+      // lists the bundled families beside the installed ones.
+      .def_property_readonly(
+          "fonts",
+          [](const Context& ctx) {
+            return sigil::python::FontContextHandle(
+                [view = Context(ctx.state())]() -> weave::FontContext& {
+                  return *view.state()->fonts;
+                });
+          })
       .def(
           "measured",
           [](const Context& ctx, double value, double pinned) {

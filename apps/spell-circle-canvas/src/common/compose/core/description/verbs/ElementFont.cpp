@@ -164,6 +164,13 @@ Derived& FontVerbs<Derived>::fontFamily(std::string family) {
 }
 
 template <class Derived>
+Derived& FontVerbs<Derived>::fontFamily(sigil::weave::Face face) {
+  // The face field itself: a held face needs no context to resolve, and
+  // `font()` already ends a family named before it.
+  return font({.face = std::move(face)});
+}
+
+template <class Derived>
 Derived& FontVerbs<Derived>::fontSize(sigil::weave::Length size) {
   return font({.size = size});
 }

@@ -6,6 +6,7 @@
 #include <sigilpython/Bindings.h>
 #include <sigilpython/geometry/Casters.h>
 #include <sigilpython/skia/Values.h>
+#include <sigilpython/weave/FontContext.h>
 #include <sigilpython/weave/Registration.h>
 #include <sigilweave/advanced/Skia.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -40,17 +41,7 @@ struct OwnedLayout : weave::ParagraphLayout {
   }
   weave::Paragraph source;
 };
-struct Fonts {
-  std::thread::id thread = std::this_thread::get_id();
-  weave::FontContext value;
-  explicit Fonts(sk_sp<SkTypeface> face)
-      : value(weave::ports::systemFontManager(), std::move(face)) {}
-  weave::FontContext& get() {
-    if (thread != std::this_thread::get_id())
-      throw std::runtime_error("FontContext belongs to its creating thread.");
-    return value;
-  }
-};
+using Fonts = FontContextHandle;
 }  // namespace
 void bindWeaveLayout(py::module_& root) {
   using namespace weave;
@@ -207,8 +198,35 @@ void bindWeaveLayout(py::module_& root) {
       .def_readonly("textBegin", &ColumnMetrics::textBegin)
       .def_readonly("textEnd", &ColumnMetrics::textEnd)
       .def("rect", &ColumnMetrics::rect);
+  py::class_<AdoptedFace>(
+      module, "AdoptedFace",
+      "One face a font context adopted: the face, and the resource it was "
+      "read from, empty when it came with none.")
+      .def_readonly("face", &AdoptedFace::face)
+      .def_readonly("origin", &AdoptedFace::origin)
+      .def("__repr__", [](const AdoptedFace& adopted) {
+        return "AdoptedFace(" + adopted.face.familyName() +
+               (adopted.origin.empty() ? std::string()
+                                       : " from " + adopted.origin) +
+               ")";
+      });
   py::class_<Fonts>(module, "FontContext")
-      .def(py::init<sk_sp<SkTypeface>>(), py::arg("defaultTypeface") = nullptr)
+      .def(py::init([](sk_sp<SkTypeface> face) {
+             return Fonts(fromSk(std::move(face)));
+           }),
+           py::arg("defaultTypeface") = nullptr)
+      .def(
+          "adopt",
+          [](Fonts& f, Face face, std::string origin) {
+            f.get().adopt(std::move(face), std::move(origin));
+          },
+          py::arg("face"), py::arg("origin") = "",
+          "Makes the face known under its own family name; a later face "
+          "from the same origin replaces it. A sketch session's hub does "
+          "this for every font it loads.")
+      .def(
+          "adoptedFaces", [](Fonts& f) { return f.get().adoptedFaces(); },
+          "Every face this context adopted, in the order first adopted.")
       .def("defaultTypeface",
            [](Fonts& f) { return f.get().defaultTypeface(); })
       .def("stats", [](Fonts& f) { return f.get().stats(); })
@@ -733,12 +751,33 @@ void bindWeaveLayout(py::module_& root) {
            [](const FaceValue& value) {
              return std::hash<const void*>{}(value.face.identity());
            })
+      .def("__repr__",
+           [](const FaceValue& value) {
+             const FaceStyle style = value.face.style();
+             const char* slant = style.slant == FaceSlant::Italic ? " italic"
+                                 : style.slant == FaceSlant::Oblique
+                                     ? " oblique"
+                                     : "";
+             return "Face(" + value.face.familyName() + ", " +
+                    std::to_string(style.weight) + slant + ")";
+           })
       .def("copy", [](const FaceValue& value) { return value; })
       .def("__copy__", [](const FaceValue& value) { return value; })
       .def(
           "__deepcopy__",
           [](const FaceValue& value, const DeepCopyMemo&) { return value; },
           py::arg("memo"));
+  // Asked by a face style, so defined once the style is.
+  py::reinterpret_borrow<py::class_<Fonts>>(module.attr("FontContext"))
+      .def(
+          "familyTypeface",
+          [](Fonts& f, const std::string& family, const FaceStyle& style) {
+            return f.get().familyTypeface(family, style);
+          },
+          py::arg("family"), py::arg("style") = FaceStyle{},
+          "The face the family names at the style — a face this context "
+          "adopted first, else the font manager's — or None where neither "
+          "knows the family.");
   // A face is handed wherever a Skia typeface is taken, as the native face
   // converts to one.
   py::reinterpret_borrow<py::class_<SkTypeface, sk_sp<SkTypeface>>>(

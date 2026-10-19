@@ -25,6 +25,9 @@ void bindWeaveKitPaintLayers(pybind11::module_& module);
 void bindWeaveFonts(pybind11::module_& module);
 /** Registers paragraph layout on @p module. */
 void bindWeaveLayout(pybind11::module_& module);
+/** Registers `weave.fonts`, the type catalogue, on @p module, after the
+ *  faces and font contexts it answers with. */
+void bindWeaveCatalogue(pybind11::module_& module);
 /** Registers selector state and the Unicode leaf on @p module. */
 void bindWeaveSelectorUnicode(pybind11::module_& module);
 /** Registers hyphenator subclassing, HyphenationOptions.patterns and

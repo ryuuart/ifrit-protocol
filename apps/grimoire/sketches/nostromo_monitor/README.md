@@ -121,13 +121,6 @@ clock; the wall, whose uniforms stand still, goes through the material
 door because only that door states how far a body reads its layer.
 A binding-preserving conversion would remove that assembly step.
 
-Python supports family-based typeface lookup, but the inspected compiled
-surface does not expose a file or bytes constructor. The C++ experiment can
-adapt a native Skia typeface into Weave. A resource-hub face loader shared
-by both authoring languages would let a bundled font participate in the
-same resource and reload contract as other assets. A regression should
-load a bundled face and verify its family and glyph metrics in both hosts.
-
 The Python textFx/typewriter gap is documented in the binding parity
 chapter. Native cached glyph geometry expresses this study's entrance,
 but duplicates spacing and glyph assembly that Weave already owns. Binding

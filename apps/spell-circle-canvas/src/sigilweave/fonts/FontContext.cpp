@@ -6,13 +6,19 @@
  */
 
 #include <include/core/SkData.h>
+#include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
+#include <include/core/SkString.h>
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
-#include "sigilweave/advanced/Skia.h"
 #include "FontContextImpl.h"
+#include "sigilweave/advanced/Skia.h"
 
 namespace sigil::weave {
 
@@ -46,6 +52,61 @@ Face resolveSystemFallback(SkFontMgr& fontManager, const Face& primaryFace,
       nullptr, primaryTypeface.fontStyle(),
       languageTag.empty() ? nullptr : languageTags, languageTag.empty() ? 0 : 1,
       codePoint);
+}
+
+/** Whether two family names are one, ASCII case aside, as CSS compares
+ *  them. */
+bool sameFamily(std::string_view left, std::string_view right) {
+  return std::ranges::equal(
+      left, right, [](char leftCharacter, char rightCharacter) {
+        return std::tolower(static_cast<unsigned char>(leftCharacter)) ==
+               std::tolower(static_cast<unsigned char>(rightCharacter));
+      });
+}
+
+std::string familyNameOf(const SkTypeface& typeface) {
+  SkString name;
+  typeface.getFamilyName(&name);
+  return name.c_str();
+}
+
+/** The faces of one family a context adopted, as the style set Skia's own
+ *  CSS matcher walks, so the nearest face to a style is chosen exactly as
+ *  an installed family's is. */
+class AdoptedFamily final : public SkFontStyleSet {
+ public:
+  explicit AdoptedFamily(std::vector<sk_sp<SkTypeface>> members)
+      : m_members(std::move(members)) {}
+  int count() override { return static_cast<int>(m_members.size()); }
+  void getStyle(int index, SkFontStyle* style, SkString* name) override {
+    if (style) *style = m_members[static_cast<size_t>(index)]->fontStyle();
+    if (name) name->reset();
+  }
+  sk_sp<SkTypeface> createTypeface(int index) override {
+    return m_members[static_cast<size_t>(index)];
+  }
+  sk_sp<SkTypeface> matchStyle(const SkFontStyle& pattern) override {
+    return matchStyleCSS3(pattern);
+  }
+
+ private:
+  std::vector<sk_sp<SkTypeface>> m_members;
+};
+
+/** The adopted face of @p family nearest @p style, or null where nothing
+ *  adopted carries that family. */
+sk_sp<SkTypeface> nearestAdopted(const std::vector<AdoptedFace>& adopted,
+                                 std::string_view family,
+                                 const SkFontStyle& style) {
+  std::vector<sk_sp<SkTypeface>> members;
+  for (const AdoptedFace& entry : adopted) {
+    sk_sp<SkTypeface> typeface = toSk(entry.face);
+    if (typeface && sameFamily(familyNameOf(*typeface), family))
+      members.push_back(std::move(typeface));
+  }
+  if (members.empty()) return nullptr;
+  if (members.size() == 1) return members.front();
+  return sk_make_sp<AdoptedFamily>(std::move(members))->matchStyle(style);
 }
 
 }  // namespace
@@ -132,7 +193,7 @@ const Face& FontContext::defaultTypeface() const {
 Face FontContext::familyTypeface(std::string_view family,
                                  FaceStyle faceStyle) {
   const SkFontStyle style = toSk(faceStyle);
-  if (family.empty() || !m_impl->fontManager) return nullptr;
+  if (family.empty()) return nullptr;
   // The name, then the three numbers a style is, after a separator no
   // family name carries, so two requests share an entry exactly when they
   // agree on all four.
@@ -145,13 +206,55 @@ Face FontContext::familyTypeface(std::string_view family,
       .append(std::to_string(static_cast<int>(style.slant())));
   const auto held = m_impl->familyTypefaces.find(key);
   if (held != m_impl->familyTypefaces.end()) return held->second;
-  // The manager reads a C string, and the key begins with the name, so the
-  // name is terminated in a copy of its own.
-  const std::string name(family);
-  sk_sp<SkTypeface> found =
-      m_impl->fontManager->matchFamilyStyle(name.c_str(), style);
+  // An adopted family answers before the manager is asked at all.
+  sk_sp<SkTypeface> found = nearestAdopted(m_impl->adoptedFaces, family, style);
+  if (!found && m_impl->fontManager) {
+    // The manager reads a C string, and the key begins with the name, so
+    // the name is terminated in a copy of its own.
+    const std::string name(family);
+    found = m_impl->fontManager->matchFamilyStyle(name.c_str(), style);
+  }
   return m_impl->familyTypefaces.emplace(std::move(key), std::move(found))
       .first->second;
+}
+
+void FontContext::adopt(Face face, std::string origin) {
+  const sk_sp<SkTypeface> typeface = toSk(face);
+  if (!typeface) return;
+  std::vector<AdoptedFace>& adopted = m_impl->adoptedFaces;
+  // The families whose answers this adoption can change: the new face's,
+  // and that of the face it replaces.
+  std::vector<std::string> touched{familyNameOf(*typeface)};
+  const auto sameOrigin = [&origin](const AdoptedFace& entry) {
+    return !origin.empty() && entry.origin == origin;
+  };
+  const auto replaced = std::ranges::find_if(adopted, sameOrigin);
+  if (replaced != adopted.end()) {
+    if (replaced->face == face) return;
+    if (const sk_sp<SkTypeface> old = toSk(replaced->face))
+      touched.push_back(familyNameOf(*old));
+    replaced->face = std::move(face);
+  } else {
+    if (std::ranges::any_of(adopted, [&face](const AdoptedFace& entry) {
+          return entry.face == face;
+        }))
+      return;
+    adopted.push_back({std::move(face), std::move(origin)});
+  }
+  // A held answer for a touched family was chosen without this face, so it
+  // is asked again; every other family keeps the face it answered with.
+  boost::unordered::erase_if(
+      m_impl->familyTypefaces, [&touched](const auto& entry) {
+        const std::string_view name =
+            std::string_view(entry.first).substr(0, entry.first.find('\n'));
+        return std::ranges::any_of(touched, [name](const std::string& family) {
+          return sameFamily(name, family);
+        });
+      });
+}
+
+std::vector<AdoptedFace> FontContext::adoptedFaces() const {
+  return m_impl->adoptedFaces;
 }
 
 Face FontContext::resolveTypeface(const Face& primaryTypeface,

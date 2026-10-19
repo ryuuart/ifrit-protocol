@@ -189,13 +189,16 @@ python_mesh_observatory lost its grid backdrop when it became a scene3d
 sketch. A frame should take a backdrop picture under the scene. A test
 should assert a frame's backdrop shows where no body covers it.
 
-## A texture-scene door case is order-sensitive under a parallel run
+## A device case and two plates are order-sensitive under a parallel run
 
 `Scene3DDoors.PaintsATextureSceneOntoABody` (gpu) fails inside
-`ctest -j8` and passes alone, so a device case is reading something
+`ctest -j8` and passes alone, and in a full device sweep The Library of
+Babel and `wet_glass_console` render a few pixels differently from the
+same sketch rendered alone, so a device render is reading something
 another process on the same device changes. A GPU case should pass
-alongside the other gpu-labelled suites; the test should name what it
-shares and isolate it, or the suite should carry a resource lock.
+alongside the other gpu-labelled suites and a plate should be
+byte-identical alone or in a sweep; the cases should name what they
+share and isolate it, or the suites should carry a resource lock.
 
 ## Three blocks of the animated console guide are not excerpts of its sketch
 
@@ -204,4 +207,12 @@ lines the sketch it names does not contain, while every guide's blocks
 are meant to be verbatim excerpts; a check should assert that every
 guide code block's lines appear in the sketch the guide names, and the
 three blocks should be re-cut from `wardnet_console.py`.
+
+## A 3D Python sketch has no `ctx.fonts`
+
+`Scene2DContext.fonts` lends a Python sketch its session's font context,
+so `weave.fonts.family(name, ctx.fonts)` lists a bundled family, while
+`Scene3DContext` has no such reading although its session adopts loaded
+faces the same way. The two contexts should answer the same services. A
+test should list a bundled family from a scene3d sketch's context.
 

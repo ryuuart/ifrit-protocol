@@ -73,6 +73,7 @@ class Scene2DSession final : public Session {
                  std::shared_ptr<const world::Runtime> runtime = nullptr)
       : m_fonts(fonts),
         m_assets(assets),
+        m_faceAdoption(assets.adoptFacesInto(fonts)),
         m_sketch(std::move(sketch)),
         m_runtime(std::move(runtime)),
         m_key(key),
@@ -287,6 +288,10 @@ class Scene2DSession final : public Session {
 
   weave::FontContext& m_fonts;
   Assets& m_assets;
+  /** Every font the hub loads is known to the font context by its family
+   *  while the session stands, so the sketch names a bundled family as it
+   *  names an installed one. */
+  Assets::FaceAdoption m_faceAdoption;
   std::string m_key;  // the sketch's registry key, for the context's local()
   motion::Engine m_engine;
   CanvasSpecification m_specification;

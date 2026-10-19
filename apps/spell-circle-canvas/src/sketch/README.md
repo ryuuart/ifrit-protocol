@@ -197,10 +197,28 @@ member. Its bindings and animation continue without rebuilding that value.
 ## Assets and live inputs
 
 Read resources through `ctx.assets.hub()`. The host registers SigilMedia and
-SigilData decoders and SigilWeave's face decoder, so a bundled font file
-loads as a `weave::Face`, caches results and watches requested files. A changed
-resource re-runs the sketch's declaration. A missing or undecodable resource
-returns null and remains watched.
+SigilData decoders and SigilWeave's face decoder, caches results and watches
+requested files. A changed resource re-runs the sketch's declaration. A
+missing or undecodable resource returns null and remains watched.
+
+A font file is two lines: load it once, then name its family anywhere.
+
+```cpp
+ctx.assets.hub().load<sigil::weave::Face>(ctx.local("data/MachineType.ttf"));
+ctx.composer.render(compose::text(u8"SIGNAL").fontFamily("Muthur Study"));
+```
+
+Every session adopts each face its hub reads into the session's font
+context under the family the file names (`Assets::adoptFacesInto`, which
+both runtimes take when they open), so `fontFamily`, Weave's
+`FontContext::familyTypeface` and the face's Skia typeface are one held
+face. A file edited on disk is read again by the poll, its new face
+replaces the old under the family, and the declaration that re-runs sets
+the family in it. The adoption belongs to the font context, which a host
+shares among the sessions it opens, so a family a sketch did not load
+itself may still answer where another sketch loaded it first; a sketch
+that names a bundled family loads its file. `weave::fonts::family(name,
+*ctx.fonts)` lists a bundled family's styles with the URI each came from.
 
 | Name | Location |
 | --- | --- |

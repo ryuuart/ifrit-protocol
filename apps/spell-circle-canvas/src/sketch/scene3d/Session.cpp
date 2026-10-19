@@ -146,6 +146,7 @@ class Scene3DSession final : public Session {
                  Assets& assets, bool deterministic, world::Runtime runtime)
       : m_body(std::move(body)),
         m_assets(assets),
+        m_faceAdoption(assets.adoptFacesInto(fonts)),
         m_scene(m_engine),
         m_runtime(std::move(runtime)),
         m_deterministic(deterministic) {
@@ -469,6 +470,9 @@ class Scene3DSession final : public Session {
    *  session's life rather than only for the setup that declared it,
    *  because the feeds it opened are moved forward every frame. */
   Assets& m_assets;
+  /** Every font the hub loads is known to the font context by its family
+   *  while the session stands. */
+  Assets::FaceAdoption m_faceAdoption;
   /** Taken once, when this session opened: every frame it draws goes
    *  through this one, whatever the process installed after. */
   world::Runtime m_runtime;

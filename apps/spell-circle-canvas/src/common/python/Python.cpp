@@ -81,6 +81,7 @@ void bindLibraries(pybind11::module_& module) {
   bindComposeStrokeOptions(module);
   bindPen(module);
   bindWeaveLayout(module);
+  bindWeaveCatalogue(module);
   bindWeaveKitPaintLayers(module);
   bindBrush(module);
   bindGeometry(module);

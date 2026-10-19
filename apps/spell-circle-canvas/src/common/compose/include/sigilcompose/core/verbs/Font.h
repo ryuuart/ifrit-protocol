@@ -14,6 +14,7 @@
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilweave/style/Face.h>
 #include <sigilweave/style/Length.h>
 #include <sigilweave/style/Type.h>
 
@@ -56,8 +57,10 @@ class FontVerbs {
   Derived& font(sigil::weave::Type partial);
   /** THE FAMILY — CSS `font-family`, as its list of names:
    *  `fontFamily("Inter, Helvetica Neue, sans-serif")`. The run is set in
-   *  the FIRST family of the list the composer's font context has, its
-   *  face found at the weight and the style in force, and again wherever
+   *  the FIRST family of the list the composer's font context has — an
+   *  installed family, or one a font file brought that the context
+   *  adopted, as a sketch session's does for every font its hub loads —
+   *  its face found at the weight and the style in force, and again wherever
    *  either moves below it; the generic names `serif`, `sans-serif`,
    *  `monospace` and `system-ui` are the families the context's font
    *  manager draws them in. The list chooses one face for the run: a
@@ -68,6 +71,12 @@ class FontVerbs {
    *  @trap A list naming no family the context has leaves the inherited
    *  face standing and says so once, naming the whole list. */
   Derived& fontFamily(std::string family);
+  /** THE FAMILY AS ONE FACE THE AUTHOR HOLDS — a face a hub loaded from a
+   *  font file, or one a style already carries: the run is set in exactly
+   *  @p face, with no list and no lookup by name. It is the `face` field of
+   *  `font()`, so the later of the two wins; no face is the context's
+   *  default family. */
+  Derived& fontFamily(sigil::weave::Face face);
   /** THE TYPE SIZE — CSS `font-size`. Pixels when bare; `em` and `rem`
    *  resolve against the parent's and the root's size. The `size` field
    *  of `font()`. 16 px when nothing states one. */

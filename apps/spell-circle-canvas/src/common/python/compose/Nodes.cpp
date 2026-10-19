@@ -86,7 +86,12 @@ weave::Length fontLength(py::handle value) {
 template <class Node>
 void bindFontVerbs(py::class_<Node>& element) {
   element.def("font", &Node::font, py::arg("type"), fluent)
-      .def("fontFamily", &Node::fontFamily, py::arg("family"), fluent)
+      .def("fontFamily",
+           static_cast<Node& (Node::*)(std::string)>(&Node::fontFamily),
+           py::arg("family"), fluent)
+      .def("fontFamily",
+           static_cast<Node& (Node::*)(weave::Face)>(&Node::fontFamily),
+           py::arg("family"), fluent)
       .def(
           "fontSize",
           [](Node& self, py::object value) -> Node& {

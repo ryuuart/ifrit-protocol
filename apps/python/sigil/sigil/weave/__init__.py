@@ -4,6 +4,7 @@
 """Native text styles, mixed runs, paragraph settings and stories."""
 
 from _sigil.weave import (
+    AdoptedFace,
     Band,
     Beside,
     BlockFlow,
@@ -118,6 +119,7 @@ from _sigil.weave import (
 from . import (
     features,
     flowshape,
+    fonts,
     kit,
     paint,
     ports,
@@ -126,6 +128,7 @@ from . import (
 )
 
 __all__ = [
+    "AdoptedFace",
     "Band",
     "Beside",
     "BlockFlow",
@@ -218,6 +221,7 @@ __all__ = [
     "findAllOccurrences",
     "findRegexMatches",
     "flowshape",
+    "fonts",
     "glyphOutline",
     "initialType",
     "kit",

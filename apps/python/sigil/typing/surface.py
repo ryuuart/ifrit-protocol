@@ -121,6 +121,7 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.weave": "sigil.weave",
     "_sigil.weave.features": "sigil.weave.features",
     "_sigil.weave.flowshape": "sigil.weave.flowshape",
+    "_sigil.weave.fonts": "sigil.weave.fonts",
     "_sigil.weave.kit": "sigil.weave.kit",
     "_sigil.weave.kit.hanging": "sigil.weave.kit.hanging",
     "_sigil.weave.kit.kinsoku": "sigil.weave.kit.kinsoku",

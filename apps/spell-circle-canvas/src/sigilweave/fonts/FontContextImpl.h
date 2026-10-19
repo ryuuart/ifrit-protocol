@@ -259,6 +259,10 @@ struct FontContext::Impl {
   // request, because a manager walks its family list to answer, and held
   // so one request always answers with one face.
   boost::unordered_flat_map<std::string, sk_sp<SkTypeface>> familyTypefaces;
+  // The faces handed to adopt(), in the order first adopted. Consulted
+  // before the manager by family name; a handful per context, so a walk
+  // is the whole index.
+  std::vector<AdoptedFace> adoptedFaces;
 
   // Reused scratch object (the context is single-threaded by contract).
   hb_buffer_t* shapingBuffer = nullptr;

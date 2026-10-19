@@ -21,7 +21,8 @@ sigil_library(SigilPython
     material/Pattern.cpp material/Shader.cpp material/Substance.cpp
     material/Texture.cpp measure/Measure.cpp motion/AnimatableForms.cpp
     motion/Clock.cpp motion/Schedule.cpp motion/Signals.cpp weave/Cascade.cpp
-    weave/Fonts.cpp weave/PaintLayers.cpp weave/Tables.cpp weave/Unicode.cpp
+    weave/Catalogue.cpp weave/FontContext.cpp weave/Fonts.cpp
+    weave/PaintLayers.cpp weave/Tables.cpp weave/Unicode.cpp
     compose/Convert.cpp compose/Document.cpp compose/Elements.cpp
     compose/Kit.cpp compose/Nodes.cpp data/Data.cpp draw/Brush.cpp
     draw/Pen.cpp geometry/Geometry.cpp io/Resources.cpp material/Material.cpp
@@ -35,7 +36,7 @@ sigil_library(SigilPython
     io/Registration.h media/Registration.h material/Convert.h
     material/Registration.h measure/Registration.h motion/Convert.h
     motion/Registration.h skia/Registration.h skia/Values.h
-    weave/Registration.h world/Registration.h
+    weave/FontContext.h weave/Registration.h world/Registration.h
   PUBLIC
     pybind11::headers unofficial::skia::skia SigilComposeCore SigilComposeKit
     SigilMotionValues SigilComposeBrush SigilGeometryPath SigilGeometryKit

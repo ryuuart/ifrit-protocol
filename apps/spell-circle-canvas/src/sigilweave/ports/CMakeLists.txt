@@ -2,14 +2,15 @@
 # (CoreText on Apple; DirectWrite and Fontconfig slot into SystemFontManager.cpp).
 # Every engine feature accepts any SkFontMgr and never links this; only
 # tools and apps that want the OS fonts do. It answers faces, so the style
-# feature that defines a face is public to it.
+# feature that defines a face is public to it, and its catalogue reads the
+# faces a font context adopted, so the font service is public to it too.
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeavePorts
   SOURCES SystemFontManager.cpp GenericFamilyManager.cpp
-          GenericFamilyManager.h Resource.cpp
-  HEADERS SystemFontManager.h Resource.h
-  PUBLIC SigilWeaveStyle unofficial::skia::skia
+          GenericFamilyManager.h Resource.cpp Catalogue.cpp
+  HEADERS SystemFontManager.h Resource.h Catalogue.h
+  PUBLIC SigilWeaveStyle SigilWeaveFonts unofficial::skia::skia
   PRIVATE Boost::unordered)
 
 # The one binary in the tree whose subject IS the machine's font list, so
@@ -38,3 +39,12 @@ sigil_test(weave_test
 sigil_test(weave_test
   SOURCES test/ResourceTest.cpp
   LIBRARIES SigilWeavePorts)
+
+# The catalogue: the machine's own families read as styles and axes, which
+# is what the `fonts` label says, and a context's adopted faces among them,
+# read from the committed instrument faces.
+sigil_test(weave_test
+  SOURCES test/CatalogueTest.cpp
+  LIBRARIES SigilWeavePorts
+  LABELS fonts
+  SUITES TypeCatalogue)

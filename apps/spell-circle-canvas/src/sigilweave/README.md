@@ -144,6 +144,36 @@ resolution, shaping counters and font-cache purges.
 font caches or outstanding results. `TextContext::stats` reports paragraph
 builds, cache hits and retained entries; resetting counters preserves entries.
 
+### Type a program carries, and the type it can set in
+
+A font file is a family like any installed one. Its bytes are a face,
+`ports::faceFromBytes`, and a font context that adopts the face knows it
+by the family the file names, before its font manager is asked:
+
+```cpp
+#include <sigilweave/ports/Catalogue.h>
+#include <sigilweave/ports/Resource.h>
+
+fonts.adopt(ports::faceFromBytes(bytes), "res://MachineType.ttf");
+Face machine = fonts.familyTypeface("Muthur Study");  // the adopted face
+```
+
+A family of several adopted faces answers a style with its nearest by
+CSS's matching; a later face from the same origin replaces the earlier,
+which is how a file read again after an edit takes over its family; and
+`FontContext::adoptedFaces` lists them. On a resource hub,
+`ports::registerDecoders(hub, arrived)` hands every face the hub reads to
+`arrived(face, path)`, which is where a host adopts it — a sketch session
+does so for every font its hub loads, so a sketch's two lines are a load
+and a family name.
+
+`weave::fonts` reads the type there is as values: `fonts::families()`
+the family names, `fonts::family(name)` a family's styles — weight and
+CSS's name for it, width, slant and the font's own name for the style —
+and its variation axes, and `fonts::find(family, style)` the face. Handed
+a font context, each answers its adopted families first, marked bundled,
+every style carrying the resource it was read from.
+
 ### Text as an outline
 
 A string a solid is extruded from, a stencil is cut from or a depth map is
@@ -438,7 +468,7 @@ own.
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |
 | `SigilWeave` | interface over every target above | — |
-| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — which answers CSS's generic names `serif`, `sans-serif`, `monospace` and `system-ui` with the first installed of the families `ports::genericFamilies()` names for each on the platform; `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder; `ports::faceFromBytes()`, the face a font file's bytes hold, and `ports::registerDecoders()`, which puts that read on a resource hub so `hub.load<Face>(uri)` answers a bundled font cached, held and reloaded as the hub holds any resource, under the name `meaningName()` gives a face | Skia platform ports |
+| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — which answers CSS's generic names `serif`, `sans-serif`, `monospace` and `system-ui` with the first installed of the families `ports::genericFamilies()` names for each on the platform; `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder; `ports::faceFromBytes()`, the face a font file's bytes hold, and `ports::registerDecoders()`, which puts that read on a resource hub so `hub.load<Face>(uri)` answers a bundled font cached, held and reloaded as the hub holds any resource, under the name `meaningName()` gives a face, and hands each face it reads to a host that asks; `fonts::families()`, `fonts::family()` and `fonts::find()`, the catalogue of families, styles and axes, a font context's adopted faces among them | Skia platform ports; SigilWeaveFonts, public, since the catalogue reads a font context |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
 | `SigilWeaveTesting` | the library's own harness, linked by test binaries alone: a passage laid under a stated font context (`testing::lay`), read back as values (`testing::read`), rendered on the CPU (`testing::Plate`) and held against a committed baseline (`testing::compareToBaseline`) | SigilMediaDifference (public: a comparison carries the `media::PixelDifference` it found); SigilMediaImageDecode, SigilMediaImageEncode and SigilIOSource for the baseline file — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding; defined only when the tree builds with `SIGIL_BUILD_APPS` | Qt6::Gui |
@@ -651,6 +681,9 @@ What each feature's `test/` holds:
 - `fonts/test/` — the font service asked about faces this machine
   happens to have: the fallback memo keyed by language, the transient
   varied clone, and the pair a shaper sets by measuring outlines.
+  `AdoptedFaceTest.cpp` adopts the committed instrument faces and finds
+  their family by name, its nearest face for a style, and a face from the
+  same origin replacing it.
   `VerticalFeaturesTest.cpp` beside it asks which vertical OpenType
   features a column takes by itself and which a style must name, of the
   constructed face committed under `test/assets/` rather than of the
@@ -698,8 +731,10 @@ What each feature's `test/` holds:
   the process, a generic name answered as the platform's first installed
   family for it, a fallback chain that runs out onto the default family at
   the style it was asked for, and the face the port holds once per ask so
-  that everything keyed on a face by pointer keys on one value; and a
-  font file's bytes read as the face the file holds.
+  that everything keyed on a face by pointer keys on one value; a
+  font file's bytes read as the face the file holds; and the catalogue,
+  the machine's families read as styles (`TypeCatalogue`, labelled
+  `fonts`) and a context's adopted faces among them (`BundledCatalogue`).
 - `testing/test/` — the harness itself (`ReadingTest`, `BaselineTest`),
   over the instrument faces and a scratch directory, and THE PLATES: nine
   pictures of what only this library draws, one case each, rendered

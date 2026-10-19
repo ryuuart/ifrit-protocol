@@ -11,9 +11,14 @@
 
 #include <filesystem>
 #include <initializer_list>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+
+namespace sigil::weave {
+class FontContext;
+}
 
 namespace sigil::sketch {
 
@@ -27,11 +32,37 @@ namespace sigil::sketch {
  *  `hub().load<media::Image>("res://ui/mark.png")`,
  *  `hub().load<data::Table>("res://cities.csv")`, and a shader file read
  *  through it by `material::shader(hub(), "res://aurora.sksl", Params{})`.
+ *  A font file is one too: `hub().load<weave::Face>(uri)` answers the
+ *  face it holds, and every session opened over these assets knows that
+ *  face by its family from then on, so `fontFamily("Muthur Study")`
+ *  finds it as it finds an installed family.
  *  A URI is spelled whole; a bare name is a path from where the process
  *  started, never a resource. A file a load found missing or unreadable
  *  is watched, and `poll()` says when it appears. */
 class Assets {
  public:
+  /** WHILE IT STANDS, every face the hub reads is adopted by one font
+   *  context under its family, with the URI it was read from: the faces
+   *  read before it was made at once, and each face read after it — a
+   *  file edited on disk included, whose new face replaces the old — as
+   *  the hub reads it. Moved, it keeps holding; ended, later faces no
+   *  longer reach that context, and the ones it adopted stay adopted. */
+  class FaceAdoption {
+   public:
+    FaceAdoption(FaceAdoption&& other) noexcept;
+    FaceAdoption& operator=(FaceAdoption&& other) noexcept;
+    FaceAdoption(const FaceAdoption&) = delete;
+    FaceAdoption& operator=(const FaceAdoption&) = delete;
+    ~FaceAdoption();
+
+   private:
+    friend class Assets;
+    struct Faces;
+    FaceAdoption(std::shared_ptr<Faces> faces, weave::FontContext* fonts);
+    std::shared_ptr<Faces> m_faces;
+    weave::FontContext* m_fonts = nullptr;
+  };
+
   /** @p root mounts at `res://`; @p sketches, the directory the sketch
    *  sources stand in, mounts at `sketch://`, under which a sketch's own
    *  files are `sketch://<key>/name`. */
@@ -46,6 +77,14 @@ class Assets {
    *  the sketches at `sketch://`. */
   sigil::io::Hub& hub() { return m_hub; }
 
+  /** MAKES EVERY FONT THIS HUB LOADS KNOWN TO @p fonts BY ITS FAMILY for
+   *  as long as the answer stands — what a session does when it opens, so
+   *  a sketch that loads a font file names its family anywhere after.
+   *  @trap A face read on another thread than the one this was asked on
+   *  reaches @p fonts at the next ask, since a font context belongs to
+   *  one thread. */
+  [[nodiscard]] FaceAdoption adoptFacesInto(weave::FontContext& fonts);
+
   /** Re-checks everything: true when a loaded resource changed on disk
    *  or a file a load found missing appeared (the host re-runs setup). */
   bool poll();
@@ -55,6 +94,9 @@ class Assets {
  private:
   std::filesystem::path m_root;
   std::filesystem::path m_sketches;
+  /** The faces the hub has read and the contexts adopting them, shared
+   *  with the hub's face decoder. */
+  std::shared_ptr<FaceAdoption::Faces> m_faces;
   sigil::io::Hub m_hub;
 };
 

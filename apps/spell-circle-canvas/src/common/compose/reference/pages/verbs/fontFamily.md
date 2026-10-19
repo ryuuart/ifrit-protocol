@@ -17,6 +17,20 @@ composer's font context finds the first family of the list it has when
 the cascade reaches the node, at the weight and the style in force
 there.
 
+A font file is a family like any other. In a sketch, the session's
+resource hub hands every face it loads to the session's font context,
+which adopts it under the family the file names, so loading the file once
+is enough for its family to answer by name everywhere:
+
+```cpp
+ctx.assets.hub().load<weave::Face>(ctx.local("data/MachineType.ttf"));
+compose::text("SIGNAL").fontFamily("Muthur Study");
+```
+
+An edited file is read again and the family answers with the new face the
+next time it is asked for. A face already held is stated directly with
+`fontFamily(face)`, which is the face itself and no lookup at all.
+
 ## Description
 
 **It is the face field of [`font`](font.md), spelled as a name.** A
@@ -71,4 +85,5 @@ family named above finds that family's face at it.
 ## See also
 
 [`font`](font.md), [`fontStyle`](fontStyle.md), `weave::FontContext`,
+`weave::FontContext::adopt`,
 `weave::ports::genericFamilies`.

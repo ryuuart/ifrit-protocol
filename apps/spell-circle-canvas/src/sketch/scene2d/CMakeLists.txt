@@ -14,6 +14,12 @@ sigil_test(sketch_test
   SUITES Scene2DBakes
   LABELS gpu)
 
+# A font file a session's hub loads, named by its family: the committed
+# instrument faces in a scratch directory, so no installed font is asked.
+sigil_test(sketch_test
+  SOURCES test/BundledFaceTest.cpp
+  LIBRARIES SigilSketch SigilWeavePorts)
+
 sigil_bench(sketch_bench
   SOURCES bench/Scene2DSessionBench.cpp
   LIBRARIES SigilSketch SigilWeavePorts)

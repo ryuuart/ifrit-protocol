@@ -18,13 +18,23 @@
 #include <functional>
 #include <memory>
 #include <span>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "sigilweave/style/Style.h"
 
 namespace sigil::weave {
 
 struct ShapedWord;
+
+/** ONE FACE A FONT CONTEXT HAS ADOPTED: the face, and where it came from —
+ *  the resource a hub read it from, or empty for a face handed over with
+ *  no origin. */
+struct AdoptedFace {
+  Face face;
+  std::string origin;
+};
 
 /// Per-thread service object owning the shaping and font-resolution caches:
 ///   - hb_face/hb_font per face (font data is parsed once, ever)
@@ -64,20 +74,39 @@ class FontContext {
   /** Returns the typeface used when a shaping style has none. */
   [[nodiscard]] const Face& defaultTypeface() const;
 
-  /** THE FACE @p family NAMES AT @p style, found through the font manager
-   *  and kept: two asks for one family and style return the SAME face, so
-   *  its unique id is a stable shape-cache identity. The manager picks the
-   *  family's nearest face to the style, which is an upright one where the
-   *  family has no italic.
+  /** THE FACE @p family NAMES AT @p style, found among the faces this
+   *  context adopted and otherwise through the font manager, and kept: two
+   *  asks for one family and style return the SAME face, so its unique id
+   *  is a stable shape-cache identity until an adoption changes what the
+   *  family holds. The family's nearest face to the style is chosen, which
+   *  is an upright one where the family has no italic.
    *  `ports::face` holds answers too, but for the process's system
    *  manager rather than this context's, and with the default family
    *  standing in for a name it cannot find, so a caller could not tell a
    *  miss from a match; this door asks the context's own manager and says
    *  when it found nothing.
-   *  @trap Null where the manager knows no family of that name, never
+   *  @trap Null where neither knows a family of that name, never
    *  another family standing in for it; an empty name is null too. */
   [[nodiscard]] Face familyTypeface(std::string_view family,
                                     FaceStyle style = {});
+
+  /** MAKES @p face KNOWN UNDER ITS OWN FAMILY NAME: from here on
+   *  `familyTypeface` asks this context's adopted faces before its font
+   *  manager, so a family a font file carries answers by name as an
+   *  installed one does, and a style finds the family's nearest adopted
+   *  face by CSS's matching — the italic where one was adopted, else the
+   *  nearest weight. A family name matches without regard to ASCII case.
+   *  @p origin says where the face came from; a later adoption from the
+   *  same origin REPLACES the earlier face, which is how a font file read
+   *  again after an edit takes over its family. A face already adopted is
+   *  adopted once, and no face is no adoption.
+   *  @trap An adopted family stands in front of an installed family of the
+   *  same name, and `purgeAllCaches` keeps every adoption. */
+  void adopt(Face face, std::string origin = {});
+
+  /** Every face this context has adopted, in the order first adopted, a
+   *  replaced face standing where the face it replaced stood. */
+  [[nodiscard]] std::vector<AdoptedFace> adoptedFaces() const;
 
   /** Returns the typeface to shape @p codePoint with: the primary, or
    * the default, when it covers the code point, and otherwise the
@@ -132,7 +161,8 @@ class FontContext {
   /** Drops every cache this context owns: shape results, the
    * per-typeface HarfBuzz faces and fonts, coverage and fallback memos,
    * varied clones, the faces found by family name, optical-kerning
-   * measurements and interned language ids. Safe while shaped words are
+   * measurements and interned language ids. Adopted faces are not a cache
+   * and stay. Safe while shaped words are
    * outstanding, since they own their data; the next analysis re-fills at
    * first-use cost.
    */

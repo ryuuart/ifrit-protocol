@@ -11,10 +11,12 @@
  * hub, so this library knows no resource library.
  */
 
+#include <concepts>
 #include <cstddef>
 #include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
 #include "sigilweave/style/Face.h"
 
@@ -39,6 +41,29 @@ void registerDecoders(Hub& hub) {
       hub, [](const auto& bytes, std::string_view) -> std::optional<Face> {
         Face face = faceFromBytes(bytes.span());
         if (!face) return std::nullopt;
+        return face;
+      });
+}
+
+/** The same decoder, which also hands every face it reads to
+ *  @p arrived as `arrived(face, path)`, the path being the file the face
+ *  was read from where the resource has one — what a host calls to make
+ *  each font its hub loads known to a font context by family, through
+ *  `FontContext::adopt`. A file read again after an edit arrives again as
+ *  its new face.
+ *  @trap @p arrived runs on whichever thread decoded the face, which is
+ *  the thread that asked the hub for it or polled it. */
+template <typename Hub, typename Arrived>
+  requires std::invocable<Arrived&, const Face&, std::string_view>
+void registerDecoders(Hub& hub, Arrived arrived) {
+  registerDecoder<Face>(
+      hub,
+      [arrived = std::move(arrived)](
+          const auto& bytes,
+          std::string_view path) mutable -> std::optional<Face> {
+        Face face = faceFromBytes(bytes.span());
+        if (!face) return std::nullopt;
+        arrived(face, path);
         return face;
       });
 }
