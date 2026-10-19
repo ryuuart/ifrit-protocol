@@ -15,7 +15,6 @@
 #include <sigilpython/skia/Registration.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Keywords.h>
-#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
 namespace sigil::python {
@@ -383,15 +382,6 @@ void bindValues(py::module_& module) {
         face.getFamilyName(&name);
         return std::string(name.c_str());
       });
-  weave.def(
-      "typeface",
-      [](const std::string& family, int weight, bool italic) {
-        return weave::ports::systemFontManager()->matchFamilyStyle(
-            family.c_str(), SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                                        italic ? SkFontStyle::kItalic_Slant
-                                               : SkFontStyle::kUpright_Slant));
-      },
-      py::arg("family"), py::arg("weight") = 400, py::arg("italic") = false);
   py::enum_<weave::Keyword>(weave, "Keyword")
       .value("Inherit", weave::Keyword::Inherit)
       .value("Initial", weave::Keyword::Initial)

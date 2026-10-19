@@ -32,8 +32,12 @@ void bindComposeFeed(pybind11::module_& module);
 void bindComposeInstancing(pybind11::module_& module);
 /** Registers the component kit's records on @p module. */
 void bindComposeKit(pybind11::module_& module);
-/** Registers the table's column on @p module. */
+/** Registers the reading, the readout, the table and the bars on @p
+ *  module. */
 void bindComposeKitRows(pybind11::module_& module);
+/** Registers the text paints — their fields, their record and the
+ *  material each describes — on @p module. */
+void bindComposeKitTextPaint(pybind11::module_& module);
 /** Registers region, parts, by gates and Element.mask on @p module. */
 void bindComposeMasks(pybind11::module_& module);
 /** Registers paintContext, keyless paint programs, keyed shapes, asset

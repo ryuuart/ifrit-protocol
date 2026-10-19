@@ -31,15 +31,6 @@ no image test tells the shape-following treatment from today's; a
 discriminating test needs a numerical integral of the lobe over the
 light, as the representative-point entry states.
 
-## A leaf set in a whole text style ignores its own colour ink
-
-A leaf built with a whole `TextStyle`, `text(utf8, style)`, draws in the
-style's colour when given `.ink(Color)` or a colour material, while a
-non-colour material ink applies; one rule should hold for both kinds of
-ink, so that a clear copy of a leaf can be written the same way whatever
-its ink is. A test should give such a leaf a clear colour ink and find
-it drawing nothing.
-
 ## A bevel or inner shadow on a glyph or shape boundary blurs its band on every replay
 
 Only `Boundary::Coverage` holds its band masks (`HeldCoverageMasks`); a
@@ -50,23 +41,6 @@ reuses the edge coverage across ink changes; every bevel plate moves
 when it lands. A test should replay a bevelled leaf under a changing
 shader ink and find the band blurred once.
 
-## Texture sets are unbound in Python
-
-`src/common/python/material/TextureSets.cpp` is an empty stub, so
-`material::TextureMaps`, `Volume` and `fromFiles` have no Python
-spelling, while every other material door is bound. A Python author
-should load a texture set from files and wear it as C++ does. A test
-should build a texture set from the demo assets in Python and read its
-maps back.
-
-## A few kit parts and the typeface door still answer the old types
-
-`Ruler.tickLine` (a Python callable as the part), `kit::Channel`,
-`specimenTheme`, and the compose kit's `table` and `bars` are unbound,
-and `weave.typeface(family, weight, italic)` answers a `skia.Typeface`
-where the rest of the package now answers a `weave.Face`. Each should
-reach Python in the same shape as its C++ twin, with a test per name.
-
 ## A sketch's own runtime effects build on its first frame
 
 A program over an effect made while the sketch's setup runs, such as
@@ -75,16 +49,6 @@ key, so no recorded key set can stand it up and `crt_bloom` builds two
 programs on every open. The host is meant to stand up every program a
 sketch's first frame needs. A test should open `crt_bloom` twice and
 find the second open's first frame building no program.
-
-## A raw effect program cannot state a sampling reach
-
-`Filter.program` in Python and `material::skia::program` in C++ always
-pass a sampling radius of zero, so a body that reads its neighbours
-reads undefined texture slack past the layer's right and bottom edge,
-which is why `nostromo_monitor` states its reach through `Filter.of`
-instead. The raw-effect door should state a reach as `Filter.of` does.
-A test should apply a neighbour-reading program through it with a stated
-reach and capture byte-identically twice.
 
 ## Scry inserts its own recording without the recorder's waits
 
@@ -106,14 +70,6 @@ not the kit's. A test should ink the SIGIL wordmark with the sparkle at
 its capture moment and find at least three separate lit regions on at
 least three glyphs.
 
-## The kit text paint has no Python spelling
-
-`compose::kit::textPaint` and its `TextPaint` record are new in the kit
-and unbound, so the ledger's `text_paints` entry requires it and the
-sketch cannot be written in Python. A test should ink a word with
-`kit.textPaint(field=kit.TextField.Sparkle, time=6.4)` from Python and
-find it painted.
-
 ## Held coverage masks are remade on the CPU at each settle
 
 `HeldCoverageMasks` remakes a part's cast mask on the CPU raster, blur
@@ -123,16 +79,6 @@ even on a device, where the mask should be made and blurred on the
 device. A settle-style Graphite arm of `BM_Draw_CoverageSheet_TurningChild`
 that alternates density should cost within a stated ratio of the steady
 arm; the change moves every device plate that uses held coverage.
-
-## A pass lane misses the canvas scale in the outline route
-
-A `textFx::pass` lane records into its own picture with an identity
-canvas, and the outline route reads only the replay scale there, so a
-driven letter inside a pass under a canvas zoom can stay in the atlas
-past the device size where it should draw as an outline; the lane's
-batches should read the full device scale, replay times canvas. A test
-should put a driven pass lane under a canvas scale past the threshold
-and find its picture reached as outlines.
 
 ## The shadow tint read costs glass several times what it costs an opaque surface
 
@@ -200,22 +146,6 @@ alongside the other gpu-labelled suites and a plate should be
 byte-identical alone or in a sweep; the cases should name what they
 share and isolate it, or the suites should carry a resource lock.
 
-## Three blocks of the animated console guide are not excerpts of its sketch
-
-`docs/guides/animated-console-python.md` holds three code blocks whose
-lines the sketch it names does not contain, while every guide's blocks
-are meant to be verbatim excerpts; a check should assert that every
-guide code block's lines appear in the sketch the guide names, and the
-three blocks should be re-cut from `wardnet_console.py`.
-
-## A 3D Python sketch has no `ctx.fonts`
-
-`Scene2DContext.fonts` lends a Python sketch its session's font context,
-so `weave.fonts.family(name, ctx.fonts)` lists a bundled family, while
-`Scene3DContext` has no such reading although its session adopts loaded
-faces the same way. The two contexts should answer the same services. A
-test should list a bundled family from a scene3d sketch's context.
-
 ## A sketch without a pen cannot read input
 
 The scene2d context answers no pointer or key reading: `Composer` has
@@ -272,4 +202,28 @@ clears and frames draw again, but `status()` still names the failure;
 the status should describe the session now running, in the live window
 and in Grimoire's replay alike. A test should fail a frame, restart the
 session, and find `status()` no longer naming the failure.
+
+## The host is not rebuilt when a framework header changes
+
+`Grimoire --frame` on a source-built C++ sketch refuses because a
+framework header is newer than the host binary, which fails
+`python_protocol_routes` until Grimoire is rebuilt by hand; the host
+target should depend on the framework headers it checks, so a build of
+the test's dependencies rebuilds it. A test should assert that
+`python_protocol_routes` passes after building only its stated
+dependencies.
+
+## The Nostromo tube program states no reach
+
+`Tube.sksl` in `nostromo_monitor` goes through `Filter.program` with no
+sampling reach although it reads warped neighbours, now that the raw
+door can state one. A test should capture the tube twice and find the
+captures byte-identical.
+
+## A composer's first draw of a text effect node can come out blank
+
+A fresh host's first `composer.draw` drew nothing for a `textFx` effect
+node until its engine was advanced or a frame drawn. The first draw
+should paint the node as the second does. A test should build a fresh
+composer, render a text effect node and find its first draw non-empty.
 

@@ -103,6 +103,49 @@ class _LadderProperties(typing.TypedDict, total=False):
     column: bool
     fill: _t.FillLike
 
+_CellPart: typing.TypeAlias = (
+    collections.abc.Callable[[], _t.NodeLike]
+    | collections.abc.Callable[[str], _t.NodeLike]
+    | collections.abc.Callable[[str, Table], _t.NodeLike]
+    | collections.abc.Callable[[str, Table, int], _t.NodeLike]
+    | collections.abc.Callable[[str, Table, int, int], _t.NodeLike]
+    | collections.abc.Callable[[str, Table, int, int, list[str]], _t.NodeLike]
+    | None
+)
+_FigurePart: typing.TypeAlias = (
+    collections.abc.Callable[[], _t.NodeLike]
+    | collections.abc.Callable[[float], _t.NodeLike]
+    | collections.abc.Callable[[float, Bars], _t.NodeLike]
+    | None
+)
+
+class _TableProperties(typing.TypedDict, total=False):
+    columns: collections.abc.Sequence[Column]
+    gap: float
+    rowGap: float
+    divider: _t.FillLike
+    dividerWidth: float
+    headRuled: bool
+    swatches: collections.abc.Sequence[_t.FillLike]
+    swatchSide: float
+    swatchCorners: float
+    keys: collections.abc.Sequence[str]
+    headLine: _Part[Table]
+    cellLine: _CellPart
+
+class _BarsProperties(typing.TypedDict, total=False):
+    length: float
+    largest: float
+    labelMeasure: float
+    barHeight: float
+    gap: float
+    rowGap: float
+    bar: _t.FillLike
+    rest: _t.FillLike
+    inks: collections.abc.Sequence[_t.ColorLike]
+    labelLine: _Part[Bars]
+    figureLine: _FigurePart
+
 class _RowsProperties(typing.TypedDict, total=False):
     measure: float
     nameMeasure: float
@@ -167,4 +210,15 @@ def readout(
     readings: collections.abc.Iterable[Reading],
     props: Rows | None = ...,
     **properties: typing.Unpack[_RowsProperties],
+) -> sigil.compose.Element: ...
+def table(
+    rows: collections.abc.Iterable[str] | collections.abc.Iterable[collections.abc.Iterable[str]],
+    props: Table | None = ...,
+    **properties: typing.Unpack[_TableProperties],
+) -> sigil.compose.Element: ...
+def bars(
+    labels: collections.abc.Iterable[str],
+    values: collections.abc.Iterable[float],
+    props: Bars | None = ...,
+    **properties: typing.Unpack[_BarsProperties],
 ) -> sigil.compose.Element: ...

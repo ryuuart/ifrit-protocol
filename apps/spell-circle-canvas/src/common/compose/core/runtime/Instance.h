@@ -363,6 +363,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     std::optional<sigil::weave::Type> over;
   };
   std::vector<InkRange> inheritedInkRanges;
+  // On a leaf set in a whole style: the colour ink stated on the leaf
+  // itself, by its own verb or a rule matching it, which its glyphs are
+  // set in over the style's own colour; none draws the style's colour.
+  std::optional<material::Color> wholeStyleInk;
 
   // WHAT THE ADDING OPERATORS BUILT UNDER THIS NODE, kept from the last
   // time they ran, one slice per SCOPE that attached here: a node can be

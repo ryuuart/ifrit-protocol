@@ -44,5 +44,9 @@ void bindMaterialShader(pybind11::module_& module);
  *  sampled — its sampling and pixel-rectangle values, the image leaf, the
  *  flipbook, the flow map and the instance attribute key on @p module. */
 void bindMaterialTexture(pybind11::module_& module);
+/** Registers texture sets — roles, classification, discovery, the decoded
+ *  maps and their volume — under `material.texture`, and the surface
+ *  program over decoded maps under `material.surface`, on @p module. */
+void bindMaterialTextureSets(pybind11::module_& module);
 
 }  // namespace sigil::python

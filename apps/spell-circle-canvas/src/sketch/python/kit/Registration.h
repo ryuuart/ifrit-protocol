@@ -34,8 +34,8 @@ void bindSketchKitVerdict(pybind11::module_& module);
 /** Registers the control surface a study puts beside a material on
  *  @p module. */
 void bindSketchKitControls(pybind11::module_& module);
-/** Registers the console and the readout of a connection on @p
- *  module. */
+/** Registers the console, the readout of a connection and the channel
+ *  onto one of its numbers on @p module. */
 void bindSketchKitStreams(pybind11::module_& module);
 
 /** Declares a stage through a validated session context. */

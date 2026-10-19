@@ -113,6 +113,11 @@ void Composer::Impl::materializeText(
     inst.paragraph->appendText(text.utf8, inherited);
     inst.inheritedInkRanges.push_back(
         {{0, (uint32_t)inst.paragraph->text().size()}, std::nullopt});
+  } else if (inst.wholeStyleInk) {
+    sigil::weave::Type stated;
+    stated.color = *inst.wholeStyleInk;
+    inst.paragraph->appendText(text.utf8,
+                               sigil::weave::overlay(text.style, stated, remPx));
   } else {
     inst.paragraph->appendText(text.utf8, text.style);
   }

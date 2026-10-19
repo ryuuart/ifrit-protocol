@@ -12,6 +12,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
+#include <sigilpython/weave/FontContext.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/scene3d/Page.h>
 #include <sigilsketch/scene3d/Scene3D.h>
@@ -137,6 +138,18 @@ void bindSketchScene3DSketches(py::module_& module) {
           "describe, hand it the tree at the scene time with render() and "
           "put texture() in a material's slot or on the frame with "
           "overlay(). The session keeps it for as long as it runs.")
+      // The session's own font context, lent as a 2D sketch's is: every
+      // font the session's hub loads is adopted there under its family, so
+      // `weave.fonts` handed it lists the bundled families beside the
+      // installed ones. It answers while setup runs, as the context does.
+      .def_property_readonly(
+          "fonts",
+          [](const Scene3DContextView& view) {
+            return sigil::python::FontContextHandle(
+                [view]() -> weave::FontContext& {
+                  return view.context().fonts;
+                });
+          })
       .def_property_readonly(
           "deterministic",
           [](const Scene3DContextView& view) {

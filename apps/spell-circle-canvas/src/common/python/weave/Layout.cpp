@@ -19,6 +19,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 #include <utility>
@@ -767,6 +768,22 @@ void bindWeaveLayout(py::module_& root) {
           "__deepcopy__",
           [](const FaceValue& value, const DeepCopyMemo&) { return value; },
           py::arg("memo"));
+  module.def(
+      "typeface",
+      [](const std::string& family, int weight,
+         bool italic) -> std::optional<FaceValue> {
+        sk_sp<SkTypeface> found =
+            weave::ports::systemFontManager()->matchFamilyStyle(
+                family.c_str(),
+                SkFontStyle(weight, SkFontStyle::kNormal_Width,
+                            italic ? SkFontStyle::kItalic_Slant
+                                   : SkFontStyle::kUpright_Slant));
+        if (!found) return std::nullopt;
+        return FaceValue{weave::fromSk(found)};
+      },
+      py::arg("family"), py::arg("weight") = 400, py::arg("italic") = false,
+      "The face the machine's font manager holds for the family at the "
+      "weight and slant, or None where it knows no such family.");
   // Asked by a face style, so defined once the style is.
   py::reinterpret_borrow<py::class_<Fonts>>(module.attr("FontContext"))
       .def(

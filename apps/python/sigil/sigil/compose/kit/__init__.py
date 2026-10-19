@@ -5,6 +5,7 @@
 
 from _sigil.compose import kit as _native
 from _sigil.compose.kit import (
+    Bars,
     Board,
     Caption,
     CaptionWhere,
@@ -18,6 +19,9 @@ from _sigil.compose.kit import (
     Reading,
     Rows,
     Sheet,
+    Table,
+    TextField,
+    TextPaint,
     Well,
     WellContent,
     at,
@@ -27,6 +31,7 @@ from _sigil.compose.kit import (
     dot,
     figure,
     ring,
+    textPaint,
 )
 
 from ..._kit import children as _children
@@ -101,7 +106,27 @@ def readout(readings, props=None, **properties):
     return _native.readout(list(readings), _specification(Rows, props, properties))
 
 
+def table(rows, props=None, **properties):
+    """A table: rows in the columns the props state, each row its own run of
+    cells, or one row-major run of words, as many to a row as there are
+    columns."""
+    cells = rows if isinstance(rows, str) else list(rows)
+    return _native.table(
+        [cell if isinstance(cell, str) else list(cell) for cell in cells],
+        _specification(Table, props, properties),
+    )
+
+
+def bars(labels, values, props=None, **properties):
+    """One bar per value against the largest, the labels read in the same
+    order."""
+    return _native.bars(
+        list(labels), list(values), _specification(Bars, props, properties)
+    )
+
+
 __all__ = [
+    "Bars",
     "Board",
     "Caption",
     "CaptionWhere",
@@ -115,9 +140,13 @@ __all__ = [
     "Reading",
     "Rows",
     "Sheet",
+    "Table",
+    "TextField",
+    "TextPaint",
     "Well",
     "WellContent",
     "at",
+    "bars",
     "bevels",
     "board",
     "captionLabel",
@@ -136,5 +165,7 @@ __all__ = [
     "readout",
     "ring",
     "sheet",
+    "table",
+    "textPaint",
     "well",
 ]

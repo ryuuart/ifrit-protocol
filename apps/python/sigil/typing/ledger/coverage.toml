@@ -64,8 +64,12 @@ native = "Scene3D sketches: `sketch::Scene3DContext` and `describe(now)` returni
 python = ["sketch.Scene3DContext"]
 
 [[section.surface.item]]
-native = "`Scene2DContext::textureScene` and `fonts`"
-python = ["sketch.Scene2DContext.textureScene", "sketch.Scene2DContext.fonts"]
+native = "`Scene2DContext::textureScene` and `fonts`, and `Scene3DContext::fonts`"
+python = [
+  "sketch.Scene2DContext.textureScene",
+  "sketch.Scene2DContext.fonts",
+  "sketch.Scene3DContext.fonts",
+]
 
 [[section.surface.item]]
 native = "`Scene2DContext::bakeScene3D`, `canvas(CanvasSpecification)` and `key`"
@@ -725,6 +729,10 @@ python = [
 [[section.surface.item]]
 native = "the rows `section`, `table` and `bars`"
 python = ["compose.kit.table", "compose.kit.bars"]
+
+[[section.surface.item]]
+native = "the text paints: `textPaint` over a `TextPaint`'s `TextField`, moment and box"
+python = ["compose.kit.textPaint", "compose.kit.TextPaint", "compose.kit.TextField"]
 
 [[section.surface.item]]
 native = "typesetting (`ruby`, `kenten`, `bullets`, `textColumns`, `rules`, `nestedRun`)"
@@ -1917,7 +1925,22 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "texture discovery, `Atlas`, `EnvironmentMap` and `bevelNormals`"
+bound = "texture sets: `texture.Role`, `classify`, `roleForUsage` and `discover` over a directory; `TextureSet`; `fromFiles`, decoding from disk or through a Python decoder, and `fromUsageMap` into `TextureMaps` with its `Volume`; `surface.program` over decoded maps"
+python = [
+  "material.texture.Role",
+  "material.texture.classify",
+  "material.texture.roleForUsage",
+  "material.texture.discover",
+  "material.texture.TextureSet",
+  "material.texture.fromFiles",
+  "material.texture.fromUsageMap",
+  "material.texture.TextureMaps",
+  "material.texture.Volume",
+  "material.surface.program",
+]
+
+[[section.surface.item]]
+native = "`Atlas`, `EnvironmentMap` and `bevelNormals`"
 python = [
   "material.Atlas",
   "material.EnvironmentMap",
@@ -2125,7 +2148,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "collections; geometry and post passes; `Frame` with its camera, environment and the pictures `overlay` lays over the finished frame"
+bound = "collections; geometry and post passes; `Frame` with its camera, environment, the pictures `overlay` lays over the finished frame and the pictures `backdrop` lays under its bodies"
 python = [
   "world.Collection",
   "world.geometryPass",
@@ -2135,6 +2158,8 @@ python = [
   "world.Frame.environment",
   "world.Frame.overlay",
   "world.Frame.overlays",
+  "world.Frame.backdrop",
+  "world.Frame.backdrops",
 ]
 
 [[section.surface.item]]

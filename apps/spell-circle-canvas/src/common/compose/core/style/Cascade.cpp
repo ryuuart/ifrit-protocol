@@ -845,6 +845,13 @@ void Composer::Impl::resolveCascade(
     remMoved = rootSize != remPx;
     remPx = rootSize;
   }
+  // A LEAF SET IN A WHOLE STYLE takes no colour from above, but one rule
+  // holds for either kind of ink stated on the leaf itself — its own verb
+  // or a rule matching it: it paints the glyphs, a colour over the style's
+  // own as a paint does.
+  const bool wholeStyleLeaf =
+      node.kind == Kind::Text && node.textData && !node.textData->inherits &&
+      node.textData->rich.empty() && !node.textData->paragraphOverride;
   // AN INK THAT STATES A SURFACE, lit or unlit, on a page painted as a
   // surface map paints as that map of
   // it; the paint held for one map is dropped with every other when the
@@ -913,7 +920,15 @@ void Composer::Impl::resolveCascade(
   // alone is set on the paragraph it already has.
   if (node.kind == Kind::Text && node.textData) {
     const bool inherits = node.textData->inherits;
-    const bool reshapes = inherits && !sameFontButColour(font, inst.textFont);
+    // A whole-style leaf's own colour ink is set in its paragraph, so one
+    // that moved is a new paragraph of the same words.
+    const std::optional<material::Color> wholeStyleInk =
+        wholeStyleLeaf && statesOwnInk ? font.color : std::nullopt;
+    const bool wholeStyleInkMoved = !(wholeStyleInk == inst.wholeStyleInk);
+    inst.wholeStyleInk = wholeStyleInk;
+    const bool reshapes =
+        (inherits && !sameFontButColour(font, inst.textFont)) ||
+        wholeStyleInkMoved;
     // THE TEXT PROPERTIES IN FORCE: what the matched rules state, with the
     // leaf's own statements standing over it. A rule that moved one is a
     // new layout of the same words; one that moved the outline alone is a

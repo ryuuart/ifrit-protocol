@@ -10,6 +10,7 @@ from _sigil.sketch.kit import (
     Axis,
     Backdrop,
     Cell,
+    Channel,
     Chip,
     Column,
     Comparison,
@@ -69,6 +70,7 @@ from _sigil.sketch.kit import (
     marks,
     plot,
     segments,
+    specimenTheme,
     theme,
 )
 from _sigil.weave import FaceSlant as _FaceSlant
@@ -306,6 +308,7 @@ __all__ = [
     "Axis",
     "Backdrop",
     "Cell",
+    "Channel",
     "Chip",
     "Column",
     "Comparison",
@@ -394,6 +397,7 @@ __all__ = [
     "section",
     "sectionHeader",
     "segments",
+    "specimenTheme",
     "stage",
     "studyTheme",
     "swatchStrip",

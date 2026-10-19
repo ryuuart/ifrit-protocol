@@ -39,8 +39,10 @@ text under the node is set in, which every mark that names no colour is
 painted in (`stroke(1.5f)` with no fill, a line or a ribbon written as
 `Fill::currentInk()`), and which `Fill::currentInk()` reads back wherever
 a slot demands a fill. A leaf given a whole `weave::TextStyle`,
-`text(utf8, style)`, is set in it alone and inherits nothing, which is
-what every leaf written before this chapter existed does. What a leaf
+`text(utf8, style)`, is set in it alone and inherits nothing; an ink
+stated on the leaf itself, by its own `ink` or a rule matching it, paints
+its glyphs over the style's colour whether it is a colour or a paint, so
+a clear copy of any leaf is written with a clear ink. What a leaf
 under nothing is set in is `Composer::setInherited`: black, 16 px and the
 font context's family by default, the values `weave::initialType()`
 carries, and what a pen's guest or a texture scene seeds from where it

@@ -47,6 +47,7 @@ void bindLibraries(pybind11::module_& module) {
   bindMaterialBuilder(module);
   bindMaterialTexture(module);
   bindMaterialEnvironment(module);
+  bindMaterialTextureSets(module);
   bindMaterialPattern(module);
   bindMaterialField(module);
   bindMaterialSubstance(module);
@@ -95,6 +96,7 @@ void bindLibraries(pybind11::module_& module) {
   bindOptionalLibraries(module);
   bindComposeKit(module);
   bindComposeKitRows(module);
+  bindComposeKitTextPaint(module);
 }
 
 }  // namespace sigil::python

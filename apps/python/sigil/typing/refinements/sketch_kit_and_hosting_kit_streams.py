@@ -12,3 +12,8 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    table.parameters(
+        "_sigil.sketch.kit.Channel.__init__",
+        connection="_sigil.data.Connection",
+        reading="int | str",
+    )

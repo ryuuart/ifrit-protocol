@@ -17,6 +17,8 @@
 #include <sigilpython/skia/Values.h>
 
 #include <array>
+#include <cmath>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -216,18 +218,33 @@ void bindMaterialPaintEffect(py::module_& module) {
           "them.")
       .def_static(
           "program",
-          [](py::handle effect, py::dict parameters) {
+          [](py::handle effect, py::dict parameters,
+             std::optional<float> sampleRadius) {
             std::vector<std::pair<std::string, float>> values;
             for (const auto& [name, value] : parameters)
               values.emplace_back(py::cast<std::string>(name),
                                   py::cast<float>(value));
-            return material::skia::program(
+            sk_sp<SkRuntimeEffect> program =
                 py::isinstance<py::str>(effect)
                     ? runtimeEffect(py::cast<std::string>(effect))
-                    : py::cast<sk_sp<SkRuntimeEffect>>(effect),
-                std::move(values));
+                    : py::cast<sk_sp<SkRuntimeEffect>>(effect);
+            if (!sampleRadius)
+              return material::skia::program(std::move(program),
+                                             std::move(values));
+            if (!(*sampleRadius >= 0) || !std::isfinite(*sampleRadius))
+              throw py::value_error(
+                  "A sampling reach is a distance in local pixels, zero or "
+                  "more.");
+            return material::skia::program(std::move(program),
+                                           std::move(values), *sampleRadius);
           },
-          py::arg("effect"), py::arg("parameters") = py::dict())
+          py::arg("effect"), py::arg("parameters") = py::dict(),
+          py::arg("sampleRadius") = py::none(),
+          "An SkSL program over the layer, its source or a compiled "
+          "effect: the layer arrives in its `content` slot and `parameters` "
+          "set float uniforms by name. `sampleRadius` bounds the largest "
+          "offset, in local pixels, at which the body samples the layer, as "
+          "`Filter.of` states one.")
       .def_static(
           "glow",
           [](py::object ink, float sigma) {

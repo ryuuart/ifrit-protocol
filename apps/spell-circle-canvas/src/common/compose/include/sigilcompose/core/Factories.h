@@ -191,7 +191,10 @@ template <std::ranges::input_range R, class Fn, class Between>
  *  needs to recolour content handed to it already made. */
 Text text(Utf8 utf8);
 /** A text leaf set in @p style ALONE. A `TextStyle` is total, so the leaf
- *  inherits nothing: whatever its ancestors set, it draws exactly this. */
+ *  inherits nothing: whatever its ancestors set, it draws exactly this.
+ *  An ink stated on the leaf itself — a colour or a paint, by its own
+ *  `ink` or a rule matching it — paints its glyphs over the style's
+ *  colour, so a clear ink draws nothing either way. */
 Text text(Utf8 utf8, sigil::weave::TextStyle style);
 /** Mixed-style text as a COMPARABLE VALUE — see weave::RichText. A re-described
  *  identical value prunes, which is the whole difference between this and

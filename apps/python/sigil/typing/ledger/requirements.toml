@@ -914,4 +914,4 @@ python = ["material.pattern.clothTile"]
 [requirement.kit-text-paint]
 native = "`compose::kit::textPaint` over `compose::kit::TextPaint`"
 library = "Compose"
-no_python_spelling = "The kit text paint family is not bound: a Python sketch cannot ink a word with a field, an animatable time and a box until `compose.kit.textPaint` exists"
+python = ["compose.kit.textPaint", "compose.kit.TextField", "compose.kit.TextPaint"]

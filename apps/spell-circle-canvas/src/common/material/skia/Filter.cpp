@@ -77,6 +77,13 @@ Filter program(sk_sp<SkRuntimeEffect> effect,
       Effect::shader(std::move(effect), std::move(parameters)));
 }
 
+Filter program(sk_sp<SkRuntimeEffect> effect,
+               std::vector<std::pair<std::string, float>> parameters,
+               float sampleRadius) {
+  return FilterAccess::wrap(Effect::shader(
+      std::move(effect), std::move(parameters), sampleRadius));
+}
+
 Filter lowered(const Material& program, SkColorType surface) {
   if (!program.hasProgram()) return {};
   return FilterAccess::wrap(Effect::recipe(program, surface));

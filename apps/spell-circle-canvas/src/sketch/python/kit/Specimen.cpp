@@ -183,6 +183,7 @@ void bindTheme(py::module_& module) {
              py::arg("slant") = weave::FaceSlant::Upright);
   module.def("houseTheme", [] { return sketchKit::houseTheme(); });
   module.def("studyTheme", [] { return sketchKit::studyTheme(); });
+  module.def("specimenTheme", [] { return sketchKit::specimenTheme(); });
   py::enum_<sketchKit::Density>(module, "Density")
       .value("Compact", sketchKit::Density::Compact)
       .value("Spacious", sketchKit::Density::Spacious);

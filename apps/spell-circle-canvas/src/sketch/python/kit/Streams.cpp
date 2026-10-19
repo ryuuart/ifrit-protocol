@@ -3,10 +3,14 @@
 #include <sigildata/connection/Connection.h>
 #include <sigilpython/compose/Kit.h>
 #include <sigilpython/data/Convert.h>
+#include <sigilpython/io/Hub.h>
+#include <sigilsketch/kit/Channel.h>
 #include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Console.h>
 
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 #include "Registration.h"
 
@@ -64,6 +68,41 @@ void bindSketchKitStreams(py::module_& root) {
       "arrivals it dropped and those that were no message, and the sender "
       "of the newest — or the error the door reports — then the sketch's "
       "own readings.");
+
+  // The channel keeps the Python hub and connection it was opened on
+  // alive for as long as itself: the native channel names both and owns
+  // neither.
+  py::class_<sketchKit::Channel>(module, "Channel",
+                                 "One number of a connection's newest "
+                                 "message of one name, as the live value a "
+                                 "binding reads.")
+      .def(py::init<>())
+      .def(py::init([](const sigil::python::HubHandle& hub,
+                       py::handle connection, std::string name,
+                       py::handle reading) {
+             if (py::isinstance<py::bool_>(reading))
+               throw py::type_error(
+                   "A channel reads an argument's index or a field's name, "
+                   "never a boolean.");
+             sketchKit::Channel::Reading at =
+                 py::isinstance<py::str>(reading)
+                     ? sketchKit::Channel::Reading(reading.cast<std::string>())
+                     : sketchKit::Channel::Reading(reading.cast<size_t>());
+             return sketchKit::Channel(
+                 hub.get(), *sigil::python::connectionOf(connection),
+                 std::move(name), std::move(at));
+           }),
+           py::arg("hub"), py::arg("connection"), py::arg("name"),
+           py::arg("reading"), py::keep_alive<1, 2>(), py::keep_alive<1, 3>(),
+           "Follows the number `reading` names — an argument's index or a "
+           "field's name — in the newest message called `name` on "
+           "`connection`, driven by `hub`'s advance.")
+      .def("live", &sketchKit::Channel::live,
+           "The live value a binding reads; every copy reads the same cell.")
+      .def("value", &sketchKit::Channel::value)
+      .def("lastRead", &sketchKit::Channel::lastRead,
+           "The number as the wire spelled it, or None until one arrived.")
+      .def("name", &sketchKit::Channel::name);
 }
 
 }  // namespace sigil::sketch::python

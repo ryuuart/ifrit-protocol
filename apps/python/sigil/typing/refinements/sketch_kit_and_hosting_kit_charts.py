@@ -13,6 +13,20 @@ from .table import Table
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
     kit = "_sigil.sketch.kit"
+    # A tick line is offered the value and then the ruler, and answers the
+    # element set at that tick.
+    tick = (
+        "collections.abc.Callable[[], _t.NodeLike]"
+        " | collections.abc.Callable[[float], _t.NodeLike]"
+        " | collections.abc.Callable[[float, Ruler], _t.NodeLike] | None"
+    )
+    table.parameters(f"{kit}.Ruler.__init__", tickLine=tick)
+    table.accessor(
+        f"{kit}.Ruler",
+        "tickLine",
+        "collections.abc.Callable[[float, Ruler], _sigil.compose.Element] | None",
+        tick,
+    )
     # A run of rows is any iterable, and each reader and mark is a function
     # of one row; the row's type ties the two together.
     reader = "collections.abc.Callable[[Row], typing.SupportsFloat] | None"

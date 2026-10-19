@@ -94,9 +94,11 @@ def alert_chip(content: str) -> compose.Element:
 A blinking cursor is the same tween on `opacity`:
 
 ```python
-compose.box().width(8).height(14).fill(ACCENT).opacity(
-    motion.animate(from_=1.0, to=0.0, duration=0.45, loop=-1, alternate=True)
-)
+compose.box()
+.width(8)
+.height(14)
+.fill(ACCENT)
+.opacity(motion.animate(from_=1.0, to=0.0, duration=0.45, loop=-1, alternate=True))
 ```
 
 ## Step 4 — typed lines: a slot re-rendered from a timer
@@ -111,17 +113,31 @@ already on screen keeps its picture when a new one arrives.
 LINES = [
     ("TRACE", "handshake node/07 ← relay/02 · 14 ms"),
     ("INFO", "ward perimeter sweep complete · 0 breaches"),
+    ("INFO", "cipher rotation scheduled · key 0x3f9a"),
     ("WARN", "relay/05 jitter above threshold · 41 ms"),
+    ("INFO", "operator session resumed · console 3"),
     ("BREACH", "unsigned packet on channel 9 · quarantined"),
+    ("INFO", "quarantine held · forensic capture armed"),
+    ("TRACE", "heartbeat · all wards answering"),
 ]
 TAG_INK = {"TRACE": DIM, "INFO": ACCENT, "WARN": EMBER, "BREACH": ALERT}
 
 
 def log_row(index: int, tag: str, body: str, cursor: bool) -> compose.Element:
-    parts = [label(f"{index:03d}", 12, DIM), label(f"[{tag}]", 12, TAG_INK[tag]), label(body, 12, BONE)]
+    ink = TAG_INK[tag]
+    parts = [
+        label(f"{index:03d}", 12, DIM),
+        label(f"[{tag}]", 12, ink),
+        label(body, 12, BONE if tag != "TRACE" else CHROME),
+    ]
     if cursor:
-        parts.append(compose.box().width(8).height(14).fill(ACCENT).opacity(
-            motion.animate(from_=1.0, to=0.0, duration=0.45, loop=-1, alternate=True)))
+        parts.append(
+            compose.box()
+            .width(8)
+            .height(14)
+            .fill(ACCENT)
+            .opacity(motion.animate(from_=1.0, to=0.0, duration=0.45, loop=-1, alternate=True))
+        )
     row = compose.box(*parts).row().gap(12).alignItems("center").key(f"row{index}")
     if tag == "BREACH":
         row = row.fill("#2a0d12").padding(2, 6).borderRadius(2)
@@ -132,13 +148,15 @@ def log_row(index: int, tag: str, body: str, cursor: bool) -> compose.Element:
 class WardNet:
     def setup(self, ctx: Scene2DContext) -> None:
         self.composer = ctx.composer
-        self.rows = []       # finished lines
-        self.typing = 0      # characters of the current line shown
-        self.line = 0        # which line is being typed
+        self.rows: list[tuple[str, str]] = []     # finished lines
+        self.typing = 0                           # characters of the current line shown
+        self.line = 0                             # which line is being typed
+        self.clock = 0.0
         ctx.engine.timer(self.tick, stepRate=30.0)
         ctx.render(self.page())
 
     def tick(self, delta: float, elapsed: float) -> None:
+        """Type the current line on, two characters a step; start the next when done."""
         if self.line >= len(LINES):
             return
         tag, body = LINES[self.line]
@@ -192,33 +210,69 @@ way a tube does; an absolute, inset box of scanlines lies over the lot.
 ```python
 def card(title: str, value: str, note: str, accent: str = ACCENT) -> compose.Element:
     return (
-        compose.box(label(title, 11, DIM), compose.text(value, size=34, color=accent).fontFamily(MONO), label(note, 11, CHROME))
-        .column().gap(6).padding(16).fill(PANEL).stroke(material.from_(RULE), 1).borderRadius(4)
+        compose.box(
+            label(title, 11, DIM),
+            compose.text(value, size=34, color=accent).fontFamily(MONO),
+            label(note, 11, CHROME),
+        )
+        .column()
+        .gap(6)
+        .padding(16)
+        .fill(PANEL)
+        .stroke(material.from_(RULE), 1)
+        .borderRadius(4)
     )
 
 
     def page(self) -> compose.Element:
-        header = compose.box(
-            compose.text("WARDNET", size=22, color=BONE).fontFamily(MONO).letterSpacing(6)
-            .filter(material.Filter.glow(ACCENT, 8)),
-            label("NODE / 07 · PERIMETER WATCH", 11, DIM),
-            compose.box().width("100%").height(1).fill(RULE),
-            marquee("UNSIGNED PACKET QUARANTINED ON CHANNEL 9 ··· OPERATOR ACKNOWLEDGEMENT REQUIRED ··· "),
-        ).column().gap(10)
+        header = (
+            compose.box(
+                compose.text("WARDNET", size=22, color=BONE).fontFamily(MONO).letterSpacing(6)
+                .filter(material.Filter.glow(ACCENT, 8)),
+                label("NODE / 07 · PERIMETER WATCH", 11, DIM),
+                compose.box().width("100%").height(1).fill(RULE),
+                marquee("UNSIGNED PACKET QUARANTINED ON CHANNEL 9 ··· OPERATOR ACKNOWLEDGEMENT REQUIRED ··· "),
+            )
+            .column()
+            .gap(10)
+        )
         log_panel = (
             compose.box(label("SCROLLBACK", 11, DIM), compose.slot("log"))
-            .column().gap(12).padding(18).fill(PANEL).stroke(material.from_(RULE), 1).borderRadius(4).flexGrow(1)
+            .column()
+            .gap(12)
+            .padding(18)
+            .fill(PANEL)
+            .stroke(material.from_(RULE), 1)
+            .borderRadius(4)
+            .flexGrow(1)
             .filter(material.Filter.phosphorBloom(radius=7, threshold=0.55, intensity=0.5))
         )
-        side = compose.box(
-            card("WARDS ANSWERING", "12 / 12", "heartbeat 1.0 s"),
-            card("RELAY JITTER", "41 ms", "relay/05 above threshold", EMBER),
-            compose.box(label("LOAD", 11, DIM), compose.slot("meter")).column().gap(8),
-            alert_chip("BREACH · CHANNEL 9"),
-        ).column().gap(14).width(300)
+        side = (
+            compose.box(
+                card("WARDS ANSWERING", "12 / 12", "heartbeat 1.0 s"),
+                card("RELAY JITTER", "41 ms", "relay/05 above threshold", EMBER),
+                compose.box(label("LOAD", 11, DIM), compose.slot("meter")).column().gap(8),
+                alert_chip("BREACH · CHANNEL 9"),
+            )
+            .column()
+            .gap(14)
+            .width(300)
+        )
         body = compose.box(log_panel, side).row().gap(18).flexGrow(1)
-        scanlines = compose.box().absolute().inset(0).fill(pattern.scanlines((0, 0, 0, 0.18), period=4.0, on=2.0))
-        return compose.box(header, body, scanlines).cover().padding(28).column().gap(18).fill(VOID)
+        scanlines = (
+            compose.box()
+            .absolute()
+            .inset(0)
+            .fill(pattern.scanlines((0, 0, 0, 0.18), period=4.0, on=2.0))
+        )
+        return (
+            compose.box(header, body, scanlines)
+            .cover()
+            .padding(28)
+            .column()
+            .gap(18)
+            .fill(VOID)
+        )
 ```
 
 ## Step 7 — run it

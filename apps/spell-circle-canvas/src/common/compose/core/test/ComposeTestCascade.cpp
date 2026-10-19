@@ -4,6 +4,8 @@
 // asserts one thing the headers promise.
 
 #include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/paint/Paint.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Cascade.h>
@@ -98,6 +100,44 @@ TEST(ComposeCascade, ATotalStyleInheritsNothing) {
   under.frame();
   alone.frame();
   EXPECT_FLOAT_EQ(widthOf(under, "t"), widthOf(alone, "t"));
+}
+
+TEST(ComposeCascade, ATotalStyleTakesTheInkStatedOnItselfWhicheverItsKind) {
+  // A clear copy of a leaf set in a whole style is written the same way
+  // whatever its ink is: a clear colour draws nothing, as a clear paint
+  // does. A colour stated above it does not reach it; a paint in force
+  // paints any passage.
+  const auto drawsWhite = [](Element page) {
+    Host host;
+    host.composer.render(std::move(page));
+    host.frame();
+    return anyWhiteIn(host, SkIRect::MakeXYWH(0, 0, 200, 80));
+  };
+  const auto leaf = [] { return text(u8"AAAA", whiteStyle(36)).key("t"); };
+  EXPECT_TRUE(drawsWhite(box().padding(10).children({leaf()})));
+  EXPECT_FALSE(drawsWhite(
+      box().padding(10).children({leaf().ink(SkColor4f{0, 0, 0, 0})})));
+  EXPECT_FALSE(drawsWhite(box().padding(10).children(
+      {leaf().ink(material::skia::base(
+          material::Paint::solid(material::Color{0, 0, 0, 0})))})));
+  EXPECT_TRUE(drawsWhite(
+      box().padding(10).ink(SkColor4f{0, 0, 0, 0}).children({leaf()})));
+  EXPECT_FALSE(drawsWhite(box()
+                             .padding(10)
+                             .ink(material::skia::base(material::Paint::solid(
+                                 material::Color{0, 0, 0, 0})))
+                             .children({leaf()})));
+  // The stated colour moves the paragraph it is set in.
+  Host host;
+  const auto page = [&](SkColor4f ink) {
+    return box().padding(10).children({leaf().ink(ink)});
+  };
+  host.composer.render(page({0, 0, 0, 0}));
+  host.frame();
+  EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeXYWH(0, 0, 200, 80)));
+  host.composer.render(page({1, 1, 1, 1}));
+  host.frame();
+  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(0, 0, 200, 80)));
 }
 
 TEST(ComposeCascade, AFillNamingTheCurrentInkFollowsARecolouredAncestor) {
@@ -774,9 +814,10 @@ TEST(ComposeCascade, AnEmptyInkPaintClearsAnAncestorsAndLeavesTheColour) {
   EXPECT_EQ(host.pixel(20, 20), SkColorSetARGB(255, 0, 255, 0));
 }
 
-TEST(ComposeCascade, APaintHoldingOneColourIsAPaintAndAPlainColourIsTheLane) {
-  // A plain colour is the lane that eases and that a style of the leaf's
-  // own overrides; a paint that happens to be flat overrides the style.
+TEST(ComposeCascade, APaintHoldingOneColourAndAPlainColourBothInkAWholeStyle) {
+  // A plain colour is the lane that eases and a paint that happens to be
+  // flat is a paint, but stated on a leaf set in a whole style, each
+  // paints its glyphs over the style's own colour.
   Host host;
   host.composer.render(box().padding(10).children(
       {text(u8"HH", whiteStyle(48))
@@ -787,6 +828,6 @@ TEST(ComposeCascade, APaintHoldingOneColourIsAPaintAndAPlainColourIsTheLane) {
   plain.composer.render(box().padding(10).children(
       {text(u8"HH", whiteStyle(48)).ink(material::Color{1, 0, 0, 1})}));
   plain.frame();
-  EXPECT_EQ(redInk(plain), 0);  // the leaf's own style stands
+  EXPECT_GT(redInk(plain), 40);
 }
 

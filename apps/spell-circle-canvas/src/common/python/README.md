@@ -331,7 +331,8 @@ behind the definition that says the SDK is there.
 * `material/Registration.h` — `bindColor`, `bindMaterial`,
   `bindMaterialCore`, `bindMaterialEnvironment`, `bindMaterialField`,
   `bindMaterialPaintEffect`, `bindMaterialPattern`, `bindMaterialShader`,
-  `bindMaterialSubstance`, `bindMaterialTexture`
+  `bindMaterialSubstance`, `bindMaterialTexture`,
+  `bindMaterialTextureSets`
 * `geometry/Registration.h` — `bindGeometry`, `bindGeometryMesh`,
   `bindGeometryMeshCamera`, `bindGeometryMeshCurve`,
   `bindGeometryPathOperations`, `bindGeometryPointBuilder`,
@@ -344,6 +345,7 @@ behind the definition that says the SDK is there.
 * `compose/Registration.h` — `bindCompose`, `bindComposeBrushMarks`,
   `bindComposeComposer`, `bindComposeDerive`, `bindComposeFeed`,
   `bindComposeInstancing`, `bindComposeKit`, `bindComposeKitRows`,
+  `bindComposeKitTextPaint`,
   `bindComposeMasks`, `bindComposePaintPrograms`, `bindComposeSchemes`,
   `bindComposeSelectors`, `bindComposeTextEffects`,
   `bindComposeTextureScene`, `bindDocument`

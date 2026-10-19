@@ -190,6 +190,42 @@ void bindPaths(py::module_& module) {
   field(ruler, "reach", &sketchKit::Ruler::reach);
   field(ruler, "gap", &sketchKit::Ruler::gap);
   field(ruler, "numbers", &sketchKit::Ruler::numbers);
+  ruler.def_property(
+      "tickLine",
+      [](const sketchKit::Ruler& self) -> py::object {
+        if (!self.tickLine) return py::none();
+        return py::cpp_function(
+            [draw = self.tickLine](double value,
+                                   const sketchKit::Ruler& how) {
+              return draw(value, how);
+            },
+            py::arg("value"), py::arg("ruler"));
+      },
+      [](sketchKit::Ruler& self, py::handle part) {
+        if (part.is_none()) {
+          self.tickLine = {};
+          return;
+        }
+        if (!PyCallable_Check(part.ptr()))
+          throw py::type_error("A tick line part must be callable or None.");
+        const int arity = py::module_::import("sigil._callbacks")
+                              .attr("arity")(part, 2)
+                              .cast<int>();
+        self.tickLine = [function = held(part), arity](
+                            const double& value, const sketchKit::Ruler& how) {
+          const auto read = [](py::object made) {
+            return sigil::python::node(made);
+          };
+          if (arity == 0) return calledBack<compose::Element>(function, read);
+          if (arity == 1)
+            return calledBack<compose::Element>(function, read, value);
+          return calledBack<compose::Element>(function, read, value,
+                                              sketchKit::Ruler(how));
+        };
+      },
+      "The number at one tick: a function of the value, then of this "
+      "ruler, answering the element drawn there; None numbers the value "
+      "to three significant figures.");
   module.def("axis", &sketchKit::axis, py::arg("how"));
 
   auto rules = record<sketchKit::Rules>(module, "Rules");

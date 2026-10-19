@@ -40,6 +40,15 @@ Filter filter(sk_sp<SkColorFilter> colorFilter);
  *  once). */
 Filter program(sk_sp<SkRuntimeEffect> effect,
                std::vector<std::pair<std::string, float>> parameters = {});
+/** The same program reading its neighbours: @p sampleRadius bounds the
+ *  largest offset, in local pixels, at which the body samples the layer,
+ *  as `Filter::of` states one, so a body that reads past a tile or the
+ *  layer's edge is handed defined pixels there. A program declaring
+ *  "_sampleRadius" is given the reach in that uniform.
+ *  @silent a reach that is negative or not finite answers no filter. */
+Filter program(sk_sp<SkRuntimeEffect> effect,
+               std::vector<std::pair<std::string, float>> parameters,
+               float sampleRadius);
 /** THE SAME PROGRAM, LOWERED FOR THE SURFACE IT WILL LAND ON: a
  *  channelwise recipe over an eight-bit @p surface becomes a 256-entry
  *  table per channel and no program at all. Every other case is

@@ -535,7 +535,9 @@ class MixedMaterials:
             type=mesh.curve.Spline3.Type.CatmullRom,
         )
         self.key_rail_length = self.key_rail.length()
-        ctx.camera(mesh.camera.Camera(eye=(0, 90, 520), target=(0, -6, 0), fovYDegrees=34))
+        ctx.camera(
+            mesh.camera.Camera(eye=(0, 90, 520), target=(0, -6, 0), fovYDegrees=34)
+        )
 
     def describe(self, seconds: float) -> world.Frame:
         pulse = 0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 1.6)

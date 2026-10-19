@@ -8,7 +8,7 @@ sigil_library(SigilPython
   SOURCES
     Python.cpp Bindings.cpp Extend.cpp PublicNames.cpp compose/BrushMarks.cpp
     compose/Composer.cpp compose/Derive.cpp compose/ElementEdges.cpp
-    compose/Feed.cpp compose/Instancing.cpp compose/KitRows.cpp
+    compose/Feed.cpp compose/Instancing.cpp compose/KitRows.cpp compose/KitTextPaint.cpp
     compose/Masks.cpp compose/PaintPrograms.cpp compose/Schemes.cpp
     compose/Selectors.cpp compose/StrokeOptions.cpp compose/TextEffects.cpp
     compose/TextureScene.cpp core/Features.cpp core/RecordProtocol.cpp
@@ -19,7 +19,7 @@ sigil_library(SigilPython
     media/Images.cpp media/Video.cpp io/Frames.cpp material/Core.cpp
     material/Environment.cpp material/Field.cpp material/PaintEffect.cpp
     material/Pattern.cpp material/Shader.cpp material/Substance.cpp
-    material/Texture.cpp measure/Measure.cpp motion/AnimatableForms.cpp
+    material/Texture.cpp material/TextureSets.cpp measure/Measure.cpp motion/AnimatableForms.cpp
     motion/Clock.cpp motion/Schedule.cpp motion/Signals.cpp weave/Cascade.cpp
     weave/Catalogue.cpp weave/FontContext.cpp weave/Fonts.cpp
     weave/PaintLayers.cpp weave/Tables.cpp weave/Unicode.cpp

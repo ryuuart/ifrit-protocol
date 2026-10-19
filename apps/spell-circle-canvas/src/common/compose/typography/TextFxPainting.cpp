@@ -683,7 +683,17 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     SkPictureRecorder recorder;
     SkCanvas* layerCanvas = recorder.beginRecording(tile);
     layerCanvas->translate(reach, reach);
+    // The layer is recorded under no scale of its own and lands through
+    // this canvas, so its letters reach the device under the canvas's
+    // scale and the replay's together, and that is the device em the
+    // outline route reads.
+    const SkMatrix& landing = canvas.getTotalMatrix();
+    const float replayed = lane->batches.replayScale;
+    lane->batches.replayScale = landing.hasPerspective() || !(replayed > 0)
+                                    ? -1.0f
+                                    : landing.getMaxScale() * replayed;
     lane->batches.draw(layerCanvas);
+    lane->batches.replayScale = replayed;
     const sk_sp<SkPicture> layer = recorder.finishRecordingAsPicture();
     static thread_local std::vector<float> rects, phases;
     rects.clear();

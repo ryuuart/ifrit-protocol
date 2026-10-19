@@ -69,3 +69,22 @@ def reading(one, props=None, **properties):
 def readout(readings, props=None, **properties):
     """A stack of readings ranged on their figures, one row each."""
     return _native.readout(list(readings), _specification(Rows, props, properties))
+
+
+def table(rows, props=None, **properties):
+    """A table: rows in the columns the props state, each row its own run of
+    cells, or one row-major run of words, as many to a row as there are
+    columns."""
+    cells = rows if isinstance(rows, str) else list(rows)
+    return _native.table(
+        [cell if isinstance(cell, str) else list(cell) for cell in cells],
+        _specification(Table, props, properties),
+    )
+
+
+def bars(labels, values, props=None, **properties):
+    """One bar per value against the largest, the labels read in the same
+    order."""
+    return _native.bars(
+        list(labels), list(values), _specification(Bars, props, properties)
+    )

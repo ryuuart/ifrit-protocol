@@ -5,9 +5,17 @@
 // against Composer::beatsOf, because the pass and that query resolve one
 // TrackCascade and must never disagree.
 
+#include <include/core/SkPicture.h>
+#include <include/utils/SkNoDrawCanvas.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilweave/choreograph/GlyphBatches.h>
+#include <src/shaders/SkLocalMatrixShader.h>
+#include <src/shaders/SkPictureShader.h>
+#include <src/shaders/SkRuntimeShader.h>
+#include <src/shaders/SkShaderBase.h>
+#include <src/text/GlyphRun.h>
 
 #include <memory>
 #include <vector>
@@ -73,6 +81,75 @@ material::Material passOver(const char* source) {
   held.push_back({source, recipe});
   return sigil::material::Material(recipe);
 }
+
+/** The pictures a canvas is handed inside the shaders it fills with: a
+ *  pass lane's layer reaches the canvas only as a picture inside the pass
+ *  shader. */
+class LayerPictureCanvas final : public SkNoDrawCanvas {
+ public:
+  using SkNoDrawCanvas::SkNoDrawCanvas;
+  std::vector<sk_sp<SkPicture>> pictures;
+
+ protected:
+  void onDrawRect(const SkRect&, const SkPaint& paint) override {
+    collect(paint.getShader());
+  }
+  void onDrawPaint(const SkPaint& paint) override {
+    collect(paint.getShader());
+  }
+  // A recorded subtree is played back here, where a canvas that draws
+  // nothing would drop it unread.
+  void onDrawPicture(const SkPicture* picture, const SkMatrix* matrix,
+                     const SkPaint* paint) override {
+    SkCanvas::onDrawPicture(picture, matrix, paint);
+  }
+
+ private:
+  void collect(const SkShader* shader) {
+    if (!shader) return;
+    const SkShaderBase* base = as_SB(shader);
+    switch (base->type()) {
+      case SkShaderBase::ShaderType::kPicture:
+        pictures.push_back(static_cast<const SkPictureShader*>(base)->picture());
+        break;
+      case SkShaderBase::ShaderType::kLocalMatrix:
+        collect(static_cast<const SkLocalMatrixShader*>(base)
+                    ->wrappedShader()
+                    .get());
+        break;
+      case SkShaderBase::ShaderType::kRuntime:
+        for (const SkRuntimeEffect::ChildPtr& child :
+             static_cast<const SkRuntimeShader*>(base)->children())
+          collect(child.shader());
+        break;
+      default:
+        break;
+    }
+  }
+};
+
+/** How a picture's letters were drawn: as glyph runs or as outlines. */
+class RouteCountingCanvas final : public SkNoDrawCanvas {
+ public:
+  RouteCountingCanvas() : SkNoDrawCanvas(4096, 4096) {}
+  int runs = 0;
+  int outlines = 0;
+
+ protected:
+  void onDrawTextBlob(const SkTextBlob*, SkScalar, SkScalar,
+                      const SkPaint&) override {
+    ++runs;
+  }
+  void onDrawGlyphRunList(const sktext::GlyphRunList&,
+                          const SkPaint&) override {
+    ++runs;
+  }
+  void onDrawPath(const SkPath&, const SkPaint&) override { ++outlines; }
+  void onDrawPicture(const SkPicture* picture, const SkMatrix* matrix,
+                     const SkPaint* paint) override {
+    SkCanvas::onDrawPicture(picture, matrix, paint);
+  }
+};
 
 }  // namespace
 
@@ -528,4 +605,57 @@ TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
   block->commit();
   host.frame(0.016);
   EXPECT_EQ(SkColorGetB(host.pixel(30, 30)), 255u);
+}
+
+TEST(TextPass, ADrivenLaneUnderACanvasScaleDrawsItsLettersAsOutlines) {
+  // A pass lane's letters are recorded into the lane's own layer, which
+  // lands on the device through the canvas: under a canvas scale that
+  // takes a driven letter past the outline em, the layer holds outlines,
+  // as the same letters drawn straight onto that canvas would be.
+  const sk_sp<SkTypeface> face = sigil::test::instrument::variable();
+  ASSERT_TRUE(face && fonts().axisIsAdvanceInvariant(face, "GRAD"))
+      << "the instrument's GRAD axis must hold advances";
+  constexpr float kEm = 24.0f;
+  sigil::weave::TextStyle style = styleAt(kEm);
+  style.shaping.typeface = face;
+  style.paint.foreground.setColor(SK_ColorWHITE);
+  const int axisCount = face->getVariationDesignParameters({});
+  std::vector<SkFontParameters::Variation::Axis> axes((size_t)axisCount);
+  face->getVariationDesignParameters({axes.data(), axes.size()});
+  float grade = 0;
+  for (const auto& axis : axes)
+    if (axis.tag == SkSetFourByteTag('G', 'R', 'A', 'D'))
+      grade = (axis.min + axis.max) * 0.5f + (axis.max - axis.min) * 0.25f;
+  // Every letter set at one coordinate of the axis is a driven face.
+  const TextEffect drive = textFx::effect(
+      "test-grade",
+      [grade](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+        GlyphModifier modifier;
+        modifier.axis = sigil::weave::FontVariation("GRAD", grade);
+        return modifier;
+      });
+  const auto layersDrawnAt = [&](float zoom) {
+    Host host;
+    host.composer.render(box().padding(20).children(
+        {text(u8"GRADE", style)
+             .key("t")
+             .textFx({.effect = drive})
+             .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
+    host.engine.advance(host.engine.elapsed() + sigil::motion::Duration(0.5));
+    LayerPictureCanvas canvas(4096, 4096);
+    canvas.scale(zoom, zoom);
+    host.composer.draw(canvas);
+    RouteCountingCanvas routes;
+    for (const sk_sp<SkPicture>& picture : canvas.pictures)
+      picture->playback(&routes);
+    return std::make_pair(routes.runs, routes.outlines);
+  };
+  const float threshold =
+      sigil::weave::GlyphRSXformBatches::kDrivenPathEmPixels / kEm;
+  const auto [nearRuns, nearOutlines] = layersDrawnAt(1.0f);
+  EXPECT_GT(nearRuns, 0) << "at the page's own scale the letters are runs";
+  EXPECT_EQ(nearOutlines, 0);
+  const auto [farRuns, farOutlines] = layersDrawnAt(threshold * 1.5f);
+  EXPECT_EQ(farRuns, 0) << "past the outline em the layer kept the atlas";
+  EXPECT_GT(farOutlines, 0);
 }

@@ -271,6 +271,28 @@ class LayerPrograms(unittest.TestCase):
             self.assertLess(self.red(pixels, 18), 50)
         self.assertEqual(bytes(plain), bytes(reaching))
 
+    def test_a_raw_program_states_a_reach_and_captures_the_same_twice(self):
+        raw = (
+            'material.Filter.program("uniform shader content; '
+            'half4 main(float2 p) { return content.eval(p + float2(4, 0)); }", '
+            "sampleRadius=4)"
+        )
+        first = self.render(raw)
+        # The mark stands at 12 to 20; read four pixels to the right, it
+        # lands at 8 to 16, and the pixels past the layer's right edge are
+        # handed over defined, so a second capture is byte for byte the
+        # first.
+        self.assertGreater(self.red(first, 10), 200)
+        self.assertLess(self.red(first, 18), 50)
+        self.assertEqual(bytes(first), bytes(self.render(raw)))
+        self.assertEqual(bytes(first), bytes(self.render("material.Filter.of(SHIFT, sampleRadius=4)")))
+        with self.assertRaises(ValueError):
+            material.Filter.program(
+                "uniform shader content; half4 main(float2 p) "
+                "{ return content.eval(p); }",
+                sampleRadius=-1,
+            )
+
     def test_a_reach_is_a_distance_and_a_texture_is_a_picture(self):
         program = material.shader(
             "half4 main(float2 p) { return content.eval(p); }",
