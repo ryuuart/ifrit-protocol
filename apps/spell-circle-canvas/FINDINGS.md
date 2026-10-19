@@ -50,14 +50,6 @@ programs on every open. The host is meant to stand up every program a
 sketch's first frame needs. A test should open `crt_bloom` twice and
 find the second open's first frame building no program.
 
-## Scry inserts its own recording without the recorder's waits
-
-`src/common/scry/gpu/metal/MetalInterop.mm` calls `insertRecording`
-itself, as the compose, scry and media benches do, so the waits
-registered on the recorder are not attached to those inserts; every
-insert should go through `GraphiteContext::submit`. A test should insert
-a scry page after a registered wait and find `pendingWaits` at zero.
-
 ## The sparkle stretched over a passage is one streak, not points of light
 
 An ink maps its unit square onto the passage's box and the program
@@ -79,72 +71,6 @@ even on a device, where the mask should be made and blurred on the
 device. A settle-style Graphite arm of `BM_Draw_CoverageSheet_TurningChild`
 that alternates density should cost within a stated ratio of the steady
 arm; the change moves every device plate that uses held coverage.
-
-## The shadow tint read costs glass several times what it costs an opaque surface
-
-With a pane over a card under a sun that casts, the tint read alone
-costs the pane's seen phase about five times what it costs the opaque
-card behind the same glass, while the filter alone costs the pane in
-proportion to its pixel; every lit program now reads its shadows once
-per pixel (`shadowSharesAt` in `Surface.slang`), so the program's size
-is not the cause. The tint should cost what two texture reads cost, in
-proportion to the pixel. On the `BM_ShadowShareOnDevice` glass arm the
-share with the tint read should exceed the share without it by no more
-than the card's own tint share times the pane-to-card ratio of their
-unshadowed costs.
-
-## A frame whose casting light passes through glass redraws its shadow stage every frame
-
-With a still scene, the shadow stage is drawn on every timed frame in
-the glass-and-casting bench arm, while every other arm keeps its map
-after the first frame. A map, and its tint, that nothing moved in is
-kept. `Shadow.AStillSetDrawsNoShadowMapOnItsSecondFrame` should extend
-to a tinted frame and find no shadow map drawn on the second frame of a
-still glass-and-card scene.
-
-## Having the shadow filter in a program costs it with no light casting
-
-A plain card under a light that casts nothing costs measurably more
-with the shadow terms compiled in than with them compiled out, so a
-program pays for shadow work it never does. A frame in which no light
-casts should build the program without the terms, which wants a variant
-bit the renderer does not yet set. A bench arm pair of the card under
-no casting light, built with and without the terms, should agree.
-
-## The device residency still packs a primitive attribute no program reads
-
-`MeshVertex::primitive`, the `withPrimitiveLane` choice in `meshLayout`
-and `PipelineKey::primitive` fed the retired mesh painter's shader and
-nothing else reads them, while `Surface.slang` still names the fifth
-input. `meshLayout` should have one form per instanced and tangent
-choice and the vertex no primitive field. A test should assert that.
-
-## A mesh drawn two ways in one frame is repacked every frame
-
-The residency keeps one packing per artefact, so the same mesh drawn
-tinted through `primitiveColor` and untinted in one frame is repacked
-twice every frame; it should hold one packing per artefact and lane. A
-test should draw one mesh both ways and find both uploads returning held
-buffers on the second frame.
-
-## A scene3d frame has no backdrop under its bodies
-
-A scene3d frame carries an overlay over its bodies but nothing laid
-under them, so a 2D grid or picture behind a scene has no place and
-python_mesh_observatory lost its grid backdrop when it became a scene3d
-sketch. A frame should take a backdrop picture under the scene. A test
-should assert a frame's backdrop shows where no body covers it.
-
-## A device case and two plates are order-sensitive under a parallel run
-
-`Scene3DDoors.PaintsATextureSceneOntoABody` (gpu) fails inside
-`ctest -j8` and passes alone, and in a full device sweep The Library of
-Babel and `wet_glass_console` render a few pixels differently from the
-same sketch rendered alone, so a device render is reading something
-another process on the same device changes. A GPU case should pass
-alongside the other gpu-labelled suites and a plate should be
-byte-identical alone or in a sweep; the cases should name what they
-share and isolate it, or the suites should carry a resource lock.
 
 ## A sketch without a pen cannot read input
 
@@ -226,4 +152,45 @@ A fresh host's first `composer.draw` drew nothing for a `textFx` effect
 node until its engine was advanced or a frame drawn. The first draw
 should paint the node as the second does. A test should build a fresh
 composer, render a text effect node and find its first draw non-empty.
+
+## The Library of Babel changes under GPU load
+
+`borges_library.py` renders 25 pixels differently on thin antialiased
+strokes of its right bookshelf, by at most seven levels, while another
+process loads the GPU, and byte-identically alone; the bookshelf is
+under a `Cache.Texture` canvas, so the compose texture bake or Graphite
+under contention is where to look. A capture is a pure function of
+scene time. A test should render the plate under a GPU load and find it
+byte-identical. `chrome_type` moved by up to five levels in its bevel
+glow during the same runs and should be read the same way.
+
+## Timed device cases run beside other GPU users
+
+`PostChain.TheSeenPhaseOfAPaneCostsASmallMultipleOfALaidCard` and
+`TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn` measure device time and
+fail under `ctest -j8` when other processes share the GPU; a timed case
+should run serially. The suite discovery in `cmake/Sigil.cmake` should
+give timed cases a serial property or a resource lock on the device.
+
+## Parallel io_test processes see each other's Syphon servers
+
+The Syphon server directory is system-wide, so two `io_test` processes
+running `FramesDelivery` at once see each other's servers and one
+crashed in Syphon's message return callback; the case passes alone. The
+case should publish under a name unique to its process and subscribe to
+that name alone, or the suite should run serially.
+
+## Two reload tests fail alone and two more failed in a parallel run
+
+`sketch_reload_surface` and `sketch_reload_surface_scene3d` fail when
+run alone, and `sketch_reload_named` and `sketch_pipeline_warmup` failed
+in a parallel run and were not rerun; the reload lane should be green
+alone and in parallel. The first step is to run each alone on the
+current tree and read its output.
+
+## Two new bench arms have no ledger bands
+
+`BM_UnshadowedCardOnDevice` and `BM_ShadowShareOnDevice` surface 3 are
+not in `bench/baseline_Release.json`; the bench rebase for those arms
+should adopt them.
 
