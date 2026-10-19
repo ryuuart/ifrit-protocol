@@ -54,27 +54,6 @@ sketch's own assertions run (a sketch-side check printed at startup, as
 headers; or the text paints lifted into a kit that a library test can
 reach).
 
-## Authoring difficulty: optical bloom has no shared parameter preview
-
-The macrodata-terminal study can express its narrow luminous text with
-the existing `BloomOptions` in `sigilmaterial/filter/Filter.h`. Finding that
-look requires coordinated edits to extraction threshold and knee, near
-radius and strength, broad spread and tail, and core whitening, dilation
-and halo deepening. Each control is documented. The existing `crt_bloom`
-specimen compares a fixed glow with an additive construction, but does not
-expose these extraction, core and two-halo parameters together. The study
-needs no replacement bloom implementation.
-
-Wanted: an authoring preview or stock material specimen that exposes the
-coupled controls together, with a few neutral starting configurations for
-fine luminous type and broad emissive surfaces. It should use the same
-filter and color pipeline as the production renderer and keep the controls
-composable, rather than make a named film treatment part of the core API.
-A verification should apply an identical parameter set in the preview
-and a captured native text leaf, assert matching optical output, and make
-the near and broad halo roles visible when either strength is zero.
-
-
 ## A sized light's highlight is a representative point's, not the lobe's integral
 
 `src/common/world/diligent/shaders/Surface.slang` lights the specular side
