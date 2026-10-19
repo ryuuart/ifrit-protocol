@@ -1,8 +1,9 @@
 /** @file
  * world_diligent_bench — the frame on the device: turning a recipe's
- * Slang body into a pipeline, executing a frame's passes, and cooking a
- * chain. Run a Release build; Debug numbers say nothing. Needs a Vulkan
- * runtime and reports a skip without one.
+ * Slang body into a pipeline, executing a frame's passes, what a casting
+ * light's shadow adds to a lit pixel, and cooking a chain. Run a Release
+ * build; Debug numbers say nothing. Needs a Vulkan runtime and reports a
+ * skip without one.
  *
  * EVERY TIMED ARM HERE IS A PROPERTY OF THIS LIBRARY, because the bench
  * ledger judges every timed arm against a band. One cost on the way to a
@@ -15,6 +16,9 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImageInfo.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -22,15 +26,19 @@
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilworld/World.h>
 #include <sigilworld/advanced/Diligent.h>
+#include <sigilworld/advanced/Skia.h>
+#include <sigilworld/advanced/Stats.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
 #include <limits>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -194,6 +202,118 @@ void BM_WideBloomOnDevice(benchmark::State& state) {
 BENCHMARK(BM_WideBloomOnDevice)
     ->Arg(64)
     ->Arg(1200)
+    ->Unit(benchmark::kMillisecond);
+
+/** WHAT A CASTING LIGHT'S SHADOW COSTS A LIT PIXEL, by the surface it
+ *  falls on: the device time of the phase that shades a full-size frame
+ *  covered by one surface, under one sun that casts a shadow or casts
+ *  none. The surface is an opaque card (surface 0) or one carrying every
+ *  lobe but transmission (surface 2), timed in the phase that lays the
+ *  opaque bodies over, or clear glass with a volume in front of the card
+ *  (surface 1), timed in the phase that sees through to what stands
+ *  behind it — whose shadow is tinted by the glass, so it reads the tint
+ *  as well as the filter. A casting light's arm less the same surface's
+ *  arm under a light that casts nothing is the shadow's share.
+ *
+ *  The time is the device's own clock for that one phase, read off a
+ *  frame that asked for it, so neither the readback that waits for the
+ *  frame nor anything the host does is in it. */
+void BM_ShadowShareOnDevice(benchmark::State& state) {
+  const device::DeviceConfig config;
+  std::string error;
+  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  if (!gpu) {
+    state.SkipWithError(error);
+    return;
+  }
+  namespace gm = ::sigil::geometry::mesh;
+  const bool glass = state.range(0) == 1;
+  const bool everyLobe = state.range(0) == 2;
+  const bool casts = state.range(1) != 0;
+  const Runtime runtime = diligent::runtime(*gpu);
+  motion::Engine engine;
+  Scene scene(engine);
+  std::vector<Node> content;
+  content.push_back(
+      mesh(gm::quad(400, 400))
+          .key("card")
+          .at({0, 0, -20})
+          .fill(material::surface::program(
+              {.baseColor = {0.5f, 0.5f, 0.5f, 1}, .roughness = 0.5f},
+              material::surface::Reflection::SplitSum,
+              {.sheen = everyLobe,
+               .anisotropy = everyLobe,
+               .iridescence = everyLobe,
+               .specular = everyLobe,
+               .clearcoat = everyLobe})));
+  if (glass)
+    content.push_back(mesh(gm::quad(400, 400))
+                          .key("pane")
+                          .fill(material::from(material::Color{1, 1, 1, 1})
+                                    .surface({.roughness = 0.0f,
+                                              .transmission = 1.0f,
+                                              .ior = 1.5f,
+                                              .thickness = 10.0f})));
+  content.push_back(
+      directionalLight({-0.2f, -0.3f, -1}, {.castShadow = casts}).key("sun"));
+  geometry::mesh::camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  camera.target = {0, 0, 0};
+  content.push_back(world::camera(camera).key("camera"));
+  Frame frame(group(std::move(content)).key("set"));
+  frame.extent({1440, 960})
+      .runtime(runtime)
+      .timeStages(true)
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  const std::string stage = glass ? "colour.seen" : "colour.laid";
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 160));
+  SkCanvas canvas(bitmap);
+  // Every stage's time summed over the timed iterations, reported beside
+  // the arm and never judged.
+  std::map<std::string, double> stages;
+  // One frame drawn and read back, which waits for the device; the phase's
+  // time, or below zero while no timed frame has finished.
+  const auto frameOnce = [&](bool counted) {
+    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+    scene.render(frame);
+    draw(scene, canvas);
+    const SceneStats& stats = scene.stats();
+    if (stats.deviceTiming != DeviceTiming::Measured) return -1.0;
+    double ms = -1.0;
+    for (const DeviceStage& each : stats.deviceStages) {
+      if (counted) stages[each.stage + "_ms"] += each.ms;
+      if (each.stage == stage) ms = each.ms;
+    }
+    return ms;
+  };
+  // The device raises its clocks over the first frames it is given.
+  int warm = 0;
+  for (int k = 0; k < 120 && warm < 30; ++k)
+    if (frameOnce(false) >= 0.0) ++warm;
+  if (warm == 0) {
+    state.SkipWithError("the device writes no timestamps");
+    return;
+  }
+  for ([[maybe_unused]] auto iteration : state) {
+    double ms = frameOnce(true);
+    for (int k = 0; k < 12 && ms < 0.0; ++k) ms = frameOnce(true);
+    state.SetIterationTime(std::max(ms, 0.0) / 1000.0);
+  }
+  for (const auto& [name, total] : stages)
+    state.counters[name] =
+        benchmark::Counter(total, benchmark::Counter::kAvgIterations);
+}
+BENCHMARK(BM_ShadowShareOnDevice)
+    ->ArgNames({"surface", "casts"})
+    ->Args({0, 0})
+    ->Args({0, 1})
+    ->Args({1, 0})
+    ->Args({1, 1})
+    ->Args({2, 0})
+    ->Args({2, 1})
+    ->UseManualTime()
+    ->Iterations(60)
     ->Unit(benchmark::kMillisecond);
 
 /** A CHAIN COOKED ON THE DEVICE, steady state: the generator's lanes

@@ -857,9 +857,9 @@ float shadowSoft(int map, float2 centre, float receiver, float texel,
   let reach = clamp(widest / max(texel, 1e-6) * 0.5, 1.0, 32.0);
   float blockers = 0.0;
   float found = 0.0;
-  [ForceUnroll]
+  [loop]
   for (int y = 0; y < 4; ++y) {
-    [ForceUnroll]
+    [loop]
     for (int x = 0; x < 4; ++x) {
       let at = centre + (float2(float(x), float(y)) / 3.0 * 2.0 -
                          float2(1.0, 1.0)) *
@@ -883,9 +883,9 @@ float shadowSoft(int map, float2 centre, float receiver, float texel,
   // THE FILTER: five taps a side across the penumbra, each blended from
   // the four texels around it.
   float lit = 0.0;
-  [ForceUnroll]
+  [loop]
   for (int ty = 0; ty < 5; ++ty) {
-    [ForceUnroll]
+    [loop]
     for (int tx = 0; tx < 5; ++tx) {
       let at = centre + (float2(float(tx), float(ty)) * 0.5 -
                          float2(1.0, 1.0)) *
@@ -1003,7 +1003,9 @@ float shadowAt(int map, float3 p, float3 geometric, float3 l) {
   }
   let reference =
       shadowDepthOf(receiver - compareBias, depth.x, depth.y, depth.z);
+  [loop]
   for (int ty = 0; ty < 3; ++ty) {
+    [loop]
     for (int tx = 0; tx < 3; ++tx) {
       let at = centre + float2(shadowTapOffset(float(tx), bias.z),
                                shadowTapOffset(float(ty), bias.z));
@@ -1021,8 +1023,13 @@ float shadowAt(int map, float3 p, float3 geometric, float3 l) {
  *  at @p map: that map; for a directional light split into cascades, the
  *  one the point's distance in front of the camera falls in, crossing
  *  into the next over the last tenth of it; or for a point light the one
- *  of its six faces the point stands most squarely in front of. */
+ *  of its six faces the point stands most squarely in front of.
+ *
+ *  The maps are chosen first and then read in one loop, so the filter
+ *  stands in the program once however many maps a light may blend. */
 float shadowOf(int map, float3 p, float3 geometric, float3 l) {
+  int first = map;
+  float crossed = 0.0;
 #ifdef SIGIL_CASCADED_SHADOWS
   let ends = uShadowCascade[map];
   if (ends.x > 0.0) {
@@ -1034,33 +1041,45 @@ float shadowOf(int map, float3 p, float3 geometric, float3 l) {
                                                                     : ends.z;
     let next = index == 0 ? ends.y : index == 1 ? ends.z : index == 2 ? ends.w
                                                                       : 0.0;
-    let own = shadowAt(map + index, p, geometric, l);
-    let crossed =
+    first = map + index;
+    crossed =
         next > 0.0 ? shadowCascadeBlend(depth, end, (end - start) * 0.1) : 0.0;
-    if (crossed <= 0.0) return own;
-    return mixP(own, shadowAt(map + index + 1, p, geometric, l), crossed);
   }
 #endif
-#ifndef SIGIL_POINT_SHADOWS
-  return shadowAt(map, p, geometric, l);
+#ifdef SIGIL_POINT_SHADOWS
+#ifdef SIGIL_CASCADED_SHADOWS
+  if (ends.x <= 0.0 && uShadowDepth[map].z >= 1.5) {
 #else
-  if (uShadowDepth[map].z < 1.5) return shadowAt(map, p, geometric, l);
-  let position = float4(p, 1.0);
-  int best = map;
-  float squarest = -1e30;
-  for (int face = 0; face < 6; ++face) {
-    let at = map + face;
-    let x = dotP(uShadowMatrix[at * 4 + 0], position);
-    let y = dotP(uShadowMatrix[at * 4 + 1], position);
-    let w = dotP(uShadowMatrix[at * 4 + 3], position);
-    let square = w - max(abs(x), abs(y));
-    if (square > squarest) {
-      squarest = square;
-      best = at;
+  if (uShadowDepth[map].z >= 1.5) {
+#endif
+    let position = float4(p, 1.0);
+    float squarest = -1e30;
+    for (int face = 0; face < 6; ++face) {
+      let at = map + face;
+      let x = dotP(uShadowMatrix[at * 4 + 0], position);
+      let y = dotP(uShadowMatrix[at * 4 + 1], position);
+      let w = dotP(uShadowMatrix[at * 4 + 3], position);
+      let square = w - max(abs(x), abs(y));
+      if (square > squarest) {
+        squarest = square;
+        first = at;
+      }
     }
   }
-  return shadowAt(best, p, geometric, l);
 #endif
+  float own = 1.0;
+  float next = 1.0;
+  let reads = crossed > 0.0 ? 2 : 1;
+  [loop]
+  for (int k = 0; k < reads; ++k) {
+    let lit = shadowAt(first + k, p, geometric, l);
+    if (k == 0)
+      own = lit;
+    else
+      next = lit;
+  }
+  if (crossed <= 0.0) return own;
+  return mixP(own, next, crossed);
 }
 
 #ifdef SIGIL_TINTED_SHADOWS
@@ -1117,10 +1136,12 @@ float3 shadowTintOf(int first, float3 p, float3 geometric, float3 l) {
   let movedTexel = depth.z > 0.5 ? depth.w * receiver : depth.w;
   let compareBias = shadowDepthBias(bias.x, movedTexel, nDotL, bias.z);
   let at = shadowAtlasUv(uv, uShadowTile[map]);
-  let glass = shadowDistance(uShadowGlass.SampleLevel(at, 0.0).r, depth.x,
-                             depth.y, depth.z);
-  if (receiver - compareBias <= glass) return float3(1.0, 1.0, 1.0);
-  return uShadowTint.SampleLevel(at, 0.0).rgb;
+  // Both reads are made before either is looked at, so the device waits
+  // for them once rather than once each.
+  let stored = uShadowGlass.SampleLevel(at, 0.0).r;
+  let tint = uShadowTint.SampleLevel(at, 0.0).rgb;
+  let glass = shadowDistance(stored, depth.x, depth.y, depth.z);
+  return receiver - compareBias <= glass ? float3(1.0, 1.0, 1.0) : tint;
 }
 #endif
 
@@ -1131,6 +1152,131 @@ int shadowMapOf(int light) {
   let lane = light % 4;
   let found = lane == 0 ? row.x : lane == 1 ? row.y : lane == 2 ? row.z : row.w;
   return int(found);
+}
+
+/** HOW MUCH OF POSITIONED LIGHT @p light ITS DISTANCE AND ITS CONE LET
+ *  REACH a point @p far away along @p l, the unit direction toward it,
+ *  before any shadow: the falloff its range gives, and for a spot light
+ *  the share of its cone the direction stands in. */
+float positionedReach(int light, float far, float3 l) {
+  var reach = distanceFalloff(far, uLightDirection[light].w);
+  if (uLightPosition[light].w > 1.5)
+    reach = reach * coneFalloff(
+                        dotP(-l, normalizeP(uLightDirection[light].xyz)),
+                        uLightColor[light].w, uLightGround[light].w);
+  return reach;
+}
+
+/** WHETHER A LIGHT OF KIND @p kind CAN CAST: a directional, point or spot
+ *  light, or one with a size; an ambient or hemisphere light shines from
+ *  everywhere and has no map. */
+bool castsAShadow(float kind) {
+#ifdef SIGIL_AREA_LIGHTS
+  if (kind > 4.5) return true;
+#endif
+  return kind <= 2.5;
+}
+
+/** WHAT OF EACH CASTING LIGHT REACHES ONE PIXEL past every shadow: its
+ *  share, one where nothing stands between, in the order the lights are
+ *  given — at most four lights cast in a frame — and, where a casting
+ *  light passes through glass, the colour that comes through. */
+struct ShadowShares {
+  float4 lit;
+#ifdef SIGIL_TINTED_SHADOWS
+  float3 tint0;
+  float3 tint1;
+  float3 tint2;
+  float3 tint3;
+#endif
+};
+
+/** The share of the casting light numbered @p casting among the casting
+ *  lights. */
+float shadowShareOf(ShadowShares shares, int casting) {
+  return casting == 0   ? shares.lit.x
+         : casting == 1 ? shares.lit.y
+         : casting == 2 ? shares.lit.z
+                        : shares.lit.w;
+}
+
+#ifdef SIGIL_TINTED_SHADOWS
+/** The colour of the casting light numbered @p casting that comes through
+ *  the glass between it and the point. */
+float3 shadowTintShareOf(ShadowShares shares, int casting) {
+  return casting == 0   ? shares.tint0
+         : casting == 1 ? shares.tint1
+         : casting == 2 ? shares.tint2
+                        : shares.tint3;
+}
+#endif
+
+/** EVERY CASTING LIGHT'S SHADOW AT @p p, READ ONCE, before any lobe of
+ *  the surface is evaluated: the point's geometric normal @p geometric
+ *  and its shading normal @p n are all the filter needs. Read here, the
+ *  filter and the tint stand in the program once, in a loop of their own
+ *  that holds none of the lobes' values, and the loop over the lights
+ *  that evaluates the lobes holds no shadow code — each light's lobes
+ *  read the share it left. A light its distance or its cone leaves dark
+ *  is not read. */
+ShadowShares shadowSharesAt(float3 p, float3 geometric, float3 n) {
+  ShadowShares shares;
+  shares.lit = float4(1.0, 1.0, 1.0, 1.0);
+#ifdef SIGIL_TINTED_SHADOWS
+  shares.tint0 = float3(1.0, 1.0, 1.0);
+  shares.tint1 = float3(1.0, 1.0, 1.0);
+  shares.tint2 = float3(1.0, 1.0, 1.0);
+  shares.tint3 = float3(1.0, 1.0, 1.0);
+#endif
+  if (uShadowDials.y < 0.5) return shares;
+  let count = int(uLightCount.x);
+  int casting = 0;
+  [loop]
+  for (int i = 0; i < 16; ++i) {
+    if (i >= count || casting >= 4) break;
+    let kind = uLightPosition[i].w;
+    let map = shadowMapOf(i);
+    if (map < 0 || !castsAShadow(kind)) continue;
+    let slot = casting;
+    casting = casting + 1;
+    // THE DIRECTION TOWARD THE LIGHT, as its lobes take it: a sized
+    // light's shadow is read from its centre.
+    float3 toward;
+#ifdef SIGIL_AREA_LIGHTS
+    if (kind > 4.5) {
+      let centre = uLightPosition[i].xyz - p;
+      toward = centre / max(lengthP(centre), 1e-4);
+    } else
+#endif
+    if (kind > 0.5) {
+      let toLight = uLightPosition[i].xyz - p;
+      let far = lengthP(toLight);
+      toward = far > 0.0 ? toLight / far : n;
+      if (positionedReach(i, far, toward) <= 0.0) continue;
+    } else {
+      toward = -normalizeP(uLightDirection[i].xyz);
+    }
+    let lit = shadowOf(map, p, geometric, toward);
+    shares.lit = slot == 0   ? float4(lit, shares.lit.yzw)
+                 : slot == 1 ? float4(shares.lit.x, lit, shares.lit.zw)
+                 : slot == 2 ? float4(shares.lit.xy, lit, shares.lit.w)
+                             : float4(shares.lit.xyz, lit);
+#ifdef SIGIL_TINTED_SHADOWS
+    // What comes through glass is read only where some of the light does.
+    if (lit > 0.0) {
+      let tint = shadowTintOf(map, p, geometric, toward);
+      if (slot == 0)
+        shares.tint0 = tint;
+      else if (slot == 1)
+        shares.tint1 = tint;
+      else if (slot == 2)
+        shares.tint2 = tint;
+      else
+        shares.tint3 = tint;
+    }
+#endif
+  }
+  return shares;
 }
 
 /** THE LIT SUM at one pixel, in linear radiance, for a surface whose
@@ -1167,6 +1313,8 @@ float3 shadeLit(VSOut input, float3 base) {
   if (gSurfaceNormal.x != 0.0 || gSurfaceNormal.y != 0.0)
     n = normalizeP(t * gSurfaceNormal.x + b * gSurfaceNormal.y +
                    geometric * gSurfaceNormal.z);
+  // Every casting light's shadow, read before any lobe holds a value.
+  let shares = shadowSharesAt(input.viewPos, geometric, n);
 #ifdef SIGIL_CLEARCOAT
   float3 coatNormal = geometric;
   if (gSurfaceClearcoatNormal.x != 0.0 || gSurfaceClearcoatNormal.y != 0.0)
@@ -1279,10 +1427,18 @@ float3 shadeLit(VSOut input, float3 base) {
   float3 aroundMirrored = float3(0.0, 0.0, 0.0);
 
   let count = int(uLightCount.x);
+  // Which of the casting lights the next one to cast is, counted as
+  // `shadowSharesAt` counted them.
+  int casting = 0;
   for (int i = 0; i < 16; ++i) {
     if (i >= count) break;
     let kind = uLightPosition[i].w;
     let colour = uLightColor[i].rgb;
+    int shadowSlot = -1;
+    if (shadowMapOf(i) >= 0 && castsAShadow(kind)) {
+      shadowSlot = casting;
+      casting = casting + 1;
+    }
 #ifdef SIGIL_AREA_LIGHTS
     if (kind > 4.5) {
       // A LIGHT WITH A SIZE: the diffuse side receives what the whole
@@ -1349,19 +1505,16 @@ float3 shadeLit(VSOut input, float3 base) {
 #endif
       }
       if (irradiance <= 0.0 && strength <= 0.0) continue;
-      // Its shadow is read from its centre.
+      // Its shadow, read from its centre before the lobes.
       float shade = 1.0;
-      let areaMap = shadowMapOf(i);
-      if (areaMap >= 0) {
-        shade = shadowOf(areaMap, input.viewPos, geometric, toCentre);
+      if (shadowSlot >= 0) {
+        shade = shadowShareOf(shares, shadowSlot);
         if (shade <= 0.0) continue;
       }
 #ifdef SIGIL_TINTED_SHADOWS
-      let shaded =
-          areaMap >= 0
-              ? colour * shade *
-                    shadowTintOf(areaMap, input.viewPos, geometric, toCentre)
-              : colour * shade;
+      let shaded = shadowSlot >= 0
+                       ? colour * shade * shadowTintShareOf(shares, shadowSlot)
+                       : colour * shade;
 #else
       let shaded = colour * shade;
 #endif
@@ -1444,22 +1597,16 @@ float3 shadeLit(VSOut input, float3 base) {
       let toLight = uLightPosition[i].xyz - input.viewPos;
       let far = lengthP(toLight);
       l = far > 0.0 ? toLight / far : n;
-      reach = distanceFalloff(far, uLightDirection[i].w);
-      if (kind > 1.5)
-        reach = reach * coneFalloff(
-                            dotP(-l, normalizeP(uLightDirection[i].xyz)),
-                            uLightColor[i].w, uLightGround[i].w);
+      reach = positionedReach(i, far, l);
     }
     if (reach <= 0.0) continue;
     // THE SHADOW takes its share of this light, and of nothing else.
-    let map = shadowMapOf(i);
     var through = float3(1.0, 1.0, 1.0);
-    if (map >= 0) {
-      let toward = kind > 0.5 ? l : -normalizeP(uLightDirection[i].xyz);
-      reach = reach * shadowOf(map, input.viewPos, geometric, toward);
+    if (shadowSlot >= 0) {
+      reach = reach * shadowShareOf(shares, shadowSlot);
       if (reach <= 0.0) continue;
 #ifdef SIGIL_TINTED_SHADOWS
-      through = shadowTintOf(map, input.viewPos, geometric, toward);
+      through = shadowTintShareOf(shares, shadowSlot);
 #endif
     }
     let radiance = colour * through * reach;

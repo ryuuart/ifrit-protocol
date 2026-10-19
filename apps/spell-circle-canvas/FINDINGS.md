@@ -31,19 +31,6 @@ no image test tells the shape-following treatment from today's; a
 discriminating test needs a numerical integral of the lobe over the
 light, as the representative-point entry states.
 
-## A casting light's shadow filter and tint cost a lit pixel in proportion to its program's size
-
-The lens, the layered refraction and the environment cost a transmitting
-pixel little, and dispersion's three readings are the cost of the
-picture; the disproportion is the casting light. The shadow filter and
-the tint read cost a transmitting or every-lobe surface about three times
-what they cost an opaque one, following the program's size rather than
-any transmission work, so a pane under a casting light pays more for its
-shadow than for its glass. A test should time the seen phase of a
-full-frame pane under a casting light against the same pane under a light
-that casts nothing, and find the shadow's share within a stated bound of
-the opaque card's.
-
 ## A leaf set in a whole text style ignores its own colour ink
 
 A leaf built with a whole `TextStyle`, `text(utf8, style)`, draws in the
@@ -146,4 +133,35 @@ past the device size where it should draw as an outline; the lane's
 batches should read the full device scale, replay times canvas. A test
 should put a driven pass lane under a canvas scale past the threshold
 and find its picture reached as outlines.
+
+## The shadow tint read costs glass several times what it costs an opaque surface
+
+With a pane over a card under a sun that casts, the tint read alone
+costs the pane's seen phase about five times what it costs the opaque
+card behind the same glass, while the filter alone costs the pane in
+proportion to its pixel; every lit program now reads its shadows once
+per pixel (`shadowSharesAt` in `Surface.slang`), so the program's size
+is not the cause. The tint should cost what two texture reads cost, in
+proportion to the pixel. On the `BM_ShadowShareOnDevice` glass arm the
+share with the tint read should exceed the share without it by no more
+than the card's own tint share times the pane-to-card ratio of their
+unshadowed costs.
+
+## A frame whose casting light passes through glass redraws its shadow stage every frame
+
+With a still scene, the shadow stage is drawn on every timed frame in
+the glass-and-casting bench arm, while every other arm keeps its map
+after the first frame. A map, and its tint, that nothing moved in is
+kept. `Shadow.AStillSetDrawsNoShadowMapOnItsSecondFrame` should extend
+to a tinted frame and find no shadow map drawn on the second frame of a
+still glass-and-card scene.
+
+## Having the shadow filter in a program costs it with no light casting
+
+A plain card under a light that casts nothing costs measurably more
+with the shadow terms compiled in than with them compiled out, so a
+program pays for shadow work it never does. A frame in which no light
+casts should build the program without the terms, which wants a variant
+bit the renderer does not yet set. A bench arm pair of the card under
+no casting light, built with and without the terms, should agree.
 

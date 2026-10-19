@@ -349,7 +349,10 @@ texels apart, each blended from the four texels around it — so a shadow's
 edge is soft over about two radii and moves smoothly as the point does.
 Every tap stays inside the light's own tile. A directional map that the
 camera's view cut short fades its shadow out over the last twentieth of
-the map.
+the map. A pixel reads every casting light's shadow, and the colour glass
+lets through to it, once and before any of its lobes, in a loop of its
+own; each light's lobes then take the share it left, so the filter stands
+in a surface's program once whatever lobes the surface carries.
 
 **A source with a width.** A light whose source is wide — a directional
 or positioned light stating `shadow.size`, and a rect, disk or sphere light

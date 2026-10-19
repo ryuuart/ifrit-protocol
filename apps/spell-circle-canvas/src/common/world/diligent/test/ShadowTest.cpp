@@ -6,7 +6,9 @@
  * shadow away; a spot light's shadow stays in its cone and follows it; a
  * shadow takes only its own light's share; a flat plate grazed by the
  * light is not striped by its own map; every instance of instanced
- * geometry casts; and a frame with no light that casts draws no map.
+ * geometry casts; a frame with no light that casts draws no map; and
+ * every lit program carries the same one shadow filter whatever its
+ * lobes.
  *
  * The scene is a ground plate seen from above and in front, a card held
  * level over it, and lights from above. Every case reads the effect off
@@ -20,6 +22,8 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/advanced/FrameData.h>
+#include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -27,10 +31,14 @@
 #include <sigilmedia/core/PixelSource.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilworld/World.h>
+#include <sigilworld/advanced/Diligent.h>
+#include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <optional>
 #include <string>
 #include <utility>
@@ -713,4 +721,116 @@ TEST(Shadow, APanelCastsAcrossTheWholeOfItsFrontHalf) {
   const float beside = at(270, 40);
   EXPECT_GT(beside, 0.02f) << "the ground out there is lit";
   EXPECT_LT(at(270, 0), beside * 0.5f) << "and the post shadows it";
+}
+
+namespace {
+
+/** WHAT A FRAGMENT PROGRAM'S SPIR-V SAYS ABOUT ITS SHADOWS: how many
+ *  comparing gathers it reads the atlas through, how many places call a
+ *  function of the shadow's (one whose name begins `shadow`), how many
+ *  words the whole stage is, and how many sampled slots the program
+ *  declares. */
+struct ShadowCode {
+  int gathers = 0;
+  int calls = 0;
+  size_t words = 0;
+  size_t samplers = 0;
+};
+
+ShadowCode shadowCodeOf(const std::vector<uint32_t>& spirv) {
+  // An instruction's first word holds its length in words above its
+  // opcode; the module's own header is the five words before the first.
+  constexpr uint32_t kOpName = 5;
+  constexpr uint32_t kOpFunctionCall = 57;
+  constexpr uint32_t kOpImageDrefGather = 97;
+  ShadowCode code;
+  code.words = spirv.size();
+  std::vector<uint32_t> shadowFunctions;
+  std::vector<uint32_t> callees;
+  for (size_t at = 5; at < spirv.size();) {
+    const uint32_t length = spirv[at] >> 16u;
+    const uint32_t opcode = spirv[at] & 0xffffu;
+    if (length == 0 || at + length > spirv.size()) break;
+    if (opcode == kOpImageDrefGather) ++code.gathers;
+    if (opcode == kOpFunctionCall && length > 3) callees.push_back(spirv[at + 3]);
+    if (opcode == kOpName && length > 2) {
+      const char* name = reinterpret_cast<const char*>(&spirv[at + 2]);
+      const size_t most = (length - 2) * sizeof(uint32_t);
+      if (std::string(name, strnlen(name, most)).starts_with("shadow"))
+        shadowFunctions.push_back(spirv[at + 1]);
+    }
+    at += length;
+  }
+  for (const uint32_t callee : callees)
+    if (std::find(shadowFunctions.begin(), shadowFunctions.end(), callee) !=
+        shadowFunctions.end())
+      ++code.calls;
+  return code;
+}
+
+/** The lit fragment program of @p parameters carrying @p carried, built for
+ *  every kind of light that reaches a body — sized lights, cascades, a
+ *  point light's faces and a shadow tinted by glass. */
+ShadowCode shadowCodeFor(const material::surface::SurfaceParameters& parameters,
+                         material::Lobes carried = {}) {
+  world::diligent::installSlangCompiler();
+  const material::Material program = material::surface::program(
+      parameters, material::surface::Reflection::SplitSum, carried);
+  const material::Material::Resolved resolved = program.resolve(
+      material::Target::Slang, material::FrameData{},
+      material::Variant{world::diligent::kVariantLit |
+                        world::diligent::kVariantAreaLights |
+                        world::diligent::kVariantCascadedShadows |
+                        world::diligent::kVariantPointShadows |
+                        world::diligent::kVariantTintedShadows});
+  const auto* slang =
+      resolved.program ? resolved.program->as<material::slang::SlangProgram>()
+                       : nullptr;
+  if (!slang) return {};
+  ShadowCode code = shadowCodeOf(slang->compiled().fragment);
+  code.samplers = slang->compiled().textures.size();
+  return code;
+}
+
+}  // namespace
+
+TEST(Shadow, EveryLitProgramReadsItsShadowsOnceWhateverItsLobes) {
+  // No device needed: the compiler's own words are read. The shadow and
+  // its tint are read once per lit pixel, before any lobe, into values
+  // every light's lobes share, so a program carrying every lobe carries
+  // exactly the shadow code an opaque one does — and that code is one
+  // filter, whose loops stay loops rather than being written out tap by
+  // tap.
+  const ShadowCode opaque = shadowCodeFor({});
+  ASSERT_GT(opaque.words, 0u) << "the opaque surface compiles";
+  const ShadowCode glass =
+      shadowCodeFor({.transmission = 1.0f, .ior = 1.5f, .thickness = 10.0f});
+  ASSERT_GT(glass.words, opaque.words) << "the glass carries its lobe";
+  const ShadowCode everything = shadowCodeFor(
+      {.transmission = 1.0f,
+       .distortionStrength = 0.1f,
+       .clearcoat = 0.5f,
+       .sheenColor = {1, 1, 1, 1},
+       .anisotropy = 0.5f,
+       .iridescence = 0.5f,
+       .specular = 0.5f},
+      {true, true, true, true, true, true, true});
+  ASSERT_GT(everything.words, glass.words) << "every lobe at once compiles";
+  RecordProperty("opaqueGathers", opaque.gathers);
+  RecordProperty("opaqueShadowCalls", opaque.calls);
+  RecordProperty("opaqueWords", (int)opaque.words);
+  RecordProperty("glassWords", (int)glass.words);
+  RecordProperty("everyLobeWords", (int)everything.words);
+  RecordProperty("everyLobeGathers", everything.gathers);
+  RecordProperty("everyLobeShadowCalls", everything.calls);
+  RecordProperty("opaqueSamplers", (int)opaque.samplers);
+  RecordProperty("glassSamplers", (int)glass.samplers);
+  RecordProperty("everyLobeSamplers", (int)everything.samplers);
+  EXPECT_EQ(glass.gathers, opaque.gathers);
+  EXPECT_EQ(everything.gathers, opaque.gathers);
+  EXPECT_EQ(glass.calls, opaque.calls);
+  EXPECT_EQ(everything.calls, opaque.calls);
+  // One filter: the four gathers of its one-texel block, one in the loop
+  // of a wider filter and one in the loop of a source with a width.
+  EXPECT_LE(opaque.gathers, 6) << opaque.gathers;
 }
