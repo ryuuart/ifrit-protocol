@@ -68,9 +68,9 @@ std::vector<Ink> inks() {
        material::from(sigil::material::Color{0.23f, 0.30f, 0.46f, 1})
            .layer(field(kit::TextField::Sparkle),
                   {.blend = material::BlendMode::PlusLighter})},
-      {"star-nest", "STAR NEST", "TextField::StarNest",
-       "Dense light inside the letterforms; small type keeps its warmth.",
-       field(kit::TextField::StarNest)},
+      {"stars", "STARS", "TextField::Stars",
+       "Layers of point stars over a violet haze; small type keeps its colour.",
+       field(kit::TextField::Stars)},
       {"clouds", "CLOUDS", "TextField::Clouds",
        "Broad, soft changes of value that hold an even grey.",
        field(kit::TextField::Clouds)},

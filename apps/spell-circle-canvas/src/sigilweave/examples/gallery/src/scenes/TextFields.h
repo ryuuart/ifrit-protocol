@@ -124,192 +124,204 @@ half4 main(float2 point) {
   return half4(tint * alpha, alpha);
 }
 )SHADER";
-inline constexpr std::string_view kStarNestSkSL = R"SHADER(
-const int iterations = 17;
-const int volsteps = 20;
+inline constexpr std::string_view kStarsSkSL = R"SHADER(
+// STARS: a deep field of point stars in layers, from far to near. Each
+// layer seats at most one star in each square cell of its own lattice: the
+// far layers are finer, their stars smaller and dimmer, the near layers
+// coarser and brighter. Every layer slides across the box at a pace that
+// grows with its nearness and sways along the drift by as much, so the
+// near stars pass in front of the far ones. Under them lies a haze of two
+// colours, so a thin stroke that catches no star still holds colour.
+const int starLayers = 5;
 
-half4 main(float2 fragCoord) {
-  float formuparam = 0.53;
-  float stepsize = 0.1;
-  float zoom = 0.800;
-  float tile = 0.850;
-  float speed = 0.010;
-  float brightness = 0.0015;
-  float darkmatter = 0.300;
-  float distfading = 0.730;
-  float saturation = 0.850;
+// A value in [0, 1) for a lattice cell and a salt. The cell is carried
+// along two irrational steps and the salt along a third, and the fraction
+// it lands on is folded through a steep quadratic twice, so neighbouring
+// cells and neighbouring salts answer unrelated values.
+float starScatter(float2 cell, float salt) {
+  float landing = fract(dot(cell, float2(0.7548776662, 0.5698402910)) +
+                        salt * 0.6180339887);
+  landing = fract(landing * (landing * 173.31 + 47.13));
+  return fract(landing * (landing * 211.79 + 13.97));
+}
 
-  float2 uv = (fragCoord - origin) / extent - 0.5;
-  uv.y *= extent.y / extent.x;
-  float3 dir = float3(uv * zoom, 1.0);
-  float t = time * speed + 0.25;
+half4 main(float2 point) {
+  float2 drift = motion;
+  // Shares of the box's height, so a cell is square in the box.
+  float2 position = (point - origin) / extent.y;
 
-  float a1 = 0.5 + motion.x * 1.5;
-  float a2 = 0.8 + motion.y * 1.5;
-  float2x2 rot1 = float2x2(cos(a1), sin(a1), -sin(a1), cos(a1));
-  float2x2 rot2 = float2x2(cos(a2), sin(a2), -sin(a2), cos(a2));
-  dir.xz = rot1 * dir.xz;
-  dir.xy = rot2 * dir.xy;
-  float3 from = float3(1.0, 0.5, 0.5);
-  from += float3(t * 2.0, t, -2.0);
-  from.xz = rot1 * from.xz;
-  from.xy = rot2 * from.xy;
+  float3 light = float3(0.0);
+  for (int layer = 0; layer < starLayers; layer++) {
+    float nearness = float(layer + 1) / float(starLayers);
+    float salt = float(layer) * 8.0;
+    float cellsPerHeight = mix(30.0, 6.0, nearness);
+    float2 slide = float2(time * 0.04, time * 0.006) * nearness +
+                   drift * (0.05 * nearness) + float2(salt * 1.3, salt * 0.7);
+    float2 lattice = (position + slide) * cellsPerHeight;
+    float2 cell = floor(lattice);
+    float2 inside = fract(lattice) - 0.5;
 
-  float s = 0.1;
-  float fade = 1.0;
-  float3 v = float3(0.0);
-  for (int r = 0; r < volsteps; r++) {
-    float3 p = from + s * dir * 0.5;
-    p = abs(float3(tile) - mod(p, float3(tile * 2.0)));
-    float pa = 0.0;
-    float a = 0.0;
-    for (int i = 0; i < iterations; i++) {
-      p = abs(p) / dot(p, p) - formuparam;
-      a += abs(length(p) - pa);
-      pa = length(p);
-    }
-    float dm = max(0.0, darkmatter - a * a * 0.001);
-    a *= a * a;
-    if (r > 6) fade *= 1.0 - dm;
-    v += fade;
-    v += float3(s, s * s, s * s * s * s) * a * brightness * fade;
-    fade *= distfading;
-    s += stepsize;
+    // Two cells in five hold a star in the far layers, one in three near.
+    float present = step(mix(0.6, 0.67, nearness), starScatter(cell, salt));
+    // The star sits within a quarter cell of the centre and its glow
+    // reaches a quarter cell, so neither crosses into the next cell.
+    float2 seat = (float2(starScatter(cell, salt + 1.0),
+                          starScatter(cell, salt + 2.0)) -
+                   0.5) *
+                  0.5;
+    float reach = length(inside - seat);
+    float radius = mix(0.035, 0.09, starScatter(cell, salt + 3.0));
+    float core = exp(-(reach * reach) / (radius * radius));
+    float glow = smoothstep(0.25, 0.0, reach);
+    glow *= glow * 0.22;
+
+    // A star dims with its distance: the farthest layer keeps a little over
+    // a quarter of the nearest layer's light.
+    float strength = mix(0.25, 1.0, nearness * nearness) *
+                     mix(0.6, 1.8, starScatter(cell, salt + 4.0));
+    float twinkle =
+        0.78 + 0.22 * sin(time * mix(1.3, 3.9, starScatter(cell, salt + 5.0)) +
+                          starScatter(cell, salt + 6.0) * 6.2831853);
+    float3 temperature = mix(float3(0.66, 0.78, 1.0), float3(1.0, 0.84, 0.64),
+                             starScatter(cell, salt + 7.0));
+    light += temperature * (core + glow) * strength * twinkle * present;
   }
-  v = mix(float3(length(v)), v, saturation);
-  // The original's 0.01 exposure reads as near-black once masked into
-  // thin glyph strokes rather than filling a whole screen; this preset
-  // is meant to be loud, so push it several stops brighter.
-  return half4(half3(v * 0.055), 1.0);
+
+  // The haze: two broad interfering waves that sway with the drift, laying
+  // violet and teal over a deep blue ground. It stays darker than the
+  // stars and lighter than the dark a run of type is set on, so the
+  // letters read by the haze and the stars stand out on them.
+  float2 swayed = position + drift * 0.04;
+  float violet =
+      0.5 + 0.5 * sin(swayed.x * 2.9 + sin(swayed.y * 2.1 + 1.3) * 1.6);
+  float teal = 0.5 + 0.5 * sin(swayed.y * 3.7 - swayed.x * 1.4 + 2.2);
+  float3 ground = float3(0.10, 0.10, 0.24) +
+                  float3(0.34, 0.12, 0.40) * violet * violet +
+                  float3(0.02, 0.24, 0.26) * teal * teal;
+  return half4(half3(clamp(ground + light, 0.0, 1.0)), 1.0);
 }
 )SHADER";
 inline constexpr std::string_view kCloudsSkSL = R"SHADER(
-float2 cloudHash(float2 p) {
-  p = float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)));
-  return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+// CLOUDS: a sky deepening toward the top of the box under one layer of
+// cloud. The cloud is a sum of smooth value noise at five rising
+// frequencies, each half as strong as the one before, read through a
+// gentle warp of the same sum so its edges billow. The layer travels
+// slowly across the box and sways along the drift. It is lit from above
+// and to one side: a second reading a short step toward the light says how
+// much more cloud stands between a point and the light, and that much
+// shadow greys the point.
+
+// A value in [0, 1) for a lattice corner. The corner is carried along two
+// irrational steps, and the fraction it lands on is folded through a steep
+// quadratic twice, so neighbouring corners answer unrelated values.
+float cloudScatter(float2 corner) {
+  float landing =
+      fract(dot(corner, float2(0.5698402910, 0.7548776662)) + 0.31);
+  landing = fract(landing * (landing * 157.37 + 61.19));
+  return fract(landing * (landing * 229.43 + 17.71));
 }
 
-float cloudNoise(float2 p) {
-  float k1 = 0.366025404;
-  float k2 = 0.211324865;
-  float2 i = floor(p + (p.x + p.y) * k1);
-  float2 a = p - i + (i.x + i.y) * k2;
-  float2 o = (a.x > a.y) ? float2(1.0, 0.0) : float2(0.0, 1.0);
-  float2 b = a - o + k2;
-  float2 c = a - 1.0 + 2.0 * k2;
-  float3 h = max(0.5 - float3(dot(a, a), dot(b, b), dot(c, c)), 0.0);
-  float3 n = h * h * h * h *
-             float3(dot(a, cloudHash(i + 0.0)), dot(b, cloudHash(i + o)),
-                    dot(c, cloudHash(i + 1.0)));
-  return dot(n, float3(70.0));
+// Smooth noise: the scattered values of the four lattice corners around a
+// point, blended by a quintic ease whose slope and curvature are zero at
+// each corner, so the surface shows no creases along the lattice.
+float cloudValueNoise(float2 position) {
+  float2 corner = floor(position);
+  float2 within = fract(position);
+  float2 ease =
+      within * within * within * (within * (within * 6.0 - 15.0) + 10.0);
+  float lowerLeft = cloudScatter(corner);
+  float lowerRight = cloudScatter(corner + float2(1.0, 0.0));
+  float upperLeft = cloudScatter(corner + float2(0.0, 1.0));
+  float upperRight = cloudScatter(corner + float2(1.0, 1.0));
+  return mix(mix(lowerLeft, lowerRight, ease.x),
+             mix(upperLeft, upperRight, ease.x), ease.y);
 }
 
-float cloudFbm(float2 n, float2x2 m) {
+// Five octaves of the noise. Each octave's frequency is a little over
+// twice the one before and its lattice is turned half a radian and
+// shifted, so no two octaves' lattices line up; the sum stays in [0, 1).
+float cloudOctaves(float2 position) {
   float total = 0.0;
-  float amplitude = 0.1;
-  for (int i = 0; i < 7; i++) {
-    total += cloudNoise(n) * amplitude;
-    n = m * n;
-    amplitude *= 0.4;
+  float strength = 0.5;
+  float turnCosine = cos(0.5);
+  float turnSine = sin(0.5);
+  for (int octave = 0; octave < 5; octave++) {
+    total += strength * cloudValueNoise(position);
+    position = float2(turnCosine * position.x - turnSine * position.y,
+                      turnSine * position.x + turnCosine * position.y) *
+                   2.07 +
+               float2(4.3, 1.9);
+    strength *= 0.5;
   }
   return total;
 }
 
-half4 main(float2 fragCoord) {
-  float cloudscale = 1.1;
-  float cloudSpeed = 0.03;
-  float clouddark = 0.5;
-  float cloudlight = 0.3;
-  float cloudcover = 0.2;
-  float cloudalpha = 8.0;
-  float skytint = 0.5;
-  float3 skycolour1 = float3(0.2, 0.4, 0.6);
-  float3 skycolour2 = float3(0.4, 0.7, 1.0);
-  float2x2 m = float2x2(1.6, 1.2, -1.2, 1.6);
+half4 main(float2 point) {
+  float2 drift = motion;
+  float2 position = (point - origin) / extent;
+  // Two and a half noise cells to the box's height, square in the box.
+  float2 field = position * float2(extent.x / extent.y, 1.0) * 2.5;
+  field += float2(time * 0.06, time * 0.01) + drift * 0.12;
 
-  float2 p = (fragCoord - origin) / extent;
-  float2 uv = p * float2(extent.x / extent.y, 1.0);
-  float t = time * cloudSpeed;
-  float q = cloudFbm(uv * cloudscale * 0.5, m);
+  float2 warp = float2(cloudOctaves(field * 0.7 + 3.1),
+                       cloudOctaves(field * 0.7 + 8.7)) -
+                0.5;
+  float2 billowed = field + warp * 1.1;
+  float density = cloudOctaves(billowed);
+  float towardLight = cloudOctaves(billowed + float2(0.05, -0.09));
 
-  float r = 0.0;
-  uv *= cloudscale;
-  uv -= q - t;
-  float weight = 0.8;
-  for (int i = 0; i < 8; i++) {
-    r += abs(weight * cloudNoise(uv));
-    uv = m * uv + t;
-    weight *= 0.7;
-  }
+  float cover = 0.41;
+  float cloud = smoothstep(cover, cover + 0.16, density);
+  float lit = clamp(0.62 + (density - towardLight) * 5.0, 0.0, 1.0);
+  float thickness = smoothstep(cover + 0.06, cover + 0.3, density);
+  float shade = lit * mix(1.0, 0.78, thickness);
 
-  float f = 0.0;
-  uv = p * float2(extent.x / extent.y, 1.0);
-  uv *= cloudscale;
-  uv -= q - t;
-  weight = 0.7;
-  for (int i = 0; i < 8; i++) {
-    f += weight * cloudNoise(uv);
-    uv = m * uv + t;
-    weight *= 0.6;
-  }
-
-  f *= r + f;
-
-  float c = 0.0;
-  float t2 = time * cloudSpeed * 2.0;
-  uv = p * float2(extent.x / extent.y, 1.0);
-  uv *= cloudscale * 2.0;
-  uv -= q - t2;
-  weight = 0.4;
-  for (int i = 0; i < 7; i++) {
-    c += weight * cloudNoise(uv);
-    uv = m * uv + t2;
-    weight *= 0.6;
-  }
-
-  float c1 = 0.0;
-  float t3 = time * cloudSpeed * 3.0;
-  uv = p * float2(extent.x / extent.y, 1.0);
-  uv *= cloudscale * 3.0;
-  uv -= q - t3;
-  weight = 0.4;
-  for (int i = 0; i < 7; i++) {
-    c1 += abs(weight * cloudNoise(uv));
-    uv = m * uv + t3;
-    weight *= 0.6;
-  }
-  c += c1;
-
-  float3 skycolour = mix(skycolour2, skycolour1, p.y);
-  float3 cloudcolour =
-      float3(1.1, 1.1, 0.9) * clamp(clouddark + cloudlight * c, 0.0, 1.0);
-
-  f = cloudcover + cloudalpha * f * r;
-
-  float3 result =
-      mix(skycolour, clamp(skytint * skycolour + cloudcolour, 0.0, 1.0),
-          clamp(f + c, 0.0, 1.0));
-  return half4(half3(result), 1.0);
+  float3 sky = mix(float3(0.13, 0.32, 0.66), float3(0.60, 0.78, 0.94),
+                   smoothstep(0.0, 1.0, position.y));
+  float3 cloudColour =
+      mix(float3(0.46, 0.52, 0.64), float3(1.0, 0.98, 0.94), shade);
+  return half4(half3(mix(sky, cloudColour, cloud)), 1.0);
 }
 )SHADER";
 inline constexpr std::string_view kTunnelSkSL = R"SHADER(
-float tunnelStep(float3 p) {
-  p.z -= time * 10.0;
-  float a = p.z * 0.1 + motion.x * 0.3;
-  float2x2 rot = float2x2(cos(a), sin(a), -sin(a), cos(a));
-  p.xy = rot * p.xy;
-  return 0.1 - length(cos(p.xy) + sin(p.yz));
-}
+// TUNNEL: looking down a round tunnel. A point's angle around the centre
+// and its distance from it name a place on the wall: depth is the inverse
+// of the distance, so equal steps of depth crowd toward the far end. The
+// wall is banded in rings along the depth, dark gaps between bright bands,
+// and cut by seams into panels around the angle; the rings stream toward
+// the viewer with time, the panels twist with depth, and the centre
+// wanders with the drift. Toward the far end the wall fades into a glow.
+half4 main(float2 point) {
+  float2 drift = motion;
+  // Shares of the box's height, so the tunnel is round in the box.
+  float2 position = (point - origin) / extent.y;
+  float2 centre = float2(0.5 * extent.x / extent.y, 0.5) + drift * 0.07;
+  float2 fromCentre = position - centre;
+  float distanceFromCentre = max(length(fromCentre), 0.001);
+  float turns = atan(fromCentre.y, fromCentre.x) / 6.2831853;
 
-half4 main(float2 fragCoord) {
-  float2 uv = fragCoord - origin;
-  float3 d = 0.5 - float3(uv, extent.y) / extent.y;
-  float3 p = float3(0.0);
-  for (int i = 0; i < 32; i++) {
-    p += tunnelStep(p) * d;
-  }
-  float3 color = (sin(p) + float3(2.0, 5.0, 12.0)) / length(p);
-  return half4(half3(color), 1.0);
+  float depth = 0.8 / distanceFromCentre;
+  float travelled = depth + time * 0.8;
+  float ring = 0.5 + 0.5 * cos(travelled * 6.2831853);
+  ring = smoothstep(0.2, 0.8, ring);
+  float twisted = turns * 9.0 + depth * 0.9 + drift.x * 0.4;
+  float seam = smoothstep(0.82, 1.0, abs(fract(twisted) - 0.5) * 2.0);
+  float wall = ring * (1.0 - 0.75 * seam);
+
+  // Where the rings crowd too finely to resolve, the wall settles to its
+  // mean, and its light falls away toward the far end.
+  float resolved = smoothstep(0.08, 0.22, distanceFromCentre);
+  wall = mix(0.4, wall, resolved);
+  float nearLight = smoothstep(0.0, 0.5, distanceFromCentre);
+
+  float band = floor(travelled);
+  float3 cool = float3(0.10, 0.55, 1.0);
+  float3 warm = float3(0.95, 0.30, 0.85);
+  float3 hue = mix(cool, warm, 0.5 + 0.5 * sin(band * 1.9));
+  float farGlow = exp(-distanceFromCentre * 14.0) * 0.7;
+  float3 color = hue * wall * mix(0.12, 1.25, nearLight) +
+                 float3(0.85, 0.75, 1.0) * farGlow + float3(0.02, 0.025, 0.06);
+  return half4(half3(clamp(color, 0.0, 1.0)), 1.0);
 }
 )SHADER";
 
@@ -331,9 +343,9 @@ inline sigil::material::Material sparkle(const SkRect& bounds, float timeSeconds
   return sigil::material::Material(recipe, fieldParameters(bounds, timeSeconds));
 }
 
-inline sigil::material::Material starNest(const SkRect& bounds, float timeSeconds) {
+inline sigil::material::Material stars(const SkRect& bounds, float timeSeconds) {
   static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      fieldRecipe("text_fields.starNest", kStarNestSkSL);
+      fieldRecipe("text_fields.stars", kStarsSkSL);
   return sigil::material::Material(recipe, fieldParameters(bounds, timeSeconds));
 }
 

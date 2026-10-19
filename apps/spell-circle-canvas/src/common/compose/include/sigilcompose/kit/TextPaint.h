@@ -24,11 +24,14 @@ enum class TextField : uint8_t {
   /** Points of light on a transparent ground, one at most in each square
    *  cell, a cell 22/70 of the box's height; it is layered over a base. */
   Sparkle,
-  /** Dense light marched through a volume of folded space. */
-  StarNest,
-  /** A sky ramp under drifting clouds of layered noise. */
+  /** Point stars in layers from far to near over a coloured haze, the near
+   *  layers coarser, brighter and sliding past the far ones. */
+  Stars,
+  /** A sky deepening toward the top under a drifting layer of cloud,
+   *  shaded from above. */
   Clouds,
-  /** A twisting tunnel whose dark rings stand between bright walls. */
+  /** A round tunnel streaming toward the viewer, dark gaps between its
+   *  bright rings and seams twisting along its wall. */
   Tunnel,
 };
 

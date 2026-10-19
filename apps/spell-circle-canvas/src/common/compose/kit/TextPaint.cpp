@@ -30,7 +30,7 @@ constexpr std::array<FieldProgram, 6> kFieldPrograms{{
     {"TextPaint/Water.sksl", "textPaint.water"},
     {"TextPaint/MeshGradient.sksl", "textPaint.meshGradient"},
     {"TextPaint/Sparkle.sksl", "textPaint.sparkle"},
-    {"TextPaint/StarNest.sksl", "textPaint.starNest"},
+    {"TextPaint/Stars.sksl", "textPaint.stars"},
     {"TextPaint/Clouds.sksl", "textPaint.clouds"},
     {"TextPaint/Tunnel.sksl", "textPaint.tunnel"},
 }};

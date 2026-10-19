@@ -268,10 +268,88 @@ TEST(KitTextPaint, AFillNamesItsNodesBoxInItsOwnPixels) {
   EXPECT_GT(SkColorGetG(cool), SkColorGetR(cool)) << "the bottom right is cool";
 }
 
+TEST(KitTextPaint, TheStarsArePointsOfLightOverAColouredHaze) {
+  // Filled over a box in its own pixels, the star field is a coloured haze
+  // everywhere, never black, with white points standing apart on it.
+  constexpr int kWidth = 240;
+  constexpr int kHeight = 80;
+  Host host(kWidth, kHeight);
+  host.composer.render(
+      box().children({box().width(kWidth).height(kHeight).fill(kit::textPaint(
+          {.field = kit::TextField::Stars,
+           .time = kMoment,
+           .box = {{0, 0}, {kWidth, kHeight}}}))}));
+  host.frame();
+  const auto isWhite = [](SkColor colour) {
+    return std::min({SkColorGetR(colour), SkColorGetG(colour),
+                     SkColorGetB(colour)}) > 170;
+  };
+  int coloured = 0;
+  int white = 0;
+  for (int row = 0; row < kHeight; ++row)
+    for (int column = 0; column < kWidth; ++column) {
+      const SkColor colour = host.pixel(column, row);
+      coloured += SkColorGetB(colour) > 40 ? 1 : 0;
+      white += isWhite(colour) ? 1 : 0;
+    }
+  EXPECT_EQ(coloured, kWidth * kHeight) << "the haze holds colour everywhere";
+  EXPECT_LT(white * 20, kWidth * kHeight) << "the light stands in points";
+  EXPECT_GE(regionsOf(host, kWidth, kHeight, isWhite).size(), 12u)
+      << "and the points stand apart";
+}
+
+TEST(KitTextPaint, TheCloudsLieOverASkyDeepeningTowardTheTop) {
+  // Filled over a box in its own pixels, the clouds leave sky between
+  // them, blue and deeper at the top than at the bottom, and are pale
+  // where they stand.
+  constexpr int kWidth = 240;
+  constexpr int kHeight = 120;
+  Host host(kWidth, kHeight);
+  host.composer.render(
+      box().children({box().width(kWidth).height(kHeight).fill(kit::textPaint(
+          {.field = kit::TextField::Clouds,
+           .time = kMoment,
+           .box = {{0, 0}, {kWidth, kHeight}}}))}));
+  host.frame();
+  const auto isSky = [](SkColor colour) {
+    return SkColorGetB(colour) > SkColorGetR(colour) + 60;
+  };
+  const auto isCloud = [](SkColor colour) {
+    return std::min({SkColorGetR(colour), SkColorGetG(colour),
+                     SkColorGetB(colour)}) > 170;
+  };
+  int sky = 0;
+  int cloud = 0;
+  int topSkyRed = 0;
+  int topSky = 0;
+  int bottomSkyRed = 0;
+  int bottomSky = 0;
+  for (int row = 0; row < kHeight; ++row)
+    for (int column = 0; column < kWidth; ++column) {
+      const SkColor colour = host.pixel(column, row);
+      cloud += isCloud(colour) ? 1 : 0;
+      if (!isSky(colour)) continue;
+      ++sky;
+      if (row < kHeight / 4) {
+        topSkyRed += SkColorGetR(colour);
+        ++topSky;
+      } else if (row >= kHeight * 3 / 4) {
+        bottomSkyRed += SkColorGetR(colour);
+        ++bottomSky;
+      }
+    }
+  EXPECT_GT(sky * 5, kWidth * kHeight) << "sky shows between the clouds";
+  EXPECT_GT(cloud * 10, kWidth * kHeight) << "the clouds are pale";
+  ASSERT_GT(topSky, 0);
+  ASSERT_GT(bottomSky, 0);
+  EXPECT_LT(topSkyRed / topSky, bottomSkyRed / bottomSky)
+      << "the sky deepens toward the top";
+}
+
 TEST(KitTextPaint, EqualPropertiesAnswerEqualMaterialsAndEachFieldItsOwn) {
   const std::vector<kit::TextField> fields{
       kit::TextField::Water,    kit::TextField::MeshGradient,
-      kit::TextField::Sparkle,  kit::TextField::StarNest,
+      kit::TextField::Sparkle,  kit::TextField::Stars,
       kit::TextField::Clouds,   kit::TextField::Tunnel};
   for (kit::TextField field : fields) {
     EXPECT_EQ(kit::textPaint({.field = field, .time = kMoment}),
@@ -290,7 +368,7 @@ TEST(KitTextPaint, EveryFieldPaintsAPassage) {
   // the word it inks; only the sparkle leaves ground between its points.
   for (kit::TextField field :
        {kit::TextField::Water, kit::TextField::MeshGradient,
-        kit::TextField::StarNest, kit::TextField::Clouds,
+        kit::TextField::Stars, kit::TextField::Clouds,
         kit::TextField::Tunnel}) {
     Host host(280, 90);
     host.composer.render(

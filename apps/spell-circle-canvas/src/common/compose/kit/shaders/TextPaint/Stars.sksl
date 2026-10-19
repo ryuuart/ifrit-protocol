@@ -1,0 +1,75 @@
+// STARS: a deep field of point stars in layers, from far to near. Each
+// layer seats at most one star in each square cell of its own lattice: the
+// far layers are finer, their stars smaller and dimmer, the near layers
+// coarser and brighter. Every layer slides across the box at a pace that
+// grows with its nearness and sways along the drift by as much, so the
+// near stars pass in front of the far ones. Under them lies a haze of two
+// colours, so a thin stroke that catches no star still holds colour.
+const int starLayers = 5;
+
+// A value in [0, 1) for a lattice cell and a salt. The cell is carried
+// along two irrational steps and the salt along a third, and the fraction
+// it lands on is folded through a steep quadratic twice, so neighbouring
+// cells and neighbouring salts answer unrelated values.
+float starScatter(float2 cell, float salt) {
+  float landing = fract(dot(cell, float2(0.7548776662, 0.5698402910)) +
+                        salt * 0.6180339887);
+  landing = fract(landing * (landing * 173.31 + 47.13));
+  return fract(landing * (landing * 211.79 + 13.97));
+}
+
+half4 main(float2 point) {
+  float2 drift = textPaintDrift();
+  // Shares of the box's height, so a cell is square in the box.
+  float2 position = (point - origin) / extent.y;
+
+  float3 light = float3(0.0);
+  for (int layer = 0; layer < starLayers; layer++) {
+    float nearness = float(layer + 1) / float(starLayers);
+    float salt = float(layer) * 8.0;
+    float cellsPerHeight = mix(30.0, 6.0, nearness);
+    float2 slide = float2(time * 0.04, time * 0.006) * nearness +
+                   drift * (0.05 * nearness) + float2(salt * 1.3, salt * 0.7);
+    float2 lattice = (position + slide) * cellsPerHeight;
+    float2 cell = floor(lattice);
+    float2 inside = fract(lattice) - 0.5;
+
+    // Two cells in five hold a star in the far layers, one in three near.
+    float present = step(mix(0.6, 0.67, nearness), starScatter(cell, salt));
+    // The star sits within a quarter cell of the centre and its glow
+    // reaches a quarter cell, so neither crosses into the next cell.
+    float2 seat = (float2(starScatter(cell, salt + 1.0),
+                          starScatter(cell, salt + 2.0)) -
+                   0.5) *
+                  0.5;
+    float reach = length(inside - seat);
+    float radius = mix(0.035, 0.09, starScatter(cell, salt + 3.0));
+    float core = exp(-(reach * reach) / (radius * radius));
+    float glow = smoothstep(0.25, 0.0, reach);
+    glow *= glow * 0.22;
+
+    // A star dims with its distance: the farthest layer keeps a little over
+    // a quarter of the nearest layer's light.
+    float strength = mix(0.25, 1.0, nearness * nearness) *
+                     mix(0.6, 1.8, starScatter(cell, salt + 4.0));
+    float twinkle =
+        0.78 + 0.22 * sin(time * mix(1.3, 3.9, starScatter(cell, salt + 5.0)) +
+                          starScatter(cell, salt + 6.0) * 6.2831853);
+    float3 temperature = mix(float3(0.66, 0.78, 1.0), float3(1.0, 0.84, 0.64),
+                             starScatter(cell, salt + 7.0));
+    light += temperature * (core + glow) * strength * twinkle * present;
+  }
+
+  // The haze: two broad interfering waves that sway with the drift, laying
+  // violet and teal over a deep blue ground. It stays darker than the
+  // stars and lighter than the dark a run of type is set on, so the
+  // letters read by the haze and the stars stand out on them.
+  float2 swayed = position + drift * 0.04;
+  float violet =
+      0.5 + 0.5 * sin(swayed.x * 2.9 + sin(swayed.y * 2.1 + 1.3) * 1.6);
+  float teal = 0.5 + 0.5 * sin(swayed.y * 3.7 - swayed.x * 1.4 + 2.2);
+  float3 ground = float3(0.10, 0.10, 0.24) +
+                  float3(0.34, 0.12, 0.40) * violet * violet +
+                  float3(0.02, 0.24, 0.26) * teal * teal;
+  return half4(half3(clamp(ground + light, 0.0, 1.0)), 1.0);
+}

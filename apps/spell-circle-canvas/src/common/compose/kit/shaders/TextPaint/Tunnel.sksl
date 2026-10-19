@@ -1,21 +1,39 @@
-// TUNNEL: a ray marched down a twisting lattice of cosines, its depth
-// coloured through a sine, so dark rings stand between bright walls.
-float tunnelDistance(float3 position, float driftAcross) {
-  position.z -= time * 10.0;
-  float angle = position.z * 0.1 + driftAcross * 0.3;
-  float2x2 turn = float2x2(cos(angle), sin(angle), -sin(angle), cos(angle));
-  position.xy = turn * position.xy;
-  return 0.1 - length(cos(position.xy) + sin(position.yz));
-}
-
+// TUNNEL: looking down a round tunnel. A point's angle around the centre
+// and its distance from it name a place on the wall: depth is the inverse
+// of the distance, so equal steps of depth crowd toward the far end. The
+// wall is banded in rings along the depth, dark gaps between bright bands,
+// and cut by seams into panels around the angle; the rings stream toward
+// the viewer with time, the panels twist with depth, and the centre
+// wanders with the drift. Toward the far end the wall fades into a glow.
 half4 main(float2 point) {
   float2 drift = textPaintDrift();
-  float2 offset = point - origin;
-  float3 direction = 0.5 - float3(offset, extent.y) / extent.y;
-  float3 position = float3(0.0);
-  for (int march = 0; march < 32; march++) {
-    position += tunnelDistance(position, drift.x) * direction;
-  }
-  float3 color = (sin(position) + float3(2.0, 5.0, 12.0)) / length(position);
-  return half4(half3(color), 1.0);
+  // Shares of the box's height, so the tunnel is round in the box.
+  float2 position = (point - origin) / extent.y;
+  float2 centre = float2(0.5 * extent.x / extent.y, 0.5) + drift * 0.07;
+  float2 fromCentre = position - centre;
+  float distanceFromCentre = max(length(fromCentre), 0.001);
+  float turns = atan(fromCentre.y, fromCentre.x) / 6.2831853;
+
+  float depth = 0.8 / distanceFromCentre;
+  float travelled = depth + time * 0.8;
+  float ring = 0.5 + 0.5 * cos(travelled * 6.2831853);
+  ring = smoothstep(0.2, 0.8, ring);
+  float twisted = turns * 9.0 + depth * 0.9 + drift.x * 0.4;
+  float seam = smoothstep(0.82, 1.0, abs(fract(twisted) - 0.5) * 2.0);
+  float wall = ring * (1.0 - 0.75 * seam);
+
+  // Where the rings crowd too finely to resolve, the wall settles to its
+  // mean, and its light falls away toward the far end.
+  float resolved = smoothstep(0.08, 0.22, distanceFromCentre);
+  wall = mix(0.4, wall, resolved);
+  float nearLight = smoothstep(0.0, 0.5, distanceFromCentre);
+
+  float band = floor(travelled);
+  float3 cool = float3(0.10, 0.55, 1.0);
+  float3 warm = float3(0.95, 0.30, 0.85);
+  float3 hue = mix(cool, warm, 0.5 + 0.5 * sin(band * 1.9));
+  float farGlow = exp(-distanceFromCentre * 14.0) * 0.7;
+  float3 color = hue * wall * mix(0.12, 1.25, nearLight) +
+                 float3(0.85, 0.75, 1.0) * farGlow + float3(0.02, 0.025, 0.06);
+  return half4(half3(clamp(color, 0.0, 1.0)), 1.0);
 }
