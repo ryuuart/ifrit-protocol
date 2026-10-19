@@ -27,6 +27,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace Diligent {
@@ -44,11 +45,11 @@ struct MeshVertex {
   float position[3];
   float normal[3];
   float uv[2];
+  /** The vertex's own colour, times the colour of the triangle it
+   *  belongs to where a primitive colour lane was named: a triangle has
+   *  nowhere of its own to hold a value, so its three vertices each carry
+   *  it multiplied in. */
   float color[4];
-  /** The PRIMITIVE lane the triangle this vertex belongs to carries, or
-   *  ones where no lane was named. A triangle has nowhere of its own to
-   *  hold a value, so its three vertices each carry it. */
-  float primitive[4];
   /** The way u runs along the surface and the side v runs on, as the
    *  mesh's tangent lane carries it; zeros where it carries none, which a
    *  program reads as a direction to find off the uvs itself. */
@@ -69,25 +70,25 @@ struct InstanceVertex {
   float attributes[4];
 };
 
-/** The input number the first instance element is read at; the five
- *  after it follow in `InstanceVertex`'s order. */
-inline constexpr unsigned kFirstInstanceInput = 5;
+/** The input number the first instance element is read at, right after
+ *  the four vertex elements; the five after it follow in
+ *  `InstanceVertex`'s order. */
+inline constexpr unsigned kFirstInstanceInput = 4;
 
 /** THE LAYOUT A PIPELINE DECLARES over these buffers, in the order the
- *  elements are numbered, with the fifth — the primitive lane — present
- *  only when @p withPrimitiveLane. Every vertex carries one either way,
- *  because it is the same buffer, so the stride is a whole `MeshVertex`
- *  in both answers and a program that does not read the lane is simply
- *  not given an attribute it never declared. With @p instanced the six
- *  `InstanceVertex` elements follow from `kFirstInstanceInput`, read from
- *  the second buffer once per instance. */
-std::span<const Diligent::LayoutElement> meshLayout(bool withPrimitiveLane,
-                                                    bool instanced = false,
+ *  elements are numbered: position, normal, uv and colour always; with
+ *  @p instanced the six `InstanceVertex` elements from
+ *  `kFirstInstanceInput`, read from the second buffer once per instance;
+ *  with @p withTangent the tangent at `kTangentInput`. One form per
+ *  choice of the two. Every vertex carries a tangent either way, so the
+ *  stride is a whole `MeshVertex` in every form and a program that does
+ *  not read it is simply not given an attribute it never declared. */
+std::span<const Diligent::LayoutElement> meshLayout(bool instanced = false,
                                                     bool withTangent = false);
 
 /** The input number the tangent is read at, when the layout declares it:
  *  after every instance element. */
-inline constexpr unsigned kTangentInput = 11;
+inline constexpr unsigned kTangentInput = 10;
 
 /** INSTANCED GEOMETRY'S INSTANCES UPLOADED, under the number of the
  *  artefact they came from, as `MeshBuffers` are. */
@@ -114,8 +115,7 @@ struct MeshBuffers {
    *  what they are and not only of how they were made: a lane unshares
    *  the vertices and writes a value per triangle, so the same artefact
    *  asked for once with a lane and once without is two different pairs
-   *  of buffers. Answering the held pair for the other request would
-   *  hand a draw the wrong vertex count and the wrong tints. */
+   *  of buffers, each held under the artefact and the lane together. */
   std::string primitiveColorLane;
   /** THE TRIANGLES EACH MATERIAL SLOT WEARS, as index buffers over the
    *  same vertices: slot k's holds every triangle whose "Material"
@@ -151,11 +151,12 @@ class MeshResidency {
   MeshResidency& operator=(const MeshResidency&) = delete;
 
   /** @p mesh's buffers, uploaded the first time @p artefact is asked
-   *  for with @p primitiveColorLane, and repacked when a later call names a
-   *  different lane. A caller cooking a mesh of its own — the stamps of
-   *  a point set — has no artefact to name, and passes an id of its own
-   *  that no frame after it repeats. Null when the mesh has no triangles
-   *  or the device refused the buffers. */
+   *  for with @p primitiveColorLane and held under the two together: one
+   *  mesh drawn tinted by a lane and untinted in the same frame is two
+   *  packings, each uploaded once. A caller cooking a mesh of its own —
+   *  the stamps of a point set — has no artefact to name, and passes an
+   *  id of its own that no frame after it repeats. Null when the mesh has
+   *  no triangles or the device refused the buffers. */
   const MeshBuffers* upload(uint64_t artefact, const mesh::Mesh& mesh,
                             std::string_view primitiveColorLane = {});
 
@@ -168,12 +169,14 @@ class MeshResidency {
    *  asked for and kept as a mesh is. The stamp is uploaded apart, under
    *  its own number. Null when there are no instances or the device
    *  refused the buffer. */
-  /** THE TRIANGLES OF @p artefact's buffers that wear slot @p slot, read
-   *  off @p mesh's "Material" primitive lane — which the buffers must
-   *  have been uploaded from first. Null when the mesh carries no such
-   *  lane, names no triangle with that slot, or was never uploaded; the
-   *  count is written to @p count. */
+  /** THE TRIANGLES OF @p artefact's buffers packed for
+   *  @p primitiveColorLane that wear slot @p slot, read off @p mesh's
+   *  "Material" primitive lane — which the buffers must have been
+   *  uploaded from first. Null when the mesh carries no such lane, names
+   *  no triangle with that slot, or was never uploaded with that lane;
+   *  the count is written to @p count. */
   Diligent::IBuffer* slotIndices(uint64_t artefact, const mesh::Mesh& mesh,
+                                 std::string_view primitiveColorLane,
                                  size_t slot, uint32_t* count);
   const InstanceBuffers* instances(uint64_t artefact,
                                    const mesh::Instances& instances);
@@ -189,7 +192,10 @@ class MeshResidency {
  private:
   Device* m_device = nullptr;
   uint64_t m_frame = 0;
-  boost::container::map<uint64_t, MeshBuffers> m_meshes;
+  /** An artefact's packings, one per primitive lane it is asked for
+   *  with; the empty lane is the mesh's own shared vertices. */
+  boost::container::map<std::pair<uint64_t, std::string>, MeshBuffers>
+      m_meshes;
   boost::container::map<uint64_t, InstanceBuffers> m_instances;
   InstanceBuffers m_single;
   /** THE ONE PAIR OF BUFFERS a streamed mesh is written into. The two

@@ -105,6 +105,11 @@ Frame& Frame::overlay(material::Texture picture) {
   return *this;
 }
 
+Frame& Frame::backdrop(material::Texture picture) {
+  m_backdrops.push_back(std::move(picture));
+  return *this;
+}
+
 Frame& Frame::present(std::string name) {
   m_present = std::move(name);
   return *this;

@@ -356,12 +356,7 @@ class Harness {
       canvas->drawImageRect(picture, m_destinations[i],
                             SkSamplingOptions(SkFilterMode::kLinear), &paint);
     }
-    std::unique_ptr<skgpu::graphite::Recording> recording = graphite()->recorder()->snap();
-    if (!recording) return false;
-    skgpu::graphite::InsertRecordingInfo insert;
-    insert.fRecording = recording.get();
-    return graphite()->context()->insertRecording(insert) &&
-           graphite()->context()->submit(skgpu::graphite::SyncToCpu::kYes);
+    return graphite()->submit(*graphite()->recorder(), skgpu::graphite::SyncToCpu::kYes);
   }
 
   bool m_asynchronous = false;

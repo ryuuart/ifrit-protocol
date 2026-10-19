@@ -70,13 +70,14 @@ std::string lightDefinitions(uint32_t variant) {
   if (variant & kVariantPointShadows) out += "#define SIGIL_POINT_SHADOWS 1\n";
   if (variant & kVariantTintedShadows)
     out += "#define SIGIL_TINTED_SHADOWS 1\n";
+  if (variant & kVariantUnshadowed) out += "#define SIGIL_UNSHADOWED 1\n";
   return out;
 }
 
 /** The variant bits that name the lights a lit build is specialised on. */
 constexpr uint32_t kLightVariants =
     kVariantAreaLights | kVariantCascadedShadows | kVariantPointShadows |
-    kVariantTintedShadows;
+    kVariantTintedShadows | kVariantUnshadowed;
 
 }  // namespace
 
@@ -198,6 +199,7 @@ const PostPrograms& postPrograms() {
     one("fsMasked", &built.masked);
     one("fsFinal", &built.final);
     one("fsFill", &built.fill);
+    one("fsAuthored", &built.authored);
     one("fsDown", &built.down);
     one("fsDownThreshold", &built.downThreshold);
     one("fsUp", &built.up);
@@ -227,9 +229,10 @@ void prepareFixedPrograms() {
   static std::once_flag once;
   std::call_once(once, [] {
     (void)scaffold(false);
-    for (const uint32_t lights :
-         std::array<uint32_t, 4>{0u, kVariantAreaLights,
-                                 kVariantCascadedShadows, kVariantPointShadows})
+    for (const uint32_t lights : std::array<uint32_t, 6>{
+             0u, kVariantAreaLights, kVariantCascadedShadows,
+             kVariantPointShadows, kVariantUnshadowed,
+             kVariantAreaLights | kVariantUnshadowed})
       (void)scaffold(true, lights);
     (void)shadowScaffold(false);
     (void)shadowScaffold(true);

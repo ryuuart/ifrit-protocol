@@ -327,9 +327,11 @@ and the colour every transmissive body nearer the light than what blocks
 it lets through, multiplied together, tested against the map's own depth
 so glass behind a blocker tints nothing. A point standing behind the
 nearest of them takes that colour of the light; one in front of them, or
-where none stands, takes all of it. Both are drawn whole in every frame
-that holds such a body, and the lit programs read them only then
-(`kVariantTintedShadows`).
+where none stands, takes all of it. Both are drawn whole in a frame that
+holds such a body and in which a map or a transmissive body moved, and
+kept otherwise; the lit programs read them only in a frame that holds one
+(`kVariantTintedShadows`), and a program drawn in a frame where no light casts,
+or for a body that receives no shadow, holds no shadow code at all (`kVariantUnshadowed`).
 
 **What a map costs.** A map is drawn only in a frame where something its
 depth depends on moved — its light, its fit, or a body casting into it —

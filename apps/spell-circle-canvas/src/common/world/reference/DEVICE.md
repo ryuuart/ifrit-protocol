@@ -161,8 +161,10 @@ specialised on the kinds of light that reach the body —
 `kVariantCascadedShadows` when one is read through a directional light's
 cascades, `kVariantPointShadows` when one is read through a point light's
 six faces, `kVariantTintedShadows` when a casting light passes through a
-transmissive body in the frame — so a program holds the code of the lights it is drawn under
-and no other. Which build a body is drawn
+transmissive body in the frame, `kVariantUnshadowed` when no light in the
+frame casts or it receives no shadow — so a program holds the code of the lights
+it is drawn under and no other, and a body under no casting light pays
+nothing for the shadow filter. Which build a body is drawn
 with is the body's own answer as much as the pass's — a surface that is
 its own light takes the unlit one whatever the pass asked for. The mesh vertex layout is not a
 variant axis, because there is one — position, normal, uv and tint, with

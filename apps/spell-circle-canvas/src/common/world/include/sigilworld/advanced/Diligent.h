@@ -56,6 +56,11 @@ enum : uint32_t {
    *  transmissive body: the program reads what colour of each light comes
    *  through. */
   kVariantTintedShadows = 1u << 5u,
+  /** Beside `kVariantLit`, a body no casting light's map can reach — a
+   *  frame in which no light casts, or a body that receives no shadow:
+   *  the program holds no shadow terms at all, neither the filter nor the
+   *  loop that reads it. */
+  kVariantUnshadowed = 1u << 6u,
 };
 
 }  // namespace sigil::world::diligent

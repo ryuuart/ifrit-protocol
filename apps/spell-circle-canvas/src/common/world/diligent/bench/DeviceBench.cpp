@@ -212,8 +212,11 @@ BENCHMARK(BM_WideBloomOnDevice)
  *  opaque bodies over, or clear glass with a volume in front of the card
  *  (surface 1), timed in the phase that sees through to what stands
  *  behind it — whose shadow is tinted by the glass, so it reads the tint
- *  as well as the filter. A casting light's arm less the same surface's
- *  arm under a light that casts nothing is the shadow's share.
+ *  as well as the filter — or the same glass casting nothing (surface 3),
+ *  so the frame holds no tint and reads the filter alone. A casting
+ *  light's arm less the same surface's arm under a light that casts
+ *  nothing is the shadow's share, and surface 1's share less surface 3's
+ *  is what the tint adds to it.
  *
  *  The time is the device's own clock for that one phase, read off a
  *  frame that asked for it, so neither the readback that waits for the
@@ -227,7 +230,8 @@ void BM_ShadowShareOnDevice(benchmark::State& state) {
     return;
   }
   namespace gm = ::sigil::geometry::mesh;
-  const bool glass = state.range(0) == 1;
+  const bool tinting = state.range(0) == 1;
+  const bool glass = tinting || state.range(0) == 3;
   const bool everyLobe = state.range(0) == 2;
   const bool casts = state.range(1) != 0;
   const Runtime runtime = diligent::runtime(*gpu);
@@ -249,6 +253,7 @@ void BM_ShadowShareOnDevice(benchmark::State& state) {
   if (glass)
     content.push_back(mesh(gm::quad(400, 400))
                           .key("pane")
+                          .castShadow(tinting)
                           .fill(material::from(material::Color{1, 1, 1, 1})
                                     .surface({.roughness = 0.0f,
                                               .transmission = 1.0f,
@@ -312,6 +317,90 @@ BENCHMARK(BM_ShadowShareOnDevice)
     ->Args({1, 1})
     ->Args({2, 0})
     ->Args({2, 1})
+    ->Args({3, 0})
+    ->Args({3, 1})
+    ->UseManualTime()
+    ->Iterations(60)
+    ->Unit(benchmark::kMillisecond);
+
+/** WHAT HAVING THE SHADOW TERMS IN A PROGRAM COSTS A CARD NO LIGHT CASTS
+ *  ON: the device time of the phase that lays a full-size card under a
+ *  sun that casts nothing. With the terms (terms 1), a second light in
+ *  the frame casts — linked to no body, so it lights nothing and none of
+ *  its maps darkens the card — which builds the card's program with the
+ *  shadow filter and its loop in it; without (terms 0) nothing in the
+ *  frame casts and the program holds neither. The two arms shade the same
+ *  pixels to the same values, so their difference is what the terms cost
+ *  a program that never runs them. */
+void BM_UnshadowedCardOnDevice(benchmark::State& state) {
+  const device::DeviceConfig config;
+  std::string error;
+  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  if (!gpu) {
+    state.SkipWithError(error);
+    return;
+  }
+  namespace gm = ::sigil::geometry::mesh;
+  const bool terms = state.range(0) != 0;
+  const Runtime runtime = diligent::runtime(*gpu);
+  motion::Engine engine;
+  Scene scene(engine);
+  std::vector<Node> content;
+  content.push_back(mesh(gm::quad(400, 400))
+                        .key("card")
+                        .collection("card")
+                        .fill(material::surface::program(
+                            {.baseColor = {0.5f, 0.5f, 0.5f, 1},
+                             .roughness = 0.5f},
+                            material::surface::Reflection::SplitSum)));
+  content.push_back(
+      directionalLight({-0.2f, -0.3f, -1}, {.castShadow = false}).key("sun"));
+  if (terms)
+    content.push_back(
+        directionalLight({0.2f, -0.3f, -1}, {.castShadow = true})
+            .key("elsewhere")
+            .lightLink(Collection{.exclude = {"card"}})
+            .shadowLink(Collection{.exclude = {"card"}}));
+  geometry::mesh::camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  camera.target = {0, 0, 0};
+  content.push_back(world::camera(camera).key("camera"));
+  Frame frame(group(std::move(content)).key("set"));
+  frame.extent({1440, 960})
+      .runtime(runtime)
+      .timeStages(true)
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 160));
+  SkCanvas canvas(bitmap);
+  const auto frameOnce = [&] {
+    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+    scene.render(frame);
+    draw(scene, canvas);
+    const SceneStats& stats = scene.stats();
+    if (stats.deviceTiming != DeviceTiming::Measured) return -1.0;
+    for (const DeviceStage& each : stats.deviceStages)
+      if (each.stage == "colour.laid") return each.ms;
+    return -1.0;
+  };
+  // The device raises its clocks over the first frames it is given.
+  int warm = 0;
+  for (int k = 0; k < 120 && warm < 30; ++k)
+    if (frameOnce() >= 0.0) ++warm;
+  if (warm == 0) {
+    state.SkipWithError("the device writes no timestamps");
+    return;
+  }
+  for ([[maybe_unused]] auto iteration : state) {
+    double ms = frameOnce();
+    for (int k = 0; k < 12 && ms < 0.0; ++k) ms = frameOnce();
+    state.SetIterationTime(std::max(ms, 0.0) / 1000.0);
+  }
+}
+BENCHMARK(BM_UnshadowedCardOnDevice)
+    ->ArgNames({"terms"})
+    ->Arg(0)
+    ->Arg(1)
     ->UseManualTime()
     ->Iterations(60)
     ->Unit(benchmark::kMillisecond);

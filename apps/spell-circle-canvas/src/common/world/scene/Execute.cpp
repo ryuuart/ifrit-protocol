@@ -79,19 +79,23 @@ geometry::mesh::camera::Camera Scene::Impl::viewpoint() const {
 }
 
 std::string Scene::Impl::missingTexturePass() const {
-  for (const material::Texture& overlay : frame.overlays()) {
-    const std::string pass = producingPass(overlay);
-    if (pass.empty()) continue;
-    bool painted = false;
+  const auto unpainted = [&](const material::Texture& picture) {
+    const std::string pass = producingPass(picture);
+    if (pass.empty()) return std::string();
     for (const Pass& candidate : frame.passes())
-      painted = painted ||
-                (candidate.stage() == Stage::Texture && candidate.producer() &&
-                 candidate.producer()->paints(overlay));
-    if (!painted)
-      return "an overlay is a texture the pass \"" + pass +
-             "\" paints, and that pass is not on the frame: add it with "
-             "Frame::pass";
-  }
+      if (candidate.stage() == Stage::Texture && candidate.producer() &&
+          candidate.producer()->paints(picture))
+        return std::string();
+    return pass;
+  };
+  for (const auto& [pictures, kind] :
+       {std::pair{frame.overlays(), "an overlay"},
+        std::pair{frame.backdrops(), "a backdrop"}})
+    for (const material::Texture& picture : pictures)
+      if (const std::string pass = unpainted(picture); !pass.empty())
+        return std::string(kind) + " is a texture the pass \"" + pass +
+               "\" paints, and that pass is not on the frame: add it with "
+               "Frame::pass";
   for (const Draw& body : draws) {
     if (!body.material) continue;
     std::string missing;
@@ -262,6 +266,7 @@ bool Scene::Impl::phaseGraph() {
   view.time = engine.elapsed();
   view.standIns = frame.standIns();
   view.timeStages = frame.timeStages();
+  view.backdrops = frame.backdrops();
 
   // THE SHADOW STAGE a lit geometry pass opens with: one map per light
   // that casts, and none at all in a frame where nothing does.

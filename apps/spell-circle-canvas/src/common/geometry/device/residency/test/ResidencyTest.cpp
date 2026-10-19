@@ -18,6 +18,7 @@
 
 #include <chrono>
 #include <thread>
+#include <vector>
 
 #include "Meshes.h"
 #include "Pipelines.h"
@@ -137,14 +138,36 @@ TEST(MapUpload, AMapTooSmallToHalveAsksForNoChainAtAll) {
   EXPECT_EQ(device::mapMipLevels(2, 1), 2);
 }
 
-TEST(MeshResidency, LayoutStepsAWholeVertexWithOrWithoutThePrimitiveLane) {
-  // Every vertex carries the primitive lane because it is the same
-  // buffer; a program that does not read it declares four elements over
-  // the same stride rather than a packing of its own.
-  EXPECT_EQ(device::meshLayout(/*withPrimitiveLane=*/false).size(), 4u);
-  EXPECT_EQ(device::meshLayout(/*withPrimitiveLane=*/true).size(), 5u);
-  for (const Diligent::LayoutElement& element : device::meshLayout(true))
-    EXPECT_EQ(element.Stride, sizeof(device::MeshVertex));
+TEST(MeshResidency, LayoutHasOneFormPerInstanceAndTangentChoice) {
+  // Four vertex elements always — position, normal, uv and colour — the
+  // six instance elements numbered right after them, and the tangent
+  // after those; nothing between the colour and the first instance.
+  EXPECT_EQ(device::meshLayout(false, false).size(), 4u);
+  EXPECT_EQ(device::meshLayout(true, false).size(), 10u);
+  EXPECT_EQ(device::meshLayout(false, true).size(), 5u);
+  EXPECT_EQ(device::meshLayout(true, true).size(), 11u);
+  EXPECT_EQ(device::kFirstInstanceInput, 4u);
+  EXPECT_EQ(device::kTangentInput, device::kFirstInstanceInput + 6);
+  for (const bool instanced : {false, true})
+    for (const bool tangent : {false, true}) {
+      std::vector<unsigned> expectedInputs = {0, 1, 2, 3};
+      if (instanced)
+        for (unsigned input = 0; input < 6; ++input)
+          expectedInputs.push_back(device::kFirstInstanceInput + input);
+      if (tangent) expectedInputs.push_back(device::kTangentInput);
+      std::vector<unsigned> inputs;
+      for (const Diligent::LayoutElement& element :
+           device::meshLayout(instanced, tangent)) {
+        inputs.push_back(element.InputIndex);
+        EXPECT_EQ(element.Stride, element.BufferSlot == 0
+                                      ? sizeof(device::MeshVertex)
+                                      : sizeof(device::InstanceVertex));
+      }
+      EXPECT_EQ(inputs, expectedInputs);
+    }
+  // A vertex is its position, normal, uv, colour and tangent, and no
+  // lane besides.
+  EXPECT_EQ(sizeof(device::MeshVertex), sizeof(float) * (3 + 3 + 2 + 4 + 4));
 }
 
 TEST(MeshResidency, UploadsAMeshOnceUnderTheNameItsArtefactWasGiven) {
@@ -189,6 +212,36 @@ TEST(MeshResidency, UploadsAgainWhenAnAskNamesADifferentPrimitiveLane) {
   const device::MeshBuffers* again = resident.upload(11, tinted);
   ASSERT_NE(again, nullptr);
   EXPECT_EQ(again->vertexCount, 4u);
+}
+
+TEST(MeshResidency, HoldsBothPackingsOfAMeshDrawnTintedAndUntinted) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  device::MeshResidency resident(*on);
+
+  mesh::Mesh tinted = quad();
+  tinted.primitive("Color") = {{1, 0, 0, 1}, {0, 1, 0, 1}};
+
+  // ONE FRAME draws the mesh both ways: through its colour lane and
+  // without it. Each is packed once…
+  const device::MeshBuffers* untintedFirst = resident.upload(13, tinted);
+  const device::MeshBuffers* tintedFirst = resident.upload(13, tinted, "Color");
+  ASSERT_NE(untintedFirst, nullptr);
+  ASSERT_NE(tintedFirst, nullptr);
+  Diligent::IBuffer* untintedVertices = untintedFirst->vertices;
+  Diligent::IBuffer* tintedVertices = tintedFirst->vertices;
+  EXPECT_NE(untintedVertices, tintedVertices);
+  resident.endFrame();
+
+  // …and the SECOND FRAME, drawing the same two, is answered by the
+  // buffers already held for each rather than a repack of either.
+  const device::MeshBuffers* untintedSecond = resident.upload(13, tinted);
+  const device::MeshBuffers* tintedSecond = resident.upload(13, tinted, "Color");
+  ASSERT_NE(untintedSecond, nullptr);
+  ASSERT_NE(tintedSecond, nullptr);
+  EXPECT_EQ(untintedSecond->vertices.RawPtr(), untintedVertices);
+  EXPECT_EQ(untintedSecond->vertexCount, 4u);
+  EXPECT_EQ(tintedSecond->vertices.RawPtr(), tintedVertices);
+  EXPECT_EQ(tintedSecond->vertexCount, 6u);
 }
 
 TEST(MeshResidency, LetsGoOfAMeshNoDrawHasNamedLately) {

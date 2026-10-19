@@ -117,17 +117,12 @@ bool MetalDriver::paintTexture(sigil::core::hardware::TextureHandle handle, int 
   painter(*surface->getCanvas());
   surface.reset();
 
-  // Snapped on this thread, inserted and submitted under the context's
-  // lock: the host may be using the same context from its own thread.
-  std::unique_ptr<skgpu::graphite::Recording> recording = recorder->snap();
-  skgpu::graphite::Context *context = m_state->graphite->context();
-  const std::unique_lock<std::mutex> lock = m_state->graphite->lockContext();
-  skgpu::graphite::InsertRecordingInfo info;
-  info.fRecording = recording.get();
-  const skgpu::graphite::InsertStatus status =
-      recording ? context->insertRecording(info) : skgpu::graphite::InsertStatus();
-  if (!recording || !status) {
-    // The status is checked, never assumed. This recorder replays in
+  // Snapped on this thread, inserted with every wait registered on the
+  // recorder and submitted under the context's lock: the host may be
+  // using the same context from its own thread, and a page may sample a
+  // texture another queue is still writing.
+  if (!m_state->graphite->submit(*recorder, skgpu::graphite::SyncToCpu::kNo)) {
+    // The result is checked, never assumed. This recorder replays in
     // order, so a Recording snapped and not inserted — a null snap
     // included — skips an ID and kills the recorder: every later insert
     // fails and nothing it records is ever drawn again. The failure is
@@ -138,17 +133,12 @@ bool MetalDriver::paintTexture(sigil::core::hardware::TextureHandle handle, int 
     static bool warned = false;
     if (!warned) {
       warned = true;
-      std::fprintf(
-          stderr,
-          "[SigilScry:warning] Graphite paint failed (%s%d%s%s); WebImage "
-          "frames will not render\n",
-          recording ? "insert status " : "empty snap",
-          recording ? static_cast<int>(static_cast<skgpu::graphite::InsertStatus::V>(status)) : 0,
-          status.message().empty() ? "" : ": ", status.message().c_str());
+      std::fprintf(stderr,
+                   "[SigilScry:warning] Graphite paint failed (an empty snap or a refused "
+                   "insert); WebImage frames will not render\n");
     }
     return false;
   }
-  context->submit();
   return true;
 }
 

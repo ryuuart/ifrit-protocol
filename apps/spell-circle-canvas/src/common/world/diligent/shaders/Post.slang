@@ -48,6 +48,11 @@ uniform float4 uBloom;
 /** A composite's: x the opacity its second layer arrives at, y the mode
  *  — 0 plus-lighter, 1 source-over. */
 uniform float4 uLayer;
+/** THE PART OF A LAID PICTURE THE TARGET SHOWS: xy where the target's
+ *  top-left corner falls in it and zw how much of it the target spans,
+ *  both as fractions of the picture; (0, 0, 1, 1) where the target is the
+ *  whole picture. */
+uniform float4 uWindow;
 
 /** A premultiplied radiance as a display shows it, premultiplied. Alpha
  *  past one — light added over what was already opaque — counts as one. */
@@ -138,6 +143,17 @@ float4 fsFinal(VSOut input) : SV_Target {
 [shader("fragment")]
 float4 fsFill(VSOut input) : SV_Target {
   return radianceOf(uTint.rgb, saturateP(uTint.a));
+}
+
+/** A PICTURE AUTHORED IN DISPLAY VALUES — premultiplied, as a page paints
+ *  one — laid as the light that leaves the final stage as that picture,
+ *  read through the window of it the target shows. */
+[shader("fragment")]
+float4 fsAuthored(VSOut input) : SV_Target {
+  let painted = uSource.Sample(uWindow.xy + input.uv * uWindow.zw);
+  let a = saturateP(painted.a);
+  let straight = a > 0.0001 ? painted.rgb / a : painted.rgb;
+  return radianceOf(straight, a);
 }
 
 /** What of a pixel is brighter than the bloom's threshold, by luminance,

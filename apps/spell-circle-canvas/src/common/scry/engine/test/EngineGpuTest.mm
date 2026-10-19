@@ -15,6 +15,7 @@
 
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/TextureImage.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -70,13 +71,7 @@ WebEngine &gpuEngine() {
 
 /** Snap the test recorder and insert + submit under the context's lock. */
 void submit(sigil::skia::GraphiteContext &graphite) {
-  auto recording = graphite.recorder()->snap();
-  ASSERT_NE(recording, nullptr);
-  const std::unique_lock<std::mutex> lock = graphite.lockContext();
-  skgpu::graphite::InsertRecordingInfo info;
-  info.fRecording = recording.get();
-  graphite.context()->insertRecording(info);
-  graphite.context()->submit();
+  ASSERT_TRUE(graphite.submit(*graphite.recorder(), skgpu::graphite::SyncToCpu::kNo));
 }
 
 // ── The ways a page-visible slot gets its pixels ──────────────────────
@@ -254,6 +249,33 @@ TEST(WebViewGpuTest, WrapsOnePublishedTextureOncePerVersion) {
   EXPECT_EQ(bare.width, 32);
   EXPECT_EQ(bare.height, 32);
   EXPECT_TRUE(static_cast<bool>(bare));
+}
+
+// A painted slot that samples a texture another queue writes carries
+// that queue's wait into the insert that draws it: the engine's paint
+// goes through the context's own submit, which takes every wait
+// registered on the engine's recorder.
+TEST(WebViewGpuTest, APaintedSlotCarriesTheWaitsRegisteredBeforeIt) {
+  auto image = gpuEngine().createImage("gpu_waited_swatch", 16, 16);
+  ASSERT_NE(image, nullptr);
+  id<MTLDevice> device = (__bridge id<MTLDevice>)sharedDevice()->native().mtlDevice;
+  id<MTLSharedEvent> event = [device newSharedEvent];
+  ASSERT_NE(event, nil);
+  // Already reached, so the GPU wait the insert carries passes at once.
+  event.signaledValue = 1;
+  skgpu::graphite::Recorder *engineRecorder = nullptr;
+  size_t waitsWhilePainting = 0;
+  ASSERT_TRUE(image->paint([&](SkCanvas &canvas) {
+    engineRecorder = canvas.recorder();
+    if (!engineRecorder) return;
+    sigil::skia::waitBeforeSampling(*engineRecorder, (__bridge void *)event, 1);
+    waitsWhilePainting = sigil::skia::pendingWaits(*engineRecorder);
+    canvas.clear(SK_ColorBLUE);
+  }));
+  ASSERT_NE(engineRecorder, nullptr);
+  EXPECT_EQ(waitsWhilePainting, 1u);
+  EXPECT_EQ(sigil::skia::pendingWaits(*engineRecorder), 0u)
+      << "the slot's insert left the wait registered before it behind";
 }
 
 // A page brought up and torn down while the engine renders on the

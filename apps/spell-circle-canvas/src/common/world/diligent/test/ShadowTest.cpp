@@ -415,29 +415,62 @@ Frame twoSpots(float cardX, const Runtime& runtime) {
   return frame;
 }
 
+/** A sun shining down through a green pane held over a card on the
+ *  ground, so the card's shadow is tinted by the glass. */
+Frame glassOverCard(const Runtime& runtime) {
+  Frame frame(
+      group({directionalLight({1, -1, 0}, sun(true)).key("sun"), ground(),
+             card().at({0, 10, 0}),
+             mesh(gm::quad(40, 40))
+                 .key("pane")
+                 .rotateX(-90)
+                 .at({0, 40, 0})
+                 .fill(material::from(material::Color{0.2f, 0.9f, 0.2f, 1})
+                           .surface({.roughness = 0.1f,
+                                     .transmission = 1.0f,
+                                     .ior = 1.5f}))})
+          .key("set"));
+  frame.extent(kExtent)
+      .defaultCamera(diligent::raisedEye())
+      .runtime(runtime)
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  return frame;
+}
+
 }  // namespace
 
 TEST(Shadow, AStillSetDrawsNoShadowMapOnItsSecondFrame) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
-  motion::Engine engine;
-  Scene scene(engine);
-  const auto step = [&] {
-    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
-    scene.render(twoSpots(0.0f, on.runtime));
-    SkBitmap bitmap;
-    bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
-    SkCanvas canvas(bitmap);
-    draw(scene, canvas);
-    return bitmap;
-  };
-  const SkBitmap first = step();
-  EXPECT_EQ(scene.stats().shadowMapsDrawn, 2);
-  const SkBitmap second = step();
-  // Nothing moved, so both maps stand as the first frame drew them…
-  EXPECT_EQ(scene.stats().shadowMapsDrawn, 0);
-  // …and the picture is the same picture.
-  EXPECT_EQ(diligent::worstChannel(first, second), 0);
+  // Two spots casting opaque shadows, and a sun whose shadow passes
+  // through glass and is tinted by it.
+  for (const bool tinted : {false, true}) {
+    SCOPED_TRACE(tinted ? "a sun through glass" : "two spots");
+    motion::Engine engine;
+    Scene scene(engine);
+    const auto step = [&] {
+      engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+      scene.render(tinted ? glassOverCard(on.runtime)
+                          : twoSpots(0.0f, on.runtime));
+      SkBitmap bitmap;
+      bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+      SkCanvas canvas(bitmap);
+      draw(scene, canvas);
+      return bitmap;
+    };
+    const SkBitmap first = step();
+    // The spots' two maps; the sun's cascades and their tint.
+    if (tinted)
+      EXPECT_GT(scene.stats().shadowMapsDrawn, scene.stats().shadowMaps);
+    else
+      EXPECT_EQ(scene.stats().shadowMapsDrawn, 2);
+    const SkBitmap second = step();
+    // Nothing moved, so every map and every tint stands as the first frame
+    // drew it…
+    EXPECT_EQ(scene.stats().shadowMapsDrawn, 0);
+    // …and the picture is the same picture.
+    EXPECT_EQ(diligent::worstChannel(first, second), 0);
+  }
 }
 
 TEST(Shadow, MovingOneCasterRedrawsOnlyTheMapsItCastsInto) {

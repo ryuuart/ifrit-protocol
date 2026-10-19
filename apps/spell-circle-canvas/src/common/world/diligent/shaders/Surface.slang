@@ -43,9 +43,11 @@
 // light's cascades, SIGIL_POINT_SHADOWS when one reads a point light's six
 // faces, SIGIL_TINTED_SHADOWS when a casting light passes through a
 // transmissive body in the frame. A program built without one of them has
-// no code for that kind of light at all, and is drawn only under lights that are not of it, so a
-// body pays in its program for the lights that reach it rather than for
-// every kind a scene could hold.
+// no code for that kind of light at all, and is drawn only under lights
+// that are not of it, so a body pays in its program for the lights that
+// reach it rather than for every kind a scene could hold. SIGIL_UNSHADOWED,
+// set when no light in the frame casts or the body receives no shadow,
+// leaves the shadow filter and the loop that reads it out of the program.
 //
 // THE LIT BUILD SHADES EVERY PIXEL, in view space and in LINEAR light:
 //
@@ -318,29 +320,30 @@ uniform float4 uGround;
 uniform float4 uEnvDials;
 #endif
 
-// Numbered explicitly, because the instance elements skip the fifth
-// input, which a primitive lane takes when a layout declares one.
+// Numbered explicitly, because the instance elements and the tangent are
+// read from two buffers and a layout declares only those its program
+// reads.
 struct VSIn {
   [[vk::location(0)]] float3 position : ATTRIB0;
   [[vk::location(1)]] float3 normal : ATTRIB1;
   [[vk::location(2)]] float2 uv : ATTRIB2;
   [[vk::location(3)]] float4 color : ATTRIB3;
   /** ONE INSTANCE: xyz where it stands within the body. */
-  [[vk::location(5)]] float4 instancePosition : ATTRIB5;
+  [[vk::location(4)]] float4 instancePosition : ATTRIB4;
   /** …its turn, a quaternion x y z w… */
-  [[vk::location(6)]] float4 instanceOrientation : ATTRIB6;
+  [[vk::location(5)]] float4 instanceOrientation : ATTRIB5;
   /** …xyz its scale along the mesh's own axes… */
-  [[vk::location(7)]] float4 instanceScale : ATTRIB7;
+  [[vk::location(6)]] float4 instanceScale : ATTRIB6;
   /** …the colour it multiplies the mesh's by… */
-  [[vk::location(8)]] float4 instanceColor : ATTRIB8;
+  [[vk::location(7)]] float4 instanceColor : ATTRIB7;
   /** …the window {uOffset, vOffset, uScale, vScale} its uv is read
    *  through… */
-  [[vk::location(9)]] float4 instanceTextureWindow : ATTRIB9;
+  [[vk::location(8)]] float4 instanceTextureWindow : ATTRIB8;
   /** …and its four named scalars. */
-  [[vk::location(10)]] float4 instanceAttributes : ATTRIB10;
+  [[vk::location(9)]] float4 instanceAttributes : ATTRIB9;
   /** THE WAY u RUNS along the surface where the mesh states it, and in w
    *  the side v runs on; no length where it states none. */
-  [[vk::location(11)]] float4 tangent : ATTRIB11;
+  [[vk::location(10)]] float4 tangent : ATTRIB10;
   uint instanceIndex : SV_InstanceID;
 };
 
@@ -1177,20 +1180,33 @@ bool castsAShadow(float kind) {
   return kind <= 2.5;
 }
 
-/** WHAT OF EACH CASTING LIGHT REACHES ONE PIXEL past every shadow: its
- *  share, one where nothing stands between, in the order the lights are
- *  given — at most four lights cast in a frame — and, where a casting
- *  light passes through glass, the colour that comes through. */
+/** WHAT OF EACH CASTING LIGHT REACHES ONE PIXEL past every shadow, in
+ *  the order the lights are given — at most four lights cast in a frame:
+ *  its share, one where nothing stands between; or, where a casting light
+ *  passes through glass, the colour of it that arrives — the share times
+ *  the colour the glass lets through — held as one value a light, so the
+ *  shading carries no more per light than that. */
 struct ShadowShares {
-  float4 lit;
 #ifdef SIGIL_TINTED_SHADOWS
-  float3 tint0;
-  float3 tint1;
-  float3 tint2;
-  float3 tint3;
+  float3 arriving0;
+  float3 arriving1;
+  float3 arriving2;
+  float3 arriving3;
+#else
+  float4 lit;
 #endif
 };
 
+#ifdef SIGIL_TINTED_SHADOWS
+/** The colour of the casting light numbered @p casting among the casting
+ *  lights that arrives past its shadow and the glass before it. */
+float3 shadowArrivingOf(ShadowShares shares, int casting) {
+  return casting == 0   ? shares.arriving0
+         : casting == 1 ? shares.arriving1
+         : casting == 2 ? shares.arriving2
+                        : shares.arriving3;
+}
+#else
 /** The share of the casting light numbered @p casting among the casting
  *  lights. */
 float shadowShareOf(ShadowShares shares, int casting) {
@@ -1198,16 +1214,6 @@ float shadowShareOf(ShadowShares shares, int casting) {
          : casting == 1 ? shares.lit.y
          : casting == 2 ? shares.lit.z
                         : shares.lit.w;
-}
-
-#ifdef SIGIL_TINTED_SHADOWS
-/** The colour of the casting light numbered @p casting that comes through
- *  the glass between it and the point. */
-float3 shadowTintShareOf(ShadowShares shares, int casting) {
-  return casting == 0   ? shares.tint0
-         : casting == 1 ? shares.tint1
-         : casting == 2 ? shares.tint2
-                        : shares.tint3;
 }
 #endif
 
@@ -1221,13 +1227,15 @@ float3 shadowTintShareOf(ShadowShares shares, int casting) {
  *  is not read. */
 ShadowShares shadowSharesAt(float3 p, float3 geometric, float3 n) {
   ShadowShares shares;
-  shares.lit = float4(1.0, 1.0, 1.0, 1.0);
 #ifdef SIGIL_TINTED_SHADOWS
-  shares.tint0 = float3(1.0, 1.0, 1.0);
-  shares.tint1 = float3(1.0, 1.0, 1.0);
-  shares.tint2 = float3(1.0, 1.0, 1.0);
-  shares.tint3 = float3(1.0, 1.0, 1.0);
+  shares.arriving0 = float3(1.0, 1.0, 1.0);
+  shares.arriving1 = float3(1.0, 1.0, 1.0);
+  shares.arriving2 = float3(1.0, 1.0, 1.0);
+  shares.arriving3 = float3(1.0, 1.0, 1.0);
+#else
+  shares.lit = float4(1.0, 1.0, 1.0, 1.0);
 #endif
+#ifndef SIGIL_UNSHADOWED
   if (uShadowDials.y < 0.5) return shares;
   let count = int(uLightCount.x);
   int casting = 0;
@@ -1257,25 +1265,26 @@ ShadowShares shadowSharesAt(float3 p, float3 geometric, float3 n) {
       toward = -normalizeP(uLightDirection[i].xyz);
     }
     let lit = shadowOf(map, p, geometric, toward);
+#ifdef SIGIL_TINTED_SHADOWS
+    // What comes through glass is read only where some of the light does.
+    let arriving =
+        lit > 0.0 ? lit * shadowTintOf(map, p, geometric, toward) : float3(lit);
+    if (slot == 0)
+      shares.arriving0 = arriving;
+    else if (slot == 1)
+      shares.arriving1 = arriving;
+    else if (slot == 2)
+      shares.arriving2 = arriving;
+    else
+      shares.arriving3 = arriving;
+#else
     shares.lit = slot == 0   ? float4(lit, shares.lit.yzw)
                  : slot == 1 ? float4(shares.lit.x, lit, shares.lit.zw)
                  : slot == 2 ? float4(shares.lit.xy, lit, shares.lit.w)
                              : float4(shares.lit.xyz, lit);
-#ifdef SIGIL_TINTED_SHADOWS
-    // What comes through glass is read only where some of the light does.
-    if (lit > 0.0) {
-      let tint = shadowTintOf(map, p, geometric, toward);
-      if (slot == 0)
-        shares.tint0 = tint;
-      else if (slot == 1)
-        shares.tint1 = tint;
-      else if (slot == 2)
-        shares.tint2 = tint;
-      else
-        shares.tint3 = tint;
-    }
 #endif
   }
+#endif
   return shares;
 }
 
@@ -1506,16 +1515,19 @@ float3 shadeLit(VSOut input, float3 base) {
       }
       if (irradiance <= 0.0 && strength <= 0.0) continue;
       // Its shadow, read from its centre before the lobes.
+#ifdef SIGIL_TINTED_SHADOWS
+      float3 arriving = float3(1.0, 1.0, 1.0);
+      if (shadowSlot >= 0) {
+        arriving = shadowArrivingOf(shares, shadowSlot);
+        if (max(arriving.r, max(arriving.g, arriving.b)) <= 0.0) continue;
+      }
+      let shaded = colour * arriving;
+#else
       float shade = 1.0;
       if (shadowSlot >= 0) {
         shade = shadowShareOf(shares, shadowSlot);
         if (shade <= 0.0) continue;
       }
-#ifdef SIGIL_TINTED_SHADOWS
-      let shaded = shadowSlot >= 0
-                       ? colour * shade * shadowTintShareOf(shares, shadowSlot)
-                       : colour * shade;
-#else
       let shaded = colour * shade;
 #endif
       let highlight = strength * areaNormalization(rough, solid);
@@ -1601,15 +1613,20 @@ float3 shadeLit(VSOut input, float3 base) {
     }
     if (reach <= 0.0) continue;
     // THE SHADOW takes its share of this light, and of nothing else.
-    var through = float3(1.0, 1.0, 1.0);
+#ifdef SIGIL_TINTED_SHADOWS
+    var arriving = float3(1.0, 1.0, 1.0);
+    if (shadowSlot >= 0) {
+      arriving = shadowArrivingOf(shares, shadowSlot);
+      if (max(arriving.r, max(arriving.g, arriving.b)) <= 0.0) continue;
+    }
+    let radiance = colour * arriving * reach;
+#else
     if (shadowSlot >= 0) {
       reach = reach * shadowShareOf(shares, shadowSlot);
       if (reach <= 0.0) continue;
-#ifdef SIGIL_TINTED_SHADOWS
-      through = shadowTintShareOf(shares, shadowSlot);
-#endif
     }
-    let radiance = colour * through * reach;
+    let radiance = colour * reach;
+#endif
     var diffuseOne = radiance * directDiffuse(n, l, v, diffuse, f0, f90);
 #ifdef SIGIL_ANISOTROPY
     var specularOne = radiance * directSpecularAnisotropic(n, brushed, l, v, f0,

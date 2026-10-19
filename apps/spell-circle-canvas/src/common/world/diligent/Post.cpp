@@ -378,6 +378,17 @@ void fillTarget(Gpu& gpu, dg::ITexture* into, const material::Color& colour) {
   drawStage(gpu, programs.fill, into, SkBlendMode::kSrc, uniforms, {}, false);
 }
 
+void layAuthored(Gpu& gpu, dg::ITexture* into, dg::ITexture* picture,
+                 const glm::vec4& window) {
+  if (!picture) return;
+  const PostPrograms& programs = postPrograms();
+  material::slang::Uniforms uniforms =
+      baseUniforms(gpu, programs.authored, 0.0f, 1.0f);
+  uniforms.set("uWindow", window.x, window.y, window.z, window.w);
+  drawStage(gpu, programs.authored, into, SkBlendMode::kSrcOver, uniforms,
+            {picture}, false);
+}
+
 void applyPost(Gpu& gpu, const PassWork& work) {
   const Pass& pass = *work.pass;
   const std::span<const std::string> writes = pass.writes();

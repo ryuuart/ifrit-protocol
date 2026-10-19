@@ -327,6 +327,12 @@ struct Gpu {
   dg::RefCntAutoPtr<dg::ITextureView> shadowGlassView;
   int shadowTintSide = 0;
   bool shadowTinted = false;
+  /** WHAT THE TINT WAS DRAWN FROM — every transmissive body that tints,
+   *  and the maps it was drawn against — and the texture it was drawn
+   *  into: a tint whose fold is unchanged, over maps none of which was
+   *  drawn again, is kept. */
+  uint64_t shadowTintFold = 0;
+  const dg::ITexture* shadowTintFoldTexture = nullptr;
   /** The maps the geometry pass under way drew, empty when no light in it
    *  casts. */
   std::vector<ShadowMap> shadows;
@@ -443,6 +449,13 @@ void finalStage(Gpu& gpu, dg::ITexture* radiance, dg::ITexture* display);
 /** Fills the whole of @p into with @p colour, an authored colour, as the
  *  light the final stage turns back into it. */
 void fillTarget(Gpu& gpu, dg::ITexture* into, const material::Color& colour);
+
+/** Lays @p picture, authored in display values and premultiplied, over
+ *  the whole of @p into as the light the final stage turns back into it,
+ *  reading the part of it @p window names — {left, top, width, height} as
+ *  fractions of the picture. */
+void layAuthored(Gpu& gpu, dg::ITexture* into, dg::ITexture* picture,
+                 const glm::vec4& window);
 
 /** Binds @p colour as this frame's target again, with the frame's depth
  *  buffer when one is wanted, keeping what both hold. */

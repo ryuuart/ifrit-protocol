@@ -114,6 +114,17 @@ class Frame {
    *  the ones before it. The pass that paints it must be on the frame, as
    *  for a texture a body wears. */
   Frame& overlay(material::Texture picture);
+  /** A PICTURE LAID UNDER THE SCENE'S BODIES — a grid, a paper, a
+   *  painted ground the scene stands in front of — the mirror of
+   *  `overlay`: drawn over the whole of every painting geometry pass's
+   *  target after its clear and any sky the environment shows, before
+   *  the first body, written as the light the camera's reading turns
+   *  back into exactly its colour, as an unlit surface is. It shows
+   *  wherever no body covers it, a translucent body is mixed with it in
+   *  light, and a post pass reads it as part of the picture. Each is laid
+   *  over the ones before it. The pass that paints it must be on the
+   *  frame, as for a texture a body wears. */
+  Frame& backdrop(material::Texture picture);
   /** @} */
 
   /** @name What a host states
@@ -203,6 +214,11 @@ class Frame {
   [[nodiscard]] std::span<const material::Texture> overlays() const {
     return m_overlays;
   }
+  /** The pictures laid under the scene's bodies, in the order they are
+   *  laid. */
+  [[nodiscard]] std::span<const material::Texture> backdrops() const {
+    return m_backdrops;
+  }
 
  private:
   Node m_scene;
@@ -216,6 +232,7 @@ class Frame {
   std::vector<Pass> m_passes;
   std::vector<Readback> m_readbacks;
   std::vector<material::Texture> m_overlays;
+  std::vector<material::Texture> m_backdrops;
   Runtime m_runtime;
   std::string m_present;
   bool m_standIns = false;

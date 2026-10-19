@@ -120,14 +120,16 @@ wrote.
 **Residency is the device's too.** A mesh is host memory and a map is an
 image; a draw needs buffers and a texture. `device::MeshResidency`
 (`device/residency/Meshes.h`) makes that crossing and remembers it: `upload()`
-holds a mesh under the number the caller gave the artefact it came from,
-so two frames looking at the same triangles cross once, and `stream()`
+holds a mesh under the number the caller gave the artefact it came from
+and the primitive colour lane it is packed for, so two frames looking at
+the same triangles cross once — and a mesh drawn tinted and untinted in
+one frame is two packings, each held — and `stream()`
 writes a mesh nobody can name into one pair of buffers grown to fit and
 overwritten by the next draw. `device::MeshVertex` is the one vertex
 layout every pipeline over those buffers declares — filled in on upload
 for a mesh that carries no normals, uvs or tint — and `meshLayout()` is
-that layout as a pipeline states it, with the primitive lane declared or
-not over the same stride. `device::TextureResidency` (`device/residency/Textures.h`)
+that layout as a pipeline states it, one form for each choice of
+instance elements and tangent, every form over the same stride. `device::TextureResidency` (`device/residency/Textures.h`)
 is the same story for maps: pixels that already stand on this very
 device are wrapped where they are, in the format they were painted in and
 with the levels they were made with, and nothing crosses through host

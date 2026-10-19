@@ -54,6 +54,18 @@ an unlit body in the scene is. Overlays are laid in the order they were
 added; the pass that paints one must be on the frame, as for a texture a
 body wears.
 
+`Frame::backdrop` is its mirror: a picture laid UNDER the scene's bodies —
+a grid, a paper, a painted ground the scene stands in front of. Every
+geometry pass that paints the picture lays it over its target after the
+clear and any sky the environment shows, before the first body, written as
+the light the camera's reading turns back into exactly its colour, as an
+unlit surface is; it shows as authored wherever no body covers it, a
+translucent body is mixed with it in light, and a post pass reads it as
+part of the picture. A target that is a part of a larger picture
+(`Frame::viewOffset`) shows its own window of each backdrop. Backdrops are
+laid in the order they were added, and the pass that paints one must be on
+the frame.
+
 ## Pass: one stage of making a frame
 
 A pass declares the resources it reads and writes by name, and the
@@ -256,6 +268,10 @@ lights are not in the compiled shader at all. `kVariantAreaLights`,
 `kVariantTintedShadows` are the others: the renderer sets each from the
 lights a draw is handed and what they pass through, and a lit program
 built without one has no code for that kind of light.
+`kVariantUnshadowed` is their opposite: the renderer sets it where no
+casting light's map can reach the body — a frame in which nothing casts,
+or a body that receives no shadow — and a lit program built with it holds no
+shadow terms at all.
 
 Two things a backend might be expected to specialise on are not bits,
 because neither changes a program. The mesh vertex layout is one: every

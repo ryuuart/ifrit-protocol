@@ -64,10 +64,6 @@ void fillVertices(const mesh::Mesh& mesh, std::string_view primitiveColorLane,
     v.color[1] = c.g;
     v.color[2] = c.b;
     v.color[3] = c.a;
-    v.primitive[0] = tint.r;
-    v.primitive[1] = tint.g;
-    v.primitive[2] = tint.b;
-    v.primitive[3] = tint.a;
     const glm::vec4 t = hasTangents ? mesh.tangents[i] : glm::vec4(0.0f);
     v.tangent[0] = t.x;
     v.tangent[1] = t.y;
@@ -93,12 +89,11 @@ void fillVertices(const mesh::Mesh& mesh, std::string_view primitiveColorLane,
 
 }  // namespace
 
-std::span<const dg::LayoutElement> meshLayout(bool withPrimitiveLane,
-                                              bool instanced,
+std::span<const dg::LayoutElement> meshLayout(bool instanced,
                                               bool withTangent) {
   // THE STRIDE IS STATED rather than derived from the elements, because
-  // a vertex carries the primitive lane whether or not the program that
-  // reads the others declares it: a layout of four elements over these
+  // a vertex carries the tangent whether or not the program that reads
+  // the others declares it: a layout of four elements over these
   // vertices still steps a whole one.
   const auto vertex = [](dg::Uint32 input, dg::Uint32 components) {
     return dg::LayoutElement{input,
@@ -121,8 +116,9 @@ std::span<const dg::LayoutElement> meshLayout(bool withPrimitiveLane,
                              sizeof(InstanceVertex),
                              dg::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE};
   };
-  // The tangent stands after the primitive lane in the vertex, so its
-  // offset is stated rather than counted from the elements declared.
+  // The tangent's offset is stated rather than counted from the elements
+  // declared, because the instance elements between it and the colour
+  // in the numbering are read from the other buffer.
   const auto tangent = [] {
     return dg::LayoutElement{
         kTangentInput,     0,         4,
@@ -130,24 +126,20 @@ std::span<const dg::LayoutElement> meshLayout(bool withPrimitiveLane,
         sizeof(MeshVertex)};
   };
   const auto build = [&](int which) {
-    const bool primitive = (which & 1) != 0;
-    const bool instances = (which & 2) != 0;
-    const bool tangents = (which & 4) != 0;
+    const bool instances = (which & 1) != 0;
+    const bool tangents = (which & 2) != 0;
     std::vector<dg::LayoutElement> elements = {vertex(0, 3), vertex(1, 3),
                                                vertex(2, 2), vertex(3, 4)};
-    if (primitive) elements.push_back(vertex(4, 4));
     if (instances)
       for (dg::Uint32 i = 0; i < 6; ++i)
         elements.push_back(instance(kFirstInstanceInput + i));
     if (tangents) elements.push_back(tangent());
     return elements;
   };
-  static const std::vector<dg::LayoutElement> layouts[8] = {
-      build(0), build(1), build(2), build(3),
-      build(4), build(5), build(6), build(7)};
+  static const std::vector<dg::LayoutElement> layouts[4] = {
+      build(0), build(1), build(2), build(3)};
   const std::vector<dg::LayoutElement>& chosen =
-      layouts[(withPrimitiveLane ? 1 : 0) + (instanced ? 2 : 0) +
-              (withTangent ? 4 : 0)];
+      layouts[(instanced ? 1 : 0) + (withTangent ? 2 : 0)];
   return {chosen.data(), chosen.size()};
 }
 
@@ -195,10 +187,12 @@ MeshResidency::MeshResidency(Device& device) : m_device(&device) {}
 MeshResidency::~MeshResidency() = default;
 
 dg::IBuffer* MeshResidency::slotIndices(uint64_t artefact,
-                                        const mesh::Mesh& mesh, size_t slot,
-                                        uint32_t* count) {
+                                        const mesh::Mesh& mesh,
+                                        std::string_view primitiveColorLane,
+                                        size_t slot, uint32_t* count) {
   *count = 0;
-  const auto held = m_meshes.find(artefact);
+  const auto held =
+      m_meshes.find({artefact, std::string(primitiveColorLane)});
   if (held == m_meshes.end() || !held->second.vertices) return nullptr;
   MeshBuffers& buffers = held->second;
   if (buffers.slotIndices.empty()) {
@@ -247,14 +241,13 @@ const MeshBuffers* MeshResidency::upload(uint64_t artefact,
                                          const mesh::Mesh& mesh,
                                          std::string_view primitiveColorLane) {
   if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
-  MeshBuffers& buffers = m_meshes[artefact];
-  buffers.used = m_frame;
   // The lane is half the key. One artefact drawn once with a primitive
   // lane and once without is two packings — unshared vertices carrying a
-  // tint per triangle, and the mesh's own shared ones — so the held pair
-  // answers only the lane it was packed for.
-  if (buffers.vertices && buffers.primitiveColorLane == primitiveColorLane)
-    return &buffers;
+  // tint per triangle, and the mesh's own shared ones — and a frame that
+  // draws both keeps both.
+  MeshBuffers& buffers = m_meshes[{artefact, std::string(primitiveColorLane)}];
+  buffers.used = m_frame;
+  if (buffers.vertices) return &buffers;
 
   std::vector<MeshVertex> vertices;
   std::vector<uint32_t> indices;

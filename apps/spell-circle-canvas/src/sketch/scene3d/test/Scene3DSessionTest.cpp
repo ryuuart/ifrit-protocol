@@ -782,6 +782,7 @@ TEST_F(Scene3DDoors, ALiveScene3DPaintsItsScreensOnTheDeviceItIsDrawnOn) {
   ASSERT_TRUE(on);
   useDevice(on.device);
   for (const bool deterministic : {false, true}) {
+    SCOPED_TRACE(deterministic ? "a capture" : "a window");
     std::unique_ptr<Session> session =
         kindOf<ScreenedAndSeen>()->open(fonts(), assets(), deterministic);
     const SkBitmap picture = oneFrame(*session);

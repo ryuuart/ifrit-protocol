@@ -168,6 +168,11 @@ struct View {
   bool standIns = false;
   /** The device times each stage of the frame: `Frame::timeStages`. */
   bool timeStages = false;
+  /** THE PICTURES LAID UNDER THE BODIES, in order: `Frame::backdrop`.
+   *  Each is an authored picture, written over a painting pass's target
+   *  after its clear and its sky as the light the final stage turns back
+   *  into it. */
+  std::span<const material::Texture> backdrops;
 };
 
 /** The size of the picture @p view's camera frames, in pixels: the

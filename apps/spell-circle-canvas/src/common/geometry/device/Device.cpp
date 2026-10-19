@@ -1,5 +1,6 @@
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/PipelineStateCache.h>
+#include <Common/interface/ThreadPool.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
 #include <sigilcore/hardware/GpuDevice.h>
@@ -107,6 +108,9 @@ Device::Device() : m_impl(std::make_unique<Impl>()) {}
 
 Device::~Device() {
   if (!m_impl) return;
+  // Every pipeline still building is waited for before anything it builds
+  // against goes.
+  finishPipelines();
   keepPipelines(m_impl->pipelines, m_impl->pipelineFile);
   m_impl->pipelines.Release();
   // Graphite's teardown and the adopted device's both touch the shared
@@ -410,6 +414,13 @@ core::hardware::GpuDevice* Device::gpu() const { return m_impl->gpu.get(); }
 skia::GraphiteContext* Device::graphite() const {
   return m_impl->hostGraphite ? m_impl->hostGraphite : m_impl->graphite.get();
 }
+void Device::finishPipelines() const {
+  if (!m_impl || !m_impl->device) return;
+  if (Diligent::IThreadPool* workers =
+          m_impl->device->GetShaderCompilationThreadPool())
+    workers->WaitForAllTasks();
+}
+
 Diligent::IPipelineStateCache* Device::pipelineStateCache() const {
   return m_impl->pipelines;
 }

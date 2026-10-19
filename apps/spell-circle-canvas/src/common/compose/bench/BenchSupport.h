@@ -117,12 +117,8 @@ inline sigil::skia::GraphiteContext* graphite() {
  *  iterations against each other use this, where queue back-pressure is
  *  itself part of the signal. */
 inline void submitGraphite(sigil::skia::GraphiteContext& graphiteContext) {
-  auto recording = graphiteContext.recorder()->snap();
-  if (!recording) return;
-  skgpu::graphite::InsertRecordingInfo info;
-  info.fRecording = recording.get();
-  graphiteContext.context()->insertRecording(info);
-  graphiteContext.context()->submit();
+  (void)graphiteContext.submit(*graphiteContext.recorder(),
+                               skgpu::graphite::SyncToCpu::kNo);
 }
 
 /** Submit and WAIT for the GPU to finish. An arm comparing SHADER cost must
@@ -131,14 +127,8 @@ inline void submitGraphite(sigil::skia::GraphiteContext& graphiteContext) {
  *  never drains inside the timed region. */
 inline void submitGraphiteSynced(
     sigil::skia::GraphiteContext& graphiteContext) {
-  auto recording = graphiteContext.recorder()->snap();
-  if (!recording) return;
-  skgpu::graphite::InsertRecordingInfo info;
-  info.fRecording = recording.get();
-  graphiteContext.context()->insertRecording(info);
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  graphiteContext.context()->submit(submitInfo);
+  (void)graphiteContext.submit(*graphiteContext.recorder(),
+                               skgpu::graphite::SyncToCpu::kYes);
 }
 
 /** A Graphite render target for one arm. `ok()` is false — and the state

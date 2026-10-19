@@ -145,6 +145,15 @@ class Device {
    *  device keeps none. */
   Diligent::IPipelineStateCache* pipelineStateCache() const;
 
+  /** WAITS FOR EVERY PIPELINE STILL BUILDING on the device's workers.
+   *  A pipeline asked for ahead of the frame that draws with it builds on
+   *  a worker while the thread that asked goes on; one still building
+   *  when the process ends runs the driver's compiler while the process
+   *  tears down the compiler's own statics around it, and faults. The
+   *  device waits for them when it goes; a process that keeps its device
+   *  for its whole life calls this before it ends. */
+  void finishPipelines() const;
+
   /** THE METAL OBJECTS BEHIND THIS DEVICE'S OWN, where the driver runs
    *  Vulkan over Metal and exports what it made: @p texture's
    *  id<MTLTexture>, for a texture the engine made, and the

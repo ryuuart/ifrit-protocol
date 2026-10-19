@@ -105,13 +105,7 @@ sigil::skia::GraphiteContext& graphite() {
 }
 
 void submitGraphite() {
-  auto recording = graphite().recorder()->snap();
-  const std::unique_lock<std::mutex> lock = graphite().lockContext();
-  if (!recording) return;
-  skgpu::graphite::InsertRecordingInfo info;
-  info.fRecording = recording.get();
-  graphite().context()->insertRecording(info);
-  graphite().context()->submit();
+  (void)graphite().submit(*graphite().recorder(), skgpu::graphite::SyncToCpu::kNo);
 }
 #endif
 

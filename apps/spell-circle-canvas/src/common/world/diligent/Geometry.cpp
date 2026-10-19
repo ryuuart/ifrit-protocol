@@ -239,7 +239,10 @@ uint32_t lightVariant(const Gpu& gpu,
         kind == LightKind::Disk)
       bits |= kVariantAreaLights;
   }
-  if (!receives || gpu.shadows.empty() || gpu.shadowAtlasSide <= 0) return bits;
+  // A BODY NO CASTING LIGHT'S MAP CAN REACH is built without the shadow
+  // terms: no light in the frame casts, or the body receives no shadow.
+  if (!receives || gpu.shadows.empty() || gpu.shadowAtlasSide <= 0)
+    return bits | kVariantUnshadowed;
   for (size_t i = 0; i < count; ++i)
     for (const ShadowMap& map : gpu.shadows)
       if (map.light == lights[i]) {
@@ -680,16 +683,14 @@ PipelineKey bodyKey(const material::slang::Compiled& program,
       blending.depthWrite && blending.blend == SkBlendMode::kSrcOver
           ? SkBlendMode::kSrc
           : blending.blend;
-  PipelineKey key{&program, blend, true, blending.depthWrite,
-                  false,    false, cull};
+  PipelineKey key{&program, blend, true, blending.depthWrite, false, cull};
   key.target = kRadianceFormat;
   key.instanced = true;
   key.tangent = true;
   if (caster) {
     // Depth and no colour; both faces, so a card blocks the light from
     // behind as well as in front.
-    key = PipelineKey{&program, SkBlendMode::kSrc, true, true, false, false,
-                      false};
+    key = PipelineKey{&program, SkBlendMode::kSrc, true, true, false, false};
     key.target = dg::TEX_FORMAT_UNKNOWN;
     key.instanced = true;
     key.tangent = true;
@@ -722,6 +723,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   uint32_t indexCount = buffers->indexCount;
   if (shape.slot >= 0) {
     indexBuffer = gpu.meshes.slotIndices(shape.artefact, *shape.mesh,
+                                         shape.primitiveColor,
                                          (size_t)shape.slot, &indexCount);
     if (!indexBuffer) return;
   }
@@ -1986,14 +1988,60 @@ bool tints(const Draw& body) {
 /** THE TINT BESIDE THE SHADOW MAPS: for every map the stage laid out, the
  *  nearest transmissive body's depth, and the colour every transmissive
  *  body nearer the light than what blocks it lets through, multiplied
- *  together. Drawn whole in every frame that holds such a body, and in no
- *  other. */
-void drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
+ *  together. Drawn whole in a frame that holds such a body and in which
+ *  something it is a function of moved — a map the stage drew again
+ *  (@p mapsDrawn), or a body that tints — and kept from the frame before
+ *  otherwise; in no frame without such a body. Answers how many maps'
+ *  tints it drew: every map's, or none. */
+int64_t drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView,
+                  int64_t mapsDrawn) {
   gpu.shadowTinted = false;
-  if (gpu.shadows.empty() || !gpu.shadowAtlas) return;
+  if (gpu.shadows.empty() || !gpu.shadowAtlas) return 0;
   bool any = false;
   for (const Draw& body : view.draws) any = any || tints(body);
-  if (!any || !gpu.shadowTintAt(gpu.shadowAtlasSide)) return;
+  if (!any || !gpu.shadowTintAt(gpu.shadowAtlasSide)) return 0;
+  // WHAT THE TINT IS A FUNCTION OF besides the maps' depth: each map's
+  // place and projection, and every body that tints — where it stands,
+  // which triangles it is, its instances, the eye's turn where it faces
+  // the eye, its surface and what that surface lets through, and the
+  // moment a running surface is read at.
+  Fold fold;
+  for (const ShadowMap& map : gpu.shadows) {
+    fold.add(map.viewProjection);
+    fold.add(map.x);
+    fold.add(map.y);
+    fold.add(map.size);
+  }
+  for (size_t i = 0; i < view.draws.size(); ++i) {
+    const Draw& body = view.draws[i];
+    if (!tints(body)) continue;
+    fold.add(i);
+    fold.add(body.world);
+    fold.add(body.geometry);
+    fold.add(body.mesh);
+    fold.add(body.mesh->positions.size());
+    if (body.instances) {
+      fold.all(body.instances->positions);
+      fold.all(body.instances->orientations);
+      fold.all(body.instances->scales);
+    }
+    if (body.facing != Facing::None) fold.add(cameraView);
+    fold.add(body.material);
+    fold.add(body.baseColor);
+    const TintTerms terms = tintTermsOf(*body.material);
+    fold.add(terms.colour);
+    fold.add(terms.weight);
+    fold.add(terms.thickness);
+    fold.add(terms.distance);
+    fold.add(terms.attenuation);
+    if (body.material->isRunning()) fold.add(gpu.seconds);
+  }
+  if (mapsDrawn == 0 && fold.value == gpu.shadowTintFold &&
+      gpu.shadowTintFoldTexture == gpu.shadowTint.RawPtr()) {
+    gpu.shadowTinted = true;
+    return 0;
+  }
+  const int64_t pendingBefore = gpu.programsPending;
   dg::IDeviceContext* context = gpu.device->context();
   const dg::Uint32 side = (dg::Uint32)gpu.shadowAtlasSide;
   const auto eachMap = [&](bool tint) {
@@ -2043,6 +2091,12 @@ void drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
                              dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   eachMap(true);
   gpu.shadowTinted = true;
+  // A tint a body stood in for, or was left out of, is drawn again on the
+  // next frame, whatever it is a function of.
+  gpu.shadowTintFold =
+      gpu.programsPending != pendingBefore ? ~fold.value : fold.value;
+  gpu.shadowTintFoldTexture = gpu.shadowTint.RawPtr();
+  return (int64_t)gpu.shadows.size();
 }
 
 void prepareFixedPipelines(Gpu& gpu) {
@@ -2126,9 +2180,18 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   }
   // THE SHADOW STAGE, before the target is opened: the maps every lit
   // body below reads.
-  targets.addShadowMapsDrawn(drawShadows(gpu, view, viewMatrix));
-  drawTints(gpu, view, viewMatrix);
+  const int64_t mapsDrawn = drawShadows(gpu, view, viewMatrix);
+  targets.addShadowMapsDrawn(mapsDrawn +
+                             drawTints(gpu, view, viewMatrix, mapsDrawn));
   gpu.mark("shadow");
+  // THE BACKDROPS' TEXTURES, before the target is opened, so a page met
+  // here is wrapped and waited for outside the pass that lays it.
+  std::vector<dg::ITexture*> backdrops;
+  for (const material::Texture& picture : view.backdrops)
+    if (dg::ITexture* texture = gpu.maps.sample(
+            picture, {.mipmaps = false},
+            std::chrono::duration<double>(gpu.seconds)))
+      backdrops.push_back(texture);
   // THE CLEAR IS AN AUTHORED COLOUR, so it is filled as the light the
   // final stage turns back into it, and the depth is cleared beside it.
   openTarget(gpu, colour, clearNothing, true);
@@ -2149,6 +2212,20 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   // already are, so deriving it is what keeps the sky's rays and the
   // bodies' positions answering to one camera.
   drawBackdrop(gpu, view, viewProj * glm::inverse(viewMatrix), viewMatrix);
+  // THE FRAME'S BACKDROPS, over the clear and the sky and under every
+  // body: each the whole picture, of which a target that is a part of it
+  // shows its own window.
+  if (!backdrops.empty()) {
+    glm::vec4 window{0.0f, 0.0f, 1.0f, 1.0f};
+    if (isPart(view.offset, view.extent))
+      window = {(float)view.offset.origin.x / (float)view.offset.whole.x,
+                (float)view.offset.origin.y / (float)view.offset.whole.y,
+                (float)view.extent.x / (float)view.offset.whole.x,
+                (float)view.extent.y / (float)view.offset.whole.y};
+    for (dg::ITexture* picture : backdrops)
+      layAuthored(gpu, colour, picture, window);
+    resumeTarget(gpu, colour, true);
+  }
   const bool cull = work.realisation == Selection::Cull;
   drawBodies(gpu, view, viewProj, viewMatrix,
              cull ? &pass.collection() : nullptr, /*lit=*/true, nullptr, colour,

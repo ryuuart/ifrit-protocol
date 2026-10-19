@@ -63,7 +63,9 @@ struct SceneStats {
   int64_t texturesSkipped = 0;  ///< texture passes that found nothing changed
   int64_t shadowMaps = 0;       ///< lights whose shadow map the frame draws
   /** Maps the executor drew this frame — six a point light, one a
-   *  cascade — leaving out every map nothing moved in, which is kept. */
+   *  cascade, and each map's tint again where a casting light passes
+   *  through glass — leaving out every map and tint nothing moved in,
+   *  which is kept. */
   int64_t shadowMapsDrawn = 0;
   /** Bodies drawn as a stand-in because their program was still
    *  compiling, or left out because the stand-in's own pipeline was still

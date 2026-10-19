@@ -482,18 +482,28 @@ TEST(PostChain, TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn) {
   // The device time of the phase that lays the opaque bodies over, at a
   // full-size frame: the least of a few timed frames, so a frame the
   // device was slow to start does not decide it.
-  const auto laid = [&](int cards, bool shadowed) {
+  // With @p castingElsewhere, a second light in the frame casts but is
+  // linked to no card, so the cards' programs are built with the shadow
+  // terms while no shadow falls on them.
+  const auto laid = [&](int cards, bool shadowed, bool castingElsewhere) {
     std::vector<Node> content;
     for (int i = 0; i < cards; ++i)
       content.push_back(
           mesh(gm::quad(400, 400))
               .key("card" + std::to_string(i))
+              .collection("cards")
               .at({0, 0, -2.0f * (float)i})
               .fill(material::surface::program(
                   {.baseColor = {0.5f, 0.5f, 0.5f, 1}, .roughness = 0.5f})));
     content.push_back(
         directionalLight({-0.2f, -0.3f, -1}, {.castShadow = shadowed})
             .key("sun"));
+    if (castingElsewhere)
+      content.push_back(
+          directionalLight({0.2f, -0.3f, -1}, {.castShadow = true})
+              .key("elsewhere")
+              .lightLink(Collection{.exclude = {"cards"}})
+              .shadowLink(Collection{.exclude = {"cards"}}));
     content.push_back(camera(diligent::levelEye()).key("camera"));
     Frame frame(group(std::move(content)).key("set"));
     frame.extent({1440, 960})
@@ -515,19 +525,26 @@ TEST(PostChain, TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn) {
   };
   // The first scene timed meets a device still raising its clocks, so it
   // is timed once to be thrown away.
-  if (laid(1, false) < 0) GTEST_SKIP() << "the device writes no timestamps";
-  const double one = laid(1, false);
-  const double sixteen = laid(16, false);
-  const double shadowed = laid(1, true);
+  if (laid(1, false, false) < 0)
+    GTEST_SKIP() << "the device writes no timestamps";
+  const double one = laid(1, false, false);
+  const double sixteen = laid(16, false, false);
+  const double withTerms = laid(1, false, true);
+  const double shadowed = laid(1, true, false);
   RecordProperty("oneCardMilliseconds", std::to_string(one));
   RecordProperty("sixteenCardsMilliseconds", std::to_string(sixteen));
+  RecordProperty("oneCardWithShadowTermsMilliseconds",
+                 std::to_string(withTerms));
   RecordProperty("oneShadowedCardMilliseconds", std::to_string(shadowed));
   // Sixteen cards over one another cost about what the one in front does:
   // the device does not shade what is hidden.
   EXPECT_LT(sixteen, one * 2.5) << one << " " << sixteen;
+  // A card no light casts on, in a frame where nothing casts, is built
+  // without the shadow terms and pays nothing for them.
+  EXPECT_LT(one, withTerms) << one << " " << withTerms;
   // A casting light's filter — four comparing gathers a tap block — is
-  // less than a lit pixel's own cost again.
-  EXPECT_LT(shadowed, one * 2.0) << one << " " << shadowed;
+  // less than the cost of the lit pixel it is compiled into again.
+  EXPECT_LT(shadowed, withTerms * 2.0) << withTerms << " " << shadowed;
 }
 
 TEST(PostChain, TheSeenPhaseOfAPaneCostsASmallMultipleOfALaidCard) {

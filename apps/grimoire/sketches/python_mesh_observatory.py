@@ -2,7 +2,8 @@
 
 The forms are Python data and functions. Tessellation, camera projection,
 normals and lighting are the native geometry and world libraries'; the
-sheet's words are a pen program laid over the finished frame.
+ruled ground is a pen program laid under the bodies and the sheet's words
+one laid over the finished frame.
 """
 
 # TAGS: Geometry/Meshes, Drawing/Generative
@@ -12,6 +13,7 @@ from math import cos, pi, sin
 from sigil import compose, material, world
 from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
+from sigil.material import pattern
 from sigil.material import surface as surfaces
 from sigil.sketch import Scene3DContext, kit, sketch
 
@@ -62,6 +64,15 @@ class MeshObservatory:
         self.dark = finish("#293a4e", roughness=0.8)
         self.rule = finish("#456073", roughness=0.9)
         ctx.camera(LENS)
+        # The ruled ground stands on a screen laid under the bodies, painted
+        # once and kept while its tree is unchanged.
+        self.grid = pattern.gridLines(40, 0.6, "#21313d").paint()
+        self.ground = ctx.textureScene((WIDTH, HEIGHT))
+        self.groundSheet = (
+            compose.graphics("observatory.ground", self.rules)
+            .width(WIDTH)
+            .height(HEIGHT)
+        )
         # The words stand on a screen laid over the finished frame, painted
         # once and kept while the tree is unchanged.
         self.words = ctx.textureScene((WIDTH, HEIGHT))
@@ -100,8 +111,21 @@ class MeshObservatory:
             .transform(camera.place((245, -35, 0), yawDegrees=-seconds * 20))
             .fill(self.finishes[2]),
         ).key("observatory")
+        self.ground.render(self.groundSheet, seconds)
         self.words.render(self.sheet, seconds)
-        return world.Frame(model).overlay(self.words.texture())
+        return (
+            world.Frame(model)
+            .backdrop(self.ground.texture())
+            .overlay(self.words.texture())
+        )
+
+    def rules(self, pen: Pen) -> None:
+        """The ground the forms stand in front of: the sheet's colour and a
+        ruled field behind the plinth."""
+        pen.background(self.look.palette.ground)
+        pen.noStroke()
+        pen.fill(self.grid)
+        pen.rect(280, 70, 1080, 720)
 
     def labels(self, pen: Pen) -> None:
         """The sheet's words: the heading on the left, a caption under each

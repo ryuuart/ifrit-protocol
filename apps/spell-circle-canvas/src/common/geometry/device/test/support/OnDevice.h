@@ -6,6 +6,7 @@
  * cases need a device reads it here rather than standing one up per file.
  */
 
+#include <gtest/gtest.h>
 #include <sigilgeometry/device/Device.h>
 
 #include <memory>
@@ -25,6 +26,22 @@ struct OnDevice {
   Device* operator->() const { return device; }
 };
 
+/** WHAT THE PROCESS'S DEVICE OWES BEFORE THE TESTS END: every pipeline a
+ *  case asked for ahead of a frame and left building is waited for once
+ *  the last case has run. The device is kept until the process ends, and
+ *  a pipeline still building then would run the driver's compiler while
+ *  the process tears down that compiler's statics; this is what lets a
+ *  case that ends early pass alike alone and beside other processes on
+ *  the device. */
+class FinishPipelinesAtTheEnd : public ::testing::Environment {
+ public:
+  explicit FinishPipelinesAtTheEnd(const Device* device) : m_device(device) {}
+  void TearDown() override { m_device->finishPipelines(); }
+
+ private:
+  const Device* m_device;
+};
+
 /** The one device this process brings up, kept for its lifetime: making a
  *  second Vulkan device costs the driver more the more it has already
  *  made, and every case wants the same one anyway. */
@@ -32,7 +49,12 @@ inline OnDevice onDevice() {
   static std::string error;
   static std::unique_ptr<Device> made = [] {
     const DeviceConfig config;
-    return Device::create(config, &error);
+    std::unique_ptr<Device> device = Device::create(config, &error);
+    // Owned and torn down by the test framework.
+    if (device)
+      ::testing::AddGlobalTestEnvironment(
+          new FinishPipelinesAtTheEnd(device.get()));
+    return device;
   }();
   OnDevice out;
   out.device = made.get();

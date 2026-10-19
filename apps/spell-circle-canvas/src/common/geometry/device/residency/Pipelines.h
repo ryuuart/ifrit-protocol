@@ -47,10 +47,6 @@ struct PipelineKey {
   /** No vertex layout and no index buffer: a triangle covering the
    *  target, which is what every post stage draws. */
   bool fullscreen = false;
-  /** Does the vertex layout declare the PRIMITIVE lane? Every vertex
-   *  carries one either way — it is the same buffer — but a program that
-   *  does not read it is not given an attribute it never declared. */
-  bool primitive = false;
   /** Are back faces dropped? A draw the caller asked to keep them for
    *  is a different pipeline and not a different program. */
   bool cull = true;

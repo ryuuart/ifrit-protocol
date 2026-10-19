@@ -699,7 +699,13 @@ before the reading, as anything translucent in a lit scene is. A picture
 that is about the frame rather than standing in it — a heads-up display,
 a caption — is laid over with `Frame::overlay(texture)` instead: drawn over
 the whole picture when it is put on a canvas, after the reading, in
-display values, exactly as a page composited over a picture is.
+display values, exactly as a page composited over a picture is. A
+picture the scene stands IN FRONT of — a grid, a paper, a painted ground —
+is laid under it with `Frame::backdrop(texture)`, the mirror of the
+overlay: written over each painting pass's target after its clear and its
+sky and before the first body, as the light the reading turns back into
+exactly its colour, so it shows as authored wherever no body covers it and
+a translucent body is mixed with it in light.
 
 **Post passes run on light.** A blur, a composite and a bloom spread and
 add the light as it stands; a grade (`Levels`) states its gain, lift and

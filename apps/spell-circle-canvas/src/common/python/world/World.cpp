@@ -828,6 +828,24 @@ void bindWorld(py::module_& root) {
           },
           "The pictures laid over the finished frame, in the order they are "
           "laid.")
+      .def("backdrop", &world::Frame::backdrop, py::arg("picture"),
+           "A picture laid under the scene's bodies, the mirror of overlay: "
+           "a grid, a paper, a painted ground the scene stands in front of. "
+           "It is drawn over the clear and any sky the environment shows, "
+           "before the first body, and leaves the camera's reading as "
+           "exactly its colour where no body covers it. Each is laid over "
+           "the ones before it, and the pass that paints it must be on the "
+           "frame, as for a texture a body wears.",
+           fluent)
+      .def_property_readonly(
+          "backdrops",
+          [](const world::Frame& self) {
+            const auto pictures = self.backdrops();
+            return std::vector<material::Texture>(pictures.begin(),
+                                                  pictures.end());
+          },
+          "The pictures laid under the scene's bodies, in the order they are "
+          "laid.")
       .def("present", py::overload_cast<std::string>(&world::Frame::present),
            py::arg("resource"), fluent);
   auto stats = py::class_<world::SceneStats>(module, "SceneStats");

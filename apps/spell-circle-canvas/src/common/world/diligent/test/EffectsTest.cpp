@@ -25,7 +25,9 @@
 #include <sigilworld/World.h>
 #include <sigilworld/diligent/Import.h>
 
+#include <array>
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -534,6 +536,57 @@ TEST(FinalStage, AnOverlayIsLaidOverThePictureAsAPageIs) {
     canvas.drawImage(panel, 0, 0);
   }
   EXPECT_LE(diligent::worstChannel(scene(true), composited), 1);
+}
+
+TEST(FinalStage, ABackdropShowsAsAuthoredWhereNoBodyCoversIt) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A ground of one authored colour with a band of another across its
+  // top, as a page paints one.
+  const uint8_t ground[3] = {33, 49, 61};
+  const uint8_t band[3] = {200, 120, 40};
+  const sk_sp<SkImage> picture = [&] {
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+    SkCanvas canvas(bitmap);
+    canvas.clear(SkColorSetRGB(ground[0], ground[1], ground[2]));
+    SkPaint paint;
+    paint.setColor(SkColorSetRGB(band[0], band[1], band[2]));
+    canvas.drawRect(SkRect::MakeWH((float)kExtent.x, kExtent.y * 0.1f), paint);
+    return bitmap.asImage();
+  }();
+  const material::Color cardColour{0.95f, 0.8f, 0.3f, 1};
+  const auto scene = [&](bool laid) {
+    Frame frame(group({card("card", flat(cardColour)),
+                       camera(diligent::levelEye()).key("camera")})
+                    .key("set"));
+    frame.extent(kExtent).pass(
+        geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    if (laid) frame.backdrop(material::Texture(media::PixelSource(picture)));
+    return diligent::photograph(frame, on.runtime, kExtent);
+  };
+  const SkBitmap bare = scene(false);
+  const SkBitmap laid = scene(true);
+  const auto channels = [](SkColor colour) {
+    return std::array<int, 3>{(int)SkColorGetR(colour),
+                              (int)SkColorGetG(colour),
+                              (int)SkColorGetB(colour)};
+  };
+  const auto near = [](std::array<int, 3> seen, const uint8_t (&want)[3]) {
+    for (int channel = 0; channel < 3; ++channel)
+      if (std::abs(seen[channel] - (int)want[channel]) > 1) return false;
+    return true;
+  };
+  // Where no body covers it — a corner of the ground, and the band — the
+  // backdrop leaves the camera's reading as it was authored…
+  EXPECT_TRUE(near(channels(laid.getColor(2, kExtent.y - 3)), ground));
+  EXPECT_TRUE(near(channels(laid.getColor(kExtent.x / 2, 2)), band));
+  // …where nothing was laid the clear stands there…
+  EXPECT_EQ(channels(bare.getColor(2, kExtent.y - 3)),
+            (std::array<int, 3>{0, 0, 0}));
+  // …and the card in front of it covers it as it covered the clear.
+  EXPECT_EQ(laid.getColor(kExtent.x / 2, kExtent.y / 2),
+            bare.getColor(kExtent.x / 2, kExtent.y / 2));
 }
 
 // ---- bloom -------------------------------------------------------------

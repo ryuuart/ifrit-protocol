@@ -355,6 +355,8 @@ describing one geometry share one artefact and answer 2.
 
 ## See also
 
-`reference/FRAMES.md` for the frame, its environment and the passes a
-scene executes, and
+`reference/FRAMES.md` for the frame, its environment, the pictures it lays
+under the bodies (`Frame::backdrop`) and over the finished picture
+(`Frame::overlay`) — neither of them a node — and the passes a scene
+executes, and
 `reference/PRESETS.md` for the trees the kit composes.

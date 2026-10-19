@@ -74,6 +74,9 @@ struct PostPrograms {
   /** A target filled with an authored colour, as the light that leaves
    *  the final stage as it. */
   material::slang::Compiled fill;
+  /** A picture authored in display values laid over a target, as the
+   *  light that leaves the final stage as it. */
+  material::slang::Compiled authored;
   /** A level half the size of what it reads, and the same with a bloom's
    *  threshold taken on the way. */
   material::slang::Compiled down;
