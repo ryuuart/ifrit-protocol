@@ -35,10 +35,7 @@ int runSweep(const Arguments& args, int chosen,
   // A scene3d sketch is rendered by the runtime installed on it; a scene2d
   // sketch is photographed on a Graphite surface allocated from that same
   // device's context, so there is one device in the process and not
-  // two that cannot read each other's textures. A scene2d sketch's mesh
-  // painter still stays on the CPU executor whatever the flag says: a
-  // scene2d plate is hashed from that executor, and the two rasterise the
-  // same picture but not the same bytes. WITHOUT the flag no device comes
+  // two that cannot read each other's textures. WITHOUT the flag no device comes
   // up and every scene3d sketch is listed unavailable and skipped, saying
   // why.
   // A SWEEP ON THE DEVICE DRAWS THE PROGRAMS AN OPEN WINDOW DRAWS, with

@@ -157,20 +157,17 @@ sources and a consumer holding one of those objects puts
 path.
 
 **The device executors of this library's own seams stand beside their CPU
-ones**, each its own target: `SigilGeometryMeshPopDevice` in
-`mesh/pop/device/` and `SigilGeometryMeshRenderDevice` in
-`mesh/render/device/`. `pop::deviceRuntime(device)`
+ones**, in their own target: `SigilGeometryMeshPopDevice` in
+`mesh/pop/device/`. `pop::deviceRuntime(device)`
 (`mesh/pop/device/Cook.h`) cooks a chain by dispatching the kernel this
 build compiled, `pop::sweepDeviceRuntime(device)`
 (`mesh/pop/device/Sweep.h`) forms a sweep's rings by dispatching theirs,
-`points::deviceRuntime(device)` (`mesh/pop/device/Stamp.h`) forms a
-stamping's vertices by dispatching the third, and
-`render::deviceRuntime(device)` (`mesh/render/device/Painter.h`)
-rasterises a mesh draw. None of the first three computes an arithmetic
+and `points::deviceRuntime(device)` (`mesh/pop/device/Stamp.h`) forms a
+stamping's vertices by dispatching the third. None of the three computes an arithmetic
 of its own — the kernel is one Slang source compiled twice, to the C++
 the host executor calls and to the SPIR-V dispatched here — which is
 what lets the two tiers be held to bit identity rather than to a
-tolerance. Each target is separate so that the feature it stands beside
+tolerance. The target is separate so that the feature it stands beside
 stays free of a device, and
 `mesh/pop/device/test/DeviceCookTest.cpp`, `DeviceStampTest.cpp` and
 `DeviceSweepTest.cpp` are the conformance: every chain, every stamping

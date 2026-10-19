@@ -165,3 +165,27 @@ casts should build the program without the terms, which wants a variant
 bit the renderer does not yet set. A bench arm pair of the card under
 no casting light, built with and without the terms, should agree.
 
+## The device residency still packs a primitive attribute no program reads
+
+`MeshVertex::primitive`, the `withPrimitiveLane` choice in `meshLayout`
+and `PipelineKey::primitive` fed the retired mesh painter's shader and
+nothing else reads them, while `Surface.slang` still names the fifth
+input. `meshLayout` should have one form per instanced and tangent
+choice and the vertex no primitive field. A test should assert that.
+
+## A mesh drawn two ways in one frame is repacked every frame
+
+The residency keeps one packing per artefact, so the same mesh drawn
+tinted through `primitiveColor` and untinted in one frame is repacked
+twice every frame; it should hold one packing per artefact and lane. A
+test should draw one mesh both ways and find both uploads returning held
+buffers on the second frame.
+
+## A scene3d frame has no backdrop under its bodies
+
+A scene3d frame carries an overlay over its bodies but nothing laid
+under them, so a 2D grid or picture behind a scene has no place and
+python_mesh_observatory lost its grid backdrop when it became a scene3d
+sketch. A frame should take a backdrop picture under the scene. A test
+should assert a frame's backdrop shows where no body covers it.
+

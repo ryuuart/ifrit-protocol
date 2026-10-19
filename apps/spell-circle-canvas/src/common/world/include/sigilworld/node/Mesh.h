@@ -35,6 +35,16 @@ class Mesh : public Node,
     edit().facing = turned;
     return *this;
   }
+  /** TINTS EACH TRIANGLE BY ITS OWN COLOUR: the primitive lane named
+   *  @p lane — one colour per triangle, conventionally `"Color"` — is
+   *  multiplied into every triangle's colour as a vertex colour is, so two
+   *  triangles that share their corners still differ. A lane the mesh does
+   *  not carry, or one not sized to its triangles, tints nothing. Instanced
+   *  geometry reads its stamp's lane. */
+  Mesh& primitiveColor(std::string lane = "Color") {
+    edit().primitiveColor = std::move(lane);
+    return *this;
+  }
   /** WHETHER THE BODY CASTS SHADOWS from the lights that cast them. Every
    *  body that writes depth does unless it says otherwise; a light's
    *  shadow link narrows it further. */

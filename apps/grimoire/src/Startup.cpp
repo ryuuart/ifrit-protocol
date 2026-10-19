@@ -20,7 +20,6 @@
 
 #ifndef SIGILSKETCH_NO_DEVICE
 #include <sigilgeometry/device/Device.h>
-#include <sigilgeometry/mesh/render/device/Painter.h>
 #include <sigilworld/diligent/Runtime.h>
 #endif
 
@@ -120,13 +119,8 @@ bool useDevice() {
     return false;
   }
   const auto frameRuntime = sigil::world::diligent::runtime(*candidate);
-  const auto meshRuntime =
-      sigil::geometry::mesh::render::deviceRuntime(*candidate);
   g_device = std::move(candidate);
   sketch::useRuntime(frameRuntime);
-  // …and the scene2d twin: a scene2d sketch that stands a mesh up in space
-  // reaches the same device through sketch::painterRuntime().
-  sketch::usePainterRuntime(meshRuntime);
   // …and the device itself, for the calls no runtime can stand in for:
   // a foreign texture entering a material slot names the device it
   // already stands on.
@@ -142,7 +136,6 @@ bool useDevice() {
 void releaseDevice() {
   sketch::useDevice(nullptr);
   sketch::useRuntime({});
-  sketch::usePainterRuntime({});
   g_device.reset();
 }
 #else

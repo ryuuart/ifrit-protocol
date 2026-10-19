@@ -25,7 +25,7 @@ sigil_library(SigilPython
     draw/CanvasSeam.cpp draw/Standalone.cpp
     geometry/Charts.cpp geometry/DeviceHandle.cpp geometry/Frames.cpp
     geometry/Mesh.cpp geometry/MeshCamera.cpp geometry/MeshCodec.cpp
-    geometry/MeshCurve.cpp geometry/MeshPoints.cpp geometry/MeshRender.cpp
+    geometry/MeshCurve.cpp geometry/MeshPoints.cpp
     geometry/Outlines.cpp geometry/PathEditing.cpp geometry/PathOperations.cpp
     geometry/PointBuilder.cpp geometry/PointKernels.cpp
     geometry/PointOperations.cpp geometry/Polylines.cpp geometry/Profiles.cpp
@@ -70,7 +70,7 @@ sigil_library(SigilPython
     SigilDataTable SigilDataValues SigilDraw SigilDrawBrush
     SigilDrawBrushFormat SigilGeometryDevice SigilGeometryMesh
     SigilGeometryMeshCamera SigilGeometryMeshCodec SigilGeometryMeshCurve
-    SigilGeometryMeshPop SigilGeometryMeshRender SigilGeometryPathBlend
+    SigilGeometryMeshPop SigilGeometryPathBlend
     SigilIOHub SigilIOFrames SigilIOSource SigilIOTransport
     SigilMaterialCore SigilMaterialField SigilMaterialMask
     SigilMaterialSurface

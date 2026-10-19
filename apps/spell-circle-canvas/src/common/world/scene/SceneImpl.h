@@ -63,6 +63,8 @@ struct Body {
   const geometry::mesh::Instances* instances = nullptr;
   uint64_t id = 0;
   material::Backface backface = material::Backface::Hidden;
+  /** The primitive lane whose colour multiplies each triangle, or empty. */
+  std::string primitiveColor;
   /** Whether the body turns to face the camera, which only the frame's
    *  viewpoint can settle — so it is applied where the draws are
    *  collected, not here. */

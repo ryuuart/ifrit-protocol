@@ -24,7 +24,9 @@
 //             into a steel tube, projected to a 2D outline, swept a
 //             second time wider as a scrolling band, and scattered into
 //             a point chain that noises, ramps and varies before the
-//             sink splats it.
+//             sink splats it. The tube and the band are a world frame
+//             baked at every step through `ctx.bakeScene3D`; the outline
+//             and the sparks are drawn over it through the same lens.
 //
 // Everything here is hot-editable — change an operator, a surface
 // parameter, a camera angle, save, and the canvas follows, because a save
@@ -53,7 +55,6 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/path/Operations.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -62,10 +63,14 @@
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/skia/Texture.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/World.h>
 
 #include <cmath>
 #include <optional>
@@ -85,8 +90,19 @@ namespace mesh = sigil::geometry::mesh;
 namespace curve = sigil::geometry::mesh::curve;
 namespace operations = sigil::geometry::path::operations;
 namespace shapes = sigil::geometry::shapes;
+namespace world = sigil::world;
 
 namespace {
+
+/** Where the wire panel stands on the sheet and how large it is. */
+constexpr SkRect kFlight = SkRect::MakeXYWH(600, 116, 650, 690);
+/** How many picture pixels the wire's bake takes per page pixel, so it
+ *  stays sharp on a plate captured at twice the page's size. */
+constexpr int kBakeDensity = 2;
+
+mesh::camera::Camera flightCamera() {
+  return {.eye = {0, 620, 900}, .target = {0, 0, 0}, .fovYDeg = 40};
+}
 
 namespace pop = mesh::pop;
 
@@ -189,6 +205,13 @@ sk_sp<SkImage> fibonacciStrip(int width, int height) {
 }  // namespace
 
 struct ShapeworksLab {
+  /** The wire is a frame baked on the device, so the sheet needs one and
+   *  is unavailable, saying so, where none is installed. */
+  static constexpr bool needsDevice = true;
+  static bool available(std::string* why) {
+    return sketch::runtimeAvailable(why);
+  }
+
   // Built once per (re)load: an outline recipe, a normal map and a
   // material program are all description, and a reload re-runs setup.
   material::EnvironmentMap studio;
@@ -196,6 +219,52 @@ struct ShapeworksLab {
   SkPath goldPath, chromePath, glassPath, cookedPath;
   sk_sp<SkImage> backdrop;
   sk_sp<SkImage> marqueeStrip;
+  /** The wire's tube and band as the last step baked them, and the
+   *  moment they were baked at, which the strokes over them share. */
+  sk_sp<SkImage> flightPicture;
+  float flightSeconds = 0;
+
+  /** The tube and the scrolling band at @p seconds, baked at the pixels
+   *  the wire panel has. The tube is steel under one light; the band is
+   *  its own light, its strip tiling round the loop and the placement's
+   *  translation the scroll. */
+  void bakeFlight(sketch::Scene2DContext& ctx, float seconds) {
+    material::Material band = material::surface::unlit(
+        {.baseColor = {1, 1, 1, 0.92f}, .depthWrite = 0});
+    if (marqueeStrip) {
+      glm::mat3 scroll(1.0f);
+      scroll[2][1] = seconds * 0.11f * (float)marqueeStrip->height();
+      band.slot(material::surface::kBaseColorSlot,
+                material::Texture(sigil::media::PixelSource(marqueeStrip))
+                    .tile(material::Repeat::Repeat)
+                    .uv(scroll));
+    }
+    const world::Frame frame(world::group(
+        {world::camera(flightCamera(),
+                       {.toneCurve = world::ToneCurve::Neutral}),
+         world::directionalLight({-0.5f, -0.8f, -0.4f}, {.intensity = 2.9f}),
+         world::ambientLight({.intensity = 0.35f}),
+         world::mesh(pop::sweep(closedLoop(loopAt(seconds, 210, 80)),
+                                sections::circle(),
+                                {.segments = 180, .scale = 7}))
+             .key("tube")
+             .fill(material::surface::program(
+                 {.baseColor = {0.62f, 0.7f, 0.85f, 1}, .roughness = 0.3f})),
+         world::mesh(pop::sweep(closedLoop(loopAt(seconds, 265, 96)),
+                                sections::line(),
+                                {.segments = 220,
+                                 .scale = 30,
+                                 .normals = pop::SweepOptions::Normals::Frame}))
+             .key("band")
+             .backface(material::Backface::Visible)
+             .fill(std::move(band))}));
+    flightPicture = ctx.bakeScene3D(
+        frame,
+        {(int)kFlight.width() * kBakeDensity,
+         (int)kFlight.height() * kBakeDensity},
+        {.camera = flightCamera(), .at = sigil::motion::Duration(seconds)});
+    flightSeconds = seconds;
+  }
 
   Element describe() {
     const sketch::kit::Provide presentation(
@@ -232,54 +301,30 @@ struct ShapeworksLab {
             .rect(30, 566, 540, 300)
             .cache(Cache::Texture);
 
-    // WIRE — one curve, four sinks. A steel tube swept over it, its own
-    // projection stroked on top, a wider sibling loop wearing the
-    // Fibonacci band, and a point chain cooked along it.
-    // KEYLESS: the wire is swept at the paint's own clock.
+    // WIRE — one curve, four sinks. The tube and the band were baked by
+    // the step; the loop's own projection is stroked over them and the
+    // point chain cooked along it is splatted, both at the moment the
+    // bake was taken. KEYLESS: what it paints changes at every step.
     Element flight =
         custom([this](sigil::draw::Pen& pen, const PaintContext& paint) {
           SkCanvas& canvas = *pen.canvas();
           const glm::vec2 viewport = paint.size;
-          const mesh::camera::Camera camera{
-              .eye = {0, 620, 900}, .target = {0, 0, 0}, .fovYDeg = 40};
+          const mesh::camera::Camera camera = flightCamera();
+          if (flightPicture)
+            canvas.drawImageRect(flightPicture,
+                                 SkRect::MakeWH(viewport.x, viewport.y),
+                                 SkSamplingOptions(SkFilterMode::kLinear));
 
-          const float t = (float)paint.elapsedSeconds;
+          const float t = flightSeconds;
           const std::vector<glm::vec3> loop = loopAt(t, 210, 80);
-          const curve::Spline3 rail = closedLoop(loop);
-
-          const mesh::render::MeshStyle steel{
-              .baseColor = {0.62f, 0.7f, 0.85f, 1}, .specular = 0.9f};
-          mesh::render::drawMesh(canvas,
-                                 pop::sweep(rail, sections::circle(),
-                                            {.segments = 180, .scale = 7}),
-                                 glm::mat4(1.0f), camera, viewport, steel);
           SkPaint wire;
           wire.setAntiAlias(true);
           wire.setStyle(SkPaint::kStroke_Style);
           wire.setStrokeWidth(1);
           wire.setColor4f({1, 1, 1, 0.25f});
-          canvas.drawPath(sigil::geometry::path::toSk(
-                              curve::project(rail, camera, viewport, 256)),
+          canvas.drawPath(sigil::geometry::path::toSk(curve::project(
+                              closedLoop(loop), camera, viewport, 256)),
                           wire);
-
-          // The marquee: a wider sibling loop wearing the Fibonacci
-          // band. A swept line charts (across, along) into uv; the strip
-          // tiles (one aperiodic period wraps the loop) and the
-          // uvTransform's translate IS the scroll.
-          const mesh::render::MeshStyle band{
-              .lit = false,
-              .baseColor = {1, 1, 1, 0.92f},
-              .texture = marqueeStrip,
-              .uvTransform =
-                  sigil::geometry::path::Transform::translate({0, t * 0.11f}),
-              .tileTexture = true};
-          mesh::render::drawMesh(
-              canvas,
-              pop::sweep(closedLoop(loopAt(t, 265, 96)), sections::line(),
-                         {.segments = 220,
-                          .scale = 30,
-                          .normals = pop::SweepOptions::Normals::Frame}),
-              glm::mat4(1.0f), camera, viewport, band);
 
           // Sparks: a point CHAIN on the same loop — the scatter, the
           // noise that drifts it, the ramp down `t` and the per-point
@@ -297,7 +342,7 @@ struct ShapeworksLab {
               canvas, sparks, camera, viewport,
               {.size = 11, .sizeLane = "size", .tintLane = "tint"});
         })
-            .rect(600, 116, 650, 690)
+            .rect(kFlight.x(), kFlight.y(), kFlight.width(), kFlight.height())
             .overflow(Overflow::Clip)
             .cache(Cache::None);
 
@@ -383,8 +428,14 @@ struct ShapeworksLab {
                                   studio, material::Texture(backdrop));
 
     marqueeStrip = fibonacciStrip(96, 1024);
+    bakeFlight(ctx, 0);
 
     ctx.composer.render(describe());
+  }
+
+  /** The wire moves on the clock, so every step bakes it afresh. */
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
+    bakeFlight(ctx, (float)elapsed);
   }
 };
 

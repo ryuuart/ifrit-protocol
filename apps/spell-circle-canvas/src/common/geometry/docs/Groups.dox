@@ -21,17 +21,15 @@
 /** @defgroup geometry-mesh Meshes and point clouds
  *  The 3D tier: the triangle mesh and its faces, the camera, splines and
  *  the frames they carry, point clouds with named attribute lanes and the
- *  operator chain over them, model import and export, and the painter
- *  that draws a mesh onto a canvas (mesh/Mesh.h, mesh/camera/Camera.h,
- *  mesh/curve/Curve.h, mesh/pop/Pop.h, mesh/codec/Model.h,
- *  mesh/render/Painter.h). */
+ *  operator chain over them, and model import and export (mesh/Mesh.h,
+ *  mesh/camera/Camera.h, mesh/curve/Curve.h, mesh/pop/Pop.h,
+ *  mesh/codec/Model.h). */
 /** @defgroup geometry-device The device tier
  *  What needs a GPU device handed to it, and is therefore taken
  *  deliberately rather than by asking for the library: the device this
  *  library creates for whoever draws with both Diligent and Skia, and
  *  the device executors that stand beside the CPU executors of the seams
- *  they serve (device/Device.h, mesh/pop/device/,
- *  mesh/render/device/Painter.h). The residency feature's headers spell
+ *  they serve (device/Device.h, mesh/pop/device/). The residency feature's headers spell
  *  the engine's interfaces and stand on a private include path, so they
  *  are not on any consumer's. */
 /** @defgroup geometry-kit The kit

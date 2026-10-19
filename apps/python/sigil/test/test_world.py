@@ -143,6 +143,13 @@ class World(unittest.TestCase):
         self.assertFalse(world.pointLight().description.castShadow)
         self.assertIsInstance(body().castShadow(False).receiveShadow(False), world.Mesh)
 
+    def test_a_body_names_the_primitive_lane_that_tints_its_triangles(self):
+        # The stock lane is the conventional one, and any other is named.
+        self.assertIsInstance(body().primitiveColor(), world.Mesh)
+        self.assertIsInstance(
+            body().primitiveColor("Id").castShadow(False), world.Mesh
+        )
+
     def test_a_shadow_states_the_width_of_the_source_it_is_cast_from(self):
         # A shadow's size is the width of what casts the light, not a
         # filter: a point by default, and the angle a directional light

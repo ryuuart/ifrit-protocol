@@ -61,7 +61,7 @@ set(SIGIL_SKETCH_HEADERS
   plate/ThumbnailWriter.h)
 set(SIGIL_SKETCH_PUBLIC
   SigilCoreCallable SigilCoreComparable
-  SigilGeometryMeshCamera SigilGeometryMeshRender SigilMediaCore
+  SigilGeometryMesh SigilGeometryMeshCamera SigilMediaCore
   SigilIOHub SigilIOFrames SigilMeasure SigilMaterialColor SigilMaterialTexture
   SigilMotionClock
   SigilComposeCore SigilComposeTexture SigilWorldFrame SigilWorldNode

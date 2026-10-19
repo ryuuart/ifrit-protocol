@@ -95,11 +95,8 @@ bound_text = "`sketch.Guest`"
 python = ["sketch.Guest"]
 
 [[section.surface.item]]
-native = "`painterRuntime` and `device`"
-python = [
-  "sketch.Scene2DContext.painterRuntime",
-  "sketch.Scene2DContext.device",
-]
+native = "`device`"
+python = ["sketch.Scene2DContext.device"]
 
 [[section.surface.item]]
 native = "`sketch::requireCached`"
@@ -2051,17 +2048,6 @@ python = [
   "geometry.mesh.camera.Camera.extentAt",
   "geometry.mesh.camera.Matrix.__getitem__",
   "world.Scene.transformOf",
-]
-
-[[section.surface.item]]
-bound = "`mesh.render` lights and `MeshStyle` with `drawMesh`, `drawImagePanel` and `drawPanel`, and runtimes, on the CPU executor"
-python = [
-  "geometry.mesh.render.Light",
-  "geometry.mesh.render.MeshStyle",
-  "geometry.mesh.render.drawMesh",
-  "geometry.mesh.render.drawImagePanel",
-  "geometry.mesh.render.drawPanel",
-  "geometry.mesh.render.Runtime",
 ]
 
 [[section.surface.item]]

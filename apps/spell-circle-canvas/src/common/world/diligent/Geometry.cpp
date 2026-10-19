@@ -607,6 +607,10 @@ struct Shape {
    *  the triangles its "Material" lane names with it. Below zero draws
    *  every triangle. */
   int slot = -1;
+  /** The primitive lane whose colour multiplies each triangle, or empty:
+   *  part of how the buffers are packed, so every draw of one body names
+   *  the same one. */
+  std::string_view primitiveColor;
 };
 
 /** A BODY DRAWN INTO A SHADOW MAP: the light's projection, and whether
@@ -711,7 +715,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               bool cull, dg::ITexture* sceneDepth,
               dg::ITexture* sceneColor = nullptr,
               const Caster* caster = nullptr, bool receives = true) {
-  const MeshBuffers* buffers = gpu.meshes.upload(shape.artefact, *shape.mesh);
+  const MeshBuffers* buffers = gpu.meshes.upload(shape.artefact, *shape.mesh,
+                                                  shape.primitiveColor);
   if (!buffers) return;
   dg::IBuffer* indexBuffer = buffers->indices;
   uint32_t indexCount = buffers->indexCount;
@@ -1323,7 +1328,7 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
                       : body.texture;
         drawBody(gpu, viewProj, viewMatrix,
                  Shape{body.geometry, body.mesh, body.instances, body.facing,
-                       perSlot ? (int)k : -1},
+                       perSlot ? (int)k : -1, body.primitiveColor},
                  body.world, colour, worn, map, reaching, view.environment,
                  lit && body.lit, blending,
                  /*cull=*/body.backface == material::Backface::Hidden,
@@ -1920,7 +1925,8 @@ int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
       // its shadow is the shape it shows.
       drawBody(
           gpu, map.viewProjection, cameraView,
-          Shape{body.geometry, body.mesh, body.instances, body.facing},
+          Shape{body.geometry, body.mesh, body.instances, body.facing, -1,
+                body.primitiveColor},
           body.world, body.baseColor, caster.coverage ? body.material : nullptr,
           caster.coverage ? body.texture : nullptr, {}, view.environment,
           /*lit=*/false, Blending{}, /*cull=*/false, nullptr, nullptr, &caster);
@@ -2005,7 +2011,8 @@ void drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
         if (!link.everything() && !link.contains(memberOf(body))) continue;
         Caster caster{map.viewProjection, false, tint};
         drawBody(gpu, map.viewProjection, cameraView,
-                 Shape{body.geometry, body.mesh, body.instances, body.facing},
+                 Shape{body.geometry, body.mesh, body.instances, body.facing, -1,
+                body.primitiveColor},
                  body.world,
                  tint ? glm::vec4(tintTermsOf(*body.material).colour, 1.0f)
                       : body.baseColor,

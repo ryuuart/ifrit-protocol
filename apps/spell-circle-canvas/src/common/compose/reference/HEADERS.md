@@ -971,7 +971,7 @@ arithmetic of the reading direction, or `kit::Anchored`, which takes the offset
 the author states; the unit is offered to the overlay it builds, so a mark that
 is the same at every unit names nothing), the text paints in
 `kit/TextPaint.h` (`kit::textPaint` over a `kit::TextPaint`: one procedural
-field — a `kit::TextField`, water, a mesh gradient, sparkle, a star nest,
+field — a `kit::TextField`, water, a mesh gradient, sparkle, a star field,
 clouds or a tunnel — at a moment, over a box, each field one program embedded
 from the kit's `shaders/` directory over the same box, moment and drift; the
 box defaults to the unit square an ink's `PaintBox` stretches over its

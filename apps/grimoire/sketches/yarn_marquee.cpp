@@ -38,10 +38,10 @@
  * one compose column baked once and used by both panels, so nothing but
  * the rail differs between them.
  *
- * PAINTER ORDER IS THE DEPTH TEST. There is none of the other kind here:
- * the mesh painter sorts triangles back to front and the cull is off, so
- * both faces of a cloth show and wraps that pass through one another
- * accept that honestly.
+ * EACH PANEL IS ONE WORLD FRAME baked once through `ctx.bakeScene3D`:
+ * the cloth is its own light and both of its faces are drawn, so wraps that
+ * pass through one another are seen the way the depth puts them. The ticks
+ * are struck over the baked picture through the same lens.
  *
  * EDIT THESE FIRST
  *   kSections — rings along each rail; also how finely the roll is seen.
@@ -53,6 +53,9 @@
 
 // TAGS: Typography/Lettering, Geometry/Paths
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Measure.h>
@@ -64,13 +67,16 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Sweep.h>
-#include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/style/Type.h>
+#include <sigilworld/World.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <cmath>
@@ -85,7 +91,7 @@ namespace camera = sigil::geometry::mesh::camera;
 namespace sections = sigil::geometry::sections;
 namespace curve = sigil::geometry::mesh::curve;
 namespace mesh = sigil::geometry::mesh;
-namespace render = sigil::geometry::mesh::render;
+namespace world = sigil::world;
 namespace wkit = sigil::world::kit;
 
 using namespace sigil::compose;
@@ -100,6 +106,7 @@ constexpr int kBannerPx = 3072;  // the banner column's pixel length
 constexpr int kSections = 220;   // rings along a rail
 constexpr int kStations = 34;    // across-vector ticks per panel
 constexpr int kSectors = 16;     // numbered sectors down the banner
+constexpr int kBakeDensity = 2;  // picture pixels per panel pixel
 
 constexpr material::Color kCellGround{0.055f, 0.055f, 0.085f, 1};
 constexpr material::Color kInk{0.925f, 0.957f, 0.996f, 1};
@@ -168,29 +175,42 @@ camera::Camera view() {
   return {.eye = {40, 190, 900}, .target = {0, 0, 0}, .fovYDeg = 44};
 }
 
-/** One panel: the cloth on its rail, then the across-vector at every
- *  station, struck from the curve and projected with the same camera. */
-void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
-               const sk_sp<SkImage>& art) {
-  const SkSize viewport = {kPanel, kPanelH};
-  const camera::Camera camera = view();
-
+/** One panel's cloth: the band swept on @p rail wearing @p art, as a
+ *  surface that is its own light with both faces drawn, baked at the
+ *  pixels the panel will have. */
+sk_sp<SkImage> bakeRail(sketch::Scene2DContext& ctx,
+                        const std::vector<curve::Frame3>& rail,
+                        const sk_sp<SkImage>& art) {
   const mesh::Mesh cloth = mesh::pop::sweep(
       rail, sections::line(),
       {.scale = kWidth, .normals = mesh::pop::SweepOptions::Normals::Frame});
-  // The cloth is its own light: the banner is what it shows, so nothing
-  // shades it and both of its faces draw.
-  render::drawMesh(canvas, cloth, glm::mat4(1.0f), camera,
-                   sigil::geometry::path::fromSk(viewport),
-                   {.baseColor = {1, 1, 1, 1},
-                    .lights = {},
-                    .ambient = {1, 1, 1, 1},
-                    .specular = 0,
-                    .texture = art,
-                    .backfaceCull = false});
+  material::Material banner =
+      material::surface::unlit({.baseColor = {1, 1, 1, 1}, .depthWrite = 0});
+  if (art)
+    banner.slot(material::surface::kBaseColorSlot,
+                material::Texture(sigil::media::PixelSource(art)));
+  const world::Frame frame(world::group(
+      {world::camera(view(), {.toneCurve = world::ToneCurve::Neutral}),
+       world::mesh(cloth)
+           .key("cloth")
+           .backface(material::Backface::Visible)
+           .fill(std::move(banner))}));
+  return ctx.bakeScene3D(
+      frame, {(int)kPanel * kBakeDensity, (int)kPanelH * kBakeDensity},
+      {.camera = view()});
+}
 
-  // The ticks. Projected exactly as the painter projects a vertex:
-  // clip = viewProjection * p, then the perspective divide.
+/** One panel: the baked cloth, then the across-vector at every station,
+ *  struck from the curve and projected with the same camera. */
+void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
+               const sk_sp<SkImage>& cloth) {
+  const SkSize viewport = {kPanel, kPanelH};
+  const camera::Camera camera = view();
+  if (cloth)
+    canvas.drawImageRect(cloth, SkRect::MakeSize(viewport),
+                         SkSamplingOptions(SkFilterMode::kLinear));
+  // The ticks, projected as the bake projects a vertex: clip =
+  // viewProjection * p, then the perspective divide.
   const glm::mat4 vp =
       camera.viewProjection(sigil::geometry::path::fromSk(viewport));
   const auto project = [&vp](glm::vec3 p, SkPoint* out) {
@@ -217,17 +237,25 @@ void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
 }  // namespace
 
 struct YarnMarquee {
-  sk_sp<SkImage> art;
+  /** Each cloth is a frame baked on the device, so the sheet needs one
+   *  and is unavailable, saying so, where none is installed. */
+  static constexpr bool needsDevice = true;
+  static bool available(std::string* why) {
+    return sketch::runtimeAvailable(why);
+  }
+
   std::vector<curve::Frame3> transported;
   std::vector<curve::Frame3> hung;
+  sk_sp<SkImage> transportedCloth, hungCloth;
 
   Element panel(const char* label, const char* note, std::string key,
-                const std::vector<curve::Frame3>* rail) const {
+                const std::vector<curve::Frame3>* rail,
+                const sk_sp<SkImage>* cloth) const {
     return sketch::kit::caption(kPanel, label, note,
                                 custom(std::move(key),
-                                       [this, rail](sigil::draw::Pen& pen) {
+                                       [rail, cloth](sigil::draw::Pen& pen) {
                                          SkCanvas& canvas = *pen.canvas();
-                                         paintRail(canvas, *rail, art);
+                                         paintRail(canvas, *rail, *cloth);
                                        })
                                     .width(kPanel)
                                     .height(kPanelH)
@@ -279,6 +307,7 @@ struct YarnMarquee {
 
     // The banner, once — both panels wear the same cloth, so the only
     // difference between them is which rail carries it.
+    sk_sp<SkImage> art;
     if (ctx.fonts) {
       const sk_sp<SkPicture> picture =
           snapshot(box().children({banner((float)kBannerPx)}), *ctx.fonts,
@@ -298,23 +327,26 @@ struct YarnMarquee {
     const curve::Spline3 rail = loop();
     transported = curve::frames(rail, kSections);
     hung = curve::hangFrames(rail, kSections, 1.0f, 1.0f);
+    transportedCloth = bakeRail(ctx, transported, art);
+    hungCloth = bakeRail(ctx, hung, art);
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Keeping a moving banner upright",
          .subtitle = "One winding, one cloth, one camera · only the frame "
                      "orientation changes",
          .footer = "Dots mark the positive across-vector. Both faces of the "
-                   "cloth are drawn; triangles use painter order."},
+                   "cloth are drawn."},
         box().column().gap(28).children(
             {sketch::kit::cells(
                  {.cells = {panel("PARALLEL TRANSPORT",
                                   "The smallest local turn lets the cloth roll "
                                   "around the loop.",
-                                  "transported", &transported),
+                                  "transported", &transported,
+                                  &transportedCloth),
                             panel("WORLD-VERTICAL HANG",
                                   "The projected downward direction keeps the "
                                   "banner upright.",
-                                  "hung", &hung)},
+                                  "hung", &hung, &hungCloth)},
                   .gap = 20}),
              box().column().gap(10).children(
                  {document::eyebrow(

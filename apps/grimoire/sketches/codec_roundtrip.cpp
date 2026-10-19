@@ -1,7 +1,8 @@
 /** @file
  * A generated torus serialized as ASCII and binary PLY, then decoded.
- * The first comparison draws the source and both decoded meshes with one
- * camera and reports measured topology and byte counts. The lower comparison
+ * The first comparison bakes the source and both decoded meshes through one
+ * world frame each, under one camera and one pair of lights, and reports
+ * measured topology and byte counts. The lower comparison
  * covers point attributes, fitting the decoded bounds and the actual PLY
  * header. Every fixture is generated locally.
  */
@@ -16,10 +17,12 @@
 #include <sigilgeometry/mesh/codec/Decode.h>
 #include <sigilgeometry/mesh/codec/Encode.h>
 #include <sigilgeometry/mesh/pop/Points.h>
-#include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/World.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
@@ -39,7 +42,7 @@ namespace weave = sigil::weave;
 namespace gm = sigil::geometry::mesh;
 namespace codec = sigil::geometry::mesh::codec;
 namespace camera = sigil::geometry::mesh::camera;
-namespace render = sigil::geometry::mesh::render;
+namespace world = sigil::world;
 
 using namespace sigil::compose;
 
@@ -48,6 +51,9 @@ namespace {
 constexpr SkSize kCanvas = {1120, 910};
 constexpr float kCell = 330.66f;
 constexpr float kPicture = 208;
+/** How many picture pixels a bake takes per page pixel, so a figure stays
+ *  sharp on a plate captured at twice the page's size. */
+constexpr int kBakeDensity = 2;
 
 constexpr float kR = 62, kr = 23;  // the torus, major and minor radius
 constexpr int kNu = 48, kNv = 24;  // how finely it is tessellated
@@ -77,14 +83,27 @@ camera::Camera stageCamera() {
   return view;
 }
 
-render::MeshStyle stageStyle() {
-  render::MeshStyle style;
-  style.baseColor = {0.76f, 0.72f, 0.66f, 1};
-  style.lights = {{{-0.5f, -0.7f, -0.5f}, {1.0f, 0.95f, 0.88f, 1}, 1.15f},
-                  {{0.7f, -0.15f, -0.2f}, {0.42f, 0.56f, 0.9f, 1}, 0.5f}};
-  style.specular = 0.7f;
-  style.shininess = 56;
-  return style;
+/** The stage every mesh figure stands on: its lens, a warm key and a cool
+ *  fill over a dim light from everywhere, and @p subject in a soft stone
+ *  finish turned to show its hole. */
+world::Frame stage(gm::Mesh subject) {
+  return world::Frame(world::group(
+      {world::camera(stageCamera(), {.toneCurve = world::ToneCurve::Neutral}),
+       world::directionalLight(
+           {-0.5f, -0.7f, -0.5f},
+           {.color = material::Color{1.0f, 0.95f, 0.88f, 1},
+            .intensity = 2.9f}),
+       world::directionalLight(
+           {0.7f, -0.15f, -0.2f},
+           {.color = material::Color{0.42f, 0.56f, 0.9f, 1},
+            .intensity = 1.3f}),
+       world::ambientLight({.color = material::Color{0.8f, 0.8f, 1.0f, 1},
+                            .intensity = 0.3f}),
+       world::mesh(std::move(subject))
+           .key("subject")
+           .transform(camera::place({0, 0, 0}, 24, 0))
+           .fill(material::surface::program(
+               {.baseColor = {0.76f, 0.72f, 0.66f, 1}, .roughness = 0.35f}))}));
 }
 
 std::string count(size_t n, const char* unit) {
@@ -97,20 +116,16 @@ std::string kib(size_t bytes) {
   return buffer;
 }
 
-Element meshFigure(const char* key, gm::Mesh mesh) {
-  return sketch::kit::well(
-      {.width = kCell, .height = kPicture},
-      custom(key, [mesh = std::move(mesh)](sigil::draw::Pen& pen,
-                                           const PaintContext& pc) {
-        SkCanvas& canvas = *pen.canvas();
-        render::drawMesh(canvas, mesh, camera::place({0, 0, 0}, 24, 0),
-                         stageCamera(), pc.size, stageStyle());
-      }));
-}
-
 }  // namespace
 
 struct CodecRoundtrip {
+  /** Every mesh figure is a frame baked on the device, so the sheet needs
+   *  one and is unavailable, saying so, where none is installed. */
+  static constexpr bool needsDevice = true;
+  static bool available(std::string* why) {
+    return sketch::runtimeAvailable(why);
+  }
+
   void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
@@ -119,6 +134,18 @@ struct CodecRoundtrip {
     // THE SOURCE. Everything below is this mesh, or this mesh's points,
     // after a trip through a file.
     const gm::Mesh source = gm::torus(kR, kr, kNu, kNv);
+
+    /** One mesh figure: @p mesh baked on its stage at the pixels the well
+     *  will have, and painted as the well's picture. */
+    const auto meshFigure = [&ctx](gm::Mesh mesh) {
+      return sketch::kit::well(
+          {.width = kCell, .height = kPicture},
+          image(ctx.bakeScene3D(stage(std::move(mesh)),
+                                {(int)kCell * kBakeDensity,
+                                 (int)kPicture * kBakeDensity},
+                                {.camera = stageCamera()}),
+                material::Fit::Stretch));
+    };
 
     const std::string ascii = codec::encode::ply(source);
     const std::string binary = codec::encode::ply(source, {.binary = true});
@@ -163,19 +190,18 @@ struct CodecRoundtrip {
     Element meshes = sketch::kit::comparison(
         {.cases = {{.title = "GENERATED TORUS",
                     .control = "R 62 · r 23 · 48 × 24",
-                    .figure = meshFigure("source", source),
+                    .figure = meshFigure(source),
                     .note = count(source.positions.size(), "vertices") + " · " +
                             count(source.indices.size() / 3, "triangles")},
                    {.title = "ASCII ROUND TRIP",
                     .control = "encode::ply(mesh)",
-                    .figure = meshFigure(
-                        "ascii", fromAscii ? fromAscii->merged() : gm::Mesh{}),
+                    .figure = meshFigure(fromAscii ? fromAscii->merged()
+                                                   : gm::Mesh{}),
                     .note = returned(fromAscii, ascii.size())},
                    {.title = "BINARY ROUND TRIP",
                     .control = "binary = true",
-                    .figure =
-                        meshFigure("binary", fromBinary ? fromBinary->merged()
-                                                        : gm::Mesh{}),
+                    .figure = meshFigure(fromBinary ? fromBinary->merged()
+                                                    : gm::Mesh{}),
                     .note = returned(fromBinary, binary.size())}},
          .measure = 1040,
          .gap = 24});
@@ -205,7 +231,7 @@ struct CodecRoundtrip {
                    read.vectors.size())},
               {.title = "FIT THE DECODED MODEL",
                .control = "fitTransform(120)",
-               .figure = meshFigure("fitted", fitted),
+               .figure = meshFigure(fitted),
                .note = boundsLine},
               {.title = "THE ACTUAL FILE HEADER",
                .control = "Position + named properties",

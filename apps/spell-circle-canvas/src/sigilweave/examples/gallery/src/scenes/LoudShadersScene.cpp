@@ -38,7 +38,7 @@ class LoudShadersPart final : public Scene {
 
     double layoutMicroseconds = 0;
     m_rebuild.ensure({text, typeface.get(), fontSize, size}, [&] {
-      m_paints[0] = PaintStyle(SK_ColorWHITE);  // starNest shader set per frame
+      m_paints[0] = PaintStyle(SK_ColorWHITE);  // stars shader set per frame
       m_paints[1] = PaintStyle(SK_ColorWHITE);  // clouds shader set per frame
       m_paints[2] = PaintStyle(SK_ColorWHITE);  // tunnel shader set per frame
 
@@ -78,7 +78,7 @@ class LoudShadersPart final : public Scene {
         SkRect::MakeWH(canvasWidth, static_cast<float>(size.height()));
     const float time = static_cast<float>(elapsedSeconds);
     m_paints[0].foreground.setShader(
-        shade(text_fields::starNest(shaderBounds, time * 0.005)));
+        shade(text_fields::stars(shaderBounds, time)));
     m_paints[1].foreground.setShader(shade(text_fields::clouds(shaderBounds, time)));
     m_paints[2].foreground.setShader(shade(text_fields::tunnel(shaderBounds, time)));
     m_paints[3].overlays[0].paint.setShader(
@@ -95,9 +95,9 @@ class LoudShadersPart final : public Scene {
     }
 
     const std::array<std::u8string_view, 4> labels = {
-        u8"starNest() — volumetric raymarched fractal dust",
-        u8"clouds() — layered ridged/fbm value-noise sky",
-        u8"tunnel() — raymarched kaleidoscope tunnel",
+        u8"stars() — layered point stars drifting in parallax",
+        u8"clouds() — a value-noise cloud layer lit from above",
+        u8"tunnel() — rings streaming down a twisting tunnel",
         u8"sparkle() — brighter, size-varied, twinkling overlay"};
     const float top = 60.0f;
     const float rowHeight =
@@ -111,8 +111,8 @@ class LoudShadersPart final : public Scene {
 
     drawCaption(canvas, fontContext,
                 u8"Extreme SkSL presets meant to be seen from across the "
-                u8"room — heavier raymarch/fbm loops, still cheap per glyph "
-                u8"since only covered mask pixels evaluate them.",
+                u8"room — heavier noise and layered loops, still cheap per "
+                u8"glyph since only covered mask pixels evaluate them.",
                 {24, 16}, canvasWidth - 48);
     return {layoutMicroseconds, runCount, 0};
   }

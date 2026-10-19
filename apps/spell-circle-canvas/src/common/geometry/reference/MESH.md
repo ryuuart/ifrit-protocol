@@ -1,8 +1,7 @@
 # SigilGeometry — the mesh tier and its headers
 
 The chapter on the 3D tier, header by header: `mesh` the currency,
-`mesh/camera` the viewpoint, `mesh/render` the draw and its runtime,
-`mesh/curve` the splines, `mesh/pop` the point clouds and the chain
+`mesh/camera` the viewpoint, `mesh/curve` the splines, `mesh/pop` the point clouds and the chain
 language over them, and `mesh/codec` model interchange. `README.md`
 beside the library is the front page; `PATH.md` is the 2D tier underneath this one, `POP.md` the
 operator catalogue and `KIT.md` the shelf.
@@ -67,7 +66,7 @@ own repertoire here rather than inside whatever draws through it.
 
   `project(point, viewport)` carries one point the whole of that way —
   view, projection, viewport — so a mark placed by it sits ON the
-  geometry the painter drew rather than near it, and answers nothing for
+  geometry a renderer drew rather than near it, and answers nothing for
   a point at or behind the eye plane, where the canvas has no place for
   it. `extentAt(distance, aspect)` is the other direction: how wide and
   how tall the frustum is that far in front of the eye, which is the
@@ -86,44 +85,6 @@ own repertoire here rather than inside whatever draws through it.
   lens. A host that offers a drag over a 3D view spells these rather than
   deriving a viewpoint of its own.
 
-**`mesh/render`** — `SigilGeometryMeshRender`, needs `mesh` and
-`mesh/camera`.
-
-- **`mesh/render/device/Painter.h`** — `render::deviceRuntime(device)`,
-  the device executor of that seam, beside `Runtime::cpu()`. It is its
-  own target so the feature above stays free of a device: a consumer
-  that draws meshes on the host links no renderer's dependencies. What
-  differs from the host is not a shading disagreement — the host sorts
-  triangles back to front and antialiases their edges, this depth-tests
-  them and does not — and a panel is the same BYTES on either, because a
-  panel's content is Skia's to rasterise whichever executor holds it.
-  One readback per mesh draw: a canvas does not name the texture behind
-  it, so there is nothing to compare against the device to decide the
-  pixels could stay where they are.
-
-- **`mesh/render/Runtime.h`** — the seam a draw executes through, as a
-  value. `Executor` is what a runtime supplies (the mesh draw and the
-  panel draw); `Runtime` holds one and compares like the model it holds;
-  `Runtime::cpu()` is the built-in executor, an erased value of
-  SigilCoreComparable's shape. glm, std, that leaf and a declaration of
-  the host's canvas only — the header names no device, so a GPU executor
-  arrives from a feature that owns one without this target learning
-  about it.
-- **`mesh/render/Painter.h`** — the draws themselves: `drawMesh()`
-  (transform, per-vertex lighting ending at a tone curve, back-to-front
-  sort),
-  `drawPanel()`/`drawImagePanel()` (perspective-correct 2D content on a
-  plane), and `MeshStyle` with `Light` — the shading mode, colour,
-  texture, lights and the `Runtime` that performs the work. A colour is a
-  `glm::vec4` of straight sRGB, a texture a `media::Picture`, its
-  placement in uv space a `path::Transform` and how it is read between
-  texels a `Sampling`; a viewport is a `glm::vec2` of pixels, and the
-  canvas a draw lands on is the host's. `Painter.cpp` is the doors; `Runtime.cpp` is the built-in executor behind them. Two
-  fields of the style are the surface speaking for itself rather than the
-  scene: `lit`, off for a surface that is its own light, whose colour and
-  tint are then the whole of what it shows; and `filter`, nearest for a
-  map whose texel edges must stay hard, which takes no mip level with it
-  because blending two levels is the same bleed by the other door.
 **`mesh/curve`** — `SigilGeometryMeshCurve`, needs `mesh` and
 `mesh/camera`. The spline and the rails read off it; what a rail
 CARRIES is a point operator and lives in `mesh/pop`.

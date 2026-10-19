@@ -253,9 +253,7 @@ address each of their own pieces, which is what mono ruby and kenten want.
 A World set is drawn on a device and nowhere else. A Python `world.Scene`
 reconciles and extracts a description and draws nothing; a sketch shows a set
 through `Scene2DContext.bakeScene3D`, which draws on the device its host brought up
-and answers `None` where there is none. An image set as
-`mesh.render.MeshStyle.texture` textures a mesh drawn with `drawMesh`, which
-runs on the CPU painter.
+and answers `None` where there is none.
 <!-- /prose -->
 
 ### Data and IO

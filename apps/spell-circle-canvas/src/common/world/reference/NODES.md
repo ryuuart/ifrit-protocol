@@ -110,6 +110,13 @@ unlit body casts nothing, a transmissive one colours the light it lets
 through rather than blocking it, and an unlit one receives nothing
 ([LIGHTING.md](LIGHTING.md) holds the table).
 
+`Mesh::primitiveColor(lane)` tints each triangle by its own colour: the
+mesh's primitive lane of that name — conventionally `"Color"`, one colour
+per triangle — is multiplied into the triangle's colour as a vertex colour
+is, so two triangles meeting at shared corners still differ. The device
+gives each such triangle corners of its own. A lane the mesh does not
+carry, or one not sized to its triangles, tints nothing.
+
 `Backface` is WHICH SIDES OF A BODY'S TRIANGLES ARE DRAWN.
 `Backface::Hidden` is the default for closed solids;
 `Backface::Visible` keeps the reverse side of a sheet or panel when the

@@ -36,18 +36,13 @@ is silently, plausibly wrong rather than obviously broken.
 - **`camera::place()` composes as translate × rotate × scale, applied right
   to left** — scale first, then rotate, then translate. Yaw is about +Y,
   pitch about +X, roll about +Z.
-- **`MeshStyle::Mode::Normals` writes device-space normals with +y down**,
-  encoded as `rgb = n * 0.5 + 0.5` with the y component negated before
-  encoding. This is deliberate: it is the encoding SigilMaterial's bevel
-  normal maps use, so a normals pass can be fed straight into one of its
-  surface recipes as the normal map.
 - **A blend's `glm::vec4` colours are display-encoded sRGB, not linear.** Colour
   interpolation runs through OKLab, with an explicit sRGB decode on the way
   in and encode on the way out (`blend::detail::lerpOklab`). Interpolating
   the components directly is a different — and visibly worse — result.
 - **`Mesh::append` pad rules are load-bearing, not cosmetic.** Consumers
   read "this lane is sized to `positions`" as the mesh's presence bit for
-  that lane — `render::drawMesh` literally decides `hasNormals` that way —
+  that lane — a renderer reads normals only where they are sized so —
   so a merge that left a lane undersized would turn lighting, texturing or
   tinting off for *both* halves, not just the half that lacked it. Every
   optional lane therefore comes out sized to the merge whenever either side
@@ -105,12 +100,8 @@ is silently, plausibly wrong rather than obviously broken.
 - **`Select` sizes are radii per axis in both shapes.** A box of `size`
   `{100, 20, 100}` spans 200 by 40 by 200; a sphere with unequal `size` is
   an ellipsoid. `feather` is a fraction of that extent, not a distance.
-- **Mesh indices are 32-bit.** Skia's `SkVertices` 16-bit index limit is
-  handled by chunking inside `render::drawMesh()`, not by the data — you do
-  not need to split meshes yourself.
-- **`drawPanel()` runs your callback in panel-local coordinates**: origin at
-  the panel's centre, x right, **y down** like any Skia canvas, and one
-  unit equals one world unit.
+- **Mesh indices are 32-bit**, so a mesh is never split to fit an index
+  width.
 - **`mesh::quad()` and `mesh::cylinderPanel()` face +z**, and
   `camera::faceCamera()` orients that +z face at the eye. `points::instance`
   orients a stamp's +z along the orient lane using the same basis

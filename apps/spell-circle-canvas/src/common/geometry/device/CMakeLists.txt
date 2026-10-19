@@ -14,8 +14,8 @@
 # creates the Vulkan device — this build of it cannot attach to a device
 # that already exists, and has no Metal backend — so a library that wants
 # a Diligent device cannot be handed one made elsewhere. That is why the
-# bring-up lives here, under the point operators, the mesh painter and
-# the frame runtime alike, rather than in whichever of them happened to
+# bring-up lives here, under the point operators and the frame runtime
+# alike, rather than in whichever of them happened to
 # need it first. SigilCoreHardware adopts what Diligent made, so there is
 # one device, one queue and one handle table under both APIs, and
 # Graphite records onto that same queue.
@@ -73,8 +73,8 @@ sigil_library(SigilGeometryDevice
 
 # THE ONE DOOR ONTO THE ENGINE'S INTERFACES: the directory holding the
 # header that spells them. A consumer that genuinely holds a Diligent
-# buffer, sampler or texture — the world's frame executor does, and the
-# mesh painter's device executor does — puts this on its own PRIVATE
+# buffer, sampler or texture — the world's frame executor does — puts
+# this on its own PRIVATE
 # include path and includes the header by its bare name. Anything that
 # only wants a device includes <sigilgeometry/device/Device.h> and needs
 # none of this.

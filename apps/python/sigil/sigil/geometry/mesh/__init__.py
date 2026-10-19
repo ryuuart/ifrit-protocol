@@ -43,7 +43,6 @@ from . import (
     kernel,
     points,
     pop,
-    render,
 )
 
 __all__ = [
@@ -82,7 +81,6 @@ __all__ = [
     "points",
     "pop",
     "quad",
-    "render",
     "revolve",
     "superellipsoid",
     "torus",

@@ -92,6 +92,7 @@ std::vector<Node> each(range or count, make);  // children a range describes
 .fill(material::Material surface)   // a material::Color is lit at the stock response
 .backface(material::Backface)
 .facing(Facing)                     // Facing::Camera, Facing::CameraUpright
+.primitiveColor(lane)               // each triangle tinted by its own colour
 .castShadow(casts)  .receiveShadow(receives)   // both on unless stated
 // a light
 .lightLink(Collection)  .shadowLink(Collection)

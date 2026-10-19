@@ -1,20 +1,23 @@
-"""A parametric sculpture, lathed vessel and solid displayed by the native mesh painter.
+"""A parametric sculpture, lathed vessel and solid lit in a native world frame.
 
 The forms are Python data and functions. Tessellation, camera projection,
-normals, lighting and triangle drawing are the native geometry library's.
+normals and lighting are the native geometry and world libraries'; the
+sheet's words are a pen program laid over the finished frame.
 """
 
 # TAGS: Geometry/Meshes, Drawing/Generative
 
 from math import cos, pi, sin
 
+from sigil import compose, material, world
 from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
-from sigil.material import pattern
-from sigil.sketch import Scene2DContext, kit, sketch
+from sigil.material import surface as surfaces
+from sigil.sketch import Scene3DContext, kit, sketch
+
+WIDTH, HEIGHT = 1400, 900
 
 camera = mesh.camera
-render = mesh.render
 
 
 def knot(u, v):
@@ -23,25 +26,21 @@ def knot(u, v):
     return radius * cos(2 * t), 44 * sin(3 * t) - 13 * sin(section), radius * sin(2 * t)
 
 
-def surface(color, *, gloss=0.8):
-    style = render.MeshStyle()
-    style.baseColor = color
-    style.ambient = "#152334"
-    style.lights = [
-        render.Light((-0.5, -0.8, -0.5), "#fff0d5", 1.1),
-        render.Light((0.8, -0.1, -0.4), "#7bbdff", 0.85),
-        render.Light((0.0, 0.8, 0.8), "#e39b80", 0.55),
-    ]
-    style.specular, style.shininess, style.rim = gloss, 72, 0.32
-    return style
+def finish(color, *, roughness=0.3):
+    """A dielectric in @p color: low roughness reads as the glaze the forms
+    wear, high as the matte stone they stand on."""
+    return surfaces.program(
+        surfaces.SurfaceParameters(baseColor=color, roughness=roughness)
+    )
 
 
-@sketch(size=(1400, 900), captureAt=0.5)
+LENS = camera.Camera(eye=(320, 280, 680), target=(0, 0, 0), fovYDeg=39)
+
+
+@sketch(size=(WIDTH, HEIGHT), background="#0e1116", captureAt=0.5)
 class MeshObservatory:
-    def setup(self, ctx: Scene2DContext) -> None:
+    def setup(self, ctx: Scene3DContext) -> None:
         self.look = kit.featureTheme(kit.Density.Spacious)
-        with kit.provide(self.look):
-            kit.stage(ctx, size=(1400, 900), captureAt=0.5)
         self.knot = mesh.grid(180, 22, knot)
         self.vase = mesh.revolve(
             [
@@ -59,71 +58,71 @@ class MeshObservatory:
         self.solid = mesh.platonic(mesh.Platonic.Dodecahedron, radius=63)
         self.ring = mesh.torus(188, 1.2, nu=180, nv=8)
         self.plinth = mesh.superellipsoid((210, 10, 180), 6)
-        self.styles = [surface("#65c9c3"), surface("#d9a66e"), surface("#a8bbd6")]
-        self.dark = surface("#293a4e", gloss=0.2)
-        self.rule = surface("#456073", gloss=0.1)
-        self.grid = pattern.gridLines(40, 0.6, "#21313d").paint()
-        self.view = camera.Camera()
-        self.view.eye, self.view.target, self.view.fovYDeg = (
-            (320, 280, 680),
-            (0, 0, 0),
-            39,
+        self.finishes = [finish("#65c9c3"), finish("#d9a66e"), finish("#a8bbd6")]
+        self.dark = finish("#293a4e", roughness=0.8)
+        self.rule = finish("#456073", roughness=0.9)
+        ctx.camera(LENS)
+        # The words stand on a screen laid over the finished frame, painted
+        # once and kept while the tree is unchanged.
+        self.words = ctx.textureScene((WIDTH, HEIGHT))
+        self.sheet = (
+            compose.graphics("observatory.words", self.labels)
+            .width(WIDTH)
+            .height(HEIGHT)
         )
 
-    def draw(self, pen: Pen) -> None:
-        t = pen.millis() / 1000
-        pen.background(self.look.palette.ground)
-        pen.push()
-        pen.translate(280, 70)
-        pen.fill(self.grid)
-        pen.noStroke()
-        pen.rect(0, 0, 1080, 720)
-        pen.pop()
+    def describe(self, seconds: float) -> world.Frame:
+        model = world.group(
+            world.directionalLight((-0.5, -0.8, -0.5), "#fff0d5", 2.4),
+            world.directionalLight((0.8, -0.1, -0.4), "#7bbdff", 1.5),
+            world.directionalLight((0.0, 0.8, 0.8), "#e39b80", 1.1),
+            world.ambientLight("#8fb0e0", 0.25),
+            world.camera(LENS, toneCurve=world.ToneCurve.Neutral),
+            world.mesh(self.plinth)
+            .key("plinth")
+            .transform(camera.place((0, -90, 0)))
+            .fill(self.dark),
+            world.mesh(self.ring)
+            .key("ring")
+            .transform(camera.place((0, -73, 0)))
+            .fill(self.rule),
+            world.mesh(self.knot)
+            .key("knot")
+            .transform(camera.place((0, 20, 0), yawDeg=20 + seconds * 12))
+            .backface(material.Backface.Visible)
+            .fill(self.finishes[0]),
+            world.mesh(self.vase)
+            .key("vase")
+            .transform(camera.place((-240, -63, 0), scale=0.75))
+            .fill(self.finishes[1]),
+            world.mesh(self.solid)
+            .key("solid")
+            .transform(camera.place((245, -35, 0), yawDeg=-seconds * 20))
+            .fill(self.finishes[2]),
+        ).key("observatory")
+        self.words.render(self.sheet, seconds)
+        return world.Frame(model).overlay(self.words.texture())
 
-        render.drawMesh(
-            pen, self.plinth, camera.place((0, -90, 0)), self.view, self.dark
-        )
-        render.drawMesh(pen, self.ring, camera.place((0, -73, 0)), self.view, self.rule)
-        render.drawMesh(
-            pen,
-            self.knot,
-            camera.place((0, 20, 0), yawDeg=20 + t * 12),
-            self.view,
-            self.styles[0],
-        )
-        render.drawMesh(
-            pen,
-            self.vase,
-            camera.place((-240, -63, 0), scale=0.75),
-            self.view,
-            self.styles[1],
-        )
-        render.drawMesh(
-            pen,
-            self.solid,
-            camera.place((245, -35, 0), yawDeg=-t * 20),
-            self.view,
-            self.styles[2],
-        )
-
+    def labels(self, pen: Pen) -> None:
+        """The sheet's words: the heading on the left, a caption under each
+        form where the lens puts it, and the footer."""
+        look = self.look
         pen.noStroke()
         pen.textAlign(LEFT, TOP)
-        pen.fill(self.look.palette.ash)
-        pen.textFont(self.look.font(self.look.type.eyebrow))
+        pen.fill(look.palette.ash)
+        pen.textFont(look.font(look.type.eyebrow))
         pen.text("FORM LABORATORY     /     003", 52, 42)
-        pen.fill(self.look.palette.ink)
-        pen.textFont(self.look.font(self.look.type.title))
+        pen.fill(look.palette.ink)
+        pen.textFont(look.font(look.type.title))
         pen.text("A surface\nfrom a function.", 52, 100)
-        pen.fill(self.look.palette.ash)
-        pen.textFont(self.look.font(self.look.type.subtitle))
-        pen.text(
-            "Python describes the shape.\nThe native painter gives it light.", 55, 218
-        )
-        pen.fill(self.look.palette.figure)
-        pen.textFont(self.look.font(self.look.type.captionLabel))
+        pen.fill(look.palette.ash)
+        pen.textFont(look.font(look.type.subtitle))
+        pen.text("Python describes the shape.\nThe native world gives it light.", 55, 218)
+        pen.fill(look.palette.figure)
+        pen.textFont(look.font(look.type.captionLabel))
         pen.text("PARAMETRIC KNOT", 55, 315)
-        pen.fill(self.look.palette.ash)
-        pen.textFont(self.look.font(self.look.type.control))
+        pen.fill(look.palette.ash)
+        pen.textFont(look.font(look.type.control))
         pen.text(
             f"{self.knot.vertexCount():,} vertices\n{self.knot.triangleCount():,} triangles\n3 directional lights\n1 native mesh type",
             55,
@@ -135,23 +134,23 @@ class MeshObservatory:
             ("02 / PARAMETRIC SHEET", (0, -130, 0), "#65c9c3"),
             ("03 / TWELVE FACES", (245, -115, 0), "#a8bbd6"),
         ]:
-            p = self.view.project(position, (pen.width, pen.height))
+            p = LENS.project(position, (WIDTH, HEIGHT))
             if p:
                 pen.fill(color)
-                pen.textFont(self.look.font(self.look.type.captionLabel))
+                pen.textFont(look.font(look.type.captionLabel))
                 pen.text(label, p[0] - 70, p[1] + 30)
 
-        pen.stroke(self.look.palette.rule)
+        pen.stroke(look.palette.rule)
         pen.strokeWeight(1)
         pen.line(52, 810, 1348, 810)
         pen.noStroke()
-        pen.fill(self.look.palette.ash)
-        pen.textFont(self.look.font(self.look.type.footer))
+        pen.fill(look.palette.ash)
+        pen.textFont(look.font(look.type.footer))
         pen.text(
             "mesh.grid(180, 22, knot)   ·   mesh.revolve(profile)   ·   mesh.platonic(solid)",
             52,
             835,
         )
-        pen.fill(self.look.palette.ash)
-        pen.textFont(self.look.font(self.look.type.control))
-        pen.text("NATIVE GEOMETRY / CPU MESH RENDERER / HEADLESS", 958, 840)
+        pen.fill(look.palette.ash)
+        pen.textFont(look.font(look.type.control))
+        pen.text("NATIVE GEOMETRY / WORLD FRAME / DEVICE", 958, 840)

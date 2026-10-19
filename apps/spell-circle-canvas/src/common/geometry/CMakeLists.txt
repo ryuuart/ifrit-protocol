@@ -23,9 +23,7 @@ add_subdirectory(kit)
 
 sigil_library(SigilGeometry
   INTERFACE SigilGeometryPath SigilGeometryPathBlend SigilGeometryMesh
-            SigilGeometryMeshCamera SigilGeometryMeshRender
-            SigilGeometryMeshRenderDevice
-            SigilGeometryMeshCurve SigilGeometryMeshPop
+            SigilGeometryMeshCamera SigilGeometryMeshCurve SigilGeometryMeshPop
             SigilGeometryMeshPopDevice
             SigilGeometryMeshCodec SigilGeometryKit SigilGeometryDevice
             SigilGeometryDeviceResidency)
@@ -82,7 +80,6 @@ sigil_doc_probes(geometry
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Ticks.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Wave.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/crossingPatch.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/deviceRuntime.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/geo.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/lattice.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/multigrid.md

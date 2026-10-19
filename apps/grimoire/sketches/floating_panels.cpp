@@ -1,42 +1,32 @@
 /** @file
  * floating_panels — 2D CONTENT STOOD UP IN SPACE, flat and curved.
  *
- * Two entry points answer "put this picture over there", and they differ
- * in one thing only:
+ * Two bodies answer "put this picture over there", and they differ in one
+ * thing only:
  *
- *   render::drawImagePanel — a FLAT rect at a placement. The image is
- *     mapped corner to corner; the perspective is a matrix concat, so a
- *     panel costs one draw whatever is on it.
- *   MeshStyle::texture on mesh::cylinderPanel — the same picture on a
- *     CURVED sheet. Now the mapping is per-triangle, and the picture
- *     bends because the surface does.
+ *   a QUAD wearing the picture — a flat rect at a placement, the image
+ *     mapped corner to corner.
+ *   a CYLINDER PANEL wearing the same picture — a CURVED sheet, where the
+ *     picture bends because the surface does.
+ *
+ * Both wear the picture the same way: a texture in the base-colour slot
+ * of a surface that is its own light, because a screen emits and a light
+ * term on it would read as a smear across the curve.
  *
  * WHAT IS ON THE PANELS is described in compose and baked once through
  * `ctx.textureScene()`, the host's own door for a compose scene painted
  * into a texture: a card is a column of boxes, a gauge is two filled
  * sectors, a bar row is boxes of differing height. Nothing here paints a
  * rounded rect by hand — a panel's content is an element tree like any
- * other, and the only thing 3D about it is where it ends up. The session
- * keeps every scene it hands out, so the sketch holds an image and
- * nothing else.
+ * other, and the only thing 3D about it is where it ends up.
  *
- * WHO DRAWS THE MESHES is one value, `painter()`, and it is the process's
- * own: `sketch::painterRuntime()` is the device executor where a host
- * brought a device up and the CPU one where it did not, so the line is
- * written once and both tiers are correct. Run this file plainly and the
- * meshes go through the CPU executor, which sorts triangles back to front
- * and antialiases their edges; run it with `--gpu` and the same call goes
- * through `diligent::painterRuntime`, which depth-tests them and does
- * not. The two draw the same picture and not the same bytes, and where
- * they disagree is exactly the two MESH draws: the floor plane and the
- * curved screen, whose triangle edges and texture sampling are each
- * executor's own. The three flat cards are identical on both, because a
- * panel is not a mesh draw at all — the perspective is a matrix concat
- * and the image lands on whatever surface the canvas already is.
+ * THE COCKPIT IS ONE WORLD FRAME baked once into the page's picture
+ * through `ctx.bakeScene3D`, on the device the process draws on; the sheet
+ * is unavailable, saying why, where there is none.
  *
- * The floor is `mesh::grid` over a flat function, lit at very low alpha.
- * It is not decoration: without a ground plane the cards have no horizon
- * and the camera angle reads as arbitrary.
+ * The floor is `mesh::grid` over a flat function. It is not decoration:
+ * without a ground plane the cards have no horizon and the camera angle
+ * reads as arbitrary.
  *
  * EDIT THESE FIRST
  *   the three camera::place calls — the cockpit's splay.
@@ -47,45 +37,59 @@
 
 // TAGS: Geometry/Meshes
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/advanced/Skia.h>
-#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilgeometry/mesh/render/Painter.h>
-#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
 #include <ranges>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace shapes = sigil::geometry::shapes;
+namespace world = sigil::world;
 
 using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
-namespace render = sigil::geometry::mesh::render;
 
 namespace {
 
 constexpr SkSize kCanvas = {1240, 720};
 
-/** WHO DRAWS THE MESHES: the process's own painter, whatever it is. A
- *  host that brought a device up installed the device executor here; a
- *  host that did not hands back the CPU one, which is what a plate is
- *  hashed from. Every style, mesh and camera below is the same either
- *  way — the runtime is the only thing that differs. */
-render::Runtime painter() { return sketch::painterRuntime(); }
+/** How many picture pixels the bake takes per page pixel, so the cockpit
+ *  stays sharp on a plate captured at twice the page's size. */
+constexpr int kBakeDensity = 2;
+
+/** A screen's surface: @p picture in the base-colour slot of a surface
+ *  that is its own light, at @p opacity; @p layered writes no depth, so
+ *  the screen is laid among the other such bodies back to front. */
+material::Material screen(const sk_sp<SkImage>& picture, float opacity,
+                          bool layered = false) {
+  material::Material surface = material::surface::unlit(
+      {.baseColor = {1, 1, 1, opacity}, .depthWrite = layered ? 0.0f : -1.0f});
+  if (picture)
+    surface.slot(material::surface::kBaseColorSlot,
+                 material::Texture(sigil::media::PixelSource(picture)));
+  return surface;
+}
 
 /** A readout card, as an element tree: a header pill, a stack of tick
  *  rows, a two-sector gauge and a bar row. Sized in px because it is
@@ -145,9 +149,12 @@ Element card(float w, float h, material::Color accent) {
 }  // namespace
 
 struct FloatingPanels {
+  /** The cockpit is a frame baked on the device, so the sheet needs one
+   *  and is unavailable, saying so, where none is installed. */
   static constexpr bool needsDevice = true;
-  sk_sp<SkImage> cardA, cardB, cardC, screen;
-  mesh::Mesh floor, curved;
+  static bool available(std::string* why) {
+    return sketch::runtimeAvailable(why);
+  }
 
   /** An element tree painted to pixels at a stated size. The session owns
    *  the scene; what comes back here is the image. */
@@ -159,45 +166,6 @@ struct FloatingPanels {
     return scene->image();
   }
 
-  void draw(SkCanvas& canvas) const {
-    const camera::Camera view{
-        .eye = {0, 80, 900}, .target = {0, 0, 0}, .fovYDeg = 38};
-
-    // A sheet has one facing, and this one is being looked at from the
-    // side the winding calls the back. Culling it would leave the frame
-    // with no ground at all.
-    render::drawMesh(canvas, floor, glm::mat4(1.0f), view,
-                     sigil::geometry::path::fromSk(kCanvas),
-                     {.baseColor = {0.16f, 0.3f, 0.5f, 0.5f},
-                      .ambient = {0.45f, 0.5f, 0.62f, 1},
-                      .specular = 0,
-                      .backfaceCull = false,
-                      .runtime = painter()});
-
-    render::drawImagePanel(
-        canvas, cardA, 360, 240, camera::place({-350, 120, -80}, 34), view,
-        sigil::geometry::path::fromSk(kCanvas), 0.95f, painter());
-    render::drawImagePanel(
-        canvas, cardB, 360, 240, camera::place({0, 130, 30}, 0, -4), view,
-        sigil::geometry::path::fromSk(kCanvas), 0.98f, painter());
-    render::drawImagePanel(
-        canvas, cardC, 360, 240, camera::place({350, 110, -80}, -34), view,
-        sigil::geometry::path::fromSk(kCanvas), 0.95f, painter());
-
-    // The curved sheet: the same kind of picture, mapped per triangle.
-    // Unlit on purpose — a screen emits, and a light term on it would
-    // read as a smear across the curve.
-    render::drawMesh(canvas, curved, camera::place({0, -160, 60}, 0, 10), view,
-                     sigil::geometry::path::fromSk(kCanvas),
-                     {.lit = false,
-                      .baseColor = {1, 1, 1, 1},
-                      .lights = {},
-                      .ambient = {0.9f, 0.9f, 0.9f, 1},
-                      .specular = 0,
-                      .texture = screen,
-                      .runtime = painter()});
-  }
-
   void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
@@ -206,38 +174,79 @@ struct FloatingPanels {
                         .captureAt = 1.0,
                         .background = sketch::kit::theme().palette.ground});
 
-    cardA = bake(ctx, card(360, 240, {0.2f, 0.85f, 1.0f, 1}), 360, 240);
-    cardB = bake(ctx, card(360, 240, {1.0f, 0.6f, 0.25f, 1}), 360, 240);
-    cardC = bake(ctx, card(360, 240, {0.7f, 0.45f, 1.0f, 1}), 360, 240);
-    screen = bake(ctx, card(720, 200, {0.3f, 1.0f, 0.6f, 1}), 720, 200);
-    floor = mesh::grid(24, 24, [](float u, float v) -> glm::vec3 {
-      return {(u - 0.5f) * 1400, -170, (v - 0.5f) * 1400};
-    });
-    curved = mesh::cylinderPanel(680, 190, 420, 48, 10);
+    const sk_sp<SkImage> cardA =
+        bake(ctx, card(360, 240, {0.2f, 0.85f, 1.0f, 1}), 360, 240);
+    const sk_sp<SkImage> cardB =
+        bake(ctx, card(360, 240, {1.0f, 0.6f, 0.25f, 1}), 360, 240);
+    const sk_sp<SkImage> cardC =
+        bake(ctx, card(360, 240, {0.7f, 0.45f, 1.0f, 1}), 360, 240);
+    const sk_sp<SkImage> wide =
+        bake(ctx, card(720, 200, {0.3f, 1.0f, 0.6f, 1}), 720, 200);
 
-    // Keyed on the sink's own name: everything `draw` reads is cooked
-    // above, in this setup, and nothing after it moves.
+    const mesh::Mesh floor = mesh::grid(24, 24, [](float u, float v) {
+      return glm::vec3{(u - 0.5f) * 1400, -170, (v - 0.5f) * 1400};
+    });
+    const camera::Camera view{
+        .eye = {0, 80, 900}, .target = {0, 0, 0}, .fovYDeg = 38};
+
+    // A sheet has one facing, and the floor is seen from the side its
+    // winding calls the back, so both of its sides are drawn. The floor and
+    // the curved screen write no depth, so they are laid back to front:
+    // the screen dips below the floor's plane and is still seen whole, as
+    // a screen standing in front of a floor reads.
+    const world::Frame cockpit(world::group(
+        {world::mesh(floor)
+             .key("floor")
+             .backface(material::Backface::Visible)
+             .fill(material::surface::unlit(
+                 {.baseColor = {0.137f, 0.169f, 0.227f, 1}, .depthWrite = 0})),
+         world::mesh(mesh::quad(360, 240))
+             .key("card.left")
+             .transform(camera::place({-350, 120, -80}, 34))
+             .fill(screen(cardA, 0.95f)),
+         world::mesh(mesh::quad(360, 240))
+             .key("card.middle")
+             .transform(camera::place({0, 130, 30}, 0, -4))
+             .fill(screen(cardB, 0.98f)),
+         world::mesh(mesh::quad(360, 240))
+             .key("card.right")
+             .transform(camera::place({350, 110, -80}, -34))
+             .fill(screen(cardC, 0.95f)),
+         // The curved sheet: the same kind of picture, mapped per
+         // triangle.
+         world::mesh(mesh::cylinderPanel(680, 190, 420, 48, 10))
+             .key("screen")
+             .transform(camera::place({0, -160, 60}, 0, 10))
+             .fill(screen(wide, 1, /*layered=*/true))}));
+    const sk_sp<SkImage> picture = ctx.bakeScene3D(
+        cockpit,
+        {(int)kCanvas.width() * kBakeDensity,
+         (int)kCanvas.height() * kBakeDensity},
+        {.camera = view});
+
     ctx.composer.render(sketch::kit::page(
         {.title = "One composition, flat and curved",
          .subtitle = "The same retained card becomes a "
                      "plane or a cylindrical screen.",
-         .footer = "Three flat image panels above · one "
-                   "image mapped over a curved mesh below"},
-        custom("floating.panels", [this](sigil::draw::Pen& pen,
-                                         const PaintContext& paint) {
-          SkCanvas& canvas = *pen.canvas();
+         .footer = "Three flat cards above · one "
+                   "picture mapped over a curved mesh below"},
+        custom("floating.panels", [picture](sigil::draw::Pen& pen,
+                                            const PaintContext& paint) {
+          if (!picture) return;
           const float scale = std::min(paint.size.x / kCanvas.width(),
                                        paint.size.y / kCanvas.height());
-          canvas.save();
-          canvas.translate((paint.size.x - kCanvas.width() * scale) / 2,
-                           (paint.size.y - kCanvas.height() * scale) / 2);
-          canvas.scale(scale, scale);
-          draw(canvas);
-          canvas.restore();
+          const float width = kCanvas.width() * scale;
+          const float height = kCanvas.height() * scale;
+          pen.canvas()->drawImageRect(
+              picture,
+              SkRect::MakeXYWH((paint.size.x - width) / 2,
+                               (paint.size.y - height) / 2, width, height),
+              SkSamplingOptions(SkFilterMode::kLinear));
         })));
   }
 };
 
 SIGIL_SKETCH(FloatingPanels, "Kit · API",
-             "render::drawImagePanel and a textured cylinderPanel — the "
-             "same composed card flat in space and bent around a curve")
+             "a textured quad and a textured cylinderPanel in one world "
+             "frame — the same composed card flat in space and bent around "
+             "a curve")

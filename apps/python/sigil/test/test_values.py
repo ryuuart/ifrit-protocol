@@ -99,25 +99,21 @@ class Values(unittest.TestCase):
             self.assertLess(red(16, 16), red(20, 16))
             self.assertLess(red(20, 16), red(26, 16))
 
-    def test_shader_slot_and_mesh_render_headlessly(self):
+    def test_shader_slot_and_shape_render_headlessly(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "scene.py"
             output = Path(folder) / "scene.png"
             source.write_text("""from sigil.sketch import sketch
 from sigil.material import Paint
-from sigil.geometry import mesh
 @sketch(size=(96, 96), captureAt=0.02, background="#000000")
 class Scene:
     def setup(self, ctx):
         self.fill = Paint.sksl("uniform shader source; half4 main(float2 p) { return source.eval(p); }").slot("source", Paint.solid("#22cc88"))
-        self.body = mesh.box((-30,-30,-30), (30,30,30))
-        self.camera = mesh.camera.Camera()
-        self.camera.eye = (80, 60, 170)
-        self.style = mesh.render.MeshStyle()
-        self.style.baseColor = "#ffaa44"
     def draw(self, pen):
         pen.background(self.fill)
-        mesh.render.drawMesh(pen, self.body, mesh.camera.place(), self.camera, self.style)
+        pen.noStroke()
+        pen.fill("#ffaa44")
+        pen.rect(28, 28, 40, 40)
 """)
             renderFile(source, output)
             raster = media.load(output).frameAt(0).image

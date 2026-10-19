@@ -77,7 +77,6 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.geometry.mesh.points": "sigil.geometry.mesh.points",
     "_sigil.geometry.mesh.pop": "sigil.geometry.mesh.pop",
     "_sigil.geometry.mesh.pop.profile": "sigil.geometry.mesh.pop.profile",
-    "_sigil.geometry.mesh.render": "sigil.geometry.mesh.render",
     "_sigil.geometry.path": "sigil.geometry.path",
     "_sigil.geometry.path.blend": "sigil.geometry.path.blend",
     "_sigil.geometry.path.crossing": "sigil.geometry.path.crossing",

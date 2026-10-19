@@ -506,7 +506,8 @@ void Scene::Impl::writeComponents(Instance& inst) {
   if (mesh)
     registry.emplace_or_replace<component::Body>(
         inst.entity, mesh, instances, inst.resource->id, node.backface,
-        node.facing, node.castShadow, node.receiveShadow);
+        node.primitiveColor, node.facing, node.castShadow,
+        node.receiveShadow);
   else
     registry.remove<component::Body>(inst.entity);
   const material::Material* worn = surfaceOf(node);

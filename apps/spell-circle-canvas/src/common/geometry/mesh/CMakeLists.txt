@@ -21,7 +21,6 @@ sigil_bench(geometry_bench
 
 # The tier's features, in dependency order.
 add_subdirectory(camera)
-add_subdirectory(render)
 add_subdirectory(curve)
 add_subdirectory(pop)
 add_subdirectory(codec)

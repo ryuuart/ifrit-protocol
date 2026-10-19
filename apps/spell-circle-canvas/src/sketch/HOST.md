@@ -155,7 +155,7 @@ Apple that device's 2D paints on Metal, through a Metal Graphite context
 on the Metal device the Vulkan driver runs over, into the device's own
 textures, so its still and its pages are Metal's pixels too.
 Scene2D bodies declare that work with `static constexpr bool needsDevice =
-true;`; a supplied non-CPU painter also requires it.
+true;`.
 
 ## Mapped-code lifetime
 

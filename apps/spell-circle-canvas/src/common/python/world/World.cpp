@@ -350,7 +350,9 @@ void bindKinds(py::module_& module) {
   mesh.def("facing", &world::Mesh::facing, py::arg("facing"), fluent)
       .def("castShadow", &world::Mesh::castShadow, py::arg("casts"), fluent)
       .def("receiveShadow", &world::Mesh::receiveShadow, py::arg("receives"),
-           fluent);
+           fluent)
+      .def("primitiveColor", &world::Mesh::primitiveColor,
+           py::arg("lane") = "Color", fluent);
   module.def(
       "mesh",
       [](geometry::mesh::Mesh triangles) {

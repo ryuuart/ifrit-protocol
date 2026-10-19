@@ -409,8 +409,8 @@ give it a transparent background, draw, export. Any sketch answers to the
 flag, so the sketch that draws the asset is the template.
 
 **`--gpu` puts the run on the device**, exactly as it does for a sweep: a
-scene3d sketch draws its frame there, and a scene2d sketch's mesh painter
-(`sketch::painterRuntime()`) rasterises there. It is fatal when no device
+scene3d sketch draws its frame there, and so does a scene2d sketch's
+bake. It is fatal when no device
 comes up, because a run that asked for the device and quietly gave the
 CPU's picture puts two different pictures under one name. Without it a
 scene2d sketch renders on the CPU, which is what its plate is hashed from,

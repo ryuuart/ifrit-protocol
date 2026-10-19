@@ -86,7 +86,6 @@ sigil_doc_probes(world
            "<sigilgeometry/mesh/pop/Kernel.h>"
            "<sigilgeometry/mesh/pop/device/Cook.h>"
            "<sigilgeometry/mesh/pop/device/Sweep.h>"
-           "<sigilgeometry/mesh/render/device/Painter.h>"
   EXCLUDE "geometry::device::MeshResidency=declared in SigilGeometry's device residency feature's private headers, which no consumer include path carries"
           "entt::entity=EnTT's own, named as the dependency the entity store is: its headers are not scanned"
           "entt::registry=EnTT's own, named as the dependency the entity store is: its headers are not scanned"

@@ -113,9 +113,8 @@ canvas dark, and draws a still for every sketch that has none: the
 sketch's kind opened and stepped to its declared moment — the same
 capture the CPU plate tier takes — scaled to the thumbnail size, one at a
 time, on the CPU and never touching the device. That holds whatever the
-process installed: a still opens every kind on empty runtimes, so a scene2d
-body's meshes are drawn on the CPU painter even in a window whose live
-canvas is drawing on a device. A scene3d sketch is drawn on a device and
+process installed: a still opens every kind on an empty world runtime, even
+in a window whose live canvas is drawing on a device. A scene3d sketch is drawn on a device and
 nowhere else, so the fill gives it no still: it gets a NOTE carrying the reason,
 and its still is the one the refresh below takes the first time it is
 opened. The status strip counts

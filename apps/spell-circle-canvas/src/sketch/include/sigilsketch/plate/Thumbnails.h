@@ -13,10 +13,9 @@
  * a hash of the sketch's SOURCE and nothing else — so a thumbnail whose
  * key no longer matches is stale and is re-rendered. The render is the
  * same capture the CPU plate tier takes, scaled down, and it never
- * touches a device: it opens every kind on the CPU runtimes whatever the
- * process installed — a scene3d sketch's whole frame and a 2D body's mesh
- * painter alike — which is what lets it run on a worker thread beside a window
- * that is presenting.
+ * touches a device: it opens every kind on an empty world runtime whatever
+ * the process installed, which is what lets it run on a worker thread beside
+ * a window that is presenting.
  */
 
 #include <sigilsketch/core/Registry.h>
@@ -166,8 +165,8 @@ struct ThumbnailRun {
  *  and never a device one, and it opens the kind on empty runtimes rather
  *  than on the ones a host installed, so it can run on a worker that
  *  shares no device and no queue with the thread that is presenting: a
- *  2D body stands a mesh up on the CPU painter, and a scene3d sketch, which is
- *  drawn on a device and nowhere else, answers `Unavailable`. Any older
+ *  scene3d sketch, which is drawn on a device and nowhere else, and a
+ *  scene2d sketch that declared it needs one answer `Unavailable`. Any older
  *  thumbnail for `run.stem` under the output's directory is removed. */
 [[nodiscard]] ThumbnailOutcome renderThumbnail(const Entry& entry,
                                                weave::FontContext& fonts,

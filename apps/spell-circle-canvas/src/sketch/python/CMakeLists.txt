@@ -15,7 +15,7 @@ sigil_library(SigilSketchPython
   HEADERS Python.h
   PUBLIC SigilSketch
   PRIVATE SigilPython SigilSketchKit SigilSketchTesting SigilWorldFrame
-          SigilGeometryMeshPopDevice SigilGeometryMeshRenderDevice
+          SigilGeometryMeshPopDevice
           SigilGeometryDevice SigilDataDecode SigilMaterialSubstance)
 if(TARGET SigilScry)
   target_link_libraries(SigilSketchPython PRIVATE SigilScry)

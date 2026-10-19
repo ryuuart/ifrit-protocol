@@ -47,6 +47,9 @@ struct Draw {
   Facing facing = Facing::None;
   /** Whether reverse-wound faces survive rasterization. */
   material::Backface backface = material::Backface::Hidden;
+  /** The primitive lane whose colour multiplies each triangle, or empty
+   *  for none. */
+  std::string_view primitiveColor;
   /** WHICH COOKED ARTEFACT those triangles are, named by a number no
    *  other artefact ever has. An executor that keeps something of its
    *  own per geometry — a device's uploaded buffers — keys on this and

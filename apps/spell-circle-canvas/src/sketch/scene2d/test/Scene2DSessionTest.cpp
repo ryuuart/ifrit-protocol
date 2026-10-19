@@ -16,7 +16,6 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
@@ -734,16 +733,6 @@ TEST_F(Scene2DBakes, BakesTheSameScene3DFromTheCameraItIsGiven) {
   EXPECT_NEAR((float)far.height(), near.height() / 2.0f, 2.0f);
 }
 
-TEST(Scene2DDoors, PaintsMeshOnTheCpuUntilAProcessInstallsADevice) {
-  namespace render = sigil::geometry::mesh::render;
-  // A sketch writes `style.runtime = sketch::painterRuntime()` once and
-  // draws on both tiers, so the door must be a runtime that draws — an
-  // empty one silently paints no mesh at all.
-  EXPECT_EQ(painterRuntime(), render::Runtime::cpu());
-  usePainterRuntime({});
-  EXPECT_EQ(painterRuntime(), render::Runtime::cpu());
-}
-
 /** THE THREE SHAPES A SCENE2D SKETCH IS WRITTEN IN, side by side: the
  *  whole offer, a `setup` that named none of it, and a body stepped
  *  through an `update` that named the seconds and not the context. None
@@ -985,27 +974,10 @@ struct DeviceScene2D : Bare {
   static constexpr bool needsDevice = true;
 };
 
-class SuppliedPainter final : public gm::render::Executor {
- public:
-  bool operator==(const SuppliedPainter&) const { return true; }
-  void drawMesh(SkCanvas&, const gm::Mesh&, const glm::mat4&,
-                const gm::camera::Camera&, glm::vec2,
-                const gm::render::MeshStyle&) const override {}
-  void drawPanel(SkCanvas&, const glm::mat4&, const gm::camera::Camera&,
-                 glm::vec2,
-                 const std::function<void(SkCanvas&)>&) const override {}
-};
-
-TEST(Scene2DKinds, DeviceRequirementsFollowTheBodyOrSuppliedPainter) {
+TEST(Scene2DKinds, DeviceRequirementsFollowTheBody) {
   const Kind ordinary = kindOf<Bare>();
   EXPECT_FALSE(ordinary->needsDevice());
   EXPECT_TRUE(kindOf<DeviceScene2D>()->needsDevice());
-  EXPECT_FALSE(onPainterRuntime(ordinary, {})->needsDevice());
-  EXPECT_FALSE(
-      onPainterRuntime(ordinary, gm::render::Runtime::cpu())->needsDevice());
-  EXPECT_TRUE(onPainterRuntime(ordinary, gm::render::Runtime{SuppliedPainter{}})
-                  ->needsDevice());
-  EXPECT_TRUE(onPainterRuntime(kindOf<DeviceScene2D>(), {})->needsDevice());
   EXPECT_FALSE(ordinary == Kind(Scene2DKind{&makeScene2DBody<Bare>, true}));
 }
 

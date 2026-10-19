@@ -3,10 +3,9 @@
 /** @file
  * @ingroup geometry-mesh
  *
- * The 3D tier's currency — one Mesh whichever runtime draws it. The same
- * vertex and index buffers feed the draw in mesh/render and upload to a
- * GPU renderer downstream: positions, normals, uvs, indices, nothing
- * renderer-shaped.
+ * The 3D tier's currency — one Mesh whichever renderer draws it. The
+ * vertex and index buffers upload to a GPU renderer downstream:
+ * positions, normals, uvs, indices, nothing renderer-shaped.
  *
  * 3D data speaks glm (vec3/vec4/mat4); Skia types appear only where
  * geometry genuinely comes from or goes to Skia (the canvas
@@ -63,8 +62,9 @@ struct Mesh {
    *  pop's AttributeReference: no second identity system, just a second class.
    *
    *  Conventional names (nothing enforces them): "Color" (flat
-   *  per-primitive tint — render::MeshStyle::primitiveColorLane reads it and
-   *  mesh::bakePrimitiveColor bakes it for vertex-only renderers) and "Id"
+   *  per-primitive tint — a renderer that reads a primitive colour lane
+   *  reads it, and mesh::bakePrimitiveColor bakes it for one that reads
+   *  vertex colours alone) and "Id"
    *  (.x = the piece the triangle belongs to; instancing writes the
    *  owning point's index, so "a stamp instance" is expressible as a
    *  lane VALUE rather than a new container). Any other name is a
@@ -95,7 +95,7 @@ struct Mesh {
    *  and uvs to positions.size(), primitives to triangleCount(). That holds
    *  whether a side lacks the lane entirely or carries a SHORT one —
    *  consumers read "lane sized to positions" as the presence bit for
-   *  the whole mesh (render::drawMesh's hasNormals is exactly that), so
+   *  the whole mesh, so
    *  an undersized merge would turn lighting, texturing or tinting off
    *  for BOTH halves. Pads: colors white, normals +Z, uvs (0, 0), and
    *  tangents none, so a side that carried none reads its own off the

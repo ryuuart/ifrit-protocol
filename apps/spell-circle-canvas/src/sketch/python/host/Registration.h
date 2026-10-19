@@ -18,7 +18,7 @@ namespace sigil::sketch::python {
 void bindRuntime(pybind11::module_& module);
 /** Registers everything a scene2d sketch is handed on @p module. */
 void bindSketchContextSurface(pybind11::module_& module);
-/** Registers the process painter runtime, without exposing the device
+/** Registers the device runtimes a sketch names, without exposing the device
  *  on @p module. */
 void bindSketchDeviceRuntimes(pybind11::module_& module);
 /** Registers what a Python sketch entry is filed as and what it needs

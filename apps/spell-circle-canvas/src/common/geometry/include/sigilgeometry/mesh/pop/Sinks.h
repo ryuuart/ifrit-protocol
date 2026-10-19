@@ -61,8 +61,7 @@ std::vector<glm::uvec2> connectAdjacent(const Cloud& cloud,
 
 /** The mesh-forming sink: cook @p chain and stamp @p stamp at every
  *  point into ONE Mesh (dir orients, size scales, tint colors) — a
- *  pop-DESCRIBED 3D model, drawable by render::drawMesh on the Skia
- *  painter and placeable in a 3D set alike. The cook runs on @p runtime;
+ *  pop-DESCRIBED 3D model, placeable in a 3D set like any other mesh. The cook runs on @p runtime;
  *  the stamping stands on its cloud. */
 Mesh cookMesh(const Chain& chain, const Mesh& stamp,
               const Runtime& runtime = Runtime::cpu());

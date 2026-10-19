@@ -3067,54 +3067,6 @@
     "unit": "ns",
     "repetitions": 4
    },
-   "BM_DrawMesh/16": {
-    "real_ns": 148122.18072828118,
-    "cpu_ns": 148117.86469344323,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawMesh/64": {
-    "real_ns": 583752.7770684876,
-    "cpu_ns": 583745.8333334192,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawMesh/256": {
-    "real_ns": 5979011.781797137,
-    "cpu_ns": 5978869.565217832,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawMeshMode/mode:0": {
-    "real_ns": 1131686.5270600829,
-    "cpu_ns": 1131570.3124999965,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawMeshMode/mode:1": {
-    "real_ns": 970350.5487171544,
-    "cpu_ns": 970354.16666665,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawMeshMode/mode:2": {
-    "real_ns": 968856.3370420728,
-    "cpu_ns": 968854.1666665883,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawMeshUnsorted": {
-    "real_ns": 2008889.3066007476,
-    "cpu_ns": 2008716.4179105046,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawPanel": {
-    "real_ns": 5400.463265164975,
-    "cpu_ns": 5400.479758930591,
-    "unit": "us",
-    "repetitions": 4
-   },
    "BM_SampleArcLength/16": {
     "real_ns": 2772.2994451777486,
     "cpu_ns": 2771.9209424591227,

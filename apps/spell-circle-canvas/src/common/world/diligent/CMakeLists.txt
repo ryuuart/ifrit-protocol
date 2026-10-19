@@ -88,14 +88,15 @@ sigil_test(world_test
           test/InstancingTest.cpp test/LobesTest.cpp test/TransmissionTest.cpp
           test/ShadowTest.cpp test/AreaLightTest.cpp test/PresentTest.cpp
           test/StandInTest.cpp test/PostChainTest.cpp
-          test/PageAcrossQueuesTest.cpp test/DeviceSeams.h
+          test/PageAcrossQueuesTest.cpp test/PrimitiveColorTest.cpp
+          test/DeviceSeams.h
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   DEFINITIONS SIGIL_WORLD_SHADER_DIR="${_shaders}"
   LIBRARIES SigilWorldDiligent SigilMaterialSurface SigilMaterialPattern
             SigilMaterialOcio SigilGeometryKit SigilSkiaGraphite
   SUITES AreaLight Blending Bloom DataTexture DepthFade DeviceFrame Environment Facing
-         FinalStage Flipbook GpuRuntime Lighting Lobes PageAcrossQueues PostChain PresentedPicture Programs Stack StandIn
+         FinalStage Flipbook GpuRuntime Lighting Lobes PageAcrossQueues PostChain PresentedPicture PrimitiveColor Programs Stack StandIn
          Shadow SurfaceProgram SurfaceSlots Transmission
   LABELS gpu)
 

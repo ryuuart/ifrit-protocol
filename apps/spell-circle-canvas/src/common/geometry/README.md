@@ -40,12 +40,6 @@ path/          SigilGeometryPath          sigil::geometry::path
   blend/       SigilGeometryPathBlend     sigil::geometry::path::blend
 mesh/          SigilGeometryMesh          sigil::geometry::mesh
   camera/      SigilGeometryMeshCamera    sigil::geometry::mesh::camera
-  render/      SigilGeometryMeshRender    sigil::geometry::mesh::render
-    device/    SigilGeometryMeshRenderDevice
-                                          (the same ::render namespace:
-                                           a device executor stands in
-                                           the scope of the seam it
-                                           serves, as pop's do)
   curve/       SigilGeometryMeshCurve     sigil::geometry::mesh::curve
   pop/         SigilGeometryMeshPop       sigil::geometry::mesh::pop
   codec/       SigilGeometryMeshCodec     sigil::geometry::mesh::codec
@@ -62,8 +56,8 @@ kit/           SigilGeometryKit           sigil::geometry::shapes
 `device/` is the GPU device itself, and it is here for one reason:
 **Diligent creates the Vulkan device and cannot attach to one that
 already exists**, so the single point where a device is made has to sit
-at or below every consumer of one. A point operator's device executor, a
-mesh painter's device draw and a frame runtime's passes all stand on the
+at or below every consumer of one. A point operator's device executor and
+a frame runtime's passes both stand on the
 device this feature created and the hardware device adopted, and none of
 them can create it for the others. It is absent from a build without
 Skia's Graphite on the same device, since being one device for both APIs
@@ -138,7 +132,6 @@ mesh::revolve(profile, mesh::RevolveOptions)
 mesh::pop::sweep(rail, section, mesh::pop::SweepOptions)
 mesh::loft(sections, mesh::LoftOptions)
 mesh::fill(outline)
-mesh::render::drawMesh(canvas, mesh, placement, camera, viewport, style)
 ```
 
 The short names stay as stock values, one line each, wherever the general
@@ -307,9 +300,8 @@ belongs to). `points::promoteToPrimitives()` and the `pop::Promote` operator
 move values from the point class to the primitive class.
 
 **`Mesh` is the shared currency.** The same `positions`/`normals`/`uvs`/
-`colors`/`indices` buffers feed the draw in `mesh/render/Painter.h` and
-upload directly to a GPU renderer downstream. Nothing renderer-shaped
-lives in the struct.
+`colors`/`indices` buffers upload directly to a GPU renderer downstream —
+SigilWorld draws them. Nothing renderer-shaped lives in the struct.
 
 **`Instances` is a mesh repeated.** Instanced geometry — USD's point
 instancer, three.js's instanced mesh, a geometry-node system's instances
@@ -327,17 +319,6 @@ instance as one scalar by its first number, so a lane the chain itself
 fills, clusters or selects feeds a flipbook's frame or any per-instance
 scalar a material reads. `Instances::placement` is one
 instance's matrix.
-
-**A draw runs on a `Runtime`, and the runtime is a value.**
-`render::MeshStyle` carries one, defaulting to `render::Runtime::cpu()`
-— the built-in executor that transforms, shades, sorts and emits on the
-CPU. Mesh triangles are clipped against the camera's near and far planes
-before projection; the cut edges retain interpolated UVs and vertex colors.
-A feature that owns a GPU device supplies its own executor as a
-value and assigns it to the style; the call, the geometry and the
-vocabulary do not change, and nothing here learns what a device is. Two
-runtimes compare equal when they hold the same model with the same
-value, so a reconciler can ask whether a description's runtime changed.
 
 **`pop::Chain` is a backend-neutral description.** It is a vector of
 operator variants, not a program — and a value: every operator, `Mesh`
@@ -482,9 +463,9 @@ that are ABI, and what each importer does and does not carry.
 Publicly the library links Skia, glm, Boost.Container and Boost.Unordered,
 the two SigilCore leaves —
 SigilCoreCompute for the seeded mixers, SigilCoreComparable for the
-erased value the mesh and point-operator runtimes are — and
-SigilMediaCore, whose `media::Picture` is the texture, the sprite and
-the panorama the mesh painter and the billboards read, and nothing
+erased value the point-operator runtimes are — and
+SigilMediaCore, whose `media::Picture` is the sprite the billboards
+read, and nothing
 else; every feature links only the features above it in the tree. Linking the
 leaves acquires no kernel, no device and nothing that draws.
 Privately `path/blend` links `SigilMaterialColor`, the colour value and
@@ -501,10 +482,9 @@ another feature, and none of them reaches a public header.
 `device` is the exception to all of that, and the one feature that
 brings a renderer's dependencies with it: Diligent Engine, SigilCore's
 hardware device and SigilSkia's Graphite. What links it is the device
-executors alone — `mesh/pop/device` and `mesh/render/device`, each its
-own target beside the CPU executor of the seam it serves — so a consumer
-that cooks a chain or draws a mesh on the host acquires none of the
-three, and no other feature here reaches down into it.
+executors alone — `mesh/pop/device`, its own target beside the CPU
+executor of the seam it serves — so a consumer that cooks a chain on the
+host acquires none of the three, and no other feature here reaches down into it.
 `device/residency` is where the mesh currency and SigilMaterial's texture
 and Slang backend are named — it is the one place a geometry target names
 a material one other than `path/blend`'s private colour link, and it
@@ -529,9 +509,8 @@ decoding a texture an importer handed you, or fetching an asset over the
 network — that is the caller's job, and the library is designed so the
 caller can supply it (`decode::Resolver` is the hook).
 
-Surface shading is **SigilMaterial**'s: its bevel normal maps and its
-gold, chrome and glass recipes take a normals pass this library draws,
-handed over as pixels. No material target links a geometry one, and the
+Surface shading is **SigilMaterial**'s and lighting is **SigilWorld**'s:
+nothing here shades or lights a mesh. No material target links a geometry one, and the
 one edge the other way is `path/blend`'s private link to the colour leaf.
 
 The relationship with **SigilWorld**, the GPU renderer that sits beside it,
@@ -539,8 +518,7 @@ is one-directional: SigilWorld links SigilGeometry and consumes its `Mesh`,
 `Cloud`, `pop::Chain`, `Spline3` and `camera::Camera` types. SigilGeometry does
 not link SigilWorld, does not include its headers, and does not know it
 exists. The consequence worth internalizing is that **the CPU
-implementations here are the reference**: `render::drawMesh()` is the twin
-of the GPU uploader, and `pop::cook()` is the definition a GPU chain
+implementations here are the reference**: `pop::cook()` is the definition a GPU chain
 executor must reproduce. When the two disagree, this side is right — and
 for the operators that have a kernel they cannot disagree about a
 formula, because there is one formula and this side compiled it.
@@ -556,21 +534,17 @@ of each operator — inside the library's sources and in any consumer that
 draws with Skia, never in a header that a default include reaches.
 
 The mesh tier crosses there too: a camera takes and answers glm, and
-`camera::toSkM44()` in the same header is the form a painter
+`camera::toSkM44()` in the same header is the form a 2D consumer
 concatenates onto a canvas.
 
 Outside that header one Skia type is named, and only by declaration:
 **the host's canvas**, which is the painter boundary. Everything a draw
 lands on is a canvas the host owns, so the drawing entrances take one —
-`render::drawMesh`, `render::drawPanel` (whose panel-local body is
-handed the same canvas), `render::drawImagePanel` and the
-`render::Runtime` seam the CPU and device painters implement;
 `points::drawBillboards`, `pop::cookBillboards` and
 `pop::Builder::billboards`; and `blend::draw`. Every other parameter and
 field beside that canvas is the library's own value or Media's picture:
-a viewport is a `glm::vec2`, a colour a `glm::vec4` of straight sRGB, a
-texture or a sprite a `media::Picture`, a texture's
-placement a `path::Transform`, and how it is read a `render::Sampling`.
+a viewport is a `glm::vec2`, a colour a `glm::vec4` of straight sRGB, and a
+sprite a `media::Picture`.
 
 ## Build and test
 
@@ -582,9 +556,8 @@ pin, and what a label promises. What is only true of SigilGeometry:
 
 Targets — one static library per feature: `SigilGeometryPath`,
 `SigilGeometryPathBlend`, `SigilGeometryMesh`, `SigilGeometryMeshCamera`,
-`SigilGeometryMeshRender`, `SigilGeometryMeshCurve`,
-`SigilGeometryMeshPop`, `SigilGeometryMeshCodec`,
-`SigilGeometryMeshRenderDevice`, `SigilGeometryDevice`,
+`SigilGeometryMeshCurve`, `SigilGeometryMeshPop`, `SigilGeometryMeshCodec`,
+`SigilGeometryDevice`,
 `SigilGeometryDeviceResidency`, `SigilGeometryKit` — with the
 `SigilGeometry` umbrella over all of them.
 
@@ -594,17 +567,15 @@ Targets — one static library per feature: `SigilGeometryPath`,
 | `mesh/test/` — `MeshTest`, `FacesTest`, `CameraTest`, `TransformTest` | the mesh currency, its faces and the camera that places it, and the order a 3D placement's parts apply in: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, a fanned polygon read as one face with one plane and one centroid, the face-up rotation, and the view-projection and billboard transforms carried through to viewport pixels |
 | `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled, and each regular solid counted by its own faces, closed on itself (V - E + F = 2), equal-edged and stood on a chosen face |
 | `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
-| `mesh/render/test/` — `PainterTest`, `RuntimeTest` | the mesh draw's pixels and the normals G-buffer's encoding, and the draw's runtime seam |
 | `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopNeighboursTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the splat as one canvas draw however many points and however many cells the cloud carries — keeping the back-to-front order, each point's own tint, size and atlas cell with no neighbouring cell bleeding into it, the requested blend where two splats overlap, and every splat across the batch's chunk boundary — the lanes a chain carries and the dials that address them by name, the operators that read points they do not own, each declined by name on a device runtime, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
 | `mesh/codec/test/` — `ObjTest`, `GltfTest`, `StlTest`, `PlyTest`, `AlembicTest`, `GeoTest`, `ModelTest`, `EncodeTest` | one file per format, plus the Model operations over whatever reader made it and both writers' return leg. The only binary linking Alembic |
 | `device/test/DeviceTest` | one device end to end: Graphite on the Vulkan queue draws on the very queue Diligent submits through, the adopted device names every Vulkan handle — and, over Metal, the Metal texture and event behind its own, a Metal texture over its own memory and a Metal event its queue waits on, and the device's own 2D painting on Metal over its textures with the two queues waiting for each other — and Diligent still drives it afterwards |
 | `device/residency/test/ResidencyTest` | what the device keeps between draws: a named mesh crossing once and drawn from after, a nameless one written through the streaming pair, the depth of an uploaded map's chain, a page standing on the device worn in the format it was painted in and through the chain it was made with, filled in place, and the letting go that keeps a scene from holding everything it ever cooked |
 | `mesh/pop/device/test/` — `DeviceCookTest`, `DeviceStampTest`, `DeviceSweepTest` | the CONFORMANCE of the device executors: every chain, stamping and sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected |
-| `mesh/render/device/test/PainterTest` | the mesh painter's device executor: the runtime as a value, the style's own answers read the same way on either executor, the lit shading standing within a shading distance of the host's, and a panel as the same BYTES on both — which it is because a panel's content is Skia's to rasterise whichever executor holds it |
 
 | Label | On | Means |
 | --- | --- | --- |
-| `gpu` | `AdoptedDevice`, `AdoptedGraphite`, `Device`, `MapUpload`, `MeshResidency`, `TextureResidency`, `DevicePop`, `DeviceStamp`, `DeviceSweep`, `Painter` | needs a Vulkan runtime (on macOS: `brew install molten-vk vulkan-loader`); skips with the reason without one |
+| `gpu` | `AdoptedDevice`, `AdoptedGraphite`, `Device`, `MapUpload`, `MeshResidency`, `TextureResidency`, `DevicePop`, `DeviceStamp`, `DeviceSweep` | needs a Vulkan runtime (on macOS: `brew install molten-vk vulkan-loader`); skips with the reason without one |
 
 Every case in the device suites brings a Vulkan device up and skips,
 naming what is missing, where the machine has none, so `ctest -LE gpu`
@@ -630,7 +601,6 @@ scattered along.
 | `path/blend/bench/` | a two-key blend by step count and by sample density, and the same blend threaded onto a spine |
 | `mesh/bench/` | the parametric sheet by vertex count, and the two whole-mesh rewrites: appending and unwelding a primitive colour lane |
 | `mesh/camera/bench/` | the per-frame transform builds: view, view-projection, the matrix seam, and the two placement helpers |
-| `mesh/render/bench/` | the built-in runtime by triangle count and by shading mode, the cost of the cull and the sort, and the panel concat |
 | `mesh/curve/bench/` | arc-length sampling and parallel-transport frames by count, and the pose read over a held rail and over the spline that builds one |
 | `mesh/pop/bench/` | the cook per operator over a thousand points, whole chains by count and operator mix, the runtime seam's dispatch against the same cook reached directly, and the swept operator by tessellation for a circle profile, a line profile and a line on a hung rail — with the ring seam measured on its own |
 | `mesh/codec/bench/` | OBJ, GLB and `.geo` decoded from bytes in memory, per triangle or point |
@@ -640,7 +610,7 @@ scattered along.
 The studies over this library are `blend_options`, `path_booleans`,
 `crossing_rule`, `exact_tangent`, `curve_shelf`, `shape_tour`,
 `corner_notched`, `svg_silhouette`, `contour_poses`, `mesh_generators`,
-`mesh_normal_bridge`, `floating_panels`, `painter_gpu`, `pop_stamps`,
+`mesh_normal_bridge`, `floating_panels`, `pop_stamps`,
 `pop_prims`, `pop_deform`, `pop_math`, `pop_order`, `pop_billboards`,
 `formation_bands`, `over_under`, `routes_probe`, `geo_groups`,
 `yarn_marquee` and `shapeworks_lab`; `codec_roundtrip` takes a mesh out

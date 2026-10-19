@@ -198,14 +198,10 @@ namespace {
  *  worker beside a window that is presenting, and a device is one device
  *  and one queue: a background walk driving the queue the render thread
  *  is drawing with is two threads inside one graphics context. So the
- *  kind is opened on empty runtimes for both doors a sketch reaches a
- *  device through: the mesh style a 2D body stands up in space, which
- *  then draws on the CPU painter, and a scene3d sketch's whole frame,
- *  which leaves the sketch unavailable. What a host installed reaches
- *  nothing here. */
-Kind thumbnailKind(const Entry& entry) {
-  return onPainterRuntime(onRuntime(entry.kind(), {}), {});
-}
+ *  kind is opened on an empty world runtime, which leaves a scene3d
+ *  sketch, and a scene2d sketch that declared it needs a device,
+ *  unavailable. What a host installed reaches nothing here. */
+Kind thumbnailKind(const Entry& entry) { return onRuntime(entry.kind(), {}); }
 
 }  // namespace
 

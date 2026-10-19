@@ -1670,14 +1670,11 @@ tool.pressure.end = 0.05
 
 `from sigil.geometry import mesh` exposes the native mesh currency, stock
 solids, extrusion, lathing and parametric grids. `mesh.camera` owns cameras
-and model transforms; `mesh.render` owns lights, surface styles and mesh
-drawing. A Python function can define the parametric surface for
+and model transforms; a mesh is drawn as a `world.mesh` body, lit by the
+World. A Python function can define the parametric surface for
 `mesh.grid`; native geometry computes its tessellation and normals. Mesh
 array properties are copied Python values: assign the changed array back
 to update the native mesh.
-
-The mesh painter runs on its native CPU executor and works without a
-display or GPU.
 
 `mesh.pop` builds point-operator chains: `pop.on(loop)`, `pop.on(model,
 count)` or `pop.on(chain)` enters points, each verb (`count`, `spread`,

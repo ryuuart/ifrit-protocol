@@ -71,7 +71,6 @@ void bindLibraries(pybind11::module_& module) {
   bindWeaveTables(module);
   bindGeometryMeshCamera(module);
   bindGeometryMesh(module);
-  bindGeometryMeshRender(module);
   bindGeometryMeshCurve(module);
   bindGeometryMeshPoints(module);
   bindGeometryPointOperations(module);

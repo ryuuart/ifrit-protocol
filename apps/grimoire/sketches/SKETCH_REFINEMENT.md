@@ -228,7 +228,6 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `ocio_view` | Rewritten · subject study | Reviewed GPU plate |
 | `optical_kerning` | Retain · focused specimen | Cached preview |
 | `over_under` | Rewritten · subject study | Reviewed GPU plate |
-| `painter_gpu` | Rewritten · subject study | Reviewed GPU plate |
 | `path_booleans` | Retain · focused specimen | Cached preview |
 | `pattern_sequence` | Rewritten · subject study | Reviewed GPU plate |
 | `pixfont_dotsprite` | Rewritten · subject study | Reviewed GPU plate |

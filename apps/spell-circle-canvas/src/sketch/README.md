@@ -98,10 +98,9 @@ more pixels than the sketch declared, and the pane magnifies the picture: a
 lit draw costs by the pixel, and a pane on a dense screen has four times
 the pixels of the same pane on a plain one.
 
-A scene2d body that uses the host's device mesh painter, foreign textures or
+A scene2d body that bakes a world frame, imports foreign textures or runs
 device compute declares `static constexpr bool needsDevice = true;`.
-Ordinary Compose drawing needs no World executor. A supplied non-CPU
-`Scene2DKind` painter also declares device work. The host reads
+Ordinary Compose drawing needs no World executor. The host reads
 `KindOperations::needsDevice` before opening a session; this declaration does
 not prevent the body from providing a CPU fallback.
 
@@ -404,17 +403,15 @@ installed and answers null where there is none, so a scene2d sketch that bakes
 a 3D frame declares `needsDevice` and an `available()` probe over
 `sketch::runtimeAvailable`. Include `<sigilworld/World.h>` for the frame.
 
-A scene2d sketch that draws meshes directly uses `sketch::painterRuntime()`, which is
-the CPU painter where no device runtime is installed. A scene3d sketch uses
+A scene3d sketch, and a scene2d sketch's bakes, use
 `sketch::runtime()` and is drawn on a device and nowhere else: where the
 runtime it would open on is empty, its kind answers `available()` false with
 the one message `sketch::runtimeAvailable` writes, so a listing greys it, a
 sweep skips it and a host refuses to open it, each saying why. Each session
-keeps the runtime it opened with; `sketch::onPainterRuntime` and
-`sketch::onRuntime` let a host choose one for a particular kind. They reach
-every kind that opens on one — a kind is told through
-`sketch::OpensOnPainter` and `sketch::OpensOnRuntime`, which the scene2d and
-scene3d kinds and a Python sketch's kind all answer — so a scene3d kind, or a
+keeps the runtime it opened with; `sketch::onRuntime` lets a host choose one
+for a particular kind. It reaches every kind that opens on one — a kind is
+told through `sketch::OpensOnRuntime`, which the scene2d and scene3d kinds
+and a Python sketch's kind all answer — so a scene3d kind, or a
 kind that declared it needs a device, stated on an empty runtime is
 unavailable, and a scene2d kind bakes its world frames on the runtime it was
 told.
@@ -560,8 +557,7 @@ can use `sketch::openScene2D` with an owned `sketch::Scene2DBody`, or
 
 The runtimes own their clocks, retained scenes and caches. A host owns assets,
 runtime selection and session lifetime. Device objects must outlive sessions
-using them. `sketch::useRuntime`, `sketch::usePainterRuntime` and
-`sketch::useDevice` install process defaults; individual sessions keep the
+using them. `sketch::useRuntime` and `sketch::useDevice` install process defaults; individual sessions keep the
 runtimes with which they opened.
 
 The scene2d runtime installs the default text material resolver unless a host

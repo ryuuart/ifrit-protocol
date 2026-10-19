@@ -143,6 +143,9 @@ struct NodeDescription {
   glm::vec3 forward{0.0f, 0.0f, 1.0f};
   Geometry geometry;
   material::Backface backface = material::Backface::Hidden;
+  /** The primitive lane whose colour multiplies each triangle of a body,
+   *  or empty for none. */
+  std::string primitiveColor;
   /** Whether a body turns to face the camera. */
   Facing facing = Facing::None;
   /** Whether a body blocks the lights that cast shadows. */

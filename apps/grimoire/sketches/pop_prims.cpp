@@ -8,15 +8,15 @@
 // class needs a bake at all.
 //
 //   1. FACETS  a primitive "Color" lane written straight onto a formed body
-//      and read natively by `MeshStyle::primitiveColorLane`. The two
-//      triangles of every quad alternate brightness — that alternation
-//      IS the demonstration.
+//      and read by the world body that names it, `.primitiveColor("Color")`.
+//      The two triangles of every quad alternate brightness — that
+//      alternation IS the demonstration.
 //   2. BAKED   the SAME lane through `mesh::bakePrimitiveColor`, which
 //      unwelds each triangle into three of its own vertices and writes
-//      the value per vertex. That is how the class reaches a pipeline
-//      with vertex attributes and nothing else. Both styles run flat —
-//      no specular, no rim — so the two pictures are comparable and any
-//      difference is the bake's, not the lighting's.
+//      the value per vertex. That is how the class reaches a consumer
+//      that reads vertex colours and nothing else. Both bodies wear one
+//      matte finish under one light, so the two pictures are comparable
+//      and any difference is the bake's, not the lighting's.
 //   3. PIECES  the point class promoted INTO the primitive class.
 //      `.promote("Id")` stamps every triangle with its owning point's
 //      index, so a stamp instance is a RUN OF TRIANGLES sharing an Id
@@ -37,18 +37,20 @@
 
 #include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -57,13 +59,18 @@ using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
 namespace pop = sigil::geometry::mesh::pop;
-namespace render = sigil::geometry::mesh::render;
 namespace material = sigil::material;
+namespace world = sigil::world;
 
 namespace {
 
 constexpr SkSize kCanvas = {1240, 780};
 constexpr int kPieces = 64;
+/** How many picture pixels a bake takes per page pixel, so a figure stays
+ *  sharp on a plate captured at twice the page's size. */
+constexpr int kBakeDensity = 2;
+constexpr float kFigureWidth = 372;
+constexpr float kFigureHeight = 360;
 
 /** A four-stop ramp walked in OKLab, at a lightness multiplier. @p f
  *  wraps, so the ramp closes on itself the way a loop of facets needs
@@ -88,27 +95,39 @@ glm::vec4 oklabRamp(float f, float value) {
 }  // namespace
 
 struct PopPrims {
+  /** Every figure is a frame baked on the device, so the sheet needs one
+   *  and is unavailable, saying so, where none is installed. */
+  static constexpr bool needsDevice = true;
+  static bool available(std::string* why) {
+    return sketch::runtimeAvailable(why);
+  }
+
   mesh::Mesh facets, baked, pieces;
 
-  Element figure(const char* key, const mesh::Mesh& subject, bool primitiveLane,
-                 bool stamps = false) const {
+  /** One figure: @p body under one light, matte and white so what shows
+   *  is its colour, baked at the pixels its well will have. The stamped
+   *  pieces are their own light, so their runs read flat. */
+  static Element figure(sketch::Scene2DContext& ctx, world::Mesh body,
+                        bool stamps = false) {
+    const camera::Camera view{
+        .eye = {0, 210, 900}, .target = {0, 0, 0}, .fovYDeg = 42};
+    body.key("subject").transform(camera::place({}, 0, stamps ? 0 : -28));
+    if (stamps)
+      body.fill(material::surface::unlit({.baseColor = {0.9f, 0.9f, 0.93f, 1}}));
+    else
+      body.fill(material::surface::program(
+          {.baseColor = {1, 1, 1, 1}, .roughness = 1}));
+    const world::Frame frame(world::group(
+        {world::camera(view, {.toneCurve = world::ToneCurve::Neutral}),
+         world::directionalLight({-0.5f, -0.8f, -0.4f}, {.intensity = 2.6f}),
+         world::ambientLight({.intensity = 0.9f}), std::move(body)}));
     return sketch::kit::well(
-        {.width = 372, .height = 360},
-        custom(key, [subject, primitiveLane, stamps](sigil::draw::Pen& pen,
-                                                     const PaintContext& pc) {
-          SkCanvas& canvas = *pen.canvas();
-          const camera::Camera view{
-              .eye = {0, 210, 900}, .target = {0, 0, 0}, .fovYDeg = 42};
-          render::MeshStyle style{.baseColor = {1, 1, 1, 1},
-                                  .ambient = {0.34f, 0.34f, 0.38f, 1},
-                                  .specular = 0,
-                                  .rim = 0};
-          if (primitiveLane) style.primitiveColorLane = "Color";
-          if (stamps) style.ambient = {0.9f, 0.9f, 0.95f, 1};
-          render::drawMesh(canvas, subject,
-                           camera::place({}, 0, stamps ? 0 : -28), view,
-                           pc.size, style);
-        }));
+        {.width = kFigureWidth, .height = kFigureHeight},
+        image(ctx.bakeScene3D(frame,
+                              {(int)kFigureWidth * kBakeDensity,
+                               (int)kFigureHeight * kBakeDensity},
+                              {.camera = view}),
+              material::Fit::Stretch));
   }
 
   void setup(sketch::Scene2DContext& ctx) {
@@ -163,25 +182,28 @@ struct PopPrims {
         {.title = "Colour belongs to a triangle",
          .subtitle = "A primitive lane, its vertex-only equivalent, and the "
                      "identity carried by each stamped piece",
-         .footer = "The first two views share the mesh, camera and flat "
+         .footer = "The first two views share the mesh, camera and matte "
                    "lighting. Baking duplicates vertices so neighbouring "
                    "triangles can retain different colours."},
         box().column().gap(22).children(
             {sketch::kit::comparison(
                  {.cases = {{.title = "NATIVE PRIMITIVE LANE",
-                             .control = "primitiveColorLane = Color",
-                             .figure = figure("primitive.native", facets, true),
+                             .control = "primitiveColor(\"Color\")",
+                             .figure = figure(ctx, world::mesh(facets)
+                                                       .primitiveColor("Color")),
                              .note = "Two triangles share points but carry "
                                      "different brightness values."},
                             {.title = "BAKED INTO VERTICES",
                              .control = "bakePrimitiveColor(Color)",
-                             .figure = figure("primitive.baked", baked, false),
+                             .figure = figure(ctx, world::mesh(baked)),
                              .note = "The same appearance, expressed through "
                                      "per-vertex colour."},
                             {.title = "IDENTITY PER PIECE",
                              .control = "promote(Id) → stamps(quad)",
-                             .figure =
-                                 figure("primitive.pieces", pieces, true, true),
+                             .figure = figure(
+                                 ctx,
+                                 world::mesh(pieces).primitiveColor("Color"),
+                                 /*stamps=*/true),
                              .note = "Each stamped point gives all of its "
                                      "triangles the same Id."}},
                   .measure = 1160,

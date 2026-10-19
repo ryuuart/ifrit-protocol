@@ -9,7 +9,6 @@ from sigil import (
     compose,
     data,
     draw,
-    geometry,
     io,
     material,
     motion,
@@ -176,12 +175,6 @@ def paint(pen: draw.Pen) -> None:
     brush = draw.brush.pencil("#555")
     brush.customTip = lambda p, dab: p.circle(dab.position, 2)
     draw.brush.paint(pen, brush, [draw.brush.Sample((0, 0)), ((20, 10), 0.6)])
-    geometry.mesh.render.drawMesh(
-        pen,
-        geometry.mesh.box((-1, -1, -1), (1, 1, 1)),
-        geometry.mesh.camera.Matrix(),
-        geometry.mesh.camera.Camera(),
-    )
 
 
 def setup(ctx: sketch.Scene2DContext) -> None:

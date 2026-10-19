@@ -51,7 +51,7 @@ constexpr glm::vec3 kNormalPad{0, 0, 1};
 constexpr glm::vec2 kUvPad{0, 0};
 
 /** A missing vertex colour is WHITE — the multiplicative identity every
- *  consumer applies it as (render::drawMesh, world's vertex tint), so an
+ *  consumer applies it as (a renderer's vertex tint), so an
  *  untinted half of a merge keeps looking untinted. The vertex twin of
  *  primDefault("Color"). */
 constexpr glm::vec4 kColorPad{1, 1, 1, 1};
@@ -117,8 +117,8 @@ void Mesh::append(const Mesh& other) {
   }
   // Normals and uvs get the SAME coherence dance, and for a sharper
   // reason than colors: every consumer reads "lane sized to positions"
-  // as the presence bit for the whole mesh. render::drawMesh sets
-  // hasNormals = normals.size() == positions.size(), so a bare insert
+  // as the presence bit for the whole mesh — a renderer reads normals
+  // only when normals.size() == positions.size() — so a bare insert
   // of a normal-less side (points::instance over a stamp with no
   // normals is the everyday source) silently drops lighting for the
   // MERGED mesh, not just for the half that lacked them. Same story for

@@ -22,9 +22,11 @@
 //
 // The ribbon at the bottom is `pop::cookSweep` on a WINDOW of the ring:
 // `.window()` reaches into the middle of the chain, the smooth heals the
-// kinks the noise put there, and the band twists — so it draws with the
-// backface cull off, which is the honest answer for a surface with two
-// sides on a painter with no depth buffer.
+// kinks the noise put there, and the band twists — so both of its sides
+// are drawn, which is the honest answer for a surface with two sides.
+//
+// Each figure is one world frame under one light, baked into its well
+// through `ctx.bakeScene3D`.
 //
 // EDIT THESE FIRST
 //   the .count() values   — how densely each chain resolves.
@@ -37,7 +39,6 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -45,15 +46,19 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/World.h>
 
 #include <array>
 #include <cmath>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -66,11 +71,21 @@ using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
 namespace pop = sigil::geometry::mesh::pop;
-namespace render = sigil::geometry::mesh::render;
+namespace world = sigil::world;
 
 namespace {
 
 constexpr SkSize kCanvas = {1240, 900};
+/** How many picture pixels a bake takes per page pixel, so a figure stays
+ *  sharp on a plate captured at twice the page's size. */
+constexpr int kBakeDensity = 2;
+constexpr float kFigureWidth = 568;
+constexpr float kFigureHeight = 238;
+
+/** The cool steel the formed bodies are made of, in @p colour. */
+material::Material steel(material::Color colour) {
+  return material::surface::program({.baseColor = colour, .roughness = 0.35f});
+}
 
 /** A 2 x 2 sprite sheet, described rather than painted: four motifs in
  *  four cells, which is exactly what `.atlas(2, 2)` indexes — the cell a
@@ -106,8 +121,13 @@ std::vector<glm::vec3> ringPoints() {
 }  // namespace
 
 struct PopStamps {
-  sk_sp<SkImage> atlas;
-  mesh::Mesh tube, plates, crown, glints, ribbon;
+  /** Every figure is a frame baked on the device, so the sheet needs one
+   *  and is unavailable, saying so, where none is installed. */
+  static constexpr bool needsDevice = true;
+  static bool available(std::string* why) {
+    return sketch::runtimeAvailable(why);
+  }
+
 
   /** An element tree painted to pixels, square, at a stated side. The
    *  session owns the scene the picture was taken from and lets it go
@@ -121,45 +141,25 @@ struct PopStamps {
     return scene->image();
   }
 
-  Element figure(const char* key, int output) const {
+  /** One figure: @p bodies under one light, baked at the pixels its well
+   *  will have. */
+  static Element figure(sketch::Scene2DContext& ctx,
+                        std::vector<sigil::world::Node> bodies) {
+    const camera::Camera view{
+        .eye = {0, 260, 980}, .target = {0, 20, 0}, .fovYDeg = 24};
+    bodies.push_back(
+        world::camera(view, {.toneCurve = world::ToneCurve::Neutral}));
+    bodies.push_back(
+        world::directionalLight({-0.5f, -0.8f, -0.4f}, {.intensity = 2.9f}));
+    bodies.push_back(world::ambientLight({.intensity = 0.35f}));
     return sketch::kit::well(
-        {.width = 568, .height = 238},
-        custom(
-            key, [this, output](sigil::draw::Pen& pen, const PaintContext& pc) {
-              SkCanvas& canvas = *pen.canvas();
-              const camera::Camera view{
-                  .eye = {0, 260, 980}, .target = {0, 20, 0}, .fovYDeg = 24};
-              render::MeshStyle style;
-              style.baseColor = {0.62f, 0.7f, 0.82f, 1};
-              style.specular = 0.8f;
-              style.shininess = 48;
-              if (output == 0) {
-                render::drawMesh(canvas, tube, camera::place({}, 24, -10), view,
-                                 pc.size, style);
-              } else if (output == 1) {
-                style.baseColor = {1, 1, 1, 1};
-                style.ambient = {0.85f, 0.85f, 0.9f, 1};
-                style.specular = 0;
-                style.texture = atlas;
-                render::drawMesh(canvas, plates, camera::place({}, -16), view,
-                                 pc.size, style);
-              } else if (output == 2) {
-                const glm::mat4 placed = camera::place({}, 14, -10, 0, 0.85f);
-                style.baseColor = {0.95f, 0.72f, 0.3f, 1};
-                render::drawMesh(canvas, crown, placed, view, pc.size, style);
-                style.baseColor = {1.0f, 0.95f, 0.8f, 1};
-                style.ambient = {0.85f, 0.8f, 0.7f, 1};
-                style.specular = 0;
-                render::drawMesh(canvas, glints, placed, view, pc.size, style);
-              } else {
-                style.baseColor = {0.4f, 0.85f, 0.6f, 1};
-                style.backfaceCull = false;
-                render::drawMesh(canvas, ribbon, camera::place({}, 0, 14), view,
-                                 pc.size, style);
-              }
-            }));
+        {.width = kFigureWidth, .height = kFigureHeight},
+        image(ctx.bakeScene3D(world::Frame(world::group(std::move(bodies))),
+                              {(int)kFigureWidth * kBakeDensity,
+                               (int)kFigureHeight * kBakeDensity},
+                              {.camera = view}),
+              material::Fit::Stretch));
   }
-
   void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
@@ -168,18 +168,18 @@ struct PopStamps {
               .captureAt = 1.0,
               .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
 
-    atlas = bake(ctx, atlasSheet(128), 256);
+    const sk_sp<SkImage> atlas = bake(ctx, atlasSheet(128), 256);
 
     const std::vector<glm::vec3> ring = ringPoints();
     const glm::vec3 eye = {0, 260, 980};
 
-    tube =
+    const mesh::Mesh tube =
         pop::on(ring)
             .count(220)
             .noise(26, 0.004f)
             .sweep(sections::circle(14), true, {.segments = 160, .scale = 11});
 
-    plates = pop::on(ring)
+    const mesh::Mesh plates = pop::on(ring)
                  .count(900)
                  .spread(26)
                  .vary(0.6f)
@@ -188,7 +188,7 @@ struct PopStamps {
                  .lookAt(eye)
                  .stamps(mesh::quad(11, 11));
 
-    crown = pop::on(ring)
+    const mesh::Mesh crown = pop::on(ring)
                 .count(140)
                 .noise(20, 0.004f)
                 .smooth(0.5f, 2)
@@ -197,9 +197,9 @@ struct PopStamps {
                        true,
                        {.segments = 160,
                         .normals = pop::SweepOptions::Normals::Geometric});
-    glints = pop::on(crown, 600).jitter(1.5f).stamps(mesh::quad(3, 3));
+    const mesh::Mesh glints = pop::on(crown, 600).jitter(1.5f).stamps(mesh::quad(3, 3));
 
-    ribbon = pop::cookSweep(pop::on(ring)
+    const mesh::Mesh ribbon = pop::cookSweep(pop::on(ring)
                                 .count(120)
                                 .window(0.5f, 0.5f)
                                 .noise(16, 0.004f)
@@ -208,6 +208,45 @@ struct PopStamps {
                             {.segments = 120,
                              .scale = 42,
                              .normals = pop::SweepOptions::Normals::Frame});
+
+
+    // The stamps wear the atlas as a surface that is its own light, each
+    // multiplying the cell it shows by the colour the chain faded along
+    // it; a stamp writes no depth, so a motif's clear corners show what
+    // stands behind them.
+    material::Material motifs = material::surface::unlit(
+        {.baseColor = {1, 1, 1, 1}, .depthWrite = 0});
+    if (atlas)
+      motifs.slot(material::surface::kBaseColorSlot,
+                  material::Texture(sigil::media::PixelSource(atlas)));
+    const glm::mat4 crowned = camera::place({}, 14, -10, 0, 0.85f);
+    Element tubeFigure = figure(
+        ctx, {world::mesh(tube)
+                  .key("tube")
+                  .transform(camera::place({}, 24, -10))
+                  .fill(steel({0.62f, 0.7f, 0.82f, 1}))});
+    Element atlasFigure =
+        figure(ctx, {world::mesh(plates)
+                         .key("plates")
+                         .transform(camera::place({}, -16))
+                         .backface(material::Backface::Visible)
+                         .fill(motifs)});
+    Element crownFigure = figure(
+        ctx, {world::mesh(crown)
+                  .key("crown")
+                  .transform(crowned)
+                  .fill(steel({0.95f, 0.72f, 0.3f, 1})),
+              world::mesh(glints)
+                  .key("glints")
+                  .transform(crowned)
+                  .fill(material::surface::unlit(
+                      {.baseColor = {1.0f, 0.95f, 0.8f, 1}}))});
+    Element ribbonFigure =
+        figure(ctx, {world::mesh(ribbon)
+                         .key("ribbon")
+                         .transform(camera::place({}, 0, 14))
+                         .backface(material::Backface::Visible)
+                         .fill(steel({0.4f, 0.85f, 0.6f, 1}))});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "One path, four surfaces",
@@ -220,14 +259,14 @@ struct PopStamps {
             {sketch::kit::comparison(
                  {.cases = {{.title = "SWEEP A CIRCLE",
                              .control = "220 points → noise → circle profile",
-                             .figure = figure("sink.tube", 0),
+                             .figure = std::move(tubeFigure),
                              .note =
                                  kit::formatted("A displaced rail makes a "
                                                 "wobbly tube. %zu triangles.",
                                                 tube.triangleCount())},
                             {.title = "STAMP AN ATLAS",
                              .control = "900 points → spread → atlas(2, 2)",
-                             .figure = figure("sink.atlas", 1),
+                             .figure = std::move(atlasFigure),
                              .note = "Four texture motifs, varied in size and "
                                      "turned toward the camera."}},
                   .measure = 1160,
@@ -236,12 +275,12 @@ struct PopStamps {
                  {.cases =
                       {{.title = "SWEEP AN OUTLINE",
                         .control = "140 points → noise → smooth → star profile",
-                        .figure = figure("sink.profile", 2),
+                        .figure = std::move(crownFigure),
                         .note = "A star cross-section makes the crown; its "
                                 "surface seeds a second point chain."},
                        {.title = "OPEN A WINDOW",
                         .control = "120 points → half-window → line profile",
-                        .figure = figure("sink.ribbon", 3),
+                        .figure = std::move(ribbonFigure),
                         .note = "An open profile and a partial rail form a "
                                 "ribbon instead of a closed pipe."}},
                   .measure = 1160,

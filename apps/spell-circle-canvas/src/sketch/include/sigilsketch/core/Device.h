@@ -15,8 +15,7 @@ namespace sigil::sketch {
 /** THE DEVICE THIS PROCESS HOLDS, or null.
  *
  *  A sketch draws through a runtime and never asks which one — that is
- *  what `sketch::runtime()` and `sketch::painterRuntime()` are for. This
- *  is the third answer, for the one thing a runtime cannot stand in for:
+ *  what `sketch::runtime()` is for. This is the other answer, for the one thing a runtime cannot stand in for:
  *  a call that takes the device ITSELF, because what it does is give the
  *  device a handle over something the graphics API already holds. A
  *  foreign texture entering a material slot is the case — the pixels

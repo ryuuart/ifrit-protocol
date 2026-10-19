@@ -338,7 +338,7 @@ assembly guards their calls the same way.
   `bindGeometryDeviceHandle`, `bindGeometryFrames`, `bindGeometryMesh`,
   `bindGeometryMeshCamera`, `bindGeometryMeshCodec`,
   `bindGeometryMeshCurve`, `bindGeometryMeshPoints`,
-  `bindGeometryMeshRender`, `bindGeometryPathEditing`,
+  `bindGeometryPathEditing`,
   `bindGeometryPathOperations`, `bindGeometryPointBuilder`,
   `bindGeometryPointKernels`, `bindGeometryPointOperations`,
   `bindGeometryPolylines`, `bindGeometryProfiles`, `bindGeometryRegions`,

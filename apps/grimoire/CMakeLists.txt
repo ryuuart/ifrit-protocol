@@ -224,10 +224,8 @@ endif()
 
 # The device lane for scene3d sketches: a flag that asked for the device
 # answers with the device or with nothing, never with a fallback. The
-# frame runtime is the world's; the mesh painter's device executor
-# stands beside its CPU twin in SigilGeometry, so both are named.
-target_link_libraries(Grimoire PRIVATE SigilWorldDiligent
-                                         SigilGeometryMeshRenderDevice)
+# frame runtime is the world's.
+target_link_libraries(Grimoire PRIVATE SigilWorldDiligent)
 
 # Draw straight into QQuickRhiItem's texture through the shared Skia
 # Graphite context when the active QRhi backend supports it; the
@@ -359,11 +357,14 @@ add_test(NAME sketch_reload_materials
 # runs it, and exits nonzero when the load fails. shapeworks_lab is the
 # widest surface of the sketches that name geometry and material symbols,
 # so it is the one most likely to catch a partial regression too; neither
-# hello nor stock_materials can, because neither names one.
+# hello nor stock_materials can, because neither names one. Its wire is a
+# world frame baked on the device, so the still is taken with `--gpu`.
 add_test(NAME sketch_reload_surface
   COMMAND Grimoire
     ${SIGIL_SKETCH_DIR}/shapeworks_lab/shapeworks_lab.cpp
-    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface.png)
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface.png --gpu)
+set_tests_properties(sketch_reload_surface PROPERTIES
+  LABELS gpu TIMEOUT 300)
 
 # The video leaf reaches both an adapter header and codec archives that no
 # geometry-heavy sketch names. Its dynamic run proves the generated compile

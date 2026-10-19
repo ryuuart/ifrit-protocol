@@ -1,6 +1,6 @@
 // mesh_generators.cpp — EVERY GENERATOR HANDS BACK THE SAME MESH.
 // =============================================================================
-// The mesh layer makes bodies six ways on this sheet and the painter
+// The mesh layer makes bodies six ways on this sheet and the world frame
 // that draws them knows nothing about which call produced which. So the
 // interesting thing about a lineup like this is not the shapes: it is
 // that placing, lighting and drawing them is ONE call each, whatever
@@ -42,12 +42,16 @@
 //
 // The lights are one warm key and one cool fill, stated once and shared
 // by both halves: a lineup lit two different ways is a lineup you cannot
-// read. The panels are the exception and say so — `MeshStyle::lit =
-// false` is a surface that is its own light, which is what an array of
-// thin plates wants so its tint lane is legible rather than shaded.
+// read. The panels are the exception and say so — `surface::unlit` is a
+// surface that is its own light, which is what an array of thin plates
+// wants so its tint lane is legible rather than shaded.
+//
+// The bodies are one world frame baked once into the sheet's picture
+// through `ctx.bakeScene3D`, and the white rail is drawn over that picture
+// through the same lens, so the two agree to the pixel.
 //
 // EDIT THESE FIRST
-//   camera.eye / fovYDeg — the whole plate reframes.
+//   lens() — the whole plate reframes.
 //   the profile loop     — the vase's silhouette, one number per step.
 //   the lean factor in the facing loop — at 0 the panels stand along the
 //                          binormal, at large values they lie flat.
@@ -55,8 +59,11 @@
 
 // TAGS: Geometry/Meshes
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigildraw/Pen.h>
@@ -69,17 +76,20 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Sweep.h>
-#include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/World.h>
 
 #include <cmath>
+#include <string>
 #include <vector>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
+namespace world = sigil::world;
 namespace shapes = sigil::geometry::shapes;
 namespace sections = sigil::geometry::sections;
 
@@ -88,7 +98,6 @@ namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
 namespace curve = sigil::geometry::mesh::curve;
 namespace points = sigil::geometry::mesh::points;
-namespace render = sigil::geometry::mesh::render;
 
 namespace {
 
@@ -96,6 +105,19 @@ constexpr SkSize kCanvas = {1400, 500};
 /** How far apart the two halves stand, so one camera holds both. */
 constexpr float kLineupAt = -400.0f;
 constexpr float kRailAt = 470.0f;
+/** How many picture pixels the bake takes per page pixel, so the bodies
+ *  stay sharp on a plate captured at twice the page's size. */
+constexpr int kBakeDensity = 2;
+
+camera::Camera lens() {
+  return {.eye = {0, 520, 1000}, .target = {0, 0, 0}, .fovYDeg = 34};
+}
+
+/** The steel every body is made of, in its own colour. */
+material::Material steel(material::Color colour, float roughness = 0.3f) {
+  return material::surface::program(
+      {.baseColor = colour, .roughness = roughness});
+}
 
 curve::Spline3 knot() {
   curve::Spline3 spline;
@@ -111,63 +133,22 @@ curve::Spline3 knot() {
 }  // namespace
 
 struct MeshGenerators {
-  mesh::Mesh star, ring, vase, pedestal, tube, stations;
+  /** The bodies are a frame baked on the device, so the sheet needs one
+   *  and is unavailable, saying so, where none is installed. */
+  static constexpr bool needsDevice = true;
+  static bool available(std::string* why) {
+    return sketch::runtimeAvailable(why);
+  }
+
+  sk_sp<SkImage> picture;
   curve::Spline3 rail;
 
+  /** The baked bodies, and the rail stroked over them through the lens
+   *  the bake was seen through. */
   void draw(SkCanvas& canvas) const {
-    camera::Camera view;
-    view.eye = {0, 520, 1000};
-    view.target = {0, 0, 0};
-    view.fovYDeg = 34;
-
-    render::MeshStyle steel;
-    steel.baseColor = {0.72f, 0.75f, 0.82f, 1};
-    steel.lights = {{{-0.55f, -0.7f, -0.45f}, {1.0f, 0.96f, 0.9f, 1}, 1.1f},
-                    {{0.7f, -0.2f, -0.3f}, {0.4f, 0.55f, 0.9f, 1}, 0.5f}};
-    steel.specular = 0.9f;
-    steel.shininess = 64;
-
-    // Every body is that steel with its own colour, and two of them with
-    // one more dial moved — so the row is read by its tints rather than by
-    // five copies of one style.
-    const auto tinted = [&steel](material::Color colour, float specular = 0.9f,
-                                 float shininess = 64) {
-      render::MeshStyle style = steel;
-      style.baseColor = {colour.r, colour.g, colour.b, colour.a};
-      style.specular = specular;
-      style.shininess = shininess;
-      return style;
-    };
-
-    render::drawMesh(canvas, pedestal, camera::place({kLineupAt, -150, 0}),
-                     view, sigil::geometry::path::fromSk(kCanvas),
-                     tinted({0.3f, 0.32f, 0.4f, 1}, 0.4f));
-
-    render::drawMesh(canvas, star,
-                     camera::place({kLineupAt - 290, 60, 0}, 38, -18, 8), view,
-                     sigil::geometry::path::fromSk(kCanvas), steel);
-
-    render::drawMesh(canvas, ring,
-                     camera::place({kLineupAt + 20, 40, -60}, 0, -32, 14), view,
-                     sigil::geometry::path::fromSk(kCanvas),
-                     tinted({0.85f, 0.55f, 0.3f, 1}));
-
-    render::drawMesh(canvas, vase, camera::place({kLineupAt + 310, 30, -30}),
-                     view, sigil::geometry::path::fromSk(kCanvas),
-                     tinted({0.35f, 0.8f, 0.6f, 1}));
-
-    render::drawMesh(canvas, tube, glm::mat4(1.0f), view,
-                     sigil::geometry::path::fromSk(kCanvas),
-                     tinted({0.6f, 0.68f, 0.8f, 1}, 0.9f, 48));
-
-    // The panels are their own light, so the tint lane graded along `t`
-    // reads as the lane rather than as the key's falloff across it.
-    render::MeshStyle panels;
-    panels.lit = false;
-    panels.baseColor = {0.86f, 0.87f, 0.92f, 1};
-    render::drawMesh(canvas, stations, glm::mat4(1.0f), view,
-                     sigil::geometry::path::fromSk(kCanvas), panels);
-
+    if (picture)
+      canvas.drawImageRect(picture, SkRect::MakeSize(kCanvas),
+                           SkSamplingOptions(SkFilterMode::kLinear));
     SkPaint wire;
     wire.setAntiAlias(true);
     wire.setStyle(SkPaint::kStroke_Style);
@@ -175,7 +156,7 @@ struct MeshGenerators {
     wire.setColor4f({1, 1, 1, 0.35f});
     canvas.drawPath(
         sigil::geometry::path::toSk(curve::project(
-            rail, view, sigil::geometry::path::fromSk(kCanvas), 400)),
+            rail, lens(), sigil::geometry::path::fromSk(kCanvas), 400)),
         wire);
   }
 
@@ -188,13 +169,13 @@ struct MeshGenerators {
     // The bodies are built once. A generator's cost belongs to the
     // description, not to the frame: nothing below changes per frame, so
     // rebuilding them there would be paying for the same vertices again.
-    star = mesh::extrude(
+    const mesh::Mesh star = mesh::extrude(
         sigil::geometry::path::fromSk(
             sigil::geometry::path::toSk(
                 shapes::star(5, 44.0f / 95.0f).outline({190, 190}))
                 .makeTransform(SkMatrix::Translate(-95, -95))),
         {.depth = 40});
-    ring = mesh::torus(110, 40);
+    const mesh::Mesh ring = mesh::torus(110, 40);
 
     std::vector<glm::vec2> profile;
     for (int i = 0; i <= 24; ++i) {
@@ -203,11 +184,11 @@ struct MeshGenerators {
                       18.0f * std::sin(t * 8.0f);
       profile.emplace_back(r, (t - 0.5f) * 240.0f);
     }
-    vase = mesh::revolve(profile);
-    pedestal = mesh::superellipsoid({420, 26, 200}, 6);
+    const mesh::Mesh vase = mesh::revolve(profile);
+    const mesh::Mesh pedestal = mesh::superellipsoid({420, 26, 200}, 6);
 
     rail = knot();
-    tube = mesh::pop::sweep(rail, sections::circle(12),
+    const mesh::Mesh tube = mesh::pop::sweep(rail, sections::circle(12),
                             {.segments = 220, .scale = 9});
 
     mesh::Cloud cloud = points::onSpline(rail, 14);
@@ -227,7 +208,51 @@ struct MeshGenerators {
     points::InstanceOptions options;
     options.orientLane = "facing";
     options.tintLane = "tint";
-    stations = points::quads(cloud, 96, 64, options);
+    const mesh::Mesh stations = points::quads(cloud, 96, 64, options);
+
+    // One warm key and one cool fill over a dim light from everywhere,
+    // shared by every body; the panels are their own light, so the tint
+    // lane graded along `t` reads as the lane rather than as the key's
+    // falloff across it.
+    const world::Frame bodies(world::group(
+        {world::camera(lens(), {.toneCurve = world::ToneCurve::Neutral}),
+         world::directionalLight(
+             {-0.55f, -0.7f, -0.45f},
+             {.color = material::Color{1.0f, 0.96f, 0.9f, 1},
+              .intensity = 2.9f}),
+         world::directionalLight(
+             {0.7f, -0.2f, -0.3f},
+             {.color = material::Color{0.4f, 0.55f, 0.9f, 1},
+              .intensity = 1.3f}),
+         world::ambientLight({.color = material::Color{0.8f, 0.8f, 1.0f, 1},
+                              .intensity = 0.3f}),
+         world::mesh(pedestal)
+             .key("pedestal")
+             .transform(camera::place({kLineupAt, -150, 0}))
+             .fill(steel({0.3f, 0.32f, 0.4f, 1}, 0.5f)),
+         world::mesh(star)
+             .key("star")
+             .transform(camera::place({kLineupAt - 290, 60, 0}, 38, -18, 8))
+             .fill(steel({0.72f, 0.75f, 0.82f, 1})),
+         world::mesh(ring)
+             .key("ring")
+             .transform(camera::place({kLineupAt + 20, 40, -60}, 0, -32, 14))
+             .fill(steel({0.85f, 0.55f, 0.3f, 1})),
+         world::mesh(vase)
+             .key("vase")
+             .transform(camera::place({kLineupAt + 310, 30, -30}))
+             .fill(steel({0.35f, 0.8f, 0.6f, 1})),
+         world::mesh(tube).key("tube").fill(steel({0.6f, 0.68f, 0.8f, 1},
+                                                  0.35f)),
+         world::mesh(stations)
+             .key("stations")
+             .backface(material::Backface::Visible)
+             .fill(material::surface::unlit(
+                 {.baseColor = {0.86f, 0.87f, 0.92f, 1}}))}));
+    picture = ctx.bakeScene3D(bodies,
+                              {(int)kCanvas.width() * kBakeDensity,
+                               (int)kCanvas.height() * kBakeDensity},
+                              {.camera = lens()});
 
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
@@ -273,4 +298,4 @@ struct MeshGenerators {
 SIGIL_SKETCH(MeshGenerators, "Kit · API",
              "extrude, revolve, torus, superellipsoid, sweep and quads "
              "under one camera — six generators, one Mesh currency, one "
-             "draw call each")
+             "world body each")

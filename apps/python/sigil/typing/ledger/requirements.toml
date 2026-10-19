@@ -912,6 +912,6 @@ library = "Material"
 python = ["material.pattern.clothTile"]
 
 [requirement.kit-text-paint]
-name = "compose::kit::textPaint"
-what = "The kit text paint family: one options record with a field selector (water, mesh gradient, sparkle, star nest, clouds, tunnel), an animatable time and a box, as a material for an ink or a fill"
-binding = "src/common/python/compose"
+native = "`compose::kit::textPaint` over `compose::kit::TextPaint`"
+library = "Compose"
+no_python_spelling = "The kit text paint family is not bound: a Python sketch cannot ink a word with a field, an animatable time and a box until `compose.kit.textPaint` exists"

@@ -37,9 +37,6 @@ void bindGeometryMeshCurve(pybind11::module_& module);
 /** Registers cloud lanes, the point generators, stamping and billboards
  *  on @p module. */
 void bindGeometryMeshPoints(pybind11::module_& module);
-/** Registers the draw runtime seam, drawPanel and the environment on @p
- *  module. */
-void bindGeometryMeshRender(pybind11::module_& module);
 /** Registers segments, extremes, tidy, fit, direction, edges, exact
  *  interpolation and the blend tool on @p module. */
 void bindGeometryPathEditing(pybind11::module_& module);

@@ -68,7 +68,6 @@ constexpr std::array<std::pair<std::string_view, std::string_view>, 98> kPublic{
     {"geometry.mesh.points", "sigil.geometry.mesh.points"},
     {"geometry.mesh.pop", "sigil.geometry.mesh.pop"},
     {"geometry.mesh.pop.profile", "sigil.geometry.mesh.pop.profile"},
-    {"geometry.mesh.render", "sigil.geometry.mesh.render"},
     {"geometry.path", "sigil.geometry.path"},
     {"geometry.path.blend", "sigil.geometry.path.blend"},
     {"geometry.path.crossing", "sigil.geometry.path.crossing"},

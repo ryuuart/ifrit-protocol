@@ -17,7 +17,7 @@ perturb them, and two consumers turn them into pictures.
 - `sigil::geometry::mesh::points::instance` and
   `sigil::geometry::mesh::points::quads` stamp a Mesh (or a quad) onto every
   point — scale, tint and orientation read from lanes — producing ONE
-  merged Mesh for `render::drawMesh` or for a 3D set. "Instance planes
+  merged Mesh for a 3D set. "Instance planes
   across points" is `quads()` plus a normal lane, or leave normals off
   and let billboarding face the camera at draw time.
 - `sigil::geometry::mesh::points::drawBillboards` is the UI-particle path:
