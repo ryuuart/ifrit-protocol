@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 #include <sigilgeometry/device/Device.h>
 
-#include <memory>
+#include <cstdlib>
 #include <string>
 
 namespace sigil::geometry::device::test {
@@ -26,38 +26,26 @@ struct OnDevice {
   Device* operator->() const { return device; }
 };
 
-/** WHAT THE PROCESS'S DEVICE OWES BEFORE THE TESTS END: every pipeline a
- *  case asked for ahead of a frame and left building is waited for once
- *  the last case has run. The device is kept until the process ends, and
- *  a pipeline still building then would run the driver's compiler while
- *  the process tears down that compiler's statics; this is what lets a
- *  case that ends early pass alike alone and beside other processes on
- *  the device. */
-class FinishPipelinesAtTheEnd : public ::testing::Environment {
- public:
-  explicit FinishPipelinesAtTheEnd(const Device* device) : m_device(device) {}
-  void TearDown() override { m_device->finishPipelines(); }
-
- private:
-  const Device* m_device;
-};
-
 /** The one device this process brings up, kept for its lifetime: making a
  *  second Vulkan device costs the driver more the more it has already
- *  made, and every case wants the same one anyway. */
+ *  made, and every case wants the same one anyway. The device is never
+ *  destroyed; what it owes before the process ends is that every pipeline
+ *  a case asked for ahead of a frame and left building is waited for,
+ *  since a pipeline still building at exit would run the driver's
+ *  compiler while the process tears down that compiler's statics. That
+ *  wait is registered with the C runtime, which runs it before it
+ *  destroys the statics made earlier, so a test binary and a bench binary
+ *  alike end cleanly whether a case ran to its end or not. */
 inline OnDevice onDevice() {
   static std::string error;
-  static std::unique_ptr<Device> made = [] {
+  static Device* const made = [] {
     const DeviceConfig config;
-    std::unique_ptr<Device> device = Device::create(config, &error);
-    // Owned and torn down by the test framework.
-    if (device)
-      ::testing::AddGlobalTestEnvironment(
-          new FinishPipelinesAtTheEnd(device.get()));
+    Device* device = Device::create(config, &error).release();
+    if (device) std::atexit([] { made->finishPipelines(); });
     return device;
   }();
   OnDevice out;
-  out.device = made.get();
+  out.device = made;
   out.error = error;
   return out;
 }
