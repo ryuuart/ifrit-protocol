@@ -124,7 +124,7 @@ struct ComputeVariant {
     gm::camera::Camera lens;
     lens.eye = kEye;
     lens.target = {0.0f, -30.0f, 0.0f};
-    lens.fovYDeg = 40.0f;
+    lens.fovYDegrees = 40.0f;
     ctx.camera(lens);
   }
 

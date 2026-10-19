@@ -14,7 +14,8 @@
 //
 //     text(u8"EMBER DECODE", display)
 //         .textFx({.effect = textFx::pass(burn),
-//              .stagger = stagger(weave::Unit::Cluster, {.eachMs = 260})});
+//              .stagger = stagger(weave::Unit::Cluster, {.eachMilliseconds =
+//              260})});
 //
 // `textFx::pass` makes the track's effect a PASS rather than a per-glyph
 // deviation. The runtime renders the track's units into a layer, hands it to
@@ -49,9 +50,10 @@
 // do not consult it, so a pass that wants phases writes them in its own SkSL.
 //
 // EDIT THESE FIRST
-//   kEachMs   — start-to-start between units. 0 decodes the whole line at
+//   kEachMilliseconds   — start-to-start between units. 0 decodes the whole
+//   line at
 //               once and the per-unit uniforms stop being visible; past
-//               kUnitMs the line reads one letter at a time.
+//               kUnitMilliseconds the line reads one letter at a time.
 //   kSpeckle / kPatch / kSweep — the three weights of the dissolve
 //               threshold. They sum to 1. All on kSweep is a clean
 //               left-to-right wipe with no burn; all on kSpeckle is
@@ -108,8 +110,8 @@ constexpr double kOutAt = 7.30;   // progress runs back down from here
 constexpr double kOutSecs = 1.6;  // …over this long (reversed cascade)
 
 // ---- the cascade -----------------------------------------------------------
-constexpr float kEachMs = 260;   // start-to-start, left to right
-constexpr float kUnitMs = 1000;  // one unit's own 0 -> 1
+constexpr float kEachMilliseconds = 260;   // start-to-start, left to right
+constexpr float kUnitMilliseconds = 1000;  // one unit's own 0 -> 1
 
 // ---- the burn --------------------------------------------------------------
 constexpr float kSweep = 0.28f;  // the three threshold weights: they sum to 1
@@ -134,12 +136,13 @@ struct BurnParameters {
 };
 
 /** One track's master progress across the loop: a linear ramp up from
- *  @p startAt (so `master * totalMs` advances at wall speed and each unit
- *  crosses its own beat exactly as the cascade schedules it), a hold at 1,
+ *  @p startAt (so `master * totalMilliseconds` advances at wall speed and each
+ * unit crosses its own beat exactly as the cascade schedules it), a hold at 1,
  *  then a faster ramp DOWN from kOutAt — reversing progress replays the
  *  cascade backwards, so the burn-off runs right to left. */
-float masterAt(double t, double startAt, float totalMs) {
-  const double up = std::clamp((t - startAt) * 1000.0 / totalMs, 0.0, 1.0);
+float masterAt(double t, double startAt, float totalMilliseconds) {
+  const double up =
+      std::clamp((t - startAt) * 1000.0 / totalMilliseconds, 0.0, 1.0);
   const double down = std::clamp((t - kOutAt) / kOutSecs, 0.0, 1.0);
   return (float)(up * (1.0 - down));
 }
@@ -152,8 +155,9 @@ struct EmberDecode {
   material::Material burn{material::Color{0, 0, 0, 0}};
   sigil::motion::Animatable<float> display = sigil::motion::animatable(0.0f),
                                    words = sigil::motion::animatable(0.0f);
-  float displayTotalMs = 1;  // the cascades' spans, read back from beatsOf
-  float wordsTotalMs = 1;
+  float displayTotalMilliseconds =
+      1;  // the cascades' spans, read back from beatsOf
+  float wordsTotalMilliseconds = 1;
 
   Element describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
@@ -171,9 +175,9 @@ struct EmberDecode {
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one
     // meter per beat of the display track, at that beat's laid-out rect,
-    // filled to that beat's local time — no restated i * eachMs anywhere.
-    // beatsOf answers in the composer's space and the overlay spans the root
-    // from its origin, so the two frames line up.
+    // filled to that beat's local time — no restated i * eachMilliseconds
+    // anywhere. beatsOf answers in the composer's space and the overlay spans
+    // the root from its origin, so the two frames line up.
     const std::vector<Beat> beats = ctx.composer.beatsOf("burn-display", 0);
     const auto readBack = [](const Beat& beat, std::size_t i) {
       return sketch::kit::meter({.fraction = beat.localProgress,
@@ -201,10 +205,10 @@ struct EmberDecode {
                              .tween =
                                  {.duration =
                                       std::chrono::duration<double, std::milli>(
-                                          kUnitMs),
+                                          kUnitMilliseconds),
                                   .delay = sigil::motion::stagger(
                                       std::chrono::duration<double, std::milli>(
-                                          kEachMs))},
+                                          kEachMilliseconds))},
                              .unit = weave::Unit::Cluster,
                              .progress = display}),
                 document::paragraph(
@@ -219,10 +223,10 @@ struct EmberDecode {
                              .tween =
                                  {.duration =
                                       std::chrono::duration<double, std::milli>(
-                                          kUnitMs),
+                                          kUnitMilliseconds),
                                   .delay = sigil::motion::stagger(
                                       std::chrono::duration<double, std::milli>(
-                                          kEachMs))},
+                                          kEachMilliseconds))},
                              .unit = weave::Unit::Word,
                              .progress = words}),
                 document::paragraph(
@@ -269,16 +273,18 @@ struct EmberDecode {
         total = std::max(
             total,
             float(std::chrono::duration<double, std::milli>(b.start).count()) +
-                kUnitMs);
+                kUnitMilliseconds);
       return total;
     };
-    if (displayTotalMs <= 1.0f) displayTotalMs = span("burn-display");
-    if (wordsTotalMs <= 1.0f) wordsTotalMs = span("burn-words");
+    if (displayTotalMilliseconds <= 1.0f)
+      displayTotalMilliseconds = span("burn-display");
+    if (wordsTotalMilliseconds <= 1.0f)
+      wordsTotalMilliseconds = span("burn-words");
     const double t = sigil::motion::phase(sigil::motion::Duration(elapsed),
                                           sigil::motion::Duration(kLoop)) *
                      kLoop;
-    display = masterAt(t, kInAt, displayTotalMs);
-    words = masterAt(t, kWordsAt, wordsTotalMs);
+    display = masterAt(t, kInAt, displayTotalMilliseconds);
+    words = masterAt(t, kWordsAt, wordsTotalMilliseconds);
     // Re-described per frame for the meter, which reads beatsOf at
     // describe time; the text nodes themselves prune (equal values), and
     // the pass repaints because its bound progress moved.

@@ -148,7 +148,7 @@ class Kit(unittest.TestCase):
         )
         self.assertIsInstance(neutral.line(length=80, thickness=2), Element)
         self.assertIsInstance(
-            neutral.sheet(content, title="Neutral", marginX=20), Element
+            neutral.sheet(content, title="Neutral", marginHorizontal=20), Element
         )
         with self.assertRaisesRegex(TypeError, "unknown Page property 'titlle'"):
             kit.page(content, titlle="typo")
@@ -183,18 +183,20 @@ class Kit(unittest.TestCase):
                     self.assertFalse(hasattr(module, snake))
                     self.assertNotIn(snake, module.__all__)
         self.assertIsInstance(kit.featureTheme(kit.Density.Spacious), raw.kit.Theme)
-        self.assertEqual(kit.well(paddingY=6).__class__, Element)
+        self.assertEqual(kit.well(paddingVertical=6).__class__, Element)
         # A field is one spelling: the snake form of a camelCase field is
         # refused with the spelling it missed.
         for call, field in (
-            (lambda: kit.well(padding_y=6), "paddingY"),
+            (lambda: kit.well(padding_vertical=6), "paddingVertical"),
             (lambda: kit.panelGrid(box(), row_gap=4), "rowGap"),
-            (lambda: neutral.sheet(box(), margin_x=20), "marginX"),
+            (lambda: neutral.sheet(box(), margin_horizontal=20), "marginHorizontal"),
             (lambda: neutral.panelGrid(box(), divider_width=1), "dividerWidth"),
         ):
-            with self.subTest(field=field):
-                with self.assertRaisesRegex(TypeError, f"spelled '{field}'"):
-                    call()
+            with (
+                self.subTest(field=field),
+                self.assertRaisesRegex(TypeError, f"spelled '{field}'"),
+            ):
+                call()
 
     def test_every_kind_of_node_is_a_child_of_a_kit_piece(self):
         # A typed leaf is a class of its own rather than a subclass of

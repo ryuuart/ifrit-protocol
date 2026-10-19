@@ -5,7 +5,7 @@
 // an unphotographed sketch worth seeing from across a list.
 
 import QtQuick
-import Ifrit.Qt 1.0 as Ui
+import Sigil.Qt 1.0 as Ui
 
 Rectangle {
     id: thumb

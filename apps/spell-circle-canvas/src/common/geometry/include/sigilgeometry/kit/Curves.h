@@ -90,7 +90,7 @@ inline KeyedParametric parametric(std::string_view key,
                          samples,          close};
 }
 
-/** Lissajous figure: x = sin(@p a ·t + @p deltaDeg), y = sin(@p b ·t).
+/** Lissajous figure: x = sin(@p a ·t + @p deltaDegrees), y = sin(@p b ·t).
  *  The ratio a:b picks the family (1:1 an ellipse, 3:2 the classic
  *  pretzel, 5:4 a tight weave) and the phase is the same second number a
  *  physical harmonograph is set to. @p turns is how many 2π the parameter
@@ -99,20 +99,20 @@ inline KeyedParametric parametric(std::string_view key,
 struct Lissajous {
   float a = 3.0f;
   float b = 2.0f;
-  float deltaDeg = 0.0f;
+  float deltaDegrees = 0.0f;
   float turns = 1.0f;
   int samples = 720;
   bool operator==(const Lissajous&) const = default;
   path::Outline outline(glm::vec2 size) const;
 };
 
-inline Lissajous lissajous(float a, float b, float deltaDeg = 0.0f,
+inline Lissajous lissajous(float a, float b, float deltaDegrees = 0.0f,
                            float turns = 1.0f, int samples = 720) {
-  return Lissajous{a, b, deltaDeg, turns, samples};
+  return Lissajous{a, b, deltaDegrees, turns, samples};
 }
 
 /** A harmonograph: the Lissajous at ratio @p a : @p b and phase
- *  @p deltaDeg, whose amplitudes DECAY — which is what makes a real
+ *  @p deltaDegrees, whose amplitudes DECAY — which is what makes a real
  *  pen-and-pendulum figure spiral inward instead of retracing one closed
  *  rosette. @p damping is the exponential rate per unit t; @p precession
  *  spins the whole figure as it draws (the rotating turntable under John
@@ -121,7 +121,7 @@ inline Lissajous lissajous(float a, float b, float deltaDeg = 0.0f,
 struct Harmonograph {
   float a = 3.0f;
   float b = 2.0f;
-  float deltaDeg = 0.0f;
+  float deltaDegrees = 0.0f;
   float damping = 0.05f;
   float precession = 0.0f;
   float turns = 6.0f;
@@ -130,10 +130,10 @@ struct Harmonograph {
   path::Outline outline(glm::vec2 size) const;
 };
 
-inline Harmonograph harmonograph(float a, float b, float deltaDeg = 0.0f,
+inline Harmonograph harmonograph(float a, float b, float deltaDegrees = 0.0f,
                                  float damping = 0.05f, float precession = 0.0f,
                                  float turns = 6.0f, int samples = 2000) {
-  return Harmonograph{a, b, deltaDeg, damping, precession, turns, samples};
+  return Harmonograph{a, b, deltaDegrees, damping, precession, turns, samples};
 }
 
 /** Rose (rhodonea) r = cos(@p k ·θ), drawn for @p turns of θ at

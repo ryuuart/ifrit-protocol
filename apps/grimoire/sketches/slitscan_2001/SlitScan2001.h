@@ -24,7 +24,7 @@ struct SlitScan2001 {
   std::array<slit::Strip, 3> strips;
   Pattern gridPat, spekPat;
   float artOffset = 0.0f;
-  float plateDeg = 0.0f;
+  float plateDegrees = 0.0f;
   int shot = 0;
 
   // ---- what the sketch measured about itself -----------------------------
@@ -39,7 +39,7 @@ struct SlitScan2001 {
   /** The bake's cost, pinned through `ctx.measured` at setup: a plate is
    *  a function of the declaration, and a number the sketch measured
    *  about its own execution is not. */
-  double bakeMs = 0;
+  double bakeMilliseconds = 0;
   // Set from the host's --deterministic flag: suppress any number this
   // study timed about its own execution, so two headless renders of the
   // same code are byte-identical. Left in, a wall-clock digit changes the

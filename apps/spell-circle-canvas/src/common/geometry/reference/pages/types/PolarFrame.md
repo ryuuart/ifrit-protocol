@@ -42,7 +42,7 @@ policy like `arrange`, and the two compose.
 The arithmetic this exists to hold is of this shape:
 
 ```cpp
-float frac(float thDeg) { return fmod((thDeg - 90) / 360 + 4, 1); }
+float frac(float thetaDegrees) { return fmod((thetaDegrees - 90) / 360 + 4, 1); }
 // theta -> the arc-length fraction of shapes::circle(), whose
 //   contour starts at due EAST and runs clockwise.
 ```
@@ -111,7 +111,7 @@ this one's conventions, so the four fields are never restated and a
 convention is never silently dropped. `turned()` composes:
 `f.turned(4.5f).turned(-4.5f) == f`.
 
-`originDeg` is an extra origin offset in SCREEN degrees, applied after
+`originDegrees` is an extra origin offset in SCREEN degrees, applied after
 `zero` and normally 0. Two things want it: a scanned source that is not
 square to its own axes, and an index ring offset by half a division,
 which otherwise becomes a stray constant added at every call site.

@@ -93,8 +93,8 @@ void bindSketchKitLegends(py::module_& root) {
   field(gauge, "fraction", &sketchKit::Gauge::fraction);
   field(gauge, "diameter", &sketchKit::Gauge::diameter);
   field(gauge, "thickness", &sketchKit::Gauge::thickness);
-  field(gauge, "startDeg", &sketchKit::Gauge::startDeg);
-  field(gauge, "sweepDeg", &sketchKit::Gauge::sweepDeg);
+  field(gauge, "startDegrees", &sketchKit::Gauge::startDegrees);
+  field(gauge, "sweepDegrees", &sketchKit::Gauge::sweepDegrees);
   field(gauge, "track", &sketchKit::Gauge::track);
   field(gauge, "bar", &sketchKit::Gauge::bar);
   field(gauge, "reading", &sketchKit::Gauge::reading);

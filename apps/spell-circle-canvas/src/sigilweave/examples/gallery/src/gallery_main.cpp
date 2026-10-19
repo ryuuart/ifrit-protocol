@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {  // NOLINT(bugprone-exception-escape): an
       "shot", "Capture the window to a PNG and exit.", "file");
   parser.addOption(shotOption);
   parser.process(application);
-  if (parser.isSet(shotOption)) qputenv("IFRIT_NO_VIBRANCY", "1");
+  if (parser.isSet(shotOption)) qputenv("SIGIL_NO_VIBRANCY", "1");
 
   QString initialText;
   if (parser.isSet(textOption)) {
@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {  // NOLINT(bugprone-exception-escape): an
       std::fprintf(stderr, "--shot: no window to photograph\n");
       return 1;
     }
-    ifrit::qt::captureWindow(*window, parser.value(shotOption));
+    sigil::qt::captureWindow(*window, parser.value(shotOption));
   }
 
   return QGuiApplication::exec();

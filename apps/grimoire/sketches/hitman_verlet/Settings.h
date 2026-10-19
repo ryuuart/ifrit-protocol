@@ -201,10 +201,11 @@ inline void penUi(Pen& pen, float size, material::Color c, float track = 0.0f) {
 /** A part's entrance as time arithmetic: what a described tree spells as
  *  `sigil::motion::animate({.from = 0, .to = 1, .duration = duration, .ease =
  * delay})`, in a loop that has the clock in its hand. */
-inline float cue(double ms, float delayMs, float durationMs,
+inline float cue(double ms, float delayMilliseconds, float durationMilliseconds,
                  const sigil::motion::Easing& ease = nullptr) {
   const float u = std::clamp(
-      (float)((ms - (double)delayMs) / (double)durationMs), 0.0f, 1.0f);
+      (float)((ms - (double)delayMilliseconds) / (double)durationMilliseconds),
+      0.0f, 1.0f);
   return ease ? ease(u) : u;
 }
 

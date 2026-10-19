@@ -58,8 +58,7 @@ TEST(Outline, CutsSplitsAndFindsTheNearestPoint) {
 }
 
 TEST(Outline, CombinesContainsAndTransformsAsAValue) {
-  const Outline shifted =
-      kSquare.transformed(Transform::translate({50, 0}));
+  const Outline shifted = kSquare.transformed(Transform::translate({50, 0}));
   EXPECT_NEAR(kSquare.united(shifted).area(), 15000.0f, 1.0f);
   EXPECT_NEAR(kSquare.intersected(shifted).area(), 5000.0f, 1.0f);
   EXPECT_NEAR(kSquare.subtracted(shifted).area(), 5000.0f, 1.0f);
@@ -86,11 +85,12 @@ TEST(Outline, ResamplesByCountOrBySpacing) {
 TEST(Transform, ComposesRightToLeftAndInverts) {
   const Transform turn = Transform::rotate(90, {10, 10});
   EXPECT_TRUE(near(turn({20, 10}), {10, 20}, 1e-4f));  // clockwise on screen
-  const Transform both = Transform::translate({5, 0}) * Transform::scale({2, 2});
+  const Transform both =
+      Transform::translate({5, 0}) * Transform::scale({2, 2});
   EXPECT_TRUE(near(both({1, 1}), {7, 2}, 1e-5f));
   EXPECT_TRUE(near(both.inverse()(both({3, 4})), {3, 4}, 1e-4f));
-  const Transform fitting =
-      Transform::fit(Rect::of({0, 0}, {10, 20}), Rect::of({0, 0}, {100, 100}), true);
+  const Transform fitting = Transform::fit(Rect::of({0, 0}, {10, 20}),
+                                           Rect::of({0, 0}, {100, 100}), true);
   EXPECT_TRUE(near(fitting({10, 20}), {75, 100}, 1e-3f));
 }
 
@@ -103,8 +103,7 @@ TEST(Through, JoinsPointsStraightOrPassingThroughThem) {
   EXPECT_GT(smooth.length(), straight.length() - 1e-2f);
   EXPECT_TRUE(through(std::vector<glm::vec2>{{0, 0}}).empty());
   const Outline closed = through(points, {.closed = true});
-  EXPECT_NEAR(closed.length(),
-              2.0f * std::hypot(50.0f, 40.0f) + 100.0f, 1e-2f);
+  EXPECT_NEAR(closed.length(), 2.0f * std::hypot(50.0f, 40.0f) + 100.0f, 1e-2f);
 }
 
 TEST(Offset, WalksARailOrGrowsTheRegion) {
@@ -126,9 +125,9 @@ TEST(Points, PlacesByEveryPattern) {
   for (const glm::vec2 p : points(kSquare, grid(10)))
     EXPECT_TRUE(kSquare.contains(p));
   EXPECT_EQ(points(kSquare, along(100)).size(), 5u);  // both ends of the run
-  const std::vector<glm::vec2> seeds =
-      points(Rect::of({0, 0}, {100, 100}),
-             radial(200, {.stepDegrees = 137.508f, .growth = Growth::SquareRoot}));
+  const std::vector<glm::vec2> seeds = points(
+      Rect::of({0, 0}, {100, 100}),
+      radial(200, {.stepDegrees = 137.508f, .growth = Growth::SquareRoot}));
   ASSERT_EQ(seeds.size(), 200u);
   for (const glm::vec2 p : seeds)
     EXPECT_LE(std::hypot(p.x - 50, p.y - 50), 50.0f + 1e-3f);
@@ -138,7 +137,7 @@ TEST(Radial, DealsLoopsChordsAndMarks) {
   const PolarFrame frame{.centre = {0, 0}, .radius = 100};
   const std::vector<glm::vec2> hexagon = radialPoints(6, {}, frame);
   ASSERT_EQ(hexagon.size(), 6u);
-  EXPECT_TRUE(near(hexagon[0], {0, -100}, 1e-3f));  // first vertex up
+  EXPECT_TRUE(near(hexagon[0], {0, -100}, 1e-3f));        // first vertex up
   EXPECT_TRUE(near(hexagon[1], {86.6025f, -50}, 1e-3f));  // clockwise
   const Outline chords =
       radialOutline(6, {.skip = 2, .connect = Connect::Each}, frame);
@@ -147,8 +146,9 @@ TEST(Radial, DealsLoopsChordsAndMarks) {
       12, {.connect = Connect::None, .marks = {Mark::line(0.9f, 1.0f)}}, frame);
   EXPECT_NEAR(ticks.length(), 12 * 10.0f, 1e-2f);
   const Outline stars = radialOutline(
-      4, {.connect = Connect::None,
-          .marks = {Mark::shape(Outline::rectangle(Rect::of({0, 0}, {4, 4})))}},
+      4,
+      {.connect = Connect::None,
+       .marks = {Mark::shape(Outline::rectangle(Rect::of({0, 0}, {4, 4})))}},
       frame);
   EXPECT_NEAR(stars.area(), 4 * 16.0f, 1e-2f);
 }
@@ -156,23 +156,28 @@ TEST(Radial, DealsLoopsChordsAndMarks) {
 TEST(Projection, IsASeamWithAGnomonicAndACustomDoor) {
   static_assert(ProjectionScheme<Projection>);
   static_assert(ProjectionScheme<CustomProjection>);
-  const Projection sundial = projection::gnomonic({.centre = {0, 90}, .scale = 100});
+  const Projection sundial =
+      projection::gnomonic({.centre = {0, 90}, .scale = 100});
   EXPECT_NEAR(sundial.radiusAt(45), 100.0f, 1e-3f);
   EXPECT_NEAR(sundial.arcAtRadius(100), 45.0f, 1e-3f);
   const Spherical back = sundial.from(sundial.at({30, 60}));
-  EXPECT_NEAR(back.lonDeg, 30.0f, 1e-2f);
-  EXPECT_NEAR(back.latDeg, 60.0f, 1e-2f);
+  EXPECT_NEAR(back.longitudeDegrees, 30.0f, 1e-2f);
+  EXPECT_NEAR(back.latitudeDegrees, 60.0f, 1e-2f);
   const CustomProjection flat = projection::custom(
-      "flat", [](Spherical s) { return glm::vec2{s.lonDeg, s.latDeg}; },
+      "flat",
+      [](Spherical s) {
+        return glm::vec2{s.longitudeDegrees, s.latitudeDegrees};
+      },
       [](glm::vec2 p) { return Spherical{p.x, p.y}; });
   EXPECT_TRUE(near(flat.at({10, 20}), {10, 20}, 0));
   EXPECT_EQ(flat, projection::custom("flat", nullptr, nullptr));
 }
 
 TEST(Triangulate, KeepsTheHole) {
-  const Outline ring = Outline::rectangle(Rect::of({0, 0}, {100, 100}))
-                           .joined(Outline::rectangle(Rect::of({25, 25}, {50, 50})))
-                           .withFillRule(FillRule::EvenOdd);
+  const Outline ring =
+      Outline::rectangle(Rect::of({0, 0}, {100, 100}))
+          .joined(Outline::rectangle(Rect::of({25, 25}, {50, 50})))
+          .withFillRule(FillRule::EvenOdd);
   const Triangulation inside = triangulate(ring);
   // Eight vertices, two rings: n + 2h - 2 triangles.
   EXPECT_EQ(inside.points.size(), 8u);
@@ -181,7 +186,8 @@ TEST(Triangulate, KeepsTheHole) {
   for (const glm::uvec3 t : inside.triangles) {
     const glm::vec2 a = inside.points[t.x], b = inside.points[t.y],
                     c = inside.points[t.z];
-    area += std::abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) * 0.5f;
+    area +=
+        std::abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) * 0.5f;
   }
   EXPECT_NEAR(area, 10000.0f - 2500.0f, 1e-2f);
 }

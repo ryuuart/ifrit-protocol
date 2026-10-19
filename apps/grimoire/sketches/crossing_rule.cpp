@@ -88,8 +88,10 @@ std::vector<SkPath> heptagram() {
         (size_t)i, n,
         {.center = sigil::geometry::path::fromSk(c),
          .radii = {r, r},
-         .fromDegrees = (-1.5707963f) * sigil::geometry::path::kRadToDeg,
-         .sweepDegrees = (6.2831853f) * sigil::geometry::path::kRadToDeg,
+         .fromDegrees =
+             (-1.5707963f) * sigil::geometry::path::kRadiansToDegrees,
+         .sweepDegrees =
+             (6.2831853f) * sigil::geometry::path::kRadiansToDegrees,
          .turn = arrange::Turn::Closed}));
   std::vector<SkPath> strands;
   for (int i = 0; i < n; ++i) {
@@ -111,8 +113,10 @@ std::vector<SkPath> rings() {
         (size_t)i, 3,
         {.center = sigil::geometry::path::fromSk(c),
          .radii = {r * 0.62f, r * 0.62f},
-         .fromDegrees = (-1.5707963f) * sigil::geometry::path::kRadToDeg,
-         .sweepDegrees = (6.2831853f) * sigil::geometry::path::kRadToDeg,
+         .fromDegrees =
+             (-1.5707963f) * sigil::geometry::path::kRadiansToDegrees,
+         .sweepDegrees =
+             (6.2831853f) * sigil::geometry::path::kRadiansToDegrees,
          .turn = arrange::Turn::Closed}));
     SkPathBuilder b;
     b.addCircle(at.fX, at.fY, r);

@@ -181,8 +181,8 @@ video, plate comparison and thumbnails.
 
 ## Layout
 
-**Naming**: libraries intended for extraction into their own repositories
-carry the `Sigil` prefix; product-side integrations keep `Ifrit`.
+**Naming**: the tree is Sigil throughout: every library, target, QML
+module and namespace carries the `Sigil` prefix (`sigil::` in C++).
 **Boundaries are deliberate** and each README states its own. Two that
 are easy to get backwards: SigilIO owns resource *access* while
 SigilImage owns image *meaning*; SigilWorld consumes SigilGeometry's

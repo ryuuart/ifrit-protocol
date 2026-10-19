@@ -222,10 +222,10 @@ TEST(StandIn, AFirstLiveFrameBuildsNoPipelineOnTheThreadThatDraws) {
     steady = std::min(steady, one);
     slowest = std::max(slowest, one);
   }
-  RecordProperty("firstMs", std::to_string(first));
-  RecordProperty("secondMs", std::to_string(second));
-  RecordProperty("steadyMs", std::to_string(steady));
-  RecordProperty("slowestMs", std::to_string(slowest));
+  RecordProperty("firstMilliseconds", std::to_string(first));
+  RecordProperty("secondMilliseconds", std::to_string(second));
+  RecordProperty("steadyMilliseconds", std::to_string(steady));
+  RecordProperty("slowestMilliseconds", std::to_string(slowest));
   // Against the SLOWEST frame that builds nothing, not the fastest: a GPU
   // other processes are driving stretches every frame of this run alike,
   // and the fastest of them is the one the load spared. What the bound
@@ -305,9 +305,9 @@ TEST(StandIn, ALiveFrameDoesNotWaitForANewlyArrivedProgramsPipeline) {
   } while (scene.stats().programsPending > 0 &&
            std::chrono::steady_clock::now() < deadline);
   ASSERT_EQ(scene.stats().programsPending, 0);
-  RecordProperty("steadyMs", std::to_string(steady));
-  RecordProperty("slowestMs", std::to_string(slowest));
-  RecordProperty("longestMs", std::to_string(longest));
+  RecordProperty("steadyMilliseconds", std::to_string(steady));
+  RecordProperty("slowestMilliseconds", std::to_string(slowest));
+  RecordProperty("longestMilliseconds", std::to_string(longest));
   RecordProperty("frames", std::to_string(frames));
   // Within a small factor of the slowest frame that builds nothing, for
   // the reason the first-frame case reads that one: a GPU other processes

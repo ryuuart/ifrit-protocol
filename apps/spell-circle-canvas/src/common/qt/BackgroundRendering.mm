@@ -59,11 +59,9 @@ std::atomic<int> g_overrideCount{0};
  *  separately, so neither is above the other. */
 Class chainForClass(Class windowClass) {
   const int count = g_overrideCount.load(std::memory_order_acquire);
-  for (Class candidate = windowClass; candidate;
-       candidate = class_getSuperclass(candidate))
+  for (Class candidate = windowClass; candidate; candidate = class_getSuperclass(candidate))
     for (int at = 0; at < count; ++at)
-      if (g_overrides[at].overridden.load(std::memory_order_acquire) ==
-          candidate)
+      if (g_overrides[at].overridden.load(std::memory_order_acquire) == candidate)
         return g_overrides[at].chainsInto;
   return Nil;
 }
@@ -83,18 +81,15 @@ NSWindowOcclusionState continuousOcclusionState(id self, SEL selector) {
   NSWindowOcclusionState reported = 0;
   if (chain) {
     struct objc_super target = {self, chain};
-    using SuperOcclusionState = NSWindowOcclusionState (*)(struct objc_super *,
-                                                           SEL);
-    reported = reinterpret_cast<SuperOcclusionState>(objc_msgSendSuper)(
-        &target, selector);
+    using SuperOcclusionState = NSWindowOcclusionState (*)(struct objc_super *, SEL);
+    reported = reinterpret_cast<SuperOcclusionState>(objc_msgSendSuper)(&target, selector);
   } else {
     // Unreachable: the entry is published before the method is added, so
     // a receiver reaching this implementation has one. Reporting visible
     // is the answer that cannot stop a window from drawing.
     reported = NSWindowOcclusionStateVisible;
   }
-  return keepsRendering(self) ? reported | NSWindowOcclusionStateVisible
-                              : reported;
+  return keepsRendering(self) ? reported | NSWindowOcclusionStateVisible : reported;
 }
 
 /** Adds the override to @p windowClass, once. True when the class now
@@ -114,8 +109,7 @@ bool overrideOcclusionState(Class windowClass) {
 
   Class chain = class_getSuperclass(windowClass);
   if (!chain) return false;
-  const Method inherited =
-      class_getInstanceMethod(windowClass, @selector(occlusionState));
+  const Method inherited = class_getInstanceMethod(windowClass, @selector(occlusionState));
   if (!inherited) return false;
 
   const int at = g_overrideCount.load(std::memory_order_relaxed);
@@ -172,16 +166,16 @@ void endActivity() {
  *  tier however much the application draws, and a window behind another
  *  application stops presenting at the display's rate. GUI thread
  *  only. */
-ifrit::qt::ActivityHold &activityHold() {
-  static ifrit::qt::ActivityHold *hold = [] {
-    auto *made = new ifrit::qt::ActivityHold([](bool held) {
+sigil::qt::ActivityHold &activityHold() {
+  static sigil::qt::ActivityHold *hold = [] {
+    auto *made = new sigil::qt::ActivityHold([](bool held) {
       if (held)
         beginActivity();
       else
         endActivity();
     });
-    QObject::connect(QCoreApplication::instance(),
-                     &QCoreApplication::aboutToQuit, [] { endActivity(); });
+    QObject::connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
+                     [] { endActivity(); });
     return made;
   }();
   return *hold;
@@ -218,7 +212,7 @@ void forgetNativeWindow(QWindow *window) {
   if (found->occlusionObserver) [center removeObserver:found->occlusionObserver];
   if (found->closeObserver) [center removeObserver:found->closeObserver];
   *found = VisibilityWatch{};
-  activityHold().set(window, ifrit::qt::ActivityReason::Visible, false);
+  activityHold().set(window, sigil::qt::ActivityReason::Visible, false);
 }
 
 void stopWatching(QWindow *window) {
@@ -234,9 +228,8 @@ void stopWatching(QWindow *window) {
 void readVisibility(QWindow *window) {
   const VisibilityWatch &watch = visibilityWatches().value(window);
   const bool visible =
-      watch.nativeWindow &&
-      (watch.nativeWindow.occlusionState & NSWindowOcclusionStateVisible);
-  activityHold().set(window, ifrit::qt::ActivityReason::Visible, visible);
+      watch.nativeWindow && (watch.nativeWindow.occlusionState & NSWindowOcclusionStateVisible);
+  activityHold().set(window, sigil::qt::ActivityReason::Visible, visible);
 }
 
 /** Starts watching @p window's native window, which must exist. */
@@ -247,13 +240,12 @@ void watchNativeWindow(QWindow *window) {
   NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
   VisibilityWatch watch;
   watch.nativeWindow = nativeWindow;
-  watch.occlusionObserver = [center
-      addObserverForName:NSWindowDidChangeOcclusionStateNotification
-                  object:nativeWindow
-                   queue:nil
-              usingBlock:^(NSNotification *) {
-                readVisibility(window);
-              }];
+  watch.occlusionObserver = [center addObserverForName:NSWindowDidChangeOcclusionStateNotification
+                                                object:nativeWindow
+                                                 queue:nil
+                                            usingBlock:^(NSNotification *) {
+                                              readVisibility(window);
+                                            }];
   // Delivered synchronously: AppKit posts both on the main thread, which
   // is the thread the hold lives on.
   // A closed native window posts no further occlusion changes, and Qt
@@ -296,7 +288,7 @@ bool WindowChrome::keepRendering(QQuickWindow *window) {
   // A publisher's subscribers watch its frames whether or not the window
   // is on screen, so this reason is never withdrawn while the process
   // runs, not even when publishing stops.
-  activityHold().set(window, ifrit::qt::ActivityReason::Publishing, true);
+  activityHold().set(window, sigil::qt::ActivityReason::Publishing, true);
   return keepRenderingWhileOccluded(window);
 }
 

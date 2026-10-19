@@ -24,8 +24,8 @@ namespace sigil::compose {
 namespace detail {
 
 void TrackBeats::build(const Track& track, const GlyphStructure& structure,
-                         const std::vector<uint8_t>& selected,
-                         std::span<const uint32_t> selectionPieces) {
+                       const std::vector<uint8_t>& selected,
+                       std::span<const uint32_t> selectionPieces) {
   const auto count = (uint32_t)structure.glyphs.size();
   // THE SELECTION'S OWN LANE, for a track that beats over the extent it
   // addressed rather than over a size the text is divided into. It is
@@ -125,13 +125,14 @@ void TrackBeats::build(const Track& track, const GlyphStructure& structure,
  * the same way when a field is added and one of them is not told: silently, by
  *  drawing the deviation of some other track or some other moment. */
 void glyphModifierFieldPin(GlyphModifier& v) {
-  auto& [dx, dy, scale, rotateDeg, alpha, colorMultiplier, colorAdd,
-         colorScreen, scaleX, scaleY, skewXDeg, skewYDeg, axis, codepoint] = v;
+  auto& [dx, dy, scale, rotateDegrees, alpha, colorMultiplier, colorAdd,
+         colorScreen, scaleX, scaleY, skewXDegrees, skewYDegrees, axis,
+         codepoint] = v;
   static_assert(
-      std::tuple_size_v<decltype(std::tie(dx, dy, scale, rotateDeg, alpha,
-                                          colorMultiplier, colorAdd,
-                                          colorScreen, scaleX, scaleY, skewXDeg,
-                                          skewYDeg, axis, codepoint))> == 14,
+      std::tuple_size_v<decltype(std::tie(
+              dx, dy, scale, rotateDegrees, alpha, colorMultiplier, colorAdd,
+              colorScreen, scaleX, scaleY, skewXDegrees, skewYDegrees, axis,
+              codepoint))> == 14,
       "GlyphModifier gained or lost a field — rule on it in compose() below, "
       "in compose::interpolate() after it, in appendStopParameters() in "
       "TextFx.cpp (a field a tween's stops cannot spell makes two different "
@@ -144,9 +145,9 @@ void glyphModifierFieldPin(GlyphModifier& v) {
 void compose(GlyphModifier& into, const GlyphModifier& next) {
   into.dx += next.dx;
   into.dy += next.dy;
-  into.rotateDeg += next.rotateDeg;
-  into.skewXDeg += next.skewXDeg;
-  into.skewYDeg += next.skewYDeg;
+  into.rotateDegrees += next.rotateDegrees;
+  into.skewXDegrees += next.skewXDegrees;
+  into.skewYDegrees += next.skewYDegrees;
   into.scale *= next.scale;
   into.scaleX *= next.scaleX;
   into.scaleY *= next.scaleY;
@@ -182,9 +183,9 @@ GlyphModifier interpolate(const GlyphModifier& a, const GlyphModifier& b,
   GlyphModifier out;
   out.dx = a.dx + (b.dx - a.dx) * w;
   out.dy = a.dy + (b.dy - a.dy) * w;
-  out.rotateDeg = a.rotateDeg + (b.rotateDeg - a.rotateDeg) * w;
-  out.skewXDeg = a.skewXDeg + (b.skewXDeg - a.skewXDeg) * w;
-  out.skewYDeg = a.skewYDeg + (b.skewYDeg - a.skewYDeg) * w;
+  out.rotateDegrees = a.rotateDegrees + (b.rotateDegrees - a.rotateDegrees) * w;
+  out.skewXDegrees = a.skewXDegrees + (b.skewXDegrees - a.skewXDegrees) * w;
+  out.skewYDegrees = a.skewYDegrees + (b.skewYDegrees - a.skewYDegrees) * w;
   out.scale = a.scale + (b.scale - a.scale) * w;
   out.scaleX = a.scaleX + (b.scaleX - a.scaleX) * w;
   out.scaleY = a.scaleY + (b.scaleY - a.scaleY) * w;
@@ -192,8 +193,8 @@ GlyphModifier interpolate(const GlyphModifier& a, const GlyphModifier& b,
   // The three colour terms lerp componentwise like every other continuous
   // field — a flash decays through straight interpolation of its own
   // channels, not through the compose() arithmetic, which is for stacking.
-  out.colorMultiplier = material::interpolate(a.colorMultiplier,
-                                              b.colorMultiplier, w);
+  out.colorMultiplier =
+      material::interpolate(a.colorMultiplier, b.colorMultiplier, w);
   out.colorAdd = material::interpolate(a.colorAdd, b.colorAdd, w);
   out.colorScreen = material::interpolate(a.colorScreen, b.colorScreen, w);
   out.axis = detail::interpolateAxis(a.axis, b.axis, w);

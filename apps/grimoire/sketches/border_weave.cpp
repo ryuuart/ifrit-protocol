@@ -13,7 +13,7 @@
  * the whole of a double frame.
  *
  * WHAT COUNTS AS A CORNER is a tangent break of more than
- * `cornerAngleDeg`, and this is the first thing that surprises people: a
+ * `cornerAngleDegrees`, and this is the first thing that surprises people: a
  * gently rounded corner has no hard break, so brackets vanish on it and a
  * gapped rule runs all the way round. The last cell is the bracket value
  * on a circle, where there is no break anywhere, and it draws nothing.

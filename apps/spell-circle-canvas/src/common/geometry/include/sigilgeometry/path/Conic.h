@@ -25,7 +25,6 @@
  * convention `arrange::onEllipse` places a ring by.
  */
 
-
 #include <glm/vec2.hpp>
 
 #include "sigilgeometry/path/Outline.h"
@@ -43,35 +42,35 @@ struct Conic {
   /** 0 a circle, under 1 an ellipse, 1 a parabola, over 1 a hyperbola. */
   float eccentricity = 0;
   /** Which way the near point lies, in degrees. */
-  float periapsisDeg = 0;
+  float periapsisDegrees = 0;
 
   bool operator==(const Conic&) const = default;
 
-  /** How far the curve stands from the focus at @p anomalyDeg. On an open
+  /** How far the curve stands from the focus at @p anomalyDegrees. On an open
    *  conic the denominator reaches zero at the asymptote and the radius
    *  runs away; it is clamped just short of that, so a caller that asks
    *  past the asymptote gets a very distant point rather than an infinity
    *  that poisons a path. */
-  float radiusAt(float anomalyDeg) const;
+  float radiusAt(float anomalyDegrees) const;
 
-  /** Where the curve is at @p anomalyDeg. */
-  glm::vec2 at(float anomalyDeg) const;
+  /** Where the curve is at @p anomalyDegrees. */
+  glm::vec2 at(float anomalyDegrees) const;
 
   /** The unit direction of travel — dP/dv normalised — which is the
    *  tangent taken in the direction of INCREASING anomaly. On a circle it
    *  is square to the radius; on everything else it is not, and the
    *  difference between the two is the whole reason both are here. */
-  glm::vec2 alongAt(float anomalyDeg) const;
+  glm::vec2 alongAt(float anomalyDegrees) const;
 
   /** The unit direction away from the focus. */
-  glm::vec2 outwardAt(float anomalyDeg) const;
+  glm::vec2 outwardAt(float anomalyDegrees) const;
 
   /** The anomaly the curve runs off to, in degrees: 180 on a closed
    *  conic, which is simply the far side, and `acos(-1/e)` on an open one,
    *  which is the ASYMPTOTE — the direction the branch approaches and
    *  never reaches. Sampling up to it is what makes a hyperbola's arms
    *  disappear off the frame instead of stopping in mid-air. */
-  float asymptoteDeg() const;
+  float asymptoteDegrees() const;
 
   /** Whether the curve comes back to where it started. */
   bool closes() const { return eccentricity < 1; }
@@ -87,8 +86,8 @@ struct Conic {
  *  parts that are near enough to be drawn and no line between them. Zero
  *  keeps everything. */
 struct ConicSpan {
-  float fromDeg = -180;
-  float toDeg = 180;
+  float fromDegrees = -180;
+  float toDegrees = 180;
   int steps = 320;
   float reach = 0;
   bool operator==(const ConicSpan&) const = default;
@@ -99,7 +98,7 @@ struct ConicSpan {
  *  the whole way round; every other span is open, which is what a
  *  reveal along it, a label riding it or a dash marching down it wants.
  *
- *  The path begins at `fromDeg`, so a trim from the start of the contour
+ *  The path begins at `fromDegrees`, so a trim from the start of the contour
  *  is a trim from there and needs no wrap arithmetic. */
 Outline conicPath(const Conic& conic, const ConicSpan& span = {});
 

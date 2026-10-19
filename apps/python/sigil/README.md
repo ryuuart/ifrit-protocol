@@ -119,11 +119,11 @@ width the whole way, or a list of `(along, width)` stops along a fraction
 of the spine — and its paint a colour, a fill or a material, which keeps
 its layers, surface and effects. A keyline `stroke(material, width)` over
 an open outline is likewise one band centred on it: an open outline has no
-inside, so it has no side to keep. With `nibAngleDeg` the width is
+inside, so it has no side to keep. With `nibAngleDegrees` the width is
 one number and the band is a calligraphic stroke, that wide where the
 outline runs across the nib and `nibContrast` of it where it runs along;
 with `widthEnd` it tapers from the width to `widthEnd`:
-`compose.brush.ribbon(12, ink, nibAngleDeg=30)`. `Ribbon.band(spine)` hands
+`compose.brush.ribbon(12, ink, nibAngleDegrees=30)`. `Ribbon.band(spine)` hands
 back the region a ribbon fills, to be measured.
 
 `material.noise(frequency, cellular=True, jitter=1)` is cellular noise: one
@@ -181,7 +181,7 @@ their overloads.
 
 Every name is the native one, camelCase as SigilSketch and the libraries
 spell it: `kit.featureTheme`, `kit.panelGrid`, `document.listGap`,
-`Json.toPython`, and a kit record's fields, `paddingY=` and `rowGap=`. A
+`Json.toPython`, and a kit record's fields, `paddingVertical=` and `rowGap=`. A
 native name that is a Python keyword takes a trailing underscore — `from_`,
 `pass_`, `with_`, `is_`, `in_`, and `None_` for an enumerator named `None` —
 and where a value can stand without its name it does: `animate(0, 1)` and
@@ -1128,8 +1128,8 @@ captioned cells, sheets, panels, boards, construction circles, lines and
 ladders. Both return the same native `Element`. Python normalizes keyword
 fields and ordered children; native components own arrangement and
 painting. The wrappers take each field by its native name, as the native
-record classes such as `Page`, `Well` and `Spacing` spell it: `paddingY=`,
-`rowGap=`. A snake_case spelling such as `padding_y=` is refused with a
+record classes such as `Page`, `Well` and `Spacing` spell it: `paddingVertical=`,
+`rowGap=`. A snake_case spelling such as `padding_vertical=` is refused with a
 `TypeError` that names the field it missed.
 
 The rest of the sketch kit is bound the same way, each piece a record of

@@ -14,6 +14,7 @@
 #include <sigilcompose/typography/TextPath.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Nodes.h>
 #include <sigilpython/compose/Registration.h>
@@ -92,14 +93,19 @@ compose::Dimension combined(const compose::Dimension& left,
 
 void bindCompose(py::module_& module) {
   auto composition = module.def_submodule("compose");
+  submodule(module, "compose.decorations");
+  submodule(module, "compose.styles");
+  submodule(module, "compose.tiles");
   py::class_<compose::Composer::Stats>(composition, "ComposerStats")
 #define SIGIL_STAT(name) .def_readonly(#name, &compose::Composer::Stats::name)
       SIGIL_STAT(instances) SIGIL_STAT(yogaNodes) SIGIL_STAT(describedNodes)
           SIGIL_STAT(memoHits) SIGIL_STAT(patchedNodes) SIGIL_STAT(picturesLive)
               SIGIL_STAT(texturesLive) SIGIL_STAT(picturesRecorded)
                   SIGIL_STAT(texturesBaked) SIGIL_STAT(nodesPainted)
-                      SIGIL_STAT(reconcileMs) SIGIL_STAT(layoutMs)
-                          SIGIL_STAT(volatileMs) SIGIL_STAT(paintMs);
+                      SIGIL_STAT(reconcileMilliseconds)
+                          SIGIL_STAT(layoutMilliseconds)
+                              SIGIL_STAT(volatileMilliseconds)
+                                  SIGIL_STAT(paintMilliseconds);
 #undef SIGIL_STAT
   py::class_<compose::TextSettling>(composition, "TextSettling")
       .def_readonly("live", &compose::TextSettling::live)

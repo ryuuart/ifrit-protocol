@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <utility>
 
-namespace ifrit::qt {
+namespace sigil::qt {
 
 sigil::io::frames::Publisher createPublisher(sigil::io::Hub& hub, QRhi* rhi,
                                              std::string_view name) {
@@ -16,10 +16,9 @@ sigil::io::frames::Publisher createPublisher(sigil::io::Hub& hub, QRhi* rhi,
     const auto* handles =
         static_cast<const QRhiMetalNativeHandles*>(rhi->nativeHandles());
     if (!handles || !handles->dev) return {};
-    return hub.publish(
-        "syphon://" + std::string(name),
-        {.device = {.api = sigil::io::frames::GraphicsApi::Metal,
-                    .handle = handles->dev}});
+    return hub.publish("syphon://" + std::string(name),
+                       {.device = {.api = sigil::io::frames::GraphicsApi::Metal,
+                                   .handle = handles->dev}});
   }
 #elif defined(Q_OS_WIN)
   if (rhi->backend() == QRhi::D3D11) {
@@ -35,9 +34,8 @@ sigil::io::frames::Publisher createPublisher(sigil::io::Hub& hub, QRhi* rhi,
   return {};
 }
 
-void publishFrame(sigil::io::frames::Publisher& publisher,
-                  QRhiTexture* texture, QRhiCommandBuffer* commandBuffer,
-                  QSize size) {
+void publishFrame(sigil::io::frames::Publisher& publisher, QRhiTexture* texture,
+                  QRhiCommandBuffer* commandBuffer, QSize size) {
   if (!texture || size.isEmpty()) return;
   void* nativeBuffer = nullptr;
 #if defined(Q_OS_MACOS)
@@ -58,4 +56,4 @@ void publishFrame(sigil::io::frames::Publisher& publisher,
                   .height = size.height()});
 }
 
-}  // namespace ifrit::qt
+}  // namespace sigil::qt

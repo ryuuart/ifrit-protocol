@@ -133,9 +133,9 @@ Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
  *  open at the seam; a full one duplicates the seam ring so the u
  *  coordinate can reach 1 instead of wrapping to 0. */
 struct RevolveOptions {
-  int segments = 48;     ///< steps around the axis
-  float sweepDeg = 360;  ///< partial sweeps leave an open seam
-  bool close = true;     ///< duplicate seam ring for clean UV wrap
+  int segments = 48;         ///< steps around the axis
+  float sweepDegrees = 360;  ///< partial sweeps leave an open seam
+  bool close = true;         ///< duplicate seam ring for clean UV wrap
   /** Face the surface toward the axis rather than away from the
    *  solid — the inside of a bowl seen from within. */
   bool inward = false;

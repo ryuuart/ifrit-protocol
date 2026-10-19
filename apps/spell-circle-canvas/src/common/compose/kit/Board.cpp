@@ -51,7 +51,7 @@ Element panel(const Panel& region, Element content) {
   // rule that bisects the distance to the content are that component's
   // arithmetic, and nothing of it is restated here.
   Sheet head{.title = region.eyebrow, .subtitle = region.title};
-  head.marginX = 0;
+  head.marginHorizontal = 0;
   head.marginTop = 0;
   head.marginBottom = 0;
   head.subtitleGap = region.titleGap;

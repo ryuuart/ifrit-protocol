@@ -28,7 +28,7 @@ double edgeLength(const MultigridTiling& t, const MultigridRhomb& r, int i) {
 
 /** The rhomb's acute angle in degrees, read off its two corner-to-corner
  *  edges rather than off the families that made it. */
-double acuteDeg(const MultigridTiling& t, const MultigridRhomb& r) {
+double acuteDegrees(const MultigridTiling& t, const MultigridRhomb& r) {
   const glm::dvec2 o = t.vertices[(size_t)r.corners[0]];
   const glm::dvec2 a = t.vertices[(size_t)r.corners[1]] - o;
   const glm::dvec2 b = t.vertices[(size_t)r.corners[3]] - o;
@@ -48,7 +48,7 @@ int countNear(const std::vector<double>& values, double want, double slack) {
 std::vector<double> acuteAngles(const MultigridTiling& t) {
   std::vector<double> out;
   out.reserve(t.rhombs.size());
-  for (const MultigridRhomb& r : t.rhombs) out.push_back(acuteDeg(t, r));
+  for (const MultigridRhomb& r : t.rhombs) out.push_back(acuteDegrees(t, r));
   return out;
 }
 
@@ -82,7 +82,7 @@ TEST(Multigrid, FivefoldDualisesIntoTheTwoPenroseRhombsAndNothingElse) {
   for (const MultigridRhomb& r : t.rhombs) {
     const int apart = std::abs(r.families[0] - r.families[1]);
     const int step = std::min(apart, 5 - apart);
-    EXPECT_NEAR(acuteDeg(t, r), step == 1 ? 72.0 : 36.0, 1e-6);
+    EXPECT_NEAR(acuteDegrees(t, r), step == 1 ? 72.0 : 36.0, 1e-6);
   }
 }
 
@@ -103,7 +103,7 @@ TEST(Multigrid, FourfoldDualisesIntoTheOctagonalSquaresAndRhombs) {
 
   for (const MultigridRhomb& r : t.rhombs) {
     const int apart = std::abs(r.families[0] - r.families[1]);
-    EXPECT_NEAR(acuteDeg(t, r), apart == 2 ? 90.0 : 45.0, 1e-6);
+    EXPECT_NEAR(acuteDegrees(t, r), apart == 2 ? 90.0 : 45.0, 1e-6);
     for (int i = 0; i < 4; ++i) EXPECT_NEAR(edgeLength(t, r, i), 1.0, 1e-9);
   }
 }
@@ -114,7 +114,7 @@ TEST(Multigrid, ThreefoldDualisesIntoTheRhombille) {
   ASSERT_FALSE(t.rhombs.empty());
   // One shape at three turns: the cube-corner paving.
   for (const MultigridRhomb& r : t.rhombs)
-    EXPECT_NEAR(acuteDeg(t, r), 60.0, 1e-6);
+    EXPECT_NEAR(acuteDegrees(t, r), 60.0, 1e-6);
   EXPECT_EQ((int)t.rhombs.size(), 572);
 }
 
@@ -266,7 +266,7 @@ TEST(Multigrid, AThreeFamilyRingIsSingularWhenItsOffsetsSumToAWholeNumber) {
       multigrid(multigridRing(3, 1.0 / 3.0 + 1e-3), {.radius = 6.0});
   ASSERT_FALSE(near.rhombs.empty());
   for (const MultigridRhomb& r : near.rhombs)
-    EXPECT_NEAR(acuteDeg(near, r), 60.0, 1e-6);
+    EXPECT_NEAR(acuteDegrees(near, r), 60.0, 1e-6);
 }
 
 TEST(Multigrid, ALongerRingSummingToAWholeNumberIsRegularAndComesBackWhole) {
@@ -310,8 +310,7 @@ TEST(Multigrid, ALongerRingSummingToAWholeNumberIsRegularAndComesBackWhole) {
 // function of the families and the reach, so dualising twice answers the
 // same corners and the same rhombs over them.
 TEST(Tilings, AFamilyARhombAndTheWholeTilingAreValues) {
-  const std::vector<MultigridFamily> penrose =
-      multigridRing(5, kPenroseOffset);
+  const std::vector<MultigridFamily> penrose = multigridRing(5, kPenroseOffset);
   EXPECT_EQ(penrose, multigridRing(5, kPenroseOffset));
   ASSERT_GE(penrose.size(), 2u);
   EXPECT_NE(penrose[0], penrose[1]);

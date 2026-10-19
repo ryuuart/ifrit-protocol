@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls as Controls
-import Ifrit.Qt 1.0 as Ui
+import Sigil.Qt 1.0 as Ui
 
 // Application content starts below system controls and any application header.
 // Window flags and safe areas stay under Qt's platform geometry management.

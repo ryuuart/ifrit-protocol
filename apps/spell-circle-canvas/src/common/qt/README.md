@@ -1,8 +1,8 @@
-# Ifrit.Qt
+# Sigil.Qt
 
 A set of reusable Qt components and services shared by the desktop tools in
 this repository, including SigilWeave's gallery. It is a QML
-module named `Ifrit.Qt`: shared visual tokens, panels, headings, search,
+module named `Sigil.Qt`: shared visual tokens, panels, headings, search,
 selection, status and value controls, a pan-and-zoom viewport for fixed-size
 canvases, a transparency checkerboard, font pickers, and a singleton that
 installs macOS window vibrancy and supports continuous background rendering.
@@ -23,7 +23,7 @@ Import the module and use the types:
 ```qml
 import QtQuick
 import QtQuick.Controls
-import Ifrit.Qt 1.0 as Ui
+import Sigil.Qt 1.0 as Ui
 
 Ui.AppWindow {
     id: window
@@ -206,7 +206,7 @@ minimized window visible.
 
 **`applyVibrancy` is idempotent.** It recognizes the effect view it
 previously inserted, so calling it again on the same window is harmless.
-Setting `IFRIT_NO_VIBRANCY` in the environment makes it decline outright,
+Setting `SIGIL_NO_VIBRANCY` in the environment makes it decline outright,
 which is the escape hatch when debugging compositing.
 
 **The vibrancy view goes behind Qt's content view, not inside it.** Qt's
@@ -232,9 +232,9 @@ canvas-size badges for hosts that display that information in their own UI.
 
 ## Window capture
 
-`ifrit::qt::captureWindow` drives a window on its GUI thread, writes a PNG,
+`sigil::qt::captureWindow` drives a window on its GUI thread, writes a PNG,
 prints its path and dimensions, and exits the application. Each timer tick
-grabs a frame so covered windows still render. `ifrit::qt::WindowCaptureOptions`
+grabs a frame so covered windows still render. `sigil::qt::WindowCaptureOptions`
 sets the warmup frame count and timer interval; optional `prepareFrame` and
 `ready` callbacks let a host request scene updates and wait for content.
 Readiness waiting is bounded by `maxReadyFrames`, after which warmup and
@@ -243,8 +243,8 @@ the window cancels the capture. A failed grab or save exits with status 1.
 
 ## Texture publication
 
-`ifrit::qt::createPublisher` takes a hub, a QRhi and a publication name, checks its
-backend and opens the matching native publisher. `ifrit::qt::publishFrame`
+`sigil::qt::createPublisher` takes a hub, a QRhi and a publication name, checks its
+backend and opens the matching native publisher. `sigil::qt::publishFrame`
 unwraps a texture and still-open command buffer from that same QRhi. The host
 submits drawing first and Qt commits the command buffer afterwards. Destroy
 the publisher before the QRhi device. Unsupported backends return no publisher;
@@ -260,8 +260,8 @@ or the products that use it.
 
 ## Building
 
-One target, `IfritQt`, always configured; it is a static Qt library declared
-with `qt_add_qml_module(URI Ifrit.Qt VERSION 1.0)`. There are no assets.
+One target, `SigilQt`, always configured; it is a static Qt library declared
+with `qt_add_qml_module(URI Sigil.Qt VERSION 1.0)`. There are no assets.
 
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under. Two

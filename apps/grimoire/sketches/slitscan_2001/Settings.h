@@ -348,7 +348,7 @@ inline Element artCircuit(Pattern& grid, Pattern& spek) {
 
 struct WallSpec {
   SkPoint vp{0, 0};
-  float phiDeg = 0;
+  float phiDegrees = 0;
   material::Color gel = kGelStraw;
   float uFar = kUFar;
   float gain = 1.0f;
@@ -382,7 +382,7 @@ inline void buildWall(instancing::Pool& p, const WallSpec& s) {
   auto fr = p.frames();
   auto sz = p.sizes();
   auto win = p.texWindows();
-  const float phi = s.phiDeg * 0.017453292f;
+  const float phi = s.phiDegrees * 0.017453292f;
   const float cs = std::cos(phi), sn = std::sin(phi);
   // Normalising by (K-1) keeps the TOTAL deposited light independent of how
   // finely the sweep is sampled, so K is a sampling choice and never a

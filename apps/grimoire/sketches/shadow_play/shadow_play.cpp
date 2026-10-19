@@ -81,9 +81,9 @@ struct ShadowPlay {
     gm::camera::Camera lens;
     lens.eye = {0, 430, 1020};
     lens.target = {0, 90, -40};
-    lens.fovYDeg = 36;
-    lens.zNear = 40;
-    lens.zFar = 5000;
+    lens.fovYDegrees = 36;
+    lens.nearPlane = 40;
+    lens.farPlane = 5000;
 
     // THE SUN turns once round the scene each loop, high and to the left
     // at the start, so every shadow it casts sweeps a full turn.

@@ -47,11 +47,11 @@ material::Paint canvasLight(bool flagged, SkPoint nodeOriginForHandConversion) {
 
 /** The chaucer shape in miniature: a panel at canvas (40,40,120,120)
  *  inside a group that rotates about its own centre — the rete. */
-Element rotatedInstrument(float rotationDeg, bool flagged) {
+Element rotatedInstrument(float rotationDegrees, bool flagged) {
   auto group = box()
                    .rect(20, 20, 160, 160)
                    .key("group")
-                   .rotate(rotationDeg)
+                   .rotate(rotationDegrees)
                    .transformOrigin(pct(50), pct(50));
   // The corner child makes the panel RECORD — a childless leaf paints
   // live and re-resolves on every reach, which would hide a stale-W

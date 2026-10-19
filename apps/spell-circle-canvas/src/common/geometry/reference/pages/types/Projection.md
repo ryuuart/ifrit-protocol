@@ -22,8 +22,8 @@ five fields set once, and every reading respects them.
 
 ```cpp
 Projection plate{.scheme = Scheme::Stereographic,
-                 .centre = {.latDeg = 90}, .scale = 235};
-const glm::vec2 star = plate.at({.lonDeg = 63.4f, .latDeg = 31.8f});
+                 .centre = {.latitudeDegrees = 90}, .scale = 235};
+const glm::vec2 star = plate.at({.longitudeDegrees = 63.4f, .latitudeDegrees = 31.8f});
 const Spherical back = plate.from(star);   // and the way home
 ```
 

@@ -509,9 +509,9 @@ struct CeramicGlaze {
     gm::camera::Camera camera;
     camera.eye = {0, 700, 1300};
     camera.target = {0, 110, 90};
-    camera.fovYDeg = 31;
-    camera.zNear = 40;
-    camera.zFar = 6000;
+    camera.fovYDegrees = 31;
+    camera.nearPlane = 40;
+    camera.farPlane = 6000;
     return camera;
   }
 

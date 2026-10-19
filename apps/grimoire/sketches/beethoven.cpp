@@ -32,7 +32,8 @@
 //   kRuns         — the measured arc table: inner and outer radius as a
 //                   fraction of the poster width, and the two math-convention
 //                   angles. Everything the plate draws is in it.
-//   kRingBaseMs   — the innermost ring's reveal, which every ring outward
+//   kRingBaseMilliseconds   — the innermost ring's reveal, which every ring
+//   outward
 //                   doubles. The progression is the poster's, the base is
 //                   the piece's own.
 //   kPlateH       — how large the reproduction hangs on the wall; every
@@ -97,14 +98,14 @@ constexpr material::Color kLabel{0.760f, 0.745f, 0.715f, 1};
 /// The beat of blank paper the reveal starts from.
 constexpr std::chrono::milliseconds kRevealDelay{150};
 /// The innermost ring's sweep; every ring outward doubles it.
-constexpr unsigned kRingBaseMs = 120;
+constexpr unsigned kRingBaseMilliseconds = 120;
 
 // The arc table measured off the poster. Angles are in MATH convention
 // (0° = +x, counter-clockwise positive, y up); the canvas is y-down and
 // clockwise-positive, so canvas angle = −math angle.
 struct Run {
-  float rInner, rOuter;    // × poster W
-  float startDeg, endDeg;  // math convention
+  float rInner, rOuter;            // × poster W
+  float startDegrees, endDegrees;  // math convention
 };
 inline constexpr auto kRuns = std::to_array<Run>({
     {0.3480f, 0.3607f, -33.75f, 22.50f},
@@ -156,8 +157,8 @@ struct Beethoven {
     const SkPoint C{0.2693f * bp::kPlateW, 0.7156f * bp::kPlateH};
     const float rMid = (run.rInner + run.rOuter) * 0.5f * bp::kPlateW;
     const float width = (run.rOuter - run.rInner) * bp::kPlateW;
-    const float canvasStart = -run.endDeg;  // y-down mapping
-    const float sweep = run.endDeg - run.startDeg;
+    const float canvasStart = -run.endDegrees;  // y-down mapping
+    const float sweep = run.endDegrees - run.startDegrees;
     const float span = std::min(sweep / 360.0f, 0.9995f);
 
     Element e = kit::disc(sigil::geometry::path::fromSk(C), rMid)
@@ -170,7 +171,7 @@ struct Beethoven {
     // nothing needs a moment of nothing to start from, and that moment is
     // the transition's own.
     const auto duration = std::chrono::milliseconds(
-        bp::kRingBaseMs << (unsigned)std::min(ring, 5));
+        bp::kRingBaseMilliseconds << (unsigned)std::min(ring, 5));
     e.mask(by::spans(
         spans::upTo(motion::animate({.from = 0.0001f,
                                      .to = span,

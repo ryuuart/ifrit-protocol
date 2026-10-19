@@ -5,13 +5,11 @@
 # with; one file per package, all named here.
 sigil_library(SigilSketchPython
   SOURCES
-    Module.cpp host/Catalog.cpp host/Context.cpp host/DeviceRuntimes.cpp
-    host/Entries.cpp host/Page.cpp host/Plates.cpp host/Runtime.cpp
-    host/Schema.cpp
-    host/Scene3DSketches.cpp host/Testing.cpp
-    kit/Charts.cpp kit/Content.cpp kit/Controls.cpp kit/Legends.cpp
-    kit/Panels.cpp
-    kit/Specimen.cpp kit/Streams.cpp kit/Verdict.cpp
+    Module.cpp host/Catalog.cpp host/Context.cpp host/Page.cpp
+    host/Plates.cpp host/Runtime.cpp host/Scene3DSketches.cpp
+    host/Testing.cpp kit/Charts.cpp kit/Content.cpp kit/Controls.cpp
+    kit/Legends.cpp kit/Panels.cpp kit/Specimen.cpp kit/Streams.cpp
+    kit/Verdict.cpp
   HEADERS Python.h
   PUBLIC SigilSketch
   PRIVATE SigilPython SigilSketchKit SigilSketchTesting SigilWorldFrame

@@ -113,19 +113,19 @@ geometry::path::Outline dashGeometry(const geometry::path::Outline& src,
 }
 
 geometry::path::Outline cornerBrackets(const geometry::path::Outline& src,
-                                       float arm, float angleDeg) {
+                                       float arm, float angleDegrees) {
   const SkPath path = geometry::path::toSk(src);
-  sigil::compose::detail::warnIfNoCorners(path, angleDeg);
+  sigil::compose::detail::warnIfNoCorners(path, angleDegrees);
   return geometry::path::fromSk(
-      geometry::path::cornerWindows(path, arm, true, angleDeg));
+      geometry::path::cornerWindows(path, arm, true, angleDegrees));
 }
 
 geometry::path::Outline cornerGaps(const geometry::path::Outline& src,
-                                   float gap, float angleDeg) {
+                                   float gap, float angleDegrees) {
   const SkPath path = geometry::path::toSk(src);
-  sigil::compose::detail::warnIfNoCorners(path, angleDeg);
+  sigil::compose::detail::warnIfNoCorners(path, angleDegrees);
   return geometry::path::fromSk(
-      geometry::path::cornerWindows(path, gap, false, angleDeg));
+      geometry::path::cornerWindows(path, gap, false, angleDegrees));
 }
 
 float Line::bleed() const {
@@ -481,7 +481,7 @@ void RadialHatch::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (spokes > 0) {
     SkPathBuilder b;
     const float step = geometry::path::kTau / (float)spokes;
-    const float base = geometry::path::radians(rotateDeg);
+    const float base = geometry::path::radians(rotateDegrees);
     for (int i = 0; i < spokes; ++i) {
       const float a = base + (float)i * step;
       const float cs = std::cos(a), sn = std::sin(a);

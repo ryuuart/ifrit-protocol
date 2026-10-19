@@ -81,12 +81,12 @@ std::shared_ptr<const material::Recipe> freshRecipe() {
  *  session already standing, since a process opens one and loads its
  *  standard library with it.
  *
- *  `first_compile_ms` is that load plus the compile that provoked it,
+ *  `first_compile_milliseconds` is that load plus the compile that provoked it,
  *  measured on the first compile this process makes and reported
  *  unchanged on every repetition, so the figure is the one-time cost
  *  rather than whichever repetition happened to be first. */
 void BM_ProgramFromRecipeBody(benchmark::State& state) {
-  static const double firstCompileMs = [] {
+  static const double firstCompileMilliseconds = [] {
     diligent::installSlangCompiler();
     const measure::Stopwatch watch;
     std::shared_ptr<material::Program> program =
@@ -96,7 +96,7 @@ void BM_ProgramFromRecipeBody(benchmark::State& state) {
     benchmark::DoNotOptimize(program);
     return ms;
   }();
-  state.counters["first_compile_ms"] = firstCompileMs;
+  state.counters["first_compile_milliseconds"] = firstCompileMilliseconds;
   for ([[maybe_unused]] auto iteration : state) {
     std::shared_ptr<material::Program> program =
         material::program(freshRecipe(), material::Target::Slang,
@@ -330,12 +330,12 @@ BENCHMARK(BM_ShadowShareOnDevice)
  *  cheapest defence, and the count is the arm's own property because the
  *  reason for it is.
  *
- *  `cook_fastest_ms` and `cook_slowest_ms` are the residue: the shortest
- *  and longest single cook inside a repetition, reported as counters and
- *  never judged. A fastest far under the mean is the device answering
- *  without having waited for the work, which is the thing that must not
- *  win a median; the two counters make it visible in the run that
- *  produced it rather than a mystery in the baseline. */
+ *  `cook_fastest_milliseconds` and `cook_slowest_milliseconds` are the residue:
+ * the shortest and longest single cook inside a repetition, reported as
+ * counters and never judged. A fastest far under the mean is the device
+ * answering without having waited for the work, which is the thing that must
+ * not win a median; the two counters make it visible in the run that produced
+ * it rather than a mystery in the baseline. */
 void BM_ChainOnDevice(benchmark::State& state) {
   const device::DeviceConfig config;
   std::string error;
@@ -376,8 +376,8 @@ void BM_ChainOnDevice(benchmark::State& state) {
   }
   state.counters["points/s"] = benchmark::Counter(
       (double)state.range(0), benchmark::Counter::kIsIterationInvariantRate);
-  state.counters["cook_fastest_ms"] = fastest;
-  state.counters["cook_slowest_ms"] = slowest;
+  state.counters["cook_fastest_milliseconds"] = fastest;
+  state.counters["cook_slowest_milliseconds"] = slowest;
 }
 BENCHMARK(BM_ChainOnDevice)
     ->Arg(20000)

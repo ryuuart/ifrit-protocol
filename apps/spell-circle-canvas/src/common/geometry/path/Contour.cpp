@@ -177,14 +177,14 @@ Contour::Nearest Contour::nearest(glm::vec2 point, float step) const {
   return {best, s.position, glm::distance(s.position, point)};
 }
 
-std::vector<Contour::Corner> Contour::corners(float angleDeg, float minSpacing,
-                                              float step,
-                                              float* sharpestDeg) const {
+std::vector<Contour::Corner> Contour::corners(float angleDegrees,
+                                              float minSpacing, float step,
+                                              float* sharpestDegrees) const {
   std::vector<Corner> corners;
   const float len = length();
   if (len <= 0) return corners;
   const SkContourMeasure& m = *ContourAccess::measure(*this);
-  const float cosThresh = std::cos(angleDeg * kDegToRad);
+  const float cosThresh = std::cos(angleDegrees * kDegToRad);
   const float stride = std::max(step, 0.25f);
   float sharpestDot = 1.0f;
   glm::vec2 prev{0, 0}, atStart{0, 0};
@@ -236,8 +236,9 @@ std::vector<Contour::Corner> Contour::corners(float angleDeg, float minSpacing,
         (corners.empty() || corners.front().distance > minSpacing))
       corners.insert(corners.begin(), {0.0f, prev, atStart});
   }
-  if (sharpestDeg)
-    *sharpestDeg = std::acos(std::clamp(sharpestDot, -1.0f, 1.0f)) * kRadToDeg;
+  if (sharpestDegrees)
+    *sharpestDegrees =
+        std::acos(std::clamp(sharpestDot, -1.0f, 1.0f)) * kRadiansToDegrees;
   return corners;
 }
 
@@ -437,8 +438,8 @@ void appendOffsetJoin(SkPathBuilder& out, const OffsetJoin& join,
     const SkRect oval = SkRect::MakeLTRB(
         join.vertex.x - join.radius, join.vertex.y - join.radius,
         join.vertex.x + join.radius, join.vertex.y + join.radius);
-    out.arcTo(oval, join.startRadians * kRadToDeg,
-              join.sweepRadians * kRadToDeg, false);
+    out.arcTo(oval, join.startRadians * kRadiansToDegrees,
+              join.sweepRadians * kRadiansToDegrees, false);
   }
   appendOffsetPoint(out, join.leaving, started);
 }
@@ -531,13 +532,13 @@ SkPath displace(const SkPath& path, float amplitude, float wavelength,
 }
 
 SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
-                     float angleDeg) {
+                     float angleDegrees) {
   SkPathBuilder out;
   for (const Contour& contour : contoursOf(path)) {
     const float len = contour.length();
     const bool closed = contour.closed();
     std::vector<float> corners;
-    for (const Contour::Corner& c : contour.corners(angleDeg))
+    for (const Contour::Corner& c : contour.corners(angleDegrees))
       corners.push_back(c.distance);
     if (!closed) {
       corners.insert(corners.begin(), 0.0f);
@@ -600,9 +601,9 @@ Outline displace(const Outline& outline, float amplitude, float wavelength,
 }
 
 Outline cornerWindows(const Outline& outline, float radius,
-                      bool keepNearCorners, float angleDeg) {
+                      bool keepNearCorners, float angleDegrees) {
   return fromSk(
-      cornerWindows(toSk(outline), radius, keepNearCorners, angleDeg));
+      cornerWindows(toSk(outline), radius, keepNearCorners, angleDegrees));
 }
 
 }  // namespace sigil::geometry::path

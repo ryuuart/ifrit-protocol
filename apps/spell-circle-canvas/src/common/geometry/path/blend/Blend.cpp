@@ -16,8 +16,8 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 
-#include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilgeometry/path/Numeric.h"
 
 namespace sigil::geometry::path::blend {
 
@@ -177,12 +177,12 @@ Step makeStep(const Prepared& a, const Prepared& b,
     SkMatrix placement =
         SkMatrix::Translate(pos.x - naturalCenter.x, pos.y - naturalCenter.y);
     if (options.orientation == Orientation::AlignToPath) {
-      const float tangentDeg =
+      const float tangentDegrees =
           SkRadiansToDegrees(std::atan2(tangent.y, tangent.x));
-      const float baselineDeg =
+      const float baselineDegrees =
           SkRadiansToDegrees(std::atan2(baseline.y, baseline.x));
-      placement.preConcat(
-          SkMatrix::RotateDeg(tangentDeg - baselineDeg, toSk(naturalCenter)));
+      placement.preConcat(SkMatrix::RotateDeg(tangentDegrees - baselineDegrees,
+                                              toSk(naturalCenter)));
     }
     path = path.makeTransform(placement);
   }

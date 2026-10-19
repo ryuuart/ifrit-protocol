@@ -50,11 +50,11 @@ Gate spans(Spans where) {
   g.where = std::move(where);
   return g;
 }
-Gate edge(float angleDeg, motion::Animatable<float> fraction) {
+Gate edge(float angleDegrees, motion::Animatable<float> fraction) {
   Gate g;
   g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Edge;
-  g.angleDeg = angleDeg;
+  g.angleDegrees = angleDegrees;
   g.fraction = std::move(fraction);
   return g;
 }

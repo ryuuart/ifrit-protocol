@@ -1,9 +1,10 @@
 #include <pybind11/operators.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/kit/Board.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilpython/Extend.h>
 #include <sigilpython/compose/Kit.h>
 #include <sigilpython/compose/Operators.h>
 #include <sigilpython/compose/Registration.h>
@@ -105,7 +106,7 @@ void bindComponents(py::module_& module) {
   field(sheet, "title", &composeKit::Sheet::title);
   field(sheet, "subtitle", &composeKit::Sheet::subtitle);
   field(sheet, "footer", &composeKit::Sheet::footer);
-  field(sheet, "marginX", &composeKit::Sheet::marginX);
+  field(sheet, "marginHorizontal", &composeKit::Sheet::marginHorizontal);
   field(sheet, "marginTop", &composeKit::Sheet::marginTop);
   field(sheet, "marginBottom", &composeKit::Sheet::marginBottom);
   field(sheet, "subtitleGap", &composeKit::Sheet::subtitleGap);
@@ -212,13 +213,15 @@ void bindComponents(py::module_& module) {
   module.def(
       "dot",
       [](py::handle centre, float radius, py::handle ink) {
-        return composeKit::dot(geometry::path::fromSk(point(centre)), radius, fill(ink));
+        return composeKit::dot(geometry::path::fromSk(point(centre)), radius,
+                               fill(ink));
       },
       py::arg("centre"), py::arg("radius"), py::arg("ink"));
   module.def(
       "ring",
       [](py::handle centre, float radius, compose::Decoration pen) {
-        return composeKit::ring(geometry::path::fromSk(point(centre)), radius, std::move(pen));
+        return composeKit::ring(geometry::path::fromSk(point(centre)), radius,
+                                std::move(pen));
       },
       py::arg("centre"), py::arg("radius"), py::arg("pen"));
 }
@@ -265,8 +268,8 @@ void bindLayouts(py::module_& compose) {
   grid.def(py::self == py::self);
   auto radial = record<layouts::Radial>(module, "Radial");
   field(radial, "radiusFraction", &layouts::Radial::radiusFraction);
-  field(radial, "startDeg", &layouts::Radial::startDeg);
-  field(radial, "sweepDeg", &layouts::Radial::sweepDeg);
+  field(radial, "startDegrees", &layouts::Radial::startDegrees);
+  field(radial, "sweepDegrees", &layouts::Radial::sweepDegrees);
   field(radial, "radiusAt", &layouts::Radial::radiusAt);
   field(radial, "lane", &layouts::Radial::lane);
   field(radial, "divisions", &layouts::Radial::divisions);
@@ -276,7 +279,7 @@ void bindLayouts(py::module_& compose) {
   py::enum_<layouts::Diagonal::Anchor>(module, "DiagonalAnchor")
       .value("Start", layouts::Diagonal::Anchor::Start)
       .value("End", layouts::Diagonal::Anchor::End);
-  field(diagonal, "skewDeg", &layouts::Diagonal::skewDeg);
+  field(diagonal, "skewDegrees", &layouts::Diagonal::skewDegrees);
   field(diagonal, "gap", &layouts::Diagonal::gap);
   field(diagonal, "anchor", &layouts::Diagonal::anchor);
   auto baseline = record<layouts::BaselineGrid>(module, "BaselineGrid");
@@ -328,6 +331,8 @@ void bindLayouts(py::module_& compose) {
 void bindComposeKit(py::module_& root) {
   auto compose = root.attr("compose").cast<py::module_>();
   auto components = compose.def_submodule("kit");
+  submodule(root, "compose.kit.bevels");
+  submodule(root, "compose.routers");
   bindComponents(components);
   bindLayouts(compose);
   bindDocument(compose);

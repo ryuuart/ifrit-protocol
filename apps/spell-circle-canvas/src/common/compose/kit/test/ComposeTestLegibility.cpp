@@ -41,8 +41,8 @@ TEST(KitLegibility, ScrimGrowsTheRunByItsPadding) {
   const SkSize bare =
       intrinsicSize(box().children({text(u8"NAVI", st)}), fonts());
   const SkSize plated = intrinsicSize(
-      box().children(
-          {kit::scrim(text(u8"NAVI", st), {.paddingX = 3, .paddingY = 4})}),
+      box().children({kit::scrim(
+          text(u8"NAVI", st), {.paddingHorizontal = 3, .paddingVertical = 4})}),
       fonts());
   EXPECT_FLOAT_EQ(plated.width(), bare.width() + 6);
   EXPECT_FLOAT_EQ(plated.height(), bare.height() + 8);

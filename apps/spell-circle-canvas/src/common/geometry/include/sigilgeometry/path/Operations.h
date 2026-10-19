@@ -106,7 +106,7 @@ struct OffsetOptions {
  *  convention. A band that STRADDLES the source answers the source
  *  grown or shrunk; one that lies to a side is answered as itself. */
 Outline offset(const Outline& path, float distance,
-              const OffsetOptions& options = {});
+               const OffsetOptions& options = {});
 
 /** WHICH CORNERS A ROUNDING TAKES, AND HOW HARD.
  *
@@ -116,7 +116,7 @@ Outline offset(const Outline& path, float distance,
 struct CornerOptions {
   /** Only corners that turn by more than this many degrees. Zero rounds
    *  every corner there is. */
-  float minTurnDeg = 0.0f;
+  float minTurnDegrees = 0.0f;
   /** Round only the corners that turn OUTWARD, read off the contour's
    *  own winding — a reflex corner is left as it is. */
   bool outwardOnly = false;
@@ -136,7 +136,7 @@ struct CornerOptions {
  *  with options this is a polyline treatment, where the renderer's own
  *  corner effect, which the default options use, has no such limit. */
 Outline roundCorners(const Outline& path, float radius,
-                    const CornerOptions& options = {});
+                     const CornerOptions& options = {});
 
 /** CUT EVERY LINE-LINE CORNER of @p path with a straight bevel @p cut px
  *  along each leg — the 45-degree face of the game-UI and PCB corner
@@ -202,7 +202,7 @@ struct StripOptions {
  *  @silent nothing here reads which piece is ON TOP — a lattice is one
  *  layer of stock at a time, and `stripLaps` is where layers cross. */
 std::vector<Outline> stripOutlines(std::span<const Strip> pieces,
-                                  const StripOptions& options = {});
+                                   const StripOptions& options = {});
 
 /** THE WHOLE JOINED FIGURE: every piece's outline united into one path,
  *  which for a mitred set is the lattice as a single silhouette with its
@@ -297,7 +297,7 @@ struct PuckerBloat {
 /** Twirl — rotation about EACH CONTOUR'S OWN centroid, strongest at the
  *  middle and easing to zero at that contour's silhouette radius. */
 struct Twirl {
-  float angleDeg = 60;
+  float angleDegrees = 60;
   float segmentPx = 6;
 
   /** Value equality, dial for dial. */
@@ -315,10 +315,9 @@ PathOperation chain(std::vector<PathOperation> steps);
 
 /** offset() as a recipe step. */
 inline PathOperation offsetBy(float delta, const OffsetOptions& options = {}) {
-  return
-      [delta, options](const Outline& outline) {
-        return offset(outline, delta, options);
-      };
+  return [delta, options](const Outline& outline) {
+    return offset(outline, delta, options);
+  };
 }
 
 }  // namespace sigil::geometry::path::operations

@@ -94,8 +94,7 @@ T converted(py::handle value) {
     return motionAnimatable(value);
   } else if constexpr (Pair<T>::value) {
     const auto halves = py::cast<py::sequence>(value);
-    if (py::len(halves) != 2)
-      throw py::type_error("A pair is two values.");
+    if (py::len(halves) != 2) throw py::type_error("A pair is two values.");
     return T{converted<typename T::first_type>(halves[0]),
              converted<typename T::second_type>(halves[1])};
   } else if constexpr (Vector<T>::value) {
@@ -170,7 +169,7 @@ void wellFields(py::class_<Well>& type) {
   field(type, "height", &Well::height);
   field(type, "ground", &Well::ground);
   field(type, "padding", &Well::padding);
-  field(type, "paddingY", &Well::paddingY);
+  field(type, "paddingVertical", &Well::paddingVertical);
   field(type, "clip", &Well::clip);
   field(type, "corners", &Well::corners);
   field(type, "keyline", &Well::keyline);

@@ -92,8 +92,8 @@ struct Gauge {
   float thickness = 6;
   /** Skia's canvas convention: 0° is +x and the sweep runs clockwise, so
    *  the default starts at the lower left and sweeps three quarters. */
-  float startDeg = 135;
-  float sweepDeg = 270;
+  float startDegrees = 135;
+  float sweepDegrees = 270;
   /** The unswept part; unset is the theme's cell ground. */
   std::optional<compose::Fill> track;
   /** The swept part; unset is the theme's figure colour. */

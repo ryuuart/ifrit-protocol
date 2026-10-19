@@ -8,6 +8,9 @@ void bindGeometryPathOperations(pybind11::module_& module) {
   namespace py = pybind11;
   py::module_ path = submodule(module, "geometry.path");
   submodule(module, "geometry.path.operations");
+  submodule(module, "geometry.path.crossing");
+  submodule(module, "geometry.path.blend");
+  submodule(module, "geometry.sections");
 
   py::enum_<geometry::path::Cap>(path, "Cap")
       .value("Butt", geometry::path::Cap::Butt)

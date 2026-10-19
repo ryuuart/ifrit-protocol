@@ -36,9 +36,6 @@ void bindMaterialPattern(pybind11::module_& module);
 /** Registers the Substance archive as a Material, and the graph's
  *  description under `material.sbsar`, on @p module. */
 void bindMaterialSubstance(pybind11::module_& module);
-/** Registers signed-distance shapes and styles, OpenColorIO view
- *  transforms, and the Slang compiler on @p module. */
-void bindMaterialShading(pybind11::module_& module);
 /** Registers `material.shader`, a shader from its source or a file over
  *  the parameters a dict or a NamedTuple states, with `Target`, on
  *  @p module. */
@@ -47,8 +44,5 @@ void bindMaterialShader(pybind11::module_& module);
  *  sampled — its sampling and pixel-rectangle values, the image leaf, the
  *  flipbook, the flow map and the instance attribute key on @p module. */
 void bindMaterialTexture(pybind11::module_& module);
-/** Registers the authoring tools' texture folders by role, and the
- *  sprite atlas on @p module. */
-void bindMaterialTextureSets(pybind11::module_& module);
 
 }  // namespace sigil::python

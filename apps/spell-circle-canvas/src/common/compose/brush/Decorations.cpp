@@ -289,12 +289,12 @@ void Border::paint(draw::Pen& pen, const PaintContext& ctx) const {
       break;
     case Mode::Bracket:
       strokeWith(geometry::path::toSk(lines::cornerBrackets(
-                     geometry::path::fromSk(base), corner, cornerAngleDeg)),
+                     geometry::path::fromSk(base), corner, cornerAngleDegrees)),
                  width);
       break;
     case Mode::Gapped:
       strokeWith(geometry::path::toSk(lines::cornerGaps(
-                     geometry::path::fromSk(base), corner, cornerAngleDeg)),
+                     geometry::path::fromSk(base), corner, cornerAngleDegrees)),
                  width);
       break;
     case Mode::Weighted:
@@ -302,10 +302,10 @@ void Border::paint(draw::Pen& pen, const PaintContext& ctx) const {
       // `width`, then the corners themselves at `cornerWidth` — a rule that
       // thickens where it turns.
       strokeWith(geometry::path::toSk(lines::cornerGaps(
-                     geometry::path::fromSk(base), corner, cornerAngleDeg)),
+                     geometry::path::fromSk(base), corner, cornerAngleDegrees)),
                  width);
       strokeWith(geometry::path::toSk(lines::cornerBrackets(
-                     geometry::path::fromSk(base), corner, cornerAngleDeg)),
+                     geometry::path::fromSk(base), corner, cornerAngleDegrees)),
                  cornerWidth > 0 ? cornerWidth : width);
       break;
   }

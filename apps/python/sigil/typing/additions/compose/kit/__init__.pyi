@@ -17,7 +17,7 @@ class _WellProperties(typing.TypedDict, total=False):
     height: _t.DimensionLike
     ground: _t.FillLike
     padding: float
-    paddingY: float | None
+    paddingVertical: float | None
     clip: bool
     corners: float
     keyline: _t.FillLike | None
@@ -58,7 +58,7 @@ class _SheetProperties(typing.TypedDict, total=False):
     title: str
     subtitle: str
     footer: str
-    marginX: float
+    marginHorizontal: float
     marginTop: float
     marginBottom: float
     subtitleGap: float

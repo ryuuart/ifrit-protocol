@@ -274,7 +274,8 @@ void GrimoireRenderer::synchronize(QQuickRhiItem* item) {
     QMutexLocker lock(&GrimoireView::hostMutex);
     if (GrimoireView::host)
       if (sketch::Session* session = GrimoireView::host->session())
-        session->viewpoint(view->m_yawDeg, view->m_pitchDeg, view->m_distance);
+        session->viewpoint(view->m_yawDegrees, view->m_pitchDegrees,
+                           view->m_distance);
   }
 }
 
@@ -466,13 +467,13 @@ void GrimoireRenderer::publishMetrics() {
       GrimoireView::host->frameTimes();
   metrics.insert(QStringLiteral("fps"), frameTimes.presentedFps());
   metrics.insert(
-      QStringLiteral("workMs"),
+      QStringLiteral("workMilliseconds"),
       sigil::measure::Milliseconds(frameTimes.work().mean()).count());
   metrics.insert(
       QStringLiteral("p99Ms"),
       sigil::measure::Milliseconds(frameTimes.work().quantile(0.99)).count());
   metrics.insert(QStringLiteral("headroomFps"), frameTimes.headroomFps());
-  metrics.insert(QStringLiteral("submitMs"), m_submitMsAverage);
+  metrics.insert(QStringLiteral("submitMilliseconds"), m_submitMsAverage);
   // WHAT THE FRAME IS LEAVING UNDER, while it is leaving: the name a
   // subscriber binds to, read off the publisher rather than remembered.
   if (m_publisher) {
@@ -795,7 +796,7 @@ void GrimoireRenderer::startPublishing() {
   // Only the Graphite frame path submits a texture to the publisher.
 #ifdef SIGIL_GRIMOIRE_GPU
   if (m_graphiteContext)
-    m_publisher = ifrit::qt::createPublisher(m_publicationHub, m_rhi,
+    m_publisher = sigil::qt::createPublisher(m_publicationHub, m_rhi,
                                              GrimoireView::publishName);
 #endif
   if (m_publisher) {
@@ -853,7 +854,7 @@ void GrimoireRenderer::publishFrame(QRhiTexture* texture,
   // The drawing has already been submitted on this device's queue and
   // the buffer below is the one Qt commits after render() returns, so
   // the copy is ordered behind the frame it is copying.
-  ifrit::qt::publishFrame(m_publisher, texture, commandBuffer, pixelSize);
+  sigil::qt::publishFrame(m_publisher, texture, commandBuffer, pixelSize);
 }
 
 void GrimoireRenderer::render(QRhiCommandBuffer* commandBuffer) {
@@ -940,11 +941,12 @@ void GrimoireRenderer::render(QRhiCommandBuffer* commandBuffer) {
           m_firstFrameCounted = true;
           pipelinesFirstFrameDrawn();
         }
-        const double submitMs =
+        const double submitMilliseconds =
             sigil::measure::Milliseconds(submitWatch.elapsed()).count();
-        m_submitMsAverage = m_submitMsAverage == 0.0
-                                ? submitMs
-                                : m_submitMsAverage * 0.95 + submitMs * 0.05;
+        m_submitMsAverage =
+            m_submitMsAverage == 0.0
+                ? submitMilliseconds
+                : m_submitMsAverage * 0.95 + submitMilliseconds * 0.05;
         refreshThumbnail();
         reportWrittenThumbnails();
         runPendingCaptures();
@@ -1027,10 +1029,10 @@ void GrimoireRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QRhiTextureSubresourceUploadDescription sub(uploadBytes);
   batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
   commandBuffer->resourceUpdate(batch);
-  const double submitMs =
+  const double submitMilliseconds =
       sigil::measure::Milliseconds(submitWatch.elapsed()).count();
-  m_submitMsAverage = m_submitMsAverage == 0.0
-                          ? submitMs
-                          : m_submitMsAverage * 0.95 + submitMs * 0.05;
+  m_submitMsAverage = m_submitMsAverage == 0.0 ? submitMilliseconds
+                                               : m_submitMsAverage * 0.95 +
+                                                     submitMilliseconds * 0.05;
   update();
 }

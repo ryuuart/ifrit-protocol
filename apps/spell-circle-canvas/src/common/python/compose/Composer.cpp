@@ -174,8 +174,9 @@ void bindReports(py::class_<ComposerHandle>& composer) {
       }))
       .def("copy", [](const Composer::NodeCost& value) { return value; })
       .def_readwrite("label", &Composer::NodeCost::label)
-      .def_readwrite("selfMs", &Composer::NodeCost::selfMs)
-      .def_readwrite("totalMs", &Composer::NodeCost::totalMs)
+      .def_readwrite("selfMilliseconds", &Composer::NodeCost::selfMilliseconds)
+      .def_readwrite("totalMilliseconds",
+                     &Composer::NodeCost::totalMilliseconds)
       .def_readwrite("depth", &Composer::NodeCost::depth)
       .def_readwrite("cacheState", &Composer::NodeCost::cacheState)
       .def_readwrite("effectDeferred", &Composer::NodeCost::effectDeferred)

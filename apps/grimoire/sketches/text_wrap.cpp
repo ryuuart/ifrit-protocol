@@ -64,7 +64,7 @@ sigil::weave::Face serif() {
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = 48;
+  look.spacing.marginHorizontal = 48;
   look.spacing.marginTop = 44;
   look.spacing.marginBottom = 28;
   return look;

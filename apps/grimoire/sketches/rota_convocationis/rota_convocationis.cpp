@@ -296,7 +296,7 @@ Element brokenRing(float radius, int count, float span, float from, float width,
                      {.divisions = count,
                       .from = from,
                       .mark = {(px - width * 0.5f) / (px + width * 0.5f), 1.0f},
-                      .spanDeg = span})),
+                      .spanDegrees = span})),
              width, 0.0f);
   slabs.fill(Fill::color(ink));
   return slabs;
@@ -434,14 +434,13 @@ struct RotaConvocationis {
         run.span(weave::selectors::text(band.stop),
                  SpanStyle().ink(band.stopInk));
       if (band.turning == kNames) run.filter(Filter::glow(kHalo, 6.0f));
-      return turning(
-          piece, turn(band.turning, -home), kindle[band.turning],
-          kit::at(std::move(run), piece.eye().x - px, piece.eye().y - px,
-                  2 * px, 2 * px)
-              .textOnPath({.path = shapes::circle(),
-                           .offset = -kDeclaredSize * 0.34f,
-                           .fit = TextPath::Fit::Size,
-                           .fill = band.fill}));
+      return turning(piece, turn(band.turning, -home), kindle[band.turning],
+                     kit::at(std::move(run), piece.eye().x - px,
+                             piece.eye().y - px, 2 * px, 2 * px)
+                         .textOnPath({.path = shapes::circle(),
+                                      .offset = -kDeclaredSize * 0.34f,
+                                      .fit = TextPath::Fit::Size,
+                                      .fill = band.fill}));
     }));
   }
 
@@ -460,7 +459,7 @@ struct RotaConvocationis {
           .shape(shapes::arcs(
               {.divisions = 1,
                .mark = {(px - width * 0.5f) / (px + width * 0.5f), 1.0f},
-               .spanDeg = span}))
+               .spanDegrees = span}))
           .fill(sigil::material::conicGradient(
               {0.5f, 0.5f},
               {{0.0f, hexColor(0xFFB13A, ahead > 0 ? 0.0f : strength)},
@@ -638,7 +637,7 @@ struct RotaConvocationis {
                          shapes::arcs({.divisions = 3,
                                        .from = kPitch * 2.5f,
                                        .mark = {rCrescentIn / rCrescentOut, 1},
-                                       .spanDeg = crescentSpan})),
+                                       .spanDegrees = crescentSpan})),
                  1.3f, kLine),
              // Each crescent's rungs are stubs off its inner arc, so the mark
              // reads as a bracket and not as a grid.

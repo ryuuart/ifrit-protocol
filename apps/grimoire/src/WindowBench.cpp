@@ -54,7 +54,7 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
      *  opening it cost, kept apart from the stretch it is measured over. */
     double asked = 0.0;
     double opened = -1.0;
-    double slowestWarmMs = 0.0;
+    double slowestWarmMilliseconds = 0.0;
   };
   auto run = std::make_shared<Run>(
       Run{std::move(selection), 0, sketch::BenchCadence(times),
@@ -104,9 +104,10 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
           // could not draw drops it — and a stretch measured over no
           // session is stood down below rather than read.
           if (host) {
-            run->slowestWarmMs = sigil::measure::Milliseconds(
-                                     host->frameTimes().work().quantile(1.0))
-                                     .count();
+            run->slowestWarmMilliseconds =
+                sigil::measure::Milliseconds(
+                    host->frameTimes().work().quantile(1.0))
+                    .count();
             host->resetMetrics();
             run->framesAtBegin = host->presentedFrames();
             // The device's stages are timed over the measured stretch
@@ -179,11 +180,11 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                     host->frameTimes().work().quantile(0.99))
                     .count(),
                 sigil::measure::Milliseconds(host->drawTimes().mean()).count(),
-                metrics.value(QStringLiteral("submitMs")).toDouble(),
+                metrics.value(QStringLiteral("submitMilliseconds")).toDouble(),
                 host->frameTimes().headroomFps(),
                 run->opened >= 0.0 ? run->opened - run->asked : -1.0,
-                run->slowestWarmMs, powerSource().c_str(), gpuBusyPercent(),
-                device.c_str());
+                run->slowestWarmMilliseconds, powerSource().c_str(),
+                gpuBusyPercent(), device.c_str());
           }
         } else {
           // Step::Skip — the window never presented this entry's session.
@@ -205,7 +206,7 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
         run->cadence.select(now);
         run->asked = now;
         run->opened = -1.0;
-        run->slowestWarmMs = 0.0;
+        run->slowestWarmMilliseconds = 0.0;
       });
   timer->start();
   return true;

@@ -147,7 +147,7 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
 }
 
 void drawStamp(SkCanvas& c, const SkPicture& picture, const PathSample& sample,
-               bool align, float rotateDeg, float scaleX, float scaleY,
+               bool align, float rotateDegrees, float scaleX, float scaleY,
                const StampModifier& m) {
   if (m.skip || m.alpha <= 0.003f || m.scale <= 0.001f) return;
   const SkRect cull = picture.cullRect();
@@ -157,7 +157,7 @@ void drawStamp(SkCanvas& c, const SkPicture& picture, const PathSample& sample,
     c.rotate(geometry::path::degrees(
         std::atan2(sample.tangent.y, sample.tangent.x)));
   c.translate(m.dAlong, m.dNormal);  // tangent frame (post-align)
-  c.rotate(rotateDeg + m.rotateDeg);
+  c.rotate(rotateDegrees + m.rotateDegrees);
   c.scale(scaleX * m.scale, scaleY * m.scale);
   c.translate(-cull.width() / 2, -cull.height() / 2);
   if (m.alpha < 1.0f) {
@@ -210,7 +210,8 @@ void Scatter::paint(draw::Pen& pen, const PaintContext& ctx) const {
       m.dAlong += core::noise::hash(seed, 4 * k) * jitterAlong;
       m.dNormal += core::noise::hash(seed, 4 * k + 1) * jitterNormal;
       m.scale *= 1.0f + core::noise::hash(seed, 4 * k + 2) * jitterScale;
-      m.rotateDeg += core::noise::hash(seed, 4 * k + 3) * jitterRotateDeg;
+      m.rotateDegrees +=
+          core::noise::hash(seed, 4 * k + 3) * jitterRotateDegrees;
     }
     drawStamp(c, *picture, samples[i], alignToPath, 0, 1, 1, m);
   }
@@ -289,7 +290,7 @@ void Pattern::paint(draw::Pen& pen, const PaintContext& ctx) const {
     std::vector<geometry::path::Contour::Corner> corners;
     if (cache->corner)
       corners = sigil::compose::detail::cornersOrWarn(
-          contour, cornerAngleDeg, tileLen * 0.5f,
+          contour, cornerAngleDegrees, tileLen * 0.5f,
           std::clamp(tileLen * 0.25f, 1.0f, 6.0f));
 
     // Open-contour caps reserve their slots at the ends.

@@ -266,10 +266,10 @@ struct Composer::Impl {
 
   mutable Stats stats;
   // ---- per-node paint profiler (opt-in; Composer::setProfiling) ----------
-  // profChildMs is the running total the CURRENT node's children have cost;
-  // each node saves its parent's value, zeroes it, paints, then reports its
-  // own total upward. That gives selfMs = totalMs - children without a
-  // second traversal.
+  // profileChildMilliseconds is the running total the CURRENT node's children
+  // have cost; each node saves its parent's value, zeroes it, paints, then
+  // reports its own total upward. That gives selfMilliseconds =
+  // totalMilliseconds - children without a second traversal.
   bool profileEnabled = false;
   /** Composer::setBakeDensity: device pixels per layout unit every pixel
    *  bake is taken at, whatever the frame's matrix says. Zero is the
@@ -367,11 +367,12 @@ struct Composer::Impl {
                                     const SkImageInfo& info) const;
   SkSurface* bakeSurface(SkCanvas& canvas, SkISize need);
   std::vector<Composer::NodeCost> profileRows;
-  double profChildMs = 0;
+  double profileChildMilliseconds = 0;
   int profDepth = 0;
   // render()/renderSlot() phase time accumulated since the previous draw();
-  // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
-  double reconcileAccumMs = 0;
+  // draw() publishes it as stats.reconcileMilliseconds and zeroes the
+  // accumulator.
+  double reconcileAccumulatedMilliseconds = 0;
   /** Whole-tree Yoga calculations since the previous draw(). */
   size_t layoutCalculations = 0;
 

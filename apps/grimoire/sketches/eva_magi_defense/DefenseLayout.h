@@ -305,8 +305,8 @@ enum class LabelRole : uint8_t {
 
 struct LabelRegister {
   float size;
-  float insetX;
-  float insetY;
+  float insetHorizontal;
+  float insetVertical;
   float lineGap;
 };
 

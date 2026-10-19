@@ -15,8 +15,8 @@ float signed180(float deg) { return wrap(deg + 180.0f, 360.0f) - 180.0f; }
 /** Mercator's ordinate at a latitude, in units of the scale: the integral
  *  of the secant, which runs away at the poles. Held just short of them,
  *  since a chart drawn to infinity has no bounds anybody can measure. */
-float mercatorOrdinate(float latDeg) {
-  const float lat = std::clamp(latDeg, -89.9999f, 89.9999f);
+float mercatorOrdinate(float latitudeDegrees) {
+  const float lat = std::clamp(latitudeDegrees, -89.9999f, 89.9999f);
   return std::log(std::tan(radians(45.0f + lat * 0.5f)));
 }
 
@@ -24,7 +24,7 @@ float mercatorOrdinate(float latDeg) {
  *  well defined at a pole too, where it is the direction square to that
  *  point's own meridian. */
 glm::vec3 eastAt(Spherical s) {
-  const float lon = radians(s.lonDeg);
+  const float lon = radians(s.longitudeDegrees);
   return {-std::sin(lon), std::cos(lon), 0};
 }
 
@@ -42,7 +42,7 @@ glm::vec3 anyPerpendicular(glm::vec3 v) {
 // Spherical.
 
 glm::vec3 Spherical::direction() const {
-  const float lat = radians(latDeg), lon = radians(lonDeg);
+  const float lat = radians(latitudeDegrees), lon = radians(longitudeDegrees);
   const float cosLat = std::cos(lat);
   return {cosLat * std::cos(lon), cosLat * std::sin(lon), std::sin(lat)};
 }
@@ -60,13 +60,14 @@ float angleBetween(Spherical a, Spherical b) {
   return degrees(2.0f * std::asin(std::clamp(chord * 0.5f, 0.0f, 1.0f)));
 }
 
-Spherical offsetFrom(Spherical from, float bearingDeg, float arcDeg) {
-  const float lat = radians(from.latDeg), lon = radians(from.lonDeg);
+Spherical offsetFrom(Spherical from, float bearingDegrees, float arcDegrees) {
+  const float lat = radians(from.latitudeDegrees),
+              lon = radians(from.longitudeDegrees);
   const float sinLat = std::sin(lat), cosLat = std::cos(lat);
   const glm::vec3 north{-sinLat * std::cos(lon), -sinLat * std::sin(lon),
                         cosLat};
   const glm::vec3 east{-std::sin(lon), std::cos(lon), 0};
-  const float bearing = radians(bearingDeg), arc = radians(arcDeg);
+  const float bearing = radians(bearingDegrees), arc = radians(arcDegrees);
   const glm::vec3 along = std::cos(bearing) * north + std::sin(bearing) * east;
   return Spherical::of(std::cos(arc) * from.direction() +
                        std::sin(arc) * along);
@@ -104,8 +105,11 @@ Rotation Rotation::aboutZ(float deg) {
   return {glm::mat3{c, s, 0, -s, c, 0, 0, 0, 1}};
 }
 
-Rotation Rotation::zyz(float aDeg, float bDeg, float cDeg) {
-  return aboutZ(cDeg).then(aboutY(bDeg)).then(aboutZ(aDeg));
+Rotation Rotation::zyz(float alphaDegrees, float betaDegrees,
+                       float gammaDegrees) {
+  return aboutZ(gammaDegrees)
+      .then(aboutY(betaDegrees))
+      .then(aboutZ(alphaDegrees));
 }
 
 // ---------------------------------------------------------------------------
@@ -116,27 +120,29 @@ bool Projection::azimuthal() const {
          scheme == Scheme::AzimuthalEquidistant || scheme == Scheme::Gnomonic;
 }
 
-float Projection::radiusAt(float arcDeg) const {
+float Projection::radiusAt(float arcDegrees) const {
   switch (scheme) {
     case Scheme::Stereographic: {
       // The far point of the sphere is infinitely far up the paper, and a
       // path carrying a point there has no bounds worth reading, so the
       // half-angle is held just short of the turn that puts it there.
-      const float half = std::clamp(radians(arcDeg) * 0.5f, -1.5707f, 1.5707f);
+      const float half =
+          std::clamp(radians(arcDegrees) * 0.5f, -1.5707f, 1.5707f);
       return 2.0f * scale * std::tan(half);
     }
     case Scheme::Orthographic:
-      return scale * std::sin(radians(arcDeg));
+      return scale * std::sin(radians(arcDegrees));
     case Scheme::Gnomonic:
       // The horizon is infinitely far out, so the arc is held just short
       // of the quarter turn that puts it there.
-      return scale * std::tan(std::clamp(radians(arcDeg), -1.5607f, 1.5607f));
+      return scale *
+             std::tan(std::clamp(radians(arcDegrees), -1.5607f, 1.5607f));
     case Scheme::AzimuthalEquidistant:
     case Scheme::Equirectangular:
-      return scale * radians(arcDeg);
+      return scale * radians(arcDegrees);
     case Scheme::Mercator:
-      return scale * (mercatorOrdinate(centre.latDeg + arcDeg) -
-                      mercatorOrdinate(centre.latDeg));
+      return scale * (mercatorOrdinate(centre.latitudeDegrees + arcDegrees) -
+                      mercatorOrdinate(centre.latitudeDegrees));
   }
   return 0;
 }
@@ -153,8 +159,9 @@ float Projection::arcAtRadius(float radius) const {
     case Scheme::Equirectangular:
       return degrees(radius / scale);
     case Scheme::Mercator: {
-      const float y = radius / scale + mercatorOrdinate(centre.latDeg);
-      return degrees(2.0f * std::atan(std::exp(y))) - 90.0f - centre.latDeg;
+      const float y = radius / scale + mercatorOrdinate(centre.latitudeDegrees);
+      return degrees(2.0f * std::atan(std::exp(y))) - 90.0f -
+             centre.latitudeDegrees;
     }
   }
   return 0;
@@ -181,17 +188,18 @@ glm::vec2 Projection::at(Spherical direction) const {
     const float r = radiusAt(arc);
     p = {r * std::cos(bearing), r * std::sin(bearing)};
   } else {
-    p = {scale * radians(signed180(direction.lonDeg - centre.lonDeg)),
-         radiusAt(direction.latDeg - centre.latDeg)};
+    p = {scale * radians(signed180(direction.longitudeDegrees -
+                                   centre.longitudeDegrees)),
+         radiusAt(direction.latitudeDegrees - centre.latitudeDegrees)};
   }
   if (vantage == Vantage::Outside) p.x = -p.x;
-  const float roll = radians(rollDeg);
+  const float roll = radians(rollDegrees);
   const float c = std::cos(roll), s = std::sin(roll);
   return {p.x * c - p.y * s, p.x * s + p.y * c};
 }
 
 Spherical Projection::from(glm::vec2 point) const {
-  const float roll = radians(rollDeg);
+  const float roll = radians(rollDegrees);
   const float c = std::cos(roll), s = std::sin(roll);
   glm::vec2 p{point.x * c + point.y * s, -point.x * s + point.y * c};
   if (vantage == Vantage::Outside) p.x = -p.x;
@@ -205,12 +213,12 @@ Spherical Projection::from(glm::vec2 point) const {
         std::cos(arc) * u +
         std::sin(arc) * (std::cos(bearing) * east + std::sin(bearing) * north));
   }
-  return {wrap(centre.lonDeg + degrees(p.x / scale), 360.0f),
-          std::clamp(centre.latDeg + arcAtRadius(p.y), -90.0f, 90.0f)};
+  return {wrap(centre.longitudeDegrees + degrees(p.x / scale), 360.0f),
+          std::clamp(centre.latitudeDegrees + arcAtRadius(p.y), -90.0f, 90.0f)};
 }
 
 std::optional<PlaneCircle> Projection::circleOf(Spherical pole,
-                                                float arcDeg) const {
+                                                float arcDegrees) const {
   if (scheme != Scheme::Stereographic) return std::nullopt;
   const glm::vec3 u = centre.direction();
   const glm::vec3 q = pole.direction();
@@ -221,7 +229,7 @@ std::optional<PlaneCircle> Projection::circleOf(Spherical pole,
   const glm::vec3 toward = u - glm::dot(u, q) * q;
   const float reach = glm::length(toward);
   const glm::vec3 along = reach > 1e-5f ? toward / reach : anyPerpendicular(q);
-  const float arc = radians(arcDeg);
+  const float arc = radians(arcDegrees);
   const glm::vec3 nearEnd = std::cos(arc) * q + std::sin(arc) * along;
   const glm::vec3 farEnd = std::cos(arc) * q - std::sin(arc) * along;
   // A circle through the point the projection is taken FROM is a straight
@@ -246,7 +254,7 @@ Projection stock(Scheme scheme, const ProjectionOptions& options) {
   return {.scheme = scheme,
           .centre = options.centre,
           .scale = options.scale,
-          .rollDeg = options.rollDegrees,
+          .rollDegrees = options.rollDegrees,
           .vantage = options.vantage};
 }
 }  // namespace

@@ -565,7 +565,7 @@ TEST(SketchHost,
   EXPECT_EQ(CaptureClock::paints, 1);
   ASSERT_TRUE(host.frame(1.0 / 60.0));
   EXPECT_EQ(CaptureClock::paints, 1);
-  EXPECT_EQ(host.session()->timing().drawMs, 0);
+  EXPECT_EQ(host.session()->timing().drawMilliseconds, 0);
 
   EXPECT_FALSE(host.photograph().isNull());
   EXPECT_EQ(CaptureClock::paints, 2);

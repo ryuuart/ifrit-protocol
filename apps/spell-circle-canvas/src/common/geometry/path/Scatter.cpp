@@ -2,7 +2,6 @@
  * The region, the three spreads, and the relaxation that turns any of
  * them into blue noise.
  */
-#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Scatter.h"
 
 #include <algorithm>
@@ -13,6 +12,7 @@
 #include <numbers>
 #include <utility>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Neighbours.h"
 
 namespace sigil::geometry::path {
@@ -234,14 +234,15 @@ std::vector<glm::vec2> latticePoints(const Region& region, const Inside& inside,
   // Whatever the cells do not cover is split between the two margins, so a
   // side that is not a whole multiple of the pitch is centred rather than
   // left short on one edge.
-  const float insetX = (box.width() - (float)columns * spacing) * 0.5f;
-  const float insetY = (box.height() - (float)rows * spacing) * 0.5f;
+  const float insetHorizontal = (box.width() - (float)columns * spacing) * 0.5f;
+  const float insetVertical = (box.height() - (float)rows * spacing) * 0.5f;
   const float jitter = std::clamp(distribution.jitter, 0.0f, 1.0f);
   auto [streamX, streamY] = axes(distribution);
   for (int row = 0; row < rows; ++row)
     for (int column = 0; column < columns; ++column) {
-      glm::vec2 candidate{box.fLeft + insetX + ((float)column + 0.5f) * spacing,
-                          box.fTop + insetY + ((float)row + 0.5f) * spacing};
+      glm::vec2 candidate{
+          box.fLeft + insetHorizontal + ((float)column + 0.5f) * spacing,
+          box.fTop + insetVertical + ((float)row + 0.5f) * spacing};
       if (jitter > 0) {
         // Both draws are taken whatever the candidate turns out to be, so
         // the lattice a seed answers does not depend on which cells the

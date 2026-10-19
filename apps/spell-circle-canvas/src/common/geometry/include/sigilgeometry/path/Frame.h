@@ -8,8 +8,8 @@
  *
  * A `PolarFrame` converts `(angle, radius)` — numbers measured off a
  * reference drawing — into a point, a rectangle or an arc-length
- * fraction, in that drawing's angle convention. A `Grid` carries an artefact's own
- * units onto the canvas: a scale, an origin, a y axis and a snap.
+ * fraction, in that drawing's angle convention. A `Grid` carries an artefact's
+ * own units onto the canvas: a scale, an origin, a y axis and a snap.
  */
 
 #include <algorithm>
@@ -58,7 +58,7 @@ struct PolarFrame {
    *  source that is not square to its own axes, and an index ring offset
    *  by half a division, which otherwise becomes a stray constant added at
    *  every call site. */
-  float originDeg = 0.0f;
+  float originDegrees = 0.0f;
 
   bool operator==(const PolarFrame&) const = default;
 
@@ -75,14 +75,14 @@ struct PolarFrame {
    *  the screen's. */
   constexpr float screenDegrees(float deg) const {
     const float base = zero == Zero::North ? -90.0f : 0.0f;
-    return base + originDeg + (sense == Sense::CW ? deg : -deg);
+    return base + originDegrees + (sense == Sense::CW ? deg : -deg);
   }
   /** A SWEEP in this frame's units as a screen sweep — sign only, no
    *  origin. Kept separate from screenDegrees() because adding the origin
    *  twice is the classic bug when an arc is spelled as two absolute
    *  angles. */
-  constexpr float screenSweep(float sweepDeg) const {
-    return sense == Sense::CW ? sweepDeg : -sweepDeg;
+  constexpr float screenSweep(float sweepDegrees) const {
+    return sense == Sense::CW ? sweepDegrees : -sweepDegrees;
   }
   /** This frame's @p deg AS A SCREEN ANGLE in radians about +x, ready
    *  for `std::cos`/`sin` against a screen-space point. Named apart from
@@ -97,8 +97,7 @@ struct PolarFrame {
    *  is an ordinary thing to want.
    *  @trap Only exact on a CIRCLE — an ellipse's arc length is not
    *  proportional to its angle, so an oblong box drifts. */
-  float fraction(float deg,
-                 Winding baseline = Winding::OutersClockwise) const {
+  float fraction(float deg, Winding baseline = Winding::OutersClockwise) const {
     const float screen = baseline == Winding::OutersClockwise
                              ? screenDegrees(deg)
                              : -screenDegrees(deg);
@@ -111,10 +110,9 @@ struct PolarFrame {
   constexpr float degreesOf(float frac,
                             Winding baseline = Winding::OutersClockwise) const {
     const float base = zero == Zero::North ? -90.0f : 0.0f;
-    const float screen = baseline == Winding::OutersClockwise
-                             ? frac * 360.0f
-                             : -frac * 360.0f;
-    const float rel = screen - base - originDeg;
+    const float screen =
+        baseline == Winding::OutersClockwise ? frac * 360.0f : -frac * 360.0f;
+    const float rel = screen - base - originDegrees;
     return sense == Sense::CW ? rel : -rel;
   }
 
@@ -166,18 +164,18 @@ struct PolarFrame {
    *  four-field restatement, which is where a convention gets silently
    *  dropped. */
   constexpr PolarFrame scaled(float k) const {
-    return {centre, radius * k, zero, sense, originDeg};
+    return {centre, radius * k, zero, sense, originDegrees};
   }
   /** The same frame about a different centre — a satellite figure that
    *  inherits the plate's angle convention. */
   constexpr PolarFrame about(glm::vec2 c) const {
-    return {c, radius, zero, sense, originDeg};
+    return {c, radius, zero, sense, originDegrees};
   }
   /** The same frame with its zero turned by @p deg IN THIS FRAME'S SENSE.
    *  Composes: `f.turned(4.5f).turned(-4.5f) == f`. */
   constexpr PolarFrame turned(float deg) const {
     return {centre, radius, zero, sense,
-            originDeg + (sense == Sense::CW ? deg : -deg)};
+            originDegrees + (sense == Sense::CW ? deg : -deg)};
   }
   /** @} */
 };

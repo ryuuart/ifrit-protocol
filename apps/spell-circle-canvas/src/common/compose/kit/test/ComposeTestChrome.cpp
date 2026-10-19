@@ -5,9 +5,9 @@
 
 #include <include/core/SkColor.h>
 #include <sigilcompose/brush/PixelStyles.h>
-#include <sigilmaterial/pattern/Patterns.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilmaterial/pattern/Patterns.h>
 
 #include "support/ShapeTestSupport.h"
 
@@ -30,11 +30,8 @@ constexpr int kX = 20, kY = 20, kW = 100, kH = 60;
  *  overlay — over the fill, under nothing, which is the slot a bevel
  *  wants. */
 Element panel(const kit::Bevel& b) {
-  return box().padding(kX).children({box()
-                                         .width(kW)
-                                         .height(kH)
-                                         .fill(kFace)
-                                         .overlay(b)});
+  return box().padding(kX).children(
+      {box().width(kW).height(kH).fill(kFace).overlay(b)});
 }
 
 /** The pixel at (x, y) of the FACE's own coordinates. */
@@ -178,8 +175,7 @@ TEST(KitChrome, DressingAPanelPutsTheInnerRingOverItsContent) {
   kit::Bevel b = plain();
   b.inner = kit::BevelInner{6, {1, 1, 1, 1}, {0, 0, 0, 1}, 1, 1, false};
   const auto panelWith = [&](bool dressed) {
-    Element face =
-        box().width(kW).height(kH).fill(kFace).padding(6);
+    Element face = box().width(kW).height(kH).fill(kFace).padding(6);
     if (dressed)
       kit::bevelled(face, b);
     else
@@ -305,11 +301,8 @@ TEST(KitChrome, AMaskedMitredRingDrawsOnlyTheSidesItNames) {
 TEST(KitChrome, AStippleTakesEveryOtherCellAndLeavesTheRest) {
   Host host(140, 100);
   host.composer.render(box().padding(kX).children(
-      {box()
-           .width(kW)
-           .height(kH)
-           .fill(sigil::material::from(kFace).layer(
-               sigil::material::pattern::stipple({.color = {1, 0, 0, 1}})))}));
+      {box().width(kW).height(kH).fill(sigil::material::from(kFace).layer(
+          sigil::material::pattern::stipple({.color = {1, 0, 0, 1}})))}));
   host.frame();
   // stipple(x, y) = (x + y) is even, at one pixel per cell.
   for (int y = 0; y < 4; ++y)
@@ -332,11 +325,8 @@ TEST(KitChrome, ADitherTakesAsManyCellsAsItsToneAsksFor) {
 TEST(KitChrome, ThePixelLatticeStippleDrawsInsideTheOutline) {
   Host host(140, 100);
   host.composer.render(box().padding(kX).children(
-      {box()
-           .width(kW)
-           .height(kH)
-           .fill(sigil::material::from(kFace).layer(
-               sigil::material::pattern::stipple({.color = {1, 0, 0, 1}})))}));
+      {box().width(kW).height(kH).fill(sigil::material::from(kFace).layer(
+          sigil::material::pattern::stipple({.color = {1, 0, 0, 1}})))}));
   host.frame();
   // Nothing outside the face: a tile drawn over the bounds and clipped to
   // nothing would flood the host.
@@ -397,7 +387,7 @@ TEST(KitChrome, TheFourEraTokenSetsResolveToTheirOwnEdge) {
   // A stamped plate: the only one of the four whose edge is moulded.
   const kit::Bevel stamped = kit::bevels::plate(kLit, kShade);
   EXPECT_GT(stamped.softness, 0);
-  EXPECT_EQ(stamped.angleDeg, 118);
+  EXPECT_EQ(stamped.angleDegrees, 118);
   EXPECT_TRUE(kit::bevels::plate(kLit, kShade, 1.4f, 1.8f, true).sunken);
 }
 
@@ -422,11 +412,8 @@ TEST(KitChrome, TheThemeCarriesTheEraToEveryPanelUnderIt) {
   // else, which is the whole point of the token set.
   const auto describe = [](kit::Bevel era) {
     const sigil::core::environment::Provide<kit::Bevel> bound(era);
-    return box().padding(kX).children({box()
-                                           .width(kW)
-                                           .height(kH)
-                                           .fill(kFace)
-                                           .overlay(kit::ambientBevel())});
+    return box().padding(kX).children(
+        {box().width(kW).height(kH).fill(kFace).overlay(kit::ambientBevel())});
   };
   Host host(140, 100);
   host.composer.render(describe(plain()));
@@ -452,11 +439,7 @@ TEST(KitChrome, ABevelUnderASpanGateKeepsItsRingInsideTheShape) {
   // panel's 320 px is the lower half of the LEFT edge and nothing else.
   // Its implicit closure is a straight line enclosing nothing at all.
   auto face = [](float reveal) {
-    Element panel = box()
-                        .width(kW)
-                        .height(kH)
-                        .fill(kFace)
-                        .overlay(plain());
+    Element panel = box().width(kW).height(kH).fill(kFace).overlay(plain());
     panel.mask(by::spans(spans::upTo(reveal)));
     return box().padding(kX).children({std::move(panel)});
   };

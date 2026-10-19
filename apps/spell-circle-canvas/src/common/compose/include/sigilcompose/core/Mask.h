@@ -8,14 +8,13 @@
  * Mask, the pairing of the two that `Element::mask` stacks.
  */
 
-#include <sigilgeometry/path/Outline.h>
 #include <include/core/SkPath.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcore/comparable/Erased.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <cassert>
@@ -97,7 +96,8 @@ class Region {
   bool operator==(const Region& other) const;
 
   /** The outline this region covers, given the node's own silhouette. */
-  geometry::path::Outline resolve(const geometry::path::Outline& ownShape) const;
+  geometry::path::Outline resolve(
+      const geometry::path::Outline& ownShape) const;
 
  private:
   Kind m_kind = Kind::Own;
@@ -208,19 +208,20 @@ namespace by {
  *  stroke slot uses, here answering "how much of this exists yet" rather
  *  than "where does this pass go".
  *
- *      .mask(by::spans(spans::upTo(animate({.from = 0.f, .to = 1.f, .duration = 600ms}))))
+ *      .mask(by::spans(spans::upTo(animate({.from = 0.f, .to = 1.f, .duration =
+ * 600ms}))))
  *
  *  A boundary is a 1-D coordinate, so this gate addresses only the paint
  *  that TRACES the boundary — the surface and the marks. Selecting content
  *  or children with it means nothing and DOES NOTHING, silently. */
 Gate spans(Spans where);
-/** A MOVING STRAIGHT EDGE at `angleDeg` across the node's laid-out box,
+/** A MOVING STRAIGHT EDGE at `angleDegrees` across the node's laid-out box,
  *  showing the fraction lying before it (0 = left-to-right, 90 = top to
  *  bottom, 180 = right-to-left, 270 = from the bottom). This is the gate
  *  that reveals a filled surface by EXTENDING it — an arc-length window
  *  walks the perimeter instead, and scaleX/scaleY squash rather than
  *  reveal. */
-Gate edge(float angleDeg, motion::Animatable<float> fraction);
+Gate edge(float angleDegrees, motion::Animatable<float> fraction);
 /** A REGION of the node's local space, kept. `by::shape(Region::own())` is
  *  what `overflow(Overflow::Clip)` does. */
 Gate shape(Region r);
@@ -284,7 +285,7 @@ class Gate {
   enum class Channel : uint8_t { Alpha, Luma };
   Kind kind = Kind::Spans;
   Spans where;                                ///< Spans
-  float angleDeg = 0.0f;                      ///< Edge
+  float angleDegrees = 0.0f;                  ///< Edge
   motion::Animatable<float> fraction = 1.0f;  ///< Edge
   Region region;                              ///< Shape
   /** Shape AND Coverage: keep the COMPLEMENT of what this gate names —

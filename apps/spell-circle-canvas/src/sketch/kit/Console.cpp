@@ -28,12 +28,13 @@ compose::Element console(const Console& panel) {
                  .styles = std::move(styles)},
        .stacked = panel.stacked,
        .stackGap = look.spacing.rowGap,
-       .plate = {.paddingX = look.spacing.panelPadding,
-                 .paddingY = look.spacing.panelPadding * 0.6f,
+       .plate = {.paddingHorizontal = look.spacing.panelPadding,
+                 .paddingVertical = look.spacing.panelPadding * 0.6f,
                  .gap = look.spacing.labelGap,
                  .border = border,
                  .divider = border}});
-  plate.fill(panel.ground.value_or(compose::Fill::color(look.palette.cellGround)));
+  plate.fill(
+      panel.ground.value_or(compose::Fill::color(look.palette.cellGround)));
   return plate;
 }
 

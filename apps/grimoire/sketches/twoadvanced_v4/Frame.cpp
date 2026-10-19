@@ -533,17 +533,18 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
   const float cx = 970, cy = 760;
 
   auto hair = [&](float x, float y, float w, float h, float dx, float dy,
-                  int delayMs) {
-    return at(box()
-                  .shape(ray(dx, dy))
-                  .stroke(spans::upTo(motion::animate(
-                              {.from = 0.0f,
-                               .to = 1.0f,
-                               .duration = 400ms,
-                               .delay = std::chrono::milliseconds(delayMs),
-                               .ease = motion::ease::outQuint})),
-                          stroke(1.5f, Fill::color(kCyan))),
-              x, y, w, h);
+                  int delayMilliseconds) {
+    return at(
+        box()
+            .shape(ray(dx, dy))
+            .stroke(spans::upTo(motion::animate(
+                        {.from = 0.0f,
+                         .to = 1.0f,
+                         .duration = 400ms,
+                         .delay = std::chrono::milliseconds(delayMilliseconds),
+                         .ease = motion::ease::outQuint})),
+                    stroke(1.5f, Fill::color(kCyan))),
+        x, y, w, h);
   };
 
   Element o = stack().inset(0).zIndex(90);

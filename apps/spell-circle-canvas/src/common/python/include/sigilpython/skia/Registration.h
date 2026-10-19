@@ -12,20 +12,6 @@
 
 namespace sigil::python {
 
-/** Registers shaders, gradients, colour and image filters, mask
- *  filters, path effects, blenders on @p module. */
-void bindSkiaEffects(pybind11::module_& module);
-/** Registers skFontStyle, typeface style and variation axes, SkFont,
- *  SkTextBlob on @p module. */
-void bindSkiaFonts(pybind11::module_& module);
-/** Registers skRRect, SkM44, the rest of SkMatrix, arcTo, path queries,
- *  SVG strings, Simplify, FillPathWithPaint, contour measures on @p
- *  module. */
-void bindSkiaPaths(pybind11::module_& module);
-/** Registers owned raster surfaces, the canvas seam, image info and
- *  pixmaps, the missing canvas verbs, SigilSkia direct draws and pixel
- *  helpers on @p module. */
-void bindSkiaSurfaces(pybind11::module_& module);
 /** Registers the shared drawing values on @p module. */
 void bindValues(pybind11::module_& module);
 

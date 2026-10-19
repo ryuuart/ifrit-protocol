@@ -31,7 +31,7 @@ struct RibbonCache;
 namespace sigil::compose::brush {
 
 /** The variable-width RIBBON: a filled band whose width follows a law —
- *  a linear taper by default, a calligraphic nib when `nibAngleDeg` ≥ 0
+ *  a linear taper by default, a calligraphic nib when `nibAngleDegrees` ≥ 0
  *  (the width peaks where the path runs perpendicular to the nib), or any
  *  `Profile` on the shared width seam — joined at the corners, and handed
  *  back as geometry by `band()` for anything that has to measure it. */
@@ -43,8 +43,8 @@ struct Ribbon {
    *  colours flat, and its maps on a page painted as surface maps. */
   std::optional<material::Material> fillMaterial;
   float widthStart = 10.0f, widthEnd = 2.0f;
-  float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
-  float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
+  float nibAngleDegrees = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
+  float nibContrast = 0.15f;      ///< thinnest fraction at nib-aligned tangents
   float step = 3.0f;  ///< clamped ≥ 0.5px at paint (0 would never advance)
 
   /** THE WIDTH LAW, on the shared PROFILE seam.
@@ -121,9 +121,9 @@ struct Ribbon {
   bool operator==(const Ribbon& o) const {
     return fill == o.fill && fillMaterial == o.fillMaterial &&
            widthStart == o.widthStart && widthEnd == o.widthEnd &&
-           nibAngleDeg == o.nibAngleDeg && nibContrast == o.nibContrast &&
-           step == o.step && width == o.width && join == o.join &&
-           miterLimit == o.miterLimit;
+           nibAngleDegrees == o.nibAngleDegrees &&
+           nibContrast == o.nibContrast && step == o.step && width == o.width &&
+           join == o.join && miterLimit == o.miterLimit;
   }
 
   /** THE BAND THIS RIBBON FILLS over @p spine — the same geometry `paint`

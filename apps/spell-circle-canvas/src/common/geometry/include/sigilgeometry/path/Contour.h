@@ -13,13 +13,13 @@
  * along" and one of "closed wraps around".
  */
 #include <glm/vec2.hpp>
-
-#include "sigilgeometry/path/Outline.h"
-#include "sigilgeometry/path/Stroke.h"
 #include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
+
+#include "sigilgeometry/path/Outline.h"
+#include "sigilgeometry/path/Stroke.h"
 
 /** THE 2D TIER. Its currency is an `Outline`, and everything here either
  *  measures one, remakes one or bends one: contours addressed by arc
@@ -107,19 +107,19 @@ class Contour {
    *  is resolved to whichever branch the walk reached first. */
   Nearest nearest(glm::vec2 point, float step = 2.0f) const;
 
-  /** Corners where the tangent turns by more than `angleDeg`, at least
+  /** Corners where the tangent turns by more than `angleDegrees`, at least
    *  `minSpacing` apart, found by walking the contour in `step`-length
    *  strides and bisecting to the turn. The distance answered is the
    *  last one at which the incoming tangent still holds, which at a real
    *  vertex is the vertex itself when a sample lands on it and a
    *  bisection's last fraction short of it when none does. A closed
    *  contour's seam counts.
-   *  `sharpestDeg`, when given, receives the largest turn seen whether or
+   *  `sharpestDegrees`, when given, receives the largest turn seen whether or
    *  not it crossed the threshold, so a caller can explain an empty
    *  result. */
-  std::vector<Corner> corners(float angleDeg, float minSpacing = 3.0f,
+  std::vector<Corner> corners(float angleDegrees, float minSpacing = 3.0f,
                               float step = 2.0f,
-                              float* sharpestDeg = nullptr) const;
+                              float* sharpestDegrees = nullptr) const;
 
  private:
   friend struct ContourAccess;
@@ -160,9 +160,9 @@ Outline displace(const Outline& outline, float amplitude, float wavelength,
                  bool zigzag);
 
 /** The pieces of every contour within `radius` of a corner sharper than
- *  `angleDeg` (`keepNearCorners`), or everything else (not). An open
+ *  `angleDegrees` (`keepNearCorners`), or everything else (not). An open
  *  contour's endpoints count as corners. */
 Outline cornerWindows(const Outline& outline, float radius,
-                      bool keepNearCorners, float angleDeg);
+                      bool keepNearCorners, float angleDegrees);
 
 }  // namespace sigil::geometry::path

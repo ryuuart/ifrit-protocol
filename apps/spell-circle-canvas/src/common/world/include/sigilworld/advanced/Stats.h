@@ -86,7 +86,7 @@ struct SceneStats {
 
   /** The sum of `deviceStages`: the frame's GPU time from its first
    *  stage to its last. */
-  [[nodiscard]] double deviceMs() const {
+  [[nodiscard]] double deviceMilliseconds() const {
     double total = 0.0;
     for (const DeviceStage& stage : deviceStages) total += stage.ms;
     return total;

@@ -83,7 +83,7 @@ struct RadialHatch {
    *  point crowds to solid ink at the centre otherwise. */
   float holeFraction = 0.08f;
   glm::vec2 centre = {0.5f, 0.5f};
-  float rotateDeg = 0.0f;
+  float rotateDegrees = 0.0f;
   /** STATED ring radii, in px from the centre. When non-empty this list
    *  replaces the `rings` spacing entirely — one circle per entry, exactly
    *  where it says. Use it whenever the radii matter: the even spacing
@@ -96,7 +96,7 @@ struct RadialHatch {
     return strokeFill == o.strokeFill && spokes == o.spokes &&
            rings == o.rings && width == o.width &&
            holeFraction == o.holeFraction && centre == o.centre &&
-           rotateDeg == o.rotateDeg && radiiPx == o.radiiPx;
+           rotateDegrees == o.rotateDegrees && radiiPx == o.radiiPx;
   }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;

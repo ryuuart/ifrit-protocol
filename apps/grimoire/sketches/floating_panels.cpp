@@ -138,8 +138,8 @@ Element card(float w, float h, material::Color accent) {
            sketch::kit::gauge({.fraction = 200.0f / 280.0f,
                                .diameter = gauge,
                                .thickness = gauge * 0.5f * (1 - 0.72f),
-                               .startDeg = 130,
-                               .sweepDeg = 280,
+                               .startDegrees = 130,
+                               .sweepDegrees = 280,
                                .track = Fill::color({1, 1, 1, 0.15f}),
                                .bar = Fill::color(accent)})
                .absolute()
@@ -187,7 +187,7 @@ struct FloatingPanels {
       return glm::vec3{(u - 0.5f) * 1400, -170, (v - 0.5f) * 1400};
     });
     const camera::Camera view{
-        .eye = {0, 80, 900}, .target = {0, 0, 0}, .fovYDeg = 38};
+        .eye = {0, 80, 900}, .target = {0, 0, 0}, .fovYDegrees = 38};
 
     // A sheet has one facing, and the floor is seen from the side its
     // winding calls the back, so both of its sides are drawn. The floor and
@@ -218,11 +218,11 @@ struct FloatingPanels {
              .key("screen")
              .transform(camera::place({0, -160, 60}, 0, 10))
              .fill(screen(wide, 1, /*layered=*/true))}));
-    const sk_sp<SkImage> picture = ctx.bakeScene3D(
-        cockpit,
-        {(int)kCanvas.width() * kBakeDensity,
-         (int)kCanvas.height() * kBakeDensity},
-        {.camera = view});
+    const sk_sp<SkImage> picture =
+        ctx.bakeScene3D(cockpit,
+                        {(int)kCanvas.width() * kBakeDensity,
+                         (int)kCanvas.height() * kBakeDensity},
+                        {.camera = view});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "One composition, flat and curved",

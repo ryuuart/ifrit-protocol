@@ -1,4 +1,3 @@
-#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <pybind11/operators.h>
@@ -6,6 +5,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Mask.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilpython/Bindings.h>
@@ -53,10 +53,16 @@ void bindRegion(py::module_& composition) {
                   "The node's own silhouette, which is the region `overflow` "
                   "uses.")
       .def_static(
-          "rect", [](py::handle bounds) { return Region::rect(geometry::path::fromSk(rect(bounds))); },
+          "rect",
+          [](py::handle bounds) {
+            return Region::rect(geometry::path::fromSk(rect(bounds)));
+          },
           py::arg("bounds"), "A rectangle in the node's local coordinates.")
       .def_static(
-          "oval", [](py::handle bounds) { return Region::oval(geometry::path::fromSk(rect(bounds))); },
+          "oval",
+          [](py::handle bounds) {
+            return Region::oval(geometry::path::fromSk(rect(bounds)));
+          },
           py::arg("bounds"),
           "The oval inscribed in a rectangle of the node's local "
           "coordinates.")
@@ -66,9 +72,9 @@ void bindRegion(py::module_& composition) {
             return Region::path(geometry::path::fromSk(path));
           },
           py::arg("path"),
-                  "An explicit path in the node's local space. A path "
-                  "compares by its structure, so this region prunes as the "
-                  "others do.")
+          "An explicit path in the node's local space. A path "
+          "compares by its structure, so this region prunes as the "
+          "others do.")
       .def("kind", &Region::kind, "Which shape this region is.")
       .def(
           "resolve",
@@ -77,7 +83,7 @@ void bindRegion(py::module_& composition) {
                 self.resolve(geometry::path::fromSk(ownShape)));
           },
           py::arg("ownShape"),
-           "The path this region covers, given the node's own silhouette.")
+          "The path this region covers, given the node's own silhouette.")
       .def("copy", [](const Region& self) { return self; })
       .def(py::self == py::self);
   copyProtocol(region);
@@ -188,7 +194,7 @@ void bindGates(py::module_& composition, py::module_& gates) {
             self.where = std::move(where);
           },
           "The runs of the boundary a spans gate shows. Read as a copy.")
-      .def_readwrite("angleDeg", &Gate::angleDeg,
+      .def_readwrite("angleDegrees", &Gate::angleDegrees,
                      "The direction an edge gate wipes in, in degrees.")
       .def_property(
           "fraction", [](const Gate& self) { return self.fraction; },
@@ -238,11 +244,11 @@ void bindGates(py::module_& composition, py::module_& gates) {
             "nothing to content or children.");
   gates.def(
       "edge",
-      [](float angleDeg, py::object fraction) {
-        return compose::by::edge(angleDeg, motionAnimatable(fraction));
+      [](float angleDegrees, py::object fraction) {
+        return compose::by::edge(angleDegrees, motionAnimatable(fraction));
       },
-      py::arg("angleDeg"), py::arg("fraction"),
-      "A straight edge at `angleDeg` across the node's laid-out box, "
+      py::arg("angleDegrees"), py::arg("fraction"),
+      "A straight edge at `angleDegrees` across the node's laid-out box, "
       "showing the fraction lying before it: 0 runs left to right, 90 top "
       "to bottom, 180 right to left, 270 from the bottom.");
   gates.def("shape", &compose::by::shape, py::arg("region"),

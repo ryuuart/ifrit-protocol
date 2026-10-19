@@ -143,9 +143,9 @@ auto TwoAdvancedV4::bakeHero(int w, int h, sketch::Scene2DContext& ctx)
   lens.eye = {0.0f, 30.0f, 320.0f};
   lens.target = {0.0f, 57.0f, 0.0f};
   lens.up = {0.0f, 1.0f, 0.0f};
-  lens.fovYDeg = 30.0f;
-  lens.zNear = 4.0f;
-  lens.zFar = 12000.0f;
+  lens.fovYDegrees = 30.0f;
+  lens.nearPlane = 4.0f;
+  lens.farPlane = 12000.0f;
 
   return ctx.bakeScene3D(scene, {w, h},
                          {.camera = lens, .background = hexColor(0x02070A)});

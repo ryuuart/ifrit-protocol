@@ -71,7 +71,7 @@ does not reshuffle ties.
   source language and line count, with canvas dimensions when known. The
   Open action and current-canvas status stay visible in each card.
 
-Grimoire uses the shared `Ifrit.Qt` system-palette theme and controls.
+Grimoire uses the shared `Sigil.Qt` system-palette theme and controls.
 It follows the operating system's light or dark appearance; rendered
 sketches keep their own palettes. Panels, headings, search, selection, status
 and buttons reuse the same controls as the SigilWeave gallery. View controls and sortable headings are

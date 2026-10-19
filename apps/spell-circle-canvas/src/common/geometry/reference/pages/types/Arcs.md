@@ -10,7 +10,7 @@ status: stable
 # Arcs
 
 A ring of CLOSED ARC SEGMENTS: N wedges of the annulus between two
-radii, each `spanDeg` wide, dealt round the frame the way
+radii, each `spanDegrees` wide, dealt round the frame the way
 `sigil::geometry::shapes::ticks` deals its marks.
 
 ## The curved sibling of a tick with a width
@@ -24,7 +24,7 @@ segmented progress ring, a fan of sectors, a broken annulus: each is one
 path here rather than N drawn things.
 
 Every angle is in the FRAME's units, exactly as `ticks()` reads them,
-and `sigil::geometry::shapes::Arcs::spanDeg` is a WIDTH, so it takes the
+and `sigil::geometry::shapes::Arcs::spanDegrees` is a WIDTH, so it takes the
 frame's sign but not its origin. A span wider than the pitch makes
 neighbours overlap, which a fill with a non-zero winding closes into a
 solid ring — say the pitch, not more, unless that is the drawing.

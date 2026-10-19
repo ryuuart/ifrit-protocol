@@ -48,7 +48,8 @@ path::RadialOptions radialOf(const Arcs& a, path::PolarFrame conventions) {
   options.sweepDegrees = a.sweep;
   options.closed = a.closed;
   options.connect = path::Connect::None;
-  options.marks = {path::Mark::segment(a.spanDeg, a.mark.inner, a.mark.outer)};
+  options.marks = {
+      path::Mark::segment(a.spanDegrees, a.mark.inner, a.mark.outer)};
   options.uniform = true;
   options.frame = conventions;
   return options;

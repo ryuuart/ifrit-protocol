@@ -69,8 +69,7 @@ void installTextMaterialResolver() {
 class Scene2DSession final : public Session {
  public:
   Scene2DSession(std::unique_ptr<Scene2DBody> sketch, weave::FontContext& fonts,
-                 Assets& assets, bool deterministic,
-                 std::string_view key = {},
+                 Assets& assets, bool deterministic, std::string_view key = {},
                  std::shared_ptr<const world::Runtime> runtime = nullptr)
       : m_fonts(fonts),
         m_assets(assets),
@@ -203,8 +202,8 @@ class Scene2DSession final : public Session {
           break;
       }
       char line[320];
-      std::snprintf(line, sizeof line, "%8.2f ms  %-40s %s", row.selfMs,
-                    row.label.c_str(), state);
+      std::snprintf(line, sizeof line, "%8.2f ms  %-40s %s",
+                    row.selfMilliseconds, row.label.c_str(), state);
       lines.emplace_back(line);
     }
     return lines;
@@ -232,11 +231,13 @@ class Scene2DSession final : public Session {
       m_sketch->update(seconds, ctx);
     }
     applySize();  // a sketch may resize itself mid-run, p5 style
-    m_timing.updateMs = measure::Milliseconds(m_laps.mark("update")).count();
+    m_timing.updateMilliseconds =
+        measure::Milliseconds(m_laps.mark("update")).count();
     if (discarded && !m_specification.paintDiscardedFrames) {
       m_paintSkipped = true;
-      m_timing.drawMs = 0;
-      m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
+      m_timing.drawMilliseconds = 0;
+      m_timing.totalMilliseconds =
+          measure::Milliseconds(m_laps.total()).count();
       m_lanes = {LaneCost{"recon", 0}, LaneCost{"layout", 0},
                  LaneCost{"volat", 0}, LaneCost{"paint", 0}};
       return;
@@ -249,13 +250,14 @@ class Scene2DSession final : public Session {
       m_composer->draw(canvas);
     }
     m_paintSkipped = false;
-    m_timing.drawMs = measure::Milliseconds(m_laps.mark("draw")).count();
-    m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
+    m_timing.drawMilliseconds =
+        measure::Milliseconds(m_laps.mark("draw")).count();
+    m_timing.totalMilliseconds = measure::Milliseconds(m_laps.total()).count();
     const compose::Composer::Stats& stats = m_composer->stats();
-    m_lanes = {LaneCost{"recon", stats.reconcileMs},
-               LaneCost{"layout", stats.layoutMs},
-               LaneCost{"volat", stats.volatileMs},
-               LaneCost{"paint", stats.paintMs}};
+    m_lanes = {LaneCost{"recon", stats.reconcileMilliseconds},
+               LaneCost{"layout", stats.layoutMilliseconds},
+               LaneCost{"volat", stats.volatileMilliseconds},
+               LaneCost{"paint", stats.paintMilliseconds}};
   }
 
   /** The declared canvas, applied when it moved. Tracked here because a
@@ -319,7 +321,8 @@ bool Scene2DKind::operator==(const Scene2DKind& other) const {
   const bool sameRuntime =
       m_runtime == other.m_runtime ||
       (m_runtime && other.m_runtime && *m_runtime == *other.m_runtime);
-  return m_factory == other.m_factory && m_needsDevice == other.m_needsDevice && sameRuntime;
+  return m_factory == other.m_factory && m_needsDevice == other.m_needsDevice &&
+         sameRuntime;
 }
 
 Kind Scene2DKind::opensOn(const world::Runtime& runtime) const {
@@ -355,9 +358,8 @@ std::unique_ptr<Session> openScene2D(
     std::unique_ptr<Scene2DBody> body, weave::FontContext& fonts,
     Assets& assets, bool deterministic, std::string_view key,
     std::shared_ptr<const world::Runtime> runtime) {
-  return std::make_unique<Scene2DSession>(std::move(body), fonts, assets,
-                                          deterministic, key,
-                                          std::move(runtime));
+  return std::make_unique<Scene2DSession>(
+      std::move(body), fonts, assets, deterministic, key, std::move(runtime));
 }
 
 }  // namespace sigil::sketch

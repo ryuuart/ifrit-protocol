@@ -1,4 +1,4 @@
-# Ifrit.Qt — the Qt Quick controls the desktop tools share, with the
+# Sigil.Qt — the Qt Quick controls the desktop tools share, with the
 # native window dressing beside them. A Qt module rather than a Sigil
 # library: its public surface is QML with native window and font services.
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts QuickTest)
@@ -9,11 +9,11 @@ set_source_files_properties(
   PROPERTIES QT_QML_SINGLETON_TYPE TRUE
 )
 
-qt_add_library(IfritQt STATIC)
-sigil_qt_target(IfritQt)
+qt_add_library(SigilQt STATIC)
+sigil_qt_target(SigilQt)
 
-qt_add_qml_module(IfritQt
-  URI Ifrit.Qt
+qt_add_qml_module(SigilQt
+  URI Sigil.Qt
   VERSION 1.0
   QML_FILES
     Theme.qml
@@ -45,10 +45,10 @@ qt_add_qml_module(IfritQt
 
 if(APPLE)
   sigil_frameworks(appkit AppKit)
-  target_sources(IfritQt PRIVATE WindowChrome.mm BackgroundRendering.mm)
-  target_link_libraries(IfritQt PRIVATE ${appkit})
+  target_sources(SigilQt PRIVATE WindowChrome.mm BackgroundRendering.mm)
+  target_link_libraries(SigilQt PRIVATE ${appkit})
 else()
-  target_sources(IfritQt PRIVATE WindowChromeStub.cpp)
+  target_sources(SigilQt PRIVATE WindowChromeStub.cpp)
 endif()
 
 # This module's one test binary. Its subject is the native window
@@ -59,11 +59,11 @@ endif()
 if(APPLE)
   sigil_test(qt_test
     SOURCES test/BackgroundRenderingTest.mm test/ActivityHoldTest.cpp
-    LIBRARIES IfritQt Qt6::Quick ${appkit}
+    LIBRARIES SigilQt Qt6::Quick ${appkit}
     SUITES BackgroundRendering LABELS cocoa)
 endif()
 
-target_link_libraries(IfritQt
+target_link_libraries(SigilQt
   PUBLIC
     Qt6::Quick
     Qt6::QuickControls2
@@ -72,11 +72,11 @@ target_link_libraries(IfritQt
   PRIVATE Qt::GuiPrivate
 )
 
-target_include_directories(IfritQt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(SigilQt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 qt_add_executable(qt_qml_test test/ControlsTest.cpp)
 sigil_qt_target(qt_qml_test)
-target_link_libraries(qt_qml_test PRIVATE IfritQtplugin Qt6::QuickTest)
+target_link_libraries(qt_qml_test PRIVATE SigilQtplugin Qt6::QuickTest)
 set_target_properties(qt_qml_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/tests")
 add_test(NAME qt_controls COMMAND qt_qml_test
@@ -87,7 +87,7 @@ set_tests_properties(qt_controls PROPERTIES
 # The documentation site, over the QML and the service headers in this
 # directory rather than an include/ root.
 sigil_add_docs(
-  NAME IfritQt
+  NAME SigilQt
   BRIEF "Reusable Qt Quick components shared by the desktop tools, plus native window dressing"
   INPUT
         ${CMAKE_CURRENT_SOURCE_DIR}/.
@@ -104,11 +104,11 @@ sigil_add_docs(
 sigil_doc_probes(qt
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
-  NAMESPACE ifrit::qt
+  NAMESPACE sigil::qt
   PRELUDES "<WindowChrome.h>" "<WindowCapture.h>" "<TexturePublisher.h>"
   EXCLUDE "Qt6::Quick=a CMake target name, not a C++ name"
           "Qt6::QuickControls2=a CMake target name, not a C++ name"
           "Qt6::QuickLayouts=a CMake target name, not a C++ name"
   SUPPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
   FLOORS 2,0,1,0,0
-  LIBRARIES IfritQt)
+  LIBRARIES SigilQt)

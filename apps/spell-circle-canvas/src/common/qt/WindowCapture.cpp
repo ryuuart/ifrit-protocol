@@ -8,12 +8,12 @@
 #include <cstdio>
 #include <utility>
 
-namespace ifrit::qt {
+namespace sigil::qt {
 
 void captureWindow(QQuickWindow& window, QString output,
                    WindowCaptureOptions options) {
   auto* timer = new QTimer(&window);
-  timer->setInterval(std::max(1, options.intervalMs));
+  timer->setInterval(std::max(std::chrono::milliseconds{1}, options.interval));
   const int warmupFrames = std::max(1, options.warmupFrames);
   const int readyFrames = std::max(0, options.maxReadyFrames);
   QObject::connect(
@@ -47,4 +47,4 @@ void captureWindow(QQuickWindow& window, QString output,
   timer->start();
 }
 
-}  // namespace ifrit::qt
+}  // namespace sigil::qt

@@ -628,11 +628,11 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`compose.brush.ribbon`: a band swept along the outline `stroke()` gives it, as wide as a width law says, a calligraphic nib at `nibAngleDeg` with its `nibContrast`, or a taper from the start's width to `widthEnd`, painted with a colour, a fill or a material; `Ribbon.band` hands back the region it fills"
+bound = "`compose.brush.ribbon`: a band swept along the outline `stroke()` gives it, as wide as a width law says, a calligraphic nib at `nibAngleDegrees` with its `nibContrast`, or a taper from the start's width to `widthEnd`, painted with a colour, a fill or a material; `Ribbon.band` hands back the region it fills"
 python = [
   "compose.brush.ribbon",
   "compose.brush.Ribbon",
-  "compose.brush.Ribbon.nibAngleDeg",
+  "compose.brush.Ribbon.nibAngleDegrees",
   "compose.brush.Ribbon.nibContrast",
   "compose.brush.Ribbon.widthStart",
   "compose.brush.Ribbon.widthEnd",

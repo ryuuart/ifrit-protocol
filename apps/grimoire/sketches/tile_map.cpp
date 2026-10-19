@@ -65,7 +65,7 @@ constexpr material::Color kFlash{1.0f, 0.58f, 0.20f, 0.55f};
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = kPad;
+  look.spacing.marginHorizontal = kPad;
   look.spacing.marginTop = kPad * 0.6f;
   look.spacing.marginBottom = kPad * 0.5f;
   look.spacing.contentGap = kGap;
@@ -269,7 +269,8 @@ struct TileMap {
                   "reconcile and paint: in the "
                   "window, not on the plate")
             : kit::formatted("reconcile %.3f ms  ·  paint %.3f ms",
-                             worked.reconcileMs, worked.paintMs);
+                             worked.reconcileMilliseconds,
+                             worked.paintMilliseconds);
 
     const char* names[] = {"FLOOR", "BRICK", "MOSS", "EMBER"};
     Element atlasLegend = box().row().children({each(4, [&](int i) {

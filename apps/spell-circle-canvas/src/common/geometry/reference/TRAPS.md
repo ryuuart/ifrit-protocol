@@ -20,7 +20,7 @@ is silently, plausibly wrong rather than obviously broken.
   it is computed in Skia's y-down space. That is the opposite sign from the
   usual y-up convention, so a winding test copied from elsewhere will be
   inverted. Open polylines are treated as if closed.
-- **`camera::Camera` is right-handed and y-up, and `fovYDeg` is the
+- **`camera::Camera` is right-handed and y-up, and `fovYDegrees` is the
   *vertical* field of view.** `viewProjection()` carries normalized device
   coordinates through to viewport pixels and flips y to count down the
   canvas at that last step, so screen-space results are already in canvas

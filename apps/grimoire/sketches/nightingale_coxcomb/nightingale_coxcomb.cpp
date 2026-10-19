@@ -402,50 +402,54 @@ struct NightingaleCoxcomb {
    *  subtitle on the fold, closed by a double rule. The pen writes the
    *  title and subtitle; the captions arrive with their wheels. */
   Element titles() const {
-    const auto writing = [](float startMs, float spanMs, float durationMs) {
+    const auto writing = [](float startMilliseconds, float spanMilliseconds,
+                            float durationMilliseconds) {
       return Track{
           .effect = textFx::enter(textFx::typeOn()),
           .tween = {.duration = 40ms,
                     .delay = sigil::motion::stagger<sigil::motion::Duration>(
-                        {0ms,
-                         std::chrono::duration<double, std::milli>(spanMs)})},
+                        {0ms, std::chrono::duration<double, std::milli>(
+                                  spanMilliseconds)})},
           .progress = sigil::motion::animate(
               {.from = 0.0f,
                .to = 1.0f,
-               .duration =
-                   std::chrono::duration<double, std::milli>(durationMs),
-               .delay = std::chrono::duration<double, std::milli>(startMs),
+               .duration = std::chrono::duration<double, std::milli>(
+                   durationMilliseconds),
+               .delay =
+                   std::chrono::duration<double, std::milli>(startMilliseconds),
                .ease = sigil::motion::ease::linear})};
     };
-    const auto arrive = [](float startMs) {
+    const auto arrive = [](float startMilliseconds) {
       return sigil::motion::animate(
           {.from = 0.0f,
            .to = 1.0f,
            .duration = 320ms,
-           .delay = std::chrono::duration<double, std::milli>(startMs)});
+           .delay =
+               std::chrono::duration<double, std::milli>(startMilliseconds)});
     };
-    const auto ruled = [](float startMs) {
+    const auto ruled = [](float startMilliseconds) {
       return sigil::motion::animate(
           {.from = 0.0f,
            .to = 1.0f,
            .duration = 420ms,
-           .delay = std::chrono::duration<double, std::milli>(startMs),
+           .delay =
+               std::chrono::duration<double, std::milli>(startMilliseconds),
            .ease = sigil::motion::ease::outQuint});
     };
     const auto numbered = [&](const Diagram& diagram, const char* number,
-                              const char* caption, float startMs) {
+                              const char* caption, float startMilliseconds) {
       return box().cover().children({
           text(number)
               .styleClass("numeral")
               .centerAt({diagram.hub.x(), kTitleRow})
-              .opacity(arrive(startMs)),
+              .opacity(arrive(startMilliseconds)),
           document::caption(caption)
               .centerAt({diagram.hub.x(), kCaptionRow})
-              .opacity(arrive(startMs + 90)),
+              .opacity(arrive(startMilliseconds + 90)),
           kit::line({})
               .styleClass("date-rule")
               .centerAt({diagram.hub.x(), kRuleRow + 0.5f})
-              .scaleX(ruled(startMs + 200)),
+              .scaleX(ruled(startMilliseconds + 200)),
       });
     };
     // The echo under each display line is the ink's own shadow filter,
@@ -648,7 +652,7 @@ struct NightingaleCoxcomb {
   /** ONE LABEL ON ITS OWN RING: a leaf the ring's diameter across,
    *  standing on the hub, its run shaped once and laid along the rim. */
   static Element onRing(Text label, const Diagram& diagram, float bearing,
-                        float radius, float delayMs) {
+                        float radius, float delayMilliseconds) {
     return std::move(label)
         .width(2 * radius)
         .height(2 * radius)
@@ -662,13 +666,15 @@ struct NightingaleCoxcomb {
             {.from = 0.0f,
              .to = 1.0f,
              .duration = 260ms,
-             .delay = std::chrono::duration<double, std::milli>(delayMs)}));
+             .delay = std::chrono::duration<double, std::milli>(
+                 delayMilliseconds)}));
   }
 
   /** A CAMPAIGN ANNOTATION, run along its spoke and centred @p radius
    *  from the hub. */
   static Element alongSpoke(const Diagram& diagram, const char* words,
-                            float bearing, float radius, float delayMs) {
+                            float bearing, float radius,
+                            float delayMilliseconds) {
     const float reach = 120.0f;
     const float box = radius + reach;
     return text(words)
@@ -686,7 +692,8 @@ struct NightingaleCoxcomb {
             {.from = 0.0f,
              .to = 1.0f,
              .duration = 260ms,
-             .delay = std::chrono::duration<double, std::milli>(delayMs)}));
+             .delay = std::chrono::duration<double, std::milli>(
+                 delayMilliseconds)}));
   }
 
   /** THE MONTHS, each hugging its own wedge's rim. The floor is not

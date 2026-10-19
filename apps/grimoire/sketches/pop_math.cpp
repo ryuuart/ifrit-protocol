@@ -64,7 +64,7 @@ camera::Camera stage() {
   camera::Camera view;
   view.eye = {0, 120, 330};
   view.target = {0, 0, 0};
-  view.fovYDeg = 40;
+  view.fovYDegrees = 40;
   return view;
 }
 

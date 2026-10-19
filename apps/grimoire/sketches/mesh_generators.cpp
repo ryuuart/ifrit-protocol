@@ -110,7 +110,7 @@ constexpr float kRailAt = 470.0f;
 constexpr int kBakeDensity = 2;
 
 camera::Camera lens() {
-  return {.eye = {0, 520, 1000}, .target = {0, 0, 0}, .fovYDeg = 34};
+  return {.eye = {0, 520, 1000}, .target = {0, 0, 0}, .fovYDegrees = 34};
 }
 
 /** The steel every body is made of, in its own colour. */
@@ -189,7 +189,7 @@ struct MeshGenerators {
 
     rail = knot();
     const mesh::Mesh tube = mesh::pop::sweep(rail, sections::circle(12),
-                            {.segments = 220, .scale = 9});
+                                             {.segments = 220, .scale = 9});
 
     mesh::Cloud cloud = points::onSpline(rail, 14);
     {
@@ -242,8 +242,8 @@ struct MeshGenerators {
              .key("vase")
              .transform(camera::place({kLineupAt + 310, 30, -30}))
              .fill(steel({0.35f, 0.8f, 0.6f, 1})),
-         world::mesh(tube).key("tube").fill(steel({0.6f, 0.68f, 0.8f, 1},
-                                                  0.35f)),
+         world::mesh(tube).key("tube").fill(
+             steel({0.6f, 0.68f, 0.8f, 1}, 0.35f)),
          world::mesh(stations)
              .key("stations")
              .backface(material::Backface::Visible)

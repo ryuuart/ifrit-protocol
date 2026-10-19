@@ -6,60 +6,36 @@ sigil_library_root(SigilPython
 # edits nothing another author is also editing.
 sigil_library(SigilPython
   SOURCES
-    Python.cpp Bindings.cpp Extend.cpp PublicNames.cpp
-    compose/BrushComposites.cpp compose/BrushMarks.cpp compose/Composer.cpp
-    compose/DecorationPrimitives.cpp compose/DecorationSeam.cpp
-    compose/Derive.cpp compose/ElementEdges.cpp compose/Feed.cpp
-    compose/Instancing.cpp
-    compose/KitAnnotations.cpp compose/KitEras.cpp
-    compose/KitLegibility.cpp
-    compose/KitPixelType.cpp compose/KitRoutes.cpp compose/KitRows.cpp
-    compose/KitSprites.cpp compose/KitStrokes.cpp compose/KitTypeset.cpp
-    compose/Lines.cpp compose/Masks.cpp
-    compose/MediaLeaves.cpp compose/PaintPrograms.cpp compose/PixelStyles.cpp
-    compose/Schemes.cpp compose/Selectors.cpp compose/Sheets.cpp
-    compose/StrokeOptions.cpp
-    compose/TextEffects.cpp
-    compose/TextureScene.cpp core/Compute.cpp core/Features.cpp
-    core/RecordProtocol.cpp core/Values.cpp data/Connection.cpp
-    draw/CanvasSeam.cpp draw/Standalone.cpp
-    geometry/Charts.cpp geometry/DeviceHandle.cpp geometry/Frames.cpp
-    geometry/Mesh.cpp geometry/MeshCamera.cpp geometry/MeshCodec.cpp
-    geometry/MeshCurve.cpp geometry/MeshPoints.cpp
-    geometry/Outlines.cpp geometry/PathEditing.cpp geometry/PathOperations.cpp
-    geometry/PointBuilder.cpp geometry/PointKernels.cpp
-    geometry/PointOperations.cpp geometry/Polylines.cpp geometry/Profiles.cpp
-    geometry/Regions.cpp geometry/Seams.cpp geometry/Shapes.cpp geometry/Solids.cpp
-    geometry/Structures.cpp media/Images.cpp media/Video.cpp
-    io/Frames.cpp material/Core.cpp
-    material/Environment.cpp material/Field.cpp
-    material/PaintEffect.cpp material/Pattern.cpp
-    material/Shader.cpp material/Shading.cpp material/Substance.cpp
-    material/Texture.cpp
-    material/TextureSets.cpp measure/Measure.cpp motion/AnimatableForms.cpp
-    motion/Clock.cpp motion/Lanes.cpp motion/Particles.cpp motion/Physics.cpp
-    motion/Schedule.cpp motion/Signals.cpp skia/Effects.cpp skia/Fonts.cpp
-    skia/Paths.cpp skia/Surfaces.cpp weave/Cascade.cpp
-    weave/Choreography.cpp weave/Flows.cpp weave/Fonts.cpp
-    weave/PaintLayers.cpp weave/Ports.cpp
-    weave/Shaping.cpp weave/Tables.cpp weave/Unicode.cpp
-    world/Description.cpp world/Device.cpp world/Environment.cpp
-    world/Geometry.cpp world/Passes.cpp world/Plan.cpp world/Targets.cpp
-    world/View.cpp compose/Convert.cpp compose/Document.cpp
-    compose/Elements.cpp compose/Kit.cpp compose/Nodes.cpp
-    data/Data.cpp draw/Brush.cpp draw/Pen.cpp geometry/Geometry.cpp
-    io/Resources.cpp material/Material.cpp motion/Motion.cpp skia/Values.cpp
-    weave/Layout.cpp weave/Type.cpp world/World.cpp
+    Python.cpp Bindings.cpp Extend.cpp PublicNames.cpp compose/BrushMarks.cpp
+    compose/Composer.cpp compose/Derive.cpp compose/ElementEdges.cpp
+    compose/Feed.cpp compose/Instancing.cpp compose/KitRows.cpp
+    compose/Masks.cpp compose/PaintPrograms.cpp compose/Schemes.cpp
+    compose/Selectors.cpp compose/StrokeOptions.cpp compose/TextEffects.cpp
+    compose/TextureScene.cpp core/Features.cpp core/RecordProtocol.cpp
+    core/Values.cpp data/Connection.cpp draw/CanvasSeam.cpp geometry/Mesh.cpp
+    geometry/MeshCamera.cpp geometry/MeshCurve.cpp geometry/Outlines.cpp
+    geometry/PathOperations.cpp geometry/PointBuilder.cpp
+    geometry/Profiles.cpp geometry/Shapes.cpp geometry/Solids.cpp
+    media/Images.cpp media/Video.cpp io/Frames.cpp material/Core.cpp
+    material/Environment.cpp material/Field.cpp material/PaintEffect.cpp
+    material/Pattern.cpp material/Shader.cpp material/Substance.cpp
+    material/Texture.cpp measure/Measure.cpp motion/AnimatableForms.cpp
+    motion/Clock.cpp motion/Schedule.cpp motion/Signals.cpp weave/Cascade.cpp
+    weave/Fonts.cpp weave/PaintLayers.cpp weave/Tables.cpp weave/Unicode.cpp
+    compose/Convert.cpp compose/Document.cpp compose/Elements.cpp
+    compose/Kit.cpp compose/Nodes.cpp data/Data.cpp draw/Brush.cpp
+    draw/Pen.cpp geometry/Geometry.cpp io/Resources.cpp material/Material.cpp
+    motion/Motion.cpp skia/Values.cpp weave/Layout.cpp weave/Type.cpp
+    world/World.cpp
   HEADERS
-    Bindings.h Extend.h PublicNames.h Python.h compose/Convert.h
-    compose/Kit.h compose/Nodes.h compose/Operators.h compose/Registration.h
-    core/Registration.h data/Convert.h
-    data/Registration.h draw/Canvas.h draw/Registration.h geometry/Casters.h
-    geometry/Registration.h io/Hub.h io/Registration.h media/Registration.h
-    material/Convert.h material/Registration.h measure/Registration.h
-    motion/Convert.h motion/Registration.h scry/Registration.h
-    skia/Registration.h skia/Values.h weave/Registration.h
-    world/Registration.h
+    Bindings.h Extend.h PublicNames.h Python.h compose/Convert.h compose/Kit.h
+    compose/Nodes.h compose/Operators.h compose/Registration.h
+    core/Registration.h data/Convert.h data/Registration.h draw/Canvas.h
+    draw/Registration.h geometry/Casters.h geometry/Registration.h io/Hub.h
+    io/Registration.h media/Registration.h material/Convert.h
+    material/Registration.h measure/Registration.h motion/Convert.h
+    motion/Registration.h skia/Registration.h skia/Values.h
+    weave/Registration.h world/Registration.h
   PUBLIC
     pybind11::headers unofficial::skia::skia SigilComposeCore SigilComposeKit
     SigilMotionValues SigilComposeBrush SigilGeometryPath SigilGeometryKit
@@ -90,7 +66,6 @@ sigil_library(SigilPython
 # process asks importlib whether the module it would register is
 # there.
 if(TARGET SigilScry)
-  target_sources(SigilPython PRIVATE scry/Scry.cpp)
   target_link_libraries(SigilPython PRIVATE SigilScry)
   target_compile_definitions(SigilPython PUBLIC SIGIL_PYTHON_HAS_SCRY)
 endif()

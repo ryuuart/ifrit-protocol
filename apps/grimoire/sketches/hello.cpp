@@ -34,7 +34,7 @@ namespace {
 
 sketch::kit::Theme sheetTheme() {
   auto look = sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = 48;
+  look.spacing.marginHorizontal = 48;
   look.spacing.marginTop = 42;
   look.spacing.marginBottom = 32;
   look.spacing.contentGap = 32;

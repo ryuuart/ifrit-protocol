@@ -4,6 +4,7 @@
 
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
+#include <sigilpython/Extend.h>
 #include <sigilsketch/core/Catalog.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
@@ -20,6 +21,7 @@ namespace py = pybind11;
 
 void bindSketchCatalog(py::module_& module) {
   auto sketches = module.def_submodule("sketch");
+  sigil::python::submodule(module, "sketch.scry");
   py::class_<SourceMetadata>(sketches, "SourceMetadata")
       .def_readonly("subject", &SourceMetadata::subject)
       .def_readonly("editFirst", &SourceMetadata::editFirst)

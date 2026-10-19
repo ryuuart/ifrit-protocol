@@ -483,7 +483,7 @@ Mesh revolve(const path::Outline& profile, const RevolveOptions& options) {
 Mesh revolve(const std::vector<glm::vec2>& profile,
              const RevolveOptions& options) {
   if (profile.size() < 2) return {};
-  const float sweep = options.sweepDeg * (float)M_PI / 180.0f;
+  const float sweep = options.sweepDegrees * (float)M_PI / 180.0f;
   const int nu = std::max(options.segments, 3) + (options.close ? 1 : 0);
   const int nv = (int)profile.size();
   auto sample = [&](float v) -> glm::vec2 {

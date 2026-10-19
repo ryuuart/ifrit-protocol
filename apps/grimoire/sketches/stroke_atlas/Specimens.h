@@ -428,7 +428,7 @@ std::vector<Style> stampedStyles() {
   seeds.seed = 11;
   seeds.jitterNormal = 3.4f;
   seeds.jitterScale = 0.5f;
-  seeds.jitterRotateDeg = 40.0f;
+  seeds.jitterRotateDegrees = 40.0f;
   seeds.bleedPx = 14.0f;
 
   brush::Scatter ladder;

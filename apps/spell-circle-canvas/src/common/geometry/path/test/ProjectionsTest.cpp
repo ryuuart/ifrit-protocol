@@ -24,17 +24,21 @@ namespace {
  *  loop can ask the questions every map must answer. */
 std::vector<Projection> everyScheme() {
   return {
-      {.scheme = Scheme::Stereographic, .centre = {.latDeg = 90}, .scale = 120},
+      {.scheme = Scheme::Stereographic,
+       .centre = {.latitudeDegrees = 90},
+       .scale = 120},
       {.scheme = Scheme::Orthographic,
-       .centre = {.lonDeg = 40, .latDeg = 20},
+       .centre = {.longitudeDegrees = 40, .latitudeDegrees = 20},
        .scale = 300},
       {.scheme = Scheme::AzimuthalEquidistant,
-       .centre = {.lonDeg = 200, .latDeg = -35},
+       .centre = {.longitudeDegrees = 200, .latitudeDegrees = -35},
        .scale = 90},
       {.scheme = Scheme::Equirectangular,
-       .centre = {.lonDeg = 296},
+       .centre = {.longitudeDegrees = 296},
        .scale = 7},
-      {.scheme = Scheme::Mercator, .centre = {.lonDeg = 10}, .scale = 7},
+      {.scheme = Scheme::Mercator,
+       .centre = {.longitudeDegrees = 10},
+       .scale = 7},
   };
 }
 
@@ -47,12 +51,12 @@ constexpr float kLatitude = 51.0f + 50.0f / 60.0f;
 const float kEquator = std::tan(radians((90.0f - kObliquity) * 0.5f));
 
 const Projection kPlate{.scheme = Scheme::Stereographic,
-                        .centre = {.latDeg = 90},
+                        .centre = {.latitudeDegrees = 90},
                         .scale = kEquator * 0.5f,
-                        .rollDeg = 90};
+                        .rollDegrees = 90};
 /** The zenith of that latitude, on the plate's own longitude — where the
  *  almucantars and every azimuth circle stand. */
-const Spherical kZenith{.lonDeg = 90, .latDeg = kLatitude};
+const Spherical kZenith{.longitudeDegrees = 90, .latitudeDegrees = kLatitude};
 
 }  // namespace
 
@@ -91,7 +95,7 @@ TEST(Projections, AStereographicCarriesACircleOnTheSphereToACircleOnThePlane) {
   // Do not take the property on trust from the closed form: sample the
   // circle on the SPHERE and put every point through the raw map, then ask
   // how far each one stands from the centre the closed form answers.
-  const Spherical pole{.lonDeg = 33, .latDeg = 41};
+  const Spherical pole{.longitudeDegrees = 33, .latitudeDegrees = 41};
   for (float arc : {12.0f, 55.0f, 90.0f, 128.0f}) {
     const std::optional<PlaneCircle> image = kPlate.circleOf(pole, arc);
     ASSERT_TRUE(image.has_value()) << "arc " << arc;
@@ -130,20 +134,22 @@ TEST(Projections,
   EXPECT_TRUE(circleThrough({0, 0}, {10, 5}, {40, 21}).has_value());
   // Nor does a scheme that does not map circles to circles pretend to.
   const Projection globe{.scheme = Scheme::Orthographic, .scale = 200};
-  EXPECT_FALSE(globe.circleOf({.latDeg = 30}, 20).has_value());
+  EXPECT_FALSE(globe.circleOf({.latitudeDegrees = 30}, 20).has_value());
 }
 
 TEST(Projections, ThePlateOfAnAstrolabeStandsOnItsPoleAndItsHorizon) {
   // The pole is the middle of the plate, and a parallel of declination
   // stands at the radius the maker's own rule gives.
-  EXPECT_NEAR(glm::length(kPlate.at({.lonDeg = 123, .latDeg = 90})), 0.0f,
-              1e-5f);
+  EXPECT_NEAR(
+      glm::length(kPlate.at({.longitudeDegrees = 123, .latitudeDegrees = 90})),
+      0.0f, 1e-5f);
   for (float dec : {-kObliquity, 0.0f, kObliquity, 66.5f}) {
     const float expected = kEquator * std::tan(radians((90.0f - dec) * 0.5f));
     EXPECT_NEAR(kPlate.radiusAt(90.0f - dec), expected, 1e-5f);
     // Right ascension is read off the plate as the angle itself, which is
     // what the roll is set for: at a pole north is not a direction.
-    const glm::vec2 p = kPlate.at({.lonDeg = 30, .latDeg = dec});
+    const glm::vec2 p =
+        kPlate.at({.longitudeDegrees = 30, .latitudeDegrees = dec});
     EXPECT_NEAR(std::atan2(p.y, p.x), radians(30.0f), 1e-4f);
     EXPECT_NEAR(glm::length(p), expected, 1e-5f);
   }
@@ -188,11 +194,12 @@ TEST(Projections, AnOrthographicFoldsTheFarSideOntoTheNearAndEndsAtItsLimb) {
   // The far side lands on top of the near side, which is what a globe
   // drawn as a disc does and why a caller culls by the angle from the
   // centre rather than by the point.
-  const Spherical near{.lonDeg = 70, .latDeg = 10};
-  const Spherical far{.lonDeg = 110, .latDeg = -10};
+  const Spherical near{.longitudeDegrees = 70, .latitudeDegrees = 10};
+  const Spherical far{.longitudeDegrees = 110, .latitudeDegrees = -10};
   EXPECT_LT(globe.angleFrom(near), 90.0f);
   EXPECT_GT(globe.angleFrom(far), 90.0f);
-  EXPECT_NEAR(glm::length(globe.at({.lonDeg = 60}) - globe.at({.lonDeg = 120})),
+  EXPECT_NEAR(glm::length(globe.at({.longitudeDegrees = 60}) -
+                          globe.at({.longitudeDegrees = 120})),
               0.0f, 1e-3f);
   // Nothing stands outside the limb, however far round the sphere it is.
   for (float lon = 0; lon < 360; lon += 15)
@@ -206,9 +213,10 @@ TEST(Projections, TheCylindricalFormsSpaceTheirParallelsByTheirOwnRule) {
   // Both lay their meridians down at one spacing: the abscissa is the same
   // ruler on either, and only the ordinate tells them apart.
   for (float lon = 10; lon <= 90; lon += 10) {
-    EXPECT_NEAR(plate.at({.lonDeg = lon}).x, chart.at({.lonDeg = lon}).x,
+    EXPECT_NEAR(plate.at({.longitudeDegrees = lon}).x,
+                chart.at({.longitudeDegrees = lon}).x, 1e-3f);
+    EXPECT_NEAR(plate.at({.longitudeDegrees = lon}).x, radians(lon) * 100.0f,
                 1e-3f);
-    EXPECT_NEAR(plate.at({.lonDeg = lon}).x, radians(lon) * 100.0f, 1e-3f);
   }
   // The plate carrée's parallels are a ruler: every ten degrees is the
   // same distance, anywhere on the map.
@@ -231,9 +239,9 @@ TEST(Projections, TheCylindricalFormsSpaceTheirParallelsByTheirOwnRule) {
   }
   // A chart's ordinate about a standard parallel of its own is measured
   // from that parallel and nowhere else.
-  const Projection offset = chart.centredOn({.latDeg = 30});
-  EXPECT_NEAR(offset.at({.latDeg = 30}).y, 0.0f, 1e-3f);
-  EXPECT_NEAR(offset.at({.latDeg = 50}).y,
+  const Projection offset = chart.centredOn({.latitudeDegrees = 30});
+  EXPECT_NEAR(offset.at({.latitudeDegrees = 30}).y, 0.0f, 1e-3f);
+  EXPECT_NEAR(offset.at({.latitudeDegrees = 50}).y,
               chart.radiusAt(50) - chart.radiusAt(30), 1e-2f);
 }
 
@@ -254,9 +262,9 @@ TEST(Projections, AMirroredMapIsTheSameMapReadTheOtherWayRound) {
 
 TEST(Projections, ARollTurnsTheMapAndMovesNothingOnIt) {
   Projection turned = kPlate;
-  turned.rollDeg = kPlate.rollDeg + 37.0f;
-  const Spherical a{.lonDeg = 15, .latDeg = 40};
-  const Spherical b{.lonDeg = 200, .latDeg = -10};
+  turned.rollDegrees = kPlate.rollDegrees + 37.0f;
+  const Spherical a{.longitudeDegrees = 15, .latitudeDegrees = 40};
+  const Spherical b{.longitudeDegrees = 200, .latitudeDegrees = -10};
   EXPECT_NEAR(glm::length(kPlate.at(a) - kPlate.at(b)),
               glm::length(turned.at(a) - turned.at(b)), 1e-5f);
   EXPECT_NEAR(glm::length(turned.at(a)), glm::length(kPlate.at(a)), 1e-5f);
@@ -269,31 +277,34 @@ TEST(Projections, AStepAlongAGreatCircleLandsWhereItsBearingSaysItDoes) {
   // A quarter turn from the pole in any direction lands on the equator, at
   // the meridian the bearing names.
   for (float bearing = 0; bearing < 360; bearing += 30) {
-    const Spherical p = offsetFrom({.latDeg = 90}, bearing, 90);
-    EXPECT_NEAR(p.latDeg, 0.0f, 1e-3f);
-    EXPECT_NEAR(angleBetween({.latDeg = 90}, p), 90.0f, 1e-3f);
+    const Spherical p = offsetFrom({.latitudeDegrees = 90}, bearing, 90);
+    EXPECT_NEAR(p.latitudeDegrees, 0.0f, 1e-3f);
+    EXPECT_NEAR(angleBetween({.latitudeDegrees = 90}, p), 90.0f, 1e-3f);
   }
   // Due north is due north, and the distance is the arc that was asked
   // for however far round the sphere the start is.
-  const Spherical from{.lonDeg = 217, .latDeg = -13};
+  const Spherical from{.longitudeDegrees = 217, .latitudeDegrees = -13};
   const Spherical north = offsetFrom(from, 0, 25);
-  EXPECT_NEAR(north.lonDeg, from.lonDeg, 1e-3f);
-  EXPECT_NEAR(north.latDeg, from.latDeg + 25.0f, 1e-3f);
+  EXPECT_NEAR(north.longitudeDegrees, from.longitudeDegrees, 1e-3f);
+  EXPECT_NEAR(north.latitudeDegrees, from.latitudeDegrees + 25.0f, 1e-3f);
   EXPECT_NEAR(angleBetween(from, offsetFrom(from, 123, 7)), 7.0f, 1e-3f);
 }
 
 TEST(Rotations, ATurnComposesUndoesAndHoldsItsOwnAxis) {
   const Rotation a = Rotation::aboutZ(37);
   const Rotation b = Rotation::aboutY(-14);
-  const Spherical star{.lonDeg = 88, .latDeg = 24};
+  const Spherical star{.longitudeDegrees = 88, .latitudeDegrees = 24};
   // then() is "this, and then that", whichever way the matrices multiply.
   EXPECT_NEAR(angleBetween(a.then(b)(star), b(a(star))), 0.0f, 1e-3f);
   EXPECT_NEAR(angleBetween(a.then(a.inverse())(star), star), 0.0f, 1e-3f);
   // A turn about an axis leaves the two directions on it where they are,
   // and turns everything else by the angle it was given.
-  EXPECT_NEAR(angleBetween(a({.latDeg = 90}), {.latDeg = 90}), 0.0f, 1e-3f);
-  EXPECT_NEAR(a({.lonDeg = 10}).lonDeg, 47.0f, 1e-3f);
-  EXPECT_NEAR(angleBetween(b({.lonDeg = 90}), {.lonDeg = 90}), 0.0f, 1e-3f);
+  EXPECT_NEAR(angleBetween(a({.latitudeDegrees = 90}), {.latitudeDegrees = 90}),
+              0.0f, 1e-3f);
+  EXPECT_NEAR(a({.longitudeDegrees = 10}).longitudeDegrees, 47.0f, 1e-3f);
+  EXPECT_NEAR(
+      angleBetween(b({.longitudeDegrees = 90}), {.longitudeDegrees = 90}), 0.0f,
+      1e-3f);
 }
 
 TEST(Rotations, TheThreeAngleFormCarriesAStarFromOneEpochToTheNext) {
@@ -314,7 +325,7 @@ TEST(Rotations, TheThreeAngleFormCarriesAStarFromOneEpochToTheNext) {
   };
   for (const auto& star : stars) {
     EXPECT_NEAR(angleBetween(toEpoch(star.j2000), star.cut), 0.0f, 2e-3f)
-        << "star at " << star.j2000.lonDeg;
+        << "star at " << star.j2000.longitudeDegrees;
     // And the turn undoes: the catalogue position comes back from the
     // cut one, which is what a chart stepping through epochs relies on.
     EXPECT_NEAR(angleBetween(toEpoch.inverse()(star.cut), star.j2000), 0.0f,

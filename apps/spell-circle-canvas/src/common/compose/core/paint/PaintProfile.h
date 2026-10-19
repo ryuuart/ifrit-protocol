@@ -42,18 +42,19 @@ struct ProfileScope {
     impl->profileRows.push_back(Composer::NodeCost{profileLabel(inst, rect), 0,
                                                    0, impl->profDepth,
                                                    Composer::CacheState::Live});
-    savedChildren = impl->profChildMs;
-    impl->profChildMs = 0;
+    savedChildren = impl->profileChildMilliseconds;
+    impl->profileChildMilliseconds = 0;
     ++impl->profDepth;
     watch.emplace();
   }
   ~ProfileScope() {
     if (row == SIZE_MAX) return;
     const double total = measure::Milliseconds(watch->elapsed()).count();
-    impl->profileRows[row].totalMs = total;
-    impl->profileRows[row].selfMs = total - impl->profChildMs;
+    impl->profileRows[row].totalMilliseconds = total;
+    impl->profileRows[row].selfMilliseconds =
+        total - impl->profileChildMilliseconds;
     // Hand our whole cost up to the parent's child accumulator.
-    impl->profChildMs = savedChildren + total;
+    impl->profileChildMilliseconds = savedChildren + total;
     --impl->profDepth;
   }
 };

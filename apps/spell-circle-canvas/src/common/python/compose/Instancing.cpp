@@ -5,7 +5,6 @@
  * one element that stamps the pool.
  */
 
-#include <sigilmaterial/core/BlendMode.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPoint.h>
@@ -15,6 +14,7 @@
 #include <pybind11/stl.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Instances.h>
+#include <sigilmaterial/core/BlendMode.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
@@ -980,6 +980,7 @@ void bindCellSheet(py::module_& module) {
 
 void bindComposeInstancing(py::module_& root) {
   auto module = submodule(root, "compose.instancing");
+  submodule(root, "compose.instancing.place");
   bindLane<SkPoint>(
       module,
       "A pool's lane of points. It reads and writes the pool it came from "

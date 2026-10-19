@@ -531,7 +531,7 @@ pass — no second filter form — and a flat pass takes the same arithmetic in
 its colour. Neutral values (all zero) cost nothing: the untouched-paint
 fast path is byte-identical to a deviation that never mentions them.
 
-**What a `GlyphModifier` can say.** Beyond `dx`, `dy`, `scale`, `rotateDeg` and
+**What a `GlyphModifier` can say.** Beyond `dx`, `dy`, `scale`, `rotateDegrees` and
 `alpha`: `colorMultiplier` multiplies every pass the glyph's style draws (a
 flat pass multiplies its colour, a shader pass takes an equivalent modulation,
 so a gradient keeps its ramp and wears the tint over it); `colorAdd` and
@@ -540,7 +540,7 @@ the tint section above. Each of the three is a `ColorTerm`: a colour as
 written, or `ColorTerm::currentInk()` or `ColorTerm::var(name)`, read where
 the glyph is painted when the effect is applied — a keyframe table naming
 them follows the sheet's ink and palette, and a class restating either
-recolours the letters with no second table; `scaleX`, `scaleY`, `skewXDeg` and `skewYDeg` place the
+recolours the letters with no second table; `scaleX`, `scaleY`, `skewXDegrees` and `skewYDegrees` place the
 glyph with a full matrix, because an RSXform carries a rotation and one scale
 and no shear at all — the two shear angles read as `Element::skewX` and
 `Element::skewY` do, and a glyph naming both takes CSS's `skewX(x) skewY(y)`,

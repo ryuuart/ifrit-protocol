@@ -29,7 +29,7 @@ float cueAt(const std::vector<float>& table, uint32_t index) {
 /** The latest start any of `count` units reads out of `table` — what the
  *  master progress has to span for the last beat to open. A table is not
  *  required to ascend, so this is a max and not the final entry. */
-float lastCueMs(const std::vector<float>& table, uint32_t count) {
+float lastCueMilliseconds(const std::vector<float>& table, uint32_t count) {
   float latest = 0.0f;
   const size_t read = std::min<size_t>(count, table.size());
   for (size_t i = 0; i < read; ++i) latest = std::max(latest, table[i]);
@@ -55,8 +55,10 @@ void level(const Staggered<Duration>& delay, uint32_t count,
       return;
     case Staggered<Duration>::Form::Table:
       order.clear();
-      for (const Duration entry : delay.table()) cue.push_back(milliseconds(entry));
-      if (!cue.empty() && cue.size() != count) warnCueTableMismatch(cue.size(), count);
+      for (const Duration entry : delay.table())
+        cue.push_back(milliseconds(entry));
+      if (!cue.empty() && cue.size() != count)
+        warnCueTableMismatch(cue.size(), count);
       if (cue.empty()) cue.push_back(0.0f);
       return;
     case Staggered<Duration>::Form::Each:
@@ -111,35 +113,39 @@ void Schedule::build(const Timing& timing, uint32_t outerCount,
           innerDistribution);
     // A NESTED schedule owns the beat: a beat is exactly as long as the
     // inner ladder needs.
-    beatMs = duration + innerStart +
-             (innerCue.empty() ? innerEach * (float)(inner - 1)
-                               : lastCueMs(innerCue, inner));
+    beatMilliseconds =
+        duration + innerStart +
+        (innerCue.empty() ? innerEach * (float)(inner - 1)
+                          : lastCueMilliseconds(innerCue, inner));
   } else {
     innerOrder.clear();
     innerCue.clear();
     innerEach = 0.0f;
     innerStart = 0.0f;
-    beatMs = duration;
+    beatMilliseconds = duration;
     innerDistribution = nullptr;
   }
-  totalMs = beatMs + outerStart +
-            (outerCue.empty() ? outerEach * (float)(outer - 1)
-                              : lastCueMs(outerCue, outer));
+  totalMilliseconds = beatMilliseconds + outerStart +
+                      (outerCue.empty() ? outerEach * (float)(outer - 1)
+                                        : lastCueMilliseconds(outerCue, outer));
   // ONE loop for the whole schedule. Looping, the master maps onto the
   // PERIOD rather than the one-shot closing span — one sweep 0→1 is one
-  // cycle — so totalMs IS the period and localProgress() folds each unit's
-  // elapsed time by it.
-  loopMs = timing.loop ? beatMs + std::max(milliseconds(timing.loopDelay), 0.0f)
-                       : 0.0f;
+  // cycle — so totalMilliseconds IS the period and localProgress() folds each
+  // unit's elapsed time by it.
+  loopMilliseconds =
+      timing.loop
+          ? beatMilliseconds + std::max(milliseconds(timing.loopDelay), 0.0f)
+          : 0.0f;
   alternate = timing.loop && timing.alternate;
-  if (loopMs > 0) totalMs = loopMs;
+  if (loopMilliseconds > 0) totalMilliseconds = loopMilliseconds;
 }
 
 Duration Schedule::total() const {
-  return std::chrono::duration<double, std::milli>(totalMs);
+  return std::chrono::duration<double, std::milli>(totalMilliseconds);
 }
 
-float Schedule::startMs(uint32_t outerUnit, uint32_t innerUnit) const {
+float Schedule::startMilliseconds(uint32_t outerUnit,
+                                  uint32_t innerUnit) const {
   // Without a distribution curve the delay is the plain product — NOT the
   // same product routed through a normalise-and-rescale, which would
   // differ in the last bit and move every pixel of a settled reveal.
@@ -152,46 +158,48 @@ float Schedule::startMs(uint32_t outerUnit, uint32_t innerUnit) const {
     return shape(order[clamped] / last) * (each * last);
   };
   // A table states the delay; the ladder computes one.
-  const float outer =
-      outerCue.empty()
-          ? delayOf(outerOrder, outerUnit, outerEach, outerDistribution)
-          : cueAt(outerCue, outerUnit);
-  const float inner =
-      innerCue.empty()
-          ? delayOf(innerOrder, innerUnit, innerEach, innerDistribution)
-          : cueAt(innerCue, innerUnit);
+  const float outer = outerCue.empty() ? delayOf(outerOrder, outerUnit,
+                                                 outerEach, outerDistribution)
+                                       : cueAt(outerCue, outerUnit);
+  const float inner = innerCue.empty() ? delayOf(innerOrder, innerUnit,
+                                                 innerEach, innerDistribution)
+                                       : cueAt(innerCue, innerUnit);
   // A start of zero adds nothing, so a plain ladder is the plain sum.
   return (outerStart != 0.0f ? outerStart + outer : outer) +
          (innerStart != 0.0f ? innerStart + inner : inner);
 }
 
 Duration Schedule::start(uint32_t outerUnit, uint32_t innerUnit) const {
-  return std::chrono::duration<double, std::milli>(startMs(outerUnit, innerUnit));
+  return std::chrono::duration<double, std::milli>(
+      startMilliseconds(outerUnit, innerUnit));
 }
 
 float Schedule::localProgress(float master, uint32_t outerUnit,
                               uint32_t innerUnit) const {
-  if (loopMs > 0) {
+  if (loopMilliseconds > 0) {
     // The wrapping beat: elapsed time since this unit's start, folded into
-    // [0, loopMs). The fold re-opens the beat once per cycle, keeps master
-    // 0 and master 1 the same instant, and puts every unit somewhere in
+    // [0, loopMilliseconds). The fold re-opens the beat once per cycle, keeps
+    // master 0 and master 1 the same instant, and puts every unit somewhere in
     // its cycle from the first frame. Past its duration a beat rests at 1
     // until the fold brings it back to 0.
-    const float since = master * totalMs - startMs(outerUnit, innerUnit);
-    float elapsed = std::fmod(since, loopMs);
-    if (elapsed < 0) elapsed += loopMs;
+    const float since =
+        master * totalMilliseconds - startMilliseconds(outerUnit, innerUnit);
+    float elapsed = std::fmod(since, loopMilliseconds);
+    if (elapsed < 0) elapsed += loopMilliseconds;
     const float local = std::clamp(elapsed / duration, 0.0f, 1.0f);
     // Alternating, an odd cycle runs the beat backwards.
-    if (alternate && ((int64_t)std::floor(since / loopMs) & 1) != 0)
+    if (alternate && ((int64_t)std::floor(since / loopMilliseconds) & 1) != 0)
       return 1.0f - local;
     return local;
   }
   return std::clamp(
-      (master * totalMs - startMs(outerUnit, innerUnit)) / duration, 0.0f,
-      1.0f);
+      (master * totalMilliseconds - startMilliseconds(outerUnit, innerUnit)) /
+          duration,
+      0.0f, 1.0f);
 }
 
-Beat Schedule::beat(float master, uint32_t outerUnit, uint32_t innerUnit) const {
+Beat Schedule::beat(float master, uint32_t outerUnit,
+                    uint32_t innerUnit) const {
   Beat out;
   out.unitIndex = outerUnit;
   out.start = start(outerUnit, innerUnit);

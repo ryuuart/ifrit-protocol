@@ -88,7 +88,7 @@ constexpr float kPanel = 188.0f;
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = 40;
+  look.spacing.marginHorizontal = 40;
   look.spacing.marginTop = 40;
   look.spacing.captionGap = 6;
   return look;

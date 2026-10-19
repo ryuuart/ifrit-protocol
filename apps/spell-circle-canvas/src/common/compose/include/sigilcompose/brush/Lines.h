@@ -80,7 +80,7 @@ geometry::path::Outline dashGeometry(const geometry::path::Outline& src,
  *  free, where this returns a path that replaces the shape. Reach for this
  *  when you want the geometry itself. */
 geometry::path::Outline cornerBrackets(const geometry::path::Outline& src,
-                                       float arm, float angleDeg = 30.0f);
+                                       float arm, float angleDegrees = 30.0f);
 
 /** The complement: a rule that STOPS SHORT of every corner, leaving @p gap
  *  px of paper at each. The printer's open-corner box rule; also how a
@@ -89,7 +89,7 @@ geometry::path::Outline cornerBrackets(const geometry::path::Outline& src,
  *  `spans::edges(gap)` is the same scan claimed on an element's own
  *  boundary; see cornerBrackets above for when to prefer which. */
 geometry::path::Outline cornerGaps(const geometry::path::Outline& src,
-                                   float gap, float angleDeg = 30.0f);
+                                   float gap, float angleDegrees = 30.0f);
 
 /** How a line run terminates (per contour end). Heads are FILLED with the
  *  line's own fill — solid arrowheads, station dots, buffer bars. */
@@ -185,8 +185,7 @@ struct Line {
     return dashPhaseBinding && dashPhaseBinding->isRunning();
   }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value()
-                            : dashPhase;
+    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
 
   /** Paint reach beyond the outline (cull growth): outer parallels, tie

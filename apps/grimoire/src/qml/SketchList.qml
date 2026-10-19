@@ -6,7 +6,7 @@ pragma ComponentBehavior: Bound
 // The selected group as rows with sortable columns.
 
 import QtQuick
-import Ifrit.Qt 1.0 as Ui
+import Sigil.Qt 1.0 as Ui
 import QtQuick.Controls
 import QtQuick.Layouts
 import Sigil.Grimoire

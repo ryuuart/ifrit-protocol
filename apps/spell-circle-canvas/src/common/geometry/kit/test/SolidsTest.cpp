@@ -329,7 +329,7 @@ TEST(Solids, RevolveLathesAProfileAroundTheAxisAndAPartialSweepStopsShort) {
 
   // A partial sweep leaves the surface open, so it never reaches the far
   // side the full turn covers.
-  const Mesh quarter = revolve(profile, {.segments = 16, .sweepDeg = 90});
+  const Mesh quarter = revolve(profile, {.segments = 16, .sweepDegrees = 90});
   quarter.bounds(&lo, &hi);
   EXPECT_GT(lo.x, -1e-4f);
 }

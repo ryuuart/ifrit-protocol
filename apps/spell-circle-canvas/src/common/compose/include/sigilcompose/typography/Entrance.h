@@ -45,19 +45,20 @@ namespace sigil::compose::textFx {
 
 /** WHERE A GLYPH STANDS on its way home: the lanes it is displaced on,
  *  which an entrance tween moves from its `.from` to home (`Displaced{}`,
- *  its `.to` unless one is named). `scatterPx` and `scatterLeanDeg` are
+ *  its `.to` unless one is named). `scatterPx` and `scatterLeanDegrees` are
  *  the lanes that are not a constant: each glyph draws its own offset
- *  inside a `scatterPx` disc, and its own lean up to `scatterLeanDeg`, from
+ *  inside a `scatterPx` disc, and its own lean up to `scatterLeanDegrees`, from
  *  the stream seeded on the glyph's own identity — so the draw is stable
  *  across frames and relayouts, which is what lets a settled scatter cache
  *  instead of jittering forever. */
 struct Displaced {
-  float dx = 0;              ///< px to the side the glyph comes in from
-  float dy = 0;              ///< px below (positive) or above its rest
-  float rotateDeg = 0;       ///< the lean it straightens out of
-  float scale = 1;           ///< the size it grows from (1 = no growth)
-  float scatterPx = 0;       ///< seeded per-glyph disc, added to dx/dy
-  float scatterLeanDeg = 0;  ///< seeded per-glyph lean, added to rotateDeg
+  float dx = 0;             ///< px to the side the glyph comes in from
+  float dy = 0;             ///< px below (positive) or above its rest
+  float rotateDegrees = 0;  ///< the lean it straightens out of
+  float scale = 1;          ///< the size it grows from (1 = no growth)
+  float scatterPx = 0;      ///< seeded per-glyph disc, added to dx/dy
+  float scatterLeanDegrees =
+      0;  ///< seeded per-glyph lean, added to rotateDegrees
   /** The share of the unit's pass its opacity takes to come up, straight
    *  and whatever the curve; 0 enters opaque. A glyph at home is opaque,
    *  so this is read from the tween's `.from` alone. */
@@ -87,10 +88,10 @@ struct Displaced {
   };
   return {lane(start.dx, end.dx),
           lane(start.dy, end.dy),
-          lane(start.rotateDeg, end.rotateDeg),
+          lane(start.rotateDegrees, end.rotateDegrees),
           lane(start.scale, end.scale),
           lane(start.scatterPx, end.scatterPx),
-          lane(start.scatterLeanDeg, end.scatterLeanDeg),
+          lane(start.scatterLeanDegrees, end.scatterLeanDegrees),
           start.fadeOver,
           lane(start.opacity, end.opacity),
           compose::detail::interpolateAxis(start.axis, end.axis, amount)};
@@ -155,9 +156,10 @@ struct Displaced {
   for (const Displaced& stop : stops) {
     travel = std::max(travel, std::max(std::abs(stop.dx), std::abs(stop.dy)) +
                                   std::abs(stop.scatterPx));
-    leans |= stop.rotateDeg != 0 || stop.scatterLeanDeg != 0;
-    moves |= stop.dx != 0 || stop.dy != 0 || stop.rotateDeg != 0 ||
-             stop.scale != 1 || stop.scatterPx != 0 || stop.scatterLeanDeg != 0;
+    leans |= stop.rotateDegrees != 0 || stop.scatterLeanDegrees != 0;
+    moves |= stop.dx != 0 || stop.dy != 0 || stop.rotateDegrees != 0 ||
+             stop.scale != 1 || stop.scatterPx != 0 ||
+             stop.scatterLeanDegrees != 0;
   }
   reach = travel;
   if (leans) reach += kNominalSizePx * 0.5f;
@@ -174,8 +176,8 @@ struct Displaced {
   std::vector<float> parameters;
   const auto describe = [&parameters](const Displaced& stop) {
     parameters.insert(parameters.end(),
-                      {stop.dx, stop.dy, stop.rotateDeg, stop.scale,
-                       stop.scatterPx, stop.scatterLeanDeg, stop.fadeOver,
+                      {stop.dx, stop.dy, stop.rotateDegrees, stop.scale,
+                       stop.scatterPx, stop.scatterLeanDegrees, stop.fadeOver,
                        stop.opacity, stop.axis ? 1.0f : 0.0f});
     const sigil::weave::FontVariation axis =
         stop.axis.value_or(sigil::weave::FontVariation());
@@ -192,19 +194,19 @@ struct Displaced {
       [shape = std::move(shape), from](const GlyphInfo&, float t,
                                        core::noise::Mix64Stream& rng) {
         const Displaced now = shape.at(motion::Duration(t));
-        float dx = now.dx, dy = now.dy, lean = now.rotateDeg;
+        float dx = now.dx, dy = now.dy, lean = now.rotateDegrees;
         // The stream is drawn in one order whatever the progress, so a
         // glyph keeps its own scatter all the way home.
         if (from.scatterPx != 0) {
           dx += rng.signedUnit() * now.scatterPx;
           dy += rng.signedUnit() * now.scatterPx;
         }
-        if (from.scatterLeanDeg != 0)
-          lean += rng.signedUnit() * now.scatterLeanDeg;
+        if (from.scatterLeanDegrees != 0)
+          lean += rng.signedUnit() * now.scatterLeanDegrees;
         GlyphModifier m;
         m.dx = dx;
         m.dy = dy;
-        m.rotateDeg = lean;
+        m.rotateDegrees = lean;
         if (from.scale != 1) m.scale = now.scale;
         m.alpha =
             now.opacity *

@@ -548,9 +548,9 @@ struct CdeMotifSketch {
           {.center = {24.0f, 24.0f},
            .radii = {18.0f, 18.0f},
            .fromDegrees =
-               (-(float)M_PI * 0.5f) * sigil::geometry::path::kRadToDeg,
+               (-(float)M_PI * 0.5f) * sigil::geometry::path::kRadiansToDegrees,
            .sweepDegrees =
-               (2.0f * (float)M_PI) * sigil::geometry::path::kRadToDeg,
+               (2.0f * (float)M_PI) * sigil::geometry::path::kRadiansToDegrees,
            .turn = arrange::Turn::Closed}));
       const float cx = c.fX, cy = c.fY;
       const float sz = (i % 3 == 0) ? 4.0f : 2.0f;

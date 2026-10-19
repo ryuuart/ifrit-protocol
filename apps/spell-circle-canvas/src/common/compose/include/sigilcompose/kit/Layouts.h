@@ -37,7 +37,7 @@ inline geometry::path::Rect heldInside(const geometry::path::Rect& rect,
   return {rect.min + shift, rect.max + shift};
 }
 
-/** Children on a ring. Child i centers at startDeg + i·(sweepDeg/n), at
+/** Children on a ring. Child i centers at startDegrees + i·(sweepDegrees/n), at
  *  `radiusFraction` of the container's half-extent — applied per axis, so
  *  an oblong container gives an ellipse rather than a circle. A partial
  *  sweep makes fans and arcs.
@@ -47,8 +47,8 @@ inline geometry::path::Rect heldInside(const geometry::path::Rect& rect,
  *
  *  A FULL-TURN sweep excludes the endpoint — n children divide the circle
  *  into n equal steps, and the last does not land on top of the first. A
- *  PARTIAL sweep includes both ends, so the first child sits at startDeg
- *  and the last at startDeg + sweepDeg.
+ *  PARTIAL sweep includes both ends, so the first child sits at startDegrees
+ *  and the last at startDegrees + sweepDegrees.
  *
  *  BY A FACT RATHER THAN BY INDEX: name a `lane`, and each child stands
  *  at the fraction its own fact under that name makes of `divisions` —
@@ -62,8 +62,8 @@ inline geometry::path::Rect heldInside(const geometry::path::Rect& rect,
  *  whatever rotation the child states for itself. */
 struct Radial {
   float radiusFraction = 0.8f;
-  float startDeg = -90.0f;
-  float sweepDeg = 360.0f;
+  float startDegrees = -90.0f;
+  float sweepDegrees = 360.0f;
   /** Per-child radius: a fraction per index, overriding `radiusFraction`
    *  where present — an orbit diagram's bands, a skill wheel's tiers. May
    *  be shorter than the child list; the tail falls back to
@@ -132,14 +132,14 @@ struct Jitter {
 
 /** The sheared stack: children stack downward while marching along a
  *  slanted axis. Each child's x tracks the same shear line that
- *  `skewX(skewDeg)` leans a node's verticals to, so a column of skewed
+ *  `skewX(skewDegrees)` leans a node's verticals to, so a column of skewed
  *  cards reads as one oblique block rather than a staircase. Negative
- *  skewDeg marches rows leftward as they descend; the whole run is
- *  normalized so nothing lands at negative x. Pair with `.skewX(skewDeg)`
+ *  skewDegrees marches rows leftward as they descend; the whole run is
+ *  normalized so nothing lands at negative x. Pair with `.skewX(skewDegrees)`
  *  on the children themselves, or the boxes stay upright while their
  *  positions slant. */
 struct Diagonal {
-  float skewDeg = -12.0f;
+  float skewDegrees = -12.0f;
   float gap = 8.0f;
   /** Start (default) marches LEFT edges along the shear line; End mirrors
    *  the battery so RIGHT edges ride it (right-anchored menus) — aligned
@@ -148,7 +148,7 @@ struct Diagonal {
   enum class Anchor : uint8_t { Start, End } anchor = Anchor::Start;
 
   void arrange(Arrangement& arrangement) const {
-    const float k = std::tan(skewDeg * geometry::path::kDegToRad);
+    const float k = std::tan(skewDegrees * geometry::path::kDegToRad);
     float y = 0.0f, minX = 0.0f, maxRight = 0.0f;
     for (Arrangement::Child& child : arrangement.children) {
       const float x = k * y;

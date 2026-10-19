@@ -33,7 +33,7 @@ class _WellProperties(typing.TypedDict, total=False):
     height: _t.DimensionLike
     ground: _t.FillLike | None
     padding: float | None
-    paddingY: float | None
+    paddingVertical: float | None
     clip: bool
     corners: float | None
     keyline: _t.FillLike | None
@@ -113,8 +113,8 @@ class _GaugeProperties(typing.TypedDict, total=False):
     fraction: float
     diameter: float
     thickness: float
-    startDeg: float
-    sweepDeg: float
+    startDegrees: float
+    sweepDegrees: float
     track: _t.FillLike | None
     bar: _t.FillLike | None
     reading: str

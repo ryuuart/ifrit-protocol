@@ -140,15 +140,15 @@ void bindDisplaced(py::module_& effects) {
                                          "A displacement has no field named ");
   displaced.doc() =
       "Where a glyph stands away from home: offset by dx and dy pixels, "
-      "leaning rotateDeg degrees, at scale, with a seeded scatter of "
-      "scatterPx and scatterLeanDeg per glyph, fading in over fadeOver of "
+      "leaning rotateDegrees degrees, at scale, with a seeded scatter of "
+      "scatterPx and scatterLeanDegrees per glyph, fading in over fadeOver of "
       "its way and at opacity, and on a variable axis.";
   displaced.def_readwrite("dx", &Displaced::dx)
       .def_readwrite("dy", &Displaced::dy)
-      .def_readwrite("rotateDeg", &Displaced::rotateDeg)
+      .def_readwrite("rotateDegrees", &Displaced::rotateDegrees)
       .def_readwrite("scale", &Displaced::scale)
       .def_readwrite("scatterPx", &Displaced::scatterPx)
-      .def_readwrite("scatterLeanDeg", &Displaced::scatterLeanDeg)
+      .def_readwrite("scatterLeanDegrees", &Displaced::scatterLeanDegrees)
       .def_readwrite("fadeOver", &Displaced::fadeOver)
       .def_readwrite("opacity", &Displaced::opacity)
       .def_readwrite("axis", &Displaced::axis)
@@ -210,11 +210,12 @@ void bindGlyphModifier(py::module_& effects) {
       effects, "GlyphModifier", "A glyph modifier has no field named ");
   modifier.doc() =
       "One glyph's deviation from rest: offset by dx and dy pixels, scaled, "
-      "turned rotateDeg degrees, at alpha, its colour multiplied by "
+      "turned rotateDegrees degrees, at alpha, its colour multiplied by "
       "colorMultiplier, added to by colorAdd and screened by colorScreen — "
       "each a colour, the ink in force (Fill.currentInk()) or a custom "
       "property (Fill.var(name)) read where the glyph is painted — "
-      "stretched by scaleX and scaleY, sheared by skewXDeg and skewYDeg, "
+      "stretched by scaleX and scaleY, sheared by skewXDegrees and "
+      "skewYDegrees, "
       "drawn at a variable axis coordinate, or as another code point of "
       "equal advance.";
   const auto colorLane = [&modifier](const char* name,
@@ -228,15 +229,15 @@ void bindGlyphModifier(py::module_& effects) {
   modifier.def_readwrite("dx", &GlyphModifier::dx)
       .def_readwrite("dy", &GlyphModifier::dy)
       .def_readwrite("scale", &GlyphModifier::scale)
-      .def_readwrite("rotateDeg", &GlyphModifier::rotateDeg)
+      .def_readwrite("rotateDegrees", &GlyphModifier::rotateDegrees)
       .def_readwrite("alpha", &GlyphModifier::alpha);
   colorLane("colorMultiplier", &GlyphModifier::colorMultiplier);
   colorLane("colorAdd", &GlyphModifier::colorAdd);
   colorLane("colorScreen", &GlyphModifier::colorScreen);
   modifier.def_readwrite("scaleX", &GlyphModifier::scaleX)
       .def_readwrite("scaleY", &GlyphModifier::scaleY)
-      .def_readwrite("skewXDeg", &GlyphModifier::skewXDeg)
-      .def_readwrite("skewYDeg", &GlyphModifier::skewYDeg)
+      .def_readwrite("skewXDegrees", &GlyphModifier::skewXDegrees)
+      .def_readwrite("skewYDegrees", &GlyphModifier::skewYDegrees)
       .def_readwrite("axis", &GlyphModifier::axis)
       .def_property(
           "codepoint",
@@ -349,7 +350,7 @@ void bindComposeTextEffects(pybind11::module_& module) {
               py::arg("risePx") = 14.0f,
               "Each glyph straightens out of a lean as it rises.");
   effects.def("scatter", &textFx::scatter, py::arg("radiusPx") = 40.0f,
-              py::arg("leanDeg") = 24.0f,
+              py::arg("leanDegrees") = 24.0f,
               "Each glyph gathers from a seeded scatter.");
   effects.def("typeOn", &textFx::typeOn,
               "Each glyph appears whole at its turn, as typed.");

@@ -1,10 +1,10 @@
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilsketch/kit/Cells.h>
 
@@ -31,7 +31,7 @@ compose::Element well(const Well& specification, compose::Element surface) {
        .height = specification.height,
        .ground = bed,
        .padding = specification.padding.value_or(look.spacing.wellPadding),
-       .paddingY = specification.paddingY,
+       .paddingVertical = specification.paddingVertical,
        .clip = specification.clip,
        .corners = specification.corners.value_or(0.0f),
        .keyline = specification.keyline,
@@ -50,7 +50,7 @@ compose::Element well(const Well& specification, compose::Element surface) {
     const Well::Relief& lift = *specification.relief;
     then(material::Filter::bevel({.depth = lift.depth,
                                   .size = lift.blur,
-                                  .angleDegrees = lift.angleDeg,
+                                  .angleDegrees = lift.angleDegrees,
                                   .highlight = lift.light,
                                   .shadow = lift.shade}));
   }

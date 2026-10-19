@@ -22,10 +22,10 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/scene3d/Scene3D.h>
-#include <sigilworld/World.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
+#include <sigilworld/World.h>
 
 #include <cmath>
 #include <cstdio>
@@ -79,7 +79,7 @@ camera::Camera stageCamera() {
   camera::Camera view;
   view.eye = {0, 96, 250};
   view.target = {0, 0, 0};
-  view.fovYDeg = 38;
+  view.fovYDegrees = 38;
   return view;
 }
 
@@ -89,16 +89,14 @@ camera::Camera stageCamera() {
 world::Frame stage(gm::Mesh subject) {
   return world::Frame(world::group(
       {world::camera(stageCamera(), {.toneCurve = world::ToneCurve::Neutral}),
-       world::directionalLight(
-           {-0.5f, -0.7f, -0.5f},
-           {.color = material::Color{1.0f, 0.95f, 0.88f, 1},
-            .intensity = 2.9f}),
-       world::directionalLight(
-           {0.7f, -0.15f, -0.2f},
-           {.color = material::Color{0.42f, 0.56f, 0.9f, 1},
-            .intensity = 1.3f}),
-       world::ambientLight({.color = material::Color{0.8f, 0.8f, 1.0f, 1},
-                            .intensity = 0.3f}),
+       world::directionalLight({-0.5f, -0.7f, -0.5f},
+                               {.color = material::Color{1.0f, 0.95f, 0.88f, 1},
+                                .intensity = 2.9f}),
+       world::directionalLight({0.7f, -0.15f, -0.2f},
+                               {.color = material::Color{0.42f, 0.56f, 0.9f, 1},
+                                .intensity = 1.3f}),
+       world::ambientLight(
+           {.color = material::Color{0.8f, 0.8f, 1.0f, 1}, .intensity = 0.3f}),
        world::mesh(std::move(subject))
            .key("subject")
            .transform(camera::place({0, 0, 0}, 24, 0))
@@ -140,10 +138,10 @@ struct CodecRoundtrip {
     const auto meshFigure = [&ctx](gm::Mesh mesh) {
       return sketch::kit::well(
           {.width = kCell, .height = kPicture},
-          image(ctx.bakeScene3D(stage(std::move(mesh)),
-                                {(int)kCell * kBakeDensity,
-                                 (int)kPicture * kBakeDensity},
-                                {.camera = stageCamera()}),
+          image(ctx.bakeScene3D(
+                    stage(std::move(mesh)),
+                    {(int)kCell * kBakeDensity, (int)kPicture * kBakeDensity},
+                    {.camera = stageCamera()}),
                 material::Fit::Stretch));
     };
 

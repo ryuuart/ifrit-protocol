@@ -1,6 +1,6 @@
 import QtQuick
 import QtTest
-import Ifrit.Qt 1.0 as Ui
+import Sigil.Qt 1.0 as Ui
 
 TestCase {
     id: tests

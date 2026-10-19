@@ -100,7 +100,7 @@ class GrimoireView : public QQuickRhiItem {
    *  back off and says why, rather than publishing something else. */
   Q_INVOKABLE void setPublishing(bool publishing);
   /** Moves the viewpoint of a sketch that has one. */
-  Q_INVOKABLE void orbit(float yawDeg, float pitchDeg, float distance);
+  Q_INVOKABLE void orbit(float yawDegrees, float pitchDegrees, float distance);
   /** WHERE THE POINTER STANDS over this item, in its own coordinates,
    *  and whether its button is down. The item puts the point into the
    *  sketch's canvas units through the same view the frame is drawn
@@ -133,8 +133,8 @@ class GrimoireView : public QQuickRhiItem {
   // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
   [[nodiscard]] QString state() const { return m_state; }
   [[nodiscard]] bool orbitable() const { return m_orbitable; }
-  [[nodiscard]] qreal orbitYaw() const { return m_orbit.yawDeg; }
-  [[nodiscard]] qreal orbitPitch() const { return m_orbit.pitchDeg; }
+  [[nodiscard]] qreal orbitYaw() const { return m_orbit.yawDegrees; }
+  [[nodiscard]] qreal orbitPitch() const { return m_orbit.pitchDegrees; }
   [[nodiscard]] qreal orbitDistance() const { return m_orbit.distance; }
   [[nodiscard]] qreal canvasScale() const { return m_canvasScale; }
   void setCanvasScale(qreal scale);
@@ -233,8 +233,8 @@ class GrimoireView : public QQuickRhiItem {
   std::uint64_t m_publicationRequest = 0;
   bool m_orbitable = false;
   double m_timeScale = 1.0;
-  float m_yawDeg = 0.0f;
-  float m_pitchDeg = 0.0f;
+  float m_yawDegrees = 0.0f;
+  float m_pitchDegrees = 0.0f;
   float m_distance = 0.0f;
   bool m_orbitDirty = false;
   /** Published by the renderer from the running session: where the

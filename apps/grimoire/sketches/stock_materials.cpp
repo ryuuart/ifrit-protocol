@@ -68,7 +68,7 @@ sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   look.captionWhere = kit::Caption::Where::Below;
-  look.spacing.marginX = 30;
+  look.spacing.marginHorizontal = 30;
   look.spacing.marginTop = 26;
   look.spacing.marginBottom = 20;
   look.spacing.captionNoteGap = 3;

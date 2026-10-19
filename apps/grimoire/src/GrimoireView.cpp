@@ -147,13 +147,13 @@ void GrimoireView::setPublishing(bool publishing) {
   update();  // the renderer reads it on the synchronize this asks for
 }
 
-void GrimoireView::orbit(float yawDeg, float pitchDeg, float distance) {
+void GrimoireView::orbit(float yawDegrees, float pitchDegrees, float distance) {
   // A distance of nothing is not a viewpoint: a drag that arrived before
   // the running sketch had said where it stands is left alone rather
   // than answered with a number of this host's own.
   if (!(distance > 0.0f)) return;
-  m_yawDeg = yawDeg;
-  m_pitchDeg = std::clamp(pitchDeg, -85.0f, 85.0f);
+  m_yawDegrees = yawDegrees;
+  m_pitchDegrees = std::clamp(pitchDegrees, -85.0f, 85.0f);
   m_distance = distance;
   m_orbitDirty = true;
   update();

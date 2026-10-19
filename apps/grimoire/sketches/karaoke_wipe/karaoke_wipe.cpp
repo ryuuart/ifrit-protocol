@@ -101,8 +101,9 @@
 //   data/airship.json — the sung words and the time each one starts, in ms.
 //               Type a real line's syllable times here and the caption
 //               follows them.
-//   kEachMs   — start-to-start between the LETTERS inside one word.
-//   kSwitchMs — how long ONE letter takes to change colour. Small is the
+//   kEachMilliseconds   — start-to-start between the LETTERS inside one word.
+//   kSwitchMilliseconds — how long ONE letter takes to change colour. Small is
+//   the
 //               CD+G hard edge; large is a soft gradient crossing the word.
 //   kLineSeconds — how long the whole line takes. The tempo, not the shape.
 //   kHopHeight — the ball's arc. Fleischer's is high and slow.
@@ -222,9 +223,10 @@ constexpr float kLyricSize = 46.0f;
 constexpr float kLabelSize = 11.5f;
 
 // ---- the schedule ---------------------------------------------------------
-constexpr float kEachMs = 46.0f;     // start-to-start, per letter of a word
-constexpr float kSwitchMs = 190.0f;  // one letter's own change
-constexpr float kCatchMs = 420.0f;   // one letter's lift and flare
+constexpr float kEachMilliseconds =
+    46.0f;  // start-to-start, per letter of a word
+constexpr float kSwitchMilliseconds = 190.0f;  // one letter's own change
+constexpr float kCatchMilliseconds = 420.0f;   // one letter's lift and flare
 constexpr float kCatchLift = 5.0f;   // px a letter kicks up as it is sung
 constexpr int kCountIn = 4;          // the count-in's beats and dots
 constexpr double kCountBeat = 0.40;  // one count-in beat, s
@@ -358,9 +360,11 @@ Song songFrom(const sketch::kit::Document& document) {
  *  What a unit IS lives on the track — `unit = Word`, `innerUnit =
  *  Cluster` — because a spread is SigilMotion's and says nothing about
  *  text. */
-motion::Tween<float> wipeCascade(const Song& song, float letterMs = kSwitchMs) {
-  return {.duration = std::chrono::duration<float, std::milli>(letterMs),
-          .delay = motion::cues(song.cues)};
+motion::Tween<float> wipeCascade(
+    const Song& song, float letterMilliseconds = kSwitchMilliseconds) {
+  return {
+      .duration = std::chrono::duration<float, std::milli>(letterMilliseconds),
+      .delay = motion::cues(song.cues)};
 }
 
 /** The progress window a cascade over the song runs in, in seconds of the
@@ -372,13 +376,13 @@ sigil::motion::Animatable<float> progressOf(
     const motion::Animatable<float>& cycle) {
   const auto words = (uint32_t)song.cues.size();
   const float span =
-      motion::timingOf(
-          cascade,
-          motion::stagger(std::chrono::duration<float, std::milli>(kEachMs)))
+      motion::timingOf(cascade,
+                       motion::stagger(std::chrono::duration<float, std::milli>(
+                           kEachMilliseconds)))
           .span(words, song.widest) /
-      motion::timingOf(
-          wipeCascade(song),
-          motion::stagger(std::chrono::duration<float, std::milli>(kEachMs)))
+      motion::timingOf(wipeCascade(song),
+                       motion::stagger(std::chrono::duration<float, std::milli>(
+                           kEachMilliseconds)))
           .span(words, song.widest);
   return motion::bind(
       cycle, {.from = {(float)kLeadIn, (float)(kLeadIn + kLineSeconds * span)},
@@ -387,13 +391,13 @@ sigil::motion::Animatable<float> progressOf(
 
 /** THE CATCH: a letter kicks up and flares as its colour arrives, and is
  *  home by the end of its own beat. Both beats open on the same cue, so
- *  the tint finishes `kSwitchMs` into a catch `kCatchMs` long, and that is
- *  where the flare peaks, over the sung colour. The kick starts at once,
- *  but the flare waits until the tint is most of the way there: over a
- *  letter still half slate it brightens slate, which reads as a grey
+ *  the tint finishes `kSwitchMilliseconds` into a catch `kCatchMilliseconds`
+ * long, and that is where the flare peaks, over the sung colour. The kick
+ * starts at once, but the flare waits until the tint is most of the way there:
+ * over a letter still half slate it brightens slate, which reads as a grey
  *  ghost rather than a flare. */
 TextEffect catchEffect() {
-  constexpr float kArrived = kSwitchMs / kCatchMs;
+  constexpr float kArrived = kSwitchMilliseconds / kCatchMilliseconds;
   constexpr float kFlareOpens = 0.6f * kArrived;
   return textFx::tween(
       {.from = GlyphModifier{},
@@ -560,23 +564,25 @@ struct KaraokeWipe {
    *  table. */
   [[nodiscard]] Text singing(const Song& song, material::Color resting) const {
     const motion::Tween<float> wipe = wipeCascade(song);
-    const motion::Tween<float> lift = wipeCascade(song, kCatchMs);
+    const motion::Tween<float> lift = wipeCascade(song, kCatchMilliseconds);
     return text(song.sung)
         .role("lyric")
-        .textFx({.effect = textFx::tint({.from = resting}),
-                 .tween = wipe,
-                 .within = motion::stagger(
-                     std::chrono::duration<float, std::milli>(kEachMs)),
-                 .unit = weave::Unit::Word,
-                 .innerUnit = weave::Unit::Cluster,
-                 .progress = progressOf(wipe, song, cycle)})
-        .textFx({.effect = catchEffect(),
-                 .tween = lift,
-                 .within = motion::stagger(
-                     std::chrono::duration<float, std::milli>(kEachMs)),
-                 .unit = weave::Unit::Word,
-                 .innerUnit = weave::Unit::Cluster,
-                 .progress = progressOf(lift, song, cycle)});
+        .textFx(
+            {.effect = textFx::tint({.from = resting}),
+             .tween = wipe,
+             .within = motion::stagger(
+                 std::chrono::duration<float, std::milli>(kEachMilliseconds)),
+             .unit = weave::Unit::Word,
+             .innerUnit = weave::Unit::Cluster,
+             .progress = progressOf(wipe, song, cycle)})
+        .textFx(
+            {.effect = catchEffect(),
+             .tween = lift,
+             .within = motion::stagger(
+                 std::chrono::duration<float, std::milli>(kEachMilliseconds)),
+             .unit = weave::Unit::Word,
+             .innerUnit = weave::Unit::Cluster,
+             .progress = progressOf(lift, song, cycle)});
   }
 
   [[nodiscard]] Element describe(const Song& song) const {
@@ -665,7 +671,7 @@ struct KaraokeWipe {
             document::footer(kit::formatted(
                 "The ball marks the word; the wipe marks progress. %zu cues "
                 "· %.0f ms per letter · %.0f ms colour change.",
-                song.cues.size(), kEachMs, kSwitchMs)),
+                song.cues.size(), kEachMilliseconds, kSwitchMilliseconds)),
         });
   }
 

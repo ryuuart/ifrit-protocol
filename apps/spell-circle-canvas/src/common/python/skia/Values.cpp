@@ -11,6 +11,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/Extend.h>
 #include <sigilpython/skia/Registration.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Keywords.h>
@@ -43,6 +44,7 @@ SkRect rect(py::handle value) {
 
 void bindValues(py::module_& module) {
   auto skia = module.def_submodule("skia");
+  submodule(module, "skia.draw");
   py::class_<SkPicture, sk_sp<SkPicture>>(skia, "Picture")
       .def("cullRect", &SkPicture::cullRect)
       .def("uniqueID", &SkPicture::uniqueID);

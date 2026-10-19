@@ -154,26 +154,26 @@ void Pen::arc(float x, float y, float w, float h, float start, float stop,
     paintOval(oval);
     return;
   }
-  const float startDeg = degrees(from);
-  const float sweepDeg = degrees(to - from);
+  const float startDegrees = degrees(from);
+  const float sweepDegrees = degrees(to - from);
   if (m_clipRecording) {
     SkPathBuilder wedge;
     if (mode == PIE) wedge.moveTo(oval.centerX(), oval.centerY());
-    wedge.addArc(oval, startDeg, sweepDeg);
+    wedge.addArc(oval, startDegrees, sweepDegrees);
     wedge.close();
     recordShape(wedge.detach());
     return;
   }
   if (const SkPaint* fill = fillPaint(&oval))
-    m_canvas->drawArc(oval, startDeg, sweepDeg, mode != CHORD, *fill);
+    m_canvas->drawArc(oval, startDegrees, sweepDegrees, mode != CHORD, *fill);
   if (const SkPaint* stroke = strokePaint(&oval)) {
     if (mode == CHORD) {
       SkPathBuilder chord;
-      chord.addArc(oval, startDeg, sweepDeg);
+      chord.addArc(oval, startDegrees, sweepDegrees);
       chord.close();
       m_canvas->drawPath(chord.detach(), *stroke);
     } else {
-      m_canvas->drawArc(oval, startDeg, sweepDeg, mode == PIE, *stroke);
+      m_canvas->drawArc(oval, startDegrees, sweepDegrees, mode == PIE, *stroke);
     }
   }
 }

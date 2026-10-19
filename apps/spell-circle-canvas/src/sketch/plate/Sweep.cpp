@@ -303,8 +303,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // minutes. A sketch that could not afford the full warmup is marked
     // in the table, because a run cut short is still inside its entrance
     // and its average means something different from the others'.
-    const double warmBudgetMs = options.only >= 0 ? 1e9 : 4000;
-    const double sampleBudgetMs = options.only >= 0 ? 1e9 : 2500;
+    const double warmBudgetMilliseconds = options.only >= 0 ? 1e9 : 4000;
+    const double sampleBudgetMilliseconds = options.only >= 0 ? 1e9 : 2500;
     int warmFrames = 0;
     int sampleFrames = kMinSampleFrames;
     bool shortened = false;
@@ -312,13 +312,15 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     std::vector<LaneCost> lanes;
     if (!options.ledger) {
       for (int f = 0; f < kProbeFrames; ++f) stepOne(*surface);
-      const double probeMs =
+      const double probeMilliseconds =
           std::max(0.01, measure::Milliseconds(stats.frame().mean()).count());
-      warmFrames =
-          std::max(0, std::min(kMaxWarmFrames, (int)(warmBudgetMs / probeMs)));
-      sampleFrames =
-          std::max(kMinSampleFrames,
-                   std::min(kMaxSampleFrames, (int)(sampleBudgetMs / probeMs)));
+      warmFrames = std::max(
+          0, std::min(kMaxWarmFrames,
+                      (int)(warmBudgetMilliseconds / probeMilliseconds)));
+      sampleFrames = std::max(
+          kMinSampleFrames,
+          std::min(kMaxSampleFrames,
+                   (int)(sampleBudgetMilliseconds / probeMilliseconds)));
       shortened = warmFrames < kMaxWarmFrames;
       anyShortened = anyShortened || shortened;
       for (int f = 0; f < warmFrames; ++f) stepOne(*surface);

@@ -413,9 +413,9 @@ struct GlassForms {
     // through every glass.
     lensOfEye.eye = {110 * std::sin(phase), 310, 1350};
     lensOfEye.target = {0, 250, -80};
-    lensOfEye.fovYDeg = 30;
-    lensOfEye.zNear = 40;
-    lensOfEye.zFar = 5000;
+    lensOfEye.fovYDegrees = 30;
+    lensOfEye.nearPlane = 40;
+    lensOfEye.farPlane = 5000;
     return lensOfEye;
   }
 

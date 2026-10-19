@@ -551,7 +551,7 @@ void warmPanel(Host& host) {
     for (const auto& row : host.composer.profile())
       if (row.depth <= 3)
         std::printf("  [why] %-28s self=%7.3f ms cache=%d\n", row.label.c_str(),
-                    row.selfMs, (int)row.cacheState);
+                    row.selfMilliseconds, (int)row.cacheState);
     host.composer.setProfiling(false);
   }
 }

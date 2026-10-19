@@ -101,7 +101,7 @@ constexpr SkRect kFlight = SkRect::MakeXYWH(600, 116, 650, 690);
 constexpr int kBakeDensity = 2;
 
 mesh::camera::Camera flightCamera() {
-  return {.eye = {0, 620, 900}, .target = {0, 0, 0}, .fovYDeg = 40};
+  return {.eye = {0, 620, 900}, .target = {0, 0, 0}, .fovYDegrees = 40};
 }
 
 namespace pop = mesh::pop;

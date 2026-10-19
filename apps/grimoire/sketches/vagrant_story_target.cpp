@@ -140,7 +140,7 @@ namespace gm = ::sigil::geometry::mesh;
 namespace ck = ::sigil::compose::kit;
 
 constexpr float kPi = 3.14159265358979f;
-constexpr float kDeg = kPi / 180.0f;
+constexpr float kRadiansPerDegree = kPi / 180.0f;
 
 // ---------------------------------------------------------------------------
 // THE ARITHMETIC. Every number below is the decompiled function, integer
@@ -345,7 +345,7 @@ constexpr std::array<Part, 6> kParts = {
 /** A figure: the six parts of limbs[6], as six bodies. Nothing here is a
  *  character rig — the point is that the thing the cards address and the
  *  thing on screen are the same six entries. */
-Group figure(const std::string& prefix, glm::vec3 at, float facingDeg,
+Group figure(const std::string& prefix, glm::vec3 at, float facingDegrees,
              float scale, const material::Material& skin, float selectedPulse,
              int selected) {
   std::vector<Node> parts;
@@ -371,7 +371,7 @@ Group figure(const std::string& prefix, glm::vec3 at, float facingDeg,
                         .fill(wire(1.0f, 3.4f))
                         .collection("mark"));
   }
-  return group(parts).key(prefix).at(at).rotateY(facingDeg).scale(scale);
+  return group(parts).key(prefix).at(at).rotateY(facingDegrees).scale(scale);
 }
 
 /** THE REACH SPHERE: eight meridians and five latitude rings of real
@@ -397,7 +397,7 @@ Group reachSphere(float seconds) {
   }
   constexpr int kLatitudes = 5;
   for (int i = 0; i < kLatitudes; ++i) {
-    const float lat = ((float)i - 2.0f) * 26.0f * kDeg;
+    const float lat = ((float)i - 2.0f) * 26.0f * kRadiansPerDegree;
     // One point on the meridian: its height up the sphere and the radius
     // of the ring cut there are the two components of the same place.
     const SkPoint on = sigil::geometry::path::toSk(
@@ -424,7 +424,7 @@ Group reachSphere(float seconds) {
 Group attackLadder() {
   std::vector<Node> ticks;
   for (int i = 0; i < 32; ++i) {
-    const float a = (float)i * kAngleStep * kDeg;
+    const float a = (float)i * kAngleStep * kRadiansPerDegree;
     const bool inWedge = i < kAttackShapeAngle;
     const float len = inWedge ? 34.0f : 15.0f;
     // The ticks turn the other way round the floor than they do on
@@ -522,9 +522,9 @@ struct VagrantStoryTarget {
     lens.eye = {-108.0f, 334.0f, 988.0f};
     lens.target = {-24.0f, 104.0f, 0.0f};
     lens.up = {0.0f, 1.0f, 0.0f};
-    lens.fovYDeg = 38.0f;
-    lens.zNear = 4.0f;
-    lens.zFar = 4096.0f;
+    lens.fovYDegrees = 38.0f;
+    lens.nearPlane = 4.0f;
+    lens.farPlane = 4096.0f;
     ctx.camera(lens);
     // THE OVERLAY IS DESCRIBED ONCE. The screen this reconstructs is the
     // one in which world time has stopped, so nothing on the overlay is a

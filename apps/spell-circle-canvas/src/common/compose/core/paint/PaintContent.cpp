@@ -556,11 +556,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   }
 
   /** An edge gate's half-plane: the region lying before a moving edge at
-   *  `angleDeg`, built in the edge's own frame and rotated into place —
+   *  `angleDegrees`, built in the edge's own frame and rotated into place —
    *  {p : (p - mid)·d <= edge}. */
-  const auto edgeRegion = [&](float angleDeg, float t01) {
+  const auto edgeRegion = [&](float angleDegrees, float t01) {
     const float t = std::clamp(t01, 0.0f, 1.0f);
-    const float rad = geometry::path::radians(angleDeg);
+    const float rad = geometry::path::radians(angleDegrees);
     const float c = std::cos(rad), s = std::sin(rad);
     const SkPoint mid{bounds.centerX(), bounds.centerY()};
     const float reach =
@@ -570,7 +570,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     const float edge = -reach + 2.0f * reach * t;
     SkPathBuilder b;
     b.addRect(SkRect::MakeLTRB(-reach - 1.0f, -wide, edge, wide));
-    SkMatrix m = SkMatrix::RotateDeg(angleDeg);
+    SkMatrix m = SkMatrix::RotateDeg(angleDegrees);
     m.postTranslate(mid.x(), mid.y());
     return b.detach().makeTransform(m);
   };
@@ -602,7 +602,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         // along in the first place.
         if (bounds.isEmpty()) continue;
         canvas.save();
-        canvas.clipPath(edgeRegion(m.with.angleDeg, g.fraction), true);
+        canvas.clipPath(edgeRegion(m.with.angleDegrees, g.fraction), true);
       } else {  // Shape — and its complement, the missing clipOut()
         canvas.save();
         canvas.clipPath(

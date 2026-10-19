@@ -86,7 +86,7 @@ struct Well {
   float padding = 0.0f;
   /** Down, where a plate is set tighter or looser than it is wide; unset
    *  is whatever `padding` is. */
-  std::optional<float> paddingY;
+  std::optional<float> paddingVertical;
   bool clip = true;
   /** Rounds the well. 0 is the square corner a specimen sheet uses. */
   float corners = 0.0f;
@@ -431,7 +431,7 @@ struct PanelGrid {
  *      kit::sheet({.title = "THE BLOCK CONTROLS",
  *                  .subtitle = "one text leaf per panel",
  *                  .footer = "Grimoire · paragraph_sheet",
- *                  .marginX = 64, .marginTop = 64,
+ *                  .marginHorizontal = 64, .marginTop = 64,
  *                  .marginBottom = 34, .ground = Fill::color(kPaper),
  *                  .rule = Fill::color(kFaint)},
  *                 kit::cells({.cells = panels, .gap = 40}))
@@ -458,7 +458,7 @@ struct Sheet {
   Utf8 subtitle;
   Utf8 footer;
   /** The page margins, px: the two sides, the top and the bottom. */
-  float marginX = 30.0f;
+  float marginHorizontal = 30.0f;
   float marginTop = 16.0f;
   float marginBottom = 14.0f;
   /** Between the title and its subtitle, px. */
@@ -489,8 +489,9 @@ struct Sheet {
     if (!page.key.empty()) part.key(page.key + "-" + which);
     return part;
   };
-  Element root = box().column().padding(page.marginTop, page.marginX,
-                                        page.marginBottom, page.marginX);
+  Element root =
+      box().column().padding(page.marginTop, page.marginHorizontal,
+                             page.marginBottom, page.marginHorizontal);
   if (page.ground.kind != Fill::Kind::None) root.fill(page.ground);
 
   const bool ruled = page.rule.kind != Fill::Kind::None;

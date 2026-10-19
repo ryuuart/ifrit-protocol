@@ -38,7 +38,7 @@ void BM_ScheduleBuild(benchmark::State& state, Timing timing) {
   Schedule schedule;  // reused in place, as a host reuses it across frames
   for ([[maybe_unused]] auto iteration : state) {
     schedule.build(timing, count, 4);
-    benchmark::DoNotOptimize(schedule.totalMs);
+    benchmark::DoNotOptimize(schedule.totalMilliseconds);
   }
   state.SetItemsProcessed(state.iterations());
 }
@@ -75,5 +75,6 @@ BENCHMARK_CAPTURE(BM_LocalProgress, flat, flat())->Arg(32)->Arg(512);
 BENCHMARK_CAPTURE(BM_LocalProgress, nested, nested())->Arg(32)->Arg(512);
 BENCHMARK_CAPTURE(BM_StaggerAt, step, stagger(30ms))->Arg(32)->Arg(512);
 BENCHMARK_CAPTURE(BM_StaggerAt, grid,
-                  stagger(30ms, {.from = StaggerFrom::Center, .grid = {16, 32}}))
+                  stagger(30ms,
+                          {.from = StaggerFrom::Center, .grid = {16, 32}}))
     ->Arg(512);

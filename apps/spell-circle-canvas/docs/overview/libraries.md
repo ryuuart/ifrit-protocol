@@ -5,8 +5,8 @@ includes a library's own headers, links its target and spells its
 namespace: no library re-exports another's vocabulary, so the name you
 read in a signature tells you which library to go to.
 
-Libraries meant to be extracted into their own repositories carry the
-`Sigil` prefix; product-side integrations keep `Ifrit`.
+The tree is Sigil throughout: every library, target, QML module and
+namespace carries the `Sigil` prefix.
 
 Each name below opens that library's own site, whose front page is its
 README — the canon for the library, written for someone with no prior
@@ -138,7 +138,7 @@ the sheet a sketch stands on — the theme, the page and the furniture a
 specimen is built out of. Grimoire, the stock host built on it, carries
 the reference studies as its catalogue of sketches.
 
-**[Ifrit.Qt](doxygen:IfritQt)** — the reusable Qt Quick controls the
+**[Sigil.Qt](doxygen:SigilQt)** — the reusable Qt Quick controls the
 desktop tools share.
 
 ## How they relate

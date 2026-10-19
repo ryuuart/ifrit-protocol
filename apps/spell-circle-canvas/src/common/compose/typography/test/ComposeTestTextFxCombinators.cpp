@@ -1,17 +1,16 @@
 // THE COMBINATORS OVER WHOLE EFFECTS: textFx::sequence's phases and crossfades,
-// textFx::mix's composition, textFx::tween's keyframes and its curves, textFx::hold's
-// veto, and what each answers about displacing its glyphs.
+// textFx::mix's composition, textFx::tween's keyframes and its curves,
+// textFx::hold's veto, and what each answers about displacing its glyphs.
 //
 // The text binary's share of the content suites, one file per subject.
 
 #include <sigilmaterial/advanced/Recipe.h>
-#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <memory>
 
 #include "DressedTypeProbes.h"
-#include <sigilmotion/ease/Ease.h>
 
 namespace {
 
@@ -94,16 +93,26 @@ TEST(ComposeTextFx, MixEvaluatesBothAndComposesByTheTrackAlgebra) {
 }
 
 TEST(ComposeTextFx, CombinatorsAreComparableWhenTheirOperandsAre) {
-  EXPECT_TRUE(textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f), textFx::enter(textFx::pop())) ==
-              textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f), textFx::enter(textFx::pop())));
-  EXPECT_FALSE(textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f), textFx::enter(textFx::pop())) ==
-               textFx::sequence(textFx::enter(textFx::rise(20)).until(0.6f), textFx::enter(textFx::pop())));
-  EXPECT_FALSE(textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f), textFx::enter(textFx::pop())) ==
-               textFx::sequence(textFx::enter(textFx::rise(22)).until(0.5f), textFx::enter(textFx::pop())));
-  EXPECT_TRUE(textFx::mix(textFx::enter(textFx::rise(20)), textFx::enter(textFx::slide())) ==
-              textFx::mix(textFx::enter(textFx::rise(20)), textFx::enter(textFx::slide())));
-  EXPECT_FALSE(textFx::mix(textFx::enter(textFx::rise(20)), textFx::enter(textFx::slide())) ==
-               textFx::mix(textFx::enter(textFx::slide()), textFx::enter(textFx::rise(20))));
+  EXPECT_TRUE(textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f),
+                               textFx::enter(textFx::pop())) ==
+              textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f),
+                               textFx::enter(textFx::pop())));
+  EXPECT_FALSE(textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f),
+                                textFx::enter(textFx::pop())) ==
+               textFx::sequence(textFx::enter(textFx::rise(20)).until(0.6f),
+                                textFx::enter(textFx::pop())));
+  EXPECT_FALSE(textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f),
+                                textFx::enter(textFx::pop())) ==
+               textFx::sequence(textFx::enter(textFx::rise(22)).until(0.5f),
+                                textFx::enter(textFx::pop())));
+  EXPECT_TRUE(textFx::mix(textFx::enter(textFx::rise(20)),
+                          textFx::enter(textFx::slide())) ==
+              textFx::mix(textFx::enter(textFx::rise(20)),
+                          textFx::enter(textFx::slide())));
+  EXPECT_FALSE(textFx::mix(textFx::enter(textFx::rise(20)),
+                           textFx::enter(textFx::slide())) ==
+               textFx::mix(textFx::enter(textFx::slide()),
+                           textFx::enter(textFx::rise(20))));
 }
 
 // THE PLACEMENT FACT IS INFERRED wherever the data allows it, because it is
@@ -122,44 +131,56 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
   // every pen position exactly where the layout put it.
   EXPECT_FALSE(textFx::enter(textFx::typeOn()).displaces());
   EXPECT_FALSE(TextEffect::variableAxis("GRAD", 80).displaces());
-  EXPECT_FALSE(textFx::enter(textFx::variableAxisSweep("GRAD", 0, 80)).displaces());
-  EXPECT_FALSE(textFx::tint({.from = SkColors::kGray, .to = SkColors::kWhite}).displaces());
+  EXPECT_FALSE(
+      textFx::enter(textFx::variableAxisSweep("GRAD", 0, 80)).displaces());
+  EXPECT_FALSE(textFx::tint({.from = SkColors::kGray, .to = SkColors::kWhite})
+                   .displaces());
   EXPECT_FALSE(textFx::scramble().displaces());
 
   // A TWEEN ANSWERS FROM ITS OWN STOPS. Colour and coverage are not
   // placement…
-  EXPECT_FALSE(textFx::tween({.from = GlyphModifier{.alpha = 0.0f}}).displaces());
-  EXPECT_FALSE(textFx::tween({.from = GlyphModifier{.colorMultiplier = {0.2f, 0.2f, 0.2f, 1}}})
-                   .displaces());
+  EXPECT_FALSE(
+      textFx::tween({.from = GlyphModifier{.alpha = 0.0f}}).displaces());
+  EXPECT_FALSE(
+      textFx::tween(
+          {.from = GlyphModifier{.colorMultiplier = {0.2f, 0.2f, 0.2f, 1}}})
+          .displaces());
   // …and every lane that is.
   EXPECT_TRUE(textFx::tween({.from = GlyphModifier{.dx = 12.0f}}).displaces());
   EXPECT_TRUE(textFx::tween({.from = GlyphModifier{.dy = 12.0f}}).displaces());
-  EXPECT_TRUE(textFx::tween({.from = GlyphModifier{.scale = 1.4f}}).displaces());
   EXPECT_TRUE(
-      textFx::tween({.from = GlyphModifier{.rotateDeg = 8.0f}}).displaces());
-  EXPECT_TRUE(textFx::tween({.from = GlyphModifier{.scaleX = 1.2f}}).displaces());
+      textFx::tween({.from = GlyphModifier{.scale = 1.4f}}).displaces());
+  EXPECT_TRUE(textFx::tween({.from = GlyphModifier{.rotateDegrees = 8.0f}})
+                  .displaces());
   EXPECT_TRUE(
-      textFx::tween({.from = GlyphModifier{.skewXDeg = 6.0f}}).displaces());
+      textFx::tween({.from = GlyphModifier{.scaleX = 1.2f}}).displaces());
   EXPECT_TRUE(
-      textFx::tween({.from = GlyphModifier{.skewYDeg = 6.0f}}).displaces());
+      textFx::tween({.from = GlyphModifier{.skewXDegrees = 6.0f}}).displaces());
+  EXPECT_TRUE(
+      textFx::tween({.from = GlyphModifier{.skewYDegrees = 6.0f}}).displaces());
 
   // A COMBINATOR DERIVES: any operand it may evaluate moving is enough, and
   // none of them moving is enough the other way. `textFx::hold` vetoes with
   // alpha, which places nothing, so it is its operand's answer.
-  EXPECT_FALSE(textFx::mix(textFx::enter(textFx::typeOn()), textFx::scramble()).displaces());
-  EXPECT_TRUE(textFx::mix(textFx::enter(textFx::typeOn()), textFx::enter(textFx::rise())).displaces());
-  EXPECT_FALSE(
-      textFx::sequence(textFx::enter(textFx::typeOn()).until(0.5f), textFx::scramble())
-          .displaces());
-  EXPECT_TRUE(textFx::sequence(textFx::enter(textFx::typeOn()).until(0.5f), textFx::enter(textFx::rise()))
+  EXPECT_FALSE(textFx::mix(textFx::enter(textFx::typeOn()), textFx::scramble())
+                   .displaces());
+  EXPECT_TRUE(textFx::mix(textFx::enter(textFx::typeOn()),
+                          textFx::enter(textFx::rise()))
+                  .displaces());
+  EXPECT_FALSE(textFx::sequence(textFx::enter(textFx::typeOn()).until(0.5f),
+                                textFx::scramble())
+                   .displaces());
+  EXPECT_TRUE(textFx::sequence(textFx::enter(textFx::typeOn()).until(0.5f),
+                               textFx::enter(textFx::rise()))
                   .displaces());
   EXPECT_FALSE(textFx::hold(textFx::scramble()).displaces());
   EXPECT_TRUE(textFx::hold(textFx::enter(textFx::rise())).displaces());
   // Nesting keeps the derivation exact rather than sticky.
-  EXPECT_FALSE(textFx::mix(textFx::sequence(
-                               textFx::tint({.from = SkColors::kGray, .to = SkColors::kWhite})),
-                           textFx::hold(textFx::enter(textFx::typeOn())))
-                   .displaces());
+  EXPECT_FALSE(
+      textFx::mix(textFx::sequence(textFx::tint(
+                      {.from = SkColors::kGray, .to = SkColors::kWhite})),
+                  textFx::hold(textFx::enter(textFx::typeOn())))
+          .displaces());
 
   // A PASS IS NOT A PLACEMENT: its shader runs over pixels already
   // rasterized at the resting origins.
@@ -168,8 +189,8 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
       sigil::material::Recipe::of<NoParameters>("test.identity-pass")
           .body(sigil::material::Target::SkSL,
                 "half4 main(float2 xy) { return uContent.eval(xy); }"));
-  EXPECT_FALSE(textFx::pass(sigil::material::Material(identityPass))
-                   .displaces());
+  EXPECT_FALSE(
+      textFx::pass(sigil::material::Material(identityPass)).displaces());
 
   // THE OPAQUE DOOR assumes motion, and takes the author's word otherwise.
   const GlyphModifierFunction still = [](const GlyphInfo&, float,
@@ -194,11 +215,11 @@ TEST(ComposeTextFx, ATweenReproducesEveryStopAtItsOwnShare) {
   // lands where the shares before it sum to.
   const GlyphModifier squash{.scaleX = 1.25f, .scaleY = 0.75f};
   const GlyphModifier stretch{.scaleX = 0.95f, .scaleY = 1.05f};
-  const TextEffect rubber = textFx::tween(
-      {.keyframes = {{.to = squash, .duration = 300ms},
-                     {.to = stretch, .duration = 350ms},
-                     {.to = {}, .duration = 350ms}},
-       .ease = sigil::motion::ease::inOutCubic});
+  const TextEffect rubber =
+      textFx::tween({.keyframes = {{.to = squash, .duration = 300ms},
+                                   {.to = stretch, .duration = 350ms},
+                                   {.to = {}, .duration = 350ms}},
+                     .ease = sigil::motion::ease::inOutCubic});
   const std::vector<std::pair<float, GlyphModifier>> stops = {
       {0.00f, {}}, {0.30f, squash}, {0.65f, stretch}, {1.00f, {}}};
   for (const auto& [at, stop] : stops) {
@@ -274,16 +295,17 @@ TEST(ComposeTextFx, ATweenCutsASubstitutionAndLerpsAMatchingAxis) {
 
   const sigil::weave::FontVariation light("GRAD", 400.0f);
   const sigil::weave::FontVariation heavy("GRAD", 800.0f);
-  const TextEffect swept = textFx::tween(
-      {.from = GlyphModifier{.axis = light}, .to = GlyphModifier{.axis = heavy}});
+  const TextEffect swept = textFx::tween({.from = GlyphModifier{.axis = light},
+                                          .to = GlyphModifier{.axis = heavy}});
   const GlyphModifier midway = evaluate(swept, 0.5f);
   ASSERT_TRUE(midway.axis.has_value());
   EXPECT_FLOAT_EQ(midway.axis.value_or(sigil::weave::FontVariation()).value,
                   600.0f);
 
   const sigil::weave::FontVariation slant("slnt", -10.0f);
-  const TextEffect crossed = textFx::tween(
-      {.from = GlyphModifier{.axis = light}, .to = GlyphModifier{.axis = slant}});
+  const TextEffect crossed =
+      textFx::tween({.from = GlyphModifier{.axis = light},
+                     .to = GlyphModifier{.axis = slant}});
   const auto tagOf = [](const GlyphModifier& mod) {
     return mod.axis ? std::string(mod.axis->tag, 4) : std::string("(unset)");
   };
@@ -390,10 +412,12 @@ TEST(ComposeTextFx, HoldWithholdsTheEffectUntilTheBeatOpens) {
   EXPECT_FLOAT_EQ(evaluate(held, 0.001f).dy, 10.0f);
   EXPECT_FLOAT_EQ(evaluate(held, 1.0f).dy, 10.0f);
 
-  EXPECT_TRUE(textFx::hold(textFx::enter(textFx::rise(20))) == textFx::hold(textFx::enter(textFx::rise(20))));
+  EXPECT_TRUE(textFx::hold(textFx::enter(textFx::rise(20))) ==
+              textFx::hold(textFx::enter(textFx::rise(20))));
   EXPECT_FALSE(textFx::hold(textFx::enter(textFx::rise(20))) ==
                textFx::hold(textFx::enter(textFx::rise(22))));
-  EXPECT_FALSE(textFx::hold(textFx::enter(textFx::rise(20))) == textFx::enter(textFx::rise(20)));
+  EXPECT_FALSE(textFx::hold(textFx::enter(textFx::rise(20))) ==
+               textFx::enter(textFx::rise(20)));
   EXPECT_FLOAT_EQ(textFx::hold(textFx::enter(textFx::rise(20))).reach(),
                   textFx::enter(textFx::rise(20)).reach());
 }

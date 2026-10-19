@@ -12,8 +12,8 @@
 
 namespace {
 
-using ifrit::qt::ActivityHold;
-using ifrit::qt::ActivityReason;
+using sigil::qt::ActivityHold;
+using sigil::qt::ActivityReason;
 
 /** A hold that records every transition it announces. */
 struct RecordedHold {

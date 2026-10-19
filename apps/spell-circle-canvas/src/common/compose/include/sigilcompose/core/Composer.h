@@ -402,10 +402,12 @@ class Composer {
     // Per-phase wall time, so a slow frame localizes at a glance. The paint
     // number is where per-pixel cost lives (live materials, re-records);
     // reconcile/layout/volatile are the retained machinery.
-    double reconcileMs = 0;  ///< render()/renderSlot() since previous draw()
-    double layoutMs = 0;     ///< ensureLayout() inside last draw()
-    double volatileMs = 0;   ///< computeVolatile() walk inside last draw()
-    double paintMs = 0;      ///< paint traversal inside last draw()
+    double reconcileMilliseconds =
+        0;  ///< render()/renderSlot() since previous draw()
+    double layoutMilliseconds = 0;  ///< ensureLayout() inside last draw()
+    double volatileMilliseconds =
+        0;  ///< computeVolatile() walk inside last draw()
+    double paintMilliseconds = 0;  ///< paint traversal inside last draw()
   };
   /** The counters as the last `render()` and `draw()` left them. Always
    *  kept — nothing has to be switched on for these. */
@@ -413,21 +415,22 @@ class Composer {
 
   /** PER-NODE PAINT COST.
    *
-   *  `stats().paintMs` says how long the frame spent painting and nothing
-   *  about WHERE. This localizes it.
+   *  `stats().paintMilliseconds` says how long the frame spent painting and
+   * nothing about WHERE. This localizes it.
    *
    *      composer.setProfiling(true);
    *      composer.draw(canvas);
    *      for (const auto &row : composer.profile())   // worst first
-   *        printf("%7.2f ms  %s\n", row.selfMs, row.label.c_str());
+   *        printf("%7.2f ms  %s\n", row.selfMilliseconds, row.label.c_str());
    *
-   *  `selfMs` EXCLUDES children, so the number lands on the node that
+   *  `selfMilliseconds` EXCLUDES children, so the number lands on the node that
    *  actually costs rather than on its ancestors.
    *
    *  A CACHED NODE CAN STILL BE THE MOST EXPENSIVE THING ON THE SHEET. A
    *  picture records the DRAW CALLS, so replaying it re-runs every shader
    *  over every pixel; only a texture bake replaces that with a blit. Such
-   *  a node shows up here as `cached() == true` with a large `selfMs`.
+   *  a node shows up here as `cached() == true` with a large
+   * `selfMilliseconds`.
    *
    *  Off by default: the timing calls are cheap but not free. */
   /** How a node produced its pixels this frame. Picture and Texture are
@@ -449,9 +452,9 @@ class Composer {
    *  This is the per-node companion to Stats: Stats says the tree is
    *  re-rasterizing, these say which node is doing it. */
   struct NodeCost {
-    std::string label;   ///< key() if set, else kind + size — actionable
-    double selfMs = 0;   ///< this node's own paint, EXCLUDING children
-    double totalMs = 0;  ///< including children
+    std::string label;  ///< key() if set, else kind + size — actionable
+    double selfMilliseconds = 0;  ///< this node's own paint, EXCLUDING children
+    double totalMilliseconds = 0;  ///< including children
     int depth = 0;
     CacheState cacheState = CacheState::Live;
     /** Is the node's layer effect applied OVER its bake rather than
@@ -469,8 +472,8 @@ class Composer {
   void setProfiling(bool on);
   /** Whether per-node timing is on. */
   bool profiling() const;
-  /** Rows from the last draw(), sorted by `selfMs` descending. Empty when
-   *  profiling is off. */
+  /** Rows from the last draw(), sorted by `selfMilliseconds` descending. Empty
+   * when profiling is off. */
   const std::vector<NodeCost>& profile() const;
 
   /** @} */

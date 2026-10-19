@@ -341,17 +341,20 @@ struct AxisRipple {
    *  looping cascade, with its meter hanging beneath it and the warm pool
    *  behind it. */
   [[nodiscard]] Element ripple() const {
-    const float periodMs = kPeriod * 1000.0f;
+    const float periodMilliseconds = kPeriod * 1000.0f;
     Text hero = text(kProof).role("hero").fontSize(heroSize).key("ripple");
     hero.textFx(
         {.effect = gradeSwell(),
-         .tween =
-             {.duration = std::chrono::duration<double, std::milli>(periodMs),
-              .delay = motion::stagger(
-                  std::chrono::duration<double, std::milli>(kBeat * 1000.0f)),
-              .loop = -1,
-              .loopDelay = std::chrono::duration<double, std::milli>(periodMs) -
-                           std::chrono::duration<double, std::milli>(periodMs)},
+         .tween = {.duration = std::chrono::duration<double, std::milli>(
+                       periodMilliseconds),
+                   .delay = motion::stagger(
+                       std::chrono::duration<double, std::milli>(kBeat *
+                                                                 1000.0f)),
+                   .loop = -1,
+                   .loopDelay = std::chrono::duration<double, std::milli>(
+                                    periodMilliseconds) -
+                                std::chrono::duration<double, std::milli>(
+                                    periodMilliseconds)},
          .progress = phase});
     for (size_t index = 0; index < kProof.size(); ++index)
       hero.textAttach(

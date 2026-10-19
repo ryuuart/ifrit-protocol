@@ -224,7 +224,7 @@ TEST(SketchKitCells, APaddingDownOfItsOwn) {
                                      .height = compose::Dimension(176),
                                      .ground = ground,
                                      .padding = 13,
-                                     .paddingY = 10},
+                                     .paddingVertical = 10},
                                     compose::box().children({subject()}))));
 }
 

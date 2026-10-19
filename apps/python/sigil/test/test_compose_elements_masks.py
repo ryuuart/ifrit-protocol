@@ -236,10 +236,10 @@ class Gates(unittest.TestCase):
     def test_an_edge_gate_carries_its_angle_and_one_number(self):
         gate = by.edge(90, 0.3)
         self.assertEqual(gate.kind, Gate.Kind.Edge)
-        self.assertEqual(gate.angleDeg, 90)
+        self.assertEqual(gate.angleDegrees, 90)
         self.assertAlmostEqual(gate.fraction.value, 0.3)
         self.assertEqual(gate.valueCount(), 1)
-        self.assertEqual(gate, by.edge(angleDeg=90, fraction=0.3))
+        self.assertEqual(gate, by.edge(angleDegrees=90, fraction=0.3))
         self.assertNotEqual(gate, by.edge(90, 0.4))
         self.assertNotEqual(gate, by.edge(180, 0.3))
 
@@ -305,7 +305,7 @@ class Gates(unittest.TestCase):
         gate.outside = True
         self.assertEqual(gate, by.outside(Region.oval((0, 0, 4, 4))))
         wipe = by.edge(0, 0.5)
-        wipe.angleDeg = 270
+        wipe.angleDegrees = 270
         self.assertEqual(wipe, by.edge(270, 0.5))
         matte = by.alpha(Paint.solid("#ffffff"))
         matte.channel = Gate.Channel.Luma
@@ -320,8 +320,8 @@ class Gates(unittest.TestCase):
             self.assertIsNot(duplicate, gate)
             self.assertEqual(duplicate, gate)
         duplicate = gate.copy()
-        duplicate.angleDeg = 0
-        self.assertEqual(gate.angleDeg, 90)
+        duplicate.angleDegrees = 0
+        self.assertEqual(gate.angleDegrees, 90)
 
 
 class Verb(unittest.TestCase):
@@ -467,7 +467,7 @@ class Session(unittest.TestCase):
         self.assertEqual(gate.kind, Gate.Kind.Edge)
         self.assertEqual(gate.valueCount(), 1)
         self.assertAlmostEqual(gate.fraction.value, 0.5)
-        self.assertEqual(gate.copy().angleDeg, 0)
+        self.assertEqual(gate.copy().angleDegrees, 0)
         self.assertIsInstance(box().mask(gate), compose.Element)
         self.assertEqual(self.pixel(self.LEFT), self.WHITE)
         self.assertEqual(self.pixel(self.RIGHT), self.BLACK)

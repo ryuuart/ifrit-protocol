@@ -107,13 +107,15 @@ constexpr float kLatitude = 51.0f + 50.0f / 60.0f;
  *  scaled so the Tropic of Capricorn is one unit; right ascension is read
  *  as an ordinary angle from +x. */
 const float kEquator = std::tan((90.0f - kObliquity) * 0.5f * kDegree);
-const path::Projection kPlate{.scheme = path::Scheme::Stereographic,
-                              .centre = {.lonDeg = 0, .latDeg = 90},
-                              .scale = kEquator * 0.5f,
-                              .rollDeg = 90.0f};
-const path::Spherical kZenith{.lonDeg = 90.0f, .latDeg = kLatitude};
-const path::Spherical kEclipticPole{.lonDeg = 270.0f,
-                                    .latDeg = 90.0f - kObliquity};
+const path::Projection kPlate{
+    .scheme = path::Scheme::Stereographic,
+    .centre = {.longitudeDegrees = 0, .latitudeDegrees = 90},
+    .scale = kEquator * 0.5f,
+    .rollDegrees = 90.0f};
+const path::Spherical kZenith{.longitudeDegrees = 90.0f,
+                              .latitudeDegrees = kLatitude};
+const path::Spherical kEclipticPole{.longitudeDegrees = 270.0f,
+                                    .latitudeDegrees = 90.0f - kObliquity};
 
 /** A declination lands at radius R_eq·tan((90−δ)/2). */
 float radiusOf(float declination) {
@@ -121,7 +123,8 @@ float radiusOf(float declination) {
 }
 /** A point of the sky by right ascension and declination. */
 glm::vec2 sky(float rightAscension, float declination) {
-  return kPlate.at({.lonDeg = rightAscension, .latDeg = declination});
+  return kPlate.at(
+      {.longitudeDegrees = rightAscension, .latitudeDegrees = declination});
 }
 /** The same point by hour angle: noon at the top, east on the LEFT,
  *  because an astrolabe shows the sky from outside the sphere. */
@@ -166,10 +169,10 @@ std::optional<path::PlaneCircle> unequalHour(int k) {
  *  one turn of the sphere about the line of the equinoxes. */
 const path::Rotation kFromEcliptic = path::Rotation::aboutX(kObliquity);
 float sunDeclination(float longitude) {
-  return kFromEcliptic({longitude, 0}).latDeg;
+  return kFromEcliptic({longitude, 0}).latitudeDegrees;
 }
 float sunRightAscension(float longitude) {
-  return kFromEcliptic({longitude, 0}).lonDeg;
+  return kFromEcliptic({longitude, 0}).longitudeDegrees;
 }
 /** Where longitude @p longitude falls on the ecliptic ring, as an angle
  *  about the ring's OWN centre: the signs are unequal there, Capricorn more

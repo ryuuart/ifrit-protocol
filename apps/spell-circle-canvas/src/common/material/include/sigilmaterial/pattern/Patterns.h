@@ -51,17 +51,18 @@ Tile sequence(std::vector<std::pair<float, Color>> runs, float phase = 0.0f,
 Tile checker(float cell, Color first, Color second);
 
 /** Grid lines (graph paper), one pitch per axis. */
-Tile gridLines(float spacingX, float spacingY, float width, Color color);
+Tile gridLines(float spacingHorizontal, float spacingVertical, float width,
+               Color color);
 /** Square pitch. */
 inline Tile gridLines(float spacing, float width, Color color) {
   return gridLines(spacing, spacing, width, color);
 }
 
 /** Seeded speckle (paper grain, star fields): @p count marks per tile with
- *  radii in [minimumRadius, maximumRadius], colours cycled from the palette — deterministic
- *  per seed, `seed(n)` re-rolls the field. */
-Tile speckle(float tileSize, int count, float minimumRadius, float maximumRadius,
-             std::vector<Color> palette);
+ *  radii in [minimumRadius, maximumRadius], colours cycled from the palette —
+ * deterministic per seed, `seed(n)` re-rolls the field. */
+Tile speckle(float tileSize, int count, float minimumRadius,
+             float maximumRadius, std::vector<Color> palette);
 
 /** @name Lattice sources
  *  A repeat on the pixel lattice, read per pixel of the box it fills and
@@ -72,7 +73,8 @@ Tile speckle(float tileSize, int count, float minimumRadius, float maximumRadius
  *  black alpha through `Normal` for the print reading — is the layer's
  *  `blend`, and where it lands is the layer's `mask`:
  *
- *      material::from(panel).layer(material::pattern::scanlines({.color = tint}),
+ *      material::from(panel).layer(material::pattern::scanlines({.color =
+ * tint}),
  *                                  {.blend = BlendMode::Plus})
  *  @{ */
 

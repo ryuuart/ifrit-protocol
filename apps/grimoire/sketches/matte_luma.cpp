@@ -95,7 +95,7 @@ constexpr material::Color kFrame{0.24f, 0.28f, 0.36f, 1};
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = 40;
+  look.spacing.marginHorizontal = 40;
   look.spacing.marginTop = 40;
   look.spacing.captionGap = 6;
   return look;

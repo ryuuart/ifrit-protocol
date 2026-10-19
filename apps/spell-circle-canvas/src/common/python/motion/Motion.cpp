@@ -15,6 +15,7 @@
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/material/Convert.h>
 #include <sigilpython/motion/Convert.h>
@@ -467,6 +468,7 @@ motion::Animatable<compose::Fill> motionFill(py::handle value) {
 
 void bindMotion(py::module_& root) {
   auto module = root.def_submodule("motion");
+  submodule(root, "motion.physics");
 
   py::class_<Easing>(module, "Easing")
       .def(

@@ -72,7 +72,8 @@ compose::Element meter(const Meter& bar) {
                                                     look.palette.figure))
                        .styleClass("readout")});
   column.children({std::move(head)});
-  column.children({std::move(rail.margin(look.spacing.captionNoteGap, 0, 0, 0))});
+  column.children(
+      {std::move(rail.margin(look.spacing.captionNoteGap, 0, 0, 0))});
   return column;
 }
 
@@ -86,16 +87,16 @@ compose::Element gauge(const Gauge& dial) {
       std::clamp(1.0f - (2.0f * dial.thickness) / diameter, 0.0f, 0.999f);
   const auto ring = [&](float sweep, const compose::Fill& paint) {
     Element band = box().absolute().inset(0).shape(
-        geometry::shapes::sector(dial.startDeg, sweep, inner));
+        geometry::shapes::sector(dial.startDegrees, sweep, inner));
     band.fill(paint);
     return band;
   };
 
   Element face = box().width(diameter).height(diameter);
-  face.children({ring(dial.sweepDeg, dial.track.value_or(Fill::color(
-                                         look.palette.cellGround)))});
+  face.children({ring(dial.sweepDegrees, dial.track.value_or(Fill::color(
+                                             look.palette.cellGround)))});
   if (swept > 0)
-    face.children({ring(dial.sweepDeg * swept,
+    face.children({ring(dial.sweepDegrees * swept,
                         dial.bar.value_or(Fill::color(look.palette.figure)))});
   if (!dial.reading.empty())
     face.children(
@@ -111,8 +112,7 @@ compose::Element gauge(const Gauge& dial) {
   return face;
 }
 
-compose::Element meter(const measure::Smoothed& level, double full,
-                       Meter bar) {
+compose::Element meter(const measure::Smoothed& level, double full, Meter bar) {
   bar.fraction = full != 0 ? (float)(level.value() / full) : 0.0f;
   if (bar.reading.empty())
     bar.reading = compose::kit::formatted("%.3g", level.value());

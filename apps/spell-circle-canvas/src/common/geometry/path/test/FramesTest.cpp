@@ -13,8 +13,8 @@
 #include <cmath>
 #include <vector>
 
-#include "sigilgeometry/path/Frame.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilgeometry/path/Frame.h"
 
 using namespace sigil::geometry::path;
 
@@ -45,8 +45,8 @@ TEST(Frame, TheDefaultConventionIsTwelveOClockAndClockwise) {
   // clockwise, radius normalized. P() below is that spelled by hand, which
   // is what a figure would otherwise write inline at every call site.
   const PolarFrame f{.centre = {100, 100}, .radius = 50};
-  const auto P = [](float thDeg, float rNorm) {
-    const float a = thDeg * 0.01745329252f;
+  const auto P = [](float thetaDegrees, float rNorm) {
+    const float a = thetaDegrees * 0.01745329252f;
     return glm::vec2{100 + rNorm * 50 * std::sin(a),
                      100 - rNorm * 50 * std::cos(a)};
   };
@@ -99,12 +99,13 @@ TEST(Frame, DegOfInvertsFractionThroughAnyOrigin) {
   // start leaks, and they compose back to the angle they were given — mod
   // a turn, since a fraction has no memory of which lap it was on — for a
   // scan rotated off the frame's own zero as well as one on it.
-  for (float originDeg : {0.0f, -3.2f, 41.0f}) {
-    const PolarFrame f{.centre = {0, 0}, .radius = 1, .originDeg = originDeg};
+  for (float originDegrees : {0.0f, -3.2f, 41.0f}) {
+    const PolarFrame f{
+        .centre = {0, 0}, .radius = 1, .originDegrees = originDegrees};
     for (float th : {5.0f, 37.5f, 120.0f, 180.0f, 359.0f}) {
       const float back = f.degreesOf(f.fraction(th));
       EXPECT_NEAR(std::fmod(back - th + 720.0f, 360.0f), 0.0f, 1e-2f)
-          << "originDeg=" << originDeg << " th=" << th;
+          << "originDegrees=" << originDegrees << " th=" << th;
     }
   }
 }
@@ -114,12 +115,12 @@ TEST(Frame, DerivedFramesKeepEveryConventionTheyCameFrom) {
                      .radius = 80,
                      .zero = Zero::North,
                      .sense = Sense::CCW,
-                     .originDeg = 4.5f};
+                     .originDegrees = 4.5f};
   const PolarFrame inner = f.scaled(0.5f);
   EXPECT_FLOAT_EQ(inner.radius, 40.0f);
   EXPECT_EQ(inner.zero, f.zero);
   EXPECT_EQ(inner.sense, f.sense);
-  EXPECT_FLOAT_EQ(inner.originDeg, f.originDeg);
+  EXPECT_FLOAT_EQ(inner.originDegrees, f.originDegrees);
   // Scaling the frame and scaling the radius name the same point.
   EXPECT_TRUE(near(inner.at(31.0f, 1.0f), f.at(31.0f, 0.5f), 1e-4f));
   EXPECT_EQ(f.about({0, 0}).sense, f.sense);

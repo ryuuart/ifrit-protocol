@@ -27,20 +27,20 @@ namespace detail {
  *
  *  Why this is a diagnostic and NOT an adaptive default: the threshold's
  *  whole job is to tell a VERTEX from a finely-sampled CURVE, and a
- *  rounded corner is meant to take no bracket (stated at `cornerAngleDeg`).
+ *  rounded corner is meant to take no bracket (stated at `cornerAngleDegrees`).
  *  The scan steps 2 px, so an arc of radius r turns ~114/r degrees per
  *  sample — about 11° at r = 10. Any auto-lowered threshold low enough to
  *  catch a 20-gon's 18° vertices is also low enough to shatter a small
  *  rounded corner into a run of false ones. So the number stays the
  *  author's, and the library explains what to pass. */
-void warnNoCornersFound(float sharpestDeg, float angleDeg) {
+void warnNoCornersFound(float sharpestDegrees, float angleDegrees) {
   // A SET of seen shapes, not the last one: two different failing shapes in
   // one frame alternate, and a last-seen guard then prints both on every
   // frame forever — a diagnostic that floods is a diagnostic people turn
   // off. Capped so a procedurally varied scene cannot grow it without
   // bound.
   static thread_local std::vector<int> seen;
-  const int key = (int)std::lround(sharpestDeg);
+  const int key = (int)std::lround(sharpestDegrees);
   for (int k : seen)
     if (k == key) return;
   if (seen.size() >= 16) return;
@@ -54,8 +54,8 @@ void warnNoCornersFound(float sharpestDeg, float angleDeg) {
       "anything. A "
       "regular n-gon turns 360/n per vertex, which puts EVERY polygon "
       "above 12 sides under the 30\xc2\xb0 default (a 20-gon turns "
-      "18\xc2\xb0). Pass a smaller angleDeg, e.g. %.0ff.\n",
-      angleDeg, sharpestDeg, std::max(4.0f, sharpestDeg * 0.6f));
+      "18\xc2\xb0). Pass a smaller angleDegrees, e.g. %.0ff.\n",
+      angleDegrees, sharpestDegrees, std::max(4.0f, sharpestDegrees * 0.6f));
 }
 
 /** The corner scan every decoration shares, with the diagnostic above
@@ -64,21 +64,21 @@ void warnNoCornersFound(float sharpestDeg, float angleDeg) {
  *  is above the noise a smooth curve produces at this step (4°) says so
  *  once. */
 std::vector<geometry::path::Contour::Corner> cornersOrWarn(
-    const geometry::path::Contour& contour, float angleDeg, float minSpacing,
-    float step) {
-  float sharpestDeg = 0.0f;
+    const geometry::path::Contour& contour, float angleDegrees,
+    float minSpacing, float step) {
+  float sharpestDegrees = 0.0f;
   std::vector<geometry::path::Contour::Corner> corners =
-      contour.corners(angleDeg, minSpacing, step, &sharpestDeg);
-  if (corners.empty() && sharpestDeg >= 4.0f)
-    warnNoCornersFound(sharpestDeg, angleDeg);
+      contour.corners(angleDegrees, minSpacing, step, &sharpestDegrees);
+  if (corners.empty() && sharpestDegrees >= 4.0f)
+    warnNoCornersFound(sharpestDegrees, angleDegrees);
   return corners;
 }
 
 /** The same diagnostic for a whole path, ahead of a corner window
  *  construction that reports nothing itself. */
-void warnIfNoCorners(const SkPath& src, float angleDeg) {
+void warnIfNoCorners(const SkPath& src, float angleDegrees) {
   for (const geometry::path::Contour& contour : geometry::path::contoursOf(src))
-    (void)cornersOrWarn(contour, angleDeg);
+    (void)cornersOrWarn(contour, angleDegrees);
 }
 
 void warnWritingModeOnPath() {

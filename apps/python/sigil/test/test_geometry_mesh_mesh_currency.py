@@ -370,7 +370,7 @@ class Options(unittest.TestCase):
     def test_a_partial_sweep_and_a_full_one_differ(self):
         profile = [(4, 0), (10, 0), (10, 20)]
         self.assertNotEqual(
-            native.revolve(profile, native.RevolveOptions(sweepDeg=180)),
+            native.revolve(profile, native.RevolveOptions(sweepDegrees=180)),
             native.revolve(profile),
         )
 

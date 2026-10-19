@@ -71,7 +71,7 @@ TEST(SketchKitTheme, ComparesExactly) {
   EXPECT_NE(one, two);
 
   kit::Theme spaced = kit::houseTheme();
-  spaced.spacing.marginX += 1;
+  spaced.spacing.marginHorizontal += 1;
   EXPECT_NE(spaced, two);
 
   kit::Theme quiet = kit::houseTheme();

@@ -1,11 +1,5 @@
 {
  "coverage": {
-  "IfritQt": {
-   "entities": 6,
-   "pages": 0,
-   "bound": 0,
-   "values": 3
-  },
   "SigilCompose": {
    "entities": 656,
    "pages": 23,
@@ -71,6 +65,12 @@
    "pages": 0,
    "bound": 1,
    "values": 11
+  },
+  "SigilQt": {
+   "entities": 6,
+   "pages": 0,
+   "bound": 0,
+   "values": 3
   },
   "SigilScry": {
    "entities": 9,

@@ -33,9 +33,9 @@ struct Camera {
   glm::vec3 eye = {0, 0, 480};
   glm::vec3 target = {0, 0, 0};
   glm::vec3 up = {0, 1, 0};
-  float fovYDeg = 40;
-  float zNear = 4;
-  float zFar = 4096;
+  float fovYDegrees = 40;
+  float nearPlane = 4;
+  float farPlane = 4096;
 
   glm::mat4 view() const;
   glm::mat4 projection(float aspect) const;
@@ -99,8 +99,8 @@ struct Camera {
  *  rather than inventing one. Yaw runs about the up axis from the
  *  direction the eye looks along; pitch is positive above the target. */
 struct Orbit {
-  float yawDeg = 0;
-  float pitchDeg = 0;
+  float yawDegrees = 0;
+  float pitchDegrees = 0;
   float distance = 0;
 
   /** Value equality: the two angles and the distance. */
@@ -123,8 +123,8 @@ struct Orbit {
 
 /** Model-matrix helpers (row-major reading order: applied right to
  *  left, translate * rotate * scale). */
-glm::mat4 place(glm::vec3 position, float yawDeg = 0, float pitchDeg = 0,
-                float rollDeg = 0, float scale = 1);
+glm::mat4 place(glm::vec3 position, float yawDegrees = 0,
+                float pitchDegrees = 0, float rollDegrees = 0, float scale = 1);
 
 /** The BILLBOARD transform: content placed at @p at with its +z face —
  *  mesh::quad()'s facing convention — pointed at @p eye. Camera math

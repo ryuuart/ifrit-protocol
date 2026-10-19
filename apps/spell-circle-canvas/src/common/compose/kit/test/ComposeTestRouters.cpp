@@ -5,8 +5,8 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/path/Contour.h>
 
 #include "support/ShapeTestSupport.h"
 
@@ -24,9 +24,9 @@ TEST(ComposeRouters, OrbitFollowsTheRing) {
   EXPECT_NEAR(contour.length(), 157.1f, 3.0f);
   const auto mid = contour.at(contour.length() / 2);
   ASSERT_TRUE(mid);
-  EXPECT_NEAR(SkPoint::Distance(sigil::geometry::path::toSk(mid->position),
-                                center),
-              100.0f, 1.5f);
+  EXPECT_NEAR(
+      SkPoint::Distance(sigil::geometry::path::toSk(mid->position), center),
+      100.0f, 1.5f);
 }
 
 TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
@@ -133,7 +133,7 @@ TEST(ComposeLayouts, AbsoluteDiagonalAutoSizes) {
   // an author does not have to compute the skewed bounding box by hand.
   Host host;
   host.composer.render(box().children(
-      {Element(layout(layouts::Diagonal{.skewDeg = -20, .gap = 10}))
+      {Element(layout(layouts::Diagonal{.skewDegrees = -20, .gap = 10}))
            .key("battery")
            .absolute()
            .left(30.0f)
@@ -226,8 +226,9 @@ TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
   // exactly-degenerate segments -- so it answers the same pair with a bend
   // where manhattan() answers with one run.
   Router pairwise = routers::orthogonal();
-  PathDump bent = dumpPath(pairwise(sigil::geometry::path::Rect::of({10, 90}, {20, 20}),
-                                    sigil::geometry::path::Rect::of({170, 90}, {20, 20})));
+  PathDump bent =
+      dumpPath(pairwise(sigil::geometry::path::Rect::of({10, 90}, {20, 20}),
+                        sigil::geometry::path::Rect::of({170, 90}, {20, 20})));
   EXPECT_GT(bent.lines, collapsed.lines)
       << "orthogonal() collapsed its legs, so manhattan()'s promise to do "
          "so says nothing";
@@ -257,7 +258,8 @@ TEST(ComposeRouters, BendPoliciesTakeTheNamedColumns) {
   EXPECT_EQ(z.pts[2], SkPoint::Make(100, 160));
   // The pairwise spelling routes the same shape from rects.
   PathDump hr = dumpPath(routers::orthogonal(routers::Bend::HFirst)(
-      sigil::geometry::path::Rect::of({15, 15}, {10, 10}), sigil::geometry::path::Rect::of({175, 155}, {10, 10})));
+      sigil::geometry::path::Rect::of({15, 15}, {10, 10}),
+      sigil::geometry::path::Rect::of({175, 155}, {10, 10})));
   ASSERT_EQ(hr.pts.size(), 3u);
   EXPECT_EQ(hr.pts[1], SkPoint::Make(180, 20));
 }
@@ -363,9 +365,9 @@ TEST(ComposeConnect, AWireTracksMovedEndpoints) {
                        .inset(160, 180 - bLeft, 20, bLeft)
                        .absolute()
                        .fill(green())})
-        .operators({Operator(connect::Between{
-                                 .from = "a", .to = "b", .wire = wire})
-                        .zIndex(-1)});
+        .operators(
+            {Operator(connect::Between{.from = "a", .to = "b", .wire = wire})
+                 .zIndex(-1)});
   };
 
   host.composer.render(tree(10.0f));
@@ -400,11 +402,10 @@ TEST(ComposeConnect, TheOrthogonalRouterRunsManhattan) {
                          .inset(160, 20, 20, 160)
                          .absolute()
                          .fill(green())})
-          .operators({Operator(connect::Between{
-                                   .from = "a",
-                                   .to = "b",
-                                   .router = routers::orthogonal(),
-                                   .wire = wire})
+          .operators({Operator(connect::Between{.from = "a",
+                                                .to = "b",
+                                                .router = routers::orthogonal(),
+                                                .wire = wire})
                           .zIndex(-1)}));
   host.frame();
   // Centers (20,20) and (170,170); midX = 95: H leg at y=20, V leg at
@@ -436,11 +437,10 @@ TEST(ComposeConnect, TheArcRouterBowsOffTheChord) {
                          .inset(95, 20, 95, 170)
                          .absolute()
                          .fill(green())})
-          .operators({Operator(connect::Between{
-                                   .from = "a",
-                                   .to = "b",
-                                   .router = routers::arc(0.3f),
-                                   .wire = wire})
+          .operators({Operator(connect::Between{.from = "a",
+                                                .to = "b",
+                                                .router = routers::arc(0.3f),
+                                                .wire = wire})
                           .zIndex(-1)}));
   host.frame();
   // Horizontal chord from (25,100) to (175,100), bulge 0.3×150 = 45 px
@@ -475,11 +475,10 @@ TEST(ComposeConnect, TheGapPullsTheWireOffTheEndpoints) {
                        .inset(90, 10, 90, 170)
                        .absolute()
                        .fill(green())})
-        .operators({Operator(connect::Between{.from = "a",
-                                              .to = "b",
-                                              .gap = gap,
-                                              .wire = wire})
-                        .zIndex(1)});
+        .operators(
+            {Operator(connect::Between{
+                          .from = "a", .to = "b", .gap = gap, .wire = wire})
+                 .zIndex(1)});
   };
   // Control: with gap 0 the wire runs centre to centre, (20,100) → (180,100),
   // and paints OVER both terminal boxes. Without this arm, "the gapped wire

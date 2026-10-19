@@ -19,11 +19,11 @@
 #include <glm/geometric.hpp>
 
 #include "OperationsInternal.h"
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Segments.h"
-#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path::operations {
 
@@ -95,13 +95,14 @@ SkPath selectedCorners(const SkPath& path, float radius,
         continue;
       const glm::vec2 in = arrivingAlong(before);
       const glm::vec2 leaving = leavingAlong(after);
-      const float turnDeg =
-          std::acos(std::clamp(glm::dot(in, leaving), -1.0f, 1.0f)) * kRadToDeg;
-      if (!(turnDeg > options.minTurnDeg)) continue;
+      const float turnDegrees =
+          std::acos(std::clamp(glm::dot(in, leaving), -1.0f, 1.0f)) *
+          kRadiansToDegrees;
+      if (!(turnDegrees > options.minTurnDegrees)) continue;
       const float cross = in.x * leaving.y - in.y * leaving.x;
       const bool outward = area == 0 || (cross > 0) == (area > 0);
       if (options.outwardOnly && !outward) continue;
-      const float halfAngle = (180.0f - turnDeg) * 0.5f * kDegToRad;
+      const float halfAngle = (180.0f - turnDegrees) * 0.5f * kDegToRad;
       float step = options.visual ? radius * reference /
                                         std::max(std::cos(halfAngle), 1e-2f)
                                   : radius;

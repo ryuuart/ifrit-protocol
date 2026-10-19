@@ -13,6 +13,10 @@ namespace sigil::python {
 
 void bindComposeBrushMarks(pybind11::module_& module) {
   namespace py = pybind11;
+  submodule(module, "compose.brush.strand");
+  submodule(module, "compose.lines.presets");
+  submodule(module, "compose.brush.presets");
+  submodule(module, "compose.lines");
   using compose::brush::Ribbon;
   py::module_ brushes = submodule(module, "compose.brush");
 
@@ -39,7 +43,7 @@ void bindComposeBrushMarks(pybind11::module_& module) {
                      "width.")
       .def_readwrite("widthEnd", &Ribbon::widthEnd,
                      "The taper's width at the end.")
-      .def_readwrite("nibAngleDeg", &Ribbon::nibAngleDeg,
+      .def_readwrite("nibAngleDegrees", &Ribbon::nibAngleDegrees,
                      "The nib's angle in degrees; zero or more makes the "
                      "band calligraphic, widest where the outline runs "
                      "across the nib. Negative is no nib.")
@@ -66,15 +70,16 @@ void bindComposeBrushMarks(pybind11::module_& module) {
 
   brushes.def(
       "ribbon",
-      [](py::object width, py::object paint, std::optional<float> nibAngleDeg,
-         float nibContrast, std::optional<float> widthEnd) {
+      [](py::object width, py::object paint,
+         std::optional<float> nibAngleDegrees, float nibContrast,
+         std::optional<float> widthEnd) {
         Ribbon made;
-        if (nibAngleDeg || widthEnd) {
+        if (nibAngleDegrees || widthEnd) {
           // A nib or a taper reads the width as one number, and the law
           // stays empty so that they decide the band.
           made.widthStart = width.cast<float>();
           made.widthEnd = widthEnd.value_or(made.widthStart);
-          made.nibAngleDeg = nibAngleDeg.value_or(-1.0f);
+          made.nibAngleDegrees = nibAngleDegrees.value_or(-1.0f);
           made.nibContrast = nibContrast;
         } else {
           made.width = width.cast<geometry::path::Profile>();
@@ -86,12 +91,12 @@ void bindComposeBrushMarks(pybind11::module_& module) {
         return made;
       },
       py::arg("width"), py::arg("paint"), py::kw_only(),
-      py::arg("nibAngleDeg") = py::none(), py::arg("nibContrast") = 0.15f,
+      py::arg("nibAngleDegrees") = py::none(), py::arg("nibContrast") = 0.15f,
       py::arg("widthEnd") = py::none(),
       "A ribbon of `width` — a number, a list of (along, width) stops or a "
       "geometry.path.Profile — painted with `paint`: a colour, a fill or a "
       "material, whose layers, surface and effects it keeps. Give it to "
-      "stroke() to sweep it along a node's outline. With `nibAngleDeg` the "
+      "stroke() to sweep it along a node's outline. With `nibAngleDegrees` the "
       "band is a calligraphic stroke `width` across where the outline runs "
       "across the nib and `nibContrast` of it where it runs along; with "
       "`widthEnd` it tapers from `width` at the start to `widthEnd` at the "

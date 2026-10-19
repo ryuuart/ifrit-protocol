@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Ifrit.Qt 1.0 as Ui
+import Sigil.Qt 1.0 as Ui
 
 Item {
     id: welcome

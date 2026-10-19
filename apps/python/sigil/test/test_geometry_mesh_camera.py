@@ -147,15 +147,15 @@ class Standpoint(unittest.TestCase):
             self.assertAlmostEqual(again.eye[index], lens.eye[index], delta=0.01)
         self.assertEqual(again.target, lens.target)
         self.assertEqual(again.up, lens.up)
-        self.assertEqual(again.fovYDeg, lens.fovYDeg)
+        self.assertEqual(again.fovYDegrees, lens.fovYDegrees)
 
     def test_a_camera_is_built_from_keywords_and_compares_by_value(self):
-        lens = camera.Camera(eye=(0, 10, 300), fovYDeg=30)
+        lens = camera.Camera(eye=(0, 10, 300), fovYDegrees=30)
         self.assertEqual(lens.eye, (0, 10, 300))
-        self.assertEqual(lens.fovYDeg, 30)
+        self.assertEqual(lens.fovYDegrees, 30)
         self.assertEqual(lens.target, camera.Camera().target)
         self.assertNotEqual(lens, camera.Camera())
-        self.assertEqual(lens, camera.Camera(eye=(0, 10, 300), fovYDeg=30))
+        self.assertEqual(lens, camera.Camera(eye=(0, 10, 300), fovYDegrees=30))
         with self.assertRaises(TypeError):
             camera.Camera(elevation=3)
 
@@ -169,8 +169,10 @@ class Standpoint(unittest.TestCase):
         self.assertEqual(lens.copy(), lens)
 
     def test_an_orbit_compares_and_copies_by_value(self):
-        orbit = camera.Orbit(yawDeg=30, pitchDeg=10, distance=200)
-        self.assertEqual(orbit, camera.Orbit(yawDeg=30, pitchDeg=10, distance=200))
+        orbit = camera.Orbit(yawDegrees=30, pitchDegrees=10, distance=200)
+        self.assertEqual(
+            orbit, camera.Orbit(yawDegrees=30, pitchDegrees=10, distance=200)
+        )
         self.assertNotEqual(orbit, camera.Orbit())
         duplicate = copy.deepcopy(orbit)
         duplicate.distance = 1

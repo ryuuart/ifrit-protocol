@@ -22,7 +22,7 @@
  *
  * EDIT THESE FIRST
  *   kStations   — how many poses the run is cut into.
- *   kCornerDeg  — the turn, in degrees, that counts as a corner.
+ *   kCornerDegrees  — the turn, in degrees, that counts as a corner.
  *   kWindow     — the reach of a corner window, px.
  */
 
@@ -61,9 +61,9 @@ constexpr SkSize kCanvas = {1100, 940};
 constexpr float kCell = 328;
 constexpr float kPicture = 236;
 
-constexpr int kStations = 24;     // poses cut out of the whole run
-constexpr float kCornerDeg = 30;  // the turn that counts as a corner
-constexpr float kWindow = 26;     // a corner window's reach, px
+constexpr int kStations = 24;         // poses cut out of the whole run
+constexpr float kCornerDegrees = 30;  // the turn that counts as a corner
+constexpr float kWindow = 26;         // a corner window's reach, px
 
 constexpr material::Color kFaint{0.28f, 0.29f, 0.34f, 1};
 constexpr material::Color kFigure{0.86f, 0.80f, 0.66f, 1};
@@ -138,7 +138,7 @@ struct ContourPoses {
     const std::vector<path::Contour::Corner> corners =
         contours.empty()
             ? std::vector<path::Contour::Corner>{}
-            : contours.front().corners(kCornerDeg, 6.0f, 2.0f, &sharpest);
+            : contours.front().corners(kCornerDegrees, 6.0f, 2.0f, &sharpest);
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Read a path by distance",
@@ -292,7 +292,7 @@ struct ContourPoses {
                                   ghost(pen, figure);
                                   inked(pen, kWarm, 3.0f);
                                   pen.shape(path::cornerWindows(
-                                      figure, kWindow, true, kCornerDeg));
+                                      figure, kWindow, true, kCornerDegrees));
                                 }),
                            cell("KEEP THE COMPLEMENT",
                                 "cornerWindows(26, false, 30°)",
@@ -302,7 +302,7 @@ struct ContourPoses {
                                   ghost(pen, figure);
                                   inked(pen, kCool, 3.0f);
                                   pen.shape(path::cornerWindows(
-                                      figure, kWindow, false, kCornerDeg));
+                                      figure, kWindow, false, kCornerDegrees));
                                 })},
                       .measure = 1020,
                       .gap = 18}))})));

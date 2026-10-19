@@ -29,8 +29,9 @@ std::vector<Spherical> sky(int count) {
 }
 
 Projection of(Scheme scheme) {
-  return {
-      .scheme = scheme, .centre = {.lonDeg = 20, .latDeg = 35}, .scale = 240};
+  return {.scheme = scheme,
+          .centre = {.longitudeDegrees = 20, .latitudeDegrees = 35},
+          .scale = 240};
 }
 
 void BM_ProjectionAt(benchmark::State& state) {
@@ -71,9 +72,10 @@ BENCHMARK(BM_ProjectionFrom)
 /** The image of a circle on the sphere: what an instrument covered in
  *  concentric families of them is drawn by, one closed form per ring. */
 void BM_ProjectionCircleOf(benchmark::State& state) {
-  const Projection plate{
-      .scheme = Scheme::Stereographic, .centre = {.latDeg = 90}, .scale = 235};
-  const Spherical zenith{.lonDeg = 90, .latDeg = 51.83f};
+  const Projection plate{.scheme = Scheme::Stereographic,
+                         .centre = {.latitudeDegrees = 90},
+                         .scale = 235};
+  const Spherical zenith{.longitudeDegrees = 90, .latitudeDegrees = 51.83f};
   for ([[maybe_unused]] auto iteration : state)
     for (int h = 0; h < 90; ++h)
       benchmark::DoNotOptimize(plate.circleOf(zenith, 90.0f - (float)h));

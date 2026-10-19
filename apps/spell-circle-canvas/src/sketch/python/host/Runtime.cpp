@@ -386,8 +386,9 @@ class PythonSession final : public Session {
   std::optional<geometry::mesh::camera::Orbit> orbit() const override {
     return m_session->orbit();
   }
-  void viewpoint(float yawDeg, float pitchDeg, float distance) override {
-    invoke([&] { m_session->viewpoint(yawDeg, pitchDeg, distance); });
+  void viewpoint(float yawDegrees, float pitchDegrees,
+                 float distance) override {
+    invoke([&] { m_session->viewpoint(yawDegrees, pitchDegrees, distance); });
   }
 
  private:
@@ -481,14 +482,13 @@ class PythonKind final : public KindOperations, public OpensOnRuntime {
         std::string why;
         if (!runtimeAvailable(opening, &why)) throw std::runtime_error(why);
         auto body = std::make_unique<Scene3DPythonBody>(m_generation, state);
-        auto session = openScene3D(std::move(body), fonts, assets,
-                                   deterministic, opening);
+        auto session =
+            openScene3D(std::move(body), fonts, assets, deterministic, opening);
         return std::make_unique<PythonSession>(std::move(session), state);
       }
       auto body = std::make_unique<Body>(m_generation, state);
-      auto session = openScene2D(
-          std::move(body), fonts, assets, deterministic, key,
-          m_stated.runtime);
+      auto session = openScene2D(std::move(body), fonts, assets, deterministic,
+                                 key, m_stated.runtime);
       return std::make_unique<PythonSession>(std::move(session), state);
     } catch (const py::error_already_set& error) {
       throw std::runtime_error(error.what());

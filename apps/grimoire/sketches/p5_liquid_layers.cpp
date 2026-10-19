@@ -125,8 +125,9 @@ struct P5LiquidLayers {
           (size_t)point, 12,
           {.center = sigil::geometry::path::fromSk(centre),
            .radii = {radius, radius},
-           .fromDegrees = (clock * 0.08f) * sigil::geometry::path::kRadToDeg,
-           .sweepDegrees = (TAU)*sigil::geometry::path::kRadToDeg,
+           .fromDegrees =
+               (clock * 0.08f) * sigil::geometry::path::kRadiansToDegrees,
+           .sweepDegrees = (TAU)*sigil::geometry::path::kRadiansToDegrees,
            .turn = arrange::Turn::Closed}));
       pen.vertex(at.fX, at.fY);
     }

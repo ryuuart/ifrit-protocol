@@ -152,7 +152,7 @@ inline Element boneFrame(float w, float h, float radius = 3) {
                      .corners = radius,
                      .relief = skit::Well::Relief{.depth = 1.6f,
                                                   .blur = 2.4f,
-                                                  .angleDeg = 120,
+                                                  .angleDegrees = 120,
                                                   .light = {1, 1, 1, 0.35f},
                                                   .shade = {0, 0, 0, 0.65f}}})
       // The grain: Veloren's frames are carved, and a ramp with no noise
@@ -273,8 +273,9 @@ inline std::function<sigil::geometry::path::Outline(glm::vec2)> glyphPath(
               (size_t)i, 6,
               {.center = {0, 0},
                .radii = {w * 0.36f, h * 0.36f},
-               .fromDegrees = (0.0f) * sigil::geometry::path::kRadToDeg,
-               .sweepDegrees = (6.2831853f) * sigil::geometry::path::kRadToDeg,
+               .fromDegrees = (0.0f) * sigil::geometry::path::kRadiansToDegrees,
+               .sweepDegrees =
+                   (6.2831853f) * sigil::geometry::path::kRadiansToDegrees,
                .turn = arrange::Turn::Closed}));
           const float dx = arm.fX, dy = arm.fY;
           b.moveTo(cx - dx, h * 0.5f - dy);

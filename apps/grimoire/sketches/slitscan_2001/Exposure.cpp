@@ -34,7 +34,7 @@ auto SlitScan2001::rebuildWalls() -> void {
   coreY = c.fY;
   WallSpec A;
   A.vp = c;
-  A.phiDeg = s.phi0 + plateDeg;
+  A.phiDegrees = s.phi0 + plateDegrees;
   A.gel = s.gelA;
   A.gain = displayGain();
   A.artLeft = artOffset;
@@ -45,7 +45,8 @@ auto SlitScan2001::rebuildWalls() -> void {
   A.artDrift = 18.0f * kWinFrac;
   A.cell = s.cell;
   WallSpec B = A;
-  B.phiDeg = A.phiDeg + 180.0f;  // "two seemingly infinite planes" [T68]
+  B.phiDegrees =
+      A.phiDegrees + 180.0f;  // "two seemingly infinite planes" [T68]
   B.gel = s.gelB;
   B.artLeft = std::fmod(artOffset + 0.37f, 1.0f);
   B.artDrift = -18.0f * kWinFrac;
@@ -62,7 +63,7 @@ auto SlitScan2001::rebuildWalls() -> void {
   MA.upTo = (float)tau;
   MA.K = kK;
   WallSpec MB = MA;
-  MB.phiDeg = B.phiDeg;
+  MB.phiDegrees = B.phiDegrees;
   MB.gel = B.gel;
   MB.artLeft = B.artLeft;
   MB.artDrift = B.artDrift;
@@ -83,7 +84,7 @@ auto SlitScan2001::fitAtK(sigil::weave::FontContext& fonts, int K) -> Fit {
   A.artwork = false;
   A.K = K;
   WallSpec B = A;
-  B.phiDeg = 180.0f;
+  B.phiDegrees = 180.0f;
   buildWall(*pa, A);
   buildWall(*pb, B);
 

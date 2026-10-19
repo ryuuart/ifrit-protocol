@@ -132,7 +132,7 @@ struct TypeScale {
  *  few extents the look rather than the caller fixes. */
 struct Spacing {
   /** The page margins: the two sides, the top and the bottom. */
-  float marginX = 24, marginTop = 20, marginBottom = 16;
+  float marginHorizontal = 24, marginTop = 20, marginBottom = 16;
   /** Between the title and its subtitle. */
   float subtitleGap = 6;
   /** Between the header and the content, and the content and the footer;

@@ -180,8 +180,8 @@ GlyphPlacement placementOf(const GlyphModifier& modifier, const RestPose& pose,
                            const sigil::weave::PlacedGlyph& placed,
                            bool continuous) {
   float cosv = 1.0f, sinv = 0.0f;
-  if (modifier.rotateDeg != 0) {
-    const float radians = geometry::path::radians(modifier.rotateDeg);
+  if (modifier.rotateDegrees != 0) {
+    const float radians = geometry::path::radians(modifier.rotateDegrees);
     if (continuous) {
       cosv = std::cos(radians);
       sinv = std::sin(radians);
@@ -218,7 +218,7 @@ GlyphPlacement placementOf(const GlyphModifier& modifier, const RestPose& pose,
   const float turnCos = pose.cosine * cosv - pose.sine * sinv;
   const float turnSin = pose.sine * cosv + pose.cosine * sinv;
   GlyphPlacement placement;
-  if (modifier.skewXDeg != 0 || modifier.skewYDeg != 0 ||
+  if (modifier.skewXDegrees != 0 || modifier.skewYDegrees != 0 ||
       modifier.scaleX != 1 || modifier.scaleY != 1) {
     SkMatrix& matrix = placement.matrix;
     matrix.setAll(turnCos, -turnSin, centre.x, turnSin, turnCos, centre.y, 0, 0,
@@ -227,10 +227,12 @@ GlyphPlacement placementOf(const GlyphModifier& modifier, const RestPose& pose,
     // it: an x shear, then a y shear inside it, so a glyph naming
     // both widens by the product of the tangents exactly as a
     // browser's transform list does.
-    if (modifier.skewXDeg != 0)
-      matrix.preSkew(std::tan(geometry::path::radians(modifier.skewXDeg)), 0);
-    if (modifier.skewYDeg != 0)
-      matrix.preSkew(0, std::tan(geometry::path::radians(modifier.skewYDeg)));
+    if (modifier.skewXDegrees != 0)
+      matrix.preSkew(std::tan(geometry::path::radians(modifier.skewXDegrees)),
+                     0);
+    if (modifier.skewYDegrees != 0)
+      matrix.preSkew(0,
+                     std::tan(geometry::path::radians(modifier.skewYDegrees)));
     matrix.preScale(modifier.scale * modifier.scaleX,
                     modifier.scale * modifier.scaleY);
     // Innermost, so the pivot shift rides the scale exactly as it
@@ -371,8 +373,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         info.painted = &ctx;
         info.ink =
             material::skia::toColor(styleOf(g, placed).foreground.getColor4f());
-        deviation.modifier =
-            deviationOf(live, g, info, deviation.continuous);
+        deviation.modifier = deviationOf(live, g, info, deviation.continuous);
         everyGlyphAsLaid &= deviation.modifier == GlyphModifier{};
       });
 
@@ -391,11 +392,10 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
                    }) &&
       !anyTrackRunning(inst, tracks)) {
     if (byGlyph)
-      inst.textLayout.drawBatched(
-          &canvas, *inst.paragraph,
-          sigil::weave::ParagraphLayout::GlyphStyles{glyphInk.styleOfGlyph,
-                                                     glyphInk.styles},
-          override);
+      inst.textLayout.drawBatched(&canvas, *inst.paragraph,
+                                  sigil::weave::ParagraphLayout::GlyphStyles{
+                                      glyphInk.styleOfGlyph, glyphInk.styles},
+                                  override);
     else
       inst.textLayout.drawBatched(&canvas, *inst.paragraph, override);
     return;
@@ -792,9 +792,9 @@ bool detail::deviatedGlyphOutline(Composer::Impl& impl, Instance& inst,
           return;
         }
         moved |= modifier.dx != 0 || modifier.dy != 0 ||
-                 modifier.rotateDeg != 0 || modifier.scale != 1 ||
+                 modifier.rotateDegrees != 0 || modifier.scale != 1 ||
                  modifier.scaleX != 1 || modifier.scaleY != 1 ||
-                 modifier.skewXDeg != 0 || modifier.skewYDeg != 0 ||
+                 modifier.skewXDegrees != 0 || modifier.skewYDegrees != 0 ||
                  modifier.codepoint != 0 || modifier.axis.has_value();
         const sigil::weave::ShapedWord& word = *placed.shaped;
         sigil::weave::Face face = word.typeface;

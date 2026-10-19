@@ -5,10 +5,10 @@
 
 /** Subclass exists only so repeat applyVibrancy() calls can recognize the
  *  effect view we inserted and stay idempotent. */
-@interface IfritVibrancyView : NSVisualEffectView
+@interface SigilVibrancyView : NSVisualEffectView
 @end
 
-@implementation IfritVibrancyView
+@implementation SigilVibrancyView
 @end
 
 /** Whether the windows this process opens are AppKit's. winId() is only
@@ -34,7 +34,7 @@ bool WindowChrome::applyVibrancy(QQuickWindow *window) {
   // Escape hatch for debugging compositing issues: opaque palette-driven
   // windows instead of the glass background. Checked before the native
   // window is reached for, so it holds wherever the reach would fail.
-  if (qEnvironmentVariableIsSet("IFRIT_NO_VIBRANCY")) return false;
+  if (qEnvironmentVariableIsSet("SIGIL_NO_VIBRANCY")) return false;
 
   // Qt owns title-bar geometry and safe-area notifications along with its flags.
   window->setFlag(Qt::NoTitleBarBackgroundHint, true);
@@ -56,10 +56,10 @@ bool WindowChrome::applyVibrancy(QQuickWindow *window) {
   NSView *frameView = nativeWindow.contentView.superview;
   if (!frameView) return false;
   for (NSView *subview in frameView.subviews) {
-    if ([subview isKindOfClass:IfritVibrancyView.class]) return true;
+    if ([subview isKindOfClass:SigilVibrancyView.class]) return true;
   }
 
-  IfritVibrancyView *effectView = [[IfritVibrancyView alloc] initWithFrame:frameView.bounds];
+  SigilVibrancyView *effectView = [[SigilVibrancyView alloc] initWithFrame:frameView.bounds];
   effectView.material = NSVisualEffectMaterialUnderWindowBackground;
   effectView.blendingMode = NSVisualEffectBlendingModeBehindWindow;
   effectView.state = NSVisualEffectStateFollowsWindowActiveState;

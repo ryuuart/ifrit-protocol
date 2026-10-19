@@ -112,7 +112,7 @@ void appendStopParameters(std::vector<float>& out, const GlyphModifier& m) {
   out.insert(out.end(), {m.dx,
                          m.dy,
                          m.scale,
-                         m.rotateDeg,
+                         m.rotateDegrees,
                          m.alpha,
                          m.colorMultiplier.r,
                          m.colorMultiplier.g,
@@ -128,8 +128,8 @@ void appendStopParameters(std::vector<float>& out, const GlyphModifier& m) {
                          m.colorScreen.a,
                          m.scaleX,
                          m.scaleY,
-                         m.skewXDeg,
-                         m.skewYDeg,
+                         m.skewXDegrees,
+                         m.skewYDegrees,
                          (float)m.codepoint,
                          m.axis ? 1.0f : 0.0f,
                          (float)(int)m.colorMultiplier.ref,
@@ -152,7 +152,8 @@ float stopReach(const GlyphModifier& m) {
   const float grown = std::max({std::abs(m.scale * m.scaleX),
                                 std::abs(m.scale * m.scaleY), 1.0f}) -
                       1.0f;
-  const bool leans = m.rotateDeg != 0 || m.skewXDeg != 0 || m.skewYDeg != 0;
+  const bool leans =
+      m.rotateDegrees != 0 || m.skewXDegrees != 0 || m.skewYDegrees != 0;
   return std::abs(m.dx) + std::abs(m.dy) +
          (grown + (leans ? 0.5f : 0.0f)) * textFx::kNominalSizePx;
 }
@@ -164,8 +165,9 @@ float stopReach(const GlyphModifier& m) {
  *  the pen alone can never move it. The colour terms, the fade and the two
  *  substitutions are not placement. */
 bool stopDisplaces(const GlyphModifier& m) {
-  return m.dx != 0 || m.dy != 0 || m.rotateDeg != 0 || m.skewXDeg != 0 ||
-         m.skewYDeg != 0 || m.scale != 1 || m.scaleX != 1 || m.scaleY != 1;
+  return m.dx != 0 || m.dy != 0 || m.rotateDegrees != 0 ||
+         m.skewXDegrees != 0 || m.skewYDegrees != 0 || m.scale != 1 ||
+         m.scaleX != 1 || m.scaleY != 1;
 }
 
 }  // namespace

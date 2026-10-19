@@ -98,9 +98,10 @@ Tile checker(float cell, Color first, Color second) {
                      });
 }
 
-Tile gridLines(float spacingX, float spacingY, float width, Color color) {
-  const float sx = std::max(spacingX, 1.0f);
-  const float sy = std::max(spacingY, 1.0f);
+Tile gridLines(float spacingHorizontal, float spacingVertical, float width,
+               Color color) {
+  const float sx = std::max(spacingHorizontal, 1.0f);
+  const float sy = std::max(spacingVertical, 1.0f);
   return paintedTile({sx, sy},
                      [width, color](SkCanvas& c, SkSize sz, uint32_t) {
                        SkPaint p;

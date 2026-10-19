@@ -715,8 +715,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               bool cull, dg::ITexture* sceneDepth,
               dg::ITexture* sceneColor = nullptr,
               const Caster* caster = nullptr, bool receives = true) {
-  const MeshBuffers* buffers = gpu.meshes.upload(shape.artefact, *shape.mesh,
-                                                  shape.primitiveColor);
+  const MeshBuffers* buffers =
+      gpu.meshes.upload(shape.artefact, *shape.mesh, shape.primitiveColor);
   if (!buffers) return;
   dg::IBuffer* indexBuffer = buffers->indices;
   uint32_t indexCount = buffers->indexCount;
@@ -1508,7 +1508,7 @@ float shadowReach(const PlacedLight& light, const View& view,
   float reach = 0.0f;
   for (int i = 0; i < 8; ++i)
     reach = std::max(reach, glm::dot(scene.corner(i) - eye, forward));
-  return std::min(reach, view.camera.zFar);
+  return std::min(reach, view.camera.farPlane);
 }
 
 /** A DIRECTIONAL LIGHT'S MAP: an orthographic view along the light, square
@@ -1593,7 +1593,7 @@ std::vector<ShadowMap> fitCascades(const PlacedLight& light, const View& view,
     const float distance = std::max(light.light.shadow.distance, 0.0f);
     return {fitDirectional(light, view, scene, size, 0.0f, distance)};
   }
-  const float near = std::max(view.camera.zNear, 1e-3f);
+  const float near = std::max(view.camera.nearPlane, 1e-3f);
   const float far = std::max(shadowReach(light, view, scene), near * 2.0f);
   std::vector<ShadowMap> out;
   glm::vec4 ends{0.0f};
@@ -2011,8 +2011,8 @@ void drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
         if (!link.everything() && !link.contains(memberOf(body))) continue;
         Caster caster{map.viewProjection, false, tint};
         drawBody(gpu, map.viewProjection, cameraView,
-                 Shape{body.geometry, body.mesh, body.instances, body.facing, -1,
-                body.primitiveColor},
+                 Shape{body.geometry, body.mesh, body.instances, body.facing,
+                       -1, body.primitiveColor},
                  body.world,
                  tint ? glm::vec4(tintTermsOf(*body.material).colour, 1.0f)
                       : body.baseColor,

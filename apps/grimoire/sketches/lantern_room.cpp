@@ -64,7 +64,7 @@ constexpr float kReach = 620.0f;
  *  says everything. */
 struct Lantern {
   const char* key;
-  float bearingDeg;
+  float bearingDegrees;
   float height;
   glm::vec4 color;
 };
@@ -126,8 +126,9 @@ struct LanternRoom {
       // Each lantern rides a slow bob of its own, so what it reaches
       // changes: a falloff is a function of distance, and the clearest
       // way to say so is to move one lamp and leave the rest.
-      const float bearing = lantern.bearingDeg * kTwoPi / 360.0f;
-      const float bob = std::sin(seconds * 0.75f + lantern.bearingDeg * 0.03f);
+      const float bearing = lantern.bearingDegrees * kTwoPi / 360.0f;
+      const float bob =
+          std::sin(seconds * 0.75f + lantern.bearingDegrees * 0.03f);
       // A bearing is measured from +z and turns toward +x, so the
       // ellipse's two components land on z and on x in that order.
       const SkPoint on = sigil::geometry::path::toSk(

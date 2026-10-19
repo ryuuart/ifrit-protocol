@@ -2,6 +2,7 @@
 #include <pybind11/stl.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/Extend.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Keywords.h>
 #include <sigilpython/weave/Registration.h>
@@ -39,6 +40,8 @@ py::class_<T> record(py::module_& module, const char* name) {
 }  // namespace
 void bindWeave(py::module_& module) {
   auto text = module.def_submodule("weave");
+  submodule(module, "weave.paint");
+  submodule(module, "weave.ports");
   using namespace weave;
   py::enum_<TextTransform>(text, "TextTransform")
       .value("None_", TextTransform::kNone)

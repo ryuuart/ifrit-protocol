@@ -16,7 +16,7 @@ using namespace sigil::core;
 TEST(Angle, TheConstantsAreTheNearestFloatToTheExactRatio) {
   EXPECT_EQ(angle::kDegToRad, (float)(std::numbers::pi / 180.0))
       << "degrees to radians is the exact ratio rounded once";
-  EXPECT_EQ(angle::kRadToDeg, (float)(180.0 / std::numbers::pi))
+  EXPECT_EQ(angle::kRadiansToDegrees, (float)(180.0 / std::numbers::pi))
       << "radians to degrees is rounded independently, not inverted";
 }
 
@@ -26,14 +26,14 @@ TEST(Angle, TheSpellingsACallerWritesByHandAnswerDifferently) {
   // dividing by the reciprocal is a third answer again — an angle scaled
   // by either drifts, which is how one drawing ends up in two places.
   constexpr float kRoundedPi = std::numbers::pi_v<float>;
-  EXPECT_NE(angle::kRadToDeg, 180.0f / kRoundedPi);
-  EXPECT_NE(angle::radians(22.5f), 22.5f / angle::kRadToDeg);
+  EXPECT_NE(angle::kRadiansToDegrees, 180.0f / kRoundedPi);
+  EXPECT_NE(angle::radians(22.5f), 22.5f / angle::kRadiansToDegrees);
   EXPECT_NE(angle::degrees(1.17f), 1.17f / angle::kDegToRad);
 }
 
 TEST(Angle, TheVerbsAreTheOneMultiplication) {
   static_assert(angle::radians(180.0f) == 180.0f * angle::kDegToRad);
-  static_assert(angle::degrees(1.0f) == angle::kRadToDeg);
+  static_assert(angle::degrees(1.0f) == angle::kRadiansToDegrees);
   EXPECT_EQ(angle::radians(0.0f), 0.0f);
   EXPECT_EQ(angle::degrees(0.0f), 0.0f);
   EXPECT_FLOAT_EQ(angle::radians(180.0f), std::numbers::pi_v<float>);

@@ -31,10 +31,10 @@ void Radial::arrange(Arrangement& arrangement) const {
   // A full circle spaces n children evenly (endpoint excluded); a
   // partial sweep includes both endpoints. The test is made in degrees,
   // the unit the author stated the sweep in.
-  const bool closed = std::abs(std::abs(sweepDeg) - 360.0f) < 1e-3f;
+  const bool closed = std::abs(std::abs(sweepDegrees) - 360.0f) < 1e-3f;
   geometry::arrange::Ring ring{.center = {cx, cy},
-                               .fromDegrees = startDeg,
-                               .sweepDegrees = sweepDeg,
+                               .fromDegrees = startDegrees,
+                               .sweepDegrees = sweepDegrees,
                                .turn = closed ? geometry::arrange::Turn::Closed
                                               : geometry::arrange::Turn::Open};
   const float count = divisions > 0 ? divisions : (float)n;

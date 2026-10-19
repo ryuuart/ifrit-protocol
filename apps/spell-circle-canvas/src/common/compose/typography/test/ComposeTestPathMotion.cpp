@@ -208,16 +208,16 @@ std::vector<SkPoint> slidingTrack(float pixelSize) {
   std::vector<SkPoint> track;
   for (int i = 0; i < kSlideFrames; ++i) {
     progress = 1.0f - std::cbrt((kFromPx - kTravel * (float)i) / kDistance);
-    host.composer.render(
-        box().children({text(u8"H", whiteStyle(pixelSize))
-                            .key("run")
-                            .width(kField)
-                            .height(kField)
-                            .absolute()
-                            .left(0)
-                            .top(0)
-                            .textFx({.effect = textFx::enter(textFx::slide(kDistance)),
-                                     .progress = progress})}));
+    host.composer.render(box().children(
+        {text(u8"H", whiteStyle(pixelSize))
+             .key("run")
+             .width(kField)
+             .height(kField)
+             .absolute()
+             .left(0)
+             .top(0)
+             .textFx({.effect = textFx::enter(textFx::slide(kDistance)),
+                      .progress = progress})}));
     host.frame();
     track.push_back(inkCentroid(host, kField, kField));
   }
@@ -312,7 +312,8 @@ TEST(ComposePathMotion, TypeAtRestKeepsWholePixelOrigins) {
 // whole-pixel origins and the cheap atlas that go with that.
 TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
   Host host(kField, kField);
-  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.5f);  // bound: the track IS live
+  sigil::motion::Animatable<float> progress =
+      sigil::motion::animatable(0.5f);  // bound: the track IS live
   const TextEffect fade = textFx::tween({.from = GlyphModifier{.alpha = 0.0f}});
   const int distinct = distinctFramesAcrossOnePixel(host, [&](float at) {
     return ringWith(at, 44.0f, {.effect = fade, .progress = progress});
@@ -327,7 +328,8 @@ TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
 // the lane the tween publishes into differs.
 TEST(ComposePathMotion, ATweenEngagesTheGridOnlyWhereItMovesGlyphs) {
   sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.5f);
-  const TextEffect colourOnly = textFx::tween({.from = GlyphModifier{.colorMultiplier = {0.3f, 0.3f, 0.3f, 1.0f}}});
+  const TextEffect colourOnly = textFx::tween(
+      {.from = GlyphModifier{.colorMultiplier = {0.3f, 0.3f, 0.3f, 1.0f}}});
   const TextEffect offset = textFx::tween({.from = GlyphModifier{.dx = 9.0f}});
 
   Host cheapHost(kField, kField);
@@ -365,7 +367,8 @@ TEST(ComposePathMotion, ASettledDisplacingTrackReturnsToWholePixels) {
   Host settled(kField, kField);
   const SkBitmap withTrack = shot(
       settled,
-      ringWith(0.05f, 44.0f, {.effect = textFx::enter(textFx::slide()), .progress = 1.0f}));
+      ringWith(0.05f, 44.0f,
+               {.effect = textFx::enter(textFx::slide()), .progress = 1.0f}));
   for (int y = 0; y < kField; ++y)
     for (int x = 0; x < kField; ++x)
       ASSERT_EQ(untracked.getColor(x, y), withTrack.getColor(x, y))
@@ -373,7 +376,9 @@ TEST(ComposePathMotion, ASettledDisplacingTrackReturnsToWholePixels) {
 
   Host sliding(kField, kField);
   const int distinct = distinctFramesAcrossOnePixel(sliding, [](float at) {
-    return ringWith(at, 44.0f, {.effect = textFx::enter(textFx::slide()), .progress = 1.0f});
+    return ringWith(
+        at, 44.0f,
+        {.effect = textFx::enter(textFx::slide()), .progress = 1.0f});
   });
   EXPECT_LE(distinct, kWholePixelCeiling)
       << "a settled track is paying for the subpixel grid";
@@ -400,12 +405,13 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
         "turn", {},
         [sweep](const GlyphInfo&, float t, sigil::core::noise::Mix64Stream&) {
           GlyphModifier m;
-          m.rotateDeg = sweep * t;
+          m.rotateDegrees = sweep * t;
           return m;
         },
         60.0f);
     Host host(kField, kField);
-    sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.05f);  // bound, and standing still
+    sigil::motion::Animatable<float> phase =
+        sigil::motion::animatable(0.05f);  // bound, and standing still
     sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
     std::vector<SkBitmap> frames;
     frames.reserve(kSteps);

@@ -14,16 +14,16 @@
 #include <cmath>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::shapes {
 
 namespace detail {
 
-path::Outline samplePolyline(const std::function<glm::vec2(float)>& f,
-                             float t0, float t1, int samples, bool close,
+path::Outline samplePolyline(const std::function<glm::vec2(float)>& f, float t0,
+                             float t1, int samples, bool close,
                              glm::vec2 size) {
   const float cx = size.x * 0.5f, cy = size.y * 0.5f;
   const path::Polyline unit = path::sample(f, t0, t1, samples, close);
@@ -94,7 +94,7 @@ path::Outline Parallelogram::outline(glm::vec2 size) const {
   // the bottom left by it, or the reverse when the skew is negative. So
   // either sign inscribes a parallelogram of width w - |lean| in the box
   // rather than running one edge past it.
-  const float lean = std::tan(skewDeg * 0.017453293f) * s.height();
+  const float lean = std::tan(skewDegrees * 0.017453293f) * s.height();
   const float top = std::max(0.0f, lean), bottom = std::max(0.0f, -lean);
   SkPathBuilder b;
   b.moveTo(top, 0);
@@ -106,7 +106,7 @@ path::Outline Parallelogram::outline(glm::vec2 size) const {
 }
 
 path::Outline Lissajous::outline(glm::vec2 size) const {
-  const float delta = deltaDeg * SK_FloatPI / 180.0f;
+  const float delta = deltaDegrees * SK_FloatPI / 180.0f;
   return detail::samplePolyline(
       [fa = a, fb = b, delta](float t) {
         return glm::vec2{std::sin(fa * t + delta), std::sin(fb * t)};
@@ -115,7 +115,7 @@ path::Outline Lissajous::outline(glm::vec2 size) const {
 }
 
 path::Outline Harmonograph::outline(glm::vec2 size) const {
-  const float delta = deltaDeg * SK_FloatPI / 180.0f;
+  const float delta = deltaDegrees * SK_FloatPI / 180.0f;
   return detail::samplePolyline(
       [fa = a, fb = b, delta, fdamping = damping,
        fprecession = precession](float t) {

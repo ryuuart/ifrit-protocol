@@ -18,5 +18,5 @@
   "title": {"words": "THE MATRIX", "charset": "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
             "periodSeconds": 16.0, "phaseSeconds": 1.0},
   "trace": {"words": "TRACE ▸ OPERATOR 04 ▸ CARRIER HELD ▸ 02·19·98 13:24:18 ▸ SIGNAL FOUND █",
-            "eachMs": 46, "durationMs": 11800, "loopMs": 15500, "blinkSeconds": 1.1}
+            "eachMilliseconds": 46, "durationMilliseconds": 11800, "loopMilliseconds": 15500, "blinkSeconds": 1.1}
 }

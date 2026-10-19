@@ -27,7 +27,6 @@
  * use this where the label MUST cross the artwork.
  */
 
-#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
@@ -35,6 +34,8 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/TextStyle.h>
 #include <sigilweave/style/Type.h>
+
+#include <glm/vec2.hpp>
 
 namespace sigil::compose::kit {
 
@@ -64,20 +65,18 @@ struct Shade {
  *  original is untouched, so one base style can spawn haloed and plain
  *  variants without a mutable helper. */
 sigil::weave::TextStyle haloed(sigil::weave::TextStyle style,
-                                      const Halo& halo = {});
+                               const Halo& halo = {});
 
 /** @p style with a displaced solid copy beneath its glyphs. */
 sigil::weave::TextStyle shaded(sigil::weave::TextStyle style,
-                                      const Shade& shade = {});
+                               const Shade& shade = {});
 
 /** The same two on a PARTIAL: the pass is stated on the partial's own
  *  underlays, which replace whatever the text would have inherited, and a
  *  colour of transparent black is drawn in the colour the text is set in
  *  — a halo that follows the ink wherever the partial lands. */
-sigil::weave::Type haloed(sigil::weave::Type type,
-                                 const Halo& halo = {});
-sigil::weave::Type shaded(sigil::weave::Type type,
-                                 const Shade& shade = {});
+sigil::weave::Type haloed(sigil::weave::Type type, const Halo& halo = {});
+sigil::weave::Type shaded(sigil::weave::Type type, const Shade& shade = {});
 
 /** The same underlay used for weight rather than for separation: a stroke
  *  in the INK's colour thickens the face at the glyph level, which is how
@@ -85,12 +84,12 @@ sigil::weave::Type shaded(sigil::weave::Type type,
  *  Same three lines as `haloed`, opposite intent, so it has its own name
  *  rather than a flag — the colour a caller passes is the difference, and
  *  a flag would not make that visible. */
-sigil::weave::TextStyle emboldened(sigil::weave::TextStyle style,
-                                          float width, material::Color colour);
+sigil::weave::TextStyle emboldened(sigil::weave::TextStyle style, float width,
+                                   material::Color colour);
 /** On a partial; a @p colour of transparent black is the ink the text is
  *  set in, which is what a weight usually wants. */
 sigil::weave::Type emboldened(sigil::weave::Type type, float width,
-                                     material::Color colour = {0, 0, 0, 0});
+                              material::Color colour = {0, 0, 0, 0});
 
 // ---------------------------------------------------------------------------
 // The plate, for a ground a halo cannot survive.
@@ -98,8 +97,8 @@ sigil::weave::Type emboldened(sigil::weave::Type type, float width,
 /** An opaque sill behind a whole run. */
 struct Scrim {
   Fill fill = Fill::color({0.02f, 0.02f, 0.035f, 0.74f});
-  float paddingX = 3.0f;
-  float paddingY = 3.0f;
+  float paddingHorizontal = 3.0f;
+  float paddingVertical = 3.0f;
   /** Corner radius; 0 is the drafting-plate square. */
   float radius = 0.0f;
 };
@@ -117,7 +116,7 @@ struct Scrim {
  *  for this one when the plate has to stand off the type. */
 inline Element scrim(Element run, const Scrim& s = {}) {
   Element plate = box()
-                      .padding(s.paddingY, s.paddingX)
+                      .padding(s.paddingVertical, s.paddingHorizontal)
                       .fill(s.fill)
                       .children({std::move(run)});
   if (s.radius > 0) plate.borderRadius({s.radius});

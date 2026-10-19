@@ -96,7 +96,7 @@ path::RadialOptions radialOf(const Ticks& t, path::PolarFrame conventions = {});
 /** THE LADDER AS A SHAPE VALUE, with the frame taken from the box it is
  *  asked for: centre at the box centre, radius half the SHORTER side.
  *  @p conventions therefore supplies ONLY `zero`, `sense` and
- *  `originDeg`. Comparable, so the node prunes, unless @p t carries a
+ *  `originDegrees`. Comparable, so the node prunes, unless @p t carries a
  *  `classify` callable.
  *  @trap Half the shorter side keeps a ladder on an oblong box a circle
  *  rather than an ellipse `PolarFrame::fraction()` no longer matches. */
@@ -108,11 +108,11 @@ inline Radial ticks(const Ticks& t, path::PolarFrame conventions = {}) {
 // arcs — the ring's own divisions as N closed segments.
 
 /** A RING OF CLOSED ARC SEGMENTS: N wedges of the annulus between two
- *  radii, each `spanDeg` wide, dealt round the frame the way `ticks()`
+ *  radii, each `spanDegrees` wide, dealt round the frame the way `ticks()`
  *  deals its marks. The curved sibling of a `Ticks` carrying a `markPx`:
  *  an arc's mark follows the ring, so it fattens with radius the way a
  *  segment of a dial does. Every angle is in the FRAME's units, and
- *  `spanDeg` is a WIDTH, taking the frame's sign but not its origin.
+ *  `spanDegrees` is a WIDTH, taking the frame's sign but not its origin.
  *  @trap A span wider than the pitch overlaps its neighbours, which a
  *  non-zero winding fill closes into a solid ring. */
 struct Arcs {
@@ -133,7 +133,7 @@ struct Arcs {
    *  doubled arc. */
   Span mark{0.88f, 1.0f};
   /** Each segment's angular width, in frame degrees. */
-  float spanDeg = 20.0f;
+  float spanDegrees = 20.0f;
 
   bool operator==(const Arcs&) const = default;
 };
@@ -191,7 +191,8 @@ path::Outline chords(const path::PolarFrame& frame, const Chords& c);
 
 /** The chords as general options: a `radial` joined chord by chord, or
  *  into loops when `closed`. */
-path::RadialOptions radialOf(const Chords& c, path::PolarFrame conventions = {});
+path::RadialOptions radialOf(const Chords& c,
+                             path::PolarFrame conventions = {});
 
 /** The same chords as a shape value that takes its centre and radius
  *  from the box it is asked for; @p conventions supplies only the angle

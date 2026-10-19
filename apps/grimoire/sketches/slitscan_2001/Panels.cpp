@@ -201,7 +201,7 @@ auto SlitScan2001::readoutEl() -> Element {
               {.size = 9, .color = al(kCold, 0.9f)})}),
        t(kit::formatted("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
                         "texWindows()",
-                        sheetW, sheetH, bakeMs),
+                        sheetW, sheetH, bakeMilliseconds),
          {.size = 6.8f, .color = kTick})});
 }
 

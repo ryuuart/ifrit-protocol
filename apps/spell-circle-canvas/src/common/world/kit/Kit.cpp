@@ -147,7 +147,7 @@ Camera turntable(const Turntable& table, motion::Duration now) {
   geometry::mesh::camera::Camera lens;
   lens.eye = {0.0f, 0.0f, 0.0f};
   lens.target = {table.radius, -table.height, 0.0f};
-  lens.fovYDeg = table.fieldOfView;
+  lens.fovYDegrees = table.fieldOfView;
 
   // One turn per period, as a wrapping phase along the rail. A
   // non-positive period is a still camera, which is what the phase

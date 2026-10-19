@@ -511,7 +511,7 @@ sigil::geometry::mesh::camera::Camera framedLens() {
   sigil::geometry::mesh::camera::Camera lens;
   lens.eye = {180, 150, 320};
   lens.target = {40, 30, -10};
-  lens.fovYDeg = 52;
+  lens.fovYDegrees = 52;
   return lens;
 }
 
@@ -708,8 +708,8 @@ TEST_F(Scene3DSession, IsSeenFromTheCameraItsOwnTreeCarries) {
   const camera::Orbit declared = camera::orbitOf(framedLens());
   const std::optional<camera::Orbit> reported = session->orbit();
   ASSERT_TRUE(reported.has_value());
-  EXPECT_NEAR(reported->yawDeg, declared.yawDeg, 1e-2f);
-  EXPECT_NEAR(reported->pitchDeg, declared.pitchDeg, 1e-2f);
+  EXPECT_NEAR(reported->yawDegrees, declared.yawDegrees, 1e-2f);
+  EXPECT_NEAR(reported->pitchDegrees, declared.pitchDegrees, 1e-2f);
   EXPECT_NEAR(reported->distance, declared.distance, 1e-2f);
 }
 
@@ -722,7 +722,8 @@ TEST_F(Scene3DSession, ADragThatMovesItByNothingChangesNothing) {
   const camera::Orbit declared = camera::orbitOf(framedLens());
 
   const SkBitmap standing = oneFrame(*session);
-  session->viewpoint(declared.yawDeg, declared.pitchDeg, declared.distance);
+  session->viewpoint(declared.yawDegrees, declared.pitchDegrees,
+                     declared.distance);
   const SkBitmap held = oneFrame(*session);
   EXPECT_TRUE(samePicture(standing, held));
 }
@@ -733,14 +734,14 @@ TEST_F(Scene3DSession, ADragMovesItAboutTheTargetItDeclared) {
   const camera::Orbit declared = camera::orbitOf(framedLens());
 
   const SkBitmap standing = oneFrame(*session);
-  session->viewpoint(declared.yawDeg + 90.0f, declared.pitchDeg,
+  session->viewpoint(declared.yawDegrees + 90.0f, declared.pitchDegrees,
                      declared.distance);
   const SkBitmap moved = oneFrame(*session);
   EXPECT_FALSE(samePicture(standing, moved));
   const std::optional<camera::Orbit> after = session->orbit();
   ASSERT_TRUE(after.has_value());
   EXPECT_NEAR(after->distance, declared.distance, 1e-2f);
-  EXPECT_NEAR(after->pitchDeg, declared.pitchDeg, 1e-2f);
+  EXPECT_NEAR(after->pitchDegrees, declared.pitchDegrees, 1e-2f);
 }
 
 TEST_F(Scene3DDoors, PaintsATextureSceneOntoABody) {

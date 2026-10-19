@@ -110,10 +110,11 @@ struct PopPrims {
   static Element figure(sketch::Scene2DContext& ctx, world::Mesh body,
                         bool stamps = false) {
     const camera::Camera view{
-        .eye = {0, 210, 900}, .target = {0, 0, 0}, .fovYDeg = 42};
+        .eye = {0, 210, 900}, .target = {0, 0, 0}, .fovYDegrees = 42};
     body.key("subject").transform(camera::place({}, 0, stamps ? 0 : -28));
     if (stamps)
-      body.fill(material::surface::unlit({.baseColor = {0.9f, 0.9f, 0.93f, 1}}));
+      body.fill(
+          material::surface::unlit({.baseColor = {0.9f, 0.9f, 0.93f, 1}}));
     else
       body.fill(material::surface::program(
           {.baseColor = {1, 1, 1, 1}, .roughness = 1}));
@@ -187,25 +188,25 @@ struct PopPrims {
                    "triangles can retain different colours."},
         box().column().gap(22).children(
             {sketch::kit::comparison(
-                 {.cases = {{.title = "NATIVE PRIMITIVE LANE",
-                             .control = "primitiveColor(\"Color\")",
-                             .figure = figure(ctx, world::mesh(facets)
-                                                       .primitiveColor("Color")),
-                             .note = "Two triangles share points but carry "
-                                     "different brightness values."},
-                            {.title = "BAKED INTO VERTICES",
-                             .control = "bakePrimitiveColor(Color)",
-                             .figure = figure(ctx, world::mesh(baked)),
-                             .note = "The same appearance, expressed through "
-                                     "per-vertex colour."},
-                            {.title = "IDENTITY PER PIECE",
-                             .control = "promote(Id) → stamps(quad)",
-                             .figure = figure(
-                                 ctx,
-                                 world::mesh(pieces).primitiveColor("Color"),
-                                 /*stamps=*/true),
-                             .note = "Each stamped point gives all of its "
-                                     "triangles the same Id."}},
+                 {.cases =
+                      {{.title = "NATIVE PRIMITIVE LANE",
+                        .control = "primitiveColor(\"Color\")",
+                        .figure = figure(
+                            ctx, world::mesh(facets).primitiveColor("Color")),
+                        .note = "Two triangles share points but carry "
+                                "different brightness values."},
+                       {.title = "BAKED INTO VERTICES",
+                        .control = "bakePrimitiveColor(Color)",
+                        .figure = figure(ctx, world::mesh(baked)),
+                        .note = "The same appearance, expressed through "
+                                "per-vertex colour."},
+                       {.title = "IDENTITY PER PIECE",
+                        .control = "promote(Id) → stamps(quad)",
+                        .figure = figure(
+                            ctx, world::mesh(pieces).primitiveColor("Color"),
+                            /*stamps=*/true),
+                        .note = "Each stamped point gives all of its "
+                                "triangles the same Id."}},
                   .measure = 1160,
                   .gap = 22}),
              sketch::kit::comparison(

@@ -327,7 +327,7 @@ namespace {
 /** Renders @p frame until the scene reports a timed frame read, at most
  *  a dozen times, each followed by a readback that waits for the device. */
 const SceneStats& timedUntilRead(Scene& scene, Frame& frame,
-                                 double* longestMs) {
+                                 double* longestMilliseconds) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
   SkCanvas canvas(bitmap);
@@ -338,7 +338,7 @@ const SceneStats& timedUntilRead(Scene& scene, Frame& frame,
     const double ms = std::chrono::duration<double, std::milli>(
                           std::chrono::steady_clock::now() - began)
                           .count();
-    *longestMs = std::max(*longestMs, ms);
+    *longestMilliseconds = std::max(*longestMilliseconds, ms);
     if (scene.stats().deviceTiming != DeviceTiming::Pending) break;
   }
   return scene.stats();
@@ -380,8 +380,8 @@ TEST(PostChain, ATimedFrameNamesEveryStageAndTheyFitInsideTheFrame) {
   // THE STAGES ARE THE FRAME: together more than nothing, and no more
   // than the longest frame took on the host, which waited for the device
   // to finish it before reading it back.
-  EXPECT_GT(stats.deviceMs(), 0.0);
-  EXPECT_LE(stats.deviceMs(), longest);
+  EXPECT_GT(stats.deviceMilliseconds(), 0.0);
+  EXPECT_LE(stats.deviceMilliseconds(), longest);
 }
 
 TEST(PostChain, AnUntimedFrameReportsNoStages) {
@@ -519,9 +519,9 @@ TEST(PostChain, TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn) {
   const double one = laid(1, false);
   const double sixteen = laid(16, false);
   const double shadowed = laid(1, true);
-  RecordProperty("oneCardMs", std::to_string(one));
-  RecordProperty("sixteenCardsMs", std::to_string(sixteen));
-  RecordProperty("oneShadowedCardMs", std::to_string(shadowed));
+  RecordProperty("oneCardMilliseconds", std::to_string(one));
+  RecordProperty("sixteenCardsMilliseconds", std::to_string(sixteen));
+  RecordProperty("oneShadowedCardMilliseconds", std::to_string(shadowed));
   // Sixteen cards over one another cost about what the one in front does:
   // the device does not shade what is hidden.
   EXPECT_LT(sixteen, one * 2.5) << one << " " << sixteen;
@@ -586,10 +586,10 @@ TEST(PostChain, TheSeenPhaseOfAPaneCostsASmallMultipleOfALaidCard) {
   const double pane = timed(lens, "colour.seen", false);
   const double shadowedCard = timed(std::nullopt, "colour.laid", true);
   const double shadowedPane = timed(lens, "colour.seen", true);
-  RecordProperty("cardMs", std::to_string(card));
-  RecordProperty("paneMs", std::to_string(pane));
-  RecordProperty("shadowedCardMs", std::to_string(shadowedCard));
-  RecordProperty("shadowedPaneMs", std::to_string(shadowedPane));
+  RecordProperty("cardMilliseconds", std::to_string(card));
+  RecordProperty("paneMilliseconds", std::to_string(pane));
+  RecordProperty("shadowedCardMilliseconds", std::to_string(shadowedCard));
+  RecordProperty("shadowedPaneMilliseconds", std::to_string(shadowedPane));
   // A pixel seen through — its lit face, the ray carried through the
   // volume and the scene behind read where it lands — costs a small
   // multiple of an opaque lit one.

@@ -139,19 +139,19 @@ inline lines::Rails quad(float width, const Fill& fill, float gap = 4.0f) {
 
 /** A parallel lattice at one fixed angle. */
 inline Hatch hatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
-                   float angleDeg = 45.0f) {
+                   float angleDegrees = 45.0f) {
   Hatch h;
   h.strokeFill = std::move(fill);
   h.pattern.spacing = spacing;
-  h.pattern.angle = geometry::path::radians(angleDeg);
+  h.pattern.angle = geometry::path::radians(angleDegrees);
   h.width = width;
   return h;
 }
 
 /** …and the same lattice crossed with its perpendicular. */
 inline Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
-                        float angleDeg = 45.0f) {
-  Hatch h = hatch(std::move(fill), spacing, width, angleDeg);
+                        float angleDegrees = 45.0f) {
+  Hatch h = hatch(std::move(fill), spacing, width, angleDegrees);
   h.pattern.cross = true;
   return h;
 }
@@ -247,8 +247,7 @@ inline std::vector<brush::Strand> braid(int n, float amplitude,
  *  beneath. A comparable material, so a plate of seventy grooves prunes;
  *  it converts to the `Fill` a `lines::Rail` takes. */
 inline material::Material grooveRamp(float radius, float width,
-                                     material::Color dark,
-                                     material::Color lite,
+                                     material::Color dark, material::Color lite,
                                      float shoulder = 0.22f) {
   const float reach = radius + width;
   const float inner = (radius - width * 0.5f) / reach;
@@ -280,8 +279,8 @@ namespace spans {
 /** The reticle: a window of `arm` px at every corner and nothing else.
  *  A composition of existing span terms rather than a new kind — `Spans`
  *  is a closed value, so a kit span can only ever be a composition. */
-inline Spans brackets(float arm = 18.0f, float angleDeg = 30.0f) {
-  return corners(arm, angleDeg);
+inline Spans brackets(float arm = 18.0f, float angleDegrees = 30.0f) {
+  return corners(arm, angleDegrees);
 }
 }  // namespace spans
 
@@ -315,9 +314,17 @@ inline LayeredBrush filament(material::Color glow = {0.435f, 0.847f, 1.0f, 1},
   g45.a = 0.45f;
   c90.a = 0.90f;
   return LayeredBrush{{
-      {14 * scale, Fill::color(g18), 8 * scale, {}, 0,
+      {14 * scale,
+       Fill::color(g18),
+       8 * scale,
+       {},
+       0,
        material::BlendMode::PlusLighter},
-      {7 * scale, Fill::color(g45), 3 * scale, {}, 0,
+      {7 * scale,
+       Fill::color(g45),
+       3 * scale,
+       {},
+       0,
        material::BlendMode::PlusLighter},
       {2.5f * scale, Fill::color(c90)},
       {1 * scale, Fill::color({1, 1, 1, 0.7f})},
@@ -381,8 +388,13 @@ inline LayeredBrush rope(int state, float scale = 1.0f) {
   if (state >= 2)
     b.layers.push_back(
         {18 * k, Fill::color({1.0f, 0.788f, 0.439f, 0.13f}), 6 * k});  // halo
-  b.layers.push_back({11 * k, Fill::color(p.body), 0, {}, 0,
-                      material::BlendMode::Normal, false});
+  b.layers.push_back({11 * k,
+                      Fill::color(p.body),
+                      0,
+                      {},
+                      0,
+                      material::BlendMode::Normal,
+                      false});
   b.layers.push_back(
       {7 * k, Fill::color(p.ridge), 0, {7 * k, 5 * k}, 0});  // strand
   b.layers.push_back(
@@ -402,9 +414,17 @@ inline LayeredBrush pulse(material::Color halo = {1.0f, 0.79f, 0.44f, 0.35f},
   material::Color body = halo;
   body.a = std::min(1.0f, halo.a * 2.2f);
   return LayeredBrush{{
-      {12 * scale, Fill::color(halo), 5 * scale, {}, 0,
+      {12 * scale,
+       Fill::color(halo),
+       5 * scale,
+       {},
+       0,
        material::BlendMode::PlusLighter},
-      {5 * scale, Fill::color(body), 2 * scale, {}, 0,
+      {5 * scale,
+       Fill::color(body),
+       2 * scale,
+       {},
+       0,
        material::BlendMode::PlusLighter},
       {2 * scale, Fill::color(core)},
   }};
@@ -415,9 +435,9 @@ inline LayeredBrush pulse(material::Color halo = {1.0f, 0.79f, 0.44f, 0.35f},
  *  which uses no ties at all. Two decorations as one stack, so they attach
  *  and prune together. */
 inline DecorationStack railwayCarto(float scale = 1.0f,
-                               material::Color dark = {0.439f, 0.439f, 0.439f,
-                                                       1},
-                               material::Color light = {1, 1, 1, 1}) {
+                                    material::Color dark = {0.439f, 0.439f,
+                                                            0.439f, 1},
+                                    material::Color light = {1, 1, 1, 1}) {
   lines::Line base;
   base.width = 3.0f * scale;
   base.fill = Fill::color(dark);
@@ -471,24 +491,24 @@ inline brush::Ribbon taper(float widthStart, float widthEnd,
   return r;
 }
 
-/** The calligraphic nib: full width perpendicular to `nibAngleDeg`,
+/** The calligraphic nib: full width perpendicular to `nibAngleDegrees`,
  *  `contrast` fraction when the path runs along the nib. */
-inline brush::Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
+inline brush::Ribbon calligraphic(float nibAngleDegrees, float width, Fill fill,
                                   float contrast = 0.15f) {
   brush::Ribbon r;
   r.widthStart = width;
-  r.nibAngleDeg = nibAngleDeg;
+  r.nibAngleDegrees = nibAngleDegrees;
   r.nibContrast = contrast;
   r.fill = std::move(fill);
   return r;
 }
 
-inline brush::Ribbon calligraphic(float nibAngleDeg, float width,
+inline brush::Ribbon calligraphic(float nibAngleDegrees, float width,
                                   material::Material material,
                                   float contrast = 0.15f) {
   brush::Ribbon r;
   r.widthStart = width;
-  r.nibAngleDeg = nibAngleDeg;
+  r.nibAngleDegrees = nibAngleDegrees;
   r.nibContrast = contrast;
   r.fillMaterial = std::move(material);
   return r;

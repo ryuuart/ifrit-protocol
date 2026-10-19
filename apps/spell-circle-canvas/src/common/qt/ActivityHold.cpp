@@ -1,9 +1,8 @@
 #include "ActivityHold.h"
 
-namespace ifrit::qt {
+namespace sigil::qt {
 
-void ActivityHold::set(const void* holder, ActivityReason reason,
-                       bool stands) {
+void ActivityHold::set(const void* holder, ActivityReason reason, bool stands) {
   const bool wasHeld = held();
   if (stands)
     m_standing.insert({holder, reason});
@@ -23,4 +22,4 @@ void ActivityHold::announce(bool wasHeld) {
   if (held() != wasHeld && m_onChange) m_onChange(held());
 }
 
-}  // namespace ifrit::qt
+}  // namespace sigil::qt

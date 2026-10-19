@@ -94,7 +94,7 @@ wedges that fatten with radius — the wedge is
 every division, the long mark every `longEvery`-th in the cycle — that
 takes the frame from the node's own laid-out box: centre at the box centre, radius = half the SHORTER
 side. Its `conventions` therefore supplies ONLY `zero`, `sense` and
-`originDeg`; the frame's own `centre` and `radius` are overwritten, so a
+`originDegrees`; the frame's own `centre` and `radius` are overwritten, so a
 frame passed there does not place the ladder — the node's box does.
 
 Half the shorter side, not half the width, so a ladder on a non-square

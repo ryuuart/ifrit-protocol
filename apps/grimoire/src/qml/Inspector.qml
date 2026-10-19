@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Ifrit.Qt 1.0 as Ui
+import Sigil.Qt 1.0 as Ui
 import Sigil.Grimoire
 
 Ui.Panel {
@@ -333,11 +333,11 @@ Ui.Panel {
 
                     Fact {
                         label: "Work · p99"
-                        value: (rail.metrics.workMs ?? 0).toFixed(2) + " · " + (rail.metrics.p99Ms ?? 0).toFixed(2) + " ms"
+                        value: (rail.metrics.workMilliseconds ?? 0).toFixed(2) + " · " + (rail.metrics.p99Ms ?? 0).toFixed(2) + " ms"
                     }
                     Fact {
                         label: "Submit"
-                        value: (rail.metrics.submitMs ?? 0).toFixed(2) + " ms"
+                        value: (rail.metrics.submitMilliseconds ?? 0).toFixed(2) + " ms"
                     }
                     Fact {
                         label: "Headroom"

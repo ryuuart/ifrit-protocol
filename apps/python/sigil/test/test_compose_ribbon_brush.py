@@ -64,12 +64,14 @@ class Nibs(unittest.TestCase):
     def test_a_nib_is_widest_across_its_angle_and_thinnest_along_it(self):
         from sigil import skia
 
-        nib = compose.brush.ribbon(12, "#ffffff", nibAngleDeg=0, nibContrast=0.15)
-        self.assertEqual(nib.nibAngleDeg, 0)
+        nib = compose.brush.ribbon(12, "#ffffff", nibAngleDegrees=0, nibContrast=0.15)
+        self.assertEqual(nib.nibAngleDegrees, 0)
         self.assertAlmostEqual(nib.nibContrast, 0.15)
         self.assertEqual(nib.widthStart, 12)
         self.assertFalse(nib.hasProfile())
-        self.assertNotEqual(nib, compose.brush.ribbon(12, "#ffffff", nibAngleDeg=90))
+        self.assertNotEqual(
+            nib, compose.brush.ribbon(12, "#ffffff", nibAngleDegrees=90)
+        )
         # Along the nib, then across it: one turn of the same stroke.
         spine = (
             skia.PathBuilder().moveTo(10, 50).lineTo(110, 50).lineTo(110, 150).detach()

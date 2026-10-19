@@ -227,7 +227,7 @@ struct Paint::Recipe {
   Kind kind = Kind::Linear;
   // Gradients: endpoints/center + radius or sweep degrees + ramp.
   SkPoint p0 = {0, 0}, p1 = {0, 0};  // Conical: (focus, center)
-  float f0 = 0.0f, f1 = 0.0f;        // radius / (startDeg, endDeg) /
+  float f0 = 0.0f, f1 = 0.0f;        // radius / (startDegrees, endDegrees) /
                                      // Conical: (focusRadius, radius)
   material::ColorStops stops;
   SkTileMode tile = SkTileMode::kClamp;

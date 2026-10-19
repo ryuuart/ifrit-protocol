@@ -36,7 +36,7 @@ HOLDER = re.compile(
 )
 ALIAS = re.compile(r"^\s*namespace\s+(\w+)\s*=\s*([\w:]+)\s*;", re.MULTILINE)
 USING = re.compile(r"^\s*using\s+([\w:]+::\w+)\s*;", re.MULTILINE)
-INCLUDE = re.compile(r"^#include\s+<(sigil\w+|ifrit\w+)/", re.MULTILINE)
+INCLUDE = re.compile(r"^#include\s+<(sigil\w+)/", re.MULTILINE)
 
 # Not every name is spelled at a `.def`. A run of verbs that differ only
 # in which setter they call is written as a table of name-and-member

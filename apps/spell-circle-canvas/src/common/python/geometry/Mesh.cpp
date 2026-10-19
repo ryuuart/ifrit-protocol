@@ -42,6 +42,12 @@ void checkGridExtent(int nu, int nv) {
 
 void bindGeometryMesh(py::module_& module) {
   auto meshes = submodule(module, "geometry.mesh");
+  submodule(module, "geometry.device");
+  submodule(module, "geometry.mesh.codec");
+  submodule(module, "geometry.mesh.codec.decode");
+  submodule(module, "geometry.mesh.codec.encode");
+  submodule(module, "geometry.mesh.points");
+  submodule(module, "geometry.mesh.kernel");
 
   auto meshClass =
       bindRecord<mesh::Mesh>(meshes, "Mesh", "A mesh has no field named ");
@@ -238,7 +244,7 @@ void bindGeometryMesh(py::module_& module) {
   auto revolveOptions = bindRecord<mesh::RevolveOptions>(
       meshes, "RevolveOptions", "A revolution has no option named ");
   revolveOptions.def_readwrite("segments", &mesh::RevolveOptions::segments)
-      .def_readwrite("sweepDeg", &mesh::RevolveOptions::sweepDeg)
+      .def_readwrite("sweepDegrees", &mesh::RevolveOptions::sweepDegrees)
       .def_readwrite("close", &mesh::RevolveOptions::close)
       .def_readwrite("inward", &mesh::RevolveOptions::inward);
 
@@ -349,15 +355,16 @@ void bindGeometryMesh(py::module_& module) {
       py::arg("profile"), py::arg("options") = mesh::RevolveOptions{});
   meshes.def(
       "revolve",
-      [](const std::vector<glm::vec2>& profile, int segments, float sweepDeg,
-         bool close, bool inward) {
+      [](const std::vector<glm::vec2>& profile, int segments,
+         float sweepDegrees, bool close, bool inward) {
         return mesh::revolve(profile, {.segments = segments,
-                                       .sweepDeg = sweepDeg,
+                                       .sweepDegrees = sweepDegrees,
                                        .close = close,
                                        .inward = inward});
       },
-      py::arg("profile"), py::arg("segments") = 48, py::arg("sweepDeg") = 360,
-      py::arg("close") = true, py::arg("inward") = false);
+      py::arg("profile"), py::arg("segments") = 48,
+      py::arg("sweepDegrees") = 360, py::arg("close") = true,
+      py::arg("inward") = false);
   meshes.def("bakePrimitiveColor", &mesh::bakePrimitiveColor, py::arg("mesh"),
              py::arg("lane") = "Color");
 

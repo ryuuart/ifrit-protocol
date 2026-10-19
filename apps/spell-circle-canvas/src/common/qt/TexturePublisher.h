@@ -18,7 +18,7 @@ class QRhi;
 class QRhiTexture;
 class QRhiCommandBuffer;
 
-namespace ifrit::qt {
+namespace sigil::qt {
 
 /** Publishes under @p name through @p hub on the device this QRhi
  * backend draws on — Syphon over Metal, Spout over Direct3D11 — or
@@ -30,8 +30,7 @@ sigil::io::frames::Publisher createPublisher(sigil::io::Hub& hub, QRhi* rhi,
 /** Publishes a texture from the QRhi that created the publisher. Drawing
  * must already be submitted; Qt commits the still-open command buffer.
  * The newest image remains available to clients that subscribe later. */
-void publishFrame(sigil::io::frames::Publisher& publisher,
-                  QRhiTexture* texture, QRhiCommandBuffer* commandBuffer,
-                  QSize size);
+void publishFrame(sigil::io::frames::Publisher& publisher, QRhiTexture* texture,
+                  QRhiCommandBuffer* commandBuffer, QSize size);
 
-}  // namespace ifrit::qt
+}  // namespace sigil::qt

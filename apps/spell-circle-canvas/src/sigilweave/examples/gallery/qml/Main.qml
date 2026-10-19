@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Qt.labs.platform as Platform
-import Ifrit.Qt 1.0 as Ui
+import Sigil.Qt 1.0 as Ui
 import SigilWeave.Gallery
 
 /** Top-level composition for the interactive SigilWeave gallery. */

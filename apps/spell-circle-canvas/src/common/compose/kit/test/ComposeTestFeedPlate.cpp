@@ -4,8 +4,8 @@
 
 #include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/kit/Plate.h>
-#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/values/Tween.h>
 
 #include <algorithm>
 
@@ -28,8 +28,8 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   auto strip = [&] {
     return box().children(
         {kit::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
-                     .paddingX = 10,
-                     .paddingY = 6,
+                     .paddingHorizontal = 10,
+                     .paddingVertical = 6,
                      .gap = 8,
                      .fill = Fill::color({0, 0, 0.5f, 1}),
                      .border = green(),
@@ -69,8 +69,8 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   col.composer.render(box().children(
       {kit::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
                    .column = true,
-                   .paddingX = 10,
-                   .paddingY = 6,
+                   .paddingHorizontal = 10,
+                   .paddingVertical = 6,
                    .gap = 8,
                    .fill = Fill::color({0, 0, 0.5f, 1}),
                    .divider = red()})
@@ -86,10 +86,11 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   // tinted() builds one style per named colour from a single face and size.
   // The names carry no meaning to it, deliberately: what a study calls its
   // passing ink is the study's convention, not the library's.
-  const weave::TypeSheet mono = kit::tinted({.size = 10.5f, .color = material::Color{1, 1, 1, 1}},
-                                            {{"dim", {0.5f, 0.5f, 0.5f, 1}},
-                                             {"pass", {0, 1, 0, 1}},
-                                             {"fail", {1, 0, 0, 1}}});
+  const weave::TypeSheet mono =
+      kit::tinted({.size = 10.5f, .color = material::Color{1, 1, 1, 1}},
+                  {{"dim", {0.5f, 0.5f, 0.5f, 1}},
+                   {"pass", {0, 1, 0, 1}},
+                   {"fail", {1, 0, 0, 1}}});
   EXPECT_FLOAT_EQ(mono.base().shaping.fontSize, 10.5f);
   ASSERT_EQ(mono.size(), 3u);
   EXPECT_FLOAT_EQ(mono["pass"].shaping.fontSize, 10.5f);
@@ -143,18 +144,18 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
 
   Host host(320, (int)std::ceil(panelH) + 40);
   auto divider = [&] { return box().height(div).fill(green()); };
-  host.composer.render(box().children(
-      {box()
-           .key("panel")
-           .padding(padY, 12.0f)
-           .column()
-           .gap(gap)
-           .children({feed::feed(a, st).key("feedA")})
-           .children({divider()})
-           .children({feed::feed(b, st).key("feedB")})
-           .children({divider()})
-           .children({feed::feed(c, st).key("feedC")})
-           .rect(10, 10, 300, panelH)}));
+  host.composer.render(
+      box().children({box()
+                          .key("panel")
+                          .padding(padY, 12.0f)
+                          .column()
+                          .gap(gap)
+                          .children({feed::feed(a, st).key("feedA")})
+                          .children({divider()})
+                          .children({feed::feed(b, st).key("feedB")})
+                          .children({divider()})
+                          .children({feed::feed(c, st).key("feedC")})
+                          .rect(10, 10, 300, panelH)}));
   host.frame();
 
   ASSERT_TRUE(host.composer.bounds("panel").has_value());

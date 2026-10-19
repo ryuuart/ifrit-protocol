@@ -23,12 +23,11 @@
  * the same convention.
  */
 
-#include <glm/vec2.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <glm/vec2.hpp>
 
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Outline.h"
@@ -74,7 +73,7 @@ inline glm::vec2 direction(float radians) {
  *  vector points nowhere and answers 0. */
 inline float heading(glm::vec2 vector) {
   if (vector.x == 0 && vector.y == 0) return 0;
-  return std::atan2(vector.y, vector.x) * path::kRadToDeg;
+  return std::atan2(vector.y, vector.x) * path::kRadiansToDegrees;
 }
 
 /** The point at the screen angle `radians` on the ellipse at `center`
@@ -119,8 +118,7 @@ inline float radiansAt(float fraction, const Ring& ring) {
 
 /** The centre of item `index` of `count` on `ring`. */
 inline glm::vec2 onRing(size_t index, size_t count, const Ring& ring) {
-  return onEllipse(ring.center, ring.radii,
-                   radiansOnRing(index, count, ring));
+  return onEllipse(ring.center, ring.radii, radiansOnRing(index, count, ring));
 }
 
 /** WHERE AN ITEM STANDS AND WHICH WAY IT FACES: its centre, and the
@@ -141,7 +139,7 @@ struct Placement {
 inline Placement placeOnEllipse(glm::vec2 center, glm::vec2 radii,
                                 float radians) {
   return {onEllipse(center, radii, radians),
-          radians * path::kRadToDeg + 90.0f};
+          radians * path::kRadiansToDegrees + 90.0f};
 }
 
 /** Item `index` of `count` on `ring`, placed and faced. */

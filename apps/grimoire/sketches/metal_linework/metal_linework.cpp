@@ -212,11 +212,10 @@ Element run(const std::vector<glm::vec2>& points, float width,
             material::Material plating) {
   return compose::kit::at(0, 0, kWidth, kDepth)
       .shape(compose::heldPath(path::Outline::svg(svg(points))))
-      .stroke(std::move(plating),
-              {.width = width,
-               .position = material::StrokePosition::Center,
-               .cap = path::Cap::Round,
-               .join = path::Join::Round});
+      .stroke(std::move(plating), {.width = width,
+                                   .position = material::StrokePosition::Center,
+                                   .cap = path::Cap::Round,
+                                   .join = path::Join::Round});
 }
 
 Element disc(glm::vec2 centre, float radius, compose::Fill fill) {
@@ -377,9 +376,9 @@ struct MetalLinework {
     gm::camera::Camera camera;
     camera.eye = {-30, 1180, 860};
     camera.target = {0, 0, 70};
-    camera.fovYDeg = 46;
-    camera.zNear = 40;
-    camera.zFar = 20000;
+    camera.fovYDegrees = 46;
+    camera.nearPlane = 40;
+    camera.farPlane = 20000;
     return camera;
   }
 

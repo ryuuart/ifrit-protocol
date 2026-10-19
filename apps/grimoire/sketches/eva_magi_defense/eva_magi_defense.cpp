@@ -78,8 +78,8 @@ struct EvaMagiDefense {
       // the component's stem runs local +y; rotate it by the declared theta
       const float th = rad(s.rotation);
       const SkVector stem{-std::sin(th), std::cos(th)};
-      const float stemDeg = deg(std::atan2(stem.fY, stem.fX));
-      const float err = std::fabs(wrap180(stemDeg - bearing));
+      const float stemDegrees = deg(std::atan2(stem.fY, stem.fX));
+      const float err = std::fabs(wrap180(stemDegrees - bearing));
       // Two independent claims on one site: the declared angle IS the snap,
       // and the stem it turns actually points at the target. A single
       // combined boolean would report a wrong snap and a stem off by twenty
@@ -92,7 +92,7 @@ struct EvaMagiDefense {
                          0.0, (double)wrap180(want - s.rotation), 0.5));
       verdict.add(measure::check(
           kit::formatted("MAGI %s  stem %+.1f vs bearing %.2f, deg apart",
-                         s.name, (double)stemDeg, (double)bearing),
+                         s.name, (double)stemDegrees, (double)bearing),
           0.0, (double)err, 22.5));
     }
     // ...and the plate's other published number: the wall angle. The
@@ -212,7 +212,7 @@ struct EvaMagiDefense {
     const float inkShift =
         cap.lineHeight * 0.5f - cap.capSlack() - cap.capHeight * 0.5f;
     const int count = L.lines[1] ? (L.lines[2] ? 3 : 2) : 1;
-    const float step = (L.h - 2.0f * labelStyle.insetY) / (float)count;
+    const float step = (L.h - 2.0f * labelStyle.insetVertical) / (float)count;
     for (int i = 0; i < count; ++i)
       node.children(
           {text(L.lines[i])
@@ -223,7 +223,8 @@ struct EvaMagiDefense {
                                   .width() *
                               0.5f
                         : L.w * 0.5f,
-                    labelStyle.insetY + step * ((float)i + 0.5f) + inkShift})});
+                    labelStyle.insetVertical + step * ((float)i + 0.5f) +
+                        inkShift})});
     return node;
   }
 
@@ -455,7 +456,8 @@ struct EvaMagiDefense {
       const LabelRegister reg = labelRegister(label.role);
       const int lines = label.lines[1] ? (label.lines[2] ? 3 : 2) : 1;
       const float capHeight = std::min(
-          reg.size, (label.h - 2.0f * reg.insetY) / (float)lines - reg.lineGap);
+          reg.size,
+          (label.h - 2.0f * reg.insetVertical) / (float)lines - reg.lineGap);
       const weave::TextStyle probe =
           atCapHeight(weave::textStyle(type(100.0f)), capHeight, *ctx.fonts);
       float widest = 0.0f;
@@ -464,7 +466,7 @@ struct EvaMagiDefense {
           widest = std::max(widest, ctx.measure(text(line, probe)).width());
       // The cap height fixes the vertical register; condensation only fits
       // width.
-      float condense = (label.w - 2.0f * reg.insetX) / widest;
+      float condense = (label.w - 2.0f * reg.insetHorizontal) / widest;
       if (label.role == LabelRole::Country) condense = std::min(1.0f, condense);
       return type(probe.shaping.fontSize, condense);
     };
@@ -490,9 +492,9 @@ struct EvaMagiDefense {
       // The falls: the cascade's own ladder, read one unit at a time. The
       // master is the seconds since the first fall over the span the
       // cascade says it needs, so the ladder and the clock cannot drift.
-      const float master =
-          std::clamp((float)((t - kFirstFall) * 1000.0 / (double)falls.totalMs),
-                     0.0f, 1.0f);
+      const float master = std::clamp(
+          (float)((t - kFirstFall) * 1000.0 / (double)falls.totalMilliseconds),
+          0.0f, 1.0f);
       for (int i = 0; i < kFallN; ++i)
         fallAlpha[i] =
             kFallRest + (1.0f - kFallRest) *

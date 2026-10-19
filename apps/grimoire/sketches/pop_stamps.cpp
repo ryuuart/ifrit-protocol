@@ -128,7 +128,6 @@ struct PopStamps {
     return sketch::runtimeAvailable(why);
   }
 
-
   /** An element tree painted to pixels, square, at a stated side. The
    *  session owns the scene the picture was taken from and lets it go
    *  when the body declares again, so the sketch holds an image and
@@ -146,7 +145,7 @@ struct PopStamps {
   static Element figure(sketch::Scene2DContext& ctx,
                         std::vector<sigil::world::Node> bodies) {
     const camera::Camera view{
-        .eye = {0, 260, 980}, .target = {0, 20, 0}, .fovYDeg = 24};
+        .eye = {0, 260, 980}, .target = {0, 20, 0}, .fovYDegrees = 24};
     bodies.push_back(
         world::camera(view, {.toneCurve = world::ToneCurve::Neutral}));
     bodies.push_back(
@@ -179,52 +178,55 @@ struct PopStamps {
             .noise(26, 0.004f)
             .sweep(sections::circle(14), true, {.segments = 160, .scale = 11});
 
-    const mesh::Mesh plates = pop::on(ring)
-                 .count(900)
-                 .spread(26)
-                 .vary(0.6f)
-                 .fade({1.0f, 0.7f, 0.55f, 1}, {0.6f, 0.85f, 1.0f, 1})
-                 .atlas(2, 2)
-                 .lookAt(eye)
-                 .stamps(mesh::quad(11, 11));
+    const mesh::Mesh plates =
+        pop::on(ring)
+            .count(900)
+            .spread(26)
+            .vary(0.6f)
+            .fade({1.0f, 0.7f, 0.55f, 1}, {0.6f, 0.85f, 1.0f, 1})
+            .atlas(2, 2)
+            .lookAt(eye)
+            .stamps(mesh::quad(11, 11));
 
-    const mesh::Mesh crown = pop::on(ring)
-                .count(140)
-                .noise(20, 0.004f)
-                .smooth(0.5f, 2)
-                .sweep(pop::profile::fromPath(
-                           shapes::star(5, 14.0f / 30.0f).at({0, 0}, 30)),
-                       true,
-                       {.segments = 160,
-                        .normals = pop::SweepOptions::Normals::Geometric});
-    const mesh::Mesh glints = pop::on(crown, 600).jitter(1.5f).stamps(mesh::quad(3, 3));
+    const mesh::Mesh crown =
+        pop::on(ring)
+            .count(140)
+            .noise(20, 0.004f)
+            .smooth(0.5f, 2)
+            .sweep(pop::profile::fromPath(
+                       shapes::star(5, 14.0f / 30.0f).at({0, 0}, 30)),
+                   true,
+                   {.segments = 160,
+                    .normals = pop::SweepOptions::Normals::Geometric});
+    const mesh::Mesh glints =
+        pop::on(crown, 600).jitter(1.5f).stamps(mesh::quad(3, 3));
 
-    const mesh::Mesh ribbon = pop::cookSweep(pop::on(ring)
-                                .count(120)
-                                .window(0.5f, 0.5f)
-                                .noise(16, 0.004f)
-                                .smooth(0.6f, 3),
-                            sections::line(), false,
-                            {.segments = 120,
-                             .scale = 42,
-                             .normals = pop::SweepOptions::Normals::Frame});
-
+    const mesh::Mesh ribbon =
+        pop::cookSweep(pop::on(ring)
+                           .count(120)
+                           .window(0.5f, 0.5f)
+                           .noise(16, 0.004f)
+                           .smooth(0.6f, 3),
+                       sections::line(), false,
+                       {.segments = 120,
+                        .scale = 42,
+                        .normals = pop::SweepOptions::Normals::Frame});
 
     // The stamps wear the atlas as a surface that is its own light, each
     // multiplying the cell it shows by the colour the chain faded along
     // it; a stamp writes no depth, so a motif's clear corners show what
     // stands behind them.
-    material::Material motifs = material::surface::unlit(
-        {.baseColor = {1, 1, 1, 1}, .depthWrite = 0});
+    material::Material motifs =
+        material::surface::unlit({.baseColor = {1, 1, 1, 1}, .depthWrite = 0});
     if (atlas)
       motifs.slot(material::surface::kBaseColorSlot,
                   material::Texture(sigil::media::PixelSource(atlas)));
     const glm::mat4 crowned = camera::place({}, 14, -10, 0, 0.85f);
-    Element tubeFigure = figure(
-        ctx, {world::mesh(tube)
-                  .key("tube")
-                  .transform(camera::place({}, 24, -10))
-                  .fill(steel({0.62f, 0.7f, 0.82f, 1}))});
+    Element tubeFigure =
+        figure(ctx, {world::mesh(tube)
+                         .key("tube")
+                         .transform(camera::place({}, 24, -10))
+                         .fill(steel({0.62f, 0.7f, 0.82f, 1}))});
     Element atlasFigure =
         figure(ctx, {world::mesh(plates)
                          .key("plates")
@@ -232,15 +234,11 @@ struct PopStamps {
                          .backface(material::Backface::Visible)
                          .fill(motifs)});
     Element crownFigure = figure(
-        ctx, {world::mesh(crown)
-                  .key("crown")
-                  .transform(crowned)
-                  .fill(steel({0.95f, 0.72f, 0.3f, 1})),
-              world::mesh(glints)
-                  .key("glints")
-                  .transform(crowned)
-                  .fill(material::surface::unlit(
-                      {.baseColor = {1.0f, 0.95f, 0.8f, 1}}))});
+        ctx,
+        {world::mesh(crown).key("crown").transform(crowned).fill(
+             steel({0.95f, 0.72f, 0.3f, 1})),
+         world::mesh(glints).key("glints").transform(crowned).fill(
+             material::surface::unlit({.baseColor = {1.0f, 0.95f, 0.8f, 1}}))});
     Element ribbonFigure =
         figure(ctx, {world::mesh(ribbon)
                          .key("ribbon")

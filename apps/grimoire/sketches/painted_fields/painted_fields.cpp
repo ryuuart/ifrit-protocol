@@ -448,9 +448,9 @@ struct PaintedFields {
     gm::camera::Camera camera;
     camera.eye = {-420, 1000, 1120};
     camera.target = {0, -90, 70};
-    camera.fovYDeg = 42;
-    camera.zNear = 40;
-    camera.zFar = 8000;
+    camera.fovYDegrees = 42;
+    camera.nearPlane = 40;
+    camera.farPlane = 8000;
     return camera;
   }
 

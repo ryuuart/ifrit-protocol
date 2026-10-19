@@ -136,7 +136,7 @@ sketch::kit::ComparisonCase readout(const char* caseTitle, const char* call,
               {.plate = {.width = kCell,
                          .height = height,
                          .padding = 16,
-                         .paddingY = 10}},
+                         .paddingVertical = 10}},
               "", "", text(body, mono(10.5f, colour)).width(kCell - 32)),
           .note = note};
 }

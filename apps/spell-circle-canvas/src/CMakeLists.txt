@@ -2,7 +2,7 @@
 #
 #   common/      libraries shared across products, in the order they are
 #                added below: core/ (SigilCore), skia/ (SigilSkia,
-#                Graphite bring-up), qt/ (Ifrit.Qt desktop components and services),
+#                Graphite bring-up), qt/ (Sigil.Qt desktop components and services),
 #                media/ (SigilMedia), io/ (SigilIO),
 #                data/ (SigilData), protocol/ (SigilProtocol), scry/
 #                (SigilScry), measure/

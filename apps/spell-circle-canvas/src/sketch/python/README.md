@@ -11,9 +11,11 @@ ONE DIRECTORY PER SUBJECT GROUP, ONE FILE PER SUBJECT. `host/` is what a
 sketch is handed — the context, the scene3d sketches and what a Python entry declares
 — and `kit/` the specimen values it dresses with. Each directory carries
 one registration header naming every bind function the files beside it
-define, and one source file per subject, all of them named in the CMake
-list. An author fills in a file that already exists; they do not add a
-source to that list, a call to `Module.cpp` or a declaration to a
+define, and one source file per subject that binds something, all of
+them named in the CMake list. A submodule the package surfaces before a
+native value lives in it is created by the registration it belongs
+with: `sketch.scry` by the catalog's. A new subject adds its source to
+that list, its call to `Module.cpp` and its declaration to the
 registration header, so two subjects are never written in one file.
 
 `Module.cpp` assembles one `_sigil` module from the common registration
@@ -22,8 +24,8 @@ the package an author imports it from; both the embedded application and
 the installed extension use that assembly.
 
 * `host/Registration.h` — `bindRuntime`, `bindSketchCatalog`,
-  `bindSketchContextSurface`, `bindSketchDeviceRuntimes`, `bindSketchEntries`,
-  `bindSketchPage`, `bindSketchPlates`, `bindSketchSchema`, `bindSketchScene3DSketches`
+  `bindSketchContextSurface`, `bindSketchPage`, `bindSketchPlates`,
+  `bindSketchScene3DSketches`
 * `kit/Registration.h` — `bindSketchKit`, `bindSketchKitCharts`,
   `bindSketchKitContent`, `bindSketchKitControls`, `bindSketchKitLegends`,
   `bindSketchKitPanels`,

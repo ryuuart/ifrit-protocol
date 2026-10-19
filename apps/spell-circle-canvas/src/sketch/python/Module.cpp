@@ -14,11 +14,8 @@ PYBIND11_MODULE(_sigil, module) {
   // answering the class an author imports.
   sigil::sketch::python::bindSketchPage(module);
   sigil::sketch::python::bindSketchContextSurface(module);
-  sigil::sketch::python::bindSketchEntries(module);
   sigil::sketch::python::bindSketchPlates(module);
   sigil::sketch::python::bindSketchCatalog(module);
-  sigil::sketch::python::bindSketchSchema(module);
-  sigil::sketch::python::bindSketchDeviceRuntimes(module);
   sigil::sketch::python::bindSketchScene3DSketches(module);
   sigil::sketch::python::bindSketchTesting(module);
   sigil::sketch::python::bindSketchKit(module);

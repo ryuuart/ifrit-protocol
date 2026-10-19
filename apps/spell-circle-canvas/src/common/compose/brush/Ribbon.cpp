@@ -69,7 +69,7 @@ SkPath Ribbon::band(const SkPath& spine) const {
       hasProfile() ? (width == geometry::path::Profile(width.max())
                           ? std::optional<float>(width.max())
                           : std::nullopt)
-                   : (nibAngleDeg < 0 && widthStart == widthEnd
+                   : (nibAngleDegrees < 0 && widthStart == widthEnd
                           ? std::optional<float>(widthStart)
                           : std::nullopt);
   if (constant) {
@@ -95,9 +95,9 @@ SkPath Ribbon::band(const SkPath& spine) const {
   // spine's DIRECTION, which no profile keyed on arc length can be.
   const auto law = [this](const geometry::path::SweepStation& at) {
     if (hasProfile()) return width.acrossAt(at.fraction, at.length);
-    if (nibAngleDeg >= 0) {
+    if (nibAngleDegrees >= 0) {
       const float a = std::atan2(at.tangent.y, at.tangent.x) -
-                      geometry::path::radians(nibAngleDeg);
+                      geometry::path::radians(nibAngleDegrees);
       return widthStart *
              (nibContrast + (1 - nibContrast) * std::abs(std::sin(a)));
     }

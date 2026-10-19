@@ -298,7 +298,7 @@ corner radius and a stroke every time:
 
 ```cpp
 sketch::kit::well({.ground = Fill::color(kPlate), .padding = 13,
-                   .paddingY = 10, .clip = false, .corners = 3,
+                   .paddingVertical = 10, .clip = false, .corners = 3,
                    .keyline = Fill::color(kRule)})
     .row()
 ```
@@ -310,7 +310,7 @@ is grounded and unruled, and
 that is the common case. Where it is set it is drawn INSIDE the well's own
 box: a rule centred on the boundary puts half its width outside, and a
 plate that is not the width it was given is the one thing a fixed surface
-may not be. `paddingY` is there because a plate is often set tighter down
+may not be. `paddingVertical` is there because a plate is often set tighter down
 than across, which one distance cannot say.
 
 `recess` is the well read as a HOLE punched in what holds it rather than

@@ -26,12 +26,13 @@
 
 namespace sigil::geometry::path {
 
-/** A direction on the unit sphere, in degrees: `lonDeg` round the equator
- *  and `latDeg` up from it. Right ascension and declination are these two
- *  under the sky's names; longitude and latitude under the ground's. */
+/** A direction on the unit sphere, in degrees: `longitudeDegrees` round the
+ * equator and `latitudeDegrees` up from it. Right ascension and declination are
+ * these two under the sky's names; longitude and latitude under the ground's.
+ */
 struct Spherical {
-  float lonDeg = 0;
-  float latDeg = 0;
+  float longitudeDegrees = 0;
+  float latitudeDegrees = 0;
 
   bool operator==(const Spherical&) const = default;
 
@@ -39,8 +40,8 @@ struct Spherical {
    *  pole. */
   glm::vec3 direction() const;
 
-  /** The direction back as an angle pair, with `lonDeg` in [0, 360). A
-   *  vector of any length is read for its direction alone. */
+  /** The direction back as an angle pair, with `longitudeDegrees` in [0, 360).
+   * A vector of any length is read for its direction alone. */
   static Spherical of(glm::vec3 direction);
 };
 
@@ -50,12 +51,12 @@ struct Spherical {
  *  would lose it. */
 float angleBetween(Spherical a, Spherical b);
 
-/** The direction @p arcDeg of great circle away from @p from, setting
- *  out along @p bearingDeg measured from NORTH toward EAST — the step a
+/** The direction @p arcDegrees of great circle away from @p from, setting
+ *  out along @p bearingDegrees measured from NORTH toward EAST — the step a
  *  spherical construction is made of.
  *  @trap At a pole north is not a direction, and the bearing is then
  *  measured from @p from's own meridian. */
-Spherical offsetFrom(Spherical from, float bearingDeg, float arcDeg);
+Spherical offsetFrom(Spherical from, float bearingDegrees, float arcDegrees);
 
 // ---------------------------------------------------------------------------
 // Rotation — the sphere turned.
@@ -92,12 +93,13 @@ struct Rotation {
   static Rotation aboutY(float deg);
   static Rotation aboutZ(float deg);
 
-  /** `Rz(a) · Ry(b) · Rz(c)` — the three-angle form every rotation of the
-   *  sphere can be written in, and the one an epoch-to-epoch precession
+  /** `Rz(alpha) · Ry(beta) · Rz(gamma)` — the three-angle form every rotation
+   * of the sphere can be written in, and the one an epoch-to-epoch precession
    *  and a re-poling are both published as. The caller owns which angles
    *  and which signs; this owns the composition, which is where a
    *  hand-multiplied nine-term matrix goes wrong. */
-  static Rotation zyz(float aDeg, float bDeg, float cDeg);
+  static Rotation zyz(float alphaDegrees, float betaDegrees,
+                      float gammaDegrees);
 };
 
 // ---------------------------------------------------------------------------
@@ -193,7 +195,7 @@ struct Projection {
   /** The map turned counterclockwise on the paper, in degrees. Where the
    *  centre is a pole, north is not a direction and this is what says
    *  which longitude lies along `+x`. */
-  float rollDeg = 0;
+  float rollDegrees = 0;
 
   Vantage vantage = Vantage::Inside;
 
@@ -219,26 +221,26 @@ struct Projection {
    *  against. */
   float angleFrom(Spherical direction) const;
 
-  /** The plane distance this map lays down for @p arcDeg of arc from the
+  /** The plane distance this map lays down for @p arcDegrees of arc from the
    *  centre, measured up the map's own north line: the RADIUS on an
    *  azimuthal projection, where the map is round and the same law holds
    *  at every bearing, and the ORDINATE on a cylindrical one, where it
    *  does not. Signed, and odd about the centre, so a southward arc comes
    *  back as a distance below it. */
-  float radiusAt(float arcDeg) const;
+  float radiusAt(float arcDegrees) const;
 
   /** The inverse of `radiusAt()`: the arc, in degrees, that stands at that
    *  distance up the map. */
   float arcAtRadius(float radius) const;
 
-  /** The image of the circle standing @p arcDeg of arc away from
+  /** The image of the circle standing @p arcDegrees of arc away from
    *  @p pole — an almucantar about a zenith, a parallel about a pole, a
    *  great circle (at 90) about the pole that defines it. Only a
    *  conformal azimuthal map answers, which is what lets a whole family
    *  of them be struck with a compass instead of plotted.
    *  @trap Absent for a scheme that does not map circles to circles, and
    *  for a circle whose image is a straight line. */
-  std::optional<PlaneCircle> circleOf(Spherical pole, float arcDeg) const;
+  std::optional<PlaneCircle> circleOf(Spherical pole, float arcDegrees) const;
 
   /** The same map about another centre — the sibling strip, the next
    *  panel, the same law re-poled. Saves the field-by-field restatement,

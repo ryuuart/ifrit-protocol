@@ -126,7 +126,7 @@ sigil::weave::Face graded() {
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = kMargin;
+  look.spacing.marginHorizontal = kMargin;
   look.spacing.marginTop = kMargin - 12;
   look.spacing.marginBottom = 30;
   look.spacing.captionGap = 8;

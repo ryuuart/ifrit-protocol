@@ -9,7 +9,7 @@
 #include <set>
 #include <utility>
 
-namespace ifrit::qt {
+namespace sigil::qt {
 
 /** Why the process says it is doing user-facing work. */
 enum class ActivityReason {
@@ -63,4 +63,4 @@ class ActivityHold {
   Change m_onChange;
 };
 
-}  // namespace ifrit::qt
+}  // namespace sigil::qt

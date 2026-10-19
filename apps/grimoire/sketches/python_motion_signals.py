@@ -6,8 +6,7 @@ a timer on the scene engine.
 TAGS: Motion/Animation, Drawing/Generative, Typography/Interface
 """
 
-from sigil.compose import box, column, text
-from sigil.compose import document
+from sigil.compose import box, column, document, text
 from sigil.motion import Keyframe, Wiggle, animatable, animate, bind, ease, envelope
 from sigil.sketch import Scene2DContext, kit, sketch
 
@@ -59,7 +58,7 @@ def signal_row(number, title, detail, signal, accent):
         )
     )
     return (
-        kit.well(padding=16, paddingY=20, corners=6)
+        kit.well(padding=16, paddingVertical=20, corners=6)
         .row()
         .gap(18)
         .alignItems("center")

@@ -59,7 +59,7 @@ struct Placement {
 struct StampModifier {
   float dAlong = 0, dNormal = 0;  ///< px, in the sample's tangent frame
   float scale = 1;
-  float rotateDeg = 0;
+  float rotateDegrees = 0;
   float alpha = 1;
   bool skip = false;
 };
@@ -90,7 +90,7 @@ struct Scatter {
   uint32_t seed = 0;  ///< 0 = a regular run, no jitter roll
   float jitterAlong = 0, jitterNormal = 0;  ///< ±px
   float jitterScale = 0;                    ///< ±fraction of 1
-  float jitterRotateDeg = 0;                ///< ±deg
+  float jitterRotateDegrees = 0;            ///< ±deg
   bool alignToPath = true;
   /** How far a stamp escapes the outline: half the art's extent plus the
    *  jitter. The CULL's number, measured from the path outwards — the
@@ -108,7 +108,7 @@ struct Scatter {
     return art.node() == o.art.node() && spacing == o.spacing &&
            place == o.place && seed == o.seed && jitterAlong == o.jitterAlong &&
            jitterNormal == o.jitterNormal && jitterScale == o.jitterScale &&
-           jitterRotateDeg == o.jitterRotateDeg &&
+           jitterRotateDegrees == o.jitterRotateDegrees &&
            alignToPath == o.alignToPath && bleedPx == o.bleedPx && !modifier &&
            !o.modifier && animatedModifier == o.animatedModifier;
   }
@@ -183,7 +183,7 @@ struct CornerArt {
 /** The PATTERN brush: a SIDE tile repeated an INTEGER number of times per
  *  run and stretched along the tangent to close the remainder, so a run
  *  never ends on a torn tile. Optional CORNER tiles go where the tangent
- *  breaks by more than `cornerAngleDeg`, aimed by the `CornerArt` value,
+ *  breaks by more than `cornerAngleDegrees`, aimed by the `CornerArt` value,
  *  which requires you to say how; optional START and END tiles cap open
  *  contours. A run is a stretch between two corners. */
 struct Pattern {
@@ -201,7 +201,7 @@ struct Pattern {
    *  35° here where the other corner scanners default to 30°. Changing
    *  either number changes what existing compositions draw, so both stay
    *  as they are. */
-  float cornerAngleDeg = 35.0f;
+  float cornerAngleDegrees = 35.0f;
   /** Arc length a corner tile RESERVES on each adjacent run, px. 0 uses
    *  the corner art's own width.
    *
@@ -232,7 +232,7 @@ struct Pattern {
     };
     return side.node() == o.side.node() && node(start) == node(o.start) &&
            node(end) == node(o.end) && corner == o.corner &&
-           advance == o.advance && cornerAngleDeg == o.cornerAngleDeg &&
+           advance == o.advance && cornerAngleDegrees == o.cornerAngleDegrees &&
            cornerLength == o.cornerLength && stretchToFit == o.stretchToFit &&
            bleedPx == o.bleedPx && !modifier && !o.modifier &&
            animatedModifier == o.animatedModifier;

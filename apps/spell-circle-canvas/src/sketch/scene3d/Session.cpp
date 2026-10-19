@@ -220,7 +220,8 @@ class Scene3DSession final : public Session {
           m_scene.camera();
       m_declared = declared ? *declared : m_camera;
     }
-    m_timing.updateMs = measure::Milliseconds(m_laps.mark("update")).count();
+    m_timing.updateMilliseconds =
+        measure::Milliseconds(m_laps.mark("update")).count();
     // The phase turns over where the sketch's own body ends and its
     // runtime's painting begins, so a fault reads the same whichever
     // host drove the frame: one call in, two phases.
@@ -228,8 +229,9 @@ class Scene3DSession final : public Session {
       PhaseMark mark(Phase::Draw);
       paint(canvas);
     }
-    m_timing.drawMs = measure::Milliseconds(m_laps.mark("draw")).count();
-    m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
+    m_timing.drawMilliseconds =
+        measure::Milliseconds(m_laps.mark("draw")).count();
+    m_timing.totalMilliseconds = measure::Milliseconds(m_laps.total()).count();
     const world::SceneStats& stats = m_scene.stats();
     if (m_timeDevice) gatherDeviceTimes(stats);
     // `pending` counts the bodies the frame stood in for because their
@@ -326,9 +328,10 @@ class Scene3DSession final : public Session {
     return geometry::mesh::camera::orbitOf(viewing());
   }
 
-  void viewpoint(float yawDeg, float pitchDeg, float distance) override {
-    m_orbit = geometry::mesh::camera::cameraAt(m_declared,
-                                               {yawDeg, pitchDeg, distance});
+  void viewpoint(float yawDegrees, float pitchDegrees,
+                 float distance) override {
+    m_orbit = geometry::mesh::camera::cameraAt(
+        m_declared, {yawDegrees, pitchDegrees, distance});
     m_orbiting = true;
   }
 

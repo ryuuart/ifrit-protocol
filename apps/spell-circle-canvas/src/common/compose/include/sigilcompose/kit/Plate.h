@@ -61,11 +61,11 @@ namespace sigil::compose::kit {
  *
  *      kit::plate({.columns = {feed::feed(logA, style),
  *                               feed::feed(logB, style)},
- *                   .paddingX = 14, .paddingY = 9, .gap = 18,
+ *                   .paddingHorizontal = 14, .paddingVertical = 9, .gap = 18,
  *                   .fill = Fill::color(material::hexColor(0xe4d9c0, 0.78f)),
  *                   .border = Fill::color(material::hexColor(0x241c15, 0.25f)),
- *                   .divider = Fill::color(material::hexColor(0x241c15, 0.18f))})
- *          .rect({64, 1420, kW - 64, 1576})
+ *                   .divider = Fill::color(material::hexColor(0x241c15,
+ * 0.18f))}) .rect({64, 1420, kW - 64, 1576})
  *
  *  It covers one axis only. A titled plate, or a grid of plates, is a line
  *  of ordinary composition around this one — nest two `plate()`s in a row
@@ -76,7 +76,7 @@ struct Plate {
   /** false (default) lays the columns out as a ROW; true stacks them
    *  vertically. Dividers follow the axis either way. */
   bool column = false;
-  float paddingX = 10.0f, paddingY = 8.0f;
+  float paddingHorizontal = 10.0f, paddingVertical = 8.0f;
   float gap = 12.0f;
   /** The plate's own ground and its keyline. */
   Fill fill, border;
@@ -111,7 +111,7 @@ struct Plate {
   // flexGrow(1) so the padded interior fills whatever rect the caller gave the
   // plate, without the interior needing its own size.
   Element inner = box()
-                      .padding(p.paddingY, p.paddingX)
+                      .padding(p.paddingVertical, p.paddingHorizontal)
                       .gap(p.gap)
                       .flexGrow(1);
   if (p.column)
@@ -159,11 +159,11 @@ struct Plate {
  *      kit::console({.feeds = {&logA, &logB, &logC, &logD},
  *                    .style = voice,
  *                    .stacked = 2,
- *                    .plate = {.paddingX = 12, .paddingY = 8, .gap = 14,
- *                              .fill = Fill::color(material::hexColor(0x1b1e26, 0.86f)),
- *                              .border = Fill::color(material::hexColor(0xc7ab74,
- * 0.22f)), .divider = Fill::color(material::hexColor(0xc7ab74, 0.16f))}})
- *          .rect(1383, 882, 690, 468)
+ *                    .plate = {.paddingHorizontal = 12, .paddingVertical = 8,
+ * .gap = 14, .fill = Fill::color(material::hexColor(0x1b1e26, 0.86f)), .border
+ * = Fill::color(material::hexColor(0xc7ab74, 0.22f)), .divider =
+ * Fill::color(material::hexColor(0xc7ab74, 0.16f))}}) .rect(1383, 882, 690,
+ * 468)
  *
  *  `plate.columns` is the console's to fill; anything in it is replaced.
  *  A feed left null is skipped. The rings are the caller's and outlive

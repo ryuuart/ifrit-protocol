@@ -249,12 +249,10 @@ TEST(PathOffset, StraddlingTheSourceIsTheStrokeExpansionItReplaces) {
 TEST(PathOffset, TheMitredButtJoinedOffsetIsTheConcentricFrameItReplaces) {
   for (const SkPath& source : {SkPath::Circle(0, 0, 50), star()}) {
     EXPECT_TRUE(operations::offset(source, -6.0f,
-                                   {.join = Join::Miter,
-                                    .cap = Cap::Butt}) ==
+                                   {.join = Join::Miter, .cap = Cap::Butt}) ==
                 operations::simplify(mitredInset(source, 6.0f)));
     EXPECT_TRUE(operations::offset(source, 6.0f,
-                                   {.join = Join::Miter,
-                                    .cap = Cap::Butt}) ==
+                                   {.join = Join::Miter, .cap = Cap::Butt}) ==
                 mitredInset(source, -6.0f));
   }
 }
@@ -271,9 +269,7 @@ TEST(PathOffset, EitherEndOfThePositionDialIsTheParallelWalk) {
 
 TEST(PathOffset, ARectangleGrowsByTheDistanceOnEveryAxisForEveryJoin) {
   const SkPath source = rect(0, 0, 100, 60);
-  for (const Join join :
-       {Join::Round, Join::Miter,
-        Join::Bevel}) {
+  for (const Join join : {Join::Round, Join::Miter, Join::Bevel}) {
     const SkRect grown =
         operations::offset(source, 10.0f, {.join = join}).computeTightBounds();
     EXPECT_NEAR(grown.width(), 120, 0.5f);
@@ -335,7 +331,7 @@ TEST(PathCorners, TheDefaultRoundingIsTheCornerEffectItReplaces) {
 TEST(PathCorners, RoundingCutsEveryCornerOfARectangle) {
   const SkPath source = rect(0, 0, 100, 60);
   const SkPath round =
-      operations::roundCorners(source, 10.0f, {.minTurnDeg = 5.0f});
+      operations::roundCorners(source, 10.0f, {.minTurnDegrees = 5.0f});
   const std::vector<SegmentContour> read = segments(round);
   ASSERT_EQ(read.size(), 1u);
   // Four arcs, four straight runs between them.
@@ -351,14 +347,14 @@ TEST(PathCorners, RoundingCutsEveryCornerOfARectangle) {
 // vertex it replaced, whatever the corner's angle: a 45-degree corner
 // and a right-angled one bulge by the same amount.
 TEST(PathCorners, VisualCorrectionHoldsTheArcsStandOffConstant) {
-  const auto standOff = [](float turnDeg, bool visual) {
-    const float turn = turnDeg * kDegToRad;
+  const auto standOff = [](float turnDegrees, bool visual) {
+    const float turn = turnDegrees * kDegToRad;
     SkPathBuilder b;
     b.moveTo(-200, 0);
     b.lineTo(0, 0);
     b.lineTo(200 * std::cos(turn), 200 * std::sin(turn));
     const SkPath corner = operations::roundCorners(
-        b.detach(), 20.0f, {.minTurnDeg = 1.0f, .visual = visual});
+        b.detach(), 20.0f, {.minTurnDegrees = 1.0f, .visual = visual});
     // The arc's midpoint stands where the quadratic's middle is; how far
     // that is from the vertex is what the correction holds constant.
     const std::vector<SegmentContour> read = segments(corner);
@@ -381,8 +377,8 @@ TEST(PathCorners, ACornerShallowerThanTheThresholdIsLeftAlone) {
   b.lineTo(100, 0);
   b.lineTo(200, 6);  // a turn of about three degrees
   const SkPath source = b.detach();
-  EXPECT_TRUE(operations::roundCorners(source, 10.0f, {.minTurnDeg = 20.0f}) ==
-              source);
+  EXPECT_TRUE(operations::roundCorners(source, 10.0f,
+                                       {.minTurnDegrees = 20.0f}) == source);
 }
 
 // A star's reflex corners stay sharp while its points round, which is
@@ -426,26 +422,31 @@ TEST_P(PathDistort, DisplacesTheOutlineWithoutMovingOrGrowingTheShape) {
 
 INSTANTIATE_TEST_SUITE_P(
     PathOps, PathDistort,
-    ::testing::Values(
-        Distort{"Roughen",
-                [](const SkPath& p) {
-                  return operations::distort(operations::Roughen{6, 8, 42}, p);
-                },
-                6.0f},
-        Distort{"Twirl",
-                [](const SkPath& p) { return operations::distort(operations::Twirl{90}, p); },
-                0.0f},
-        Distort{
-            "Zigzag",
-            [](const SkPath& p) { return operations::distort(operations::Zigzag{4, 20}, p); },
-            4.0f},
-        Distort{"AChainOfTwo",
-                [](const SkPath& p) {
-                  return toSk(operations::chain(
-                      {operations::offsetBy(6), operations::Zigzag{4, 20}})(
-                      fromSk(p)));
-                },
-                10.0f}),
+    ::testing::Values(Distort{"Roughen",
+                              [](const SkPath& p) {
+                                return operations::distort(
+                                    operations::Roughen{6, 8, 42}, p);
+                              },
+                              6.0f},
+                      Distort{"Twirl",
+                              [](const SkPath& p) {
+                                return operations::distort(
+                                    operations::Twirl{90}, p);
+                              },
+                              0.0f},
+                      Distort{"Zigzag",
+                              [](const SkPath& p) {
+                                return operations::distort(
+                                    operations::Zigzag{4, 20}, p);
+                              },
+                              4.0f},
+                      Distort{"AChainOfTwo",
+                              [](const SkPath& p) {
+                                return toSk(operations::chain(
+                                    {operations::offsetBy(6),
+                                     operations::Zigzag{4, 20}})(fromSk(p)));
+                              },
+                              10.0f}),
     [](const ::testing::TestParamInfo<Distort>& info) {
       return std::string(info.param.name);
     });
@@ -453,7 +454,8 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(PathOps, BloatPushesOutwardAndNeverInward) {
   const SkPath base = SkPath::Circle(100, 100, 60);
   const SkRect bloated =
-      operations::distort(operations::PuckerBloat{0.8f}, base).computeTightBounds();
+      operations::distort(operations::PuckerBloat{0.8f}, base)
+          .computeTightBounds();
   EXPECT_GT(bloated.width(), 118);
 }
 
@@ -523,7 +525,8 @@ INSTANTIATE_TEST_SUITE_P(
             [](const SkPath& p) { return operations::roundCorners(p, 6); }},
         RebuildCase{"selectedCorners",
                     [](const SkPath& p) {
-                      return operations::roundCorners(p, 6, {.minTurnDeg = 10});
+                      return operations::roundCorners(p, 6,
+                                                      {.minTurnDegrees = 10});
                     }},
         RebuildCase{
             "chamferCorners",
@@ -532,23 +535,27 @@ INSTANTIATE_TEST_SUITE_P(
                     [](const SkPath& p) {
                       return operations::displaceSquare(p, 3, 20);
                     }},
-        RebuildCase{
-            "roughen",
-            [](const SkPath& p) {
-              return operations::distort(operations::Roughen{.amplitude = 2, .segmentPx = 5}, p);
-            }},
-        RebuildCase{"zigzag",
+        RebuildCase{"roughen",
                     [](const SkPath& p) {
-                      return operations::distort(operations::Zigzag{.amplitude = 2,
-                                                .wavelengthPx = 20}, p);
+                      return operations::distort(
+                          operations::Roughen{.amplitude = 2, .segmentPx = 5},
+                          p);
                     }},
+        RebuildCase{
+            "zigzag",
+            [](const SkPath& p) {
+              return operations::distort(
+                  operations::Zigzag{.amplitude = 2, .wavelengthPx = 20}, p);
+            }},
         RebuildCase{"puckerBloat",
                     [](const SkPath& p) {
-                      return operations::distort(operations::PuckerBloat{.amount = 0.2f}, p);
+                      return operations::distort(
+                          operations::PuckerBloat{.amount = 0.2f}, p);
                     }},
         RebuildCase{"twirl",
                     [](const SkPath& p) {
-                      return operations::distort(operations::Twirl{.angleDeg = 10}, p);
+                      return operations::distort(
+                          operations::Twirl{.angleDegrees = 10}, p);
                     }},
         RebuildCase{"edges",
                     [](const SkPath& p) { return edges(p, Edge::All); }},
@@ -681,9 +688,8 @@ TEST(PathDistortEndpoints, ZigzagLeavesAnOpenContoursEndsWhereTheyWere) {
   b.moveTo(0, 0);
   b.lineTo(300, 0);
   const SkPath line = b.detach();
-  const SkPath wave =
-      operations::distort(
-          operations::Zigzag{.amplitude = 12, .wavelengthPx = 40}, line);
+  const SkPath wave = operations::distort(
+      operations::Zigzag{.amplitude = 12, .wavelengthPx = 40}, line);
   const std::vector<SkPoint> points = pointsOf(wave);
   ASSERT_GE(points.size(), 2u);
   EXPECT_NEAR(points.front().fY, 0.0f, 0.5f);
@@ -718,7 +724,7 @@ TEST(Operations, TheDistortsAreValues) {
 
   operations::Twirl twirl;
   EXPECT_EQ(twirl, operations::Twirl{});
-  twirl.angleDeg += 1;
+  twirl.angleDegrees += 1;
   EXPECT_NE(twirl, operations::Twirl{});
 
   // Two equal distorts warp one outline the same way, which is the

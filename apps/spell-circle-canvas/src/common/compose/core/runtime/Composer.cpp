@@ -124,7 +124,7 @@ void Composer::render(const Element& root) {
   // running ink transition leaves the flag up so the next frame resolves
   // again.
   if (impl.cascadeDirty) impl.runCascade();
-  impl.reconcileAccumMs +=
+  impl.reconcileAccumulatedMilliseconds +=
       sigil::measure::Milliseconds(reconcile.elapsed()).count();
 }
 
@@ -168,7 +168,7 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
   // described, so the pass resolves it under the slot's ancestors.
   impl.cascadeDirty = true;
   impl.rebuildKeyIndex();
-  impl.reconcileAccumMs +=
+  impl.reconcileAccumulatedMilliseconds +=
       sigil::measure::Milliseconds(reconcile.elapsed()).count();
 }
 
@@ -314,22 +314,22 @@ void Composer::draw(SkCanvas& canvas) {
     impl.hostScale = s > 0 ? s : 1.0f;
   }
 
-  impl.stats.reconcileMs = impl.reconcileAccumMs;
-  impl.reconcileAccumMs = 0;
+  impl.stats.reconcileMilliseconds = impl.reconcileAccumulatedMilliseconds;
+  impl.reconcileAccumulatedMilliseconds = 0;
   if (impl.profileEnabled) {
     impl.profileRows.clear();
-    impl.profChildMs = 0;
+    impl.profileChildMilliseconds = 0;
     impl.profDepth = 0;
   }
   sigil::measure::Laps laps;
 
   if (!impl.settledForDraw) impl.settleForDraw();
   impl.settledForDraw = false;
-  impl.stats.layoutMs =
+  impl.stats.layoutMilliseconds =
       sigil::measure::Milliseconds(laps.mark("layout")).count();
   impl.stats.layoutCalculations = impl.layoutCalculations;
   impl.layoutCalculations = 0;
-  impl.stats.volatileMs =
+  impl.stats.volatileMilliseconds =
       sigil::measure::Milliseconds(laps.mark("volatile")).count();
 
   // Output view transform: the composer's whole output renders into one
@@ -370,7 +370,8 @@ void Composer::draw(SkCanvas& canvas) {
     impl.changesUnknown = hasView;
   }
   impl.regionPromised = false;
-  impl.stats.paintMs = sigil::measure::Milliseconds(laps.mark("paint")).count();
+  impl.stats.paintMilliseconds =
+      sigil::measure::Milliseconds(laps.mark("paint")).count();
   impl.contentDirty = impl.recording.groupPending;
   // Costliest first, AND THE LABEL BREAKS EVERY TIE. Two nodes that cost
   // the same — which most of a tree does, at or near zero — would
@@ -382,7 +383,8 @@ void Composer::draw(SkCanvas& canvas) {
   if (impl.profileEnabled)
     std::stable_sort(impl.profileRows.begin(), impl.profileRows.end(),
                      [](const NodeCost& a, const NodeCost& b) {
-                       if (a.selfMs != b.selfMs) return a.selfMs > b.selfMs;
+                       if (a.selfMilliseconds != b.selfMilliseconds)
+                         return a.selfMilliseconds > b.selfMilliseconds;
                        return a.label < b.label;
                      });
 }

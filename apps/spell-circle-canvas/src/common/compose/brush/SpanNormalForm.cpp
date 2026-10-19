@@ -74,7 +74,7 @@ void pushCornerWindow(std::vector<Span>& out, const ContourRun& run, float d,
 }
 
 std::vector<Span> cornerSpans(const SkPath& outline, float arm,
-                              float angleDeg) {
+                              float angleDegrees) {
   std::vector<Span> out;
   float total = 0;
   const std::vector<ContourRun> runs = measureContours(outline, &total);
@@ -84,7 +84,7 @@ std::vector<Span> cornerSpans(const SkPath& outline, float arm,
        geometry::path::contoursOf(outline)) {
     if (i >= runs.size()) break;
     for (const geometry::path::Contour::Corner& hit :
-         detail::cornersOrWarn(contour, angleDeg))
+         detail::cornersOrWarn(contour, angleDegrees))
       pushCornerWindow(out, runs[i], hit.distance, arm, total);
     ++i;
   }
@@ -298,13 +298,13 @@ std::vector<Span> Spans::resolve(const SpanInput& in) const {
       }
       case Rule::Corners: {
         const std::vector<Span> hits =
-            cornerSpans(*in.outline, term.arm, term.angleDeg);
+            cornerSpans(*in.outline, term.arm, term.angleDegrees);
         out.insert(out.end(), hits.begin(), hits.end());
         break;
       }
       case Rule::Edges: {
         const std::vector<Span> gaps = detail::complementSpans(
-            cornerSpans(*in.outline, term.arm, term.angleDeg));
+            cornerSpans(*in.outline, term.arm, term.angleDegrees));
         out.insert(out.end(), gaps.begin(), gaps.end());
         break;
       }
@@ -361,21 +361,21 @@ Spans wrap(motion::Animatable<float> begin, motion::Animatable<float> end) {
 Spans upTo(motion::Animatable<float> end) {
   return range(0.0f, std::move(end));
 }
-Spans corners(float arm, float angleDeg) {
+Spans corners(float arm, float angleDegrees) {
   Spans s;
   Spans::Term t;
   t.rule = Spans::Rule::Corners;
   t.arm = arm;
-  t.angleDeg = angleDeg;
+  t.angleDegrees = angleDegrees;
   s.terms.push_back(std::move(t));
   return s;
 }
-Spans edges(float arm, float angleDeg) {
+Spans edges(float arm, float angleDegrees) {
   Spans s;
   Spans::Term t;
   t.rule = Spans::Rule::Edges;
   t.arm = arm;
-  t.angleDeg = angleDeg;
+  t.angleDegrees = angleDegrees;
   s.terms.push_back(std::move(t));
   return s;
 }

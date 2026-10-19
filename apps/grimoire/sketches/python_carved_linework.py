@@ -245,7 +245,9 @@ class CarvedLinework:
             type=mesh.curve.Spline3.Type.CatmullRom,
         )
         self.key_rail_length = self.key_rail.length()
-        ctx.camera(mesh.camera.Camera(eye=(0, 90, 520), target=(0, -6, 0), fovYDeg=34))
+        ctx.camera(
+            mesh.camera.Camera(eye=(0, 90, 520), target=(0, -6, 0), fovYDegrees=34)
+        )
 
     def describe(self, seconds: float) -> world.Frame:
         # The key rides its rail from one end to the other and back.

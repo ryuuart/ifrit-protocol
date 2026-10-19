@@ -38,9 +38,9 @@ struct GlobeParameters {
   float pitch = 0.0f;  ///< radians
   float roll = 0.0f;   ///< radians
   float horizonBlend = 0.010f;
-  float minorDeg = 10.0f;
-  float meridianDeg = 90.0f;
-  float parallelDeg = 30.0f;
+  float minorDegrees = 10.0f;
+  float meridianDegrees = 90.0f;
+  float parallelDegrees = 30.0f;
   float lineWidth = 0.85f;  ///< px
   float minorWeight = 0.34f;
   float majorWeight = 0.62f;
@@ -96,15 +96,15 @@ float4 globeAt(float2 p) {
   // A rule is the distance to a PLANE: a meridian's plane stands through
   // the poles at its own longitude, a parallel's lies at its own sine.
   // The crowding toward the limb and toward the poles is then exact.
-  float fine = minorDeg * 0.017453292;
+  float fine = minorDegrees * 0.017453292;
   float fineLon = floor(lon / fine + 0.5) * fine;
   float dFineMeridian = abs(v.x * cos(fineLon) - v.z * sin(fineLon));
   float fineLat = floor(lat / fine + 0.5) * fine;
   float dFineParallel = abs(v.y - sin(fineLat));
-  float meridianStep = meridianDeg * 0.017453292;
+  float meridianStep = meridianDegrees * 0.017453292;
   float heavyLon = floor(lon / meridianStep + 0.5) * meridianStep;
   float dMeridian = abs(v.x * cos(heavyLon) - v.z * sin(heavyLon));
-  float parallelStep = parallelDeg * 0.017453292;
+  float parallelStep = parallelDegrees * 0.017453292;
   float heavyLat = floor(lat / parallelStep + 0.5) * parallelStep;
   float dParallel = abs(v.y - sin(heavyLat));
 

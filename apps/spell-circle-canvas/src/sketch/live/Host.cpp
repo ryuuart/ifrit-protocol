@@ -844,7 +844,7 @@ bool Host::runFrame(SkCanvas& canvas, double fixedDt, bool discarded) {
     }
   }
   m_frameTimes.composed();
-  m_drawTimes.add(measure::Milliseconds(m_session->timing().drawMs));
+  m_drawTimes.add(measure::Milliseconds(m_session->timing().drawMilliseconds));
   return true;
 }
 

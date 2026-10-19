@@ -24,6 +24,11 @@ py::tuple optionalLibraries() {
 }  // namespace
 
 void bindOptionalLibraries(py::module_& module) {
+  // Each module the answer names is registered here, behind the same
+  // definition, so the name and the module are present together.
+#ifdef SIGIL_PYTHON_HAS_SCRY
+  submodule(module, "scry");
+#endif
   submodule(module, "core")
       .def("optionalLibraries", &optionalLibraries,
            "The optional native libraries this build carries, in "

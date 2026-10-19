@@ -103,15 +103,15 @@ constexpr float kContact[3] = {30.0f, 45.0f, 60.0f};
 /** One panel's tile: the kit's generator at this panel's contact angle,
  *  with the strap left at the generator's own width. */
 inline Pattern girih(float edge, const zellige::GirihPalette& palette,
-                     float contactDeg) {
-  return zellige::girih8(edge, palette, 0.0f, contactDeg);
+                     float contactDegrees) {
+  return zellige::girih8(edge, palette, 0.0f, contactDegrees);
 }
 
-inline std::string caption(const char* palette, float edge, float contactDeg,
-                           bool rotated) {
+inline std::string caption(const char* palette, float edge,
+                           float contactDegrees, bool rotated) {
   return kit::formatted(
       rotated ? "θ = %.0f° · %s · a=%.0f · rotated" : "θ = %.0f° · %s · a=%.0f",
-      (double)contactDeg, palette, (double)edge);
+      (double)contactDegrees, palette, (double)edge);
 }
 
 /** ONE PANEL OF THE WALL: the tile a re-tiling handed it, and the line

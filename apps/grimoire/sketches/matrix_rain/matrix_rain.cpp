@@ -257,7 +257,8 @@ struct MatrixRain {
   } titleLine;
   struct {
     std::string words;
-    float eachMs = 0, durationMs = 0, loopMs = 0, blinkSeconds = 0;
+    float eachMilliseconds = 0, durationMilliseconds = 0, loopMilliseconds = 0,
+          blinkSeconds = 0;
   } traceLine;
 
   /** A plane read from its entry in the words file, and its text dealt:
@@ -452,20 +453,21 @@ struct MatrixRain {
         textFx::tween({.keyframes = {{.to = GlyphModifier{.alpha = 0.0f},
                                       .duration = 1000ms}}});
     const motion::Duration each =
-        std::chrono::duration<double, std::milli>(traceLine.eachMs);
+        std::chrono::duration<double, std::milli>(traceLine.eachMilliseconds);
     return document::code(traceLine.words)
         .key("trace")
         .textFx(
             {.effect = traced,
              .tween = {.duration = std::chrono::duration<double, std::milli>(
-                           traceLine.durationMs),
+                           traceLine.durationMilliseconds),
                        .delay = motion::stagger(each),
                        .loop = -1,
                        .loopDelay = std::chrono::duration<double, std::milli>(
-                           traceLine.loopMs - traceLine.durationMs)},
+                           traceLine.loopMilliseconds -
+                           traceLine.durationMilliseconds)},
              .progress = motion::bind(
-                 seconds,
-                 {.to = {0.0f, 1000.0f / traceLine.loopMs}, .wrap = 1.0f})})
+                 seconds, {.to = {0.0f, 1000.0f / traceLine.loopMilliseconds},
+                           .wrap = 1.0f})})
         .textFx({.where = weave::selectors::regex(u8"█"),
                  .effect = blink,
                  .progress = motion::bind(
@@ -571,11 +573,12 @@ struct MatrixRain {
                  .periodSeconds = (float)title["periodSeconds"].number(),
                  .phaseSeconds = (float)title["phaseSeconds"].number()};
     const data::Json& trace = words["trace"];
-    traceLine = {.words = std::string(trace["words"].string()),
-                 .eachMs = (float)trace["eachMs"].number(),
-                 .durationMs = (float)trace["durationMs"].number(),
-                 .loopMs = (float)trace["loopMs"].number(),
-                 .blinkSeconds = (float)trace["blinkSeconds"].number()};
+    traceLine = {
+        .words = std::string(trace["words"].string()),
+        .eachMilliseconds = (float)trace["eachMilliseconds"].number(),
+        .durationMilliseconds = (float)trace["durationMilliseconds"].number(),
+        .loopMilliseconds = (float)trace["loopMilliseconds"].number(),
+        .blinkSeconds = (float)trace["blinkSeconds"].number()};
     if (kana.empty() || digits.empty()) return;
     for (const data::Json& entry : words["planes"].array())
       planes.push_back(readPlane(ctx, entry));

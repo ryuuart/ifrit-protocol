@@ -41,7 +41,7 @@ compose::Element page(const Page& sheet, compose::Element content) {
       .title = sheet.title,
       .subtitle = sheet.subtitle,
       .footer = sheet.footer,
-      .marginX = look.spacing.marginX,
+      .marginHorizontal = look.spacing.marginHorizontal,
       .marginTop = look.spacing.marginTop,
       .marginBottom = look.spacing.marginBottom,
       .subtitleGap = look.spacing.subtitleGap,

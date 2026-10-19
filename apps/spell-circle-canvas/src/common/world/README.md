@@ -1064,6 +1064,6 @@ as Google Benchmark counters, because the ledger judges every timed
 number against a band and neither of these is a number this library can
 move: the driver's own device creation, which costs more the more
 devices a process has already made, and the Slang standard library,
-which a process loads once with its first compile. `bringup_ms` is the
+which a process loads once with its first compile. `bringup_milliseconds` is the
 whole way in — that device creation and the adoption together — and
-`first_compile_ms` is that load plus the compile that provoked it.
+`first_compile_milliseconds` is that load plus the compile that provoked it.

@@ -11,8 +11,8 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkShader.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkShader.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilskia/draw/Direct.h>
 
@@ -53,7 +53,8 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
       style.textureLane.empty() ? nullptr : cloud.colorIf(style.textureLane);
 
   // Pixels per world unit at distance d: focal / d * (h/2).
-  const float focal = 1.0f / std::tan(camera.fovYDeg * (float)M_PI / 360.0f);
+  const float focal =
+      1.0f / std::tan(camera.fovYDegrees * (float)M_PI / 360.0f);
   const float halfH = viewport.y * 0.5f;
 
   for (size_t i = 0; i < n; ++i) {

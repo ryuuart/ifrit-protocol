@@ -35,7 +35,7 @@ struct Well {
   std::optional<float> padding;
   /** Down, where a plate is set tighter or looser than it is wide; unset
    *  is whatever `padding` resolves to. */
-  std::optional<float> paddingY;
+  std::optional<float> paddingVertical;
   bool clip = true;
   /** Rounds the well; unset is the square corner a specimen sheet uses.
    *  A component that grounds a PLATE rather than a specimen — a panel —
@@ -95,7 +95,7 @@ struct Well {
     float depth = 3;
     float blur = 4;
     /** Where the light stands, in degrees. */
-    float angleDeg = 120;
+    float angleDegrees = 120;
     /** What the lit edge and the shaded one are painted in. */
     material::Color light{1, 1, 1, 0.65f};
     material::Color shade{0, 0, 0, 0.45f};

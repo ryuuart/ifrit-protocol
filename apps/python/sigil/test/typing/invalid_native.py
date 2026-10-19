@@ -29,4 +29,6 @@ def invalid(pen: draw.Pen) -> None:
     pen.shape(skia.Path(), 0, 0, 10, 10)  # error: reportArgumentType
     canvas = pen.canvas()
     canvas.drawPoints(draw.PointMode.Lines, [], "paint")  # error: reportArgumentType
-kit.well(padding_y=4)  # error: reportCallIssue
+
+
+kit.well(padding_vertical=4)  # error: reportCallIssue

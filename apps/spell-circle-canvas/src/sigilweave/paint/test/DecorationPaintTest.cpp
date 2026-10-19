@@ -62,7 +62,9 @@ class DecorationInk : public ::testing::Test {
     return pixmap;
   }
 
-  int gapX() const { return static_cast<int>((m_gapStart + m_gapEnd) * 0.5f); }
+  int gapHorizontal() const {
+    return static_cast<int>((m_gapStart + m_gapEnd) * 0.5f);
+  }
   int baselineY() const { return static_cast<int>(m_wordRuns[0]->origin.y); }
   /// True when some pixel inside the first word's extent, within six
   /// pixels of `y`, satisfies `predicate`.
@@ -119,7 +121,7 @@ TEST_F(DecorationInk, AHighlightCoversTheGapAndTheGlyphsDrawOverIt) {
     // Mid-gap, mid-x-height: the marker stroke must cover the space
     // between words (tinted, not white).
     const int xHeightY = baselineY() - 8;
-    const SkColor gapColor = pixmap.getColor(gapX(), xHeightY);
+    const SkColor gapColor = pixmap.getColor(gapHorizontal(), xHeightY);
     EXPECT_NE(gapColor, SK_ColorWHITE) << (batched ? "batched" : "immediate")
                                        << ": highlight must cover the word gap";
     EXPECT_GT(SkColorGetB(gapColor), 100u)
@@ -152,7 +154,7 @@ TEST_F(DecorationInk, AShadedBandFillsTheGapWhileTheGlyphsKeepTheirOwnPaint) {
     // Mid-gap, mid-x-height sits inside the band and clear of glyph ink:
     // the shader must have filled it.
     const int xHeightY = baselineY() - 8;
-    const SkColor gapColor = pixmap.getColor(gapX(), xHeightY);
+    const SkColor gapColor = pixmap.getColor(gapHorizontal(), xHeightY);
     EXPECT_GT(SkColorGetG(gapColor), 200u)
         << (batched ? "batched" : "immediate")
         << ": band shader must fill the gap";

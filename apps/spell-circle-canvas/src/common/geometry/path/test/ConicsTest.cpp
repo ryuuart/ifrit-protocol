@@ -43,8 +43,8 @@ TEST(Conics, AtZeroEccentricityItIsACircleAboutTheFocusItself) {
     EXPECT_NEAR(glm::dot(circle.alongAt(v), circle.outwardAt(v)), 0.0f, 1e-5f);
   }
   float nearest = 0, furthest = 0;
-  extremes(toSk(conicPath(circle, {.fromDeg = 0, .toDeg = 360})), {100, 50}, &nearest,
-           &furthest);
+  extremes(toSk(conicPath(circle, {.fromDegrees = 0, .toDegrees = 360})),
+           {100, 50}, &nearest, &furthest);
   EXPECT_NEAR(nearest, 40.0f, 1e-3f);
   EXPECT_NEAR(furthest, 40.0f, 1e-3f);
 }
@@ -59,15 +59,17 @@ TEST(Conics, AnEllipseStandsOffCentreBecauseTheFocusIsWhereItIsMeasuredFrom) {
   EXPECT_TRUE(ellipse.closes());
 
   float nearest = 0, furthest = 0;
-  extremes(toSk(conicPath(ellipse, {.fromDeg = 0, .toDeg = 360})), {0, 0}, &nearest,
-           &furthest);
+  extremes(toSk(conicPath(ellipse, {.fromDegrees = 0, .toDegrees = 360})),
+           {0, 0}, &nearest, &furthest);
   EXPECT_NEAR(nearest, 100.0f / 1.5f, 1e-2f);
   EXPECT_NEAR(furthest, 100.0f / 0.5f, 1e-2f);
 
   // The periapsis is where it was asked to be: a quarter turn round puts
   // the near point on +y rather than on +x.
-  const Conic turned{
-      .focus = {0, 0}, .semiLatus = 100, .eccentricity = 0.5f, .periapsisDeg = 90};
+  const Conic turned{.focus = {0, 0},
+                     .semiLatus = 100,
+                     .eccentricity = 0.5f,
+                     .periapsisDegrees = 90};
   const glm::vec2 near = turned.at(0);
   EXPECT_NEAR(near.x, 0.0f, 1e-3f);
   EXPECT_NEAR(near.y, 100.0f / 1.5f, 1e-3f);
@@ -80,18 +82,19 @@ TEST(Conics, AtOneItIsAParabolaAndPastOneTheBranchHasAnAsymptote) {
   // periapsis the radius has run away, and the asymptote is the direction
   // it went — straight back the way it came.
   EXPECT_GT(parabola.radiusAt(179.9f), 100.0f * 100.0f);
-  EXPECT_NEAR(parabola.asymptoteDeg(), 180.0f, 1e-3f);
+  EXPECT_NEAR(parabola.asymptoteDegrees(), 180.0f, 1e-3f);
 
   const Conic hyperbola{.semiLatus = 100, .eccentricity = 2.0f};
   // acos(-1/2): the branch turns 120 degrees from its near point and then
   // runs straight, so 240 degrees of the sweep is not on the curve.
-  EXPECT_NEAR(hyperbola.asymptoteDeg(), 120.0f, 1e-3f);
+  EXPECT_NEAR(hyperbola.asymptoteDegrees(), 120.0f, 1e-3f);
   EXPECT_GT(hyperbola.radiusAt(119.99f), hyperbola.radiusAt(90.0f));
 
   // Past the asymptote a caller is asking about a place the branch never
   // reaches; the answer is a distant point rather than an infinity, so a
   // path built over the whole sweep is still a path.
-  const SkPath swept = toSk(conicPath(hyperbola, {.fromDeg = -180, .toDeg = 180}));
+  const SkPath swept =
+      toSk(conicPath(hyperbola, {.fromDegrees = -180, .toDegrees = 180}));
   EXPECT_TRUE(std::isfinite(swept.getBounds().width()));
   EXPECT_FALSE(swept.isLastContourClosed());
 }
@@ -100,8 +103,8 @@ TEST(Conics, ASpanIsWhatComesBackAndReachBreaksTheContourRatherThanCloseIt) {
   const Conic hyperbola{.semiLatus = 100, .eccentricity = 2.0f};
   // Held to what is near enough to draw, the arms are cut off and what is
   // left is one run through the near point.
-  const SkPath held =
-      toSk(conicPath(hyperbola, {.fromDeg = -180, .toDeg = 180, .reach = 400}));
+  const SkPath held = toSk(conicPath(
+      hyperbola, {.fromDegrees = -180, .toDegrees = 180, .reach = 400}));
   float nearest = 0, furthest = 0;
   extremes(held, {0, 0}, &nearest, &furthest);
   EXPECT_LE(furthest, 400.0f);
@@ -110,14 +113,15 @@ TEST(Conics, ASpanIsWhatComesBackAndReachBreaksTheContourRatherThanCloseIt) {
   // A closed conic swept the whole way round closes; a part of one does
   // not, so a reveal or a label along it has two ends to work between.
   const Conic ellipse{.semiLatus = 100, .eccentricity = 0.4f};
-  EXPECT_TRUE(
-      toSk(conicPath(ellipse, {.fromDeg = 0, .toDeg = 360})).isLastContourClosed());
-  EXPECT_FALSE(
-      toSk(conicPath(ellipse, {.fromDeg = -90, .toDeg = 90})).isLastContourClosed());
+  EXPECT_TRUE(toSk(conicPath(ellipse, {.fromDegrees = 0, .toDegrees = 360}))
+                  .isLastContourClosed());
+  EXPECT_FALSE(toSk(conicPath(ellipse, {.fromDegrees = -90, .toDegrees = 90}))
+                   .isLastContourClosed());
 
   // The path starts where the span does, so a trim from the start of the
   // contour is a trim from there.
-  const SkPath part = toSk(conicPath(ellipse, {.fromDeg = -90, .toDeg = 90}));
+  const SkPath part =
+      toSk(conicPath(ellipse, {.fromDegrees = -90, .toDegrees = 90}));
   const glm::vec2 begins = ellipse.at(-90);
   EXPECT_NEAR(part.getPoint(0).fX, begins.x, 1e-3f);
   EXPECT_NEAR(part.getPoint(0).fY, begins.y, 1e-3f);

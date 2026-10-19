@@ -241,13 +241,13 @@ inline Element chromeControl(std::string_view mark, bool close = false) {
 }
 
 /** White starburst glint (shapes::star, thin 4-point). */
-inline Element glint(float size, float rotationDeg, float alpha = 0.95f) {
+inline Element glint(float size, float rotationDegrees, float alpha = 0.95f) {
   return box()
       .width(size)
       .height(size)
       .shape(shapes::star(4, 0.10f))
       .fill(Fill::color({1, 1, 1, alpha}))
-      .rotate(rotationDeg)
+      .rotate(rotationDegrees)
       .zIndex(3);
 }
 

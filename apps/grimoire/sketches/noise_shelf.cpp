@@ -233,7 +233,7 @@ struct NoiseShelf {
                .styleClass("readout")});
     };
     return sketch::kit::well(
-        {.width = 760, .height = 208, .padding = 24, .paddingY = 22},
+        {.width = 760, .height = 208, .padding = 24, .paddingVertical = 22},
         box().column().gap(16).children(
             {entry("fnv1a(offset, 7)", a),
              entry("fnv1a(offset, \"stamp\")", text),

@@ -157,15 +157,15 @@ sketch::scry::Sequence arriving() {
           .quiet = true};
 }
 
-/** A screen: a quad wearing @p dressed, tilted @p yawDeg about the
+/** A screen: a quad wearing @p dressed, tilted @p yawDegrees about the
  *  vertical and standing at @p x. Unlit on purpose — a screen emits, and
  *  a lighting term across it would read as a smear. */
-world::Mesh screen(const char* key, float x, float yawDeg,
+world::Mesh screen(const char* key, float x, float yawDegrees,
                    material::Material dressed) {
   return world::mesh(gm::quad(kPanel, kPanel))
       .key(key)
       .at({x, 10.0f, 0.0f})
-      .rotateY(yawDeg)
+      .rotateY(yawDegrees)
       .fill(std::move(dressed));
 }
 
@@ -210,7 +210,7 @@ struct ImportNative {
     gm::camera::Camera lens;
     lens.eye = kEye;
     lens.target = {0.0f, 0.0f, 0.0f};
-    lens.fovYDeg = 40.0f;
+    lens.fovYDegrees = 40.0f;
     ctx.camera(lens);
 
     // The compose producer: the session keeps the scene, so the texture a

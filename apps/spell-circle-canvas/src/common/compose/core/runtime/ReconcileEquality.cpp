@@ -311,9 +311,10 @@ static_assert(kFieldCount<Spans::Term> == 11,
 bool Spans::operator==(const Spans& other) const {
   if (terms.size() != other.terms.size()) return false;
   const auto termEqual = [](const Term& a, const Term& b) {
-    if (a.rule != b.rule || a.arm != b.arm || a.angleDeg != b.angleDeg ||
-        a.duty != b.duty || a.margin != b.margin || a.count != b.count ||
-        a.index != b.index || a.key != b.key)
+    if (a.rule != b.rule || a.arm != b.arm ||
+        a.angleDegrees != b.angleDegrees || a.duty != b.duty ||
+        a.margin != b.margin || a.count != b.count || a.index != b.index ||
+        a.key != b.key)
       return false;
     // The two ENDPOINT-carrying rules. Leaving Wrap out here would make
     // every wrapped window compare equal to every other one and a
@@ -379,7 +380,7 @@ bool Gate::operator==(const Gate& other) const {
     case Kind::Spans:
       return where == other.where;
     case Kind::Edge:
-      return angleDeg == other.angleDeg &&
+      return angleDegrees == other.angleDegrees &&
              propertyEqual(fraction, other.fraction);
     case Kind::Shape:
       return outside == other.outside && region == other.region;

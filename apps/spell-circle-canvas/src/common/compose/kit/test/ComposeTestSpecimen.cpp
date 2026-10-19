@@ -5,9 +5,9 @@
 // a composer and reads the keyed boxes back, rather than restating the
 // margins the component spells.
 
-#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <optional>
 #include <utility>
@@ -190,7 +190,7 @@ TEST(KitSpecimen, AWellRoundsItsCornersAndRulesInsideItsOwnBox) {
        .height = 80,
        .ground = red(),
        .padding = 10,
-       .paddingY = 4,
+       .paddingVertical = 4,
        .corners = 0,
        .keyline = Fill::color({0, 1, 0, 1}),
        .keylineWidth = 4},
@@ -295,7 +295,7 @@ TEST(KitSpecimen, AReadingStandsOverTheBodyOnAScrimOfItsGround) {
 TEST(KitSpecimen, ASheetsLinesArePartsOfTheirOwnText) {
   kit::Sheet page{.title = "TITLE",
                   .footer = "the footer",
-                  .marginX = 30,
+                  .marginHorizontal = 30,
                   .marginTop = 16,
                   .marginBottom = 14,
                   .key = "page"};
@@ -357,7 +357,7 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
   const float footer = lineHeight(11);
   kit::Sheet page{.title = "TITLE",
                   .footer = "the footer",
-                  .marginX = 30,
+                  .marginHorizontal = 30,
                   .marginTop = 16,
                   .marginBottom = 14,
                   .contentGap = 18,

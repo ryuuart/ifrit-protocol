@@ -301,9 +301,9 @@ struct CarvedMarks {
     gm::camera::Camera camera;
     camera.eye = {0, 1040, 1360};
     camera.target = {90, 10, 60};
-    camera.fovYDeg = 40;
-    camera.zNear = 60;
-    camera.zFar = 6000;
+    camera.fovYDegrees = 40;
+    camera.nearPlane = 60;
+    camera.farPlane = 6000;
     return camera;
   }
 

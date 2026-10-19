@@ -23,7 +23,7 @@
  *
  * EDIT THESE FIRST
  *   kFeather   — the selector's soft edge (0 = hard 0/1 selection).
- *   kTwistDeg / kTaper / kBendDeg / kPeak — the deformer amounts. Both
+ *   kTwistDegrees / kTaper / kBendDegrees / kPeak — the deformer amounts. Both
  *                rows read them, so the two stay comparable.
  */
 // TAGS: Geometry/Points
@@ -56,9 +56,9 @@ namespace {
 
 constexpr int kCount = 1400;
 constexpr float kFeather = 0.35f;
-constexpr float kTwistDeg = 150.0f;
+constexpr float kTwistDegrees = 150.0f;
 constexpr float kTaper = 0.25f;
-constexpr float kBendDeg = 80.0f;
+constexpr float kBendDegrees = 80.0f;
 constexpr float kPeak = 70.0f;
 constexpr float kPanel = 220.0f;
 constexpr float kHeight = 300.0f;  // the column: y in [-150, 150]
@@ -78,7 +78,7 @@ geometry::mesh::camera::Camera lookAtColumn() {
   geometry::mesh::camera::Camera camera;
   camera.eye = {300, 140, 850};
   camera.target = {0, 0, 0};
-  camera.fovYDeg = 38;
+  camera.fovYDegrees = 38;
   return camera;
 }
 
@@ -157,7 +157,7 @@ struct PopDeform {
         {"twist(150°, +Y, origin -55x)", "a helix: more turn with height",
          "twist(…).masked(\"band\")", "only the band turns",
          [](Builder b) {
-           return b.twist(kTwistDeg, {0, 1, 0}, -kHeight / 2, kHeight / 2,
+           return b.twist(kTwistDegrees, {0, 1, 0}, -kHeight / 2, kHeight / 2,
                           {-55, 0, 0});
          }},
         {"taper(0.25, +Y)", "toward the axis at the top",
@@ -168,7 +168,7 @@ struct PopDeform {
         {"bend(80°, +Y, +X)", "the band arcs; past it, rigid",
          "bend(…).masked(\"band\")", "only the band arcs",
          [](Builder b) {
-           return b.bend(kBendDeg, {0, 1, 0}, {1, 0, 0}, -kHeight / 4,
+           return b.bend(kBendDegrees, {0, 1, 0}, {1, 0, 0}, -kHeight / 4,
                          kHeight / 2);
          }},
         // Peak pushes along Dir — the loop tangent, i.e. straight up the

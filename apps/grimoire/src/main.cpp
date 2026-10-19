@@ -224,11 +224,10 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  const bool windowRun = !args.list && !args.catalog && !args.headless &&
-                         !args.warmThumbnails &&
-                         args.compareOptions.first.empty() &&
-                         args.storyOptions.outputPath.empty() &&
-                         args.capture.outputPath.empty();
+  const bool windowRun =
+      !args.list && !args.catalog && !args.headless && !args.warmThumbnails &&
+      args.compareOptions.first.empty() &&
+      args.storyOptions.outputPath.empty() && args.capture.outputPath.empty();
   const bool remembersWindow =
       windowRun && args.shotPath.empty() && args.windowBench.seconds <= 0;
   QSettings workspaceSettings;
@@ -370,11 +369,10 @@ int main(int argc, char* argv[]) {
   // output is written has nothing to serve: `--inspect` is refused there,
   // since a client attaching to it would find the run already gone. A
   // sweep mounts it between its sketches; the window mounts it unasked.
-  if (args.inspectPort &&
-      (args.list || args.catalog || args.warmThumbnails ||
-       !args.compareOptions.first.empty() ||
-       !args.storyOptions.outputPath.empty() ||
-       !args.capture.outputPath.empty())) {
+  if (args.inspectPort && (args.list || args.catalog || args.warmThumbnails ||
+                           !args.compareOptions.first.empty() ||
+                           !args.storyOptions.outputPath.empty() ||
+                           !args.capture.outputPath.empty())) {
     std::fprintf(stderr,
                  "--inspect: this run ends once its output is written, and "
                  "a client has nothing to drive; `--headless --inspect` "
@@ -775,7 +773,7 @@ int main(int argc, char* argv[]) {
     }
     // Synchronize the live host before each forced frame. A file may still
     // be compiling, so warm-up waits for its session before capturing.
-    ifrit::qt::captureWindow(
+    sigil::qt::captureWindow(
         *window, QString::fromStdString(args.shotPath),
         {.prepareFrame =
              [view] {

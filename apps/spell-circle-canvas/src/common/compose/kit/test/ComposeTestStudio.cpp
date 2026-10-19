@@ -40,9 +40,10 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
     Element root = box().padding(10).children(
         {text(u8"ABCD", whiteStyle(28))
              .key("word")
-             .textFx({.effect = textFx::enter(textFx::rise(4)),
-                      .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
-                      .progress = 0.5f})});
+             .textFx(
+                 {.effect = textFx::enter(textFx::rise(4)),
+                  .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
+                  .progress = 0.5f})});
     if (withMeter)
       root.children(
           {kit::trackMeter(host.composer, "word", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
@@ -141,10 +142,10 @@ TEST(ComposeDebug, RestGhostDrawsTheSameWordUndeformedUnderTheMovingOne) {
   EXPECT_GT(countWhite(shoved), 20) << "the moving copy did not move";
   EXPECT_EQ(countBlue(shoved), 0) << "the ghost is carrying the track too";
   // The ghost is addressable, and it is exactly as wide as the word.
-  const SkRect ghost =
-      geometry::path::toSk(host.composer.bounds("word-rest").value_or(geometry::path::Rect{}));
-  const SkRect moving =
-      geometry::path::toSk(host.composer.bounds("word").value_or(geometry::path::Rect{}));
+  const SkRect ghost = geometry::path::toSk(
+      host.composer.bounds("word-rest").value_or(geometry::path::Rect{}));
+  const SkRect moving = geometry::path::toSk(
+      host.composer.bounds("word").value_or(geometry::path::Rect{}));
   ASSERT_FALSE(ghost.isEmpty());
   EXPECT_NEAR(ghost.width(), moving.width(), 0.51f);
   EXPECT_NEAR(ghost.left(), moving.left(), 0.51f);
@@ -162,8 +163,8 @@ TEST(ComposeDebug, RestGhostCopiesTheTypeAndNotTheMarksOnIt) {
                       box().key("caret").width(4).fill(green())),
       {0, 0, 1, 1})}));
   host.frame();
-  const SkRect caret =
-      geometry::path::toSk(host.composer.bounds("caret").value_or(geometry::path::Rect{}));
+  const SkRect caret = geometry::path::toSk(
+      host.composer.bounds("caret").value_or(geometry::path::Rect{}));
   ASSERT_FALSE(caret.isEmpty()) << "the mark on the moving copy is gone";
   int greens = 0;
   for (int y = 0; y < 140; ++y)
@@ -190,12 +191,13 @@ TEST(ComposeConsole, StacksFeedsPerColumnInOneVoice) {
   for (feed::TextRing* ring : {&a, &b, &c, &d}) ring->append({u8"a row", ""});
   feed::TextOptions voice;
   voice.styles =
-      kit::tinted({.size = 12.0f, .color = material::Color{1, 1, 1, 1}}, {{"pass", {0, 1, 0, 1}}});
+      kit::tinted({.size = 12.0f, .color = material::Color{1, 1, 1, 1}},
+                  {{"pass", {0, 1, 0, 1}}});
   voice.window.visible = 4;
   const float row = feed::height(voice, 1, fonts());
   kit::Plate chrome;
-  chrome.paddingX = 0;
-  chrome.paddingY = 0;
+  chrome.paddingHorizontal = 0;
+  chrome.paddingVertical = 0;
   // One feed per column: the plate is one row tall.
   const float one =
       intrinsicSize(box().children({kit::console(
@@ -261,8 +263,8 @@ TEST(ComposeReport, ATableLandsInTheFeedRowByRowInTheInkOfItsStanding) {
 // arguments run out, and the verdict a check prints into a scene.
 
 TEST(ComposeStudio, TheColourOpsAreOneNamePerLookInsteadOfOneBodyPerCallSite) {
-  // material::hexColor() is the one colour spelling this library carries, and it
-  // answers in SigilMaterial's colour.
+  // material::hexColor() is the one colour spelling this library carries, and
+  // it answers in SigilMaterial's colour.
   constexpr sigil::material::Color rubric = material::hexColor(0x8C2F22);
   static_assert(material::hexColor(0xFFFFFF).r == 1.0f,
                 "must stay constexpr — the "
@@ -349,22 +351,24 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   const sigil::measure::Check bad =
       sigil::measure::check("Berezina", 20000 + 30000, 49000);
   EXPECT_FALSE(bad.pass);
-  EXPECT_NE(sigil::measure::line(bad).find("FAIL want 50000"), std::string::npos)
+  EXPECT_NE(sigil::measure::line(bad).find("FAIL want 50000"),
+            std::string::npos)
       << "a failing check must print what it wanted, or the plate says "
          "nothing an author can act on: "
       << sigil::measure::line(bad);
 
   // A long label is not truncated — sigillum_aemeth.cpp:1719 documents four
   // checks silently losing their units to a feed column that clipped.
-  const std::string wide =
-      sigil::measure::line(sigil::measure::check(std::string(80, 'L'), 1, 1), {.labelWidth = 44});
+  const std::string wide = sigil::measure::line(
+      sigil::measure::check(std::string(80, 'L'), 1, 1), {.labelWidth = 44});
   EXPECT_NE(wide.find(std::string(80, 'L')), std::string::npos);
 
   // Floats need a tolerance the STUDY chooses; there is no default.
   EXPECT_TRUE(sigil::measure::check("R", 257.972, 257.9715, 0.001).pass);
   EXPECT_FALSE(sigil::measure::check("R", 257.972, 257.9, 0.001).pass);
   EXPECT_NE(
-      sigil::measure::line(sigil::measure::check("R", 257.972, 257.9, 0.001)).find("\xc2\xb1"),
+      sigil::measure::line(sigil::measure::check("R", 257.972, 257.9, 0.001))
+          .find("\xc2\xb1"),
       std::string::npos);
 
   EXPECT_TRUE(sigil::measure::check("winding", std::string_view("kCW"),

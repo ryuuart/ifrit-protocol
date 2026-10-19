@@ -102,7 +102,8 @@ gm::camera::Camera cardCamera(float eyeZ) {
  *  test states the relationship rather than a number someone measured
  *  off a picture. */
 float pixelsPerUnit(const gm::camera::Camera& lens, SkISize size) {
-  const float halfFov = lens.fovYDeg * 0.5f * (float)std::numbers::pi / 180.0f;
+  const float halfFov =
+      lens.fovYDegrees * 0.5f * (float)std::numbers::pi / 180.0f;
   return (float)size.height() /
          (2.0f * std::abs(lens.eye.z) * std::tan(halfFov));
 }
@@ -385,7 +386,7 @@ TEST(Scene2DCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
     session->discardedFrame(discarded, 1.0 / 60.0);
     EXPECT_EQ(progress->updates, 38);
     EXPECT_EQ(progress->paints, painted);
-    EXPECT_EQ(session->timing().drawMs, 0);
+    EXPECT_EQ(session->timing().drawMilliseconds, 0);
     for (const LaneCost& lane : session->lanes()) EXPECT_EQ(lane.ms, 0);
     EXPECT_TRUE(session->costs(8).empty());
     session->repaint(*target->getCanvas());

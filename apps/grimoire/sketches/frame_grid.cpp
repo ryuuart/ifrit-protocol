@@ -246,10 +246,12 @@ struct FrameGrid {
                                                i, 7,
                                                {.center = c,
                                                 .radii = {r, r},
-                                                .fromDegrees = (kStart)*sigil::
-                                                    geometry::path::kRadToDeg,
-                                                .sweepDegrees = (kSweep)*sigil::
-                                                    geometry::path::kRadToDeg,
+                                                .fromDegrees =
+                                                    (kStart)*sigil::geometry::
+                                                        path::kRadiansToDegrees,
+                                                .sweepDegrees =
+                                                    (kSweep)*sigil::geometry::
+                                                        path::kRadiansToDegrees,
                                                 .turn = turn});
                                            p.circle(at.x, at.y, 10.0f);
                                          }

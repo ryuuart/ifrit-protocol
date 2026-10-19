@@ -389,7 +389,7 @@ struct FlipbookFire {
     gm::camera::Camera lens;
     lens.eye = {0, 175, 560};
     lens.target = {0, 120, 0};
-    lens.fovYDeg = 40;
+    lens.fovYDegrees = 40;
     return world::Frame(
                world::group(
                    {world::camera(lens,

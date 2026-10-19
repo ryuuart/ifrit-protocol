@@ -87,7 +87,7 @@ def paint(pen: Pen) -> None:
 
 
 def title_part(words: str, props: marks.Sheet) -> Text:
-    return text(words, size=props.marginX)
+    return text(words, size=props.marginHorizontal)
 
 
 @sketch(size=(720, 420), captureAt=1)

@@ -3,7 +3,7 @@ pragma Singleton
 import QtQuick
 
 /**
- * Shared visual tokens for Ifrit desktop tools and galleries.
+ * Shared visual tokens for Sigil desktop tools and galleries.
  *
  * Every chrome color derives from the system palette so windows follow the
  * OS light/dark appearance, and surfaces carry alpha so they read as tinted

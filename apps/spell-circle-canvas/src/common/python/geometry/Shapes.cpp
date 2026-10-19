@@ -75,8 +75,7 @@ void bindGeometryShapes(pybind11::module_& module) {
   shapes
       .def("radial", &kit::radial, py::arg("count"),
            py::arg("options") = path::RadialOptions{})
-      .def("ellipse", &kit::ellipse,
-           py::arg("options") = kit::EllipseOptions{})
+      .def("ellipse", &kit::ellipse, py::arg("options") = kit::EllipseOptions{})
       .def(
           "fitted",
           [](const path::Outline& source, bool preserveAspect) {
@@ -115,7 +114,7 @@ void bindGeometryShapes(pybind11::module_& module) {
       .def(py::self == py::self);
   copyProtocol(blob);
   py::class_<kit::Parallelogram> parallelogram(shapes, "Parallelogram");
-  parallelogram.def_readwrite("skewDeg", &kit::Parallelogram::skewDeg)
+  parallelogram.def_readwrite("skewDegrees", &kit::Parallelogram::skewDegrees)
       .def("outline", &kit::Parallelogram::outline, py::arg("size"))
       .def(py::self == py::self);
   copyProtocol(parallelogram);

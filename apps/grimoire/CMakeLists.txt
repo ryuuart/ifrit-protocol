@@ -180,7 +180,7 @@ target_link_libraries(Grimoire PRIVATE
   SigilSketch SigilSketchPython SigilSketches SigilSketchesPython
   SigilSketchSessionAgent SigilProtocolEndpoint
   SigilMeasure SigilWeavePorts SigilMaterial
-  IfritQt IfritQtplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
+  SigilQt SigilQtplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
   Qt6::QuickDialogs2)
 
 # The application's own cases, in its one test binary: the command line,

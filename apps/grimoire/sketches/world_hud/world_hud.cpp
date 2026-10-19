@@ -58,9 +58,9 @@ struct WorldHud {
     lens.eye = wh::kEye;
     lens.target = wh::kLook;
     lens.up = {0.0f, 1.0f, 0.0f};
-    lens.fovYDeg = 46.0f;
-    lens.zNear = 8.0f;
-    lens.zFar = 8192.0f;
+    lens.fovYDegrees = 46.0f;
+    lens.nearPlane = 8.0f;
+    lens.farPlane = 8192.0f;
     ctx.camera(lens);
 
     // The empty slot frame is one atlas cell stamped twelve times.

@@ -450,7 +450,7 @@ struct Border {
    *  would shatter a small rounded corner into a run of false ones. The
    *  number stays yours; when a scan finds nothing the library prints the
    *  sharpest break it did see and what to pass. */
-  float cornerAngleDeg = 30.0f;
+  float cornerAngleDegrees = 30.0f;
 
   std::vector<float> dash;
   float dashPhase = 0.0f;
@@ -509,14 +509,14 @@ inline Border border(float width, Fill fill, float inset = 0.0f) {
  *  `cornerWidth` within `arm` px of each turn. */
 inline Border weightedCorners(float width, float cornerWidth, Fill fill,
                               float arm = 18.0f, float inset = 0.0f,
-                              float angleDeg = 30.0f) {
+                              float angleDegrees = 30.0f) {
   return Border{.width = width,
                 .fill = std::move(fill),
                 .inset = inset,
                 .mode = Border::Mode::Weighted,
                 .corner = arm,
                 .cornerWidth = cornerWidth,
-                .cornerAngleDeg = angleDeg};
+                .cornerAngleDegrees = angleDegrees};
 }
 
 /** DOUBLE BORDER with independent insets — two rules as one stack, so

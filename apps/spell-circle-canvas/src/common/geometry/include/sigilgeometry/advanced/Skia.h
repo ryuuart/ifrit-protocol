@@ -34,15 +34,14 @@
 
 #include <concepts>
 #include <cstddef>
+#include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
 #include <initializer_list>
 #include <optional>
 #include <ranges>
 #include <span>
 #include <utility>
 #include <vector>
-
-#include <glm/mat4x4.hpp>
-#include <glm/vec2.hpp>
 
 #include "sigilgeometry/path/Band.h"
 #include "sigilgeometry/path/Contour.h"
@@ -110,17 +109,17 @@ inline SkPathFillType toSk(FillRule rule) {
 /** The affine map as a Skia matrix. */
 inline SkMatrix toSk(const Transform& transform) {
   const glm::mat3& m = transform.matrix;
-  return SkMatrix::MakeAll(m[0][0], m[1][0], m[2][0], m[0][1], m[1][1],
-                           m[2][1], 0, 0, 1);
+  return SkMatrix::MakeAll(m[0][0], m[1][0], m[2][0], m[0][1], m[1][1], m[2][1],
+                           0, 0, 1);
 }
 
 /** A Skia matrix as the affine map, its perspective row dropped. */
 inline Transform fromSk(const SkMatrix& matrix) {
   Transform transform;
-  transform.matrix = glm::mat3(matrix.getScaleX(), matrix.getSkewY(), 0.0f,
-                               matrix.getSkewX(), matrix.getScaleY(), 0.0f,
-                               matrix.getTranslateX(), matrix.getTranslateY(),
-                               1.0f);
+  transform.matrix =
+      glm::mat3(matrix.getScaleX(), matrix.getSkewY(), 0.0f, matrix.getSkewX(),
+                matrix.getScaleY(), 0.0f, matrix.getTranslateX(),
+                matrix.getTranslateY(), 1.0f);
   return transform;
 }
 
@@ -182,7 +181,7 @@ SkPath parallel(const SkPath& path, float across, float step = 4.0f,
 SkPath displace(const SkPath& path, float amplitude, float wavelength,
                 bool zigzag);
 SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
-                     float angleDeg);
+                     float angleDegrees);
 /** @} */
 
 /** @name Bands over a Skia path

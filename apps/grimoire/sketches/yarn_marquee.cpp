@@ -68,9 +68,9 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Sweep.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
@@ -118,7 +118,7 @@ constexpr material::Color kTick{1.0f, 0.72f, 0.36f, 1};
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = 40;
+  look.spacing.marginHorizontal = 40;
   look.spacing.marginTop = 32;
   return look;
 }
@@ -172,7 +172,7 @@ curve::Spline3 loop() {
 }
 
 camera::Camera view() {
-  return {.eye = {40, 190, 900}, .target = {0, 0, 0}, .fovYDeg = 44};
+  return {.eye = {40, 190, 900}, .target = {0, 0, 0}, .fovYDegrees = 44};
 }
 
 /** One panel's cloth: the band swept on @p rail wearing @p art, as a

@@ -6,6 +6,7 @@
  */
 
 #include <QString>
+#include <chrono>
 #include <functional>
 
 class QQuickWindow;
@@ -17,7 +18,7 @@ class QQuickWindow;
  *  photographed to a file, and a texture published out of the Qt
  *  renderer. Reach for it when building one of this repository's own
  *  desktop tools. */
-namespace ifrit::qt {
+namespace sigil::qt {
 
 /** How a window capture is driven. Left alone it ticks about once a
  *  display frame, waits for the window to settle, and photographs the
@@ -26,8 +27,8 @@ struct WindowCaptureOptions {
   /** How many frames are drawn after the window reports itself ready,
    *  before the photograph is taken. */
   int warmupFrames = 90;
-  /** How long one tick of the capture loop waits, in milliseconds. */
-  int intervalMs = 16;
+  /** How long one tick of the capture loop waits. */
+  std::chrono::milliseconds interval{16};
   /** How many frames the loop waits for readiness before going on
    *  anyway, so a window stuck loading is still photographed. */
   int maxReadyFrames = 900;
@@ -48,4 +49,4 @@ struct WindowCaptureOptions {
 void captureWindow(QQuickWindow& window, QString output,
                    WindowCaptureOptions options = {});
 
-}  // namespace ifrit::qt
+}  // namespace sigil::qt

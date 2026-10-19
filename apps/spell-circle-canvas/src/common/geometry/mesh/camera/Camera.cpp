@@ -37,7 +37,7 @@ glm::mat4 Camera::view() const {
 }
 
 glm::mat4 Camera::projection(float aspect) const {
-  SkM44 m = SkM44::Perspective(zNear, zFar, fovYDeg * kDegToRad);
+  SkM44 m = SkM44::Perspective(nearPlane, farPlane, fovYDegrees * kDegToRad);
   if (aspect > 0) m.setRC(0, 0, m.rc(0, 0) / aspect);
   return toGlm(m);
 }
@@ -55,8 +55,7 @@ glm::mat4 Camera::viewProjection(glm::vec2 viewport) const {
 }
 
 glm::mat4 Camera::clipProjection(glm::ivec2 extent) const {
-  const float aspect =
-      extent.y > 0 ? (float)extent.x / (float)extent.y : 1.0f;
+  const float aspect = extent.y > 0 ? (float)extent.x / (float)extent.y : 1.0f;
   glm::mat4 depth(1.0f);
   depth[2][2] = -0.5f;
   depth[3][2] = 0.5f;
@@ -103,8 +102,8 @@ Orbit orbitOf(const Camera& camera) {
 }
 
 Camera cameraAt(const Camera& pivot, Orbit orbit) {
-  const float yaw = orbit.yawDeg * kDegToRad;
-  const float pitch = orbit.pitchDeg * kDegToRad;
+  const float yaw = orbit.yawDegrees * kDegToRad;
+  const float pitch = orbit.pitchDegrees * kDegToRad;
   Camera out = pivot;
   out.eye = pivot.target +
             glm::vec3{orbit.distance * std::cos(pitch) * std::sin(yaw),
@@ -113,13 +112,15 @@ Camera cameraAt(const Camera& pivot, Orbit orbit) {
   return out;
 }
 
-glm::mat4 place(glm::vec3 position, float yawDeg, float pitchDeg, float rollDeg,
-                float scale) {
+glm::mat4 place(glm::vec3 position, float yawDegrees, float pitchDegrees,
+                float rollDegrees, float scale) {
   SkM44 m = SkM44::Translate(position.x, position.y, position.z);
-  if (yawDeg != 0) m.preConcat(SkM44::Rotate({0, 1, 0}, yawDeg * kDegToRad));
-  if (pitchDeg != 0)
-    m.preConcat(SkM44::Rotate({1, 0, 0}, pitchDeg * kDegToRad));
-  if (rollDeg != 0) m.preConcat(SkM44::Rotate({0, 0, 1}, rollDeg * kDegToRad));
+  if (yawDegrees != 0)
+    m.preConcat(SkM44::Rotate({0, 1, 0}, yawDegrees * kDegToRad));
+  if (pitchDegrees != 0)
+    m.preConcat(SkM44::Rotate({1, 0, 0}, pitchDegrees * kDegToRad));
+  if (rollDegrees != 0)
+    m.preConcat(SkM44::Rotate({0, 0, 1}, rollDegrees * kDegToRad));
   if (scale != 1) m.preScale(scale, scale, scale);
   return toGlm(m);
 }

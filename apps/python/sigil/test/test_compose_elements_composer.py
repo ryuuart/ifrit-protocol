@@ -236,14 +236,14 @@ class Reports(unittest.TestCase):
         state = Composer.CacheState
         cost = Composer.NodeCost(
             label="plate",
-            selfMs=1.5,
-            totalMs=2.5,
+            selfMilliseconds=1.5,
+            totalMilliseconds=2.5,
             depth=3,
             cacheState=state.Picture,
             effectDeferred=True,
         )
         self.assertEqual(
-            (cost.label, cost.selfMs, cost.totalMs, cost.depth),
+            (cost.label, cost.selfMilliseconds, cost.totalMilliseconds, cost.depth),
             ("plate", 1.5, 2.5, 3),
         )
         self.assertTrue(cost.effectDeferred)
@@ -261,7 +261,7 @@ class Reports(unittest.TestCase):
         self.assertEqual(cost.cacheState, Composer.CacheState.Live)
         self.assertFalse(cost.cached())
         with self.assertRaisesRegex(TypeError, "Unknown NodeCost field"):
-            Composer.NodeCost(selfMilliseconds=1)
+            Composer.NodeCost(selfSeconds=1)
 
 
 class Session(unittest.TestCase):
@@ -372,12 +372,12 @@ class Frames(Session):
         rows = self.results["rows"]
         self.assertGreater(len(rows), 0)
         self.assertEqual(
-            [row.selfMs for row in rows],
-            sorted((row.selfMs for row in rows), reverse=True),
+            [row.selfMilliseconds for row in rows],
+            sorted((row.selfMilliseconds for row in rows), reverse=True),
         )
         for row in rows:
             self.assertIsInstance(row, Composer.NodeCost)
-            self.assertGreaterEqual(row.totalMs, 0)
+            self.assertGreaterEqual(row.totalMilliseconds, 0)
         self.assertTrue(any("plate" in row.label for row in rows))
         self.assertEqual(self.results["cleared"], [])
 
@@ -469,8 +469,11 @@ class Frames(Session):
             for rect in letters
         ]
         return [
-            ((middles[(index + 1) % len(middles)][0] - middle[0]) ** 2
-             + (middles[(index + 1) % len(middles)][1] - middle[1]) ** 2) ** 0.5
+            (
+                (middles[(index + 1) % len(middles)][0] - middle[0]) ** 2
+                + (middles[(index + 1) % len(middles)][1] - middle[1]) ** 2
+            )
+            ** 0.5
             for index, middle in enumerate(middles)
         ]
 

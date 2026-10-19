@@ -4,8 +4,7 @@ TAGS: Geometry/Layout, Typography/Interface
 """
 
 from sigil import compose as raw
-from sigil.compose import box, column, layout, memo, row, text
-from sigil.compose import document
+from sigil.compose import box, column, document, layout, memo, row, text
 from sigil.compose import kit as marks
 from sigil.compose.layouts import AlongPath, BaselineGrid, Diagonal, Jittered, Radial
 from sigil.motion import animate
@@ -54,7 +53,7 @@ def radial():
 
 def diagonal():
     steps = (
-        layout(Diagonal(skewDeg=-14, gap=8))
+        layout(Diagonal(skewDegrees=-14, gap=8))
         .width(234)
         .height(150)
         .children(

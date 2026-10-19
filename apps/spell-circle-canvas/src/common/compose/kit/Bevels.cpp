@@ -40,7 +40,7 @@ void ring(draw::Pen& pen, const PaintContext& ctx, const Bevel& b,
     bevel.kind = material::CoverageEffect::Kind::Bevel;
     bevel.bevel = {.depth = std::max(lit, drop),
                    .size = b.softness,
-                   .angleDegrees = b.angleDeg,
+                   .angleDegrees = b.angleDegrees,
                    .highlight = sunken ? shadow : light,
                    .shadow = sunken ? light : shadow};
     detail::CoverageMark{bevel}.paint(pen, ctx);
@@ -163,7 +163,7 @@ Bevel plate(material::Color light, material::Color shadow, float depth,
   b.shadow = shadow;
   b.depth = depth;
   b.softness = softness;
-  b.angleDeg = 118;
+  b.angleDegrees = 118;
   b.sunken = sunken;
   return b;
 }

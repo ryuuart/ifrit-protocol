@@ -32,9 +32,9 @@ namespace sigil::geometry::shapes {
 
 /** A silhouette generator: a local-coordinate outline over the node's
  *  laid-out size, which it may name or leave unnamed — an outline that is
- *  the same whatever the box is takes `[] { return outline; }`. The ESCAPE-HATCH
- *  spelling of what a node's shape accepts — a raw callable never prunes,
- *  where the generator values below do. It exists because a hand-rolled
+ *  the same whatever the box is takes `[] { return outline; }`. The
+ * ESCAPE-HATCH spelling of what a node's shape accepts — a raw callable never
+ * prunes, where the generator values below do. It exists because a hand-rolled
  *  curve has to start somewhere; promote it to a value once it settles. */
 using OutlineFunction = sigil::core::Callable<path::Outline(glm::vec2)>;
 
@@ -133,9 +133,8 @@ namespace detail {
  *  @p f over t ∈ [t0, t1] in the UNIT frame (±1 spans the box) and
  *  scales onto the box's half-extents. The sampling itself is the path
  *  tier's; only the unit-box scaling is this kit's convention. */
-path::Outline samplePolyline(const std::function<glm::vec2(float)>& f,
-                             float t0, float t1, int samples, bool close,
-                             glm::vec2 size);
+path::Outline samplePolyline(const std::function<glm::vec2(float)>& f, float t0,
+                             float t1, int samples, bool close, glm::vec2 size);
 }  // namespace detail
 
 /** Organic closed blob: @p lobes control points on the inscribed
@@ -155,16 +154,16 @@ inline Blob blob(uint32_t seed, float amplitude = 0.18f, int lobes = 8) {
   return Blob{seed, amplitude, lobes};
 }
 
-/** A parallelogram leaning by @p skewDeg: the top edge shifts by
+/** A parallelogram leaning by @p skewDegrees: the top edge shifts by
  *  h·tan(skew) relative to the bottom, staying inside the box. */
 struct Parallelogram {
-  float skewDeg = 0.0f;
+  float skewDegrees = 0.0f;
   bool operator==(const Parallelogram&) const = default;
   path::Outline outline(glm::vec2 size) const;
 };
 
-inline Parallelogram parallelogram(float skewDeg) {
-  return Parallelogram{skewDeg};
+inline Parallelogram parallelogram(float skewDegrees) {
+  return Parallelogram{skewDegrees};
 }
 
 /** An arrow along +x, inscribed in the box: a shaft of @p shaftFrac of the

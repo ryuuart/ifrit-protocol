@@ -56,8 +56,8 @@ native lane copy. The builder's sinks cook on the CPU executor.
 ONE DIRECTORY PER NATIVE LIBRARY, ONE FILE PER SUBJECT. Every binding
 source sits under the directory of the library it binds — `core/`,
 `skia/`, `media/`, `material/`, `geometry/`, `motion/`, `weave/`,
-`compose/`, `draw/`, `world/`, `data/`, `io/`, `measure/`,
-`scry/` — and the four files at the root are the
+`compose/`, `draw/`, `world/`, `data/`, `io/`, `measure/` — and the
+four files at the root are the
 kernel every one of them is written out of: the module assembly, the
 conversions and callback ownership, the reach into another file's
 registration, and the public naming. The sketch adapter is laid out the
@@ -70,12 +70,13 @@ conversion the whole tree shares, or the one registration header that
 declares every bind function the library's files define.
 
 One subject is one source file with one bind function in it, and that
-file has one author. An author fills in a file that already exists,
-adds rows to a table and writes their own refinement fragment; they do
-not add a source to a CMake list, a call to the module assembly or a
-declaration to a registration header, because all three already name
-every subject this library plans to bind. That is what lets a hundred
-subjects be written at once without two hands in one file.
+file has one author. Only a subject that binds something has a file: a
+submodule the package surfaces before any native value lives in it is
+created by the registration of the feature it belongs to, beside that
+feature's own values. An author who binds a new subject adds its source
+to the CMake list, its declaration to the library's registration header
+and its call to the module assembly, in the dependency order that
+assembly keeps.
 
 ## Module assembly
 
@@ -319,61 +320,38 @@ not read a Python theme or capture an authoring-time environment.
 ONE HEADER PER LIBRARY, AND EVERY ONE OF ITS REGISTRATIONS IN IT. A
 registration header is the whole list of what that library's packages add
 to the extension module, so an author reads one file to see which
-subjects their library already plans and what each is called. Four
-libraries are declared only where their SDK is present, and the module
-assembly guards their calls the same way.
+subjects their library binds and what each is called. A library whose
+SDK may be absent registers its module inside `bindOptionalLibraries`,
+behind the definition that says the SDK is there.
 
-* `core/Registration.h` — `bindCore`, `bindCoreCompute`, `bindCoreValues`,
-  `bindOptionalLibraries`, `bindRecordProtocol`
-* `skia/Registration.h` — `bindValues`, `bindSkiaEffects`, `bindSkiaFonts`,
-  `bindSkiaPaths`, `bindSkiaSurfaces`
+* `core/Registration.h` — `bindCore`, `bindOptionalLibraries`,
+  `bindRecordProtocol`
+* `skia/Registration.h` — `bindValues`
 * `media/Registration.h` — `bindMediaImages`, `bindMediaVideo`
 * `material/Registration.h` — `bindColor`, `bindMaterial`,
   `bindMaterialCore`, `bindMaterialEnvironment`, `bindMaterialField`,
   `bindMaterialPaintEffect`, `bindMaterialPattern`, `bindMaterialShader`,
-  `bindMaterialShading`,
-  `bindMaterialSubstance`, `bindMaterialTexture`,
-  `bindMaterialTextureSets`
-* `geometry/Registration.h` — `bindGeometry`, `bindGeometryCharts`,
-  `bindGeometryDeviceHandle`, `bindGeometryFrames`, `bindGeometryMesh`,
-  `bindGeometryMeshCamera`, `bindGeometryMeshCodec`,
-  `bindGeometryMeshCurve`, `bindGeometryMeshPoints`,
-  `bindGeometryPathEditing`,
+  `bindMaterialSubstance`, `bindMaterialTexture`
+* `geometry/Registration.h` — `bindGeometry`, `bindGeometryMesh`,
+  `bindGeometryMeshCamera`, `bindGeometryMeshCurve`,
   `bindGeometryPathOperations`, `bindGeometryPointBuilder`,
-  `bindGeometryPointKernels`, `bindGeometryPointOperations`,
-  `bindGeometryPolylines`, `bindGeometryProfiles`, `bindGeometryRegions`,
-  `bindGeometrySeams`, `bindGeometryShapes`, `bindGeometrySolids`,
-  `bindGeometryStructures`
+  `bindGeometryProfiles`, `bindGeometryShapes`, `bindGeometrySolids`
 * `motion/Registration.h` — `bindMotion`, `bindMotionAnimatableForms`,
-  `bindMotionClock`, `bindMotionLanes`, `bindMotionParticles`,
-  `bindMotionPhysics`, `bindMotionSchedule`, `bindMotionSignals`
+  `bindMotionClock`, `bindMotionSchedule`, `bindMotionSignals`
 * `weave/Registration.h` — `bindWeave`, `bindWeaveCascade`,
-  `bindWeaveChoreography`, `bindWeaveFlows`, `bindWeaveFonts`,
-  `bindWeaveLayout`, `bindWeavePorts`, `bindWeaveSelectorUnicode`,
-  `bindWeaveShaping`, `bindWeaveTables`
-* `compose/Registration.h` — `bindCompose`, `bindComposeBrushComposites`,
-  `bindComposeBrushMarks`, `bindComposeComposer`,
-  `bindComposeDecorationPrimitives`, `bindComposeDecorationSeam`,
-  `bindComposeDerive`, `bindComposeFeed`, `bindComposeInstancing`,
-  `bindComposeKit`, `bindComposeKitAnnotations`, `bindComposeKitEras`,
-  `bindComposeKitLegibility`,
-  `bindComposeKitPixelType`,
-  `bindComposeKitRoutes`, `bindComposeKitRows`, `bindComposeKitSprites`,
-  `bindComposeKitStrokes`, `bindComposeKitTypeset`,
-  `bindComposeLines`, `bindComposeMasks`,
-  `bindComposeMediaLeaves`, `bindComposePaintPrograms`,
-  `bindComposePixelStyles`, `bindComposeSchemes`, `bindComposeSelectors`,
-  `bindComposeSheets`, `bindComposeTextEffects`,
+  `bindWeaveFonts`, `bindWeaveLayout`, `bindWeaveSelectorUnicode`,
+  `bindWeaveTables`
+* `compose/Registration.h` — `bindCompose`, `bindComposeBrushMarks`,
+  `bindComposeComposer`, `bindComposeDerive`, `bindComposeFeed`,
+  `bindComposeInstancing`, `bindComposeKit`, `bindComposeKitRows`,
+  `bindComposeMasks`, `bindComposePaintPrograms`, `bindComposeSchemes`,
+  `bindComposeSelectors`, `bindComposeTextEffects`,
   `bindComposeTextureScene`, `bindDocument`
-* `draw/Registration.h` — `bindPen`, `bindBrush`, `bindDrawCanvasSeam`,
-  `bindDrawStandalonePen`
-* `world/Registration.h` — `bindWorld`, `bindWorldDescription`,
-  `bindWorldDevice`, `bindWorldEnvironment`, `bindWorldGeometry`,
-  `bindWorldPasses`, `bindWorldPlan`, `bindWorldTargets`, `bindWorldView`
+* `draw/Registration.h` — `bindPen`, `bindBrush`, `bindDrawCanvasSeam`
+* `world/Registration.h` — `bindWorld`
 * `io/Registration.h` — `bindIO`, `bindIOFrames`
 * `data/Registration.h` — `bindData`, `bindDataConnection`
 * `measure/Registration.h` — `bindMeasure`
-* `scry/Registration.h` — `bindScry`
 
 ## World ownership
 
@@ -397,11 +375,9 @@ carry Python development includes. Executable consumers link the matching
 embedding library. A module target sets `SIGIL_PYTHON_EXTENSION` so Python
 symbols resolve from the importing interpreter instead of another libpython.
 
-Every source is named in the one CMake list, so a subject nobody has
-written yet still compiles and links: its bind function has an empty
-body until its author fills it in. A library whose SDK is a licensed
-download may be absent from a build, and then its target does not exist,
-its sources are left out, and the definition that says it is there —
+Every source is named in the one CMake list. A library whose SDK is a
+licensed download may be absent from a build, and then its target does
+not exist and the definition that says it is there —
 `SIGIL_PYTHON_HAS_SCRY` — is not defined. The module those bindings would register is then not
 registered either, so a Python process asks `importlib.util.find_spec`
 whether it is there; the package's surface table names those modules as

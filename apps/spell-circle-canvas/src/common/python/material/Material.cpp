@@ -52,6 +52,9 @@ void bindColor(py::module_& root) {
 
 void bindMaterial(py::module_& root) {
   using namespace material;
+  submodule(root, "material.sdf");
+  submodule(root, "material.ocio");
+  submodule(root, "material.slang");
   auto module = submodule(root, "material");
   py::enum_<Backface>(module, "Backface")
       .value("Visible", Backface::Visible)
@@ -185,8 +188,7 @@ void bindMaterial(py::module_& root) {
   ramp.def("at", &Ramp::at, py::arg("value"))
       .def("__call__", &Ramp::operator(), py::arg("value"))
       .def("position", &Ramp::position, py::arg("value"));
-  dither
-      .def("threshold", &Dither::threshold, py::arg("column"), py::arg("row"))
+  dither.def("threshold", &Dither::threshold, py::arg("column"), py::arg("row"))
       .def("on", &Dither::on, py::arg("value"), py::arg("column"),
            py::arg("row"))
       .def(
@@ -223,11 +225,9 @@ void bindMaterial(py::module_& root) {
   module.def("oklabOf", &material::oklabOf, py::arg("lch"));
   module.def("oklchOf", &material::oklchOf, py::arg("lab"));
   module.def("fitToSrgb", &material::fitToSrgb, py::arg("lch"));
-  module.def("srgbToLinear",
-             py::overload_cast<float>(&material::srgbToLinear),
+  module.def("srgbToLinear", py::overload_cast<float>(&material::srgbToLinear),
              py::arg("channel"));
-  module.def("linearToSrgb",
-             py::overload_cast<float>(&material::linearToSrgb),
+  module.def("linearToSrgb", py::overload_cast<float>(&material::linearToSrgb),
              py::arg("channel"));
   module.def(
       "mixLinear",
@@ -269,8 +269,7 @@ void bindMaterial(py::module_& root) {
         return mixToward(materialColor(color), materialColor(target), amount,
                          alpha);
       },
-      py::arg("color"), py::arg("target"), py::arg("amount"),
-      py::arg("alpha"));
+      py::arg("color"), py::arg("target"), py::arg("amount"), py::arg("alpha"));
   module.def(
       "deltaE",
       [](py::handle first, py::handle second) {

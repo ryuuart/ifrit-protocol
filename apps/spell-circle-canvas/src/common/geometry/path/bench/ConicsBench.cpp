@@ -6,10 +6,11 @@
  */
 
 #include <benchmark/benchmark.h>
-#include "sigilgeometry/advanced/Skia.h"
 #include <sigilgeometry/path/Conic.h>
 
 #include <cmath>
+
+#include "sigilgeometry/advanced/Skia.h"
 
 using sigil::geometry::path::Conic;
 using sigil::geometry::path::conicPath;
@@ -26,7 +27,8 @@ void BM_ConicPath(benchmark::State& state) {
   const int steps = (int)state.range(0);
   for ([[maybe_unused]] auto iteration : state)
     benchmark::DoNotOptimize(
-        toSk(conicPath(kOrbit, {.fromDeg = 0, .toDeg = 360, .steps = steps}))
+        toSk(conicPath(kOrbit,
+                       {.fromDegrees = 0, .toDegrees = 360, .steps = steps}))
             .countPoints());
   state.counters["points/s"] = benchmark::Counter(
       (double)steps + 1, benchmark::Counter::kIsIterationInvariantRate);
@@ -44,10 +46,11 @@ BENCHMARK(BM_ConicPath)
 void BM_ConicPathHeldToReach(benchmark::State& state) {
   const int steps = (int)state.range(0);
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(
-        toSk(conicPath(kEscape,
-                  {.fromDeg = -180, .toDeg = 180, .steps = steps, .reach = 700}))
-            .countPoints());
+    benchmark::DoNotOptimize(toSk(conicPath(kEscape, {.fromDegrees = -180,
+                                                      .toDegrees = 180,
+                                                      .steps = steps,
+                                                      .reach = 700}))
+                                 .countPoints());
   state.SetComplexityN(steps);
 }
 BENCHMARK(BM_ConicPathHeldToReach)

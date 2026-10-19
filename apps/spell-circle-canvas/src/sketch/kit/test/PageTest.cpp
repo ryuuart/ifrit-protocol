@@ -111,7 +111,7 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
       compose::kit::sheet({.title = "THE RULE AND THE STRANDS",
                            .subtitle = "dials · the width and the inset",
                            .footer = "a crossing is discovered",
-                           .marginX = 24,
+                           .marginHorizontal = 24,
                            .marginTop = 20,
                            .marginBottom = 16,
                            .ground = Fill::color(house.palette.ground),

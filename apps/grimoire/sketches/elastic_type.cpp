@@ -83,17 +83,18 @@
 //
 // A non-uniform scale and a shear are the one deviation an RSXform cannot
 // carry: that transform encodes a rotation, one scale and no shear at all.
-// A glyph whose composed deviation uses `scaleX`, `scaleY`, `skewXDeg` or
-// `skewYDeg` therefore leaves the shared transform array and draws under its
-// own matrix while its neighbours stay batched. Both per-letter words are a
+// A glyph whose composed deviation uses `scaleX`, `scaleY`, `skewXDegrees` or
+// `skewYDegrees` therefore leaves the shared transform array and draws under
+// its own matrix while its neighbours stay batched. Both per-letter words are a
 // whole line of such glyphs, which is the worst case for that split.
 //
 // EDIT THESE FIRST
-//   kEachMs      — start-to-start per letter. At 0 every letter keeps the
+//   kEachMilliseconds      — start-to-start per letter. At 0 every letter keeps
+//   the
 //                  one-body word's time, but each still deforms about its
 //                  own centre.
-//   kDurationMs  — one pass of the table, the library's default second.
-//   kJelloEntrySeconds — when jello answers, as seconds into the loop.
+//   kDurationMilliseconds  — one pass of the table, the library's default
+//   second. kJelloEntrySeconds — when jello answers, as seconds into the loop.
 //   kBlush       — how far a letter under full strain moves toward its
 //                  series colour, 0 to 1.
 //
@@ -157,11 +158,11 @@ constexpr float kLaneGap = 28;
 constexpr float kPlotWidth = (kCanvas.fWidth - 2 * kMargin - 2 * kLaneGap) / 3;
 constexpr float kPlotHeight = 112;
 
-constexpr float kEachMs = 62;
-constexpr float kDurationMs = 1000;
+constexpr float kEachMilliseconds = 62;
+constexpr float kDurationMilliseconds = 1000;
 /** jello answers when rubberBand's one-body word lands its first squash,
  *  the table's 30% stop. */
-constexpr float kJelloEntrySeconds = 0.3f * kDurationMs / 1000.0f;
+constexpr float kJelloEntrySeconds = 0.3f * kDurationMilliseconds / 1000.0f;
 /** One pass of both words, then a rest before the next. */
 constexpr float kLoopSeconds = 3.4f;
 constexpr float kBlush = 0.8f;
@@ -209,7 +210,8 @@ Table rubberBandTable() {
 Table jelloTable() {
   const auto shear = [](motion::Duration duration, float degrees) {
     return motion::Keyframe<GlyphModifier>{
-        .to = {.skewXDeg = degrees, .skewYDeg = degrees}, .duration = duration};
+        .to = {.skewXDegrees = degrees, .skewYDegrees = degrees},
+        .duration = duration};
   };
   return {shear(0ms, 0.0f),          shear(111ms, 0.0f),
           shear(111ms, -12.5f),      shear(111ms, 6.25f),
@@ -248,7 +250,7 @@ float widening(const GlyphModifier& stop) {
 
 /** jello pulls a letter by the size of its lean, whichever way it leans. */
 float leaning(const GlyphModifier& stop) {
-  return std::abs(stop.skewXDeg) / 12.5f;
+  return std::abs(stop.skewXDegrees) / 12.5f;
 }
 
 /** THE BLUSH: a colour table read off @p table stop for stop, so it is
@@ -296,7 +298,7 @@ GlyphModifier deviation(const TextEffect& effect, float t) {
 // Plain functions, so a binding that maps through one compares by it.
 float rubberBandScaleX(float t) { return deviation(rubberBand(), t).scaleX; }
 float rubberBandScaleY(float t) { return deviation(rubberBand(), t).scaleY; }
-float jelloShear(float t) { return deviation(jello(), t).skewXDeg; }
+float jelloShear(float t) { return deviation(jello(), t).skewXDegrees; }
 
 // ---------------------------------------------------------------------------
 // The plots: one lane of one table each.
@@ -606,7 +608,7 @@ struct ElasticType {
   /** @p value of a table over a one-body word's pass from @p startSeconds. */
   [[nodiscard]] sigil::motion::Animatable<float> oneBody(
       float (*value)(float), float startSeconds) const {
-    return motion::bind(playing(startSeconds, kDurationMs / 1000.0f),
+    return motion::bind(playing(startSeconds, kDurationMilliseconds / 1000.0f),
                         {.ease = value});
   }
 
@@ -620,14 +622,15 @@ struct ElasticType {
                                   const TextEffect& tint, float startSeconds,
                                   const Deform& deform) const {
     const sigil::motion::Tween<float> cascade{
-        .duration = std::chrono::duration<double, std::milli>(kDurationMs),
+        .duration =
+            std::chrono::duration<double, std::milli>(kDurationMilliseconds),
         .delay = sigil::motion::stagger(
-            std::chrono::duration<double, std::milli>(kEachMs))};
+            std::chrono::duration<double, std::milli>(kEachMilliseconds))};
     const sigil::motion::Animatable<float> letters = playing(
         startSeconds,
         (float)motion::timingOf(cascade).span((uint32_t)word.size()).count());
     const sigil::motion::Animatable<float> whole =
-        playing(startSeconds, kDurationMs / 1000.0f);
+        playing(startSeconds, kDurationMilliseconds / 1000.0f);
     const auto perLetter = [&] {
       return specimen(word)
           .textFx({.effect = effect, .tween = cascade, .progress = letters})
@@ -636,8 +639,8 @@ struct ElasticType {
     const auto oneBodyWord = [&] {
       return deform(specimen(word).textFx(
           {.effect = tint,
-           .tween = {.duration =
-                         std::chrono::duration<double, std::milli>(kDurationMs),
+           .tween = {.duration = std::chrono::duration<double, std::milli>(
+                         kDurationMilliseconds),
                      .delay = motion::stagger(0ms)},
            .progress = whole}));
     };
@@ -660,9 +663,9 @@ struct ElasticType {
    *  inside its texture. */
   [[nodiscard]] Element playhead(const Lane& lane) const {
     const float perUnit = -kPlotHeight / (lane.scale.high - lane.scale.low);
-    const sigil::motion::Animatable<float> across =
-        motion::bind(playing(lane.startSeconds, kDurationMs / 1000.0f),
-                     {.to = {0, kPlotWidth}});
+    const sigil::motion::Animatable<float> across = motion::bind(
+        playing(lane.startSeconds, kDurationMilliseconds / 1000.0f),
+        {.to = {0, kPlotWidth}});
     return box()
         .width(kPlotWidth)
         .height(kPlotHeight)
@@ -713,7 +716,7 @@ struct ElasticType {
                               {document::h2(
                                    kit::formatted("Per letter · each glyph on "
                                                   "its own beat, %.0f ms apart",
-                                                  kEachMs))
+                                                  kEachMilliseconds))
                                    .width(kColumnWidth),
                                document::h2("One body · the class on the "
                                             "element, as a browser runs it")

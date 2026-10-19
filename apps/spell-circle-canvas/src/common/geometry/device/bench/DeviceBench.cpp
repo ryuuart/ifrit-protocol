@@ -81,14 +81,15 @@ core::hardware::TextureHandle target(core::hardware::GpuDevice& dev) {
  *  device into a device both APIs draw on, and it is measured against a
  *  device that is already standing.
  *
- *  `bringup_ms` is the whole way in — the driver's device creation and
- *  this — for the one device every arm in this file shares, taken once
- *  and outside every timed region. Teardown is untimed. */
+ *  `bringup_milliseconds` is the whole way in — the driver's device creation
+ * and this — for the one device every arm in this file shares, taken once and
+ * outside every timed region. Teardown is untimed. */
 void BM_DeviceAdopt(benchmark::State& state) {
   std::string error;
   const measure::Stopwatch bringUp;
   Device* device = sharedDevice(&error);
-  const double bringUpMs = measure::Milliseconds(bringUp.elapsed()).count();
+  const double bringUpMilliseconds =
+      measure::Milliseconds(bringUp.elapsed()).count();
   if (!device) {
     state.SkipWithError(error);
     return;
@@ -97,7 +98,7 @@ void BM_DeviceAdopt(benchmark::State& state) {
     state.SkipWithError("the device was created but not adopted");
     return;
   }
-  state.counters["bringup_ms"] = bringUpMs;
+  state.counters["bringup_milliseconds"] = bringUpMilliseconds;
 
   for ([[maybe_unused]] auto iteration : state) {
     std::unique_ptr<core::hardware::GpuDevice> gpu =

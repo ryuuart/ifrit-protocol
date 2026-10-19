@@ -30,7 +30,7 @@ and `src/sketch/`, each of which has its own README:
 | --- | --- |
 | [SigilCore](src/common/core/README.md) | The kernels a retained runtime hosts: the reconciler, the caching proof, the hardware device seam, and the compute values a drawing is drawn from |
 | [SigilSkia](src/common/skia/README.md) | Skia Graphite on a device someone else owns |
-| [Ifrit.Qt](src/common/qt/README.md) | Reusable Qt Quick controls |
+| [Sigil.Qt](src/common/qt/README.md) | Reusable Qt Quick controls |
 | [SigilMedia](src/common/media/README.md) | Pictures, still and moving: image and animation decoding and encoding, streaming video decoding with GPU composition and MP4 encoding, distance fields and pixel differences |
 | [SigilIOPublish](src/common/io/publish/README.md) | Optional SigilIO native texture publication and subscription |
 | [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |

@@ -34,7 +34,7 @@
  * climbs.
  *
  * EDIT THESE FIRST
- * kArcSpreadDeg — how far round the arc the three flat cards spread
+ * kArcSpreadDegrees — how far round the arc the three flat cards spread
  * kRepeats — how many times the ribbon's card repeats along its length
  * kRibbonRadius — how wide the tape loop stands round the console
  */
@@ -85,7 +85,7 @@ constexpr float kTwoPi = 6.283185307179586f;
 constexpr float kCardWidth = 210.0f;
 constexpr float kCardHeight = 140.0f;
 constexpr float kArcRadius = 300.0f;
-constexpr float kArcSpreadDeg = 52.0f;
+constexpr float kArcSpreadDegrees = 52.0f;
 /** The tape loop under the console: how far out it runs, and how many
  *  times its card repeats round it. */
 constexpr float kRibbonRadius = 360.0f;
@@ -331,9 +331,10 @@ struct SceneSurfaces {
                            // its own bearing and is turned to face the
                            // middle, which is two numbers rather than a
                            // matrix.
-                           const float bearingDeg =
-                               ((float)i - 1.0f) * kArcSpreadDeg;
-                           const float bearing = bearingDeg * kTwoPi / 360.0f;
+                           const float bearingDegrees =
+                               ((float)i - 1.0f) * kArcSpreadDegrees;
+                           const float bearing =
+                               bearingDegrees * kTwoPi / 360.0f;
                            // A bearing is measured from +z and turns toward
                            // +x, so the ellipse's two components land on z
                            // and on x in that order.

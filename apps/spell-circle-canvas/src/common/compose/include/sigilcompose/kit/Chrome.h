@@ -81,7 +81,7 @@ struct BevelInner {
  *  SOFTNESS is the one thing that changes the KIND of mark: at 0 the edge
  *  is drawn on the pixel lattice, hard, which is what a toolkit that
  *  owned every pixel did; above 0 it is a blurred plane pair lit from
- *  `angleDeg`, which is what a stamped, moulded or embossed surface
+ *  `angleDegrees`, which is what a stamped, moulded or embossed surface
  *  wants. The tones and the depth mean the same thing on both sides of
  *  that line, so a look moves between them by one number. */
 struct Bevel {
@@ -105,7 +105,7 @@ struct Bevel {
   /** Px the edge is blurred over; 0 is the drawn edge. */
   float softness = 0;
   /** Where the light stands, in degrees, for a softened edge. */
-  float angleDeg = 120;
+  float angleDegrees = 120;
   std::optional<BevelInner> inner;
 
   bool operator==(const Bevel&) const = default;

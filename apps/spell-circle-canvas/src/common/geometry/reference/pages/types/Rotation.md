@@ -36,12 +36,12 @@ counterclockwise seen from the positive end of that axis.
 ## The directions it turns
 
 `sigil::geometry::path::Spherical` is a direction on the unit sphere, in
-degrees: `lonDeg` round the equator and `latDeg` up from it. Right
+degrees: `longitudeDegrees` round the equator and `latitudeDegrees` up from it. Right
 ascension and declination are these two under the sky's names;
 longitude and latitude under the ground's. Its `direction()` is the unit
 vector — `+x` at (0, 0), `+y` at (90, 0), `+z` at the north pole — and
 `Spherical::of` reads a vector of any length back for its direction
-alone, with `lonDeg` in [0, 360).
+alone, with `longitudeDegrees` in [0, 360).
 
 `sigil::geometry::path::angleBetween` is how far apart two directions
 stand, in degrees: the great-circle angle, computed from the half-chord

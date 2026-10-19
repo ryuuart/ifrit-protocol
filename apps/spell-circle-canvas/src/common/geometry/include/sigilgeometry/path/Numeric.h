@@ -25,7 +25,7 @@ inline constexpr float kTau = 2.0f * kPi;
  *  and a pen scale an angle by the same float. */
 inline constexpr float kDegToRad = core::angle::kDegToRad;
 /** Radians to degrees, the same single rounding. */
-inline constexpr float kRadToDeg = core::angle::kRadToDeg;
+inline constexpr float kRadiansToDegrees = core::angle::kRadiansToDegrees;
 
 /** Degrees → radians, as the verb that reads at a call site:
  *  `std::cos(radians(bearingInDegrees))`. */

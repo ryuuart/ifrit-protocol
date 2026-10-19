@@ -4,6 +4,7 @@
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/Extend.h>
 #include <sigilpython/geometry/Casters.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
@@ -661,6 +662,9 @@ void bindWorldKit(py::module_& kit) {
 void bindWorld(py::module_& root) {
   auto module = root.def_submodule("world");
   auto kit = module.def_submodule("kit");
+  submodule(root, "world.diligent");
+  submodule(root, "core.hardware");
+  submodule(root, "world.graph");
   bindLights(module);
   bindKinds(module);
   bindEnvironment(module, kit);

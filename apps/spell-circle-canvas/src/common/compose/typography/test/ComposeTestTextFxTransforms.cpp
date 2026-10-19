@@ -57,8 +57,7 @@ TEST(ComposeTextFx, ScrambleTakesItsCharsetInEitherSpelling) {
       sigil::core::noise::Mix64Stream utf32Stream(4242 + (uint64_t)index);
       const char32_t utf8Point = fromUtf8(glyph, t, utf8Stream).codepoint;
       const char32_t utf32Point = fromUtf32(glyph, t, utf32Stream).codepoint;
-      EXPECT_EQ(utf8Point, utf32Point)
-          << "glyph " << index << " at t = " << t;
+      EXPECT_EQ(utf8Point, utf32Point) << "glyph " << index << " at t = " << t;
       if (utf8Point != 0) churned = true;
     }
   }
@@ -102,7 +101,7 @@ TEST(ComposeTextFx, SkewAndNonUniformScaleTakeTheMatrixPath) {
   ASSERT_FALSE(rest.isEmpty()) << "the resting glyph never painted";
 
   GlyphModifier leaning;
-  leaning.skewXDeg = 30;
+  leaning.skewXDegrees = 30;
   Host sheared(200, 200);
   render(sheared, "sheared", leaning);
   const SkIRect leant = inkBounds(sheared, 200, 200);
@@ -138,7 +137,8 @@ TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
         {text(u8"HOLD", whiteStyle(36))
              .key("k")
              .textFx({.effect = std::move(decode),
-                      .tween = {.duration = 200ms, .delay = sigil::motion::stagger(40ms)}, 
+                      .tween = {.duration = 200ms,
+                                .delay = sigil::motion::stagger(40ms)},
                       .progress = progress})
              .textFx({.effect = fixed("lift", lift)})}));
     host.frame();
@@ -168,7 +168,7 @@ TEST(ComposeTextFx, SkewYShearsTheOtherAxisAndTakesTheMatrixPath) {
   // The Y counterpart, probed on the axis skewX leaves alone: an X shear
   // moves the top sideways, a Y shear pushes the right side DOWN. Reading
   // the same asymmetry on the same axis for both would pass for a `skewY`
-  // that was quietly wired to `skewXDeg`.
+  // that was quietly wired to `skewXDegrees`.
   const auto render = [&](Host& host, std::string key, GlyphModifier mod) {
     host.composer.render(box().padding(60).children(
         {text(u8"H", whiteStyle(60))
@@ -182,7 +182,7 @@ TEST(ComposeTextFx, SkewYShearsTheOtherAxisAndTakesTheMatrixPath) {
   ASSERT_FALSE(rest.isEmpty()) << "the resting glyph never painted";
 
   GlyphModifier leaning;
-  leaning.skewYDeg = 30;
+  leaning.skewYDegrees = 30;
   Host sheared(200, 200);
   render(sheared, "shearedY", leaning);
   const SkIRect leant = inkBounds(sheared, 200, 200);
@@ -273,16 +273,16 @@ void expectFastPathLineUntouched(GlyphModifier lean) {
 
 TEST(ComposeTextFx, AGlyphOnTheFastPathIsUntouchedByAMatrixNeighbour) {
   GlyphModifier leanX;
-  leanX.skewXDeg = 25;
+  leanX.skewXDegrees = 25;
   expectFastPathLineUntouched(leanX);
 }
 
 TEST(ComposeTextFx, AGlyphWithNoYShearKeepsTheFastPathBesideOneThatHasIt) {
   // The same assertion on the axis the routing condition learned LAST: a
-  // glyph whose `skewYDeg` is 0 must stay on the shared transform array
+  // glyph whose `skewYDegrees` is 0 must stay on the shared transform array
   // however its neighbours lean.
   GlyphModifier leanY;
-  leanY.skewYDeg = 25;
+  leanY.skewYDegrees = 25;
   expectFastPathLineUntouched(leanY);
 }
 
@@ -292,7 +292,7 @@ TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {
   // change what is drawn or it is a field that does nothing.
   const auto render = [](Host& host, bool continuous) {
     GlyphModifier lean;
-    lean.rotateDeg = 2.0f;
+    lean.rotateDegrees = 2.0f;
     Track track{.effect = fixed("lean2", lean)};
     track.continuous = continuous;
     host.composer.render(box().padding(20).children(

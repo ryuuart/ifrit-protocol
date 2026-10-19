@@ -5,8 +5,9 @@
  *
  * SigilCompose stroke grammar — WHERE a stroke goes and HOW a composite
  * mark is built. Spans claims runs of a boundary by arc length and the
- * `spans::` factories spell the claims; StrandPath says where one strand of a composite runs; and the resolver
- * seams are what the kernel answers a span claim through.
+ * `spans::` factories spell the claims; StrandPath says where one strand of a
+ * composite runs; and the resolver seams are what the kernel answers a span
+ * claim through.
  *
  * The path arithmetic under all of it is SigilGeometry's: the width law
  * (`geometry::path::Profile`, which a band takes as its width), the deviation
@@ -24,7 +25,6 @@
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilgeometry/path/Profile.h>
 #include <sigilgeometry/path/Shaper.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
 
@@ -122,8 +122,9 @@ class Spans {
      *  driven by another. A bound endpoint holds exactly one source
      *  pointer, and summing two live values into one number needs two. */
     motion::Animatable<float> offset = 0.0f;
-    float arm = 0.0f;          ///< Corners/Edges: px of arc length
-    float angleDeg = 30.0f;    ///< Corners/Edges: the tangent break that counts
+    float arm = 0.0f;  ///< Corners/Edges: px of arc length
+    float angleDegrees =
+        30.0f;                 ///< Corners/Edges: the tangent break that counts
     float duty = 1.0f;         ///< Every: fraction of each slot claimed
     float margin = 0.0f;       ///< Fit: px grown around the keyed content
     int count = 1, index = 0;  ///< Every/At
@@ -188,11 +189,11 @@ namespace detail {
  *  a threshold that is simply too high for the shape is the common
  *  authoring mistake and draws nothing without it. */
 std::vector<geometry::path::Contour::Corner> cornersOrWarn(
-    const geometry::path::Contour& contour, float angleDeg,
+    const geometry::path::Contour& contour, float angleDegrees,
     float minSpacing = 3.0f, float step = 2.0f);
 /** The same diagnostic for a whole path, ahead of a corner construction
  *  that reports nothing itself. */
-void warnIfNoCorners(const SkPath& path, float angleDeg);
+void warnIfNoCorners(const SkPath& path, float angleDegrees);
 }  // namespace detail
 
 /** THE SPAN FACTORIES — the WHERE half of `.stroke(where, what)` and of
@@ -238,14 +239,14 @@ Spans upTo(motion::Animatable<float> end);
 /** A window of `arm` px of arc length either side of every tangent break
  *  — the four corner L's, and the reticle bracket vocabulary. Follows any
  *  silhouette: chamfer the shape and the marks move to the chamfers.
- *  `angleDeg` is what counts as a break. A regular n-gon turns 360/n at
+ *  `angleDegrees` is what counts as a break. A regular n-gon turns 360/n at
  *  each vertex, so at the 30° default nothing above 12 sides registers a
  *  corner at all — lower the angle for rounder silhouettes. The scan
  *  warns rather than adapting the threshold for you. */
-Spans corners(float arm, float angleDeg = 30.0f);
+Spans corners(float arm, float angleDegrees = 30.0f);
 /** The complement of corners(): the runs BETWEEN the breaks, stopping
  *  `arm` px short of each — the rule with open corners. */
-Spans edges(float arm, float angleDeg = 30.0f);
+Spans edges(float arm, float angleDegrees = 30.0f);
 /** `count` equal slots around the boundary, each claiming the leading
  *  `duty` of its own slot. `duty == 1` tiles the boundary completely. */
 Spans every(int count, float duty = 1.0f);

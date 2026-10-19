@@ -509,8 +509,8 @@ struct UiParticles {
                                 .font({.size = 17})
                                 .ink(hexColor(0xf2f5fb)),
                             {.fill = Fill::color({0.03f, 0.025f, 0.06f, 0.92f}),
-                             .paddingX = 14,
-                             .paddingY = 9})
+                             .paddingHorizontal = 14,
+                             .paddingVertical = 9})
                      .absolute()
                      .left(24)
                      .top(22)

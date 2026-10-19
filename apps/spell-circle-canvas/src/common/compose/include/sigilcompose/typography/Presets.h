@@ -9,8 +9,8 @@
  * or `textFx::enter` (an effect for the combinators).
  *
  *   text(u8"ONE LINE, TWO MOVES", display)
- *       .textFx(textFx::entrance(textFx::rise(20), {.unit = weave::Unit::Word}))
- *       .textFx({.where = weave::selectors::text(u8"TWO"),
+ *       .textFx(textFx::entrance(textFx::rise(20), {.unit =
+ * weave::Unit::Word})) .textFx({.where = weave::selectors::text(u8"TWO"),
  *                .effect = textFx::waveLoop(),
  *                .progress = &phase});
  *
@@ -72,7 +72,8 @@ inline constexpr std::chrono::milliseconds kEntranceStep{30};
 /** Tumble-in: glyphs spin from `degrees` while rising and fading. */
 [[nodiscard]] inline motion::Tween<Displaced> spinIn(float degrees = 70,
                                                      float risePx = 14) {
-  return {.from = Displaced{.dy = risePx, .rotateDeg = degrees,
+  return {.from = Displaced{.dy = risePx,
+                            .rotateDegrees = degrees,
                             .fadeOver = 1.0f / 1.7f},
           .duration = kEntranceDuration,
           .delay = motion::stagger(kEntranceStep),
@@ -82,8 +83,9 @@ inline constexpr std::chrono::milliseconds kEntranceStep{30};
 /** Seeded scatter: every glyph flies in from its own random offset inside
  *  a `radiusPx` disc, with its own random lean. */
 [[nodiscard]] inline motion::Tween<Displaced> scatter(float radiusPx = 40,
-                                                      float leanDeg = 24) {
-  return {.from = Displaced{.scatterPx = radiusPx, .scatterLeanDeg = leanDeg,
+                                                      float leanDegrees = 24) {
+  return {.from = Displaced{.scatterPx = radiusPx,
+                            .scatterLeanDegrees = leanDegrees,
                             .fadeOver = 1.0f / 1.7f},
           .duration = kEntranceDuration,
           .delay = motion::stagger(kEntranceStep),

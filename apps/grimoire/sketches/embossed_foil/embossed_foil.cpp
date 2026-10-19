@@ -407,9 +407,9 @@ struct EmbossedFoil {
     gm::camera::Camera camera;
     camera.eye = {-60, 620, 1320};
     camera.target = {40, 10, -100};
-    camera.fovYDeg = 46;
-    camera.zNear = 40;
-    camera.zFar = 20000;
+    camera.fovYDegrees = 46;
+    camera.nearPlane = 40;
+    camera.farPlane = 20000;
     return camera;
   }
 

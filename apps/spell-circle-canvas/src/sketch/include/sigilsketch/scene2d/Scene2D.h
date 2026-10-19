@@ -75,7 +75,7 @@ class TextureScene;
 namespace sigil::world {
 class Frame;
 class Runtime;
-}
+}  // namespace sigil::world
 
 /** EVERY RENDERABLE THING AS ONE SKETCH: a single file, addressed by its
  *  stem, that a live host opens, a sweep photographs and a browser lists.
@@ -287,7 +287,8 @@ struct Scene2DContext {
    *  here, because "usually stable" is what makes the eventual diff
    *  mystifying.
    *
-   *      std::snprintf(buf, n, "BUILD %.2f ms", ctx.measured(buildMs)); */
+   *      std::snprintf(buf, n, "BUILD %.2f ms",
+   * ctx.measured(buildMilliseconds)); */
   [[nodiscard]] double measured(double value, double pinned = 0.0) const {
     return deterministic ? pinned : value;
   }

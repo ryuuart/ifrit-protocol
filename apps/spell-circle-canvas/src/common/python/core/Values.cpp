@@ -7,6 +7,9 @@ namespace py = pybind11;
 
 void bindCore(py::module_& module) {
   auto chance = submodule(module, "core.chance");
+  submodule(module, "core.noise");
+  submodule(module, "core.hash");
+  submodule(module, "core.intervals");
   namespace chanceNative = core::chance;
   py::enum_<chanceNative::Source>(chance, "Source")
       .value("Pcg", chanceNative::Source::Pcg)
@@ -42,7 +45,5 @@ void bindCore(py::module_& module) {
       .def("parameter", &Stream::parameter)
       .def("drawn", &Stream::drawn);
 }
-
-void bindCoreValues(py::module_&) {}
 
 }  // namespace sigil::python

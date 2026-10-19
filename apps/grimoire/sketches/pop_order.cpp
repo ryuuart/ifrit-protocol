@@ -79,7 +79,7 @@ std::vector<glm::vec3> crown(float radius, float rise, int knots) {
 }
 
 mesh::camera::Camera lookAtCrown() {
-  return {.eye = {0, 180, 1160}, .target = {0, 0, 0}, .fovYDeg = 34};
+  return {.eye = {0, 180, 1160}, .target = {0, 0, 0}, .fovYDegrees = 34};
 }
 
 /** A HARD-EDGED sprite, and it is load-bearing: a soft dot's rim is

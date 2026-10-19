@@ -25,15 +25,6 @@ void bindMotionAnimatableForms(pybind11::module_& module);
 /** Registers the Engine, its options and clock policy, the playbacks it
  *  hands back and the timeline positions on @p module. */
 void bindMotionClock(pybind11::module_& module);
-/** Registers held-motion resolution and the lane
- *  retargets on @p module. */
-void bindMotionLanes(pybind11::module_& module);
-/** Registers roughly, Attribute, Particles, EmitFrom and the Emitter on
- *  @p module. */
-void bindMotionParticles(pybind11::module_& module);
-/** Registers vec2, Points, forces, Neighbourhood, constraints and
- *  Verlet on @p module. */
-void bindMotionPhysics(pybind11::module_& module);
 /** Registers Place, stagger, cues, Staggered, Timing, Schedule and Beat
  *  on @p module. */
 void bindMotionSchedule(pybind11::module_& module);

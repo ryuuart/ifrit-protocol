@@ -483,9 +483,9 @@ Answer<values::TimingResult> SessionAgent::timing() {
     return refusal(ErrorCode_failed, "session.timing: no session is open");
   const Timing timing = session->timing();
   values::TimingResult result;
-  result.total_milliseconds = timing.totalMs;
-  result.update_milliseconds = timing.updateMs;
-  result.draw_milliseconds = timing.drawMs;
+  result.total_milliseconds = timing.totalMilliseconds;
+  result.update_milliseconds = timing.updateMilliseconds;
+  result.draw_milliseconds = timing.drawMilliseconds;
   for (const LaneCost& lane : session->lanes()) {
     values::LaneCost cost;
     cost.name = lane.name;

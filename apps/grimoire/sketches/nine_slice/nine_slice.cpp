@@ -57,7 +57,7 @@ constexpr material::Color kQuest{0.169f, 0.110f, 0.043f, 1};
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = 40;
+  look.spacing.marginHorizontal = 40;
   look.spacing.marginTop = 34;
   look.spacing.marginBottom = 22;
   look.spacing.captionGap = 7;

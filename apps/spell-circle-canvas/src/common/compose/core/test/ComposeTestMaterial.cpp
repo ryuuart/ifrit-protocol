@@ -120,10 +120,10 @@ TEST(ComposeMaterial, AFocusMovesTheHighlightWithoutMovingTheFalloff) {
 }
 
 TEST(ComposeMaterial, AConicWarnsWhenTheWindowLeavesTheCircle) {
-  // Skia's sweep CLAMPS outside [startDeg, endDeg] rather than wrapping, so
-  // a window wider than the circle — 90 to 450 degrees, the obvious
-  // way to spell a hue wheel starting at red — paints part of the ring in
-  // the first stop's flat colour with no error. The factory warns instead.
+  // Skia's sweep CLAMPS outside [startDegrees, endDegrees] rather than
+  // wrapping, so a window wider than the circle — 90 to 450 degrees, the
+  // obvious way to spell a hue wheel starting at red — paints part of the ring
+  // in the first stop's flat colour with no error. The factory warns instead.
   //
   // Control first (a legal window must stay silent), then the trap arm. The
   // warning fires once per process, so this must be the only place that

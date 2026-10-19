@@ -260,10 +260,10 @@ struct StruckMetal {
     gm::camera::Camera eye;
     eye.eye = {140, 410, 1550};
     eye.target = {0, 10, 0};
-    eye.fovYDeg = 42;
-    eye.zNear = bounded(kControls.nearPlane, 1, 1400, 40);
-    eye.zFar =
-        std::max(eye.zNear + 100, bounded(kControls.farPlane, 100, 7000, 3500));
+    eye.fovYDegrees = 42;
+    eye.nearPlane = bounded(kControls.nearPlane, 1, 1400, 40);
+    eye.farPlane = std::max(eye.nearPlane + 100,
+                            bounded(kControls.farPlane, 100, 7000, 3500));
     return eye;
   }
 
@@ -450,7 +450,7 @@ struct StruckMetal {
 
   world::Mesh overlay(const gm::camera::Camera& eye) const {
     const auto forward = glm::normalize(eye.target - eye.eye);
-    const float distance = eye.zNear + 4;
+    const float distance = eye.nearPlane + 4;
     const auto extent = eye.extentAt(distance, float(kWidth) / kHeight);
     // The sheet writes no depth, so the register shows through where it
     // is clear.

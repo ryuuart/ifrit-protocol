@@ -64,6 +64,7 @@ std::optional<motion::Animatable<float>> optionalAnimatable(py::handle value) {
 
 void bindMaterialTexture(py::module_& module) {
   auto materials = submodule(module, "material");
+  submodule(module, "material.texture");
   const auto fluent = py::return_value_policy::reference_internal;
 
   py::enum_<material::Sampling>(materials, "Sampling")

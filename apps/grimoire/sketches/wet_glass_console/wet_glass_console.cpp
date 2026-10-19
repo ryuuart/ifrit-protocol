@@ -382,9 +382,9 @@ gm::camera::Camera lens() {
   gm::camera::Camera camera;
   camera.eye = {-380, 300, 1960};
   camera.target = {-60, 10, 0};
-  camera.fovYDeg = 28.5f;
-  camera.zNear = 80;
-  camera.zFar = 8000;
+  camera.fovYDegrees = 28.5f;
+  camera.nearPlane = 80;
+  camera.farPlane = 8000;
   return camera;
 }
 

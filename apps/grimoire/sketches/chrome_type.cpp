@@ -102,7 +102,7 @@ sketch::kit::Theme sheetTheme() {
   look.type.footer = {.size = 11, .track = 0.2f};
   look.type.captionLabel = {.size = 10.5f, .track = 1.0f};
   look.type.captionNote = {.size = 10.5f, .track = 0.2f};
-  look.spacing.marginX = kMargin;
+  look.spacing.marginHorizontal = kMargin;
   look.spacing.marginTop = kMargin - 26;
   look.spacing.marginBottom = 30;
   look.spacing.captionGap = 8;

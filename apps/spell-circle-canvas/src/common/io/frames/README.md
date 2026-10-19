@@ -108,7 +108,7 @@ later receive that image without another render. Hosts decide when another
 frame is needed. The publication library does not poll for subscribers or
 request busy rendering to make a static image discoverable.
 
-Qt hosts use the adapter in Ifrit.Qt, which unwraps the current QRhi backend,
+Qt hosts use the adapter in Sigil.Qt, which unwraps the current QRhi backend,
 texture and command buffer. AppKit hosts use this native seam directly. Both
 reach the same protocol implementation.
 

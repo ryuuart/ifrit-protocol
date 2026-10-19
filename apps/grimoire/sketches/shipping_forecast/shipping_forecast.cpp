@@ -704,12 +704,12 @@ struct ShippingForecast {
         weave::selectors::each(weave::Unit::Word).take(1);
     const weave::Selector figures = weave::selectors::regex(u8"[0-9]+");
     const auto words = [&](const weave::Selector& where, TextEffect effect,
-                           float durationMs, float from, float to) {
+                           float durationMilliseconds, float from, float to) {
       return Track{
           .where = where,
           .effect = std::move(effect),
-          .tween = {.duration =
-                        std::chrono::duration<double, std::milli>(durationMs),
+          .tween = {.duration = std::chrono::duration<double, std::milli>(
+                        durationMilliseconds),
                     .delay = motion::stagger(46ms)},
           .unit = weave::Unit::Word,
           .beatsOver = beats::Text,

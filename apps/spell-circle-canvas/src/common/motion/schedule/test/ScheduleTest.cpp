@@ -9,8 +9,6 @@
  * option of a stagger participate in its own equality.
  */
 
-#include "support/StandsAlone.h"
-
 #include <gtest/gtest.h>
 #include <sigilcore/comparable/Fields.h>
 #include <sigilmotion/ease/Ease.h>
@@ -23,6 +21,8 @@
 #include <cmath>
 #include <string>
 #include <vector>
+
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion;
 using namespace std::chrono_literals;
@@ -93,9 +93,9 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(Order, OneUnitNeverSpreads) {
   // Whichever end it claims to start from, the single member opens at 0.
-  for (StaggerFrom from : {StaggerFrom::First, StaggerFrom::Center,
-                           StaggerFrom::Last, StaggerFrom::Random,
-                           StaggerFrom::Edges})
+  for (StaggerFrom from :
+       {StaggerFrom::First, StaggerFrom::Center, StaggerFrom::Last,
+        StaggerFrom::Random, StaggerFrom::Edges})
     EXPECT_EQ(orderOf(from, 1), (std::vector<float>{0}));
 }
 
@@ -108,7 +108,8 @@ TEST(Order, TheScatterIsAPermutationAndIsRepeatable) {
 }
 
 TEST(Order, ASeedDealsAnIndependentScatter) {
-  EXPECT_NE(orderOf(StaggerFrom::Random, 8, 1), orderOf(StaggerFrom::Random, 8));
+  EXPECT_NE(orderOf(StaggerFrom::Random, 8, 1),
+            orderOf(StaggerFrom::Random, 8));
   EXPECT_NE(orderOf(StaggerFrom::Random, 8, 1),
             orderOf(StaggerFrom::Random, 8, 2));
 }
@@ -182,9 +183,10 @@ TEST(Stagger, AGridMeasuresEachChildsDistanceAcrossIt) {
   EXPECT_NEAR(milliseconds(ripple.at({0, 9})), 10.0f * std::sqrt(2.0f), 1e-3f);
 
   // Along one axis, only that axis's distance counts.
-  const Staggered<Duration> columns = stagger(
-      10ms,
-      {.from = StaggerFrom::Center, .grid = {3, 3}, .axis = StaggerAxis::Columns});
+  const Staggered<Duration> columns =
+      stagger(10ms, {.from = StaggerFrom::Center,
+                     .grid = {3, 3},
+                     .axis = StaggerAxis::Columns});
   EXPECT_NEAR(milliseconds(columns.at({0, 9})), 10.0f, 1e-4f);
   EXPECT_NEAR(milliseconds(columns.at({1, 9})), 0.0f, 1e-4f);
   EXPECT_NEAR(milliseconds(columns.at({7, 9})), 0.0f, 1e-4f);
@@ -265,7 +267,8 @@ TEST(Stagger, EveryOptionParticipatesInEquality) {
     (([&] {
        Options moved = base;
        perturb(boost::pfr::get<Field>(moved));
-       EXPECT_FALSE(base == moved) << "option " << kNames[Field] << " is unread";
+       EXPECT_FALSE(base == moved)
+           << "option " << kNames[Field] << " is unread";
      }()),
      ...);
   }(std::make_index_sequence<sigil::core::kFieldCount<Options>>{});
@@ -279,7 +282,7 @@ TEST(Schedule, EachUnitOpensOneStepAfterTheOneBeforeIt) {
   const Schedule schedule(timing, 4);
   EXPECT_FLOAT_EQ(milliseconds(schedule.start(0)), 0.0f);
   EXPECT_FLOAT_EQ(milliseconds(schedule.start(3)), 300.0f);
-  EXPECT_FLOAT_EQ(schedule.totalMs, 700.0f);
+  EXPECT_FLOAT_EQ(schedule.totalMilliseconds, 700.0f);
   EXPECT_FLOAT_EQ(milliseconds(schedule.total()), 700.0f);
   EXPECT_FLOAT_EQ(milliseconds(timing.span(4)), 700.0f);
 }
@@ -300,7 +303,7 @@ TEST(Schedule, ACueTableStatesEveryDelay) {
                       .duration = 180ms};
   const Schedule schedule(timing, 4);
   EXPECT_FLOAT_EQ(milliseconds(schedule.start(2)), 720.0f);
-  EXPECT_FLOAT_EQ(schedule.totalMs, 1360.0f);
+  EXPECT_FLOAT_EQ(schedule.totalMilliseconds, 1360.0f);
 }
 
 TEST(Schedule, AShortCueTablePilesItsTailOnTheLastTime) {
@@ -314,7 +317,7 @@ TEST(Schedule, ANestedScheduleOwnsTheBeat) {
       .delay = stagger(200ms), .duration = 120ms, .within = stagger(30ms)};
   const Schedule schedule(timing, 3, 4);
   // The beat is the inner ladder's own extent.
-  EXPECT_FLOAT_EQ(schedule.beatMs, 120.0f + 30.0f * 3.0f);
+  EXPECT_FLOAT_EQ(schedule.beatMilliseconds, 120.0f + 30.0f * 3.0f);
   // A start compounds the two levels.
   EXPECT_FLOAT_EQ(milliseconds(schedule.start(2, 3)), 400.0f + 90.0f);
 }
@@ -328,11 +331,12 @@ TEST(Schedule, LocalProgressClampsAtBothEnds) {
 }
 
 TEST(Schedule, ALoopingScheduleSpansItsPeriodAndFoldsEveryUnit) {
-  const Timing timing{
-      .delay = stagger(100ms), .duration = 200ms, .loop = true,
-      .loopDelay = 200ms};
+  const Timing timing{.delay = stagger(100ms),
+                      .duration = 200ms,
+                      .loop = true,
+                      .loopDelay = 200ms};
   const Schedule schedule(timing, 4);
-  EXPECT_FLOAT_EQ(schedule.totalMs, 400.0f);
+  EXPECT_FLOAT_EQ(schedule.totalMilliseconds, 400.0f);
   EXPECT_FLOAT_EQ(milliseconds(timing.span(4)), 400.0f);
   // Master 0 and master 1 name the same instant of the cycle, so a
   // wrapping phase crosses its own seam with no jump.
@@ -348,14 +352,17 @@ TEST(Schedule, AnAlternatingLoopRunsEveryOtherCycleBackwards) {
   const Schedule schedule(
       {.delay = Duration{}, .duration = 200ms, .loop = true, .alternate = true},
       1);
-  EXPECT_FLOAT_EQ(schedule.totalMs, 200.0f);
+  EXPECT_FLOAT_EQ(schedule.totalMilliseconds, 200.0f);
   EXPECT_FLOAT_EQ(schedule.localProgress(0.25f, 0), 0.25f);
   // The period is one beat, 200ms: 250ms after its start a unit is 50ms
   // into its second cycle, which runs backwards.
-  const Schedule twice(
-      {.delay = stagger(200ms), .duration = 200ms, .loop = true, .alternate = true},
-      2);
-  EXPECT_FLOAT_EQ(twice.localProgress(250.0f / twice.totalMs, 0), 0.75f);
+  const Schedule twice({.delay = stagger(200ms),
+                        .duration = 200ms,
+                        .loop = true,
+                        .alternate = true},
+                       2);
+  EXPECT_FLOAT_EQ(twice.localProgress(250.0f / twice.totalMilliseconds, 0),
+                  0.75f);
 }
 
 TEST(Schedule, TheBeatReadBackAgreesWithTheTwoAccessors) {

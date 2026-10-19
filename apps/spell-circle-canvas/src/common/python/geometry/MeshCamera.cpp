@@ -190,9 +190,9 @@ void bindGeometryMeshCamera(py::module_& module) {
   cameraClass.def_readwrite("eye", &camera::Camera::eye)
       .def_readwrite("target", &camera::Camera::target)
       .def_readwrite("up", &camera::Camera::up)
-      .def_readwrite("fovYDeg", &camera::Camera::fovYDeg)
-      .def_readwrite("zNear", &camera::Camera::zNear)
-      .def_readwrite("zFar", &camera::Camera::zFar)
+      .def_readwrite("fovYDegrees", &camera::Camera::fovYDegrees)
+      .def_readwrite("nearPlane", &camera::Camera::nearPlane)
+      .def_readwrite("farPlane", &camera::Camera::farPlane)
       .def("view", &camera::Camera::view)
       .def("projection", &camera::Camera::projection, py::arg("aspect"))
       .def(
@@ -227,13 +227,13 @@ void bindGeometryMeshCamera(py::module_& module) {
   // so `Orbit()` and the orbit read off `Camera()` name the same place.
   py::class_<camera::Orbit> orbit(cameras, "Orbit");
   orbit
-      .def(py::init([](float yawDeg, float pitchDeg, float distance) {
-             return camera::Orbit{yawDeg, pitchDeg, distance};
+      .def(py::init([](float yawDegrees, float pitchDegrees, float distance) {
+             return camera::Orbit{yawDegrees, pitchDegrees, distance};
            }),
-           py::arg("yawDeg") = 0, py::arg("pitchDeg") = 0,
+           py::arg("yawDegrees") = 0, py::arg("pitchDegrees") = 0,
            py::arg("distance") = 480)
-      .def_readwrite("yawDeg", &camera::Orbit::yawDeg)
-      .def_readwrite("pitchDeg", &camera::Orbit::pitchDeg)
+      .def_readwrite("yawDegrees", &camera::Orbit::yawDegrees)
+      .def_readwrite("pitchDegrees", &camera::Orbit::pitchDegrees)
       .def_readwrite("distance", &camera::Orbit::distance)
       .def("copy", [](const camera::Orbit& value) { return value; })
       .def(
@@ -247,8 +247,8 @@ void bindGeometryMeshCamera(py::module_& module) {
   cameras.def("orbitOf", &camera::orbitOf, py::arg("camera"))
       .def("cameraAt", &camera::cameraAt, py::arg("pivot"), py::arg("orbit"));
   cameras.def("place", &camera::place, py::arg("position") = glm::vec3(0),
-              py::arg("yawDeg") = 0, py::arg("pitchDeg") = 0,
-              py::arg("rollDeg") = 0, py::arg("scale") = 1);
+              py::arg("yawDegrees") = 0, py::arg("pitchDegrees") = 0,
+              py::arg("rollDegrees") = 0, py::arg("scale") = 1);
   cameras.def("faceCamera", &camera::faceCamera, py::arg("eye"), py::arg("at"),
               py::arg("up") = glm::vec3(0, 1, 0));
 }

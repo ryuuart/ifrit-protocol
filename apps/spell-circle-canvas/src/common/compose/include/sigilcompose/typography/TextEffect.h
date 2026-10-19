@@ -104,20 +104,20 @@ struct GlyphInfo {
  *
  *  This is the type the composition algebra operates on: stacked tracks,
  *  `textFx::mix`, a `textFx::sequence` crossfade and a `textFx::tween`
- *  keyframe segment all combine GlyphModifiers the same way — dx/dy, rotateDeg,
- * skewXDeg and skewYDeg ADD; scale, scaleX, scaleY, alpha and colorMultiplier
- * MULTIPLY; colorAdd ADDS and colorScreen SCREENS, each channelwise; and the
- * two SUBSTITUTIONS, `axis` and `codepoint`, are last-one-wins. Substitutions
- * do not blend because there is no half-way glyph between two outlines: a later
- *  track that names one replaces what an earlier one named, and a
- *  `textFx::sequence` crossfade cuts them at the middle of its window rather
- *  than lerping. (An axis coordinate is the exception inside a crossfade: two
- *  phases driving the SAME axis lerp their values, because the face does have
- *  a continuum between them.) */
+ *  keyframe segment all combine GlyphModifiers the same way — dx/dy,
+ * rotateDegrees, skewXDegrees and skewYDegrees ADD; scale, scaleX, scaleY,
+ * alpha and colorMultiplier MULTIPLY; colorAdd ADDS and colorScreen SCREENS,
+ * each channelwise; and the two SUBSTITUTIONS, `axis` and `codepoint`, are
+ * last-one-wins. Substitutions do not blend because there is no half-way glyph
+ * between two outlines: a later track that names one replaces what an earlier
+ * one named, and a `textFx::sequence` crossfade cuts them at the middle of its
+ * window rather than lerping. (An axis coordinate is the exception inside a
+ * crossfade: two phases driving the SAME axis lerp their values, because the
+ * face does have a continuum between them.) */
 struct GlyphModifier {
   float dx = 0, dy = 0;
   float scale = 1;  ///< uniform; multiplies scaleX and scaleY below
-  float rotateDeg = 0;
+  float rotateDegrees = 0;
   float alpha = 1;
   /** A per-channel multiplier over EVERY pass the glyph's style draws. A
    *  pass painting a flat colour multiplies it; a pass painting a shader
@@ -155,13 +155,13 @@ struct GlyphModifier {
    *  transform array.
    *
    *  The two angles read as `Element::skewX` and `Element::skewY` do:
-   *  positive `skewXDeg` leans the top toward −x, positive `skewYDeg`
+   *  positive `skewXDegrees` leans the top toward −x, positive `skewYDegrees`
    *  pushes the right side toward +y, and a glyph naming both takes CSS's
    *  `skewX(x) skewY(y)`: the x shear, then the y shear inside it, which
    *  widens the glyph by the product of the two tangents as a browser's
    *  transform list does. */
   float scaleX = 1, scaleY = 1;
-  float skewXDeg = 0, skewYDeg = 0;
+  float skewXDegrees = 0, skewYDegrees = 0;
   /** A variable-font axis coordinate, applied at DRAW time by swapping the
    *  glyph's face for a varied clone. The shaped positions are reused as
    *  they are, so this is sound only for an ADVANCE-INVARIANT axis: the

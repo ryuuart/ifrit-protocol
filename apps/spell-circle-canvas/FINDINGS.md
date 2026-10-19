@@ -189,3 +189,19 @@ python_mesh_observatory lost its grid backdrop when it became a scene3d
 sketch. A frame should take a backdrop picture under the scene. A test
 should assert a frame's backdrop shows where no body covers it.
 
+## A texture-scene door case is order-sensitive under a parallel run
+
+`Scene3DDoors.PaintsATextureSceneOntoABody` (gpu) fails inside
+`ctest -j8` and passes alone, so a device case is reading something
+another process on the same device changes. A GPU case should pass
+alongside the other gpu-labelled suites; the test should name what it
+shares and isolate it, or the suite should carry a resource lock.
+
+## Three blocks of the animated console guide are not excerpts of its sketch
+
+`docs/guides/animated-console-python.md` holds three code blocks whose
+lines the sketch it names does not contain, while every guide's blocks
+are meant to be verbatim excerpts; a check should assert that every
+guide code block's lines appear in the sketch the guide names, and the
+three blocks should be re-cut from `wardnet_console.py`.
+

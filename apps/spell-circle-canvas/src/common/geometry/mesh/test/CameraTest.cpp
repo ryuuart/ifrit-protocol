@@ -98,7 +98,7 @@ TEST(Camera, ReadsACameraBackAsTheOrbitThatMakesIt) {
   camera::Camera lens;
   lens.eye = {180, 120, -260};
   lens.target = {10, 30, 5};
-  lens.fovYDeg = 32;
+  lens.fovYDegrees = 32;
   const camera::Orbit orbit = camera::orbitOf(lens);
   EXPECT_NEAR(orbit.distance, glm::length(lens.eye - lens.target), 1e-3f);
   const camera::Camera back = camera::cameraAt(lens, orbit);
@@ -108,7 +108,7 @@ TEST(Camera, ReadsACameraBackAsTheOrbitThatMakesIt) {
   // Everything but where the eye stands is the pivot's own.
   EXPECT_EQ(back.target, lens.target);
   EXPECT_EQ(back.up, lens.up);
-  EXPECT_FLOAT_EQ(back.fovYDeg, lens.fovYDeg);
+  EXPECT_FLOAT_EQ(back.fovYDegrees, lens.fovYDegrees);
 }
 
 // An eye standing on its target names no direction, so there is no orbit
@@ -118,8 +118,8 @@ TEST(Camera, ReportsNoOrbitWhereTheEyeStandsOnItsTarget) {
   lens.eye = lens.target = {4, 5, 6};
   const camera::Orbit orbit = camera::orbitOf(lens);
   EXPECT_FLOAT_EQ(orbit.distance, 0.0f);
-  EXPECT_FLOAT_EQ(orbit.yawDeg, 0.0f);
-  EXPECT_FLOAT_EQ(orbit.pitchDeg, 0.0f);
+  EXPECT_FLOAT_EQ(orbit.yawDegrees, 0.0f);
+  EXPECT_FLOAT_EQ(orbit.pitchDegrees, 0.0f);
 }
 
 // CLIP SPACE IS NOT PIXELS. viewProjection() ends with the viewport step
@@ -153,8 +153,8 @@ TEST(Camera, ProjectsDepthTheDeviceWayRound) {
   camera::Camera cam;
   cam.eye = {0, 0, 100};
   cam.target = {0, 0, 0};
-  cam.zNear = 4;
-  cam.zFar = 1000;
+  cam.nearPlane = 4;
+  cam.farPlane = 1000;
   const glm::mat4 clip = cam.clipProjection({800, 600});
   const glm::vec4 near = clip * glm::vec4{0, 0, 50, 1};
   const glm::vec4 far = clip * glm::vec4{0, 0, -400, 1};
@@ -175,7 +175,8 @@ TEST(Camera, TheFrustumExtentIsWhatFillsTheFrameAtThatDistance) {
   camera::Camera cam;
   cam.eye = {0, 0, 0};
   cam.target = {0, 0, -1};
-  cam.fovYDeg = 90.0f;  // half-angle 45 degrees: the height is twice the run
+  cam.fovYDegrees =
+      90.0f;  // half-angle 45 degrees: the height is twice the run
   const glm::vec2 at100 = cam.extentAt(100.0f, 2.0f);
   EXPECT_NEAR(at100.y, 202.0f, 1e-2f);
   EXPECT_NEAR(at100.x, 404.0f, 1e-2f);  // the aspect is the width's
@@ -237,11 +238,11 @@ TEST(Camera, ACameraIsAValueAndAnOrbitMovesOnlyTheEye) {
   camera::Camera cam;
   cam.eye = {40, 25, 300};
   cam.target = {0, 10, 0};
-  cam.fovYDeg = 55;
+  cam.fovYDegrees = 55;
 
   camera::Camera same = cam;
   EXPECT_EQ(cam, same);
-  same.zFar = cam.zFar + 1;
+  same.farPlane = cam.farPlane + 1;
   EXPECT_NE(cam, same);
 
   // Moving a camera onto an orbit takes hold of the one it was given: the
@@ -255,7 +256,7 @@ TEST(Camera, ACameraIsAValueAndAnOrbitMovesOnlyTheEye) {
   const camera::Orbit orbit{30, -10, 400};
   camera::Orbit turned = orbit;
   EXPECT_EQ(orbit, turned);
-  turned.yawDeg += 1;
+  turned.yawDegrees += 1;
   EXPECT_NE(orbit, turned);
 }
 
@@ -266,7 +267,7 @@ TEST(Camera, AProjectedPointAndAnExtentKeepTheirExactValues) {
   camera::Camera cam;
   cam.eye = {30, -20, 250};
   cam.target = {5, 10, -40};
-  cam.fovYDeg = 52;
+  cam.fovYDegrees = 52;
   const std::optional<glm::vec2> point =
       cam.project({40, 25, -60}, glm::vec2{800, 600});
   ASSERT_TRUE(point.has_value());

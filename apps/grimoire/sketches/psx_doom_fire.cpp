@@ -163,15 +163,17 @@ material::Color fade(material::Color c, float a) {
   return {c.r, c.g, c.b, c.a * a};
 }
 
-/** A PART'S ENTRANCE, as time arithmetic: 0 before @p delayMs, 1 after
- *  @p delayMs + @p durationMs, and the curve between. What a described
- *  tree spells as `sigil::motion::animate({.from = 0, .to = 1, .duration =
- * duration, .ease = delay})` is this in a loop, because a loop has the clock in
- * its hand. */
-float cue(double ms, float delayMs, float durationMs,
+/** A PART'S ENTRANCE, as time arithmetic: 0 before @p delayMilliseconds, 1
+ * after
+ *  @p delayMilliseconds + @p durationMilliseconds, and the curve between. What
+ * a described tree spells as `sigil::motion::animate({.from = 0, .to = 1,
+ * .duration = duration, .ease = delay})` is this in a loop, because a loop has
+ * the clock in its hand. */
+float cue(double ms, float delayMilliseconds, float durationMilliseconds,
           const motion::Easing& ease = nullptr) {
   const float u = std::clamp(
-      (float)((ms - (double)delayMs) / (double)durationMs), 0.0f, 1.0f);
+      (float)((ms - (double)delayMilliseconds) / (double)durationMilliseconds),
+      0.0f, 1.0f);
   return ease ? ease(u) : u;
 }
 
@@ -214,7 +216,7 @@ struct PsxDoomFire {
   // The palette strip's entrance ladder, resolved once: 37 swatches on a
   // 12 ms spread, read back per swatch instead of restated as i·12.
   motion::Schedule swatchCascade;
-  static constexpr float kSwatchSpanMs = 220.0f + 12.0f * 36.0f;
+  static constexpr float kSwatchSpanMilliseconds = 220.0f + 12.0f * 36.0f;
 
   // =========================================================================
   // The algorithm, verbatim.
@@ -494,7 +496,8 @@ struct PsxDoomFire {
   }
 
   void paletteStrip(Pen& pen, double ms) {
-    const float master = std::clamp((float)ms / kSwatchSpanMs, 0.0f, 1.0f);
+    const float master =
+        std::clamp((float)ms / kSwatchSpanMilliseconds, 0.0f, 1.0f);
     pen.noStroke();
     for (int i = 0; i < kPaletteSize; ++i) {
       const float u = swatchCascade.localProgress(master, (uint32_t)i, 0);

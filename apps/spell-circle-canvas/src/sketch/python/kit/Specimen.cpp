@@ -105,7 +105,7 @@ void bindTheme(py::module_& module) {
 
   auto spacing = record<sketchKit::Spacing>(module, "Spacing");
 #define SPACING(name) field(spacing, #name, &sketchKit::Spacing::name)
-  SPACING(marginX);
+  SPACING(marginHorizontal);
   SPACING(marginTop);
   SPACING(marginBottom);
   SPACING(subtitleGap);
@@ -222,7 +222,7 @@ void bindSpecimens(py::module_& module) {
   auto relief = record<sketchKit::Well::Relief>(module, "Relief");
   field(relief, "depth", &sketchKit::Well::Relief::depth);
   field(relief, "blur", &sketchKit::Well::Relief::blur);
-  field(relief, "angleDeg", &sketchKit::Well::Relief::angleDeg);
+  field(relief, "angleDegrees", &sketchKit::Well::Relief::angleDegrees);
   field(relief, "light", &sketchKit::Well::Relief::light);
   field(relief, "shade", &sketchKit::Well::Relief::shade);
   auto well = record<sketchKit::Well>(module, "Well");

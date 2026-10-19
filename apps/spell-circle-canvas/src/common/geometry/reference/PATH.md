@@ -354,7 +354,7 @@ in no header.
   periapsis, so the same angle means the same place on any of them.
   `radiusAt()`, `at()`, `alongAt()` (the direction of travel, which is
   square to the radius on a circle and on nothing else), `outwardAt()` and
-  `asymptoteDeg()` (the direction an open branch runs off along).
+  `asymptoteDegrees()` (the direction an open branch runs off along).
   `conicPath(conic, span)` samples a span of it, closing only when a
   closed conic goes the whole way round, and `ConicSpan::reach` BREAKS the
   contour where the curve leaves what is near enough to draw, since a path
@@ -460,7 +460,7 @@ in no header.
 
   **`roundCorners(path, radius, CornerOptions)`** is Skia's corner effect
   with nothing set, and with any dial set it is the walk that effect
-  cannot do: `minTurnDeg` leaves the shallow corners alone, `outwardOnly`
+  cannot do: `minTurnDegrees` leaves the shallow corners alone, `outwardOnly`
   reads the contour's own winding and leaves the reflex ones alone, and
   `visual` scales each radius by its corner's angle so every arc stands
   the same distance out from the vertex it replaced — an acute corner
@@ -570,7 +570,7 @@ in no header.
   are, applied to a point with the call operator, and `inverse()`.
 - **`path/Projection.h`** — the SPHERE laid onto a plane, and the rotation
   that turns the sphere before it is laid. `Spherical` is a direction in
-  degrees (`lonDeg`, `latDeg` — right ascension and declination under the
+  degrees (`longitudeDegrees`, `latitudeDegrees` — right ascension and declination under the
   sky's names) with `direction()` and `of()` between it and a unit vector,
   `angleBetween()` for how far apart two of them stand and `offsetFrom()`
   for the great-circle step a spherical construction is made of — the
@@ -578,7 +578,7 @@ in no header.
   is. `Projection` is the map: a `Scheme` (`Stereographic`,
   `Orthographic`, `AzimuthalEquidistant`, `Gnomonic`, `Equirectangular`,
   `Mercator`),
-  a `centre`, a `scale`, a `rollDeg` and a `Vantage`, with `at()` out,
+  a `centre`, a `scale`, a `rollDegrees` and a `Vantage`, with `at()` out,
   `from()` home, `angleFrom()` to cull by, and `radiusAt()`/`arcAtRadius()`
   for the law itself — the RADIUS on an azimuthal map, where the map is
   round and the law holds at every bearing, and the ORDINATE on a

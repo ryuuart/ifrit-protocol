@@ -93,9 +93,11 @@ struct Anchored {
  *  the sweep crosses. Exact rather than measured off a path, because it is
  *  read at describe time to shape the wedge and at layout to place it, and
  *  the two must agree. */
-SkRect sectorBounds(double startDeg, double sweepDeg, double innerRatio) {
-  const double from = sweepDeg >= 0 ? startDeg : startDeg + sweepDeg;
-  const double to = from + std::abs(sweepDeg);
+SkRect sectorBounds(double startDegrees, double sweepDegrees,
+                    double innerRatio) {
+  const double from =
+      sweepDegrees >= 0 ? startDegrees : startDegrees + sweepDegrees;
+  const double to = from + std::abs(sweepDegrees);
   const auto at = [](double deg, double r) {
     return SkPoint{(float)(r * std::cos(radians(deg))),
                    (float)(r * std::sin(radians(deg)))};

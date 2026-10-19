@@ -220,7 +220,7 @@ TEST(ComposeLayouts, RadialFacingTurnsEachChildAlongItsRadius) {
           .width(200)
           .height(200)
           .operators({layouts::Radial{
-              .radiusFraction = 0.5f, .startDeg = 0.0f, .facing = true}})
+              .radiusFraction = 0.5f, .startDegrees = 0.0f, .facing = true}})
           .children({box().key("bar").width(6).height(40).fill(red())}));
   host.frame();
   auto rect = host.composer.bounds("bar");

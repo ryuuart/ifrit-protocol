@@ -95,7 +95,7 @@ void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
   const float slitH = kSlitHIn * S;  // 4 ft of the 6 ft plate [NO] vs [C85]
   pen.push();
   pen.translate(plateX, plateCY);
-  pen.rotate(plateDeg * 0.4f);
+  pen.rotate(plateDegrees * 0.4f);
   pen.fill(kSolid);
   pen.stroke(kAmber);
   pen.strokeWeight(1.0f);
@@ -407,7 +407,8 @@ void SlitScan2001::setup(sketch::Scene2DContext& ctx) {
     strips[2] = bakeStrip(artCircuit(gridPat, spekPat), *ctx.fonts, (int)kCellW,
                           (int)kCellH, 0.42f, 903);
   }
-  bakeMs = ctx.measured(((double)std::clock() / CLOCKS_PER_SEC - b0) * 1000.0);
+  bakeMilliseconds =
+      ctx.measured(((double)std::clock() / CLOCKS_PER_SEC - b0) * 1000.0);
 
   // ---- ONE atlas, THREE cells, ONE bake: one cell per artwork strip, and
   // nothing else. The crawl across a strip is addressed per stamp through
@@ -472,7 +473,7 @@ void SlitScan2001::setup(sketch::Scene2DContext& ctx) {
       [this] {
         ++filmNo;
         artOffset = std::fmod(artOffset + kAdvanceIn / kPanelIn, 1.0f);
-        plateDeg += shotAt(shotFor(filmNo)).dPhi;
+        plateDegrees += shotAt(shotFor(filmNo)).dPhi;
         return true;
       },
       {.stepRate = 24.0, .catchUp = 8});

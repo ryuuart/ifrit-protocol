@@ -28,13 +28,13 @@ struct LaneCost {
 };
 
 /** How a frame split at the seam the performance question always asks
- *  about first: `updateMs` is everything the sketch's own body did,
- *  `drawMs` is what its runtime then did with what the body described,
- *  and `totalMs` is both. */
+ *  about first: `updateMilliseconds` is everything the sketch's own body did,
+ *  `drawMilliseconds` is what its runtime then did with what the body
+ * described, and `totalMilliseconds` is both. */
 struct Timing {
-  double totalMs = 0;
-  double updateMs = 0;
-  double drawMs = 0;
+  double totalMilliseconds = 0;
+  double updateMilliseconds = 0;
+  double drawMilliseconds = 0;
 };
 
 /** ONE RUNNING SKETCH — a body, the runtime it draws through, and the
@@ -173,9 +173,9 @@ class Session {
 
   /** Move it: yaw and pitch in degrees about the scene's centre, and a
    *  distance from it. A runtime with no viewpoint ignores it. */
-  virtual void viewpoint(float yawDeg, float pitchDeg, float distance) {
-    (void)yawDeg;
-    (void)pitchDeg;
+  virtual void viewpoint(float yawDegrees, float pitchDegrees, float distance) {
+    (void)yawDegrees;
+    (void)pitchDegrees;
     (void)distance;
   }
 

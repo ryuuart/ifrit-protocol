@@ -167,7 +167,7 @@ const Theme& studyTheme() {
     sheet.type.footer = {.size = 11, .track = 0};
     sheet.type.captionLabel = {.size = 11, .track = 0.5f};
     sheet.type.captionNote = {.size = 11, .track = 0};
-    sheet.spacing.marginX = 40;
+    sheet.spacing.marginHorizontal = 40;
     sheet.spacing.marginTop = 32;
     sheet.spacing.marginBottom = 24;
     sheet.spacing.subtitleGap = 8;

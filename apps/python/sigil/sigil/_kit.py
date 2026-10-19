@@ -31,7 +31,7 @@ def unknown(record_type, name):
     """Name the field a keyword missed, and its spelling when only the case differs.
 
     A record's fields are spelled as the native record spells them, so
-    ``padding_y`` is not a field of a record that has ``paddingY``.
+    ``padding_vertical`` is not a field of a record that has ``paddingVertical``.
     """
     message = f"unknown {record_type.__name__} property {name!r}"
     first, *rest = name.split("_")

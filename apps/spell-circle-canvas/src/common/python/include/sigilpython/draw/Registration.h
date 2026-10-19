@@ -17,9 +17,6 @@ void bindBrush(pybind11::module_& module);
 /** Registers the borrowed canvas that lets a binding in another file
  *  draw on @p module. */
 void bindDrawCanvasSeam(pybind11::module_& module);
-/** Registers a pen over a Python-owned canvas, draw.Frame,
- *  Pen.retained, and the declared pen forms on @p module. */
-void bindDrawStandalonePen(pybind11::module_& module);
 /** Registers the immediate-mode pen on @p module. */
 void bindPen(pybind11::module_& module);
 

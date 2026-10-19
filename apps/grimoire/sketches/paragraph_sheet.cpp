@@ -101,7 +101,7 @@ weave::Type label(float size = 9.0f, float track = 1.6f,
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = kMargin;
+  look.spacing.marginHorizontal = kMargin;
   look.spacing.marginTop = kMargin;
   look.spacing.marginBottom = kMargin * 0.5f;
   return look;

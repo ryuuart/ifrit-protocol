@@ -26,7 +26,7 @@ namespace sigil::core::angle {
  *  exact ratio, and an angle scaled by it drifts by that ulp. */
 inline constexpr float kDegToRad = 0.017453293f;
 /** Radians to degrees, rounded independently for the same reason. */
-inline constexpr float kRadToDeg = 57.29578f;
+inline constexpr float kRadiansToDegrees = 57.29578f;
 
 /** Degrees → radians — the constant above as the verb that reads at a
  *  call site: `std::cos(angle::radians(bearing))`.
@@ -39,6 +39,8 @@ inline constexpr float kRadToDeg = 57.29578f;
  *  rounding. */
 inline constexpr float radians(float degrees) { return degrees * kDegToRad; }
 /** Radians to degrees, through the same single rounding. */
-inline constexpr float degrees(float radians) { return radians * kRadToDeg; }
+inline constexpr float degrees(float radians) {
+  return radians * kRadiansToDegrees;
+}
 
 }  // namespace sigil::core::angle

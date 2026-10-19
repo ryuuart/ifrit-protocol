@@ -918,7 +918,7 @@ spec written onto it, unless `Well::content` states the other reading, where
 the plate is a surface of its own and holds that element at its own measure,
 ranged both ways and centred where it says nothing else — `Well::placed` making
 it a `stack` rather than a box, for the plate whose children carry their own
-rects — `Well::paddingY` where a plate is set tighter down than across, and
+rects — `Well::paddingVertical` where a plate is set tighter down than across, and
 `Well::keyline` drawn INSIDE the well's own box, because a plate that is not
 the width it was given is the one thing a fixed surface may not be —
 `kit::formatted`, the dynamically sized printf-style reading those captions

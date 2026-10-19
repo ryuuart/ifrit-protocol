@@ -98,17 +98,17 @@ struct Schedule {
    *  even ladder above. */
   std::vector<float> outerCue, innerCue;
   Easing outerDistribution, innerDistribution;
-  float outerEach = 0;   ///< ms between outer starts
-  float innerEach = 0;   ///< ms between inner starts
-  float outerStart = 0;  ///< ms added before every outer start
-  float innerStart = 0;  ///< ms added before every inner start
-  float duration = 1;    ///< ms one unit's own motion lasts
-  float beatMs = 1;      ///< ms one outer beat occupies
-  /** Ms the master progress spans: the one-shot closing span, or the loop
-   *  PERIOD when the schedule loops. */
-  float totalMs = 1;
+  float outerEach = 0;         ///< ms between outer starts
+  float innerEach = 0;         ///< ms between inner starts
+  float outerStart = 0;        ///< ms added before every outer start
+  float innerStart = 0;        ///< ms added before every inner start
+  float duration = 1;          ///< ms one unit's own motion lasts
+  float beatMilliseconds = 1;  ///< ms one outer beat occupies
+  /** Milliseconds the master progress spans: the one-shot closing span, or the
+   * loop PERIOD when the schedule loops. */
+  float totalMilliseconds = 1;
   /** The wrapping period in ms, or 0 for a one-shot schedule. */
-  float loopMs = 0;
+  float loopMilliseconds = 0;
   /** Looping, every other cycle runs backwards. */
   bool alternate = false;
 
@@ -125,7 +125,8 @@ struct Schedule {
   [[nodiscard]] Duration total() const;
   /** When this unit's beat opens, from the start of the master progress —
    *  the outer delay plus, under a nested schedule, the inner one. */
-  [[nodiscard]] Duration start(uint32_t outerUnit, uint32_t innerUnit = 0) const;
+  [[nodiscard]] Duration start(uint32_t outerUnit,
+                               uint32_t innerUnit = 0) const;
   /** The local 0→1 this unit sees at master progress @p master. Clamped at
    *  both ends for a one-shot schedule; a looping one folds the unit's
    *  elapsed time by the period first, so the answer re-opens at 0 once per
@@ -139,7 +140,8 @@ struct Schedule {
 
  private:
   /** The start in ms, the one place the schedule is arithmetic. */
-  [[nodiscard]] float startMs(uint32_t outerUnit, uint32_t innerUnit) const;
+  [[nodiscard]] float startMilliseconds(uint32_t outerUnit,
+                                        uint32_t innerUnit) const;
 };
 
 }  // namespace sigil::motion

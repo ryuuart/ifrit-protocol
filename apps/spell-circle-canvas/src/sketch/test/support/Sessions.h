@@ -122,7 +122,8 @@ TYPED_TEST_P(SessionContract, AFrameIsWhatTheBodyDidPlusWhatTheRuntimeDid) {
   // added a third number to the total could not attribute it.
   for (int i = 0; i < 6; ++i) this->step();
   const sigil::sketch::Timing timing = this->session().timing();
-  EXPECT_NEAR(timing.totalMs, timing.updateMs + timing.drawMs, 1e-6);
+  EXPECT_NEAR(timing.totalMilliseconds,
+              timing.updateMilliseconds + timing.drawMilliseconds, 1e-6);
 }
 
 TYPED_TEST_P(SessionContract, AStillIsWorthTakingAtTheOversampleItOffers) {

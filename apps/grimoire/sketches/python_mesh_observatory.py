@@ -34,7 +34,7 @@ def finish(color, *, roughness=0.3):
     )
 
 
-LENS = camera.Camera(eye=(320, 280, 680), target=(0, 0, 0), fovYDeg=39)
+LENS = camera.Camera(eye=(320, 280, 680), target=(0, 0, 0), fovYDegrees=39)
 
 
 @sketch(size=(WIDTH, HEIGHT), background="#0e1116", captureAt=0.5)
@@ -88,7 +88,7 @@ class MeshObservatory:
             .fill(self.rule),
             world.mesh(self.knot)
             .key("knot")
-            .transform(camera.place((0, 20, 0), yawDeg=20 + seconds * 12))
+            .transform(camera.place((0, 20, 0), yawDegrees=20 + seconds * 12))
             .backface(material.Backface.Visible)
             .fill(self.finishes[0]),
             world.mesh(self.vase)
@@ -97,7 +97,7 @@ class MeshObservatory:
             .fill(self.finishes[1]),
             world.mesh(self.solid)
             .key("solid")
-            .transform(camera.place((245, -35, 0), yawDeg=-seconds * 20))
+            .transform(camera.place((245, -35, 0), yawDegrees=-seconds * 20))
             .fill(self.finishes[2]),
         ).key("observatory")
         self.words.render(self.sheet, seconds)
@@ -117,7 +117,9 @@ class MeshObservatory:
         pen.text("A surface\nfrom a function.", 52, 100)
         pen.fill(look.palette.ash)
         pen.textFont(look.font(look.type.subtitle))
-        pen.text("Python describes the shape.\nThe native world gives it light.", 55, 218)
+        pen.text(
+            "Python describes the shape.\nThe native world gives it light.", 55, 218
+        )
         pen.fill(look.palette.figure)
         pen.textFont(look.font(look.type.captionLabel))
         pen.text("PARAMETRIC KNOT", 55, 315)

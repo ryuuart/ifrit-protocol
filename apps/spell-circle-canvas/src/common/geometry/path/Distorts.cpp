@@ -59,8 +59,7 @@ SkPath overSamples(const SkPath& path, float segmentPx, bool smooth,
 }  // namespace
 
 SkPath distort(const Roughen& roughen, const SkPath& path) {
-  const auto& [amplitude, segmentPx, seed, parameter, smooth, source] =
-      roughen;
+  const auto& [amplitude, segmentPx, seed, parameter, smooth, source] = roughen;
   uint64_t contourIndex = 0;
   return overSamples(path, segmentPx, smooth, [&](Sampled& samples) {
     core::chance::Stream stream = core::chance::Stream::of(
@@ -120,13 +119,13 @@ SkPath distort(const PuckerBloat& puckerBloat, const SkPath& path) {
 }
 
 SkPath distort(const Twirl& twirl, const SkPath& path) {
-  const auto& [angleDeg, segmentPx] = twirl;
+  const auto& [angleDegrees, segmentPx] = twirl;
   return overSamples(path, segmentPx, true, [&](Sampled& samples) {
     const glm::vec2 c = samples.centroid();
     float rMax = 1e-3f;
     for (const glm::vec2& p : samples.points)
       rMax = std::max(rMax, distance(p, c));
-    const float full = angleDeg * kDegToRad;
+    const float full = angleDegrees * kDegToRad;
     for (glm::vec2& p : samples.points) {
       const glm::vec2 d = p - c;
       const float r = length(d);

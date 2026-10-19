@@ -23,7 +23,7 @@
 // EDIT THESE FIRST
 //   kSide      — the grid's side in points.
 //   kRingRadius / kRingWidth — which points the lane holds.
-//   kTwistDeg  — panel 3's amount.
+//   kTwistDegrees  — panel 3's amount.
 
 // TAGS: Geometry/Points, Media/Models
 
@@ -60,14 +60,14 @@ constexpr int kSide = 28;
 constexpr float kSpacing = 14.0f;
 constexpr float kRingRadius = 120.0f;
 constexpr float kRingWidth = 34.0f;
-constexpr float kTwistDeg = 70.0f;
+constexpr float kTwistDegrees = 70.0f;
 constexpr float kPanel = 360;
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginX = 40;
+  look.spacing.marginHorizontal = 40;
   look.spacing.marginTop = 40;
   look.spacing.captionGap = 5;
   return look;
@@ -102,7 +102,7 @@ geometry::mesh::Cloud sourceGrid() {
 }
 
 geometry::mesh::camera::Camera lookDown() {
-  return {.eye = {0, 520, 620}, .target = {0, 0, 0}, .fovYDeg = 40};
+  return {.eye = {0, 520, 620}, .target = {0, 0, 0}, .fovYDegrees = 40};
 }
 
 /** THE SINK. The point stamp is baked into the program BY VALUE, once per
@@ -193,7 +193,7 @@ struct GeoGroups {
                  .cloud();
     // 3. Only the ring turns.
     twisted = geometry::mesh::pop::on(seed)
-                  .twist(kTwistDeg, {0, 1, 0}, -1, 1)
+                  .twist(kTwistDegrees, {0, 1, 0}, -1, 1)
                   .masked("ring")
                   .peak(30)
                   .masked("ring")
