@@ -115,6 +115,11 @@ add_subdirectory(plate)
 if(TARGET SigilScry)
   add_subdirectory(scry)
 endif()
+# The window a host shows a sketch in, the one part that links a window
+# system, built where the applications are.
+if(SIGIL_BUILD_APPS)
+  add_subdirectory(window)
+endif()
 
 # The sheet a sketch stands on: one theme value bound for a scope, and
 # the furniture — the stage, the page, the well, the caption — every
@@ -238,4 +243,5 @@ sigil_doc_probes(sketch
             SigilSketchSessionAgent SigilSketchTestingHarness
             SigilMaterialSubstance SigilComposeKit SigilComposeBrush
             SigilComposeTypography SigilComposeDraw SigilComposeTesting
-            SigilGeometry SigilWorldDiligent SigilWeaveKit SigilWeavePorts)
+            SigilGeometry SigilWorldDiligent SigilWeaveKit SigilWeavePorts
+            $<TARGET_NAME_IF_EXISTS:SigilSketchWindow>)

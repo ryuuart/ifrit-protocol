@@ -1486,6 +1486,57 @@ TEST(SketchPython, TheDecoratorStatesTheCaptureMomentAsCaptureAt) {
   EXPECT_EQ(session->canvas().size, SkSize::Make(40, 30));
 }
 
+/** A FILE OF FUNCTIONS IS A SKETCH: no class and no decorator, the canvas
+ *  declared by calls at the top of the file, and the tree its describe
+ *  function returns drawn at every step. */
+TEST(SketchPython,
+     AFileOfFunctionsDrawsTheTreeItDescribesOnTheCanvasItDeclares) {
+  PythonSource source("sigil_python_functions_tree");
+  source.write("entry.py",
+               "from sigil.compose import Element, box\n"
+               "from sigil.sketch.globals import *\n"
+               "size(64, 48)\n"
+               "background('#000000')\n"
+               "captureAt(0)\n"
+               "def describe(seconds: float) -> Element:\n"
+               "    colour = '#ff0000' if seconds < 0.5 else '#00ff00'\n"
+               "    return box().width(width).height(height).fill(colour)\n");
+  const sketch::Kind listed = sketch::python::source(source.entry());
+  EXPECT_EQ(listed->runtime(), "scene2d");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  EXPECT_EQ(kind->runtime(), "scene2d");
+  auto session = kind->open(fonts(), assets(), true, "functions");
+  EXPECT_EQ(session->canvas().size.width(), 64);
+  EXPECT_EQ(session->canvas().size.height(), 48);
+  const SkBitmap early = drawnFrame(*session, 64, 48, 0.1);
+  ASSERT_FALSE(early.isNull());
+  EXPECT_EQ(early.getColor(32, 24), SK_ColorRED);
+  const SkBitmap late = drawnFrame(*session, 64, 48, 0.6);
+  ASSERT_FALSE(late.isNull());
+  EXPECT_EQ(late.getColor(32, 24), SK_ColorGREEN);
+}
+
+/** A file of functions whose describe function is annotated to return a
+ *  world frame is a scene3d sketch, read so from its text before any
+ *  import and so again from the class its functions are wrapped into. */
+TEST(SketchPython,
+     AFileOfFunctionsDescribingAFrameIsKnownAsScene3DFromItsText) {
+  PythonSource source("sigil_python_functions_scene3d");
+  source.write("entry.py",
+               "from sigil import world\n"
+               "from sigil.sketch.globals import *\n"
+               "size(128, 96)\n"
+               "def describe(seconds: float) -> world.Frame:\n"
+               "    return world.Frame(world.group())\n");
+  sketch::useRuntime({});
+  const sketch::Kind listed = sketch::python::source(source.entry());
+  EXPECT_EQ(listed->runtime(), "scene3d");
+  EXPECT_TRUE(listed->needsDevice());
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  EXPECT_EQ(kind->runtime(), "scene3d");
+  EXPECT_TRUE(kind->needsDevice());
+}
+
 /** A scene3d sketch in Python: one green page worn by a card, lit by
  *  nothing it does not state, described as a function of the scene time. */
 constexpr std::string_view kScene3DSketch = R"PY(
@@ -1594,6 +1645,43 @@ TEST_F(SketchPythonBakes, AScene3DSketchDescribesAFrameTheDeviceDraws) {
   EXPECT_GT(SkColorGetG(middle), SkColorGetB(middle) + 60);
   // Off the card is the background the frame was cleared to.
   EXPECT_LT(SkColorGetG(pixels.getColor(1, 1)), 50u);
+}
+
+/** A SCENE3D SKETCH IS LENT ITS SESSION'S FONTS as a 2D sketch is: a face
+ *  the session's font context adopted is a bundled family to
+ *  `weave.fonts` handed `ctx.fonts`. */
+TEST_F(SketchPythonBakes, AScene3DContextListsItsSessionsBundledFamilies) {
+  const fs::path instruments = SIGIL_TEST_INSTRUMENT_DIR;
+  const sk_sp<SkTypeface> sans =
+      sigil::weave::ports::systemFontManager()->makeFromFile(
+          (instruments / "Sans.ttf").c_str());
+  ASSERT_NE(sans, nullptr);
+  sigil::weave::FontContext own(sigil::weave::ports::systemFontManager());
+  own.adopt(sigil::weave::fromSk(sans), "res://Sans.ttf");
+  PythonSource source("sigil_python_scene3d_fonts");
+  source.write("entry.py",
+               "import builtins\n"
+               "from sigil import weave, world\n"
+               "from sigil.sketch import sketch\n"
+               "@sketch(size=(32, 32), captureAt=0)\n"
+               "class Lettered:\n"
+               "    def setup(self, ctx):\n"
+               "        name = weave.fonts.families(ctx.fonts)[0]\n"
+               "        family = weave.fonts.family(name, ctx.fonts)\n"
+               "        builtins._sigil_scene3d_family = (name, family.bundled)\n"
+               "    def describe(self, seconds) -> world.Frame:\n"
+               "        sun = world.directionalLight((0, 0, -1)).key('sun')\n"
+               "        return world.Frame(world.group(sun).key('set'))\n");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  auto session = kind->open(own, assets(), true, "lettered");
+  const pybind11::gil_scoped_acquire lock;
+  const pybind11::module_ builtins = pybind11::module_::import("builtins");
+  const auto [name, bundled] =
+      builtins.attr("_sigil_scene3d_family")
+          .cast<std::pair<std::string, bool>>();
+  builtins.attr("__dict__").attr("pop")("_sigil_scene3d_family");
+  EXPECT_EQ(name, familyOf(sans.get()));
+  EXPECT_TRUE(bundled);
 }
 
 TEST_F(SketchPythonBakes, AScene3DContextAnswersOnlyWhileSetupRuns) {

@@ -68,6 +68,11 @@ add_custom_target(sigil_python_package
     -DDESTINATION=${SIGIL_PYTHON_DECLARATIONS}
     -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/StagePackage.cmake")
 add_dependencies(sigil_python sigil_python_package)
+# The window `sigil.live` opens, loaded by the extension the first time a
+# script opens one; built where the applications and Qt are.
+if(TARGET sigil_window)
+  add_dependencies(sigil_python sigil_window)
+endif()
 if(SIGIL_TYPING_PYTHON)
   # The declarations describe one built extension, so they are written when
   # that extension links and never live in the checkout. They land inside the
@@ -86,6 +91,10 @@ endif()
 install(TARGETS sigil_python
   LIBRARY DESTINATION . COMPONENT SigilPython
   RUNTIME DESTINATION . COMPONENT SigilPython)
+if(TARGET sigil_window)
+  install(TARGETS sigil_window
+    LIBRARY DESTINATION . COMPONENT SigilPython)
+endif()
 if(SKBUILD_STATE STREQUAL "editable")
   # The editable finder maps Python modules to their source files. Installed
   # copies take precedence over that mapping, so install only type metadata.

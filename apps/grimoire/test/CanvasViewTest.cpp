@@ -11,11 +11,11 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/window/CanvasView.h>
 
 #include <chrono>
 #include <memory>
 
-#include "../src/CanvasView.h"
 #include "Fixtures.h"
 
 namespace {

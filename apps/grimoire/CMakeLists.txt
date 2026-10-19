@@ -72,7 +72,6 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 qt_add_executable(Grimoire
   src/main.cpp
   src/Arguments.cpp src/Arguments.h
-  src/CanvasView.cpp src/CanvasView.h
   src/CatalogRowMap.cpp src/CatalogRowMap.h
   src/PythonEnvironment.cpp src/PythonEnvironment.h
   src/Workspace.cpp src/Workspace.h
@@ -178,7 +177,7 @@ if(APPLE)
                                          ${GRIMOIRE_COREFOUNDATION})
 endif()
 target_link_libraries(Grimoire PRIVATE
-  SigilSketch SigilSketchPython SigilSketches SigilSketchesPython
+  SigilSketch SigilSketchWindow SigilSketchPython SigilSketches SigilSketchesPython
   SigilSketchSessionAgent SigilProtocolEndpoint
   SigilMeasure SigilWeavePorts SigilMaterial
   SigilQt SigilQtplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
@@ -189,11 +188,11 @@ target_link_libraries(Grimoire PRIVATE
 # the browser's rows. Its fixtures are its own, under test/.
 sigil_test(grimoire_test
   SOURCES src/Arguments.cpp src/Workspace.cpp src/PipelineStore.cpp
-          src/CanvasView.cpp src/CatalogRowMap.cpp
+          src/CatalogRowMap.cpp
           test/ArgumentsTest.cpp test/WorkspaceTest.cpp
           test/PipelineStoreTest.cpp test/CanvasViewTest.cpp
           test/CatalogRowMapTest.cpp
-  LIBRARIES SigilSketch SigilWeavePorts Qt6::Core)
+  LIBRARIES SigilSketch SigilSketchWindow SigilWeavePorts Qt6::Core)
 
 # The endpoint the window and a sweep mount, under the protocol's one
 # label: host and registry answered, session and clock not mounted.
@@ -210,8 +209,8 @@ target_compile_definitions(grimoire_test PRIVATE QT_NO_KEYWORDS)
 # scene the bench declares itself, so no sketch the owner edits moves it
 # and no library pass that leaves a sketch behind stops it building.
 sigil_bench(grimoire_bench
-  SOURCES src/CanvasView.cpp bench/PaneBench.cpp
-  LIBRARIES SigilSketch SigilComposeDraw SigilWeavePorts)
+  SOURCES bench/PaneBench.cpp
+  LIBRARIES SigilSketch SigilSketchWindow SigilComposeDraw SigilWeavePorts)
 
 target_compile_definitions(Grimoire PRIVATE
   SIGIL_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}"

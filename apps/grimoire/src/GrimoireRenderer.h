@@ -10,6 +10,8 @@
 #include <sigilio/frames/Publisher.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmotion/clock/Engine.h>
+#include <sigilsketch/window/CanvasView.h>
+#include <sigilsketch/window/WindowPainter.h>
 
 #include <QtCore/QPointF>
 #include <QtCore/QSize>
@@ -22,8 +24,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
-#include "CanvasView.h"
 
 class SkCanvas;
 class SkImage;
@@ -95,7 +95,7 @@ class GrimoireRenderer final : public QQuickRhiItemRenderer {
   /** Runs the work a client sent the sketch on screen, now that a frame
    *  of it is drawn; hostMutex must be held. */
   void runSketchWork();
-  void refreshThumbnail();    // hostMutex must be held
+  void refreshThumbnail();  // hostMutex must be held
   /** Passes on the stills the writer has finished, which it reports on
    *  its own thread. The view is the render thread's to name, so the
    *  crossing to the GUI thread is made from here. */
@@ -131,25 +131,15 @@ class GrimoireRenderer final : public QQuickRhiItemRenderer {
    *  while this window is not publishing. */
   void publishFrame(QRhiTexture* texture, QRhiCommandBuffer* commandBuffer,
                     QSize pixelSize);
-  /** Routes a session's captures through this renderer's own context.
-   *  Once live frames render on the device, the runtime's caches hold
-   *  device-backed images that cannot replay onto a raster canvas, so
-   *  every session gets this as it is built rather than only the first. */
-  void installCaptureBackend(sigil::sketch::Host& host);
-  /** Hands the shared device this window's own Metal queue and context to
-   *  paint pages through, where the device paints its 2D on Metal; the
-   *  device keeps its own wherever this one cannot stand. */
-  void paintPagesThroughTheWindow(QRhi* rhi);
-  /** …and takes them back, before the context goes. */
-  void withdrawPagesFromTheWindow();
 
 #ifdef SIGIL_GRIMOIRE_GPU
-  /** THE WINDOW'S METAL DEVICE AND QUEUE, adopted, which the process's
-   *  shared device paints its pages through while this window stands, so
-   *  the pages and the window share the context below. Declared before
-   *  the context, so the context goes first. */
-  std::unique_ptr<sigil::core::hardware::GpuDevice> m_windowDevice;
-  std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
+  /** THE GRAPHITE CONTEXT ON THE WINDOW'S OWN DEVICE, the shared device
+   *  lent that device's queue to paint its pages through, and the capture
+   *  path every session presented is routed through: the library's
+   *  window painter, the same one a window opened through
+   *  `sketch::Window` draws with. Declared before the warm-up, so the
+   *  warm-up goes first. */
+  sigil::sketch::WindowPainter m_painter;
   /** THE DEVICE PROGRAMS STOOD UP BEFORE THE FIRST SKETCH DRAWS, off
    *  this thread — building one costs exactly what waiting for it
    *  would, which is the whole point of not doing it here. Kicked once
@@ -168,9 +158,6 @@ class GrimoireRenderer final : public QQuickRhiItemRenderer {
   /** Whether the session on screen has had its first frame's builds
    *  reported. */
   bool m_firstFrameCounted = true;
-  /** Kept alive for the length of a capture: the fence the still on a
-   *  device is described through. */
-  std::unique_ptr<sigil::skia::PaintOrderCanvas> m_captureCanvas;
 #endif
   /** WHAT THIS WINDOW IS OFFERING ITS FRAMES THROUGH, and whether it is
    *  offering them. The flag is the view's, read on every synchronize;
@@ -213,8 +200,8 @@ class GrimoireRenderer final : public QQuickRhiItemRenderer {
    *  the layer a frame drawn at it is magnified from, and the session it
    *  was held for — a session opened since starts from the view's
    *  scale. */
-  ZoomHold m_zoomHold;
-  PaneLayer m_paneLayer;
+  sigil::sketch::ZoomHold m_zoomHold;
+  sigil::sketch::PaneLayer m_paneLayer;
   const sigil::sketch::Session* m_heldSession = nullptr;
   /** THE DENSITY A SKETCH'S CACHED RASTERS ARE BAKED AT: the screen's,
    *  and not the viewport's. A sketch declares a canvas and this window

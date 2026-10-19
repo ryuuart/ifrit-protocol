@@ -26,6 +26,7 @@
 #include <thread>
 
 #include "../kit/Registration.h"
+#include "Held.h"
 #include "Registration.h"
 #include "Session.h"
 
@@ -173,12 +174,16 @@ struct Generation {
     callbacks.clear();
     // Remove only import entries. Existing Python references retain their
     // own objects and never observe a module dictionary being cleared.
-    py::dict modules = py::module_::import("sys").attr("modules");
-    const py::list names = modules.attr("keys")();
-    for (py::handle name : names) {
-      const std::string key = py::str(name);
-      if (key == package || key.starts_with(package + "."))
-        modules.attr("pop")(name, py::none());
+    // A body the author's interpreter handed over imported nothing of its
+    // own, and names no package.
+    if (!package.empty()) {
+      py::dict modules = py::module_::import("sys").attr("modules");
+      const py::list names = modules.attr("keys")();
+      for (py::handle name : names) {
+        const std::string key = py::str(name);
+        if (key == package || key.starts_with(package + "."))
+          modules.attr("pop")(name, py::none());
+      }
     }
     body.reset();
   }
@@ -602,17 +607,18 @@ class PythonKind final : public KindOperations, public OpensOnRuntime {
 };
 
 /** Whether the sketch written in @p source declares `needsDevice = True`
- *  on a line of its own, read from the text rather than by importing it:
- *  a listing asks every source kind before any is opened, and importing
- *  each would run every sketch's module to answer one line. A file that
- *  cannot be read declares nothing. */
+ *  on a line of its own — in its class, or at the top of a file of
+ *  functions — read from the text rather than by importing it: a listing
+ *  asks every source kind before any is opened, and importing each would
+ *  run every sketch's module to answer one line. A file that cannot be
+ *  read declares nothing. */
 bool declaresDevice(const std::filesystem::path& source) {
   std::ifstream file(source);
   std::string line;
   while (std::getline(file, line)) {
     std::string_view text = line;
     const auto first = text.find_first_not_of(" \t");
-    if (first == std::string_view::npos || first == 0) continue;
+    if (first == std::string_view::npos) continue;
     text.remove_prefix(first);
     constexpr std::string_view kName = "needsDevice";
     if (!text.starts_with(kName)) continue;
@@ -629,19 +635,20 @@ bool declaresDevice(const std::filesystem::path& source) {
 }
 
 /** Whether the sketch written in @p source describes a world frame: a
- *  method `describe` whose return annotation names `Frame` — `-> Frame`,
- *  `-> world.Frame`, quoted or not — read from the text by the rule the
- *  `@sketch` decorator applies to the class it loads, so a listing and an
- *  opened session agree on the kind without importing the file. A
- *  signature may run over several lines; it ends at the line whose text
- *  ends with its colon. A file that cannot be read describes none. */
+ *  method `describe`, or a function `describe` of a file of functions,
+ *  whose return annotation names `Frame` — `-> Frame`, `-> world.Frame`,
+ *  quoted or not — read from the text by the rule the `@sketch` decorator
+ *  applies to the class it loads, so a listing and an opened session
+ *  agree on the kind without importing the file. A signature may run over
+ *  several lines; it ends at the line whose text ends with its colon. A
+ *  file that cannot be read describes none. */
 bool describesFrame(const std::filesystem::path& source) {
   std::ifstream file(source);
   std::string line;
   while (std::getline(file, line)) {
     std::string_view text = line;
     const auto first = text.find_first_not_of(" \t");
-    if (first == std::string_view::npos || first == 0) continue;
+    if (first == std::string_view::npos) continue;
     text.remove_prefix(first);
     constexpr std::string_view kSignature = "def describe(";
     if (!text.starts_with(kSignature)) continue;
@@ -852,6 +859,17 @@ Kind load(const std::filesystem::path& source) {
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());
   }
+}
+
+Kind held(py::handle factory, bool scene3d, bool needsDevice) {
+  if (!PyCallable_Check(factory.ptr()))
+    throw std::invalid_argument(
+        "a held sketch is made by a callable that answers its body");
+  auto generation = std::make_shared<Generation>();
+  generation->body = std::make_shared<Object>(factory);
+  generation->scene3d = scene3d;
+  generation->needsDevice = needsDevice;
+  return Kind{PythonKind(std::move(generation))};
 }
 
 void stageContext(py::handle value, const kit::Stage& stage) {

@@ -89,6 +89,9 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.io": "sigil.io",
     "_sigil.io.frames": "sigil.io.frames",
     "_sigil.io.testing": "sigil.io.testing",
+    # A window in the author's own interpreter: the sketch drawn live, its
+    # objects at the prompt, the window library loaded on first open.
+    "_sigil.live": "sigil.live",
     "_sigil.material": "sigil.material",
     "_sigil.material.field": "sigil.material.field",
     "_sigil.material.ocio": "sigil.material.ocio",

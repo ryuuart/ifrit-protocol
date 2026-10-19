@@ -3,7 +3,7 @@
  * held while a zoom moves, and the pointer's gate.
  */
 
-#include "CanvasView.h"
+#include "sigilsketch/window/CanvasView.h"
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkCanvas.h>
@@ -16,13 +16,12 @@
 #include <algorithm>
 #include <cmath>
 
-namespace sketch = sigil::sketch;
+namespace sigil::sketch {
 
-sketch::Placement placeCanvas(SkSize canvas, SkSize pane,
-                              const CanvasView& view) {
+Placement placeCanvas(SkSize canvas, SkSize pane, const CanvasView& view) {
   if (!(view.scale > 0.0f))
-    return sketch::fitInto(canvas, SkRect::MakeWH(pane.width(), pane.height()));
-  sketch::Placement placement;
+    return fitInto(canvas, SkRect::MakeWH(pane.width(), pane.height()));
+  Placement placement;
   placement.scale = view.scale;
   placement.x = pane.width() * 0.5f + view.offset.x() -
                 canvas.width() * view.scale * 0.5f;
@@ -31,7 +30,7 @@ sketch::Placement placeCanvas(SkSize canvas, SkSize pane,
   return placement;
 }
 
-SkPoint canvasPointAt(const sketch::Placement& placement, SkPoint panePoint) {
+SkPoint canvasPointAt(const Placement& placement, SkPoint panePoint) {
   if (!(placement.scale > 0.0f)) return {0.0f, 0.0f};
   return {(panePoint.x() - placement.x) / placement.scale,
           (panePoint.y() - placement.y) / placement.scale};
@@ -64,7 +63,7 @@ void drawPane(SkCanvas& target, SkSize pane, SkSize canvas,
               const std::function<void(SkCanvas&)>& paint, float drawnScale,
               PaneLayer* layer) {
   target.clear(SK_ColorTRANSPARENT);
-  const sketch::Placement placement = placeCanvas(canvas, pane, view);
+  const Placement placement = placeCanvas(canvas, pane, view);
   const SkRect paneBounds = SkRect::MakeWH(pane.width(), pane.height());
   const SkRect canvasBounds = SkRect::MakeWH(canvas.width(), canvas.height());
   const auto intoCanvas = [&] {
@@ -181,3 +180,5 @@ bool PointerGate::admit(bool pressed, bool onCanvas) {
   // button is heard, and a press that is not the sketch's is not.
   return !pressed && onCanvas;
 }
+
+}  // namespace sigil::sketch

@@ -486,7 +486,10 @@ the file it is running; Details exposes the full path and can reveal it in
 the file manager. A workspace without sketches explains how to add one.
 
 Every `.py` file is a Python module. A module declaring a `@sketch` class
-is discoverable as a sketch. A file called `__init__.py` initializes an
+is discoverable as a sketch. A file of functions — `setup`, `draw` or
+`describe` defined at its top level — opens by path and joins the bundled
+catalogue; a workspace scan finds decorated classes only. A file called
+`__init__.py` initializes an
 imported package; its name alone does not make it a sketch. The same holds
 for `__main__.py` and a file named after its enclosing folder. Helper modules
 and assets are loaded by the entry. Workspace discovery reads source without
@@ -529,8 +532,9 @@ own windows and skips environment, cache and build directories.
 Bundled Python sketches appear in the Python collection and in the subject
 tree beside C++ sketches. Their module docstring supplies the description;
 `# TAGS:` lines supply subject paths. A root `.py` file or a directory
-entry `<name>/<name>.py` declaring a `@sketch` class joins the registry on
-the next build. Helpers without a declaration stay out of the catalogue. Registration
+entry `<name>/<name>.py` declaring a `@sketch` class, or defining `setup`,
+`draw` or `describe` as top-level functions, joins the registry on the
+next build. Helpers without a declaration stay out of the catalogue. Registration
 reads metadata without executing the sketch; every session imports current
 source, including thumbnail and headless sessions.
 
@@ -623,10 +627,77 @@ modules remain process-scoped. An exception during update or drawing
 stops that session until the next edit; its canvas may include drawing
 performed before the exception.
 
-### A prompt inside the running sketch
+The native developer build also places the package and extension in
+`apps/spell-circle-canvas/build/python`. That directory is for tests and development;
+the wheel is the installation artifact.
 
-`sigil repl sketch.py` is Python's interactive prompt, with each input run
-inside the sketch Grimoire is drawing, between two of its frames:
+## A window in your own interpreter
+
+`sigil.live` puts a window on screen in the interpreter that imports it.
+The sketch draws there, in the same process as the prompt, and its
+objects are ordinary variables: nothing crosses a socket and no text is
+sent anywhere.
+
+```pycon
+$ python -i sketch.py
+>>> from sigil import live
+>>> window = live.open(size=(960, 540))
+>>> hello = window.show(Hello)
+>>> hello.accent = "#ff7a6b"
+>>> window.still("hello.png")
+'hello.png'
+>>> window.close()
+```
+
+`live.open(size, background=..., title=..., assets=...)` opens the
+window. `window.show(what)` draws a compose tree on a canvas the window's
+size over `background`, runs a `@sketch` class as Grimoire runs it —
+setup, update, draw or describe, its timers, its engine and its feeds —
+or runs an instance of one as it stands; it answers the running instance,
+which stays reachable as `window.sketch`. A `draw` or `describe` is looked
+up on the class at every frame, so an attribute assigned at the prompt,
+or a method assigned on the class, is what the next frame draws.
+`window.restart()` runs setup again on the same instance, for a sketch
+whose setup builds its tree once. `window.still(path, density=1.0)` writes
+the sketch on screen as a picture. The session's hub, fonts and `ctx` are
+a Grimoire session's, so `ctx.fonts`, `weave.fonts`, bundled faces and
+feeds work unchanged; `res://` mounts `assets`.
+
+The window draws on the thread that opened it — the main thread, which
+macOS requires of a window — and only while that thread turns it. At
+`python -i`, at the prompt of `code.interact`, and at plain `python`'s
+own prompt, it turns while the prompt waits for a line: the extension
+installs Python's input hook, `PyOS_InputHook`, which the interpreter
+calls whenever it waits on input, and which handles the window's events
+and draws its frames until a line is there to read. Frames are drawn
+inside that wait, on Qt Quick's basic render loop, so a sketch's Python
+runs on the prompt's own thread and never beside a line being run. While
+a line runs, the window holds still, and it picks up where it was at the
+next prompt.
+
+Under IPython in a terminal, `live.open` registers the same wait as an
+IPython input hook named `sigil` and enables it, as `%gui` does for a
+toolkit. In a Jupyter kernel, a task on the kernel's own event loop turns
+the window between cells. A script that is not interactive calls
+`window.run()`, which turns the window until the reader closes it, or
+`window.run(seconds)`; `window.pump(seconds)` turns it once, and
+`live.pumpOpenWindows()` turns every open window once for a loop of the
+script's own.
+
+`live.open(..., headless=True)` opens no window at all: each turn steps
+the sketch on the wall's clock and `still` photographs it, which is what
+a test or a machine without a display opens. The window library and Qt are
+loaded the first time a window opens and never by an import, and an
+interpreter that cannot reach Qt is told so by `live.open`, naming what is
+missing. Grimoire shows its sketches through the same window library.
+
+### A prompt into a window elsewhere
+
+A window in another process, or an interpreter that is not the one
+drawing — a remote kernel, a Grimoire already open on a file — is reached
+through a prompt that sends its text there. `sigil repl sketch.py` is
+Python's interactive prompt, with each input run inside the sketch
+Grimoire is drawing, between two of its frames:
 
 ```sh
 uv run sigil repl sketch.py
@@ -652,11 +723,95 @@ repl sketch.py` starts its window on the file with the door open, finding
 it as `sigil open` does, and ends it on `:quit`; `--to HOST:PORT` or
 `--state DIRECTORY` names a Grimoire already running with `--repl`.
 
-The native developer build also places the package and extension in
-`apps/spell-circle-canvas/build/python`. That directory is for tests and development;
-the wheel is the installation artifact.
+## A sketch as a file of functions
+
+The shortest sketch is a file of functions, the way p5.js writes one: no
+class and no decorator.
+
+```python
+from sigil.draw import Pen
+from sigil.sketch.globals import *
+
+size(640, 360)
+
+
+def draw(pen: Pen) -> None:
+    pen.background("#121720")
+    pen.fill("#f1bb7b")
+    pen.circle(mouseX, mouseY, 48)
+```
+
+`sigil open sketch.py` opens it in a window, and `sigil render sketch.py
+-o still.png` takes its still. A file that states no `NAME` is listed
+under its stem. The loader wraps the module's functions into the class
+the `@sketch` decorator makes, so everything below about a sketch class
+holds for a file of functions, and what the file defines decides its kind
+by the same rule:
+
+| Function | Called |
+| --- | --- |
+| `setup()` | once, when the session opens; a tree it returns is rendered |
+| `draw(pen)` | every frame, with a full-canvas pen |
+| `update(elapsed)` | every step, on the session clock, before the frame |
+| `describe(seconds)` | every step, returning the tree at that scene time; annotated `-> world.Frame`, it makes a scene3d sketch |
+
+`setup`, `draw` and `update` may also take the context as their last
+argument, as the methods do. `size(width, height)`, `background(color)`,
+`captureAt(seconds)` and `theme(look)` declare the canvas, at the top of
+the file or inside `setup`; `captureAt = 2.0` as a module constant says
+the same. A declaration inside any other hook is refused, because the
+canvas is already drawing: `pen.background(...)` paints the ground there.
+
+Before each hook runs, the loader writes these readings into the sketch
+module's own namespace, so a hook reads them as plain names; `from
+sigil.sketch.globals import *` declares them for an editor and brings in
+the four declarations:
+
+| Reading | What it holds |
+| --- | --- |
+| `width`, `height` | the canvas size in canvas units |
+| `frameCount` | frames drawn since the sketch began |
+| `seconds` | scene seconds since the sketch began |
+| `deltaTime` | milliseconds the last frame took |
+| `mouseX`, `mouseY` | where the pointer stands on the canvas |
+| `mouseIsPressed` | whether the pointer's button is down |
+| `key`, `keyCode` | the name and code of the last key pressed |
+| `keyIsPressed` | whether any key is down |
+
+`mouseMoved()`, `mouseDragged()`, `mousePressed()`, `mouseReleased()`,
+`keyPressed()` and `keyReleased()`, defined at the top of the file, are
+called before `draw` when the pointer or the keyboard changed since the
+previous frame. The pointer and the keyboard are read from the pen a
+`draw` is handed, so a sketch without `draw` reads them at rest and never
+hears them. A function redefined while the sketch runs — at `sigil repl`,
+say — is the one the next frame calls, and text run there sets the sketch
+up again only where its `setup` returned a tree, so a `setup` that only
+sets state up runs once.
+
+`describe(seconds)` returning a tree is the HTML half: the page is the
+program, and the host draws it again at every step.
+
+```python
+from sigil.compose import Element, box
+from sigil.sketch import kit
+from sigil.sketch.globals import *
+
+size(480, 200)
+theme(kit.featureTheme(kit.Density.Spacious))
+
+
+def describe(seconds: float) -> Element:
+    bar = box().width(40 + 160 * min(seconds, 1.5)).height(24).fill("#8bd0bd")
+    return kit.page(bar, title="Growing")
+```
+
+A file that declares a sketch class and also defines these functions runs
+the class, and the loader warns that the functions are not its hooks.
 
 ## A drawing
+
+The class form is the second tier: one class holding the same hooks as
+methods, its canvas stated on the decorator.
 
 ```python
 from math import cos, sin
@@ -888,6 +1043,59 @@ received acknowledgements when requested:
 uv run python -m sigil.examples.tools.send_live_signals
 uv run python -m sigil.examples.tools.send_live_signals --export output/readings.json
 ```
+
+### Any Python library, on the sketch's own loop
+
+A SigilIO door is one way in; any asyncio library is another. Every
+scene2d sketch has `self.loop`, an asyncio event loop made the first time
+it is asked for and given one turn a frame on the sketch thread, before
+`update` and `describe`: the turn polls the loop's sockets without
+waiting and runs every callback that is ready. A task started on it
+resumes on the thread that runs the hooks, so it writes what it receives
+onto the sketch as ordinary attributes and the next description reads
+them, with no worker thread, queue or encoding between the library and
+the page:
+
+```python
+import asyncio
+import json
+
+from sigil.compose import text
+from sigil.sketch import Scene2DContext, sketch
+
+
+@sketch(size=(640, 120))
+class Price:
+    loop: asyncio.AbstractEventLoop  # supplied by @sketch
+
+    def setup(self, ctx: Scene2DContext) -> None:
+        self.price = "waiting"
+        if not ctx.deterministic:
+            self.loop.create_task(self.listen())
+
+    async def listen(self) -> None:
+        import websockets
+
+        uri = "wss://data-stream.binance.vision/ws/btcusdt@trade"
+        async for connection in websockets.connect(uri):
+            async for message in connection:
+                self.price = json.loads(message)["p"]
+
+    def describe(self, seconds: float):
+        return text(self.price, size=48)
+```
+
+When the session ends every task still pending is cancelled, given a
+quarter of a second to unwind, and the loop is closed. A library that
+runs a thread of its own hands each result over with
+`self.loop.call_soon_threadsafe(method, value)`, and a blocking call
+goes to `asyncio.to_thread`. A class that defines its own `loop` keeps
+it; a scene3d sketch, whose frame is a function of the scene time, has
+none. A capture never awaits the network: under `ctx.deterministic`,
+replay a recording through the same methods a task calls. The
+catalogue's `python_market_tape` sketch feeds one page from
+`websockets` and `httpx` this way and replays its recordings for a
+still.
 
 ### Publish the rendered canvas
 

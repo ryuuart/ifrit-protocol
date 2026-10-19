@@ -195,6 +195,11 @@ Preparation must retain resources used by the running session and must not
 switch its capture backend. `Host::needsDevice` reports the accepted kind's
 requirement, so a capture host can choose its backend after a successful load.
 
+`Host::Options::kind` opens a kind the caller already holds, with no file
+behind it: nothing is watched, compiled or imported, and `restartSession`
+opens the same kind again. An interpreter that shows a sketch class it
+defined itself opens its host this way.
+
 `Host::restartSession` reopens the accepted kind without compiling.
 `Host::evaluate` runs text inside the running session through
 `Session::evaluate`, on the thread that draws it and between two frames:

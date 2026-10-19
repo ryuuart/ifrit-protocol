@@ -23,6 +23,7 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/window/CanvasView.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -30,8 +31,6 @@
 #include <cmath>
 #include <memory>
 #include <vector>
-
-#include "../src/CanvasView.h"
 
 namespace {
 

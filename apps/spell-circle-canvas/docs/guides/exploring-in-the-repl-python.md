@@ -1,45 +1,36 @@
 # Explore a running sketch from a prompt, in Python
 
 Saving a file is one way to change a sketch. A prompt is the other: type
-a line, and it runs inside the sketch Grimoire is drawing, between two of
-its frames, and the window shows what it did on the next one. Nothing is
+a line, and the window shows what it did on the next frame. Nothing is
 recompiled and nothing restarts, so a value you are tuning keeps its
 place, a motion keeps its phase, and a mistake costs one traceback.
+
+The prompt is your own interpreter. `import sigil` there, open a window,
+and the sketch draws in the same process: its module's names, its
+running instance and its context are ordinary variables at the prompt.
 
 This guide opens `python_hello` — a circle swinging under a greeting —
 and, without touching the file, changes its colour, adds a card, sets the
 card moving, sets its text in another family, and takes a picture.
 
-## Open the sketch with the door open
+## Open a window in your interpreter
+
+Run the file with Python's `-i`, which runs it and then leaves you at a
+prompt among its names, and show its class in a window:
 
 ```sh
-sigil repl apps/grimoire/sketches/python_hello.py
+python -i apps/grimoire/sketches/python_hello.py
 ```
 
-With no Grimoire answering, this starts its window on the file and opens
-a prompt into it:
-
-```text
-Python inside the running sketch: its module's names, `self` and `ctx`.
-Each input runs between two frames; the window shows it on the next.
-:reload imports the file again, :still path.png takes a picture, :quit leaves.
->>>
+```pycon
+>>> from sigil import live, weave
+>>> window = live.open(size=(960, 640))
+>>> hello = window.show(Hello)
 ```
 
-The prompt speaks to Grimoire through its protocol, and the command it
-sends runs **any** code a client on this machine sends, with the
-sketch's whole reach over the machine. So Grimoire keeps that door shut
-unless it is started with `--repl`, and `sigil repl` starts it that way.
-To open the door on a window you started yourself, give it the flag and
-point the prompt at it:
-
-```sh
-Grimoire apps/grimoire/sketches/python_hello.py --repl
-sigil repl          # finds the window through its address file
-```
-
-`--to HOST:PORT` names an endpoint directly, and `--state DIRECTORY` the
-state root of a Grimoire started with `--state`.
+`window.show` runs `Hello` as Grimoire runs it and answers the running
+instance, which is also `window.sketch`. The window draws while the
+prompt waits for a line, so the circle swings between keystrokes.
 
 ## Change a colour
 
@@ -52,10 +43,11 @@ the whole change:
 >>> COLOR = "#7fd1c7"
 ```
 
-The input runs in the sketch module's own namespace: `COLOR`, `SPEED`,
-`Hello`, `kit` and `sin` are the file's names, `self` is the running
-`Hello`, and `ctx` the context its hooks are handed. An expression prints
-its value; a statement prints only what it printed.
+`python -i` ran the file as the module `__main__`, and the prompt is that
+module: `COLOR`, `SPEED`, `Hello`, `kit` and `sin` are the file's names,
+and `hello` is the running instance. The window draws on the thread the
+prompt runs on, between your lines, so nothing changes under a line while
+it runs.
 
 ## Add a card
 
@@ -106,8 +98,7 @@ too:
 
 `sigil.weave.fonts` is the catalogue of the type this program can set
 in: the families the platform has and the faces a sketch's hub loaded.
-The prompt binds every `sigil` module the file did not import itself, so
-`weave` is in reach:
+It was imported beside `live`:
 
 ```pycon
 >>> [name for name in weave.fonts.families() if name.startswith("Geo")]
@@ -121,67 +112,113 @@ variation axes, and `weave.fonts.find(name, style)` the face it names.
 ## Take a still
 
 ```pycon
->>> :still hello.png
-hello.png (1280 x 840)
+>>> window.still("hello.png", density=2)
+'hello.png'
 ```
 
 The still is the sketch on screen as it stands, at twice its canvas,
-with its clock untouched; Grimoire writes it under its state root and the
-prompt copies it to the path.
+with its clock untouched.
 
 ## When a line goes wrong
 
 ```pycon
 >>> 1 / 0
 Traceback (most recent call last):
-  File "<prompt 14>", line 1, in <module>
-    1 / 0
-    ~~^~~
+  File "<stdin>", line 1, in <module>
 ZeroDivisionError: division by zero
 ```
 
-A raise is answered and changes nothing more: the sketch draws on as the
+A raise at the prompt is the prompt's, and the sketch draws on as the
 lines before it left it. A method that raises once it is drawing is
-another matter — the sketch stops as it does after a bad save, and
-Grimoire's window says why. `:reload` brings back the file as it is
-written, which is also how to start over after exploring:
+another matter: the sketch stops, as it does after a bad save, and
+`window.errorLog` says why. Put the method back and run setup again:
 
 ```pycon
->>> :reload
-reloaded python_hello.py
+>>> Hello.draw = drawn
+>>> window.restart()
 ```
 
-It imports the file again exactly as saving it does, so every name the
-prompt assigned goes with the old import. Anything worth keeping goes
-into the file.
-
-`:quit`, or the end of input, leaves; a window `sigil repl` started ends
-with it.
+`window.restart()` runs setup again on the same instance, so whatever
+you assigned to it stands. `window.close()` takes the window away; so
+does leaving the prompt.
 
 ## How it works
 
-The prompt is Python's own `code.InteractiveConsole`: it gathers lines
-until an input is complete, tells an expression from statements, and
-keeps history through `readline`. Each complete input is one command of
-the protocol, `session.evaluate`, carrying the text and whether it is an
-expression; the answer carries the value as `repr` writes it, what the
-text printed to the standard output and error, and what it raised with
-its traceback.
+A window belongs to the thread that opened it, and on macOS that must be
+the main thread, which is also the one reading your input. So the window
+draws while the prompt waits. Python calls one hook, `PyOS_InputHook`,
+whenever it waits for a line, at `python -i`, at its own prompt and at
+`code.interact`; `live.open` installs it, and it handles the window's
+events and draws its frames until a line is there to read. The frames are
+drawn on that same thread, on Qt Quick's basic render loop, so the
+sketch's Python never runs beside a line of yours.
 
-In the window, the command is handed to the render thread, which runs
-the sketch's own hooks, and runs there after a frame is drawn and before
-the next; a headless host serving the protocol runs it on its frame
-thread the same way. A sketch that returns its tree from `setup` is
-asked for it again after every input that ran to its end, so a changed
-name reaches the tree; a `draw` or a `describe` is asked at every frame
-anyway. A C++ sketch is compiled ahead of time and evaluates nothing, so
-the prompt is refused there, saying so.
+Under IPython in a terminal, `live.open` registers the same wait as an
+IPython input hook and enables it, the way `%gui` enables a toolkit's. In
+a Jupyter kernel, a task on the kernel's event loop turns the window
+between cells. A script that is not interactive keeps its window on screen
+with `window.run()`, which returns once the window is closed.
+
+`live.open(size, headless=True)` opens no window at all: each turn steps
+the sketch and `still` photographs it, which is how a test or a machine
+without a display explores. Qt is loaded the first time a window opens,
+and never by an import.
+
+## A prompt into a window elsewhere
+
+When the sketch is drawing in another process — a Grimoire already open
+on the file, or a kernel that is not the one you type into — a prompt
+sends each input there instead:
+
+```sh
+sigil repl apps/grimoire/sketches/python_hello.py
+```
+
+With no Grimoire answering, this starts its window on the file and opens
+a prompt into it:
+
+```text
+Python inside the running sketch: its module's names, `self` and `ctx`.
+Each input runs between two frames; the window shows it on the next.
+:reload imports the file again, :still path.png takes a picture, :quit leaves.
+>>>
+```
+
+Each input runs in the sketch module's own namespace, beside the running
+instance as `self` and its context as `ctx`, with every `sigil` module the
+file did not import itself bound too, and the walk above reads the same
+with `self` for `hello`. `:still hello.png` writes the still under
+Grimoire's state root and copies it to the path; `:reload` imports the
+file again exactly as saving it does, so every name the prompt assigned
+goes with the old import; `:quit`, or the end of input, leaves, and a
+window `sigil repl` started ends with it.
+
+The prompt speaks to Grimoire through its protocol: each complete input
+is one command, `session.evaluate`, carrying the text and whether it is
+an expression, and the answer carries the value as `repr` writes it, what
+the text printed and what it raised. The command runs **any** code a
+client on this machine sends, with the sketch's whole reach over the
+machine, so Grimoire keeps that door shut unless it is started with
+`--repl`, and `sigil repl` starts it that way. To open the door on a
+window you started yourself, give it the flag and point the prompt at it:
+
+```sh
+Grimoire apps/grimoire/sketches/python_hello.py --repl
+sigil repl          # finds the window through its address file
+```
+
+`--to HOST:PORT` names an endpoint directly, and `--state DIRECTORY` the
+state root of a Grimoire started with `--state`. In the window the
+command runs on the render thread, after a frame is drawn and before the
+next; a sketch that returns its tree from `setup` is asked for it again
+after every input that ran to its end. A C++ sketch is compiled ahead of
+time and evaluates nothing, so the prompt is refused there, saying so.
 
 ## Next
 
 - [Write a sketch in Python](guide:a-sketch-in-python) — the file this
   prompt explores, written from the start.
-- The Python package's README — `sigil repl` beside `sigil open` and
-  `sigil render`, and how Grimoire is found.
+- The Python package's README — `sigil.live` and its window, and
+  `sigil repl` beside `sigil open` and `sigil render`.
 - SigilProtocol's README — the evaluate door among the commands every
   host speaks.

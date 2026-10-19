@@ -20,11 +20,21 @@ through their public targets and headers — `<sigilsketch/…>`,
 includes a file from inside the library tree's sources or reaches a
 private include directory.
 
+Its window is the framework's. The pane a sketch is drawn into — the
+canvas fitted into it and the reader's zoom and pan over it, the Graphite
+context stood up on the window's own Metal device, the shared device lent
+that queue for its pages, and every capture routed through the same
+context — is `SigilSketchWindow`, `<sigilsketch/window/…>`, the library an
+ordinary Python interpreter opens through `sigil.live`. What stays here is
+the application around it: the catalogue and its browser, the lanes a
+command line selects, the inspector, warming programs before a sketch
+opens, thumbnails and publication.
+
 ## Layout
 
 | Directory | What it holds |
 | --- | --- |
-| `src/` | the application: `main.cpp`, the lanes a command line selects, the window's view and renderer, and its QML under `src/qml/` |
+| `src/` | the application: `main.cpp`, the lanes a command line selects, the catalogue's view and renderer over the window library's painter and pane, and its QML under `src/qml/` |
 | `sketches/` | the catalogue: every entry, its data, the `SigilSketches` object library its `CMakeLists.txt` builds, the Python sketches' registry and `Anchor.cpp`, the unit the hot-reload flags are lifted from |
 | `test/` | the application's cases (`grimoire_test`), its QML tests, and the scripts and probe files the whole-host tests run |
 | `bench/` | the application's benchmarks (`grimoire_bench`) |

@@ -140,6 +140,12 @@ class Host {
      *  than by building the file, and compile only once the file
      *  changes. Null loads a matching cached build or compiles the source. */
     const Entry* compiledIn = nullptr;
+    /** A KIND THE CALLER ALREADY HOLDS, opened as it stands: no file is
+     *  watched, compiled or imported for it, so `sketchPath` stays empty
+     *  and the session is the kind's alone. A host built in the author's
+     *  own interpreter opens a sketch class this way. `restartSession`
+     *  opens it again from the same kind. */
+    Kind kind;
     /** THE IMAGE THIS HOST IS PART OF, as the skew guard's reference
      *  point: a dylib built against a framework header newer than this
      *  is refused. It defaults to the stamp the process read of its own
@@ -227,8 +233,8 @@ class Host {
    *  live, the session has failed, or its runtime evaluates no text. Text
    *  whose evaluation leaves the session failed is answered with what it
    *  raised, and the next frame fails as one that raises does. */
-  std::optional<Evaluation> evaluate(std::string_view code,
-                                     EvaluationMode mode, std::string* why);
+  std::optional<Evaluation> evaluate(std::string_view code, EvaluationMode mode,
+                                     std::string* why);
   /** The running session, for a host that needs more than a frame from
    *  it — its counters, its viewpoint, its per-node costs. Null until
    *  something has loaded. */

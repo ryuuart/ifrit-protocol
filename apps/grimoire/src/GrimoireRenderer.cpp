@@ -41,6 +41,7 @@
 #include <sigilsketch/plate/ThumbnailWriter.h>
 #include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/python/Python.h>
+#include <sigilsketch/window/CanvasView.h>
 #include <sigilweave/fonts/FontContext.h>
 
 #include <QtCore/QByteArray>
@@ -59,7 +60,6 @@
 #include <string>
 #include <utility>
 
-#include "CanvasView.h"
 #include "GrimoireView.h"
 #include "PipelineWarm.h"
 #include "SketchCatalog.h"
@@ -112,47 +112,9 @@ GrimoireRenderer::GrimoireRenderer()
     : m_publishing(GrimoireView::publishAtStart) {}
 GrimoireRenderer::~GrimoireRenderer() {
 #ifdef SIGIL_GRIMOIRE_GPU
-  withdrawPagesFromTheWindow();
+  m_painter.release();
 #endif
 }
-
-#ifdef SIGIL_GRIMOIRE_GPU
-void GrimoireRenderer::paintPagesThroughTheWindow(QRhi* rhi) {
-#ifdef __APPLE__
-  // ONE METAL CONTEXT FOR THE WINDOW AND ITS PAGES. The shared device
-  // paints its pages on Metal; handed the window's own queue and context,
-  // a page is painted where the window draws, an overlay page is drawn as
-  // it stands rather than read back, and the window's frame and the
-  // pages share one set of atlases and pipelines. The device refuses a
-  // queue on another Metal device and keeps its own then.
-  sigil::geometry::device::Device* shared = sketch::device();
-  if (!shared || !rhi || !m_graphiteContext || rhi->backend() != QRhi::Metal)
-    return;
-  const auto* handles =
-      static_cast<const QRhiMetalNativeHandles*>(rhi->nativeHandles());
-  if (!handles) return;
-  sigil::core::hardware::NativeDevice native;
-  native.backend = sigil::core::hardware::Backend::Metal;
-  native.mtlDevice = handles->dev;
-  native.mtlCommandQueue = handles->cmdQueue;
-  m_windowDevice = sigil::core::hardware::GpuDevice::adopt(native);
-  if (!m_windowDevice ||
-      !shared->paintWith(m_windowDevice.get(), m_graphiteContext.get()))
-    m_windowDevice.reset();
-#else
-  (void)rhi;
-#endif
-}
-
-void GrimoireRenderer::withdrawPagesFromTheWindow() {
-  if (!m_windowDevice) return;
-  // The device may already be gone at the end of the run, and then there
-  // is nothing to take back.
-  if (sigil::geometry::device::Device* shared = sketch::device())
-    (void)shared->paintWith(nullptr, nullptr);
-  m_windowDevice.reset();
-}
-#endif
 
 void GrimoireRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   QRhi* currentRhi = rhi();
@@ -173,16 +135,9 @@ void GrimoireRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   // through the very context below, on another thread.
   if (m_pipelineWarmup.valid()) m_pipelineWarmup.wait();
   // …and so does the shared device's hold on it, which paints pages
-  // through it.
-  withdrawPagesFromTheWindow();
-  m_graphiteContext.reset();
-  // Metal only: the Vulkan adapter does not yet hand the image's final
-  // layout back to QRhi's state tracker, so Qt's later sampling of it
-  // would be undefined.
-  if (currentRhi && currentRhi->backend() == QRhi::Metal)
-    m_graphiteContext = sigil::skia::createGraphiteContext(currentRhi);
-  g_backend.store(m_graphiteContext ? 1 : 2);
-  paintPagesThroughTheWindow(currentRhi);
+  // through it: the painter lets both go before it stands Graphite up on
+  // the new device and lends the shared device that one instead.
+  g_backend.store(m_painter.initialize(currentRhi) ? 1 : 2);
   // THE PROGRAMS THE FIRST SKETCH WOULD OTHERWISE WAIT FOR. Here and
   // not at startup, because the warm-up precompiles THROUGH a context
   // and this is where the window's first exists; on a worker, because
@@ -194,13 +149,13 @@ void GrimoireRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   // for it from another would be two threads inside one context. The
   // helper holds the context's shared half and is made to be spent
   // elsewhere.
-  if (m_graphiteContext && m_graphiteContext->context()) {
+  if (m_painter.graphite() && m_painter.graphite()->context()) {
     std::unique_ptr<skgpu::graphite::PrecompileContext> precompile =
-        m_graphiteContext->makePrecompileContext();
+        m_painter.graphite()->makePrecompileContext();
     if (precompile) {
       m_pipelineWarmup = std::async(
           std::launch::async, warmStockPipelines, std::move(precompile),
-          graphiteBackendName(*m_graphiteContext->context()));
+          graphiteBackendName(*m_painter.graphite()->context()));
       // The hold belongs to THIS warm-up. A replaced QRhi runs all of
       // this again against a new device, and a count left where the
       // last warm-up put it is a hold already spent: the frame after it
@@ -313,7 +268,7 @@ std::unique_ptr<sketch::Host> GrimoireRenderer::openSketch(int index) {
       GrimoireView::sessions.present(key, [this, &options] {
         auto host = std::make_unique<sketch::Host>(std::move(options),
                                                    *GrimoireView::fonts);
-        installCaptureBackend(*host);
+        m_painter.installCaptureBackend(*host);
         return host;
       });
   GrimoireView::host = presented.host;
@@ -321,7 +276,7 @@ std::unique_ptr<sketch::Host> GrimoireRenderer::openSketch(int index) {
 #ifdef SIGIL_GRIMOIRE_GPU
   // What this sketch's draws ask for from here on is written down under
   // the name it was warmed by, and its first frame's builds are counted.
-  if (m_graphiteContext) {
+  if (m_painter.graphite()) {
     pipelinesDrawnFor(recordedAs(index));
     m_firstFrameCounted = false;
   }
@@ -354,7 +309,7 @@ std::unique_ptr<sketch::Host> GrimoireRenderer::updateSession() {
 
 #ifdef SIGIL_GRIMOIRE_GPU
 bool GrimoireRenderer::warmBeforeOpening(int index) {
-  if (!m_graphiteContext || !m_graphiteContext->context()) return false;
+  if (!m_painter.graphite() || !m_painter.graphite()->context()) return false;
   const std::string sketch = recordedAs(index);
   if (sketch.empty() || m_sketchesWarmed.count(sketch) != 0) return false;
   // A warm-up still under way past its hold is let finish first: the
@@ -365,10 +320,10 @@ bool GrimoireRenderer::warmBeforeOpening(int index) {
     return true;
   m_sketchesWarmed.insert(sketch);
   const std::string backend =
-      graphiteBackendName(*m_graphiteContext->context());
+      graphiteBackendName(*m_painter.graphite()->context());
   if (!hasRecordedPipelines(sketch, backend)) return false;
   std::unique_ptr<skgpu::graphite::PrecompileContext> precompile =
-      m_graphiteContext->makePrecompileContext();
+      m_painter.graphite()->makePrecompileContext();
   if (!precompile) return false;
   // On a worker, through the helper made here, exactly as the stock
   // warm-up is: the frames that follow are held until it lands.
@@ -402,29 +357,6 @@ void GrimoireRenderer::resetPresentation() {
           Q_EMIT view->sketchIndexChanged();
         },
         Qt::QueuedConnection);
-}
-
-void GrimoireRenderer::installCaptureBackend(sketch::Host& host) {
-#ifdef SIGIL_GRIMOIRE_GPU
-  if (!m_graphiteContext) return;
-  host.setCaptureBackend(
-      {[this](const SkImageInfo& info) -> sk_sp<SkSurface> {
-         if (!m_graphiteContext) return nullptr;
-         return SkSurfaces::RenderTarget(m_graphiteContext->recorder(), info);
-       },
-       [this](SkSurface& surface, const SkPixmap& out) {
-         return m_graphiteContext &&
-                sigil::skia::readbackPixels(*m_graphiteContext, surface, out);
-       },
-       [this](SkSurface& surface) -> SkCanvas* {
-         if (!m_graphiteContext) return nullptr;
-         m_captureCanvas = std::make_unique<sigil::skia::PaintOrderCanvas>(
-             *m_graphiteContext, surface.getCanvas());
-         return m_captureCanvas.get();
-       }});
-#else
-  (void)host;
-#endif
 }
 
 void GrimoireRenderer::publishMetrics() {
@@ -556,7 +488,7 @@ void GrimoireRenderer::paintFrame(SkCanvas& canvas, sketch::Host& host) {
 sk_sp<SkImage> GrimoireRenderer::renderPublication(
     [[maybe_unused]] const QRhiTexture& window) {
 #ifdef SIGIL_GRIMOIRE_GPU
-  if (!m_publisher || !m_graphiteContext || !m_rhi) return nullptr;
+  if (!m_publisher || !m_painter.graphite() || !m_rhi) return nullptr;
   sketch::Host* host = GrimoireView::host;
   if (!host || !host->live()) return nullptr;
   const SkSize canvas = host->canvasSize();
@@ -584,7 +516,7 @@ sk_sp<SkImage> GrimoireRenderer::renderPublication(
     m_publishedSize = pixels;
   }
   sigil::skia::OffscreenSurface surface = sigil::skia::wrapTexture(
-      *m_graphiteContext, m_publishedCanvas.get(), pixels);
+      *m_painter.graphite(), m_publishedCanvas.get(), pixels);
   SkCanvas* into = surface.canvas();
   if (!into) {
     stopPublishing();
@@ -637,10 +569,10 @@ void GrimoireRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize,
   const float pixelsPerUnit = m_logicalSize.width() > 0
                                   ? pane.width() / (float)m_logicalSize.width()
                                   : 1.0f;
-  const CanvasView view =
-      CanvasView{m_canvasScale,
-                 {(float)m_canvasOffset.x(), (float)m_canvasOffset.y()}}
-          .scaled(pixelsPerUnit);
+  const sketch::CanvasView view = sketch::CanvasView{
+      m_canvasScale,
+      {(float)m_canvasOffset.x(),
+       (float)m_canvasOffset.y()}}.scaled(pixelsPerUnit);
   const SkSize canvasSize = host->canvasSize();
   // WHILE A ZOOM MOVES, THE SKETCH IS DRAWN AT THE SCALE IT STOOD AT, and
   // the frame is magnified to the view: what the sketch keeps at the
@@ -653,14 +585,14 @@ void GrimoireRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize,
     m_heldSession = host->session();
   }
   const float drawnScale =
-      published
-          ? 0.0f
-          : m_zoomHold.drawnScale(placeCanvas(canvasSize, pane, view).scale,
-                                  ZoomHold::Clock::now());
+      published ? 0.0f
+                : m_zoomHold.drawnScale(
+                      sketch::placeCanvas(canvasSize, pane, view).scale,
+                      sketch::ZoomHold::Clock::now());
   // The SKETCH's own canvas is placed on the pane and never stretched to
   // it: a sketch declares its own dimensions and they do not share an
   // aspect ratio, so stretching one to fill would distort what it shows.
-  drawPane(
+  sketch::drawPane(
       canvas, pane, canvasSize, view,
       [this, host, published](SkCanvas& into) {
         if (published)
@@ -799,7 +731,7 @@ void GrimoireRenderer::startPublishing() {
   m_metricsDirty = true;
   // Only the Graphite frame path submits a texture to the publisher.
 #ifdef SIGIL_GRIMOIRE_GPU
-  if (m_graphiteContext)
+  if (m_painter.graphite())
     m_publisher = sigil::qt::createPublisher(m_publicationHub, m_rhi,
                                              GrimoireView::publishName);
 #endif
@@ -812,7 +744,7 @@ void GrimoireRenderer::startPublishing() {
       "This window uses CPU rendering. Frame publishing requires a supported "
       "GPU renderer.");
 #ifdef SIGIL_GRIMOIRE_GPU
-  if (m_graphiteContext)
+  if (m_painter.graphite())
     reason = QStringLiteral(
         "A frame publisher could not be opened for this graphics backend.");
 #endif
@@ -917,7 +849,7 @@ void GrimoireRenderer::render(QRhiCommandBuffer* commandBuffer) {
   }
 
 #ifdef SIGIL_GRIMOIRE_GPU
-  if (m_graphiteContext) {
+  if (m_painter.graphite()) {
     bool rendered = false;
     // LET GO OF AN EVICTED SESSION OUTSIDE THE LOCK: ~Host waits on the
     // build it may be in the middle of, which is a compiler run, and
@@ -926,7 +858,7 @@ void GrimoireRenderer::render(QRhiCommandBuffer* commandBuffer) {
     bool offered = false;
     {
       sigil::skia::OffscreenSurface surface =
-          sigil::skia::wrapTexture(*m_graphiteContext, texture, pixelSize);
+          sigil::skia::wrapTexture(*m_painter.graphite(), texture, pixelSize);
       if (SkCanvas* canvas = surface.canvas()) {
         QMutexLocker lock(&GrimoireView::hostMutex);
         evicted = updateSession();

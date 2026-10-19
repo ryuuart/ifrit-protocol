@@ -31,5 +31,8 @@ void bindSketchScene3DSketches(pybind11::module_& module);
 /** Registers a sketch host in this process, spoken to through the
  *  protocol, on @p module. */
 void bindSketchTesting(pybind11::module_& module);
+/** Registers a window in this interpreter, the window library loaded the
+ *  first time one opens, on @p module. */
+void bindSketchLive(pybind11::module_& module);
 
 }  // namespace sigil::sketch::python

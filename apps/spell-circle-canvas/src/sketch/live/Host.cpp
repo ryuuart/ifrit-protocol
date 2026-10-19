@@ -57,7 +57,7 @@ std::optional<SkISize> captureExtent(SkSize size, float scale = 1.0f) {
 Host::Options withDefaults(Host::Options options) {
   // A sketch this binary carries takes the root the process stated; only
   // a file opened by path defaults to the assets beside it.
-  if (options.assetsDirectory.empty() && !options.compiledIn) {
+  if (options.assetsDirectory.empty() && !options.compiledIn && !options.kind) {
     // A SKETCH THAT IS A DIRECTORY keeps its other units beside its
     // entry. When that directory carries an `assets/` of its own — the
     // folder a workspace is written with — that is what mounts;
@@ -286,6 +286,10 @@ Host::Host(Options options, weave::FontContext& fonts)
   // Registered native bodies open directly. Python entries use the source
   // loader and record their input stamps before opening, so the first poll
   // does not import the same generation twice.
+  if (m_options.kind) {
+    if (openSession(m_options.kind, nullptr)) m_status = "live";
+    return;
+  }
   if (m_options.compiledIn && m_options.compiledIn->kind) {
     if (m_options.sketchPath.extension() == ".py") {
       pythonChanged();

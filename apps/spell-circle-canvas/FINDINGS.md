@@ -265,3 +265,11 @@ them printed plainly within the plot.
 `python_bundled_type` and `python_market_tape` never appear in
 PARITY.md; the study list should include `python_<stem>/python_<stem>.py`.
 
+## A restarted session keeps the failed status
+
+After a sketch fails and `Host::restartSession` succeeds, the error log
+clears and frames draw again, but `status()` still names the failure;
+the status should describe the session now running, in the live window
+and in Grimoire's replay alike. A test should fail a frame, restart the
+session, and find `status()` no longer naming the failure.
+

@@ -19,6 +19,8 @@
 
 class SkCanvas;
 
+namespace sigil::sketch {
+
 /** HOW THE PANE LOOKS AT THE CANVAS: how far the canvas is magnified and
  *  where it has been moved to. The pane is what is on screen and the
  *  canvas is what the sketch declared, so a reader zooming in changes
@@ -48,12 +50,12 @@ struct CanvasView {
  *  @p view: the scale it is drawn at and the point its top-left corner
  *  reaches. The frame is drawn through it and a pointer is read back
  *  through its inverse, so both call this and nothing else. */
-[[nodiscard]] sigil::sketch::Placement placeCanvas(SkSize canvas, SkSize pane,
-                                                   const CanvasView& view);
+[[nodiscard]] Placement placeCanvas(SkSize canvas, SkSize pane,
+                                    const CanvasView& view);
 
 /** The point of the canvas under @p panePoint when the canvas stands at
  *  @p placement: the inverse of the placement a frame is drawn through. */
-[[nodiscard]] SkPoint canvasPointAt(const sigil::sketch::Placement& placement,
+[[nodiscard]] SkPoint canvasPointAt(const Placement& placement,
                                     SkPoint panePoint);
 
 /** The dark the pane shows behind the canvas: around it, and through
@@ -143,3 +145,5 @@ class PointerGate {
   /** Whether the press now down began on the canvas. */
   bool m_pressOwned = false;
 };
+
+}  // namespace sigil::sketch

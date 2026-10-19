@@ -7,6 +7,7 @@
 
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/live/Residency.h>
+#include <sigilsketch/window/CanvasView.h>
 
 #include <QtCore/QMutex>
 #include <QtCore/QPointF>
@@ -19,8 +20,6 @@
 #include <functional>
 #include <string>
 #include <vector>
-
-#include "CanvasView.h"
 
 namespace sigil::sketch {
 class Host;
@@ -259,7 +258,7 @@ class GrimoireView : public QQuickRhiItem {
    *  is not the sketch's, and nor is a pointer hovering there, but a
    *  press begun on it is followed wherever it is dragged until it lets
    *  go. */
-  PointerGate m_pointerGate;
+  sigil::sketch::PointerGate m_pointerGate;
   QVariantMap m_metrics = {
       {QStringLiteral("backend"), QStringLiteral("Waiting for a sketch")}};
   QString m_status;

@@ -15,7 +15,6 @@
 #include <string>
 #include <utility>
 
-#include "CanvasView.h"
 #include "GrimoireRenderer.h"
 #include "Keys.h"
 #include "SketchCatalog.h"
@@ -204,12 +203,13 @@ void GrimoireView::pointer(qreal x, qreal y, bool pressed) {
   // units: the canvas under the reader's view of it, so a point on the
   // item is a point on the declared canvas by the inverse of that view.
   const SkSize size = host->canvasSize();
-  const sketch::Placement placement = placeCanvas(
+  const sketch::Placement placement = sketch::placeCanvas(
       size, SkSize::Make((float)width(), (float)height()),
-      CanvasView{(float)m_canvasScale,
-                 {(float)m_canvasOffset.x(), (float)m_canvasOffset.y()}});
+      sketch::CanvasView{
+          (float)m_canvasScale,
+          {(float)m_canvasOffset.x(), (float)m_canvasOffset.y()}});
   if (!(placement.scale > 0.0f)) return;
-  const SkPoint point = canvasPointAt(placement, {(float)x, (float)y});
+  const SkPoint point = sketch::canvasPointAt(placement, {(float)x, (float)y});
   // The item is the whole pane and the canvas may be a part of it.
   const bool onCanvas = SkRect::MakeSize(size).contains(point.x(), point.y());
   if (m_pointerGate.admit(pressed, onCanvas))
