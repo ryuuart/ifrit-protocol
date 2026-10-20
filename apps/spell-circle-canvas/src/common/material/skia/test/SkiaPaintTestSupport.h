@@ -46,23 +46,12 @@
 #include <utility>
 #include <vector>
 
+#include "support/Recipes.h"
 #include "support/Shade.h"
 
 using namespace sigil::material;
 using sigil::material::test::identical;
 using sigil::material::test::render;
-
-namespace {
-
-struct TwoParameters {
-  float uScale;
-  Color uColor;
-};
-
-constexpr const char* kBody =
-    "half4 main(float2 p) { return half4(uColor * uScale); }";
-
-}  // namespace
 
 namespace {
 

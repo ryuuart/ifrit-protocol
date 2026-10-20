@@ -14,6 +14,13 @@ namespace sigil::python {
 
 /** Registers the scene description on @p module. */
 void bindCompose(pybind11::module_& module);
+/** Registers the stock adding operators on @p module: the connecting
+ *  wires, pins, outline bands and hulls, the stamp whose maker is a
+ *  Python callable, and drawWith. */
+void bindComposeAdders(pybind11::module_& module);
+/** Registers the arrangement an arranging operator is handed, and its
+ *  children, on @p module. */
+void bindComposeArrangement(pybind11::module_& module);
 /** Registers the stamped and swept brush kinds: Scatter, Pattern,
  *  CornerArt, Ribbon, Art on @p module. */
 void bindComposeBrushMarks(pybind11::module_& module);
@@ -25,11 +32,18 @@ void bindComposeComposer(pybind11::module_& module);
 void bindComposeElementEdges(pybind11::module_& module);
 /** Registers routers, anchors, tethers and bands on @p module. */
 void bindComposeDerive(pybind11::module_& module);
+/** Registers the facts a node states about itself on @p module. */
+void bindComposeFacts(pybind11::module_& module);
 /** Registers feed rings, options and the streaming column on @p module. */
 void bindComposeFeed(pybind11::module_& module);
-/** Registers instance pools, atlases, flights and the stamping leaf on
- *  @p module. */
+/** Registers the cell sheet, the stamping leaf and the pick on @p
+ *  module. */
 void bindComposeInstancing(pybind11::module_& module);
+/** Registers the lanes an instance pool is filled through on @p module. */
+void bindComposeInstancingLanes(pybind11::module_& module);
+/** Registers the instance pool, its flights and its lane accessors on @p
+ *  module. */
+void bindComposeInstancingPool(pybind11::module_& module);
 /** Registers the component kit's records on @p module. */
 void bindComposeKit(pybind11::module_& module);
 /** Registers the reading, the readout, the table and the bars on @p
@@ -43,10 +57,11 @@ void bindComposeMasks(pybind11::module_& module);
 /** Registers paintContext, keyless paint programs, keyed shapes, asset
  *  and paragraph leaves on @p module. */
 void bindComposePaintPrograms(pybind11::module_& module);
-/** Registers the operator seam on @p module: the facts a node states,
- *  the arrangement and the settled scope an operator is handed, the
- *  connecting records, and the pen an operator draws a scope with. */
+/** Registers the operator a node runs over its children on @p module. */
 void bindComposeSchemes(pybind11::module_& module);
+/** Registers the settled scope an adding operator is handed, and its
+ *  nodes, on @p module. */
+void bindComposeScope(pybind11::module_& module);
 /** Registers the CSS selector grammar, the rule and the selector-keyed
  *  sheet a node applies, on @p module. */
 void bindComposeSelectors(pybind11::module_& module);

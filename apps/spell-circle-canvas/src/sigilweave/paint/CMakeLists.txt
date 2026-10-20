@@ -30,6 +30,8 @@ sigil_test(weave_test
   SUITES ColumnDecorationInk.AColumnDrawsItsBandBesideTheType)
 
 # draw and drawBatched per glyph on a raster surface.
+# The text fields it paints with are the test tree's own fixture.
 sigil_bench(weave_bench
   SOURCES bench/PaintBench.cpp
-  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialSkia)
+  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialSkia
+  SUPPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../test)

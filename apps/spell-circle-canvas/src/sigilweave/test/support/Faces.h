@@ -10,6 +10,12 @@
 #include <include/core/SkTypeface.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include <cstddef>
+#include <fstream>
+#include <iterator>
+#include <string>
+#include <vector>
+
 namespace sigil::weave::test {
 
 /// The face committed under this library's test/assets/. Latin-only, and
@@ -21,6 +27,20 @@ inline sk_sp<SkTypeface> verticalFeaturesFace() {
   static sk_sp<SkTypeface> face = ports::systemFontManager()->makeFromFile(
       SIGIL_TEST_ASSET_DIR "/VerticalFeatures.ttf");
   return face;
+}
+
+/// The bytes of one shared instrument face, read whole from the tree-wide
+/// support directory, for a test that adopts a face from memory. Empty when
+/// the file is missing.
+inline std::vector<std::byte> instrumentBytes(const char* fileName) {
+  std::ifstream file(std::string(SIGIL_TEST_INSTRUMENT_DIR "/") + fileName,
+                     std::ios::binary);
+  const std::vector<char> characters{std::istreambuf_iterator<char>(file),
+                                     std::istreambuf_iterator<char>()};
+  std::vector<std::byte> bytes(characters.size());
+  for (size_t index = 0; index < characters.size(); ++index)
+    bytes[index] = std::byte(characters[index]);
+  return bytes;
 }
 
 }  // namespace sigil::weave::test

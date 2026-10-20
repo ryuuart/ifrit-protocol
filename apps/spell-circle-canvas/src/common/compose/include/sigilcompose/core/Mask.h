@@ -104,10 +104,11 @@ class Region {
   geometry::path::Rect m_rect;
   geometry::path::Outline m_path;
 
-  /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). A Region rides
-   *  inside a mask gate, which is read LIVE every frame — a region that
-   *  compares equal when it isn't leaves a pruned node revealing to its
-   *  first frame forever. */
+  /** FIELD PIN: the structured binding below names every field, so a
+   *  field added to Region fails to compile here until equality reads it.
+   *  A Region rides inside a mask gate, which is read LIVE every frame —
+   *  a region that compares equal when it isn't leaves a pruned node
+   *  revealing to its first frame forever. */
   static void fieldPin(Region& v) {
     auto& [kind, rect, path] = v;
     static_assert(

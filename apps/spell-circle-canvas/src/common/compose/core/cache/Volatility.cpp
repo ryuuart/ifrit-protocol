@@ -617,8 +617,10 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       scalarDeclared && !scalarContent && !otherThanScalar && !childrenVolatile;
   if (blocked != inst.subtreeVolatile) {
     inst.subtreeVolatile = blocked;
-    if (!memoized && !releasedExact)
+    if (!memoized && !releasedExact) {
       inst.paintDirty = true;  // cacheability changed → re-record/drop
+      inst.paintDirtyOnlyForDensity = false;
+    }
   }
   if (inst.subtreeVolatile && !memoized) {
     inst.picture.reset();

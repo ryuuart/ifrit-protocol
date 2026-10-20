@@ -24,20 +24,11 @@
 #include <vector>
 
 #include "ShaderTable.h"
+#include "support/Recipes.h"
 
 using namespace sigil::material;
 
 namespace {
-
-struct TwoParameters {
-  float uScale;
-  Color uColor;
-};
-
-std::shared_ptr<const Recipe> twoRecipe(const char* name = "two") {
-  return std::make_shared<const Recipe>(Recipe::of<TwoParameters>(name).body(
-      Target::SkSL, "half4 main(float2 p) { return half4(uColor * uScale); }"));
-}
 
 /** A compiler that records the recipe it was handed and returns a plain
  *  Program, so the cache's keying can be observed without a renderer. */
@@ -74,13 +65,6 @@ class ThrowingReflectionProgram : public Program {
  private:
   std::function<void()> m_before;
 };
-
-/** Everything the cache writes to stderr while @p fn runs. */
-std::string captureStderr(const std::function<void()>& fn) {
-  testing::internal::CaptureStderr();
-  fn();
-  return testing::internal::GetCapturedStderr();
-}
 
 }  // namespace
 
@@ -314,14 +298,14 @@ TEST(ProgramCache, UnreadParametersFieldIsNamedOnce) {
       });
   auto r = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("dead").body(Target::Slang, "x"));
-  const std::string said = captureStderr(
+  const std::string said = captureStandardError(
       [&] { EXPECT_NE(cache.program(r, Target::Slang), nullptr); });
   EXPECT_NE(said.find("\"dead\""), std::string::npos) << said;
   EXPECT_NE(said.find("uScale"), std::string::npos) << said;
   // The field the body DOES read is not named.
   EXPECT_EQ(said.find("uColor"), std::string::npos) << said;
   // Once per (recipe, target), whatever the variant.
-  const std::string again = captureStderr([&] {
+  const std::string again = captureStandardError([&] {
     cache.program(r, Target::Slang);
     cache.program(r, Target::Slang, Variant{}.with(1));
   });
@@ -330,7 +314,7 @@ TEST(ProgramCache, UnreadParametersFieldIsNamedOnce) {
   ProgramCache clean;
   clean.registerCompiler(Target::Slang, countingCompiler);
   const std::string quiet =
-      captureStderr([&] { clean.program(r, Target::Slang); });
+      captureStandardError([&] { clean.program(r, Target::Slang); });
   EXPECT_EQ(quiet, "") << quiet;
 }
 

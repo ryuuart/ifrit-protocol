@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+#include "Identifiers.h"
+
 namespace sigil::material {
 
 namespace {
@@ -27,9 +29,6 @@ namespace {
 struct Inlined {
   std::string slot;
   std::shared_ptr<const Recipe> recipe;
-  bool operator==(const Inlined& other) const {
-    return slot == other.slot && recipe == other.recipe;
-  }
 };
 
 /** Whether @p body reads the slot @p slot as an image is read — the slot's
@@ -37,14 +36,11 @@ struct Inlined {
  *  the slot only in a comment, or reads it under names of its own, does
  *  not. */
 bool readsSlot(std::string_view body, std::string_view slot) {
-  const auto identifier = [](char c) {
-    return std::isalnum((unsigned char)c) != 0 || c == '_';
-  };
   for (size_t at = body.find(slot); at != std::string_view::npos;
        at = body.find(slot, at + 1)) {
-    if (at > 0 && identifier(body[at - 1])) continue;
+    if (at > 0 && detail::identifierCharacter(body[at - 1])) continue;
     size_t next = at + slot.size();
-    if (next < body.size() && identifier(body[next])) continue;
+    if (next < body.size() && detail::identifierCharacter(body[next])) continue;
     while (next < body.size() && std::isspace((unsigned char)body[next]))
       ++next;
     if (next < body.size() && body[next] == '.' &&

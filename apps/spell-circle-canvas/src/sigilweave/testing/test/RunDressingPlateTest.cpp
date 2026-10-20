@@ -19,10 +19,10 @@
 
 #include <utility>
 
-#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
-#include "TextFields.h"
+#include "sigilweave/advanced/Skia.h"
 #include "support/Plates.h"
+#include "support/TextFields.h"
 
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -38,8 +38,9 @@ sk_sp<SkShader> shade(const sigil::material::Material& material) {
 /// The caption above one row of the panel.
 void drawRowLabel(FontContext& fontContext, SkCanvas* canvas,
                   const char8_t* label, float top) {
-  kit::drawLabel(canvas, fontContext, label, {40, top},
-                 {.color = SkColor4f::FromColor(kAccent), .width = 900, .height = 18});
+  kit::drawLabel(
+      canvas, fontContext, label, {40, top},
+      {.color = SkColor4f::FromColor(kAccent), .width = 900, .height = 18});
 }
 
 }  // namespace
@@ -68,7 +69,8 @@ TEST(WeavePlates, RunDressingDrawsItsBaseline) {
     TextStyle overlined = plateStyle(26, kBlue);
     overlined.paint.addDecoration({.kind = Decoration::Kind::kOverline});
     paragraph.appendText(u8"annotated", overlined);
-    BlockFlow flow(sigil::geometry::path::Rect::of({40, rowTop + 22}, {900, 44}));
+    BlockFlow flow(
+        sigil::geometry::path::Rect::of({40, rowTop + 22}, {900, 44}));
     layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
   }
   rowTop += 92;
@@ -91,7 +93,8 @@ TEST(WeavePlates, RunDressingDrawsItsBaseline) {
     marked.paint.addDecoration(
         {.kind = Decoration::Kind::kHighlight, .color = 0x66FFD54A});
     paragraph.appendText(u8"marker over words and gaps", marked);
-    BlockFlow flow(sigil::geometry::path::Rect::of({40, rowTop + 22}, {900, 44}));
+    BlockFlow flow(
+        sigil::geometry::path::Rect::of({40, rowTop + 22}, {900, 44}));
     layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
   }
   rowTop += 92;
@@ -113,8 +116,7 @@ TEST(WeavePlates, RunDressingDrawsItsBaseline) {
     SkPaint meshPaint;
     meshPaint.setAntiAlias(true);
     meshPaint.setAlphaf(0.55f);  // keep the ink readable through the band
-    meshPaint.setShader(
-        shade(text_fields::meshGradient(bandBounds, 1.5f)));
+    meshPaint.setShader(shade(text_fields::meshGradient(bandBounds, 1.5f)));
     meshHighlight.paint = meshPaint;
     meshMarked.paint.addDecoration(meshHighlight);
     paragraph.appendText(u8"a mesh-gradient marker ", meshMarked);
@@ -156,7 +158,8 @@ TEST(WeavePlates, RunDressingDrawsItsBaseline) {
     TextStyle capitalized = plateStyle(24, kBlue);
     capitalized.shaping.textTransform = TextTransform::kCapitalize;
     paragraph.appendText(u8"every word starts big", capitalized);
-    BlockFlow flow(sigil::geometry::path::Rect::of({40, rowTop + 22}, {900, 40}));
+    BlockFlow flow(
+        sigil::geometry::path::Rect::of({40, rowTop + 22}, {900, 40}));
     layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
   }
   rowTop += 88;
@@ -170,7 +173,8 @@ TEST(WeavePlates, RunDressingDrawsItsBaseline) {
     spaced.shaping.wordSpacing = pass == 0 ? 0.0f : 18.0f;
     Paragraph paragraph;
     paragraph.appendText(u8"the same words drift further apart", spaced);
-    BlockFlow flow(sigil::geometry::path::Rect::of({40, rowTop + 22 + static_cast<float>(pass) * 30}, {900, 28}));
+    BlockFlow flow(sigil::geometry::path::Rect::of(
+        {40, rowTop + 22 + static_cast<float>(pass) * 30}, {900, 28}));
     layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
   }
   rowTop += 118;
@@ -213,7 +217,8 @@ TEST(WeavePlates, RunDressingDrawsItsBaseline) {
       tabularStyle.shaping.fontFeatures = {features::tabularNumbers};
       Paragraph tabbed;
       tabbed.appendText(rowText, tabularStyle);
-      BlockFlow flow(sigil::geometry::path::Rect::of({40, tabRowTop}, {900, 26}));
+      BlockFlow flow(
+          sigil::geometry::path::Rect::of({40, tabRowTop}, {900, 26}));
       layoutParagraph(fontContext, tabbed, flow, options).draw(canvas, tabbed);
       tabRowTop += 28;
     }
@@ -234,7 +239,8 @@ TEST(WeavePlates, RunDressingDrawsItsBaseline) {
     ParagraphLayoutOptions options;
     options.overflow.maxLines = 2;
     options.overflow.ellipsis = u"…";
-    BlockFlow flow(sigil::geometry::path::Rect::of({40, rowTop + 22}, {560, 400}));
+    BlockFlow flow(
+        sigil::geometry::path::Rect::of({40, rowTop + 22}, {560, 400}));
     const weave::testing::Passage clamped = weave::testing::lay(
         fontContext, std::move(paragraph), flow, std::move(options));
     const weave::testing::Reading reading = weave::testing::read(clamped);

@@ -3,7 +3,9 @@
 // is when the kernel asks for one.
 
 #include <sigilmaterial/skia/Paint.h>
+
 #include "support/ShapeTestSupport.h"
+#include "support/Travel.h"
 
 TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
   Host host(120, 60);
@@ -80,64 +82,6 @@ TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
   EXPECT_LT(dim, 90u);  // tracked the Output inside the shape
 }
 
-namespace {
-
-/** The centroid of every pixel of @p color, or (-1,-1) when none. Motion is
- *  a VISUAL feature: these pins scan the frame, they do not read floats out
- *  of the resolver. */
-SkPoint inkCentroid(Host& host, SkColor color, int w, int h) {
-  double sx = 0, sy = 0;
-  int n = 0;
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x)
-      if (host.pixel(x, y) == color) {
-        sx += x;
-        sy += y;
-        ++n;
-      }
-  if (n == 0) return {-1, -1};
-  return {(float)(sx / n), (float)(sy / n)};
-}
-
-/** The bounding box of everything even faintly @p color-ish — enough to
- *  ask "is this bar lying flat or standing up", which is what an
- *  orientation pin actually wants to know. */
-SkIRect inkBounds(Host& host, int w, int h) {
-  SkIRect box = SkIRect::MakeEmpty();
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x)
-      if (SkColorGetR(host.pixel(x, y)) > 100) {
-        const SkIRect one = SkIRect::MakeXYWH(x, y, 1, 1);
-        if (box.isEmpty())
-          box = one;
-        else
-          box.join(one);
-      }
-  return box;
-}
-
-/** A 160x160 frame inset at (20,20) of a 200x200 canvas, carrying one small
- *  square that travels. The inscribed circle is then centre (100,100) r=80
- *  in CANVAS coordinates, so every quadrant point is on-screen. */
-Element travelFrame(Element rider) {
-  return box().children({box()
-                             .key("frame")
-                             .absolute()
-                             .rect(20, 20, 160, 160)
-                             .children({std::move(rider)})});
-}
-
-Element rider(MotionPath along, float size = 8) {
-  return box()
-      .key("dot")
-      .absolute()
-      .rect(0, 0, size, size)
-      .fill(red())
-      .travel(std::move(along));
-}
-
-}  // namespace
-
 TEST(ComposeTravel, PlacesTheTransformOriginOnTheParentSizedCurve) {
   // THE PIXEL PIN. Four values of t, four quadrant points of the circle
   // inscribed in the PARENT's box — not the rider's own 8x8 box, which is
@@ -180,8 +124,7 @@ TEST(ComposeTravel, WrapsOnAClosedCurveAndClampsOnAnOpenOne) {
   sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);
   const auto atT = [&](Shape path, float value) {
     t = value;
-    host.composer.render(
-        travelFrame(rider({.path = std::move(path), .t = t})));
+    host.composer.render(travelFrame(rider({.path = std::move(path), .t = t})));
     host.frame();
     return inkCentroid(host, SK_ColorRED, 200, 200);
   };
@@ -335,11 +278,8 @@ TEST(ComposeTravel, PrunesOnlyWhenEveryFieldOfThePathMatches) {
       << "the lookAhead FIELD does not participate in equality";
 
   // Gaining and losing the path is itself a patch.
-  host.composer.render(travelFrame(box()
-                                       .key("dot")
-                                       .absolute()
-                                       .rect(0, 0, 8, 8)
-                                       .fill(red())));
+  host.composer.render(
+      travelFrame(box().key("dot").absolute().rect(0, 0, 8, 8).fill(red())));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
       << "dropping travel() pruned into the travelling description";
@@ -347,13 +287,12 @@ TEST(ComposeTravel, PrunesOnlyWhenEveryFieldOfThePathMatches) {
   // The escape hatch keeps its documented cost: a raw callable never
   // compares equal, so a travelling node built from one never prunes.
   const auto raw = [] {
-    return travelFrame(rider({.path =
-                                  skiaShape([](SkSize s) {
-                                    SkPathBuilder b;
-                                    b.addOval(
-                                        SkRect::MakeWH(s.width(), s.height()));
-                                    return b.detach();
-                                  }),
+    return travelFrame(rider({.path = skiaShape([](SkSize s) {
+                                SkPathBuilder b;
+                                b.addOval(
+                                    SkRect::MakeWH(s.width(), s.height()));
+                                return b.detach();
+                              }),
                               .t = 0.25f}));
   };
   host.composer.render(raw());
@@ -375,8 +314,7 @@ TEST(ComposeTravel, IsPaintOnlyAndAResizedFrameKeepsT) {
              .key("frame")
              .absolute()
              .rect(20, 20, frameSize, frameSize)
-             .children(
-                 {rider({.path = geometry::shapes::circle(), .t = t})})});
+             .children({rider({.path = geometry::shapes::circle(), .t = t})})});
   };
   host.composer.render(describe(160));
   host.frame();

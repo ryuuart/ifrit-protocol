@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "support/Host.h"
+#include "support/SurfaceSceneFixture.h"
 
 namespace {
 
@@ -78,15 +79,6 @@ Element busyPage(int frame) {
                            .fill(material::Color{.9f, .9f, .9f, 1}));
   return box().width(200).height(180).fill(ground).children(
       std::move(children));
-}
-
-SkBitmap pixelsOf(const SurfaceScene& scene, Role role) {
-  SkBitmap pixels;
-  const TextureScene* map = scene.scene(role);
-  if (!map || !map->image()) return pixels;
-  pixels.allocN32Pixels(map->image()->width(), map->image()->height());
-  map->image()->readPixels(nullptr, pixels.pixmap(), 0, 0);
-  return pixels;
 }
 
 /** The pixels of @p scene's map of @p role as they stand on the device,

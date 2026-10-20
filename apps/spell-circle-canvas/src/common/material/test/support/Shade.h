@@ -47,6 +47,12 @@ inline SkBitmap render(const sk_sp<SkShader>& shader, int width = 4,
   return bitmap;
 }
 
+/** One pixel of @p shader, painted over a surface just big enough to hold
+ *  it. */
+inline SkColor pixelOf(const sk_sp<SkShader>& shader, int x, int y) {
+  return render(shader, x + 1, y + 1).getColor(x, y);
+}
+
 /** …and @p m compiled through the Skia backend and painted the same way,
  *  with the surface's own size as the resolution the body reads. */
 inline SkBitmap render(const Material& m, int width, int height) {

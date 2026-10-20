@@ -3,16 +3,22 @@
 /** @file
  * Internal to the kernel's paint phase — what its translation units share:
  * the null-safe views into a description's rare-field blocks, the scalar
- * collection the volatility walk and the painter both read.
+ * collection the volatility walk and the painter both read, and the parts
+ * of a node's own paint the stacking painter hands off.
  */
 
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 
+#include <optional>
 #include <span>
 #include <vector>
 
 #include "runtime/ComposeRuntime.h"
+
+class SkCanvas;
+class SkPath;
+class SkRRect;
 
 namespace sigil::compose {
 
@@ -93,5 +99,27 @@ inline const std::vector<Echo>& echoesOf(const ElementNode& n) {
  *  compares — appended to @p out; @p root marks the walk's own node. */
 void collectGroupScalars(const Instance& inst, bool root,
                          std::vector<float>& out);
+
+// ---------------------------------------------------------------------------
+// The parts of a node's own paint the stacking painter hands off.
+
+/** THE LEAF'S OWN CONTENT, painted into @p canvas across the node's
+ *  @p bounds: a text leaf's passage with its echoes and readings, an image
+ *  leaf's picture placed by its fit, a custom leaf's program. A box, a
+ *  stack and a slot have none. */
+void paintLeafContent(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
+                      const PaintContext& paintContext, const SkRect& bounds);
+
+/** THE FILL IN FORCE at this paint of a node of @p bounds — a live
+ *  material resolved per frame, a lit fill that reads its unit, a paint
+ *  stretched over the content box, a fill partway along its ramp, or the
+ *  stored one — or nothing where the node states no fill.
+ *  @p shapedSurface is the surface's path where it is not the corner box
+ *  @p rrect, null where it is. */
+std::optional<Fill> resolveFillInForce(Composer::Impl& impl, Instance& inst,
+                                       const PaintContext& paintContext,
+                                       const SkRect& bounds,
+                                       const SkPath* shapedSurface,
+                                       const SkRRect& rrect);
 
 }  // namespace sigil::compose

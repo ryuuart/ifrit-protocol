@@ -148,15 +148,6 @@ SkPoint canvasPosition(py::handle value) {
   }
 }
 
-/** Whether the class Python reads @p Native back as is registered yet.
- *  A signature is written when its function is registered, so a query
- *  whose answer is a value another file registers is offered only once
- *  that value has a Python name to be written under. */
-template <class Native>
-bool registered() {
-  return py::detail::get_type_info(typeid(Native)) != nullptr;
-}
-
 void bindReports(py::class_<ComposerHandle>& composer) {
   py::enum_<Composer::CacheState>(composer, "CacheState")
       .value("Live", Composer::CacheState::Live)

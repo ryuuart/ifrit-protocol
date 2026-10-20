@@ -2,14 +2,15 @@
 
 /** @file
  * Reaching a registration another file made: the submodule a package
- * publishes under, and the class a package extends without editing the
- * file that first registered it.
+ * publishes under, whether a class is registered yet, and the class a
+ * package extends without editing the file that first registered it.
  */
 
 #include <pybind11/pybind11.h>
 
 #include <memory>
 #include <string>
+#include <typeinfo>
 
 namespace sigil::python {
 
@@ -20,6 +21,15 @@ namespace sigil::python {
  *  step of the path already names something that is not a module, since
  *  replacing it would unregister what another package put there. */
 pybind11::module_ submodule(pybind11::module_& root, const char* path);
+
+/** Whether the class Python reads @p Native back as is registered yet. A
+ *  signature is written when its function is registered, so a binding
+ *  that names a class another file registers is offered only once that
+ *  class has a Python name to be written under. */
+template <class Native>
+bool registered() {
+  return pybind11::detail::get_type_info(typeid(Native)) != nullptr;
+}
 
 /** The registered type @p path names, checked, as a reference of the
  *  caller's own. `extend` is how a binding reaches it; this is the check

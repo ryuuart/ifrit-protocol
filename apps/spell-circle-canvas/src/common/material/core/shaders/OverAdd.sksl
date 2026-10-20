@@ -1,7 +1,3 @@
-half coverage(float2 xy) {
-  return half(clamp(float(mask.eval(xy).r) * amount, 0.0, 1.0));
-}
-
 half4 main(float2 xy) {
   return base.eval(xy) + top.eval(xy) * coverage(xy);
 }

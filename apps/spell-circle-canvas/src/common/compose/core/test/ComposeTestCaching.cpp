@@ -965,3 +965,54 @@ TEST(ComposeCaching, AHeldBevelPaintsTheBevelCastLive) {
     }
   EXPECT_LE(farthest, 2);
 }
+
+// ---------------------------------------------------------------------------
+// A CHANGE OF BAKE DENSITY: every bake goes, and the coverage trace, taken at
+// the host's scale, stays.
+
+TEST(ComposeCaching, AChangeOfBakeDensityLeavesTheCoverageTraceAlone) {
+  // The traced disc, with a shadow cast from its silhouette.
+  const auto dressed = [] {
+    return box().width(200).height(200).fill(Fill::color({0, 0, 0, 1}))
+        .children({box()
+                       .absolute()
+                       .left(20)
+                       .top(20)
+                       .width(160)
+                       .height(160)
+                       .decorationOutline(Boundary::Coverage)
+                       .stroke(TracedRule{})
+                       .background(shadow(material::Color{1, 1, 1, 0.6f},
+                                          {6, 8}, 6))
+                       .children({box()
+                                      .absolute()
+                                      .left(18)
+                                      .top(30)
+                                      .width(120)
+                                      .height(104)
+                                      .shape(geometry::shapes::circle())
+                                      .fill(Fill::color(
+                                          {0.9f, 0.8f, 0.3f, 1}))})});
+  };
+  const size_t before = detail::coverageTracesTaken();
+  Host host(200, 200);
+  host.composer.render(dressed());
+  host.frame();
+  host.frame();
+  const size_t traced = detail::coverageTracesTaken();
+  EXPECT_GT(traced, before) << "the first frame traced the silhouette";
+  for (int step = 0; step < 4; ++step) {
+    host.composer.setBakeDensity(step % 2 == 0 ? 2.0f : 1.0f);
+    host.frame();
+  }
+  EXPECT_EQ(detail::coverageTracesTaken(), traced)
+      << "a density change traced a silhouette again";
+  // …and what depends on the density was cut again: the picture is the one
+  // a host standing at that density from its first frame paints.
+  Host fresh(200, 200);
+  fresh.composer.setBakeDensity(1.0f);
+  fresh.composer.render(dressed());
+  fresh.frame();
+  fresh.frame();
+  EXPECT_EQ(grab(host), grab(fresh));
+}

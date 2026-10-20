@@ -38,7 +38,7 @@
 #include "support/CoreTestSupport.h"
 
 // …and the RUNTIME header, for the kSlotSpecs walk at the bottom of the file.
-// It is the reason this target links yoga::yogacore (see CMakeLists.txt).
+// It is the reason this target links yoga::yogacore.
 #include <sigilmotion/ease/Ease.h>
 
 #include "runtime/ComposeRuntime.h"

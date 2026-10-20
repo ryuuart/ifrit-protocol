@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 
+#include "Identifiers.h"
+
 namespace sigil::material {
 
 namespace {
@@ -85,6 +87,12 @@ std::string_view skslFile(Blend blend) {
   return "OverMix.sksl";
 }
 
+/** The stack's SkSL body: the coverage every blend reads, then the blend. */
+std::string skslBody(Blend blend) {
+  return std::string(shaderSource("OverPrelude.sksl"))
+      .append(shaderSource(skslFile(blend)));
+}
+
 std::string_view slangFile(Blend blend) {
   switch (blend) {
     case Blend::Add:
@@ -103,24 +111,7 @@ std::shared_ptr<const Recipe> make(Blend blend) {
           .slot("base")
           .slot("top")
           .slot("mask")
-          .body(Target::SkSL, std::string(shaderSource(skslFile(blend)))));
-}
-
-/** Whether @p body spells @p name as a WHOLE IDENTIFIER, so a `low`
- *  inside `lowEdge` is a different name. */
-bool spells(std::string_view body, std::string_view name) {
-  const auto part = [](char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-           (c >= '0' && c <= '9') || c == '_';
-  };
-  for (size_t at = body.find(name); at != std::string_view::npos;
-       at = body.find(name, at + 1)) {
-    if (at > 0 && part(body[at - 1])) continue;
-    const size_t end = at + name.size();
-    if (end < body.size() && part(body[end])) continue;
-    return true;
-  }
-  return false;
+          .body(Target::SkSL, skslBody(blend)));
 }
 
 /** @p text with its comments taken out, so the composed body spells only
@@ -159,7 +150,7 @@ std::vector<std::string> renamed(const Recipe& recipe) {
   for (const Field& f : recipe.parameters().fields) names.push_back(f.name);
   const std::string body = uncommented(*recipe.body(Target::Slang));
   for (const std::string& slot : recipe.slots())
-    if (spells(body, slot)) names.push_back(slot);
+    if (detail::spellsIdentifier(body, slot)) names.push_back(slot);
   return names;
 }
 
@@ -278,7 +269,7 @@ std::shared_ptr<const Recipe> composeRecipe(Blend blend,
           FrameInput::WorldTransform, FrameInput::LocalToSample})
       if (operands[i]->reads(input)) recipe.frame(input);
   }
-  recipe.body(Target::SkSL, std::string(shaderSource(skslFile(blend))));
+  recipe.body(Target::SkSL, skslBody(blend));
   recipe.body(Target::Slang, composedSlang(blend, operands));
   return std::make_shared<const Recipe>(std::move(recipe));
 }
@@ -339,7 +330,6 @@ std::shared_ptr<const Recipe> composed(
       if (auto c = top.get() <=> other.top.get(); c != 0) return c;
       return mask.get() <=> other.mask.get();
     }
-    bool operator==(const Key& other) const = default;
   };
   static std::mutex mutex;
   static boost::container::flat_map<Key, std::shared_ptr<const Recipe>> built;

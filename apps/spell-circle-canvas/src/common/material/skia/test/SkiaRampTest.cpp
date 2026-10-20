@@ -26,17 +26,13 @@
 #include <cstdlib>
 #include <vector>
 
+#include "SkiaPaintTestSupport.h"
 #include "support/Shade.h"
 
 using namespace sigil::material;
 using sigil::material::test::render;
 
 namespace {
-
-sk_sp<SkRuntimeEffect> effectFor(const char* src) {
-  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src));
-  return effect;
-}
 
 /** Red at the top, blue at the bottom, with green halfway — three stops
  *  a wrong span shows as a flat band of the last one. */

@@ -4,8 +4,8 @@
  * WHAT A PAINT'S OWN PARTS AGREE ON: the unit-square ramp its factories
  * compile to, the one Paint→SkShader conversion every slot
  * performs, the two questions asked of a runtime effect before a name is
- * stored against it, and the pass specialization the text runtime draws a
- * `textFx::pass` track through.
+ * stored against it, how a named value is stored, and the pass
+ * specialization the text runtime draws a `textFx::pass` track through.
  *
  * Declared apart from the paint class because these are shared
  * mechanisms used by the paint and effect implementations. Consumers
@@ -26,7 +26,9 @@
 #include <cstdint>
 #include <glm/mat3x3.hpp>
 #include <memory>
+#include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace sigil::material {
@@ -96,6 +98,22 @@ inline bool validUniform(const sk_sp<SkRuntimeEffect>& effect,
                          std::string_view name, UniformType type) {
   const auto* uniform = effect ? effect->findUniform(name) : nullptr;
   return uniform && uniform->type == type && !uniform->isArray();
+}
+
+/** ONE ENTRY PER NAME, in every uniform lane of a paint or an effect, as
+ *  `slot()` does for its slots: setting a uniform twice replaces the first
+ *  value rather than stacking two the builder would both assign, so the
+ *  lane stays bounded and a recipe set twice compares equal to the same
+ *  recipe set once. */
+template <class Value>
+void putByName(std::vector<std::pair<std::string, Value>>& lane,
+               std::string name, Value value) {
+  for (auto& entry : lane)
+    if (entry.first == name) {
+      entry.second = std::move(value);
+      return;
+    }
+  lane.emplace_back(std::move(name), std::move(value));
 }
 
 inline bool validFloatPacket(const sk_sp<SkRuntimeEffect>& effect,

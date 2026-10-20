@@ -17,14 +17,11 @@
 #include <span>
 #include <string>
 
+#include "support/Recipes.h"
+
 using namespace sigil::material;
 
 namespace {
-
-struct TwoParameters {
-  float uScale;
-  Color uColor;
-};
 
 struct SeededParameters {
   float seed;
@@ -34,11 +31,6 @@ struct SeededParameters {
 std::shared_ptr<const Recipe> seededRecipe(const char* name = "seeded") {
   return std::make_shared<const Recipe>(Recipe::of<SeededParameters>(name).body(
       Target::SkSL, "half4 main(float2 p) { return half4(uColor * seed); }"));
-}
-
-std::shared_ptr<const Recipe> twoRecipe(const char* name = "two") {
-  return std::make_shared<const Recipe>(Recipe::of<TwoParameters>(name).body(
-      Target::SkSL, "half4 main(float2 p) { return half4(uColor * uScale); }"));
 }
 
 /** A stand-in Slang compiler, so `over()` builds the COMPOSED recipe.

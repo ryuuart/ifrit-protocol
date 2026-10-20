@@ -27,8 +27,8 @@
 #include <vector>
 
 #include "BandScan.h"
-#include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilgeometry/path/Polyline.h"
 #include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/field/DistanceField.h"
 #include "sigilweave/advanced/Skia.h"
@@ -155,7 +155,8 @@ class DilatedCoverage {
     paint(canvas);
     SkPixmap alpha;
     if (!surface->peekPixels(&alpha)) return;
-    m_field = media::distanceField(media::coverageMask(alpha, {.threshold = m_threshold}));
+    m_field = media::distanceField(
+        media::coverageMask(alpha, {.threshold = m_threshold}));
   }
 
   void setThreshold(float threshold) {
@@ -164,8 +165,6 @@ class DilatedCoverage {
     m_field = {};
     m_builtMargin = -1;
   }
-
-  bool ready() const { return !m_field.empty(); }
 
   /// The runs of the dilated coverage inside the band, in flow coordinates.
   void spans(FlowAxis axis, Band band, float margin,

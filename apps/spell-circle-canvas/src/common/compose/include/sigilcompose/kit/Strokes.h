@@ -5,9 +5,8 @@
  *
  * The KIT's stroke-grammar values, each under the catalog it is a member
  * of: `lines::presets::`, finished lines, rails and hatches;
- * `kit::braid`, a strand set; `spans::brackets`, a span composition
- * standing beside the kernel's own span terms; and `brush::presets::`,
- * finished brushes with craft names.
+ * `kit::braid`, a strand set; and `brush::presets::`, finished brushes
+ * with craft names.
  *
  * **This header is NOT reached by `sigilcompose/kit/Kit.h`.** The umbrella
  * include does not pull it in, so none of the names below exist unless you
@@ -271,18 +270,6 @@ inline PathFormat groove(float radius, float width, material::Color dark,
 }
 
 }  // namespace kit
-
-// ---------------------------------------------------------------------------
-// spans::brackets — a span composition, beside the kernel's own terms
-
-namespace spans {
-/** The reticle: a window of `arm` px at every corner and nothing else.
- *  A composition of existing span terms rather than a new kind — `Spans`
- *  is a closed value, so a kit span can only ever be a composition. */
-inline Spans brackets(float arm = 18.0f, float angleDegrees = 30.0f) {
-  return corners(arm, angleDegrees);
-}
-}  // namespace spans
 
 // ---------------------------------------------------------------------------
 // brush::presets — finished compositions with craft names

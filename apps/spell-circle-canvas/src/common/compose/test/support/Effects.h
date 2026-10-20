@@ -41,18 +41,4 @@ sk_sp<SkRuntimeEffect> heavyEffect(bool withTime) {
   return effect;
 }
 
-/** ONE effect for the whole process, and this is not tidiness.
- *
- *  `heavyEffect()` mints a fresh SkRuntimeEffect on every call, and a fresh
- *  effect pointer makes the material recipe compare unequal — so a fixture
- *  that re-describes each frame dirties the node's own paint each frame and
- *  no bake of any kind can hold. Tests that describe once and then only
- *  `frame()` never notice; a test whose whole point is that a child moves
- *  must re-describe, and then it does. Materials built from ordinary values
- *  compare fine; a raw SkSL effect pointer is the one that does not. */
-sk_sp<SkRuntimeEffect> sharedHeavyEffect() {
-  static sk_sp<SkRuntimeEffect> effect = heavyEffect(false);
-  return effect;
-}
-
 }  // namespace

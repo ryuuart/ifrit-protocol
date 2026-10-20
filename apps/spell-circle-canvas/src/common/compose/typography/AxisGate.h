@@ -6,6 +6,8 @@
  * with a single warning by the draw-time verbs.
  */
 
+#include <sigilweave/fonts/FontContext.h>
+
 #include <boost/container/map.hpp>
 
 #include "runtime/Instance.h"

@@ -21,7 +21,11 @@ sigil_shader_sources(SigilMaterialSurface
 # shader directory is named for the case that asks whether the embedded
 # table holds every file in it.
 sigil_test(material_test
-  SOURCES test/SurfaceTest.cpp test/TermsTest.cpp
+  SOURCES test/SurfaceTest.cpp test/TermsClosedFormTest.cpp
+    test/TermsEnvironmentTest.cpp test/TermsToneCurveTest.cpp
+    test/TermsSlangCrossingTest.cpp test/TermsTransmissionTest.cpp
+    test/TermsSheenTest.cpp test/TermsHighlightTest.cpp
+    test/TermsAreaLightTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SURFACE_SHADER_DIR="${SIGIL_MATERIAL_SURFACE_SHADER_DIR}"
   LIBRARIES SigilMaterialSurface SigilMaterialSkia)

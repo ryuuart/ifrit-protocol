@@ -2,20 +2,18 @@
 // dash -- with the stroke alignment and the decorations a node wears along
 // its own outline.
 
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Contour.h>
 
 #include "support/BrushTestSupport.h"
+#include "support/PathDump.h"
 
 TEST(ComposeStroke, StrokeAlignInnerAndOuter) {
   auto boxWith = [](PathFormat::Align align) {
     return box().children(
-        {box()
-             .absolute()
-             .inset(50)
-             .stroke(stroke(20, green(), align))});
+        {box().absolute().inset(50).stroke(stroke(20, green(), align))});
   };
   Host inner, outer;
   inner.composer.render(boxWith(PathFormat::Align::Inner));
@@ -40,10 +38,7 @@ TEST(ComposeDecorations, BoundShadowOffsetSlides) {
   shadow.bindOffsetX = lift;
   shadow.maxBind = 40.0f;
   host.composer.render(box().children(
-      {box()
-           .absolute()
-           .inset(60, 80, 80, 60)
-           .background(shadow)}));
+      {box().absolute().inset(60, 80, 80, 60).background(shadow)}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 90), SK_ColorGREEN);   // at rest: under the box
   EXPECT_EQ(host.pixel(135, 90), SK_ColorBLACK);  // nothing to the right
@@ -59,11 +54,8 @@ TEST(ComposeDecorations, KnockoutShadowLeavesTheFootprintClear) {
   s.ink = Fill::color({0, 1, 0, 1});
   s.offset = {20, 0};
   s.knockout = true;
-  host.composer.render(box().children(
-      {box()
-           .absolute()
-           .inset(60, 80, 80, 60)
-           .background(s)}));
+  host.composer.render(
+      box().children({box().absolute().inset(60, 80, 80, 60).background(s)}));
   host.frame();
   EXPECT_EQ(host.pixel(130, 90), SK_ColorGREEN);  // shadow right of the box
   EXPECT_EQ(host.pixel(100, 90), SK_ColorBLACK);  // footprint knocked out
@@ -82,12 +74,8 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   sliver.trimStart = 0.0f;
   sliver.trimEnd = 0.1f;
   sliver.trimPhase = phase;
-  host.composer.render(box().children(
-      {box()
-           .absolute()
-           .inset(50)
-           .stroke(band)
-           .stroke(sliver)}));
+  host.composer.render(
+      box().children({box().absolute().inset(50).stroke(band).stroke(sliver)}));
   host.frame();
   std::vector<SkIPoint> redNow;
   int greenCount = 0;
@@ -172,18 +160,17 @@ namespace {
 /** An L-shaped run: right along the bottom, then up — one hard 90° corner
  *  at local (120, 120), absolute (140, 140). */
 Element corneredRun(lines::Line style) {
-  return box().children(
-      {box()
-           .absolute()
-           .inset(20)
-           .shape(skiaShape([] {
-             SkPathBuilder b;
-             b.moveTo(0, 120);
-             b.lineTo(120, 120);
-             b.lineTo(120, 0);
-             return b.detach();
-           }))
-           .stroke(std::move(style))});
+  return box().children({box()
+                             .absolute()
+                             .inset(20)
+                             .shape(skiaShape([] {
+                               SkPathBuilder b;
+                               b.moveTo(0, 120);
+                               b.lineTo(120, 120);
+                               b.lineTo(120, 0);
+                               return b.detach();
+                             }))
+                             .stroke(std::move(style))});
 }
 
 }  // namespace
@@ -229,12 +216,11 @@ TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
   // The stated-radii overload puts a circle exactly where it says. The
   // spaced form is kept here as the control that the trap is real.
   const auto ringNode = [](lines::RadialHatch hatch) {
-    return box().children(
-        {box()
-             .absolute()
-             .inset(20)
-             .shape(geometry::shapes::circle())
-             .stroke(std::move(hatch))});
+    return box().children({box()
+                               .absolute()
+                               .inset(20)
+                               .shape(geometry::shapes::circle())
+                               .stroke(std::move(hatch))});
   };
   Host stated, spaced;
   stated.composer.render(ringNode(
@@ -346,16 +332,16 @@ RailScan scanRails(Host& host, float cx, float cy, float rInner, float rOuter) {
 }
 
 Element circleRun(Decoration style, float radius) {
-  return box().children(
-      {box()
-           .absolute()
-           .inset(0)
-           .shape(skiaShape([radius](SkSize s) {
-             SkPathBuilder b;
-             b.addCircle(s.width() / 2, s.height() / 2, radius);
-             return b.detach();
-           }))
-           .stroke(std::move(style))});
+  return box().children({box()
+                             .absolute()
+                             .inset(0)
+                             .shape(skiaShape([radius](SkSize s) {
+                               SkPathBuilder b;
+                               b.addCircle(s.width() / 2, s.height() / 2,
+                                           radius);
+                               return b.detach();
+                             }))
+                             .stroke(std::move(style))});
 }
 
 }  // namespace
@@ -427,8 +413,8 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
   SkPathBuilder cb;
   cb.addCircle(150, 150, 100);
   const std::vector<SkScalar> pattern = {8.0f, 8.0f};
-  const SkPath dashed = geometry::path::toSk(lines::dashGeometry(
-      geometry::path::fromSk(cb.detach()), pattern, 0));
+  const SkPath dashed = geometry::path::toSk(
+      lines::dashGeometry(geometry::path::fromSk(cb.detach()), pattern, 0));
   auto spans = [](const SkPath& p) {
     std::vector<std::pair<double, double>> out;
     for (const sigil::geometry::path::Contour& c :
@@ -568,54 +554,6 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
   EXPECT_GT(host.composer.stats().picturesRecorded, 0u);
 }
 
-namespace {
-
-/** The path's line-verb skeleton: every on-curve point in order, with the
- *  verb census alongside — the geometry assertions below read this. */
-struct PathDump {
-  std::vector<SkPoint> pts;
-  int moves = 0, lines = 0, curves = 0, closes = 0;
-};
-
-PathDump dumpPath(const SkPath& p) {
-  PathDump d;
-  SkPath::Iter it(p, false);
-  SkPoint v[4];
-  for (SkPath::Verb verb; (verb = it.next(v)) != SkPath::kDone_Verb;) {
-    switch (verb) {
-      case SkPath::kMove_Verb:
-        ++d.moves;
-        d.pts.push_back(v[0]);
-        break;
-      case SkPath::kLine_Verb:
-        ++d.lines;
-        d.pts.push_back(v[1]);
-        break;
-      case SkPath::kQuad_Verb:
-      case SkPath::kConic_Verb:
-        ++d.curves;
-        d.pts.push_back(v[2]);
-        break;
-      case SkPath::kCubic_Verb:
-        ++d.curves;
-        d.pts.push_back(v[3]);
-        break;
-      case SkPath::kClose_Verb:
-        ++d.closes;
-        break;
-      default:
-        break;
-    }
-  }
-  return d;
-}
-
-PathDump dumpPath(const sigil::geometry::path::Outline& outline) {
-  return dumpPath(sigil::geometry::path::toSk(outline));
-}
-
-}  // namespace
-
 TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
   const glm::vec2 run[2] = {{20, 20}, {180, 160}};
   // An 8 px chamfer on the HFirst L: the corner vertex (180,20) is
@@ -659,10 +597,8 @@ TEST(ComposeRouters, AManhattanCasedWireMatchesCleanGeometry) {
   };
   Decoration wire = lines::presets::cased(3, Fill::color({1, 1, 1, 1}), 10);
   Host routed, clean;
-  routed.composer.render(
-      stations().operators({connect::Along{.stops = {{"a"}, {"b"}},
-                                           .router = routers::manhattan(),
-                                           .wire = wire}}));
+  routed.composer.render(stations().operators({connect::Along{
+      .stops = {{"a"}, {"b"}}, .router = routers::manhattan(), .wire = wire}}));
   clean.composer.render(stations().children({box()
                                                  .absolute()
                                                  .inset(0)

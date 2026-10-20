@@ -18,20 +18,11 @@
 #include <string>
 #include <vector>
 
+#include "support/Faces.h"
+
 using namespace sigil::weave;
 
 namespace {
-
-std::vector<std::byte> bytesOf(const char* fileName) {
-  std::ifstream file(std::string(SIGIL_TEST_INSTRUMENT_DIR "/") + fileName,
-                     std::ios::binary);
-  const std::vector<char> characters{std::istreambuf_iterator<char>(file),
-                                     std::istreambuf_iterator<char>()};
-  std::vector<std::byte> bytes(characters.size());
-  for (size_t index = 0; index < characters.size(); ++index)
-    bytes[index] = std::byte(characters[index]);
-  return bytes;
-}
 
 /** THE SAME FONT AT ANOTHER WEIGHT: @p bytes with the weight class its
  *  OS/2 table states rewritten to @p weight, which is a second face of the
@@ -88,7 +79,7 @@ std::string upper(std::string text) {
 
 TEST(AdoptedFace, AFontFilesFaceAnswersUnderItsFamily) {
   FontContext context(ports::systemFontManager());
-  const Face face = ports::faceFromBytes(bytesOf("Sans.ttf"));
+  const Face face = ports::faceFromBytes(test::instrumentBytes("Sans.ttf"));
   ASSERT_TRUE(face);
   const std::string family = face.familyName();
   ASSERT_FALSE(family.empty());
@@ -114,7 +105,7 @@ TEST(AdoptedFace, AFontFilesFaceAnswersUnderItsFamily) {
 
 TEST(AdoptedFace, AStyleFindsTheFamilysNearestAdoptedFace) {
   FontContext context(ports::systemFontManager());
-  const std::vector<std::byte> regularBytes = bytesOf("Sans.ttf");
+  const std::vector<std::byte> regularBytes = test::instrumentBytes("Sans.ttf");
   const Face regular = ports::faceFromBytes(regularBytes);
   const Face bold = ports::faceFromBytes(atWeight(regularBytes, 700));
   ASSERT_TRUE(regular && bold);
@@ -137,8 +128,9 @@ TEST(AdoptedFace, AStyleFindsTheFamilysNearestAdoptedFace) {
 
 TEST(AdoptedFace, AFaceFromTheSameOriginReplacesTheFamilyItHeld) {
   FontContext context(ports::systemFontManager());
-  const Face first = ports::faceFromBytes(bytesOf("Sans.ttf"));
-  const Face second = ports::faceFromBytes(bytesOf("Variable.ttf"));
+  const Face first = ports::faceFromBytes(test::instrumentBytes("Sans.ttf"));
+  const Face second =
+      ports::faceFromBytes(test::instrumentBytes("Variable.ttf"));
   ASSERT_TRUE(first && second);
   ASSERT_NE(first.familyName(), second.familyName());
   context.adopt(first, "sketch://type/data/Face.ttf");
@@ -153,7 +145,7 @@ TEST(AdoptedFace, AFaceFromTheSameOriginReplacesTheFamilyItHeld) {
 
 TEST(AdoptedFace, PurgingTheCachesKeepsEveryAdoption) {
   FontContext context(ports::systemFontManager());
-  const Face face = ports::faceFromBytes(bytesOf("Sans.ttf"));
+  const Face face = ports::faceFromBytes(test::instrumentBytes("Sans.ttf"));
   ASSERT_TRUE(face);
   context.adopt(face);
   context.purgeAllCaches();

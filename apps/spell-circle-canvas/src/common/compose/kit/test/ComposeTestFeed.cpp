@@ -3,20 +3,12 @@
 // and the stagger that delays only the ones that did mount.
 
 #include <sigilcompose/kit/Feed.h>
-
-#include "support/CoreTestSupport.h"
 #include <sigilmotion/ease/Ease.h>
 
-namespace {
+#include "support/CoreTestSupport.h"
+#include "support/Feed.h"
 
-/** Plain rows, white on the Host's black ground so ink reads as brightness. */
-feed::TextOptions feedOptions(size_t visible, float size = 12.0f) {
-  feed::TextOptions options;
-  options.styles.base(whiteStyle(size));
-  options.window.visible = visible;
-  options.window.gap = 2.0f;
-  return options;
-}
+namespace {
 
 /** The brightest ink inside a rect — how lit a row is, whatever it says. */
 int brightestIn(Host& host, const geometry::path::Rect& r) {
@@ -82,7 +74,10 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   const feed::TextOptions options = feedOptions(6, 16.0f);
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
-        .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
+        .opacity(motion::animate({.from = 0.0f,
+                                  .to = 1.0f,
+                                  .duration = 200ms,
+                                  .ease = motion::ease::linear}));
   };
   Host host(160, 200);
   auto describe = [&] {
@@ -109,7 +104,8 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
         << "row " << sequence << " re-entered: the append remounted it";
   }
   // …and the new row really is new — it is mid-entrance, not already lit.
-  const std::optional<geometry::path::Rect> tail = host.composer.bounds(feed::rowKey(5));
+  const std::optional<geometry::path::Rect> tail =
+      host.composer.bounds(feed::rowKey(5));
   ASSERT_TRUE(tail.has_value());
   EXPECT_LT(brightestIn(host, *tail), 120);
 }
@@ -164,8 +160,10 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
 
   host.composer.render(describe());
   host.frame(0.25);  // row 1's 200 ms is done; row 2 waits out its 400 ms
-  const std::optional<geometry::path::Rect> r1 = host.composer.bounds(feed::rowKey(1));
-  const std::optional<geometry::path::Rect> r2 = host.composer.bounds(feed::rowKey(2));
+  const std::optional<geometry::path::Rect> r1 =
+      host.composer.bounds(feed::rowKey(1));
+  const std::optional<geometry::path::Rect> r2 =
+      host.composer.bounds(feed::rowKey(2));
   ASSERT_TRUE(r1.has_value());
   ASSERT_TRUE(r2.has_value());
   EXPECT_GT(brightestIn(host, *r1), 150);
@@ -179,7 +177,8 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   ring.append({u8"tail"});
   host.composer.render(describe());
   host.frame(0.25);
-  const std::optional<geometry::path::Rect> r4 = host.composer.bounds(feed::rowKey(4));
+  const std::optional<geometry::path::Rect> r4 =
+      host.composer.bounds(feed::rowKey(4));
   ASSERT_TRUE(r4.has_value());
   EXPECT_GT(brightestIn(host, *r4), 150)
       << "the appended row inherited the window's cascade";

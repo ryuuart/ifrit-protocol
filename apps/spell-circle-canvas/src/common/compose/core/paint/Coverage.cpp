@@ -18,6 +18,7 @@
 #include <src/core/SkScopeExit.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <limits>
 #include <optional>
@@ -46,7 +47,17 @@ namespace {
  *  alternative to refusing outright. */
 constexpr int kMaxTraceRaster = 2048;
 
+/** Whether what @p inst covers may have changed since its trace: its paint
+ *  is dirty for a reason other than a change of bake density. */
+bool coverageChanged(const Instance& inst) {
+  return inst.paintDirty && !inst.paintDirtyOnlyForDensity;
+}
+
+std::atomic<size_t> coverageTraces{0};
+
 }  // namespace
+
+size_t detail::coverageTracesTaken() { return coverageTraces.load(); }
 
 /** THE ALPHA, AS A REGION, at the tolerance the node declared: a pixel is
  *  inside when its coverage reaches `covered`, which
@@ -127,8 +138,10 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   // offset.
   const SkRect covers = sized ? ownPaintBounds(inst) : SkRect::MakeEmpty();
   // What the subtree covers is all a trace reads, so a subtree whose
-  // colours move and whose coverage holds keeps its trace.
-  const bool stale = inst.paintDirty || inst.silhouetteVolatile ||
+  // colours move and whose coverage holds keeps its trace, and so does one
+  // dirty only because the bake density changed: the trace is taken at the
+  // host's scale and nothing it covers depends on the density.
+  const bool stale = coverageChanged(inst) || inst.silhouetteVolatile ||
                      inst.coverageOutlineSize != size ||
                      inst.coverageOutlineBounds != covers ||
                      inst.coverageOutlineScale != contentScale ||
@@ -156,7 +169,7 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   const float scale = std::min(contentScale > 0 ? contentScale : 1.0f,
                                (float)kMaxTraceRaster / std::max(longer, 1.0f));
   // A node whose own paint was invalidated traces its own part again.
-  if (inst.paintDirty) inst.coverageOwn.scale = -1.0f;
+  if (coverageChanged(inst)) inst.coverageOwn.scale = -1.0f;
   // A SILHOUETTE WHOSE PARTS HOLD: where only children move, and move
   // rigidly, the node's own paint and each child's silhouette are traced
   // once and held, and a frame places them where the children now stand
@@ -190,6 +203,7 @@ SkPath Composer::Impl::traceCoverage(Instance& inst, const SkRect& covers,
   const sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeA8(width, height));
   if (!surface) return SkPath();
+  coverageTraces.fetch_add(1);
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(SK_ColorTRANSPARENT);
   canvas.translate((float)-raster.left(), (float)-raster.top());
@@ -260,7 +274,7 @@ std::optional<SkPath> Composer::Impl::composedCoverage(Instance& inst,
   // The node's own paint must hold, and nothing of its own may wrap its
   // children: a clip, a mask or a filter over the layer reads the children
   // where they stand and is not the union of their silhouettes.
-  if (inst.ownCoverageVolatile || inst.paintDirty || style.clipContent ||
+  if (inst.ownCoverageVolatile || coverageChanged(inst) || style.clipContent ||
       layerEffectOf(node) || backdropEffectOf(node) || node.hasMasks() ||
       hostsSpace(inst))
     return std::nullopt;
@@ -279,7 +293,8 @@ std::optional<SkPath> Composer::Impl::composedCoverage(Instance& inst,
     // drawn whole at full opacity and the plain blend, on a flat plane, and
     // dressed by no mark of its own, which a trace of the child alone
     // would leave out.
-    if (child.silhouetteVolatile || child.paintDirty || described.fxData ||
+    if (child.silhouetteVolatile || coverageChanged(child) ||
+        described.fxData ||
         !described.backgrounds.empty() || !described.foregrounds.empty() ||
         child.computed.paint.opacity.identity() != nullptr ||
         child.computed.paint.blendMode != SkBlendMode::kSrcOver ||

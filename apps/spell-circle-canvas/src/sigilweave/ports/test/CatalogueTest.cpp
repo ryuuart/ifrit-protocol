@@ -17,19 +17,10 @@
 #include <string>
 #include <vector>
 
+#include "support/Faces.h"
+
 namespace sigil::weave {
 namespace {
-
-std::vector<std::byte> bytesOf(const char* fileName) {
-  std::ifstream file(std::string(SIGIL_TEST_INSTRUMENT_DIR "/") + fileName,
-                     std::ios::binary);
-  const std::vector<char> characters{std::istreambuf_iterator<char>(file),
-                                     std::istreambuf_iterator<char>()};
-  std::vector<std::byte> bytes(characters.size());
-  for (size_t index = 0; index < characters.size(); ++index)
-    bytes[index] = std::byte(characters[index]);
-  return bytes;
-}
 
 bool lists(const std::vector<std::string>& names, const std::string& name) {
   return std::ranges::find(names, name) != names.end();
@@ -70,7 +61,7 @@ TEST(TypeCatalogueNames, AWeightIsNamedAsCssNamesIt) {
 
 TEST(BundledCatalogue, AnAdoptedFaceStandsInTheCatalogueAsBundled) {
   FontContext context(ports::systemFontManager());
-  const Face face = ports::faceFromBytes(bytesOf("Sans.ttf"));
+  const Face face = ports::faceFromBytes(test::instrumentBytes("Sans.ttf"));
   ASSERT_TRUE(face);
   const std::string family = face.familyName();
   EXPECT_FALSE(lists(fonts::families(context), family));
@@ -92,7 +83,7 @@ TEST(BundledCatalogue, AnAdoptedFaceStandsInTheCatalogueAsBundled) {
 
 TEST(BundledCatalogue, AVariableFamilyListsItsAxes) {
   FontContext context(ports::systemFontManager());
-  const Face face = ports::faceFromBytes(bytesOf("Variable.ttf"));
+  const Face face = ports::faceFromBytes(test::instrumentBytes("Variable.ttf"));
   ASSERT_TRUE(face);
   context.adopt(face);
   const std::optional<fonts::Family> family =

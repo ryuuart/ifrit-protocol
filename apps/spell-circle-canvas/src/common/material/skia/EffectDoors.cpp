@@ -19,25 +19,6 @@
 
 namespace sigil::material::skia {
 
-namespace {
-
-/** ONE ENTRY PER NAME, in every uniform lane, as `slot()` does for its
- *  slots: setting a uniform twice replaces the first value rather than
- *  stacking two the builder would both assign — an unbounded lane, and a
- *  recipe that compares unequal to the same effect described once. */
-template <class Value>
-void putByName(std::vector<std::pair<std::string, Value>>& lane,
-               std::string name, Value value) {
-  for (auto& entry : lane)
-    if (entry.first == name) {
-      entry.second = std::move(value);
-      return;
-    }
-  lane.emplace_back(std::move(name), std::move(value));
-}
-
-}  // namespace
-
 Effect& Effect::slot(std::string name, Paint source) {
   // Which names this effect kind can fill — Material::slot's structure,
   // one branch per kind, warn-and-ignore everywhere else.

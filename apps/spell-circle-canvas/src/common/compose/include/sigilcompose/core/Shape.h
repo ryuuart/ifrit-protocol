@@ -504,7 +504,7 @@ concept BorrowingDecoration = requires(const D& d) {
 };
 
 /** Type-erased decoration: the kernel seam the extension primitives
- *  (PathFormat, Slice, ContourWalk — see Decorations.h) plug into. A bare
+ *  (PathFormat, Slice, ContourWalk) plug into. A bare
  *  PaintProgram works too, at the cost of comparability — see
  *  operator== below. */
 class Decoration {

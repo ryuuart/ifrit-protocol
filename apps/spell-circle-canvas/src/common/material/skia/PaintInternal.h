@@ -78,22 +78,6 @@ struct ResolveMemo {
   }
 };
 
-/** ONE ENTRY PER NAME, in every uniform lane: setting a uniform twice
- *  replaces the first value rather than stacking two the builder would
- *  both assign, which grew the lane without bound and made a paint set
- *  twice compare unequal to the same paint set once. `slot()` follows
- *  the same rule for the same reason. */
-template <class Value>
-void putByName(std::vector<std::pair<std::string, Value>>& lane,
-               std::string name, Value value) {
-  for (auto& entry : lane)
-    if (entry.first == name) {
-      entry.second = std::move(value);
-      return;
-    }
-  lane.emplace_back(std::move(name), std::move(value));
-}
-
 }  // namespace sigil::material::skia
 
 namespace sigil::material {

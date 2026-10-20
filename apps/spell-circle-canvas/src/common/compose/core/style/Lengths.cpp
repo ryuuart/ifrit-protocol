@@ -1,0 +1,151 @@
+/** @file
+ * Lengths against the font: a length in any unit as pixels at a node — in
+ * the font, the root's font, the line and the zero's advance in force
+ * there, on the canvas, or read from a custom property — the first-line
+ * indent resolved the same way, and the line height and zero advance a
+ * font sets.
+ */
+
+#include <sigilweave/fonts/Shaper.h>
+#include <sigilweave/style/Type.h>
+
+#include <cmath>
+#include <optional>
+
+#include "CascadePass.h"
+#include "description/Calc.h"
+#include "runtime/ComposeRuntime.h"
+
+namespace sigil::compose {
+
+using namespace detail;
+
+float Composer::Impl::resolveLength(const Instance& inst,
+                                    const Dimension& length, bool& relative,
+                                    float percentBasis) const {
+  switch (length.unit) {
+    case Dimension::Unit::Px:
+    case Dimension::Unit::Pct:
+      return length.value;
+    case Dimension::Unit::Auto:
+      return YGUndefined;
+    case Dimension::Unit::Em:
+      relative = true;
+      return length.value * fontSizePx(inst.font);
+    case Dimension::Unit::Rem:
+      relative = true;
+      return length.value * remPx;
+    case Dimension::Unit::Lh:
+      relative = true;
+      return length.value * inst.lineHeight;
+    case Dimension::Unit::Ch:
+      relative = true;
+      return length.value * inst.zeroAdvance;
+    case Dimension::Unit::Pt:
+      return length.value * sigil::weave::Length::kPointPx;
+    case Dimension::Unit::Pw:
+    case Dimension::Unit::Ph: {
+      // THE CANVAS, never the parent: the box the composer renders into,
+      // which is why this is resolved here and not handed to Yoga as a
+      // percent. Under an intrinsic root — a snapshot, which has no
+      // viewport — the root's own laid-out extent is the honest stand-in.
+      relative = true;
+      const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
+      const float extent =
+          length.unit == Dimension::Unit::Pw ? canvas.width() : canvas.height();
+      return length.value * 0.01f * extent;
+    }
+    case Dimension::Unit::Var:
+      // Dereferenced by the caller, which decides between a pixel and a
+      // percent setter; a reference that reaches here names nothing.
+      relative = true;
+      return 0.0f;
+    case Dimension::Unit::Calc: {
+      // Every term in pixels here, where the font, the properties and the
+      // canvas in force are known. A property read inside a sum must hold
+      // a length a sum can hold: not a percentage, not auto, and not
+      // another property.
+      relative = true;
+      const CalcLength& sum = calcLength(length);
+      const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
+      float total = sum.px + sum.em * fontSizePx(inst.font) + sum.rem * remPx +
+                    sum.lh * inst.lineHeight + sum.ch * inst.zeroAdvance +
+                    sum.pw * 0.01f * canvas.width() +
+                    sum.ph * 0.01f * canvas.height();
+      // The percentage is of the extent the property reading the sum
+      // measures against, which only that property knows.
+      if (sum.pct != 0.0f) {
+        if (std::isfinite(percentBasis))
+          total += sum.pct * 0.01f * percentBasis;
+        else
+          warnPercentageSumUnresolved(
+              "a property measured without a "
+              "containing extent",
+              "the percentage term is left out");
+      }
+      for (const auto& [id, coefficient] : sum.vars) {
+        const VarValue* value =
+            inst.vars ? inst.vars->find(VarRef{id}) : nullptr;
+        const Dimension* found =
+            value ? std::get_if<Dimension>(value) : nullptr;
+        if (found == nullptr || found->unit == Dimension::Unit::Var) {
+          if (inst.cascadeResolved) warnNoSuchVar(VarRef{id}, false);
+          continue;
+        }
+        if (found->unit == Dimension::Unit::Pct ||
+            found->unit == Dimension::Unit::Auto) {
+          warnRefusedSum(found->unit, Dimension::Unit::Calc);
+          continue;
+        }
+        bool inner = false;
+        total += coefficient * resolveLength(inst, *found, inner);
+      }
+      return total;
+    }
+  }
+  return length.value;
+}
+
+void Composer::Impl::resolveTextIndent(const Instance& inst,
+                                       const Dimension& indent,
+                                       sigil::weave::ParagraphBlock& block,
+                                       std::optional<float>& percent) const {
+  // A property is read once, into the length it holds, and that length is
+  // resolved as if it had been written here.
+  const Dimension* length = &indent;
+  if (indent.unit == Dimension::Unit::Var) {
+    const VarValue* value =
+        inst.vars ? inst.vars->find(indent.reference()) : nullptr;
+    length = value ? std::get_if<Dimension>(value) : nullptr;
+    if (length == nullptr || length->unit == Dimension::Unit::Var ||
+        length->unit == Dimension::Unit::Auto) {
+      warnNoSuchVar(indent.reference(), false);
+      return;
+    }
+  }
+  if (length->unit == Dimension::Unit::Pct) {
+    percent = length->value;
+    block.firstLineIndent.reset();
+    return;
+  }
+  // A sum holding a percentage of the measure is not one the paragraph
+  // can take: its first-line indent is a pixel length or a percentage,
+  // never both.
+  if (percentageSum(*length))
+    warnPercentageSumUnresolved("textIndent",
+                                "its percentage term is left out");
+  bool relative = false;
+  block.firstLineIndent =
+      resolveLength(inst, *length, relative, /*percentBasis=*/0.0f);
+  percent.reset();
+}
+
+float Composer::Impl::lineHeightAt(const sigil::weave::Type& font) {
+  return sigil::weave::lineHeightOf(sigil::weave::toTextStyle(font), fonts);
+}
+
+float Composer::Impl::zeroAdvanceAt(const sigil::weave::Type& font) {
+  return sigil::weave::zeroAdvanceOf(sigil::weave::toTextStyle(font), fonts);
+}
+
+}  // namespace sigil::compose

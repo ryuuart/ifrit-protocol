@@ -6,7 +6,6 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPicture.h>
@@ -14,178 +13,27 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypes.h>  // SkASSERT
-#include <include/effects/SkRuntimeEffect.h>
-#include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmedia/advanced/Device.h>
-#include <sigilmedia/advanced/Skia.h>
-#include <sigilmedia/core/PixelSource.h>
-#include <sigilshaders/ComposeCore.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <src/core/SkScopeExit.h>
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
+#include "Masking.h"
 #include "PaintInternal.h"
 #include "PenOnCanvas.h"
 #include "SurfaceMap.h"
-#include "UnitSurface.h"
 #include "layout/DeriveInternal.h"
 #include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
 
 using namespace detail;
-
-// ---------------------------------------------------------------------------
-// The masking family, at paint
-//
-// A mask is (selection, gate). The gates fall into two mechanical classes
-// and the split is the whole implementation:
-//
-//  - SPANS cuts the BOUNDARY. It rewrites the path the selected
-//    outline-tracing outputs trace — the surface (fill + echoes) and the
-//    marks. Content and children do not trace a boundary, so a spans gate
-//    over them is not a picture and does nothing.
-//  - EDGE / SHAPE / COVERAGE cut the PLANE. They wrap the selected outputs
-//    in a canvas clip (edge, shape) or a kDstIn/kDstOut coverage layer
-//    (alpha and luma, each with its complement).
-//
-// Both classes intersect for free, and across each other: span sets
-// intersect as interval arithmetic, nested clips intersect by definition,
-// stacked kDstIn layers multiply coverage. Where a mask selects EVERYTHING
-// the plane gates are hoisted to wrap the whole node once rather than each
-// group — cheaper, and the only way a nested pair of antialiased clips
-// cannot compound its own edge.
-
-namespace {
-
-/** WHERE A PICTURE MEETS ITS LEAF'S BOX: the part of the source drawn and
- *  the rect it is drawn into. `Cover` draws the centred crop of the source
- *  that covers the box, `Contain` draws the whole source at the one scale
- *  that fits, centred with an equal margin on either side, and `Stretch`
- *  and `Native` draw the whole source into the whole box. A box within half
- *  a unit of the source's shape is that shape, which is what the layout
- *  gives a free leaf, and takes the whole source into the whole box. */
-struct ImagePlacement {
-  SkRect source;
-  SkRect destination;
-};
-
-ImagePlacement placeImage(const SkRect& source, const SkRect& box,
-                          material::Fit fit) {
-  const ImagePlacement whole{source, box};
-  if (fit != material::Fit::Cover && fit != material::Fit::Contain)
-    return whole;
-  if (source.isEmpty() || box.isEmpty()) return whole;
-  const float scaleAcross = box.width() / source.width();
-  const float scaleDown = box.height() / source.height();
-  const float scale = fit == material::Fit::Cover
-                          ? std::max(scaleAcross, scaleDown)
-                          : std::min(scaleAcross, scaleDown);
-  const float fittedWidth = source.width() * scale;
-  const float fittedHeight = source.height() * scale;
-  if (std::abs(fittedWidth - box.width()) < 0.5f &&
-      std::abs(fittedHeight - box.height()) < 0.5f)
-    return whole;
-  if (fit == material::Fit::Contain)
-    return {source,
-            SkRect::MakeXYWH(box.x() + (box.width() - fittedWidth) * 0.5f,
-                             box.y() + (box.height() - fittedHeight) * 0.5f,
-                             fittedWidth, fittedHeight)};
-  const float croppedWidth = box.width() / scale;
-  const float croppedHeight = box.height() / scale;
-  return {
-      SkRect::MakeXYWH(source.x() + (source.width() - croppedWidth) * 0.5f,
-                       source.y() + (source.height() - croppedHeight) * 0.5f,
-                       croppedWidth, croppedHeight),
-      box};
-}
-
-/** Does this span set claim the whole boundary? Then the boundary is
- *  untouched, and returning the source path unchanged is required, not an
- *  optimisation: a fully settled reveal must draw exactly the path it would
- *  have drawn with no mask on it at all, bit for bit, or adding a mask that
- *  is currently showing everything moves pixels. */
-bool claimsEverything(const std::vector<Span>& show) {
-  return show.size() == 1 && show[0].begin <= 1e-6f &&
-         show[0].end >= 1.0f - 1e-6f;
-}
-
-/** Apply a resolved SHOW set to a boundary. `cut`, when asked for, says
- *  the geometry actually changed — which only the SURFACE needs, because
- *  only the surface has a cheap rrect to fall out of. Decorations always
- *  draw a path. */
-SkPath gateOutline(const SpanArithmeticOperations* arith, const SkPath& src,
-                   const std::vector<Span>& show, bool* cut = nullptr) {
-  if (claimsEverything(show)) return src;
-  if (cut) *cut = true;
-  if (show.empty()) return SkPath();
-  return arith ? arith->spanPath(src, show) : src;
-}
-
-/** The shape a gated boundary was cut FROM — `PaintContext::silhouette` —
- *  or an empty path when the gate cut nothing and the boundary IS that
- *  shape. A span gate narrows the boundary to the run shown so far, and a
- *  partial run is OPEN: it bounds no area. An Inner- or Outer-aligned
- *  stroke clips to what the shape encloses, so on the run alone it clips
- *  to nothing while the run is one straight segment and to whatever the
- *  run's implicit closure encloses once it turns a corner. Carrying the
- *  uncut shape keeps an alignment meaning one thing at every fraction of a
- *  reveal: the half of the stroke's width inside — or outside — the shape,
- *  along the part of the boundary that is shown. */
-SkPath gateSilhouette(const SkPath& src, const std::vector<Span>& show) {
-  return claimsEverything(show) ? SkPath() : src;
-}
-
-// ---- the coverage law, in one place ---------------------------------------
-//
-// A coverage gate (`by::alpha`, `by::luma` and their complements) draws the
-// Material over the masked group's layer and keeps what it covers. The gate
-// asks two INDEPENDENT questions and each has exactly one mechanism:
-//
-//  - WHICH CHANNEL (Gate::Channel) — Alpha is the shader's own alpha and
-//    needs no work at all. Luma weights the PREMULTIPLIED colour with
-//    Rec. 601 on the ENCODED values, with no linearization, because
-//    everything here composites in encoded sRGB. Premultiplied is what
-//    makes a TRANSPARENT matte read as black, the way compositing
-//    applications do.
-//  - WHICH SIDE (Gate::outside) — the complement is `kDstOut` instead of
-//    `kDstIn`. `dst * (1 - a)` IS `1 - coverage`, exactly, for any source,
-//    so an inverted matte costs one enum value and no shader.
-
-/** Rec. 601 luma of a resolved COLOUR, as a coverage alpha. `Fill`'s colour
- *  is unpremultiplied, so the premultiplied reading is written out:
- *  `a · dot(rgb, k)`. */
-material::Color lumaCoverageColor(const material::Color& c) {
-  const float y = 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
-  return {0, 0, 0, std::clamp(c.a * y, 0.0f, 1.0f)};
-}
-
-/** …and of a resolved SHADER. A shader's channels arrive PREMULTIPLIED, so
- *  the same law is one dot product: `dot(a·rgb, k) == a · dot(rgb, k)`. The
- *  result `(0,0,0,Y')` is a valid premultiplied colour because the
- *  coefficients sum to 1, so `Y' <= a` always. */
-sk_sp<SkShader> lumaCoverageShader(sk_sp<SkShader> src) {
-  static const SkRuntimeEffect* effect = [] {
-    auto result = SkRuntimeEffect::MakeForShader(
-        SkString(shaderSource("LumaCoverage.sksl")));
-    return result.effect.release();
-  }();
-  if (!effect || !src) return src;
-  SkRuntimeEffect::ChildPtr child(std::move(src));
-  return effect->makeShader(nullptr, {&child, 1});
-}
-
-}  // namespace
 
 // ---------------------------------------------------------------------------
 // Silhouette
@@ -299,65 +147,17 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       node.hasMasks() ? &node.fxData->masks : nullptr;
   const std::vector<float> gateValues =
       masks ? inst.resolveGateValues() : std::vector<float>{};
-  // THE SPAN ARITHMETIC the boundary is cut and intersected with — the
-  // brush engine the node's stroke passes carry, or failing that the one
-  // its first spans gate carries. Absent only on a node that has neither,
-  // which then has nothing to cut.
-  const SpanArithmeticOperations* arith = nullptr;
-  if (node.strokeData && node.strokeData->resolver)
-    arith = node.strokeData->resolver.get();
-  if (!arith && masks)
-    for (const Mask& m : *masks)
-      if (m.with.kind == Gate::Kind::Spans && m.with.resolver) {
-        arith = m.with.resolver.get();
-        break;
-      }
-  const auto intersect = [&](const std::vector<Span>& a,
-                             const std::vector<Span>& b) {
-    return arith ? arith->intersect(a, b) : a;
+  const BoundaryGates boundary =
+      resolveBoundaryGates(inst, masks, gateValues, outlinePath);
+  const SpanArithmeticOperations* const arith = boundary.arithmetic;
+  const std::optional<std::vector<Span>>& surfaceShow = boundary.surfaceShow;
+  const std::optional<std::vector<Span>>& marksShow = boundary.marksShow;
+  const std::vector<std::pair<std::string, std::vector<Span>>>& namedShow =
+      boundary.namedShow;
+  const auto intersect = [&boundary](const std::vector<Span>& a,
+                                     const std::vector<Span>& b) {
+    return boundary.intersect(a, b);
   };
-  // The SHOW set each of surface / marks is left with, as fractions of the
-  // whole boundary — absent when no spans gate selects it.
-  std::optional<std::vector<Span>> surfaceShow, marksShow;
-  // …and the per-NAMED-mark refinement, for masks that address one label.
-  std::vector<std::pair<std::string, std::vector<Span>>> namedShow;
-  if (masks) {
-    SpanInput gateIn;
-    gateIn.outline = &outlinePath;
-    gateIn.fitRects = &inst.spanFitRects;
-    size_t valueBase = 0;
-    for (const Mask& m : *masks) {
-      const size_t count = m.with.valueCount();
-      if (m.with.kind != Gate::Kind::Spans) {
-        valueBase += count;
-        continue;
-      }
-      const std::vector<float> mine(
-          gateValues.begin() + (long)std::min(valueBase, gateValues.size()),
-          gateValues.begin() +
-              (long)std::min(valueBase + count, gateValues.size()));
-      valueBase += count;
-      gateIn.values = &mine;
-      const std::vector<Span> show = m.with.resolver
-                                         ? m.with.resolver->plan(m.with, gateIn)
-                                         : std::vector<Span>{};
-      // THE INTERSECTION LAW: stacked masks both have to pass, so a second
-      // gate over the same target narrows the first, never widens it.
-      const auto narrow = [&](std::optional<std::vector<Span>>& slot) {
-        slot = slot ? intersect(*slot, show) : show;
-      };
-      if (m.what.selects(Parts::kSurface)) narrow(surfaceShow);
-      if (m.what.selects(Parts::kMarks)) narrow(marksShow);
-      for (const std::string& label : m.what.names) {
-        auto it = std::find_if(namedShow.begin(), namedShow.end(),
-                               [&](const auto& e) { return e.first == label; });
-        if (it == namedShow.end())
-          namedShow.emplace_back(label, show);
-        else
-          it->second = intersect(it->second, show);
-      }
-    }
-  }
   // `trimmed` says the SURFACE's geometry is no longer the corner box,
   // which is what decides whether the fill draws a path or the cheap rrect.
   bool cut = false;
@@ -533,132 +333,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // per paint group would compound its own edge coverage wherever the
   // groups overlap, so the hoisted form is also the only one whose edge is
   // the clip's own.
-  struct PlaneGate {
-    const Mask* mask = nullptr;
-    float fraction = 1.0f;  // Edge
-  };
-  std::vector<PlaneGate> plane;
-  bool granularPlane = false;
-  if (masks) {
-    size_t valueBase = 0;
-    for (const Mask& m : *masks) {
-      if (m.with.kind != Gate::Kind::Spans) {
-        PlaneGate g;
-        g.mask = &m;
-        if (m.with.kind == Gate::Kind::Edge)
-          g.fraction =
-              valueBase < gateValues.size() ? gateValues[valueBase] : 1.0f;
-        plane.push_back(g);
-        granularPlane |= !m.what.isEverything();
-      }
-      valueBase += m.with.valueCount();
-    }
-  }
+  PlaneGates gates(*this, inst, canvas, masks, gateValues, bounds, fullOutline,
+                   paintCtx);
+  const bool granularPlane = gates.granular();
 
-  /** An edge gate's half-plane: the region lying before a moving edge at
-   *  `angleDegrees`, built in the edge's own frame and rotated into place —
-   *  {p : (p - mid)·d <= edge}. */
-  const auto edgeRegion = [&](float angleDegrees, float t01) {
-    const float t = std::clamp(t01, 0.0f, 1.0f);
-    const float rad = geometry::path::radians(angleDegrees);
-    const float c = std::cos(rad), s = std::sin(rad);
-    const SkPoint mid{bounds.centerX(), bounds.centerY()};
-    const float reach =
-        0.5f * (std::abs(bounds.width() * c) + std::abs(bounds.height() * s));
-    const float wide =
-        SkPoint{bounds.width(), bounds.height()}.length() * 0.5f + 1.0f;
-    const float edge = -reach + 2.0f * reach * t;
-    SkPathBuilder b;
-    b.addRect(SkRect::MakeLTRB(-reach - 1.0f, -wide, edge, wide));
-    SkMatrix m = SkMatrix::RotateDeg(angleDegrees);
-    m.postTranslate(mid.x(), mid.y());
-    return b.detach().makeTransform(m);
-  };
-
-  // One entry/exit pair. Region gates go on first (they commute with the
-  // coverage layers, so the order between the two kinds is free and this
-  // one keeps the layer pops simple); coverage layers are popped in
-  // reverse, each drawing its Material's alpha through kDstIn.
-  std::vector<SkPaint> coverStack;
-  const auto enterGates = [&](bool wholeNode, Parts::Bits cls,
-                              std::string_view label) -> int {
-    if (plane.empty()) return -1;
-    int base = -1;
-    const auto hit = [&](const Mask& m) {
-      if (m.what.isEverything() != wholeNode) return false;
-      if (wholeNode) return true;
-      return cls == Parts::kMarks ? m.what.selectsMark(label)
-                                  : m.what.selects(cls);
-    };
-    for (const PlaneGate& g : plane) {
-      const Mask& m = *g.mask;
-      if (!hit(m) || m.with.kind == Gate::Kind::Coverage) continue;
-      if (base < 0) base = canvas.getSaveCount();
-      if (m.with.kind == Gate::Kind::Edge) {
-        // A container of absolutely-positioned children measures ZERO, and
-        // a half-plane built from an empty box is empty — so clipping to it
-        // would hide the entire subtree even at a full reveal. A reveal at 1
-        // must never hide anything, and an empty box has no axis to reveal
-        // along in the first place.
-        if (bounds.isEmpty()) continue;
-        canvas.save();
-        canvas.clipPath(edgeRegion(m.with.angleDegrees, g.fraction), true);
-      } else {  // Shape — and its complement, the missing clipOut()
-        canvas.save();
-        canvas.clipPath(
-            m.with.resolver ? m.with.resolver->clipRegion(m.with, fullOutline)
-                            : fullOutline,
-            m.with.outside ? SkClipOp::kDifference : SkClipOp::kIntersect,
-            true);
-      }
-    }
-    for (const PlaneGate& g : plane) {
-      const Mask& m = *g.mask;
-      if (!hit(m) || m.with.kind != Gate::Kind::Coverage) continue;
-      if (base < 0) base = canvas.getSaveCount();
-      const SkRect layerBox = recordBounds(inst);
-      canvas.saveLayer(&layerBox, nullptr);
-      SkPaint cover;
-      cover.setAntiAlias(true);
-      // The complement is the blend mode and nothing else: kDstOut is
-      // dst·(1 - a), which is 1 - coverage exactly, for any source.
-      cover.setBlendMode(m.with.outside ? SkBlendMode::kDstOut
-                                        : SkBlendMode::kDstIn);
-      if (m.with.coverage) {
-        const Fill f = m.with.resolver
-                           ? m.with.resolver->coverage(m.with, paintCtx)
-                           : Fill{};
-        const bool luma = m.with.channel == Gate::Channel::Luma;
-        if (sk_sp<SkShader> shader =
-                f.kind == Fill::Kind::Paint
-                    ? material::skia::staticShader(detail::paintOf(f))
-                    : nullptr)
-          cover.setShader(luma ? lumaCoverageShader(std::move(shader))
-                               : std::move(shader));
-        else if (f.kind == Fill::Kind::Color)
-          cover.setColor4f(
-              material::skia::toSkColor(luma ? lumaCoverageColor(f.colorValue)
-                                             : f.colorValue),
-              nullptr);
-        else
-          cover.setColor4f({0, 0, 0, 0},
-                           nullptr);  // Fill::none() shows nothing
-      }
-      coverStack.push_back(std::move(cover));
-    }
-    return base;
-  };
-  const auto leaveGates = [&](int base, size_t coverBase) {
-    while (coverStack.size() > coverBase) {
-      canvas.drawRect(recordBounds(inst), coverStack.back());
-      coverStack.pop_back();
-      canvas.restore();
-    }
-    if (base >= 0) canvas.restoreToCount(base);
-  };
-  // The whole-node hoist, in wipe()'s old position.
-  const size_t hoistCover = coverStack.size();
-  const int hoistSaves = enterGates(true, Parts::kAll, {});
+  // The whole-node hoist.
+  const size_t hoistCover = gates.coverDepth();
+  const int hoistSaves = gates.enter(true, Parts::kAll, {});
 
   // Span-qualified passes, resolved ONCE per paint however many halves
   // read them: the claim ledger is one ledger (StrokePass), and resolving
@@ -689,9 +370,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         for (const auto& [label, show] : namedShow)
           if (label == passes[i].name) run = intersect(run, show);
       if (run.empty()) continue;
-      const size_t cover = coverStack.size();
-      const int saves =
-          granularPlane ? enterGates(false, Parts::kMarks, passes[i].name) : -1;
+      const size_t cover = gates.coverDepth();
+      const int saves = granularPlane
+                            ? gates.enter(false, Parts::kMarks, passes[i].name)
+                            : -1;
       PaintContext passCtx = paintCtx;
       passCtx.outline = geometry::path::fromSk(
           arith ? arith->spanPath(fullOutline, run) : fullOutline);
@@ -700,7 +382,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       passCtx.stamps = nullptr;  // each span keeps its own art cache
       detail::PenOnCanvas passPen(canvas, passCtx);
       passes[i].what.paint(passPen.pen(), passCtx);
-      if (granularPlane) leaveGates(saves, cover);
+      if (granularPlane) gates.leave(saves, cover);
     }
   };
 
@@ -723,9 +405,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           refine = &show;
           break;
         }
-    const size_t cover = coverStack.size();
+    const size_t cover = gates.coverDepth();
     const int saves =
-        granularPlane ? enterGates(false, Parts::kMarks, label) : -1;
+        granularPlane ? gates.enter(false, Parts::kMarks, label) : -1;
     detail::MarkState& state = inst.markStates.at((uint8_t)slot, index);
     if (refine) {
       std::vector<Span> run = *refine;
@@ -748,7 +430,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       d.paint(markPen.pen(), markCtx);
       state.coverageParts = nullptr;
     }
-    if (granularPlane) leaveGates(saves, cover);
+    if (granularPlane) gates.leave(saves, cover);
   };
 
   // The own half stands on the node's own plane (a host's is entered here;
@@ -790,91 +472,17 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // outline and the clip/wipe/effect wrappers above are recomputed rather
     // than skipped — they are cheap, they must stay balanced against their
     // restores below, and the foregrounds still trace the outline.)
-  } else if (const material::Paint* live = liveMaterialOf(inst)) {
-    // A LIT FILL THAT READS ITS UNIT, on a page painted as a surface map,
-    // is that map of its material answered for the node's own outline:
-    // the relief cut from it, the brushing along its long axis, sampled
-    // where the fill's box places the material.
-    std::optional<material::Paint> unitFill;
-    if (surfaceMap)
-      if (const MaterialData* slot = fillSlotOf(inst);
-          slot && slot->surfaced && material::readsUnit(*slot->surfaced)) {
-        const glm::mat3& toRoot = paintCtx.toRoot.matrix;
-        detail::UnitShape unit;
-        unit.outline =
-            customShape || trimmed ? surfacePath : SkPath::RRect(rrect);
-        unit.direction =
-            detail::longAxisOf({bounds.width(), bounds.height()}, toRoot);
-        unit.density = paintCtx.bakeDensity > 0 ? paintCtx.bakeDensity
-                                                : paintCtx.contentScale;
-        if (style.paint.fillBox == PaintBox::Canvas) {
-          unit.localToPaint = toRoot;
-        } else if (style.paint.fillBox == PaintBox::Content) {
-          const detail::Insets inset = paddingOf(inst);
-          unit.localToPaint[2][0] = -inset.left;
-          unit.localToPaint[2][1] = -inset.top;
-        }
-        if (!inst.unitSurfaces)
-          inst.unitSurfaces = std::make_shared<detail::UnitSurfaces>();
-        unitFill = inst.unitSurfaces->mapsFor(*slot->surfaced, unit)
-                       .asMap(*surfaceMap);
-        live = &*unitFill;
-      }
-    // The fill's box: the paint's unit square is stretched over the
-    // rectangle the fill names rather than the node's own. The painted
-    // AREA does not move with it — a clip is what would move that, and
-    // this library does not adopt one — so the paint is resolved against
-    // that rectangle and then placed at its corner.
-    // A border here is a stroke dressing the boundary rather than a box
-    // lane, so the padding box IS the border box and only the content box
-    // moves the paint.
-    const bool pending = inst.hasPendingLiveFill && !unitFill;
-    if (style.paint.fillBox != PaintBox::Content || pending) {
-      resolvedFill =
-          pending ? inst.pendingLiveFill : resolveFill(*live, paintCtx);
-    } else {
-      const detail::Insets inset = paddingOf(inst);
-      PaintContext originCtx = paintCtx;
-      originCtx.size = {std::max(bounds.width() - inset.across(), 1.0f),
-                        std::max(bounds.height() - inset.down(), 1.0f)};
-      Fill placed = resolveFill(*live, originCtx);
-      if (placed.kind == Fill::Kind::Paint)
-        if (sk_sp<SkShader> shader =
-                material::skia::staticShader(detail::paintOf(placed)))
-          placed =
-              detail::fillOf(material::skia::paint(shader->makeWithLocalMatrix(
-                  SkMatrix::Translate(inset.left, inset.top))));
-      resolvedFill = std::move(placed);
-    }
-  } else if (style.paint.fill) {
-    Fill fill;
-    if (style.paint.fill->identity())
-      fill = style.paint.fill->value();
-    else if (!inst.fillPath.empty() && inst.anims[Instance::kFillLerp] &&
-             inst.anims[Instance::kFillLerp]->started &&
-             inst.anims[Instance::kFillLerp]->isRunning()) {
-      const float t = inst.anims[Instance::kFillLerp]->value();
-      // Any stop may be written as the ink in force or a custom property,
-      // so each is resolved here before the colours are mixed.
-      const auto resolve = [&paintCtx](const Fill& stop) {
-        return resolveFill(stop, paintCtx);
-      };
-      fill = resolve(inst.fillPath.back().fill);
-      fill.colorValue = colourAlong(inst.fillPath, t, resolve);
-      fill.kind = Fill::Kind::Color;
-    } else {
-      ResolvedProperty<Fill> resolved =
-          resolveProperty(*style.paint.fill, inst.transitionInForce());
-      fill = resolved.target;
-    }
-    resolvedFill = resolveFill(fill, paintCtx);
+  } else {
+    resolvedFill = resolveFillInForce(
+        *this, inst, paintCtx, bounds,
+        customShape || trimmed ? &surfacePath : nullptr, rrect);
   }
 
   // The SURFACE — the fill and its echo re-stamps — under whatever gates
   // select `parts::surface()`.
-  const size_t surfaceCover = coverStack.size();
+  const size_t surfaceCover = gates.coverDepth();
   const int surfaceSaves =
-      granularPlane && emitOwn ? enterGates(false, Parts::kSurface, {}) : -1;
+      granularPlane && emitOwn ? gates.enter(false, Parts::kSurface, {}) : -1;
 
   // Misprint echoes of the FILL SHAPE, under the real pass (bottom first).
   if (!echoesOf(node).empty() && resolvedFill &&
@@ -914,7 +522,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     else
       canvas.drawRRect(rrect, paint);
   }
-  if (granularPlane && emitOwn) leaveGates(surfaceSaves, surfaceCover);
+  if (granularPlane && emitOwn) gates.leave(surfaceSaves, surfaceCover);
 
   // Overlays: over the fill, under the content and children. The slot a
   // textured button needs so its own hazard stripe does not grey out its
@@ -924,121 +532,12 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       paintMark(node.fxData->overlays[i], detail::MarkSlot::Overlay, i);
 
   // Content, under whatever gates select parts::content().
-  const size_t contentCover = coverStack.size();
+  const size_t contentCover = gates.coverDepth();
   const int contentSaves =
-      granularPlane && emitOwn ? enterGates(false, Parts::kContent, {}) : -1;
-  if (emitOwn) switch (node.kind) {
-      case Kind::Text:
-        if (inst.paragraph) {
-          const bool onPathRun = node.textData && node.textData->onPath;
-          const TextPath* onPath = nullptr;
-          if (onPathRun) {
-            const std::optional<TextPath>& path = node.textData->onPath;
-            if (path.has_value()) onPath = &path.value();
-          }
-          // ink(paint)/textStroke() resolve to ONE glyph-paint override,
-          // and every draw that takes one takes the SAME one: a letter in
-          // flight, and a letter on a curve, are painted exactly as a
-          // resting letter is.
-          const detail::TextInk ink = textInkOf(inst, paintCtx);
-          // One draw for both: the baseline places the glyph and the tracks
-          // deviate from that placement. Neither wins over the other.
-          // Dressed type draws through the painter its description carries;
-          // a description that dresses its text without one (built from the
-          // data blocks directly, never through a text verb) draws at rest.
-          const TextPainterOperations* painter = textPainterOf(inst);
-          const TextPainterOperations* engine =
-              painter ? painter : detail::registeredTextEngine();
-          // Misprint echoes of the TEXT, under the real pass and placed as
-          // it is: along the path for a run laid on one, level otherwise.
-          // textFx() text draws its own buckets — echoes skip it by
-          // contract.
-          if (!echoesOf(node).empty() && !hasTextFx(inst)) {
-            for (const Echo& e : echoesOf(node)) {
-              detail::TextInk stamp;
-              stamp.passage.emplace();
-              stamp.passage->foreground.setColor4f(
-                  material::skia::toSkColor(e.color), nullptr);
-              canvas.save();
-              canvas.translate(e.offset.x, e.offset.y);
-              if (onPath && painter)
-                painter->paint(inst, canvas, stamp, onPath,
-                               {bounds.width(), bounds.height()}, paintCtx);
-              else
-                inst.textLayout.drawBatched(&canvas, *inst.paragraph,
-                                            stamp.override());
-              canvas.restore();
-            }
-          }
-          if ((hasTextFx(inst) || onPath) && painter) {
-            painter->paint(inst, canvas, ink, onPath,
-                           {bounds.width(), bounds.height()}, paintCtx);
-          } else if (ink.hasGlyphStyles() && engine) {
-            // Span sources bind for this destination; restarting inks
-            // also map onto each unit. Both use the glyph-style seam.
-            static thread_local detail::GlyphInk glyphs;
-            const SkScopeExit releaseGlyphs([&] { glyphs.clear(); });
-            engine->glyphInk(inst, ink, glyphs);
-            inst.textLayout.drawBatched(
-                &canvas, *inst.paragraph,
-                sigil::weave::ParagraphLayout::GlyphStyles{glyphs.styleOfGlyph,
-                                                           glyphs.styles},
-                ink.override());
-          } else {
-            inst.textLayout.drawBatched(&canvas, *inst.paragraph,
-                                        ink.override());
-          }
-          // The readings beside the type. They stand AT REST while the
-          // letters move, as a mark and a band do: a reading that travelled
-          // with a cascade would be reading a letter that had left.
-          for (const Instance::PlacedAnnotation& reading : inst.textAnnotations)
-            if (reading.paragraph)
-              reading.layout.drawBatched(&canvas, *reading.paragraph);
-        }
-        break;
-      case Kind::Image:
-        if (const sigil::media::PixelSource* source = imageSourceOf(node)) {
-          // A frame standing on a device is bound for the destination
-          // recorder, including when this canvas records a picture.
-          const sk_sp<SkImage> picture = sigil::media::deviceImage(
-              source->frameAt(std::chrono::duration<double>(elapsed())),
-              paintCtx.recorder);
-          if (picture) {
-            const SkSamplingOptions sampling = inst.sampling.value_or(
-                SkSamplingOptions{SkFilterMode::kLinear});
-            // A stated region is the source the fit is applied to, and
-            // sampling stays inside it; a crop of the whole picture may
-            // sample the picture beyond the crop, as its own neighbours.
-            const std::optional<SkRect>& region = node.imageData->region;
-            const ImagePlacement placed =
-                placeImage(region.value_or(SkRect::Make(picture->dimensions())),
-                           bounds, node.imageData->fit);
-            if (region)
-              canvas.drawImageRect(picture, placed.source, placed.destination,
-                                   sampling, nullptr,
-                                   SkCanvas::kStrict_SrcRectConstraint);
-            else if (placed.source == SkRect::Make(picture->dimensions()))
-              canvas.drawImageRect(picture, placed.destination, sampling);
-            else
-              canvas.drawImageRect(picture, placed.source, placed.destination,
-                                   sampling, nullptr,
-                                   SkCanvas::kFast_SrcRectConstraint);
-          }
-        }
-        break;
-      case Kind::Custom:
-        if (node.customData && node.customData->program) {
-          detail::PenOnCanvas programPen(canvas, paintCtx);
-          node.customData->program(programPen.pen(), paintCtx);
-        }
-        break;
-      case Kind::Box:
-      case Kind::Stack:
-      case Kind::Slot:
-        break;
-    }
+      granularPlane && emitOwn ? gates.enter(false, Parts::kContent, {}) : -1;
+  if (emitOwn) paintLeafContent(*this, inst, canvas, paintCtx, bounds);
 
-  if (granularPlane && emitOwn) leaveGates(contentSaves, contentCover);
+  if (granularPlane && emitOwn) gates.leave(contentSaves, contentCover);
 
   // Children in stacking order (each clean static child replays its own nested
   // picture — ancestor re-records don't repaint clean subtrees). The
@@ -1046,9 +545,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // the plane the space is drawn on, and they are painted back to front by
   // the depth of their centres rather than in stacking order.
   leaveOwn();
-  const size_t kidsCover = coverStack.size();
+  const size_t kidsCover = gates.coverDepth();
   const int kidsSaves = granularPlane && emitChildren
-                            ? enterGates(false, Parts::kChildren, {})
+                            ? gates.enter(false, Parts::kChildren, {})
                             : -1;
   if (emitChildren) {
     if (const Space* hosted = curSpace) {
@@ -1059,7 +558,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       for (size_t index : inst.paintOrder) paint(*inst.children[index], canvas);
     }
   }
-  if (granularPlane && emitChildren) leaveGates(kidsSaves, kidsCover);
+  if (granularPlane && emitChildren) gates.leave(kidsSaves, kidsCover);
   enterOwn();
 
   if (style.clipContent) canvas.restore();  // decorations below stay unclipped
@@ -1080,7 +579,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     paintSpanHalf(detail::StrokePass::Half::Foreground);
   leaveOwn();
 
-  leaveGates(hoistSaves, hoistCover);
+  gates.leave(hoistSaves, hoistCover);
 
   if (hasEffect) canvas.restore();
 }

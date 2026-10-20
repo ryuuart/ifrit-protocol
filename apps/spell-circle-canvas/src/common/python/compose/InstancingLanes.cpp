@@ -1,0 +1,590 @@
+/** @file
+ * The lanes an instance pool is filled through: one class per kind of
+ * item, each a sequence of copies written by index and by slice, and a
+ * read-only buffer one row per item, so `lane[:] = array` is the bulk
+ * door and an array read from a lane never points into a pool.
+ */
+
+#include <include/core/SkPoint.h>
+#include <include/core/SkRect.h>
+#include <include/core/SkSize.h>
+#include <pybind11/stl.h>
+#include <sigilcompose/core/Instances.h>
+#include <sigilpython/Bindings.h>
+#include <sigilpython/Extend.h>
+#include <sigilpython/compose/Registration.h>
+#include <sigilpython/skia/Values.h>
+
+#include <array>
+#include <bit>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <exception>
+#include <memory>
+#include <span>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <vector>
+
+#include "Instancing.h"
+
+namespace sigil::python {
+namespace py = pybind11;
+namespace {
+
+using Flight = compose::instancing::Pool::Flight;
+
+/** HOW ONE KIND OF LANE CROSSES INTO PYTHON: the class it is registered
+ *  as, how many numbers stand for one item in a buffer, the type a single
+ *  assignment is declared with, and the two readings between an item and
+ *  its row of numbers. A rectangle's row is x, y, width and height, the
+ *  way every rectangle Python passes is written, rather than the four
+ *  edges Skia stores; a flight's row is its fields in declaration
+ *  order. */
+template <class Item>
+struct LaneTraits;
+
+template <>
+struct LaneTraits<SkPoint> {
+  using Scalar = float;
+  using Input = py::handle;
+  static constexpr const char* name = "PointLane";
+  static constexpr const char* refusal =
+      "A lane of points holds a Point, or an x and a y.";
+  static constexpr py::ssize_t width = 2;
+  static SkPoint read(py::handle value) { return point(value); }
+  static void write(const SkPoint& item, float* row) {
+    row[0] = item.fX;
+    row[1] = item.fY;
+  }
+  static SkPoint item(const float* row) { return {row[0], row[1]}; }
+};
+
+template <>
+struct LaneTraits<float> {
+  using Scalar = float;
+  using Input = float;
+  static constexpr const char* name = "NumberLane";
+  static constexpr const char* refusal = "A lane of numbers holds numbers.";
+  static constexpr py::ssize_t width = 1;
+  static float read(py::handle value) { return py::cast<float>(value); }
+  static void write(const float& item, float* row) { row[0] = item; }
+  static float item(const float* row) { return row[0]; }
+};
+
+template <>
+struct LaneTraits<material::Color> {
+  using Scalar = float;
+  using Input = material::Color;
+  static constexpr const char* name = "ColorLane";
+  static constexpr const char* refusal =
+      "A lane of colours holds a Color, a CSS string, or three or four "
+      "channels.";
+  static constexpr py::ssize_t width = 4;
+  static material::Color read(py::handle value) { return color(value); }
+  static void write(const material::Color& item, float* row) {
+    row[0] = item.r;
+    row[1] = item.g;
+    row[2] = item.b;
+    row[3] = item.a;
+  }
+  static material::Color item(const float* row) {
+    return {row[0], row[1], row[2], row[3]};
+  }
+};
+
+template <>
+struct LaneTraits<int> {
+  using Scalar = int;
+  using Input = int;
+  static constexpr const char* name = "FrameLane";
+  static constexpr const char* refusal =
+      "A lane of frames holds whole numbers.";
+  static constexpr py::ssize_t width = 1;
+  static int read(py::handle value) { return py::cast<int>(value); }
+  static void write(const int& item, int* row) { row[0] = item; }
+  static int item(const int* row) { return row[0]; }
+};
+
+template <>
+struct LaneTraits<SkSize> {
+  using Scalar = float;
+  using Input = py::handle;
+  static constexpr const char* name = "SizeLane";
+  static constexpr const char* refusal =
+      "A lane of sizes holds a Size, or a width and a height.";
+  static constexpr py::ssize_t width = 2;
+  static SkSize read(py::handle value) { return sizeFrom(value, refusal); }
+  static void write(const SkSize& item, float* row) {
+    row[0] = item.width();
+    row[1] = item.height();
+  }
+  static SkSize item(const float* row) { return {row[0], row[1]}; }
+};
+
+template <>
+struct LaneTraits<SkRect> {
+  using Scalar = float;
+  using Input = py::handle;
+  static constexpr const char* name = "RectLane";
+  static constexpr const char* refusal =
+      "A lane of rectangles holds a Rect, or an x, a y, a width and a "
+      "height.";
+  static constexpr py::ssize_t width = 4;
+  static SkRect read(py::handle value) { return rect(value); }
+  static void write(const SkRect& item, float* row) {
+    row[0] = item.x();
+    row[1] = item.y();
+    row[2] = item.width();
+    row[3] = item.height();
+  }
+  static SkRect item(const float* row) {
+    return SkRect::MakeXYWH(row[0], row[1], row[2], row[3]);
+  }
+};
+
+template <>
+struct LaneTraits<Flight> {
+  using Scalar = float;
+  using Input = Flight;
+  static constexpr const char* name = "FlightLane";
+  static constexpr const char* refusal = "A lane of flights holds Flights.";
+  static constexpr py::ssize_t width = 12;
+  static Flight read(py::handle value) { return py::cast<Flight>(value); }
+  static void write(const Flight& item, float* row) {
+    row[0] = item.from.fX;
+    row[1] = item.from.fY;
+    row[2] = item.to.fX;
+    row[3] = item.to.fY;
+    row[4] = item.rotateFrom;
+    row[5] = item.rotateTo;
+    row[6] = item.scaleFrom;
+    row[7] = item.scaleTo;
+    row[8] = item.alphaFrom;
+    row[9] = item.alphaTo;
+    row[10] = item.start;
+    row[11] = item.duration;
+  }
+  static Flight item(const float* row) {
+    return {.from = {row[0], row[1]},
+            .to = {row[2], row[3]},
+            .rotateFrom = row[4],
+            .rotateTo = row[5],
+            .scaleFrom = row[6],
+            .scaleTo = row[7],
+            .alphaFrom = row[8],
+            .alphaTo = row[9],
+            .start = row[10],
+            .duration = row[11]};
+  }
+};
+
+/** @p value as the item a lane of @p Item holds, refused in the lane's
+ *  own words when it does not read as one. */
+template <class Item>
+Item laneItem(py::handle value) {
+  try {
+    return LaneTraits<Item>::read(value);
+  } catch (const py::cast_error&) {
+    throw py::type_error(LaneTraits<Item>::refusal);
+  }
+}
+
+/** What a single assignment was handed, as the item it stands for. A
+ *  lane whose item Python can name is declared with that type and is
+ *  handed the item already read. */
+template <class Item>
+Item laneInput(const typename LaneTraits<Item>::Input& value) {
+  if constexpr (std::is_same_v<typename LaneTraits<Item>::Input, py::handle>)
+    return laneItem<Item>(value);
+  else
+    return value;
+}
+
+/** Where @p index falls in a lane of @p size items, counting from the end
+ *  when it is negative. */
+std::size_t laneIndex(py::ssize_t index, std::size_t size) {
+  if (index < 0) index += static_cast<py::ssize_t>(size);
+  if (index < 0 || static_cast<std::size_t>(index) >= size)
+    throw py::index_error("Lane index out of range.");
+  return static_cast<std::size_t>(index);
+}
+
+/** What a slice says before it meets a length. A bound may be any object
+ *  that answers `__index__`, so reading the three of them runs Python, and
+ *  Python may change the pool's length while it runs: they are read before
+ *  the lane is asked for, and met with its length afterwards. */
+struct SliceBounds {
+  py::ssize_t start = 0;
+  py::ssize_t stop = 0;
+  py::ssize_t step = 1;
+};
+
+SliceBounds sliceBounds(const py::slice& index) {
+  SliceBounds bounds;
+  if (PySlice_Unpack(index.ptr(), &bounds.start, &bounds.stop, &bounds.step) <
+      0)
+    throw py::error_already_set();
+  return bounds;
+}
+
+/** The items a slice names, as where it starts, how it steps and how many
+ *  it reaches. */
+struct LaneSlice {
+  py::ssize_t start = 0;
+  py::ssize_t step = 1;
+  py::ssize_t count = 0;
+};
+
+/** @p bounds met with a lane of @p size items. Nothing here runs Python,
+ *  so a span taken before it is still the lane after it. */
+LaneSlice laneSlice(SliceBounds bounds, std::size_t size) {
+  LaneSlice named;
+  named.count = PySlice_AdjustIndices(static_cast<py::ssize_t>(size),
+                                      &bounds.start, &bounds.stop, bounds.step);
+  named.start = bounds.start;
+  named.step = bounds.step;
+  return named;
+}
+
+/** Which numbers a buffer holds, read from its format and item size:
+ *  `f` and `d` for floats of four and eight bytes, `i` and `q` for whole
+ *  numbers of four and eight, and zero for anything else. A byte-order
+ *  mark that names this machine's own order is read past. */
+char scalarKind(const py::buffer_info& info) {
+  std::string_view format = info.format;
+  if (!format.empty() &&
+      (format.front() == '@' || format.front() == '=' ||
+       (format.front() == '<' && std::endian::native == std::endian::little) ||
+       (format.front() == '>' && std::endian::native == std::endian::big)))
+    format.remove_prefix(1);
+  if (format.size() != 1) return 0;
+  switch (format.front()) {
+    case 'f':
+      return info.itemsize == 4 ? 'f' : 0;
+    case 'd':
+      return info.itemsize == 8 ? 'd' : 0;
+    case 'i':
+    case 'l':
+    case 'q':
+      return info.itemsize == 4 ? 'i' : info.itemsize == 8 ? 'q' : 0;
+    default:
+      return 0;
+  }
+}
+
+/** The number stored at @p address as @p Stored, copied out because a
+ *  buffer promises nothing about how its items are aligned. */
+template <class Stored>
+Stored storedAt(const char* address) {
+  Stored value;
+  std::memcpy(&value, address, sizeof(Stored));
+  return value;
+}
+
+/** The number at @p address, stored as @p kind names it, as the number a
+ *  lane of @p Scalar holds. */
+template <class Scalar>
+Scalar scalarAt(const char* address, char kind) {
+  switch (kind) {
+    case 'f':
+      return static_cast<Scalar>(storedAt<float>(address));
+    case 'd':
+      return static_cast<Scalar>(storedAt<double>(address));
+    case 'i':
+      return static_cast<Scalar>(storedAt<std::int32_t>(address));
+    default:
+      return static_cast<Scalar>(storedAt<std::int64_t>(address));
+  }
+}
+
+/** The numbers @p info holds, a row after a row, for @p rows items of
+ *  @p width numbers each. The buffer is one row per item, or the same
+ *  numbers flat; its strides are followed, so a view over part of an
+ *  array reads as the array it is a view of. */
+template <class Scalar>
+std::vector<Scalar> bufferScalars(const py::buffer_info& info, py::ssize_t rows,
+                                  py::ssize_t width) {
+  const char kind = scalarKind(info);
+  const bool whole = kind == 'i' || kind == 'q';
+  if (kind == 0 || whole != std::is_integral_v<Scalar>)
+    throw py::type_error(
+        std::is_integral_v<Scalar>
+            ? "A lane of frames is assigned from a buffer of whole numbers "
+              "of four or eight bytes."
+            : "A lane of floats is assigned from a buffer of floats of four "
+              "or eight bytes.");
+  const bool flat = info.ndim == 1 && info.shape[0] == rows * width;
+  const bool rowed =
+      info.ndim == 2 && info.shape[0] == rows && info.shape[1] == width;
+  if (!flat && !rowed)
+    throw py::value_error("A slice of " + std::to_string(rows) +
+                          " items is assigned from " + std::to_string(rows) +
+                          " rows of " + std::to_string(width) +
+                          " numbers, or from the same numbers flat.");
+  std::vector<Scalar> numbers;
+  numbers.reserve(static_cast<std::size_t>(rows * width));
+  const char* base = static_cast<const char*>(info.ptr);
+  for (py::ssize_t row = 0; row < rows; ++row)
+    for (py::ssize_t column = 0; column < width; ++column) {
+      const py::ssize_t offset =
+          flat ? (row * width + column) * info.strides[0]
+               : row * info.strides[0] + column * info.strides[1];
+      numbers.push_back(scalarAt<Scalar>(base + offset, kind));
+    }
+  return numbers;
+}
+
+/** Writes @p values over the items @p index names. Everything Python
+ *  hands over is read before the lane is asked for, because reading runs
+ *  Python — a slice bound, an iterator, a number's own conversion, a
+ *  buffer an object exports — and Python may change the pool's length
+ *  while it runs. A slice never changes that length, so the count has to
+ *  match. */
+template <class Item>
+void assignSlice(const Lane<Item>& lane, const py::slice& index,
+                 const py::object& values) {
+  using Traits = LaneTraits<Item>;
+  using Scalar = typename Traits::Scalar;
+  const SliceBounds bounds = sliceBounds(index);
+  if (PyObject_CheckBuffer(values.ptr())) {
+    const py::buffer_info info =
+        py::reinterpret_borrow<py::buffer>(values).request();
+    const std::span<Item> items = lane.items();
+    const LaneSlice named = laneSlice(bounds, items.size());
+    const std::vector<Scalar> numbers =
+        bufferScalars<Scalar>(info, named.count, Traits::width);
+    for (py::ssize_t row = 0; row < named.count; ++row)
+      items[static_cast<std::size_t>(named.start + row * named.step)] =
+          Traits::item(numbers.data() + row * Traits::width);
+    return;
+  }
+  std::vector<Item> read;
+  for (const py::handle value : py::reinterpret_borrow<py::iterable>(values))
+    read.push_back(laneItem<Item>(value));
+  const std::span<Item> items = lane.items();
+  const LaneSlice named = laneSlice(bounds, items.size());
+  if (static_cast<py::ssize_t>(read.size()) != named.count)
+    throw py::value_error("A slice of " + std::to_string(named.count) +
+                          " items is assigned " + std::to_string(read.size()) +
+                          "; a lane changes length only through its pool.");
+  for (py::ssize_t row = 0; row < named.count; ++row)
+    items[static_cast<std::size_t>(named.start + row * named.step)] =
+        read[static_cast<std::size_t>(row)];
+}
+
+/** WHAT ONE BUFFER REQUEST IS HANDED: the lane as it stood when it was
+ *  asked, with the shape and strides the view points at. It belongs to
+ *  the view and is freed when the consumer releases it, so an array kept
+ *  for a whole session never points into a pool. */
+template <class Scalar>
+struct LaneSnapshot {
+  std::vector<Scalar> numbers;
+  std::array<Py_ssize_t, 2> shape{};
+  std::array<Py_ssize_t, 2> strides{};
+};
+
+/** The buffer protocol's reading slot for a lane of @p Item: a read-only
+ *  copy, one row per item. A writable view is refused, because the only
+ *  storage there is to write into is the copy. */
+template <class Item>
+int laneGetBuffer(PyObject* object, Py_buffer* view, int flags) {
+  using Traits = LaneTraits<Item>;
+  using Scalar = typename Traits::Scalar;
+  static constexpr char kFloatFormat[] = "f";
+  static constexpr char kWholeFormat[] = "i";
+  if (view == nullptr) {
+    PyErr_SetString(PyExc_BufferError, "A lane needs a view to fill.");
+    return -1;
+  }
+  view->obj = nullptr;
+  if ((flags & PyBUF_WRITABLE) == PyBUF_WRITABLE) {
+    PyErr_SetString(PyExc_BufferError,
+                    "A lane's buffer is a copy of the lane. Write through "
+                    "the lane itself: lane[index] = value, or lane[:] = "
+                    "values.");
+    return -1;
+  }
+  std::unique_ptr<LaneSnapshot<Scalar>> snapshot;
+  try {
+    const auto& lane = py::cast<const Lane<Item>&>(py::handle(object));
+    const std::span<Item> items = lane.items();
+    snapshot = std::make_unique<LaneSnapshot<Scalar>>();
+    // One spare number, so an empty lane still has an address to give.
+    snapshot->numbers.resize(items.size() * Traits::width + 1);
+    for (std::size_t index = 0; index < items.size(); ++index)
+      Traits::write(items[index],
+                    snapshot->numbers.data() + index * Traits::width);
+    snapshot->shape = {static_cast<Py_ssize_t>(items.size()), Traits::width};
+    snapshot->strides = {
+        static_cast<Py_ssize_t>(Traits::width * sizeof(Scalar)),
+        static_cast<Py_ssize_t>(sizeof(Scalar))};
+  } catch (const std::exception& error) {
+    PyErr_SetString(PyExc_BufferError, error.what());
+    return -1;
+  }
+  const bool rowed = Traits::width > 1;
+  view->buf = snapshot->numbers.data();
+  view->len = snapshot->shape[0] * Traits::width *
+              static_cast<Py_ssize_t>(sizeof(Scalar));
+  view->itemsize = sizeof(Scalar);
+  view->readonly = 1;
+  view->ndim = 1;
+  view->format = nullptr;
+  view->shape = nullptr;
+  view->strides = nullptr;
+  view->suboffsets = nullptr;
+  if ((flags & PyBUF_FORMAT) == PyBUF_FORMAT)
+    view->format = const_cast<char*>(std::is_integral_v<Scalar> ? kWholeFormat
+                                                                : kFloatFormat);
+  if ((flags & PyBUF_ND) == PyBUF_ND) {
+    view->ndim = rowed ? 2 : 1;
+    view->shape = snapshot->shape.data();
+  }
+  if ((flags & PyBUF_STRIDES) == PyBUF_STRIDES)
+    // A lane of single numbers has one axis, stepped a number at a time.
+    view->strides =
+        rowed ? snapshot->strides.data() : snapshot->strides.data() + 1;
+  // Rows first is the only order there is, so a consumer that asks for
+  // columns first is told so unless the two orders coincide.
+  if ((flags & PyBUF_F_CONTIGUOUS) == PyBUF_F_CONTIGUOUS && rowed &&
+      snapshot->shape[0] > 1) {
+    PyErr_SetString(PyExc_BufferError,
+                    "A lane's buffer is laid out a row after a row.");
+    return -1;
+  }
+  view->internal = snapshot.release();
+  view->obj = object;
+  Py_INCREF(object);
+  return 0;
+}
+
+/** The buffer protocol's release slot: the copy the view was handed goes
+ *  with the view. */
+template <class Item>
+void laneReleaseBuffer(PyObject*, Py_buffer* view) {
+  delete static_cast<LaneSnapshot<typename LaneTraits<Item>::Scalar>*>(
+      view->internal);
+  view->internal = nullptr;
+}
+
+/** Registers the lane of @p Item on @p module: a sequence of copies that
+ *  is written by index and by slice, and a read-only buffer. */
+template <class Item>
+void bindLane(py::module_& module, const char* documentation) {
+  using Traits = LaneTraits<Item>;
+  py::class_<Lane<Item>>(module, Traits::name,
+                         // pybind11's own buffer protocol frees nothing but its
+                         // description of the buffer, and a lane's view owns
+                         // the copy it reads, so the two slots are this file's.
+                         py::custom_type_setup([](PyHeapTypeObject* type) {
+                           type->ht_type.tp_as_buffer = &type->as_buffer;
+                           type->as_buffer.bf_getbuffer = &laneGetBuffer<Item>;
+                           type->as_buffer.bf_releasebuffer =
+                               &laneReleaseBuffer<Item>;
+                         }),
+                         documentation)
+      .def("__len__",
+           [](const Lane<Item>& lane) { return lane.items().size(); })
+      .def(
+          "__getitem__",
+          [](const Lane<Item>& lane, py::ssize_t index) -> Item {
+            const std::span<Item> items = lane.items();
+            return items[laneIndex(index, items.size())];
+          },
+          py::arg("index"), "One item, copied.")
+      .def(
+          "__getitem__",
+          [](const Lane<Item>& lane, const py::slice& index) {
+            // The bounds are read first: reading them may run Python, and
+            // Python may change the pool's length while it runs.
+            const SliceBounds bounds = sliceBounds(index);
+            const std::span<Item> items = lane.items();
+            const LaneSlice named = laneSlice(bounds, items.size());
+            std::vector<Item> copied;
+            copied.reserve(static_cast<std::size_t>(named.count));
+            for (py::ssize_t row = 0; row < named.count; ++row)
+              copied.push_back(items[static_cast<std::size_t>(
+                  named.start + row * named.step)]);
+            return copied;
+          },
+          py::arg("index"), "The items a slice names, copied.")
+      .def(
+          "__iter__",
+          [](const Lane<Item>& lane) {
+            const std::span<Item> items = lane.items();
+            return py::iter(
+                py::cast(std::vector<Item>(items.begin(), items.end())));
+          },
+          "Iterates over a copy of the lane as it stands now.")
+      .def(
+          "__setitem__",
+          [](const Lane<Item>& lane, py::ssize_t index,
+             const typename Traits::Input& value) {
+            // The item is read first: reading may run Python, and Python
+            // may change the pool's length while it runs.
+            const Item read = laneInput<Item>(value);
+            const std::span<Item> items = lane.items();
+            items[laneIndex(index, items.size())] = read;
+          },
+          py::arg("index"), py::arg("value"),
+          "Writes one item. The pool publishes nothing until `commit()`.")
+      .def(
+          "__setitem__",
+          [](const Lane<Item>& lane, const py::slice& index,
+             const py::object& values) { assignSlice(lane, index, values); },
+          py::arg("index"), py::arg("values"),
+          "Writes the items a slice names from as many values: an iterable "
+          "of items, or a buffer of numbers, one row per item or the same "
+          "numbers flat. `lane[:] = array` is the bulk door. The pool "
+          "publishes nothing until `commit()`.");
+}
+
+}  // namespace
+
+void bindFlightLane(py::module_& module) {
+  bindLane<Flight>(
+      module,
+      "A pool's lane of flights, on the same terms as a lane of points; "
+      "as a buffer it is one row of twelve floats per instance, a "
+      "flight's fields in the order it declares them.");
+}
+
+void bindComposeInstancingLanes(py::module_& root) {
+  // The first registration under the instancing package is the one that
+  // stands the package and its placement submodule up.
+  auto module = submodule(root, "compose.instancing");
+  submodule(root, "compose.instancing.place");
+  bindLane<SkPoint>(
+      module,
+      "A pool's lane of points. It reads and writes the pool it came from "
+      "at every use, so it is never stale; as a buffer it is a read-only "
+      "copy, one row of x and y per instance.");
+  bindLane<float>(
+      module,
+      "A pool's lane of numbers, on the same terms as a lane of points; "
+      "as a buffer it is one float per instance.");
+  bindLane<material::Color>(
+      module,
+      "A pool's lane of colours, on the same terms as a lane of points; "
+      "as a buffer it is one row of red, green, blue and alpha per "
+      "instance.");
+  bindLane<int>(
+      module,
+      "A pool's lane of frame indices, on the same terms as a lane of "
+      "points; as a buffer it is one whole number of four bytes per "
+      "instance.");
+  bindLane<SkSize>(
+      module,
+      "A pool's lane of sizes, on the same terms as a lane of points; as "
+      "a buffer it is one row of width and height per instance.");
+  bindLane<SkRect>(
+      module,
+      "A pool's lane of rectangles, on the same terms as a lane of "
+      "points; as a buffer it is one row of x, y, width and height per "
+      "instance.");
+}
+
+}  // namespace sigil::python

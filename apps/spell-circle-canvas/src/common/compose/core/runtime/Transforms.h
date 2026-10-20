@@ -10,6 +10,7 @@
  */
 
 #include <include/core/SkM44.h>
+#include <include/core/SkRRect.h>
 #include <include/core/SkScalar.h>
 #include <sigilgeometry/path/Numeric.h>
 

@@ -7,8 +7,8 @@
 #include <sigilcompose/core/Derive.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Stroke.h>
-#include <sigilgeometry/path/Profile.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/path/Profile.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
@@ -107,15 +107,6 @@ using compose::RailRouter;
 using compose::Router;
 using compose::Tether;
 
-/** Whether the class Python reads @p Native back as is registered yet. A
- *  signature is written when its function is registered, so a binding
- *  that names a class another file registers is offered only once that
- *  class has a Python name to be written under. */
-template <class Native>
-bool registered() {
-  return py::detail::get_type_info(typeid(Native)) != nullptr;
-}
-
 /** A point read from @p value, refused as a type error: the shared
  *  reading raises a cast error, which reaches Python as a runtime one. */
 SkPoint readPoint(py::handle value) {
@@ -173,9 +164,9 @@ geometry::path::Outline routeBetween(const PythonValue& held, bool scheme,
   const py::gil_scoped_acquire lock;
   const CallbackBoundary boundary;
   try {
-    return geometry::path::fromSk(readRoutedPath(routeOf(held, scheme)(
-        py::cast(geometry::path::toSk(from), copied),
-        py::cast(geometry::path::toSk(to), copied))));
+    return geometry::path::fromSk(readRoutedPath(
+        routeOf(held, scheme)(py::cast(geometry::path::toSk(from), copied),
+                              py::cast(geometry::path::toSk(to), copied))));
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());
   }
@@ -260,10 +251,10 @@ Router schemeRouter(const RouteSchemeObject& scheme) {
 Router functionRouter(const py::object& function) {
   std::shared_ptr<PythonValue> held =
       retainCallback(py::reinterpret_borrow<py::function>(function));
-  return Router{[held](const geometry::path::Rect& from,
-                       const geometry::path::Rect& to) {
-    return routeBetween(*held, false, from, to);
-  }};
+  return Router{
+      [held](const geometry::path::Rect& from, const geometry::path::Rect& to) {
+        return routeBetween(*held, false, from, to);
+      }};
 }
 
 RailRouter schemeRailRouter(const RouteSchemeObject& scheme) {
@@ -421,8 +412,8 @@ void bindAnchor(py::module_& composition) {
 
   anchor.def(py::init<>())
       .def(py::init([](std::string key, py::handle norm, float gap) {
-             return Anchor(std::move(key), geometry::path::fromSk(readPoint(norm)),
-                           gap);
+             return Anchor(std::move(key),
+                           geometry::path::fromSk(readPoint(norm)), gap);
            }),
            py::arg("key"), py::arg("norm") = py::make_tuple(0.5f, 0.5f),
            py::arg("gap") = 0.0f)
@@ -543,8 +534,7 @@ void bindSpines(py::module_& composition) {
         return geometry::path::toSk(compose::bandPointAt(
             geometry::path::fromSk(spine), along, acrossPx));
       },
-      py::arg("spine"), py::arg("along"),
-      py::arg("acrossPx"),
+      py::arg("spine"), py::arg("along"), py::arg("acrossPx"),
       "The point at `along`, a fraction of the spine's arc length, and "
       "`acrossPx` pixels on its normal. Positive is to the left of travel, "
       "which with y pointing down is outside a clockwise path.");

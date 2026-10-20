@@ -6,11 +6,15 @@ sigil_library_root(SigilPython
 # edits nothing another author is also editing.
 sigil_library(SigilPython
   SOURCES
-    Python.cpp Bindings.cpp Extend.cpp PublicNames.cpp compose/BrushMarks.cpp
+    Python.cpp Bindings.cpp Extend.cpp PublicNames.cpp compose/Adders.cpp
+    compose/Arrangement.cpp compose/BrushMarks.cpp
     compose/Composer.cpp compose/Derive.cpp compose/ElementEdges.cpp
-    compose/Feed.cpp compose/Instancing.cpp compose/KitRows.cpp compose/KitTextPaint.cpp
-    compose/Masks.cpp compose/PaintPrograms.cpp compose/Schemes.cpp
-    compose/Selectors.cpp compose/StrokeOptions.cpp compose/TextEffects.cpp
+    compose/Facts.cpp compose/Feed.cpp compose/Instancing.cpp
+    compose/Instancing.h compose/InstancingLanes.cpp
+    compose/InstancingPool.cpp compose/KitRows.cpp compose/KitTextPaint.cpp
+    compose/Masks.cpp compose/OperatorSeam.h compose/PaintPrograms.cpp
+    compose/Schemes.cpp compose/Scope.cpp compose/Selectors.cpp
+    compose/StrokeOptions.cpp compose/TextEffects.cpp
     compose/TextureScene.cpp core/Features.cpp core/RecordProtocol.cpp
     core/Values.cpp data/Connection.cpp draw/CanvasSeam.cpp geometry/Mesh.cpp
     geometry/MeshCamera.cpp geometry/MeshCurve.cpp geometry/Outlines.cpp
@@ -25,7 +29,10 @@ sigil_library(SigilPython
     weave/PaintLayers.cpp weave/Tables.cpp weave/Unicode.cpp
     compose/Convert.cpp compose/Document.cpp compose/Elements.cpp
     compose/Kit.cpp compose/Nodes.cpp data/Data.cpp draw/Brush.cpp
-    draw/Pen.cpp geometry/Geometry.cpp io/Resources.cpp material/Material.cpp
+    draw/BrushBinding.h draw/BrushEngine.cpp draw/BrushFields.cpp
+    draw/BrushFormat.cpp draw/BrushGeometry.cpp draw/BrushRecords.cpp
+    draw/BrushStrokes.cpp draw/Pen.cpp geometry/Geometry.cpp
+    io/Resources.cpp material/Material.cpp
     motion/Motion.cpp skia/Values.cpp weave/Layout.cpp weave/Type.cpp
     world/World.cpp
   HEADERS

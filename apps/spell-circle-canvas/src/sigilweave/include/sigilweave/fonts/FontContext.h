@@ -39,7 +39,7 @@ struct AdoptedFace {
 /// Per-thread service object owning the shaping and font-resolution caches:
 ///   - hb_face/hb_font per face (font data is parsed once, ever)
 ///   - per-(typeface, code point, language) glyph coverage + font fallback
-///   - the word shape cache (see Shaper.h)
+///   - the word shape cache the shaper keeps
 ///
 /// None of it is locked: create one FontContext per layout thread. All
 /// caches key off each face's unique id, so faces must outlive the
@@ -52,9 +52,9 @@ class FontContext {
    * @trap The language tag is borrowed for the call and is NOT
    * guaranteed NUL-terminated — copy it before any C API sees it.
    */
-  using FallbackResolver = std::function<Face(
-      SkFontMgr& fontManager, const Face& primaryTypeface, int32_t codePoint,
-      std::string_view languageTag)>;
+  using FallbackResolver =
+      std::function<Face(SkFontMgr& fontManager, const Face& primaryTypeface,
+                         int32_t codePoint, std::string_view languageTag)>;
 
   /** Constructs a context using @p fontManager for fallback resolution.
    * @p defaultTypeface serves styles with a null typeface, and when it is
@@ -112,9 +112,9 @@ class FontContext {
    * the default, when it covers the code point, and otherwise the
    * resolver's match. Memoized per primary, code point and language.
    */
-  [[nodiscard]] Face resolveTypeface(
-      const Face& primaryTypeface, int32_t codePoint,
-      const char* languageTag);
+  [[nodiscard]] Face resolveTypeface(const Face& primaryTypeface,
+                                     int32_t codePoint,
+                                     const char* languageTag);
 
   /** Returns the MEMOIZED varied clone of @p base for @p variations —
    * @p base itself, or the context default when it is null, when the
@@ -122,8 +122,8 @@ class FontContext {
    * mechanism and not a speed-up: identical requests return the SAME
    * object, so its unique id is a stable shape-cache identity.
    */
-  [[nodiscard]] Face variedTypeface(
-      const Face& base, std::span<const FontVariation> variations);
+  [[nodiscard]] Face variedTypeface(const Face& base,
+                                    std::span<const FontVariation> variations);
 
   /** Returns a varied clone of @p base that this context does NOT retain:
    * it lives exactly as long as the caller's reference. It is for a

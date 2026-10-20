@@ -135,6 +135,12 @@ struct CoverageCastsDrawn {
 };
 CoverageCastsDrawn coverageCastsDrawn();
 
+/** HOW MANY COVERAGE TRACES THIS PROCESS HAS TAKEN: each one rasterises a
+ *  node's content and traces the pixels it covered, which a node does once
+ *  and again only when what it covers, its size, its scale or its
+ *  threshold changes. */
+size_t coverageTracesTaken();
+
 /** THE ALPHA, AS A REGION: the pixels of @p alpha whose coverage is above
  *  zero and reaches @p covered. */
 SkRegion regionOfCoveredPixels(const SkPixmap& alpha, uint8_t covered);

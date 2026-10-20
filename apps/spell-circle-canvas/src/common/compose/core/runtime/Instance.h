@@ -2,54 +2,44 @@
 
 /** @file
  * Internal to the kernel — the RETAINED runtime node: one Instance per
- * mounted element, with its text state, its transition slots, its derive
- * results, its selection cache and its caching tiers, and the animated
- * float a slot transitions through.
+ * mounted element. Its fields are grouped by subject into the parts it
+ * derives from — the text it retains, the cascade in force, its
+ * transition state, the bakes it holds, the memos they are held against
+ * and the outlines it keeps — and the instance itself carries its place in
+ * the tree, its computed style, what the adding operators and the matched
+ * rules gave it, and what the derive phase resolved for it.
  */
 
-#include <include/core/SkSamplingOptions.h>
-#include <sigilcore/cache/Settle.h>
+#include <include/core/SkRect.h>
 #include <sigilcore/reconcile/Node.h>
-#include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/SurfaceMaps.h>
+#include <sigilgeometry/path/Outline.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/advanced/Held.h>
+#include <sigilweave/style/Type.h>
 #include <yoga/Yoga.h>
 
-#include "TextState.h"
-#include "cache/MarkStates.h"
-#include "cache/StampCache.h"
-#include "description/ComposeInternal.h"
-#include "paint/HeldCoverage.h"
-#include "style/ComputedStyle.h"
-#include "style/SelectorMatch.h"
-
-// markPaintDirtyUp() calls sk_sp::reset() inline, so the ref-counted payload
-// types must be complete here (not merely forward-declared).
-#include <include/core/SkCanvas.h>  // NodeTransform::concatTo's elementary ops
-#include <include/core/SkImage.h>
-#include <include/core/SkMatrix.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkRRect.h>
-#include <include/core/SkRect.h>
-#include <include/core/SkTypeface.h>
-#include <sigilgeometry/path/Pose.h>
-#include <sigilweave/fonts/FontContext.h>
-
-#include <algorithm>
-#include <cmath>
-#include <functional>
-#include <iterator>  // std::size, for the kSlotSpecs asserts
-#include <limits>
+#include <array>
+#include <cstdint>
 #include <memory>
 #include <optional>
-#include <span>
 #include <string>
+#include <utility>
 #include <vector>
+
+#include "CascadeInForce.h"
+#include "Exclusion.h"
+#include "HeldBakes.h"
+#include "OutlineCaches.h"
+#include "PaintMemos.h"
+#include "RetainedText.h"
+#include "TextState.h"
+#include "TransitionState.h"
+#include "description/ComposeInternal.h"
+#include "style/ComputedStyle.h"
 
 namespace sigil::compose::detail {
 
 struct Instance;
-class UnitSurfaces;
 
 /** WHETHER THE CHILDREN OF THIS NODE CARRY YOGA NODES. Stated once because
  *  two places ask — the mount that creates the node and the patch that
@@ -65,66 +55,20 @@ class UnitSurfaces;
  *  where the reserved run landed. */
 inline bool childrenCarryYoga(const Instance& inst);
 
-/** One float property that can transition: the Choreograph output is the
- *  source of truth while a motion is connected. SigilMotion's, because a
- *  moving animatable is the motion library's business. */
-using HeldMotion = motion::HeldMotion;
-
-/** ONE RESOLVED `contentFlowAround` TARGET, in the text node's own space.
- *
- *  A target that resolves a SILHOUETTE of its own — a `shape()`, a routed
- *  connector or rail — is subtracted by that outline, concavities and holes
- *  included, so text runs into the notch of a star and through the hole of
- *  a ring. A target that resolves none is subtracted by its BOX, which is
- *  the whole of what it occupies. `circle` is the analytic case: a round
- *  silhouette costs one square root per line band instead of a walk of a
- *  flattened outline, and the answer is the same one.
- *
- *  Both forms are one value so the compare that decides whether the text
- *  must be laid out again stays a plain vector compare. */
-/** ONE STOP ON A FILL'S PATH: the fill, where in the path's 0→1 progress
- *  it stands, and the curve the step arriving at it is read through. */
-struct FillStop {
-  Fill fill;
-  float at = 0.0f;
-  motion::Easing ease;
-};
-
-/** THE COLOUR A FILL PATH STANDS AT @p progress through it: the two stops
- *  around the progress, each read through @p resolve — which turns a
- *  reference into the colour it names — mixed through the arriving
- *  stop's curve. A step that lasts nothing is taken at once. */
-material::Color colourAlong(std::span<const FillStop> path, float progress,
-                            const std::function<Fill(const Fill&)>& resolve);
-
-struct Exclusion {
-  SkRect bounds = SkRect::MakeEmpty();  ///< the target's box (or the circle's)
-  SkPath path;          ///< the silhouette; empty when the target has none
-  bool circle = false;  ///< `bounds`'s inscribed circle IS the silhouette
-  bool operator==(const Exclusion& other) const {
-    return bounds == other.bounds && circle == other.circle &&
-           path == other.path;
-  }
-};
-
-/** WHAT THE SHEETS IN FORCE SAY ABOUT ONE PARAGRAPH STYLE'S NAME on a text
- *  leaf: the block partial a paragraph named so is laid out in, and an
- *  indent the rules gave as a percentage, which is one of the measure the
- *  passage is laid out at and so waits for it. */
-struct NamedParagraphStyle {
-  std::string name;
-  sigil::weave::ParagraphBlock block;
-  std::optional<float> indentPercent;
-  bool operator==(const NamedParagraphStyle&) const = default;
-};
-
 /** The retained node. The tree skeleton — `parent`, `description` (the
  * resolved, post-memo description), `memoShell` (the memo element, if any) and
  *  `children` — is SigilCore's Node, which is what the reconciler walks;
- *  everything below it is what this kernel retains per node. */
+ *  everything after it is what this kernel retains per node, the parts by
+ *  subject and the rest below. The skeleton stays the first base. */
 // fields are grouped by what they belong to, not by size
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
-struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
+struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>>,
+                  RetainedText,
+                  CascadeInForce,
+                  TransitionState,
+                  HeldBakes,
+                  PaintMemos,
+                  OutlineCaches {
   Composer::Impl* owner = nullptr;
   YGNodeRef yoga = nullptr;
   std::vector<size_t> paintOrder;  // child indices sorted by zIndex
@@ -139,42 +83,6 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
    *  endpoint from. */
   StyledNode styled() const { return {computed, *description}; }
 
-  // Text state
-  std::optional<sigil::weave::Paragraph> paragraph;
-  sigil::weave::ParagraphLayout textLayout;
-  std::vector<sigil::weave::LineMetrics> lines;
-  /// The same geometry for a VERTICAL passage, where a "line" is a column
-  /// and lineMetrics() answers with nothing. Exactly one of the two lists is
-  /// ever non-empty, and which one is the node's writing mode.
-  std::vector<sigil::weave::ColumnMetrics> columns;
-  float measuredForWidth = -1.0f;
-  float measuredForHeight = -1.0f;
-  YGSize measuredSize{0, 0};
-  float measuredBaseline = 0.0f;  // first character's baseline, from the top
-  // textThreadTo(): the word this frame's fill begins at — 0 for the head of a
-  // chain, and whatever the frame before it left unplaced for every other.
-  uint32_t threadCursor = 0;
-  // …and the LINE this frame's first line is, counted from the story's
-  // start. A story numbers its own lines: weave::selectors::line(40) is the
-  // fortieth line of the story wherever it landed, so a chain that reflows
-  // moves the selection with the text instead of addressing a different line in
-  // every frame. 0 for the head, and for every text that is not a frame.
-  uint32_t threadLineOffset = 0;
-  // …and the MEASURE THE NEXT FRAME SETS IN, which the widow rule needs
-  // because the lines it counts are the ones this frame will not hold.
-  // Only the chain knows it; 0 says it is not known yet, which is the
-  // first pass over a chain nobody has laid out.
-  float threadNextMeasure = 0;
-  // …and the lines the WHOLE chain placed, written to every frame once the
-  // walk knows it. A cascade numbered over the story needs the story's own
-  // count, and no single fill has it.
-  uint32_t threadStoryLines = 0;
-  // Whether some frame threads INTO this one, which is what makes the last
-  // link of a chain a frame rather than an ordinary text leaf. A leaf's
-  // height is an answer and it grows down the page; a FRAME is bounded by
-  // its own depth. The links before the last are known by their own
-  // textThreadTo(), and the last is known only by this.
-  bool threadedInto = false;
   // Which axes a layout SCHEME sized on this container, so that it keeps
   // sizing an axis it once sized. Remembered rather than read back off
   // Yoga: a scheme writes a point size on every child it places, so the
@@ -187,88 +95,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // over the rotation the description states, written by the layout
   // pass and read wherever the node's transform is produced.
   float arrangedTurn = 0.0f;
-  uint32_t contentRev = 0;     // bumped on text/exclusion change
-  uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
-  // weave::rich().slot(): the slot names in the order the content declares them
-  // — which is the order weave matches its placeholder records in — and where
-  // the finished layout put each one, in this node's own space. A child
-  // keyed by one of these names takes that rect as its box.
-  std::vector<std::string> textSlotKeys;
-  std::vector<std::pair<std::string, SkRect>> textSlotRects;
-  // textAttach(): the rect each anchored child's key resolves to, in this
-  // node's own space, resolved once per layout from the placement the paragraph
-  // produced. A key that resolved no glyphs is absent, and its child places
-  // nothing.
-  std::vector<std::pair<std::string, SkRect>> textMarkRects;
-  // textAnnotation(): every reading, laid out where the base's units put it, in
-  // this node's own space. Each is a small paragraph of its own with its own
-  // placement, so the kernel draws it exactly as it draws the base.
-  struct PlacedAnnotation {
-    std::shared_ptr<sigil::weave::Paragraph> paragraph;
-    sigil::weave::ParagraphLayout layout;
-  };
-  std::vector<PlacedAnnotation> textAnnotations;
-  // WHERE THE GLYPHS THEMSELVES REACH, in this node's own space: the union
-  // of the placed blobs' bounds, base and readings alike. A line's band is
-  // its ascent over its descent, and the outlines a face draws are not
-  // held to it — a comma's tail, a swash, an accent on a capital all stand
-  // outside the box the layout measured. Anything that sizes a surface
-  // from a text leaf reads this beside the box, because a surface cut to
-  // the box alone loses the pixel that hangs past it, whole. Empty until a
-  // layout has run, and rewritten by every layout after.
-  SkRect textInk = SkRect::MakeEmpty();
-  // weave::rich().add(text, styleName): each named run and the text it
-  // occupies, in declaration order — what selectors::style resolves against.
-  // Cleared and rebuilt with the paragraph, so the names a node answers for are
-  // exactly the ones its current content declares.
-  std::vector<detail::NamedRun> textNamedRuns;
-  // The engine's state (TextState) — null until dressed type first asks
-  // for it. Read through textStateOf().
-  std::unique_ptr<TextState> textState;
 
-  // ---- the cascade, resolved --------------------------------------------
-  // THE FONT IN FORCE at this node, every field engaged: the parent's,
-  // overlaid with what this node's description declares, with the ink
-  // transition this node may be running read in as the colour. Its colour
-  // IS the ink. Written by the cascade pass before layout; read by text
-  // materialisation, by the relative lengths and by the paint context.
-  sigil::weave::Type font;
-  // THE INK IN FORCE AS A PAINT at this node, inherited exactly as the
-  // font's colour is, and empty on the tree every ink is a colour on.
-  InkInForce inkPaint;
-  // Prepared ink inputs for the surface maps of a lit ink, kept while its
-  // material stands.
-  std::optional<material::skia::SurfaceMaps> surfaceMapInkInputs;
-  // Whether THIS node is the one that stated that paint — the box an
-  // ink anchored to a declaring box maps onto.
-  bool inkPaintOrigin = false;
-  // THE PARAGRAPH SETTING IN FORCE at this node: the parent's, with what this
-  // node's description declares folded over. A partial, since an unset field
-  // is the layout's own answer and nothing engages it. Written by the pass
-  // before layout; read when a text leaf's layout options are built.
-  sigil::weave::ParagraphBlock block;
-  // Whether the style in force is ITALIC, which the face alone cannot say:
-  // a family with no italic stands in with a lean. Inherited beside `font`.
-  bool italic = false;
-  // THE FAMILY IN FORCE BY NAME, which a weight or an italic stated further
-  // down finds its face in again; empty where the face in force was stated
-  // as a face, or no family was named. Inherited beside `font`.
-  std::string family;
-  // THE FIRST-LINE INDENT IN FORCE AS A PERCENTAGE of each passage's
-  // measure, which `block` cannot hold in pixels until the measure is
-  // known; absent where the indent in force is pixels or none.
-  std::optional<float> indentPercent;
-  // THE IMAGE SAMPLING IN FORCE at this node, or none stated, which an
-  // image leaf reads as linear.
-  std::optional<SkSamplingOptions> sampling;
-  // Prepared fill inputs for the surface maps of a lit fill, kept while
-  // its material stands; the map paint is replaced when the map changes.
-  mutable std::optional<material::Paint> surfaceMapFill;
-  mutable std::optional<material::Material> surfaceMapMaterial;
-  mutable std::optional<material::skia::SurfaceMaps> surfaceMapFillInputs;
-  // The maps of a lit fill or ink that reads the unit it is painted into,
-  // prepared per unit while the material and the unit stand.
-  mutable std::shared_ptr<UnitSurfaces> unitSurfaces;
   /** The fill in force as the surface map the composer paints the page
    *  as, or null where the fill is not lit or no map is selected — where
    *  the fill beneath paints the material's colours flat. */
@@ -276,97 +103,6 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   /** Whether the ink in force here, or a span's, samples root
    *  coordinates. */
   bool inkUsesWorldSpace() const;
-  // The face's own line height at `font`, px — what an `lh` length under
-  // this node resolves against.
-  float lineHeight = 0.0f;
-  // The advance of "0" at `font`, px — what a `ch` length on this node
-  // resolves against. Beside the line height because both are answers of
-  // the same face at the same size and both are measured when the shaping
-  // in force moves.
-  float zeroAdvance = 0.0f;
-  // THE CUSTOM PROPERTIES IN FORCE: the parent's table shared when this
-  // node sets none, or a copy of it with this node's own written over.
-  std::shared_ptr<const VarTable> vars;
-  // WHERE THIS NODE STANDS AMONG ITS SIBLINGS, by position and by role,
-  // written by the cascade pass when its parent's children are resolved
-  // and read by the structural pseudo-classes of a selector. The root
-  // keeps the default: the only child of nothing.
-  SiblingPlace place;
-  // Whether this is a NAMED RUN of a text leaf being matched as a virtual
-  // child of it rather than a mounted node: it is counted among no
-  // siblings, and `:empty` never matches it.
-  bool virtualRunChild = false;
-  // WHAT THIS NODE'S SUBTREE HOLDS, for a `:has()`: one bit per name the
-  // `:has()` arguments in force test for, over the node's own classes and
-  // role, over its children's and over everything under it, the cascade
-  // pass that wrote them and how many of that pass's names they cover —
-  // a later sheet can give a new name a bit mid-pass, and a summary taken
-  // before then says nothing about it. Written bottom up ahead of the
-  // pass and only under a node applying a sheet that uses `:has()`; kept
-  // here, on the retained node, so a subtree a memo reused is summarised
-  // without being described again.
-  uint64_t hasOwnNames = 0;
-  uint64_t hasChildNames = 0;
-  uint64_t hasSubtreeNames = 0;
-  uint32_t hasSummaryPass = 0;
-  uint32_t hasSummaryCovers = 0;
-  // Whether the pass has resolved this node at least once — before that,
-  // `font` and `vars` are whatever the constructor left and nothing may
-  // read them as the truth.
-  bool cascadeResolved = false;
-  // Whether any length this node's layout declares is relative — an em, a
-  // rem, an lh or a custom property — so a change in the font in force, or
-  // in the properties, rewrites its Yoga style. Written with the style.
-  bool relativeLengths = false;
-  // Whether any length this node's layout declares is measured against the
-  // CANVAS — a pw or a ph. Those are resolved into pixels before Yoga sees
-  // them, so a canvas that changes size has to have this style written
-  // again; nothing else notices a resize.
-  bool canvasLengths = false;
-  // On a text leaf that inherits: the font the paragraph was last
-  // materialised in, compared against `font` to tell a change that
-  // re-shapes (any field but the colour) from one that repaints alone.
-  sigil::weave::Type textFont;
-  // On a text leaf: the block the paragraph was last built under,
-  // compared against `block` to tell a change that re-materialises (the
-  // writing mode, the locale) from one that lays out again.
-  sigil::weave::ParagraphBlock textBlock;
-  // On a text leaf: what the selector sheets in force say about each NAME
-  // its rich runs and its paragraph styles were written with, each name
-  // matched as a virtual child of the leaf — the font partial a run named
-  // so is set in, and the block partial a paragraph named so is laid out
-  // in. A name no rule speaks about is absent. Resolved by the cascade
-  // pass and compared there, so a sheet that changes what a name means
-  // re-materialises the leaf.
-  sigil::weave::TypeSheet runStyles;
-  std::vector<NamedParagraphStyle> paragraphBlockStyles;
-  // On a text leaf: whether any sheet is in force where it stands, which is
-  // what a paragraph style no rule speaks about is warned against.
-  bool sheetsInForce = false;
-  // On a text leaf: what the matched rules state about its text
-  // properties, and the options in force — those, with the leaf's own
-  // standing over them. Resolved by the cascade pass, and read wherever a
-  // leaf's options are, so a rule that moved a text property reaches a
-  // leaf whose own description did not.
-  std::unique_ptr<const RuleTextLayer> ruleText;
-  TextOptions textOptions;
-  // On a text leaf: its text changed at reconcile and the
-  // paragraph is owed. The pass materialises it once, in the font it lands
-  // in; reconcile shaping it against the root first would be a second
-  // paragraph every frame the text changes.
-  bool textDirty = false;
-  // …and the UTF-16 ranges whose colour is the ink in force, each with
-  // the partial the run was written with, so an ink-only change sets the
-  // paint on the paragraph in place and no line is broken again.
-  struct InkRange {
-    sigil::weave::CharRange range;
-    std::optional<sigil::weave::Type> over;
-  };
-  std::vector<InkRange> inheritedInkRanges;
-  // On a leaf set in a whole style: the colour ink stated on the leaf
-  // itself, by its own verb or a rule matching it, which its glyphs are
-  // set in over the style's own colour; none draws the style's colour.
-  std::optional<material::Color> wholeStyleInk;
 
   // WHAT THE ADDING OPERATORS BUILT UNDER THIS NODE, kept from the last
   // time they ran, one slice per SCOPE that attached here: a node can be
@@ -382,90 +118,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   std::vector<AdditionSlice> additions;
   std::vector<Element> addedChildren;
 
-  // Transition state, keyed by property slot
-  // The FIXED property slots — one per property every node can carry, so the
-  // count is a property of the KERNEL. Mask gates and textFx() tracks are
-  // deliberately not here: how many a node has is a property of its
-  // description, so they live in the maskAnims and trackAnims vectors
-  // instead.
-  //
-  // ADDING A SLOT HERE IS A BUILD FAILURE until it also gets a row in
-  // kSlotSpecs below, the one table every consumer of this enum walks.
-  enum Slot : int {
-    kOpacity,
-    kTx,
-    kTy,
-    kRotate,
-    kScale,
-    kFillLerp,
-    kSkewX,
-    kSkewY,
-    kScaleX,
-    kScaleY,
-    kMotionT,
-    kTextPathAt,
-    // The depth lanes (DepthData): the plane's turn about its two in-plane
-    // axes, its depth, its depth scale, and the view it declares for its
-    // children.
-    kRotateX,
-    kRotateY,
-    kTranslateZ,
-    kScaleZ,
-    kPerspective,
-    // The ink easing from one colour to another under this node's
-    // transition, whether the node states the colour or inherits it; the
-    // pass reads the ramp back into the colour of `font` each frame, so
-    // everything under the node with no transition of its own follows it.
-    kInkLerp,
-    kSlots
-  };
-  std::unique_ptr<HeldMotion> anims[kSlots];
-  /** Where this node stood among the siblings that MOUNTED WITH IT — the
-   *  place every staggered tween on it resolves against, set when it
-   *  mounts. Unlike `place`, which a selector reads, it counts only the
-   *  children new in that patch, so one row appended to a live list enters
-   *  at once rather than waiting out its whole-list step. */
-  motion::Place mountPlace;
-  /** WHETHER THIS NODE IS LEAVING: a keyed node stating `exit()` that the
-   *  last description of its parent left out, kept in its place while its
-   *  entrances play backwards. A leaving node answers no hit, and nothing
-   *  under it is retargeted. */
-  bool leaving = false;
-  /** The values the exit's motions write, one per entrance under the node
-   *  played backwards: the node is dropped once none of them is moving. */
-  std::vector<motion::Animatable<float>> exitRuns;
   /** Whether this node or an ancestor is leaving. */
   [[nodiscard]] bool exiting() const {
     for (const Instance* node = this; node != nullptr; node = node->parent)
       if (node->leaving) return true;
     return false;
   }
-  /** Whether a leaving node's exit has landed: none of its motions is still
-   *  writing its value. */
-  [[nodiscard]] bool exitLanded() const {
-    for (const motion::Animatable<float>& run : exitRuns)
-      if (run.cell()->moving) return false;
-    return true;
-  }
-  // The path kFillLerp's progress runs along: two stops for a change
-  // eased by the fill's own curve, one per keyframe after the start for
-  // a path.
-  std::vector<FillStop> fillPath;
-  material::Color inkFrom{0, 0, 0, 1};  // where kInkLerp started
-  // THE INK TARGET IN FORCE, as the cascade pass last resolved it: the
-  // colour kInkLerp is headed for, and the one a freshly resolved colour
-  // is compared against to decide the lane moves. It is the RESOLVED
-  // colour and not the declared one, so a change arriving through a
-  // class, a matched rule or a custom property is a change here too; for
-  // a node that inherits its ink it is the parent's target, never the
-  // colour a running ramp stands at. Unset until the pass has resolved
-  // this node once, and wherever it resolves no colour at all — a lane
-  // with no previous target has nothing to ease from.
-  std::optional<material::Color> inkTarget;
-  // THE TRANSITION A MATCHED RULE STATES for this node — the strongest of
-  // the rules that matched it at the last cascade pass and state one —
-  // which the node's own `transition()` stands over.
-  std::optional<motion::Tween<float>> ruleTransition;
+
   // WHAT THE MATCHED RULES STATE about the properties the computed style
   // carries, as the last cascade pass found them: the layer the patch and
   // the pass both fold between the parent's answers and the node's own
@@ -511,461 +170,6 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // strand::from(key): the keyed paths, in this node's local space —
   // handed to decorations as PaintContext::borrowed.
   std::vector<std::pair<std::string, geometry::path::Outline>> borrowedPaths;
-  // Animated span endpoints (THREE per term — begin, end, offset — per
-  // pass, in declaration order). A vector rather than the fixed Slot array
-  // because the count is a property of the description, not of the kernel.
-  std::vector<std::unique_ptr<HeldMotion>> spanAnims;
-  // Animated MASK GATE scalars, in declaration order: three per Spans term
-  // (begin, end, offset), one per Edge fraction, none for Shape or Alpha.
-  //
-  // SEPARATELY INDEXED PER MASK, and that is the whole point rather than an
-  // implementation detail. Three masks on one node may carry three motions
-  // at three rates; if they shared a slot the second would retarget the
-  // first and a composition the designer asked for by name would be a race.
-  // Positional like spanAnims: a description that changes the SHAPE of its
-  // mask list drops the running motions rather than carrying them onto
-  // numbers that now mean something else.
-  std::vector<std::unique_ptr<HeldMotion>> maskAnims;
-  // Animated textFx() TRACK progresses, one per track in declaration order.
-  //
-  // Positional and separately indexed for the same reason mask gates are:
-  // three tracks on one text node may run at three rates, and a shared slot
-  // would make the third retarget the first. A description that changes the
-  // NUMBER of tracks drops the running motions rather than carrying them
-  // onto a progress that now drives a different effect.
-  std::vector<std::unique_ptr<HeldMotion>> trackAnims;
-  /** WHEN THIS LEAF MOUNTED, on the engine's clock, while a track's
-   *  progress waits for its span: a progress that runs over the schedule's
-   *  span (`Track::progressOverSpan`) holds at its start until the text is
-   *  laid out and the span is known, and then runs as though it had started
-   *  at the mount. Empty once every such progress has started. */
-  std::optional<motion::Duration> trackSpansOwedSince;
-
-  // Caching
-  sk_sp<SkPicture> picture;
-  // What the held recording is pinned to. A recording is a list of draw
-  // calls and replays under whatever matrix it meets — EXCEPT where it
-  // holds a device-space bake, which is a blit at an absolute device rect
-  // and is exact only under the device matrix it was recorded under. So
-  // the recording counts the device blits inside it (its own nodes' and
-  // those of every held picture replayed into it) and keeps that matrix;
-  // a count above zero and a different matrix at replay remake it. A
-  // recording holding none stays matrix-independent, which is what lets a
-  // picture under a live transform replay under the motion.
-  //
-  // `pictureDeviceDeferred`: a node inside was refused the device bake
-  // for matrix motion alone. The recording is retaken once the matrix has
-  // held still for a frame, so the node takes the device bake then rather
-  // than keeping the resampled local one until its content next changes.
-  SkMatrix pictureMatrix = SkMatrix::I();
-  // …and the device clip the blits inside it were cut to. An ink clip is
-  // a set of device pixels, so a recording holding one is exact for the
-  // clip it was made under and stale under a wider one: a window that
-  // grew would replay the region it held when it was smaller.
-  SkIRect pictureDeviceClip = SkIRect::MakeEmpty();
-  uint32_t pictureDeviceBakes = 0;
-  bool pictureDeviceDeferred = false;
-  // A group inside awaits its settling visit. Unlike a deferred device
-  // bake, that visit does not require the ancestor matrix to hold still.
-  bool pictureGroupPending = false;
-  // …and THE WINDOW OF HOST SCALES the rasters inside it are the same
-  // picture over. A traced silhouette is a staircase of whole device
-  // pixels and a local texture bake is a texel grid the blit stretches
-  // across the node's own units: both are measured off the scale the
-  // recording was taken at, and both are answers a recording can hold
-  // that are not matrix-independent for a reason no blit explains. A node
-  // painted every frame notices and re-traces or re-bakes; a node inside
-  // a held recording is never asked again, so the recording carries the
-  // window. It is narrowed by its own nodes' rasters and by those of
-  // every held picture replayed into it — a point for a trace, the ladder
-  // rung's own span for a local bake — so a recording holding neither
-  // keeps the whole line and is never remade for the scale alone.
-  float pictureScaleLo = 0.0f;
-  float pictureScaleHi = std::numeric_limits<float>::infinity();
-  sk_sp<SkImage> textureImage;
-  float textureScale = 1.0f;
-  // The host scale a LOCAL bake was taken under, where a paint in it read
-  // the content scale; zero where none did. Such a bake is a picture of
-  // that one scale, and is remade when the host leaves it.
-  float textureContentScale = 0.0f;
-  SkRect textureBakeRect = SkRect::MakeEmpty();  // bake covers paint bounds
-  // …and the device clip that bake was CUT TO. Every device bake carries
-  // the canvas's own clip into its layer, so what it holds is not the
-  // node's paint but the node's paint as that clip left it — and a clip
-  // narrows for reasons that have nothing to do with the node's content:
-  // an ancestor's layer opens over the node's box while it fades in, a
-  // panel reveals, a window grows. A bake taken under the narrow clip and
-  // held past it blits the CUT, and the marks the clip removed never come
-  // back, because nothing else the staleness rules compare has moved: the
-  // paint bounds are the same bounds whatever the clip did to them.
-  SkIRect textureBakeClip = SkIRect::MakeEmpty();
-  // …AND THE MATRIX IT WAS DRAWN UNDER. The rect a device bake is measured
-  // to is whole device pixels, so a matrix that moves BELOW one leaves that
-  // rect where it was — and the picture inside it is not the same picture:
-  // an edge lands on another part of its pixel, a glyph takes another
-  // subpixel phase. A scale settling by a thousandth at the end of an
-  // entrance does it, and so does a node drifting a fraction of a pixel. A
-  // bake held across that blits the frame it was taken on, because nothing
-  // else the staleness rules compare has moved.
-  SkMatrix textureBakeMatrix = SkMatrix::I();
-  // Which SPACE the held bake lives in, and therefore how it must be
-  // blitted: a device-space bake is snapped to whole device pixels and
-  // drawn with the matrix reset (a literal copy, at any angle); a local
-  // one is drawn through the node's transform and resampled by it. The
-  // flag exists so a bake taken in one mode is never blitted in the other
-  // — the two store different rectangles in textureBakeRect.
-  bool textureDeviceSpace = false;
-  // Does the held bake still OWE its layer effect, to be applied at the
-  // blit? True only under the moving-effect tier, where the bake holds
-  // unfiltered content. The blit dresses itself from the tier the CURRENT
-  // frame takes, so a bake made under the other answer would be filtered
-  // twice or not at all; a flip re-bakes, exactly as a change of space
-  // does.
-  bool textureEffectDeferred = false;
-  // Is this node's OWN transform animating? (Geometric slots only — opacity
-  // does not move the device rect.) A device-space bake is exact but is
-  // pinned to one device rect, so it re-bakes whenever the node moves;
-  // the quantized local bake exists precisely so a spinning ornament bakes
-  // ONCE and rides its transform. Computed in computeVolatile, which runs
-  // every frame whether or not the node is repainted — unlike anything
-  // derived from paint history, which a node under a cached parent never
-  // accumulates.
-  bool transformLive = false;
-  // …and is an ANCESTOR's transform declared as animating? A local bake
-  // rides every matrix above it exactly as it rides the node's own, and a
-  // device bake under a moving ancestor is exact at one sub-pixel position
-  // only, so a Cache::Texture node keeps its local bake under either
-  // declaration. Written beside `transformLive`, by the same walk.
-  bool transformLiveAbove = false;
-  // …and does what this node draws LAND SOMEWHERE ELSE next frame?
-  // `transformLive` is the node's OWN declared motion; this is that, OR any
-  // ancestor's, OR — for text — a live textFx() track whose effect moves glyphs
-  // off their pen positions. Text asks it: a run whose device placement
-  // creeps needs its glyph origins on the subpixel grid, and a figure
-  // rotating above the text, or a slide dragging every letter sideways,
-  // makes it creep exactly as a marquee phase does. Every term is read off
-  // a declaration, so a run that stops keeps the placement it was moving
-  // with instead of taking one last shift as it settles.
-  bool placementUnderMotion = false;
-  // …and is the COMPOSER still working on this passage? A text told its
-  // input is moving (Text::textWillChange) has its break decisions kept and
-  // reused, and a frame that answered every block from that store did no
-  // work at all: the passage is set exactly as the frame before it. So the
-  // leaf reports what its last layout cost — how many blocks came from the
-  // store, how many the budget forced to the greedy breaker — and this is
-  // the one bit the caching proof reads off that report: a live passage
-  // whose layout is not yet stable can change without any number this node
-  // carries changing, which is what "opaque to a value memo" means.
-  // Written in layoutText, beside the layout it describes.
-  bool textComposing = false;
-  /// What the last layout of this leaf cost, for `Composer::settling`.
-  int textReusedBlocks = 0, textDegradedBlocks = 0;
-  // …and is the device rect it actually LANDS on holding still? These are
-  // NOT the same predicate: a node with no animated property of its own
-  // still moves every frame under a resizing window or a pinch zoom, and a
-  // device-pinned bake would re-bake each time — losing exactly the
-  // one-bake-per-quantized-step reuse the local bake exists to provide.
-  //
-  // AN INVARIANT OF THIS PAIR, NOT OF ANY ONE CALL SITE: it is written only
-  // at recording.depth == 0, where the node is painted every frame and so
-  // actually accumulates frame-over-frame history. A node painted into an
-  // ancestor's recording is painted once per recording and accumulates
-  // none; a rect it observed there would poison the compare and force a
-  // spurious re-bake on its next live frame. Inside a recording the
-  // "holding still" verdict is the outermost recording's instead
-  // (`lastDeviceMatrix` below, read through the painter's
-  // recording.matrixStable), which that recording's node keeps every frame
-  // for the same reason. The writers, each behind the guard: the
-  // Cache::Group device bake and the Cache::Texture device bake, both in
-  // paint(). Any new writer must sit behind the same check.
-  //
-  // The first sighting counts as stable: a node's first frame is otherwise
-  // forced down the local path and then re-bakes on its second, which is a
-  // re-bake the common case (a host that never changes scale) should never
-  // pay.
-  SkIRect lastDeviceRect = SkIRect::MakeEmpty();
-  bool deviceRectSeen = false;
-  // The matrix this node's draws reached the device through last frame,
-  // under the same invariant: written only at recording.depth == 0. Read by
-  // the node's own recording, to know whether the device bakes it holds
-  // are still at the rects they were baked for and whether a node inside
-  // it may take one.
-  SkMatrix lastDeviceMatrix = SkMatrix::I();
-  bool deviceMatrixSeen = false;
-  float bakedLeafOpacity = 1.0f;  // frozen into the recording
-  SkBlendMode bakedLeafBlend = SkBlendMode::kSrcOver;
-  bool paintDirty = true;
-  bool subtreeVolatile = false;
-  /** WHAT THE LAST DRAW LEFT ON THE CANVAS FOR THIS NODE, for a host that
-   *  keeps its pixels and repaints only what changed
-   *  (`Composer::changedRegion`). `changedOwn` says this node's own paint
-   *  changed since that draw — set by every patch and invalidation that
-   *  reaches `markPaintDirtyUp`, and true on a node no draw has seen.
-   *  `ownVaries` says its own paint moves off the describe clock (a live
-   *  material, a running transition, a connected transform, its opacity),
-   *  read off the volatility walk. The extent is the subtree's ink, its
-   *  own layer effect's reach included, in the parent's space; the matrix
-   *  is what placed it there; the signature names the children it held, in
-   *  their order. */
-  bool changedOwn = true;
-  /** The subtree's allocation rect (`bakeBounds`) as the last paint that
-   *  measured it found it, and whether one has. */
-  SkRect heldBakeBounds = SkRect::MakeEmpty();
-  bool bakeBoundsHeld = false;
-  bool ownVaries = false;
-  /** Whether the node's own paint lands differently from frame to frame —
-   *  its transform, opacity or blend in motion — whatever it draws. */
-  bool ownPaintMoves = false;
-  /** Whether what this subtree COVERS can change from frame to frame: a
-   *  content term of the node's own, or any paint below it that moves.
-   *  A world-space material's anchoring moving with its node is not one:
-   *  it moves where the material's field is sampled, which the node's
-   *  coverage is not read from. Written by the volatility walk. */
-  bool silhouetteVolatile = false;
-  bool extentSeen = false;
-  SkRect lastExtent = SkRect::MakeEmpty();
-  SkMatrix lastPlacement = SkMatrix::I();
-  uint64_t lastChildren = 0;
-  // Live-material stability (the resolve memo's paint half): set when the
-  // node's ONLY volatility is its live material; the painter then replays
-  // the cached picture whenever resolve() returns the shader the picture
-  // baked (quantized/held materials repaint at their own rate, not the
-  // frame rate).
-  bool liveMatOnly = false;
-  // Set when the node's only content volatility is animated scalars, which
-  // lets the painter re-record just when one of those values actually
-  // changes. Volatility alone answers whether a motion is connected, not
-  // whether it is currently moving: a keyframe's hold segment, a settled
-  // easing, and any waypoint pair with equal endpoints are constant while
-  // they hold, and a recording baked from them stays exact that whole time.
-  //
-  // Deliberately separate from liveMatOnly. The two compare different things
-  // — a shader pointer versus a list of floats — so a node can qualify for
-  // one and not the other.
-  bool scalarMemo = false;
-  // Set when the node's ONLY volatility is its own LAYER effect's bound
-  // parameters: the content under the effect is static (no live child, no
-  // live material, no animated scalar, no live decoration), so it can be
-  // rasterized once and the effect run over that one image at every blit.
-  // The image's identity holds from frame to frame, which is what lets an
-  // effect built over held passes find them already filtered instead of
-  // filtering a fresh layer again. A BACKDROP effect is never this: it
-  // reads what is already on the canvas, which a bake cannot hold.
-  bool effectOnly = false;
-  /** The content scalars a recording was baked with. A node that has none
-   *  compares equal to itself forever.
-   *
-   *  To ride here a value must be resolvable to floats outside of painting,
-   *  bounded per node, and cheap to compare by value — that is what makes it
-   *  usable as a cache key. Mask gate scalars qualify, so a held keyframe on
-   *  a masked node repaints nothing.
-   *
-   *  Per-pass span endpoints do not qualify and are excluded: they belong to
-   *  an open-ended pass list rather than to the node, so there is no bounded
-   *  set of floats to compare. A node animated only by a per-pass span falls
-   *  back to per-frame content volatility and does not cache. */
-  struct ContentScalars {
-    /** Every textFx() track's master progress, resolved, in the order
-     *  trackAnims indexes them. Empty on text carrying no tracks. */
-    std::vector<float> tracks;
-    /** Every mask gate's animated floats, resolved, in the order
-     *  maskAnims indexes them. */
-    std::vector<float> gates;
-    /** The node→root matrix's affine six, for a node whose material paints
-     *  in world space under a connected transform (its own or an
-     *  ancestor's). That matrix is then a content input of the recording
-     *  exactly as a gate fraction is — floats, resolvable outside paint —
-     *  so a turning node re-anchors and a held one re-caches with no
-     *  machinery beyond this compare. All-zero, not identity, when the node
-     *  carries no world-space material: both sites that fill this member
-     *  apply the same guard, so the compare stays meaningful. */
-    std::array<float, 6> world{};
-    /** The resolved value of a fill bound to a live output. `Fill`'s
-     *  equality is structurally exact (kind, plus the colour bitwise, plus
-     *  shader POINTER identity — the same rule `bakedLiveShader` holds the
-     *  live-material memo with) and resolving one is a pointer dereference,
-     *  so "the value the recording was baked with" is well defined for this
-     *  lane even though it is not a float. Default (None) when the node's
-     *  fill is not bound — every site reads it through
-     *  Instance::resolveBoundFill(), so the guard cannot drift between the
-     *  volatility walk, the released scan and the paint probe. The sk_sp
-     *  keeps a shader-kind value alive, so pointer identity can never be a
-     *  freed allocation reused at the same address and comparing equal by
-     *  accident. */
-    Fill fill;
-    /** The pan a recording's fill shader was baked with, when the fill
-     *  material's tile offset is bound to live outputs: two floats resolved
-     *  by pointer dereference, the world lane's and the fill lane's third
-     *  sibling. All-zero when the node's fill material carries no top-level
-     *  bound offset — every site reads it through
-     *  Instance::resolvePatternOffset(), so the guard cannot drift between
-     *  the volatility walk, the released scan and the paint probe. */
-    std::array<float, 2> pattern{};
-    /** textOnPath()'s resolved phase — WHERE ALONG the baseline the run sits
-     *  this frame. The recording bakes the glyph positions that phase
-     *  produced, so it is a content input exactly as a gate fraction is.
-     *  Zero when the node carries no path baseline. */
-    float pathAt = 0;
-    bool operator==(const ContentScalars&) const = default;
-  };
-  ContentScalars bakedScalars;
-  // The observed-stability RELEASE, and what scalarMemo alone cannot do.
-  // scalarMemo keeps THIS node's own recording; the node still DECLARES
-  // content volatility, so no ancestor may cache across it. Once the same
-  // scalars resolve identically for kScalarSettleFrames consecutive paints,
-  // the node stops declaring that volatility and ancestors can cache too.
-  // The frame any value moves, the compare below fails, volatility
-  // re-declares, and the ancestor's recording is refused before anything
-  // stale replays.
-  // The three sides of that release — the count kept where paint() runs,
-  // the release the volatility walk performs, and the per-draw scan over
-  // what it released — are SigilCoreCache's protocol, held here over this
-  // library's own scalars.
-  core::Settle<ContentScalars> settle;
-  /** Consecutive stable paints before the release. Long enough that a value
-   *  pausing between two keyframes does not count as settled. */
-  static constexpr int kScalarSettleFrames = 8;
-  // ---- Cache::Group, the SUBTREE value memo -------------------------------
-  // scalarMemo asks "did this node's own animated scalars move". A group
-  // asks the same question of a whole subtree, and for a different reason:
-  // many small pieces forming one static assembly, each carrying a bound
-  // opacity and scale for an entrance that runs and then holds. Their
-  // pictures never change, so nothing about them is cacheable by the
-  // volatility rule (the bindings stay connected forever) and everything
-  // about them is cacheable for every frame the entrance is not running.
-  //
-  // `groupSafe` is the subtree-wide AND: does this node, and everything
-  // under it, carry only volatility a float comparison can SEE? A live
-  // material, an animated decoration, a GIF frame, a bound Fill or a
-  // Cache::None paint program all move pixels with no float to compare, so
-  // one of them anywhere below a group root refuses the whole thing rather
-  // than baking something that goes stale silently.
-  bool groupSafe = false;
-  // …and may THIS node be a group root — cacheMode is Group, its own paint
-  // is memo-visible, every child is groupSafe, no backdrop filter. The
-  // root's own blend and opacity are deliberately allowed: they are applied
-  // by paint()'s saveLayer OUTSIDE the bake, exactly as they would be
-  // applied outside the live paint.
-  bool groupRootOK = false;
-  bool groupWarned = false;  // the refusal is printed once per instance
-  // The subtree's animated scalars as of the PREVIOUS frame, in tree order.
-  // Compared by value rather than hashed. A hash collision here would not
-  // show up as a glitch — it would silently replay a stale picture for as
-  // long as the subtree stayed collided — and the float vector is small
-  // enough, on the few nodes that opt in, that the trade is not worth taking.
-  std::vector<float> groupPrev;
-  bool groupPrevSeen = false;
-  // True when this node OR anything below it blends against what is already
-  // on the canvas (a non-srcOver blend, or a backdrop filter). Such a
-  // subtree cannot be baked into a transparent layer and blitted back: the
-  // blend would resolve against transparent black instead of the real
-  // backdrop, and the pixels would differ. Computed by computeVolatile.
-  bool subtreeReadsBackdrop = false;
-  // The same question asked of the node's OWN paint alone, without its
-  // children: what the subtree's answer is folded from.
-  bool ownReadsBackdrop = false;
-  // What the node's own paint COVERS may change: its own content apart
-  // from marks cast from its silhouette, which follow its children and
-  // which a trace of the node never holds.
-  bool ownCoverageVolatile = false;
-  bool hasPendingLiveFill = false;
-  Fill pendingLiveFill;
-  sk_sp<SkShader> bakedLiveShader;
-
-  // Does this node's description carry a world-space material ANYWHERE a
-  // paint consumes one — the fill slot, the ink's paint, an effect's child
-  // materials, a mask's coverage? Computed once at reconcile patch
-  // (Reconcile.cpp), so the per-relayout syncLayoutRects walk and the
-  // volatility walk read a bool instead of re-walking material trees.
-  // Such a node's recording bakes its node→root matrix, so any movement of
-  // the node OR of an ancestor stales its OWN paint. Note that the ancestor
-  // case cannot be detected from this node's rect: instanceRect is
-  // parent-relative, so an ancestor's move changes this node's world matrix
-  // while its own rect compares equal.
-  bool hasWorldSpaceMaterial = false;
-
-  // The layout rect this node was last painted/recorded at. ensureLayout's
-  // post-pass compares and invalidates: a SIZE change stales this node's own
-  // recording (its content baked the old bounds — text lines, geometry
-  // materials' uResolution, rrect geometry); a POSITION change stales the
-  // parent's recording (which baked the old offset). Without this, cached
-  // ancestors replay stale geometry after any relayout that wasn't caused by
-  // a prop patch.
-  SkRect lastLayoutRect = SkRect::MakeLTRB(-1, -1, -1, -1);
-
-  // Resolved custom-outline cache: generators (blobs, rounded stars) can be
-  // arbitrarily expensive — resolve once per (description, size). Description
-  // pointer identity keys invalidation: every patch swaps the description.
-  // Element::decorationOutline(Boundary::Glyphs): the union of this text's
-  // glyph outlines at the placement its layout produced, resolved once per
-  // layout because a decoration asked for it and never otherwise.
-  SkPath glyphOutline;
-  uint32_t glyphOutlineRev = ~0u;
-  // Element::decorationOutline(Boundary::Coverage): the silhouette of what this
-  // node's layer drew, traced off that layer's alpha, in the node's own
-  // space. Re-traced when the layer that produced it is invalidated —
-  // `paintDirty`, which every content, prop and layout change raises on
-  // the node and on every ancestor — and on every frame of a subtree whose
-  // volatility means nothing about it is cached. The size it was traced at
-  // is kept beside it because a resized box is a different silhouette and
-  // is the one invalidation that must not depend on a flag.
-  SkPath coverageOutline;
-  SkSize coverageOutlineSize = {-1.0f, -1.0f};
-  /// the rect the trace's raster covered — the node's paint bounds, which
-  /// carry the ink standing outside the box and the offset that implies
-  SkRect coverageOutlineBounds = SkRect::MakeLTRB(-1, -1, -1, -1);
-  float coverageOutlineScale = -1.0f;  ///< the device scale it was traced at
-  float coverageOutlineThreshold = -1.0f;  ///< the tolerance it was cut at
-  /** The node's OWN paint traced alone, for a silhouette composed from
-   *  held parts while only its children move: keyed as the whole trace
-   *  is, and re-traced when the node's own paint is invalidated. */
-  struct OwnCoverage {
-    SkPath outline;
-    SkRect bounds = SkRect::MakeLTRB(-1, -1, -1, -1);
-    float scale = -1.0f;
-    float threshold = -1.0f;
-  };
-  OwnCoverage coverageOwn;
-  /** The held parts the silhouette above was composed from — the own
-   *  trace and each moving child's, each with where it stands — or none
-   *  where it was traced whole. A decoration cast from the silhouette
-   *  casts from these, so what it blurs is held with them. */
-  std::vector<CoveragePart> coverageParts;
-  // The silhouette a custom shape resolved to, and the shape VALUE it came
-  // from. The description it was read off is not an identity: a
-  // description freed and rebuilt can land on the address the old one
-  // had, and the drawing behind it is a different one. A shape that
-  // prunes compares equal to itself and hits; a lambda compares equal to
-  // nothing and re-resolves, which is what a lambda already costs.
-  SkPath outlineCache;
-  SkSize outlineCacheSize = {-1.0f, -1.0f};
-  Shape outlineCacheShape;
-
-  // Stamped-brush bakes live with the NODE (handed to decorations via
-  // PaintContext::stamps), so a brush value rebuilt every describe reuses
-  // its art's bake instead of re-rastering it.
-  StampCache stampCache;
-  // What each mark keeps between paints — a lit keyline's prepared
-  // surface, a bevel's shoulder — by its place among the node's marks,
-  // handed to the mark through PaintContext::markState.
-  MarkStates markStates;
-
-  /** THE MOTION-PATH TABLE — `Element::travel()`'s measured curve.
-   *
-   *  Cached against the two INPUTS that determine it, never behind a dirty
-   *  flag: the `Shape` VALUE (so a comparable scheme keeps its table across
-   *  describes, and the raw-callable escape hatch re-measures exactly as it
-   *  re-describes) and the SIZE it was resolved at, which is the parent's
-   *  box, so a relayout re-measures. Comparing against what the table was
-   *  built FROM cannot go stale the way a "have I run yet" flag can. */
-  struct MotionCache {
-    Shape shape;                // the value this table was built from
-    SkSize size{-1.0f, -1.0f};  // …at this parent size
-    std::vector<geometry::path::Contour> contours;
-    float total = 0;      // the arc length across all of them
-    bool closed = false;  // every contour closed → t WRAPS
-  };
-  std::unique_ptr<MotionCache> motion;
 
   ~Instance();
   float resolveFloat(Instance::Slot slot,
@@ -1027,8 +231,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     }
     // Every ancestor's held bounds, with no early stop: one already dirty
     // may be in the middle of its paint, holding bounds it measured before
-    // this change, and would keep them once that paint marks it clean.
-    for (Instance* i = this; i; i = i->parent) i->bakeBoundsHeld = false;
+    // this change, and would keep them once that paint marks it clean. The
+    // same walk lowers the density-only mark, since what each of them
+    // covers may now have changed.
+    for (Instance* i = this; i; i = i->parent) {
+      i->bakeBoundsHeld = false;
+      i->paintDirtyOnlyForDensity = false;
+    }
   }
 };
 

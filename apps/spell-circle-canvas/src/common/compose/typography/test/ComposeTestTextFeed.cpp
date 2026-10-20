@@ -5,22 +5,10 @@
 // The text binary's share of the content suites, one file per subject.
 
 #include <sigilcompose/kit/Feed.h>
-
-#include "DressedTypeProbes.h"
 #include <sigilmotion/ease/Ease.h>
 
-namespace {
-
-/** Plain rows, white on the Host's black ground so ink reads as brightness. */
-feed::TextOptions feedOptions(size_t visible, float size = 12.0f) {
-  feed::TextOptions options;
-  options.styles.base(whiteStyle(size));
-  options.window.visible = visible;
-  options.window.gap = 2.0f;
-  return options;
-}
-
-}  // namespace
+#include "DressedTypeProbes.h"
+#include "support/Feed.h"
 
 TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
   // A glyph entrance on a feed row is affordable because it ENDS: while the
@@ -33,8 +21,11 @@ TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
   auto typed = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
         .textFx({.effect = textFx::enter(textFx::typeOn()),
-                 .tween = {.duration = 40ms, .delay = motion::stagger(12ms)}, 
-                 .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .ease = motion::ease::linear})});
+                 .tween = {.duration = 40ms, .delay = motion::stagger(12ms)},
+                 .progress = motion::animate({.from = 0.0f,
+                                              .to = 1.0f,
+                                              .duration = 300ms,
+                                              .ease = motion::ease::linear})});
   };
   Host host(240, 120);
   host.composer.render(
@@ -86,9 +77,14 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
     return box().row().gap(6).children(
         {box().width(3).height(10).fill(Fill::color(SkColors::kRed)),
          text(std::move(line))
-             .textFx({.effect = textFx::enter(textFx::typeOn()),
-                      .tween = {.duration = 30ms, .delay = motion::stagger(5ms)}, 
-                      .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear})})});
+             .textFx(
+                 {.effect = textFx::enter(textFx::typeOn()),
+                  .tween = {.duration = 30ms, .delay = motion::stagger(5ms)},
+                  .progress =
+                      motion::animate({.from = 0.0f,
+                                       .to = 1.0f,
+                                       .duration = 200ms,
+                                       .ease = motion::ease::linear})})});
   };
   constexpr size_t kRowNodes = 3;  // the row box, the stripe, the text leaf
 

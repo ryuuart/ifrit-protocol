@@ -42,10 +42,10 @@ Face resolveSystemFallback(SkFontMgr& fontManager, const Face& primaryFace,
   const sk_sp<SkTypeface> primary = toSk(primaryFace);
   const SkTypeface& primaryTypeface = *primary;
   // matchFamilyStyleCharacter wants C strings but the resolver contract
-  // passes a string_view with no NUL-termination guarantee (see
-  // FallbackResolver in fonts/FontContext.h) — copy to a local first rather
-  // than reading past languageTag.data()'s end. This runs only on a
-  // fallback-cache miss, so the allocation is off the hot path.
+  // passes a string_view with no NUL-termination guarantee — copy to a
+  // local first rather than reading past languageTag.data()'s end. This
+  // runs only on a fallback-cache miss, so the allocation is off the hot
+  // path.
   const std::string terminatedLanguageTag(languageTag);
   const char* languageTags[] = {terminatedLanguageTag.c_str()};
   return fontManager.matchFamilyStyleCharacter(
@@ -190,8 +190,7 @@ const Face& FontContext::defaultTypeface() const {
   return m_impl->defaultTypeface;
 }
 
-Face FontContext::familyTypeface(std::string_view family,
-                                 FaceStyle faceStyle) {
+Face FontContext::familyTypeface(std::string_view family, FaceStyle faceStyle) {
   const SkFontStyle style = toSk(faceStyle);
   if (family.empty()) return nullptr;
   // The name, then the three numbers a style is, after a separator no

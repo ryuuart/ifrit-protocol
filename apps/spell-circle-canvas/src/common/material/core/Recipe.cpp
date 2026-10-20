@@ -7,6 +7,7 @@
 
 #include <algorithm>
 
+#include "Identifiers.h"
 #include "sigilmaterial/advanced/Program.h"  // reportOnce
 
 namespace sigil::material {
@@ -16,23 +17,6 @@ namespace {
 constexpr FrameInput kFrameInputs[] = {
     FrameInput::Time, FrameInput::Resolution, FrameInput::ContentScale,
     FrameInput::WorldTransform, FrameInput::LocalToSample};
-
-/** Whether @p body spells @p name as a WHOLE IDENTIFIER, so a `low`
- *  inside `lowEdge` is a different name. */
-bool spells(const std::string& body, std::string_view name) {
-  const auto part = [](char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-           (c >= '0' && c <= '9') || c == '_';
-  };
-  for (size_t at = body.find(name); at != std::string::npos;
-       at = body.find(name, at + 1)) {
-    if (at > 0 && part(body[at - 1])) continue;
-    const size_t end = at + name.size();
-    if (end < body.size() && part(body[end])) continue;
-    return true;
-  }
-  return false;
-}
 
 Field frameField(FrameInput input) {
   switch (input) {
@@ -188,14 +172,14 @@ void Recipe::rescan() {
 
 bool Recipe::spelled(std::string_view name) const {
   for (const auto& [target, body] : m_bodies)
-    if (spells(body, name)) return true;
+    if (detail::spellsIdentifier(body, name)) return true;
   return false;
 }
 
 bool Recipe::samples(Target target, std::string_view slot) const {
   const std::string* b = body(target);
   if (!b || slot.empty()) return true;
-  return spells(*b, slot);
+  return detail::spellsIdentifier(*b, slot);
 }
 
 std::vector<Target> Recipe::targets() const {

@@ -10,18 +10,7 @@
 #include <vector>
 
 #include "support/CoreTestSupport.h"
-
-namespace {
-
-// The two front doors must agree exactly, so every parse case is
-// written as the typed selector it is supposed to produce.
-void expectReads(std::string_view cssText, const ElementSelector& typed) {
-  const ElementSelector parsed = sigil::compose::selector(cssText);
-  EXPECT_FALSE(parsed.matchesNothing()) << cssText;
-  EXPECT_TRUE(parsed == typed) << cssText;
-}
-
-}  // namespace
+#include "support/Selectors.h"
 
 TEST(ComposeSelector, AClassARoleAndTheUniversalReadTheSameFromBothDoors) {
   expectReads(".card", select::styleClass("card"));
@@ -29,8 +18,10 @@ TEST(ComposeSelector, AClassARoleAndTheUniversalReadTheSameFromBothDoors) {
   expectReads("*", select::any());
   // A compound says every one of its parts about ONE element, and `*`
   // says nothing beside them, so it drops out of the value.
-  expectReads(".card.wide", select::styleClass("card") & select::styleClass("wide"));
-  expectReads("heading.wide", select::role("heading") & select::styleClass("wide"));
+  expectReads(".card.wide",
+              select::styleClass("card") & select::styleClass("wide"));
+  expectReads("heading.wide",
+              select::role("heading") & select::styleClass("wide"));
   expectReads("*.card", select::styleClass("card"));
   // Whitespace around the parts is not part of what they say.
   expectReads("  .card  ", select::styleClass("card"));
@@ -46,8 +37,8 @@ TEST(ComposeSelector, EveryCombinatorReadsTheSameFromBothDoors) {
   expectReads("heading + paragraph",
               select::role("heading").next(select::role("paragraph")));
   // A chain of three, and the subject is the last compound.
-  expectReads(".card > .body .title", card.child(select::styleClass("body"))
-                                          .descendant(title));
+  expectReads(".card > .body .title",
+              card.child(select::styleClass("body")).descendant(title));
   // The combinator is the same with or without the spaces around it.
   expectReads(".card>.title", card.child(title));
 }
@@ -121,7 +112,8 @@ TEST(ComposeSelector, SpecificityCountsExactlyWhatCssCounts) {
       {".x:nth-child(2 of .heavy.heavier)", 4, 0},
   };
   for (const Case& one : cases) {
-    const Specificity weight = sigil::compose::selector(one.cssText).specificity();
+    const Specificity weight =
+        sigil::compose::selector(one.cssText).specificity();
     EXPECT_EQ(weight.classes, one.classes) << one.cssText;
     EXPECT_EQ(weight.roles, one.roles) << one.cssText;
   }
@@ -132,16 +124,24 @@ TEST(ComposeSelector, SpecificityCountsExactlyWhatCssCounts) {
 }
 
 TEST(ComposeSelector, IsAndNotWeighTheirHeaviestArgumentAndWhereWeighsNothing) {
-  EXPECT_EQ(sigil::compose::selector(":is(.a, heading)").specificity().classes, 1);
-  EXPECT_EQ(sigil::compose::selector(":is(.a, heading)").specificity().roles, 0);
-  EXPECT_EQ(sigil::compose::selector(":is(heading, paragraph)").specificity().roles, 1);
-  EXPECT_EQ(sigil::compose::selector(":not(.a, heading)").specificity().classes, 1);
+  EXPECT_EQ(sigil::compose::selector(":is(.a, heading)").specificity().classes,
+            1);
+  EXPECT_EQ(sigil::compose::selector(":is(.a, heading)").specificity().roles,
+            0);
+  EXPECT_EQ(
+      sigil::compose::selector(":is(heading, paragraph)").specificity().roles,
+      1);
+  EXPECT_EQ(sigil::compose::selector(":not(.a, heading)").specificity().classes,
+            1);
   // :where() is the one form that states a rule and weighs nothing, so
   // anything at all overrides what it sets.
-  EXPECT_EQ(sigil::compose::selector(":where(.a, .b.c)").specificity().classes, 0);
-  EXPECT_EQ(sigil::compose::selector(":where(.a, .b.c)").specificity().roles, 0);
+  EXPECT_EQ(sigil::compose::selector(":where(.a, .b.c)").specificity().classes,
+            0);
+  EXPECT_EQ(sigil::compose::selector(":where(.a, .b.c)").specificity().roles,
+            0);
   // The argument's own weight is counted whole, not one per name.
-  EXPECT_EQ(sigil::compose::selector(":is(.a.b.c, .d)").specificity().classes, 3);
+  EXPECT_EQ(sigil::compose::selector(":is(.a.b.c, .d)").specificity().classes,
+            3);
   // A list's own weight reports its heaviest alternative.
   EXPECT_EQ(sigil::compose::selector(".a.b, heading").specificity().classes, 2);
 }
@@ -154,8 +154,10 @@ TEST(ComposeSelector, TheSetAlgebraBuildsListsCompoundsAndNegations) {
   EXPECT_TRUE((a & b) == sigil::compose::selector(".a.b"));
   EXPECT_TRUE(!a == sigil::compose::selector(":not(.a)"));
   EXPECT_TRUE(select::is(a | b) == sigil::compose::selector(":is(.a, .b)"));
-  EXPECT_TRUE(select::where(a | b) == sigil::compose::selector(":where(.a, .b)"));
-  EXPECT_TRUE(select::notAnyOf(a | b) == sigil::compose::selector(":not(.a, .b)"));
+  EXPECT_TRUE(select::where(a | b) ==
+              sigil::compose::selector(":where(.a, .b)"));
+  EXPECT_TRUE(select::notAnyOf(a | b) ==
+              sigil::compose::selector(":not(.a, .b)"));
   // A comma does not nest: a list of lists is one flat list, so the
   // two ways of writing three alternatives are one value.
   EXPECT_TRUE(((a | b) | c) == (a | (b | c)));
@@ -171,11 +173,20 @@ TEST(ComposeSelector, TheSetAlgebraBuildsListsCompoundsAndNegations) {
 TEST(ComposeSelector, ASelectorTextThisLibraryDoesNotReadMatchesNothing) {
   // Each of these warns once and yields a selector that never matches,
   // so a misprint loses one rule instead of the sheet around it.
-  const std::vector<std::string_view> unreadable = {
-      "",       "..",           ".a >",           ":bogus",
-      "::before", ":is()",      ":",              ":nth-child(x)",
-      ":nth-child(2n+)", ":nth-of-type(2 of .a)", ".a #identifier",
-      "[data-x]", ".a)",        ":is(.a"};
+  const std::vector<std::string_view> unreadable = {"",
+                                                    "..",
+                                                    ".a >",
+                                                    ":bogus",
+                                                    "::before",
+                                                    ":is()",
+                                                    ":",
+                                                    ":nth-child(x)",
+                                                    ":nth-child(2n+)",
+                                                    ":nth-of-type(2 of .a)",
+                                                    ".a #identifier",
+                                                    "[data-x]",
+                                                    ".a)",
+                                                    ":is(.a"};
   for (const std::string_view bad : unreadable)
     EXPECT_TRUE(sigil::compose::selector(bad).matchesNothing()) << bad;
   // A default-built selector is the same nothing, and is what the
@@ -220,10 +231,11 @@ TEST(ComposeSelector, ACountOrANestingTooLargeToReadIsAParseError) {
   // wrapping around into a position nobody wrote.
   EXPECT_TRUE(
       sigil::compose::selector(".row:nth-child(9999999999)").matchesNothing());
-  EXPECT_TRUE(
-      sigil::compose::selector(".row:nth-child(2n+9999999999)").matchesNothing());
-  EXPECT_TRUE(sigil::compose::selector(".row:nth-child(99999999999999999999n+1)")
+  EXPECT_TRUE(sigil::compose::selector(".row:nth-child(2n+9999999999)")
                   .matchesNothing());
+  EXPECT_TRUE(
+      sigil::compose::selector(".row:nth-child(99999999999999999999n+1)")
+          .matchesNothing());
   // A count a child list could actually reach still reads.
   EXPECT_TRUE(sigil::compose::selector(".row:nth-child(1000)") ==
               select::styleClass("row").nthChild(0, 1000));
@@ -235,14 +247,16 @@ TEST(ComposeSelector, ACountOrANestingTooLargeToReadIsAParseError) {
   for (int level = 0; level < 64; ++level) deep += ")";
   EXPECT_TRUE(sigil::compose::selector(deep).matchesNothing());
   // A nesting an author might actually write still reads.
-  EXPECT_FALSE(sigil::compose::selector(":is(:is(:is(.card)))").matchesNothing());
+  EXPECT_FALSE(
+      sigil::compose::selector(":is(:is(:is(.card)))").matchesNothing());
   EXPECT_FALSE(sigil::compose::selector(".row:nth-child(2n of :is(.a, .b))")
                    .matchesNothing());
 }
 
 TEST(ComposeSelector, SelectorsAreValuesThatCompareByWhatTheySay) {
   const ElementSelector card = sigil::compose::selector(".card > .title");
-  const ElementSelector same = select::styleClass("card").child(select::styleClass("title"));
+  const ElementSelector same =
+      select::styleClass("card").child(select::styleClass("title"));
   const ElementSelector copy = card;
   EXPECT_TRUE(card == same);
   EXPECT_TRUE(card == copy);

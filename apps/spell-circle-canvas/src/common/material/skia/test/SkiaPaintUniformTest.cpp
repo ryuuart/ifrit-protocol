@@ -36,7 +36,7 @@ TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
 
   // An ordinary recipe is unaffected: it still compiles at the paint.
   auto plain = std::make_shared<const Recipe>(
-      Recipe::of<TwoParameters>("pass.notone").body(Target::SkSL, kBody));
+      Recipe::of<TwoParameters>("pass.notone").body(Target::SkSL, kTwoBody));
   EXPECT_NE(skia::staticShader(Paint::recipe(Material(plain))), nullptr);
 }
 

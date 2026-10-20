@@ -42,6 +42,11 @@ sigil_library(SigilComposeCore
     description/verbs/ElementTransform.cpp
     # selector matching, cascade and inherited style resolution
     style/Cascade.cpp
+    style/CascadePass.h
+    style/Lengths.cpp
+    style/PropertyReferences.cpp
+    style/RulesInForce.cpp
+    style/TextLeafCascade.cpp
     style/CascadeDiagnostics.cpp
     style/ComputedStyle.h
     style/FaceChoice.cpp
@@ -61,22 +66,41 @@ sigil_library(SigilComposeCore
     style/SheetBody.h
     style/StyleSheet.cpp
     # retained ownership, reconciliation, transitions and queries
+    runtime/BakeSurfaces.h
+    runtime/CascadeInForce.h
+    runtime/CascadeRoot.h
+    runtime/ChangeTracking.h
     runtime/ComposeRuntime.h
     runtime/Changes.cpp
     runtime/Composer.cpp
+    runtime/DescriptionReading.h
+    runtime/DrawStatistics.h
+    runtime/Exclusion.h
     runtime/Exits.cpp
     runtime/ComposerImpl.h
+    runtime/FillPath.h
+    runtime/HeldBakes.h
     runtime/Instance.h
     runtime/Lanes.h
     runtime/NodeTransform.h
+    runtime/OutlineCaches.h
+    runtime/PaintMemos.h
+    runtime/PaintWalk.h
+    runtime/PictureBake.h
     runtime/Query.cpp
     runtime/Reconcile.cpp
     runtime/ReconcileEquality.cpp
     runtime/ReconcileHost.cpp
+    runtime/RetainedText.h
     runtime/SlotSpecs.h
+    runtime/SurfaceMapView.h
+    runtime/TextPainterAccess.h
     runtime/TextState.h
     runtime/Transforms.h
     runtime/Transitions.cpp
+    runtime/TransitionState.h
+    runtime/TreeLists.h
+    runtime/VolatilityState.h
     # measurement, arrangement and derived geometry
     layout/Additions.cpp
     layout/CellFlow.cpp
@@ -108,6 +132,10 @@ sigil_library(SigilComposeCore
     paint/MaterialEffects.cpp
     paint/MaterialEffects.h
     paint/PaintContent.cpp
+    paint/FillInForce.cpp
+    paint/LeafContent.cpp
+    paint/Masking.cpp
+    paint/Masking.h
     paint/PaintInternal.h
     paint/PaintPass.cpp
     paint/PaintPass.h

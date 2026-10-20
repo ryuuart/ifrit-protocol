@@ -6,8 +6,14 @@ sigil_library(SigilComposeTexture
   PRIVATE SigilMotionClock SigilMaterialSkia)
 # The suite includes device-backed surface cases that skip without a GPU.
 sigil_test(compose_test
-  SOURCES test/ComposeTextureTest.cpp test/ComposeSurfaceSceneTest.cpp
-    test/ComposeRepaintTest.cpp
+  SOURCES test/ComposeTextureTest.cpp test/ComposeRepaintTest.cpp
+    test/ComposeSurfaceSceneMapsTest.cpp
+    test/ComposeSurfaceSceneComposerTest.cpp
+    test/ComposeSurfaceSceneNormalTest.cpp
+    test/ComposeSurfaceSceneReliefTest.cpp
+    test/ComposeSurfaceSceneBrushingTest.cpp
+    test/ComposeSurfaceSceneEmissionTest.cpp
+    test/ComposeSurfaceSceneTransmissionTest.cpp
   LIBRARIES SigilComposeTexture SigilComposeTesting SigilComposeBrush
             SigilWeavePorts
             SigilGeometryDevice

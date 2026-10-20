@@ -22,6 +22,7 @@
 #include <string>
 
 #include "ShaderTable.h"
+#include "support/Recipes.h"
 #include "support/Shade.h"
 
 using namespace sigil::material;
@@ -29,14 +30,6 @@ using sigil::material::test::identical;
 using sigil::material::test::render;
 
 namespace {
-
-struct TwoParameters {
-  float uScale;
-  Color uColor;
-};
-
-constexpr const char* kBody =
-    "half4 main(float2 p) { return half4(uColor * uScale); }";
 
 Material childSampler(Material child) {
   static const auto recipe = std::make_shared<const Recipe>(
@@ -52,7 +45,7 @@ Material childSampler(Material child) {
 
 TEST(SkiaCompiler, TwoUniformRecipeMatchesHandCompiledSkSL) {
   auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<TwoParameters>("two").body(Target::SkSL, kBody));
+      Recipe::of<TwoParameters>("two").body(Target::SkSL, kTwoBody));
   Material m(recipe, TwoParameters{0.5f, {0.8f, 0.4f, 0.2f, 1.0f}});
   EXPECT_FALSE(m.isRunning());
 
@@ -65,8 +58,9 @@ TEST(SkiaCompiler, TwoUniformRecipeMatchesHandCompiledSkSL) {
   ASSERT_NE(program, nullptr);
   EXPECT_EQ(program->target(), Target::SkSL);
 
-  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(
-      "uniform float uScale;\nuniform float4 uColor;\n" + std::string(kBody)));
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float uScale;\nuniform float4 uColor;\n" +
+               std::string(kTwoBody)));
   ASSERT_NE(effect, nullptr) << error.c_str();
   SkRuntimeShaderBuilder hand(effect);
   hand.uniform("uScale") = 0.5f;
@@ -87,7 +81,7 @@ TEST(SkiaCompiler, TwoUniformRecipeMatchesHandCompiledSkSL) {
 
 TEST(SkiaCompiler, ChildSlotSamplesAnotherMaterial) {
   auto inner = std::make_shared<const Recipe>(
-      Recipe::of<TwoParameters>("inner").body(Target::SkSL, kBody));
+      Recipe::of<TwoParameters>("inner").body(Target::SkSL, kTwoBody));
   auto outer = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("outer").slot("uSrc").body(
           Target::SkSL,

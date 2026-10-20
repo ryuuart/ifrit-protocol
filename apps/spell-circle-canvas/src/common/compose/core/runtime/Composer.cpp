@@ -407,10 +407,13 @@ void Composer::setBakeDensity(float devicePixelsPerUnit) {
   m_impl->contentDirty = true;
   // Every bake standing was taken at the old density, and none of them
   // will be re-taken by a scale change any more — so they go now, or the
-  // scene keeps rasters nothing will ever revise.
+  // scene keeps rasters nothing will ever revise. What a node covers does
+  // not depend on the density, so a node that was clean is dirty for the
+  // density alone and keeps its coverage trace.
   if (!m_impl->root) return;
   const auto clear = [](auto&& self, detail::Instance& inst) -> void {
     inst.textureImage.reset();
+    if (!inst.paintDirty) inst.paintDirtyOnlyForDensity = true;
     inst.paintDirty = true;
     for (auto& child : inst.children) self(self, *child);
   };
@@ -490,6 +493,7 @@ void Composer::purgeCaches() {
     inst.hasPendingLiveFill = false;
     inst.stampCache = {};
     inst.paintDirty = true;
+    inst.paintDirtyOnlyForDensity = false;
     for (auto& child : inst.children) walk(*child);
   };
   walk(*impl.root);

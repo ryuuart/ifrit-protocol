@@ -21,23 +21,8 @@
 #include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::pixelOf;
 using sigil::material::test::solid;
-
-namespace {
-
-/** One pixel of a shader, painted over a surface big enough to hold it. */
-SkColor pixelOf(const sk_sp<SkShader>& shader, int x, int y) {
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(x + 1, y + 1));
-  SkCanvas canvas(bm);
-  canvas.clear(SK_ColorTRANSPARENT);
-  SkPaint paint;
-  paint.setShader(shader);
-  canvas.drawPaint(paint);
-  return bm.getColor(x, y);
-}
-
-}  // namespace
 
 TEST(Atlas, AGridCutsEqualCellsRowMajorAndNamesThemByIndex) {
   const Atlas atlas = Atlas::grid(Texture(solid(SK_ColorRED, 8, 4)), 4, 2);
@@ -164,8 +149,8 @@ TEST(Atlas, PacksWithoutOverlapAndKeepsPixels) {
     EXPECT_EQ(r->rect.width, 6 + 3 * (int)i);
     EXPECT_EQ(r->rect.height, 5 + 2 * (int)i);
     for (size_t j = 0; j < i; ++j)
-      EXPECT_FALSE(SkIRect::Intersects(skia::toSkIRect(r->rect),
-                                       skia::toSkIRect(atlas.regions()[j].rect)));
+      EXPECT_FALSE(SkIRect::Intersects(
+          skia::toSkIRect(r->rect), skia::toSkIRect(atlas.regions()[j].rect)));
     // The region reads back the image it was packed from.
     EXPECT_EQ(pixelOf(skia::shader(atlas.region(r->name)), 1, 1), colors[i]);
   }

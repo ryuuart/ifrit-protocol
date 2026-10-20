@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <memory>
 #include <optional>
 #include <string>

@@ -25,11 +25,15 @@ Start with the public `Composer.h` and `Element.h`. Then read:
 
 1. `runtime/Composer.cpp`: the host's render, draw and invalidation gates.
 2. `description/ComposeInternal.h`: the value being described.
-3. `runtime/Instance.h`: the mutable state retained for that value.
+3. `runtime/Instance.h`: the mutable state retained for that value; each
+   family of that state (retained text, the cascade in force, transitions,
+   held bakes, paint memos, outline caches) is a header of its own beside
+   it, named for the family.
 4. `runtime/ReconcileHost.cpp`: the operations the generic reconciler
    performs when descriptions or child identity change.
 5. `style/Cascade.cpp`: the inherited and declared values resolved before
-   layout.
+   layout; the rules in force, lengths, property references and the text
+   leaf's cascade are files of their own beside it.
 6. `layout/Layout.cpp`: the phase schedule and its bounded settling loop.
 7. `paint/StackingPainter.cpp`: the node walk and dispatch into the cache
    tiers.

@@ -26,19 +26,11 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/Recipes.h"
+
 using namespace sigil::material;
 
 namespace {
-
-struct TwoParameters {
-  float uScale;
-  Color uColor;
-};
-
-std::shared_ptr<const Recipe> twoRecipe(const char* name = "two") {
-  return std::make_shared<const Recipe>(Recipe::of<TwoParameters>(name).body(
-      Target::SkSL, "half4 main(float2 p) { return half4(uColor * uScale); }"));
-}
 
 /** A compiler that records how many times it was asked, so a resolve
  *  that should have been memoised can be told from one that ran again. */
@@ -64,13 +56,6 @@ class NumberLeaf : public Leaf {
   float m_value = 0;
 };
 
-/** Everything a material writes to stderr while @p fn runs. */
-std::string captureStderr(const std::function<void()>& fn) {
-  testing::internal::CaptureStderr();
-  fn();
-  return testing::internal::GetCapturedStderr();
-}
-
 }  // namespace
 
 TEST(Material, WritingToAFieldNoBodyReadsSaysSo) {
@@ -82,12 +67,12 @@ TEST(Material, WritingToAFieldNoBodyReadsSaysSo) {
       Recipe::of<TwoParameters>("half-read")
           .body(Target::Slang, "float4 main() { return uColor; }"));
   Material m(r);
-  const std::string said = captureStderr([&] { m.set("uScale", 2.0f); });
+  const std::string said = captureStandardError([&] { m.set("uScale", 2.0f); });
   EXPECT_NE(said.find("\"uScale\""), std::string::npos) << said;
   EXPECT_NE(said.find("no body"), std::string::npos) << said;
   // The field the body DOES read is silent, and so is a second write to
   // the one it does not.
-  const std::string quiet = captureStderr([&] {
+  const std::string quiet = captureStandardError([&] {
     m.set("uColor", Color{1, 0, 0, 1});
     m.set("uScale", 3.0f);
   });
@@ -100,13 +85,13 @@ TEST(Material, WritingToAFieldNoBodyReadsSaysSo) {
       Recipe::of<TwoParameters>("substring")
           .body(Target::Slang, "float4 main() { return uScaleFactor; }"));
   Material s(sub);
-  EXPECT_NE(captureStderr([&] { s.set("uScale", 1.0f); }).find("uScale"),
+  EXPECT_NE(captureStandardError([&] { s.set("uScale", 1.0f); }).find("uScale"),
             std::string::npos);
   // A recipe with no body at all has nothing to say.
   auto none =
       std::make_shared<const Recipe>(Recipe::of<TwoParameters>("bodiless"));
   Material n(none);
-  EXPECT_EQ(captureStderr([&] { n.set("uScale", 1.0f); }), "");
+  EXPECT_EQ(captureStandardError([&] { n.set("uScale", 1.0f); }), "");
 }
 
 TEST(Material, MirrorsParametersAsBytesAndSetsFields) {
@@ -300,7 +285,7 @@ TEST(Material, AFieldSaysWhetherItCarriesABindingAtAll) {
   m.bind("uTable", std::shared_ptr<const UniformBlock>{});
   EXPECT_FALSE(m.isBound("uTable"));
   // A binding the material refused is no binding.
-  const std::string said = captureStderr([&] { m.bind("uTable", out); });
+  const std::string said = captureStandardError([&] { m.bind("uTable", out); });
   EXPECT_NE(said.find("\"uTable\""), std::string::npos) << said;
   EXPECT_FALSE(m.isBound("uTable"));
 }
@@ -317,7 +302,8 @@ TEST(Material, ColorBindingsReadStraightComponentsAndCheckFieldKinds) {
   Material material(recipe);
   auto color = sigil::motion::animatable(Color{2, .5f, .25f, 1});
   for (const char* name : {"uScale", "uVector", "uTable", "missing"}) {
-    const std::string said = captureStderr([&] { material.bind(name, color); });
+    const std::string said =
+        captureStandardError([&] { material.bind(name, color); });
     EXPECT_NE(said.find(name), std::string::npos) << said;
     EXPECT_FALSE(material.isBound(name));
     EXPECT_FALSE(material.isRunning());

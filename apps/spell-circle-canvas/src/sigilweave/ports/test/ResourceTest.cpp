@@ -17,20 +17,10 @@
 #include <vector>
 
 #include "sigilweave/advanced/Skia.h"
+#include "support/Faces.h"
 
 namespace sigil::weave::ports {
 namespace {
-
-std::vector<std::byte> bytesOf(const char* fileName) {
-  std::ifstream file(std::string(SIGIL_TEST_INSTRUMENT_DIR "/") + fileName,
-                     std::ios::binary);
-  const std::vector<char> characters{std::istreambuf_iterator<char>(file),
-                                     std::istreambuf_iterator<char>()};
-  std::vector<std::byte> bytes(characters.size());
-  for (size_t index = 0; index < characters.size(); ++index)
-    bytes[index] = std::byte(characters[index]);
-  return bytes;
-}
 
 float advanceOf(const Face& face, char letter) {
   const SkFont font(toSk(face), 32);
@@ -38,7 +28,7 @@ float advanceOf(const Face& face, char letter) {
 }
 
 TEST(FaceResource, AFontFilesBytesAreTheFaceTheFileHolds) {
-  const std::vector<std::byte> bytes = bytesOf("Sans.ttf");
+  const std::vector<std::byte> bytes = test::instrumentBytes("Sans.ttf");
   ASSERT_FALSE(bytes.empty());
   const Face read = faceFromBytes(bytes);
   ASSERT_TRUE(read);

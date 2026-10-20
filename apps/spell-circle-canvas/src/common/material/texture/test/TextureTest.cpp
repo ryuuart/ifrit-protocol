@@ -29,22 +29,8 @@
 #include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::pixelOf;
 using sigil::material::test::solid;
-
-namespace {
-
-SkColor pixelOf(const sk_sp<SkShader>& shader, int x, int y) {
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(x + 1, y + 1));
-  SkCanvas canvas(bm);
-  canvas.clear(SK_ColorTRANSPARENT);
-  SkPaint paint;
-  paint.setShader(shader);
-  canvas.drawPaint(paint);
-  return bm.getColor(x, y);
-}
-
-}  // namespace
 
 TEST(Texture, SourcesCompareByIdentityAcrossTheErasure) {
   const sk_sp<SkImage> a = solid(SK_ColorRED, 2, 2);

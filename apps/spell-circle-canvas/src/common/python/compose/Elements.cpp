@@ -36,7 +36,6 @@
 namespace sigil::python {
 namespace py = pybind11;
 namespace {
-constexpr auto fluent = py::return_value_policy::reference_internal;
 using compose::Element;
 using Model = std::shared_ptr<PythonValue>;
 

@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "support/CoreTestSupport.h"
+#include "support/Selectors.h"
 
 namespace {
 
@@ -28,12 +29,6 @@ const SkColor4f kRedInk{1, 0, 0, 1};
 
 const SkColor kWhite = SkColorSetARGB(255, 255, 255, 255);
 const SkColor kRed = SkColorSetARGB(255, 255, 0, 0);
-
-void expectReads(std::string_view cssText, const ElementSelector& typed) {
-  const ElementSelector parsed = sigil::compose::selector(cssText);
-  EXPECT_FALSE(parsed.matchesNothing()) << cssText;
-  EXPECT_TRUE(parsed == typed) << cssText;
-}
 
 /** A 20x20 box painted in the ink in force where it lands. */
 Element swatch() { return box().width(20).height(20).fill(Fill::currentInk()); }

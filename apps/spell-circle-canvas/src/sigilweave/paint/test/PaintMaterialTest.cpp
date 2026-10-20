@@ -27,13 +27,13 @@
 #include <vector>
 
 #include "GlyphCanvas.h"
-#include "TextFields.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "support/Faces.h"
 #include "support/Layouts.h"
 #include "support/Paints.h"
 #include "support/Paragraphs.h"
 #include "support/Pixels.h"
+#include "support/TextFields.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 

@@ -1,75 +1,35 @@
 /** @file
- * The cascade: the custom-property names, the pass that resolves the font,
- * the ink and the properties in force at every node from the root's down
- * and applies what changed, the ink-only repaint of an inheriting leaf,
- * the lengths measured against the font, and the reference a fill
- * resolves through at paint.
+ * The cascade pass: the font, the ink, the paragraph setting, the custom
+ * properties and the sampling in force at every node, resolved from the
+ * root's down — the role's defaults, the matched rules and the node's own
+ * declarations folded over what it inherits, the wide keywords over that —
+ * and what changed applied to the instance.
  */
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
-#include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/style/Type.h>
 
-#include <algorithm>
-#include <boost/unordered/unordered_flat_map.hpp>
-#include <cmath>
 #include <cstddef>
-#include <deque>
-#include <mutex>
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "CascadePass.h"
 #include "FaceChoice.h"
 #include "LonghandFold.h"
-#include "RuleMarks.h"
 #include "SelectorMatch.h"
-#include "description/Calc.h"
 #include "paint/FillLowering.h"
-#include "paint/PaintInternal.h"
 #include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
 
 using namespace detail;
 
-// ---------------------------------------------------------------------------
-// Names
-
 namespace {
-
-/** The process-wide table a custom property's name is interned in. The
- *  names stand in a deque so a view handed out stays valid when a later
- *  name is added; the table is never freed, because a describe on another
- *  thread may still be reading it while the process exits. */
-struct VarNames {
-  std::mutex mutex;
-  std::deque<std::string> names;  // id − 1 → name
-  boost::unordered_flat_map<std::string, uint32_t> ids;
-};
-
-VarNames& varNames() {
-  static VarNames* const table = new VarNames;
-  return *table;
-}
-
-/** The size in PIXELS a resolved font carries; the initial size where a
- *  font has none yet. A resolved size may still be absolute in another
- *  unit — an overlay leaves a size in points in points, since points are
- *  a fixed count of pixels and nothing is owed to resolve them — so the
- *  conversion is asked for rather than assumed. An `em` against a size
- *  stated in points is otherwise a multiple of the point COUNT. */
-float fontSizePx(const sigil::weave::Type& font) {
-  return font.size ? font.size->absolutePx() : sigil::weave::kInitialTypeSizePx;
-}
-
-/** Whether two fonts agree in every field but the colour. */
-bool sameFontButColour(sigil::weave::Type a, const sigil::weave::Type& b) {
-  a.color = b.color;
-  return a == b;
-}
 
 bool sameVars(const std::shared_ptr<const VarTable>& a,
               const std::shared_ptr<const VarTable>& b) {
@@ -78,110 +38,10 @@ bool sameVars(const std::shared_ptr<const VarTable>& a,
   return *a == *b;
 }
 
-/** What the rules of @p matched state about a text leaf's text
- *  properties, folded weakest first, or null where none states one. */
-std::unique_ptr<const RuleTextLayer> ruleTextLayerOf(
-    const std::vector<MatchedRule>& matched) {
-  std::unique_ptr<RuleTextLayer> layer;
-  for (const MatchedRule& one : matched) {
-    const ElementNode& stated = *one.rule->node();
-    if (!stated.textData) continue;
-    const TextData& said = *stated.textData;
-    if (said.options.set == 0) continue;
-    if (!layer) layer = std::make_unique<RuleTextLayer>();
-    layer->options.overlay(said.options);
-    if (said.options.set & TextOptions::kTextStroke) {
-      layer->statesStroke = true;
-      layer->hasTextStroke = said.hasTextStroke;
-      layer->textStrokeWidth = said.textStrokeWidth;
-      layer->textStrokeFill = said.textStrokeFill;
-    }
-  }
-  return layer;
-}
-
-bool sameRuleText(const RuleTextLayer* a, const RuleTextLayer* b) {
-  if (a == nullptr || b == nullptr) return a == b;
-  return *a == *b;
-}
-
 material::Color lerpColour(const material::Color& from,
                            const material::Color& to, float t) {
   return material::mixToward(from, to, t, from.a + (to.a - from.a) * t);
 }
-
-}  // namespace
-
-VarRef var(std::string_view name) {
-  VarNames& table = varNames();
-  const std::lock_guard<std::mutex> lock(table.mutex);
-  std::string key(name);
-  if (const auto found = table.ids.find(key); found != table.ids.end())
-    return {found->second};
-  table.names.push_back(key);
-  const auto id = (uint32_t)table.names.size();
-  table.ids.emplace(std::move(key), id);
-  return {id};
-}
-
-std::string_view varName(VarRef ref) {
-  VarNames& table = varNames();
-  const std::lock_guard<std::mutex> lock(table.mutex);
-  if (ref.id == 0 || ref.id > table.names.size()) return {};
-  return table.names[ref.id - 1];
-}
-
-// ---------------------------------------------------------------------------
-// A fill written as a reference
-
-Fill resolveRef(const Fill& fill, const PaintContext& ctx) {
-  switch (fill.ref) {
-    case Fill::Ref::None:
-      return fill;
-    case Fill::Ref::CurrentInk:
-      // The ink is a whole paint wherever one was stated, and a colour
-      // everywhere else; both are what a mark naming no colour is
-      // painted in.
-      if (ctx.inkPaint && ctx.inkPaint->paint)
-        return resolveInk(*ctx.inkPaint->paint, ctx);
-      return Fill::color(ctx.ink);
-    case Fill::Ref::Var: {
-      const VarValue* value =
-          ctx.vars ? ctx.vars->find(VarRef{fill.varId}) : nullptr;
-      if (const material::Color* colour =
-              value ? std::get_if<material::Color>(value) : nullptr)
-        return Fill::color(*colour);
-      // A paint is laid over the box being painted, as that node's own
-      // fill of it would be.
-      if (const Fill* paint = value ? std::get_if<Fill>(value) : nullptr)
-        return resolveFill(*paint, ctx);
-      warnNoSuchVar(VarRef{fill.varId}, true);
-      return Fill::none();
-    }
-  }
-  return fill;
-}
-
-material::Color resolveColor(const ColorTerm& term, const PaintContext& ctx) {
-  switch (term.ref) {
-    case Fill::Ref::None:
-      return term;
-    case Fill::Ref::CurrentInk:
-      return ctx.ink;
-    case Fill::Ref::Var: {
-      const VarValue* value =
-          ctx.vars ? ctx.vars->find(VarRef{term.varId}) : nullptr;
-      if (const material::Color* colour =
-              value ? std::get_if<material::Color>(value) : nullptr)
-        return *colour;
-      warnNoSuchVar(VarRef{term.varId}, true);
-      return term;
-    }
-  }
-  return term;
-}
-
-namespace {
 
 /** THE GLYPH SHADOWS NAMING A CUSTOM PROPERTY in @p font, read against
  *  @p vars: each takes the property's colour here, where it is stated,
@@ -212,137 +72,6 @@ void resolveShadowProperties(sigil::weave::Type& font, const VarTable* vars) {
 }
 
 }  // namespace
-
-// ---------------------------------------------------------------------------
-// Lengths against the font
-
-float Composer::Impl::resolveLength(const Instance& inst,
-                                    const Dimension& length, bool& relative,
-                                    float percentBasis) const {
-  switch (length.unit) {
-    case Dimension::Unit::Px:
-    case Dimension::Unit::Pct:
-      return length.value;
-    case Dimension::Unit::Auto:
-      return YGUndefined;
-    case Dimension::Unit::Em:
-      relative = true;
-      return length.value * fontSizePx(inst.font);
-    case Dimension::Unit::Rem:
-      relative = true;
-      return length.value * remPx;
-    case Dimension::Unit::Lh:
-      relative = true;
-      return length.value * inst.lineHeight;
-    case Dimension::Unit::Ch:
-      relative = true;
-      return length.value * inst.zeroAdvance;
-    case Dimension::Unit::Pt:
-      return length.value * sigil::weave::Length::kPointPx;
-    case Dimension::Unit::Pw:
-    case Dimension::Unit::Ph: {
-      // THE CANVAS, never the parent: the box the composer renders into,
-      // which is why this is resolved here and not handed to Yoga as a
-      // percent. Under an intrinsic root — a snapshot, which has no
-      // viewport — the root's own laid-out extent is the honest stand-in.
-      relative = true;
-      const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
-      const float extent =
-          length.unit == Dimension::Unit::Pw ? canvas.width() : canvas.height();
-      return length.value * 0.01f * extent;
-    }
-    case Dimension::Unit::Var:
-      // Dereferenced by the caller, which decides between a pixel and a
-      // percent setter; a reference that reaches here names nothing.
-      relative = true;
-      return 0.0f;
-    case Dimension::Unit::Calc: {
-      // Every term in pixels here, where the font, the properties and the
-      // canvas in force are known. A property read inside a sum must hold
-      // a length a sum can hold: not a percentage, not auto, and not
-      // another property.
-      relative = true;
-      const CalcLength& sum = calcLength(length);
-      const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
-      float total = sum.px + sum.em * fontSizePx(inst.font) + sum.rem * remPx +
-                    sum.lh * inst.lineHeight + sum.ch * inst.zeroAdvance +
-                    sum.pw * 0.01f * canvas.width() +
-                    sum.ph * 0.01f * canvas.height();
-      // The percentage is of the extent the property reading the sum
-      // measures against, which only that property knows.
-      if (sum.pct != 0.0f) {
-        if (std::isfinite(percentBasis))
-          total += sum.pct * 0.01f * percentBasis;
-        else
-          warnPercentageSumUnresolved(
-              "a property measured without a "
-              "containing extent",
-              "the percentage term is left out");
-      }
-      for (const auto& [id, coefficient] : sum.vars) {
-        const VarValue* value =
-            inst.vars ? inst.vars->find(VarRef{id}) : nullptr;
-        const Dimension* found =
-            value ? std::get_if<Dimension>(value) : nullptr;
-        if (found == nullptr || found->unit == Dimension::Unit::Var) {
-          if (inst.cascadeResolved) warnNoSuchVar(VarRef{id}, false);
-          continue;
-        }
-        if (found->unit == Dimension::Unit::Pct ||
-            found->unit == Dimension::Unit::Auto) {
-          warnRefusedSum(found->unit, Dimension::Unit::Calc);
-          continue;
-        }
-        bool inner = false;
-        total += coefficient * resolveLength(inst, *found, inner);
-      }
-      return total;
-    }
-  }
-  return length.value;
-}
-
-void Composer::Impl::resolveTextIndent(const Instance& inst,
-                                       const Dimension& indent,
-                                       sigil::weave::ParagraphBlock& block,
-                                       std::optional<float>& percent) const {
-  // A property is read once, into the length it holds, and that length is
-  // resolved as if it had been written here.
-  const Dimension* length = &indent;
-  if (indent.unit == Dimension::Unit::Var) {
-    const VarValue* value =
-        inst.vars ? inst.vars->find(indent.reference()) : nullptr;
-    length = value ? std::get_if<Dimension>(value) : nullptr;
-    if (length == nullptr || length->unit == Dimension::Unit::Var ||
-        length->unit == Dimension::Unit::Auto) {
-      warnNoSuchVar(indent.reference(), false);
-      return;
-    }
-  }
-  if (length->unit == Dimension::Unit::Pct) {
-    percent = length->value;
-    block.firstLineIndent.reset();
-    return;
-  }
-  // A sum holding a percentage of the measure is not one the paragraph
-  // can take: its first-line indent is a pixel length or a percentage,
-  // never both.
-  if (percentageSum(*length))
-    warnPercentageSumUnresolved("textIndent",
-                                "its percentage term is left out");
-  bool relative = false;
-  block.firstLineIndent =
-      resolveLength(inst, *length, relative, /*percentBasis=*/0.0f);
-  percent.reset();
-}
-
-float Composer::Impl::lineHeightAt(const sigil::weave::Type& font) {
-  return sigil::weave::lineHeightOf(sigil::weave::toTextStyle(font), fonts);
-}
-
-float Composer::Impl::zeroAdvanceAt(const sigil::weave::Type& font) {
-  return sigil::weave::zeroAdvanceOf(sigil::weave::toTextStyle(font), fonts);
-}
 
 // ---------------------------------------------------------------------------
 // The pass
@@ -403,121 +132,14 @@ void Composer::Impl::resolveCascade(
   std::optional<SkSamplingOptions> sampling = parentSampling;
   const CascadeData* const cascade =
       node.cascadeData ? &*node.cascadeData : nullptr;
-  // THE SELECTOR SHEETS IN FORCE HERE: the ones the ancestors applied,
-  // then the ones this node applies, which speak about this node too.
-  // Each carries the node that applied it, because that node bounds
-  // what its sheet can see. The chain is extended only where a node
-  // applies one, so a tree that applies none shares the root's empty
-  // chain all the way down.
+  // THE RULES IN FORCE HERE, and what they leave on the instance.
   SheetChain extended;
-  const SheetChain* sheets = &parentSheets;
-  if (cascade != nullptr && !cascade->appliedSheets.empty()) {
-    extended = parentSheets;
-    bool anyHas = false;
-    for (const StyleSheet& applied : cascade->appliedSheets) {
-      extended.push_back(ScopedSheet{&applied, &inst});
-      const SheetBody* body = SheetAccess::body(applied);
-      if (body == nullptr || !body->usesHas) continue;
-      anyHas = true;
-      hasNames.add(*body);
-    }
-    // A :has() LOOKS DOWN, at a subtree the pass has not reached yet, so
-    // what it asks about is summarised here, bottom up — only under a
-    // node applying a sheet that uses one, since a :has() can see nothing
-    // outside the subtree its sheet was applied at. A summary an ancestor
-    // took this pass is taken again where a sheet since gave a name a bit,
-    // because that summary says nothing about the new name.
-    if (anyHas && !hasNames.summaryCurrent(inst))
-      summariseForHas(inst, hasNames);
-    sheets = &extended;
-  }
-  // The rules that speak about this node, weakest first. A rule's
-  // SUBJECT is this node, which lies in the applying node's subtree by
-  // construction; every other compound of its selector is matched
-  // inside that subtree too, so nothing above or beside the applying
-  // node can satisfy one.
-  const std::vector<MatchedRule> matched =
-      sheets->empty() ? std::vector<MatchedRule>{}
-                      : matchRules(*sheets, inst, hasNames);
-  // The strongest matched rule stating a transition gives the node the
-  // one its own verb has not; the matches run weakest first.
-  const Rule* transitionRule = nullptr;
-  for (const MatchedRule& one : matched)
-    if (one.rule->transition()) transitionRule = one.rule;
-  if (transitionRule != nullptr)
-    inst.ruleTransition = transitionRule->transition();
-  else if (inst.ruleTransition)
-    inst.ruleTransition.reset();
-  // WHAT THE MATCHED RULES STATE about the carried properties, folded
-  // into the layer that stands between the parent's answers and this
-  // node's own verbs. It is rebuilt here because a rule can move while
-  // this node's own declarations stand still — a class toggled, a sheet
-  // applied above — and a node whose declarations did not move never
-  // reaches the patch.
-  //
-  // Only where the rules themselves changed: a pass that matches the rules
-  // it matched last time — the same sheet, the same classes — keeps the
-  // layers it built then, so a tree re-described every frame under one
-  // sheet does not rebuild a layer per matched node per frame.
-  const bool sameRules = std::equal(
-      matched.begin(), matched.end(), inst.ruleLayerSource.begin(),
-      inst.ruleLayerSource.end(),
-      [](const MatchedRule& one, const std::shared_ptr<ElementNode>& held) {
-        return one.rule->node().get() == held.get();
-      });
-  bool layerMoved = false;
-  bool fillMaterialMoved = false;
-  if (!sameRules) {
-    inst.ruleLayerSource.clear();
-    for (const MatchedRule& one : matched)
-      inst.ruleLayerSource.push_back(one.rule->node());
-    std::unique_ptr<const RuleLayer> layer;
-    if (!matched.empty()) {
-      std::vector<const Rule*> rules;
-      rules.reserve(matched.size());
-      for (const MatchedRule& one : matched) rules.push_back(one.rule);
-      layer = ruleLayerOf(rules);
-    }
-    layerMoved = !ruleLayerEqual(inst.ruleLayer.get(), layer.get());
-    if (layerMoved) {
-      fillMaterialMoved =
-          !ruleFillMaterialEqual(inst.ruleLayer.get(), layer.get());
-      inst.ruleLayer = std::move(layer);
-    }
-    // Set, never cleared here, for the reason the ink's box below is.
-    if (ruleFillUsesWorldSpace(inst.ruleLayer.get()))
-      inst.hasWorldSpaceMaterial = true;
-  }
-  // Prepared inputs belong to the effective surfaced fill. Dropping or
-  // replacing that fill releases them even when the node does not paint.
-  if (inst.surfaceMapMaterial) {
-    const MaterialData* fill = fillSlotOf(inst);
-    if (!fill || !fill->surfaced ||
-        *fill->surfaced != *inst.surfaceMapMaterial) {
-      inst.surfaceMapFill.reset();
-      inst.surfaceMapFillInputs.reset();
-      inst.surfaceMapMaterial.reset();
-    }
-  }
-  // THE MARKS THE MATCHED RULES STATE, laid under the node's own on the
-  // description the paint phase reads — again where the rules moved, and
-  // where a patch swapped the description the last dressing was made from.
-  if ((!matched.empty() || inst.dressed) &&
-      (!sameRules || inst.dressedFrom != inst.description)) {
-    std::vector<const Rule*> rules;
-    rules.reserve(matched.size());
-    for (const MatchedRule& one : matched) rules.push_back(one.rule);
-    std::shared_ptr<const ElementNode> dressed =
-        rules.empty() ? nullptr : dressedWithRules(node, rules);
-    const bool dressingMoved = dressed != nullptr || inst.dressed != nullptr;
-    inst.dressed = std::move(dressed);
-    inst.dressedFrom = inst.description;
-    if (!first && dressingMoved) {
-      inst.markPaintDirtyUp();
-      contentDirty = true;
-      volatileDirty = true;
-    }
-  }
+  const RulesInForce rules =
+      resolveRulesInForce(*this, inst, parentSheets, extended, first);
+  const SheetChain* const sheets = rules.sheets;
+  const std::vector<MatchedRule>& matched = rules.matched;
+  const bool layerMoved = rules.layerMoved;
+  const bool fillMaterialMoved = rules.fillMaterialMoved;
   // A NODE THAT WRITES A KEYWORD takes a value from its parent, and the
   // parent's answer can move while this node's own declarations stand
   // still — the one case the patch cannot see, because a node whose
@@ -845,13 +467,6 @@ void Composer::Impl::resolveCascade(
     remMoved = rootSize != remPx;
     remPx = rootSize;
   }
-  // A LEAF SET IN A WHOLE STYLE takes no colour from above, but one rule
-  // holds for either kind of ink stated on the leaf itself — its own verb
-  // or a rule matching it: it paints the glyphs, a colour over the style's
-  // own as a paint does.
-  const bool wholeStyleLeaf =
-      node.kind == Kind::Text && node.textData && !node.textData->inherits &&
-      node.textData->rich.empty() && !node.textData->paragraphOverride;
   // AN INK THAT STATES A SURFACE, lit or unlit, on a page painted as a
   // surface map paints as that map of
   // it; the paint held for one map is dropped with every other when the
@@ -912,82 +527,9 @@ void Composer::Impl::resolveCascade(
   inst.sampling = sampling;
   inst.cascadeResolved = true;
 
-  // A text leaf: text reconcile left owed is shaped here, once, in the font
-  // and the paragraph setting it lands in. After that, a change of face, size
-  // or any other shaping field of an inheriting leaf, or of the writing mode
-  // or locale in force, is a new paragraph and a new layout; a change of any
-  // other block field is the same paragraph laid out again; a change of colour
-  // alone is set on the paragraph it already has.
-  if (node.kind == Kind::Text && node.textData) {
-    const bool inherits = node.textData->inherits;
-    // A whole-style leaf's own colour ink is set in its paragraph, so one
-    // that moved is a new paragraph of the same words.
-    const std::optional<material::Color> wholeStyleInk =
-        wholeStyleLeaf && statesOwnInk ? font.color : std::nullopt;
-    const bool wholeStyleInkMoved = !(wholeStyleInk == inst.wholeStyleInk);
-    inst.wholeStyleInk = wholeStyleInk;
-    const bool reshapes =
-        (inherits && !sameFontButColour(font, inst.textFont)) ||
-        wholeStyleInkMoved;
-    // THE TEXT PROPERTIES IN FORCE: what the matched rules state, with the
-    // leaf's own statements standing over it. A rule that moved one is a
-    // new layout of the same words; one that moved the outline alone is a
-    // repaint.
-    bool ruleTextMoved = false;
-    if (!sameRules) {
-      std::unique_ptr<const RuleTextLayer> ruleText = ruleTextLayerOf(matched);
-      ruleTextMoved = !sameRuleText(inst.ruleText.get(), ruleText.get());
-      if (ruleTextMoved) inst.ruleText = std::move(ruleText);
-    }
-    TextOptions options =
-        inst.ruleText ? inst.ruleText->options : TextOptions{};
-    options.overlay(node.textData->options);
-    const bool optionsMoved = !(options == inst.textOptions);
-    if (optionsMoved) inst.textOptions = std::move(options);
-    if (ruleTextMoved && !first) {
-      inst.markPaintDirtyUp();
-      contentDirty = true;
-    }
-    // A named run resolves through the sheets in force, so a sheet that
-    // changed what a name means under the leaf is a new paragraph as a new
-    // face is.
-    sigil::weave::TypeSheet runStyles;
-    std::vector<NamedParagraphStyle> paragraphBlockStyles;
-    namedStylesOf(inst, *sheets, runStyles, paragraphBlockStyles);
-    const bool namesMoved =
-        !(runStyles == inst.runStyles) ||
-        !(paragraphBlockStyles == inst.paragraphBlockStyles);
-    inst.runStyles = std::move(runStyles);
-    inst.paragraphBlockStyles = std::move(paragraphBlockStyles);
-    inst.sheetsInForce = !sheets->empty();
-    // A run, a span or a reading may state its size in rems, which the
-    // paragraph holds as pixels, so a root that moved remakes it.
-    const bool remakes =
-        block.writingMode != inst.textBlock.writingMode ||
-        block.baseDirection != inst.textBlock.baseDirection ||
-        block.lineBreakLocale != inst.textBlock.lineBreakLocale || namesMoved ||
-        optionsMoved || remMoved;
-    if (inst.textDirty || !inst.paragraph) {
-      inst.textDirty = false;
-      materializeText(inst);
-      if (inst.yoga) YGNodeMarkDirty(inst.yoga);
-      needsLayout = true;
-    } else if (reshapes || remakes) {
-      inst.contentRev++;
-      materializeText(inst);
-      if (inst.yoga) YGNodeMarkDirty(inst.yoga);
-      needsLayout = true;
-    } else {
-      if (!(block == inst.textBlock) || indentPercentMoved) {
-        inst.textBlock = block;
-        inst.contentRev++;
-        if (inst.yoga) YGNodeMarkDirty(inst.yoga);
-        needsLayout = true;
-      }
-      if (inherits && !(font.color == inst.textFont.color))
-        refreshInheritedInk(inst);
-    }
-  }
+  if (node.kind == Kind::Text && node.textData)
+    resolveTextLeafCascade(*this, inst, font, block, statesOwnInk, rules, first,
+                           indentPercentMoved);
   // A length measured in the font, or read from a property, is rewritten
   // into the flex style when what it measures against moved.
   if ((shapeChanged || varsChanged || remMoved) && inst.relativeLengths) {
@@ -1020,64 +562,6 @@ void Composer::Impl::resolveCascade(
   for (auto& child : inst.children)
     resolveCascade(*child, font, inst.lineHeight, vars, block, sampling,
                    *sheets, inkPaint, inst.inkTarget);
-}
-
-void Composer::Impl::refreshInheritedInk(Instance& inst) {
-  if (!inst.paragraph || inst.inheritedInkRanges.empty()) {
-    inst.textFont.color = inst.font.color;
-    return;
-  }
-  const TextData& text = *inst.description->textData;
-  const sigil::weave::TextStyle base = sigil::weave::toTextStyle(inst.font);
-  for (const Instance::InkRange& range : inst.inheritedInkRanges) {
-    const sigil::weave::TextStyle style =
-        range.over ? sigil::weave::overlay(base, *range.over, remPx) : base;
-    inst.paragraph->setPaint(range.range.start, range.range.end, style.paint);
-  }
-  // The restyles back over it, in the order and by the rule materialisation
-  // applied them: a paint-only restyle paints its range; a whole style
-  // paints its range and then every earlier paint-only restyle stands
-  // again where the two overlap; a restyle folded into an axis track
-  // painted nothing.
-  if (inst.textState) {
-    TextState& state = *inst.textState;
-    const size_t count =
-        std::min(text.spanRestyles.size(), state.restyles.size());
-    for (size_t i = 0; i < count; ++i) {
-      TextState::Restyle& retained = state.restyles[i];
-      auto next = styleOfSpan(base, text.spanRestyles[i], inst);
-      const auto& previous = retained.style.paint.foregroundMaterial;
-      const auto& source = next.paint.foregroundMaterial;
-      if (previous && source && *previous == *source) {
-        next.paint.foregroundMaterial = previous;
-      } else {
-        retained.ink.reset();
-        retained.surfaceMapInputs.reset();
-      }
-      retained.style = std::move(next);
-      retained.inkDeclared = text.spanRestyles[i].inkMaterial.has_value();
-      retained.inkBox = text.spanRestyles[i].inkBox;
-    }
-    for (size_t i = 0; i < count; ++i) {
-      const TextState::Restyle& retained = state.restyles[i];
-      if (retained.folded) continue;
-      inst.paragraph->setPaint(retained.ranges, retained.style.paint);
-      if (retained.paintOnly) continue;
-      for (size_t j = 0; j < i; ++j) {
-        const TextState::Restyle& earlier = state.restyles[j];
-        if (!earlier.paintOnly || earlier.folded) continue;
-        for (const sigil::weave::CharRange& a : retained.ranges)
-          for (const sigil::weave::CharRange& b : earlier.ranges)
-            if (a.start < b.end && b.start < a.end)
-              inst.paragraph->setPaint(std::max(a.start, b.start),
-                                       std::min(a.end, b.end),
-                                       earlier.style.paint);
-      }
-    }
-  }
-  inst.textFont.color = inst.font.color;
-  inst.markPaintDirtyUp();
-  contentDirty = true;
 }
 
 }  // namespace sigil::compose

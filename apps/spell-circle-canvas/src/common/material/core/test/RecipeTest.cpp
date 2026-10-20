@@ -15,21 +15,9 @@
 #include <string>
 #include <vector>
 
+#include "support/Recipes.h"
+
 using namespace sigil::material;
-
-namespace {
-
-struct TwoParameters {
-  float uScale;
-  Color uColor;
-};
-
-std::shared_ptr<const Recipe> twoRecipe(const char* name = "two") {
-  return std::make_shared<const Recipe>(Recipe::of<TwoParameters>(name).body(
-      Target::SkSL, "half4 main(float2 p) { return half4(uColor * uScale); }"));
-}
-
-}  // namespace
 
 TEST(Recipe, IdentityIsTheObjectAndEqualityIsTheDefinition) {
   auto a = twoRecipe();
