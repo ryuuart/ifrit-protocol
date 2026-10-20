@@ -23,9 +23,18 @@ larger than the one it read, because a replayed program is reported as
 built again and a run writing back everything it recorded would grow the
 file at every launch.
 
+A SKETCH WITH RUNTIME EFFECTS OF ITS OWN, named with `--own-effects`, is
+opened once more before the two that are measured. Its effects are
+compiled as it sets up, after the window's device context was made, and
+a context can carry a key only for a program over an effect it was told
+about when it was made; so the open before writes those effects down, the
+first measured open declares them before its context exists and records
+their programs, and the second must build none.
+
 Usage (invoked by the build; the paths are all absolute):
   pipeline_warmup.py --grimoire <Grimoire binary> \\
-      --sketch <name or file> --work <scratch dir>
+      --sketch <name or file> [--own-effects <name or file>] \\
+      --work <scratch dir>
 """
 
 import argparse
@@ -112,11 +121,29 @@ def tally_of(reported: str, what: str) -> Tally:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--grimoire", type=Path, required=True)
-    parser.add_argument("--sketch", required=True)
+    parser.add_argument("--sketch", action="append", default=[])
+    parser.add_argument("--own-effects", action="append", default=[])
     parser.add_argument("--work", type=Path, required=True)
     arguments = parser.parse_args()
+    if not arguments.sketch and not arguments.own_effects:
+        sys.exit("name a sketch to open with --sketch or --own-effects")
+    shutil.rmtree(arguments.work, ignore_errors=True)
+    for number, sketch in enumerate(arguments.sketch):
+        measure(arguments.grimoire, sketch, arguments.work / f"sketch-{number}")
+    for number, sketch in enumerate(arguments.own_effects):
+        measure(
+            arguments.grimoire,
+            sketch,
+            arguments.work / f"own-effects-{number}",
+            writesEffectsFirst=True,
+        )
 
-    work = arguments.work
+
+def measure(
+    grimoire: Path, sketch: str, work: Path, writesEffectsFirst: bool = False
+) -> None:
+    """Opens @p sketch twice over one store and holds the second open to
+    building no program in its first frame."""
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
     # Both opens keep their state under one root: the second replays what
@@ -127,12 +154,12 @@ def main() -> None:
 
     # A registry key is selected by name; a file is opened by its path.
     opening = (
-        [str(Path(arguments.sketch).resolve())]
-        if arguments.sketch.endswith((".cpp", ".py"))
-        else ["--sketch", arguments.sketch]
+        [str(Path(sketch).resolve())]
+        if sketch.endswith((".cpp", ".py"))
+        else ["--sketch", sketch]
     )
     shot = [
-        str(arguments.grimoire),
+        str(grimoire),
         "--state",
         str(state),
         *opening,
@@ -143,10 +170,10 @@ def main() -> None:
     # A FILE IS BUILT FIRST, by a still over the same state root: the build
     # it leaves is what both windows open on, so neither spends its run
     # compiling and the first open's tally is the sketch's own draws.
-    if arguments.sketch.endswith((".cpp", ".py")):
+    if sketch.endswith((".cpp", ".py")):
         run(
             [
-                str(arguments.grimoire),
+                str(grimoire),
                 *opening,
                 "--state",
                 str(state),
@@ -154,6 +181,20 @@ def main() -> None:
                 str(work / "still.png"),
             ]
         )
+
+    # ITS OWN EFFECTS WRITTEN DOWN FIRST, by an open of its own: they are
+    # declared from the next launch on, so the first measured open is the
+    # one that records the programs over them.
+    if writesEffectsFirst:
+        _, written_down = run(shot)
+        if "renderer: Graphite GPU" in written_down and not re.search(
+            r"\d+ runtime effects no declaration named written down",
+            written_down,
+        ):
+            sys.exit(
+                f"opening {sketch} wrote down none of its own runtime "
+                "effects for the next launch to declare"
+            )
 
     _, first = run(shot)
     if "renderer: Graphite GPU" not in first:
@@ -187,13 +228,13 @@ def main() -> None:
     # THE SKETCH'S FIRST FRAME BUILDS NOTHING: every program its draws
     # wanted, the stack's chain inlined into them among them, was stood up
     # from the set before the sketch opened.
-    first_built = first_frame_of(first, arguments.sketch, "the first open")
+    first_built = first_frame_of(first, sketch, "the first open")
     if first_built == 0:
         sys.exit(
             "the first open's first frame built no program, so the second "
             "cannot show one it no longer had to build"
         )
-    if first_frame_of(second, arguments.sketch, "the second open") != 0:
+    if first_frame_of(second, sketch, "the second open") != 0:
         sys.exit(
             "the second open's first frame still built programs its "
             "recorded set should have stood up before it opened"

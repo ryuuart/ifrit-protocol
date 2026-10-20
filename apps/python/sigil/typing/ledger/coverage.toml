@@ -28,7 +28,7 @@ python = ["sketch.sketch"]
 bound = "undecorated classes with `setup` and an optional `update`, which open only from their file path"
 
 [[section.surface.item]]
-bound = "a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `render`, `measure`, `snapshot`, `measured`, `local` and the session readings) that rejects use after teardown or from another thread"
+bound = "a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `render`, `measure`, `snapshot`, `measured`, `local`, the session readings and the input the host fed, `pointer` and `keys`) that rejects use after teardown or from another thread"
 python = [
   "sketch.Scene2DContext.canvas",
   "sketch.Scene2DContext.background",
@@ -40,6 +40,8 @@ python = [
   "sketch.Scene2DContext.snapshot",
   "sketch.Scene2DContext.measured",
   "sketch.Scene2DContext.local",
+  "sketch.Scene2DContext.pointer",
+  "sketch.Scene2DContext.keys",
 ]
 
 [[section.surface.item]]

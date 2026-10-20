@@ -1,5 +1,7 @@
 #include "Workspace.h"
 
+#include <sigilsketch/python/Python.h>
+
 #include <QtCore/QRegularExpression>
 #include <QtCore/QSettings>
 #include <QtCore/QUrl>
@@ -159,8 +161,12 @@ bool entrySource(const fs::path& path, size_t& bytesLeft) {
   stream.read(source.data(), (std::streamsize)source.size());
   source.resize((size_t)stream.gcount());
   bytesLeft -= source.size();
-  const QString code =
-      QString::fromStdString(declarations(std::move(source), python));
+  const std::string declared = declarations(std::move(source), python);
+  // A file of top-level `setup`, `draw` or `describe` functions is a
+  // sketch by the rule the Python host reads its kind with.
+  if (python && sigil::sketch::python::definesSketchFunctions(declared))
+    return true;
+  const QString code = QString::fromStdString(declared);
   static const QRegularExpression cpp(
       QStringLiteral(R"(\bSIGIL_SKETCH(?:_AS)?\s*\()"));
   if (!python) return cpp.match(code).hasMatch();

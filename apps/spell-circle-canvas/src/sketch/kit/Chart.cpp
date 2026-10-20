@@ -101,6 +101,43 @@ double standsAt(const Ruler& how, const Plot& frame) {
   return rim ? other.high : other.low;
 }
 
+/** HOW MANY DECIMALS A LADDER OF TICKS NEEDS: the fewest that write every
+ *  tick exactly, which is what the finest step between them takes — none
+ *  for a ladder of whole numbers however large, one for a ladder in
+ *  halves. A tick that a double holds only near its decimal, 0.1 among
+ *  them, counts as the decimal it is near. */
+int decimalsFor(const std::vector<double>& ticks) {
+  constexpr int finest = 9;
+  for (int decimals = 0; decimals < finest; ++decimals) {
+    const double scale = std::pow(10.0, decimals);
+    const bool exact = std::ranges::all_of(ticks, [scale](double tick) {
+      if (!std::isfinite(tick)) return true;
+      const double scaled = tick * scale;
+      return std::abs(scaled - std::round(scaled)) <=
+             1e-9 * std::max(1.0, std::abs(scaled));
+    });
+    if (exact) return decimals;
+  }
+  return finest;
+}
+
+/** THE NUMBER AT ONE TICK, written plainly: @p decimals of them with the
+ *  trailing zeros trimmed, never an exponent — a tick at 82800 reads as
+ *  82800 and the one beside it as 82810, where three significant figures
+ *  would print both as one exponent — and never a thousands separator,
+ *  which is the data's business and a part's to add. */
+std::string tickNumber(double value, int decimals) {
+  if (!std::isfinite(value)) return compose::kit::formatted("%g", value);
+  std::string written = compose::kit::formatted("%.*f", decimals, value);
+  if (written.find('.') != std::string::npos) {
+    while (written.back() == '0') written.pop_back();
+    if (written.back() == '.') written.pop_back();
+  }
+  // A tick a hair below zero rounds to a zero that keeps its sign.
+  if (written == "-0") written = "0";
+  return written;
+}
+
 /** The values an axis of @p how ticks. */
 std::vector<double> tickValues(const Ruler& how, const Plot& frame) {
   if (!how.ticks.empty()) return how.ticks;
@@ -279,12 +316,12 @@ Layer axis(const Ruler& how) {
       std::vector<Element> words;
       data.reserve(ticks.size());
       words.reserve(ticks.size());
+      const int decimals = decimalsFor(ticks);
       for (double tick : ticks) {
         data.push_back(how.of == Axis::X ? Datum{tick, other}
                                          : Datum{other, tick});
-        words.push_back(how.tickLine
-                            ? how.tickLine(tick, how)
-                            : tickLabel(compose::kit::formatted("%.3g", tick)));
+        words.push_back(how.tickLine ? how.tickLine(tick, how)
+                                     : tickLabel(tickNumber(tick, decimals)));
       }
       // Where a number stands off its tick: below an x axis, before a y
       // one, and outward past a polar rim — which on a polar frame is what
@@ -305,8 +342,9 @@ Layer axis(const Ruler& how) {
       } else {
         anchor = {compose::Align::Start, compose::Align::Center, {how.gap, 0}};
       }
-      const Layer numbers = detail::anchored(std::move(data), std::move(words),
-                                             anchor, "tick", "plotTick");
+      const Layer numbers =
+          detail::anchored(std::move(data), std::move(words), anchor, "tick",
+                           "plotTick", how.inside && !polar);
       parts.push_back(numbers(frame, named(key, "number", index), 0));
     }
 

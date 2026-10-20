@@ -287,7 +287,7 @@ Host::Host(Options options, weave::FontContext& fonts)
   // loader and record their input stamps before opening, so the first poll
   // does not import the same generation twice.
   if (m_options.kind) {
-    if (openSession(m_options.kind, nullptr)) m_status = "live";
+    if (openSession(m_options.kind, nullptr)) running("live");
     return;
   }
   if (m_options.compiledIn && m_options.compiledIn->kind) {
@@ -302,7 +302,7 @@ Host::Host(Options options, weave::FontContext& fonts)
       m_compiledMtime = *stamp;
       m_everCompiled = true;
     }
-    m_status = "live · compiled in";
+    running("live · compiled in");
   }
 }
 
@@ -422,6 +422,10 @@ bool Host::restartSession() {
   m_lastAssetPoll = 0.0;
   m_frameIndex = -1;
   m_frameTimes.resetPresentation();
+  // A failure the status named was the session just let go; a build in
+  // flight keeps saying so until it lands.
+  if (!compiling())
+    m_status = m_runningStatus.empty() ? "live" : m_runningStatus;
   return m_session != nullptr;
 }
 
@@ -701,7 +705,7 @@ bool Host::adopt(const std::filesystem::path& library) {
   else
     std::snprintf(line, sizeof line, "live · build %d · compiled in %.1fs",
                   m_generation, seconds);
-  m_status = line;
+  running(line);
   std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
   return true;
 }
@@ -759,8 +763,13 @@ void Host::loadPython() {
   char line[160];
   std::snprintf(line, sizeof line, "live · Python %d · loaded in %.0f ms",
                 m_generation, measure::Milliseconds(loaded.elapsed()).count());
-  m_status = line;
+  running(line);
   std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
+}
+
+void Host::running(std::string status) {
+  m_runningStatus = status;
+  m_status = std::move(status);
 }
 
 void Host::sessionFailed(const std::exception& error) {
@@ -786,7 +795,7 @@ void Host::poll() {
       const bool adopted = adopt(result.library);
       if (result.cached) {
         if (adopted) {
-          m_status = "live · cached build";
+          running("live · cached build");
           std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
         } else {
           // An unreadable artifact is disposable. Compile again without it.

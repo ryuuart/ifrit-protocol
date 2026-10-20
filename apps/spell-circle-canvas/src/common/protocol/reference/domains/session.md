@@ -205,6 +205,42 @@ Answers `EvaluateResult`: What an evaluation answered.
 | `output` | string | "" | What the text wrote to the standard output and the standard error while it ran, in the order written. |
 | `error` | EvaluationError (table) | absent | What the text raised; absent where it ran to its end. |
 
+### session.pointer
+
+Puts the pointer over the running sketch at a point on its canvas, with its button down or up, as a person's pointer is: the sketch reads it from its next frame on, and a sketch of input hooks calls the one the change from its last frame names.
+
+In Python, Session.pointer.
+
+Answered at once.
+
+Takes `PointerParameters`: What pointer is asked.
+
+| Parameter | Type | Default | |
+| --- | --- | --- | --- |
+| `x` | float | 0.0 | Where the pointer stands across the canvas, in the canvas units the sketch declared. |
+| `y` | float | 0.0 | Where it stands down the canvas, in the canvas units the sketch declared. |
+| `pressed` | bool | false | Whether its button is down. |
+
+Answers nothing but that it was done.
+
+### session.key
+
+A key going down or up over the running sketch, as a person's keyboard sends one: the sketch reads it from its next frame on.
+
+In Python, Session.key.
+
+Answered at once.
+
+Takes `KeyParameters`: What key is asked.
+
+| Parameter | Type | Default | |
+| --- | --- | --- | --- |
+| `name` | string, required | "" | The key's name as a keyboard spells it: "a", "ArrowLeft", "Enter". |
+| `code` | int | 0 | The key's code. |
+| `pressed` | bool | false | Whether it went down; false when it went up. |
+
+Answers nothing but that it was done.
+
 ### session.enable
 
 Starts this client's session events.

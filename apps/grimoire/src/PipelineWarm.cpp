@@ -19,6 +19,7 @@
 #include <include/core/SkColorType.h>
 #include <include/core/SkData.h>
 #include <include/core/SkSpan.h>
+#include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/core/Material.h>
@@ -197,6 +198,15 @@ PipelineRecord* recorder() {
  *  the keys are kept in. Written once before any context exists and
  *  only read afterwards. */
 std::vector<sk_sp<SkRuntimeEffect>> g_declared;
+/** How many of `g_declared` are the stock ones, ahead of the effects a
+ *  past run wrote down. The sets are named by the stock ones alone: the
+ *  recorded effects only ever grow at the end, so a key naming one keeps
+ *  naming it as more are written down after it. */
+size_t g_stockDeclared = 0;
+/** The text of every effect offered for declaration, the ones past the
+ *  backend's limit among them: what a run's own compiles are told apart
+ *  from when they are written down. */
+std::unordered_set<std::string> g_offered;
 /** The ones a cold store stands up ahead of any draw, which is a much
  *  shorter list than the one above — see `buildStagesAhead`. */
 std::vector<sk_sp<SkRuntimeEffect>> g_stages;
@@ -259,6 +269,79 @@ std::vector<sk_sp<SkRuntimeEffect>> everyDeclarableProgram() {
   for (const material::Material& recipe : stockRecipes())
     gatherPrograms(recipe, programs, seen);
   return programs;
+}
+
+/** What @p effect is for, by what its text allows. */
+pipelines::EffectKind kindOf(const SkRuntimeEffect& effect) {
+  if (effect.allowShader()) return pipelines::EffectKind::Shader;
+  if (effect.allowColorFilter()) return pipelines::EffectKind::ColorFilter;
+  return pipelines::EffectKind::Blender;
+}
+
+/** @p recorded compiled again from its text, as the backend it was
+ *  written down from compiled it; null where it no longer compiles. */
+sk_sp<SkRuntimeEffect> compiled(const pipelines::RecordedEffect& recorded) {
+  const SkString text(recorded.source.c_str());
+  switch (recorded.kind) {
+    case pipelines::EffectKind::Shader:
+      return SkRuntimeEffect::MakeForShader(text).effect;
+    case pipelines::EffectKind::ColorFilter:
+      return SkRuntimeEffect::MakeForColorFilter(text).effect;
+    case pipelines::EffectKind::Blender:
+      return SkRuntimeEffect::MakeForBlender(text).effect;
+  }
+  return nullptr;
+}
+
+/** THE EFFECTS PAST RUNS WROTE DOWN, put after @p declarable in the order
+ *  they were written, each one not already there. One that no longer
+ *  compiles ends the list: every effect after it would be declared one
+ *  place earlier than a recorded key names it. */
+void appendRecordedEffects(std::vector<sk_sp<SkRuntimeEffect>>& declarable,
+                           const std::filesystem::path& storeDirectory) {
+  std::unordered_set<std::string> present;
+  for (const sk_sp<SkRuntimeEffect>& effect : declarable)
+    if (effect) present.insert(effect->source());
+  for (const pipelines::RecordedEffect& recorded :
+       pipelines::readEffects(pipelines::effectsFile(storeDirectory))) {
+    if (!present.insert(recorded.source).second) continue;
+    sk_sp<SkRuntimeEffect> effect = compiled(recorded);
+    if (!effect) break;
+    declarable.push_back(std::move(effect));
+  }
+}
+
+/** WRITES DOWN THE RUNTIME EFFECTS THIS RUN COMPILED THAT NO DECLARATION
+ *  NAMED — a body's own shaders, compiled as it set up — after the ones
+ *  already written, so the next launch declares them before its contexts
+ *  exist. Answers how many it added. */
+size_t writeDownUndeclaredEffects(const std::filesystem::path& storeDirectory) {
+  const std::filesystem::path file = pipelines::effectsFile(storeDirectory);
+  std::vector<pipelines::RecordedEffect> effects = pipelines::readEffects(file);
+  std::unordered_set<std::string> known = g_offered;
+  for (const pipelines::RecordedEffect& recorded : effects)
+    known.insert(recorded.source);
+  size_t added = 0;
+  for (const std::shared_ptr<material::Program>& program :
+       material::ProgramCache::shared().programs(material::Target::SkSL)) {
+    const auto* skia = program->as<material::skia::SkiaProgram>();
+    const sk_sp<SkRuntimeEffect>& effect = skia ? skia->effect() : nullptr;
+    if (!effect || !known.insert(effect->source()).second) continue;
+    effects.push_back({kindOf(*effect), effect->source()});
+    ++added;
+  }
+  if (added && !pipelines::writeEffects(file, effects)) {
+    std::fprintf(stderr, "[grimoire] pipelines: could not write %s\n",
+                 file.c_str());
+    return 0;
+  }
+  return added;
+}
+
+/** The declared effects the sets are named by: the stock ones. */
+std::span<const sk_sp<SkRuntimeEffect>> stockDeclared() {
+  return std::span<const sk_sp<SkRuntimeEffect>>(g_declared)
+      .first(g_stockDeclared);
 }
 
 /** WHAT THE PRESENTED CANVAS IS: the item's texture is eight bits a
@@ -353,8 +436,12 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory,
   g_namesEveryPipeline.store(namesEveryProgram, std::memory_order_relaxed);
   const std::lock_guard<std::mutex> alone(g_warmupLock);
   g_storeDirectory = storeDirectory;
-  const std::vector<sk_sp<SkRuntimeEffect>> declarable =
-      everyDeclarableProgram();
+  std::vector<sk_sp<SkRuntimeEffect>> declarable = everyDeclarableProgram();
+  const size_t stock = declarable.size();
+  appendRecordedEffects(declarable, storeDirectory);
+  g_offered.clear();
+  for (const sk_sp<SkRuntimeEffect>& effect : declarable)
+    if (effect) g_offered.insert(effect->source());
   g_stages.clear();
   for (const sk_sp<SkRuntimeEffect>& effect :
        material::skia::everyFilterProgram())
@@ -366,6 +453,7 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory,
   // an unstable name, so no key can carry it and it says nothing about
   // which set a file holds.
   g_declared.assign(declarable.begin(), declarable.begin() + taken);
+  g_stockDeclared = std::min(stock, taken);
   if (taken < declarable.size())
     std::fprintf(stderr,
                  "[grimoire] pipelines: %zu of %zu programs declared; the "
@@ -381,7 +469,7 @@ void recordPipelinesForAColdStore(const skgpu::graphite::Context& context) {
   // A lane that already named the sets is a lane that replays from them,
   // and a run does one or the other.
   if (!g_open || !g_setName.empty()) return;
-  g_setName = pipelines::keySetName(g_declared, backend);
+  g_setName = pipelines::keySetName(stockDeclared(), backend);
   g_fillsAColdStoreOnly = true;
 }
 
@@ -392,7 +480,7 @@ void warmStockPipelines(
   const std::lock_guard<std::mutex> alone(g_warmupLock);
   if (!g_open) return;
   if (g_setName.empty())
-    g_setName = pipelines::keySetName(g_declared, backend);
+    g_setName = pipelines::keySetName(stockDeclared(), backend);
   // A STORE THAT ANSWERS FOR THIS BUILD stands each sketch's programs up
   // before that sketch opens, and nothing here is a better guess.
   if (pipelines::holdsAnySketchSet(g_storeDirectory, g_setName)) return;
@@ -410,7 +498,7 @@ bool hasRecordedPipelines(std::string_view sketch, const std::string& backend) {
   const std::lock_guard<std::mutex> alone(g_warmupLock);
   if (!g_open || sketch.empty()) return false;
   const std::string set = g_setName.empty()
-                              ? pipelines::keySetName(g_declared, backend)
+                              ? pipelines::keySetName(stockDeclared(), backend)
                               : g_setName;
   std::error_code error;
   return std::filesystem::exists(
@@ -426,7 +514,7 @@ void warmSketchPipelines(
   const std::lock_guard<std::mutex> alone(g_warmupLock);
   if (!g_open) return;
   if (g_setName.empty())
-    g_setName = pipelines::keySetName(g_declared, backend);
+    g_setName = pipelines::keySetName(stockDeclared(), backend);
   const std::vector<pipelines::RecordedPipeline> recorded =
       pipelines::readKeySet(pipelines::keySetFile(
           g_storeDirectory, pipelines::sketchKeySetName(g_setName, sketch)));
@@ -484,6 +572,12 @@ void finishPipelineWarmup() {
   // Graphite, nothing was recorded or replayed, and a tally of zeroes on
   // a lane the warm-up cannot serve says only that.
   if (g_setName.empty()) return;
+  const size_t effects = writeDownUndeclaredEffects(g_storeDirectory);
+  if (effects)
+    std::fprintf(stderr,
+                 "[grimoire] pipelines: %zu runtime effects no declaration "
+                 "named written down for the next launch to declare\n",
+                 effects);
   size_t written = 0;
   for (const std::string& sketch : recorder()->sketchesDrawn()) {
     const std::filesystem::path file = pipelines::keySetFile(

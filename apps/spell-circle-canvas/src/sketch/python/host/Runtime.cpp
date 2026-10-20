@@ -16,12 +16,14 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <memory>
 #include <mutex>
 #include <span>
 #include <stdexcept>
+#include <string_view>
 #include <system_error>
 #include <thread>
 
@@ -634,6 +636,32 @@ bool declaresDevice(const std::filesystem::path& source) {
   return false;
 }
 
+/** THE NAME A LINE OF PYTHON DEFINES with `def` or `async def`, read
+ *  from the text alone; empty for a line that defines nothing. A
+ *  @p topLevel reading takes only a definition that starts the line, which
+ *  is one the module defines rather than one of a class or a function. */
+std::string_view definedName(std::string_view line, bool topLevel) {
+  const auto first = line.find_first_not_of(" \t");
+  if (first == std::string_view::npos || (topLevel && first != 0)) return {};
+  line.remove_prefix(first);
+  constexpr std::string_view kAsynchronous = "async";
+  if (line.starts_with(kAsynchronous) && line.size() > kAsynchronous.size() &&
+      (line[kAsynchronous.size()] == ' ' ||
+       line[kAsynchronous.size()] == '\t')) {
+    line.remove_prefix(kAsynchronous.size());
+    line.remove_prefix(std::min(line.find_first_not_of(" \t"), line.size()));
+  }
+  constexpr std::string_view kDefinition = "def";
+  if (!line.starts_with(kDefinition) || line.size() == kDefinition.size() ||
+      (line[kDefinition.size()] != ' ' && line[kDefinition.size()] != '\t'))
+    return {};
+  line.remove_prefix(kDefinition.size());
+  line.remove_prefix(std::min(line.find_first_not_of(" \t"), line.size()));
+  const auto end = line.find_first_of("( \t");
+  if (end == std::string_view::npos || end == 0) return {};
+  return line.substr(0, end);
+}
+
 /** Whether the sketch written in @p source describes a world frame: a
  *  method `describe`, or a function `describe` of a file of functions,
  *  whose return annotation names `Frame` — `-> Frame`, `-> world.Frame`,
@@ -646,12 +674,9 @@ bool describesFrame(const std::filesystem::path& source) {
   std::ifstream file(source);
   std::string line;
   while (std::getline(file, line)) {
+    if (definedName(line, false) != "describe") continue;
     std::string_view text = line;
-    const auto first = text.find_first_not_of(" \t");
-    if (first == std::string_view::npos) continue;
-    text.remove_prefix(first);
-    constexpr std::string_view kSignature = "def describe(";
-    if (!text.starts_with(kSignature)) continue;
+    text.remove_prefix(text.find_first_not_of(" \t"));
     std::string signature(text);
     constexpr int kLongestSignature = 12;
     for (int more = 0; more < kLongestSignature; ++more) {
@@ -789,6 +814,18 @@ void configureInterpreter(const std::filesystem::path& executable) {
       executable.empty()
           ? std::filesystem::path{}
           : std::filesystem::absolute(executable).lexically_normal();
+}
+
+bool definesSketchFunctions(std::string_view source) {
+  while (!source.empty()) {
+    const auto end = source.find('\n');
+    const std::string_view line = source.substr(0, end);
+    const std::string_view name = definedName(line, true);
+    if (name == "setup" || name == "draw" || name == "describe") return true;
+    if (end == std::string_view::npos) break;
+    source.remove_prefix(end + 1);
+  }
+  return false;
 }
 
 Kind source(const std::filesystem::path& path) {

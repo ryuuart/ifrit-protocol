@@ -615,8 +615,14 @@ sketch::kit::plot("decay", frame,
 
 **A TICK'S NUMBER IS A `Part`.** `Ruler::tickLine` is a function of the
 VALUE, because how a number reads is the data's business and not the kit's;
-empty is the value to three significant figures in the class `plotTick`, which
-`tickLabel` is the leaf of. The band layer's own `part` is the same door for
+empty is the value written plainly in the class `plotTick`, which `tickLabel`
+is the leaf of: as many decimals as the finest step between the ticks needs,
+trailing zeros trimmed, never an exponent and never a thousands separator, so
+ticks at 82800 and 82810 read as those two numbers. The numbers hang outside
+the field, into the room the plot's parent gives them; `Ruler::inside` keeps
+them inside the plot's box instead, for a plot with no room around it: each is
+measured where it is laid out, and one that would hang past an edge is set on
+its tick's other side. The band layer's own `part` is the same door for
 the element a datum is drawn as, and `marks`'s mark is the caller's
 outright — a bar that must be a gradient, a sprite or a stack of two is that
 element, and the layer still places it.

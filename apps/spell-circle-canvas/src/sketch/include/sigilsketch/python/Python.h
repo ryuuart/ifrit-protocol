@@ -49,6 +49,14 @@ void configureInterpreter(const std::filesystem::path& executable);
  * when this value is constructed; import failures surface when it opens. */
 [[nodiscard]] Kind source(const std::filesystem::path& source);
 
+/** WHETHER PYTHON SOURCE TEXT IS A FILE OF FUNCTIONS a sketch is made of:
+ * one defining `setup`, `draw` or `describe` at its top level, read from
+ * the text line by line by the rule the host reads a source's kind with,
+ * without importing it. A caller that blanks the source's comments and
+ * string literals first keeps a definition quoted in documentation from
+ * counting. */
+[[nodiscard]] bool definesSketchFunctions(std::string_view source);
+
 /** Checks that a source exists and its declared external modules can be
  * discovered, without importing the sketch. An empty module list never
  * initializes Python; otherwise discovery uses the host's interpreter.

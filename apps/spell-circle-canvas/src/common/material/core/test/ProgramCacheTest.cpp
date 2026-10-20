@@ -12,6 +12,7 @@
 #include <sigilmaterial/core/Target.h>
 #include <sigilshaders/MaterialCore.h>
 
+#include <algorithm>
 #include <atomic>
 #include <barrier>
 #include <functional>
@@ -108,6 +109,25 @@ TEST(ProgramCache, OneProgramPerRecipeTargetAndVariant) {
   EXPECT_EQ(cache.size(), 0u);
   EXPECT_EQ(cache.program(a, Target::Slang)->recipe().name(), "a");
   EXPECT_EQ(gCompiles, 4);
+}
+
+TEST(ProgramCache, ListsTheProgramsItHoldsForATarget) {
+  ProgramCache cache;
+  cache.registerCompiler(Target::Slang, countingCompiler);
+  EXPECT_TRUE(cache.programs(Target::Slang).empty());
+  auto a = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("a").body(Target::Slang, "x"));
+  auto b = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("b").body(Target::Slang, "y"));
+  auto first = cache.program(a, Target::Slang);
+  auto second = cache.program(b, Target::Slang);
+  auto listed = cache.programs(Target::Slang);
+  ASSERT_EQ(listed.size(), 2u);
+  EXPECT_TRUE(std::ranges::find(listed, first) != listed.end());
+  EXPECT_TRUE(std::ranges::find(listed, second) != listed.end());
+  EXPECT_TRUE(cache.programs(Target::SkSL).empty());
+  cache.clear();
+  EXPECT_TRUE(cache.programs(Target::Slang).empty());
 }
 
 TEST(ProgramCache, ConcurrentRequestsShareOneInFlightCompile) {

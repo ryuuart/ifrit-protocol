@@ -254,6 +254,21 @@ void bindContext(py::module_& module) {
                                    state->specification->size.width(),
                                    state->specification->size.height());
                              })
+      // What the host fed the session, read when asked: a body with no
+      // paint program reads the pointer and the keyboard here.
+      .def_property_readonly(
+          "pointer",
+          [](const Context& ctx) { return ctx.state()->composer->pointer(); },
+          "Where the pointer stands over the canvas, in canvas units, and "
+          "whether its button is down, as a compose.PaintContext.Pointer: "
+          "what the host fed the session, read when it is asked. The origin "
+          "with the button up where nobody points.")
+      .def_property_readonly(
+          "keys",
+          [](const Context& ctx) { return ctx.state()->composer->keys(); },
+          "The keyboard as the host fed the session, as a compose.KeyState: "
+          "the last key to go down by name and code, whether any key is "
+          "down, and every key that is.")
       .def_property_readonly("deterministic", [](const Context& ctx) {
         return ctx.state()->deterministic;
       });

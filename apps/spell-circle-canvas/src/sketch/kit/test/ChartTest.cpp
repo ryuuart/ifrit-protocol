@@ -440,6 +440,52 @@ TEST(SketchKitChart, AnAxisRunsTheWholeFieldWhateverItsDomainIs) {
   EXPECT_FALSE(lit(2));
 }
 
+TEST(SketchKitChart, LargeTickNumbersPrintPlainlyInsideThePlot) {
+  // Two ticks ten apart at eighty thousand: three significant figures would
+  // print both as one exponent. Each prints as its own number, and kept
+  // inside, the numbers stand inside the plot's box although a y axis hangs
+  // them off the left edge of its field.
+  constexpr float kLeft = 100;
+  const kit::Plot frame{.x = {.domain = {0, 1}},
+                        .y = {.domain = {82790, 82820}},
+                        .pad = 8};
+  const auto drawnWith = [&](kit::Ruler ruler) {
+    ruler.of = kit::Axis::Y;
+    ruler.ticks = {82800, 82810};
+    ruler.line = false;
+    return compose::box()
+        .applyStyleSheet(kit::houseTheme().styleSheet())
+        .padding({.left = kLeft})
+        .children({kit::plot("price", frame, {kit::axis(ruler)})
+                       .width(kField)
+                       .height(kFieldTall)});
+  };
+  const Element plain = drawnWith({.inside = true});
+  EXPECT_TRUE(sameDrawing(
+      plain, drawnWith({.inside = true, .tickLine = [](double value) {
+               return kit::tickLabel(value < 82805 ? "82800" : "82810");
+             }})))
+      << "a tick's number is not the plain number it stands at";
+
+  // How many lit pixels a drawing has inside the plot's box and left of it.
+  const auto sides = [&](Element tree) {
+    const SkBitmap pixels = Drawn(std::move(tree)).pixels();
+    std::pair<int, int> counted{0, 0};
+    for (int y = 0; y < (int)kFieldTall; ++y)
+      for (int x = 0; x < (int)(kLeft + kField); ++x) {
+        const SkColor4f pixel = pixels.getColor4f(x, y);
+        if (pixel.fR + pixel.fG + pixel.fB <= 0.3f) continue;
+        ++(x < (int)kLeft ? counted.second : counted.first);
+      }
+    return counted;
+  };
+  const auto [inside, outside] = sides(plain);
+  EXPECT_GT(inside, 0) << "the numbers drew nothing";
+  EXPECT_EQ(outside, 0) << "a number stood past the plot's left edge";
+  // Unasked, the numbers hang off the field into the room around the plot.
+  EXPECT_GT(sides(drawnWith({})).second, 0);
+}
+
 // The classes, and the table that documents them
 
 /** THE CLASS NAMES THE KIT'S README DOCUMENTS, read off the one table that

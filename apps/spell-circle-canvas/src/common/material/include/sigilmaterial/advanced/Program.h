@@ -17,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace sigil::material {
 
@@ -130,6 +131,10 @@ class ProgramCache {
 
   /** How many programs are held. */
   size_t size() const;
+  /** EVERY PROGRAM HELD for @p target, in no stated order: what a host
+   *  that writes down the programs a run compiled reads, a body's own
+   *  shaders among them. A compile still under way is not held yet. */
+  std::vector<std::shared_ptr<Program>> programs(Target target) const;
   /** Drops every program; compilers stay registered. The next request for
    *  a dropped key recompiles, and a failure that was reported once is
    *  reported again. */

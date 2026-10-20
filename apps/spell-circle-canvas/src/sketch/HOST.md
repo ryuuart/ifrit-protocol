@@ -123,7 +123,9 @@ unmap already loaded code.
 A build that fails to compile, a library that does not load, a factory
 that throws and a setup that fails all keep the running session. A frame
 that throws fails the session until an edit or `Host::restartSession`
-opens it again. Whatever a sketch throws from its entry, factory, setup,
+opens it again; a restart that opens it clears the failure from the error
+log and from `Host::status`, which says again what it said when the
+running kind loaded. Whatever a sketch throws from its entry, factory, setup,
 declarations, frames or stills — a standard exception or anything else —
 is reported in `Host::errorLog` and does not escape the host.
 

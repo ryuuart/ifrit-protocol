@@ -523,6 +523,16 @@ class Composer {
    *  code: what a pen program reads as `keyIsPressed`, `key`, `keyCode`
    *  and `keyIsDown`, and a paint program as `PaintContext::keys`. */
   void setKey(std::string_view name, int code, bool pressed);
+  /** WHERE THE HOST LAST PUT THE POINTER, in the composer's own canvas
+   *  units, and whether its button is down: what `setPointer` was handed,
+   *  mapped into no node's box. What a body reads that has no paint
+   *  program to be handed `PaintContext::pointer` in. The origin with the
+   *  button up before the host fed any. */
+  [[nodiscard]] PaintContext::Pointer pointer() const;
+  /** The keys the host has fed `setKey`: the last to go down by name and
+   *  code, whether any is down, and every one that is — what a paint
+   *  program reads as `PaintContext::keys`. */
+  [[nodiscard]] const KeyState& keys() const;
   /** @} */
 
   /** @private */

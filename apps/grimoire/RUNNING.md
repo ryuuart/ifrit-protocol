@@ -249,7 +249,10 @@ an optional `=PORT`, `--state` with a directory, and `--repl`.
   `registry`, with `host.describe` listing the session the window shows.
   Its event loop dispatches it; with no client attached a dispatch runs no
   handler. The window's frames are its render thread's, so the session
-  and clock domains are not mounted there.
+  and clock domains are not mounted there, apart from the input a person
+  could give the window: `session.pointer` puts the pointer at a point on
+  the sketch's canvas and `session.key` sends a key down or up, each
+  handed to the render thread and read by the sketch's next frame.
 - **`Grimoire --headless --inspect`**, naming no plate directory, no
   sketch and no kind, is a host a client drives: no window and no plates,
   the three agents mounted, the address written to
@@ -266,7 +269,7 @@ an optional `=PORT`, `--state` with a directory, and `--repl`.
   each handed to the render thread and run there between two frames of
   the sketch on screen — the still is that sketch as it stands, its
   clock untouched, written under the state root — and every other
-  session command and the clock stay unmounted. `--headless --inspect
+  session command but the input and the clock stay unmounted. `--headless --inspect
   --repl` opens the session agent's door. Unasked, the window answers
   `session.evaluate` `notMounted` and a served host refuses it, each
   naming the command; a sweep and every lane that ends once its output
@@ -317,6 +320,20 @@ digest>.keys`; `pipelines/` under a `--state` root instead). The first
 digest is over the declared bodies, in the order they were declared, and the
 backend's name: an edited shader, a recipe added or a different device is a
 different file rather than a set of keys describing other programs.
+
+**A sketch's own runtime effects are declared from the launch after it was
+first opened.** A body's own shader is compiled while it sets up, after
+every context in the process was made, and a context carries a key only for
+a program over an effect it was told about when it was made. So at exit a
+run writes down the SkSL of every program it compiled that no declaration
+named (`pipelines/effects.declared`, one file for the store), and the next
+launch compiles each again and declares it after the stock bodies, in the
+order it was written down. Compiled from the same text it is the same effect
+to the backend, so the body's own compile carries the declared name and the
+programs over it are recorded and stood up like any other. The file only
+grows at its end and the digest is over the stock bodies alone, so writing
+down one more effect moves no recorded key; an effect past the backend's
+limit on declared bodies keeps a name no key can carry.
 
 **A selected sketch's set stands up before the sketch opens.** The host's
 name for the sketch is all the warm-up needs: the set holds every program

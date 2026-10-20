@@ -81,6 +81,16 @@ the speed and the density pin are each kept against the client that set
 them, and when it detaches the session is opened again for the wall's
 clock and the runtime's own density.
 
+**Input reaches the sketch as a person's would**: `session.pointer` puts
+the pointer at a point on the sketch's canvas, in the units it declared,
+with its button down or up, and `session.key` sends a key down or up by
+the name a keyboard spells it and its code. Each goes to
+`Session::pointer` or `Session::key` at once, between two frames, so the
+next step reads it — a paint program through `PaintContext`, a body
+through `Scene2DContext::pointer` and `Scene2DContext::keys`, and a
+Python file of functions through its input hooks. Both are refused while
+no session is open, and a pointer at no finite point is refused.
+
 **Evaluate runs text inside the running sketch**, and the door is shut
 unless the host opened it: `SessionAgentOptions::evaluates` is off by
 default, and `session.evaluate` is then refused naming the command,

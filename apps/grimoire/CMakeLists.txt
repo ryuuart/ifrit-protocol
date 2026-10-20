@@ -89,8 +89,23 @@ qt_add_executable(Grimoire
   src/VideoLane.cpp src/VideoLane.h
   src/WindowBench.cpp src/WindowBench.h src/Conditions.cpp src/Conditions.h
   src/WindowEvaluation.cpp src/WindowEvaluation.h
+  src/WindowInput.cpp src/WindowInput.h
 )
 sigil_qt_target(Grimoire)
+
+# THE HOST IS RELINKED WHEN A FRAMEWORK HEADER CHANGES. A host refuses a
+# sketch compiled against a public framework header newer than its own
+# executable — every header under an `include/sigil…` directory of the
+# library tree — because the structs either side of the sketch's library
+# would disagree. A header that no unit of Grimoire includes rebuilds
+# nothing here, so the executable is made to depend on every one of them
+# and a build of Grimoire after any such edit leaves a host the guard
+# accepts.
+file(GLOB_RECURSE _grimoire_framework_headers CONFIGURE_DEPENDS
+  "${CMAKE_SOURCE_DIR}/src/*.h" "${CMAKE_SOURCE_DIR}/src/*.hpp")
+list(FILTER _grimoire_framework_headers INCLUDE REGEX "/include/sigil")
+set_property(TARGET Grimoire APPEND PROPERTY LINK_DEPENDS
+  ${_grimoire_framework_headers})
 
 add_test(NAME sketch_browser
   COMMAND Qt6::qmltestrunner
@@ -192,7 +207,8 @@ sigil_test(grimoire_test
           test/ArgumentsTest.cpp test/WorkspaceTest.cpp
           test/PipelineStoreTest.cpp test/CanvasViewTest.cpp
           test/CatalogRowMapTest.cpp
-  LIBRARIES SigilSketch SigilSketchWindow SigilWeavePorts Qt6::Core)
+  LIBRARIES SigilSketch SigilSketchWindow SigilSketchPython SigilWeavePorts
+            Qt6::Core)
 
 # The endpoint the window and a sweep mount, under the protocol's one
 # label: host and registry answered, session and clock not mounted.
@@ -485,17 +501,49 @@ set_tests_properties(sketch_window_bench_entry PROPERTIES
 # device program a draw waits for is built by the context behind the
 # presented canvas, so neither a still nor a headless sweep reaches it:
 # this opens the real window twice over one store, on a sketch wearing a
-# stack, and reads what its first frame built and the tally each run
-# closes with. A machine with no device behind the window reports so and
+# stack and on one whose overlay is a runtime effect its own setup makes,
+# and reads what its first frame built and the tally each run closes
+# with. A machine with no device behind the window reports so and
 # passes, having measured nothing.
 add_test(NAME sketch_pipeline_warmup
   COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_LIST_DIR}/test/pipeline_warmup.py
     --grimoire $<TARGET_FILE:Grimoire>
     --sketch ${CMAKE_CURRENT_LIST_DIR}/test/stack_probe.cpp
+    --own-effects crt_bloom
     --work ${CMAKE_BINARY_DIR}/sketch_pipeline_warmup)
 set_tests_properties(sketch_pipeline_warmup PROPERTIES
-  LABELS "window;gpu" TIMEOUT 300)
+  LABELS "window;gpu" TIMEOUT 600)
+
+# THE HOST A SOURCE SKETCH LOADS INTO IS THE ONE THE TREE BUILDS NOW. A
+# host refuses a sketch compiled against a framework header newer than
+# its own executable, because the structs on either side of the dylib
+# would disagree, and nothing a test run does rebuilds the host: a pass
+# that built the libraries and their tests leaves it behind. So every
+# case that compiles a sketch from source first brings Grimoire up to
+# date, and the build runs with nothing beside it, because a link
+# replaces the executable the other cases are running.
+add_test(NAME sketch_host_current
+  COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
+          --config $<CONFIG> --target Grimoire)
+set_tests_properties(sketch_host_current PROPERTIES
+  FIXTURES_SETUP grimoire_host
+  RESOURCE_LOCK sigil_build_tree
+  RUN_SERIAL TRUE
+  TIMEOUT 3600)
+foreach(_source_sketch_case IN ITEMS
+    sketch_reload_runs_the_file sketch_reload_materials
+    sketch_reload_surface sketch_reload_surface_video
+    sketch_reload_surface_scene3d sketch_reload_surface_device
+    sketch_reload_surface_web sketch_reload_surface_substance
+    sketch_reload_named sketch_reload_directory sketch_capture_viewport
+    sketch_window_orientation sketch_window_bench_file
+    sketch_pipeline_warmup)
+  if(TEST ${_source_sketch_case})
+    set_tests_properties(${_source_sketch_case} PROPERTIES
+      FIXTURES_REQUIRED grimoire_host)
+  endif()
+endforeach()
 
 # WHAT A BATCH LANE LEAVES BEHIND, which needs no window: a headless
 # sweep on the device draws the programs an open window draws, so it

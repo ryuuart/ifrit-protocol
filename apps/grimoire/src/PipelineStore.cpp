@@ -61,6 +61,37 @@ bool readNumber(std::FILE* file, std::uint32_t& value) {
  *  allocation a corrupt length asked for. */
 constexpr std::uint32_t kLongestKey = 1u << 20;
 
+/** What marks a file of recorded effects. */
+constexpr char kEffectsMark[8] = {'S', 'I', 'G', 'E', 'F', 'F', 'C', '1'};
+
+/** Writes @p file beside itself through @p write and renames it over, so
+ *  a run that dies partway through leaves the last whole file. */
+template <class Write>
+bool writeWhole(const fs::path& file, Write write) {
+  std::error_code ec;
+  fs::create_directories(file.parent_path(), ec);
+  const fs::path beside = fs::path(file).concat(".writing");
+  std::FILE* open = std::fopen(beside.c_str(), "wb");
+  if (!open) return false;
+  write(open);
+  // BOTH HALVES OF THE WRITE. The close flushes the stream's last
+  // buffer, so a write can still fail inside it — a file called whole
+  // before the close and renamed over the last good one would lose its
+  // tail with nothing saying so.
+  const bool written = std::ferror(open) == 0;
+  const bool closed = std::fclose(open) == 0;
+  if (!written || !closed) {
+    fs::remove(beside, ec);
+    return false;
+  }
+  fs::rename(beside, file, ec);
+  if (ec) {
+    fs::remove(beside, ec);
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 fs::path storeDirectory() {
@@ -145,43 +176,74 @@ std::vector<RecordedPipeline> readKeySet(const fs::path& file) {
 
 bool writeKeySet(const fs::path& file,
                  std::span<const RecordedPipeline> recorded) {
-  std::error_code ec;
-  fs::create_directories(file.parent_path(), ec);
-  const fs::path beside = fs::path(file).concat(".writing");
-  std::FILE* open = std::fopen(beside.c_str(), "wb");
-  if (!open) return false;
   const auto writable = [](const RecordedPipeline& one) {
     return one.key && !one.key->isEmpty() && one.key->size() <= kLongestKey &&
            one.description.size() <= kLongestKey;
   };
+  return writeWhole(file, [&](std::FILE* open) {
+    std::uint32_t count = 0;
+    for (const RecordedPipeline& one : recorded)
+      if (writable(one)) ++count;
+    std::fwrite(kMark, 1, sizeof kMark, open);
+    writeNumber(open, count);
+    for (const RecordedPipeline& one : recorded) {
+      if (!writable(one)) continue;
+      writeNumber(open, (std::uint32_t)one.key->size());
+      std::fwrite(one.key->data(), 1, one.key->size(), open);
+      writeNumber(open, (std::uint32_t)one.description.size());
+      std::fwrite(one.description.data(), 1, one.description.size(), open);
+    }
+  });
+}
+
+fs::path effectsFile(const fs::path& directory) {
+  return directory / "effects.declared";
+}
+
+std::vector<RecordedEffect> readEffects(const fs::path& file) {
+  std::vector<RecordedEffect> effects;
+  std::FILE* open = std::fopen(file.c_str(), "rb");
+  if (!open) return effects;
+  char mark[sizeof kEffectsMark];
   std::uint32_t count = 0;
-  for (const RecordedPipeline& one : recorded)
-    if (writable(one)) ++count;
-  std::fwrite(kMark, 1, sizeof kMark, open);
-  writeNumber(open, count);
-  for (const RecordedPipeline& one : recorded) {
-    if (!writable(one)) continue;
-    writeNumber(open, (std::uint32_t)one.key->size());
-    std::fwrite(one.key->data(), 1, one.key->size(), open);
-    writeNumber(open, (std::uint32_t)one.description.size());
-    std::fwrite(one.description.data(), 1, one.description.size(), open);
+  if (std::fread(mark, 1, sizeof mark, open) != sizeof mark ||
+      std::memcmp(mark, kEffectsMark, sizeof kEffectsMark) != 0 ||
+      !readNumber(open, count)) {
+    std::fclose(open);
+    return effects;
   }
-  // BOTH HALVES OF THE WRITE. The close flushes the stream's last
-  // buffer, so a write can still fail inside it — a file called whole
-  // before the close and renamed over the last good one would lose its
-  // tail with nothing saying so.
-  const bool written = std::ferror(open) == 0;
-  const bool closed = std::fclose(open) == 0;
-  if (!written || !closed) {
-    fs::remove(beside, ec);
-    return false;
+  for (std::uint32_t at = 0; at < count; ++at) {
+    std::uint32_t kind = 0;
+    std::uint32_t length = 0;
+    if (!readNumber(open, kind) || kind > (std::uint32_t)EffectKind::Blender ||
+        !readNumber(open, length) || length == 0 || length > kLongestKey)
+      break;
+    std::string source(length, '\0');
+    if (std::fread(source.data(), 1, length, open) != length) break;
+    effects.push_back({(EffectKind)kind, std::move(source)});
   }
-  fs::rename(beside, file, ec);
-  if (ec) {
-    fs::remove(beside, ec);
-    return false;
-  }
-  return true;
+  std::fclose(open);
+  return effects;
+}
+
+bool writeEffects(const fs::path& file,
+                  std::span<const RecordedEffect> effects) {
+  const auto writable = [](const RecordedEffect& one) {
+    return !one.source.empty() && one.source.size() <= kLongestKey;
+  };
+  return writeWhole(file, [&](std::FILE* open) {
+    std::uint32_t count = 0;
+    for (const RecordedEffect& one : effects)
+      if (writable(one)) ++count;
+    std::fwrite(kEffectsMark, 1, sizeof kEffectsMark, open);
+    writeNumber(open, count);
+    for (const RecordedEffect& one : effects) {
+      if (!writable(one)) continue;
+      writeNumber(open, (std::uint32_t)one.kind);
+      writeNumber(open, (std::uint32_t)one.source.size());
+      std::fwrite(one.source.data(), 1, one.source.size(), open);
+    }
+  });
 }
 
 }  // namespace pipelines

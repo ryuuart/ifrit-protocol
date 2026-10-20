@@ -235,6 +235,38 @@ class FailedEvent:
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class KeyParameters:
+    """What key is asked."""
+
+    name: str
+    """The key's name as a keyboard spells it: "a", "ArrowLeft", "Enter"."""
+
+    code: int = 0
+    """The key's code."""
+
+    pressed: bool = False
+    """Whether it went down; false when it went up."""
+
+    def toJson(self) -> dict[str, messages.Json]:
+        """This table as the JSON object the wire carries."""
+        out: dict[str, messages.Json] = {}
+        out["name"] = self.name
+        out["code"] = self.code
+        out["pressed"] = self.pressed
+        return out
+
+    @classmethod
+    def fromJson(cls, value: messages.Json) -> KeyParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
+        return cls(
+            name=messages.requiredText(fields, "name"),
+            code=messages.integer(fields, "code", 0),
+            pressed=messages.boolean(fields, "pressed", False),
+        )
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class LaneCost:
     """What one lane of a frame cost, named by the runtime that spent it."""
 
@@ -365,6 +397,42 @@ class OpenedEvent:
         fields = messages.members(value, cls)
         return cls(
             summary=messages.requiredTable(fields, "summary", Summary.fromJson),
+        )
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class PointerParameters:
+    """What pointer is asked."""
+
+    x: float = 0.0
+    """Where the pointer stands across the canvas, in the canvas units the
+    sketch declared.
+    """
+
+    y: float = 0.0
+    """Where it stands down the canvas, in the canvas units the sketch
+    declared.
+    """
+
+    pressed: bool = False
+    """Whether its button is down."""
+
+    def toJson(self) -> dict[str, messages.Json]:
+        """This table as the JSON object the wire carries."""
+        out: dict[str, messages.Json] = {}
+        out["x"] = self.x
+        out["y"] = self.y
+        out["pressed"] = self.pressed
+        return out
+
+    @classmethod
+    def fromJson(cls, value: messages.Json) -> PointerParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
+        return cls(
+            x=messages.real(fields, "x", 0.0),
+            y=messages.real(fields, "y", 0.0),
+            pressed=messages.boolean(fields, "pressed", False),
         )
 
 
@@ -756,6 +824,24 @@ class Session:
         parameters = EvaluateParameters(code=code, mode=mode)
         answer = self._caller.call("session.evaluate", parameters.toJson())
         return _shared.answer("session.evaluate", EvaluateResult.fromJson, answer)
+
+    def pointer(self, *, x: float = 0.0, y: float = 0.0, pressed: bool = False) -> None:
+        """Puts the pointer over the running sketch at a point on its canvas,
+        with its button down or up, as a person's pointer is: the sketch
+        reads it from its next frame on, and a sketch of input hooks calls
+        the one the change from its last frame names.
+        """
+        parameters = PointerParameters(x=x, y=y, pressed=pressed)
+        answer = self._caller.call("session.pointer", parameters.toJson())
+        _shared.answer("session.pointer", _shared.Empty.fromJson, answer)
+
+    def key(self, *, name: str, code: int = 0, pressed: bool = False) -> None:
+        """A key going down or up over the running sketch, as a person's
+        keyboard sends one: the sketch reads it from its next frame on.
+        """
+        parameters = KeyParameters(name=name, code=code, pressed=pressed)
+        answer = self._caller.call("session.key", parameters.toJson())
+        _shared.answer("session.key", _shared.Empty.fromJson, answer)
 
     def enable(self) -> None:
         """Starts this client's session events."""

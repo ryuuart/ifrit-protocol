@@ -293,6 +293,23 @@ struct Scene2DContext {
     return deterministic ? pinned : value;
   }
 
+  /** WHERE THE POINTER STANDS over the canvas, in the canvas units the
+   *  sketch declared, and whether its button is down: what the host fed
+   *  the session, read when it is asked, so `update` sees a pointer the
+   *  host moved before the step. A paint program reads the same pointer
+   *  mapped into its own node's box as `PaintContext::pointer`. The
+   *  origin with the button up where nobody points.
+   *
+   *      if (ctx.pointer().pressed) drag(ctx.pointer().at); */
+  [[nodiscard]] compose::PaintContext::Pointer pointer() const {
+    return composer.pointer();
+  }
+  /** THE KEYBOARD as the host fed the session: the last key to go down by
+   *  name and code, whether any key is down, and every key that is. */
+  [[nodiscard]] const compose::KeyState& keys() const {
+    return composer.keys();
+  }
+
   /** One-shot intrinsic measurement with the host's fonts: size marquee
    *  strips, tooltips and badges from their content. */
   SkSize measure(const compose::Element& element,

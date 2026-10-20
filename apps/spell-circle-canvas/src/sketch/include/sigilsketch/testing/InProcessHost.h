@@ -109,6 +109,17 @@ class InProcessHost {
       protocol::session::EvaluationMode mode =
           protocol::session::EvaluationMode_Expression);
 
+  /** Puts the pointer over the running sketch at @p x, @p y on its canvas,
+   *  with its button down where @p pressed; the next step reads it. */
+  protocol::Answer<protocol::values::Empty> pointer(float x, float y,
+                                                    bool pressed);
+
+  /** A key named @p name, as a keyboard spells it, with its @p code,
+   *  going down where @p pressed and up otherwise; the next step reads
+   *  it. */
+  protocol::Answer<protocol::values::Empty> key(const std::string& name,
+                                                int code, bool pressed);
+
   /** ONE ENVELOPE'S TEXT, answered as envelope text: the socket's words
    *  in process. */
   std::string send(std::string_view envelope);

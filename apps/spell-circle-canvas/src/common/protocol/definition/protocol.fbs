@@ -391,6 +391,28 @@ table EvaluateResult {
   error: EvaluationError;
 }
 
+/// What pointer is asked.
+table PointerParameters {
+  /// Where the pointer stands across the canvas, in the canvas units the
+  /// sketch declared.
+  x: float;
+  /// Where it stands down the canvas, in the canvas units the sketch
+  /// declared.
+  y: float;
+  /// Whether its button is down.
+  pressed: bool;
+}
+
+/// What key is asked.
+table KeyParameters {
+  /// The key's name as a keyboard spells it: "a", "ArrowLeft", "Enter".
+  name: string (required);
+  /// The key's code.
+  code: int;
+  /// Whether it went down; false when it went up.
+  pressed: bool;
+}
+
 /// A session opened.
 table OpenedEvent {
   /// The session.
@@ -459,6 +481,14 @@ rpc_service Session {
   /// to, and refuses it otherwise, because it runs whatever a client
   /// sends.
   evaluate(EvaluateParameters): EvaluateResult (asynchronous, experimental);
+  /// Puts the pointer over the running sketch at a point on its canvas,
+  /// with its button down or up, as a person's pointer is: the sketch
+  /// reads it from its next frame on, and a sketch of input hooks calls
+  /// the one the change from its last frame names.
+  pointer(PointerParameters): sigil.protocol.Empty;
+  /// A key going down or up over the running sketch, as a person's
+  /// keyboard sends one: the sketch reads it from its next frame on.
+  key(KeyParameters): sigil.protocol.Empty;
   /// Starts this client's session events.
   enable(sigil.protocol.Empty): sigil.protocol.Empty;
   /// Stops this client's session events.

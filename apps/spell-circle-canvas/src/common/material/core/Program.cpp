@@ -302,6 +302,15 @@ size_t ProgramCache::size() const {
   return m_impl->programs.size();
 }
 
+std::vector<std::shared_ptr<Program>> ProgramCache::programs(
+    Target target) const {
+  std::lock_guard lock(m_impl->mutex);
+  std::vector<std::shared_ptr<Program>> held;
+  for (const auto& [key, program] : m_impl->programs)
+    if (key.target == target && program) held.push_back(program);
+  return held;
+}
+
 void ProgramCache::clear() {
   std::lock_guard lock(m_impl->mutex);
   ++m_impl->generation;

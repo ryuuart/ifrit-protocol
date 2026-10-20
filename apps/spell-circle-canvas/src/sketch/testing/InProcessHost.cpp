@@ -92,6 +92,29 @@ Answer<protocol::values::Empty> InProcessHost::pinDensity(double density) {
   return wait(answered);
 }
 
+Answer<protocol::values::Empty> InProcessHost::pointer(float x, float y,
+                                                       bool pressed) {
+  std::optional<Answer<protocol::values::Empty>> answered;
+  protocol::session::values::PointerParameters parameters;
+  parameters.x = x;
+  parameters.y = y;
+  parameters.pressed = pressed;
+  protocol::session::SessionClient(caller()).pointer(parameters,
+                                                     into(answered));
+  return wait(answered);
+}
+
+Answer<protocol::values::Empty> InProcessHost::key(const std::string& name,
+                                                   int code, bool pressed) {
+  std::optional<Answer<protocol::values::Empty>> answered;
+  protocol::session::values::KeyParameters parameters;
+  parameters.name = name;
+  parameters.code = code;
+  parameters.pressed = pressed;
+  protocol::session::SessionClient(caller()).key(parameters, into(answered));
+  return wait(answered);
+}
+
 Answer<protocol::values::Empty> InProcessHost::clock(
     protocol::clock::Policy policy, std::optional<double> budgetSeconds) {
   std::optional<Answer<protocol::values::Empty>> answered;

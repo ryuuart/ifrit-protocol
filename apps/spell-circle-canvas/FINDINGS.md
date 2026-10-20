@@ -41,15 +41,6 @@ reuses the edge coverage across ink changes; every bevel plate moves
 when it lands. A test should replay a bevelled leaf under a changing
 shader ink and find the band blurred once.
 
-## A sketch's own runtime effects build on its first frame
-
-A program over an effect made while the sketch's setup runs, such as
-`crt_bloom`'s overlay made after the Graphite context exists, carries no
-key, so no recorded key set can stand it up and `crt_bloom` builds two
-programs on every open. The host is meant to stand up every program a
-sketch's first frame needs. A test should open `crt_bloom` twice and
-find the second open's first frame building no program.
-
 ## The sparkle stretched over a passage is one streak, not points of light
 
 An ink maps its unit square onto the passage's box and the program
@@ -71,27 +62,6 @@ even on a device, where the mask should be made and blurred on the
 device. A settle-style Graphite arm of `BM_Draw_CoverageSheet_TurningChild`
 that alternates density should cost within a stated ratio of the steady
 arm; the change moves every device plate that uses held coverage.
-
-## A sketch without a pen cannot read input
-
-The scene2d context answers no pointer or key reading: `Composer` has
-`setPointer` and `setKey` and no getter, so only a pen or a paint
-program inside a node sees input, a function sketch with no `draw` reads
-its input globals at rest, and its input hooks never fire; and no
-protocol route feeds pointer or key input to a session, so input hooks
-cannot be driven end to end. `update` and `describe` hooks should read
-input too, and a session should take pointer and key input over the
-protocol. A test should set a pointer on the host before a step and find
-`ctx.pointer` in `update` reflecting it, and a session-level pointer
-call followed by a step firing `mousePressed`.
-
-## The workspace scan misses a file of functions
-
-Grimoire's workspace scan (`apps/grimoire/src/Workspace.cpp`,
-`entrySource`) finds only `@sketch` classes, so a file of top-level
-`setup`, `draw` or `describe` functions opens by path but is not
-discovered in a workspace. A test should put such a file in a workspace
-and find it listed.
 
 ## `overflow("hidden")` is refused
 
@@ -120,24 +90,6 @@ them printed plainly within the plot.
 `typing/parity.py` globs only top-level `python_*.py`, so
 `python_bundled_type` and `python_market_tape` never appear in
 PARITY.md; the study list should include `python_<stem>/python_<stem>.py`.
-
-## A restarted session keeps the failed status
-
-After a sketch fails and `Host::restartSession` succeeds, the error log
-clears and frames draw again, but `status()` still names the failure;
-the status should describe the session now running, in the live window
-and in Grimoire's replay alike. A test should fail a frame, restart the
-session, and find `status()` no longer naming the failure.
-
-## The host is not rebuilt when a framework header changes
-
-`Grimoire --frame` on a source-built C++ sketch refuses because a
-framework header is newer than the host binary, which fails
-`python_protocol_routes` until Grimoire is rebuilt by hand; the host
-target should depend on the framework headers it checks, so a build of
-the test's dependencies rebuilds it. A test should assert that
-`python_protocol_routes` passes after building only its stated
-dependencies.
 
 ## The Nostromo tube program states no reach
 
@@ -185,4 +137,22 @@ load the frame carried no pending wait, while a timed scene3d frame is
 meant to carry the presented picture's wait every time. The test should
 hold under `ctest -j8` with the device loaded; the case asserts a wait,
 not a duration, so the serial label is not its fix.
+
+## Effects past the declaration limit get no key
+
+Skia lets a context declare one hundred runtime effects; the effects a
+sketch's own setup compiled, written down at exit and declared on the
+next launch after the stock ones, are dropped with a message past that
+limit and stay unkeyed, so their programs build on every first frame.
+Every program a sketch draws is meant to be recorded and stood up. A
+test should fill a store past the limit and find it saying which
+sketches go unkeyed; the share of the hundred the stock effects use is
+not yet measured.
+
+## The window's input door has no test
+
+`WindowInput` answers `session.pointer` and `session.key` on the window
+as the headless host does, and nothing tests it, since a test needs a
+running window. A `--shot` window run driven over the endpoint should
+fire a function file's `mousePressed`.
 

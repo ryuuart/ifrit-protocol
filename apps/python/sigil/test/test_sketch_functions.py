@@ -36,6 +36,36 @@ class Context:
         self.calls.append(("render", element))
 
 
+class Point:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+
+class Pointer:
+    def __init__(self):
+        self.at, self.pressed = Point(0.0, 0.0), False
+
+
+class Keys:
+    def __init__(self):
+        self.key, self.keyCode, self.pressed, self.down = "", 0, False, []
+
+
+class InputContext(Context):
+    """A context answering the pointer and the keys the host fed it."""
+
+    def __init__(self, width=960, height=640):
+        super().__init__(width, height)
+        self.pointer, self.keys = Pointer(), Keys()
+
+    def point(self, x, y, pressed):
+        self.pointer.at, self.pointer.pressed = Point(x, y), pressed
+
+    def press(self, name, code):
+        self.keys.key, self.keys.keyCode, self.keys.pressed = name, code, True
+        self.keys.down = [code]
+
+
 class Pen:
     """The readings a pen hands a draw."""
 
@@ -252,6 +282,79 @@ class SketchFunctions(unittest.TestCase):
                 "draw",
             ],
         )
+
+    def test_without_draw_the_input_hooks_read_the_context(self):
+        body, module = self.load("""
+            from sigil.sketch.globals import *
+
+            heard = []
+
+            def setup():
+                pass
+
+            def mousePressed():
+                heard.append(("pressed", mouseX, mouseY))
+
+            def mouseReleased():
+                heard.append(("released", mouseX, mouseY))
+
+            def keyPressed():
+                heard.append(("key", key, keyCode))
+        """)
+        # Input hooks and no update: the file is stepped for its hooks.
+        self.assertTrue(hasattr(body, "update"))
+        instance, ctx = body(), InputContext()
+        instance.setup(ctx)
+        instance.update(0.0, ctx)
+        ctx.point(4, 8, True)
+        instance.update(1 / 60, ctx)
+        self.assertEqual((module.mouseX, module.mouseY), (4, 8))
+        self.assertTrue(module.mouseIsPressed)
+        ctx.point(10, 2, False)
+        ctx.press("q", 81)
+        instance.update(2 / 60, ctx)
+        self.assertEqual(
+            module.heard,
+            [("pressed", 4, 8), ("released", 10, 2), ("key", "q", 81)],
+        )
+
+    def test_a_describe_reads_the_input_through_the_context_setup_was_handed(self):
+        body, module = self.load("""
+            from sigil.sketch.globals import *
+
+            heard = []
+
+            def describe(seconds):
+                heard.append((mouseX, mouseIsPressed))
+
+            def mousePressed():
+                heard.append("pressed")
+        """)
+        instance, ctx = body(), InputContext()
+        instance.setup(ctx)
+        module.heard.clear()
+        instance.describe(0.0)
+        ctx.point(7, 3, True)
+        instance.describe(0.5)
+        self.assertEqual(module.heard, [(0, False), "pressed", (7, True)])
+
+    def test_input_hooks_never_run_unless_the_draw_or_the_context_reports_it(self):
+        body, module = self.load("""
+            from sigil.sketch.globals import *
+
+            heard = []
+
+            def setup():
+                pass
+
+            def mousePressed():
+                heard.append("pressed")
+        """)
+        instance, ctx = body(), Context()
+        instance.setup(ctx)
+        instance.update(0.0, ctx)
+        instance.update(1 / 60, ctx)
+        self.assertEqual(module.heard, [])
 
     def test_a_function_redefined_while_the_sketch_runs_is_the_one_called(self):
         body, module = self.load("""

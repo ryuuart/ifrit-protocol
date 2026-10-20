@@ -190,6 +190,7 @@ void bindPaths(py::module_& module) {
   field(ruler, "reach", &sketchKit::Ruler::reach);
   field(ruler, "gap", &sketchKit::Ruler::gap);
   field(ruler, "numbers", &sketchKit::Ruler::numbers);
+  field(ruler, "inside", &sketchKit::Ruler::inside);
   ruler.def_property(
       "tickLine",
       [](const sketchKit::Ruler& self) -> py::object {

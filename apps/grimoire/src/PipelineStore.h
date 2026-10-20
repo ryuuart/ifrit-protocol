@@ -101,4 +101,45 @@ std::vector<RecordedPipeline> readKeySet(const std::filesystem::path& file);
 bool writeKeySet(const std::filesystem::path& file,
                  std::span<const RecordedPipeline> recorded);
 
+/** WHAT A RUNTIME EFFECT IS FOR, which says how its text is compiled
+ *  again: a shader draws, a colour filter maps what is beneath it, and a
+ *  blender mixes two colours. */
+enum class EffectKind : std::uint8_t {
+  Shader = 0,
+  ColorFilter = 1,
+  Blender = 2
+};
+
+/** ONE RUNTIME EFFECT A RUN COMPILED that no declaration named: its kind
+ *  and the whole SkSL it was compiled from.
+ *
+ *  A body's own shader is compiled while the body sets up, after every
+ *  device context in the process was made, and a context can only carry
+ *  a key for a program over an effect it was told about when it was
+ *  made. So such an effect is written down when a run ends and declared
+ *  by the next launch before its contexts exist; compiled from the same
+ *  text it is the same effect to the backend, and the body's own
+ *  compile of it then carries the declared name. */
+struct RecordedEffect {
+  EffectKind kind = EffectKind::Shader;
+  std::string source;
+  bool operator==(const RecordedEffect&) const = default;
+};
+
+/** THE FILE THE RECORDED EFFECTS STAND IN, under @p directory. It is
+ *  one file for the store, never cut or reordered: each effect in it is
+ *  declared after the stock ones in the order it was written down, and a
+ *  recorded key names it by that place. */
+std::filesystem::path effectsFile(const std::filesystem::path& directory);
+
+/** The effects in @p file, in the order they were written; a file that
+ *  is missing or not one of these comes back empty, and a truncated one
+ *  with the effects that were whole. */
+std::vector<RecordedEffect> readEffects(const std::filesystem::path& file);
+
+/** Writes @p effects to @p file whole, beside and renamed over as a key
+ *  set is. Returns whether the file landed. */
+bool writeEffects(const std::filesystem::path& file,
+                  std::span<const RecordedEffect> effects);
+
 }  // namespace pipelines

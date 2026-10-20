@@ -148,6 +148,13 @@ add_test(NAME python_protocol_routes
     ${Python3_EXECUTABLE} -m unittest discover
       -s "${CMAKE_CURRENT_SOURCE_DIR}/test" -p "protocol_routes.py")
 set_tests_properties(python_protocol_routes PROPERTIES LABELS protocol)
+# Both launch the Grimoire the tree builds now, which refuses a sketch
+# compiled against a framework header newer than itself, so each waits on
+# the fixture that brings Grimoire up to date first.
+if(TARGET Grimoire)
+  set_tests_properties(python_authoring python_protocol_routes PROPERTIES
+    FIXTURES_REQUIRED grimoire_host)
+endif()
 
 find_program(SIGIL_BASEDPYRIGHT basedpyright
   HINTS "${CMAKE_BINARY_DIR}/typing-tools/bin" "${CMAKE_BINARY_DIR}/typing-tools/Scripts"

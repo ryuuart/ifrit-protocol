@@ -159,6 +159,13 @@ struct DecliningSession : protocol::session::SessionAgent {
       Reply<protocol::session::values::EvaluateResult> reply) override {
     reply(declined("session.evaluate"));
   }
+  Answer<Empty> pointer(
+      const protocol::session::values::PointerParameters&) override {
+    return declined("session.pointer");
+  }
+  Answer<Empty> key(const protocol::session::values::KeyParameters&) override {
+    return declined("session.key");
+  }
 };
 
 struct DecliningRegistry : protocol::registry::RegistryAgent {
@@ -184,13 +191,13 @@ TEST(ProtocolWiring, EachDomainMountsTheCommandsItsAgentAnswers) {
   protocol::registry::wire(board, registry);
   // enable and disable are the dispatcher's, so no wire() mounts them.
   EXPECT_EQ((std::set<std::string>{
-                "clock.current", "clock.pause", "clock.setPolicy",
-                "clock.setTimeScale", "clock.step", "host.describe",
-                "host.stateRoot", "host.version", "registry.catalog",
-                "registry.list", "session.evaluate", "session.measured",
-                "session.open", "session.pinDensity", "session.pinDevice",
-                "session.profile", "session.sequence", "session.still",
-                "session.timing"}),
+                "clock.current",      "clock.pause",      "clock.setPolicy",
+                "clock.setTimeScale", "clock.step",       "host.describe",
+                "host.stateRoot",     "host.version",     "registry.catalog",
+                "registry.list",      "session.evaluate", "session.key",
+                "session.measured",   "session.open",     "session.pinDensity",
+                "session.pinDevice",  "session.pointer",  "session.profile",
+                "session.sequence",   "session.still",    "session.timing"}),
             board.methods());
 }
 

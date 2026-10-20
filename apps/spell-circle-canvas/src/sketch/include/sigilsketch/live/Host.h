@@ -225,7 +225,9 @@ class Host {
   /** Reopens the current kind as a fresh runtime session without compiling
    *  it again. The host's watched source, loaded libraries and asset cache
    *  stay warm, while setup, clocks, Outputs and mount transitions all start
-   *  over. Returns false when no kind has loaded yet. */
+   *  over. Returns false when no kind has loaded yet. A restart that
+   *  succeeds takes back a failure the status named: the status describes
+   *  the session now running, as it did when that session's kind loaded. */
   bool restartSession();
   /** RUNS @p code INSIDE THE RUNNING SESSION — `Session::evaluate` — on
    *  the calling thread, which is the one that draws it, between two of
@@ -435,6 +437,9 @@ class Host {
   /** The same failure for a callback that threw something other than a
    *  standard exception, which carries no message of its own. */
   void sessionFailed(std::string message);
+  /** A session now running, described by @p status: what `status()`
+   *  says, and what it says again after a restart that succeeds. */
+  void running(std::string status);
   /** The one body of `still()` and `photograph()`: a surface of
    *  @p extent pixels from the capture backend, @p draw run onto it at
    *  @p scale, and the pixels read back. */
@@ -513,6 +518,8 @@ class Host {
   measure::FrameTimer m_frameTimes{{.pause = std::chrono::seconds(1)}};
   measure::Window<motion::Duration> m_drawTimes{120};
   std::string m_status = "waiting for first build";
+  /** What the status said when the running session's kind last loaded. */
+  std::string m_runningStatus;
   std::string m_errorLog;
   /** What `noteProblems` last put in the error log, so that it takes
    *  back its own words and never a build's. */

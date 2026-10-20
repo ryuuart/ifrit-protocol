@@ -141,6 +141,14 @@ class SessionAgent final : public protocol::session::SessionAgent {
   void evaluate(const protocol::session::values::EvaluateParameters& parameters,
                 protocol::Reply<protocol::session::values::EvaluateResult>
                     reply) override;
+  /** Puts the pointer over the running sketch, in its canvas units, as the
+   *  window's own pointer is put: the next frame reads it. */
+  protocol::Answer<protocol::values::Empty> pointer(
+      const protocol::session::values::PointerParameters& parameters) override;
+  /** A key going down or up over the running sketch, read from its next
+   *  frame on. */
+  protocol::Answer<protocol::values::Empty> key(
+      const protocol::session::values::KeyParameters& parameters) override;
 
   // --- the clock, as the clock domain's agent drives it -------------------
 

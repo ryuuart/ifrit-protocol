@@ -1365,6 +1365,51 @@ TEST(SketchPython, EvaluatedTextThatRaisesIsAnsweredAndTheSketchRunsOn) {
   EXPECT_TRUE(host->still(1.0)) << host->readout();
 }
 
+constexpr std::string_view kInputHooks =
+    "from sigil.sketch.globals import *\n"
+    "size(64, 48)\n"
+    "pressed = []\n"
+    "released = []\n"
+    "keys = []\n"
+    "seen = []\n"
+    "def setup():\n"
+    "    pass\n"
+    "def update(elapsed, ctx):\n"
+    "    at = ctx.pointer.at\n"
+    "    seen.append(((at.x, at.y), ctx.pointer.pressed))\n"
+    "def mousePressed():\n"
+    "    pressed.append((mouseX, mouseY))\n"
+    "def mouseReleased():\n"
+    "    released.append((mouseX, mouseY))\n"
+    "def keyPressed():\n"
+    "    keys.append((key, keyCode))\n";
+
+TEST(SketchPython,
+     ASessionsPointerAndKeysReachTheInputHooksOfAFileWithoutDraw) {
+  PythonSource source("sigil_python_input_hooks");
+  source.write("entry.py", kInputHooks);
+  const auto host = evaluatingHost(source, true);
+  ASSERT_TRUE(host->step(1.0 / 60.0)) << host->readout();
+  EXPECT_EQ(host->evaluate("pressed").result().value, "[]");
+
+  // The session's pointer, put before a step, is what update reads off the
+  // context and what the press the step finds calls mousePressed with.
+  const auto pointed = host->pointer(12, 30, true);
+  ASSERT_TRUE(pointed) << pointed.error().message;
+  ASSERT_TRUE(host->step(1.0 / 60.0)) << host->readout();
+  EXPECT_EQ(host->evaluate("pressed").result().value, "[(12.0, 30.0)]");
+  EXPECT_EQ(host->evaluate("seen[-1]").result().value, "((12.0, 30.0), True)");
+  EXPECT_EQ(host->evaluate("mouseIsPressed").result().value, "True");
+
+  ASSERT_TRUE(host->pointer(20, 10, false));
+  const auto keyed = host->key("a", 65, true);
+  ASSERT_TRUE(keyed) << keyed.error().message;
+  ASSERT_TRUE(host->step(1.0 / 60.0)) << host->readout();
+  EXPECT_EQ(host->evaluate("released").result().value, "[(20.0, 10.0)]");
+  EXPECT_EQ(host->evaluate("keys").result().value, "[('a', 65)]");
+  EXPECT_EQ(host->evaluate("pressed").result().value, "[(12.0, 30.0)]");
+}
+
 TEST(SketchPython, AHostThatWasNotToldToEvaluatesNothing) {
   PythonSource source("sigil_python_evaluate_shut");
   source.write("entry.py", kEvaluated);
@@ -1604,7 +1649,8 @@ sketch::Kind entryKind() { return g_entryKind; }
  *  the file's text and the kind the import makes alike — and a scene3d
  *  sketch is then unavailable with the one message every device door
  *  speaks, though the process installed a device runtime. */
-TEST(SketchPython, AThumbnailOfAScene3DSketchStatesNoDeviceWhateverTheProcessHolds) {
+TEST(SketchPython,
+     AThumbnailOfAScene3DSketchStatesNoDeviceWhateverTheProcessHolds) {
   PythonSource source("sigil_python_scene3d_thumbnail");
   source.write("entry.py", kScene3DSketch);
   sketch::useRuntime(sigil::world::Runtime(InstalledRuntime{}));
@@ -1659,26 +1705,26 @@ TEST_F(SketchPythonBakes, AScene3DContextListsItsSessionsBundledFamilies) {
   sigil::weave::FontContext own(sigil::weave::ports::systemFontManager());
   own.adopt(sigil::weave::fromSk(sans), "res://Sans.ttf");
   PythonSource source("sigil_python_scene3d_fonts");
-  source.write("entry.py",
-               "import builtins\n"
-               "from sigil import weave, world\n"
-               "from sigil.sketch import sketch\n"
-               "@sketch(size=(32, 32), captureAt=0)\n"
-               "class Lettered:\n"
-               "    def setup(self, ctx):\n"
-               "        name = weave.fonts.families(ctx.fonts)[0]\n"
-               "        family = weave.fonts.family(name, ctx.fonts)\n"
-               "        builtins._sigil_scene3d_family = (name, family.bundled)\n"
-               "    def describe(self, seconds) -> world.Frame:\n"
-               "        sun = world.directionalLight((0, 0, -1)).key('sun')\n"
-               "        return world.Frame(world.group(sun).key('set'))\n");
+  source.write(
+      "entry.py",
+      "import builtins\n"
+      "from sigil import weave, world\n"
+      "from sigil.sketch import sketch\n"
+      "@sketch(size=(32, 32), captureAt=0)\n"
+      "class Lettered:\n"
+      "    def setup(self, ctx):\n"
+      "        name = weave.fonts.families(ctx.fonts)[0]\n"
+      "        family = weave.fonts.family(name, ctx.fonts)\n"
+      "        builtins._sigil_scene3d_family = (name, family.bundled)\n"
+      "    def describe(self, seconds) -> world.Frame:\n"
+      "        sun = world.directionalLight((0, 0, -1)).key('sun')\n"
+      "        return world.Frame(world.group(sun).key('set'))\n");
   const sketch::Kind kind = sketch::python::load(source.entry());
   auto session = kind->open(own, assets(), true, "lettered");
   const pybind11::gil_scoped_acquire lock;
   const pybind11::module_ builtins = pybind11::module_::import("builtins");
-  const auto [name, bundled] =
-      builtins.attr("_sigil_scene3d_family")
-          .cast<std::pair<std::string, bool>>();
+  const auto [name, bundled] = builtins.attr("_sigil_scene3d_family")
+                                   .cast<std::pair<std::string, bool>>();
   builtins.attr("__dict__").attr("pop")("_sigil_scene3d_family");
   EXPECT_EQ(name, familyOf(sans.get()));
   EXPECT_TRUE(bundled);

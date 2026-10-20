@@ -534,6 +534,48 @@ void SessionAgent::profile(const values::ProfileParameters& parameters,
   m_pendingProfile = PendingProfile{parameters.limit, std::move(reply)};
 }
 
+// --- input -----------------------------------------------------------------
+
+Answer<protocol::values::Empty> SessionAgent::pointer(
+    const values::PointerParameters& parameters) {
+  if (!std::isfinite(parameters.x) || !std::isfinite(parameters.y))
+    return refusal(ErrorCode_failed,
+                   "session.pointer: a pointer stands at a finite point on "
+                   "the canvas");
+  Session* session = m_host && m_host->live() ? m_host->session() : nullptr;
+  if (!session || m_pendingOpen)
+    return refusal(ErrorCode_failed,
+                   m_pendingOpen ? "session.pointer: the session is still "
+                                   "opening"
+                                 : "session.pointer: no session is open");
+  try {
+    session->pointer(parameters.x, parameters.y, parameters.pressed);
+  } catch (const std::exception& error) {
+    return refusal(ErrorCode_failed,
+                   std::string("session.pointer: ") + error.what());
+  }
+  return protocol::values::Empty{};
+}
+
+Answer<protocol::values::Empty> SessionAgent::key(
+    const values::KeyParameters& parameters) {
+  if (parameters.name.empty())
+    return refusal(ErrorCode_failed,
+                   "session.key: a key is named as a keyboard spells it");
+  Session* session = m_host && m_host->live() ? m_host->session() : nullptr;
+  if (!session || m_pendingOpen)
+    return refusal(ErrorCode_failed,
+                   m_pendingOpen ? "session.key: the session is still opening"
+                                 : "session.key: no session is open");
+  try {
+    session->key(parameters.name, parameters.code, parameters.pressed);
+  } catch (const std::exception& error) {
+    return refusal(ErrorCode_failed,
+                   std::string("session.key: ") + error.what());
+  }
+  return protocol::values::Empty{};
+}
+
 // --- evaluation ------------------------------------------------------------
 
 void SessionAgent::evaluate(const values::EvaluateParameters& parameters,

@@ -141,7 +141,11 @@ a trail. Set persistent pen style on the first frame.
 `pen.noLoop()`, `pen.redraw()` and `pen.frameRate(fps)` control when the program
 runs; its last surface remains visible between runs. Resizing carries its
 pixels forward. The pen reads the host's current pointer and key state each
-frame; it has no separate event callback lifecycle.
+frame; it has no separate event callback lifecycle. A body with no pen reads
+the same state off its context: `Scene2DContext::pointer` answers where the
+pointer stands in canvas units and whether its button is down, and
+`Scene2DContext::keys` the last key and every key down, so `update` sees
+input the host fed before the step.
 [SigilDraw](../common/draw/README.md) defines the pen, and
 [SigilCompose](../common/compose/README.md) defines the node.
 

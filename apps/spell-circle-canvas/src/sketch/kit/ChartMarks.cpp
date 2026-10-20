@@ -37,6 +37,25 @@ float edge(Align align, float at, float extent) {
   return at;
 }
 
+/** WHERE A CHILD OF @p extent SITS ALONG ONE BOX AXIS OF @p room, KEPT
+ *  INSIDE IT: anchored by @p align and @p offset on @p at where that fits;
+ *  else mirrored onto the point's other side — a number hung off an axis
+ *  set past its tick instead of under it; else held against the nearer
+ *  edge, as far as the child fits. */
+float kept(Align align, float at, float offset, float extent, float room) {
+  const auto fits = [&](float near) {
+    return near >= 0.0f && near + extent <= room;
+  };
+  const float stated = edge(align, at + offset, extent);
+  if (fits(stated)) return stated;
+  const Align mirrored = align == Align::End     ? Align::Start
+                         : align == Align::Center ? Align::Center
+                                                  : Align::End;
+  const float flipped = edge(mirrored, at - offset, extent);
+  if (fits(flipped)) return flipped;
+  return std::clamp(stated, 0.0f, std::max(room - extent, 0.0f));
+}
+
 /** THE OFFSET APPLIED TO A MAPPED POINT: the two numbers as box axes on a
  *  Cartesian frame, and as the tangent and the radius at that angle on a
  *  polar one — which is what carries a word off a rim. */
@@ -69,21 +88,33 @@ struct Anchored {
   Plot frame;
   std::vector<Datum> data;
   Anchor anchor;
+  /** Whether a child is kept inside the container's box, as `kept` keeps
+   *  it; a polar frame places as stated. */
+  bool inside = false;
 
   void arrange(Arrangement& arrangement) const {
     const SkSize container = geometry::path::toSkSize(arrangement.box.size());
     for (auto& child : arrangement.children) child.rect = {};
     for (std::size_t i = 0; i < arrangement.children.size() && i < data.size();
          ++i) {
-      const SkPoint point =
-          nudged(frame, frame.at(data[i].x, data[i].y, container), data[i],
-                 anchor.offset);
+      const SkPoint mapped = frame.at(data[i].x, data[i].y, container);
       const SkSize size =
           geometry::path::toSkSize(arrangement.children[i].size);
-      arrangement.children[i].place(geometry::path::fromSk(
-          SkRect::MakeXYWH(edge(anchor.across, point.fX, size.width()),
-                           edge(anchor.down, point.fY, size.height()),
-                           size.width(), size.height())));
+      SkRect placed;
+      if (inside && !frame.polar) {
+        placed = SkRect::MakeXYWH(
+            kept(anchor.across, mapped.fX, anchor.offset.fX, size.width(),
+                 container.width()),
+            kept(anchor.down, mapped.fY, anchor.offset.fY, size.height(),
+                 container.height()),
+            size.width(), size.height());
+      } else {
+        const SkPoint point = nudged(frame, mapped, data[i], anchor.offset);
+        placed = SkRect::MakeXYWH(edge(anchor.across, point.fX, size.width()),
+                                  edge(anchor.down, point.fY, size.height()),
+                                  size.width(), size.height());
+      }
+      arrangement.children[i].place(geometry::path::fromSk(placed));
     }
   }
 };
@@ -251,11 +282,11 @@ std::string named(std::string_view key, std::string_view word,
 
 Layer anchored(std::vector<Datum> data, std::vector<Element> children,
                const Anchor& anchor, std::string_view word,
-               std::string_view styleClass) {
+               std::string_view styleClass, bool inside) {
   return [data = std::move(data), children = std::move(children), anchor,
-          word = std::string(word), cls = std::string(styleClass)](
+          word = std::string(word), cls = std::string(styleClass), inside](
              const Plot& frame, std::string_view key, std::size_t index) {
-    Element field = compose::layout(Anchored{frame, data, anchor})
+    Element field = compose::layout(Anchored{frame, data, anchor, inside})
                         .styleClass(cls)
                         .absolute()
                         .inset(0);

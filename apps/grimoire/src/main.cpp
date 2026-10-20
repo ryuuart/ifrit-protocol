@@ -145,6 +145,7 @@
 #include "WindowBench.h"
 #include "WindowCapture.h"
 #include "WindowEvaluation.h"
+#include "WindowInput.h"
 #include "Workspace.h"
 
 namespace sketch = sigil::sketch;
@@ -741,6 +742,9 @@ int main(int argc, char* argv[]) {
   QObject::connect(&inspectionPump, &QTimer::timeout,
                    [&inspection] { inspection.advance(); });
   if (inspection.listening()) inspectionPump.start(kInspectionPumpMilliseconds);
+  // POINTER AND KEY INPUT FROM A CLIENT, reaching the sketch on screen as
+  // the window's own pointer and keyboard do.
+  if (inspection.listening()) mountWindowInput(inspection.dispatcher());
   // THE EVALUATE DOOR, only when asked: whatever a client on this machine
   // sends runs inside the sketch on screen. Declared before the engine,
   // so it goes after the render thread that answers it has stopped.

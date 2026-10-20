@@ -435,6 +435,13 @@ void Composer::setKey(std::string_view name, int code, bool pressed) {
   keys.pressed = !keys.down.empty();
 }
 
+PaintContext::Pointer Composer::pointer() const {
+  return {{m_impl->pointerAt.x(), m_impl->pointerAt.y()},
+          m_impl->pointerPressed};
+}
+
+const KeyState& Composer::keys() const { return m_impl->keys; }
+
 const std::vector<Composer::NodeCost>& Composer::profile() const {
   return m_impl->profileRows;
 }

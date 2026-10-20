@@ -25,8 +25,9 @@ namespace before every hook runs, so a hook reads them as plain names:
 ``width`` and ``height`` of the canvas, ``frameCount``, ``seconds`` of scene
 time, ``deltaTime`` in milliseconds as the pen spells it, ``mouseX``,
 ``mouseY``, ``mouseIsPressed``, ``key``, ``keyCode`` and ``keyIsPressed``.
-The pointer and the keyboard are read from the pen a ``draw`` is handed, so
-a sketch without ``draw`` reads them at rest and its input hooks never run.
+The pointer and the keyboard are read from the pen a ``draw`` is handed, and
+in a sketch without ``draw`` from the context's ``pointer`` and ``keys``
+before ``update`` or ``describe`` runs, so its input hooks run there.
 """
 
 import inspect
@@ -261,10 +262,7 @@ class _Readings:
     def fromPen(self, pen):
         """Everything the pen a draw is handed reads, then each input hook
         the change since the last frame calls."""
-        previous = dict(self.values)
-        first = not self.drawn
-        self.drawn = True
-        self.values.update(
+        self._input(
             width=pen.width,
             height=pen.height,
             frameCount=pen.frameCount,
@@ -277,6 +275,29 @@ class _Readings:
             keyCode=pen.keyCode,
             keyIsPressed=pen.keyIsPressed,
         )
+
+    def fromContext(self, ctx):
+        """The pointer and the keyboard a context answers, where no draw is
+        handed a pen, then each input hook the change since the last frame
+        calls; a context that answers neither leaves them at rest."""
+        try:
+            pointer, keys = ctx.pointer, ctx.keys
+        except (AttributeError, RuntimeError):
+            return
+        self._input(
+            mouseX=pointer.at.x,
+            mouseY=pointer.at.y,
+            mouseIsPressed=pointer.pressed,
+            key=keys.key,
+            keyCode=keys.keyCode,
+            keyIsPressed=keys.pressed,
+        )
+
+    def _input(self, **readings):
+        previous = dict(self.values)
+        first = not self.drawn
+        self.drawn = True
+        self.values.update(readings)
         self.write()
         for name in _changes(previous, self.values, first=first):
             self.hooks(name)
@@ -352,8 +373,12 @@ def sketchOf(module: ModuleType) -> type:
     def __init__(self):
         self._sigilReadings = _Readings(module, hooks, canvas)
         self._sigilReadings.write()
+        self._sigilContext = None
 
     def setup(self, ctx):
+        # The context answers for the session's life, so a describe handed
+        # only the scene time reads the pointer and the keyboard through it.
+        self._sigilContext = ctx
         readings = self._sigilReadings
         readings.time(getattr(ctx, "elapsed", 0.0), _size(ctx))
         with themed(self):
@@ -380,6 +405,8 @@ def sketchOf(module: ModuleType) -> type:
         else:
             readings.time(elapsed, _size(ctx))
         with themed(self), _hook():
+            if not drawn:
+                readings.fromContext(ctx)
             hooks("update", elapsed, ctx)
 
     def describeAt(self, seconds):
@@ -389,6 +416,8 @@ def sketchOf(module: ModuleType) -> type:
         else:
             readings.time(seconds)
         with themed(self), _hook():
+            if not drawn and self._sigilContext is not None:
+                readings.fromContext(self._sigilContext)
             return hooks("describe", seconds)
 
     describeAt.__name__ = describeAt.__qualname__ = "describe"
@@ -403,7 +432,10 @@ def sketchOf(module: ModuleType) -> type:
     }
     if drawn:
         namespace["draw"] = draw
-    if _defined(module, "update") is not None:
+    # Without a draw the input hooks are called from the step, so a file of
+    # input hooks and no update is stepped all the same.
+    listens = not drawn and any(_defined(module, name) for name in EVENTS)
+    if _defined(module, "update") is not None or listens:
         namespace["update"] = update
     if describe is not None:
         namespace["describe"] = describeAt

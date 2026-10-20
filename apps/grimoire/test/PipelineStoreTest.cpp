@@ -85,6 +85,24 @@ TEST(GrimoirePipelineStore, AWrittenSetReadsBackKeyForKey) {
   EXPECT_FALSE(fs::exists(fs::path(file).concat(".writing")));
 }
 
+TEST(GrimoirePipelineStore, RecordedEffectsReadBackInTheOrderWritten) {
+  const Scratch scratch("effects");
+  const fs::path file = pipelines::effectsFile(scratch.path());
+  EXPECT_TRUE(pipelines::readEffects(file).empty());
+  const std::vector<pipelines::RecordedEffect> written = {
+      {pipelines::EffectKind::Shader,
+       "half4 main(float2 xy) { return half4(1); }"},
+      {pipelines::EffectKind::ColorFilter,
+       "half4 main(half4 c) { return c.bgra; }"},
+      {pipelines::EffectKind::Blender,
+       "half4 main(half4 s, half4 d) { return s + d; }"}};
+  ASSERT_TRUE(pipelines::writeEffects(file, written));
+  EXPECT_EQ(pipelines::readEffects(file), written);
+  // An effect is not a key set, so a store holding only effects holds no
+  // set a launch could replay.
+  EXPECT_FALSE(pipelines::holdsAnySketchSet(scratch.path(), ""));
+}
+
 TEST(GrimoirePipelineStore, AMissingFileIsAnEmptySetAndNotAnError) {
   const Scratch scratch("missing");
   EXPECT_TRUE(

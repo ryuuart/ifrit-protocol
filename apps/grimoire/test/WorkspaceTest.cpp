@@ -91,6 +91,22 @@ TEST_F(GrimoireWorkspace, PythonNamesDoNotTurnModulesIntoSketches) {
   EXPECT_EQ(workspaceFiles(root), std::vector<fs::path>{entry});
 }
 
+TEST_F(GrimoireWorkspace, AFileOfFunctionsIsASketch) {
+  const auto drawn =
+      write("drawn.py",
+            "from sigil.sketch.globals import *\n\ndef draw(pen):\n"
+            "    pen.circle(mouseX, mouseY, 24)\n");
+  const auto described = write("described.py",
+                               "async def describe(seconds) -> Frame:\n"
+                               "    return frame\n");
+  const auto setUp = write("set_up.py", "def setup():\n    size(64, 48)\n");
+  write("method.py", "class Helper:\n    def draw(self, pen): pass\n");
+  write("quoted.py", "'''\ndef draw(pen): pass\n'''\n# def setup():\n");
+  write("helper.py", "def drawing(pen): pass\ndef update(seconds): pass\n");
+  EXPECT_EQ(workspaceFiles(root),
+            (std::vector<fs::path>{described, drawn, setUp}));
+}
+
 TEST_F(GrimoireWorkspace, APackageInitializerCanExplicitlyDeclareASketch) {
   const auto entry =
       write("src/art/__init__.py", "@sketch()\nclass Art: pass\n");

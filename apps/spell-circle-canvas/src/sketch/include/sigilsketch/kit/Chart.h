@@ -235,10 +235,19 @@ struct Ruler {
   float gap = 3.0f;
   /** Whether the ticks are numbered. */
   bool numbers = true;
+  /** WHETHER EACH NUMBER IS KEPT INSIDE THE PLOT'S BOX, on a Cartesian
+   *  frame: measured where it is laid out, a number its place would carry
+   *  past an edge is set on its tick's other side, or held against the
+   *  edge where that does not fit either. Off, the numbers hang outside
+   *  the field into whatever room the plot's parent gives them; on, a plot
+   *  with no room around it still shows every number. */
+  bool inside = false;
   /** THE NUMBER AT ONE TICK, as a function of the VALUE — because how a
    *  number reads is the data's business and not the kit's — and then of
    *  this ruler; a part takes the parameters it names. Empty is the value
-   *  to three significant figures in the class `plotTick`. */
+   *  written plainly, in the class `plotTick`: as many decimals as the
+   *  finest step between the ticks needs, trailing zeros trimmed, never an
+   *  exponent and never a thousands separator. */
   compose::kit::Part<double, Ruler> tickLine;
 };
 
@@ -540,11 +549,15 @@ namespace detail {
 
 /** The layer that places @p children, one per datum of @p data, each
  *  anchored on the point the frame maps that datum to; @p word names the
- *  part in the container's key, @p styleClass dresses it. */
+ *  part in the container's key, @p styleClass dresses it. With @p inside,
+ *  on a Cartesian frame, a child its anchor would carry past the box's
+ *  edge is mirrored onto its point's other side, or held against the edge
+ *  where that does not fit either. */
 [[nodiscard]] Layer anchored(std::vector<Datum> data,
                              std::vector<compose::Element> children,
                              const Anchor& anchor, std::string_view word,
-                             std::string_view styleClass);
+                             std::string_view styleClass,
+                             bool inside = false);
 /** @p stated, or @p own where a layer named no class of its own. */
 [[nodiscard]] inline std::string_view classOf(const std::string& stated,
                                               std::string_view own) {
