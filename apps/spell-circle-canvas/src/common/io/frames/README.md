@@ -211,5 +211,9 @@ labelled `gpu` and built on macOS, publishes a two-by-two frame over a
 `sigil::io::frames::publications()`, and has two subscribers that join
 after drawing stops each receive it, bottom row first and every channel
 where it was drawn; it turns the run loop itself, as a command-line
-receiver does, and skips without a Metal device. `ReceivedFrame`, also
+receiver does, and skips without a Metal device. Its publication's name
+carries the process's identifier, because the directory of publications
+is one per machine; `io_frames_delivery_in_two_processes` runs the case in
+two `io_test` processes at once, three rounds over, and passes only when
+both come out whole every time. `ReceivedFrame`, also
 `gpu`, binds an arrival for a recorder that cannot sample it.

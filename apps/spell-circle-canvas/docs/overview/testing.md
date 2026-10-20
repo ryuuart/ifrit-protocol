@@ -76,6 +76,7 @@ Other labels state required facilities:
 |---|---|
 | `gpu` | Metal on Apple, or a Vulkan runtime |
 | `fonts` | Installed platform fonts |
+| `timed` | A case that measures device time; it runs serially so no other process shares the device |
 | `network` | An internet route |
 | `oiio`, `ocio`, `svg` | The named decode or color backend |
 | `substance`, `ultralight` | The named licensed SDK or its fixtures |

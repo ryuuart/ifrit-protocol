@@ -272,6 +272,11 @@ endfunction()
 #   case is selected by name with no target behind it. A group of cases
 #   that carries labels is discovered by itself with those labels on it;
 #   everything the groups do not name is discovered with the binary's own.
+#   A case one group names by Suite.Case is that group's alone, even when
+#   another group names its whole suite. A group labelled `timed` runs
+#   each of its cases with no other case beside it: what such a case
+#   asserts is a duration, and a device or processor another process is
+#   driving stretches it.
 function(sigil_finalize_tests)
   get_property(binaries GLOBAL PROPERTY SIGIL_TEST_BINARIES)
   foreach(target IN LISTS binaries)
@@ -279,26 +284,58 @@ function(sigil_finalize_tests)
   endforeach()
 endfunction()
 
+# The Suite.Case and Suite.* filters a group's "labels|patterns" entry names.
+function(_sigil_test_group_patterns group out_labels out_patterns)
+  string(REGEX MATCH "^([^|]*)\\|(.*)$" matched "${group}")
+  string(REPLACE "," ";" labels "${CMAKE_MATCH_1}")
+  string(REPLACE "," ";" names "${CMAKE_MATCH_2}")
+  set(patterns)
+  foreach(name IN LISTS names)
+    # A bare name is a whole suite; a name with a dot is one case.
+    if(NOT name MATCHES "\\.")
+      string(APPEND name ".*")
+    endif()
+    list(APPEND patterns ${name})
+  endforeach()
+  set(${out_labels} "${labels}" PARENT_SCOPE)
+  set(${out_patterns} "${patterns}" PARENT_SCOPE)
+endfunction()
+
+# The properties a group's labels add beyond the labels themselves.
+function(_sigil_test_serial labels out_properties)
+  set(properties)
+  if("timed" IN_LIST labels)
+    set(properties RUN_SERIAL TRUE)
+  endif()
+  set(${out_properties} ${properties} PARENT_SCOPE)
+endfunction()
+
 function(_sigil_discover_tests target)
   get_property(groups TARGET ${target} PROPERTY SIGIL_TEST_LABEL_GROUPS)
   set(labelled)
+  set(single_cases)
   foreach(group IN LISTS groups)
-    string(REGEX MATCH "^([^|]*)\\|(.*)$" matched "${group}")
-    string(REPLACE "," ";" labels "${CMAKE_MATCH_1}")
-    string(REPLACE "," ";" patterns "${CMAKE_MATCH_2}")
-    set(filter)
+    _sigil_test_group_patterns("${group}" labels patterns)
+    list(APPEND labelled ${patterns})
     foreach(pattern IN LISTS patterns)
-      # A bare name is a whole suite; a name with a dot is one case.
-      if(NOT pattern MATCHES "\\.")
-        string(APPEND pattern ".*")
+      if(NOT pattern MATCHES "\\.\\*$")
+        list(APPEND single_cases ${pattern})
       endif()
-      list(APPEND filter ${pattern})
-      list(APPEND labelled ${pattern})
     endforeach()
-    list(JOIN filter ":" filter)
+  endforeach()
+  foreach(group IN LISTS groups)
+    _sigil_test_group_patterns("${group}" labels patterns)
+    set(claimed_elsewhere ${single_cases})
+    list(REMOVE_ITEM claimed_elsewhere ${patterns})
+    list(JOIN patterns ":" filter)
+    if(claimed_elsewhere)
+      list(JOIN claimed_elsewhere ":" excluded)
+      string(APPEND filter "-${excluded}")
+    endif()
+    _sigil_test_serial("${labels}" serial)
     gtest_discover_tests(${target}
       TEST_FILTER "${filter}"
-      PROPERTIES LABELS "${labels}"
+      PROPERTIES LABELS "${labels}" ${serial}
       DISCOVERY_MODE PRE_TEST)
   endforeach()
   set(rest)
@@ -308,9 +345,10 @@ function(_sigil_discover_tests target)
   endif()
   get_property(labels TARGET ${target} PROPERTY SIGIL_TEST_LABELS)
   list(REMOVE_DUPLICATES labels)
+  _sigil_test_serial("${labels}" serial)
   gtest_discover_tests(${target}
     TEST_FILTER "${rest}"
-    PROPERTIES LABELS "${labels}"
+    PROPERTIES LABELS "${labels}" ${serial}
     DISCOVERY_MODE PRE_TEST)
 endfunction()
 
@@ -358,6 +396,28 @@ function(sigil_test name)
       SIGIL_TEST_LABEL_GROUPS "${labels}|${suites}")
   elseif(ARG_LABELS)
     set_property(TARGET ${name} APPEND PROPERTY SIGIL_TEST_LABELS ${ARG_LABELS})
+  endif()
+endfunction()
+
+# sigil_test_processes(<name> PROCESSES <count> ROUNDS <count>
+#                      COMMAND <command>... [LABELS <label>...])
+#   A ctest entry that runs COMMAND in PROCESSES processes at once, ROUNDS
+#   times over, and passes when every process of every round passes: the
+#   question it asks is whether copies of one program can run beside each
+#   other on a machine whose facilities they share, which no case inside
+#   one process can ask.
+function(sigil_test_processes name)
+  cmake_parse_arguments(ARG "" "PROCESSES;ROUNDS" "COMMAND;LABELS" ${ARGN})
+  if(NOT ARG_COMMAND OR NOT ARG_PROCESSES OR NOT ARG_ROUNDS)
+    message(FATAL_ERROR
+      "sigil_test_processes(${name}): COMMAND, PROCESSES and ROUNDS are required")
+  endif()
+  add_test(NAME ${name}
+    COMMAND ${Python3_EXECUTABLE}
+      "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/test/ConcurrentProcesses.py"
+      --processes ${ARG_PROCESSES} --rounds ${ARG_ROUNDS} -- ${ARG_COMMAND})
+  if(ARG_LABELS)
+    set_tests_properties(${name} PROPERTIES LABELS "${ARG_LABELS}")
   endif()
 endfunction()
 

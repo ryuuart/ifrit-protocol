@@ -164,33 +164,25 @@ scene time. A test should render the plate under a GPU load and find it
 byte-identical. `chrome_type` moved by up to five levels in its bevel
 glow during the same runs and should be read the same way.
 
-## Timed device cases run beside other GPU users
+## Syphon's message receiver can be freed while a queued message is still delivered to it
 
-`PostChain.TheSeenPhaseOfAPaneCostsASmallMultipleOfALaidCard` and
-`TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn` measure device time and
-fail under `ctest -j8` when other processes share the GPU; a timed case
-should run serially. The suite discovery in `cmake/Sigil.cmake` should
-give timed cases a serial property or a resource lock on the device.
+A process whose Syphon publisher stops as a subscriber leaves can crash
+in Syphon's message return callback: the receiver's port context carries
+no retain or release and `invalidate` does not drain the shared
+messaging queue, so a departure message still queued calls into the
+freed receiver; load widens the window. A receiver should outlive every
+callback queued for it. A draft port patch giving the port context
+retain and release and releasing the port on invalidate waits in the
+session's scratchpad (`tests-syphon/syphon-receiver-outlives-its-port.patch`)
+for the registry; once it lands, `io_frames_delivery_in_two_processes`
+and repeated `FramesDelivery` runs under load should never crash.
 
-## Parallel io_test processes see each other's Syphon servers
+## A timed scene3d sweep frame can carry no pending wait under load
 
-The Syphon server directory is system-wide, so two `io_test` processes
-running `FramesDelivery` at once see each other's servers and one
-crashed in Syphon's message return callback; the case passes alone. The
-case should publish under a name unique to its process and subscribe to
-that name alone, or the suite should run serially.
-
-## Two reload tests fail alone and two more failed in a parallel run
-
-`sketch_reload_surface` and `sketch_reload_surface_scene3d` fail when
-run alone, and `sketch_reload_named` and `sketch_pipeline_warmup` failed
-in a parallel run and were not rerun; the reload lane should be green
-alone and in parallel. The first step is to run each alone on the
-current tree and read its output.
-
-## Two new bench arms have no ledger bands
-
-`BM_UnshadowedCardOnDevice` and `BM_ShadowShareOnDevice` surface 3 are
-not in `bench/baseline_Release.json`; the bench rebase for those arms
-should adopt them.
+`DeviceSweep.ATimedScene3DFrameCarriesThePresentedPicturesWait`
+(`src/sketch/plate/test/SweepTest.cpp`) failed in a parallel gpu run: under
+load the frame carried no pending wait, while a timed scene3d frame is
+meant to carry the presented picture's wait every time. The test should
+hold under `ctest -j8` with the device loaded; the case asserts a wait,
+not a duration, so the serial label is not its fix.
 

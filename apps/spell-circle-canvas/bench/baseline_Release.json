@@ -1,8 +1,8 @@
 {
  "config": "Release",
- "host": "sigil.local",
+ "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-10-13T15:23:59+00:00",
+ "taken": "2026-10-20T06:28:34+00:00",
  "benches": {
   "compose_bench": {
    "BM_Mount_Cold/100": {
@@ -6245,6 +6245,30 @@
     "real_ns": 2974.3420769014338,
     "cpu_ns": 2974.336805702046,
     "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ShadowShareOnDevice/surface:3/casts:0/iterations:60/manual_time": {
+    "real_ns": 948564.9216609697,
+    "cpu_ns": 421675.0000000028,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_ShadowShareOnDevice/surface:3/casts:1/iterations:60/manual_time": {
+    "real_ns": 2075768.0875249207,
+    "cpu_ns": 433733.33333332674,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_UnshadowedCardOnDevice/terms:0/iterations:60/manual_time": {
+    "real_ns": 479063.8767493268,
+    "cpu_ns": 408816.66666662635,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_UnshadowedCardOnDevice/terms:1/iterations:60/manual_time": {
+    "real_ns": 696453.8207588096,
+    "cpu_ns": 385508.3333333435,
+    "unit": "ms",
     "repetitions": 4
    }
   }

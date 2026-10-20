@@ -38,7 +38,11 @@ between files in the owning library's `test/support/`, and use existing
 testing targets before creating another harness.
 
 Label cases that need a device, installed font or other facility (`gpu`,
-`fonts`), and report skips as skipped coverage. Prefer committed instrument
+`fonts`), and report skips as skipped coverage. A case whose assertion is
+a duration on the device carries `timed` as well, by `Suite.Case` beside
+its suite's own group; the discovery runs a `timed` case with no other
+case beside it (`RUN_SERIAL`), because another process driving the same
+device stretches what it measures. Prefer committed instrument
 assets: `src/test/assets/` contains generated faces with one property each,
 reached through `sigil::test::instrument::sans()` and its siblings. Assets
 needed by only one library stay in its own `test/assets/`.

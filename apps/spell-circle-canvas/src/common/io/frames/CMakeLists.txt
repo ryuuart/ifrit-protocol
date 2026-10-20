@@ -73,4 +73,11 @@ if(APPLE)
     LIBRARIES SigilIOFrames ${metal}
     SUITES FramesDelivery LABELS gpu
     ARC)
+  # The directory of publications is one per machine, so two processes
+  # each publishing and subscribing over it at once must both come out
+  # whole.
+  sigil_test_processes(io_frames_delivery_in_two_processes
+    PROCESSES 2 ROUNDS 3
+    COMMAND $<TARGET_FILE:io_test> --gtest_filter=FramesDelivery.*
+    LABELS gpu)
 endif()

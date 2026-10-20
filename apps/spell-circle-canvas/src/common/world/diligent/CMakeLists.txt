@@ -99,6 +99,14 @@ sigil_test(world_test
          FinalStage Flipbook GpuRuntime Lighting Lobes PageAcrossQueues PostChain PresentedPicture PrimitiveColor Programs Stack StandIn
          Shadow SurfaceProgram SurfaceSlots Transmission
   LABELS gpu)
+# What these assert is how long a frame takes on the device, so each runs
+# with no other case beside it.
+sigil_test(world_test
+  SUITES PostChain.TheSeenPhaseOfAPaneCostsASmallMultipleOfALaidCard
+         PostChain.TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn
+         StandIn.AFirstLiveFrameBuildsNoPipelineOnTheThreadThatDraws
+         StandIn.ALiveFrameDoesNotWaitForANewlyArrivedProgramsPipeline
+  LABELS gpu timed)
 
 sigil_bench(world_bench
   SOURCES bench/DeviceBench.cpp

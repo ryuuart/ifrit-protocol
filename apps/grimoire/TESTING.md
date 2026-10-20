@@ -79,6 +79,14 @@ by rendering a copy of a registry sketch whose ground colour has been
 replaced and reading the corner pixel back, with the registry's own copy
 of the same sketch as the control.
 
+A host refuses a sketch compiled against a framework header newer than
+its own executable, and a pass that built only the libraries and their
+tests leaves the host older than the headers it edited. So every case
+that compiles a sketch from source requires the `grimoire_host` fixture,
+whose setup case, `sketch_host_current`, builds Grimoire first and runs
+with no other case beside it; selecting any one of those cases with
+`ctest -R` brings it along.
+
 ## A host over one sketch while the rest are broken
 
 The sketches come last: library work is expected to break them, and a
