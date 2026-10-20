@@ -107,7 +107,7 @@ void WebEngine::Impl::close() {
   }
   m_taskCv.notify_all();
   // A caller returning from here knows nothing of its engine is still
-  // running, which is what the join used to say. An engine released ON
+  // running, as a join would tell it. An engine released ON
   // the web thread — the last handle dropped inside a frame callback —
   // cannot wait for a park it is itself standing in the way of: it has
   // already been quieted above, and the thread parks as soon as the

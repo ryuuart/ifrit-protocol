@@ -7,8 +7,8 @@ import unittest
 from array import array
 from pathlib import Path
 
-from sigil import draw, media
-from sigil.sketch import renderFile
+from sigil import draw
+from support.rendering import pixel, renderedImage
 
 
 class CanvasSeamContracts(unittest.TestCase):
@@ -35,12 +35,7 @@ class CanvasSeamContracts(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        renderFile(source, output, at=0)
-        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
-
-    def pixel(self, picture, x, y):
-        offset = 4 * (y * picture.width() + x)
-        return tuple(picture.rgba()[offset : offset + 4])
+        return renderedImage(source, output, at=0)
 
     def test_a_canvas_is_lent_by_a_frame_and_never_built(self):
         with self.assertRaises(TypeError):
@@ -60,9 +55,9 @@ class CanvasSeamContracts(unittest.TestCase):
         """)
         # The pen's transform is in force when the canvas draws, and the
         # canvas's own translate carries on from it.
-        self.assertEqual(self.pixel(picture, 20, 4), (255, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 4, 4), (0, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 20, 20), (255, 0, 0, 255))
+        self.assertEqual(pixel(picture, 20, 4), (255, 0, 0, 255))
+        self.assertEqual(pixel(picture, 4, 4), (0, 0, 0, 255))
+        self.assertEqual(pixel(picture, 20, 20), (255, 0, 0, 255))
 
     def test_paths_and_vertices_draw_through_the_same_loan(self):
         picture = self.render("""
@@ -80,9 +75,9 @@ class CanvasSeamContracts(unittest.TestCase):
                 paint,
             )
         """)
-        self.assertEqual(self.pixel(picture, 4, 4), (255, 255, 255, 255))
-        self.assertEqual(self.pixel(picture, 19, 19), (255, 255, 255, 255))
-        self.assertEqual(self.pixel(picture, 28, 28), (0, 0, 0, 255))
+        self.assertEqual(pixel(picture, 4, 4), (255, 255, 255, 255))
+        self.assertEqual(pixel(picture, 19, 19), (255, 255, 255, 255))
+        self.assertEqual(pixel(picture, 28, 28), (0, 0, 0, 255))
 
     def test_saves_restore_to_the_depth_the_canvas_reports(self):
         self.render("""
@@ -120,9 +115,9 @@ class CanvasSeamContracts(unittest.TestCase):
             canvas.drawRect((0, 0, 32, 32), paint)
             canvas.restore()
         """)
-        self.assertEqual(self.pixel(picture, 4, 4), (0, 255, 0, 255))
-        self.assertEqual(self.pixel(picture, 4, 24), (0, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 24, 16), (0, 255, 0, 255))
+        self.assertEqual(pixel(picture, 4, 4), (0, 255, 0, 255))
+        self.assertEqual(pixel(picture, 4, 24), (0, 0, 0, 255))
+        self.assertEqual(pixel(picture, 24, 16), (0, 255, 0, 255))
 
     def test_a_point_batch_reads_a_float_buffer_as_it_reads_a_sequence(self):
         drawing = """
@@ -190,8 +185,8 @@ class CanvasSeamContracts(unittest.TestCase):
                 inner.rect(0, 0, 16, 16)
             draw.on(pen.canvas(), (32, 32), program)
         """)
-        self.assertEqual(self.pixel(picture, 8, 8), (0, 0, 255, 255))
-        self.assertEqual(self.pixel(picture, 24, 24), (0, 0, 0, 255))
+        self.assertEqual(pixel(picture, 8, 8), (0, 0, 255, 255))
+        self.assertEqual(pixel(picture, 24, 24), (0, 0, 0, 255))
 
 
 if __name__ == "__main__":

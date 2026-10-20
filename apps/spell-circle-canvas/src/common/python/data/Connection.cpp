@@ -13,6 +13,7 @@
 #include <sigildata/connection/Connection.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/testing/Testing.h>
+#include <sigilpython/Bindings.h>
 #include <sigilpython/data/Convert.h>
 #include <sigilpython/data/Registration.h>
 #include <sigilpython/io/Hub.h>
@@ -27,15 +28,6 @@
 namespace sigil::python {
 namespace py = pybind11;
 namespace {
-
-template <class Function>
-decltype(auto) unlocked(Function&& function) {
-  if (Py_IsInitialized() && PyGILState_Check()) {
-    const py::gil_scoped_release release;
-    return std::forward<Function>(function)();
-  }
-  return std::forward<Function>(function)();
-}
 
 /** A connection opened through a hub handle. On an owned hub it keeps
  *  the hub and the connection alive as long as itself. On the host's hub

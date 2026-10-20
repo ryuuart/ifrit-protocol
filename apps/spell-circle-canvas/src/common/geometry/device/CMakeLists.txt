@@ -69,7 +69,7 @@ sigil_library(SigilGeometryDevice
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC unofficial::diligent-engine::DiligentCore SigilCoreHardware
          SigilSkiaGraphite
-  PRIVATE unofficial::diligent-engine::volk Vulkan::Headers)
+  PRIVATE unofficial::diligent-engine::volk Vulkan::Headers SigilCoreReport)
 
 # THE ONE DOOR ONTO THE ENGINE'S INTERFACES: the directory holding the
 # header that spells them. A consumer that genuinely holds a Diligent
@@ -91,7 +91,10 @@ set(SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/suppor
 # the reason when the machine has none, so a machine without one runs
 # `ctest -LE gpu` and checks nothing it cannot judge.
 sigil_test(geometry_test
-  SOURCES test/DeviceTest.cpp
+  SOURCES test/AdoptedDeviceTest.cpp test/AdoptedGraphiteTest.cpp
+          test/DeviceFixtures.h test/DeviceTest.cpp
+          test/KeptPipelinesTest.cpp test/PaintingOnMetalTest.cpp
+          test/PaintingOrderTest.cpp
   LIBRARIES SigilGeometryDevice
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test/support
                ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}

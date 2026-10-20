@@ -17,8 +17,12 @@
 # nothing is compiled twice; Diligent arrives through
 # SigilGeometryDevice and is never named beside it, because that target's
 # archive must come first on the link line.
+#
+# The plumbing all three share — the compute pipeline and its argument
+# buffer, the kept lane buffers, the one readback crossing — is
+# ComputeKernel.cpp, private to this target.
 sigil_library(SigilGeometryMeshPopDevice
-  SOURCES Cook.cpp Stamp.cpp Sweep.cpp
+  SOURCES ComputeKernel.cpp ComputeKernel.h Cook.cpp Stamp.cpp Sweep.cpp
   HEADERS Cook.h Stamp.h Sweep.h
   PUBLIC SigilGeometryDevice SigilGeometryMeshPop)
 

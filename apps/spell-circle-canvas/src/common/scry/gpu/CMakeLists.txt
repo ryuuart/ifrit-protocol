@@ -34,7 +34,7 @@ find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilScryGpu
   SOURCES GpuDriver.h ${SIGIL_SCRY_GPU_NATIVE_SOURCES}
   PUBLIC SigilSkiaGraphite SigilCoreHardware Boost::unordered
-  PRIVATE Ultralight::Ultralight)
+  PRIVATE Ultralight::Ultralight SigilCoreReport)
 if(APPLE)
   set_source_files_properties(metal/MetalDriver.mm metal/MetalInterop.mm
     PROPERTIES COMPILE_OPTIONS -fobjc-arc)

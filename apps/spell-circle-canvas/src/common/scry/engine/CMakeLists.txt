@@ -17,7 +17,8 @@ sigil_library(SigilScryEngine
                   ${CMAKE_CURRENT_LIST_DIR}/../gpu
   PUBLIC SigilScryPlatform SigilScryGpu SigilSkiaGraphite SigilCoreHardware
          unofficial::skia::skia
-  PRIVATE Ultralight::Ultralight Ultralight::AppCore Boost::unordered)
+  PRIVATE Ultralight::Ultralight Ultralight::AppCore Boost::unordered
+          SigilCoreReport)
 
 # Ultralight allows one Renderer per process, and the CPU-mode and the
 # GPU-mode engines each want one. ctest runs every discovered case in a

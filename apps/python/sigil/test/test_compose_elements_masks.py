@@ -19,9 +19,9 @@ import unittest
 from pathlib import Path
 
 from _sigil import compose as native
-from sigil import compose, material, media, motion, skia
+from sigil import compose, material, motion, skia
 from sigil.compose import box, spans
-from sigil.sketch import renderFile
+from support.rendering import renderedImage, scaledPixel
 
 by = native.by
 parts = native.parts
@@ -388,16 +388,11 @@ class Session(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(element).strip(), "            ")
             + "\n        ]))\n"
         )
-        renderFile(source, output, at=0)
-        self.picture = media.decode(media.Image, output.read_bytes()).frameAt(0).image
+        self.picture = renderedImage(source, output)
 
     def pixel(self, point):
         """The colour at a canvas point, at whatever density the frame has."""
-        x, y = point
-        column = x * self.picture.width() // self.SIZE
-        row = y * self.picture.height() // self.SIZE
-        offset = 4 * (row * self.picture.width() + column)
-        return tuple(self.picture.rgba()[offset : offset + 4])
+        return scaledPixel(self.picture, *point, (self.SIZE, self.SIZE))
 
     def test_an_unmasked_plate_covers_the_frame(self):
         self.render("plate()")

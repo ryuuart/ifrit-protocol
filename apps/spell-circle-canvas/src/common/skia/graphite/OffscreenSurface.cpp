@@ -7,13 +7,14 @@
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
+#include <sigilcore/report/Report.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilskia/graphite/PaintOrder.h>
 
-#include <cstdio>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <utility>
 
 #include "Waits.h"
@@ -69,13 +70,14 @@ void OffscreenSurface::submit() {
     static bool warned = false;
     if (!warned) {
       warned = true;
-      std::fprintf(stderr,
-                   "[SigilSkia] insertRecording failed (status %d%s%s); this "
-                   "frame did not render\n",
-                   static_cast<int>(
-                       static_cast<skgpu::graphite::InsertStatus::V>(status)),
-                   status.message().empty() ? "" : ": ",
-                   status.message().c_str());
+      const std::string message(status.message());
+      core::report(
+          "SigilSkia",
+          "insertRecording failed (status " +
+              std::to_string(static_cast<int>(
+                  static_cast<skgpu::graphite::InsertStatus::V>(status))) +
+              (message.empty() ? "" : ": " + message) +
+              "); this frame did not render");
     }
     // Still pump completion: this is the only place the process retires
     // finished GPU work, and a permanently failing chain must not also

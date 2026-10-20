@@ -10,6 +10,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>
+#include <sigilcore/report/Report.h>
 #include <sigilcore/schedule/ConcurrentIo.h>
 #include <sigilio/advanced/Problems.h>
 #include <sigilio/hub/Hub.h>
@@ -355,20 +356,21 @@ bool Host::openSession(const Kind& kind, bool (*available)(std::string*)) {
     m_errorLog = error.what();
     m_status =
         live() ? "setup failed — keeping previous sketch" : "setup failed";
-    std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
-                 m_errorLog.c_str());
+    core::report("SigilSketch", m_status + "\n" + m_errorLog);
     return false;
   } catch (...) {
     m_errorLog =
         "session preparation, availability or setup threw an unknown exception";
     m_status =
         live() ? "setup failed — keeping previous sketch" : "setup failed";
-    std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
-                 m_errorLog.c_str());
+    core::report("SigilSketch", m_status + "\n" + m_errorLog);
     return false;
   }
-  std::fprintf(stderr, "[sketch] set up in %.0f ms\n",
-               measure::Milliseconds(opened.elapsed()).count());
+  core::report("SigilSketch",
+               "set up in " +
+                   std::to_string(static_cast<long long>(std::lround(
+                       measure::Milliseconds(opened.elapsed()).count()))) +
+                   " ms");
   m_runtimeFailed = false;
   m_errorLog.clear();
   m_problemLog.clear();
@@ -404,12 +406,12 @@ void Host::noteProblems() {
   if (!m_errorLog.empty() && !m_problemLog.empty()) m_errorLog += "\n\n";
   m_errorLog += m_problemLog;
   if (m_problemLog.empty())
-    std::fprintf(stderr, "[sketch] every resource reads again\n");
+    core::report("SigilSketch", "every resource reads again");
   else
-    std::fprintf(stderr,
-                 "[sketch] a resource could not be read — the sketch runs "
-                 "on with what its libraries keep\n%s\n",
-                 m_problemLog.c_str());
+    core::report("SigilSketch",
+                 "a resource could not be read — the sketch runs on with "
+                 "what its libraries keep\n" +
+                     m_problemLog);
 }
 
 bool Host::restartSession() {
@@ -706,7 +708,7 @@ bool Host::adopt(const std::filesystem::path& library) {
     std::snprintf(line, sizeof line, "live · build %d · compiled in %.1fs",
                   m_generation, seconds);
   running(line);
-  std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
+  core::report("SigilSketch", m_status);
   return true;
 }
 
@@ -745,7 +747,7 @@ void Host::loadPython() {
         "Link SigilSketchPython and set "
         "Host::Options::pythonLoader.";
     m_status = "Python unavailable";
-    std::fprintf(stderr, "[sketch] %s\n", m_errorLog.c_str());
+    core::report("SigilSketch", m_errorLog);
     return;
   }
   const measure::Stopwatch loaded;
@@ -756,15 +758,14 @@ void Host::loadPython() {
     m_errorLog = error.what();
     m_status =
         live() ? "import failed — keeping previous sketch" : "import failed";
-    std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
-                 m_errorLog.c_str());
+    core::report("SigilSketch", m_status + "\n" + m_errorLog);
     return;
   }
   char line[160];
   std::snprintf(line, sizeof line, "live · Python %d · loaded in %.0f ms",
                 m_generation, measure::Milliseconds(loaded.elapsed()).count());
   running(line);
-  std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
+  core::report("SigilSketch", m_status);
 }
 
 void Host::running(std::string status) {
@@ -780,8 +781,7 @@ void Host::sessionFailed(std::string message) {
   m_runtimeFailed = true;
   m_errorLog = std::move(message);
   m_status = "sketch failed — waiting for an edit";
-  std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
-               m_errorLog.c_str());
+  core::report("SigilSketch", m_status + "\n" + m_errorLog);
 }
 
 void Host::poll() {
@@ -796,7 +796,7 @@ void Host::poll() {
       if (result.cached) {
         if (adopted) {
           running("live · cached build");
-          std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
+          core::report("SigilSketch", m_status);
         } else {
           // An unreadable artifact is disposable. Compile again without it.
           std::error_code error;
@@ -811,8 +811,7 @@ void Host::poll() {
                               " failed — keeping build " +
                               std::to_string(m_generation - 1)
                         : "compile failed";
-      std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
-                   m_errorLog.c_str());
+      core::report("SigilSketch", m_status + "\n" + m_errorLog);
     }
   }
 

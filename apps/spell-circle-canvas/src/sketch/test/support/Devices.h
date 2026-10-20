@@ -12,6 +12,7 @@
  * SigilGeometryDevice's test support on its include path.
  */
 
+#include <gtest/gtest.h>
 #include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/diligent/Runtime.h>
 
@@ -50,5 +51,19 @@ inline bool installDeviceRuntime(std::string* why) {
   useRuntime(runtime);
   return true;
 }
+
+/** A SUITE WHOSE EVERY CASE STANDS ON THE DEVICE RUNTIME: installed before
+ *  each case, or the case skipped with the reason there is none, and the
+ *  process's runtime put back to none after it. A suite derives from this
+ *  under its own name. */
+class OnDeviceRuntime : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    std::string why;
+    if (!installDeviceRuntime(&why))
+      GTEST_SKIP() << "no Vulkan device: " << why;
+  }
+  void TearDown() override { useRuntime({}); }
+};
 
 }  // namespace sigil::sketch::test

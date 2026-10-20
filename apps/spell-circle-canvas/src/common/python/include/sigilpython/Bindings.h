@@ -57,7 +57,8 @@ struct FaceValue {
 namespace pybind11::detail {
 template <>
 struct handle_type_name<sigil::python::DeepCopyMemo> {
-  static constexpr auto name = const_name("dict[builtins.int, builtins.object]");
+  static constexpr auto name =
+      const_name("dict[builtins.int, builtins.object]");
 };
 }  // namespace pybind11::detail
 
@@ -124,6 +125,21 @@ pybind11::class_<T> bindRecord(pybind11::module_& module, const char* name,
       }))
       .def("copy", [](const T& value) { return value; });
   return copyProtocol(type);
+}
+
+/** @p function called with the interpreter lock released where this thread
+ *  holds it, and called as it stands where it does not, answering what it
+ *  answers. Native work that blocks — a load, a transport closing, the
+ *  last owner of a native value letting go — runs this way, so another
+ *  Python thread is not held up behind it. The function must not touch a
+ *  Python object. */
+template <class Function>
+decltype(auto) unlocked(Function&& function) {
+  if (Py_IsInitialized() && PyGILState_Check()) {
+    const pybind11::gil_scoped_release release;
+    return std::forward<Function>(function)();
+  }
+  return std::forward<Function>(function)();
 }
 
 /** Reads a native color from a colour object, a CSS string, or an RGB or

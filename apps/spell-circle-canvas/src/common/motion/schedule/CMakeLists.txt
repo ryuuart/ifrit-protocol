@@ -20,7 +20,7 @@ sigil_library(SigilMotionSchedule
   SOURCES Schedule.cpp Stagger.cpp
   HEADERS Schedule.h Stagger.h
   PUBLIC SigilMotionEase SigilMotionTime SigilCoreCompute SigilCoreComparable
-  PRIVATE Boost::unordered)
+  PRIVATE Boost::unordered SigilCoreReport)
 
 # Links only the library it exercises — no clock, so a schedule that
 # started reading time for itself would show up as a build failure here.

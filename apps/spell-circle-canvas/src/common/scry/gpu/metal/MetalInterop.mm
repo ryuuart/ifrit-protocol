@@ -22,9 +22,9 @@
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
+#include <sigilcore/report/Report.h>
 #include <sigilskia/graphite/TextureImage.h>
 
-#include <cstdio>
 #include <mutex>
 
 namespace sigil::scry {
@@ -133,9 +133,8 @@ bool MetalDriver::paintTexture(sigil::core::hardware::TextureHandle handle, int 
     static bool warned = false;
     if (!warned) {
       warned = true;
-      std::fprintf(stderr,
-                   "[SigilScry:warning] Graphite paint failed (an empty snap or a refused "
-                   "insert); WebImage frames will not render\n");
+      sigil::core::report("SigilScry", "Graphite paint failed (an empty snap or a refused "
+                                       "insert); WebImage frames will not render");
     }
     return false;
   }

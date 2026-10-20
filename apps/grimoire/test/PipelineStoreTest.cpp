@@ -91,16 +91,56 @@ TEST(GrimoirePipelineStore, RecordedEffectsReadBackInTheOrderWritten) {
   EXPECT_TRUE(pipelines::readEffects(file).empty());
   const std::vector<pipelines::RecordedEffect> written = {
       {pipelines::EffectKind::Shader,
-       "half4 main(float2 xy) { return half4(1); }"},
+       "half4 main(float2 xy) { return half4(1); }",
+       {"crt_bloom"}},
       {pipelines::EffectKind::ColorFilter,
-       "half4 main(half4 c) { return c.bgra; }"},
+       "half4 main(half4 c) { return c.bgra; }",
+       {}},
       {pipelines::EffectKind::Blender,
-       "half4 main(half4 s, half4 d) { return s + d; }"}};
+       "half4 main(half4 s, half4 d) { return s + d; }",
+       {"ember_decode", "wet_glass_console"}}};
   ASSERT_TRUE(pipelines::writeEffects(file, written));
   EXPECT_EQ(pipelines::readEffects(file), written);
   // An effect is not a key set, so a store holding only effects holds no
   // set a launch could replay.
   EXPECT_FALSE(pipelines::holdsAnySketchSet(scratch.path(), ""));
+}
+
+TEST(GrimoirePipelineStore, AStoreFilledPastTheLimitNamesTheSketchesLeftUnkeyed) {
+  // The backend declares a hundred effects, the stock ones first: a store
+  // whose written-down effects run past the room left after them names
+  // every sketch an effect beyond that room was written down for, and no
+  // sketch whose effects all fit.
+  const Scratch scratch("past_the_limit");
+  const fs::path file = pipelines::effectsFile(scratch.path());
+  constexpr size_t kLimit = 100;
+  constexpr size_t kStock = 60;
+  constexpr size_t kRoom = kLimit - kStock;
+  std::vector<pipelines::RecordedEffect> written;
+  for (size_t at = 0; at < kRoom + 30; ++at) {
+    const std::string sketch = at < kRoom        ? "fits_whole"
+                               : at < kRoom + 20 ? "past_the_room"
+                                                 : "also_past";
+    written.push_back({pipelines::EffectKind::ColorFilter,
+                       "half4 main(half4 c) { return c * " +
+                           std::to_string(at + 1) + ".0; }",
+                       {sketch}});
+  }
+  // A sketch whose effects straddle the room is left unkeyed by the part
+  // past it.
+  written[kRoom - 1].sketches.push_back("straddles");
+  written[kRoom].sketches.push_back("straddles");
+  ASSERT_TRUE(pipelines::writeEffects(file, written));
+  const std::vector<pipelines::RecordedEffect> read =
+      pipelines::readEffects(file);
+  ASSERT_EQ(read, written);
+  EXPECT_EQ(pipelines::sketchesLeftUnkeyed(read, kRoom),
+            (std::vector<std::string>{"also_past", "past_the_room",
+                                      "straddles"}));
+  // …and a store inside the room leaves none.
+  EXPECT_TRUE(
+      pipelines::sketchesLeftUnkeyed(std::span(read).first(kRoom), kRoom)
+          .empty());
 }
 
 TEST(GrimoirePipelineStore, AMissingFileIsAnEmptySetAndNotAnError) {

@@ -10,11 +10,11 @@
  * `client:`, so a refusal made here is never taken for a host's.
  */
 
+#include <sigilcore/report/Report.h>
 #include <sigildata/values/Values.h>
 #include <sigilprotocol/definition/Answer.h>
 #include <sigilprotocol/definition/Mount.h>
 
-#include <cstdio>
 #include <functional>
 #include <optional>
 #include <string>
@@ -50,8 +50,8 @@ inline values::Error clientRefusal(ErrorCode code, std::string_view method,
                  "client: " + std::string(method) + ": " + std::string(what));
 }
 
-/** @p refused handed to the caller's @p refuse, or written to the
- *  standard error where the caller has none. */
+/** @p refused handed to the caller's @p refuse, or reported through the
+ *  reporting door where the caller has none. */
 inline void reportRefusal(
     const std::function<void(values::Error refusal)>& refuse,
     values::Error refused) {
@@ -59,7 +59,7 @@ inline void reportRefusal(
     refuse(std::move(refused));
     return;
   }
-  std::fprintf(stderr, "sigil::protocol: %s\n", refused.message.c_str());
+  core::report("SigilProtocol", refused.message);
 }
 
 /** A COMMAND SENT: @p parameters as JSON under @p method, and the answer

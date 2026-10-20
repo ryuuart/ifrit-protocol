@@ -131,7 +131,7 @@ registered types and callback ownership registries are shared state.
 
 ## Reaching another file's registration
 
-* `Extend.h` — `submodule`, `extend`, `registeredClass`
+* `Extend.h` — `submodule`, `registered`, `extend`, `registeredClass`
 
 A subject publishes under a submodule and several subjects share one, so
 `submodule` answers the module a dotted path names and creates it where
@@ -225,7 +225,7 @@ exception through it would leave open.
 
 ## Conversion and resource seams
 
-* `Bindings.h` — `color`
+* `Bindings.h` — `color`, `unlocked`
 * `skia/Values.h` — `point`, `rect`
 * `compose/Convert.h` — `dimension`, `fill`, `alignment`, `justification`,
   `shape`, `elements`
@@ -342,12 +342,14 @@ behind the definition that says the SDK is there.
 * `weave/Registration.h` — `bindWeave`, `bindWeaveCascade`,
   `bindWeaveFonts`, `bindWeaveLayout`, `bindWeaveSelectorUnicode`,
   `bindWeaveTables`
-* `compose/Registration.h` — `bindCompose`, `bindComposeBrushMarks`,
-  `bindComposeComposer`, `bindComposeDerive`, `bindComposeFeed`,
-  `bindComposeInstancing`, `bindComposeKit`, `bindComposeKitRows`,
-  `bindComposeKitTextPaint`,
+* `compose/Registration.h` — `bindCompose`, `bindComposeAdders`,
+  `bindComposeArrangement`, `bindComposeBrushMarks`,
+  `bindComposeComposer`, `bindComposeDerive`, `bindComposeFacts`,
+  `bindComposeFeed`, `bindComposeInstancing`,
+  `bindComposeInstancingLanes`, `bindComposeInstancingPool`,
+  `bindComposeKit`, `bindComposeKitRows`, `bindComposeKitTextPaint`,
   `bindComposeMasks`, `bindComposePaintPrograms`, `bindComposeSchemes`,
-  `bindComposeSelectors`, `bindComposeTextEffects`,
+  `bindComposeScope`, `bindComposeSelectors`, `bindComposeTextEffects`,
   `bindComposeTextureScene`, `bindDocument`
 * `draw/Registration.h` — `bindPen`, `bindBrush`, `bindDrawCanvasSeam`
 * `world/Registration.h` — `bindWorld`

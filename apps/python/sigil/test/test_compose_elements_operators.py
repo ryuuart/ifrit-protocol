@@ -25,8 +25,8 @@ import unittest
 from pathlib import Path
 
 from _sigil import compose as native
-from sigil import compose, media, skia
-from sigil.sketch import renderFile
+from sigil import compose, skia
+from support.rendering import renderedImage
 
 RESULTS = "_sigil_operator_results"
 
@@ -384,8 +384,7 @@ class Session(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(body).strip("\n"), "    ")
             + "\n"
         )
-        renderFile(source, output, at=0)
-        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
+        return renderedImage(source, output, at=0)
 
     def frame(self, drawing, prelude=""):
         """Render @p drawing as the body of a sketch's draw."""

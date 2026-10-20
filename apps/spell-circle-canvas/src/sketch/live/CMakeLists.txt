@@ -4,7 +4,10 @@
 # broken — and the resident set that decides which sessions stay open.
 sigil_test(sketch_test
   SOURCES test/BuildCacheTest.cpp test/BenchCadenceTest.cpp test/GuestPictureTest.cpp
-          test/GuestFailureTest.cpp test/HostTest.cpp test/ResidencyTest.cpp
+          test/GuestFailureTest.cpp test/HostBuildDirectoryTest.cpp
+          test/HostCaptureTest.cpp test/HostEditTest.cpp
+          test/HostImporterTest.cpp test/HostPreparationTest.cpp
+          test/HostSessionTest.cpp test/ResidencyTest.cpp
           test/WrittenStillTest.cpp test/ShaderReloadTest.cpp
   LIBRARIES SigilSketch SigilSketchTesting SigilMediaImageEncode
   SUITES SketchGuestPicture SketchGuestFailure SketchHostBuildDirectory

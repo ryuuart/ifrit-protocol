@@ -238,8 +238,8 @@ answer that does not read as the result; `sigil::protocol::listenFor`
 refuses with `unreadable` an event that does not read as its table,
 which no listener hears, and with `notSent` a caller that listens
 nowhere, handing either to the caller's `refused` through
-`sigil::protocol::reportRefusal` — or to the standard error where it
-has none, so no event is lost unseen. An error the host answered is handed on as it
+`sigil::protocol::reportRefusal` — or to SigilCore's reporting door
+where it has none, so no event is lost unseen. An error the host answered is handed on as it
 came. The Python client, `sigil.protocol`, is the same shape in the
 camelCase the rest of the package is spelled in: one class per domain,
 one method per command under the command's own name — `Clock.setPolicy`

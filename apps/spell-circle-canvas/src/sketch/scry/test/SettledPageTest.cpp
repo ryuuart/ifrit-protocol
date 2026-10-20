@@ -77,8 +77,8 @@ TEST_F(SketchSettledPage, APageSettlesOnAnEngineBootedAfterOneWasShutDown) {
   // ends, the process's renderer does not. Loading a page on the FIRST
   // engine is what makes this about the defect — the page load starts
   // WebCore's resource-usage thread, and releasing the renderer it reads
-  // through is what used to leave that thread on freed memory, killing
-  // whatever ran next in the process.
+  // through would leave that thread on freed memory, killing whatever ran
+  // next in the process.
   namespace shared = sigil::sketch::scry;
   ASSERT_TRUE(shared::configureSharedEngine({}));
   {

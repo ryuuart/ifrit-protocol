@@ -14,8 +14,8 @@ sigil_library(SigilCoreReconcile
   SOURCES Environment.cpp Reads.cpp
   HEADERS Environment.h Host.h Memo.h Node.h Phases.h Reads.h
           Reconciler.h Stats.h
-  PUBLIC SigilCoreComparable SigilMeasure Boost::container_hash
-         Boost::unordered)
+  PUBLIC SigilCoreComparable SigilCoreReport SigilMeasure
+         Boost::container_hash Boost::unordered)
 
 # Over a fake host, so a link edge that pulled a drawing or layout
 # library in would show up as a build failure here.

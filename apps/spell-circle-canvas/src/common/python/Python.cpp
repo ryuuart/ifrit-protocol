@@ -72,9 +72,15 @@ void bindLibraries(pybind11::module_& module) {
   bindComposeMasks(module);
   bindComposeTextEffects(module);
   bindComposeDerive(module);
+  bindComposeInstancingLanes(module);
+  bindComposeInstancingPool(module);
   bindComposeInstancing(module);
   bindComposeFeed(module);
+  bindComposeFacts(module);
   bindComposeSchemes(module);
+  bindComposeArrangement(module);
+  bindComposeScope(module);
+  bindComposeAdders(module);
   bindComposePaintPrograms(module);
   bindComposeComposer(module);
   bindComposeTextureScene(module);

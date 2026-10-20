@@ -13,7 +13,7 @@ sigil_library(SigilScryPlatform
           ResourceDirectory.h Runtime.cpp SkiaSurface.cpp SkiaSurface.h Utf8.h
   HEADERS LogLevel.h Runtime.h
   PUBLIC unofficial::skia::skia
-  PRIVATE SigilIOSource Ultralight::Ultralight)
+  PRIVATE SigilIOSource Ultralight::Ultralight SigilCoreReport)
 
 # Fallback resource location (icudt67l.dat, cacert.pem) compiled in;
 # WebEngineConfig::resourceDirectory overrides it at runtime.

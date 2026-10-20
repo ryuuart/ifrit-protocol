@@ -26,7 +26,11 @@ target_compile_definitions(SigilSketchPython PRIVATE
 
 # The cases that bake a 3D frame bring the device up and skip without it.
 sigil_test(sketch_test
-  SOURCES test/PythonTest.cpp
+  SOURCES test/PythonBakeTest.cpp test/PythonBundledFaceTest.cpp
+          test/PythonDeclarationTest.cpp test/PythonEvaluateTest.cpp
+          test/PythonFeedTest.cpp test/PythonLifetimeTest.cpp
+          test/PythonLoadingTest.cpp test/PythonReloadTest.cpp
+          test/PythonScene3DTest.cpp
   SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   LIBRARIES SigilSketchPython SigilPython SigilWorldDiligent SigilWeavePorts
   SUITES SketchPythonBakes

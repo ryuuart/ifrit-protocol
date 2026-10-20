@@ -123,6 +123,10 @@ enum class EffectKind : std::uint8_t {
 struct RecordedEffect {
   EffectKind kind = EffectKind::Shader;
   std::string source;
+  /** The sketches whose draws went without a key while it was undeclared,
+   *  by the names they were drawn under: the ones that stay unkeyed while
+   *  it cannot be declared. */
+  std::vector<std::string> sketches;
   bool operator==(const RecordedEffect&) const = default;
 };
 
@@ -141,5 +145,13 @@ std::vector<RecordedEffect> readEffects(const std::filesystem::path& file);
  *  set is. Returns whether the file landed. */
 bool writeEffects(const std::filesystem::path& file,
                   std::span<const RecordedEffect> effects);
+
+/** THE SKETCHES A DECLARATION LEAVES UNKEYED: the backend declares at most
+ *  @p room of @p recorded after the stock effects, in the order they were
+ *  written down, and every sketch an effect past that room names keeps
+ *  programs no key can carry, which build again on every launch. Each
+ *  sketch once, in order of name. */
+std::vector<std::string> sketchesLeftUnkeyed(
+    std::span<const RecordedEffect> recorded, size_t room);
 
 }  // namespace pipelines

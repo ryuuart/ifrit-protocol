@@ -5,12 +5,12 @@
  */
 
 #include <sigilcore/compute/Noise.h>
+#include <sigilcore/report/Report.h>
 #include <sigilmotion/schedule/Stagger.h>
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
-#include <cstdio>
 #include <limits>
 #include <numeric>
 
@@ -33,13 +33,12 @@ void warnRankTableMismatch(size_t keyCount, size_t unitCount) {
   static thread_local boost::unordered_flat_set<uint64_t> seen;
   const uint64_t key = ((uint64_t)keyCount << 32u) | (uint32_t)unitCount;
   if (!seen.insert(key).second) return;
-  std::fprintf(stderr,
-               "SigilMotion: an order of %zu numbers against %zu units — "
-               "%s\n",
-               keyCount, unitCount,
-               keyCount < unitCount
-                   ? "every unit past the table's end opens last"
-                   : "the numbers past the last unit are never read");
+  core::report("SigilMotion",
+               "an order of " + std::to_string(keyCount) + " numbers against " +
+                   std::to_string(unitCount) + " units — " +
+                   (keyCount < unitCount
+                        ? "every unit past the table's end opens last"
+                        : "the numbers past the last unit are never read"));
 }
 
 /** DENSE RANKS of a stated order: the step is how many DISTINCT smaller
@@ -58,9 +57,10 @@ void ranks(const std::vector<float>& keys, uint32_t count,
     const float key = keys[i];
     return std::isfinite(key) ? key : std::numeric_limits<float>::max();
   };
-  std::stable_sort(
-      indices.begin(), indices.end(),
-      [&keyOf](uint32_t left, uint32_t right) { return keyOf(left) < keyOf(right); });
+  std::stable_sort(indices.begin(), indices.end(),
+                   [&keyOf](uint32_t left, uint32_t right) {
+                     return keyOf(left) < keyOf(right);
+                   });
   float slot = 0.0f;
   for (size_t rank = 0; rank < indices.size(); ++rank) {
     if (rank > 0 && keyOf(indices[rank]) != keyOf(indices[rank - 1]))
@@ -72,8 +72,8 @@ void ranks(const std::vector<float>& keys, uint32_t count,
 }
 
 /** A distance across a `{columns, rows}` grid from the origin cell. */
-void gridSteps(const StaggerOrigin& origin, uint32_t columns,
-               StaggerAxis axis, uint32_t count, std::vector<float>& out) {
+void gridSteps(const StaggerOrigin& origin, uint32_t columns, StaggerAxis axis,
+               uint32_t count, std::vector<float>& out) {
   const uint32_t rows = (count + columns - 1) / columns;
   float originColumn = 0.0f, originRow = 0.0f;
   if (origin.index) {
@@ -93,8 +93,9 @@ void gridSteps(const StaggerOrigin& origin, uint32_t columns,
     const float across = (float)(i % columns) - originColumn;
     const float down = (float)(i / columns) - originRow;
     out[i] = axis == StaggerAxis::Columns ? std::abs(across)
-             : axis == StaggerAxis::Rows  ? std::abs(down)
-                                          : std::sqrt(across * across + down * down);
+             : axis == StaggerAxis::Rows
+                 ? std::abs(down)
+                 : std::sqrt(across * across + down * down);
     farthest = std::max(farthest, out[i]);
   }
   if (!origin.index && origin.place == StaggerFrom::Edges)
@@ -132,11 +133,12 @@ void listSteps(const StaggerOrigin& origin, uint32_t count, uint32_t seed,
       const uint64_t salt = seed ? mix64Value(seed) : 0ull;
       std::vector<uint32_t> indices(count);
       std::iota(indices.begin(), indices.end(), 0u);
-      std::stable_sort(indices.begin(), indices.end(),
-                       [count, salt](uint32_t left, uint32_t right) {
-                         return mix64Value(left * 2654435761ull + count + salt) <
-                                mix64Value(right * 2654435761ull + count + salt);
-                       });
+      std::stable_sort(
+          indices.begin(), indices.end(),
+          [count, salt](uint32_t left, uint32_t right) {
+            return mix64Value(left * 2654435761ull + count + salt) <
+                   mix64Value(right * 2654435761ull + count + salt);
+          });
       for (uint32_t rank = 0; rank < count; ++rank)
         out[indices[rank]] = (float)rank;
       break;
@@ -148,8 +150,8 @@ void listSteps(const StaggerOrigin& origin, uint32_t count, uint32_t seed,
 
 void staggerSteps(const StaggerOrigin& origin,
                   const std::array<uint32_t, 2>& grid, StaggerAxis axis,
-                  uint32_t seed, const std::vector<float>& rankBy,
-                  bool reverse, uint32_t count, std::vector<float>& out) {
+                  uint32_t seed, const std::vector<float>& rankBy, bool reverse,
+                  uint32_t count, std::vector<float>& out) {
   if (!rankBy.empty())
     ranks(rankBy, count, out);
   else if (grid[0] > 0 && origin.place != StaggerFrom::Random)

@@ -4,7 +4,8 @@
  * and the update() and renderFrame() an unthreaded host pumps.
  */
 
-#include <cstdio>
+#include <sigilcore/report/Report.h>
+
 #include <mutex>
 
 #include "EngineImpl.h"
@@ -61,9 +62,9 @@ WebEngine::~WebEngine() {
 std::shared_ptr<WebEngine> WebEngine::create(WebEngineConfig config) {
   const std::lock_guard<std::mutex> lock(runtimeMutex());
   if (s_leased) {
-    std::fprintf(stderr,
-                 "[SigilScry:error] an engine already stands over this "
-                 "process's renderer; release it before creating another\n");
+    core::report("SigilScry",
+                 "an engine already stands over this process's renderer; "
+                 "release it before creating another");
     return nullptr;
   }
   std::shared_ptr<Impl>& kept = runtime();

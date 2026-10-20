@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from sigil import cli
+from support.files import writeExecutable
 
 
 class OpenCommand(unittest.TestCase):
@@ -51,11 +52,7 @@ class OpenCommand(unittest.TestCase):
         self.execute = self.enterContext(patch.object(cli.os, "execve"))
 
     def executable(self, name):
-        path = self.root / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("#!/bin/sh\nexit 0\n")
-        path.chmod(0o755)
-        return path
+        return writeExecutable(self.root / name)
 
     def assert_error(self, arguments, message):
         output = io.StringIO()

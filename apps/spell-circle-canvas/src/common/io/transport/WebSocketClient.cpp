@@ -15,7 +15,6 @@
 #include <curl/curl.h>
 
 #include <atomic>
-#include <charconv>
 #include <chrono>
 #include <cstddef>
 #include <memory>
@@ -28,6 +27,7 @@
 #include <utility>
 #include <vector>
 
+#include "Address.h"
 #include "Registration.h"
 #include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
@@ -101,11 +101,7 @@ bool namesPort(std::string_view authority) {
   if (const size_t bracket = authority.rfind(']');
       bracket != std::string_view::npos && bracket > colon)
     return false;
-  const std::string_view digits = authority.substr(colon + 1);
-  unsigned int port = 0;
-  const char* const end = digits.data() + digits.size();
-  const std::from_chars_result read = std::from_chars(digits.data(), end, port);
-  return read.ec == std::errc() && read.ptr == end && port <= 65535;
+  return network::readPort(authority.substr(colon + 1)).has_value();
 }
 
 /** THE SESSION ONE FEED HOLDS: the handle every call is made on, the

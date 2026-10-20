@@ -42,19 +42,6 @@ cause is elsewhere. A capture is a pure function of scene time. A test
 should take ten consecutive captures and find them identical, and the
 original load condition should be re-run before more work goes in.
 
-## Syphon's message receiver can be freed while a queued message is still delivered to it
-
-A process whose Syphon publisher stops as a subscriber leaves can crash
-in Syphon's message return callback: the receiver's port context carries
-no retain or release and `invalidate` does not drain the shared
-messaging queue, so a departure message still queued calls into the
-freed receiver; load widens the window. A receiver should outlive every
-callback queued for it. A draft port patch giving the port context
-retain and release and releasing the port on invalidate waits in the
-session's scratchpad (`tests-syphon/syphon-receiver-outlives-its-port.patch`)
-for the registry; once it lands, `io_frames_delivery_in_two_processes`
-and repeated `FramesDelivery` runs under load should never crash.
-
 ## A timed scene3d sweep frame can carry no pending wait under load
 
 `DeviceSweep.ATimedScene3DFrameCarriesThePresentedPicturesWait`
@@ -64,29 +51,58 @@ meant to carry the presented picture's wait every time. The test should
 hold under `ctest -j8` with the device loaded; the case asserts a wait,
 not a duration, so the serial label is not its fix.
 
-## Effects past the declaration limit get no key
+## A program over an undeclared effect gets no key from Skia
 
-Skia lets a context declare one hundred runtime effects; the effects a
-sketch's own setup compiled, written down at exit and declared on the
-next launch after the stock ones, are dropped with a message past that
-limit and stay unkeyed, so their programs build on every first frame.
-Every program a sketch draws is meant to be recorded and stood up. A
-test should fill a store past the limit and find it saying which
-sketches go unkeyed; the share of the hundred the stock effects use is
-not yet measured.
+Skia lets a context declare one hundred runtime effects, of which the
+stock effects take eleven; a sketch's own effects written down at exit
+are declared on the next launch, and the store now names each sketch
+whose programs run past the limit and go unkeyed. A program over an
+undeclared effect carries a dynamic snippet identity for which this Skia
+hands back no key, so keying such a program by its text hash wants a
+Skia port patch. A test should key a program over an effect declared
+past the limit and find it stood up on the next open.
 
-## The window's input door has no test
+## The Syphon receiver patch waits for the registry push
 
-`WindowInput` answers `session.pointer` and `session.key` on the window
-as the headless host does, and nothing tests it, since a test needs a
-running window. A `--shot` window run driven over the endpoint should
-fire a function file's `mousePressed`.
+The port patch `001-receiver-outlives-its-port.patch` for Syphon, which
+gives the message receiver's port context retain and release and
+releases the port on invalidate, is committed locally in the registry
+checkout as syphon 2025-10-06#1 and is not pushed, and the baseline in
+`vcpkg-configuration.json` is not bumped; the patched framework was
+swapped into the build tree for the test runs and a manifest install
+restores the unpatched one until the bump. Once pushed and bumped,
+`io_frames_delivery_in_two_processes` and repeated `FramesDelivery` runs
+under load should never crash.
 
-## A change of bake density re-traces every coverage silhouette
+## Two scene3d sessions stepped to one moment can differ under load
 
-`setBakeDensity` marks every node's paint dirty, so a zoom settle
-traces each coverage silhouette again on the processor although the
-trace is taken at the host's scale and the masks are now cut on the
-device; the settle should leave the coverage trace alone. A test should
-alternate the bake density and find nothing re-traced.
+`Scene3DSession.TheSameMomentIsTheSamePicture` failed in two parallel
+gpu runs beside a World bench: two sessions stepped to the same frame
+read back different pictures, while a scene3d frame is meant to be a
+pure function of scene time; this may share the cause of The Library
+of Babel's one-level flips on the device, which also survive with its
+texture bakes off and never appear on the raster. The two timed
+PostChain cases also still fail under `ctest -j8` beside an external
+load although they run serially. A test should assert the two runs
+byte-equal under `-j8` with the bench running; the next step is to draw
+the interior with antialiasing off and a fixed path strategy and diff.
+
+## The reporting seam stops at Compose, Material and Weave
+
+Every warning in the core, geometry, motion, protocol, Scry, Skia and
+sketch libraries goes through `sigil::core::report(library, message)`,
+while Compose still prints through `SkDebugf` with its own prefixes,
+Material through `SkDebugf` and `fprintf`, and Weave as before. A
+reporter installed with `installReporter` should hear every library's
+warning and nothing should reach stderr. A test per library should
+install a reporter and find the warning there.
+
+## The triplet comment still explains shared TBB by a port that is gone
+
+`cmake/triplets/arm64-osx.cmake` explains its shared oneTBB rule by the
+vcpkg usd port, which the manifest no longer carries; the rule holds
+because shared is the one linkage oneTBB supports, and the comment
+should say so. Editing the triplet changes every port's ABI hash and
+forces a full dependency rebuild, so the reword lands with the next
+intentional triplet change.
 

@@ -24,22 +24,16 @@
 #include <algorithm>
 #include <atomic>
 #include <boost/asio/ip/address.hpp>
-#include <boost/asio/ip/address_v4.hpp>
-#include <boost/asio/ip/address_v6.hpp>
 #include <boost/system/error_code.hpp>
-#include <charconv>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <future>
 #include <iterator>
-#include <locale>
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -48,12 +42,13 @@
 #include <utility>
 #include <vector>
 
+#include "Address.h"
 #include "Registration.h"
+#include "sigilio/advanced/Places.h"
 #include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
-#include "sigilio/advanced/Places.h"
 
 namespace sigil::io {
 namespace {
@@ -145,36 +140,18 @@ std::optional<Address> parseAddress(std::string_view uri) {
     }
     if (!named.empty()) address.path = std::string(named);
   }
-  if (rest.starts_with('[')) {
-    const size_t bracket = rest.find(']');
-    if (bracket == std::string_view::npos || bracket == 1) return std::nullopt;
-    address.host = std::string(rest.substr(1, bracket - 1));
-    rest = rest.substr(bracket + 1);
-  } else {
-    // An unbracketed host ends at the first colon, which leaves an IPv6
-    // literal written without its brackets to fail on its own digits.
-    const size_t colon = rest.find(':');
-    if (colon == std::string_view::npos) return std::nullopt;
-    address.host = std::string(rest.substr(0, colon));
-    rest = rest.substr(colon);
-  }
-  if (!rest.starts_with(':')) return std::nullopt;
-  const std::string_view digits = rest.substr(1);
-  unsigned int port = 0;
-  const char* const end = digits.data() + digits.size();
-  const std::from_chars_result read = std::from_chars(digits.data(), end, port);
-  if (read.ec != std::errc() || read.ptr != end || port > 65535)
-    return std::nullopt;
-  address.port = static_cast<std::uint16_t>(port);
+  const std::optional<network::HostAndPort> authority =
+      network::readAuthority(rest);
+  if (!authority) return std::nullopt;
+  address.host = authority->host;
+  address.port = authority->port;
   return address;
 }
 
 /** One peer's address, spelled the way a URI of @p scheme is,
  *  "ws://127.0.0.1:52341"; empty when @p binary is neither four bytes
  *  nor sixteen. An IPv6 address is bracketed, so what follows the last
- *  colon is always the port. It is the same spelling the datagram
- *  transport beside this one gives an endpoint, so one reader reads the
- *  sender of an arrival off either.
+ *  colon is always the port.
  *
  *  workaround: the library underneath prints every address it holds as
  *  eight hexadecimal groups, which is neither the shortened form an IPv6
@@ -182,30 +159,10 @@ std::optional<Address> parseAddress(std::string_view uri) {
  *  Its raw bytes are taken instead and printed here. */
 std::string peerAddress(std::string_view scheme, std::string_view binary,
                         unsigned int port) {
-  std::ostringstream printed;
-  printed.imbue(std::locale::classic());
-  printed << scheme << "://";
-  if (binary.size() == 4) {
-    boost::asio::ip::address_v4::bytes_type four{};
-    std::memcpy(four.data(), binary.data(), four.size());
-    printed << boost::asio::ip::address_v4(four);
-  } else if (binary.size() == 16) {
-    boost::asio::ip::address_v6::bytes_type sixteen{};
-    std::memcpy(sixteen.data(), binary.data(), sixteen.size());
-    const boost::asio::ip::address_v6 six(sixteen);
-    // An IPv4 peer that reached a dual-stack listener arrives as its
-    // address mapped into IPv6, and is named by the IPv4 address it can
-    // be written back to rather than by the mapping.
-    if (six.is_v4_mapped())
-      printed << boost::asio::ip::make_address_v4(boost::asio::ip::v4_mapped,
-                                                  six);
-    else
-      printed << "[" << six << "]";
-  } else {
-    return {};
-  }
-  printed << ":" << port;
-  return printed.str();
+  const std::optional<boost::asio::ip::address> address =
+      network::addressOf(binary);
+  return address ? network::printedAddress(scheme, *address, port)
+                 : std::string();
 }
 
 /** THE PEERS A LISTENER ADMITS: every loopback address where its URI
@@ -220,32 +177,12 @@ struct Admission {
   std::vector<boost::asio::ip::address> addresses;
 };
 
-/** The address @p binary holds, four bytes or sixteen, with an IPv4
- *  address mapped into IPv6 taken back out of it; nothing for any other
- *  length. */
-std::optional<boost::asio::ip::address> addressOf(std::string_view binary) {
-  if (binary.size() == 4) {
-    boost::asio::ip::address_v4::bytes_type four{};
-    std::memcpy(four.data(), binary.data(), four.size());
-    return boost::asio::ip::address(boost::asio::ip::address_v4(four));
-  }
-  if (binary.size() == 16) {
-    boost::asio::ip::address_v6::bytes_type sixteen{};
-    std::memcpy(sixteen.data(), binary.data(), sixteen.size());
-    const boost::asio::ip::address_v6 six(sixteen);
-    if (six.is_v4_mapped())
-      return boost::asio::ip::address(
-          boost::asio::ip::make_address_v4(boost::asio::ip::v4_mapped, six));
-    return boost::asio::ip::address(six);
-  }
-  return std::nullopt;
-}
-
 /** Whether @p admission lets the peer at @p binary in. A peer whose
  *  address cannot be read is let in only where nobody was named. */
 bool admits(const Admission& admission, std::string_view binary) {
   if (!admission.named) return true;
-  const std::optional<boost::asio::ip::address> peer = addressOf(binary);
+  const std::optional<boost::asio::ip::address> peer =
+      network::addressOf(binary);
   if (!peer) return false;
   if (admission.loopback && peer->is_loopback()) return true;
   return std::find(admission.addresses.begin(), admission.addresses.end(),
@@ -586,15 +523,14 @@ bool Door::sendTo(std::string_view to, const Bytes& message) {
   // true when it was posted rather than when it was written: a peer
   // that left in between is gone by the time the loop reaches this, and
   // its message stops here.
-  loop->defer(
-      [session = session, named = std::string(to), payload = message] {
-        const auto found = session->peers.find(named);
-        if (found == session->peers.end()) return;
-        found->second->send(
-            std::string_view(reinterpret_cast<const char*>(payload.data()),
-                             payload.size()),
-            session->frames);
-      });
+  loop->defer([session = session, named = std::string(to), payload = message] {
+    const auto found = session->peers.find(named);
+    if (found == session->peers.end()) return;
+    found->second->send(
+        std::string_view(reinterpret_cast<const char*>(payload.data()),
+                         payload.size()),
+        session->frames);
+  });
   return true;
 }
 
@@ -611,8 +547,7 @@ TransportEnd refuse(const Inlet& into, std::string why) {
  *  The bind is waited for here rather than left to the background, so a
  *  feed that could not take its port says so by the time it is
  *  answered. */
-TransportEnd openFeed(const Hub& hub, std::string_view uri,
-                    const Inlet& into) {
+TransportEnd openFeed(const Hub& hub, std::string_view uri, const Inlet& into) {
   const std::optional<Address> address = parseAddress(uri);
   if (!address)
     return refuse(into, std::string(uri) +
@@ -723,10 +658,9 @@ void detail::registerWebSocket(Hub& hub) {
   // stands for every call made through this, while the feed that call
   // answers may outlive it — which is why what the listener keeps is a
   // path and not a way back here.
-  io::registerTransport(hub, "ws",
-                       [&hub](std::string_view uri, Inlet into) {
-                         return openFeed(hub, uri, into);
-                       });
+  io::registerTransport(hub, "ws", [&hub](std::string_view uri, Inlet into) {
+    return openFeed(hub, uri, into);
+  });
 }
 
 }  // namespace sigil::io

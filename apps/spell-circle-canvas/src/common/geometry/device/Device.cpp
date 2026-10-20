@@ -1,9 +1,10 @@
+#include <Common/interface/ThreadPool.h>
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/PipelineStateCache.h>
-#include <Common/interface/ThreadPool.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilcore/report/Report.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #ifdef __APPLE__
@@ -12,16 +13,15 @@
 #endif
 
 #include <Common/interface/RefCntAutoPtr.hpp>
-
 #include <atomic>
 #include <cstdint>
-#include <cstring>
-#include <string>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <span>
+#include <string>
 #include <system_error>
 #include <vector>
 
@@ -244,16 +244,15 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
     // The reason is a property of the machine, not of this device, so
     // one line covers every device a process brings up — and two threads
     // bringing devices up at once still write it once, which is what the
-    // exchange is for. It goes to stderr rather than through a report
-    // sink, because every such sink in this tree stands in a library
-    // this feature must not link: it sits under every consumer of a
-    // device and reaching a material from here would put a material on
-    // their link lines too.
+    // exchange is for.
     static std::atomic<bool> warned{false};
     if (!warned.exchange(true)) {
-      fprintf(stderr, "[geometry] 2D on the 3D device is unavailable: %s\n",
-              adoptError.empty() ? "Graphite declined the adopted device"
-                                 : adoptError.c_str());
+      core::report(
+          "SigilGeometry",
+          "2D on the 3D device is unavailable: " +
+              (adoptError.empty()
+                   ? std::string("Graphite declined the adopted device")
+                   : adoptError));
     }
   }
   return device;

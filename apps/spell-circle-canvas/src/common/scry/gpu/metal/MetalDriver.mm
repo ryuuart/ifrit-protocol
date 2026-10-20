@@ -12,11 +12,12 @@
 #include "ShaderSource.h"
 
 #include <Ultralight/Matrix.h>
+#include <sigilcore/report/Report.h>
 
 #include <simd/simd.h>
 
-#include <cstdio>
 #include <cstring>
+#include <string>
 
 namespace sigil::scry {
 
@@ -77,8 +78,8 @@ std::unique_ptr<MetalDriver> MetalDriver::create(sigil::core::hardware::GpuDevic
                                                        options:nil
                                                          error:&error];
   if (!library) {
-    std::fprintf(stderr, "[SigilScry:error] Ultralight shader compile: %s\n",
-                 error.localizedDescription.UTF8String);
+    sigil::core::report("SigilScry", std::string("error: Ultralight shader compile: ") +
+                                         error.localizedDescription.UTF8String);
     return nullptr;
   }
 
@@ -114,8 +115,8 @@ std::unique_ptr<MetalDriver> MetalDriver::create(sigil::core::hardware::GpuDevic
       state->pipelines[shader][blend] = [state->device newRenderPipelineStateWithDescriptor:desc
                                                                                       error:&error];
       if (!state->pipelines[shader][blend]) {
-        std::fprintf(stderr, "[SigilScry:error] Ultralight pipeline: %s\n",
-                     error.localizedDescription.UTF8String);
+        sigil::core::report("SigilScry", std::string("error: Ultralight pipeline: ") +
+                                             error.localizedDescription.UTF8String);
         return nullptr;
       }
     }
@@ -123,8 +124,8 @@ std::unique_ptr<MetalDriver> MetalDriver::create(sigil::core::hardware::GpuDevic
 
   state->webRecorder = graphite.makeRecorder();
   if (!state->webRecorder)
-    std::fprintf(stderr, "[SigilScry:warning] no Graphite recorder for the web "
-                         "thread; WebImage::paint() will no-op\n");
+    sigil::core::report("SigilScry", "no Graphite recorder for the web thread; "
+                                     "WebImage::paint() will no-op");
 
   return std::unique_ptr<MetalDriver>(new MetalDriver(std::move(state)));
 }

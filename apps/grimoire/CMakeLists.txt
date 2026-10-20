@@ -497,6 +497,20 @@ add_test(NAME sketch_window_bench_entry
 set_tests_properties(sketch_window_bench_entry PROPERTIES
   LABELS window TIMEOUT 300)
 
+# THE WINDOW'S INPUT DOOR, which only a window can answer: a `--shot` run
+# of a file of functions, presented while a client attached to the
+# window's endpoint presses the pointer on its canvas, until the file's
+# `mousePressed` writes the press down. A machine where no window opens
+# reports so and is skipped.
+add_test(NAME sketch_window_input
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/window_input.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --package ${SIGIL_PYTHON_PACKAGE_DIR}
+    --work ${CMAKE_BINARY_DIR}/sketch_window_input)
+set_tests_properties(sketch_window_input PROPERTIES
+  LABELS window SKIP_RETURN_CODE 77 TIMEOUT 300)
+
 # WHAT A SECOND OPEN NO LONGER BUILDS, which only a window can say. The
 # device program a draw waits for is built by the context behind the
 # presented canvas, so neither a still nor a headless sweep reaches it:
@@ -537,7 +551,7 @@ foreach(_source_sketch_case IN ITEMS
     sketch_reload_surface_scene3d sketch_reload_surface_device
     sketch_reload_surface_web sketch_reload_surface_substance
     sketch_reload_named sketch_reload_directory sketch_capture_viewport
-    sketch_window_orientation sketch_window_bench_file
+    sketch_window_orientation sketch_window_bench_file sketch_window_input
     sketch_pipeline_warmup)
   if(TEST ${_source_sketch_case})
     set_tests_properties(${_source_sketch_case} PROPERTIES
@@ -561,20 +575,22 @@ add_test(NAME sketch_pipeline_cold_store
 set_tests_properties(sketch_pipeline_cold_store PROPERTIES
   LABELS gpu TIMEOUT 300)
 
-# ONE PICTURE PER DECLARATION, on the device: a sketch captured twice at
-# its declared moment is the same bytes twice. One sketch here reads its
-# layer beside the pixel it shades and the other draws through textures it
-# caches, the two ways a capture can come to depend on more than the
-# declaration.
+# ONE PICTURE PER DECLARATION, on the device: a sketch captured ten times
+# at its declared moment is the same bytes ten times. One sketch here reads
+# its layer beside the pixel it shades and the other draws through
+# textures it caches, the two ways a capture can come to depend on more
+# than the declaration; a difference in a few pixels shows in a fraction of
+# captures, so two would let one through.
 foreach(_stable_sketch IN ITEMS nostromo_monitor borges_library)
   add_test(NAME sketch_stable_plate_${_stable_sketch}
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_CURRENT_LIST_DIR}/test/stable_plate.py
       --grimoire $<TARGET_FILE:Grimoire>
       --sketch ${_stable_sketch}
+      --captures 10
       --work ${CMAKE_BINARY_DIR}/sketch_stable_plate_${_stable_sketch})
   set_tests_properties(sketch_stable_plate_${_stable_sketch} PROPERTIES
-    LABELS gpu TIMEOUT 300)
+    LABELS gpu TIMEOUT 900)
 endforeach()
 
 # Every sketch stem a document names, resolved against this catalogue.

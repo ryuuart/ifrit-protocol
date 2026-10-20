@@ -11,29 +11,7 @@ from pathlib import Path
 
 from sigil import _loader, media
 from sigil.sketch import renderFile
-
-
-class Context:
-    """What a hook's context answers, recording what is declared on it."""
-
-    elapsed = 0.0
-
-    def __init__(self, width=960, height=640):
-        self.width, self.height = width, height
-        self.calls = []
-
-    def canvas(self, width, height):
-        self.width, self.height = width, height
-        self.calls.append(("canvas", (width, height)))
-
-    def background(self, color):
-        self.calls.append(("background", color))
-
-    def captureAt(self, seconds):
-        self.calls.append(("capture", seconds))
-
-    def render(self, element):
-        self.calls.append(("render", element))
+from support.context import RecordingContext
 
 
 class Point:
@@ -51,7 +29,7 @@ class Keys:
         self.key, self.keyCode, self.pressed, self.down = "", 0, False, []
 
 
-class InputContext(Context):
+class InputContext(RecordingContext):
     """A context answering the pointer and the keys the host fed it."""
 
     def __init__(self, width=960, height=640):
@@ -142,7 +120,7 @@ class SketchFunctions(unittest.TestCase):
             def draw(pen):
                 pass
         """)
-        ctx = Context()
+        ctx = RecordingContext()
         body().setup(ctx)
         self.assertEqual(
             ctx.calls[-2:], [("canvas", (200, 100)), ("background", "#102030")]
@@ -158,7 +136,7 @@ class SketchFunctions(unittest.TestCase):
             def draw(pen):
                 pass
         """)
-        ctx = Context()
+        ctx = RecordingContext()
         body().setup(ctx)
         self.assertIn(("capture", 2.5), ctx.calls)
 
@@ -169,7 +147,7 @@ class SketchFunctions(unittest.TestCase):
             def draw(pen):
                 background("#ffffff")
         """)
-        instance, ctx = body(), Context()
+        instance, ctx = body(), RecordingContext()
         instance.setup(ctx)
         with self.assertRaisesRegex(RuntimeError, "pen.background"):
             instance.draw(Pen(), ctx)
@@ -185,7 +163,7 @@ class SketchFunctions(unittest.TestCase):
                              mouseX, mouseY, mouseIsPressed, key, keyCode,
                              keyIsPressed))
         """)
-        instance, ctx = body(), Context()
+        instance, ctx = body(), RecordingContext()
         instance.setup(ctx)
         instance.draw(Pen(), ctx)
         instance.draw(
@@ -252,7 +230,7 @@ class SketchFunctions(unittest.TestCase):
             def keyReleased():
                 heard.append("key up")
         """)
-        instance, ctx = body(), Context()
+        instance, ctx = body(), RecordingContext()
         instance.setup(ctx)
         for pen in (
             Pen(mouseX=5, mouseY=5),
@@ -350,7 +328,7 @@ class SketchFunctions(unittest.TestCase):
             def mousePressed():
                 heard.append("pressed")
         """)
-        instance, ctx = body(), Context()
+        instance, ctx = body(), RecordingContext()
         instance.setup(ctx)
         instance.update(0.0, ctx)
         instance.update(1 / 60, ctx)
@@ -365,7 +343,7 @@ class SketchFunctions(unittest.TestCase):
             def draw(pen):
                 heard.append("first")
         """)
-        instance, ctx = body(), Context()
+        instance, ctx = body(), RecordingContext()
         instance.setup(ctx)
         instance.draw(Pen(), ctx)
 
@@ -386,7 +364,7 @@ class SketchFunctions(unittest.TestCase):
             def draw(pen):
                 pass
         """)
-        stateful().setup(Context())
+        stateful().setup(RecordingContext())
         self.assertFalse(stateful.__sigil_redescribes__)
         declarative, _ = self.load("""
             from sigil.compose import box
@@ -394,7 +372,7 @@ class SketchFunctions(unittest.TestCase):
             def setup():
                 return box()
         """)
-        declarative().setup(Context())
+        declarative().setup(RecordingContext())
         self.assertTrue(declarative.__sigil_redescribes__)
 
     def test_the_kind_is_read_from_the_describe_annotation(self):

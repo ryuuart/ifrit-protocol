@@ -72,7 +72,7 @@ set(SIGIL_SKETCH_PRIVATE
   # publisher beside it is still nobody's but the host's, and neither
   # protocol reaches a header.
   SigilWorldScene SigilMaterialSkia SigilWeavePaint
-  SigilDataDecode
+  SigilDataDecode SigilCoreReport
   SigilDataQuery
   SigilDataRead
   SigilIOSource SigilCoreSchedule SigilMedia SigilMediaImageDecode

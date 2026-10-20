@@ -34,31 +34,14 @@
 using namespace sigil;
 using namespace sigil::world;
 using ::sigil::world::diligent::at;
+using ::sigil::world::diligent::drawnTexture;
+using ::sigil::world::diligent::flat;
 
 namespace {
 
 namespace gm = ::sigil::geometry::mesh;
 
 constexpr glm::ivec2 kExtent{160, 160};
-
-/** A texture of @p width x @p height, drawn by @p paint. */
-material::Texture drawnTexture(const std::string& key, int width, int height,
-                               const std::function<void(SkCanvas&)>& paint) {
-  return material::Texture(
-      sigil::media::PixelSource::produce(key, [width, height, paint] {
-        sk_sp<SkSurface> surface =
-            SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
-        surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-        paint(*surface->getCanvas());
-        return surface->makeImageSnapshot();
-      }));
-}
-
-/** One flat colour, one texel. */
-material::Texture flat(const std::string& key, SkColor4f colour) {
-  return drawnTexture(key, 1, 1,
-                      [colour](SkCanvas& canvas) { canvas.clear(colour); });
-}
 
 /** How the camera reads the picture, for the cases that need a curve
  *  other than the stock one. */
@@ -479,11 +462,11 @@ TEST(Lighting, AReflectionSpreadsAsWideNearAPoleAsAtTheHorizon) {
   // One small bright window, mirrored in the middle of a rough metal
   // ball by an eye looking at the ball from the other side.
   const auto highlight = [&](glm::vec2 window, glm::vec3 eye, glm::vec3 up) {
-    const EnvironmentMap room = kit::environmentMap(
-        {.width = 512,
-         .softBoxes = {{.centre = window,
-                        .size = {0.002f, 0.004f},
-                        .radiance = {4000, 4000, 4000}}}});
+    const EnvironmentMap room =
+        kit::environmentMap({.width = 512,
+                             .softBoxes = {{.centre = window,
+                                            .size = {0.002f, 0.004f},
+                                            .radiance = {4000, 4000, 4000}}}});
     geometry::mesh::camera::Camera lens;
     lens.eye = eye;
     lens.up = up;
@@ -492,8 +475,7 @@ TEST(Lighting, AReflectionSpreadsAsWideNearAPoleAsAtTheHorizon) {
                    .key("ball")
                    .fill(material::from(material::Color{1, 1, 1, 1})
                              .surface({.metallic = 1.0f, .roughness = 0.35f})),
-               camera(lens, {.exposure = 0.05f,
-                             .toneCurve = ToneCurve::Linear})
+               camera(lens, {.exposure = 0.05f, .toneCurve = ToneCurve::Linear})
                    .key("camera")})
             .key("set"));
     frame.environment(room).extent(kSide).pass(
@@ -535,14 +517,14 @@ TEST(Lighting, AnAdditiveReflectionAddsItsWeightOfTheEnvironment) {
     black.baseColor = {0, 0, 0, 1};
     black.roughness = 0.2f;
     black.reflectionWeight = weight;
-    Frame frame(group({mesh(gm::quad(120, 120))
-                           .key("card")
-                           .fill(material::surface::program(black, reflection)),
-                       camera(diligent::levelEye(),
-                              {.exposure = 1.0f,
-                               .toneCurve = ToneCurve::Linear})
-                           .key("camera")})
-                    .key("set"));
+    Frame frame(
+        group({mesh(gm::quad(120, 120))
+                   .key("card")
+                   .fill(material::surface::program(black, reflection)),
+               camera(diligent::levelEye(),
+                      {.exposure = 1.0f, .toneCurve = ToneCurve::Linear})
+                   .key("camera")})
+            .key("set"));
     frame.environment(even, {.intensity = 1.0f, .diffuse = 1.0f})
         .extent({64, 64})
         .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));

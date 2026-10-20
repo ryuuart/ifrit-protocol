@@ -25,9 +25,9 @@ import weakref
 from pathlib import Path
 
 from _sigil.compose import instancing as native
-from sigil import compose, material, media, motion, skia
+from sigil import compose, material, motion, skia
 from sigil.compose import box, instancing
-from sigil.sketch import renderFile
+from support.rendering import pixel, renderedImage
 
 LANES = (
     "PointLane",
@@ -857,12 +857,7 @@ class Session(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        renderFile(source, output, at=0)
-        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
-
-    def pixel(self, picture, x, y):
-        offset = 4 * (y * picture.width() + x)
-        return tuple(picture.rgba()[offset : offset + 4])
+        return renderedImage(source, output, at=0)
 
 
 class Frames(Session):
@@ -886,9 +881,9 @@ class Frames(Session):
             results['pool'] = pool
         """)
         self.assertIsNone(self.results["before"])
-        self.assertEqual(self.pixel(picture, 16, 16), self.WHITE)
-        self.assertEqual(self.pixel(picture, 40, 16), (255, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 28, 40), self.BLACK)
+        self.assertEqual(pixel(picture, 16, 16), self.WHITE)
+        self.assertEqual(pixel(picture, 40, 16), (255, 0, 0, 255))
+        self.assertEqual(pixel(picture, 28, 40), self.BLACK)
         # The sheet and the pool are Python's own, so they answer after the
         # session that drew them has closed, and the first stamp baked the
         # sheet at its oversample.
@@ -919,14 +914,14 @@ class Frames(Session):
     def test_a_lane_write_without_a_commit_replays_the_old_picture(self):
         picture = self.data_mode("pass")
         self.assertFalse(self.results["dirty"])
-        self.assertEqual(self.pixel(picture, 16, 16), self.WHITE)
-        self.assertEqual(self.pixel(picture, 48, 32), self.BLACK)
+        self.assertEqual(pixel(picture, 16, 16), self.WHITE)
+        self.assertEqual(pixel(picture, 48, 32), self.BLACK)
 
     def test_a_commit_repaints_the_leaf(self):
         picture = self.data_mode("pool.commit()")
         self.assertTrue(self.results["dirty"])
-        self.assertEqual(self.pixel(picture, 48, 32), self.WHITE)
-        self.assertEqual(self.pixel(picture, 16, 16), self.BLACK)
+        self.assertEqual(pixel(picture, 48, 32), self.WHITE)
+        self.assertEqual(pixel(picture, 16, 16), self.BLACK)
 
     def test_a_live_leaf_reads_the_pool_at_every_draw(self):
         picture = self.render("""
@@ -941,8 +936,8 @@ class Frames(Session):
             pen.background('#000000')
             probe.draw(pen.canvas())
         """)
-        self.assertEqual(self.pixel(picture, 48, 32), self.WHITE)
-        self.assertEqual(self.pixel(picture, 16, 16), self.BLACK)
+        self.assertEqual(pixel(picture, 48, 32), self.WHITE)
+        self.assertEqual(pixel(picture, 16, 16), self.BLACK)
 
     def test_a_flight_step_moves_what_is_drawn(self):
         picture = self.render("""
@@ -957,8 +952,8 @@ class Frames(Session):
             probe.render(field(instancing.instances(sheet, pool)))
             probe.draw(pen.canvas())
         """)
-        self.assertEqual(self.pixel(picture, 48, 32), self.WHITE)
-        self.assertEqual(self.pixel(picture, 16, 16), self.BLACK)
+        self.assertEqual(pixel(picture, 48, 32), self.WHITE)
+        self.assertEqual(pixel(picture, 16, 16), self.BLACK)
 
     def overlap(self, blend):
         picture = self.render(f"""
@@ -972,7 +967,7 @@ class Frames(Session):
                 sheet, pool, blend=material.BlendMode.{blend})))
             probe.draw(pen.canvas())
         """)
-        return self.pixel(picture, 28, 24)[0]
+        return pixel(picture, 28, 24)[0]
 
     def test_the_blend_is_per_sprite_so_overlapping_sprites_accumulate(self):
         self.assertGreater(self.overlap("PlusLighter"), self.overlap("Normal") + 50)
@@ -990,7 +985,7 @@ class Frames(Session):
             probe.render(field(leaf))
             probe.draw(pen.canvas())
         """)
-        self.assertEqual(self.pixel(picture, 16, 16), self.WHITE)
+        self.assertEqual(pixel(picture, 16, 16), self.WHITE)
 
     def test_a_variant_is_selected_by_its_frame(self):
         picture = self.render("""
@@ -1006,8 +1001,8 @@ class Frames(Session):
             probe.render(field(instancing.instances(sheet, pool)))
             probe.draw(pen.canvas())
         """)
-        self.assertEqual(self.pixel(picture, 16, 16), (0, 0, 255, 255))
-        self.assertEqual(self.pixel(picture, 40, 16), (0, 255, 0, 255))
+        self.assertEqual(pixel(picture, 16, 16), (0, 0, 255, 255))
+        self.assertEqual(pixel(picture, 40, 16), (0, 255, 0, 255))
 
 
 if __name__ == "__main__":

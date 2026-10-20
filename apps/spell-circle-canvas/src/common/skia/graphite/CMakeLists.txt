@@ -39,7 +39,7 @@ sigil_library(SigilSkiaGraphite
   HEADERS GraphiteContext.h OffscreenSurface.h PaintOrder.h
           Pixels.h Readback.h TextureImage.h
   PUBLIC unofficial::skia::skia SigilCoreHardware
-  PRIVATE Vulkan::Headers Boost::unordered)
+  PRIVATE Vulkan::Headers Boost::unordered SigilCoreReport)
 if(APPLE)
   target_link_libraries(SigilSkiaGraphite PRIVATE ${FOUNDATION_FRAMEWORK})
 endif()
@@ -64,7 +64,10 @@ sigil_test(skia_test
 # where one is guaranteed.
 if(APPLE)
   sigil_test(skia_test
-    SOURCES test/GraphiteTest.mm
+    SOURCES test/GraphiteContextTest.mm test/ImagePromotionTest.mm
+            test/MetalFixtures.h test/OffscreenSurfaceTest.mm
+            test/PipelineReportTest.mm test/ReadbackTest.mm
+            test/TextureImageTest.mm
     LIBRARIES SigilSkiaGraphite ${METAL_FRAMEWORK}
     SUPPORT_DIRS ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
     SUITES SigilSkiaGraphite LABELS gpu

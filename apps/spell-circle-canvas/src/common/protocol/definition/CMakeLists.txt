@@ -64,7 +64,8 @@ sigil_library(SigilProtocolDefinition
   SOURCES Definition.cpp ${SIGIL_PROTOCOL_HEADERS}
           ${SIGIL_PROTOCOL_DESCRIPTION}
   HEADERS Answer.h Call.h Definition.h Mount.h
-  PUBLIC SigilDataValues SigilDataDecode flatbuffers::flatbuffers)
+  PUBLIC SigilDataValues SigilDataDecode SigilCoreReport
+         flatbuffers::flatbuffers)
 target_include_directories(SigilProtocolDefinition
   PUBLIC ${SIGIL_PROTOCOL_GENERATED})
 

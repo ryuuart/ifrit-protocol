@@ -17,12 +17,15 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/core/PixelSource.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
@@ -33,12 +36,35 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <memory>
 #include <string>
 
 #include "OnDevice.h"
+#include "VulkanGraphite.h"
 
 namespace sigil::world::diligent {
+
+/** A texture of @p width x @p height, drawn by @p paint. Named by @p key
+ *  so two identical asks are one texture. */
+inline material::Texture drawnTexture(
+    const std::string& key, int width, int height,
+    const std::function<void(SkCanvas&)>& paint) {
+  return material::Texture(
+      sigil::media::PixelSource::produce(key, [width, height, paint] {
+        sk_sp<SkSurface> surface =
+            SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
+        surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+        paint(*surface->getCanvas());
+        return surface->makeImageSnapshot();
+      }));
+}
+
+/** One flat colour, one texel. */
+inline material::Texture flat(const std::string& key, SkColor4f colour) {
+  return drawnTexture(key, 1, 1,
+                      [colour](SkCanvas& canvas) { canvas.clear(colour); });
+}
 
 /** A DEVICE AND THE SEAM VALUE STANDING ON IT, or the reason there is
  *  neither: the runtime that performs a frame's passes. */
@@ -172,21 +198,7 @@ inline SkColor4f at(const SkBitmap& plate, float x, float y) {
                           (int)(y * (float)plate.height()));
 }
 
-/** GRAPHITE ON THE DEVICE'S OWN VULKAN QUEUE: the device's `graphite()`
- *  where 2D shares that queue, and where it paints through Metal instead,
- *  a Vulkan context made over the adopted device and kept for the process
- *  — the context a host without Metal stands on. Null where the device
- *  was not adopted or this Skia carries no Vulkan backend. */
-inline skia::GraphiteContext* vulkanGraphite(geometry::device::Device& device) {
-  skia::GraphiteContext* own = device.graphite();
-  if (own && own->recorder() &&
-      own->recorder()->backend() == skgpu::BackendApi::kVulkan)
-    return own;
-  if (!device.gpu()) return nullptr;
-  static const std::unique_ptr<skia::GraphiteContext> made =
-      skia::GraphiteContext::create(*device.gpu());
-  return made.get();
-}
+using geometry::device::test::vulkanGraphite;
 
 /** WHAT THE 2D PATH PAINTED ON THIS DEVICE: the handle it was painted
  *  through, and the same texture as the graphics API's own object. Both

@@ -9,9 +9,9 @@ import unittest
 from array import array
 from pathlib import Path
 
-from sigil import draw, media
+from sigil import draw
 from sigil.core import chance
-from sigil.sketch import renderFile
+from support.rendering import pixel, renderedImage
 
 
 class PenContracts(unittest.TestCase):
@@ -39,12 +39,7 @@ class PenContracts(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        renderFile(source, output, at=at)
-        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
-
-    def pixel(self, picture, x, y):
-        offset = 4 * (y * picture.width() + x)
-        return tuple(picture.rgba()[offset : offset + 4])
+        return renderedImage(source, output, at=at)
 
     def test_native_math_and_copyable_seeded_streams(self):
         self.assertEqual(draw.map(2, 0, 1, 10, 20, True), 20)
@@ -66,7 +61,7 @@ class PenContracts(unittest.TestCase):
             recipe = material.surface.unlit(material.surface.SurfaceParameters(baseColor='#e75a31'))
             pen.background(recipe)
         """)
-        ground = self.pixel(picture, 16, 16)
+        ground = pixel(picture, 16, 16)
         self.assertEqual(ground[3], 255)
         # A warm base colour, opaque and reddest of the three channels,
         # rather than the transparent canvas a refused ground leaves.
@@ -88,9 +83,9 @@ class PenContracts(unittest.TestCase):
             canvas.drawPoints(draw.PointMode.Points, [(24, 8), (24, 24)], pen.strokePaint())
             results['canvas'] = canvas
         """)
-        self.assertEqual(self.pixel(picture, 8, 16), (255, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 24, 16), (0, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 24, 8), (0, 255, 0, 255))
+        self.assertEqual(pixel(picture, 8, 16), (255, 0, 0, 255))
+        self.assertEqual(pixel(picture, 24, 16), (0, 0, 0, 255))
+        self.assertEqual(pixel(picture, 24, 8), (0, 255, 0, 255))
         with self.assertRaisesRegex(RuntimeError, "callback"):
             self.results["canvas"].getSaveCount()
 
@@ -125,12 +120,12 @@ class PenContracts(unittest.TestCase):
             pen.fill('#0000ff')
             pen.rect(30, 0, 2, 2)
         """)
-        self.assertEqual(self.pixel(picture, 8, 8), (255, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 24, 8), (0, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 8, 24), (0, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 24, 24), (255, 0, 0, 255))
+        self.assertEqual(pixel(picture, 8, 8), (255, 0, 0, 255))
+        self.assertEqual(pixel(picture, 24, 8), (0, 0, 0, 255))
+        self.assertEqual(pixel(picture, 8, 24), (0, 0, 0, 255))
+        self.assertEqual(pixel(picture, 24, 24), (255, 0, 0, 255))
         # Outside every clip once each has been popped.
-        self.assertEqual(self.pixel(picture, 31, 1), (0, 0, 255, 255))
+        self.assertEqual(pixel(picture, 31, 1), (0, 0, 255, 255))
         self.assertIn("the mask failed", self.results["raised"])
 
     def test_point_buffers_match_iterable_pixels_without_retaining_storage(self):
@@ -271,7 +266,7 @@ class PenContracts(unittest.TestCase):
         self.assertTrue(self.results["expired"])
         picture = self.results["image"]
         self.assertEqual((picture.width(), picture.height()), (24, 20))
-        self.assertEqual(self.pixel(picture, 12, 10), (0x12, 0x34, 0x56, 255))
+        self.assertEqual(pixel(picture, 12, 10), (0x12, 0x34, 0x56, 255))
 
     def test_closed_host_does_not_end_a_reopened_graphics_frame(self):
         picture = self.render(
@@ -289,7 +284,7 @@ class PenContracts(unittest.TestCase):
             self.shared = draw.Graphics(32, 32)
         """,
         )
-        self.assertEqual(self.pixel(picture, 16, 16), (0x12, 0x34, 0x56, 255))
+        self.assertEqual(pixel(picture, 16, 16), (0x12, 0x34, 0x56, 255))
 
     def test_graphics_requires_a_host_pen(self):
         buffer = draw.Graphics(12, 10)
@@ -311,8 +306,8 @@ class PenContracts(unittest.TestCase):
         """,
             at=0.1,
         )
-        first = self.pixel(picture, 6, 6)
-        second = self.pixel(picture, 22, 22)
+        first = pixel(picture, 6, 6)
+        second = pixel(picture, 22, 22)
         self.assertEqual(first, second)
         self.assertGreater(first[0], 0)
         self.assertLess(first[0], 255)
@@ -345,8 +340,8 @@ class PenContracts(unittest.TestCase):
             pen.line(0, 16, 32, 16)
         """)
         self.assertEqual(self.results["green"], (0, 1, 0, 1))
-        self.assertEqual(self.pixel(picture, 2, 16), (0, 255, 0, 255))
-        self.assertEqual(self.pixel(picture, 6, 16), (0, 0, 0, 255))
+        self.assertEqual(pixel(picture, 2, 16), (0, 255, 0, 255))
+        self.assertEqual(pixel(picture, 6, 16), (0, 0, 0, 255))
 
 
 if __name__ == "__main__":

@@ -56,8 +56,10 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 # feature and in none of its headers.
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilWorldDiligent
-  SOURCES Clock.cpp Geometry.cpp Gpu.cpp Gpu.h Import.cpp Post.cpp
-          Programs.cpp Programs.h Runtime.cpp
+  SOURCES Blending.cpp Body.cpp BodyPrograms.cpp BodyUniforms.cpp Clock.cpp
+          Geometry.cpp GeometryPass.h Gpu.cpp Gpu.h Import.cpp Phases.cpp
+          PipelineKeys.cpp Post.cpp Programs.cpp Programs.h Runtime.cpp
+          ShadowFitting.cpp Shadows.cpp ShadowTints.cpp Sky.cpp
           ${SIGIL_WORLD_SURFACE_PROOF} ${SIGIL_WORLD_POST_PROOF}
   HEADERS Import.h Runtime.h ../advanced/Diligent.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}

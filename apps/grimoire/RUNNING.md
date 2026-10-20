@@ -332,8 +332,18 @@ order it was written down. Compiled from the same text it is the same effect
 to the backend, so the body's own compile carries the declared name and the
 programs over it are recorded and stood up like any other. The file only
 grows at its end and the digest is over the stock bodies alone, so writing
-down one more effect moves no recorded key; an effect past the backend's
-limit on declared bodies keeps a name no key can carry.
+down one more effect moves no recorded key.
+
+**Skia names at most one hundred declared bodies**, the stock ones first, and
+the effects written down take what room they leave, in the order they were
+written. An effect past that room keeps a name no key can carry, so every
+program over it is built again on each launch's first frame. Each written-down
+effect carries the sketches whose draws went without a key while it was
+undeclared, and a launch whose declaration runs past the limit says so on
+standard error, naming those sketches; a run whose draws built programs no key
+could carry names each such sketch at exit, with how many. `--pipeline-names`
+also prints, as the app comes up, how many stock and written-down bodies were
+offered and how many of the hundred were declared.
 
 **A selected sketch's set stands up before the sketch opens.** The host's
 name for the sketch is all the warm-up needs: the set holds every program

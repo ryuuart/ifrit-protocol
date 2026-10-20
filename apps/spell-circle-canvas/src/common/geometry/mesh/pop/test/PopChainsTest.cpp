@@ -211,9 +211,9 @@ TEST(Pop, ADegenerateGeneratorCooksToAnEmptyCloud) {
   // An empty point set: the caller's own cloud, with no points in it.
   empty({pop::PointSet{}, pop::Jitter{}});
 
-  // A mesh of no area — three vertices at one place — scatters nowhere.
-  // This is the case that used to cook `count` points at the origin,
-  // because the requested count was answered whatever the scatter made.
+  // A mesh of no area — three vertices at one place — scatters nowhere,
+  // rather than answering the requested count with points at the origin
+  // whatever the scatter made.
   Mesh flat;
   flat.positions = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
   flat.indices = {0, 1, 2};

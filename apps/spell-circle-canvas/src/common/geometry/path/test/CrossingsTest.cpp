@@ -172,9 +172,9 @@ TEST(CrossingRule, AlternateAlongPlaitsEveryStrandAndAlternateDoesNot) {
 // taken a step either way cannot: at the vertex the strand that stops
 // there has no sample past it, so the probe is the meeting itself, and
 // the side it comes out on is the sign of a rounding. The placements
-// below are the evidence — several of them are the arrangements where
-// that rounding used to come out the wrong way and manufacture an eighth
-// knot, which is why the case sweeps a figure rather than drawing one.
+// below are the evidence — several of them are arrangements where that
+// rounding coming out the wrong way manufactures an eighth knot, which is
+// why the case sweeps a figure rather than drawing one.
 TEST(Crossings, ThePlaitedStarHoldsItsSevenKnotsWhereverItIsDrawn) {
   // The star as the sigil study builds it, down to the arithmetic: the
   // angle in degrees of a turn, converted once, measured clockwise from

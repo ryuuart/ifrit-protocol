@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from sigil import environment
+from support.files import writeExecutable
 
 
 class ProjectEnvironment(unittest.TestCase):
@@ -23,8 +24,8 @@ class ProjectEnvironment(unittest.TestCase):
         self.source = self.project / "sketches/scene.py"
         self.source.parent.mkdir(parents=True)
         self.source.write_text("pass\n")
-        self.uv = self.executable(self.root / "tools/uv")
-        self.pinned = self.executable(self.root / "pinned/bin/python")
+        self.uv = writeExecutable(self.root / "tools/uv")
+        self.pinned = writeExecutable(self.root / "pinned/bin/python")
         self.info = {
             "implementation": "cpython",
             "version": [3, 14],
@@ -47,12 +48,6 @@ class ProjectEnvironment(unittest.TestCase):
             patch.object(environment.subprocess, "run", side_effect=self.process)
         )
 
-    def executable(self, path):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("#!/bin/sh\nexit 0\n")
-        path.chmod(0o755)
-        return path
-
     def project_file(self, root=None, content=None):
         root = self.project if root is None else root
         path = root / "pyproject.toml"
@@ -62,7 +57,7 @@ class ProjectEnvironment(unittest.TestCase):
 
     def venv(self, root=None):
         root = self.project if root is None else root
-        executable = self.executable(root / ".venv/bin/python")
+        executable = writeExecutable(root / ".venv/bin/python")
         (root / ".venv/pyvenv.cfg").write_text("home = /base/python\n")
         return executable
 
@@ -231,7 +226,7 @@ class ProjectEnvironment(unittest.TestCase):
     def test_standard_user_uv_location_is_found_without_path(self):
         self.project_file()
         self.which.return_value = None
-        fallback = self.executable(self.root / "home/.local/bin/uv")
+        fallback = writeExecutable(self.root / "home/.local/bin/uv")
         with patch.object(environment.Path, "home", return_value=self.root / "home"):
             self.resolve()
         self.assertEqual(self.syncs()[0].args[0][0], str(fallback))

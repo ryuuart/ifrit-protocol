@@ -39,6 +39,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -85,6 +86,11 @@ class PipelineRecord final
     // A program built for a draw is one the sketch drawing wanted, there
     // and then. One built ahead is a guess until a draw finds it.
     if (!fromPrecompile) m_wantedBy[m_drawing].insert(uniqueHash);
+    // A program a draw built that the backend could give no key is one
+    // over an effect no declaration named, and the sketch drawing it
+    // builds it again on every launch until one does.
+    if (!fromPrecompile && !key && m_unkeyedSeen.insert(uniqueHash).second)
+      ++m_unkeyedBy[m_drawing];
     if (namesEveryPipeline())
       std::fprintf(stderr, "[grimoire] pipeline %s %08x%s: %s\n",
                    fromPrecompile ? "ahead" : "for a draw", uniqueHash,
@@ -132,6 +138,13 @@ class PipelineRecord final
     return sketches;
   }
 
+  /** Every sketch whose draws built a program no key could carry, with
+   *  how many; the empty name holds what was drawn before any sketch. */
+  std::map<std::string, size_t> unkeyedSketches() const {
+    const std::lock_guard<std::mutex> held(m_lock);
+    return m_unkeyedBy;
+  }
+
   /** THE SET TO WRITE BACK FOR @p sketch: the programs its DRAWS
    *  wanted in this run, and only those.
    *
@@ -176,6 +189,10 @@ class PipelineRecord final
   /** What each sketch's draws wanted, by the name the host drew it
    *  under; the empty name holds what was drawn before any sketch. */
   std::map<std::string, std::unordered_set<std::uint32_t>> m_wantedBy;
+  /** How many programs each sketch's draws built with no key, each
+   *  program counted once for the sketch that first built it. */
+  std::map<std::string, size_t> m_unkeyedBy;
+  std::unordered_set<std::uint32_t> m_unkeyedSeen;
   std::string m_drawing;
   bool m_countingFirstFrame = false;
   size_t m_builtInFirstFrame = 0;
@@ -207,6 +224,8 @@ size_t g_stockDeclared = 0;
  *  backend's limit among them: what a run's own compiles are told apart
  *  from when they are written down. */
 std::unordered_set<std::string> g_offered;
+/** The text of every effect the backend declared, which a key can carry. */
+std::unordered_set<std::string> g_declaredSources;
 /** The ones a cold store stands up ahead of any draw, which is a much
  *  shorter list than the one above — see `buildStagesAhead`. */
 std::vector<sk_sp<SkRuntimeEffect>> g_stages;
@@ -296,19 +315,24 @@ sk_sp<SkRuntimeEffect> compiled(const pipelines::RecordedEffect& recorded) {
 /** THE EFFECTS PAST RUNS WROTE DOWN, put after @p declarable in the order
  *  they were written, each one not already there. One that no longer
  *  compiles ends the list: every effect after it would be declared one
- *  place earlier than a recorded key names it. */
-void appendRecordedEffects(std::vector<sk_sp<SkRuntimeEffect>>& declarable,
-                           const std::filesystem::path& storeDirectory) {
+ *  place earlier than a recorded key names it. Answers the ones put
+ *  there, in the same order. */
+std::vector<pipelines::RecordedEffect> appendRecordedEffects(
+    std::vector<sk_sp<SkRuntimeEffect>>& declarable,
+    const std::filesystem::path& storeDirectory) {
   std::unordered_set<std::string> present;
   for (const sk_sp<SkRuntimeEffect>& effect : declarable)
     if (effect) present.insert(effect->source());
-  for (const pipelines::RecordedEffect& recorded :
+  std::vector<pipelines::RecordedEffect> appended;
+  for (pipelines::RecordedEffect& recorded :
        pipelines::readEffects(pipelines::effectsFile(storeDirectory))) {
     if (!present.insert(recorded.source).second) continue;
     sk_sp<SkRuntimeEffect> effect = compiled(recorded);
     if (!effect) break;
     declarable.push_back(std::move(effect));
+    appended.push_back(std::move(recorded));
   }
+  return appended;
 }
 
 /** WRITES DOWN THE RUNTIME EFFECTS THIS RUN COMPILED THAT NO DECLARATION
@@ -318,19 +342,50 @@ void appendRecordedEffects(std::vector<sk_sp<SkRuntimeEffect>>& declarable,
 size_t writeDownUndeclaredEffects(const std::filesystem::path& storeDirectory) {
   const std::filesystem::path file = pipelines::effectsFile(storeDirectory);
   std::vector<pipelines::RecordedEffect> effects = pipelines::readEffects(file);
-  std::unordered_set<std::string> known = g_offered;
-  for (const pipelines::RecordedEffect& recorded : effects)
-    known.insert(recorded.source);
+  // THE SKETCHES AN EFFECT IS WRITTEN DOWN FOR: the ones whose draws went
+  // without a key in this run, which are the draws over the effects no
+  // declaration named; a run whose backend reported no such draw names
+  // every sketch it drew.
+  std::vector<std::string> sketches;
+  for (const auto& [sketch, count] : recorder()->unkeyedSketches())
+    if (!sketch.empty() && count > 0) sketches.push_back(sketch);
+  if (sketches.empty()) sketches = recorder()->sketchesDrawn();
+  const auto name = [&sketches](pipelines::RecordedEffect& effect) {
+    bool named = false;
+    for (const std::string& sketch : sketches)
+      if (std::find(effect.sketches.begin(), effect.sketches.end(), sketch) ==
+          effect.sketches.end()) {
+        effect.sketches.push_back(sketch);
+        named = true;
+      }
+    return named;
+  };
+  std::unordered_map<std::string, size_t> recordedAt;
+  for (size_t at = 0; at < effects.size(); ++at)
+    recordedAt.emplace(effects[at].source, at);
   size_t added = 0;
+  bool renamed = false;
   for (const std::shared_ptr<material::Program>& program :
        material::ProgramCache::shared().programs(material::Target::SkSL)) {
     const auto* skia = program->as<material::skia::SkiaProgram>();
     const sk_sp<SkRuntimeEffect>& effect = skia ? skia->effect() : nullptr;
-    if (!effect || !known.insert(effect->source()).second) continue;
-    effects.push_back({kindOf(*effect), effect->source()});
+    if (!effect) continue;
+    // One written down before and compiled again is named for this run's
+    // sketches too; a stock one is never written down.
+    if (const auto found = recordedAt.find(effect->source());
+        found != recordedAt.end()) {
+      if (!g_declaredSources.count(effect->source()))
+        renamed = name(effects[found->second]) || renamed;
+      continue;
+    }
+    if (g_offered.count(effect->source())) continue;
+    pipelines::RecordedEffect recorded{kindOf(*effect), effect->source(), {}};
+    name(recorded);
+    recordedAt.emplace(recorded.source, effects.size());
+    effects.push_back(std::move(recorded));
     ++added;
   }
-  if (added && !pipelines::writeEffects(file, effects)) {
+  if ((added || renamed) && !pipelines::writeEffects(file, effects)) {
     std::fprintf(stderr, "[grimoire] pipelines: could not write %s\n",
                  file.c_str());
     return 0;
@@ -438,7 +493,8 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory,
   g_storeDirectory = storeDirectory;
   std::vector<sk_sp<SkRuntimeEffect>> declarable = everyDeclarableProgram();
   const size_t stock = declarable.size();
-  appendRecordedEffects(declarable, storeDirectory);
+  const std::vector<pipelines::RecordedEffect> recorded =
+      appendRecordedEffects(declarable, storeDirectory);
   g_offered.clear();
   for (const sk_sp<SkRuntimeEffect>& effect : declarable)
     if (effect) g_offered.insert(effect->source());
@@ -454,11 +510,32 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory,
   // which set a file holds.
   g_declared.assign(declarable.begin(), declarable.begin() + taken);
   g_stockDeclared = std::min(stock, taken);
-  if (taken < declarable.size())
+  g_declaredSources.clear();
+  for (const sk_sp<SkRuntimeEffect>& effect : g_declared)
+    if (effect) g_declaredSources.insert(effect->source());
+  const size_t limit = sigil::skia::GraphiteContext::runtimeEffectLimit();
+  if (namesEveryPipeline())
     std::fprintf(stderr,
-                 "[grimoire] pipelines: %zu of %zu programs declared; the "
-                 "rest keep names no recorded key can carry\n",
-                 taken, declarable.size());
+                 "[grimoire] pipelines: %zu stock effects and %zu written "
+                 "down offered, %zu declared of the %zu the backend can "
+                 "name\n",
+                 stock, recorded.size(), taken, limit);
+  if (taken < declarable.size()) {
+    // WHICH SKETCHES THE LIMIT COSTS: the ones whose effects were written
+    // down past it, whose programs over those effects build on every
+    // launch because no key can carry them.
+    const std::vector<std::string> unkeyed = pipelines::sketchesLeftUnkeyed(
+        recorded, limit > stock ? limit - stock : 0);
+    std::string named;
+    for (const std::string& sketch : unkeyed)
+      named += (named.empty() ? "" : ", ") + sketch;
+    std::fprintf(stderr,
+                 "[grimoire] pipelines: %zu of %zu programs declared, %zu "
+                 "of them stock; the rest keep names no recorded key can "
+                 "carry, so these sketches build them on every launch: %s\n",
+                 taken, declarable.size(), stock,
+                 named.empty() ? "none named" : named.c_str());
+  }
   sigil::skia::GraphiteContext::reportPipelinesTo(recorder());
   g_open = true;
 }
@@ -597,4 +674,10 @@ void finishPipelineWarmup() {
                    file.c_str());
   }
   recorder()->report(g_replayed, written);
+  for (const auto& [sketch, count] : recorder()->unkeyedSketches())
+    if (!sketch.empty() && count > 0)
+      std::fprintf(stderr,
+                   "[grimoire] pipelines: %s drew %zu programs no key can "
+                   "carry, over effects no declaration named\n",
+                   sketch.c_str(), count);
 }

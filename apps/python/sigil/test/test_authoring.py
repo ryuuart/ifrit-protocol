@@ -1,44 +1,19 @@
 """Authoring contracts exercised against the built native extension."""
 
-import sys
 import tempfile
 import unittest
 from pathlib import Path
-from types import ModuleType
 
 from _sigil import compose as raw
 from sigil import media
 from sigil.compose import Element, box, column, graphics, row, text
 from sigil.motion import animate
 from sigil.sketch import renderFile, sketch
+from support.context import DecoratedModule, RecordingContext
 
 
-class Context:
-    def __init__(self):
-        self.calls = []
-
-    def canvas(self, *size):
-        self.calls.append(("canvas", size))
-
-    def background(self, color):
-        self.calls.append(("background", color))
-
-    def captureAt(self, seconds):
-        self.calls.append(("capture", seconds))
-
-    def render(self, element):
-        self.calls.append(("render", element))
-
-
-class Authoring(unittest.TestCase):
-    def setUp(self):
-        self.module = ModuleType("_sigil_authoring_fixture")
-        sys.modules[self.module.__name__] = self.module
-        self.addCleanup(sys.modules.pop, self.module.__name__, None)
-
-    def decorate(self, cls, **options):
-        cls.__module__ = self.module.__name__
-        return sketch(**options)(cls)
+class Authoring(DecoratedModule, unittest.TestCase):
+    moduleName = "_sigil_authoring_fixture"
 
     def test_decorator_exports_class_and_configures_before_setup(self):
         class Body:
@@ -46,7 +21,7 @@ class Authoring(unittest.TestCase):
                 ctx.calls.append(("setup", self))
 
         cls = self.decorate(Body, size=(300, 200), background="#abcdef", captureAt=2.5)
-        body, ctx = cls(), Context()
+        body, ctx = cls(), RecordingContext()
         body.setup(ctx)
         self.assertIs(cls, Body)
         self.assertIs(self.module.__sigil_sketch__, Body)
@@ -68,7 +43,7 @@ class Authoring(unittest.TestCase):
             def setup(self, ctx):
                 ctx.calls.append(("setup", None))
 
-        ctx = Context()
+        ctx = RecordingContext()
         self.decorate(Body)().setup(ctx)
         self.assertEqual(ctx.calls[-2][0], "render")
         self.assertIsInstance(ctx.calls[-2][1], Element)

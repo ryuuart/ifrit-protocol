@@ -21,10 +21,9 @@ import textwrap
 import unittest
 from pathlib import Path
 
-import _sigil
 from _sigil import compose as native
-from sigil import compose, geometry, media, skia
-from sigil.sketch import renderFile
+from sigil import compose, geometry, skia
+from support.rendering import renderedImage, scaledPixel
 
 RESULTS = "_sigil_derive_results"
 
@@ -520,8 +519,7 @@ class Session(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(body).strip("\n"), "    ")
             + "\n"
         )
-        renderFile(source, output, at=0)
-        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
+        return renderedImage(source, output, at=0)
 
     def frame(self, drawing):
         """Render @p drawing as the body of a sketch's draw."""
@@ -539,10 +537,7 @@ class Session(unittest.TestCase):
 
     def red(self, picture, x, y):
         """Whether the canvas is stroke red at @p x, @p y, at any density."""
-        column = x * picture.width() // self.SIZE[0]
-        row = y * picture.height() // self.SIZE[1]
-        offset = 4 * (row * picture.width() + column)
-        red, green, blue = picture.rgba()[offset : offset + 3]
+        red, green, blue = scaledPixel(picture, x, y, self.SIZE, 3)
         return red > 200 and green < 80 and blue < 80
 
 

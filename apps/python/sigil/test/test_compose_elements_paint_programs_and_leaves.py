@@ -12,12 +12,11 @@ import gc
 import tempfile
 import textwrap
 import unittest
-import weakref
 from pathlib import Path
 
 from _sigil import compose as native
 from sigil import material, media, skia, weave
-from sigil.sketch import renderFile
+from support.rendering import renderedImage, scaledPixel
 
 RESULTS = "_sigil_paint_program_results"
 
@@ -116,7 +115,7 @@ class PaintProgramValues(unittest.TestCase):
                 raise ValueError("this key refuses comparison")
 
         with self.assertRaisesRegex(RuntimeError, "refuses comparison"):
-            native.keyedShape(Incomparable(), outline) == native.keyedShape(
+            _ = native.keyedShape(Incomparable(), outline) == native.keyedShape(
                 Incomparable(), outline
             )
 
@@ -137,9 +136,7 @@ class PaintProgramValues(unittest.TestCase):
             center=skia.Point(0.5, 0.5),
             radius=1,
             stops=[(0, "#ffffff"), (1, "#000000")],
-            options=material.GradientOptions(
-                extent=material.RadialExtent.ClosestSide
-            ),
+            options=material.GradientOptions(extent=material.RadialExtent.ClosestSide),
         )
         self.assertIsInstance(native.box().fill(glow), native.Element)
         walked = material.Ramp(
@@ -208,15 +205,7 @@ class PaintProgramRenders(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(body).strip("\n"), "    ")
             + "\n"
         )
-        renderFile(source, output, at=at)
-        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
-
-    def pixel(self, picture, x, y, size):
-        """The colour at @p x, @p y of a canvas @p size wide, at any density."""
-        column = x * picture.width() // size[0]
-        row = y * picture.height() // size[1]
-        offset = 4 * (row * picture.width() + column)
-        return tuple(picture.rgba()[offset : offset + 3])
+        return renderedImage(source, output, at=at)
 
     def test_a_program_draws_whichever_of_its_parameters_it_names(self):
         size = (60, 20)
@@ -253,14 +242,14 @@ class PaintProgramRenders(unittest.TestCase):
             size=size,
         )
         self.assertTrue(self.results["nothing"])
-        self.assertEqual(self.pixel(picture, 10, 10, size), (0, 0, 0))
-        self.assertEqual(self.pixel(picture, 30, 10, size), (255, 0, 0))
-        self.assertEqual(self.pixel(picture, 50, 10, size), (0, 0, 255))
+        self.assertEqual(scaledPixel(picture, 10, 10, size, 3), (0, 0, 0))
+        self.assertEqual(scaledPixel(picture, 30, 10, size, 3), (255, 0, 0))
+        self.assertEqual(scaledPixel(picture, 50, 10, size, 3), (0, 0, 255))
         canvas, context = self.results["lent"]
         with self.assertRaisesRegex(RuntimeError, "no longer inside its paint call"):
             canvas.save()
         with self.assertRaisesRegex(RuntimeError, "no longer inside its paint call"):
-            context.size
+            _ = context.size
 
     def test_a_defaulted_positional_parameter_is_offered_the_context(self):
         # The host fills the longest positional prefix a program accepts,
@@ -409,9 +398,9 @@ class PaintProgramRenders(unittest.TestCase):
         self.assertEqual(self.results["kept"], (40, 10))
         pen, context = self.results["lent"]
         with self.assertRaises(RuntimeError):
-            pen.width
+            _ = pen.width
         with self.assertRaisesRegex(RuntimeError, "no longer inside its paint call"):
-            context.ink
+            _ = context.ink
 
     def patched(self, leaf, *, prelude=""):
         """How many nodes a second, identical describe of @p leaf patched."""
@@ -465,8 +454,8 @@ class PaintProgramRenders(unittest.TestCase):
             """,
             size=size,
         )
-        self.assertEqual(self.pixel(picture, 20, 20, size), (255, 0, 0))
-        self.assertEqual(self.pixel(picture, 1, 1, size), (0, 0, 0))
+        self.assertEqual(scaledPixel(picture, 20, 20, size, 3), (255, 0, 0))
+        self.assertEqual(scaledPixel(picture, 1, 1, size, 3), (0, 0, 0))
 
     def test_one_asset_is_one_identity_in_every_describe(self):
         held = (
@@ -503,7 +492,7 @@ class PaintProgramRenders(unittest.TestCase):
             """,
             size=size,
         )
-        self.assertEqual(self.pixel(picture, 4, 4, size), (255, 0, 0))
+        self.assertEqual(scaledPixel(picture, 4, 4, size, 3), (255, 0, 0))
         pixels = picture.rgba()
         stride = 4 * picture.width()
         first = 9 * picture.width() // size[0]

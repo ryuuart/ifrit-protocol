@@ -32,6 +32,9 @@
 #                                     named by generation-checked handles,
 #                                     destruction deferred past the frames
 #                                     in flight
+#   SigilCoreReport      report/      the one reporting door: a library's
+#                                     warning in one format, and the
+#                                     reporter a host installs to hear it
 #
 # The schedule feature is the one every library that divides work over
 # threads links, so that a task runtime is named in one file of this
@@ -46,7 +49,7 @@
 # and two of them stand on the same one. Only a consumer that needs a
 # device links it.
 sigil_library_root(SigilCore
-  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, inherited values, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over four leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, the one prefix search a callable is called with the parameters it named through, and the GPU device with its handles and fences"
+  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, inherited values, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over four leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, the one prefix search a callable is called with the parameters it named through, and the GPU device with its handles and fences, and the one door a library's warning is reported through"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
        ${CMAKE_CURRENT_SOURCE_DIR}/CACHE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/CALLABLE.md
@@ -63,6 +66,7 @@ add_subdirectory(schedule)
 add_subdirectory(reconcile)
 add_subdirectory(cache)
 add_subdirectory(hardware)
+add_subdirectory(report)
 
 # Every API name the prose spells, compiled against the headers that own
 # it — README.md, all seven chapters and every entity page under
@@ -99,4 +103,4 @@ sigil_doc_probes(core
   FLOORS 72,8,3,20,0
   LIBRARIES SigilCoreCache SigilCoreCallable SigilCoreComparable
             SigilCoreCompute SigilCoreHardware SigilCoreReconcile
-            SigilCoreSchedule)
+            SigilCoreReport SigilCoreSchedule)

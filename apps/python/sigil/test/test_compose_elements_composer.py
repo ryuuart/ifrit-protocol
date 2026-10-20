@@ -22,9 +22,9 @@ import unittest
 from pathlib import Path
 
 from _sigil import compose as native
-from sigil import compose, material, media, motion, skia, weave
+from sigil import compose, material, motion, skia, weave
 from sigil.compose import Composer, box, slot
-from sigil.sketch import renderFile
+from support.rendering import pixel, renderedImage
 
 # Every name this package nests inside the class it reports about.
 NESTED = ("CacheState", "NodeCost")
@@ -296,12 +296,7 @@ class Session(unittest.TestCase):
             + textwrap.indent(textwrap.dedent(drawing).strip(), "        ")
             + "\n"
         )
-        renderFile(source, output, at=at)
-        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
-
-    def pixel(self, picture, x, y):
-        offset = 4 * (y * picture.width() + x)
-        return tuple(picture.rgba()[offset : offset + 4])
+        return renderedImage(source, output, at=at)
 
 
 class Frames(Session):
@@ -330,8 +325,8 @@ class Frames(Session):
         self.assertNotEqual(self.results["miss"], "plate")
         self.assertFalse(self.results["dirty"])
         self.assertGreater(self.results["painted"], 0)
-        self.assertEqual(self.pixel(picture, 4, 4), (255, 0, 0, 255))
-        self.assertEqual(self.pixel(picture, 40, 28), (0, 0, 0, 255))
+        self.assertEqual(pixel(picture, 4, 4), (255, 0, 0, 255))
+        self.assertEqual(pixel(picture, 40, 28), (0, 0, 0, 255))
 
     def test_the_inherited_ink_is_what_an_unstyled_leaf_is_set_in(self):
         def reds(picture):

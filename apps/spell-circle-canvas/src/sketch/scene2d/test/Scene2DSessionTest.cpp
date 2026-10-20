@@ -586,15 +586,7 @@ struct Paging {
 /** A CASE THAT BAKES A 3D FRAME: the frame is drawn on the device, so the
  *  device runtime is installed for the process before it and taken away
  *  after, or the case skips naming what is missing. */
-class Scene2DBakes : public testing::Test {
- protected:
-  void SetUp() override {
-    std::string why;
-    if (!sigil::sketch::test::installDeviceRuntime(&why))
-      GTEST_SKIP() << "no Vulkan device: " << why;
-  }
-  void TearDown() override { useRuntime({}); }
-};
+class Scene2DBakes : public sigil::sketch::test::OnDeviceRuntime {};
 
 TEST(Scene2DDoors, BakesNothingWhereNoDeviceIsInstalled) {
   // A 3D frame is drawn on a device and nowhere else, so a bake with none to

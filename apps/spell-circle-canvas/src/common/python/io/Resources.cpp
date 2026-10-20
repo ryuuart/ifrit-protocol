@@ -35,17 +35,6 @@ namespace sigil::python {
 namespace py = pybind11;
 namespace {
 
-/** The native transport owns no Python callbacks. Blocking native work can
- * run without the GIL, including destruction of the last transport owner. */
-template <class Function>
-decltype(auto) unlocked(Function&& function) {
-  if (Py_IsInitialized() && PyGILState_Check()) {
-    const py::gil_scoped_release release;
-    return std::forward<Function>(function)();
-  }
-  return std::forward<Function>(function)();
-}
-
 io::Bytes bytes(py::handle value) {
   Py_buffer view{};
   if (PyObject_GetBuffer(value.ptr(), &view, PyBUF_CONTIG_RO) != 0)

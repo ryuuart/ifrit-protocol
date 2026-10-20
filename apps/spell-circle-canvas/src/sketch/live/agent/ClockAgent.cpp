@@ -4,9 +4,10 @@
 
 #include "sigilsketch/live/agent/ClockAgent.h"
 
+#include <sigilcore/report/Report.h>
+
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <optional>
 #include <string>
 
@@ -77,7 +78,7 @@ ClockAgent::ClockAgent(protocol::Dispatcher& dispatcher, SessionAgent& session)
     event.seconds = seconds;
     if (!protocol::clock::ClockEvents(m_dispatcher.events())
              .budgetExpired(event))
-      std::fprintf(stderr, "clock.budgetExpired could not be sent\n");
+      core::report("SigilSketch", "clock.budgetExpired could not be sent");
   });
 }
 

@@ -1,11 +1,11 @@
 /** @file
  * The logger bridge: Ultralight's levels mapped to LogLevel and every
- * message routed to the callback, or to stderr without one.
+ * message routed to the callback, or to the reporting door without one.
  */
 
 #include "Logger.h"
 
-#include <cstdio>
+#include <sigilcore/report/Report.h>
 
 #include "Utf8.h"
 
@@ -27,8 +27,8 @@ void CallbackLogger::log(LogLevel level, const std::string& message) {
     return;
   }
   if (level == LogLevel::Info) return;
-  std::fprintf(stderr, "[SigilScry:%s] %s\n",
-               level == LogLevel::Error ? "error" : "warning", message.c_str());
+  core::report("SigilScry",
+               level == LogLevel::Error ? "error: " + message : message);
 }
 
 }  // namespace sigil::scry

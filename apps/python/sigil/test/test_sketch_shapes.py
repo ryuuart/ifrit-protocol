@@ -4,46 +4,23 @@ every step, a setup that returns its tree, the theme and the capture
 moment stated on the decorator."""
 
 import builtins
-import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path
-from types import ModuleType
 
 from sigil import world
 from sigil.compose import Element, box
 from sigil.sketch import kit, renderFile, sketch
+from support.context import DecoratedModule, RecordingContext
 
 
-class Context:
+class Context(RecordingContext):
     elapsed = 0.25
 
-    def __init__(self):
-        self.calls = []
 
-    def canvas(self, *size):
-        self.calls.append(("canvas", size))
-
-    def background(self, color):
-        self.calls.append(("background", color))
-
-    def captureAt(self, seconds):
-        self.calls.append(("capture", seconds))
-
-    def render(self, element):
-        self.calls.append(("render", element))
-
-
-class SketchShapes(unittest.TestCase):
-    def setUp(self):
-        self.module = ModuleType("_sigil_shapes_fixture")
-        sys.modules[self.module.__name__] = self.module
-        self.addCleanup(sys.modules.pop, self.module.__name__, None)
-
-    def decorate(self, cls, **options):
-        cls.__module__ = self.module.__name__
-        return sketch(**options)(cls)
+class SketchShapes(DecoratedModule, unittest.TestCase):
+    moduleName = "_sigil_shapes_fixture"
 
     def test_the_capture_moment_has_one_spelling(self):
         class Body:

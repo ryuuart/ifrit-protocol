@@ -20,7 +20,7 @@ paint caches, running motions — is the host's, reached through named
 operations the host implements on itself. That is the line both kernels
 draw: they own the DECISION, the host owns the THING.
 
-Under the kernels are five leaves, which libraries far from any reconciler
+Under the kernels are six leaves, which libraries far from any reconciler
 link on their own.
 
 **Comparable** — what a value needs before anything can decide it did not
@@ -62,6 +62,13 @@ sits here: a 2D backend and a 3D engine can stand on one device, name the
 same texture and read the same fence, and neither has to link the other. A
 host that holds one never spells a graphics API.
 
+**Report** — the one door a library's warning goes out through. A library
+that has something to say and no caller to say it to calls
+`sigil::core::report` with its own name and the message; the line is
+written once, as `[library] message`, to the standard error, unless a host
+has installed a `sigil::core::Reporter` with `sigil::core::installReporter`,
+which then hears every library's warnings in its place.
+
 Namespace `sigil::core`, with `sigil::core::hardware` for the device
 catalog. One target per directory:
 
@@ -74,6 +81,7 @@ catalog. One target per directory:
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
 | `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
+| `SigilCoreReport` | `report/` | the reporting door: `report`, the installed `Reporter`, and the one line format |
 
 `SigilCoreComparable`, `SigilCoreCompute` and `SigilCoreCallable` are
 header-only, so they are INTERFACE targets and produce no archive;
@@ -81,7 +89,7 @@ everything else is a static library. `SigilCoreComparable` takes the
 standard library and Boost.PFR, `SigilCoreCompute` and `SigilCoreCallable`
 the standard library alone, `SigilCoreSchedule` oneTBB
 privately, and `SigilCoreReconcile` Boost.Unordered with Boost.ContainerHash
-for its keyed indices. `SigilCoreHardware` takes the graphics API and
+for its keyed indices, and `SigilCoreReport` the standard library alone. `SigilCoreHardware` takes the graphics API and
 nothing else. Consumers still link only the feature they use, without
 pulling in a drawing or layout library.
 
@@ -92,7 +100,8 @@ spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,
 `<sigilcore/cache/X.h>`; `<sigilcore/cache/Cache.h>` includes its own
 directory's headers. The hardware feature's are
 `<sigilcore/hardware/GpuDevice.h>`, `<sigilcore/hardware/Handle.h>` and
-`<sigilcore/hardware/Fence.h>`.
+`<sigilcore/hardware/Fence.h>`, and the reporting door's is
+`<sigilcore/report/Report.h>`.
 
 ## The chapters
 
@@ -190,6 +199,7 @@ what a label promises. What is only true of SigilCore:
 | `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |
 | `reconcile/test/` | `Reconciler`, `Environment`, `Phases`, `Reads` | the reconciler over a fake host, the inherited-value channel and restored scope identities, the phase runner and the read ordering |
 | `cache/test/` | `CacheProof`, `Volatility`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |
+| `report/test/` | `CoreReport` | the one line format, the standard error when no reporter is installed, and an installed reporter hearing a warning in its place |
 | `hardware/test/` | `HardwareHandle`, `MipChain` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows |
 | `hardware/test/DeviceTest.mm` | `HardwareDevice` (`gpu`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, an imported event waited on and left its maker's, and the levels a texture is built with |
 | `hardware/test/VulkanOverMetalTest.mm` | `HardwareVulkanOverMetal` (`gpu`) | a Vulkan device over Metal, brought up from the loader and adopted — the Metal device it names, a texture made here reached on Metal, a Metal texture named by an image over its own memory and refused in a format no texture here has, a Metal event holding the queue until Metal raises it, a fence made here holding a Metal queue, and the device going away only once a queued wait has run |

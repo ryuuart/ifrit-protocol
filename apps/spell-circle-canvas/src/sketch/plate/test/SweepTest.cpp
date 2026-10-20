@@ -29,10 +29,10 @@
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/video/Video.h>
 #include <sigilsketch/core/Device.h>
+#include <sigilsketch/plate/Graphite.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/scene2d/Scene2D.h>
-#include <sigilsketch/plate/Graphite.h>
 #include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/PaintOrder.h>
@@ -462,15 +462,7 @@ TEST(Sweep, AMomentTheRunNamesOutranksTheOneTheSketchDeclared) {
 /** A SWEEP OVER A SCENE3D SKETCH: drawn on the device, so the device runtime is
  *  installed for the process before the case and taken away after, or
  *  the case skips naming what is missing. */
-class DeviceSweep : public testing::Test {
- protected:
-  void SetUp() override {
-    std::string why;
-    if (!sigil::sketch::test::installDeviceRuntime(&why))
-      GTEST_SKIP() << "no Vulkan device: " << why;
-  }
-  void TearDown() override { useRuntime({}); }
-};
+class DeviceSweep : public sigil::sketch::test::OnDeviceRuntime {};
 
 TEST(Sweep, AScene3DWithNoDeviceToDrawOnIsSkippedAndWritesNoPlate) {
   // A skip is not a failure: the run succeeds, no plate is written, and
@@ -612,8 +604,11 @@ TEST_F(DeviceSweep, ATimedScene3DFrameCarriesThePresentedPicturesWait) {
       ordered.clear(SK_ColorBLACK);
       session->frame(ordered, 1.0 / 60.0);
     }
+    // The counters say which way the picture left: a readback counted
+    // here is a frame the device refused to present in place.
     EXPECT_GT(sigil::skia::pendingWaits(*graphite->recorder()), 0u)
-        << "frame " << frame << " presented no picture behind a fence";
+        << "frame " << frame << " presented no picture behind a fence; "
+        << session->counters();
     EXPECT_TRUE(graphite->submit(*graphite->recorder(),
                                  skgpu::graphite::SyncToCpu::kYes));
     EXPECT_EQ(sigil::skia::pendingWaits(*graphite->recorder()), 0u)

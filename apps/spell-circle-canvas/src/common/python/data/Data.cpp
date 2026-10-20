@@ -77,7 +77,8 @@ data::Json json(py::handle value, std::unordered_set<PyObject*>& active) {
     // An integer keeps its integer reading where a signed 64-bit integer
     // holds it, and is the nearest double past that.
     int overflow = 0;
-    const long long whole = PyLong_AsLongLongAndOverflow(value.ptr(), &overflow);
+    const long long whole =
+        PyLong_AsLongLongAndOverflow(value.ptr(), &overflow);
     if (whole == -1 && PyErr_Occurred()) throw py::error_already_set();
     if (overflow == 0) return data::Json(static_cast<int64_t>(whole));
     return py::cast<double>(value);
@@ -275,27 +276,17 @@ py::object dataDatabase(std::shared_ptr<const data::Database> database) {
 
 py::object loadData(io::Hub& hub, py::handle type, const std::string& uri) {
   if (type.is(py::type::of<DatabaseView>())) {
-    std::shared_ptr<const data::Database> value;
-    {
-      const py::gil_scoped_release release;
-      value = hub.load<data::Database>(uri);
-    }
-    return dataDatabase(std::move(value));
+    return dataDatabase(
+        unlocked([&] { return hub.load<data::Database>(uri); }));
   }
   if (type.is(py::type::of<data::Json>())) {
-    std::shared_ptr<const data::Json> value;
-    {
-      const py::gil_scoped_release release;
-      value = hub.load<data::Json>(uri);
-    }
+    const std::shared_ptr<const data::Json> value =
+        unlocked([&] { return hub.load<data::Json>(uri); });
     return value ? py::cast(*value) : py::none();
   }
   if (type.is(py::type::of<data::Table>())) {
-    std::shared_ptr<const data::Table> value;
-    {
-      const py::gil_scoped_release release;
-      value = hub.load<data::Table>(uri);
-    }
+    const std::shared_ptr<const data::Table> value =
+        unlocked([&] { return hub.load<data::Table>(uri); });
     return value ? py::cast(*value) : py::none();
   }
   throw py::type_error(

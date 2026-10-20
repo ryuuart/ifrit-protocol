@@ -9,7 +9,9 @@
 # and SKIP where the machine has no Vulkan runtime — which the `gpu` label
 # on their suites makes visible from outside.
 sigil_test(sketch_test
-  SOURCES test/Scene3DSessionTest.cpp
+  SOURCES test/Scene3DBodyTest.cpp test/Scene3DPageLightTest.cpp
+          test/Scene3DPageLobeTest.cpp test/Scene3DPageTest.cpp
+          test/Scene3DSessionTest.cpp test/Scene3DWindowTest.cpp
   SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   LIBRARIES SigilSketch SigilWeavePorts SigilWeaveFonts SigilGeometryKit
             SigilCompose SigilComposeTexture SigilWorldDiligent

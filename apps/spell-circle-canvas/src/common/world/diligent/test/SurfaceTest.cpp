@@ -43,30 +43,12 @@
 using namespace sigil;
 using namespace sigil::world;
 using ::sigil::world::diligent::at;
+using ::sigil::world::diligent::drawnTexture;
+using ::sigil::world::diligent::flat;
 
 namespace {
 
 constexpr glm::ivec2 kExtent{120, 120};
-
-/** A texture of @p width x @p height, drawn by @p paint. Named by a key
- *  so two identical asks are one texture. */
-material::Texture drawnTexture(const std::string& key, int width, int height,
-                               const std::function<void(SkCanvas&)>& paint) {
-  return material::Texture(
-      sigil::media::PixelSource::produce(key, [width, height, paint] {
-        sk_sp<SkSurface> surface =
-            SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
-        surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-        paint(*surface->getCanvas());
-        return surface->makeImageSnapshot();
-      }));
-}
-
-/** One flat colour, one texel. */
-material::Texture flat(const std::string& key, SkColor4f colour) {
-  return drawnTexture(key, 1, 1,
-                      [colour](SkCanvas& canvas) { canvas.clear(colour); });
-}
 
 /** One frame, rendered on @p runtime and photographed square on. */
 SkBitmap plateOf(const Frame& frame, const Runtime& runtime) {

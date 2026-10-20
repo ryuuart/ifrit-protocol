@@ -26,7 +26,8 @@ find_package(unofficial-uwebsockets CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
 find_package(rtmidi CONFIG REQUIRED)
 sigil_library(SigilIOTransport
-  SOURCES Transports.cpp Registration.h Udp.cpp WebSocket.cpp
+  SOURCES Transports.cpp Registration.h Address.cpp Address.h Udp.cpp
+          WebSocket.cpp
           WebSocketClient.cpp SharedMemory.cpp Midi.cpp IoThread.cpp
           IoThread.h
   HEADERS Transport.h

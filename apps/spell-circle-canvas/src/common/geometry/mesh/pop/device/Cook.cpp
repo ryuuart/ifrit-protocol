@@ -29,6 +29,8 @@
 #include <variant>
 #include <vector>
 
+#include "ComputeKernel.h"
+
 namespace sigil::geometry::mesh {
 
 using ::sigil::geometry::device::Device;
@@ -69,13 +71,10 @@ struct PopGpu {
   }
 
   Device* device = nullptr;
-  dg::RefCntAutoPtr<dg::IPipelineState> pipeline;
-  dg::RefCntAutoPtr<dg::IShaderResourceBinding> binding;
-  dg::RefCntAutoPtr<dg::IBuffer> arguments;
+  compute::Kernel computeKernel;
   dg::RefCntAutoPtr<dg::IBuffer> table;
   size_t tableCapacity = 0;
-  dg::RefCntAutoPtr<dg::IBuffer> staging;
-  size_t stagingCapacity = 0;
+  compute::Readback readback;
   boost::container::map<std::string, LaneBuffer, std::less<>> lanes;
   size_t held = 0;     ///< how many points the held lane buffers are sized for
   uint64_t cooks = 0;  ///< which cook is running, for the lane stamps
@@ -104,45 +103,15 @@ struct PopGpu {
 };
 
 bool PopGpu::ready() {
-  if (pipeline) return true;
+  if (computeKernel.pipeline) return true;
   dg::IRenderDevice* renderDevice = device->renderDevice();
   if (!renderDevice) return false;
-
-  dg::RefCntAutoPtr<dg::IShader> cs;
-  dg::ShaderCreateInfo ci;
-  ci.Desc.Name = "pop kernel";
-  ci.Desc.ShaderType = dg::SHADER_TYPE_COMPUTE;
-  ci.Desc.UseCombinedTextureSamplers = true;
   // Asked of the kernel and not of the build's raw output: the words a
   // driver may fuse a multiply-add in are not the words this dispatch is
   // held to agree with the host about.
-  const std::span<const uint32_t> words = kernel::operationSpirv();
-  ci.ByteCode = words.data();
-  ci.ByteCodeSize = words.size() * sizeof(uint32_t);
-  renderDevice->CreateShader(ci, &cs);
-  if (!cs) return false;
-
-  dg::ComputePipelineStateCreateInfo info;
-  info.PSODesc.Name = "pop kernel";
-  // DYNAMIC, because every one of these is rebound per dispatch: the
-  // lanes an operator binds change from one operator to the next.
-  info.PSODesc.ResourceLayout.DefaultVariableType =
-      dg::SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC;
-  info.pCS = cs;
-  renderDevice->CreateComputePipelineState(info, &pipeline);
-  if (!pipeline) return false;
-  pipeline->CreateShaderResourceBinding(&binding, true);
-
-  dg::BufferDesc desc;
-  desc.Name = "pop kernel arguments";
-  desc.Size = sizeof(OperationArguments);
-  desc.BindFlags = dg::BIND_UNIFORM_BUFFER;
-  // Written with UpdateBuffer rather than mapped: a cook is not
-  // necessarily inside a frame, and a default buffer's write does not
-  // ask to be.
-  desc.Usage = dg::USAGE_DEFAULT;
-  renderDevice->CreateBuffer(desc, nullptr, &arguments);
-  return (bool)arguments && (bool)binding;
+  return computeKernel.build(*renderDevice, "pop kernel",
+                             kernel::operationSpirv(),
+                             sizeof(OperationArguments));
 }
 
 void PopGpu::beginCook(size_t count) {
@@ -229,25 +198,20 @@ void PopGpu::dispatch(const OperationDispatch& work, size_t count) {
   dg::IBufferView* stops = stopTable(work.table);
   if (!stops) return;
 
-  context->UpdateBuffer(arguments, 0, sizeof(OperationArguments),
+  context->UpdateBuffer(computeKernel.arguments, 0, sizeof(OperationArguments),
                         &work.arguments,
                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-  const auto bind = [&](const char* name, dg::IDeviceObject* object) {
-    if (dg::IShaderResourceVariable* variable =
-            binding->GetVariableByName(dg::SHADER_TYPE_COMPUTE, name))
-      variable->Set(object);
-  };
-  bind("globalParams", arguments);
-  bind("destination", destination->view);
-  bind("sourceA", a);
-  bind("sourceB", b);
-  bind("sourceC", c);
-  bind("mask", mask);
-  bind("table", stops);
+  computeKernel.bind("globalParams", computeKernel.arguments);
+  computeKernel.bind("destination", destination->view);
+  computeKernel.bind("sourceA", a);
+  computeKernel.bind("sourceB", b);
+  computeKernel.bind("sourceC", c);
+  computeKernel.bind("mask", mask);
+  computeKernel.bind("table", stops);
 
-  context->SetPipelineState(pipeline);
-  context->CommitShaderResources(binding,
+  context->SetPipelineState(computeKernel.pipeline);
+  context->CommitShaderResources(computeKernel.binding,
                                  dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   dg::DispatchComputeAttribs attribs;
   attribs.ThreadGroupCountX =
@@ -281,57 +245,21 @@ void PopGpu::dispatch(const OperationDispatch& work, size_t count) {
 }
 
 void PopGpu::readBack(pop::Lanes& into, size_t count) {
-  dg::IDeviceContext* context = device->context();
-  const size_t stride = count * sizeof(glm::vec4);
   // ONLY THE LANES THIS COOK TOUCHED. A buffer kept from an earlier
   // chain still holds that chain's answer, and pouring it into the
   // export would hand the caller a custom lane no operator in this chain
   // ever named. The stamp is what says which is which.
-  size_t mine = 0;
-  for (const auto& [name, held] : lanes)
-    if (held.stamp == cooks) ++mine;
-  const size_t wanted = stride * mine;
-  if (wanted == 0) return;
-  if (!staging || stagingCapacity < wanted) {
-    staging.Release();
-    dg::BufferDesc desc;
-    desc.Name = "pop readback";
-    desc.Size = wanted;
-    desc.Usage = dg::USAGE_STAGING;
-    desc.CPUAccessFlags = dg::CPU_ACCESS_READ;
-    desc.BindFlags = dg::BIND_NONE;
-    device->renderDevice()->CreateBuffer(desc, nullptr, &staging);
-    stagingCapacity = staging ? wanted : 0;
-  }
-  if (!staging) return;
-
-  // EVERY LANE IN ONE CROSSING. A wait per lane would cost a round trip
-  // per attribute a chain happens to touch; the copies are queued
-  // together and waited on once.
-  size_t at = 0;
-  for (auto& [name, held] : lanes) {
-    if (held.stamp != cooks) continue;
-    context->CopyBuffer(held.buffer, 0,
-                        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION, staging,
-                        (dg::Uint64)at, (dg::Uint64)stride,
-                        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-    at += stride;
-  }
-  context->WaitForIdle();
-
-  void* mapped = nullptr;
-  context->MapBuffer(staging, dg::MAP_READ, dg::MAP_FLAG_DO_NOT_WAIT, mapped);
-  if (!mapped) return;
-  at = 0;
+  std::vector<dg::IBuffer*> mine;
+  std::vector<glm::vec4*> destinations;
   for (auto& [name, held] : lanes) {
     if (held.stamp != cooks) continue;
     std::vector<glm::vec4>& values = into[name];
     values.resize(count);
-    std::memcpy(values.data(), static_cast<const std::byte*>(mapped) + at,
-                stride);
-    at += stride;
+    mine.push_back(held.buffer);
+    destinations.push_back(values.data());
   }
-  context->UnmapBuffer(staging, dg::MAP_READ);
+  compute::readBack(*device, readback, "pop readback", mine, count,
+                    destinations);
 }
 
 /** THE EXECUTOR. Its device state is shared rather than held, so the

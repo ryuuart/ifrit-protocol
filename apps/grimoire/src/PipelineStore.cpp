@@ -11,8 +11,10 @@
 
 #include <QtCore/QStandardPaths>
 #include <QtCore/QString>
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <set>
 #include <system_error>
 
 namespace fs = std::filesystem;
@@ -62,7 +64,11 @@ bool readNumber(std::FILE* file, std::uint32_t& value) {
 constexpr std::uint32_t kLongestKey = 1u << 20;
 
 /** What marks a file of recorded effects. */
-constexpr char kEffectsMark[8] = {'S', 'I', 'G', 'E', 'F', 'F', 'C', '1'};
+constexpr char kEffectsMark[8] = {'S', 'I', 'G', 'E', 'F', 'F', 'C', '2'};
+
+/** The most sketches one recorded effect may name, past which a file is
+ *  not one of these. */
+constexpr std::uint32_t kMostSketches = 1u << 16;
 
 /** Writes @p file beside itself through @p write and renames it over, so
  *  a run that dies partway through leaves the last whole file. */
@@ -220,7 +226,19 @@ std::vector<RecordedEffect> readEffects(const fs::path& file) {
       break;
     std::string source(length, '\0');
     if (std::fread(source.data(), 1, length, open) != length) break;
-    effects.push_back({(EffectKind)kind, std::move(source)});
+    std::uint32_t named = 0;
+    if (!readNumber(open, named) || named > kMostSketches) break;
+    std::vector<std::string> sketches;
+    bool whole = true;
+    for (std::uint32_t sketch = 0; sketch < named && whole; ++sketch) {
+      std::uint32_t size = 0;
+      whole = readNumber(open, size) && size <= kLongestKey;
+      std::string name(size, '\0');
+      whole = whole && std::fread(name.data(), 1, size, open) == size;
+      if (whole) sketches.push_back(std::move(name));
+    }
+    if (!whole) break;
+    effects.push_back({(EffectKind)kind, std::move(source), std::move(sketches)});
   }
   std::fclose(open);
   return effects;
@@ -242,8 +260,25 @@ bool writeEffects(const fs::path& file,
       writeNumber(open, (std::uint32_t)one.kind);
       writeNumber(open, (std::uint32_t)one.source.size());
       std::fwrite(one.source.data(), 1, one.source.size(), open);
+      const size_t named =
+          std::min<size_t>(one.sketches.size(), kMostSketches);
+      writeNumber(open, (std::uint32_t)named);
+      for (size_t sketch = 0; sketch < named; ++sketch) {
+        const std::string& name = one.sketches[sketch];
+        const size_t size = std::min<size_t>(name.size(), kLongestKey);
+        writeNumber(open, (std::uint32_t)size);
+        std::fwrite(name.data(), 1, size, open);
+      }
     }
   });
+}
+
+std::vector<std::string> sketchesLeftUnkeyed(
+    std::span<const RecordedEffect> recorded, size_t room) {
+  std::set<std::string> left;
+  for (size_t at = room; at < recorded.size(); ++at)
+    left.insert(recorded[at].sketches.begin(), recorded[at].sketches.end());
+  return {left.begin(), left.end()};
 }
 
 }  // namespace pipelines

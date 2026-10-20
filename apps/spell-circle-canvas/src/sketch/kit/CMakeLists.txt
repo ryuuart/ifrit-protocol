@@ -29,7 +29,7 @@ sigil_library(SigilSketchKit
          SigilDataConnection SigilDataDecode SigilDataScale SigilGeometryKit
          SigilMaterial SigilMeasure SigilWeave
   PRIVATE SigilWeavePorts SigilIO SigilDraw
-          SigilMaterialSubstance)
+          SigilMaterialSubstance SigilCoreReport)
 
 # The kit's own claim: the theme is a comparable value a scope binds, and
 # every component draws exactly what the compose kit spelled by hand with

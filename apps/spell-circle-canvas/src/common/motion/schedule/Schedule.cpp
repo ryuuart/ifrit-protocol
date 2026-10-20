@@ -4,13 +4,13 @@
  * beat opens, and where inside it the master progress currently stands.
  */
 
+#include <sigilcore/report/Report.h>
 #include <sigilmotion/schedule/Schedule.h>
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <chrono>
 #include <cmath>
-#include <cstdio>
 
 namespace sigil::motion {
 
@@ -86,13 +86,13 @@ void warnCueTableMismatch(size_t cueCount, size_t unitCount) {
   static thread_local boost::unordered_flat_set<uint64_t> seen;
   const uint64_t key = ((uint64_t)cueCount << 32u) | (uint32_t)unitCount;
   if (!seen.insert(key).second) return;
-  std::fprintf(stderr,
-               "SigilMotion: a cue table of %zu times against %zu units — "
-               "%s\n",
-               cueCount, unitCount,
-               cueCount < unitCount
-                   ? "every unit past the table's end starts at its last time"
-                   : "the times past the last unit are never read");
+  core::report("SigilMotion",
+               "a cue table of " + std::to_string(cueCount) +
+                   " times against " + std::to_string(unitCount) + " units — " +
+                   (cueCount < unitCount
+                        ? "every unit past the table's end starts at its "
+                          "last time"
+                        : "the times past the last unit are never read"));
 }
 
 Duration Timing::span(uint32_t count, uint32_t innerCount) const {

@@ -11,10 +11,10 @@
  */
 
 #include <sigilcore/compute/Hash.h>
+#include <sigilcore/report/Report.h>
 
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <memory>
 #include <string_view>
 #include <type_traits>
@@ -156,10 +156,9 @@ class Provide {
       stack.pop_back();
       return;
     }
-    std::fputs(
-        "[core] environment::Provide destroyed out of order — scopes must nest "
-        "LIFO; removing only this scope's own binding\n",
-        stderr);
+    report("SigilCore",
+           "environment::Provide destroyed out of order — scopes must nest "
+           "LIFO; removing only this scope's own binding");
     for (size_t i = stack.size(); i-- > 0;)
       if (stack[i].value.get() == m_self) {
         stack.erase(stack.begin() + (std::ptrdiff_t)i);
