@@ -8,10 +8,10 @@ on the sketch thread, so each arrival is a Python dict a task writes
 straight onto the sketch, and the next description reads it: no thread,
 no queue, and nothing decoded but the JSON the servers send.
 
-A capture never reaches the network. It replays data/tape.json and
-data/weather.json, which record.py wrote from the same two libraries, at
-the seconds each arrival landed, so a still is the same picture every
-run.
+A capture never reaches the network. It replays data/tape.jsonl and
+data/weather.jsonl, which record.py wrote from the same two libraries, one
+arrival a line, at the seconds each arrival landed, so a still is the same
+picture every run.
 
     uv run --project .. record.py            # both sources, printed live
     uv run --project .. record.py --record   # the recordings under data/
@@ -27,7 +27,7 @@ from collections import deque
 from datetime import UTC, datetime
 
 from sigil import data
-from sigil.compose import Align, Element, Text, column, row, text
+from sigil.compose import Element, Text, column, row, text
 from sigil.sketch import Scene2DContext, kit, sketch
 
 NAME = "Market tape"
@@ -49,7 +49,6 @@ MONOSPACE = "Menlo, monospace"
 INK, QUIET, RULE = "#e9edf2", "#8c97a6", "#2a313b"
 BUY, SELL, ACCENT = "#5fbf8f", "#e0705a", "#e8b45a"
 SIDES = {"BUY": BUY, "SELL": SELL}
-LEFT = kit.Anchor(across=Align.Start)  # a chart label's left edge on its point
 
 
 class Source:
@@ -62,21 +61,22 @@ class Source:
         self.count = 0
 
 
-def recorded(ctx: Scene2DContext, path: str) -> dict:
-    """A recording beside the sketch, loaded through the session's hub."""
+def recorded(ctx: Scene2DContext, path: str) -> list[dict]:
+    """A recording beside the sketch, one arrival a line, loaded through the
+    session's hub, which reads a `.jsonl` file as the list of its lines."""
     document = ctx.assets.hub().load(data.Json, ctx.local(path))
-    recording = document.toPython() if document is not None else None
-    if not isinstance(recording, dict):
+    arrivals = document.toPython() if document is not None else None
+    if not isinstance(arrivals, list):
         raise FileNotFoundError(f"{path} holds no recording; record.py --record writes it")
-    return recording
+    return arrivals
 
 
 class Recording:
     """A recording replayed at the seconds its arrivals landed: each one is
     handed to the same method a live task hands it to."""
 
-    def __init__(self, document: dict, arrived) -> None:
-        self.arrivals = document["arrivals"]
+    def __init__(self, arrivals: list[dict], arrived) -> None:
+        self.arrivals = arrivals
         self.arrived = arrived
         self.played = 0
 
@@ -106,8 +106,8 @@ class MarketTape:
         self.tasks = []
         if ctx.deterministic:
             self.recordings = [
-                Recording(recorded(ctx, "data/tape.json"), self.trade),
-                Recording(recorded(ctx, "data/weather.json"), self.reading),
+                Recording(recorded(ctx, "data/tape.jsonl"), self.trade),
+                Recording(recorded(ctx, "data/weather.jsonl"), self.reading),
             ]
             self.stream.state = self.forecast.state = "replaying"
             return
@@ -185,7 +185,7 @@ class MarketTape:
             subtitle="BTC/USDT through websockets, Chicago's weather through httpx, "
             "one event loop on the sketch thread",
             footer="self.loop · websockets.connect · httpx.AsyncClient · "
-            "a capture replays data/tape.json and data/weather.json",
+            "a capture replays data/tape.jsonl and data/weather.jsonl",
         )
 
 
@@ -241,7 +241,8 @@ def strip(trades: list[dict], seconds: float) -> Element:
 
 
 def chart(trades: list[dict]) -> Element:
-    """The last HISTORY prices as a sparkline, with the first as a rule."""
+    """The last HISTORY prices as a sparkline, with the first as a rule and
+    the prices it ranges over numbered up its side."""
     prices = [price(trade) for trade in trades]
     if len(prices) < 2:
         return column().height(220).children(words("the sparkline draws from the second trade"))
@@ -263,8 +264,7 @@ def chart(trades: list[dict]) -> Element:
             [
                 kit.rules(y=[prices[0]], pen=1),
                 kit.trace(prices, pen=2),
-                kit.label(f"high {high:,.2f}", 0, high + margin * 0.5, anchor=LEFT),
-                kit.label(f"low {low:,.2f}", 0, low - margin * 0.5, anchor=LEFT),
+                kit.axis(of=kit.Axis.Y, count=4, line=False, inside=True),
             ],
         ).width(780).height(170),
     )

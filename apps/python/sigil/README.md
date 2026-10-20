@@ -782,8 +782,9 @@ the four declarations:
 `keyPressed()` and `keyReleased()`, defined at the top of the file, are
 called before `draw` when the pointer or the keyboard changed since the
 previous frame. The pointer and the keyboard are read from the pen a
-`draw` is handed, so a sketch without `draw` reads them at rest and never
-hears them. A function redefined while the sketch runs — at `sigil repl`,
+`draw` is handed; a sketch without `draw` reads them off the context's
+`pointer` and `keys` before its `update` or `describe` runs, and is
+stepped for its input hooks even where it defines no `update`. A function redefined while the sketch runs — at `sigil repl`,
 say — is the one the next frame calls, and text run there sets the sketch
 up again only where its `setup` returned a tree, so a `setup` that only
 sets state up runs once.
@@ -1199,8 +1200,9 @@ Container factories accept children directly:
 do not take layout or styling keywords. Fluent methods keep their native names, such
 as `.alignItems("center")`, `.fontSize(18)` and `.translateY(12)`; the
 layout keywords CSS writes as words take the word or the enumeration alike,
-`.overflow("clip")` beside `.overflow(compose.Overflow.Clip)`, and an
-unknown word raises `ValueError`.
+`.overflow("clip")` beside `.overflow(compose.Overflow.Clip)` — and
+`.overflow("hidden")`, CSS's most common spelling, which clips as `"clip"`
+does — and an unknown word raises `ValueError`.
 
 Both factory arguments and `.children()` accept individual native elements
 or one sequence of elements:

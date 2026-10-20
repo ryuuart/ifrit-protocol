@@ -63,7 +63,10 @@ The circuit contains eight interleaved bus sectors, nested chip traces,
 contact pads and a central cross. Its geometry is cached. Twenty-four
 packets use native path travel, including its arc-length parameter and
 orientation. Native bloom, an original beam/curvature filter, glass sheen,
-surface scoring and a corner mask act at distinct physical layers.
+surface scoring and a corner mask act at distinct physical layers. The
+curvature filter reads each pixel from further out toward the screen's
+corners, at most a quarter of its curvature times the screen's diagonal,
+and states that reach on its program as the wall does.
 Only the clock and a few native phase/visibility values change per frame.
 
 The preserved C++ experiment loads `data/MachineType.ttf` into native Weave

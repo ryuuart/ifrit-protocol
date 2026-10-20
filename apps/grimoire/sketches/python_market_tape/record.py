@@ -8,13 +8,12 @@
 
     uv run --project .. record.py --record
         listens for RECORD_SECONDS and writes what arrived into
-        data/tape.json and data/weather.json, which is what a capture
+        data/tape.jsonl and data/weather.jsonl, which is what a capture
         replays.
 
-A recording is one JSON document: the address it came from and every
-arrival, each the dict the library delivered and the seconds after the
-start at which it landed. The sketch replays it at those seconds, so a
-still is the same picture every run.
+A recording is JSON lines, one arrival a line: the dict the library
+delivered and the seconds after the start at which it landed. The sketch
+replays it at those seconds, so a still is the same picture every run.
 
 Run it with the interpreter of the catalogue's project, `uv run --project
 ..` from this directory, which holds httpx and websockets; nothing else
@@ -74,11 +73,10 @@ def collect(arrivals, start):
     return arrived
 
 
-def write(name, source, arrivals):
-    """One JSON document, one arrival a line, so a new recording diffs."""
+def write(name, arrivals):
+    """JSON lines, one arrival a line, so a new recording diffs."""
     path = HERE / "data" / name
-    lines = ",\n".join(json.dumps(arrival, separators=(",", ":")) for arrival in arrivals)
-    path.write_text(f'{{"source":{json.dumps(source)},"arrivals":[\n{lines}\n]}}\n')
+    path.write_text("".join(json.dumps(arrival, separators=(",", ":")) + "\n" for arrival in arrivals))
     print(f"wrote {len(arrivals)} arrivals into {path.relative_to(HERE)}")
 
 
@@ -93,8 +91,8 @@ async def record():
     for task in tasks:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
-    write("tape.json", STREAM, trades)
-    write("weather.json", f"{FORECAST}?{httpx.QueryParams(PLACE)}", readings)
+    write("tape.jsonl", trades)
+    write("weather.jsonl", readings)
 
 
 async def watch():

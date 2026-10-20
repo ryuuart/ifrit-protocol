@@ -148,7 +148,7 @@ AnchorLike: TypeAlias = _sigil.compose.Anchor | str | tuple[str, PointLike] | Po
 """ONE STOP OF A WIRE: an anchor, a node's key read at its centre, a key
 and a normalized point read on that node's bounds, or a free point in the
 scope's own coordinates."""
-OverflowLike: TypeAlias = _sigil.compose.Overflow | Literal["visible", "clip"]
+OverflowLike: TypeAlias = _sigil.compose.Overflow | Literal["visible", "clip", "hidden"]
 ShapeFunction: TypeAlias = Callable[[float, float], _sigil.skia.Path]
 ShapeLike: TypeAlias = _sigil.compose.Shape | _sigil.skia.Path | ShapeFunction
 NodeLike: TypeAlias = (

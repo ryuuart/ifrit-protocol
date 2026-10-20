@@ -494,4 +494,71 @@ TEST(DataDecode, AWholeNumberIsWrittenWholeAndWithTheFewestDigits) {
             jsonText(Json(Json::Array{Json(INFINITY), Json(-INFINITY)})));
 }
 
+TEST(DataDecode, ANumberWrittenWholeKeepsItsIntegerReading) {
+  const std::optional<Json> document = decode(
+      R"({"n": 1, "zero": 0, "at": 1792390191489, "half": 0.5,)"
+      R"( "written": 1.0, "exponent": 1e3, "big": 9007199254740993})",
+      Dialect::Json);
+  ASSERT_TRUE(document);
+  EXPECT_EQ(std::optional<int64_t>(1), (*document)["n"].integer());
+  EXPECT_EQ(std::optional<int64_t>(0), (*document)["zero"].integer());
+  EXPECT_EQ(std::optional<int64_t>(1792390191489),
+            (*document)["at"].integer());
+  // A fraction or an exponent is how a document says it means a float.
+  EXPECT_FALSE((*document)["half"].integer());
+  EXPECT_FALSE((*document)["written"].integer());
+  EXPECT_FALSE((*document)["exponent"].integer());
+  EXPECT_DOUBLE_EQ(1.0, (*document)["written"].number());
+  // Past what a double holds exactly, the reading keeps every digit and
+  // writing it back loses none.
+  EXPECT_EQ(std::optional<int64_t>(9007199254740993),
+            (*document)["big"].integer());
+  EXPECT_EQ("9007199254740993", jsonText((*document)["big"]));
+  // A C++ integer is a whole number, and equality reads the value, not
+  // how it was written.
+  EXPECT_EQ(std::optional<int64_t>(7), Json(7).integer());
+  EXPECT_FALSE(Json(7.0).integer());
+  EXPECT_TRUE(Json(7) == Json(7.0));
+  EXPECT_FALSE(Json("7").integer());
+}
+
+TEST(DataDecode, JsonLinesAreOneValueALine) {
+  const std::optional<Json> lines = decode(
+      "{\"at\": 0.5, \"n\": 1}\r\n\n  [2, 3]  \n\"three\"\n", Dialect::JsonLines);
+  ASSERT_TRUE(lines);
+  ASSERT_EQ(3u, lines->size());
+  EXPECT_EQ(std::optional<int64_t>(1), (*lines)[0]["n"].integer());
+  EXPECT_EQ(2u, (*lines)[1].size());
+  EXPECT_EQ("three", (*lines)[2].string());
+  // Written back, each member is a line of its own.
+  const std::vector<std::byte> written = encode(*lines, Dialect::JsonLines);
+  EXPECT_EQ("{\"at\":0.5,\"n\":1}\n[2,3]\n\"three\"\n",
+            std::string(reinterpret_cast<const char*>(written.data()),
+                        written.size()));
+  // One line that is not JSON makes the whole text no recording.
+  EXPECT_FALSE(decode("{\"n\": 1}\n{oops\n", Dialect::JsonLines));
+  EXPECT_TRUE(encode(Json(1), Dialect::JsonLines).empty());
+}
+
+TEST(DataDecode, AHubReadsAJsonLinesFileAsOneValueALine) {
+  const ScratchDir scratch("data_decode_json_lines");
+  scratch.write("tape.jsonl",
+                "{\"at\": 0.1, \"price\": 82800}\n"
+                "{\"at\": 0.2, \"price\": 82810}\n"
+                "{\"at\": 0.3, \"price\": 82805.5}\n");
+  sigil::io::Hub hub;
+  sigil::io::mount(hub, "res://", scratch.path);
+  registerDecoders(hub);
+
+  const std::shared_ptr<const Json> tape = hub.load<Json>("res://tape.jsonl");
+  ASSERT_TRUE(tape);
+  ASSERT_EQ(3u, tape->size());
+  EXPECT_EQ(std::optional<int64_t>(82810), (*tape)[1]["price"].integer());
+  // The same lines are a list of records, and so a table.
+  const std::shared_ptr<const Table> rows = hub.load<Table>("res://tape.jsonl");
+  ASSERT_TRUE(rows);
+  EXPECT_EQ(3u, rows->size());
+  EXPECT_DOUBLE_EQ(82805.5, rows->column<double>("price")[2]);
+}
+
 }  // namespace

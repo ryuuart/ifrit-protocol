@@ -2,6 +2,7 @@
 
 import builtins
 import gc
+import json
 import sqlite3
 import sys
 import tempfile
@@ -253,6 +254,41 @@ class Cached:
             )
             with self.assertRaisesRegex(RuntimeError, "read-only"):
                 database.query("DELETE FROM totals")
+
+    def test_a_json_number_written_whole_is_an_int(self):
+        text = '{"n": 1, "zero": 0, "at": 1792390191489, "ratio": 0.5, "written": 1.0}'
+        document = data.decode(text, data.Dialect.Json)
+        value = document.toPython()
+        self.assertEqual(value, json.loads(text))
+        for name in ("n", "zero", "at"):
+            self.assertIs(type(value[name]), int, name)
+        for name in ("ratio", "written"):
+            self.assertIs(type(value[name]), float, name)
+        self.assertEqual(document["at"].integer(), 1792390191489)
+        self.assertIsNone(document["written"].integer())
+        # A Python int keeps its reading on the way in and back out.
+        self.assertIs(type(data.Json({"count": 7}).toPython()["count"]), int)
+        self.assertEqual(data.encode(data.Json(2**62 + 1), data.Dialect.Json), str(2**62 + 1).encode())
+
+    def test_a_json_lines_file_loads_as_one_value_a_line(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "tape.jsonl").write_text(
+                '{"at": 0.1, "price": 82800}\n'
+                '{"at": 0.2, "price": 82810}\n'
+                '\n'
+                '{"at": 0.3, "price": 82805.5}\n'
+            )
+            hub = io.Hub()
+            hub.mount("res://", root)
+            data.registerDecoders(hub)
+            tape = hub.load(data.Json, "res://tape.jsonl").toPython()
+            self.assertEqual(len(tape), 3)
+            self.assertEqual([row["price"] for row in tape], [82800, 82810, 82805.5])
+            self.assertIs(type(tape[0]["price"]), int)
+        lines = data.decode('[1]\n{"a": 2}\n', data.Dialect.JsonLines)
+        self.assertEqual(lines.toPython(), [[1], {"a": 2}])
+        self.assertEqual(data.encode(lines, data.Dialect.JsonLines), b'[1]\n{"a":2}\n')
 
     def test_flags_compare_equal_and_instants_order_chronologically(self):
         self.assertEqual(data.Flag(True), data.Flag(True))

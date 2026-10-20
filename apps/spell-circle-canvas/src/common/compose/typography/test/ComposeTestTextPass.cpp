@@ -641,7 +641,8 @@ TEST(TextPass, ADrivenLaneUnderACanvasScaleDrawsItsLettersAsOutlines) {
              .key("t")
              .textFx({.effect = drive})
              .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
-    host.engine.advance(host.engine.elapsed() + sigil::motion::Duration(0.5));
+    // A fresh composer's first draw: the layer is whole before the engine
+    // has moved at all.
     LayerPictureCanvas canvas(4096, 4096);
     canvas.scale(zoom, zoom);
     host.composer.draw(canvas);
@@ -658,4 +659,56 @@ TEST(TextPass, ADrivenLaneUnderACanvasScaleDrawsItsLettersAsOutlines) {
   const auto [farRuns, farOutlines] = layersDrawnAt(threshold * 1.5f);
   EXPECT_EQ(farRuns, 0) << "past the outline em the layer kept the atlas";
   EXPECT_GT(farOutlines, 0);
+}
+
+TEST(TextPass, AFreshComposersFirstDrawOfATextEffectPaintsAsItsSecond) {
+  // A composer drawn once, with no engine step before it, paints a text
+  // effect node as the next draw does: nothing it needs waits for a frame.
+  const sk_sp<SkTypeface> face = sigil::test::instrument::variable();
+  ASSERT_TRUE(face);
+  sigil::weave::TextStyle style = styleAt(24.0f);
+  style.shaping.typeface = face;
+  style.paint.foreground.setColor(SK_ColorWHITE);
+  const TextEffect drive = textFx::effect(
+      "test-first-grade",
+      [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+        GlyphModifier modifier;
+        modifier.axis = sigil::weave::FontVariation("GRAD", 100.0f);
+        return modifier;
+      });
+  const TextEffect lift = textFx::effect(
+      "test-first-lift",
+      [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+        GlyphModifier modifier;
+        modifier.dy = -2.0f;
+        return modifier;
+      });
+  const auto lit = [](Host& host) {
+    int count = 0;
+    for (int y = 0; y < 200; ++y)
+      for (int x = 0; x < 200; ++x)
+        count += SkColorGetR(host.pixel(x, y)) > 128;
+    return count;
+  };
+  const std::vector<std::pair<const char*, std::vector<Track>>> cases = {
+      {"a moved letter", {{.effect = lift}}},
+      {"a driven face", {{.effect = drive}}},
+      {"a pass", {{.effect = textFx::pass(passOver(kIdentitySksl))}}},
+      {"a driven face through a pass",
+       {{.effect = drive},
+        {.effect = textFx::pass(passOver(kIdentitySksl))}}},
+  };
+  for (const auto& [name, tracks] : cases) {
+    Host host;
+    auto leaf = text(u8"GRADE", style);
+    leaf.key("t");
+    for (const Track& track : tracks) leaf.textFx(track);
+    host.composer.render(box().padding(20).children({std::move(leaf)}));
+    host.frame();
+    const int first = lit(host);
+    host.frame();
+    const int second = lit(host);
+    EXPECT_GT(first, 0) << name << ": the first draw painted nothing";
+    EXPECT_EQ(first, second) << name;
+  }
 }

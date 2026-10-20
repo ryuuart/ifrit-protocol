@@ -271,8 +271,16 @@ def registrations(root: pathlib.Path) -> dict[str, Registration]:
     return found
 
 
-def studies(root: pathlib.Path) -> list[str]:
-    return sorted(path.stem for path in root.glob("python_*.py"))
+def studies(root: pathlib.Path) -> dict[str, str]:
+    """Every bundled Python study by its stem, with its source relative to
+    the sketch directory: a file of its own, `python_<stem>.py`, or a
+    directory holding one of its own name, `python_<stem>/python_<stem>.py`.
+    """
+    found = {path.stem: path.name for path in root.glob("python_*.py")}
+    for path in root.glob("python_*/python_*.py"):
+        if path.stem == path.parent.name:
+            found[path.stem] = f"{path.parent.name}/{path.name}"
+    return dict(sorted(found.items()))
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +309,7 @@ class Sketch:
     collection: str
     needs: str | None
     requires: list[Requirement]
-    study: tuple[str, str] | None = None  # (relation, study stem)
+    study: tuple[str, str] | None = None  # (relation, study source)
 
     @property
     def unbound(self) -> list[Requirement]:
@@ -315,6 +323,7 @@ class Sketch:
 @dataclasses.dataclass
 class Study:
     stem: str
+    source: str  # relative to Grimoire's sketches/
     combines: str | None
     relation: str | None
     native: str | None
@@ -361,17 +370,18 @@ class Ledger:
 
     @staticmethod
     def _studies(
-        data: dict, stems: list[str], registered: dict[str, Registration]
+        data: dict, sources: dict[str, str], registered: dict[str, Registration]
     ) -> list[Study]:
         records = data.get("study", {})
         for stem in records:
-            if stem not in stems:
+            if stem not in sources:
                 raise LedgerError(
                     f"typing/ledger/studies.toml describes {stem}, and no "
-                    f"{stem}.py ships under Grimoire's sketches/"
+                    f"{stem}.py ships under Grimoire's sketches/, alone or in "
+                    f"a directory of its name"
                 )
         found = []
-        for stem in stems:
+        for stem, source in sources.items():
             record = records.get(stem, {})
             relation = native = None
             if "ports" in record:
@@ -382,7 +392,9 @@ class Ledger:
                 raise LedgerError(
                     f"{stem} names {native}, which no C++ sketch registers"
                 )
-            found.append(Study(stem, record.get("combines"), relation, native))
+            found.append(
+                Study(stem, source, record.get("combines"), relation, native)
+            )
         return found
 
     def _sketches(
@@ -414,7 +426,7 @@ class Ledger:
                     entry.collection,
                     record["needs"] if record else None,
                     requires,
-                    (study.relation, study.stem) if study and study.relation else None,
+                    (study.relation, study.source) if study and study.relation else None,
                 )
             )
         return sorted(found, key=lambda sketch: sketch.name.casefold())
@@ -790,8 +802,8 @@ class Writer:
     def study_cell(sketch: Sketch) -> str:
         if not sketch.study:
             return ""
-        relation, stem = sketch.study
-        return f"{relation}: [`{stem}.py`]({STUDY_LINK}/{stem}.py)"
+        relation, source = sketch.study
+        return f"{relation}: [`{pathlib.PurePosixPath(source).name}`]({STUDY_LINK}/{source})"
 
 
 # ---------------------------------------------------------------------------

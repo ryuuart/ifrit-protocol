@@ -26,7 +26,7 @@ in that directory.
 | `httpx` | The polled endpoint: one request a minute and its JSON body |
 | The sketch, `python_market_tape.py` | Two tasks, one method per kind of arrival, and the page those methods' writes are drawn into |
 | `record.py` | The same two libraries outside the sketch: the sources printed live, or recorded for a capture |
-| [SigilIO](doxygen:SigilIO) and [SigilData](doxygen:SigilData) | Only the recordings: the session's hub loads each one as JSON for a capture to replay |
+| [SigilIO](doxygen:SigilIO) and [SigilData](doxygen:SigilData) | Only the recordings: the session's hub loads each one as JSON lines for a capture to replay |
 
 ## Step 1 — the loop every sketch has
 
@@ -167,8 +167,8 @@ state:
             ),
 ```
 
-The sparkline is the kit's plot with a trace over the measured prices,
-and the weather card and the status panels are the kit's panels and
+The sparkline is the kit's plot with a trace over the measured prices
+and an axis numbering the prices it ranges over, and the weather card and the status panels are the kit's panels and
 meters; nothing on the page knows where its numbers came from.
 
 ## Step 5 — a recording for captures
@@ -191,25 +191,26 @@ starting the tasks:
 ```python
         if ctx.deterministic:
             self.recordings = [
-                Recording(recorded(ctx, "data/tape.json"), self.trade),
-                Recording(recorded(ctx, "data/weather.json"), self.reading),
+                Recording(recorded(ctx, "data/tape.jsonl"), self.trade),
+                Recording(recorded(ctx, "data/weather.jsonl"), self.reading),
             ]
             self.stream.state = self.forecast.state = "replaying"
             return
 ```
 
-Each is one JSON document beside the sketch, loaded through the
-session's hub, which reads it the same way in a window, a still and a
-test:
+Each is a JSON lines file beside the sketch, one arrival a line, loaded
+through the session's hub, which reads a `.jsonl` file as the list of its
+lines and reads it the same way in a window, a still and a test:
 
 ```python
-def recorded(ctx: Scene2DContext, path: str) -> dict:
-    """A recording beside the sketch, loaded through the session's hub."""
+def recorded(ctx: Scene2DContext, path: str) -> list[dict]:
+    """A recording beside the sketch, one arrival a line, loaded through the
+    session's hub, which reads a `.jsonl` file as the list of its lines."""
     document = ctx.assets.hub().load(data.Json, ctx.local(path))
-    recording = document.toPython() if document is not None else None
-    if not isinstance(recording, dict):
+    arrivals = document.toPython() if document is not None else None
+    if not isinstance(arrivals, list):
         raise FileNotFoundError(f"{path} holds no recording; record.py --record writes it")
-    return recording
+    return arrivals
 ```
 
 and `update` plays each one up to the scene time, handing every arrival

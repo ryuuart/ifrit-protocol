@@ -182,7 +182,7 @@ class MarketTape(Rendered):
         """A recording as the hub decodes it, every arrival up to the
         capture moment."""
         text = (SKETCH / "data" / name).read_text()
-        arrivals = data.decode(text, data.Dialect.Json).toPython()["arrivals"]
+        arrivals = data.decode(text, data.Dialect.JsonLines).toPython()
         return [arrival["message"] for arrival in arrivals if arrival["at"] <= CAPTURE]
 
     def test_a_capture_replays_the_recorded_tape_up_to_its_moment(self):
@@ -196,8 +196,8 @@ class MarketTape(Rendered):
             renderFile(root / "probe.py", root / "still.png")
             self.assertTrue((root / "still.png").stat().st_size > 0)
         seconds, trades, weather, stream, forecast, tasks = builtins._sigil_market_tape
-        trades_recorded = self.recording("tape.json")
-        readings = self.recording("weather.json")
+        trades_recorded = self.recording("tape.jsonl")
+        readings = self.recording("weather.jsonl")
         self.assertAlmostEqual(seconds, CAPTURE)
         # The tape holds the newest trades that had landed by the capture
         # moment, in the order they landed, and counts every one.

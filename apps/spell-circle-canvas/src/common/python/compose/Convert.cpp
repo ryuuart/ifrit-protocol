@@ -103,12 +103,13 @@ compose::Overflow overflowing(py::handle value) {
     return value.cast<compose::Overflow>();
   if (!py::isinstance<py::str>(value))
     throw py::type_error(
-        "An overflow is an Overflow, \"visible\" or \"clip\".");
+        "An overflow is an Overflow, \"visible\", \"clip\" or \"hidden\".");
   const auto name = value.cast<std::string>();
   if (name == "visible") return compose::Overflow::Visible;
   if (name == "clip") return compose::Overflow::Clip;
+  if (name == "hidden") return compose::Overflow::Hidden;
   throw py::value_error("Unknown overflow: " + name +
-                        "; it is \"visible\" or \"clip\".");
+                        "; it is \"visible\", \"clip\" or \"hidden\".");
 }
 
 compose::Shape shape(py::handle value) {

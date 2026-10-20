@@ -304,7 +304,9 @@ enum class BoxSizing : uint8_t {
  *  far as a tree that never scrolls has one. */
 enum class Overflow : uint8_t {
   Visible,  ///< fill, content and children paint past the shape; the default
-  Clip      ///< they are cut to the shape; the decorations keep their reach
+  Clip,     ///< they are cut to the shape; the decorations keep their reach
+  Hidden    ///< CSS's most common spelling: cut as `Clip` is, there being
+            ///< no scrolling for what is hidden to be reached by
 };
 
 /** WHERE A CHILD SITS ACROSS the container's main axis — down a row,

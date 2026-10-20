@@ -92,6 +92,9 @@ EXEMPT = {
     "sigil_sketch_dir": "a CMake cache variable",
     "sigil_sketch_asset_dir": "a CMake cache variable",
     "window_bench": "a host flag",
+    "sigil_sketch_window_open": "the window library's C-linkage door",
+    "grimoire_host": "a ctest fixture",
+    "sketch_host_current": "a ctest case",
 }
 
 

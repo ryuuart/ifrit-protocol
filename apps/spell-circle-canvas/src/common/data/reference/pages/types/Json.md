@@ -53,6 +53,19 @@ converting to bool and to double at the same rank. And a literal is
 text: without that overload a `const char*` would pick the boolean
 constructor and a name would become `true`.
 
+### A whole number keeps its integer reading
+
+A number is one kind, but a number the document wrote with no fraction
+and no exponent, or one made from a C++ integer, also keeps the exact
+integer it is: `Json::integer` answers it as a signed 64-bit integer,
+and nothing for `1.0`, `1e3`, a number past that range or anything that
+is not a number. That is the distinction a reader of the same text in
+another language keeps — Python's `json.loads` answers an `int` for `1`
+and a `float` for `1.0` — so a value handed on to one answers the same
+type it would have read itself, and a timestamp in milliseconds is
+written back with every digit. Equality ignores the reading: `Json(1)`
+equals `Json(1.0)`, as `1 == 1.0` does where JSON is read.
+
 ### Reading and writing the document
 
 `sigil::data::decode` with `Dialect::Json` answers the document in text,
@@ -73,6 +86,15 @@ same UTF-8. A number is written with the fewest digits that read back as
 itself, so a whole number is written whole; a number that is not finite
 has no JSON spelling and is written null, which is the value a reader
 would get back for it.
+
+### JSON lines
+
+`Dialect::JsonLines` reads one document to a line — a recording that is
+appended to one arrival at a time — into an array of the lines' values
+in order, skipping a blank line; nothing comes back when any line is not
+JSON. `encode` writes each member of an array as compact JSON on a line
+of its own. A hub reads a resource named `.jsonl` or `.ndjson` this way,
+as a `Json` and as a `Table` alike.
 
 ### The rectangle inside a document
 

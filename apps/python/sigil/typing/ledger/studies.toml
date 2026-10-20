@@ -1,6 +1,7 @@
 # The bundled Python studies under Grimoire's sketches/, one record each:
 # what the study combines and, where it ports or adapts a registered C++
-# sketch, which one. Every python_*.py file there needs a record.
+# sketch, which one. Every python_*.py file there, and every python_<stem>/
+# directory holding a python_<stem>.py, needs a record.
 
 [study.python_alpha_ground]
 combines = "A transparent ground under one turning mark, for a subscriber to composite"
@@ -9,6 +10,9 @@ ports = "alpha_ground"
 [study.python_botanical_study]
 combines = "Wash, dry mass, hatching and veins over ten leaves on a pressure-drawn branch"
 adapts = "brush_botanical_study"
+
+[study.python_bundled_type]
+combines = "A font file the sketch carries, loaded through the session's hub and named by its family beside an installed one, with the bundled family read back as a specimen"
 
 [study.python_carved_linework]
 combines = "One Compose page on one baked quad: limestone lettering cut glyph by glyph into slate, brushed copper ribbon traces, plated vias as brushed ribbon rings, and an emissive pulse riding a trace in a live window under a bloom, lit by a key on a rail and a soft panel"
@@ -49,6 +53,9 @@ adapts = "p5_liquid_layers"
 
 [study.python_live_signals]
 combines = "UDP feed arrivals, JSON decoding, drawn traces and a reply to each sender"
+
+[study.python_market_tape]
+combines = "Two ordinary Python libraries, websockets and httpx, feeding a live page on the sketch's own event loop, replayed from JSON lines recordings for a capture"
 
 [study.python_memo_station]
 combines = "Retained model descriptions, memo invalidation and native motion"

@@ -35,10 +35,12 @@ Json converted(simdjson::dom::element element) {
     }
     case simdjson::dom::element_type::STRING:
       return Json(std::string(std::string_view(element)));
+    // A number written whole keeps its integer reading, so a reader that
+    // tells integers from fractions sees the one the document wrote.
     case simdjson::dom::element_type::INT64:
-      return Json(static_cast<double>(int64_t(element)));
+      return Json(int64_t(element));
     case simdjson::dom::element_type::UINT64:
-      return Json(static_cast<double>(uint64_t(element)));
+      return Json(uint64_t(element));
     case simdjson::dom::element_type::DOUBLE:
       return Json(double(element));
     case simdjson::dom::element_type::BOOL:
@@ -240,7 +242,10 @@ void write(const Json& value, std::string& out) {
       out += value.boolean() ? "true" : "false";
       break;
     case Json::Kind::Number:
-      writeNumber(value.number(), out);
+      if (const std::optional<int64_t> whole = value.integer())
+        out += std::to_string(*whole);
+      else
+        writeNumber(value.number(), out);
       break;
     case Json::Kind::String:
       writeText(value.string(), out);
@@ -329,6 +334,39 @@ std::optional<Json> wire::readJson(std::string_view text) {
 std::string wire::writeJson(const Json& value) {
   std::string text;
   write(value, text);
+  return text;
+}
+
+std::optional<Json> wire::readJsonLines(std::string_view text) {
+  // One parser for every line, so its buffers are grown once.
+  simdjson::dom::parser parser;
+  Json::Array values;
+  while (!text.empty()) {
+    const size_t end = text.find('\n');
+    std::string_view line = text.substr(0, end);
+    text = end == std::string_view::npos ? std::string_view{}
+                                         : text.substr(end + 1);
+    while (!line.empty() && (line.back() == '\r' || line.back() == ' ' ||
+                             line.back() == '\t'))
+      line.remove_suffix(1);
+    while (!line.empty() && (line.front() == ' ' || line.front() == '\t'))
+      line.remove_prefix(1);
+    if (line.empty()) continue;
+    simdjson::dom::element document;
+    if (parser.parse(simdjson::padded_string(line)).get(document))
+      return std::nullopt;
+    values.push_back(converted(document));
+  }
+  return Json(std::move(values));
+}
+
+std::string wire::writeJsonLines(const Json& value) {
+  std::string text;
+  if (value.kind() != Json::Kind::Array) return text;
+  for (const Json& member : value.array()) {
+    write(member, text);
+    text.push_back('\n');
+  }
   return text;
 }
 

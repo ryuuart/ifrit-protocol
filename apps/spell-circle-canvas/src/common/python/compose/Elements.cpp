@@ -362,7 +362,8 @@ void bindCompose(py::module_& module) {
       .value("ContentBox", BoxSizing::ContentBox);
   py::enum_<Overflow>(composition, "Overflow")
       .value("Visible", Overflow::Visible)
-      .value("Clip", Overflow::Clip);
+      .value("Clip", Overflow::Clip)
+      .value("Hidden", Overflow::Hidden);
   py::enum_<TextWrap>(composition, "TextWrap")
       .value("Auto", TextWrap::Auto)
       .value("Balance", TextWrap::Balance)

@@ -7,7 +7,7 @@ The access narrative and all circuit topology are original study content.
 """
 
 import json
-from math import cos, pi, sin
+from math import ceil, cos, hypot, pi, sin
 from pathlib import Path
 
 from sigil.compose import Cache, MotionPath, Overflow, box, heldPath, pen, text
@@ -381,8 +381,8 @@ def machine_line(value, x, y, size, clock, arrival):
     return result
 
 
-def program_filter(name, declared, values):
-    result = Filter.program(declared + (ROOT / name).read_text())
+def program_filter(name, declared, values, sampleRadius=None):
+    result = Filter.program(declared + (ROOT / name).read_text(), sampleRadius=sampleRadius)
     for uniform, value in values.items():
         result.set(uniform, value)
     return result
@@ -418,16 +418,22 @@ class NostromoMonitor:
             ),
             sampleRadius=3,
         )
+        # The glass reads each pixel from further out by c·|c|²·curvature
+        # of the screen, c its place from the middle in screen fractions:
+        # farthest at a corner, a quarter of the curvature times the
+        # screen's diagonal, which is the reach the tube states.
+        curvature = 0.1
         tube = program_filter(
             "Tube.sksl",
             "uniform shader content; uniform float2 uSize; uniform float uSeconds; uniform float uCurvature; uniform float uRaster; uniform float uNoise;\n",
             {
                 "uSize": (SW, SH),
                 "uSeconds": 0.0,
-                "uCurvature": 0.1,
+                "uCurvature": curvature,
                 "uRaster": 0.2,
                 "uNoise": 0.006,
             },
+            sampleRadius=ceil(0.25 * curvature * hypot(SW, SH)),
         )
         tube.bind("uSeconds", self.seconds)
         tube = Filter.bloom(

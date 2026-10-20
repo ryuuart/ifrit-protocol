@@ -268,11 +268,14 @@ class Placed:
         by_keyword = scene("raw.Overflow.Clip")
         self.assertEqual(bytes(by_keyword), bytes(scene("'clip'")))
         self.assertEqual(by_keyword[(4 * 32 + 24) * 4], 0)
+        # CSS's most common word: nothing scrolls, so hidden is clip.
+        self.assertEqual(bytes(by_keyword), bytes(scene("'hidden'")))
+        self.assertEqual(bytes(by_keyword), bytes(scene("raw.Overflow.Hidden")))
         visible = scene("'visible'")
         self.assertEqual(bytes(visible), bytes(scene("raw.Overflow.Visible")))
         self.assertGreater(visible[(4 * 32 + 24) * 4], 200)
-        with self.assertRaisesRegex(ValueError, "Unknown overflow: hidden"):
-            box().overflow("hidden")
+        with self.assertRaisesRegex(ValueError, "Unknown overflow: scroll"):
+            box().overflow("scroll")
 
     def test_flex_and_box_keywords_lay_out_as_css_says(self):
         for element in (

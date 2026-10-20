@@ -14,7 +14,10 @@ What becomes of paint that leaves the node's own shape — CSS's
 `overflow`, as far as a tree that never scrolls has one.
 `Overflow::Visible` lets it through and is what a node that says nothing
 gets; `Overflow::Clip` cuts the fill, the content and the children to
-the shape.
+the shape; `Overflow::Hidden`, CSS's most common spelling, cuts exactly
+as `Clip` does, since nothing scrolls to reach what it hides. Python
+takes the enumeration or the CSS word: `"visible"`, `"clip"` or
+`"hidden"`.
 
 ## Description
 

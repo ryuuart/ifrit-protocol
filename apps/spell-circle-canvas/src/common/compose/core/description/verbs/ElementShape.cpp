@@ -21,7 +21,9 @@ Derived& ShapeVerbs<Derived>::shape(Shape path) {
 
 template <class Derived>
 Derived& ShapeVerbs<Derived>::overflow(Overflow overflow) {
-  declarations()->fields.overflow() = overflow == Overflow::Clip;
+  // Hidden is Clip: a tree that never scrolls has nothing that reaches
+  // what is hidden, so the two cut alike.
+  declarations()->fields.overflow() = overflow != Overflow::Visible;
   return self();
 }
 

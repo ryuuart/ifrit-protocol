@@ -147,7 +147,7 @@ The region the node occupies, and what is cut to it.
 |---|---|
 | [`borderRadius`](pages/verbs/borderRadius.md) | The four corner radii of the node's box. |
 | [`shape`](pages/verbs/shape.md) | The node's outline as a path generator over its laid-out size; it overrides `borderRadius`. |
-| [`overflow`](pages/verbs/overflow.md) | What becomes of paint that leaves that outline: `Overflow::Clip` cuts the fill, the content and the children to it — the decorations keep their reach. |
+| [`overflow`](pages/verbs/overflow.md) | What becomes of paint that leaves that outline: `Overflow::Clip` cuts the fill, the content and the children to it — the decorations keep their reach; `Overflow::Hidden` cuts as `Clip` does. |
 | [`mask`](pages/verbs/mask.md) | Gate what the node paints, by span, edge, shape or alpha; overlapping masks intersect. |
 | `bandAlignment` | Which side of its spine a band occupies: straddling it, or one side of it. |
 

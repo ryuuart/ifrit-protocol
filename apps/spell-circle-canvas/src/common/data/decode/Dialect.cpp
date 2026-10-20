@@ -141,6 +141,8 @@ std::optional<Json> decode(std::span<const std::byte> bytes, Dialect dialect,
       if (!table) return std::nullopt;
       return rowsOf(*table);
     }
+    case Dialect::JsonLines:
+      return wire::readJsonLines(textOf(bytes));
   }
   return std::nullopt;
 }
@@ -169,6 +171,8 @@ std::vector<std::byte> encode(const Json& value, Dialect dialect,
     }
     case Dialect::Csv:
       return ownedBytes(writeCsv(value));
+    case Dialect::JsonLines:
+      return ownedBytes(wire::writeJsonLines(value));
   }
   return {};
 }

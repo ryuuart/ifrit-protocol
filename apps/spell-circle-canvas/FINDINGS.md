@@ -63,48 +63,6 @@ device. A settle-style Graphite arm of `BM_Draw_CoverageSheet_TurningChild`
 that alternates density should cost within a stated ratio of the steady
 arm; the change moves every device plate that uses held coverage.
 
-## `overflow("hidden")` is refused
-
-Compose accepts only `visible` and `clip` for overflow, while CSS's most
-common value is `hidden`; it should clip as `clip` does. A test should
-set `overflow("hidden")` and find the content clipped.
-
-## A JSON number that is an integer comes back as a float
-
-`data.Json.toPython()` answers `1792390191489.0` for `1792390191489` and
-`0.0` for `0`, so a recording loaded through the hub hands a sketch
-different types than `json.loads` of the same text. Integers should stay
-integers. A test should decode `{"n": 1}` and find `n` an `int`. The hub's
-JSON decoder also reads exactly one document, so a JSON-lines recording
-has no door; one value per line, or a named dialect, should exist.
-
-## Axis tick labels for large values print in exponent form
-
-`kit.axis` prints ticks such as 82800 as `e+04` and clips them past the
-plot's left edge. Ticks should print as plain numbers inside the plot's
-bounds. A test should put ticks of 82800 and 82810 on an axis and find
-them printed plainly within the plot.
-
-## Directory Python studies are missing from the parity ledger
-
-`typing/parity.py` globs only top-level `python_*.py`, so
-`python_bundled_type` and `python_market_tape` never appear in
-PARITY.md; the study list should include `python_<stem>/python_<stem>.py`.
-
-## The Nostromo tube program states no reach
-
-`Tube.sksl` in `nostromo_monitor` goes through `Filter.program` with no
-sampling reach although it reads warped neighbours, now that the raw
-door can state one. A test should capture the tube twice and find the
-captures byte-identical.
-
-## A composer's first draw of a text effect node can come out blank
-
-A fresh host's first `composer.draw` drew nothing for a `textFx` effect
-node until its engine was advanced or a frame drawn. The first draw
-should paint the node as the second does. A test should build a fresh
-composer, render a text effect node and find its first draw non-empty.
-
 ## The Library of Babel changes under GPU load
 
 `borges_library.py` renders 25 pixels differently on thin antialiased

@@ -45,7 +45,8 @@ class ShapeVerbs {
   /** WHAT BECOMES OF PAINT THAT LEAVES THE NODE'S SHAPE — CSS
    *  `overflow`. `Overflow::Visible` when unstated. `Overflow::Clip`
    *  cuts the fill, the content and the children to the shape, and a
-   *  hit outside it misses the subtree. Decorations are NOT clipped:
+   *  hit outside it misses the subtree; `Overflow::Hidden` cuts exactly
+   *  as `Clip` does, since nothing scrolls. Decorations are NOT clipped:
    *  they dress the outline, so outer strokes, shadows and glows keep
    *  their reach. */
   Derived& overflow(Overflow overflow);

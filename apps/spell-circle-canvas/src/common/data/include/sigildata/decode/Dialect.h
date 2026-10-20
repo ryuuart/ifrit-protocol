@@ -55,6 +55,11 @@ enum class Dialect {
    *  by the header, each cell the number, string or boolean its column
    *  holds; a missing cell is null. */
   Csv,
+  /** JSON lines: one JSON document to a line, read as an array of the
+   *  lines' values in order, a blank line skipped; an array writes each
+   *  member as compact JSON on a line of its own. A recording appended
+   *  to one arrival at a time is in this dialect. */
+  JsonLines,
 };
 
 /** THE LARGEST OSC PACKET `encode` WRITES. One packet is one datagram,
@@ -84,7 +89,8 @@ std::optional<Json> decode(std::string_view text, Dialect dialect,
  *  that read back as each number; an OSC message from its `address` and
  *  `arguments`; the MIDI message or Art-Net packet its `kind` names, a
  *  record carrying `bytes` going out as exactly those; the buffer
- *  @p schema makes of it; a CSV of an array of objects. EMPTY where the
+ *  @p schema makes of it; a CSV of an array of objects; JSON lines of an
+ *  array. EMPTY where the
  *  value has no spelling in that dialect.
  *  @trap A number that is not finite has no JSON spelling and is
  *  written null; an OSC bundle is read but not written. */

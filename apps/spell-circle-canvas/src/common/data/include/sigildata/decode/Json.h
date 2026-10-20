@@ -17,6 +17,7 @@
 
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
@@ -55,12 +56,15 @@ class Json {
   Json(bool value) : m_held(value) {}
   /** A number. */
   Json(double value) : m_held(value) {}
-  /** A whole number is a number. Without this one `Json(1)` is
-   *  ambiguous: an int converts to bool and to double at the same
-   *  rank. */
+  /** A whole number is a number, and keeps its integer reading. Without
+   *  this one `Json(1)` is ambiguous: an int converts to bool and to
+   *  double at the same rank. */
   template <std::integral T>
     requires(!std::same_as<T, bool>)
-  Json(T value) : m_held(static_cast<double>(value)) {}
+  Json(T value) : m_held(static_cast<double>(value)) {
+    if (std::in_range<std::int64_t>(value))
+      m_integer = static_cast<std::int64_t>(value);
+  }
   /** Text. */
   Json(std::string value) : m_held(std::move(value)) {}
   /** A literal is text. Without this one a `const char*` would pick the
@@ -71,7 +75,14 @@ class Json {
   /** A record of keyed values, in the order given. */
   Json(Object value) : m_held(std::move(value)) {}
 
-  bool operator==(const Json&) const = default;
+  /** Two values are equal when they hold the same thing; a number
+   *  written whole equals the same number written with a fraction, as
+   *  `1 == 1.0` in the languages that read JSON. Two integer readings
+   *  compare exactly, past where a double tells them apart. */
+  bool operator==(const Json& other) const {
+    if (m_integer && other.m_integer) return *m_integer == *other.m_integer;
+    return m_held == other.m_held;
+  }
 
   /** Which of the six things this value is. */
   Kind kind() const { return static_cast<Kind>(m_held.index()); }
@@ -87,6 +98,14 @@ class Json {
   bool boolean(bool fallback = false) const;
   /** The number, or @p fallback when this is something else. */
   double number(double fallback = 0.0) const;
+  /** THE NUMBER AS THE WHOLE NUMBER IT WAS WRITTEN AS: a document's
+   *  number written with no fraction and no exponent, or one made from a
+   *  C++ integer, read exactly as a signed 64-bit integer. Nothing for a
+   *  number written `1.0` or `1e3`, for one past the signed 64-bit range,
+   *  and for anything that is not a number — the distinction a reader
+   *  of the same text in another language keeps between an integer and a
+   *  float. */
+  std::optional<std::int64_t> integer() const { return m_integer; }
   /** The string, or @p fallback when this is something else. */
   std::string_view string(std::string_view fallback = {}) const;
 
@@ -108,6 +127,8 @@ class Json {
 
  private:
   Held m_held;
+  /** The integer reading of a number that has one; see `integer()`. */
+  std::optional<std::int64_t> m_integer;
 };
 
 /** The name a resource hub registers and asks for a document under, so

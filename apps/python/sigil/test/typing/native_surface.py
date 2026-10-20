@@ -33,6 +33,7 @@ tree = (
 )
 assert_type(tree, compose.Element)
 assert_type(compose.box().overflow("clip"), compose.Element)
+assert_type(compose.box().overflow("hidden"), compose.Element)
 assert_type(compose.box().overflow(compose.Overflow.Visible), compose.Element)
 key = world.pointLight(intensity=motion.animatable(1)).at((0, 0, 180))
 assert_type(key, world.Light)

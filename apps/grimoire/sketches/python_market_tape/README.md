@@ -36,8 +36,8 @@ with HTTP 451; the market-data one carries the same public streams.
 | --- | --- |
 | `python_market_tape.py` | The sketch: two tasks on `self.loop`, one method per kind of arrival, and the page. |
 | `record.py` | Both sources printed as they arrive, or `--record` to write the recordings under `data/`. |
-| `data/tape.json` | Sixteen seconds of trades as `websockets` delivered them, each with the second it landed at. |
-| `data/weather.json` | The reading `httpx` brought back in the same sixteen seconds. |
+| `data/tape.jsonl` | Sixteen seconds of trades as `websockets` delivered them, one a line, each with the second it landed at. |
+| `data/weather.jsonl` | The reading `httpx` brought back in the same sixteen seconds. |
 
 ## The libraries
 

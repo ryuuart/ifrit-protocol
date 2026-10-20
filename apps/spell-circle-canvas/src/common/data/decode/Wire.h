@@ -35,6 +35,14 @@ std::optional<Json> readJson(std::string_view text);
  *  value; a number that is not finite is written null. */
 std::string writeJson(const Json& value);
 
+/** @p text as JSON lines: one document to a line, read into an array in
+ *  line order, a blank line skipped. Nothing when any line is not JSON. */
+std::optional<Json> readJsonLines(std::string_view text);
+
+/** Each member of the array @p value as compact JSON on a line of its
+ *  own; nothing for a value that is not an array. */
+std::string writeJsonLines(const Json& value);
+
 /** @p packet as a message or a bundle, or nothing when the bytes are no
  *  OSC packet. Every length on the wire is a claim judged against what
  *  arrived before a byte of it is read. */

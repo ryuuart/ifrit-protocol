@@ -73,8 +73,16 @@ data::Json json(py::handle value, std::unordered_set<PyObject*>& active) {
   if (value.is_none()) return {};
   if (py::isinstance<data::Json>(value)) return py::cast<data::Json>(value);
   if (py::isinstance<py::bool_>(value)) return py::cast<bool>(value);
-  if (py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value))
+  if (py::isinstance<py::int_>(value)) {
+    // An integer keeps its integer reading where a signed 64-bit integer
+    // holds it, and is the nearest double past that.
+    int overflow = 0;
+    const long long whole = PyLong_AsLongLongAndOverflow(value.ptr(), &overflow);
+    if (whole == -1 && PyErr_Occurred()) throw py::error_already_set();
+    if (overflow == 0) return data::Json(static_cast<int64_t>(whole));
     return py::cast<double>(value);
+  }
+  if (py::isinstance<py::float_>(value)) return py::cast<double>(value);
   if (py::isinstance<py::str>(value)) return py::cast<std::string>(value);
   const bool object = py::isinstance<py::dict>(value);
   if (!object && !py::isinstance<py::list>(value) &&
@@ -113,6 +121,9 @@ data::Json json(py::handle value) {
 
 py::object pythonJson(const data::Json& value) {
   const Recursion recursion;
+  // A number written whole is an int, as `json.loads` reads the same text.
+  if (const std::optional<int64_t> whole = value.integer())
+    return py::int_(*whole);
   return std::visit(
       [](const auto& held) -> py::object {
         using T = std::decay_t<decltype(held)>;
@@ -330,6 +341,10 @@ void bindData(py::module_& root) {
       .def("null", &data::Json::null)
       .def("boolean", &data::Json::boolean, py::arg("fallback") = false)
       .def("number", &data::Json::number, py::arg("fallback") = 0)
+      .def("integer", &data::Json::integer,
+           "The number as the integer it was written as, or None for a "
+           "number written with a fraction or an exponent, one past the "
+           "signed 64-bit range, and anything that is not a number.")
       .def(
           "string",
           [](const data::Json& value, std::string_view fallback) {
@@ -805,7 +820,8 @@ void bindData(py::module_& root) {
       .value("Midi", data::Dialect::Midi)
       .value("ArtNet", data::Dialect::ArtNet)
       .value("FlatBuffer", data::Dialect::FlatBuffer)
-      .value("Csv", data::Dialect::Csv);
+      .value("Csv", data::Dialect::Csv)
+      .value("JsonLines", data::Dialect::JsonLines);
   module.def(
       "decode",
       [](py::handle input, data::Dialect dialect,

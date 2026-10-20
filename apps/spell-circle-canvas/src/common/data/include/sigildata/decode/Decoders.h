@@ -22,7 +22,8 @@ namespace sigil::data {
 
 /** BYTES AS A TABLE, whichever rectangular format they are in. The
  *  format is decided by the resource's name where it has one — `.csv`,
- *  `.tsv` and `.json` — and otherwise by the first character that is
+ *  `.tsv`, `.json`, and `.jsonl` or `.ndjson` for JSON lines, a record
+ *  to a line — and otherwise by the first character that is
  *  not a space: `[` or `{` is a JSON document and anything else is
  *  delimiter-separated text. The bytes are read as UTF-8. */
 struct TableDecoder {
@@ -37,10 +38,12 @@ struct TableDecoder {
 };
 
 /** BYTES AS A JSON DOCUMENT — the nested record a rectangle cannot
- *  hold — or as an OSC packet, which reads into the same value.
+ *  hold — or as JSON lines or an OSC packet, which read into the same
+ *  value.
  *  @trap THE RESOURCE'S NAME decides which, and nothing in the bytes: a
- *  name beginning `osc://` or ending `.osc` is a packet, and everything
- *  else is JSON text. */
+ *  name beginning `osc://` or ending `.osc` is a packet, one ending
+ *  `.jsonl` or `.ndjson` is JSON lines, read as the array of its lines'
+ *  values, and everything else is JSON text. */
 struct JsonDecoder {
   /** Reads @p bytes as a document, @p hint naming the resource. */
   std::optional<Json> decode(const io::Bytes& bytes,

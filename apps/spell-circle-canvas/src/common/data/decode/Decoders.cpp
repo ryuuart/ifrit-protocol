@@ -31,6 +31,13 @@ std::string_view withoutMark(std::string_view text) {
   return text.starts_with("\xEF\xBB\xBF") ? text.substr(3) : text;
 }
 
+/** Whether a resource's name says its bytes are JSON lines: one document
+ *  to a line, which no reading of the first character tells from one
+ *  document spread over several lines. */
+bool looksLikeJsonLines(std::string_view hint) {
+  return endsWith(hint, ".jsonl") || endsWith(hint, ".ndjson");
+}
+
 /** Whether a resource's name says its bytes are an OSC packet: the
  *  scheme a desk is reached at, or the extension a recorded packet is
  *  filed under. */
@@ -43,6 +50,11 @@ bool looksLikeOsc(std::string_view hint) {
 std::optional<Table> TableDecoder::decode(const io::Bytes& bytes,
                                           std::string_view hint) const {
   const std::string_view text = withoutMark(bytes.asText());
+  if (looksLikeJsonLines(hint)) {
+    const std::optional<Json> lines = wire::readJsonLines(text);
+    if (!lines) return std::nullopt;
+    return tableFromJson(*lines);
+  }
   if (looksLikeJson(text, hint)) {
     const std::optional<Json> document = wire::readJson(text);
     if (!document) return std::nullopt;
@@ -57,6 +69,8 @@ std::optional<Json> JsonDecoder::decode(const io::Bytes& bytes,
   // first byte tells the two apart, so the name is the whole of what
   // there is to go on.
   if (looksLikeOsc(hint)) return wire::readOsc(bytes);
+  if (looksLikeJsonLines(hint))
+    return wire::readJsonLines(withoutMark(bytes.asText()));
   return wire::readJson(withoutMark(bytes.asText()));
 }
 
