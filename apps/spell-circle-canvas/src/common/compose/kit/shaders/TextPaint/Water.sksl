@@ -2,8 +2,10 @@
 // crossing waves, under the fine bright lattice of caustics where they
 // cross.
 half4 main(float2 point) {
+  float2 boxOrigin = fieldOrigin();
+  float2 boxExtent = fieldExtent();
   float2 drift = textPaintDrift();
-  float2 position = (point - origin) / extent;
+  float2 position = (point - boxOrigin) / boxExtent;
   float waveAcross = sin(position.y * 18.0 - time * 2.1 + drift.x);
   float waveDown = cos(position.x * 15.0 + time * 1.6 + drift.y);
   float2 warped = position + float2(waveAcross, waveDown) * 0.035;

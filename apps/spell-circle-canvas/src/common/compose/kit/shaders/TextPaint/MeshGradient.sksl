@@ -1,8 +1,10 @@
 // MESH GRADIENT: four colour regions meeting across the box, the lattice
 // between them bent by the drift, with a violet bloom wandering inside.
 half4 main(float2 point) {
+  float2 boxOrigin = fieldOrigin();
+  float2 boxExtent = fieldExtent();
   float2 drift = textPaintDrift();
-  float2 position = (point - origin) / extent;
+  float2 position = (point - boxOrigin) / boxExtent;
   float2 bent = position;
   bent.x += (bent.y - 0.5) * (0.11 * drift.x) +
             bent.y * (1.0 - bent.y) * (0.08 * drift.y);

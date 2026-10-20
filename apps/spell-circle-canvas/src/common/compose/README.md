@@ -377,6 +377,13 @@ composed from held parts, so its edges are each child's own steps carried
 with it rather than device-aligned steps. It excludes the node's own decorations, includes its
 content and children, and falls back to the shape when empty.
 
+A shadow, bevel or inner shadow cast from a silhouette of held parts keeps
+each part's blurred cast as a mask, drawn on the device the page is drawn on
+and again only for a new silhouette, cast or density. A bevel or a blurred
+inner shadow on any other outline keeps its blurred band the same way and
+cuts it by the outline where it is drawn, so an ink changing beside it
+blurs nothing again.
+
 **Compose does not shade.** A fill, ink or stroke whose material states a
 surface (`material::SurfaceOptions`) paints that material's colour stack on
 a page, flat, exactly as a material that states no surface paints it; its

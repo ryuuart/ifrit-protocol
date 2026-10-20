@@ -9,7 +9,12 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/program/Shader.h>
 
+#include "cache/MarkStates.h"
+#include "paint/HeldCoverage.h"
+#include "paint/MaterialEffects.h"
+#include "paint/PenOnCanvas.h"
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeCaching, StaticSubtreeRecordsOnce) {
@@ -873,4 +878,90 @@ TEST(ComposeCaching, ACoverageDressedSheetOverATurningChildPaintsItsTurn) {
   const auto [far, mean] = turnedAgainstStill();
   EXPECT_EQ(far, 0);
   EXPECT_LT(mean, 3.0);
+}
+
+// ---------------------------------------------------------------------------
+// A BEVEL BESIDE AN INK THAT CHANGES: the leaf repaints on every frame its
+// ink moves, and the band its bevel is cut from is coverage, which the ink
+// does not change, so the band is blurred on the first frame and held.
+
+namespace {
+
+struct ShadeParameters {
+  float shade;
+};
+
+constexpr std::string_view kShade = R"SHADER(
+half4 main(float2 point) {
+  return half4(half(shade), 0.3, 0.6, 1);
+}
+)SHADER";
+
+}  // namespace
+
+TEST(ComposeCaching, ABevelBesideAChangingInkBlursItsBandOnce) {
+  motion::Animatable<float> shade = motion::animatable(0.0f);
+  material::Material ink = material::shader(kShade, ShadeParameters{0.0f});
+  ink.bind("shade", shade);
+  ink.effects(material::Filter::bevel({.depth = 2,
+                                       .size = 3,
+                                       .angleDegrees = 125,
+                                       .highlight = {1, 1, 1, 0.6f},
+                                       .shadow = {0, 0, 0, 0.6f}}));
+  Host host(220, 160);
+  host.composer.render(
+      box().children({box().width(180).height(110).fill(std::move(ink))}));
+  const size_t before = detail::coverageCastsDrawn().processor;
+  host.frame();
+  const size_t afterFirst = detail::coverageCastsDrawn().processor;
+  EXPECT_GT(afterFirst, before) << "the first frame cut the band";
+  std::vector<SkColor> firstFrame = grab(host);
+  for (int frame = 1; frame <= 6; ++frame) {
+    shade = (float)frame / 6.0f;
+    host.frame();
+  }
+  EXPECT_NE(grab(host), firstFrame) << "the ink changed on every frame";
+  EXPECT_EQ(detail::coverageCastsDrawn().processor, afterFirst)
+      << "and the bevel's band was blurred only on the first";
+}
+
+TEST(ComposeCaching, AHeldBevelPaintsTheBevelCastLive) {
+  // The same bevel on a rounded plate, cast live through its outline and
+  // held as a blurred band cut by that outline, over the same ground: the
+  // two agree to a code value or two.
+  detail::CoverageMark bevel;
+  bevel.effect.kind = material::CoverageEffect::Kind::Bevel;
+  bevel.effect.bevel = {.depth = 1.6f,
+                        .size = 2.4f,
+                        .angleDegrees = 120,
+                        .highlight = {1, 1, 1, 0.35f},
+                        .shadow = {0, 0, 0, 0.65f}};
+  const auto painted = [&](bool held) {
+    SkBitmap pixels;
+    pixels.allocN32Pixels(80, 60);
+    pixels.eraseColor(0xFF806040);
+    SkCanvas canvas(pixels);
+    // Between pixels, where the held band is sampled off its own grid.
+    canvas.translate(10.4f, 10.3f);
+    PaintContext context;
+    context.size = {56, 40};
+    context.outline = geometry::path::fromSk(
+        SkPath::RRect(SkRRect::MakeRectXY({0, 0, 56, 40}, 3, 3)));
+    detail::MarkState state;
+    context.markState = held ? &state : nullptr;
+    detail::PenOnCanvas pen(canvas, context);
+    bevel.paint(pen.pen(), context);
+    return pixels;
+  };
+  const SkBitmap live = painted(false), held = painted(true);
+  int farthest = 0;
+  for (int y = 0; y < live.height(); ++y)
+    for (int x = 0; x < live.width(); ++x) {
+      const SkColor a = live.getColor(x, y), b = held.getColor(x, y);
+      farthest = std::max(
+          {farthest, std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)),
+           std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)),
+           std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b))});
+    }
+  EXPECT_LE(farthest, 2);
 }

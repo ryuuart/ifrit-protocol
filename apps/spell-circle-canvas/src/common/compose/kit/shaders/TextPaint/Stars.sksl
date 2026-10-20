@@ -19,9 +19,11 @@ float starScatter(float2 cell, float salt) {
 }
 
 half4 main(float2 point) {
+  float2 boxOrigin = fieldOrigin();
+  float2 boxExtent = fieldExtent();
   float2 drift = textPaintDrift();
   // Shares of the box's height, so a cell is square in the box.
-  float2 position = (point - origin) / extent.y;
+  float2 position = (point - boxOrigin) / boxExtent.y;
 
   float3 light = float3(0.0);
   for (int layer = 0; layer < starLayers; layer++) {

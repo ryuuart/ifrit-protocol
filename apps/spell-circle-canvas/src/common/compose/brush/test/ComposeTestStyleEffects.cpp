@@ -28,7 +28,12 @@ TEST(ComposeStyleEffects, AnInnerShadowHugsTheEdgeItIsCastFrom) {
   const Element shadowed =
       box().fill(material::from(kGrey).effects(material::Filter::shadow(
           {0, 0, 0, 0.8f}, {.blur = 6, .offset = {0, 4}, .inside = true})));
-  EXPECT_EQ(pixelOf(shadowed, 60, 22), 0xFF2A2A2Au);
+  // The band is held as a blurred mask, which lands within a code value
+  // of the blur drawn live.
+  const SkColor band = pixelOf(shadowed, 60, 22);
+  EXPECT_NEAR(SkColorGetR(band), 0x2A, 1);
+  EXPECT_EQ(SkColorGetR(band), SkColorGetG(band));
+  EXPECT_EQ(SkColorGetR(band), SkColorGetB(band));
   EXPECT_EQ(pixelOf(shadowed, 60, 60), 0xFF808080u);
   EXPECT_EQ(pixelOf(shadowed, 60, 16), SK_ColorBLACK);
 }

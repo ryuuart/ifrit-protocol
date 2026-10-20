@@ -4,3 +4,13 @@
 float2 textPaintDrift() {
   return float2(sin(time * 0.83), cos(time * 0.61));
 }
+
+// The box the field is authored over, in the points it is painted at: the
+// stated box is a share of the box the paint is laid over, whose size is
+// the resolution — a passage's band for an ink, a node's box for a fill.
+float2 fieldOrigin() {
+  return origin * uResolution;
+}
+float2 fieldExtent() {
+  return extent * uResolution;
+}

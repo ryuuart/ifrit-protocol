@@ -6,10 +6,13 @@
 // the viewer with time, the panels twist with depth, and the centre
 // wanders with the drift. Toward the far end the wall fades into a glow.
 half4 main(float2 point) {
+  float2 boxOrigin = fieldOrigin();
+  float2 boxExtent = fieldExtent();
   float2 drift = textPaintDrift();
   // Shares of the box's height, so the tunnel is round in the box.
-  float2 position = (point - origin) / extent.y;
-  float2 centre = float2(0.5 * extent.x / extent.y, 0.5) + drift * 0.07;
+  float2 position = (point - boxOrigin) / boxExtent.y;
+  float2 centre =
+      float2(0.5 * boxExtent.x / boxExtent.y, 0.5) + drift * 0.07;
   float2 fromCentre = position - centre;
   float distanceFromCentre = max(length(fromCentre), 0.001);
   float turns = atan(fromCentre.y, fromCentre.x) / 6.2831853;

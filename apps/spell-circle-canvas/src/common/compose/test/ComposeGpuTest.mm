@@ -1,7 +1,9 @@
 // Graphite cases for draws a backend can lose without the raster suites
 // noticing: direct images and stamped atlases, batched glyph compositing
-// with a blurred underlay, and a text pass's reach.
+// with a blurred underlay, a text pass's reach, and the coverage masks a
+// decoration holds, which are cut on the device.
 
+#include "paint/HeldCoverage.h"
 #include "support/GpuTestSupport.h"
 
 using namespace sigil::compose::graphiteTesting;
@@ -307,4 +309,62 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
     }
   EXPECT_GT(bandWide, 0) << "the reach band was not painted";
   EXPECT_EQ(bandSnug, 0) << "a zero reach painted beyond the box";
+}
+
+namespace {
+
+/** A sheet dressed by its coverage — a bevel inside it, a shadow beneath
+ *  — over a bar that turns, so its silhouette is composed from held
+ *  parts. */
+Element coverageSheetOverATurningBar(const sigil::motion::Animatable<float> &turn) {
+  Element bar = box()
+                    .absolute()
+                    .left(40)
+                    .top(100)
+                    .width(160)
+                    .height(40)
+                    .transformOrigin(pct(50), pct(50))
+                    .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
+                    .fill(Fill::color({0.9f, 0.7f, 0.3f, 1}));
+  return box().children(
+      {box()
+           .absolute()
+           .left(0)
+           .top(0)
+           .width(240)
+           .height(240)
+           .decorationOutline(Boundary::Coverage)
+           .fill(sigil::material::from(sigil::material::Color{0, 0, 0, 0})
+                     .effects(sigil::material::Filter::bevel({.depth = 2,
+                                                              .size = 3,
+                                                              .angleDegrees = 125,
+                                                              .highlight = {1, 0.9f, 0.7f, 0.6f},
+                                                              .shadow = {0.1f, 0.05f, 0, 0.6f}})))
+           .background(shadow(sigil::material::Color{0, 0, 0, 0.6f}, {6, 8}, 6))
+           .children({bar})});
+}
+
+}  // namespace
+
+// A held mask is drawn where the mark is drawn: on a device, a change of
+// the density it is cut at — a zoom settling — cuts it again on the
+// device and leaves the processor nothing to raster.
+TEST(ComposeGpu, AHeldCoverageMaskIsCutOnTheDevice) {
+  REQUIRE_GPU();
+  sigil::skia::GraphiteContext &context = *graphite();
+  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
+  composer.setSize({240, 240});
+  composer.render(coverageSheetOverATurningBar(turn));
+  ASSERT_FALSE(drawOnGpu(composer, context, 240, 240).empty());
+  const detail::CoverageCastsDrawn first = detail::coverageCastsDrawn();
+  for (int frame = 1; frame <= 4; ++frame) {
+    turn = (float)frame / 100.0f;
+    composer.setBakeDensity(frame % 2 == 0 ? 1.0f : 1.5f);
+    ASSERT_FALSE(drawOnGpu(composer, context, 240, 240).empty());
+  }
+  const detail::CoverageCastsDrawn settled = detail::coverageCastsDrawn();
+  EXPECT_GT(settled.device, first.device) << "each density cut its masks";
+  EXPECT_EQ(settled.processor, first.processor) << "and none of them on the processor";
 }

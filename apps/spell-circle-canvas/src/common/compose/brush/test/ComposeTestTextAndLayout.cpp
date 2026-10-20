@@ -76,19 +76,17 @@ TEST(ComposeKitMarquee, TwoCopiesSlideUnderOneClip) {
 }
 
 TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
-  // A hard two-stop ramp authored in [0,1]: red above the midline, blue
-  // below. ink maps it to the CAP BAND, so the switch happens INSIDE
-  // the glyphs — capitals read red on top, blue underneath.
+  // A hard two-stop ramp in the box's own units: red above the midline,
+  // blue below. ink lays it over the CAP BAND, so the switch happens
+  // INSIDE the glyphs — capitals read red on top, blue underneath.
   Host host(300, 120);
   host.composer.render(box().padding(20).children(
       {text(u8"HHH", whiteStyle(64))
-           .ink(material::linearGradient(
-               {0, 0}, {0, 1},
-               {{0.0f, {1, 0, 0, 1}},
-                {0.499f, {1, 0, 0, 1}},
-                {0.501f, {0, 0, 1, 1}},
-                {1.0f, {0, 0, 1, 1}}},
-               {.units = material::GradientUnits::Pixels}))}));
+           .ink(material::linearGradient({0, 0}, {0, 1},
+                                         {{0.0f, {1, 0, 0, 1}},
+                                          {0.499f, {1, 0, 0, 1}},
+                                          {0.501f, {0, 0, 1, 1}},
+                                          {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
   // Find the lit band first, then judge its top vs bottom thirds — the
   // ramp midline lives at the CAP BAND's middle, not the canvas's.
@@ -294,6 +292,28 @@ TEST(ComposePaint, ClipSparesDecorations) {
   EXPECT_EQ(host.pixel(52, 100), SK_ColorGREEN);  // outer stroke intact
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE);  // fill clipped area
   EXPECT_EQ(host.pixel(150, 65), SK_ColorBLACK);  // child clipped at 140
+}
+
+TEST(ComposePaint, OverflowHiddenCutsAsClipDoes) {
+  // CSS's most common spelling: nothing scrolls, so hidden is clip.
+  const auto drawn = [](Overflow overflow) {
+    auto host = std::make_unique<Host>();
+    host->composer.render(box().children(
+        {box()
+             .absolute()
+             .inset(60)
+             .overflow(overflow)
+             .fill(blue())
+             .children({box().width(200).height(10).fill(red())})}));
+    host->frame();
+    return host;
+  };
+  const auto hidden = drawn(Overflow::Hidden);
+  const auto clipped = drawn(Overflow::Clip);
+  EXPECT_EQ(hidden->pixel(150, 65), SK_ColorBLACK);  // child cut at 140
+  EXPECT_EQ(hidden->pixel(100, 65), SK_ColorRED);    // and kept inside it
+  EXPECT_TRUE(identicalPixels(*hidden, *clipped, 200, 200));
+  EXPECT_EQ(drawn(Overflow::Visible)->pixel(150, 65), SK_ColorRED);
 }
 
 TEST(ComposeTransform, PixelOriginPivotsWhereTold) {

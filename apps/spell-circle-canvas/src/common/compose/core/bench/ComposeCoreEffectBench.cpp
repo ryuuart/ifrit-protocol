@@ -512,34 +512,47 @@ BENCHMARK(BM_Draw_CoverageSheet_TurningChild)
 
 #ifdef SIGIL_BENCH_GPU
 
-/** The same sheet on Graphite, where each held mask reaches the device
- *  once and stays there, and sampling a turned one is the device's work:
- *  each frame is waited
- *  for, so the number is what the frame cost the device as well as the
- *  recorder. The dressed arm stays under twice the wheel's arm; the
- *  raster arms above carry no such bound, since there every turned mask
- *  is sampled pixel by pixel on the processor. */
+/** The same sheet on Graphite, where each held mask is cut on the device
+ *  and stays there, and sampling a turned one is the device's work: each
+ *  frame is waited for, so the number is what the frame cost the device
+ *  as well as the recorder. The dressed arm stays under twice the wheel's
+ *  arm; the raster arms above carry no such bound, since there every
+ *  turned mask is sampled pixel by pixel on the processor.
+ *
+ *  Arm 2 is the dressed sheet SETTLING at every frame: the density its
+ *  masks are cut at alternates, as a zoom that comes to rest asks for, so
+ *  every held mask is cut again, silhouette and blur, each frame. It is
+ *  cut on the device, and the arm stays within twenty times the dressed
+ *  arm's; what remains on the processor is the silhouette's own trace,
+ *  which a change of density paints again. */
 static void BM_Draw_CoverageSheet_TurningChild_Graphite(
     benchmark::State& state) {
-  const bool dressed = state.range(0) == 1;
+  const bool dressed = state.range(0) >= 1;
+  const bool settling = state.range(0) == 2;
   sigil::compose::bench::GraphiteTarget target(state, 1600, 1200);
   if (!target.ok()) return;
   sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
   Host host(1600, 1200);
   host.composer.render(coverageSheet(turn, dressed));
+  if (settling) host.composer.setBakeDensity(1.0f);
   host.composer.draw(target.canvas());
   target.submitSynced();
   float t = 0;
+  bool denser = false;
   for ([[maybe_unused]] auto iteration : state) {
     turn = (t += 0.002f);
+    if (settling)
+      host.composer.setBakeDensity((denser = !denser) ? 1.25f : 1.0f);
     host.composer.draw(target.canvas());
     target.submitSynced();
   }
   state.counters["dressed"] = dressed ? 1 : 0;
+  state.counters["settling"] = settling ? 1 : 0;
 }
 BENCHMARK(BM_Draw_CoverageSheet_TurningChild_Graphite)
     ->Arg(0)
     ->Arg(1)
+    ->Arg(2)
     ->Unit(benchmark::kMillisecond);
 
 #endif  // SIGIL_BENCH_GPU

@@ -53,10 +53,12 @@ float cloudOctaves(float2 position) {
 }
 
 half4 main(float2 point) {
+  float2 boxOrigin = fieldOrigin();
+  float2 boxExtent = fieldExtent();
   float2 drift = textPaintDrift();
-  float2 position = (point - origin) / extent;
+  float2 position = (point - boxOrigin) / boxExtent;
   // Two and a half noise cells to the box's height, square in the box.
-  float2 field = position * float2(extent.x / extent.y, 1.0) * 2.5;
+  float2 field = position * float2(boxExtent.x / boxExtent.y, 1.0) * 2.5;
   field += float2(time * 0.06, time * 0.01) + drift * 0.12;
 
   float2 warp = float2(cloudOctaves(field * 0.7 + 3.1),

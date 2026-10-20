@@ -23,10 +23,9 @@ namespace {
 /** The moment every field here is held at. */
 constexpr float kMoment = 6.4f;
 
-/** The sparkle at the moment, over @p box. */
-material::Material sparkle(geometry::path::Rect box = {{0, 0}, {1, 1}}) {
-  return kit::textPaint(
-      {.field = kit::TextField::Sparkle, .time = kMoment, .box = box});
+/** The sparkle at the moment, over the whole of the box it is laid over. */
+material::Material sparkle() {
+  return kit::textPaint({.field = kit::TextField::Sparkle, .time = kMoment});
 }
 
 /** A word in the instrument face at @p size, whose letters are solid bars
@@ -34,23 +33,24 @@ material::Material sparkle(geometry::path::Rect box = {{0, 0}, {1, 1}}) {
  *  padded by a quarter of its size, so every length on it scales with the
  *  size. */
 Element inkedWord(float size, material::Material ink) {
-  return box().padding(size * 0.25f).children(
-      {text(u8"SPARKLE", styleAt(size))
-           .ink(std::move(ink), PaintBox::Element)});
+  return box()
+      .padding(size * 0.25f)
+      .children({text(u8"SPARKLE", styleAt(size))
+                     .ink(std::move(ink), PaintBox::Element)});
 }
 
 /** How bright a pixel is: its strongest channel, the sparkle being light
  *  added over black. */
 int brightness(SkColor colour) {
-  return std::max({SkColorGetR(colour), SkColorGetG(colour),
-                   SkColorGetB(colour)});
+  return std::max(
+      {SkColorGetR(colour), SkColorGetG(colour), SkColorGetB(colour)});
 }
 
 /** The 4-connected regions of the pixels of @p host that @p accepts
  *  answers yes for, each as the indices of its pixels: over a passage of
  *  solid bars inked opaque, one region per glyph. */
-std::vector<std::vector<int>> regionsOf(const Host& host, int width,
-                                        int height, bool (*accepts)(SkColor)) {
+std::vector<std::vector<int>> regionsOf(const Host& host, int width, int height,
+                                        bool (*accepts)(SkColor)) {
   std::vector<int> label(static_cast<size_t>(width * height), -1);
   std::vector<std::vector<int>> regions;
   for (int start = 0; start < width * height; ++start) {
@@ -65,11 +65,10 @@ std::vector<std::vector<int>> regionsOf(const Host& host, int width,
       regions.back().push_back(index);
       const int column = index % width;
       const int row = index / width;
-      const int neighbours[4][2] = {
-          {column - 1, row},
-          {column + 1, row},
-          {column, row - 1},
-          {column, row + 1}};
+      const int neighbours[4][2] = {{column - 1, row},
+                                    {column + 1, row},
+                                    {column, row - 1},
+                                    {column, row + 1}};
       for (const auto& [across, down] : neighbours) {
         if (across < 0 || down < 0 || across >= width || down >= height)
           continue;
@@ -133,6 +132,41 @@ TEST(KitTextPaint, ASparkleInkedOverAPassageStandsInPointsAmongDarkGlyphs) {
       << "the light stands in points, not over the whole passage";
 }
 
+TEST(KitTextPaint, ASparkleOverAWideWordStandsInPointsAcrossItsGlyphs) {
+  // The wordmark is far wider than its cap band is high, and the ink hands
+  // the program that band as its resolution, so a cell is a share of the
+  // type's height on every glyph rather than a third of the word: the
+  // light stands in separate points spread across the word.
+  constexpr int kWidth = 420;
+  constexpr int kHeight = 150;
+  const auto wordmark = [](material::Material ink) {
+    return box().padding(24).children(
+        {text(u8"SIGIL", styleAt(104)).ink(std::move(ink))});
+  };
+  Host mask(kWidth, kHeight), sparkled(kWidth, kHeight);
+  mask.composer.render(wordmark(
+      kit::textPaint({.field = kit::TextField::Water, .time = kMoment})));
+  sparkled.composer.render(wordmark(sparkle()));
+  mask.frame();
+  sparkled.frame();
+
+  const std::vector<std::vector<int>> glyphs =
+      regionsOf(mask, kWidth, kHeight, painted);
+  ASSERT_EQ(glyphs.size(), 5u) << "five separate bars";
+  size_t litGlyphs = 0;
+  for (const std::vector<int>& glyph : glyphs)
+    litGlyphs += std::any_of(glyph.begin(), glyph.end(),
+                             [&](int index) {
+                               return lit(sparkled.pixel(index % kWidth,
+                                                         index / kWidth));
+                             })
+                     ? 1
+                     : 0;
+  EXPECT_GE(regionsOf(sparkled, kWidth, kHeight, lit).size(), 3u)
+      << "the light stands in separate points";
+  EXPECT_GE(litGlyphs, 3u) << "spread across the word";
+}
+
 TEST(KitTextPaint, AWordAtTwiceTheSizeTakesCellsTwiceAsLarge) {
   // Everything about the word scales with its size — the bars, the
   // passage they are inked over, the padding — so where the cells scale
@@ -152,8 +186,7 @@ TEST(KitTextPaint, AWordAtTwiceTheSizeTakesCellsTwiceAsLarge) {
       double block = 0;
       for (int down = 0; down < 2; ++down)
         for (int across = 0; across < 2; ++across)
-          block += brightness(
-              large.pixel(column * 2 + across, row * 2 + down));
+          block += brightness(large.pixel(column * 2 + across, row * 2 + down));
       reducedValues.push_back(block / 4);
     }
   const auto mean = [](const std::vector<double>& values) {
@@ -220,13 +253,11 @@ half4 main(float2 point) {
     glm::vec2 extent;
     float time;
   };
-  const geometry::path::Rect plate{{0, 0}, {220, 70}};
   const auto filled = [](material::Material paint) {
-    return box().children(
-        {box().width(220).height(70).fill(std::move(paint))});
+    return box().children({box().width(220).height(70).fill(std::move(paint))});
   };
   Host kit(240, 90), fixed(240, 90);
-  kit.composer.render(filled(sparkle(plate)));
+  kit.composer.render(filled(sparkle()));
   fixed.composer.render(filled(material::shader(
       kFixedCell, FixedCellParameters{{0, 0}, {220, 70}, kMoment})));
   kit.frame();
@@ -239,28 +270,25 @@ half4 main(float2 point) {
       const SkColor ours = kit.pixel(column, row);
       const SkColor theirs = fixed.pixel(column, row);
       litPixels += brightness(ours) > 128 ? 1 : 0;
-      const int apart = std::max(
-          {std::abs(static_cast<int>(SkColorGetR(ours)) -
-                    static_cast<int>(SkColorGetR(theirs))),
-           std::abs(static_cast<int>(SkColorGetG(ours)) -
-                    static_cast<int>(SkColorGetG(theirs))),
-           std::abs(static_cast<int>(SkColorGetB(ours)) -
-                    static_cast<int>(SkColorGetB(theirs)))});
+      const int apart =
+          std::max({std::abs(static_cast<int>(SkColorGetR(ours)) -
+                             static_cast<int>(SkColorGetR(theirs))),
+                    std::abs(static_cast<int>(SkColorGetG(ours)) -
+                             static_cast<int>(SkColorGetG(theirs))),
+                    std::abs(static_cast<int>(SkColorGetB(ours)) -
+                             static_cast<int>(SkColorGetB(theirs)))});
       differing += apart > 1 ? 1 : 0;
     }
   EXPECT_GT(litPixels, 0) << "the plate holds light";
   EXPECT_EQ(differing, 0) << "over a box 70 high the cell is 22 across";
 }
 
-TEST(KitTextPaint, AFillNamesItsNodesBoxInItsOwnPixels) {
-  // A fill hands the program its node's pixels, so the mesh gradient over
-  // the node's own box, named in pixels, crosses its colours from the warm
-  // corner to the cool one.
+TEST(KitTextPaint, AFillIsAuthoredOverItsNodesOwnBox) {
+  // A fill hands the program its node's box, so the mesh gradient over the
+  // whole of it crosses its colours from the warm corner to the cool one.
   Host host(140, 80);
-  host.composer.render(
-      box().children({box().width(120).height(60).fill(kit::textPaint(
-          {.field = kit::TextField::MeshGradient,
-           .box = {{0, 0}, {120, 60}}}))}));
+  host.composer.render(box().children({box().width(120).height(60).fill(
+      kit::textPaint({.field = kit::TextField::MeshGradient}))}));
   host.frame();
   const SkColor warm = host.pixel(2, 2);
   const SkColor cool = host.pixel(117, 57);
@@ -269,16 +297,13 @@ TEST(KitTextPaint, AFillNamesItsNodesBoxInItsOwnPixels) {
 }
 
 TEST(KitTextPaint, TheStarsArePointsOfLightOverAColouredHaze) {
-  // Filled over a box in its own pixels, the star field is a coloured haze
+  // Filled over a node's box, the star field is a coloured haze
   // everywhere, never black, with white points standing apart on it.
   constexpr int kWidth = 240;
   constexpr int kHeight = 80;
   Host host(kWidth, kHeight);
-  host.composer.render(
-      box().children({box().width(kWidth).height(kHeight).fill(kit::textPaint(
-          {.field = kit::TextField::Stars,
-           .time = kMoment,
-           .box = {{0, 0}, {kWidth, kHeight}}}))}));
+  host.composer.render(box().children({box().width(kWidth).height(kHeight).fill(
+      kit::textPaint({.field = kit::TextField::Stars, .time = kMoment}))}));
   host.frame();
   const auto isWhite = [](SkColor colour) {
     return std::min({SkColorGetR(colour), SkColorGetG(colour),
@@ -299,17 +324,14 @@ TEST(KitTextPaint, TheStarsArePointsOfLightOverAColouredHaze) {
 }
 
 TEST(KitTextPaint, TheCloudsLieOverASkyDeepeningTowardTheTop) {
-  // Filled over a box in its own pixels, the clouds leave sky between
+  // Filled over a node's box, the clouds leave sky between
   // them, blue and deeper at the top than at the bottom, and are pale
   // where they stand.
   constexpr int kWidth = 240;
   constexpr int kHeight = 120;
   Host host(kWidth, kHeight);
-  host.composer.render(
-      box().children({box().width(kWidth).height(kHeight).fill(kit::textPaint(
-          {.field = kit::TextField::Clouds,
-           .time = kMoment,
-           .box = {{0, 0}, {kWidth, kHeight}}}))}));
+  host.composer.render(box().children({box().width(kWidth).height(kHeight).fill(
+      kit::textPaint({.field = kit::TextField::Clouds, .time = kMoment}))}));
   host.frame();
   const auto isSky = [](SkColor colour) {
     return SkColorGetB(colour) > SkColorGetR(colour) + 60;
@@ -348,9 +370,9 @@ TEST(KitTextPaint, TheCloudsLieOverASkyDeepeningTowardTheTop) {
 
 TEST(KitTextPaint, EqualPropertiesAnswerEqualMaterialsAndEachFieldItsOwn) {
   const std::vector<kit::TextField> fields{
-      kit::TextField::Water,    kit::TextField::MeshGradient,
-      kit::TextField::Sparkle,  kit::TextField::Stars,
-      kit::TextField::Clouds,   kit::TextField::Tunnel};
+      kit::TextField::Water,   kit::TextField::MeshGradient,
+      kit::TextField::Sparkle, kit::TextField::Stars,
+      kit::TextField::Clouds,  kit::TextField::Tunnel};
   for (kit::TextField field : fields) {
     EXPECT_EQ(kit::textPaint({.field = field, .time = kMoment}),
               kit::textPaint({.field = field, .time = kMoment}));
@@ -390,4 +412,3 @@ TEST(KitTextPaint, ATimeThatMovesIsBoundAndOneThatHoldsIsNot) {
   const motion::Animatable<float> clock = motion::animatable(0.0f);
   EXPECT_TRUE(kit::textPaint({.time = clock}).isBound("time"));
 }
-

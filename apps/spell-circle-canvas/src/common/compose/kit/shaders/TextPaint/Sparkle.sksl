@@ -1,17 +1,19 @@
 // SPARKLE: points of light twinkling on a transparent ground, one at most
 // in each square cell. A cell is a share of the box's height, as every
 // other text paint works in shares of its box: a word twice the size
-// takes cells twice as large, a run stretched over the unit square still
-// holds several, and over a box 70 high a cell is 22 across.
+// takes cells twice as large, a wide word holds square cells all along
+// its length, and over a box 70 high a cell is 22 across.
 float sparkleHash(float2 cell) {
   return fract(sin(dot(cell, float2(41.3, 289.1))) * 43758.5453123);
 }
 
 half4 main(float2 point) {
+  float2 boxOrigin = fieldOrigin();
+  float2 boxExtent = fieldExtent();
   float2 drift = textPaintDrift();
-  float cellSize = extent.y * (22.0 / 70.0);
+  float cellSize = boxExtent.y * (22.0 / 70.0);
   float2 position =
-      point - origin + float2(time * 3.0, time * 1.3) * (cellSize / 22.0);
+      point - boxOrigin + float2(time * 3.0, time * 1.3) * (cellSize / 22.0);
   float2 cell = floor(position / cellSize);
   float2 local = fract(position / cellSize) - 0.5;
 

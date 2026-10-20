@@ -1,7 +1,7 @@
 /** @file
  * The ink one draw of a passage paints its glyphs with: the one
  * glyph-paint override `ink(paint)` and `textStroke()` resolve to, mapped
- * onto the passage's text-metric box, and — where an ink restarts on each
+ * over the passage's text-metric box, and — where an ink restarts on each
  * unit of the passage — the paint on the unit square the text engine
  * lays on each unit's box instead.
  */
@@ -142,9 +142,8 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   if (!inst.paragraph.has_value()) return ink;
   const sigil::weave::Paragraph& paragraph = inst.paragraph.value();
 
-  // Chrome type: the material's unit square mapped to the text's metric
-  // band — x across the widest line, y from the first line's cap top (real
-  // cap height when the face reports one) to the last line's baseline.
+  // Chrome type: the material laid over the text's metric band, the box
+  // a ramp has to cross for the type to read.
   //
   // The override replaces the whole PaintStyle for every run, so it starts
   // as a COPY of the paragraph's own style and swaps only the foreground —
@@ -236,63 +235,20 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
     return ink;
   }
 
-  // Geometry-dependent materials resolve against a UNIT box here, not the
-  // node's. The local matrix below already maps the shader's [0,1]² onto
-  // the metric band, so uResolution baked from the node's layout size
-  // would divide a second time and a unit-space ramp would collapse onto
-  // its first stop, flat and silently. A ramp authored in [0,1]² crosses
-  // the type because the band is what it is mapped onto.
-  PaintContext metricCtx = paintCtx;
-  metricCtx.size = {1.0f, 1.0f};
-  std::optional<detail::TextInk::Surface> surface;
-  if (inst.surfaceMapInkInputs && inst.inkPaint.surfaced && surfaceMap) {
-    surface = detail::TextInk::Surface{*inst.surfaceMapInkInputs, *surfaceMap};
-    if (material::readsUnit(*inst.inkPaint.surfaced)) {
-      surface->readsUnit = *inst.inkPaint.surfaced;
-      surface->units = &unitSurfacesOf(inst);
-    }
-  }
-  const Fill f = surface ? Fill::none() : resolveFill(*metricMat, metricCtx);
-  // AN INK THAT RESTARTS PER UNIT keeps its paint on the unit square: the
-  // text engine lays it on each unit's own box. The passage mapping below
-  // still dresses the decoration bands, which span a run, not a unit.
-  const std::optional<sigil::weave::Unit> unit = textUnitOf(inst.inkPaint.box);
-  const sk_sp<SkShader> shader =
-      f.kind == Fill::Kind::Paint
-          ? material::skia::staticShader(detail::paintOf(f))
-          : nullptr;
-  if ((shader || surface) && unit) {
-    ink.unitSquare = shader;
-    ink.unitSurface = surface;
-    ink.unit = *unit;
-  }
-  // Over the whole passage, a lit ink that reads its unit reads the
-  // passage: every glyph's outline, running along the band.
-  const auto mapped = [&](const SkMatrix& map) {
-    if (!surface) return shader->makeWithLocalMatrix(map);
-    if (!surface->readsUnit)
-      return surface->shader(ink.frame, material::skia::toMatrix(map));
-    return surface->shaderOver(
-        ink.frame, material::skia::toMatrix(map), passageOutlineOf(inst),
-        detail::longAxisOf({map.getScaleX(), map.getScaleY()},
-                           paintCtx.toRoot.matrix),
-        densityOf(paintCtx));
-  };
-  if ((shader || surface) && !inst.columns.empty()) {
-    // A VERTICAL passage has no cap band to hang the ramp on: a column's
-    // glyphs centre across its axis rather than standing on a baseline. The
-    // unit square maps onto the COLUMN BLOCK instead — x across the columns,
-    // y down them — so a ramp authored in [0,1]² still crosses the type,
-    // reading down the page rather than across it.
+  // THE BOX THE PASSAGE'S INK IS LAID OVER. A horizontal passage hangs it
+  // on its cap band: x across the widest line, y from the first line's cap
+  // top (the real cap height when the face reports one) to the last line's
+  // baseline. A VERTICAL passage has no cap band: a column's glyphs centre
+  // across its axis rather than standing on a baseline, so the box is the
+  // COLUMN BLOCK instead — x across the columns, y down them — and a ramp
+  // still crosses the type, reading down the page rather than across it.
+  std::optional<SkRect> band;
+  if (!inst.columns.empty()) {
     SkRect block = SkRect::MakeEmpty();
     for (const sigil::weave::ColumnMetrics& column : inst.columns)
       block.join(sigil::geometry::path::toSk(column.rect()));
-    SkMatrix map = SkMatrix::Translate(block.left(), block.top());
-    map.preScale(std::max(block.width(), 1.0f), std::max(block.height(), 1.0f));
-    metric.foreground.setShader(mapped(map));
-    if (surface) detail::markSurfaceMap(metric.foreground);
-    havePaint = true;
-  } else if ((shader || surface) && !inst.lines.empty()) {
+    band = block;
+  } else if (!inst.lines.empty()) {
     // The first run that carries glyphs is the face the cap band is read
     // from — the runs in draw order, and no walk of every glyph in the
     // passage to reach the first one.
@@ -316,11 +272,73 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
       left = std::min(left, line.left);
       right = std::max(right, line.right);
     }
-    const float top = first.baseline - capH;
-    const float bottom = inst.lines.back().baseline;
-    SkMatrix map = SkMatrix::Translate(left, top);
-    map.preScale(std::max(right - left, 1.0f), std::max(bottom - top, 1.0f));
-    metric.foreground.setShader(mapped(map));
+    band = SkRect::MakeLTRB(left, first.baseline - capH, right,
+                            inst.lines.back().baseline);
+  }
+  const SkSize bandSize = band ? SkSize::Make(std::max(band->width(), 1.0f),
+                                              std::max(band->height(), 1.0f))
+                               : SkSize::Make(1.0f, 1.0f);
+
+  // AN INK OVER THE PASSAGE IS RESOLVED OVER THE BAND as a fill is over
+  // its node's box: the band's size is the program's resolution and its
+  // points are the band's own, so a program sees the passage's aspect and
+  // what it spaces in shares of its box — a cell, a wave — stands square
+  // on a wide word. Only the band's corner is mapped, never its size,
+  // which the resolution already carries: mapping the unit square onto
+  // the band as well would divide a second time, and a ramp authored over
+  // the box would collapse onto its first stop.
+  PaintContext metricCtx = paintCtx;
+  metricCtx.size = {bandSize.width(), bandSize.height()};
+  std::optional<detail::TextInk::Surface> surface;
+  if (inst.surfaceMapInkInputs && inst.inkPaint.surfaced && surfaceMap) {
+    surface = detail::TextInk::Surface{*inst.surfaceMapInkInputs, *surfaceMap};
+    if (material::readsUnit(*inst.inkPaint.surfaced)) {
+      surface->readsUnit = *inst.inkPaint.surfaced;
+      surface->units = &unitSurfacesOf(inst);
+    }
+  }
+  const Fill f = surface ? Fill::none() : resolveFill(*metricMat, metricCtx);
+  const sk_sp<SkShader> shader =
+      f.kind == Fill::Kind::Paint
+          ? material::skia::staticShader(detail::paintOf(f))
+          : nullptr;
+  // AN INK THAT RESTARTS PER UNIT keeps its paint on the unit square,
+  // resolved over a unit box: the text engine lays that square on each
+  // unit's own box. The passage mapping below still dresses the decoration
+  // bands, which span a run, not a unit.
+  const std::optional<sigil::weave::Unit> unit = textUnitOf(inst.inkPaint.box);
+  if ((shader || surface) && unit) {
+    PaintContext unitCtx = paintCtx;
+    unitCtx.size = {1.0f, 1.0f};
+    const Fill perUnit =
+        surface ? Fill::none() : resolveFill(*metricMat, unitCtx);
+    ink.unitSquare =
+        perUnit.kind == Fill::Kind::Paint
+            ? material::skia::staticShader(detail::paintOf(perUnit))
+            : nullptr;
+    ink.unitSurface = surface;
+    ink.unit = *unit;
+  }
+  if ((shader || surface) && band) {
+    // A surface's maps are drawn over the unit square, so the square is
+    // mapped onto the band; a program's points are already the band's.
+    SkMatrix square = SkMatrix::Translate(band->left(), band->top());
+    square.preScale(bandSize.width(), bandSize.height());
+    if (!surface) {
+      metric.foreground.setShader(shader->makeWithLocalMatrix(
+          SkMatrix::Translate(band->left(), band->top())));
+    } else if (!surface->readsUnit) {
+      // Over the whole passage, a lit ink that reads its unit reads the
+      // passage: every glyph's outline, running along the band.
+      metric.foreground.setShader(
+          surface->shader(ink.frame, material::skia::toMatrix(square)));
+    } else {
+      metric.foreground.setShader(surface->shaderOver(
+          ink.frame, material::skia::toMatrix(square), passageOutlineOf(inst),
+          detail::longAxisOf({square.getScaleX(), square.getScaleY()},
+                             paintCtx.toRoot.matrix),
+          densityOf(paintCtx)));
+    }
     if (surface) detail::markSurfaceMap(metric.foreground);
     havePaint = true;
   } else if (f.kind == Fill::Kind::Color) {

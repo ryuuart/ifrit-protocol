@@ -48,10 +48,11 @@ struct TextPaint {
    *  constant is bound: the material's `time` follows it at every
    *  resolve, and the field's drift with it. */
   motion::Animatable<float> time = 0.0f;
-  /** The box the field is authored over, in the coordinates it is painted
-   *  in. The unit square (the default) is what an ink's `PaintBox`
-   *  stretches over its passage, its glyphs, words or lines; a fill reads
-   *  its node's own pixels, so a fill names the node's box here. */
+  /** The box the field is authored over, as a share of the box the paint
+   *  is laid over: the unit square (the default) is all of it — a
+   *  passage's text box for an ink, the node's own box for a fill, each
+   *  glyph's, word's or line's box for an ink that restarts on each — and
+   *  `{{0, 0}, {0.5f, 1}}` is its left half. */
   geometry::path::Rect box{{0, 0}, {1, 1}};
 };
 

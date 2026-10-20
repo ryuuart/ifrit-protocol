@@ -103,9 +103,13 @@ text leaf's own box is its text-metric box — x across the widest line, y from
 the first line's cap top to the last line's baseline. That mapping is
 what makes a chrome wordmark work at any size: author the ramp once in
 the unit square and its horizon crosses the capitals whatever the type
-size, with no hand-positioned gradient. A vertical passage has no cap
-band to hang it on, so the unit square maps onto the column block
-instead and the ramp reads down the page.
+size, with no hand-positioned gradient. The paint is resolved over that
+box as a fill is over its node's: the box's size is a program's
+`uResolution` and its points are the box's own, so a program sees the
+passage's aspect and a field spaced in shares of the type's height stays
+square across a wide word. A vertical passage has no cap band to hang it
+on, so the unit square maps onto the column block instead and the ramp
+reads down the page.
 
 **A paint can restart on each unit of the passage.** Given a text unit
 — `PaintBox::Glyph`, `Cluster`, `Word`, `Line` or `Sentence`, Weave's

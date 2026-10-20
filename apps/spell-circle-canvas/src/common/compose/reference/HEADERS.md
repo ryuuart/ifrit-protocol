@@ -974,12 +974,13 @@ is the same at every unit names nothing), the text paints in
 field — a `kit::TextField`, water, a mesh gradient, sparkle, a star field,
 clouds or a tunnel — at a moment, over a box, each field one program embedded
 from the kit's `shaders/` directory over the same box, moment and drift; the
-box defaults to the unit square an ink's `PaintBox` stretches over its
-passage, a fill reads its node's own pixels and names that box instead, and a
+box is a share of the box the paint is laid over, all of it by default — a
+passage's text-metric box for an ink, the node's own box for a fill — and a
 time that is not a constant is bound to the material's `time`, so the field
 and its drift play; every field spaces what it repeats in shares of its box,
-so the sparkle's square cell is 22/70 of the box's height and a word twice
-the size takes cells twice as large) — and, shipped with the tiers whose
+so the sparkle's square cell is 22/70 of the box's height, a wide word holds
+square cells all along it and a word twice the size takes cells twice as
+large) — and, shipped with the tiers whose
 types they are spelled in, `kit/Strokes.h`'s finished lines, braid, bracket
 spans, brush presets and `kit::groove` — the engraved cut across a disc's
 stroke, a radial ramp concentric with the circle so it is dark on the inner

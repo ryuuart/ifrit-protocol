@@ -100,8 +100,9 @@ void innerShadow(SkCanvas& canvas, const PaintContext& context,
                  material::Color color, glm::vec2 offset, float blur,
                  float spread) {
   const float reach = innerReach(blur, spread, offset);
-  // Cast from held parts, the band is each part's own, blurred once in
-  // the part's frame and cut to where the part stands.
+  // Held, the band is blurred once in the outline's own frame — each
+  // part's, where the outline is composed from held parts — and cut to
+  // where it stands, whatever the ink beside it does.
   const CoverageInk ink{painted(color), {offset.x, offset.y}};
   if (paintHeldCoverage(canvas, context, {&ink, 1}, innerCast(blur, reach),
                         true))
@@ -243,9 +244,9 @@ SkPath strokeBand(const SkPath& outline, const SkPath& shape,
   const material::StrokePosition position = options.position;
   SkPath band = skpathutils::FillPathWithPaint(
       contours.closed,
-      widened(SkPaint(), options,
-              position == material::StrokePosition::Center ? width
-                                                           : width * 2));
+      widened(
+          SkPaint(), options,
+          position == material::StrokePosition::Center ? width : width * 2));
   if (position != material::StrokePosition::Center) {
     const SkPath& inside = shape.isEmpty() ? contours.closed : shape;
     band =
@@ -307,9 +308,9 @@ void CoverageMark::paint(draw::Pen& pen, const PaintContext& context) const {
       return;
     }
     case Step::Stroke:
-      strokeSide(canvas, context, painted(effect.color),
-                 {.width = effect.stroke.width,
-                  .position = effect.stroke.position});
+      strokeSide(
+          canvas, context, painted(effect.color),
+          {.width = effect.stroke.width, .position = effect.stroke.position});
       return;
     case Step::Bevel: {
       const material::BevelOptions& bevel = effect.bevel;
@@ -322,8 +323,8 @@ void CoverageMark::paint(draw::Pen& pen, const PaintContext& context) const {
       // one opposite its offset: the lit band is cast away from the light.
       const glm::vec2 away = {-std::cos(radians) * bevel.depth,
                               std::sin(radians) * bevel.depth};
-      // Cast from held parts, the lit band and the shaded one are one
-      // band, held once and laid twice in one draw.
+      // Held, the lit band and the shaded one are each blurred once and
+      // laid one over the other inside the outline.
       const CoverageInk inks[] = {{painted(bevel.highlight), {away.x, away.y}},
                                   {painted(bevel.shadow), {-away.x, -away.y}}};
       if (paintHeldCoverage(

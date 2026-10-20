@@ -31,48 +31,16 @@ no image test tells the shape-following treatment from today's; a
 discriminating test needs a numerical integral of the lobe over the
 light, as the representative-point entry states.
 
-## A bevel or inner shadow on a glyph or shape boundary blurs its band on every replay
+## The Library of Babel flips a few pixels by one level in about one run in five
 
-Only `Boundary::Coverage` holds its band masks (`HeldCoverageMasks`); a
-bevel or inner shadow on a glyph or shape boundary blurs its band again
-at every replay, so a stationary edge treatment beside a changing ink is
-cut again on each light-only update. Holding the masks for every outline
-reuses the edge coverage across ink changes; every bevel plate moves
-when it lands. A test should replay a bevelled leaf under a changing
-shader ink and find the band blurred once.
-
-## The sparkle stretched over a passage is one streak, not points of light
-
-An ink maps its unit square onto the passage's box and the program
-cannot see that box's aspect, so on a wide word a sparkle cell spans
-about a third of the word and a box holds about ten cells; the SIGIL
-wordmark shows one streak across its S where points of light across the
-word were meant. The ink would have to hand the program its box size,
-which `TextInk.cpp` pins to one by one; that is core or material work,
-not the kit's. A test should ink the SIGIL wordmark with the sparkle at
-its capture moment and find at least three separate lit regions on at
-least three glyphs.
-
-## Held coverage masks are remade on the CPU at each settle
-
-`HeldCoverageMasks` remakes a part's cast mask on the CPU raster, blur
-included, whenever the density changes, so every zoom settle
-re-rasterises and re-blurs each held mask at full size on the processor
-even on a device, where the mask should be made and blurred on the
-device. A settle-style Graphite arm of `BM_Draw_CoverageSheet_TurningChild`
-that alternates density should cost within a stated ratio of the steady
-arm; the change moves every device plate that uses held coverage.
-
-## The Library of Babel changes under GPU load
-
-`borges_library.py` renders 25 pixels differently on thin antialiased
-strokes of its right bookshelf, by at most seven levels, while another
-process loads the GPU, and byte-identically alone; the bookshelf is
-under a `Cache.Texture` canvas, so the compose texture bake or Graphite
-under contention is where to look. A capture is a pure function of
-scene time. A test should render the plate under a GPU load and find it
-byte-identical. `chrome_type` moved by up to five levels in its bevel
-glow during the same runs and should be read the same way.
+`borges_library.py` flips two to five pixels by one level in about one
+capture in five, alone as often as under a GPU load, and the 25-pixel,
+seven-level move once seen under load did not reproduce in twenty-one
+renders; Graphite snapshots are copies, the path atlas resets at
+deterministic flushes and the sketch's random source is seeded, so the
+cause is elsewhere. A capture is a pure function of scene time. A test
+should take ten consecutive captures and find them identical, and the
+original load condition should be re-run before more work goes in.
 
 ## Syphon's message receiver can be freed while a queued message is still delivered to it
 
@@ -113,4 +81,12 @@ not yet measured.
 as the headless host does, and nothing tests it, since a test needs a
 running window. A `--shot` window run driven over the endpoint should
 fire a function file's `mousePressed`.
+
+## A change of bake density re-traces every coverage silhouette
+
+`setBakeDensity` marks every node's paint dirty, so a zoom settle
+traces each coverage silhouette again on the processor although the
+trace is taken at the host's scale and the masks are now cut on the
+device; the settle should leave the coverage trace alone. A test should
+alternate the bake density and find nothing re-traced.
 

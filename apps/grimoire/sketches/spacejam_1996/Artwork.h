@@ -731,26 +731,19 @@ inline Element artLogo(sigil::weave::FontContext& fonts, const Label&) {
   // condense with scaleX — the same move the nav labels need, and the same
   // one a 1996 art director made by hand.
   //
-  // ink() maps the ramp onto the TEXT METRICS (cap top to baseline),
-  // so the teal -> yellow-green horizon crosses the capitals at any size
-  // with no hand-positioned gradient. That is the whole reason it exists —
-  // but NOT in box units. ink already installs a local matrix mapping
-  // [0,1]^2 onto the metric band, and a box-unit gradient's own SkSL then
-  // divides by uResolution (the NODE size) on top of it, so t collapses to
-  // ~0 and every glyph comes out the first stop, flat. A pixel-unit
-  // gradient with unit-square endpoints is the spelling that works.
+  // ink() lays the ramp over the TEXT METRICS (cap top to baseline), so a
+  // ramp in the box's own units carries the teal -> yellow-green horizon
+  // across the capitals at any size with no hand-positioned gradient.
   auto letters = [&](const char* words, float capPx, float targetW, float left,
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
     Text glyphs = text(words).font(type(size, C5(0x2FA9A0)));
-    auto letterInk =
-        material::linearGradient({0, 0}, {0, 1},
-                                 {{0.0f, C5(0x006BA5)},
-                                  {0.22f, C5(0x007BAD)},
-                                  {0.52f, C5(0x00A584)},
-                                  {0.78f, C5(0x9CCE84)},
-                                  {1.0f, C5(0xCEDE73)}},
-                                 {.units = material::GradientUnits::Pixels});
+    auto letterInk = material::linearGradient({0, 0}, {0, 1},
+                                              {{0.0f, C5(0x006BA5)},
+                                               {0.22f, C5(0x007BAD)},
+                                               {0.52f, C5(0x00A584)},
+                                               {0.78f, C5(0x9CCE84)},
+                                               {1.0f, C5(0xCEDE73)}});
     const float radius = 2.2f;
     const float offsets[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
                                  {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
