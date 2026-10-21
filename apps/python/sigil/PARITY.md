@@ -57,7 +57,7 @@ that its pixels match the original.
 | Study · Pattern | 4 | 1 | 0 |
 | Study · Paint | 1 | 1 | 0 |
 | Study · Motion | 4 | 0 | 0 |
-| Study · Film | 4 | 0 | 0 |
+| Study · Film | 3 | 0 | 0 |
 | Study · Science | 5 | 0 | 0 |
 | Study · Esoteric | 3 | 0 | 0 |
 | Study · Screens | 5 | 0 | 0 |
@@ -65,7 +65,7 @@ that its pixels match the original.
 | Study · Effects | 1 | 0 | 1 |
 | Study · Lighting | 2 | 0 | 0 |
 | Study · Materials | 7 | 0 | 0 |
-| **All** | **175** | **53** | **6** |
+| **All** | **174** | **53** | **6** |
 
 Every sketch in Draw, Draw · Observable reproductions, Draw · Procedural, Kit ·
 Depth, Compose · Typography and Study · Paint is bound.
@@ -119,9 +119,9 @@ needs.
 | `compose::lines::Line` and `lines::Rails` | Compose | 9 |
 | `geometry::path::PolarFrame` and `path::Grid` | Geometry | 9 |
 | `geometry::shapes` parametric curve generators | Geometry | 9 |
-| `material::Recipe` authoring | Material | 9 |
 | `compose::onEdges` and `compose::inset` adaptors | Compose | 8 |
 | `geometry::mesh::curve::Spline3` and frames | Geometry | 8 |
+| `material::Recipe` authoring | Material | 8 |
 | `material::sdf` shapes and styles | Material | 8 |
 
 No Python name can stand for these surfaces, so the extension cannot judge them
@@ -581,7 +581,6 @@ model, arithmetic and data become Python code and are not listed.
 | --- | --- | --- |
 | `eva_magi_defense` | Cap-height metrics; image-filter phosphor; bound image pan; raster bakes; stroke-to-outline paths; chamfered silhouettes; cascade ladder; measured checks; kit table | `compose::metrics` and `compose::runPens` measurement; `compose::LayeredBrush` stroke layers; `SkSurfaces::Raster` standalone raster surfaces; `SkCanvas` layers, `drawPaint` and `drawImageRect`; `SkPathBuilder::arcTo` and `skpathutils::FillPathWithPaint`; `geometry::shapes` corner operators; `material::Paint::offset` bound to motion values; `material::skia::filter` over an already-built image filter; `material::skia::image` sampling options |
 | `eva_magi_deliberation` | Cap-height metrics; condensed faces; face weight readback; inset double borders; image-filter phosphor; CRT field recipe; knockout type | `compose::Border` and `compose::decorations::border` rules; `compose::metrics` and `compose::runPens` measurement; `weave::ports::face` with a width style; `SkTypeface` variation axes and style readback; `material::skia::filter` over an already-built image filter |
-| `eva_magi_interior` | Type solved from a cap height and a measure; condensed faces; rows of text fitted to arcs by spacing; a looping phase bound per row; gradient strokes; an engine timeline of staggered values and a stepped timer; image-filter phosphor; CRT recipe | `compose::atCapHeight` and `compose::fitRun`: a style solved from a cap height and a measure; `weave::ports::face` with a width style; `material::skia::filter` over an already-built image filter; `material::Recipe` authoring |
 | `lain_navi` | Retained slots; runtime shader; CRT field recipe; blurred additive text; blurred additive dashed stroke layers; bound outputs | `compose::LayeredBrush` stroke layers |
 
 #### Study · Science

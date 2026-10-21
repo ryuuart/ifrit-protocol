@@ -235,7 +235,6 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `thunder_fulu` | Retain · reference study | Reviewed GPU plate |
 | `eva_magi_defense` | Retain · reference study | Cached preview |
 | `eva_magi_deliberation` | Retain · reference study | Cached preview |
-| `eva_magi_interior` | Retain · reference study | Cached preview |
 | `lain_navi` | Retain · reference study | Cached preview |
 | `astral_tome` | Retain · reference study | Cached preview |
 | `bg3_dice_roll` | Retain · reference study | Cached preview |

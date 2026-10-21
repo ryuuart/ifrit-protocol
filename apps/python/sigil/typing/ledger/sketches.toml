@@ -458,17 +458,6 @@ requires = [
   "effect-filter",
 ]
 
-[sketch.eva_magi_interior]
-needs = "Type solved from a cap height and a measure; condensed faces; rows of text fitted to arcs by spacing; a looping phase bound per row; gradient strokes; an engine timeline of staggered values and a stepped timer; image-filter phosphor; CRT recipe"
-requires = [
-  "run-fitting",
-  "face-width",
-  "timelines",
-  "schedules",
-  "effect-filter",
-  "recipes",
-]
-
 [sketch.fallout2_charsheet]
 needs = "Check tables; condensed face matching; bevels and layer styles; decoration adaptors; rounded outlines; keyed shapes; sketch-kit table; unit grid; slots"
 requires = [
