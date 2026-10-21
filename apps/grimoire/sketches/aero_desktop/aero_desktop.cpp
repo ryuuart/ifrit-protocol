@@ -139,11 +139,9 @@ inline sigil::material::Material buttonBase(float h) {
 
 struct AeroDesktop {
   /** THE TWO PROGRAMS THIS DESKTOP IS PAINTED WITH, the files beside it,
-   *  read in setup and held for the sketch's life. An effect is compared by
-   *  POINTER, so the wallpaper, its taskbar copy and its thumbnail copy
-   *  share one program or they are three unequal paints. */
+   *  read in setup and held for the sketch's life: an effect is compared by
+   *  POINTER, so one read once is one paint on every render. */
   material::Material aurora = material::Color{0, 0, 0, 0};
-  material::Material frozenAurora = material::Color{0, 0, 0, 0};
   material::Material windowShadow = material::Color{0, 0, 0, 0};
 
   motion::Animatable<float> bloom =
@@ -156,11 +154,6 @@ struct AeroDesktop {
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
     aurora = material::shader(ctx.assets.hub(), ctx.local("aurora.sksl"));
-    struct FrozenTime {
-      float uTime = 0.75f;
-    };
-    frozenAurora = material::shader(ctx.assets.hub(), ctx.local("aurora.sksl"),
-                                    FrozenTime{});
     struct ShadowParameters {
       material::Color uMargins = {34, 30, 34, 40};
     };
@@ -341,36 +334,18 @@ struct AeroDesktop {
     namespace ad = aero_desktop;
     using namespace std::chrono_literals;
     // The clipped glass pane: backdrop blur + colorization, children in
-    // window-local coordinates.
+    // window-local coordinates. The DWM pass blurs what is behind the pane,
+    // which is the wallpaper: filtered on the frames it steps and held
+    // between them.
     auto glass =
         box()
             .inset(0)
             .borderRadius({6, 6, 0, 0})
             .overflow(Overflow::Clip)
-            // The DWM pass blurs what's behind the pane -- and behind it
-            // is only the wallpaper, static between its 10 Hz steps. A
-            // live backdropFilter() samples the destination, which keeps this
-            // whole plane un-bakeable and re-blurring 600x440 every
-            // frame; instead blur a frozen-time copy of the SAME aurora
-            // shader, extended to full canvas size so the pattern lines
-            // up pixel-for-pixel, and let the pane's clip keep the pane.
-            // (The slow drift means the frozen copy diverges invisibly
-            // under sigma-3 blur + the tint stack.)
-            // Sub-baked on a WRAPPER (an effect on the cached node itself
-            // would apply outside the texture and re-blur every replay);
-            // half raster scale — it's about to be blurred anyway.
+            .backdropFilter(sigil::material::skia::filter(
+                SkImageFilters::Blur(3, 3, nullptr)))
             .children(
-                {box()
-                     .inset(-ad::kWY, -(ad::kW - ad::kWX - ad::kWW),
-                            -(ad::kH - ad::kWY - ad::kWH), -ad::kWX)
-                     .cache(Cache::Texture)
-                     .cacheScale(0.5f)
-                     .children({box()
-                                    .inset(0)
-                                    .fill(frozenAurora)
-                                    .filter(sigil::material::skia::filter(
-                                        SkImageFilters::Blur(3, 3, nullptr)))}),
-                 // ...then the colorization tint stack over it
+                {// the colorization tint stack over the blur
                  box().inset(0).fill(ad::glassTint(ad::kWW, ad::kWH)),
                  // top-corner radial glows
                  box()
@@ -544,20 +519,11 @@ struct AeroDesktop {
     return box()
         .inset(ad::kH - th, 0, 0, 0)
         .overflow(Overflow::Clip)
-        // same fake-backdrop trade as the window glass: blur a frozen
-        // canvas-aligned aurora copy instead of a live destination
-        // readback, so the whole strip can bake to one texture
+        // the same glass as the window's, over the wallpaper beneath it
+        .backdropFilter(
+            sigil::material::skia::filter(SkImageFilters::Blur(3, 3, nullptr)))
         .children(
-            {box()
-                 .inset(-(ad::kH - th), 0, 0, 0)
-                 .cache(Cache::Texture)
-                 .cacheScale(0.5f)
-                 .children({box()
-                                .inset(0)
-                                .fill(frozenAurora)
-                                .filter(sigil::material::skia::filter(
-                                    SkImageFilters::Blur(3, 3, nullptr)))}),
-             box().inset(0).fill(
+            {box().inset(0).fill(
                  material::from(
                      sigil::material::Color{0.02f, 0.05f, 0.10f, 0.52f})
                      .layer(material::Color{ad::kSky.r, ad::kSky.g, ad::kSky.b,
@@ -692,13 +658,7 @@ struct AeroDesktop {
                  .fill(material::Material(aurora).quantizeTime(4.0f)),
              desktopIcon(24, 22, binGlyph(), "Recycle Bin"),
              desktopIcon(24, 116, folderGlyph(), "Nightscapes"),
-             // Each chrome region is its own texture PLANE: the backdrop blur
-             // and glass stacks execute at BAKE time (over the static baked
-             // wallpaper that's exactly correct) and steady-state frames blit.
-             // Rebakes happen when their content actually changes (hover
-             // states, the 8 Hz orb step, the clock minute).
-             box().inset(0).cache(Cache::Texture).children({window()}),
-             box().inset(0).cache(Cache::Texture).children({taskbar()}),
+             window(), taskbar(),
              // live overlays: the only animated nodes in the settled scene
              closeBloomOverlay(), orbHalo()});
   }

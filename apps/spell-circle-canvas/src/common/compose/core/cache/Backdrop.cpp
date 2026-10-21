@@ -103,8 +103,9 @@ void paintBackdrop(PaintPass& pass, const SkImageFilter& filter,
     copy.setBlendMode(SkBlendMode::kSrc);
     canvas.save();
     canvas.resetMatrix();
-    canvas.drawImage(held.pixels, (float)held.rect.left(),
-                     (float)held.rect.top(), SkSamplingOptions(), &copy);
+    canvas.drawImageRect(held.pixels, SkRect::Make(held.source),
+                         SkRect::Make(held.rect), SkSamplingOptions(), &copy,
+                         SkCanvas::kStrict_SrcRectConstraint);
     canvas.restore();
     return;
   }
@@ -114,8 +115,17 @@ void paintBackdrop(PaintPass& pass, const SkImageFilter& filter,
   if (covered.isEmpty()) return;
   const sk_sp<SkSpecialImage> special =
       device->snapSpecial(covered, /*forceCopy=*/true);
+  // A special image may stand inside a larger backing image, as a device
+  // texture does: the image it names is then the backing, and the pixels
+  // are its subset of it.
   sk_sp<SkImage> pixels = special ? special->asImage() : nullptr;
-  if (!pixels || pixels->dimensions() != covered.size()) return;
+  if (!pixels || special->subset().size() != covered.size()) return;
+  if (pixels->dimensions() == covered.size())
+    held.source = SkIRect::MakeSize(covered.size());
+  else if (pixels->dimensions() == special->backingStoreDimensions())
+    held.source = special->subset();
+  else
+    return;
   const SkIPoint origin = device->getOrigin();
   held.pixels = std::move(pixels);
   held.rect = covered.makeOffset(origin.x(), origin.y());

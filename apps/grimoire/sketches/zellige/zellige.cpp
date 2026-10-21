@@ -21,12 +21,7 @@
 // palettes, each panel keeping its own θ. Each swap is exactly one
 // changed recipe and one new bake, which is the point of the scene.
 //
-// Two constraints if you edit it:
-//  - The Pattern objects must stay SCENE MEMBERS. A pattern bakes once per
-//    recipe and is identified by that recipe; minting a fresh Pattern inside
-//    describe() would re-bake on every render. update() re-rolls them on a
-//    timer and only then calls render().
-//  - The glazed surface uses an inner glow and a separate diagonal sheen.
+// The glazed surface uses an inner glow and a separate diagonal sheen.
 
 // TAGS: Patterns/Tiling
 
@@ -124,12 +119,9 @@ struct Panel {
 }  // namespace zellige_wall
 
 struct Zellige {
-  // Three panels from one generator at different parameters. Held as members
-  // rather than built in describe(): a Pattern bakes once per recipe, so a
-  // fresh one each render would re-bake every frame.
+  // Three panels from one generator at different parameters: the recipes
+  // the last re-tiling handed the wall.
   std::array<zellige_wall::Panel, 3> panels;
-  Pattern grain = material::pattern::speckle(96, 60, 0.4f, 1.1f,
-                                             {{0.35f, 0.30f, 0.24f, 0.25f}});
   double nextSwap = 0.0;
   int phase = 0;
 
@@ -207,7 +199,10 @@ struct Zellige {
         // Speckled plaster grain over the ground — its own full-bleed
         // layer (the root fill and the pattern can't share one slot).
         .children(
-            {box().inset(0).fill(grain.material()),
+            {box().inset(0).fill(
+                 Pattern(material::pattern::speckle(
+                             96, 60, 0.4f, 1.1f, {{0.35f, 0.30f, 0.24f, 0.25f}}))
+                     .material()),
              box().column().inset(44, 50).gap(14).children(
                  {box().column().gap(5).children(
                       {document::h1("ZELLIJE").font({.size = 34, .track = 3}),

@@ -1,7 +1,13 @@
 // Graphite cases for draws a backend can lose without the raster suites
 // noticing: direct images and stamped atlases, batched glyph compositing
 // with a blurred underlay, a text pass's reach, and the coverage masks a
-// decoration holds, which are cut on the device.
+// decoration holds, which are cut on the device, and a held backdrop,
+// which is copied back from the device.
+
+#include <include/effects/SkImageFilters.h>
+#include <sigilmaterial/skia/Paint.h>
+
+#include <cstring>
 
 #include "paint/HeldCoverage.h"
 #include "support/GpuTestSupport.h"
@@ -367,4 +373,53 @@ TEST(ComposeGpu, AHeldCoverageMaskIsCutOnTheDevice) {
   const detail::CoverageCastsDrawn settled = detail::coverageCastsDrawn();
   EXPECT_GT(settled.device, first.device) << "each density cut its masks";
   EXPECT_EQ(settled.processor, first.processor) << "and none of them on the processor";
+}
+
+// A backdrop held for a ground the host keeps is copied back on Graphite as
+// it is on the CPU: a held composer and a live one draw the same pixels on
+// every frame, each on a surface of its own as a window's frames are, and
+// the held one filters only until nothing beneath it has changed.
+TEST(ComposeGpu, AHeldBackdropIsCopiedBackOnGraphite) {
+  REQUIRE_GPU();
+  const auto frostedPane = [] {
+    return stack().children(
+        {box().inset(0).fill(Fill::color({1, 0, 0, 1})),
+         box()
+             .absolute()
+             .left(0)
+             .top(0)
+             .width(90)
+             .height(200)
+             .fill(Fill::color({0, 1, 0, 1})),
+         box()
+             .absolute()
+             .left(40)
+             .top(40)
+             .width(120)
+             .height(120)
+             .borderRadius({18})
+             .backdropFilter(sigil::material::skia::filter(
+                 SkImageFilters::Blur(6, 6, nullptr)))
+             .fill(Fill::color({1, 1, 1, 0.15f}))});
+  };
+  sigil::motion::Engine heldEngine, liveEngine;
+  Composer held(heldEngine, fonts()), live(liveEngine, fonts());
+  for (Composer* composer : {&held, &live}) {
+    composer->setSize({200, 200});
+    composer->render(frostedPane());
+  }
+  held.setGroundHeld(true);
+  for (int frame = 0; frame < 4; ++frame) {
+    const SkBitmap heldPixels = drawOnGpu(held, 200, 200);
+    const SkBitmap livePixels = drawOnGpu(live, 200, 200);
+    ASSERT_FALSE(heldPixels.empty());
+    ASSERT_FALSE(livePixels.empty());
+    for (int y = 0; y < 200; ++y)
+      ASSERT_EQ(std::memcmp(heldPixels.getAddr32(0, y),
+                            livePixels.getAddr32(0, y), 200 * 4),
+                0)
+          << "frame " << frame << ", row " << y;
+  }
+  EXPECT_EQ(held.stats().backdropsFiltered, 0u)
+      << "nothing beneath the pane changed: its pixels are copied back";
 }

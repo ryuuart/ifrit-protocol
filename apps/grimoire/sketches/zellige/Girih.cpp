@@ -198,21 +198,32 @@ pattern::Tile girih8(float edge, GirihPalette palette, float strapWidth,
   const float s = a * (1.0f + 1.41421356f);
   const float w = strapWidth > 0 ? strapWidth : 0.12f * a;
   const float theta = std::clamp(contactDegrees, 5.0f, 85.0f);
+  // The panel as a value: the same numbers are the same tile, so a wall
+  // re-described with them finds its bake already made.
+  pattern::TileRecipe recipe{"girih8", {a, w, theta}};
+  for (const Color& color :
+       {palette.ground, palette.star, palette.strap, palette.strapEdge})
+    recipe.numbers.insert(recipe.numbers.end(),
+                          {color.r, color.g, color.b, color.a});
   // The classic angle keeps its closed form: the two squares ARE the
   // rays at 45°, and drawing them as squares is what the panel has always
   // been.
   if (std::abs(theta - 45.0f) < 1e-3f)
     return pattern::Tile::of(
-        {s, s}, material::skia::painted(
-                    [a, s, w, palette](SkCanvas& c, SkSize, uint32_t) {
-                      classic(c, a, s, w, palette);
-                    }));
+        {s, s},
+        material::skia::painted(
+            [a, s, w, palette](SkCanvas& c, SkSize, uint32_t) {
+              classic(c, a, s, w, palette);
+            }),
+        std::move(recipe));
   const float radians = theta * kPi / 180.0f;
   return pattern::Tile::of(
-      {s, s}, material::skia::painted(
-                  [a, s, w, radians, palette](SkCanvas& c, SkSize, uint32_t) {
-                    hankin(c, a, s, w, radians, palette);
-                  }));
+      {s, s},
+      material::skia::painted(
+          [a, s, w, radians, palette](SkCanvas& c, SkSize, uint32_t) {
+            hankin(c, a, s, w, radians, palette);
+          }),
+      std::move(recipe));
 }
 
 }  // namespace zellige

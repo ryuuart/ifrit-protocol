@@ -120,6 +120,7 @@ struct HeldBakes {
    *  instead of filtering again. */
   struct HeldBackdrop {
     sk_sp<SkImage> pixels;
+    SkIRect source = SkIRect::MakeEmpty();  ///< their rect in that image
     SkIRect rect = SkIRect::MakeEmpty();  ///< where they go, in global pixels
     uint64_t beneath = 0;
     SkMatrix matrix = SkMatrix::I();
