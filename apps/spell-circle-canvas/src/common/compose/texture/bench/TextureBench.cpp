@@ -264,6 +264,24 @@ void MapsThroughTextures(benchmark::State& state) {
       benchmark::Counter((double)paints, benchmark::Counter::kAvgIterations);
 }
 
+/** One ask of a door already holding the map asked for: range(0) is one
+ *  where the ask hands over the very value the door was first given and
+ *  zero where it hands over an equal tree built apart, so the cost of
+ *  finding a value the door holds is read beside the cost of proving two
+ *  trees equal node by node. */
+void TexturesFindAHeldMap(benchmark::State& state) {
+  const bool sameValue = state.range(0) == 1;
+  const Element held = crazingMap(kMapSide, kMapCells, 1);
+  const Element apart = crazingMap(kMapSide, kMapCells, 1);
+  Textures maps(fonts());
+  (void)maps.paint(held, {kMapSide, kMapSide}, material::Color{0, 0, 0, 1});
+  const Element& asked = sameValue ? held : apart;
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(
+        maps.paint(asked, {kMapSide, kMapSide}, material::Color{0, 0, 0, 1}));
+  state.counters["paints"] = (double)maps.paints();
+}
+
 void cellLadder(::benchmark::Benchmark* b) {
   b->Arg(64)->Arg(256)->Unit(benchmark::kMicrosecond);
 }
@@ -282,6 +300,11 @@ BENCHMARK(MapsThroughTextures)
     ->Arg(kMapAsks / 2)
     ->ArgName("distinct")
     ->Unit(benchmark::kMillisecond);
+BENCHMARK(TexturesFindAHeldMap)
+    ->Arg(0)
+    ->Arg(1)
+    ->ArgName("sameValue")
+    ->Unit(benchmark::kMicrosecond);
 BENCHMARK(PageRepaint)
     ->ArgsProduct({{0, 1}, {0, 1}, {0, 2000}})
     ->ArgNames({"device", "wholePage", "cells"})

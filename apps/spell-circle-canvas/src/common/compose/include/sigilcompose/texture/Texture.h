@@ -171,9 +171,10 @@ material::Texture texture(const Element& root, SkImageInfo info,
 /** TREES PAINTED ONCE, KEPT BY VALUE: the texture `texture()` would paint
  *  for a tree at a size over a background, painted the first time it is
  *  asked for and handed back as it stands every time an equal one is asked
- *  for again. Two trees are equal as `sameDescription` judges them, so a
- *  setup that builds the same map twice — a height read once as relief and
- *  once as a mask, a crazing worn by two coats — paints it once.
+ *  for again. Two trees are equal as `sameDescription` judges them, save
+ *  for paint programs below, so a setup that builds the same map twice — a
+ *  height read once as relief and once as a mask, a crazing worn by two
+ *  coats — paints it once.
  *
  *      compose::Textures maps(fonts);
  *      const material::Texture height =
@@ -184,9 +185,12 @@ material::Texture texture(const Element& root, SkImageInfo info,
  *  which paints again as its tree changes; here the moment painted is the
  *  tree's first, and nothing is painted again.
  *
- *  A tree holding something the comparison cannot see into — a paint
- *  program, an outline written as a callable — equals no other tree, so it
- *  is painted every time it is asked for, as `texture()` paints it.
+ *  A tree holding something no comparison can see into — a paint program,
+ *  an outline written as a callable — equals only itself: the same value
+ *  asked for again is handed back, and one built again is painted again,
+ *  as `texture()` paints it. A `custom(key, …)` node's key does not make
+ *  two programs one here: it names a program across the describes of one
+ *  place in one tree, and the trees this set compares share no place.
  *
  *  The textures it hands out keep their scenes standing, as `texture()`'s
  *  do, so a texture outlives the set; the set keeps every one it painted

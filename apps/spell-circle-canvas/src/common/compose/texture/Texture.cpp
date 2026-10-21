@@ -33,6 +33,8 @@
 #include <utility>
 #include <vector>
 
+#include "description/ComposeInternal.h"
+
 namespace sigil::compose {
 
 namespace {
@@ -488,6 +490,32 @@ void Textures::useDevice(core::hardware::GpuDevice& device,
   m_impl->context = &context;
 }
 
+namespace {
+
+/** WHETHER A TREE THE DOOR HOLDS IS THE PICTURE ASKED FOR: the structural
+ *  prune's comparison, node by node, with one difference. The prune judges
+ *  one place across its describes, where a custom node's key is the
+ *  author's word that the program behind it is the one it was; the door
+ *  judges trees built apart, which share no place, so a key there says
+ *  nothing about which program draws. A paint program is the same only as
+ *  itself: one node, shared because the value holding it was handed over
+ *  again. A description is never written while another value shares it,
+ *  so one node is one picture whatever it holds. */
+bool samePicture(const detail::ElementNode& held,
+                 const detail::ElementNode& asked) {
+  if (&held == &asked) return true;
+  if (!detail::propertiesEqual(held, asked)) return false;
+  if (held.customData) return false;
+  if (held.children.size() != asked.children.size()) return false;
+  for (size_t index = 0; index < held.children.size(); ++index)
+    if (!samePicture(*held.children[index].node(),
+                     *asked.children[index].node()))
+      return false;
+  return true;
+}
+
+}  // namespace
+
 material::Texture Textures::paint(const Element& tree, SkISize size,
                                   material::Color background) {
   Impl& impl = *m_impl;
@@ -495,7 +523,7 @@ material::Texture Textures::paint(const Element& tree, SkISize size,
   // most misses before a whole description is walked.
   for (Impl::Entry& entry : impl.entries) {
     if (entry.size != size || entry.background != background) continue;
-    if (!sameDescription(entry.tree, tree)) continue;
+    if (!samePicture(*entry.tree.node(), *tree.node())) continue;
     entry.asked = true;
     return entry.texture;
   }

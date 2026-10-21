@@ -322,14 +322,67 @@ TEST(ComposeTexture, TexturesPaintOncePerDistinctValue) {
 TEST(ComposeTexture, TexturesPaintATreeTheyCannotCompareEveryTimeItIsAsked) {
   Textures maps(fonts());
   const auto programmed = [] {
-    // An unkeyed paint program is a callable no comparison sees into; a
-    // key would be the author's word that two programs are one.
+    // A paint program is a callable no comparison sees into.
     return box().width(8).height(8).children(
         {custom([](sigil::draw::Pen&, const PaintContext&) {})});
   };
   (void)maps.paint(programmed(), {8, 8});
   (void)maps.paint(programmed(), {8, 8});
   EXPECT_EQ(maps.paints(), 2u);
+  // The same value handed over again is the one picture it was, program
+  // and all, and is handed back unpainted.
+  const Element held = programmed();
+  const sigil::material::Texture first = maps.paint(held, {8, 8});
+  EXPECT_TRUE(maps.paint(held, {8, 8}) == first);
+  EXPECT_EQ(maps.paints(), 3u);
+}
+
+/** The colour at the middle of a texture the door handed out. */
+SkColor middleOf(const sigil::material::Texture& painted) {
+  const sk_sp<SkImage> pixels = sigil::media::toSk(painted.frameAt({}).image);
+  if (!pixels) return SK_ColorTRANSPARENT;
+  SkBitmap read;
+  read.allocPixels(SkImageInfo::MakeN32Premul(pixels->width(),
+                                              pixels->height()));
+  if (!pixels->readPixels(nullptr, read.pixmap(), 0, 0))
+    return SK_ColorTRANSPARENT;
+  return read.getColor(pixels->width() / 2, pixels->height() / 2);
+}
+
+TEST(ComposeTexture, TexturesTellApartTwoProgramsDrawingThroughOneKey) {
+  Textures maps(fonts());
+  // Two maps built apart that draw through the same custom key: the
+  // reconciler takes the key as the program's name across one place's
+  // describes, but these share no place, so the door paints each.
+  const auto keyed = [](SkColor color) {
+    return box().width(8).height(8).children(
+        {custom("ground",
+                [color](sigil::draw::Pen& pen, const PaintContext&) {
+                  pen.canvas()->drawColor(color);
+                })
+             .width(8)
+             .height(8)});
+  };
+  const sigil::material::Texture red = maps.paint(keyed(SK_ColorRED), {8, 8});
+  const sigil::material::Texture blue =
+      maps.paint(keyed(SK_ColorBLUE), {8, 8});
+  EXPECT_EQ(maps.paints(), 2u);
+  EXPECT_FALSE(blue == red);
+  EXPECT_EQ(middleOf(red), SK_ColorRED);
+  EXPECT_EQ(middleOf(blue), SK_ColorBLUE);
+  // A keyed program shared by two trees built around it is one node, so
+  // the trees are one picture and the second is handed the first.
+  const Element ground =
+      custom("ground", [](sigil::draw::Pen& pen, const PaintContext&) {
+        pen.canvas()->drawColor(SK_ColorGREEN);
+      }).width(8).height(8);
+  const sigil::material::Texture green =
+      maps.paint(box().width(8).height(8).children({ground}), {8, 8});
+  const sigil::material::Texture greenAgain =
+      maps.paint(box().width(8).height(8).children({ground}), {8, 8});
+  EXPECT_EQ(maps.paints(), 3u);
+  EXPECT_TRUE(greenAgain == green);
+  EXPECT_EQ(middleOf(green), SK_ColorGREEN);
 }
 
 TEST(ComposeTexture, TexturesKeepWhatASweepFoundAskedForAndLetTheRestGo) {

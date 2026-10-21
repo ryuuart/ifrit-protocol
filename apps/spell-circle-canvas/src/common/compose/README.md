@@ -631,8 +631,11 @@ its captured revision, rather than preserving historical pixels.
 `compose::Textures` is the door a tree that does not move comes in by: it
 paints a tree at a size over a background once and hands the same texture
 to every later ask for an equal one, equal as `sameDescription` judges, so
-a setup that builds the same map twice paints it once. A tree holding an
-unkeyed paint program equals no other and is painted at every ask.
+a setup that builds the same map twice paints it once. A tree holding a
+paint program, keyed or not, equals only itself: the same value asked for
+again is handed back and one built again is painted again, because a
+custom node's key names its program across one place's describes and the
+trees the door compares share no place.
 `Textures::sweep` lets go of what was not asked for since the sweep before,
 which is how a host that declares a body again keeps the maps it still
 asks for.

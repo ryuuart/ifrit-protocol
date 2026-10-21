@@ -1,6 +1,8 @@
 sigil_library(SigilComposeTexture
   SOURCES Texture.cpp SurfaceScene.cpp
   HEADERS Texture.h SurfaceScene.h SurfaceRange.h
+  # The door compares descriptions through the kernel's own comparator.
+  INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilMaterialTexture SigilSkiaGraphite
          SigilCoreHardware
   PRIVATE SigilMotionClock SigilMaterialSkia)
