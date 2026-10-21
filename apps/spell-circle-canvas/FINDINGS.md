@@ -189,6 +189,19 @@ as the device needs. A test should ask a device-standing texture for its
 size and device image and find `DeviceBinding::image` never called, and a
 readback of a finished paint returning within one paint's device time.
 
+## A Python sketch's context drops the session's bake runtime and textures
+
+`State::update` in `src/sketch/python/host/Session.h` copies neither
+`bakeRuntime` nor `textures` from the `Scene2DContext` it is handed, and
+`State::context()` rebuilds the context without them, so a Python sketch's
+`bakeScene3D` draws on the process's runtime even in a session opened on
+its own, and the session's value-keyed texture set is out of its reach. A
+Python scene2d sketch is meant to bake where a C++ one in the same session
+bakes, and to reach `ctx.texture`. A test should open a Python sketch in a
+session with its own runtime and find its bake drawn through that runtime,
+and hand `ctx.texture` two equal trees and find one paint and equal
+textures.
+
 ## The triplet comment still explains shared TBB by a port that is gone
 
 `cmake/triplets/arm64-osx.cmake` explains its shared oneTBB rule by the
