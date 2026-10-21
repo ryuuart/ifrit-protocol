@@ -97,17 +97,6 @@ reporter installed with `installReporter` should hear every library's
 warning and nothing should reach stderr. A test per library should
 install a reporter and find the warning there.
 
-## A value-keyed texture shares a tree whose custom node is keyed
-
-`compose::Textures` judges two trees the same through `sameDescription`,
-which treats two `custom(key, …)` nodes with one non-empty key as equal
-because that is the reconciler's per-position contract, so two different
-maps that draw through the same custom key in the same shape would be
-handed one texture. The door is meant to paint once per distinct picture.
-A test should hand the door two trees that differ only in the program
-behind one custom key and find two textures, or find the door refusing to
-share a tree holding a keyed custom.
-
 ## The decoration contract does not say which marks stand on the outline
 
 The decoration contract in `sigilcompose/core/Shape.h` says every
@@ -201,6 +190,19 @@ bakes, and to reach `ctx.texture`. A test should open a Python sketch in a
 session with its own runtime and find its bake drawn through that runtime,
 and hand `ctx.texture` two equal trees and find one paint and equal
 textures.
+
+## A keyed operator compares equal on its key alone, so the texture door cannot tell two programs apart
+
+`drawWith(key, …)` and `stamp::ByLane{.key = …}` compare equal on the key
+through `Operator`'s type-erased equality, and a keyed text effect carrying
+an ad-hoc program does the same, so `compose::Textures` hands one texture
+to two trees whose operators run different programs under one key. The
+door is meant to share only what it can prove is one picture. A test
+should hand the door two trees that differ only in the program behind one
+`drawWith` key and find two textures; the way there is a seam on
+`Operator` and on the text-effect key saying its equality is the author's
+word, which the door treats as equal only to the same node, as it does for
+a keyed `custom`.
 
 ## The triplet comment still explains shared TBB by a port that is gone
 
