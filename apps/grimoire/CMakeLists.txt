@@ -511,7 +511,10 @@ add_test(NAME sketch_window_bench_sequence
     --grimoire $<TARGET_FILE:Grimoire>
     --work ${CMAKE_BINARY_DIR}/sketch_window_bench_sequence)
 set_tests_properties(sketch_window_bench_sequence PROPERTIES
-  LABELS window SKIP_RETURN_CODE 77 TIMEOUT 400)
+  LABELS window SKIP_RETURN_CODE 77 TIMEOUT 400
+  # A presented rate is the machine's: a device case running beside it
+  # shows as a slow showing, so this runs with nothing else.
+  RUN_SERIAL TRUE)
 
 # THE WINDOW'S INPUT DOOR, which only a window can answer: a `--shot` run
 # of a file of functions, presented while a client attached to the
