@@ -286,6 +286,17 @@ test per site should find it answering what `fonts::familyName` answers;
 `Face::familyName` in the style target below the fonts target stays as it
 is.
 
+## A clip shape that throws leaves a stack's composite frame open
+
+`Stack::remake` in `src/common/draw/Stack.cpp` opens the composite's
+frame and `drawLayer` pushes the pen before it runs a layer's clip shape,
+so a shape that throws escapes with the frame open and the push unpopped;
+the Python binding catches inside the shape and is safe. The remake is
+meant to end the frame and rethrow, as `Layer::bake` does. A test should
+find `Stack::image` throwing for a layer whose clip throws, and after
+`noClip()` the next composite succeeding with the pen's push and pop
+balanced.
+
 ## The triplet comment still explains shared TBB by a port that is gone
 
 `cmake/triplets/arm64-osx.cmake` explains its shared oneTBB rule by the
