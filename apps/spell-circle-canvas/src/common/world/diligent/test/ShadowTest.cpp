@@ -8,7 +8,8 @@
  * light is not striped by its own map; every instance of instanced
  * geometry casts; a frame with no light that casts draws no map; a
  * still set keeps every map, and a body moving redraws only the maps that
- * see it; and
+ * see it; glass described again as another surface, or wearing a page
+ * painted again, draws its tint again; and
  * every lit program carries the same one shadow filter whatever its
  * lobes.
  *
@@ -21,6 +22,8 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -34,13 +37,16 @@
 #include <sigilmotion/clock/Engine.h>
 #include <sigilworld/World.h>
 #include <sigilworld/advanced/Diligent.h>
+#include <sigilworld/advanced/TextureProducer.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -834,6 +840,180 @@ TEST(Shadow, AGlassWithATransmissionMapCastsAShadowThatFollowsIt) {
   const auto green = [](SkColor4f c) { return c.fG - c.fR; };
   EXPECT_GT(std::abs(green(through) - green(held)), 0.1f)
       << "the half that transmits tints its shadow, the other does not";
+}
+
+namespace {
+
+/** Two texels side by side, the one on @p side letting all light through
+ *  and the other none, as a transmission map reads them. */
+sk_sp<SkImage> halfTransmitting(int side) {
+  SkBitmap halves;
+  halves.allocPixels(
+      SkImageInfo::Make(2, 1, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
+  *halves.getAddr32(side, 0) = 0xFFFFFFFFu;
+  *halves.getAddr32(1 - side, 0) = 0xFF000000u;
+  halves.setImmutable();
+  return halves.asImage();
+}
+
+/** @p pixels as the transmission map they are: data, read texel by
+ *  texel. */
+material::Texture transmissionMap(media::PixelSource pixels) {
+  return material::Texture(std::move(pixels))
+      .colorSpace(media::ColorSpace::Data)
+      .sampling(material::Sampling::Nearest);
+}
+
+/** A sun shining down through a pane of @p colour held over the ground,
+ *  letting light through by @p transmits; with @p page, a texture pass
+ *  paints what the pane wears. */
+Frame glassLettingThrough(material::Texture transmits, material::Color colour,
+                          const Runtime& runtime,
+                          std::optional<TextureProducer> page = std::nullopt) {
+  Frame frame(
+      group({directionalLight({1, -1, 0}, sun(true)).key("sun"), ground(),
+             mesh(gm::quad(40, 40))
+                 .key("pane")
+                 .rotateX(-90)
+                 .at({0, 40, 0})
+                 .fill(material::from(colour).surface(
+                     {.roughness = 0.1f,
+                      .transmission = material::image(std::move(transmits)),
+                      .ior = 1.5f}))})
+          .key("set"));
+  frame.extent(kExtent)
+      .defaultCamera(diligent::raisedEye())
+      .runtime(runtime)
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  if (page) frame.pass(texturePass("page", std::move(*page)));
+  return frame;
+}
+
+/** PIXELS A PAGE PAINTS IN PLACE: whatever picture it was last painted
+ *  with, under one identity, so the page is the same value however often
+ *  it is painted. */
+struct PaintedInPlace {
+  std::shared_ptr<sk_sp<SkImage>> painted;
+  media::Frame frameAt(std::chrono::duration<double>) const {
+    media::Frame frame;
+    frame.image = media::Picture(*painted);
+    return frame;
+  }
+  bool isRunning() const { return false; }
+  bool operator==(const PaintedInPlace& other) const {
+    return painted == other.painted;
+  }
+};
+
+/** The pass that paints a `PaintedInPlace` page: it paints when told the
+ *  page changed. */
+struct InPlacePainter : TextureProducerOperations {
+  media::PixelSource pixels;
+  std::shared_ptr<bool> changed = std::make_shared<bool>(true);
+  bool produce(std::chrono::duration<double>) const override {
+    if (!*changed) return false;
+    *changed = false;
+    return true;
+  }
+  bool paints(const material::Texture& texture) const override {
+    const auto* marked = texture.source().as<ProducedPixels>();
+    return marked && marked->pixels == pixels;
+  }
+  bool operator==(const InPlacePainter& other) const {
+    return pixels == other.pixels;
+  }
+};
+
+/** One frame of @p frame on @p scene, a sixtieth of a second on. */
+SkBitmap stepped(motion::Engine& engine, Scene& scene, const Frame& frame) {
+  engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+  scene.render(frame);
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+  SkCanvas canvas(bitmap);
+  canvas.clear(SK_ColorBLACK);
+  draw(scene, canvas);
+  return bitmap;
+}
+
+}  // namespace
+
+TEST(Shadow, AGlassDescribedAgainAsAnotherSurfaceRedrawsItsTint) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  const material::Color green{0.2f, 0.9f, 0.2f, 1};
+  const material::Color blue{0.2f, 0.3f, 0.9f, 1};
+  const material::Texture left =
+      transmissionMap(media::PixelSource(halfTransmitting(0)));
+  const material::Texture right =
+      transmissionMap(media::PixelSource(halfTransmitting(1)));
+  // The pane described again each frame, the same, then letting light
+  // through its other half, then in another colour.
+  struct Change {
+    const char* what;
+    material::Texture transmits;
+    material::Color colour;
+  };
+  for (const Change& change :
+       {Change{"another transmission map", right, green},
+        Change{"another colour", left, blue}}) {
+    SCOPED_TRACE(change.what);
+    motion::Engine engine;
+    Scene scene(engine);
+    (void)stepped(engine, scene, glassLettingThrough(left, green, on.runtime));
+    (void)stepped(engine, scene, glassLettingThrough(left, green, on.runtime));
+    // The same surface again: every map and its tint are kept…
+    EXPECT_EQ(scene.stats().shadowMapsDrawn, 0);
+    const SkBitmap changed = stepped(
+        engine, scene,
+        glassLettingThrough(change.transmits, change.colour, on.runtime));
+    // …and another one draws the tint again, though no map's depth moved…
+    EXPECT_GT(scene.stats().shadowMapsDrawn, 0);
+    // …into the picture a fresh scene draws of it.
+    EXPECT_EQ(diligent::worstChannel(
+                  changed,
+                  diligent::photograph(glassLettingThrough(change.transmits,
+                                                           change.colour,
+                                                           on.runtime),
+                                       on.runtime, kExtent)),
+              0);
+  }
+}
+
+TEST(Shadow, AGlassWearingAPagePaintedAgainRedrawsItsTint) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  const material::Color green{0.2f, 0.9f, 0.2f, 1};
+  const auto painted =
+      std::make_shared<sk_sp<SkImage>>(halfTransmitting(0));
+  InPlacePainter painter;
+  painter.pixels = media::PixelSource(PaintedInPlace{painted});
+  const material::Texture page =
+      produced(transmissionMap(painter.pixels), "page");
+  const Frame frame =
+      glassLettingThrough(page, green, on.runtime, TextureProducer(painter));
+  motion::Engine engine;
+  Scene scene(engine);
+  (void)stepped(engine, scene, frame);
+  ASSERT_TRUE(scene.error().empty()) << scene.error();
+  (void)stepped(engine, scene, frame);
+  // The page unpainted: every map and its tint are kept…
+  EXPECT_EQ(scene.stats().shadowMapsDrawn, 0);
+  // …and painted again, letting light through its other half, the tint is
+  // drawn again though the page is the same value…
+  *painted = halfTransmitting(1);
+  *painter.changed = true;
+  const SkBitmap repainted = stepped(engine, scene, frame);
+  EXPECT_GT(scene.stats().shadowMapsDrawn, 0);
+  // …into the picture a fresh scene draws of the page as now painted.
+  EXPECT_EQ(diligent::worstChannel(
+                repainted,
+                diligent::photograph(
+                    glassLettingThrough(
+                        transmissionMap(media::PixelSource(*painted)), green,
+                        on.runtime),
+                    on.runtime, kExtent)),
+            0);
 }
 
 TEST(Shadow, APanelCastsAcrossTheWholeOfItsFrontHalf) {

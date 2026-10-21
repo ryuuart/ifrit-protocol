@@ -1,8 +1,8 @@
 /** @file
  * world_diligent_bench — the frame on the device: turning a recipe's
  * Slang body into a pipeline, executing a frame's passes, what a casting
- * light's shadow adds to a lit pixel, what the shadow stage costs by what
- * moves, and cooking a chain. Run a Release
+ * light's shadow adds to a lit pixel, what the shadow stage and the tint beside
+ * it cost by what moves, and cooking a chain. Run a Release
  * build; Debug numbers say nothing. Needs a Vulkan runtime and reports a
  * skip without one.
  *
@@ -19,6 +19,7 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -28,7 +29,9 @@
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/core/ColorSpace.h>
 #include <sigilmedia/core/PixelSource.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Engine.h>
@@ -36,10 +39,12 @@
 #include <sigilworld/advanced/Diligent.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/advanced/Stats.h>
+#include <sigilworld/advanced/TextureProducer.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <map>
@@ -522,6 +527,181 @@ void BM_ShadowStageOnDevice(benchmark::State& state) {
 }
 BENCHMARK(BM_ShadowStageOnDevice)
     ->ArgNames({"motion"})
+    ->Arg(0)
+    ->Arg(1)
+    ->Arg(2)
+    ->UseManualTime()
+    ->Iterations(60)
+    ->Unit(benchmark::kMillisecond);
+
+/** PIXELS A PAGE PAINTS IN PLACE: whatever picture it was last painted
+ *  with, under one identity, so the page is the same value however often
+ *  it is painted. */
+struct PaintedInPlace {
+  std::shared_ptr<sk_sp<SkImage>> painted;
+  media::Frame frameAt(std::chrono::duration<double>) const {
+    media::Frame frame;
+    frame.image = media::Picture(*painted);
+    return frame;
+  }
+  bool isRunning() const { return false; }
+  bool operator==(const PaintedInPlace& other) const {
+    return painted == other.painted;
+  }
+};
+
+/** The pass that paints a `PaintedInPlace` page: it paints when told the
+ *  page changed. */
+struct InPlacePainter : TextureProducerOperations {
+  media::PixelSource pixels;
+  std::shared_ptr<bool> changed = std::make_shared<bool>(true);
+  bool produce(std::chrono::duration<double>) const override {
+    if (!*changed) return false;
+    *changed = false;
+    return true;
+  }
+  bool paints(const material::Texture& texture) const override {
+    const auto* marked = texture.source().as<ProducedPixels>();
+    return marked && marked->pixels == pixels;
+  }
+  bool operator==(const InPlacePainter& other) const {
+    return pixels == other.pixels;
+  }
+};
+
+/** WHAT THE TINT BESIDE THE SHADOW MAPS COSTS A SET OF GLASS, by what
+ *  changes in it: the device time of a geometry pass's tint stage over a
+ *  ground and nine panes under a sun casting through its cascades, every
+ *  pane letting light through by a transmission map of stripes. Nothing
+ *  changes (change 0); every pane is described each frame wearing the
+ *  stripes the other way round (change 1); or the one page every pane
+ *  wears is painted again each frame, the same value (change 2).
+ *
+ *  `tints_drawn` is the maps whose tint a frame drew, on average over the
+ *  timed frames: none while nothing changes, every map's in a frame where
+ *  what the tint is a function of changed. The time is the device's own
+ *  clock for the tint stage alone, read off a frame that asked for it. */
+void BM_TintStageOnDevice(benchmark::State& state) {
+  const device::DeviceConfig config;
+  std::string error;
+  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  if (!gpu) {
+    state.SkipWithError(error);
+    return;
+  }
+  namespace gm = ::sigil::geometry::mesh;
+  const int64_t change = state.range(0);
+  const Runtime runtime = diligent::runtime(*gpu);
+  motion::Engine engine;
+  Scene scene(engine);
+  const auto stripes = [](bool across) {
+    SkBitmap pixels;
+    pixels.allocPixels(SkImageInfo::Make(16, 16, kRGBA_8888_SkColorType,
+                                         kUnpremul_SkAlphaType));
+    for (int row = 0; row < 16; ++row)
+      for (int column = 0; column < 16; ++column)
+        *pixels.getAddr32(column, row) =
+            ((across ? row : column) / 4) % 2 ? 0xFFFFFFFFu : 0xFF000000u;
+    pixels.setImmutable();
+    return pixels.asImage();
+  };
+  const auto asTransmission = [](media::PixelSource pixels) {
+    return material::Texture(std::move(pixels))
+        .colorSpace(media::ColorSpace::Data)
+        .sampling(material::Sampling::Nearest);
+  };
+  const material::Texture alongStripes =
+      asTransmission(media::PixelSource(stripes(false)));
+  const material::Texture acrossStripes =
+      asTransmission(media::PixelSource(stripes(true)));
+  const auto painted = std::make_shared<sk_sp<SkImage>>(stripes(false));
+  InPlacePainter painter;
+  painter.pixels = media::PixelSource(PaintedInPlace{painted});
+  const material::Texture page =
+      produced(asTransmission(painter.pixels), "page");
+  const auto frameAt = [&](int step) {
+    const material::Texture& transmits =
+        change == 2   ? page
+        : change == 1 ? (step % 2 ? acrossStripes : alongStripes)
+                      : alongStripes;
+    std::vector<Node> content;
+    content.push_back(
+        directionalLight({1, -1, 0.3f}, {.intensity = 3.0f, .castShadow = true})
+            .key("sun"));
+    content.push_back(mesh(gm::quad(800, 800))
+                          .key("ground")
+                          .rotateX(-90)
+                          .fill(material::surface::program(
+                              {.baseColor = {0.8f, 0.8f, 0.8f, 1},
+                               .roughness = 1.0f})));
+    for (int row = -1; row <= 1; ++row)
+      for (int column = -1; column <= 1; ++column)
+        content.push_back(
+            mesh(gm::quad(120, 120))
+                .key("pane " + std::to_string(row) + " " +
+                     std::to_string(column))
+                .rotateX(-90)
+                .at({200.0f * (float)column, 80, 200.0f * (float)row})
+                .fill(material::from(material::Color{0.2f, 0.9f, 0.3f, 1})
+                          .surface({.roughness = 0.1f,
+                                    .transmission = material::image(transmits),
+                                    .ior = 1.5f})));
+    geometry::mesh::camera::Camera camera;
+    camera.eye = {0, 500, 700};
+    camera.target = {0, 0, 0};
+    content.push_back(world::camera(camera).key("camera"));
+    Frame frame(group(std::move(content)).key("set"));
+    frame.extent({1440, 900})
+        .runtime(runtime)
+        .timeStages(true)
+        .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    if (change == 2) frame.pass(texturePass("page", TextureProducer(painter)));
+    return frame;
+  };
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 160));
+  SkCanvas canvas(bitmap);
+  int step = 0;
+  double tintsDrawn = 0.0;
+  // One frame drawn and read back, which waits for the device; the tint
+  // stage's time, or below zero while no timed frame has finished.
+  const auto frameOnce = [&](bool counted) {
+    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+    if (change == 2) {
+      *painted = stripes(step % 2 != 0);
+      *painter.changed = true;
+    }
+    scene.render(frameAt(step++));
+    draw(scene, canvas);
+    const SceneStats& stats = scene.stats();
+    if (counted) tintsDrawn += (double)stats.shadowMapsDrawn;
+    if (stats.deviceTiming != DeviceTiming::Measured) return -1.0;
+    for (const DeviceStage& each : stats.deviceStages)
+      if (each.stage == "colour.tint") return each.ms;
+    return -1.0;
+  };
+  // The device raises its clocks over the first frames it is given.
+  int warm = 0;
+  for (int k = 0; k < 120 && warm < 30; ++k)
+    if (frameOnce(false) >= 0.0) ++warm;
+  if (warm == 0) {
+    state.SkipWithError("the device writes no timestamps");
+    return;
+  }
+  int64_t frames = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    double ms = frameOnce(true);
+    ++frames;
+    for (int k = 0; k < 12 && ms < 0.0; ++k) {
+      ms = frameOnce(true);
+      ++frames;
+    }
+    state.SetIterationTime(std::max(ms, 0.0) / 1000.0);
+  }
+  state.counters["tints_drawn"] = frames ? tintsDrawn / (double)frames : 0.0;
+}
+BENCHMARK(BM_TintStageOnDevice)
+    ->ArgNames({"change"})
     ->Arg(0)
     ->Arg(1)
     ->Arg(2)

@@ -6,9 +6,12 @@
 
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Parameters.h>
+#include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/texture/Texture.h>
 
 #include <algorithm>
 #include <cmath>
+#include <string_view>
 
 #include "GeometryPass.h"
 
@@ -51,13 +54,31 @@ bool tints(const Draw& body) {
   return statedLobes(*body.material).transmission;
 }
 
+namespace {
+
+/** WHETHER WHAT @p worn LETS LIGHT THROUGH BY MOVES ON ITS OWN: the
+ *  surface runs, or a map its tint reads is animated, so the same value
+ *  reads differently at a new moment. */
+bool runsOnItsOwn(const material::Material& worn) {
+  if (worn.isRunning()) return true;
+  for (const std::string_view slot :
+       {material::surface::kTransmissionSlot, material::surface::kThicknessSlot,
+        material::surface::kVolumeSlot, material::surface::kAttenuationSlot})
+    if (const material::Texture* map = material::surface::map(worn, slot))
+      if (map->animated()) return true;
+  return false;
+}
+
+}  // namespace
+
 /** THE TINT BESIDE THE SHADOW MAPS: for every map the stage laid out, the
  *  nearest transmissive body's depth, and the colour every transmissive
  *  body nearer the light than what blocks it lets through, multiplied
  *  together. Drawn whole in a frame that holds such a body and in which
  *  something it is a function of moved — a map the stage drew again
- *  (@p mapsDrawn), or a body that tints — and kept from the frame before
- *  otherwise; in no frame without such a body. Answers how many maps'
+ *  (@p mapsDrawn), a body that tints, that body's surface as a value, or
+ *  a page that surface wears, painted again — and kept from the frame
+ *  before otherwise; in no frame without such a body. Answers how many maps'
  *  tints it drew: every map's, or none. */
 int64_t drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView,
                   int64_t mapsDrawn) {
@@ -69,8 +90,9 @@ int64_t drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView,
   // WHAT THE TINT IS A FUNCTION OF besides the maps' depth: each map's
   // place and projection, and every body that tints — where it stands,
   // which triangles it is, its instances, the eye's turn where it faces
-  // the eye, its surface and what that surface lets through, and the
-  // moment a running surface is read at.
+  // the eye, what its surface and the maps it lets light through by are
+  // as values and whether a page it wears was painted again, and the
+  // moment a surface or map that moves on its own is read at.
   Fold fold;
   for (const ShadowMap& map : gpu.shadows) {
     fold.add(map.viewProjection);
@@ -78,9 +100,13 @@ int64_t drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView,
     fold.add(map.y);
     fold.add(map.size);
   }
+  gpu.tintWorn.resize(view.draws.size());
   for (size_t i = 0; i < view.draws.size(); ++i) {
     const Draw& body = view.draws[i];
-    if (!tints(body)) continue;
+    if (!tints(body)) {
+      gpu.tintWorn[i] = {};
+      continue;
+    }
     fold.add(i);
     fold.add(body.world);
     fold.add(body.geometry);
@@ -92,15 +118,9 @@ int64_t drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView,
       fold.all(body.instances->scales);
     }
     if (body.facing != Facing::None) fold.add(cameraView);
-    fold.add(body.material);
     fold.add(body.baseColor);
-    const TintTerms terms = tintTermsOf(*body.material);
-    fold.add(terms.colour);
-    fold.add(terms.weight);
-    fold.add(terms.thickness);
-    fold.add(terms.distance);
-    fold.add(terms.attenuation);
-    if (body.material->isRunning()) fold.add(gpu.seconds);
+    fold.add(wornBy(gpu, gpu.tintWorn[i], body));
+    if (runsOnItsOwn(*body.material)) fold.add(gpu.seconds);
   }
   if (mapsDrawn == 0 && fold.value == gpu.shadowTintFold &&
       gpu.shadowTintFoldTexture == gpu.shadowTint.RawPtr()) {

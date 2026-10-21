@@ -252,6 +252,14 @@ ShadowMap fitSpot(const PlacedLight& light, const Box& scene, int size);
 std::array<ShadowMap, 6> fitPoint(const PlacedLight& light, const Box& scene,
                                   int size, const glm::mat3& axes);
 
+/** WHAT @p body IS WEARING, as a number that stays the same while its
+ *  surface and its map are the same values as @p was holds and no texture
+ *  pass painted a page it wears this frame, and changes otherwise; @p was
+ *  is brought up to what it wears. A kept drawing folds this number
+ *  rather than the surface's address, which a later frame may hand a
+ *  surface saying something else. */
+uint64_t wornBy(Gpu& gpu, Gpu::Worn& was, const Draw& body);
+
 /** Every casting light's map drawn into the atlas; answers how many. */
 int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView);
 

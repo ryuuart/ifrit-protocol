@@ -343,19 +343,25 @@ struct Gpu {
    *  is unchanged keeps its tile. */
   std::vector<uint64_t> shadowFolds;
   const dg::ITexture* shadowFoldsAtlas = nullptr;
-  /** WHAT EACH CASTER WHOSE SURFACE DECIDES WHERE IT COVERS WORE when its
-   *  coverage was last drawn, by its place among the frame's bodies: the
-   *  surface and the map, held by value, and a number that changes
-   *  whenever either does or a texture pass paints a page it wears. A
-   *  map folds that number rather than the surface's address, which the
-   *  next frame's surface may be given while saying something else. */
-  struct CoverageWorn {
+  /** WHAT A BODY WORE when something kept was last drawn from its
+   *  surface: the surface and the map, held by value, and a number that
+   *  changes whenever either does or a texture pass paints a page it
+   *  wears. What is kept folds that number rather than the surface's
+   *  address, which the next frame's surface may be given while saying
+   *  something else. */
+  struct Worn {
     std::optional<::sigil::material::Material> material;
     std::optional<::sigil::material::Texture> texture;
     uint64_t generation = 0;
   };
-  std::vector<CoverageWorn> shadowWorn;
-  uint64_t shadowWornGenerations = 0;
+  /** What each caster whose surface decides where it covers wore when its
+   *  coverage was last drawn, by its place among the frame's bodies. */
+  std::vector<Worn> shadowWorn;
+  /** What each body that tints wore when the tint was last drawn, by its
+   *  place among the frame's bodies. */
+  std::vector<Worn> tintWorn;
+  /** The last number handed to either; every change takes the next. */
+  uint64_t wornGenerations = 0;
   /** A tile of cleared depth a redrawn map's tile is reset from. */
   dg::RefCntAutoPtr<dg::ITexture> shadowBlank;
   int shadowBlankSide = 0;

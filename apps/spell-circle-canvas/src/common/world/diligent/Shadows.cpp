@@ -69,36 +69,17 @@ bool reaches(const glm::mat4& viewProjection, const Box& box) {
 }
 
 /** WHAT EACH CASTER WHOSE SURFACE DECIDES WHERE IT COVERS IS WEARING, as
- *  a number per body that stays the same while the surface and its map
- *  are the same values and no texture pass painted a page it wears, and
- *  changes otherwise; zero for every other body. */
+ *  `wornBy` numbers it; zero for every other body. */
 std::vector<uint64_t> coverageWorn(Gpu& gpu, const View& view) {
   std::vector<uint64_t> worn(view.draws.size(), 0);
   gpu.shadowWorn.resize(view.draws.size());
   for (size_t i = 0; i < view.draws.size(); ++i) {
     const Draw& body = view.draws[i];
-    Gpu::CoverageWorn& was = gpu.shadowWorn[i];
     if (!casts(body) || !coverageOf(body)) {
-      was = {};
+      gpu.shadowWorn[i] = {};
       continue;
     }
-    const bool sameMaterial =
-        body.material ? was.material && *was.material == *body.material
-                      : !was.material;
-    const bool sameTexture = body.texture
-                                 ? was.texture && *was.texture == *body.texture
-                                 : !was.texture;
-    if (was.generation == 0 || body.repainted || !sameMaterial ||
-        !sameTexture) {
-      was.material = body.material
-                         ? std::optional<material::Material>(*body.material)
-                         : std::nullopt;
-      was.texture = body.texture
-                        ? std::optional<material::Texture>(*body.texture)
-                        : std::nullopt;
-      was.generation = ++gpu.shadowWornGenerations;
-    }
-    worn[i] = was.generation;
+    worn[i] = wornBy(gpu, gpu.shadowWorn[i], body);
   }
   return worn;
 }
@@ -181,6 +162,25 @@ dg::ITexture* blankTile(Gpu& gpu, int side) {
 }
 
 }  // namespace
+
+uint64_t wornBy(Gpu& gpu, Gpu::Worn& was, const Draw& body) {
+  const bool sameMaterial =
+      body.material ? was.material && *was.material == *body.material
+                    : !was.material;
+  const bool sameTexture =
+      body.texture ? was.texture && *was.texture == *body.texture
+                   : !was.texture;
+  if (was.generation == 0 || body.repainted || !sameMaterial || !sameTexture) {
+    was.material = body.material
+                       ? std::optional<material::Material>(*body.material)
+                       : std::nullopt;
+    was.texture = body.texture
+                      ? std::optional<material::Texture>(*body.texture)
+                      : std::nullopt;
+    was.generation = ++gpu.wornGenerations;
+  }
+  return was.generation;
+}
 
 /** THE SHADOW STAGE: every casting light's map drawn into the atlas, each
  *  in its own tile, from the bodies that cast and that its shadow link
