@@ -1,8 +1,9 @@
 /** @file
  * What a frame of the pen costs: ten thousand circles, filled and
  * stroked, ten thousand rects, fourteen thousand segments and points
- * drawn one verb at a time and as one shape, a screen of text, and a
- * translucent background laid in place and replayed from a recording.
+ * drawn one verb at a time and as one shape, a screen of text, a
+ * translucent background laid in place and replayed from a recording,
+ * and a stack of layers composited with a few of them redrawn.
  */
 
 #include <benchmark/benchmark.h>
@@ -12,6 +13,10 @@
 #include <include/core/SkSurface.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/PenTypes.h>
+#include <sigildraw/Stack.h>
+
+#include <string>
+#include <vector>
 
 #include "Fonts.h"
 
@@ -230,5 +235,52 @@ void Noise(benchmark::State& state) {
   state.SetItemsProcessed(state.iterations() * 1000);
 }
 BENCHMARK(Noise)->Unit(benchmark::kMicrosecond);
+
+/** A frame of a layer stack: N layers at the bench's canvas size, k of
+ *  them redrawn this frame, every third one blended and every fifth one
+ *  masked by the layer beneath it, then the stack put down. With no layer
+ *  redrawn the frame is one image drawn. */
+void StackComposite(benchmark::State& state) {
+  Bench bench;
+  const int layers = (int)state.range(0);
+  const int dirty = (int)state.range(1);
+  Stack stack{640, 480};
+  std::vector<Layer*> made;
+  bench.frame(0);
+  for (int index = 0; index < layers; ++index) {
+    Layer& layer = stack.layer("layer " + std::to_string(index));
+    Pen& pen = layer.begin(bench.pen);
+    pen.noStroke();
+    pen.fill(40 + 20 * index, 120, 200, 180);
+    pen.circle(320 + 10 * index, 240, 300);
+    layer.end();
+    if (index % 3 == 2) layer.blendMode(SCREEN);
+    if (index % 5 == 4) layer.mask(*made.back());
+    made.push_back(&layer);
+  }
+  stack.composite(bench.pen);
+  bench.pen.end();
+  int count = 0;
+  for (auto&& _ : state) {
+    bench.frame(++count);
+    for (int index = 0; index < dirty; ++index) {
+      Layer& layer = *made[(count + index) % layers];
+      Pen& pen = layer.begin(bench.pen);
+      pen.fill(255, 255, 255, 40);
+      pen.circle(pen.random(640), pen.random(480), 40);
+      layer.end();
+    }
+    stack.composite(bench.pen);
+    bench.pen.end();
+  }
+  state.SetItemsProcessed(state.iterations() * layers);
+}
+BENCHMARK(StackComposite)
+    ->Args({8, 0})
+    ->Args({8, 1})
+    ->Args({8, 8})
+    ->Args({32, 0})
+    ->Args({32, 1})
+    ->Unit(benchmark::kMicrosecond);
 
 }  // namespace

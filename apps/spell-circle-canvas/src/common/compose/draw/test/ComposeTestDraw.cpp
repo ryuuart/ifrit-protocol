@@ -5,6 +5,7 @@
 
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
+#include <sigildraw/Stack.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Tool.h>
 #include <sigilmaterial/paint/Paint.h>
@@ -453,6 +454,36 @@ TEST(RetainedElement, AnotherFontContextGetsAComposerBuiltOnIt) {
   EXPECT_TRUE(anyWhiteIn(paper, SkIRect::MakeXYWH(0, 0, 90, 40)));
   EXPECT_TRUE(anyWhiteIn(paper, SkIRect::MakeXYWH(0, 50, 90, 40)))
       << "the second context's text is shaped and drawn";
+}
+
+TEST(RetainedElement, BakesIntoALayerAtTheLayersDensity) {
+  Paper paper;
+  sigil::draw::Stack stack{100, 100};
+  stack.setDensityFloor(2.0f);
+  sigil::draw::Layer& card = stack.layer("card");
+  for (int frame = 1; frame <= 2; ++frame) {
+    paper.begin(frame, frame / 60.0);
+    card.bake(paper.pen, box().fill(red()), {30, 30});
+    paper.pen.end();
+  }
+  EXPECT_EQ(card.buffer().extent(), SkISize::Make(200, 200))
+      << "formed at the stack's density floor";
+  EXPECT_EQ(card.pen().retained().size(), 1u) << "one call site, one kept guest";
+  const SkBitmap baked = [&] {
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+    EXPECT_TRUE(card.image()->readPixels(bitmap.pixmap(), 0, 0));
+    return bitmap;
+  }();
+  EXPECT_EQ(baked.getColor(59, 59), SK_ColorRED) << "thirty units are sixty pixels";
+  EXPECT_EQ(SkColorGetA(baked.getColor(61, 61)), 0u);
+
+  card.transform({.translation = {40, 40}});
+  paper.begin(3, 3 / 60.0);
+  stack.composite(paper.pen);
+  paper.pen.end();
+  EXPECT_EQ(paper.pixel(55, 55), SK_ColorRED) << "the layer lands where it is placed";
+  EXPECT_EQ(SkColorGetA(paper.pixel(20, 20)), 0u);
 }
 
 TEST(RetainedElement, PaintsNothingWithoutFonts) {

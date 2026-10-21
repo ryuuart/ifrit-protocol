@@ -11,9 +11,9 @@ find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilDraw
   SOURCES Color.cpp Graphics.cpp Noise.cpp Pen.cpp PenClip.cpp
           PenImage.cpp PenInternal.cpp PenInternal.h PenShapes.cpp
-          PenTransform.cpp Text.cpp
+          PenTransform.cpp Stack.cpp Text.cpp
   HEADERS Color.h Constants.h Graphics.h Math.h Noise.h Pen.h
-          PenTypes.h Retained.h
+          PenTypes.h Retained.h Stack.h
   PUBLIC SigilMaterialSkia SigilMediaCore SigilCoreCompute SigilGeometryKit
          SigilGeometryPath SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
          SigilWeaveFonts Boost::container_hash Boost::unordered)
@@ -26,6 +26,7 @@ sigil_test(draw_test
           test/PenTransformTest.cpp test/PenImageTest.cpp
           test/PenValuesTest.cpp test/GraphicsTest.cpp
           test/DrawTextTest.cpp test/PenInheritTest.cpp
+          test/StackTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_DRAW_SHADER_DIR="${draw_shaders}"
   # The surface recipe is a test fixture supplied through the paint seam.

@@ -13,6 +13,7 @@ Natural-media tools live in `sigil::draw::brush`: include
 | Draw once on a canvas | `draw::on(canvas, size, program)` | Nothing after the call |
 | Draw frames in your own host | `Pen::begin` / `Pen::end` | Pen style and guests; the host owns the pixels |
 | Accumulate pixels in an offscreen buffer | `Graphics` | Buffer pixels and pen style |
+| Build a picture from named pixel layers | `Stack` and `Layer` | Every layer's pixels and settings, and the composite |
 | Run a program inside a Compose node | `compose::pen` | Pen style and guests |
 | Accumulate pixels inside a Compose node | `compose::graphics` | Buffer pixels and pen style |
 
@@ -277,6 +278,97 @@ The pen adds material, geometry and text overloads to the p5 verbs.
   `std::bad_alloc` for allocation failure; the previous image remains
   available in either case.
 
+## Layers and the stack
+
+A `Stack` is a picture made of named pixel layers at one canvas size.
+Each `Layer` is an offscreen buffer drawn with its own pen, as a
+`Graphics` is, plus the settings that say how it meets the layers
+beneath it. The stack composites them bottom to top into a buffer of its
+own and puts that down on any pen.
+
+```cpp
+#include <sigildraw/Stack.h>
+
+using namespace sigil::draw;
+
+Stack stack{1200, 800};               // kept across frames
+
+void draw(Pen& pen) {
+  if (pen.frameCount == 1) {
+    Layer& rings = stack.layer("rings");
+    Pen& ink = rings.begin(pen);
+    ink.noFill();
+    ink.strokeWeight(10);
+    for (float radius : {120.0f, 180.0f, 240.0f})
+      ink.circle(600, 400, 2 * radius);
+    rings.end();
+
+    Layer& cut = stack.layer("cut");
+    cut.begin(pen).circle(600, 400, 180);
+    cut.end();
+    cut.blendMode(REMOVE);            // deletes what lies beneath it
+  }
+  stack.layer("rings").transform({.origin = {600, 400},
+                                  .scale = {0.85f, 1.0f},
+                                  .rotation = pen.frameCount * 0.01f});
+  stack.composite(pen);
+}
+```
+
+The p5 words a stack replaces:
+
+| p5 | here |
+| --- | --- |
+| `createGraphics(w, h)` kept and drawn in | `stack.layer(name)`, then `layer.begin(pen)` and `layer.end()` |
+| `erase()` … `noErase()` | a layer blended `REMOVE`: it deletes the pixels beneath it wherever it has ink |
+| `image(buffer, x, y)` for each buffer, in order | `stack.composite(pen)` |
+| `tint(255, alpha)` on a buffer | `layer.opacity(amount)` |
+
+What each layer carries:
+
+| setting | verbs | meaning |
+| --- | --- | --- |
+| blend | `blendMode(mode)` | the pen's blend words, `BLEND` by default |
+| opacity | `opacity(amount)` | from 0 to 1, clamped |
+| placement | `transform(LayerTransform)`, `resetMatrix()` | an affine about `origin`: `translation`, `scale` along x and y, `shear` and `rotation`, angles in radians, built in the order the pen's verbs build it |
+| mask | `mask(layer[, MaskChannel::Luminance])`, `noMask()` | shows only where another layer of the same stack has ink, read by alpha or by luma |
+| clip | `clip(shape[, options])`, `noClip()` | shows only where `shape`, run with a pen in stack units, covers |
+| visibility | `show()`, `hide()` | a hidden layer composites nothing and still serves as a mask |
+
+These details affect a picture built from layers:
+
+- `stack.layer(name)` answers the existing layer of that name, or makes
+  it on top. Asking again edits the layer rather than piling up another.
+  `reorder(name, position)` counts from the bottom, which is zero;
+  `remove(name)` removes the layer and every mask it served; `names()`
+  lists the layers bottom to top. References to a removed layer dangle.
+- A mask reads the masking layer's pixels where its own placement puts
+  them, whatever its blend, opacity or visibility. The mask and the clip
+  are in the stack's canvas units, so they stay where they are while the
+  masked layer moves. A mask and a clip together keep what falls in both.
+- `layer.bake(pen, element, size)` clears the layer and paints a retained
+  guest, such as a Compose element, into it through `Pen::element` at the
+  layer's density, with its corner at the layer's origin. The guest is
+  kept between bakes, so a tree baked again keeps its layout and caches.
+  Include `<sigilcompose/draw/Draw.h>` for a Compose guest, as for
+  `pen.element`.
+- Every layer counts its changes in `revision()`: each `begin`, `end`,
+  `bake`, and each setting given a new value. The composite is re-made
+  only when a layer's revision moved, a layer was added, removed or
+  reordered, the stack was resized, or the host's density changed; a
+  still stack costs one image drawn. `stack.revision()` counts the
+  re-makes. A clip shape is read only at a re-make, so a shape reading
+  changing state is set again when that state changes.
+- `stack.composite(pen[, x, y])` puts the composite down at the stack's
+  canvas size under the pen's own blend, transform, clip and image mode.
+  `stack.image(pen)` answers it as an image, re-made first when anything
+  moved; `stack.image()` is the composite as last made.
+- Every layer and the composite are formed at the host's density or
+  `stack.setDensityFloor(px)`, whichever is greater. `resize(w, h)`
+  resizes every layer, keeping its pixels as `Graphics` does.
+- The composite is a function of the layers' pixels and settings, so a
+  sketch drawing a stack is as deterministic as its layers are.
+
 ## The brush library
 
 Natural media — device input, dabs, tools, fields and the interiors a
@@ -295,7 +387,8 @@ a stroked hatch, a material flood and a node's silhouette.
 
 p5 verbs and variables a pasted sketch has to replace, stated so nobody
 searches for them: `createVector` and `p5.Vector` (glm has the
-vectors), `tint`, `filter`, `erase`/`noErase`, `beginClip`/`endClip`
+vectors), `tint` (a layer's opacity fades a whole buffer), `filter`,
+`erase`/`noErase` (a layer blended `REMOVE` erases), `beginClip`/`endClip`
 (`clip` takes the shape as a function),
 `loadPixels`/`updatePixels`/`pixels`/`get`/`set`,
 `save`/`saveCanvas`/`saveFrames`/`saveGif`, `describe`/`textOutput`,
@@ -379,6 +472,7 @@ callback must remain valid for as long as that callback can run.
 | `PenTypes.h` | `Frame`, `ClipOptions` and the `Retainable` concept |
 | `Constants.h` | p5 mode words and angles |
 | `Graphics.h` | an offscreen surface with its own pen |
+| `Stack.h` | `Stack`, `Layer`, `LayerTransform` and `MaskChannel`: pixel layers composited bottom to top |
 | `Retained.h` | `Slot` identity and guest storage |
 | `Color.h` | `ColorMode`, `colorFrom` and `parseColor` |
 | `Noise.h` | `NoiseField` |
@@ -386,7 +480,8 @@ callback must remain valid for as long as that callback can run.
 
 The implementation separates frame/style state (`Pen.cpp`), shapes
 (`PenShapes.cpp`), clipping (`PenClip.cpp`), images (`PenImage.cpp`),
-transforms (`PenTransform.cpp`) and shaped text (`Text.cpp`). Brush
+transforms (`PenTransform.cpp`), shaped text (`Text.cpp`) and the layer
+stack (`Stack.cpp`). Brush
 implementations, tests and benchmarks live under `brush/`; importers and
 their tests live under `brush/format/`.
 
