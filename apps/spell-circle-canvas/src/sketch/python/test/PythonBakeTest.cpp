@@ -230,7 +230,7 @@ TEST_F(SketchPythonBakes, ASizedLightsShadowIsSofterFartherFromItsCaster) {
       "    def draw(self, pen, ctx):\n"
       "        for index, still in enumerate(self.stills):\n"
       "            if still is not None:\n"
-      "                pen.image(still, 256 * index, 0)\n");
+      "                pen.image(still, 256 * index, 0, 256, 256)\n");
   const SkBitmap pixels = bakedStill(source, "shadowed", 512, 256);
   ASSERT_FALSE(pixels.isNull());
   // Where a world x on the ground lands across one 256-pixel bake: the
@@ -322,7 +322,7 @@ std::pair<SkBitmap, SkBitmap> firstAndSecondDescriptions(
           "    def draw(self, pen, ctx):\n"
           "        for index, still in enumerate(self.stills):\n"
           "            if still is not None:\n"
-          "                pen.image(still, 96 * index, 0)\n");
+          "                pen.image(still, 96 * index, 0, 96, 96)\n");
   const SkBitmap both = bakedStill(source, name, 192, 96);
   SkBitmap first, second;
   if (both.isNull()) return {};
@@ -408,7 +408,7 @@ TEST_F(SketchPythonBakes, AKeyframedTurnBakedAtAMomentStandsBetweenItsSteps) {
       "    def draw(self, pen, ctx):\n"
       "        for index, still in enumerate(self.stills):\n"
       "            if still is not None:\n"
-      "                pen.image(still, 96 * index, 0)\n");
+      "                pen.image(still, 96 * index, 0, 96, 96)\n");
   const sketch::Kind kind = sketch::python::load(source.entry());
   auto session = kind->open(fonts(), assets(), true, "turned");
   sk_sp<SkSurface> surface =
