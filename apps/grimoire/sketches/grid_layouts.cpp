@@ -1,6 +1,8 @@
 /** @file
- * grid_layouts — the three schemes that place a run of cards without a
- * row or a column, given the same twelve cards.
+ * grid_layouts — four schemes that place a run of cards, given the same
+ * twelve cards: three arrangers that place them without a row or a
+ * column, and Karl Gerstner's 58-unit programme run through its six
+ * configurations.
  *
  * An arranger writes each child record's rect from the container box
  * and the children's measured sizes, in a bounded second pass after
@@ -19,10 +21,21 @@
  * 20 px in turn and the rhythm is one distance, so the letters sit on
  * the drawn lines while the plates behind them do not line up at all.
  *
+ * The fourth cell is Gerstner's mobile grid for Capital (1962): a measure
+ * of 58 units, which is the number that divides into one to six columns
+ * while always leaving two units between them — 58, 2 × 28 + 2,
+ * 3 × 18 + 2 × 2, 4 × 13 + 3 × 2, 5 × 10 + 4 × 2, 6 × 8 + 5 × 2. A grid
+ * is a programme rather than a drawing, so the cell runs it: every few
+ * seconds the programme steps to the next configuration and the same
+ * twelve cards reflow into it. The step is a snap, because the six are
+ * alternative layouts, not frames of one.
+ *
  * EDIT THESE FIRST
  *   kColumns, kRows, kGutter — the module the first cell is cut into.
  *   kRhythm — the baseline pitch, px.
  *   kSkewDegrees — the shear the second cell's rows ride.
+ *   kProgramme, kHoldSeconds — the six configurations and how long each
+ *                              stands before the programme steps.
  */
 
 // TAGS: Geometry/Layout
@@ -37,6 +50,7 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -47,7 +61,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 760};
+constexpr SkSize kCanvas = {1460, 760};
 constexpr float kCell = 328;
 constexpr float kPicture = 424;
 constexpr float kInset = 20;
@@ -59,6 +73,45 @@ constexpr float kRhythm = 32;        // the baseline pitch, px
 constexpr float kSkewDegrees = -12;  // the shear the second cell's rows ride
 
 constexpr material::Color kCard{0.17f, 0.18f, 0.21f, 1};
+
+/** THE PROGRAMME: a measure of 58 units, cut into columns of `width`
+ *  units with two units between them. */
+constexpr int kMeasureUnits = 58, kGutterUnits = 2;
+struct Configuration {
+  int columns, width;
+  const char* arithmetic;
+};
+constexpr Configuration kProgramme[] = {
+    {1, 58, "58"},
+    {2, 28, "2 × 28 + 1 × 2 = 58"},
+    {3, 18, "3 × 18 + 2 × 2 = 58"},
+    {4, 13, "4 × 13 + 3 × 2 = 58"},
+    {5, 10, "5 × 10 + 4 × 2 = 58"},
+    {6, 8, "6 × 8 + 5 × 2 = 58"},
+};
+constexpr int kConfigurations = int(std::size(kProgramme));
+/** The configuration the programme opens on: four columns, Capital's
+ *  own default. */
+constexpr int kOpening = 3;
+constexpr double kHoldSeconds = 2.6;
+
+/** The configuration standing at @p seconds. */
+int configurationAt(double seconds) {
+  return (kOpening + int(seconds / kHoldSeconds)) % kConfigurations;
+}
+
+/** One configuration as a grid: its columns a whole number of units
+ *  wide, two units between them, and as many rows as the twelve cards
+ *  need. */
+layouts::Grid programmeGrid(const Configuration& configuration) {
+  const float unit = (kCell - 2 * kInset) / kMeasureUnits;
+  const int rows = (12 + configuration.columns - 1) / configuration.columns;
+  return layouts::Grid{
+      .columns = layouts::repeatTrack(configuration.columns,
+                                      layouts::px(configuration.width * unit)),
+      .rows = layouts::repeatTrack(rows, layouts::fr()),
+      .gap = {kGutterUnits * unit, kGutter}};
+}
 
 /** The specimen sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
@@ -103,15 +156,31 @@ Element specimen(Element placed, bool ruled = false) {
 }  // namespace
 
 struct GridLayouts {
-  void setup(sketch::Scene2DContext& ctx) {
-    // nothing moves; the sheet is complete at once
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+  int shown = -1;
 
+  void setup(sketch::Scene2DContext& ctx) {
+    // Only the programme moves, a step at a time; the still is taken in
+    // its opening configuration.
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    show(ctx, kOpening);
+  }
+
+  /** Stepping the programme is a DATA change, so the sheet is described
+   *  again and the reconciler moves the cards. */
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
+    const int configuration = configurationAt(elapsed);
+    if (configuration != shown) show(ctx, configuration);
+  }
+
+  void show(sketch::Scene2DContext& ctx, int configuration) {
+    shown = configuration;
+    const sketch::kit::Provide look(sheetTheme());
+    const Configuration& running = kProgramme[configuration];
     ctx.composer.render(sketch::kit::page(
-        {.title = "Three ways to place twelve cards",
+        {.title = "Four ways to place twelve cards",
          .subtitle = "The same text leaves at 12, 16 and 20 px · resize the "
-                     "cells, shear a stack, or align the baselines",
+                     "cells, shear a stack, align the baselines, or run a "
+                     "programme",
          .footer = "The baseline rules share the layout's origin. Letters land "
                    "on the rules; the card edges need not align."},
         box().column().gap(26).children(
@@ -139,13 +208,19 @@ struct GridLayouts {
                             true),
                         .note =
                             "Each first baseline moves down to the next rule. "
-                            "The spacing absorbs the difference in size."}},
-                  .measure = 1020,
+                            "The spacing absorbs the difference in size."},
+                       {.title = "RUN THE 58-UNIT PROGRAMME",
+                        .control = running.arithmetic,
+                        .figure = specimen(layout(programmeGrid(running))),
+                        .note = "One to six columns, always two units apart. "
+                                "The programme steps; the cards reflow."}},
+                  .measure = 1366,
                   .gap = 18}),
              sigil::compose::kit::readout(
                  std::vector<sigil::compose::kit::Reading>{
                      {.name = "Input", .value = "12 measured text leaves"},
-                     {.name = "Grid changes", .value = "position + extent"},
+                     {.name = "Grid and programme change",
+                      .value = "position + extent"},
                      {.name = "Diagonal / baseline change",
                       .value = "position only"}},
                  {.measure = 501,
@@ -158,5 +233,6 @@ struct GridLayouts {
 
 SIGIL_SKETCH(GridLayouts, "Kit · API",
              "the same twelve cards under the modular grid, the sheared "
-             "stack and the baseline rhythm, so the one thing each scheme "
-             "decides is the only difference between them")
+             "stack, the baseline rhythm and Gerstner's 58-unit programme "
+             "stepping through one to six columns, so the one thing each "
+             "scheme decides is the only difference between them")

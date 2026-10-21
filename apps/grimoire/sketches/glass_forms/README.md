@@ -13,7 +13,9 @@ glass. A round magnifier over the scale enlarges it. The liquid cell
 holds a warm amber liquid with a flat top that climbs the walls in a
 meniscus, its level rising and falling against an enamelled graduation,
 a cobalt rod standing in it broken at the surface, and a square of heat
-haze shimmering above it. A smoked cover darkens a band of the page. A
+haze shimmering above it. A smoked cover darkens a band of the page, and
+a rained-on pane hangs before the page's upper corner, its beads and one
+running rivulet bending the paper and the drifting rules behind them. A
 low key light casts the shadows of the stands, the rod and the plinth
 across the table and the page, and the studio's soft boxes give the
 glass something to reflect.
@@ -39,7 +41,19 @@ Left to right along the table:
   etched target and millimetre scale behind it.
 
 Above them, a **smoked cover** stands close in front of the page and
-darkens the lower rail of lettering where it passes behind.
+darkens the lower rail of lettering where it passes behind, and a **wet
+pane** hangs on two brass clips before the page's upper left corner:
+
+- **the beads** are water caps standing on the pane, from pinheads to
+  lenses a grid square wide, some drooping as water on an upright pane
+  does. Each is a convex body of water at an index of 1.33, so the grid
+  and the drifting upright rule seen through it are enlarged toward its
+  centre and squeezed toward its rim, and a bigger bead, carrying a longer
+  path through the water, bends harder;
+- **the rivulet** breaks loose near the top of the pane once a loop and
+  runs down it, faster as it gathers water, taking up the beads in its
+  lane and leaving a thin trail that drains away behind it while the
+  beads form again.
 
 The page carries a pale-blue calibration grid, a red and a blue rule
 across it, four coloured upright rules drifting across it, a large line
@@ -75,6 +89,14 @@ glass from two causes at once.
   `distortionStrength` breathes. The
   cell's front glass is a black `PlusLighter` surface that writes no
   depth: it shows only the room it reflects.
+- The beads are two instanced bodies, one per cap shape: a cloud of bead
+  centres stamped with a `gm::revolve` cap through
+  `gm::points::instances`, each copy scaled by its "size" lane and
+  carrying it, so the bead material's `thicknessAttribute` makes every
+  copy's optical depth its own radius. The rivulet's trail is
+  `gm::pop::on(rail).sweep` of an arch along its path with a taper that
+  thins it as it drains, rebuilt to where the head has reached, and the
+  head is one drooping cap.
 - Light: one `world::directionalLight` key that casts shadows, a
   `world::hemisphereLight` fill and a `world::kit::environmentMap` of
   three soft boxes that the glass reflects.
@@ -90,6 +112,9 @@ glass from two causes at once.
 - The cell as its level moves: the meniscus rides up and down the
   graduation, the lettering behind it is tinted amber below the surface
   and plain above.
+- The wet pane: the yellow upright rule and the grid swelling inside every
+  bead, harder in the bigger ones, and the clear lane the rivulet leaves
+  until the beads come back.
 
 Each glass sees the opaque scene behind it, never another glass: a form
 seen through another shows what stands behind both. Nothing is cast

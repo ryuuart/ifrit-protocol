@@ -68,11 +68,11 @@ combines = "One live value, native bindings and a keyframe entrance"
 
 [study.python_observable_flowfield]
 combines = "A NumPy angle field drawn as packed line batches"
-ports = "observable_flowfield_3"
+ports = "flow_fields"
 
 [study.python_observable_l_system]
 combines = "String rewriting, a turtle stack and a bounds-fitted pen drawing"
-ports = "observable_l_system_tree"
+ports = "l_systems"
 
 [study.python_observable_reaction_diffusion]
 combines = "A NumPy Gray–Scott simulation and bulk pixel transfer"
@@ -80,7 +80,7 @@ ports = "observable_reaction_diffusion"
 
 [study.python_observable_reynolds]
 combines = "Stateful flocking, seeded initialization and transforms"
-ports = "observable_reynolds_steering"
+ports = "flocking"
 
 [study.python_mixed_materials]
 combines = "One Compose page of mixed materials on a baked sheet: carved stone type, brushed copper ribbons, a crackled clear-coated glaze, velvet sheen, a thin film, an emissive mark, satin and matte, under a railed key, a drifting panel and a pulsing light"

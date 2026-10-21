@@ -558,6 +558,11 @@ native = "`material::skia::PixelBuffer` and `skia::buffer`"
 library = "Material"
 python = ["material.PixelBuffer", "material.Paint.buffer"]
 
+[requirement.pixel-difference]
+native = "`media::difference` between two pictures"
+library = "Media"
+python = ["media.difference"]
+
 [requirement.pixel-sprites]
 native = "`compose::kit` pixel sprites (`Sprite`, `PixelInk`)"
 library = "Compose kit"
@@ -649,6 +654,11 @@ python = [
   "compose.routers.arc",
   "compose.routers.octilinear",
 ]
+
+[requirement.run-fitting]
+native = "`compose::atCapHeight` and `compose::fitRun`: a style solved from a cap height and a measure"
+library = "Compose"
+python = ["compose.atCapHeight", "compose.fitRun"]
 
 [requirement.schedules]
 native = "`motion::stagger` values and the `motion::Schedule` they resolve into"
@@ -797,6 +807,11 @@ python = [
 native = "`compose::Text::textFx` text tracks"
 library = "Compose"
 python = ["compose.Text.textFx"]
+
+[requirement.texture-door]
+native = "`Scene2DContext::texture`, a tree painted once as a texture"
+library = "Sketch host"
+python = ["sketch.Scene2DContext.texture"]
 
 [requirement.texture-maps]
 native = "`material::surface::program` over `texture::TextureMaps`"

@@ -58,7 +58,7 @@
 #include <utility>
 #include <vector>
 
-#include "../twoadvanced_v3/TwoAdvanced.h"
+#include "../twoadvanced_equipment/TwoAdvanced.h"
 #include "../y2k_chrome/Gloss.h"
 
 namespace material = sigil::material;

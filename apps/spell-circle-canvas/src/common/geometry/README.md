@@ -608,11 +608,11 @@ scattered along.
 | `kit/bench/` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with; and the solids by output size, an extrusion against the outline it lifts, a lathe against the profile it turns, and each regular solid gathered from its own corner table |
 
 The studies over this library are `blend_options`, `path_booleans`,
-`crossing_rule`, `exact_tangent`, `curve_shelf`, `shape_tour`,
-`corner_notched`, `svg_silhouette`, `contour_poses`, `mesh_generators`,
+`crossing_rule`, `text_on_path`, `curve_shelf`, `shape_tour`,
+`contour_poses`, `mesh_generators`,
 `mesh_normal_bridge`, `floating_panels`, `pop_stamps`,
 `pop_prims`, `pop_deform`, `pop_math`, `pop_order`, `pop_billboards`,
-`formation_bands`, `over_under`, `routes_probe`, `geo_groups`,
+`over_under`, `routes_probe`, `geo_groups`,
 `yarn_marquee` and `shapeworks_lab`; `codec_roundtrip` takes a mesh out
 through the codec and back, and `scattered_model` brings a file in
 through it and stands it in a lit room.

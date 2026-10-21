@@ -130,10 +130,8 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `persona_menu` | Retain · authored catalog | Cached preview |
 | `world_hud` | Retain · authored catalog | Cached preview |
 | `flourish` | Retain · authored catalog | Cached preview |
-| `night_network` | Retain · authored catalog | Cached preview |
 | `zellige` | Retain · authored catalog | Cached preview |
 | `annotated_margin` | Retain · authored catalog | Reviewed GPU plate |
-| `beethoven` | Retain · authored catalog | Reviewed GPU plate |
 | `bousen` | Retain · authored catalog | Reviewed GPU plate |
 | `chrome_type` | Retain · authored catalog | Cached preview |
 | `horizontal_flow` | Retain · authored catalog | Cached preview |
@@ -150,29 +148,12 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `osc_desk` | Refined · instrument | Rendered plate |
 | `phone_sky` | Refined · instrument | Rendered plate |
 | `schema_scene` | Refined · instrument | Rendered plate |
-| `bristle_current` | Retain · drawing as the subject | Cached preview |
 | `p5_hello` | Retain · drawing as the subject | Cached preview |
 | `p5_mixed_forms` | Retain · drawing as the subject | Cached preview |
-| `p5_attractor_loom` | Retain · drawing as the subject | Cached preview |
-| `p5_flow_field` | Retain · drawing as the subject | Cached preview |
 | `p5_fractal_garden` | Retain · drawing as the subject | Cached preview |
 | `p5_liquid_layers` | Retain · drawing as the subject | Cached preview |
 | `p5_refractive_metaballs` | Retain · drawing as the subject | Cached preview |
-| `observable_circle_packing` | Retain · drawing as the subject | Cached preview |
-| `observable_circle_packing_contained` | Retain · drawing as the subject | Cached preview |
-| `observable_fibonacci` | Retain · drawing as the subject | Cached preview |
-| `observable_fibonacci_rectangles` | Retain · drawing as the subject | Cached preview |
-| `observable_flowfield_1` | Retain · drawing as the subject | Cached preview |
-| `observable_flowfield_2` | Retain · drawing as the subject | Cached preview |
-| `observable_flowfield_3` | Retain · drawing as the subject | Cached preview |
-| `observable_grid` | Retain · drawing as the subject | Cached preview |
-| `observable_l_system` | Retain · drawing as the subject | Cached preview |
-| `observable_l_system_tree` | Retain · drawing as the subject | Cached preview |
-| `observable_noise` | Retain · drawing as the subject | Cached preview |
-| `observable_noise_map` | Retain · drawing as the subject | Cached preview |
-| `observable_random_walker` | Retain · drawing as the subject | Cached preview |
 | `observable_reaction_diffusion` | Retain · drawing as the subject | Cached preview |
-| `observable_reynolds_steering` | Retain · drawing as the subject | Cached preview |
 | `bristle_bloom` | Retain · drawing as the subject | Cached preview |
 | `brush_botanical_study` | Retain · drawing as the subject | Cached preview |
 | `brush_custom` | Retain · drawing as the subject | Cached preview |
@@ -191,27 +172,19 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `codec_roundtrip` | Rewritten · subject study | Reviewed GPU plate |
 | `compute_variant` | Retain · 3D subject | Cached preview |
 | `contour_poses` | Rewritten · subject study | Reviewed GPU plate |
-| `corner_notched` | Rewritten · subject study | Reviewed GPU plate |
 | `coverage_boundary` | Rewritten · subject study | Reviewed GPU plate |
 | `crossing_rule` | Rewritten · subject study | Reviewed GPU plate |
 | `crt_bloom` | Rewritten · subject study | Reviewed GPU plate |
 | `decay_step` | Rewritten · subject study | Reviewed GPU plate |
 | `ember_decode` | Retain · focused specimen | Cached preview |
 | `encode_write` | Rewritten · subject study | Reviewed GPU plate |
-| `env_faces` | Rewritten · subject study | Reviewed GPU plate |
-| `env_lanes` | Rewritten · subject study | Reviewed GPU plate |
-| `exact_tangent` | Rewritten · subject study | Reviewed raster + GPU plates · shared coverage and 8× edge detail |
-| `exr_channels` | Rewritten · subject study | Reviewed GPU plate |
 | `feed_vitals` | Rewritten · subject study | Reviewed GPU plate |
 | `floating_panels` | Retain · focused specimen | Cached preview |
-| `formation_bands` | Rewritten · subject study | Reviewed GPU plate |
 | `frame_grid` | Rewritten · subject study | Reviewed GPU plate |
 | `frame_inputs` | Rewritten · subject study | Reviewed GPU plate |
-| `fx_scatter_mix` | Rewritten · subject study | Reviewed GPU plate |
 | `geo_groups` | Rewritten · subject study | Reviewed GPU plate |
 | `gif_frames` | Rewritten · subject study | Reviewed GPU plate |
 | `grid_layouts` | Rewritten · subject study | Reviewed GPU plate |
-| `half_float` | Rewritten · subject study | Reviewed GPU plate |
 | `hit_slots` | Retain · focused specimen | Cached preview |
 | `hub_reload` | Rewritten · subject study | Reviewed GPU plate |
 | `import_native` | Retain · 3D subject | Cached preview |
@@ -245,7 +218,6 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `slang_portable` | Rewritten · subject study | Reviewed GPU plate |
 | `spacing_passes` | Retain · focused specimen | Cached preview |
 | `surface_components` | Retain · focused specimen | Cached preview |
-| `svg_silhouette` | Rewritten · subject study | Reviewed GPU plate |
 | `ticker_lanes` | Rewritten · subject study | Reviewed GPU plate |
 | `tile_map` | Rewritten · subject study | Reviewed GPU plate |
 | `warichu_placeholder` | Rewritten · subject study | Reviewed GPU plate |
@@ -292,7 +264,6 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `bound_lane` | Rewritten · subject study | Reviewed GPU plate |
 | `curve_shelf` | Rewritten · subject study | Reviewed GPU plate |
 | `field_shelf` | Rewritten · subject study | Reviewed GPU plate |
-| `gerstner_grid` | Retain · focused specimen | Cached preview |
 | `kinetic_card` | Rewritten · subject study | Reviewed GPU plate |
 | `noise_shelf` | Rewritten · subject study | Reviewed GPU plate |
 | `paint_shelf` | Rewritten · subject study | Reviewed GPU plate |
@@ -300,7 +271,6 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `shape_tour` | Retain · focused specimen | Cached preview |
 | `stroke_atlas` | Retain · focused specimen | Cached preview |
 | `text_paints` | Rewritten · one sheet of inks over display and body type; `paragraph_paints` folded in | Reviewed GPU plate |
-| `ui_particles` | Retain · focused specimen | Cached preview |
 | `hello` | Retain · focused specimen | Cached preview |
 | `shapeworks_lab` | Retain · focused specimen | Cached preview |
 | `stock_materials` | Retain · focused specimen | Cached preview |
@@ -338,7 +308,6 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `cde_motif` | Retain · reference study | Cached preview |
 | `spacejam_1996` | Retain · reference study | Rendered plate |
 | `twoadvanced_equipment` | Retain · reference study | Cached preview |
-| `twoadvanced_v3` | Retain · reference study | Cached preview |
 | `twoadvanced_v4` | Retain · reference study | Cached preview |
 | `winamp_base` | Retain · reference study | Cached preview |
 | `axis_ripple` | Rewritten · one sheet, a looping cascade, a level hung off each letter | Cached preview |

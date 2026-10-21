@@ -1,8 +1,10 @@
 # Carved marks
 
-One letter die, `OB8`, worked into three real bodies lying on a slate table:
-cut into a block of limestone, raised and chased into a bronze plate, and
-impressed into a glazed porcelain tile whose impression is gilt. A single low
+One letter die, `OB8`, worked into four real bodies lying on a slate table:
+cut into a block of limestone, raised and chased into a bronze plate,
+impressed into a glazed porcelain tile whose impression is gilt, and pierced
+clean through a brass plate whose under-stroke is sunk and filled with
+enamel. A single low
 key light rakes across the table and travels from one side to the other, so
 the marks are read from their shadows: the walls of the stone's cuts throw
 shade onto the cut floors and the worn shoulders roll into them, the pores
@@ -30,6 +32,12 @@ as a continuous surface that is ceramic on the top and metal in the hollow.
   colour turns from glaze to gold, metalness from none to full, roughness
   from glaze to burnished gold, and the glaze's clear coat lifts away, so the
   hollow is metal and the top is ceramic on one continuous surface.
+- **Brass, pierced and enamelled.** A bright brass plate with the die cut
+  through its whole thickness as a stencil: three bars left standing across
+  the letters hold every counter to the plate, so the slate and the shadow
+  of each letter show through the holes. The pressure ribbon is sunk into
+  the face as a recess with real walls and dark green enamel laid in its
+  floor.
 - **One key that travels.** A low warm light starts at the left in front of
   the table, swings round behind the bodies to the right and returns over a
   sixteen-second loop, rising a little as it passes behind. The room's lamps
@@ -38,7 +46,7 @@ as a continuous surface that is ceramic on the top and metal in the hollow.
 
 ## How it is built
 
-- `sketch::Page` — four pages, one per face and one for the table. Each is a
+- `sketch::Page` — four pages, one per painted face and one for the table. Each is a
   single box filled with a material whose surface Compose paints as maps;
   World's lights, shadows and environment shade them.
 - `compose::TextureScene` — one depth map per face, white deepest, read back
@@ -55,7 +63,13 @@ as a continuous surface that is ceramic on the top and metal in the hollow.
   into every depth map, so geometry and maps agree.
 - `geometry::mesh::extrude` — the stone's body and the skin the letters are
   cut through, the bronze plate and its raised letters, and the porcelain
-  tile; each face wears its page and its walls a plain surface.
+  tile; each face wears its page and its walls a plain surface. The brass
+  wears plain metal and enamel surfaces with no page: its marks are all
+  geometry.
+- `geometry::path::Outline::subtracted` — the stencil: the letters less a
+  bar across each row of counters, cut from the brass plate;
+  `geometry::path::band` turns the under-stroke's pressure line and width
+  into the outline of the enamelled recess.
   `geometry::shapes::rounded` rounds the slabs' corners.
 - `world::directionalLight` with `castShadow` and three cascades is the key;
   `world::hemisphereLight` a dim fill; `world::kit::environmentMap` the room,
@@ -73,3 +87,6 @@ as a continuous surface that is ceramic on the top and metal in the hollow.
   top, with no seam between the two.
 - The stone's long shadow crossing the porcelain tile at the start of the
   loop.
+- The brass stencil: the slate seen through every letter, the bars across
+  the counters, and the letters' own shadows falling through the holes onto
+  the table as the key moves.

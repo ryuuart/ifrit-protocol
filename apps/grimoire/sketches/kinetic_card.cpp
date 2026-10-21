@@ -20,6 +20,15 @@
 //   · WAVE LOOP — the one that never lands. It reads the same wrapping
 //     phase as a loop rather than as an entrance, which is why its meter
 //     never fills.
+//   · MIX, then THREE SCHEDULES — `textFx::mix` evaluates every operand at
+//     the same local time and composes them by the algebra stacked tracks
+//     use: offsets and rotation ADD, scale and alpha MULTIPLY, so a
+//     scatter and a tint run at once rather than one after the other.
+//     The three after it keep the scatter and change only WHO GETS A BEAT
+//     WHEN: the stagger's origin (`StaggerFrom::Last`, `Edges`) and an
+//     `ease` passing the linear ramp of delays through a curve, which
+//     crowds the early units and spreads the tail. The per-unit motion is
+//     untouched by either.
 //
 // THE METER UNDER EACH CELL is `kit::trackMeter`: one cell per beat of the
 // track, at that beat's own laid-out rect, filled by that beat's local
@@ -41,8 +50,9 @@
 // EDIT THESE FIRST
 //   kPeriod    — seconds per pass of the shared phase. Every cascade's
 //                master maps onto exactly one of these.
-//   kCascade   — the spread every cell beats on, so the nine differ in
-//                their effect and in nothing else.
+//   kCascade   — the spread every preset beats on, so the nine differ in
+//                their effect and in nothing else; the last three cells
+//                lay its delays out from another origin.
 //   kSpecimen  — the size the specimens are set at.
 
 // TAGS: Typography/Effects, Motion/Transitions
@@ -73,7 +83,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kSceneSize{1180, 930};
+constexpr SkSize kSceneSize{1180, 1180};
 
 constexpr float kMargin = 56;
 constexpr float kSpecimen = 29;
@@ -90,7 +100,7 @@ constexpr material::Color kAccent{0.980f, 0.360f, 0.250f, 1};
 /// cannot brighten and a channel it could not reach simply holds.
 constexpr material::Color kPale{0.180f, 0.090f, 0.060f, 1};
 
-/** The one cascade every cell beats on, so the nine differ in their
+/** The one cascade every preset beats on, so the nine differ in their
  *  effect and in nothing else. Its span is what the shared phase maps
  *  onto — one wrap is exactly one pass of the schedule. */
 const sigil::motion::Tween<float> kCascade{
@@ -98,7 +108,19 @@ const sigil::motion::Tween<float> kCascade{
     .delay =
         sigil::motion::stagger(std::chrono::duration<double, std::milli>(110))};
 
-/** The nine cells, in the order the header reads them. `key` is what the
+/** The cascade with its delays laid out from @p origin, through
+ *  @p distribution when one is named: the spread every cell beats on with
+ *  only its order changed. */
+sigil::motion::Tween<float> cascadeFrom(
+    sigil::motion::StaggerFrom origin,
+    sigil::motion::Easing distribution = nullptr) {
+  return {.duration = kCascade.duration,
+          .delay = sigil::motion::stagger(
+              std::chrono::duration<double, std::milli>(110),
+              {.from = origin, .ease = std::move(distribution)})};
+}
+
+/** The cells, in the order the header reads them. `key` is what the
  *  meter under the cell resolves the schedule from; `over` is what this
  *  cell's specimen changes about the register — a face, a colour — and
  *  nothing for most. */
@@ -109,6 +131,7 @@ struct Row {
   const char* word;
   TextEffect effect;
   weave::Type over;
+  sigil::motion::Tween<float> schedule = kCascade;
 };
 
 sigil::weave::Face display() {
@@ -193,7 +216,7 @@ struct KineticCard {
                      .key(row.key)
                      .width(width - 8)
                      .textFx({.effect = row.effect,
-                              .tween = kCascade,
+                              .tween = row.schedule,
                               .progress = phase})}),
             .note = row.note};
   }
@@ -202,7 +225,7 @@ struct KineticCard {
     const sketch::kit::Provide look(sheetTheme());
     const Composer& composer = ctx.composer;
 
-    static const Row kRows[9] = {
+    static const Row kRows[13] = {
         {"rise", "textFx::enter(textFx::rise(26))",
          "up from below, fading in over the first "
          "third of its beat",
@@ -248,16 +271,41 @@ struct KineticCard {
          // travelling wave comes from the glyph's own index inside the
          // effect.
          "WAVE LOOP", textFx::waveLoop(0.10f, 0.5f)},
+        {"mix", "textFx::mix(scatter, tint)",
+         "both at the same local time: the offset adds, the colour "
+         "multiplies",
+         "MIX",
+         textFx::mix(textFx::enter(textFx::scatter(40, 24)),
+                     textFx::tint({.from = kPale, .to = kAccent})),
+         {.color = kAccent}},
+        {"last", "stagger(110, {.from = Last})",
+         "the final glyph starts first; the cascade runs backward",
+         "BACKWARD", textFx::enter(textFx::scatter(40, 24)), {},
+         cascadeFrom(motion::StaggerFrom::Last)},
+        {"edges", "stagger(110, {.from = Edges})",
+         "both ends start together and meet in the middle",
+         "EDGES", textFx::enter(textFx::scatter(40, 24)), {},
+         cascadeFrom(motion::StaggerFrom::Edges)},
+        {"eased", "stagger(110, {.ease = t²})",
+         "the delays crowd early and spread late; each motion is unchanged",
+         "EASED", textFx::enter(textFx::scatter(40, 24)), {},
+         cascadeFrom(motion::StaggerFrom::First,
+                     [](float progress) { return progress * progress; })},
     };
 
     std::vector<sketch::kit::ComparisonCase> moving;
-    for (int i = 0; i < 5; ++i) moving.push_back(cell(kRows[i], 200));
+    for (int row = 0; row < 5; ++row) moving.push_back(cell(kRows[row], 200));
     std::vector<sketch::kit::ComparisonCase> stationary;
-    for (int i = 5; i < 8; ++i) stationary.push_back(cell(kRows[i], 340));
+    for (int row = 5; row < 8; ++row)
+      stationary.push_back(cell(kRows[row], 340));
+    std::vector<sketch::kit::ComparisonCase> rescheduled;
+    for (int row = 9; row < 13; ++row)
+      rescheduled.push_back(cell(kRows[row], 250));
     Element sheet = sketch::kit::page(
         {.title = "A vocabulary of moving type",
-         .subtitle = "Nine presets on one three-second clock · each meter "
-                     "reads the glyph's actual share of the cascade",
+         .subtitle = "Nine presets, a mix and three schedules on one "
+                     "three-second clock · each meter reads the glyph's "
+                     "actual share of the cascade",
          .footer = "Each entrance spans its own word, so half a cycle means "
                    "half a cascade. The grade axis changes outlines without "
                    "changing advances."},
@@ -283,7 +331,11 @@ struct KineticCard {
                            "The wave reads the shared clock as a loop. It "
                            "changes neither the entrance schedule nor the "
                            "positions chosen by paragraph layout.")
-                           .width(440)})})}));
+                           .width(440)})}),
+             document::h2("04 / MIX, THEN CHANGE WHO STARTS"),
+             sketch::kit::comparison(
+                 {.cases = std::move(rescheduled), .measure = 1068,
+                  .gap = 22})}));
 
     Element root = stack()
                        .applyStyleSheet(sheetClasses())
@@ -309,4 +361,5 @@ struct KineticCard {
 
 SIGIL_SKETCH_AS(KineticCard, "kinetic_card", "Specimen",
                 "every stock text effect, caught mid-cascade with its "
-                "schedule under it")
+                "schedule under it, then a scatter mixed with a tint and run "
+                "from the end, from both edges and through eased delays")

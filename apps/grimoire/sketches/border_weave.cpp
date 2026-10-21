@@ -1,6 +1,5 @@
 /** @file
- * border_weave — the rule around a plaque, and the strands that cross on
- * it.
+ * border_weave — the rule around a plaque, in each of Border's modes.
  *
  * `Border` is one decoration with four modes, and all four FOLLOW THE
  * SILHOUETTE: chamfer the node's outline and the brackets land on the
@@ -18,29 +17,19 @@
  * gapped rule runs all the way round. The last cell is the bracket value
  * on a circle, where there is no break anywhere, and it draws nothing.
  *
- * `brush::weave` is the other half: strands that may trade sides, plus a
- * rule for who passes over whom where they meet. Crossings are found, not
- * declared — which is why the strands here are WAVES at evenly spread
- * phases (`kit::braid`). Parallels are rails and never cross, so an
- * offset strand set cannot braid at all.
- *
  * EDIT THESE FIRST
  *   kWidth, kInset — the rule's weight and how far inside the outline.
  *   kArm — the arc length a bracket keeps or a gap omits, px.
- *   kStrands, kAmplitude, kWavelength — the braid.
  */
 
 // TAGS: Geometry/Diagrams, Patterns/Ornament
 
-#include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
-#include <sigilgeometry/path/Crossings.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
@@ -51,7 +40,6 @@
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
-namespace crossing = sigil::geometry::path::crossing;
 
 using namespace sigil::compose;
 
@@ -65,9 +53,6 @@ constexpr float kPlaque = 148;
 constexpr float kWidth = 1.8f;  // the rule's weight, px
 constexpr float kInset = 7;     // how far inside the outline it runs
 constexpr float kArm = 18;      // a bracket's arm, a gap's omission, px
-constexpr int kStrands = 3;     // the braid
-constexpr float kAmplitude = 5;
-constexpr float kWavelength = 34;
 constexpr float kChamfer = 14;
 
 constexpr material::Color kPlate{0.15f, 0.155f, 0.175f, 1};
@@ -117,9 +102,9 @@ struct BorderWeave {
                          .corner = kArm};
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "An edge, dressed six ways",
+        {.title = "An edge, dressed five ways",
          .subtitle = "First change where a rule appears. Then test what "
-                     "happens when strands cross—or when no corner exists.",
+                     "happens when no corner exists.",
          .footer = "The decoration follows the silhouette; a chamfer or "
                    "another outline does not require a new layout."},
         box().column().gap(24).children(
@@ -163,25 +148,7 @@ struct BorderWeave {
                  .gap(24)
                  .children(
                      {sketch::kit::section(
-                          {.label = "02  STRANDS MUST CROSS", .note = ""},
-                          sketch::kit::comparison(
-                              {.cases = {cell(
-                                   "WOVEN BORDER",
-                                   "braid(3, 5, 34) · alternate",
-                                   "Three phased waves trade sides; "
-                                   "alternating crossings make the braid.",
-                                   plaque().stroke(Decoration(brush::weave(
-                                       kit::braid(
-                                           kStrands, kAmplitude, kWavelength,
-                                           Decoration(brush::solid(
-                                               2.0f,
-                                               Fill::color(
-                                                   sheet.palette.figure)))),
-                                       crossing::alternate()))))},
-                               .measure = 240,
-                               .gap = 18})),
-                      sketch::kit::section(
-                          {.label = "03  A CURVE WITHOUT CORNERS", .note = ""},
+                          {.label = "02  A CURVE WITHOUT CORNERS", .note = ""},
                           sketch::kit::comparison(
                               {.cases = {cell(
                                    "THE CIRCLE COUNTEREXAMPLE",
@@ -205,10 +172,6 @@ struct BorderWeave {
                                "corner elements.")
                                .width(360),
                            document::caption(
-                               "Parallel rails never braid. The strands must "
-                               "exchange sides for a crossing rule to matter.")
-                               .width(360),
-                           document::caption(
                                "The corner rule scans tangent breaks, not "
                                "the number of vertices describing the path.")
                                .width(360)})})})));
@@ -216,6 +179,6 @@ struct BorderWeave {
 };
 
 SIGIL_SKETCH(BorderWeave, "Kit · API",
-             "one plaque under each of Border's four modes and a woven "
-             "braid, and the same brackets on a circle, where the corner "
-             "scan finds no corner at all")
+             "one plaque under each of Border's four modes, and the same "
+             "brackets on a circle, where the corner scan finds no corner "
+             "at all")

@@ -494,7 +494,7 @@ set_tests_properties(sketch_window_bench_file PROPERTIES
 add_test(NAME sketch_window_bench_entry
   COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_LIST_DIR}/test/window_orientation.py
-    --benchmark-entry wet_glass_console
+    --benchmark-entry glass_forms
     --grimoire $<TARGET_FILE:Grimoire>
     --work ${CMAKE_BINARY_DIR}/sketch_window_bench_entry)
 set_tests_properties(sketch_window_bench_entry PROPERTIES

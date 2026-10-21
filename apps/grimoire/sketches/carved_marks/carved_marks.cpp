@@ -1,10 +1,12 @@
-/** One letter die worked into three bodies on a slate table — cut into
- *  limestone, raised and chased in bronze, impressed and gilt in porcelain
- *  — under one low key light that travels across them, so every mark is
- *  read from the shadow it throws.
+/** One letter die worked into four bodies on a slate table — cut into
+ *  limestone, raised and chased in bronze, impressed and gilt in porcelain,
+ *  pierced clean through brass with its counters held on bridges and its
+ *  under-stroke sunk and filled with enamel — under one low key light that
+ *  travels across them, so every mark is read from the shadow it throws.
  */
 // TAGS: Compose/Materials, Materials/Stone, Materials/Metal,
-// Materials/Ceramic, Materials/Lighting, Geometry/3D, Typography/Relief
+// Materials/Ceramic, Materials/Lighting, Geometry/3D, Typography/Relief,
+// Geometry/Path Operations
 
 #include <sigilcompose/brush/Relief.h>
 #include <sigilcompose/brush/Ribbons.h>
@@ -15,6 +17,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/path/Offset.h>
 #include <sigilgeometry/path/Outline.h>
 #include <sigilgeometry/path/Profile.h>
 #include <sigilgeometry/path/Transform.h>
@@ -32,6 +35,7 @@
 #include <cmath>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <initializer_list>
 #include <memory>
 #include <string_view>
 #include <utility>
@@ -54,13 +58,17 @@ using material::hexColor;
 constexpr float kLoop = 16, kPi = 3.14159265358979f;
 constexpr material::Color kWhite{1, 1, 1, 1}, kBlack{0, 0, 0, 1};
 
-/** THE THREE FACES, in page pixels, which are also scene units: a block of
- *  limestone, a bronze plate and a porcelain tile, each as thick as it is. */
+/** THE FOUR FACES, in page pixels, which are also scene units: a block of
+ *  limestone, a bronze plate, a porcelain tile and a brass plate, each as
+ *  thick as it is. */
 constexpr glm::vec2 kStoneFace{1040, 600}, kBronzeFace{700, 430},
-    kTileFace{480, 480};
+    kTileFace{480, 480}, kBrassFace{440, 260};
 constexpr float kStoneThickness = 120, kStoneCut = 16;
 constexpr float kBronzeThickness = 16, kBronzeRaise = 9;
 constexpr float kTileThickness = 26;
+/** The brass is pierced through its whole thickness and its enamel lies
+ *  `kBrassRecess` below the face. */
+constexpr float kBrassThickness = 14, kBrassRecess = 3;
 
 /** A rectangle of @p size with its corners rounded to @p radius. */
 path::Outline slab(glm::vec2 size, float radius) {
@@ -92,26 +100,35 @@ Element swept(const path::Outline& spine, glm::vec2 face, path::Profile width,
           std::move(width), compose::Fill::color({grey, grey, grey, 1})));
 }
 
+/** Where the die's under-stroke sits on a face @p face wide, scaled by
+ *  @p scale with its top at @p top. */
+path::Transform underStroke(glm::vec2 face, float top, float scale) {
+  return path::Transform::translate({(face.x - 620 * scale) / 2, top}) *
+         path::Transform::scale({scale, scale});
+}
+
+/** The under-stroke's pressure line, placed on its face. */
+path::Outline pressureLine(glm::vec2 face, float top, float scale) {
+  return path::Outline::svg(
+             "M24 52 C136 4 225 75 315 39 C420 -11 501 59 600 18")
+      .transformed(underStroke(face, top, scale));
+}
+
+/** The width the pressure line is laid at: thin at both ends, swelling
+ *  twice along its run. */
+path::Profile pressureWidth(float scale) {
+  return path::Profile{{0, 1},          {.12f, 12 * scale}, {.35f, 26 * scale},
+                       {.61f, 8 * scale}, {.84f, 19 * scale}, {1, 1}};
+}
+
 /** THE PRESSURE RIBBON AND ITS FIBRE PASSES, the die's under-stroke,
  *  scaled into a face @p width wide with its top at @p top. */
 std::vector<Element> ribbon(glm::vec2 face, float top, float scale) {
-  const auto place =
-      path::Transform::translate({(face.x - 620 * scale) / 2, top}) *
-      path::Transform::scale({scale, scale});
-  const auto pressure =
-      path::Outline::svg("M24 52 C136 4 225 75 315 39 C420 -11 501 59 600 18")
-          .transformed(place);
   const auto fibre =
       path::Outline::svg("M18 24 C151 -16 220 70 325 21 C442 -30 509 45 608 -7")
-          .transformed(place);
-  std::vector<Element> marks{swept(pressure, face,
-                                   path::Profile{{0, 1},
-                                                 {.12f, 12 * scale},
-                                                 {.35f, 26 * scale},
-                                                 {.61f, 8 * scale},
-                                                 {.84f, 19 * scale},
-                                                 {1, 1}},
-                                   .8f)
+          .transformed(underStroke(face, top, scale));
+  std::vector<Element> marks{swept(pressureLine(face, top, scale), face,
+                                   pressureWidth(scale), .8f)
                                  .filter(material::Filter::blur(1.2f))};
   const path::Profile strand{
       {0, .1f}, {.12f, .8f}, {.43f, 1.4f}, {.76f, .7f}, {1, .1f}};
@@ -238,6 +255,18 @@ material::Material slate() {
                 .normalDirectX = true});
 }
 
+/** THE DIE CUT AS A STENCIL: @p letters with a bar @p bar tall left
+ *  standing across them at each of @p rows, so every counter stays joined
+ *  to the plate round it once the letters are cut through. */
+path::Outline stencil(const path::Outline& letters, glm::vec2 face,
+                      std::initializer_list<float> rows, float bar) {
+  path::Outline cuts = letters;
+  for (const float row : rows)
+    cuts = cuts.subtracted(path::Outline::rectangle(
+        path::Rect::of({0, row - bar / 2}, {face.x, bar})));
+  return cuts;
+}
+
 /** A page whose one box wears @p surface over the whole @p face. */
 Element facePage(glm::vec2 face, const material::Material& surface) {
   return compose::stack().width(face.x).height(face.y).fill(surface);
@@ -294,7 +323,7 @@ struct CarvedMarks {
   Element stoneTree = compose::stack(), bronzeTree = compose::stack(),
           tileTree = compose::stack(), tableTree = compose::stack();
   world::EnvironmentMap room;
-  world::Group stone, plate, tile;
+  world::Group stone, plate, tile, pierced;
   gm::Mesh table;
 
   static gm::camera::Camera lens() {
@@ -325,6 +354,8 @@ struct CarvedMarks {
     const auto bronzeLetters = die(210, 12, {kBronzeFace.x / 2, 175});
     const auto tileLetters =
         die(165, 9, {kTileFace.x / 2, kTileFace.y / 2 - 20});
+    const glm::vec2 brassCentre{kBrassFace.x / 2, 108};
+    const auto brassLetters = die(128, 7, brassCentre);
 
     // The depth each face's marks are laid into, white deepest.
     {
@@ -426,6 +457,35 @@ struct CarvedMarks {
                              .at({0, kTileThickness / 2, 0})})
                .key("porcelain");
 
+    // THE PIERCED BRASS: the die cut clean through the plate as a
+    // stencil, so the slate and the shadow of every letter show through
+    // it, and the under-stroke sunk into the face with enamel laid in the
+    // floor of the recess. A skin over a body, like the stone's, gives the
+    // recess walls of its own.
+    const auto brass = plain(hexColor(0xcc963d), .24f, 1);
+    const auto enamel = plain(hexColor(0x12382e), .14f);
+    const auto brassPlate =
+        slab(kBrassFace, 10)
+            .subtracted(stencil(brassLetters, kBrassFace,
+                                {brassCentre.y - 32, brassCentre.y,
+                                 brassCentre.y + 32},
+                                6));
+    const auto recess = path::band(pressureLine(kBrassFace, 176, .6f),
+                                   pressureWidth(.6f));
+    const auto recessCentre = recess.bounds().centre();
+    const float brassBody = kBrassThickness - kBrassRecess;
+    pierced =
+        world::group(
+            {lying("brass-body", brassPlate, brassBody, brass, brass)
+                 .at({0, brassBody / 2, 0}),
+             lying("brass-skin", brassPlate.subtracted(recess), kBrassRecess,
+                   brass, brass)
+                 .at({0, brassBody + kBrassRecess / 2, 0}),
+             lying("brass-enamel", recess, 1.6f, enamel, enamel)
+                 .at({recessCentre.x - kBrassFace.x / 2, brassBody + .8f,
+                      recessCentre.y - kBrassFace.y / 2})})
+            .key("brass");
+
     table = gm::quad(4200, 2800);
     room = world::kit::environmentMap(
         {.zenith = {.42f, .44f, .48f},
@@ -460,7 +520,8 @@ struct CarvedMarks {
                         tablePage.surface()),
                     world::Group(stone).at({-190, 0, -200}).rotateY(4),
                     world::Group(plate).at({190, 0, 360}).rotateY(-9),
-                    world::Group(tile).at({660, 0, -170}).rotateY(14)}))
+                    world::Group(tile).at({660, 0, -170}).rotateY(14),
+                    world::Group(pierced).at({-470, 0, 410}).rotateY(10)}))
         .environment(
             room, {.intensity = .9f, .diffuse = .3f, .rotation = key.bearing})
         .pass(stonePage.render(stoneTree))
@@ -473,6 +534,7 @@ struct CarvedMarks {
 }  // namespace
 
 SIGIL_SKETCH(CarvedMarks, "Study · Materials",
-             "One letter die cut into limestone, raised and chased in bronze "
-             "and impressed in gilt porcelain, under a low key light that "
-             "travels across them so every mark reads from its shadow")
+             "One letter die cut into limestone, raised and chased in bronze, "
+             "impressed in gilt porcelain and pierced through brass over an "
+             "enamelled recess, under a low key light that travels across "
+             "them so every mark reads from its shadow")

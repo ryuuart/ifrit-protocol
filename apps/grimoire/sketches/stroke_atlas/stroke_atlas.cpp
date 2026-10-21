@@ -1,6 +1,7 @@
-// A catalogue of stroke materials, joins and layered brush treatments.
+// A catalogue of stroke materials, joins and layered brush treatments,
+// closing on a row of route constructions from a night metro map.
 
-// TAGS: Drawing/Primitives
+// TAGS: Drawing/Primitives, Drawing/Brushes
 
 #include <sigilgeometry/advanced/Skia.h>
 
@@ -518,19 +519,101 @@ struct StrokeAtlasSketch {
                                          .at({0, 126})})});
     }
 
+    // ---- IX. THE ROUTES -------------------------------------------------
+    // How a night metro map draws its lines, each in that map's own
+    // colour on one octilinear route: a construction a map key can name,
+    // not a style.
+    plate.children(
+        {sectionTitle(56, 1952, "IX", "THE ROUTES · A NIGHT METRO MAP"),
+         call("one route, five constructions · rounded by the pipeline, "
+              "marked, stamped, tapered and filled",
+              9.0f, kCaptionInk)
+             .at({56, 1972})});
+    {
+      constexpr material::Color ember{0.99f, 0.53f, 0.19f, 1};
+      constexpr material::Color current{0.36f, 0.86f, 0.96f, 1};
+      constexpr material::Color bone{0.94f, 0.92f, 0.87f, 1};
+      constexpr material::Color stream{0.13f, 0.27f, 0.40f, 0.9f};
+      constexpr material::Color reeds{0.36f, 0.72f, 0.62f, 0.5f};
+
+      // A DOUBLE RAIL with rounded corners: the route stays sharp and the
+      // brush's pipeline rounds it, then one cased layer lays both rails
+      // on one centreline.
+      Brush doubleRail;
+      doubleRail.shaped(sigil::geometry::shapers::Rounded{12.0f});
+      doubleRail.layer(lines::presets::cased(2.6f, Fill::color(ember), 7.0f));
+
+      // CHEVRONS mark the direction along the run, and an arrow ends it.
+      lines::Line chevrons{.width = 3.5f,
+                           .fill = Fill::color(current),
+                           .endMarker = lines::Marker::Arrow,
+                           .markerSize = 12.0f,
+                           .midMarker = lines::Marker::Arrow,
+                           .midSpacing = 72.0f};
+
+      // RINGS ALONG A CABLE: a thin support line with a ring stamped every
+      // 24 px.
+      PathFormat rings;
+      rings.width = 1.4f;
+      rings.strokeFill = Fill::color(bone);
+      rings.stampPath =
+          sigil::geometry::path::fromSk(SkPath::Circle(0, 0, 4.0f));
+      rings.stampAdvance = 24.0f;
+      Brush cable;
+      cable.layer(lines::Line{.width = 1.8f,
+                              .fill = Fill::color({0.66f, 0.68f, 0.74f, 0.95f})});
+      cable.layer(rings);
+
+      // A NARROWING STREAM: drawn from its mouth to its source, wide to
+      // narrow, as a topographic river tapers.
+      Brush narrowing;
+      narrowing.layer(brush::presets::taper(2.2f, 9.0f, Fill::color(stream)));
+
+      // The route every line above rides: level, a pure diagonal, level.
+      const sigil::compose::Shape route = [](glm::vec2 size) {
+        const float rise = size.y * 0.6f;
+        SkPathBuilder builder;
+        builder.moveTo(0, size.y * 0.8f);
+        builder.lineTo(size.x * 0.32f, size.y * 0.8f);
+        builder.lineTo(size.x * 0.32f + rise, size.y * 0.2f);
+        builder.lineTo(size.x, size.y * 0.2f);
+        return sigil::geometry::path::fromSk(builder.detach());
+      };
+      plate.children(
+          {specimen(56, 2004, 230, 70, route, doubleRail,
+                    "shaped(Rounded{12}).layer(cased(2.6, ember, 7))"),
+           specimen(342, 2004, 230, 70, route, chevrons,
+                    "Line{.midMarker=Arrow, .endMarker=Arrow} every 72 px"),
+           specimen(628, 2004, 230, 70, route, cable,
+                    "Line + PathFormat{stampPath = ring, stampAdvance 24}"),
+           specimen(914, 2004, 230, 70, route, narrowing,
+                    "brush::presets::taper(2.2, 9, stream) · mouth to source")});
+      // A REED FILL: diagonal reeds hatched across a wetland's silhouette.
+      plate.children(
+          {box()
+               .rect(1230, 1996, 160, 92)
+               .shape(shapes::blob(7, 0.16f))
+               .fill(Fill::color({0.10f, 0.20f, 0.20f, 0.55f}))
+               .background(lines::presets::hatch(Fill::color(reeds), 7, 1.1f,
+                                                 -32))
+               .children({call("hatch(reeds, 7, 1.1, -32) in shapes::blob(7)")
+                              .width(260)
+                              .at({0, 104})})});
+    }
+
     // ---- colophon --------------------------------------------------------
     plate.children(
-        {rule(56, 1940, 1488, lines::presets::cased(0.8f, soft(), 3.0f)),
+        {rule(56, 2140, 1488, lines::presets::cased(0.8f, soft(), 3.0f)),
          call("SigilCompose · stroke_atlas.cpp · render it "
               "yourself: Grimoire stroke_atlas.cpp --frame out.png",
               8.5f, kCaptionInk)
-             .at({56, 1950})});
+             .at({56, 2150})});
     return plate;
   }
 
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
-        ctx, {.size = {1600, 1990}, .captureAt = 6.0, .background = kPaper});
+        ctx, {.size = {1600, 2190}, .captureAt = 6.0, .background = kPaper});
 
     // The one moving thing on the sheet: the marching-ants frame. A specimen
     // plate should still prove that a rule can be alive.
@@ -544,4 +627,5 @@ struct StrokeAtlasSketch {
 };
 
 SIGIL_SKETCH(StrokeAtlasSketch, "Specimen",
-             "Lines, borders and corners in a labelled specimen atlas")
+             "Lines, borders and corners in a labelled specimen atlas, with a "
+             "row of a night metro map's route constructions")

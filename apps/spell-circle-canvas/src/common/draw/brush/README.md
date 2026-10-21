@@ -282,6 +282,4 @@ compact plates for tool definitions and stylus input, and `brush_custom`
 is the one for a tool built from one shape source and one grain source.
 `brush_rain`,
 `brushwork_currents` and `brush_botanical_study` use the same parts in
-complete compositions. `bristle_bloom` and `bristle_current` are
-lower-level companion studies that build brush bundles from the pen's
-curves, lines and blend modes with no brush library in them.
+complete compositions.

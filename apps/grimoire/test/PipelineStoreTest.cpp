@@ -98,7 +98,7 @@ TEST(GrimoirePipelineStore, RecordedEffectsReadBackInTheOrderWritten) {
        {}},
       {pipelines::EffectKind::Blender,
        "half4 main(half4 s, half4 d) { return s + d; }",
-       {"ember_decode", "wet_glass_console"}}};
+       {"ember_decode", "glass_forms"}}};
   ASSERT_TRUE(pipelines::writeEffects(file, written));
   EXPECT_EQ(pipelines::readEffects(file), written);
   // An effect is not a key set, so a store holding only effects holds no

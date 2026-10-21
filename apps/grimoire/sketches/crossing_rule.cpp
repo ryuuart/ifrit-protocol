@@ -8,12 +8,21 @@
  * gives the region where the two marks actually overlap there, which is
  * the shape a repaint of the winner is clipped to.
  *
- * Two subjects, four rules. The {7/2} heptagram is seven chords, so it has
+ * Three subjects, four rules. The {7/2} heptagram is seven chords, so it has
  * seven knots and an odd count, which is why `alternate()` cannot close and
  * leaves one seam. The three rings are three strands with six knots, which
  * is where the cyclic `pairs` dominance is exactly right: 0 over 1 over 2
  * over 0 is the impossible braid, and no ordering of a draw list can spell
  * it.
+ *
+ * The first two rows paint the decision by hand, so every step shows: the
+ * strands are free-standing paths, and the winner of each knot is drawn
+ * again clipped to its patch. The last row hands the SAME rule values to
+ * `brush::weave`, which shapes its strands from one node's outline — here
+ * `kit::braid`, three waves at evenly spread phases round a chamfered
+ * plaque — and finds and repairs every knot itself. Parallel rails never
+ * cross, so an offset strand set cannot braid at all; the waves trade
+ * sides, which is what gives a rule something to decide.
  *
  * EDIT THESE FIRST
  *   kReach       — the full width of a strand's mark, px. The patch is
@@ -21,16 +30,20 @@
  *   kPatchRadius — the cap on a patch's reach from its knot, px. Half the
  *                  arc distance to the neighbouring knot; larger and two
  *                  lenses merge and one strand claims both.
+ *   kStrands, kAmplitude, kWavelength — the braid on the plaque.
  */
 
 // TAGS: Geometry/Diagrams
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilmaterial/color/Color.h>
@@ -46,15 +59,20 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace arrange = sigil::geometry::arrange;
 namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 950};
+constexpr SkSize kCanvas = {1100, 1370};
 constexpr float kCell = 240;        // the drawn square of one cell
 constexpr float kReach = 15;        // a strand's full mark width, px
 constexpr float kPatchRadius = 30;  // the cap on one patch's reach, px
+constexpr float kPlaque = 168;      // the woven plaque's side, px
+constexpr int kStrands = 3;         // the braid's strands
+constexpr float kAmplitude = 10;    // how far a strand swings, px
+constexpr float kWavelength = 84;   // px per cycle of it
 
 constexpr material::Color kCasing{0.05f, 0.05f, 0.06f, 1};
 constexpr material::Color kCore{0.86f, 0.80f, 0.66f, 1};
@@ -79,48 +97,42 @@ sketch::kit::Theme sheetTheme() {
  *  two round — the {7/2} star as seven separate strands, because a
  *  crossing is between two strands and a self-crossing path has one. */
 std::vector<SkPath> heptagram() {
-  constexpr int n = 7;
-  const float r = kCell * 0.40f;
-  const SkPoint c{kCell * 0.5f, kCell * 0.5f};
-  SkPoint v[n];
-  for (int i = 0; i < n; ++i)
-    v[i] = sigil::geometry::path::toSk(arrange::onRing(
-        (size_t)i, n,
-        {.center = sigil::geometry::path::fromSk(c),
-         .radii = {r, r},
-         .fromDegrees =
-             (-1.5707963f) * sigil::geometry::path::kRadiansToDegrees,
-         .sweepDegrees =
-             (6.2831853f) * sigil::geometry::path::kRadiansToDegrees,
+  constexpr int kPoints = 7;
+  const float radius = kCell * 0.40f;
+  const glm::vec2 centre{kCell * 0.5f, kCell * 0.5f};
+  SkPoint vertices[kPoints];
+  for (int vertex = 0; vertex < kPoints; ++vertex)
+    vertices[vertex] = path::toSk(arrange::onRing(
+        (size_t)vertex, kPoints,
+        {.center = centre,
+         .radii = {radius, radius},
+         .fromDegrees = -90,
+         .sweepDegrees = 360,
          .turn = arrange::Turn::Closed}));
   std::vector<SkPath> strands;
-  for (int i = 0; i < n; ++i) {
-    SkPathBuilder b;
-    b.moveTo(v[i]).lineTo(v[(i + 2) % n]);
-    strands.push_back(b.detach());
-  }
+  for (int vertex = 0; vertex < kPoints; ++vertex)
+    strands.push_back(SkPathBuilder()
+                          .moveTo(vertices[vertex])
+                          .lineTo(vertices[(vertex + 2) % kPoints])
+                          .detach());
   return strands;
 }
 
 /** Three rings on a triangle, overlapping pairwise — six knots, and the
  *  arrangement whose only consistent reading is a cycle. */
 std::vector<SkPath> rings() {
-  const float r = kCell * 0.24f;
-  const SkPoint c{kCell * 0.5f, kCell * 0.52f};
+  const float radius = kCell * 0.24f;
+  const glm::vec2 centre{kCell * 0.5f, kCell * 0.52f};
   std::vector<SkPath> strands;
-  for (int i = 0; i < 3; ++i) {
-    const SkPoint at = sigil::geometry::path::toSk(arrange::onRing(
-        (size_t)i, 3,
-        {.center = sigil::geometry::path::fromSk(c),
-         .radii = {r * 0.62f, r * 0.62f},
-         .fromDegrees =
-             (-1.5707963f) * sigil::geometry::path::kRadiansToDegrees,
-         .sweepDegrees =
-             (6.2831853f) * sigil::geometry::path::kRadiansToDegrees,
-         .turn = arrange::Turn::Closed}));
-    SkPathBuilder b;
-    b.addCircle(at.fX, at.fY, r);
-    strands.push_back(b.detach());
+  for (int ring = 0; ring < 3; ++ring) {
+    const glm::vec2 at = arrange::onRing(
+        (size_t)ring, 3,
+        {.center = centre,
+         .radii = {radius * 0.62f, radius * 0.62f},
+         .fromDegrees = -90,
+         .sweepDegrees = 360,
+         .turn = arrange::Turn::Closed});
+    strands.push_back(SkPathBuilder().addCircle(at.x, at.y, radius).detach());
   }
   return strands;
 }
@@ -139,27 +151,29 @@ void paintWeave(SkCanvas& canvas, const std::vector<SkPath>& strands,
   core.setStrokeWidth(kReach - 5);
   core.setColor4f(material::skia::toSkColor(kCore));
 
-  const auto strand = [&](size_t i) {
-    canvas.drawPath(strands[i], casing);
-    canvas.drawPath(strands[i], core);
+  const auto strand = [&](size_t index) {
+    canvas.drawPath(strands[index], casing);
+    canvas.drawPath(strands[index], core);
   };
-  for (size_t i = 0; i < strands.size(); ++i) strand(i);
+  for (size_t index = 0; index < strands.size(); ++index) strand(index);
 
-  for (const path::Crossing& x : path::discoverCrossings(strands)) {
-    const size_t over = rule.decide(x) == path::Order::Over ? x.a : x.b;
+  for (const path::Crossing& knot : path::discoverCrossings(strands)) {
+    const size_t over =
+        rule.decide(knot) == path::Order::Over ? knot.a : knot.b;
     canvas.save();
-    canvas.clipPath(path::crossingPatch(strands[x.a], kReach, strands[x.b],
-                                        kReach, x.at, kPatchRadius),
+    canvas.clipPath(path::crossingPatch(strands[knot.a], kReach,
+                                        strands[knot.b], kReach, knot.at,
+                                        kPatchRadius),
                     true);
     strand(over);
     canvas.restore();
-    if ((int)x.index == pinnedIndex) {
+    if ((int)knot.index == pinnedIndex) {
       SkPaint mark;
       mark.setAntiAlias(true);
       mark.setStyle(SkPaint::kStroke_Style);
       mark.setStrokeWidth(1.5f);
       mark.setColor4f(material::skia::toSkColor(kPin));
-      canvas.drawCircle(path::toSk(x.at), kReach, mark);
+      canvas.drawCircle(path::toSk(knot.at), kReach, mark);
     }
   }
 }
@@ -184,6 +198,36 @@ sketch::kit::ComparisonCase cell(const char* title, std::string key,
       .note = note};
 }
 
+/** One woven cell: a chamfered plaque whose outline carries the braid,
+ *  and @p rule deciding every knot the weave finds on it. */
+sketch::kit::ComparisonCase woven(const char* title, path::CrossingRule rule,
+                                  const char* call, const char* note) {
+  return {.title = title,
+          .control = call,
+          .figure =
+              box()
+                  .width(kCell)
+                  .height(kCell)
+                  .fill(Fill::color(sketch::kit::theme().palette.cellGround))
+                  .justifyContent(Justify::Center)
+                  .alignItems(Align::Center)
+                  .children({box()
+                                 .width(kPlaque)
+                                 .height(kPlaque)
+                                 .shape(shapes::chamfered(18))
+                                 .stroke(Decoration(brush::weave(
+                                     kit::braid(
+                                         kStrands, kAmplitude, kWavelength,
+                                         Decoration(brush::layers(
+                                             {Decoration(brush::solid(
+                                                  6.0f, Fill::color(kCasing))),
+                                              Decoration(brush::solid(
+                                                  3.5f,
+                                                  Fill::color(kCore)))}))),
+                                     std::move(rule))))}),
+          .note = note};
+}
+
 }  // namespace
 
 struct CrossingRuleSheet {
@@ -193,9 +237,10 @@ struct CrossingRuleSheet {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const auto sevenCycle = [] {
-      std::vector<std::pair<int, int>> d;
-      for (int i = 0; i < 7; ++i) d.emplace_back(i, (i + 1) % 7);
-      return path::crossing::pairs(d);
+      std::vector<std::pair<int, int>> dominance;
+      for (int strand = 0; strand < 7; ++strand)
+        dominance.emplace_back(strand, (strand + 1) % 7);
+      return path::crossing::pairs(dominance);
     };
 
     ctx.composer.render(sketch::kit::page(
@@ -263,11 +308,44 @@ struct CrossingRuleSheet {
                                 "The ring marks the corrected crossing in the "
                                 "cyclic weave.")},
                       .measure = 1020,
+                      .gap = 20})),
+             sketch::kit::section(
+                 {.label = "THE SAME RULES THROUGH brush::weave",
+                  .note = "braid(3, 10, 84) round one plaque; the weave "
+                          "finds each knot"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {woven("ALTERNATE", path::crossing::alternate(),
+                                 "alternate()",
+                                 "Over, under, over round the outline: the "
+                                 "ordinary braid."),
+                           woven("REPEAT A SEQUENCE",
+                                 path::crossing::sequence({path::Order::Over,
+                                                           path::Order::Over,
+                                                           path::Order::Under}),
+                                 "sequence(Over, Over, Under)",
+                                 "The same sequence value as above, read "
+                                 "along the plaque's knots."),
+                           woven("STRAND DOMINANCE",
+                                 path::crossing::pairs(
+                                     {{0, 1}, {1, 2}, {2, 0}}),
+                                 "pairs(0→1, 1→2, 2→0)",
+                                 "Each strand over the next, all the way "
+                                 "round: the cycle a draw order cannot "
+                                 "spell."),
+                           woven("PIN ONE CROSSING",
+                                 path::crossing::alternate().except(
+                                     0, path::Order::Under),
+                                 "alternate().except(0, Under)",
+                                 "The first knot overridden; the rest still "
+                                 "alternate.")},
+                      .measure = 1020,
                       .gap = 20}))})));
   }
 };
 
 SIGIL_SKETCH(CrossingRuleSheet, "Kit · API",
              "who passes over whom: discoverCrossings numbering the knots, "
-             "the four CrossingRule spellings deciding each, and "
-             "crossingPatch bounding the repaint")
+             "the four CrossingRule spellings deciding each, crossingPatch "
+             "bounding the repaint, and the same rules handed to "
+             "brush::weave braiding a plaque's outline")

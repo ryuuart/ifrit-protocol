@@ -1,9 +1,12 @@
 /** Cut panes, a lens and a liquid cell standing on a table in front of a
- *  live page of calibration paper, so what is behind each one is seen
- *  bent, tinted and magnified through it while the page keeps moving.
+ *  live page of calibration paper, and a rained-on pane hung before the
+ *  page, so what is behind each one is seen bent, tinted and magnified
+ *  through it — through every bead and the rivulet running down the wet
+ *  pane too — while the page keeps moving.
  */
-// TAGS: Materials/Glass, Materials/Liquid, Materials/Lighting, Geometry/3D,
-// Compose/Materials, Typography/Motion
+// TAGS: Materials/Glass, Materials/Liquid, Materials/Water,
+// Materials/Lighting, Geometry/3D, Geometry/Points, Compose/Materials,
+// Typography/Motion
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
@@ -13,7 +16,10 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/path/Outline.h>
+#include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
@@ -27,9 +33,11 @@
 #include <sigilworld/World.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <string>
@@ -64,9 +72,23 @@ constexpr float kCellX = -480, kSquareX = -240, kVesicaX = 0, kRingX = 240,
 constexpr float kCellInside = 160, kCellWall = 10, kCellFloor = 28,
                 kCellRim = 300, kCellDepth = 120;
 
+/** THE WET PANE: its size, its centre in the scene, how far in front of
+ *  the page it hangs, and the face of it the water stands on. */
+constexpr glm::vec2 kWetPane{340, 210}, kWetCentre{-570, 490};
+constexpr float kWetGap = 40, kWetFace = 3;
+
 float smooth(float edge0, float edge1, float x) {
   const float t = std::clamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
   return t * t * (3 - 2 * t);
+}
+
+float fraction(float value) { return value - std::floor(value); }
+
+/** A stable value in [0, 1) for @p index under @p salt. */
+float hashed(uint32_t index, uint32_t salt) {
+  uint32_t mixed = index * 374761393u + salt * 668265263u;
+  mixed = (mixed ^ (mixed >> 13)) * 1274126177u;
+  return float((mixed ^ (mixed >> 16)) & 0xffffffu) / float(0x1000000);
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +409,122 @@ material::Material hazeField() {
       material::noise(.035f, {.octaves = 3, .seed = 7}), {.depth = 5});
 }
 
+// ---------------------------------------------------------------------------
+// The water on the wet pane, in the pane's own frame — x across, y up the
+// pane, z out of it toward the eye.
+
+/** A WATER CAP of unit base radius, its axis out of the glass: a slice
+ *  of a sphere standing on the glass at the angle water meets it. */
+gm::Mesh capStamp(float droop) {
+  constexpr float kHeight = .72f;
+  const float radius = (1 + kHeight * kHeight) / (2 * kHeight);
+  const float reach = std::asin(1 / radius);
+  std::vector<glm::vec2> profile;
+  constexpr int kSteps = 14;
+  for (int step = kSteps; step >= 0; --step) {
+    const float angle = reach * float(step) / kSteps;
+    profile.push_back({radius * std::sin(angle),
+                       kHeight - radius + radius * std::cos(angle)});
+  }
+  gm::Mesh cap = gm::revolve(profile, {.segments = 40});
+  // Stand it on the glass with its axis out of it, and let a drooping
+  // drop hang a little down the pane.
+  cap.transform(glm::translate(glm::mat4(1), {0, -.2f * droop, 0}) *
+                glm::scale(glm::mat4(1), {1, 1 + .3f * droop, 1}) *
+                glm::rotate(glm::mat4(1), kPi / 2, {1, 0, 0}));
+  return cap;
+}
+
+/** The arch a run of water carries along the glass: wide on the pane,
+ *  low off it. */
+path::Polyline archProfile(float height) {
+  path::Polyline arch;
+  constexpr int kSteps = 12;
+  for (int step = 0; step <= kSteps; ++step) {
+    const float angle = kPi * float(kSteps - step) / kSteps;
+    arch.points.push_back({std::cos(angle), -height * std::sin(angle)});
+  }
+  return arch;
+}
+
+struct Bead {
+  glm::vec2 at;
+  float radius;
+  bool droops;
+};
+
+/** THE BEADS, thrown at the pane and kept where they fit: many small, a
+ *  few large. */
+std::vector<Bead> scatterBeads() {
+  std::vector<Bead> beads;
+  const glm::vec2 half = kWetPane / 2.0f - 8.0f;
+  for (uint32_t attempt = 0; attempt < 4000 && beads.size() < 140; ++attempt) {
+    const float size = hashed(attempt, 3);
+    const float radius = 3 + 24 * size * size * size;
+    const glm::vec2 at{(hashed(attempt, 1) * 2 - 1) * (half.x - radius),
+                       (hashed(attempt, 2) * 2 - 1) * (half.y - radius)};
+    const bool fits =
+        std::none_of(beads.begin(), beads.end(), [&](const Bead& other) {
+          return glm::length(other.at - at) < other.radius + radius + 3;
+        });
+    if (!fits) continue;
+    beads.push_back({at, radius, radius > 9 && hashed(attempt, 4) < .45f});
+  }
+  return beads;
+}
+
+/** THE RIVULET: the lane it runs down, its wander, and the top and bottom
+ *  of its run on the pane. */
+constexpr float kRunLane = 40, kRunWander = 4.1f;
+constexpr float kRunTop = kWetPane.y / 2 - 30, kRunBottom = -kWetPane.y / 2 - 40;
+constexpr float kPaneBottom = -kWetPane.y / 2 + 6;
+
+/** Where the rivulet crosses height @p y. */
+float runX(float y) {
+  return kRunLane + 14 * std::sin(y * .0105f + kRunWander) +
+         6 * std::sin(y * .029f + kRunWander * 2.3f);
+}
+
+/** The rivulet's moment in the loop: where its head is, how much of its
+ *  trail is left, and how far the beads it took up have formed again. */
+struct RunState {
+  float head;
+  float trail;
+  float regrowth;
+};
+
+RunState runAt(float seconds) {
+  const float life = fraction(seconds / kLoop + .2f);
+  // The drop clings, then lets go and runs faster as it gathers water.
+  const float travel = smooth(0, .72f, life);
+  return {kRunTop - (kRunTop - kRunBottom) * travel * travel,
+          1 - smooth(.7f, .94f, life), smooth(.86f, 1.0f, life)};
+}
+
+/** Water: clear, at water's index, @p thickness the path light takes
+ *  through the body. */
+material::Material water(float thickness) {
+  return material::from(material::Color{1, 1, 1, 1})
+      .surface({.roughness = .04f,
+                .transmission = 1.0f,
+                .ior = 1.33f,
+                .thickness = thickness});
+}
+
+/** The path light takes through a bead, per unit of its radius: each
+ *  copy's own radius, carried as its "size", multiplies it. */
+constexpr float kBeadDepth = 1.1f;
+
+/** The water a bead is: its thickness each copy's size times its depth. */
+material::Material beadWater() {
+  return material::from(material::Color{1, 1, 1, 1})
+      .surface({.roughness = .04f,
+                .transmission = 1.0f,
+                .ior = 1.33f,
+                .thickness = kBeadDepth,
+                .thicknessAttribute = "size"});
+}
+
 /** Glass: white, so it tints nothing of its own. */
 material::Material glass(const material::SurfaceOptions& response) {
   return material::from(material::Color{1, 1, 1, 1}).surface(response);
@@ -400,6 +538,8 @@ material::Material solid(material::Color colour, float roughness,
 
 struct GlassForms {
   sketch::Page page, tablePage;
+  std::vector<Bead> beads;
+  gm::Mesh roundCap, droopingCap, wetPane, clip;
   Element tableTree = compose::stack();
   Rails rails;
   world::EnvironmentMap room;
@@ -474,6 +614,75 @@ struct GlassForms {
     shimmer = gm::quad(230, 260);
     cover = roundedPane(
         [](float inset) { return softRectangle({270, 62}, 14, inset); }, 12);
+    beads = scatterBeads();
+    roundCap = capStamp(0);
+    droopingCap = capStamp(1);
+    wetPane = gm::box({-kWetPane.x / 2, -kWetPane.y / 2, -kWetFace},
+                      {kWetPane.x / 2, kWetPane.y / 2, kWetFace});
+    clip = gm::box({-14, -22, -kWetFace - 3}, {14, 6, kWetFace + 3});
+  }
+
+  /** THE WET PANE AT @p seconds: the beads as two instanced bodies, one
+   *  per shape, each copy as deep as it is wide; a bead the rivulet's
+   *  head has passed over is taken up and forms again as the trail
+   *  drains; the trail swept down its lane, thin behind and swelling
+   *  toward the head; and the head itself a heavy drop. */
+  std::vector<world::Node> wetGlass(float seconds) const {
+    const RunState run = runAt(seconds);
+    std::array<gm::Cloud, 2> clouds;
+    for (const Bead& bead : beads) {
+      float scale = 1;
+      if (std::abs(bead.at.x - runX(bead.at.y)) < 14 + bead.radius &&
+          bead.at.y > run.head)
+        scale = run.regrowth;
+      if (scale < .05f) continue;
+      gm::Cloud& cloud = clouds[bead.droops ? 1 : 0];
+      cloud.positions.push_back({bead.at, kWetFace});
+      cloud.scalar("size").back() = bead.radius * scale;
+    }
+    std::vector<world::Node> bodies;
+    for (int shape = 0; shape < 2; ++shape) {
+      if (clouds[shape].size() == 0) continue;
+      bodies.push_back(
+          world::mesh(gm::points::instances(
+                          clouds[shape], shape ? droopingCap : roundCap,
+                          {.scaleLane = "size", .attributes = {"size"}}))
+              .key(shape ? "beads drooping" : "beads round")
+              .castShadow(false)
+              .fill(beadWater()));
+    }
+    if (run.trail > .02f && kRunTop - run.head > 12) {
+      const float end = std::max(run.head, kPaneBottom);
+      gm::Cloud rail;
+      for (float y = kRunTop; y > end; y -= 10)
+        rail.positions.push_back({runX(y), y, kWetFace});
+      rail.positions.push_back({runX(end), end, kWetFace});
+      const float trail = run.trail;
+      bodies.push_back(
+          world::mesh(gm::pop::on(rail).sweep(
+                          archProfile(.6f), false,
+                          {.segments = 120,
+                           .scale = 10,
+                           .taper =
+                               [trail](float along) {
+                                 return trail *
+                                        (.35f + .65f * smooth(.55f, 1, along));
+                               },
+                           .up = {0, 0, 1}}))
+              .key("rivulet trail")
+              .castShadow(false)
+              .fill(water(8)));
+    }
+    if (run.head > kPaneBottom + 10) {
+      gm::Cloud head;
+      head.positions.push_back({runX(run.head), run.head - 5, kWetFace});
+      head.scalar("size").back() = 13;
+      bodies.push_back(world::mesh(gm::pop::on(head).instances(droopingCap))
+                           .key("rivulet head")
+                           .castShadow(false)
+                           .fill(water(32)));
+    }
+    return bodies;
   }
 
   world::Frame describe(sigil::motion::Duration now) {
@@ -660,6 +869,26 @@ struct GlassForms {
                         .castShadow(false)
                         .fill(shimmerSurface));
 
+    // THE WET PANE, hung before the page on two brass clips, the water on
+    // its face bending the paper and the drifting rules behind it.
+    std::vector<world::Node> wet{world::mesh(wetPane)
+                                     .key("wet pane")
+                                     .castShadow(false)
+                                     .fill(glass({.roughness = 0.02f,
+                                                  .specular = .3f,
+                                                  .transmission = 1.0f,
+                                                  .ior = 1.5f,
+                                                  .thickness = 2 * kWetFace}))};
+    for (const float x : {-kWetPane.x / 2 + 50, kWetPane.x / 2 - 50})
+      wet.push_back(world::mesh(clip)
+                        .key("clip " + std::to_string(int(x)))
+                        .at({x, kWetPane.y / 2, 0})
+                        .fill(brass));
+    for (world::Node& body : wetGlass(seconds)) wet.push_back(std::move(body));
+    nodes.push_back(world::group(std::move(wet))
+                        .key("wet glass")
+                        .at({kWetCentre.x, kWetCentre.y, kPageDepth + kWetGap}));
+
     return world::Frame(world::group(std::move(nodes)))
         .environment(room, {.intensity = 0.8f, .diffuse = 0.45f})
         .pass(page.render(livePage(seconds, rails)))
@@ -670,6 +899,7 @@ struct GlassForms {
 }  // namespace
 
 SIGIL_SKETCH(GlassForms, "Study · Materials",
-             "Cut panes, a magnifier and a liquid cell with a meniscus "
-             "standing in front of a live page, each bending, tinting or "
-             "enlarging the moving lettering and rules behind it")
+             "Cut panes, a magnifier, a liquid cell with a meniscus and a "
+             "beaded pane with a running rivulet in front of a live page, "
+             "each bending, tinting or enlarging the moving lettering and "
+             "rules behind it")

@@ -1,6 +1,6 @@
 /** @file
- * shape_tour — THE SILHOUETTE SHELF: every `shapes::` generator, once,
- * at two sizes.
+ * shape_tour — THE SILHOUETTE SHELF: every `shapes::` generator and
+ * operator, once, at two sizes.
  *
  * A node's outline is a VALUE. `Element::shape()` takes anything with
  * `path(SkSize)` and an `operator==`, and the whole shelf below is such
@@ -16,22 +16,24 @@
  * number of pixels, a chamfer that eats a small box whole — the pair says
  * so, and that is exactly the question a shelf like this is read for.
  *
- * The rows are the four kinds the header files are split into:
+ * The rows run from generators to operators:
  *   GENERATORS  svg, polygon, star, circle, annulus, squircle, blob, arc,
  *               sector, parallelogram, arrow — closed figures inscribed in
- *               the box, and the two open ones (arc, and the curves
- *               below) which have no inside and must be stroked.
- *   CURVES      lissajous, harmonograph, rose, spiral, trochoid — sampled
- *               parametrics normalised to fill the box.
+ *               the box, and the open arc, which has no inside and must be
+ *               stroked. A traced `svg` path maps its own bounds onto the
+ *               box: corner to corner, or fitted with its proportions
+ *               kept, which a wide box shows as one pair.
  *   OPERATORS   rounded, chamfered, notched — generators OVER generators.
  *               `rounded(star(5), 8)` is a five-point star with
  *               consistently rounded points, which is what a box-corner
  *               radius cannot do for a silhouette that has no box corners,
  *               and the wrapper is comparable whenever what it wraps is.
+ *               A chamfer and a notch take a per-corner MASK, because a
+ *               treatment on two corners and square on the other two is
+ *               the common case and no radius expresses it.
  *
- * Closed figures are filled and outlined; the open ones are stroked only,
- * because an open path has no inside and a fill would close it across the
- * chord.
+ * The parametric curves, which are sampled rather than inscribed, have a
+ * shelf of their own.
  *
  * EDIT THESE FIRST
  *   kLarge / kSmall — the two boxes every generator is inscribed in.
@@ -44,6 +46,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Kit.h>
@@ -56,6 +59,7 @@
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
+using Corner = sigil::geometry::shapes::Corner;
 
 using namespace sigil::compose;
 
@@ -103,6 +107,27 @@ Element cell(Outline outline, const char* call, const char* note,
           .height(kBed)
           .fill(Fill::color(sketch::kit::theme().palette.cellGround))
           .children({figure(kLarge, 8), figure(kSmall, kLarge + 22)}));
+}
+
+/** ONE WIDE CELL: the traced path in a box far wider than its own
+ *  bounds, keylined so the box and the figure read apart — mapped corner
+ *  to corner, or fitted with its proportions kept. */
+Element wideCell(const char* d, bool preserveAspect, const char* call,
+                 const char* note) {
+  return sketch::kit::caption(
+      kCell, call, note,
+      box()
+          .width(kCell)
+          .height(kBed)
+          .fill(Fill::color(sketch::kit::theme().palette.cellGround))
+          .children({kit::at(box()
+                                 .stroke(stroke(1.0f, Fill::color(kLine)))
+                                 .children({box()
+                                                .inset(0)
+                                                .shape(shapes::svg(
+                                                    d, preserveAspect))
+                                                .fill(Fill::color(kBody))}),
+                             8, kBed - 8 - 60, kCell - 16, 60)}));
 }
 
 Element row(std::vector<Element> cells) {
@@ -167,28 +192,12 @@ struct ShapeShelf {
                    cell(shapes::arrow(0.34f, 0.42f), "arrow(0.34, 0.42)",
                         "along +x: a shaft of the height, a head of the "
                         "width"),
-                   cell(shapes::lissajous(3, 2, 90), "lissajous(3, 2, 90)",
-                        "a sampled parametric, normalised to fill the box",
-                        false),
-                   cell(shapes::harmonograph(3, 4, 60),
-                        "harmonograph(3, 4, 60)",
-                        "the damped pair — the figure decays "
-                        "inward",
-                        false),
-                   cell(shapes::rose(5, 1), "rose(5)",
-                        "r = cos(kθ): odd k gives k petals, even k "
-                        "gives 2k",
-                        false),
-                   cell(shapes::spiral(3.5f), "spiral(3.5)",
-                        "Archimedean by default; logarithmic on request",
-                        false)}),
-              row({cell(shapes::trochoid(5, 3, 5), "trochoid(5, 3, 5)",
-                        "the spirograph pair — a circle rolling "
-                        "outside another",
-                        false),
-                   cell(shapes::trochoid(5, 3, 5, true),
-                        "trochoid(5, 3, 5, inside)", "…and rolling inside it",
-                        false),
+                   wideCell(kHeartD, false, "svg(d) · wide box",
+                            "corner to corner: the bounds stretch to fill "
+                            "both edges"),
+                   wideCell(kHeartD, true, "svg(d, true) · wide box",
+                            "fitted: the spare width stays outside the "
+                            "silhouette"),
                    cell(shapes::rounded(shapes::star(5, 0.42f), 8),
                         "rounded(star(5, 0.42), 8)",
                         "a shape OVER a shape: the radius is px, so the "
@@ -196,27 +205,42 @@ struct ShapeShelf {
                    cell(shapes::rounded(shapes::polygon(3), 12),
                         "rounded(polygon(3), 12)",
                         "what a box-corner radius cannot do for a figure "
-                        "with no box corners"),
-                   cell(shapes::chamfered(14), "chamfered(14)",
+                        "with no box corners")}),
+              row({cell(shapes::chamfered(14), "chamfered(14)",
                         "the cut is px too — at 44 px it takes "
                         "most of the box"),
+                   cell(shapes::chamfered(14, Corner::Diagonal),
+                        "chamfered(14, Diagonal)",
+                        "a corner mask: only the diagonal pair is cut, "
+                        "which reads as a tab"),
                    cell(shapes::notched(26, 10), "notched(26, 10)",
-                        "a notch per corner, width and depth in px")})},
+                        "a notch per corner, width and depth in px"),
+                   cell(shapes::notched(26, 10,
+                                        Corner::TopLeft | Corner::TopRight),
+                        "notched(…, TopLeft | TopRight)",
+                        "the mask picks the top pair; the bottom stays "
+                        "square"),
+                   cell(shapes::rounded(shapes::notched(26, 10), 5),
+                        "rounded(notched(26, 10), 5)",
+                        "operators compose: the notch stays, its new "
+                        "corners soften")})},
          .column = true,
          .gap = 16});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "The silhouette shelf",
-         .subtitle = "24 generators, each drawn at 96 px and 44 px from the "
-                     "same parameters.",
-         .footer = "Filled silhouettes and open curves / pixel-based corners "
-                   "change proportion at the smaller size."},
+         .subtitle = "Every generator and operator, each drawn at 96 px and "
+                     "44 px from the same parameters.",
+         .footer = "Closed silhouettes are filled; the open arc is stroked. "
+                   "Pixel-based corners change proportion at the smaller "
+                   "size."},
         std::move(generators)));
   }
 };
 
 SIGIL_SKETCH(ShapeShelf, "Specimen",
-             "the silhouette shelf — every shapes:: generator, "
-             "curve and operator in a labelled cell, each drawn twice from "
-             "one value so a px-keyed parameter shows what it does to a "
-             "small box")
+             "the silhouette shelf — every shapes:: generator and operator "
+             "in a labelled cell, each drawn twice from one value so a "
+             "px-keyed parameter shows what it does to a small box, with a "
+             "traced svg stretched and fitted in a wide box and the corner "
+             "masks a chamfer and a notch take")

@@ -75,10 +75,6 @@ requires = [
   "profiles",
 ]
 
-[sketch.attribute_ring]
-needs = "Facts stated with `attribute`; radial layout by a fact lane with facing; jitter operator after it; comparison kit; section header"
-requires = ["kit-section-header", "silhouettes"]
-
 [sketch.axis_ripple]
 needs = "Per-glyph variable-axis track on a looping textFx cascade; a level under each letter by textAttach with a bound scale; fontFamily on a sheet with custom properties; Scene2DContext::measure to the whole pixel; document type"
 requires = [
@@ -89,10 +85,6 @@ requires = [
   "schedules",
   "typeface-axes",
 ]
-
-[sketch.beethoven]
-needs = "Span-revealed arc strokes; entrance animation; stylesheet classes; drop shadow; keyed absolute layout"
-requires = ["mask", "silhouettes"]
 
 [sketch.bg3_dice_roll]
 needs = "Stock borders, line presets, rails and ornament brushes; stock shapes; mesh face queries; custom canvas die; memoised retained motion"
@@ -132,15 +124,12 @@ needs = "Image-filter and map-driven blur effects; bound uniform; unit ramps; se
 requires = ["kit-section-header", "stock-tiles", "effect-filter"]
 
 [sketch.border_weave]
-needs = "Silhouette-following border modes; double and weighted borders; woven braid brush; crossing rule; shape generators; section headers"
+needs = "Silhouette-following border modes; double and weighted borders; shape generators; section headers"
 requires = [
   "kit-section-header",
   "border",
-  "brush-weave",
-  "braid",
   "silhouettes",
   "corners",
-  "crossings",
 ]
 
 [sketch.bound_lane]
@@ -153,10 +142,6 @@ requires = ["text-fx", "text-attach", "kinetic-presets", "schedules"]
 
 [sketch.bristle_bloom]
 needs = "Kit stage; seeded random, Gaussian and noise pen streams; screen and additive blending; Bezier curves; transforms"
-requires = []
-
-[sketch.bristle_current]
-needs = "Fixed-rate ticker; seeded noise field with detail; xorshift Chance stream; kept canvas; multiply blending; alpha colors"
 requires = []
 
 [sketch.brush_botanical_study]
@@ -300,17 +285,15 @@ requires = [
   "compute-passes",
 ]
 
-[sketch.connect_by_lane]
-needs = "Facts read by an arranging operator; wires attached by lane and by hand; stock orthogonal and arc routers; nested scopes; comparison kit"
-requires = ["kit-section-header", "routers"]
-
 [sketch.contour_poses]
-needs = "Measured contours; poses by distance with wrap policies; corner detection and windows; shape generator; pen leaves"
-requires = ["kit-section-header", "silhouettes", "contours"]
-
-[sketch.corner_notched]
-needs = "Corner treatments as comparable shapes: rounding wrapper, chamfers and notches with corner masks; comparison kit"
-requires = ["kit-section-header", "silhouettes", "corners"]
+needs = "Measured contours; poses by distance with wrap policies; corner detection and windows; width profiles, rail offsets and band regions; wave shaper; shape generators; pen leaves"
+requires = [
+  "kit-section-header",
+  "silhouettes",
+  "contours",
+  "shapers",
+  "profiles",
+]
 
 [sketch.cosmati]
 needs = "Stone recipes read through the one colour reader; the whole Great Pavement: a lettered Purbeck border, the turned square, great roundels and a guilloche that crosses itself; a setting-out diagram and a quarry key on one rhythm; text on arc; entrance transitions"
@@ -326,8 +309,14 @@ requires = [
 ]
 
 [sketch.crossing_rule]
-needs = "Crossing discovery; crossing rules (alternate, sequence, pairs, except); crossing patches; canvas clipping; comparison kit"
-requires = ["kit-section-header", "crossings"]
+needs = "Crossing discovery; crossing rules (alternate, sequence, pairs, except); crossing patches; canvas clipping; the same rules through a woven braid brush on an outline; comparison kit"
+requires = [
+  "kit-section-header",
+  "crossings",
+  "brush-weave",
+  "braid",
+  "silhouettes",
+]
 
 [sketch.crt_bloom]
 needs = "Glow and directional blur effects; additive blend; texture cache; CRT overlay recipe; explicit default face"
@@ -381,10 +370,6 @@ requires = ["scene3d-sketches", "point-operators", "clouds", "world-chains"]
 [sketch.document_styles]
 needs = "Document kit roles; role stylesheets with block leading; inline rich run; specimen page, comparison and wells"
 requires = []
-
-[sketch.draw_with_scope]
-needs = "Facts on cards; keyed and keyless `drawWith` programs reading the settled scope; pen wires and labels; comparison kit"
-requires = ["kit-section-header"]
 
 [sketch.ds2_bench]
 needs = "Routed wires; spans mask; layered brushes; kinetic text; instanced atlas; SDF materials; live shader uniforms; stock shapes"
@@ -445,19 +430,15 @@ requires = [
 needs = "Image encode and decode across formats; hub mount, write and image load; offscreen pen drawing; wells"
 requires = ["kit-section-header", "raster-surfaces"]
 
-[sketch.env_faces]
-needs = "Environment maps from faces, cube sheets and panoramas; ground replacement; bevel normals; chrome reflection fill"
+[sketch.environment_maps]
+needs = "Environment maps baked, from six faces and from one cube sheet; ground replacement; cube faces painted through the texture door; world environment dials and camera exposure; world frames baked to images; PBR surfaces"
 requires = [
   "kit-section-header",
-  "raster-surfaces",
+  "texture-door",
   "textures",
   "environment-maps",
-  "bevel-normals",
+  "world-environment",
 ]
-
-[sketch.env_lanes]
-needs = "World environment dials and camera exposure; studio and sunset panoramas; world frames baked to images; PBR surfaces"
-requires = ["kit-section-header", "environment-maps", "world-environment"]
 
 [sketch.eva_magi_defense]
 needs = "Cap-height metrics; image-filter phosphor; bound image pan; raster bakes; stroke-to-outline paths; chamfered silhouettes; cascade ladder; measured checks; kit table"
@@ -489,39 +470,14 @@ requires = [
 ]
 
 [sketch.eva_magi_interior]
-needs = "Cap-height metrics; condensed faces; face weight readback; chamfered shapes; float-field runtime shader with bound uniform; image-filter phosphor; CRT recipe"
+needs = "Type solved from a cap height and a measure; condensed faces; a ring of text closed by spacing; an engine timeline of staggered values and a stepped timer; image-filter phosphor; CRT recipe"
 requires = [
-  "border",
-  "measurement",
+  "run-fitting",
   "face-width",
-  "raster-surfaces",
-  "shader-local-matrix",
-  "typeface-axes",
-  "corners",
-  "paint-motion",
+  "timelines",
+  "schedules",
   "effect-filter",
-  "paint-shader",
-]
-
-[sketch.exact_tangent]
-needs = "Text on paths with exact tangents; spiral and oval generators; element rasterized to pixels; region crops; border decoration"
-requires = [
-  "kit-section-header",
-  "texture-scene",
-  "border",
-  "silhouettes",
-  "curves",
-]
-
-[sketch.exr_channels]
-needs = "Float EXR encode; metadata probe; named channel planes; material texture slot readback; availability probe"
-requires = [
-  "availability-probe",
-  "require-cached",
-  "kit-section-header",
-  "float-encode",
-  "image-probe",
-  "textures",
+  "recipes",
 ]
 
 [sketch.fallout2_charsheet]
@@ -549,6 +505,10 @@ requires = ["sketch-schemas", "connection", "flatbuffer", "kit-connection-readou
 needs = "Hub mount and feed; arrival queue, latest bytes and feed vitals; section header kit; pen strip"
 requires = ["kit-section-header"]
 
+[sketch.fibonacci]
+needs = "Kit page and comparison; radial points at the golden angle with square-root growth; texture-cached pen leaves; transforms and arcs"
+requires = ["kit-section-header"]
+
 [sketch.field_shelf]
 needs = "Shader field recipes; slotted child texture; custom canvas drawing; specimen comparisons and section headers"
 requires = ["kit-section-header"]
@@ -564,9 +524,25 @@ requires = [
   "world-chains",
 ]
 
+[sketch.float_planes]
+needs = "Float EXR encode; metadata probe; named channel planes; material texture slot readback; availability probe; half-float and byte pixel readback"
+requires = [
+  "availability-probe",
+  "require-cached",
+  "kit-section-header",
+  "float-encode",
+  "image-probe",
+  "textures",
+  "float-readback",
+]
+
 [sketch.floating_panels]
 needs = "Compose texture bakes; gauge kit; textured quad, cylinder and grid bodies in a baked world frame"
 requires = ["kit-meter", "texture-scene"]
+
+[sketch.flocking]
+needs = "Kit page and comparison; point set stepped by Verlet at a fixed rate; boids, drag and a body force; kept graphics canvas with a converging translucent ground"
+requires = ["verlet", "kit-section-header"]
 
 [sketch.flourish]
 needs = "Its own ornament and gilt border pieces; contour walks; nine-slice; paint programs; routed wires; layer blur; runtime shaders; silhouettes; pen overlays"
@@ -582,9 +558,9 @@ requires = [
   "corners",
 ]
 
-[sketch.formation_bands]
-needs = "Polygon silhouette; width profiles, rail offsets and band regions; wave shaper; comparison kit; canvas path strokes"
-requires = ["kit-section-header", "silhouettes", "shapers", "profiles"]
+[sketch.flow_fields]
+needs = "Kit sections and comparisons; one core noise field read as headings; batched LINES; xorshift Chance stream; runtime shader with noise child slot and quantized clock; point set pushed by wind, gravity and drag; kept canvas over a grained material ground"
+requires = ["verlet", "paint-shader", "kit-section-header"]
 
 [sketch.frame_grid]
 needs = "Polar frames with angle conventions; unit grid with snap; arrange rings and cells; pen graphics; comparison kit"
@@ -593,17 +569,6 @@ requires = ["kit-section-header", "frames-grids"]
 [sketch.frame_inputs]
 needs = "Recipe with frame inputs; uniform block binding; material specialization; material fill with content scale and world transform"
 requires = ["kit-section-header", "recipes", "frame-fill"]
-
-[sketch.fx_scatter_mix]
-needs = "Per-glyph effect tracks; scatter, mix and tint effects; spread schedules; beat readback meters; comparison kit"
-requires = [
-  "text-fx",
-  "text-effects",
-  "composer-beats",
-  "kinetic-presets",
-  "track-meter",
-  "schedules",
-]
 
 [sketch.genesis_fire]
 needs = "Particle emitters; fixed-step ticker; colored vertices; instanced atlas pools; per-glyph text track; meter and swatch kit; pen-hosted guests"
@@ -630,10 +595,6 @@ requires = [
   "mesh-codec",
 ]
 
-[sketch."gerstner grid"]
-needs = "Anisotropic grid-line tiles; noise field paint; staggered entrance transitions; bound sweep output; re-describe on update; grid arithmetic"
-requires = ["stock-tiles"]
-
 [sketch.gif_frames]
 needs = "Network image load; decoded frames and timed playback; resource and image probes; nearest sampling; cached-resource availability gate; comparison kit"
 requires = [
@@ -655,7 +616,7 @@ requires = [
 ]
 
 [sketch.grid_layouts]
-needs = "Grid, diagonal and baseline layout schemes; ladder rules; themed mono type; readout rows"
+needs = "Grid, diagonal and baseline layout schemes; fixed-track grid configurations stepped on update; ladder rules; themed mono type; readout rows"
 requires = ["compose-readout"]
 
 [sketch.guest_body]
@@ -665,10 +626,6 @@ requires = ["scene3d-sketches", "guests", "texture-scene", "textures"]
 [sketch.guest_picture]
 needs = "Published frame subscription on canvas recorder; specimen page, caption and well; document waiting card"
 requires = ["guests"]
-
-[sketch.half_float]
-needs = "Float raster surface; half-float and byte pixel readback; image from pixels; comparison kit"
-requires = ["kit-section-header", "raster-surfaces", "float-readback"]
 
 [sketch.hello]
 needs = "Themed kit page; retained cards; keyless clock-reading pen leaf; output bound to a transform; ticker callback; data-driven re-describe"
@@ -727,9 +684,10 @@ needs = "scene3d hosting; a key light's strength and colour bound to live values
 requires = ["scene3d-sketches", "world-placement"]
 
 [sketch.kinetic_card]
-needs = "Per-glyph text effect tracks and presets on a cascade; shared phase output; beat meters read from composer; specimen theme"
+needs = "Per-glyph text effect tracks and presets on a cascade; mixed effects; stagger origins and eased distributions; shared phase output; beat meters read from composer; specimen theme"
 requires = [
   "text-fx",
+  "text-effects",
   "composer-beats",
   "kinetic-presets",
   "track-meter",
@@ -762,6 +720,10 @@ requires = [
   "strip-laps",
   "bank",
 ]
+
+[sketch.l_systems]
+needs = "Kit page and comparison; string rewriting and a turtle stack; batched LINES; Mix64 Chance ranges; transforms"
+requires = ["kit-section-header"]
 
 [sketch.lain_navi]
 needs = "Retained slots; runtime shader; CRT field recipe; blurred additive text; blurred additive dashed stroke layers; bound outputs"
@@ -859,23 +821,6 @@ requires = [
 needs = "Seeded network cache; per-hub network policies; image load; PNG encode; specimen wells"
 requires = ["kit-section-header", "raster-surfaces", "seed-network-cache"]
 
-[sketch."night network"]
-needs = "Compose brushes and lines; stroke presets; path shapers; routed wires; span masks; SDF recipes; bound paint uniforms; art warp"
-requires = [
-  "keyed-shape",
-  "mask",
-  "lines",
-  "connect",
-  "brush-stacks",
-  "brush-marks",
-  "stroke-presets",
-  "routers",
-  "silhouettes",
-  "shapers",
-  "sdf",
-  "paint-motion",
-]
-
 [sketch.nightingale_coxcomb]
 needs = "Polar band chart on one sheet of roles and palette tokens; a key stone printed a hair off register; the sheet bound into its book with a gutter and raking light; per-glyph type-on tracks; text on ring paths; needles as declared waypoints; a hanging-indent legend under Knuth-Plass"
 requires = [
@@ -899,73 +844,25 @@ requires = [
   "asset-frames",
 ]
 
+[sketch.noise_sheet]
+needs = "Kit page and comparison; seeded pen noise; Mix64 Chance stream units and bits; grain field material as a ground; texture-cached pen leaf"
+requires = ["kit-section-header"]
+
 [sketch.noise_shelf]
 needs = "Counter, state and lattice mixers; cache key folds; pen program fields; specimen cells, wells and section headers"
 requires = ["kit-section-header", "noise-hashes", "hash-words"]
-
-[sketch.observable_circle_packing]
-needs = "Kit stage; seeded pen random stream; circles and colors"
-requires = []
-
-[sketch.observable_circle_packing_contained]
-needs = "Seeded pen random stream; circles and colors"
-requires = []
-
-[sketch.observable_fibonacci]
-needs = "Pen clock; centre rectangle mode; filled squares"
-requires = []
-
-[sketch.observable_fibonacci_rectangles]
-needs = "Pen clock; HSB color mode; transforms; rectangles"
-requires = []
-
-[sketch.observable_flowfield_1]
-needs = "Kit stage; pen clock; square caps; line grid"
-requires = []
-
-[sketch.observable_flowfield_2]
-needs = "Mix64 Chance stream; pen clock; stroke paint; batched canvas lines"
-requires = []
-
-[sketch.observable_flowfield_3]
-needs = "Kit stage; Mix64 Chance stream; pen clock; stroke paint; batched canvas lines"
-requires = []
-
-[sketch.observable_grid]
-needs = "Pen clock; degree angle mode; centre rectangle mode; transforms"
-requires = []
-
-[sketch.observable_l_system]
-needs = "Mix64 Chance ranges; pen clock; lines and circles"
-requires = []
-
-[sketch.observable_l_system_tree]
-needs = "Pen clock; transforms; grayscale lines"
-requires = []
-
-[sketch.observable_noise]
-needs = "Seeded pen noise; Mix64 Chance stream; pen clock; polyline shapes"
-requires = []
-
-[sketch.observable_noise_map]
-needs = "Seeded three-dimensional pen noise; pen clock; grayscale rectangles"
-requires = []
-
-[sketch.observable_random_walker]
-needs = "Mix64 Chance bits; pen clock; distance-shaded circles"
-requires = []
 
 [sketch.observable_reaction_diffusion]
 needs = "Image from RGBA buffer; scaled image drawing"
 requires = []
 
-[sketch.observable_reynolds_steering]
-needs = "Persistent model; seeded pen random; HSB color mode with alpha range; translucent trails on kept canvas; transforms; closed shapes"
-requires = []
-
 [sketch.ocio_view]
 needs = "OCIO transforms baked to LUT materials; produced wedge texture; content slot; material-grounded wells"
 requires = ["kit-section-header", "raster-surfaces", "textures", "ocio"]
+
+[sketch.operator_dial]
+needs = "Facts stated with `attribute`; radial layout by a fact lane with facing; jitter operator after it; stamped numerals; pinned callouts with fallbacks; bands along an outline and hulls around classed points; comparison kit"
+requires = ["kit-section-header", "silhouettes", "pin-outline"]
 
 [sketch.optical_kerning]
 needs = "Optical kerning shaping; context measurement; cells, captions and readout rows"
@@ -986,14 +883,6 @@ requires = [
   "over",
 ]
 
-[sketch.p5_attractor_loom]
-needs = "Kit stage; runtime shader with grain child slot; blended material ground; canvas-mapped stroke paint; batched canvas paths"
-requires = []
-
-[sketch.p5_flow_field]
-needs = "Runtime shader with noise child slot; canvas-mapped stroke; shape-fitted glow paint; grid module sizes; seeded noise detail"
-requires = []
-
 [sketch.p5_fractal_garden]
 needs = "Runtime shader with grain child slot; blended material ground; canvas-mapped stroke; batched canvas paths and points; shape-fitted glow"
 requires = []
@@ -1013,6 +902,10 @@ requires = []
 [sketch.p5_refractive_metaballs]
 needs = "Runtime shaders; child shader slot; per-frame vector uniforms; canvas-mapped paints; additive blending; Bezier curves"
 requires = []
+
+[sketch.packing]
+needs = "Kit page and comparison; outline containment and contour nearest point; star silhouette; rectangle outline; resampled polylines; xorshift Chance stream on a fixed-rate timer"
+requires = ["silhouettes", "kit-section-header"]
 
 [sketch.paint_boxes]
 needs = "Unit-square ramp as ink over each paint box; a fill stretched over the canvas through a row of cards; wells"
@@ -1067,10 +960,6 @@ requires = ["keyed-shape", "springs", "silhouettes"]
 [sketch.phone_sky]
 needs = "WebSocket Connection with served pages; broadcast sends; eased ticker ramps; instrument page"
 requires = ["kit-instrument", "timelines", "connection"]
-
-[sketch.pins_and_hulls]
-needs = "Stamped numerals; pinned callouts with fallbacks; bands along an outline and hulls around classed points; comparison kit"
-requires = ["kit-section-header", "silhouettes", "pin-outline"]
 
 [sketch.pixfont_dotsprite]
 needs = "Aliased glyph mask bakes; pixel font blits; dot sprite; tinted image stamps; live pen readout"
@@ -1185,13 +1074,17 @@ requires = ["sketch-schemas", "kit-instrument", "connection", "flatbuffer"]
 needs = "Signed-distance star shapes; layered SDF style (shadow, glow, fill, border); pad reserve; material paint fill"
 requires = ["kit-section-header", "sdf"]
 
+[sketch.service_map]
+needs = "Facts read by an arranging operator written in the sketch; wires attached by lane and by hand; stock orthogonal and arc routers; nested scopes; keyed and keyless `drawWith` programs reading the settled scope; pen wires and labels; comparison kit"
+requires = ["kit-section-header", "routers"]
+
 [sketch.set_stagger]
 needs = "scene3d hosting with camera; world child stagger by spread; entrance transitions; collection-narrowed passes; three-point rig"
 requires = ["scene3d-sketches", "schedules", "world-placement"]
 
 [sketch.shape_tour]
-needs = "Stock silhouette generators, parametric curves and corner operators; shaped filled boxes; captions and cell runs"
-requires = ["silhouettes", "corners", "curves"]
+needs = "Stock silhouette generators and corner operators with corner masks; SVG path-data silhouette stretched and fitted; shaped filled boxes; captions and cell runs"
+requires = ["silhouettes", "corners"]
 
 [sketch.shapeworks_lab]
 needs = "Star generator; path operator chain; bevel normals; environment map; reflective recipes; sequence tile; raster bakes; spline sweeps and projection; point billboards"
@@ -1290,7 +1183,7 @@ needs = "Field recipes; recipe names; pattern tiles; grained and girih kit mater
 requires = ["stock-tiles", "sdf", "recipes"]
 
 [sketch.stroke_atlas]
-needs = "Line, rail and layered brush decorations; shapers; stamp and corner patterns; borders and hatches; stock silhouettes; animated dashes"
+needs = "Line, rail and layered brush decorations; shapers; stamp and corner patterns; borders and hatches; stock silhouettes; animated dashes; route constructions: rounded cased rails, chevron markers, stamped rings, tapers and a hatched fill"
 requires = [
   "keyed-shape",
   "lines",
@@ -1323,13 +1216,19 @@ requires = [
 needs = "Compose kit sheet, panel grid and wells; material and live fill grounds; gel layer style; update hook"
 requires = []
 
-[sketch.svg_silhouette]
-needs = "SVG path-data silhouette with stretch or aspect fit; stroked keylined boxes; comparisons"
-requires = ["kit-section-header", "silhouettes"]
-
 [sketch.tategaki]
 needs = "Vertical rich text forms; span paint; per-cluster kinetic entrance; document kit; specimen cells"
 requires = ["text-fx", "kinetic-presets", "schedules"]
+
+[sketch.text_on_path]
+needs = "Text on paths: at and align, offset, autoFlip, radial orient, fit by size and by spacing, exact tangents; circle, arc and spiral generators; trees painted through the texture door; pixel difference; region crops"
+requires = [
+  "kit-section-header",
+  "texture-door",
+  "pixel-difference",
+  "silhouettes",
+  "curves",
+]
 
 [sketch.text_paints]
 needs = "One ink across a word, a paragraph and a cropped long run; eight inks on display and body type from one sheet; chrome ramps; justified Knuth-Plass text with pattern hyphenation; measured passage files; wells and comparisons"
@@ -1402,23 +1301,13 @@ requires = [
   "image-asset-leaf",
 ]
 
+[sketch.tonhalle_posters]
+needs = "Span-revealed arc strokes; mount transitions; stylesheet classes; drop shadow; keyed absolute layout; halftone fields; outlined type; text on a circle; clipped strips moved by bound values; texture caches; multiply and soft-light blends; a scaled subtree"
+requires = ["mask", "silhouettes"]
+
 [sketch.twoadvanced_equipment]
 needs = "Cached HTTPS bitmaps; availability probe; bound envelope motion; kit scrollbar; per-edge strokes; pinned frame layout"
 requires = ["availability-probe", "require-cached", "kit-scrollbar", "adaptors"]
-
-[sketch.twoadvanced_v3]
-needs = "Cached HTTPS and Rive-embedded images; alpha and edge masks; colour-matrix grade; blurred raster bake; per-edge strokes; chamfers; slots"
-requires = [
-  "availability-probe",
-  "require-cached",
-  "kit-document",
-  "mask",
-  "adaptors",
-  "raster-surfaces",
-  "embedded-pngs",
-  "corners",
-  "effect-filter",
-]
 
 [sketch.twoadvanced_v4]
 needs = "HTTPS bitmaps; grid areas; SkSL and SDF materials; pixel styles; bevel, gloss, scrollbar kits; instancing; world bake; chamfers; masks"
@@ -1440,10 +1329,6 @@ requires = [
   "sdf",
   "paint-motion",
 ]
-
-[sketch."ui particles"]
-needs = "Instanced atlas stamping from a live pool; fixed-step simulation; ornament nine-slice and flourish cards; scrim; gradients"
-requires = ["instancing", "slice", "legibility"]
 
 [sketch.vagrant_story_target]
 needs = "Device scene3d hosting; lit meshes and lights; compose texture on material slot; frustum extent; baked pixel type; kit meter"
