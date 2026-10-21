@@ -37,15 +37,15 @@ sigil_test(weave_test
   SOURCES test/FamilyNameTest.cpp
   LIBRARIES SigilWeaveFonts SigilWeavePorts)
 
-# A face found by its family's name, which only the machine's font list
-# can answer: the one promise of this directory a runner needs fonts for,
-# so it is the one that carries the label.
 # A face a font file holds, adopted under its family: the committed
 # instrument faces, so no installed font is asked about.
 sigil_test(weave_test
   SOURCES test/AdoptedFaceTest.cpp
   LIBRARIES SigilWeaveFonts SigilWeavePorts)
 
+# A face found by its family's name, which only the machine's font list
+# can answer: the one promise of this directory a runner needs fonts for,
+# so it is the one that carries the label.
 sigil_test(weave_test
   SOURCES test/FamilyTypefaceTest.cpp
   LIBRARIES SigilWeaveFonts SigilWeavePorts

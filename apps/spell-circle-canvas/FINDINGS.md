@@ -275,6 +275,17 @@ hold birds apart. The three are meant to be weights on one another whose
 ratios shape the flock. A test should step a flock under default weights
 and find the minimum pair spacing above a fraction of the reach.
 
+## A family name is still read by hand in four places
+
+`src/sigilweave/testing/Plate.cpp`, `src/common/compose/core/style/FaceChoice.cpp`
+(twice), `src/common/draw/Text.cpp` and `src/common/python/skia/Values.cpp`
+each call Skia's `getFamilyName` themselves rather than
+`weave::fonts::familyName`, so a face adopted under another family answers
+its file's name there. Every reader is meant to answer the one name. A
+test per site should find it answering what `fonts::familyName` answers;
+`Face::familyName` in the style target below the fonts target stays as it
+is.
+
 ## The triplet comment still explains shared TBB by a port that is gone
 
 `cmake/triplets/arm64-osx.cmake` explains its shared oneTBB rule by the
