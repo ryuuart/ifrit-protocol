@@ -77,6 +77,11 @@ struct LayeredBrush {
       widest = std::max(widest, layer.width + layer.blurSigma * 3.0f);
     return widest;
   }
+  /** Whether every pass stands within `bleed()` of the outline it is
+   *  handed (OutlineDecoration). A pass meets its corners mitred, which
+   *  reaches past its half width, so the stack stays on the outline only
+   *  where a wider pass's reach already holds every mitre. */
+  bool staysOnOutline() const;
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };

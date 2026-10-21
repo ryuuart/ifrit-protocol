@@ -24,6 +24,7 @@
 #include <cmath>
 
 #include "Ink.h"
+#include "StrokeReach.h"
 #include "paint/FillLowering.h"
 #include "paint/HeldCoverage.h"
 
@@ -69,6 +70,18 @@ void Shadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
   canvas.translate(at.x(), at.y());
   canvas.drawPath(geometry::path::toSk(ctx.outline), p);
   canvas.restore();
+}
+
+bool PathFormat::staysOnOutline() const {
+  // Clipped to the shape it dresses, whatever it lays.
+  if (align == Align::Inner) return true;
+  // A path effect and a stamped path lay their own geometry, whose extent
+  // no number here states.
+  if (effect || (stampAdvance > 0 && !stampPath.empty())) return false;
+  // An Outer stroke is laid at twice its width and its inside half cut
+  // away, so its outer edge stands as far off as the doubled band's.
+  const float laid = align == Align::Outer ? width * 2 : width;
+  return detail::strokeReach(laid, join, cap) <= bleed();
 }
 
 void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
@@ -246,6 +259,14 @@ void Wash::paint(draw::Pen& pen, const PaintContext& ctx) const {
     return;
   }
   canvas.drawPath(geometry::path::toSk(ctx.outline), p);
+}
+
+bool Border::staysOnOutline() const {
+  if (inset < 0) return false;
+  const float heaviest = std::max(width, cornerWidth);
+  // An inward copy of the outline stands `inset` inside it everywhere, so
+  // the rule's reach past the outline is its own reach less the inset.
+  return detail::strokeReach(heaviest, join, cap) - inset <= bleed();
 }
 
 void Border::paint(draw::Pen& pen, const PaintContext& ctx) const {

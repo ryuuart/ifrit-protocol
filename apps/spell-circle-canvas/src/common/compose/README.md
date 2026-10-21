@@ -555,7 +555,13 @@ on the outline it is handed, within its bleed of it, declares
 paints only its fill and such marks is then sized to the shape, so the
 layer under its opacity covers the stroke rather than the box its
 coordinates came from; a filter over it and a bake of it still take the
-box, the extent their pixels are exact to. A described tree may be
+box, the extent their pixels are exact to. Every mark is one or the
+other: the stock strokes, stamps, swept art, shadows, washes, hatches,
+reliefs and bevels, and the adaptors and composites over them, declare it
+wherever their bleed holds their whole reach from the outline, which a
+stroke meeting its corners mitred does not; `Slice`, `styles::Brackets`
+and `styles::TickRail` are laid against the box and keep it. A described
+tree may be
 painted by several composers at once, so a scheme keeps nothing it
 prepares in its own value: what a mark keeps between paints stands on the
 instance painting it, handed to the mark through `PaintContext::markState`

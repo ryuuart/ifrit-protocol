@@ -5,7 +5,7 @@ sigil_library(SigilComposeBrush
           Composites.cpp Stamps.cpp Ribbon.cpp Art.cpp BakedArt.h UnitPaint.h
           # Stroke and mask executors.
           StrokePainting.cpp SpanNormalForm.cpp Band.cpp Masks.cpp
-          SpanArithmetic.h SpanContours.h
+          SpanArithmetic.h SpanContours.h StrokeReach.h
   HEADERS Adaptors.h Brush.h Brushes.h Decorations.h Hatches.h
           Ribbons.h Stamps.h ../advanced/PathEffect.h
           Layered.h Lines.h PixelStyles.h Rails.h Relief.h

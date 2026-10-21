@@ -194,6 +194,17 @@ struct Weave {
       if (s.brush.usesWorldSpace()) return true;
     return false;
   }
+  /** On the outline when every strand runs off it — a relative strand,
+   *  whose offset `bleed()` holds — and every strand's brush stays on the
+   *  path it is handed. A borrowed or authored strand runs where its own
+   *  geometry is, which the host's outline does not bound. */
+  bool staysOnOutline() const {
+    for (const Strand& s : strands)
+      if (s.path.source() != StrandPath::Source::Relative ||
+          !s.brush.staysOnOutline())
+        return false;
+    return true;
+  }
   float bleed(glm::vec2 size) const {
     float worst = 0;
     for (const Strand& s : strands)
@@ -307,6 +318,13 @@ struct Brush {
       if (l.decoration.usesWorldSpace()) return true;
     return false;
   }
+  /** On the outline when every layer is: the shapers move the path by no
+   *  more than the reach `bleed()` adds for them. */
+  bool staysOnOutline() const {
+    for (const Layer& l : layers)
+      if (!l.decoration.staysOnOutline()) return false;
+    return true;
+  }
   /** The widest mark any layer paints, plus the pipeline's own reach. */
   float reach(glm::vec2 size) const {
     float shared = 0;
@@ -367,6 +385,9 @@ struct Restyled {
   /** Forwarded, for the reason a weave forwards it. */
   bool blends() const { return inner.blends(); }
   bool usesWorldSpace() const { return inner.usesWorldSpace(); }
+  /** Forwarded: the operation moves the path by no more than the
+   *  `extraBleed` it states. */
+  bool staysOnOutline() const { return inner.staysOnOutline(); }
   float bleed(glm::vec2 size) const { return inner.bleed(size) + extraBleed; }
   float reach(glm::vec2 size) const { return inner.reach(size); }
   /** Forwarded, or a wrapped weave's strand::from(key) would never be

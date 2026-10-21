@@ -60,6 +60,9 @@ struct Hatch {
            angleBinding == o.angleBinding;
   }
 
+  /** The rules are clipped to the outline they fill. */
+  bool staysOnOutline() const { return true; }
+
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
@@ -98,6 +101,9 @@ struct RadialHatch {
            holeFraction == o.holeFraction && centre == o.centre &&
            rotateDegrees == o.rotateDegrees && radiiPx == o.radiiPx;
   }
+
+  /** The rules are clipped to the outline they fill. */
+  bool staysOnOutline() const { return true; }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };

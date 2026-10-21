@@ -178,6 +178,9 @@ struct Art {
   /** The mark's full width: the ribbon is centred on the path, so it
    *  spans the reserve on both sides of it. */
   float reach() const { return bleedPx * 2.0f; }
+  /** The art is bent along the outline it is handed, within the reserve
+   *  `bleed()` states. */
+  bool staysOnOutline() const { return true; }
   bool operator==(const Art& o) const {
     return art.node() == o.art.node() && height == o.height &&
            stationPx == o.stationPx && bleedPx == o.bleedPx;

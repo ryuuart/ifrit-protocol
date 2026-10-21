@@ -51,6 +51,8 @@ struct EdgeSlice {
    *  (BlendingDecoration). */
   bool blends() const { return inner.blends(); }
   bool usesWorldSpace() const { return inner.usesWorldSpace(); }
+  /** Forwarded: the edges are runs of the outline, inside its bounds. */
+  bool staysOnOutline() const { return inner.staysOnOutline(); }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
   bool isRunning() const { return inner.isRunning(); }
@@ -98,6 +100,10 @@ struct Inset {
   /** Forwarded, for the reason EdgeSlice forwards it. */
   bool blends() const { return inner.blends(); }
   bool usesWorldSpace() const { return inner.usesWorldSpace(); }
+  /** Forwarded for an inward copy, which stands inside the outline. An
+   *  outward one is mitred, so its corners stand further out than `px`
+   *  and the node keeps its box. */
+  bool staysOnOutline() const { return px >= 0 && inner.staysOnOutline(); }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
   bool isRunning() const { return inner.isRunning(); }

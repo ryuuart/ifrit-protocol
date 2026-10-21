@@ -333,10 +333,13 @@ struct MotionPath {
 
 /** WHAT A NODE'S DECORATIONS DRESS.
  *
- *  Every decoration — a bevel, an inner shadow, a glow, a gloss, a
- *  keyline, a whole layer style — is drawn ACROSS AN OUTLINE, and this
- *  says which outline it is handed. The three answers are three different
- *  MECHANISMS, not three shapes:
+ *  Every decoration is HANDED AN OUTLINE, and this says which one. Most
+ *  marks — a bevel, an inner shadow, a glow, a gloss, a keyline, a whole
+ *  layer style — are drawn across it and stand on it. A few are laid
+ *  against the node's box instead and only read the outline, if at all —
+ *  a nine-slice frame, corner brackets, a tick rail — and each mark says
+ *  which of the two it is (OutlineDecoration). The three answers are
+ *  three different MECHANISMS, not three shapes:
  *
  *  `Outline` is THE NODE'S SHAPE — its rounded box, its `shape()`
  *  generator, a routed connector's path, a band's swept region. On a text
@@ -422,9 +425,16 @@ concept AnimatedDecoration = requires(const D& d) {
   { d.isRunning() } -> std::convertible_to<bool>;
 };
 
-/** Optional on a DecorationScheme: how far it paints BEYOND the node's
- *  bounds (soft shadows, glows). The recording cull grows by the node's
- *  max bleed so cached pictures never truncate overflowing chrome. */
+/** Optional on a DecorationScheme: how far it paints BEYOND what it
+ *  stands on (soft shadows, glows, a stroke's outer half) — past the
+ *  bounds of the outline it is handed for a mark that stays on that
+ *  outline (OutlineDecoration), past the node's box for any other. The
+ *  node's own paint is grown by its marks' largest bleed, from its box,
+ *  or from its shape when every mark stays on the outline, so cached
+ *  pictures, layers and bakes never truncate overflowing chrome. An
+ *  outline mark's bleed therefore holds its widest reach from the
+ *  outline — a mitred corner, a square cap, a stamp's half extent —
+ *  and under-reporting it truncates that reach with no diagnostic. */
 template <typename D>
 concept BleedingDecoration = requires(const D& d) {
   { d.bleed() } -> std::convertible_to<float>;
@@ -505,7 +515,9 @@ concept BorrowingDecoration = requires(const D& d) {
 
 /** Optional on a DecorationScheme: does its ink stand ON THE OUTLINE it
  *  is handed — inside that outline's bounds grown by its `bleed()`, and
- *  nowhere else — rather than somewhere on the node's box?
+ *  nowhere else — rather than somewhere on the node's box? Every mark is
+ *  one or the other: a mark on the outline answers true, and a mark laid
+ *  against the box answers false or says nothing.
  *
  *  A node that declares a shape smaller than its box (a stroke laid in
  *  page coordinates on a page-sized box, a cell of a tiling on its page)
@@ -516,7 +528,11 @@ concept BorrowingDecoration = requires(const D& d) {
  *  whole page; a filter over it and a bake of it still take the box, the
  *  extent their pixels are exact to. A mark laid against the box instead — a
  *  nine-slice frame, corner brackets, a tick rail along the edges —
- *  answers false, or says nothing, and the node keeps its box.
+ *  answers false, or says nothing, and the node keeps its box. So does a
+ *  mark drawn along the outline whose `bleed()` does not hold its whole
+ *  reach from it — a stroke whose mitred corners reach past the half
+ *  width it states, a walk that states no extent at all: true is a
+ *  promise about where every pixel stands, and a layer is sized by it.
  *
  *  Declared rather than introspected, for the same reason isRunning() is.
  *  Say nothing and the mark is taken to stand anywhere on the box. A bare

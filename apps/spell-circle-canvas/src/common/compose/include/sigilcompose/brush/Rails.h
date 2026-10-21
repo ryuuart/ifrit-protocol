@@ -100,6 +100,11 @@ struct Rails {
   }
 
   float bleed() const;
+  /** Whether every rail stands within `bleed()` of the outline it is
+   *  handed (OutlineDecoration): when no rail meets its corners mitred or
+   *  ends square, both of which reach past the half width — a mitred join
+   *  past the offset as well, since the offset is built with it. */
+  bool staysOnOutline() const;
 
   /** Total centre-to-centre span of the set — the number a caller needs to
    *  reserve room, and the one `Line` never exposed. */

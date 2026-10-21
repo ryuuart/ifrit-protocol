@@ -42,6 +42,9 @@ class Relief {
   bool isRunning() const;
   bool usesWorldSpace() const;
   float bleed(glm::vec2 size) const;
+  /** The material is painted over the outline it is handed, its effects
+   *  within the reach `bleed()` states. */
+  bool staysOnOutline() const { return true; }
   void paint(draw::Pen& pen, const PaintContext& context) const;
 
  private:

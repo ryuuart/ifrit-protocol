@@ -104,6 +104,9 @@ struct Scatter {
   /** The mark's full width: a stamp is centred on the path, so it spans
    *  the reserve on both sides of it. */
   float reach() const { return bleedPx * 2.0f; }
+  /** Every stamp is placed on the outline it is handed, within the
+   *  reserve `bleed()` states. */
+  bool staysOnOutline() const { return true; }
   bool operator==(const Scatter& o) const {
     return art.node() == o.art.node() && spacing == o.spacing &&
            place == o.place && seed == o.seed && jitterAlong == o.jitterAlong &&
@@ -226,6 +229,9 @@ struct Pattern {
   /** The mark's full width: a tile is centred on the path, so it spans
    *  the reserve on both sides of it. */
   float reach() const { return bleedPx * 2.0f; }
+  /** Every tile is laid along the outline it is handed, within the
+   *  reserve `bleed()` states. */
+  bool staysOnOutline() const { return true; }
   bool operator==(const Pattern& o) const {
     auto node = [](const std::optional<Element>& e) {
       return e ? e->node().get() : nullptr;

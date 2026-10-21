@@ -6,10 +6,24 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/utils/SkNoDrawCanvas.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Hatches.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcompose/brush/Rails.h>
+#include <sigilcompose/brush/Relief.h>
+#include <sigilcompose/brush/Ribbons.h>
+#include <sigilcompose/brush/Stamps.h>
+#include <sigilcompose/kit/Chrome.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
+#include <string>
 #include <vector>
 
 #include "support/BakeTestSupport.h"
@@ -303,4 +317,187 @@ TEST(ComposePaintBounds, AShapedLeafBakesThePictureItsBoxBakes) {
                           << scale << " times the page";
     }
   }
+}
+
+namespace {
+
+/** A closed triangle in page coordinates whose bounds are (100, 100) to
+ *  (160, 140). */
+Shape triangle() {
+  return Shape(skiaShape([] {
+    SkPathBuilder builder;
+    builder.moveTo(100, 100);
+    builder.lineTo(160, 104);
+    builder.lineTo(130, 140);
+    builder.close();
+    return builder.detach();
+  }));
+}
+
+const SkRect kTriangleBounds = SkRect::MakeLTRB(100, 100, 160, 140);
+
+/** The triangle filled and faded on a box the size of the page, wearing
+ *  @p mark over its fill, painted live so the fade's layer is opened on
+ *  the canvas itself. */
+Element markedOnThePage(const Decoration& mark) {
+  Element shaped = box()
+                       .absolute()
+                       .left(0)
+                       .top(0)
+                       .width(kPageWidth)
+                       .height(kPageHeight)
+                       .shape(triangle())
+                       .fill(material::Material(material::Color{1, 1, 1, 1}))
+                       .opacity(0.5f)
+                       .cache(Cache::None);
+  shaped.foreground(mark);
+  Element page = box().width(kPageWidth).height(kPageHeight);
+  page.children({std::move(shaped)});
+  page.cache(Cache::None);
+  return page;
+}
+
+/** A small square of art for the stamped and swept brushes. */
+Element stampArt() {
+  return box().width(4).height(4).fill(
+      material::Material(material::Color{1, 0.5f, 0.2f, 1}));
+}
+
+/** A plain stroke whose corners and ends stay inside its half width. */
+PathFormat roundStroke(float width = 4) {
+  PathFormat stroke = brush::solid(width, Fill::color({1, 1, 1, 1}));
+  stroke.join = geometry::path::Join::Round;
+  return stroke;
+}
+
+struct MarkCase {
+  std::string name;
+  Decoration mark;
+  bool staysOnOutline;
+};
+
+std::vector<MarkCase> markCases() {
+  std::vector<MarkCase> cases;
+  const auto add = [&](std::string name, Decoration mark, bool onOutline) {
+    cases.push_back({std::move(name), std::move(mark), onOutline});
+  };
+  add("a round-joined stroke", roundStroke(), true);
+  PathFormat outer = roundStroke();
+  outer.align = PathFormat::Align::Outer;
+  add("a round-joined outer stroke", outer, true);
+  PathFormat inner = brush::solid(4, Fill::color({1, 1, 1, 1}),
+                                  PathFormat::Align::Inner);
+  add("a mitred inner stroke", inner, true);
+  add("a mitred stroke", brush::solid(4, Fill::color({1, 1, 1, 1})), false);
+  PathFormat square = roundStroke();
+  square.cap = geometry::path::Cap::Square;
+  add("a square-capped stroke", square, false);
+  PathFormat stamped = roundStroke();
+  stamped.stampPath = geometry::path::fromSk([] {
+    SkPathBuilder spike;
+    spike.moveTo(0, -10);
+    spike.lineTo(3, 10);
+    spike.lineTo(-3, 10);
+    spike.close();
+    return spike.detach();
+  }());
+  stamped.stampAdvance = 12;
+  add("a stamped stroke", stamped, false);
+  add("a shadow", shadow(material::Color{0, 0, 0, 1}, {3, 4}, 2), true);
+  add("a wash",
+      decorations::wash(material::Material(material::Color{0, 0, 1, 1})),
+      true);
+  Border border = decorations::border(2, Fill::color({1, 1, 1, 1}), 1);
+  border.join = geometry::path::Join::Round;
+  add("a round-joined border", border, true);
+  border.inset = -2;
+  add("a border set outside the outline", border, false);
+  add("a brush", Brush{}.layer(roundStroke()), true);
+  add("a brush over a mitred stroke",
+      Brush{}.layer(brush::solid(4, Fill::color({1, 1, 1, 1}))), false);
+  add("layers", brush::layers({roundStroke(), roundStroke(2)}), true);
+  add("a restyled stroke",
+      brush::restyle(geometry::shapers::Rounded{6}, roundStroke()), true);
+  add("a stroke on the top edges",
+      onEdges(geometry::path::Edge::Top, roundStroke()), true);
+  add("a stroke on an inward copy", inset(2, roundStroke()), true);
+  add("a stroke on an outward copy", inset(-2, roundStroke()), false);
+  add("a line", lines::Line{}, true);
+  lines::Line mitredLine;
+  mitredLine.join = geometry::path::Join::Miter;
+  add("a mitred line", mitredLine, false);
+  add("rails",
+      lines::rails({{.across = -3, .width = 2}, {.across = 3, .width = 2}}),
+      true);
+  add("a hatch", lines::Hatch{}, true);
+  add("a radial hatch", lines::RadialHatch{}, true);
+  add("a layered brush", LayeredBrush{{StrokeLayer{.width = 2}}}, false);
+  add("a bevel pair", styles::BevelPair{}, true);
+  add("a bevel", kit::Bevel{}, true);
+  kit::Bevel outside;
+  outside.inner = kit::BevelInner{.gap = -2};
+  add("a bevel whose inner ring stands outside", outside, false);
+  add("a relief",
+      relief(material::Material(material::Color{0.5f, 0.5f, 0.5f, 1})), true);
+  add("a scatter",
+      brush::Scatter{.art = stampArt(), .spacing = 12, .bleedPx = 6}, true);
+  add("a pattern", brush::Pattern{.side = stampArt(), .bleedPx = 6}, true);
+  brush::Art art = brush::artAlong(stampArt(), 6);
+  art.bleedPx = 6;
+  add("swept art", art, true);
+  add("brackets", styles::brackets(material::Color{1, 1, 1, 1}), false);
+  add("a tick rail", styles::tickRail(material::Color{1, 1, 1, 1}), false);
+  add("a slice", Slice{}, false);
+  add("a contour walk", ContourWalk{}, false);
+  return cases;
+}
+
+}  // namespace
+
+TEST(ComposePaintBounds, EveryMarkStandsOnTheOutlineOrOnTheBox) {
+  // A mark on the outline sizes a shaped node to the shape grown by its
+  // bleed; a mark laid against the box, or one whose bleed does not hold
+  // its whole reach from the outline, keeps the box.
+  const SkRect page = SkRect::MakeWH(kPageWidth, kPageHeight);
+  for (const MarkCase& markCase : markCases()) {
+    SCOPED_TRACE(markCase.name);
+    EXPECT_EQ(markCase.mark.staysOnOutline(), markCase.staysOnOutline)
+        << markCase.name << " says the wrong thing about where it stands";
+    const std::vector<SkRect> layers =
+        layersOf(markedOnThePage(markCase.mark));
+    ASSERT_FALSE(layers.empty())
+        << "the faded triangle wearing " << markCase.name
+        << " opened no bounded layer at all";
+    const float bleed =
+        markCase.mark.bleed({(float)kPageWidth, (float)kPageHeight});
+    const SkRect ink = kTriangleBounds.makeOutset(bleed, bleed);
+    for (const SkRect& layer : layers) {
+      if (markCase.staysOnOutline)
+        EXPECT_EQ(layer, ink)
+            << "a layer stood at (" << layer.left() << ", " << layer.top()
+            << ") to (" << layer.right() << ", " << layer.bottom()
+            << ") where the triangle wearing " << markCase.name
+            << " is its bounds grown by the mark's bleed, (" << ink.left()
+            << ", " << ink.top() << ") to (" << ink.right() << ", "
+            << ink.bottom() << ")";
+      else
+        EXPECT_TRUE(layer.contains(page))
+            << "a layer stood at (" << layer.left() << ", " << layer.top()
+            << ") to (" << layer.right() << ", " << layer.bottom()
+            << ") although " << markCase.name
+            << " may stand anywhere on the page-sized box";
+    }
+  }
+}
+
+TEST(ComposePaintBounds, AShapedLeafCarryingBracketsKeepsItsBox) {
+  const std::vector<SkRect> layers = layersOf(
+      markedOnThePage(styles::brackets(material::Color{1, 1, 1, 1})));
+  ASSERT_FALSE(layers.empty())
+      << "the faded triangle wearing brackets opened no bounded layer";
+  for (const SkRect& layer : layers)
+    EXPECT_TRUE(layer.contains(SkRect::MakeWH(kPageWidth, kPageHeight)))
+        << "a layer stood at (" << layer.left() << ", " << layer.top()
+        << ") to (" << layer.right() << ", " << layer.bottom()
+        << ") although brackets stand at the corners of the page-sized box";
 }

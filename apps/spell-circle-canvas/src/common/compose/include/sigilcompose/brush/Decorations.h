@@ -187,6 +187,15 @@ struct PathFormat {
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
+  /** Whether the stroke stands within its `bleed()` of the outline it is
+   *  handed (OutlineDecoration). An Inner stroke is clipped to the shape,
+   *  so it always does. Otherwise it does when its corners and ends stay
+   *  inside the width `bleed()` states — a round or bevelled join, a butt
+   *  or round cap — and nothing but the stroke is laid: a mitred corner
+   *  reaches past the half width, and a stamped path or a path effect
+   *  lays ink wherever its own path puts it, so each of those keeps the
+   *  node's box. */
+  bool staysOnOutline() const;
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
@@ -246,6 +255,9 @@ struct Shadow {
    *  node's picture-cache bounds, which is why the bound range has to be
    *  declared through `maxBind` — bleed() cannot read a future value. */
   float bleed() const;
+  /** The shadow is the outline it is handed, moved by its offset and
+   *  softened by its blur, both of which `bleed()` holds. */
+  bool staysOnOutline() const { return true; }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
@@ -263,7 +275,11 @@ inline Shadow shadow(material::Color ink, glm::vec2 offset, float blur) {
 }
 
 /** Image-onto-box through a lattice (per-cell stretch); nine-slice is
- *  xDivs/yDivs of size 2. Empty divs stretch the whole image. */
+ *  xDivs/yDivs of size 2. Empty divs stretch the whole image.
+ *
+ *  Laid against the node's BOX, not the outline it is handed, so it does
+ *  not declare `staysOnOutline()` and a shaped node wearing it keeps its
+ *  box. */
 struct Slice {
   std::shared_ptr<const sigil::media::Image> asset;
   std::vector<int> xDivs;
@@ -301,7 +317,9 @@ struct PathSample {
 
 /** Walk the outline at `spacing` px intervals; at every sample the
  *  canvas is translated to the sample and rotated so +x follows the
- *  tangent. The general procedural border. Three bodies, composable:
+ *  tangent. The general procedural border. Its bodies state no extent,
+ *  so it declares no `bleed()` and no `staysOnOutline()`: a shaped node
+ *  wearing a walk keeps its box. Three bodies, composable:
  *
  *  - `draw`: a raw program per sample (per-step images, a shader, nested
  *    drawing). Set `animatedWalk` when it depends on
@@ -391,6 +409,8 @@ struct Wash {
   /** A wash through anything but source-over reads what is under the node
    *  — which is the point of it, and why such a node cannot be baked. */
   bool blends() const { return blend != material::BlendMode::Normal; }
+  /** The wash fills the outline it is handed and nothing else. */
+  bool staysOnOutline() const { return true; }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
@@ -473,6 +493,13 @@ struct Border {
   /** The mark's own width (see PathFormat::reach) — independent of inset,
    *  which moves the mark rather than widening it. */
   float reach() const { return std::max(width, cornerWidth); }
+  /** Whether the rule stands within its `bleed()` of the outline it is
+   *  handed (OutlineDecoration): when it is laid inside the outline or on
+   *  it, and its corners and ends stay inside the half width `bleed()`
+   *  states. A negative inset strokes a mitred outward copy whose corners
+   *  stand further out than the inset, and a mitred join reaches past the
+   *  half width, so either keeps the node's box. */
+  bool staysOnOutline() const;
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };

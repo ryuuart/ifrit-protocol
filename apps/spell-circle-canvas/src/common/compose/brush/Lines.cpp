@@ -26,6 +26,7 @@
 
 #include "sigilgeometry/path/Contour.h"  // the contour walkers: corners,
                                          // parallels, displacement, windows
+#include "StrokeReach.h"
 #include "paint/FillLowering.h"
 
 namespace sigil::compose::lines {
@@ -132,6 +133,14 @@ float Line::bleed() const {
   const float casing = parallels > 1 ? gap * (float)(parallels - 1) : 0.0f;
   return width + casing + waveAmplitude + std::abs(across) +
          std::max({tickLength * 0.5f, markerSize, 0.0f});
+}
+
+bool Line::staysOnOutline() const {
+  if (join == geometry::path::Join::Miter) return false;
+  // A tie reaches half its length off the run, which `bleed()` holds, and
+  // half its own width past its end, which the line's width holds.
+  const float tie = tickWidth > 0 ? tickWidth : width;
+  return tickSpacing <= 0 || tickLength <= 0 || tie * 0.5f <= width;
 }
 
 void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
@@ -352,6 +361,14 @@ float Rails::bleed() const {
   for (const Rail& r : rails)
     worst = std::max(worst, std::abs(r.across) + r.width * 0.5f);
   return worst + waveAmplitude;
+}
+
+bool Rails::staysOnOutline() const {
+  for (const Rail& rail : rails)
+    if (rail.join == geometry::path::Join::Miter ||
+        rail.cap == geometry::path::Cap::Square)
+      return false;
+  return true;
 }
 
 float Rails::span() const {

@@ -141,6 +141,8 @@ struct BevelPair {
   }
   /** How wide the mark is, inside the outline. */
   float reach() const { return std::max(lightWidth, darkWidth); }
+  /** Every band is clipped inside the shape it dresses. */
+  bool staysOnOutline() const { return true; }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
@@ -187,6 +189,9 @@ struct Brackets {
 
   bool operator==(const Brackets&) const = default;
   float bleed() const { return std::max(0.0f, -gap); }
+  /** Laid against the box, so a shaped node wearing brackets keeps its
+   *  box (OutlineDecoration). */
+  bool staysOnOutline() const { return false; }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
@@ -225,6 +230,9 @@ struct TickRail {
   bool antiAlias = false;
 
   bool operator==(const TickRail&) const = default;
+  /** Laid along the box's edges, so a shaped node wearing a rail keeps
+   *  its box (OutlineDecoration). */
+  bool staysOnOutline() const { return false; }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };

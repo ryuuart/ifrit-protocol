@@ -111,6 +111,10 @@ struct Bevel {
   bool operator==(const Bevel&) const = default;
   /** How far in from the outline the marks reach. */
   float reach() const;
+  /** Each ring is clipped inside the shape it dresses; an inner ring set
+   *  outside the outer one, at a negative gap, stands past the outline,
+   *  and the node keeps its box. */
+  bool staysOnOutline() const { return !inner || inner->gap >= 0; }
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 

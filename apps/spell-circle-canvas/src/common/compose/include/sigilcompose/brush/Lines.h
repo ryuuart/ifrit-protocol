@@ -191,6 +191,11 @@ struct Line {
   /** Paint reach beyond the outline (cull growth): outer parallels, tie
    *  arms, and heads all overhang. */
   float bleed() const;
+  /** Whether the line stands within `bleed()` of the outline it is handed
+   *  (OutlineDecoration): with a round or bevelled join, and ties no
+   *  wider than the reach `bleed()` gives them. A mitred join reaches past
+   *  the half width, on the run and on the offset rails both. */
+  bool staysOnOutline() const;
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 
