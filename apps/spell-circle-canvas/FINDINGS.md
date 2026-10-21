@@ -155,17 +155,6 @@ scene time. A test should render it ten times and find the renders
 identical, and a bisection over the commits between should name the one
 that moved it and pin its picture in that library.
 
-## The tint beside the shadow maps folds a material by its address
-
-`src/common/world/diligent/ShadowTints.cpp` folds a transmissive caster's
-material by its address and folds the frame's seconds only when the
-material is running, so a surface re-described each frame with different
-values at a reused address, or a repainted page it wears, keeps a stale
-tint. The tint is meant to redraw whenever what it is a function of
-changed. A test should repaint a transmissive caster's transmission map
-through a texture pass, and change its colour at the same address, and
-find the tint redrawn on that frame.
-
 ## A device page is read back to host memory by any caller that only wants its size
 
 `media::deviceImage(frame, nullptr)`, and so `Texture::frameAt` and
