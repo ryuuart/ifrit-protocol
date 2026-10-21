@@ -33,7 +33,7 @@
  *   Grimoire <stem>/<stem>.cpp               …either way, a sketch that
  *                                              is a directory, by its entry
  *   Grimoire --window-bench [<sec>] [--window-size <WxH>]
- *              [--window-scale <n>] [--sketch <name>] [--kind <k>]
+ *              [--window-scale <n>] [--sketch <name> ...] [--kind <k>]
  *                                              the window's own frame rate
  *   Grimoire --thumbnails [--sketch <name>] [--kind scene2d|scene3d]
  *              [--thumbnail-budget <sec>] [--thumbnail-heavy]
@@ -129,6 +129,7 @@
 
 #include "Arguments.h"
 #include "CatalogRowMap.h"
+#include "Conditions.h"
 #include "FrameLane.h"
 #include "GrimoireView.h"
 #include "Inspection.h"
@@ -421,6 +422,18 @@ int main(int argc, char* argv[]) {
                    entries[i].category);
     return 1;
   }
+  // The further sketches a repeated `--sketch` named, found the same way,
+  // for the window's lane to present after the first.
+  std::vector<int> named;
+  if (chosen >= 0) named.push_back(chosen);
+  for (const std::string& further : args.alsoSelected) {
+    const int index = sketch::find(further);
+    if (index < 0) {
+      std::fprintf(stderr, "no sketch matches \"%s\"\n", further.c_str());
+      return 1;
+    }
+    named.push_back(index);
+  }
 
   if (args.list) {
     // THE REGISTRY'S ROWS FOR A READER, spelled the way a plate names
@@ -623,11 +636,17 @@ int main(int argc, char* argv[]) {
   // come up is not fatal here: the scene2d sketches still run, and every
   // scene3d sketch is listed unavailable with the reason.
   // The window's own frame-rate lane opens the window at a stated size
-  // and asks Qt for a stated scale, which it can only be told before the
-  // application exists.
+  // and a stated device pixel ratio, which Qt can only be told before the
+  // application exists. Qt's factor MULTIPLIES the display's own ratio, so
+  // the factor asked for is the stated ratio over the ratio of the display
+  // a new window opens on: a ratio of 2 is a factor of 1 on a Retina panel
+  // and of 2 on an external display of one pixel per point.
   if (args.windowBench.scale > 0.0) {
+    const double native = mainDisplayPixelRatio();
     char factor[32];
-    std::snprintf(factor, sizeof factor, "%g", args.windowBench.scale);
+    std::snprintf(factor, sizeof factor, "%g",
+                  native > 0.0 ? args.windowBench.scale / native
+                               : args.windowBench.scale);
     setenv("QT_SCALE_FACTOR", factor, 1);
   }
   if (args.noGpu || !useDevice())
@@ -800,7 +819,7 @@ int main(int argc, char* argv[]) {
     window->requestActivate();
     if (!startWindowBench(application, *window, *view, args.windowBench,
                           fileGiven ? std::vector<int>{openAt}
-                                    : windowBenchSelection(chosen, args.kind)))
+                                    : windowBenchSelection(named, args.kind)))
       return 1;
   }
 

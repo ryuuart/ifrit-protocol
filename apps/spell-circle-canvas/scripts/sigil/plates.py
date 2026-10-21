@@ -43,6 +43,7 @@ read.
 
 import argparse
 import concurrent.futures
+import contextlib
 import dataclasses
 import json
 import os
@@ -255,7 +256,7 @@ def compare_main(argv: list) -> int:
     return comparison.status()
 
 
-def plate_dir(config, *parts, fresh=True):
+def plate_dir(config, *parts, fresh=True, replacing=None):
     """A KEPT plate directory under build/, beside the manifest.
 
     A verdict of MOVED is a hash disagreeing with a hash, which says
@@ -264,16 +265,23 @@ def plate_dir(config, *parts, fresh=True):
     opened and differenced after the run rather than into a directory
     removed at exit. build/ is ignored, so nothing here is ever committed.
 
-    @p fresh empties the directory first, which is what a run's own output
-    wants: a sweep narrowed to two scenes must not leave the other
-    hundred's plates standing beside them, or `plates compare` would report
-    scenes this run never rendered. The baseline directory is the one that
-    is NOT fresh — it is overwritten scene by scene as a rebase adopts
-    them, and pruned to the manifest afterwards."""
+    @p fresh empties the directory first, which is what a whole sweep's
+    own output wants: every plate in it is then one this run rendered.
+    @p replacing, given instead, names the scenes a narrowed sweep is
+    about to render and removes only their plates, so a run narrowed to
+    two scenes keeps the plates another narrowed run left beside them,
+    and a scene that fails to render leaves no plate of an earlier run
+    standing under its name. The baseline directory is neither: it is
+    overwritten scene by scene as a rebase adopts them, and pruned to the
+    manifest afterwards."""
     directory = tree.build_dir() / f"plates_{config}"
     for part in parts:
         directory = directory / part
-    if fresh:
+    if replacing is not None:
+        for scene in replacing:
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(plate_path(directory, scene))
+    elif fresh:
         shutil.rmtree(directory, ignore_errors=True)
     directory.mkdir(parents=True, exist_ok=True)
     return str(directory)
@@ -674,7 +682,7 @@ def main(argv: list) -> int:
             scenes,
             args.timeout_seconds,
             args.jobs,
-            plate_dir(args.config, "cpu"),
+            plate_dir(args.config, "cpu", replacing=scenes if narrowed else None),
             device_baseline,
         )
 
@@ -689,7 +697,9 @@ def main(argv: list) -> int:
         args,
         manifest=str(tree.build_dir() / DEVICE_MANIFEST.format(config=args.config)),
         kept_baseline=device_baseline,
-        judged=lambda: plate_dir(args.config, "device", "gpu"),
+        judged=lambda: plate_dir(
+            args.config, "device", "gpu", replacing=scenes if narrowed else None
+        ),
         stability=lambda: plate_dir(args.config, "device", "stability", fresh=False),
         extra_args=("--gpu",),
         narrowed=narrowed,

@@ -24,7 +24,7 @@ Grimoire --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--kind <k>] [--gpu]
 Grimoire --compare <dir-a> <dir-b>        # two sweeps' plates, differenced
 Grimoire [<file.cpp>] --window-bench [<sec>] [--window-size <WxH>]
-           [--window-scale <n>] [--sketch <name>] [--kind <k>]
+           [--window-scale <n>] [--sketch <name> ...] [--kind <k>]
 Grimoire --thumbnails [--sketch <name>] [--kind scene2d|scene3d]
            [--thumbnail-budget <sec>] [--thumbnail-heavy]
 Grimoire --publish [<name>] [--sketch <name>]
@@ -493,11 +493,14 @@ asked for. Keep `--fps` near the rate you would actually draw at.
 
 ```sh
 Grimoire [<file.cpp>] --window-bench [<sec>] [--window-size <WxH>]
-           [--window-scale <n>] [--sketch <name>] [--kind scene2d|scene3d]
+           [--window-scale <n>] [--sketch <name> ...]
+           [--kind scene2d|scene3d]
 ```
 
 Opens the window at a stated size and device pixel ratio, presents each
-selected sketch — or the file named, from its live session — for a
+selected sketch — the whole registry, what `--kind` narrows it to, each
+sketch a repeated `--sketch` names in the order named, or the file
+named, from its live session — for a
 stretch after a warm-up, and prints one machine-readable line each,
 prefixed `WINDOW` so a collector can find it, carrying the presented rate, the frame's work mean
 and p99, its paint phase, the submit, and the headroom the work alone
@@ -517,8 +520,9 @@ under the same power, back to back.
 device's own time for each stage of the frame, in milliseconds, each the
 mean over the measured stretch, as `frame:<ms>,<stage>:<ms>,…` — the
 whole frame first, then the stages in the order they ran. A geometry
-pass's stages are its name followed by `.shadow` (the shadow maps it
-drew), `.laid` (the clear, the sky and every body laid over),
+pass's stages are its name followed by `.pages` (the wait for the pages
+its bodies wear and their smaller levels), `.shadow` (the shadow maps it
+drew), `.tint` (what transmissive bodies let through beside them), `.laid` (the clear, the sky and every body laid over),
 `.colour-copy` and `.mips` (the scene copied, with its smaller levels,
 for a body that sees through itself), `.depth-copy` (the depth copied
 for one that fades into the scene), `.seen`, `.blended` and `.extras`
@@ -566,7 +570,20 @@ The window declares the process user-facing to the system while any of
 it is on screen, in front of other applications or behind them, so a
 stretch presented behind another application is not demoted to the
 background tier part-way through; a window hidden, minimised or wholly
-covered stops declaring it, unless it is publishing.
+covered stops declaring it, unless it is publishing or measuring. The
+frame-rate lane declares it for the whole run whatever covers the window
+— a run nobody watches is the usual case, and a process demoted half a
+minute in reads every later row several times slower with its work
+still small — and wakes the display and keeps it lit for as long as it
+runs, because a window on a display that has gone to sleep is asked for
+no frames at all. A selection stood down because no frame reached the screen says
+when the window was not exposed at the time.
+
+`--window-scale` is the window's device pixel ratio, whatever display it
+opens on: Qt's own factor multiplies the display's ratio, so the factor
+asked of Qt is the stated ratio over the ratio of the main display. The
+row's `window=` is what the window actually was — a display too small
+for the size asked for gives a smaller one, and the row says so.
 
 A presented rate is bounded by the compositor, which means by the
 display: a sketch comfortably inside its budget reads at the refresh

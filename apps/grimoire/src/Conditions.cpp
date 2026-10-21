@@ -1,15 +1,18 @@
 /** @file
  * The machine's conditions beside a measured rate, read through the
- * platform's own power and accelerator registries.
+ * platform's own power and accelerator registries, and the power
+ * manager's hold that keeps the display lit while it is taken.
  */
 
 #include "Conditions.h"
 
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
+#include <CoreGraphics/CoreGraphics.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/ps/IOPSKeys.h>
 #include <IOKit/ps/IOPowerSources.h>
+#include <IOKit/pwr_mgt/IOPMLib.h>
 #endif
 
 std::string powerSource() {
@@ -63,5 +66,49 @@ int gpuBusyPercent() {
   return busy;
 #else
   return -1;
+#endif
+}
+
+double mainDisplayPixelRatio() {
+#ifdef __APPLE__
+  CGDisplayModeRef mode = CGDisplayCopyDisplayMode(CGMainDisplayID());
+  if (!mode) return 0.0;
+  const size_t points = CGDisplayModeGetWidth(mode);
+  const size_t pixels = CGDisplayModeGetPixelWidth(mode);
+  CGDisplayModeRelease(mode);
+  return points > 0 ? (double)pixels / (double)points : 0.0;
+#else
+  return 0.0;
+#endif
+}
+
+DisplayAwakeHold::DisplayAwakeHold(const char* reason) {
+#ifdef __APPLE__
+  CFStringRef name =
+      CFStringCreateWithCString(kCFAllocatorDefault, reason, kCFStringEncodingUTF8);
+  // A display already asleep is not woken by a hold against idle sleep,
+  // so the hold begins as a user's touch would: the display comes on,
+  // and the hold keeps it on from there.
+  IOPMAssertionID activity = kIOPMNullAssertionID;
+  if (name &&
+      IOPMAssertionDeclareUserActivity(name, kIOPMUserActiveLocal,
+                                       &activity) == kIOReturnSuccess)
+    m_activity = activity;
+  IOPMAssertionID assertion = kIOPMNullAssertionID;
+  if (name &&
+      IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleDisplaySleep,
+                                  kIOPMAssertionLevelOn, name,
+                                  &assertion) == kIOReturnSuccess)
+    m_assertion = assertion;
+  if (name) CFRelease(name);
+#else
+  (void)reason;
+#endif
+}
+
+DisplayAwakeHold::~DisplayAwakeHold() {
+#ifdef __APPLE__
+  if (m_assertion != 0) IOPMAssertionRelease(m_assertion);
+  if (m_activity != 0) IOPMAssertionRelease(m_activity);
 #endif
 }

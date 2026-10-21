@@ -185,11 +185,14 @@ target_compile_definitions(Grimoire PRIVATE
   SIGIL_GRIMOIRE_VERSION="${PROJECT_VERSION}")
 if(APPLE)
   # The power source and the GPU's utilization a measured row is taken
-  # under, read from the platform's own registries.
+  # under, read from the platform's own registries; the display's pixel
+  # ratio and the hold that keeps it lit while a row is taken.
   find_library(GRIMOIRE_IOKIT IOKit REQUIRED)
   find_library(GRIMOIRE_COREFOUNDATION CoreFoundation REQUIRED)
+  find_library(GRIMOIRE_COREGRAPHICS CoreGraphics REQUIRED)
   target_link_libraries(Grimoire PRIVATE ${GRIMOIRE_IOKIT}
-                                         ${GRIMOIRE_COREFOUNDATION})
+                                         ${GRIMOIRE_COREFOUNDATION}
+                                         ${GRIMOIRE_COREGRAPHICS})
 endif()
 target_link_libraries(Grimoire PRIVATE
   SigilSketch SigilSketchWindow SigilSketchPython SigilSketches SigilSketchesPython
@@ -496,6 +499,19 @@ add_test(NAME sketch_window_bench_entry
     --work ${CMAKE_BINARY_DIR}/sketch_window_bench_entry)
 set_tests_properties(sketch_window_bench_entry PROPERTIES
   LABELS window TIMEOUT 300)
+
+# A SKETCH READS LATE IN A SEQUENCE WHAT IT READS ALONE: the window lane
+# presents a cheap page alone, then again and again between showings of
+# another, past the first minute of the process, and holds every showing
+# to the band of the page alone. A machine where no window presents is
+# skipped.
+add_test(NAME sketch_window_bench_sequence
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/window_bench_sequence.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --work ${CMAKE_BINARY_DIR}/sketch_window_bench_sequence)
+set_tests_properties(sketch_window_bench_sequence PROPERTIES
+  LABELS window SKIP_RETURN_CODE 77 TIMEOUT 400)
 
 # THE WINDOW'S INPUT DOOR, which only a window can answer: a `--shot` run
 # of a file of functions, presented while a client attached to the

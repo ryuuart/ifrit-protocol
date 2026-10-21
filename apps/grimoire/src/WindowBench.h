@@ -67,7 +67,10 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                       std::vector<int> selection);
 
 /** The registry entries `--window-bench` will present: the whole table,
- *  or what `--sketch` and `--kind` narrow it to. A sketch this machine
- *  cannot run is named as stood down and left out, exactly as the sweep
- *  passes over it — a skip is not a failure and not a measurement. */
-std::vector<int> windowBenchSelection(int only, const std::string& kind);
+ *  or what `--kind` narrows it to, or the entries @p named by `--sketch`
+ *  in the order they were named — the same entry named twice is presented
+ *  twice. A sketch this machine cannot run is named as stood down and
+ *  left out, exactly as the sweep passes over it — a skip is not a
+ *  failure and not a measurement. */
+std::vector<int> windowBenchSelection(const std::vector<int>& named,
+                                      const std::string& kind);

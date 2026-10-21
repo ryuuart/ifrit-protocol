@@ -6,6 +6,7 @@
     sigil.py bench --repetitions 7 --min-time 0.2
     sigil.py bench --lane fps               # the real window instead
     sigil.py bench --lane fps --sketch first_light
+    sigil.py bench --lane fps --sketch alpha_ground bousen alpha_ground
     sigil.py bench --lane fps --kind scene3d --seconds 4
 
 TWO LANES, ONE BODY. The `bench` lane (the default) runs every `*_bench`
@@ -379,8 +380,8 @@ def run_window(binary, args):
         "--window-scale",
         f"{args.scale:g}",
     ]
-    if args.sketch:
-        command += ["--sketch", args.sketch]
+    for stem in args.sketch or []:
+        command += ["--sketch", stem]
     if args.kind:
         command += ["--kind", args.kind]
     try:
@@ -442,6 +443,12 @@ def fps_lane(args) -> int:
     # request: a display that will not give the size asked for gives
     # another, and the baseline has to record the one that was measured.
     window = rows[next(iter(rows))].get("window", args.size)
+    asked = f"{args.size}@{args.scale:g}"
+    if window != asked:
+        print(
+            f"the window is {window}, asked for {asked}: the display would "
+            f"not give the size asked for, and the rows are this window's\n"
+        )
 
     standing = baseline.load(baseline_path)
     if args.rebase or standing is None:
@@ -593,9 +600,16 @@ def main(argv: list) -> int:
         type=float,
         default=2.0,
         metavar="N",
-        help="Qt's scale factor for the window (default 2)",
+        help="the window's device pixel ratio, on whatever display it opens "
+        "on (default 2)",
     )
-    window.add_argument("--sketch", metavar="NAME", help="present only this one")
+    window.add_argument(
+        "--sketch",
+        nargs="+",
+        metavar="NAME",
+        help="present only these, one after another in one window, in the "
+        "order named",
+    )
     window.add_argument(
         "--kind", choices=["scene2d", "scene3d"], help="present only these"
     )

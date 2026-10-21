@@ -180,6 +180,42 @@ class TheDeviceTierIsTheReference(unittest.TestCase):
         self.assertIn("MOVED  astral_tome", printed)
         self.assertIn("<-- FINDING", printed)
 
+    def test_a_narrowed_sweep_keeps_the_plates_it_did_not_render(self):
+        self.fixture.run("--tier", "device", "--rebase")
+        status, printed = self.fixture.run(
+            "--tier", "device", "--sketch", "astral_tome"
+        )
+        self.assertEqual(status, 0, printed)
+        status, printed = self.fixture.run(
+            "--tier", "device", "--scenes", "cue_desk_live", "first_light"
+        )
+        self.assertEqual(status, 0, printed)
+        judged = self.fixture.root / "plates_Release" / "device" / "gpu"
+        self.assertEqual(
+            sorted(os.listdir(judged)),
+            ["plate_astral_tome.png", "plate_cue_desk_live.png", "plate_first_light.png"],
+        )
+
+    def test_a_narrowed_sweep_leaves_no_earlier_plate_under_a_scene_that_failed(self):
+        self.fixture.run("--tier", "device", "--rebase")
+        self.fixture.run("--tier", "device", "--sketch", "astral_tome")
+        (self.fixture.root / "failing.json").write_text(json.dumps(["astral_tome"]))
+        status, printed = self.fixture.run(
+            "--tier", "device", "--sketch", "astral_tome"
+        )
+        self.assertEqual(status, 1, printed)
+        judged = self.fixture.root / "plates_Release" / "device" / "gpu"
+        self.assertEqual(os.listdir(judged), [])
+
+    def test_an_unnarrowed_sweep_holds_only_what_it_rendered(self):
+        self.fixture.run("--tier", "device", "--rebase")
+        judged = self.fixture.root / "plates_Release" / "device" / "gpu"
+        judged.mkdir(parents=True, exist_ok=True)
+        (judged / "plate_retired_sketch.png").write_text("an earlier run")
+        status, printed = self.fixture.run("--tier", "device")
+        self.assertEqual(status, 0, printed)
+        self.assertNotIn("plate_retired_sketch.png", os.listdir(judged))
+
     def test_the_cpu_tier_refuses_to_rebase(self):
         with self.assertRaises(SystemExit):
             self.fixture.run("--tier", "cpu", "--rebase")

@@ -24,6 +24,8 @@
 #include <string_view>
 #include <utility>
 
+#include <WindowChrome.h>
+
 #include "Conditions.h"
 #include "GrimoireView.h"
 #include "SketchCatalog.h"
@@ -61,12 +63,29 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
           std::chrono::steady_clock::now(), 0.0, 0, 0, 0.0, -1.0, 0.0});
   run->cadence.select(0.0);
   view.setProperty("sketchIndex", run->selection[0]);
+  // THE DISPLAY IS LIT, AND STAYS LIT FOR THE WHOLE RUN. A sweep of the
+  // registry outlasts the idle time after which the display sleeps, and a
+  // window on a sleeping display is not exposed: every sketch from that
+  // moment until someone touches the machine would be stood down as
+  // presenting nothing. Held by the timer's closure, so it goes when the
+  // run does.
+  auto displayAwake = std::make_shared<DisplayAwakeHold>(
+      "Grimoire measures each sketch in its window");
+  // AND THE PROCESS STAYS USER-FACING FOR THE WHOLE RUN, wherever the
+  // window stands. A window wholly covered by another application stops
+  // declaring the process user-facing, and about half a minute later the
+  // system moves every thread of it to the background tier: a sweep
+  // nobody is watching reads its first rows at their own rate and every
+  // row after them several times slower, with work that is still small.
+  // A measurement's frames are wanted whatever covers the window, which
+  // is what a window whose frames other applications watch declares.
+  WindowChrome::keepRendering(&window);
 
   auto* timer = new QTimer(&application);
   timer->setInterval(8);
   QObject::connect(
       timer, &QTimer::timeout, &application,
-      [&window, &view, options, run, timer] {
+      [&window, &view, options, run, timer, displayAwake] {
         // Each tick asks the item for a frame. The window drives itself
         // once it is presenting, and the ask costs nothing when it is
         // already going — but a window a compositor has stopped giving
@@ -188,8 +207,16 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
           }
         } else {
           // Step::Skip — the window never presented this entry's session.
-          std::printf("WINDOW %s SKIPPED no frame presented in %.1fs\n",
-                      key.c_str(), run->cadence.elapsed(now));
+          // A window the system no longer exposes is asked for no frames
+          // at all, which is the machine's state and not the sketch's, so
+          // the line says which of the two it was.
+          std::printf("WINDOW %s SKIPPED no frame presented in %.1fs%s\n",
+                      key.c_str(), run->cadence.elapsed(now),
+                      window.isExposed()
+                          ? ""
+                          : " (the window is not exposed: the display "
+                            "asleep, the window minimised or on another "
+                            "space)");
           ++run->stoodDown;
         }
         std::fflush(stdout);
@@ -213,13 +240,22 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
 }
 
 /** The registry entries `--window-bench` will present: the whole table,
- *  or what `--sketch` and `--kind` narrow it to. A sketch this machine
- *  cannot run is named as stood down and left out, exactly as the sweep
- *  passes over it — a skip is not a failure and not a measurement. */
-std::vector<int> windowBenchSelection(int only, const std::string& kind) {
+ *  or what `--kind` narrows it to, or the entries @p named by `--sketch`
+ *  in the order they were named. A sketch this machine cannot run is
+ *  named as stood down and left out, exactly as the sweep passes over
+ *  it — a skip is not a failure and not a measurement. */
+std::vector<int> windowBenchSelection(const std::vector<int>& named,
+                                      const std::string& kind) {
+  std::vector<int> wanted;
+  if (named.empty()) {
+    wanted = sketch::selection(-1, kind);
+  } else {
+    for (int index : named)
+      for (int kept : sketch::selection(index, kind)) wanted.push_back(kept);
+  }
   std::vector<int> presented;
   const auto& entries = sketch::registry();
-  for (int index : sketch::selection(only, kind)) {
+  for (int index : wanted) {
     std::string why;
     if (!entries[index].available(&why)) {
       std::printf("WINDOW %s SKIPPED %s\n", entries[index].key, why.c_str());

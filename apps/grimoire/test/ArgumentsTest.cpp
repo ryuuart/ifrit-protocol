@@ -76,6 +76,21 @@ TEST(GrimoireArguments, AStateRootIsOneDirectoryNamedOnce) {
   EXPECT_FALSE(parse({"--thumbnails-dir", "thumbnails"}));
 }
 
+TEST(GrimoireArguments, OnlyTheWindowLaneTakesSeveralSketches) {
+  const auto sequence = parse({"--window-bench", "2", "--sketch", "alpha_ground",
+                               "--sketch", "bousen", "--sketch",
+                               "alpha_ground"});
+  ASSERT_TRUE(sequence);
+  EXPECT_EQ(sequence->selected, "alpha_ground");
+  EXPECT_EQ(sequence->alsoSelected,
+            (std::vector<std::string>{"bousen", "alpha_ground"}));
+  const auto one = parse({"--headless", "plates", "--sketch", "alpha_ground"});
+  ASSERT_TRUE(one);
+  EXPECT_TRUE(one->alsoSelected.empty());
+  EXPECT_FALSE(parse({"--headless", "plates", "--sketch", "alpha_ground",
+                      "--sketch", "bousen"}));
+}
+
 TEST(GrimoireArguments, InspectTakesAnOptionalPortOnce) {
   const auto any = parse({"--inspect"});
   ASSERT_TRUE(any);

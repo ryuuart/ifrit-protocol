@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "FrameLane.h"
 #include "WindowBench.h"
@@ -34,6 +35,10 @@ struct Arguments {
   std::filesystem::path pythonExecutable;
   std::string pythonAbi;
   std::string selected, kind, shotPath;
+  /** The sketches a repeated `--sketch` named after the first, in the
+   *  order named. Only the window's frame-rate lane presents more than
+   *  one named sketch; every other lane refuses a second. */
+  std::vector<std::string> alsoSelected;
   sigil::sketch::CompareOptions compareOptions;
   sigil::sketch::SweepOptions sweepOptions;
   sigil::sketch::StoryOptions storyOptions;

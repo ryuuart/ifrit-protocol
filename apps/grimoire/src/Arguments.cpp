@@ -108,7 +108,10 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     } else if (arg == "--kind" && i + 1 < argc) {
       args.kind = argv[++i];
     } else if (arg == "--sketch" && i + 1 < argc) {
-      args.selected = argv[++i];
+      if (args.selected.empty())
+        args.selected = argv[++i];
+      else
+        args.alsoSelected.push_back(argv[++i]);
     } else if (arg == "--ledger") {
       args.sweepOptions.ledger = true;
     } else if (arg == "--shot" && i + 1 < argc) {
@@ -220,6 +223,16 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
                  "--video encodes compiled-in sketches named with --sketch, "
                  "and a sketch file or --workspace is not one; photograph a "
                  "file with --frame and --frames instead\n");
+    return std::nullopt;
+  }
+  // SEVERAL NAMED SKETCHES ARE A SEQUENCE ONLY THE WINDOW'S LANE PRESENTS,
+  // one after another in one process; every other lane answers one
+  // sketch, and a second name it would pass over is refused rather than
+  // dropped.
+  if (!args.alsoSelected.empty() && args.windowBench.seconds <= 0.0) {
+    std::fprintf(stderr,
+                 "--sketch names one sketch, except under --window-bench, "
+                 "which presents each named sketch in the order named\n");
     return std::nullopt;
   }
   if (args.pythonExecutable.empty() != args.pythonAbi.empty()) {

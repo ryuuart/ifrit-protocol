@@ -386,9 +386,11 @@ THE PLATES ARE KEPT, beside the manifest, under
 overwritten rather than accumulated, and never committed because
 `build/` is ignored. `device/baseline/` holds what the device manifest
 was adopted from and is overwritten scene by scene on rebase; it is also
-what the raster smoke reads against. `device/gpu/` holds what the last
-judging device sweep rendered, and `cpu/` what the last raster smoke
-rendered. A hash says a scene MOVED and nothing about where, so
+what the raster smoke reads against. `device/gpu/` holds what the judging
+device sweeps rendered, and `cpu/` what the raster smokes rendered: an
+unnarrowed sweep empties its directory first, and a narrowed one
+replaces only the plates of the scenes it renders, so two narrowed runs
+side by side keep each other's plates. A hash says a scene MOVED and nothing about where, so
 each mover's verdict line names its two files and the summary prints the
 `sigil.py plates compare build/plates_<config>/device/baseline
 build/plates_<config>/device/gpu` that differences them channel by
@@ -452,7 +454,15 @@ are emptied where the measured stretch begins, one session is held at a
 time and no thumbnail is written while a rate is being taken — so a
 sketch reads in the sweep what it reads presented alone. A sketch the
 window never presented is stood down by name, and a sweep that stood one
-down exits non-zero rather than reporting a rate of zero. A baseline is therefore per machine
+down exits non-zero rather than reporting a rate of zero. For the whole
+sweep the process stays user-facing whatever covers the window and the
+display is woken and kept lit, because an unattended sweep outlasts both the half
+minute after which the system demotes a covered window's process and
+the idle time after which the display sleeps. `--sketch a b c` presents
+those stems one after another in one window, in the order named;
+`--scale` is the window's device pixel ratio on whatever display it
+opens on, and a window other than the one asked for is said before the
+rows. A baseline is therefore per machine
 AND per display mode, and the file records the window size and scale it
 was taken at so a mismatch is visible rather than silently compared.
 
