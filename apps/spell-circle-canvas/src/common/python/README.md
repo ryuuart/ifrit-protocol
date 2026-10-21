@@ -51,6 +51,17 @@ string, which is the native attribute reference. `Builder.copy` with no
 arguments copies the chain; with a source and a destination it is the
 native lane copy. The builder's sinks cook on the CPU executor.
 
+Draw's `Stack` and `Layer` are held on raster pixels. A layer is formed
+on raster as it is made, at the stack's density, and keeps standing there
+whatever pen begins it later; `with layer.pen() as pen` opens a frame
+under a raster pen at that density, whose text shapes with the
+platform's installed families, or under the host pen it is given. The
+composite is made under a raster pen too, at the density a pen last put
+the stack down at, and a pen that puts it down draws it as an image. So a
+stack is drawn on, composited and encoded as PNG with no frame open, and
+a layer handle checks at every use that its layer still stands, since
+removing a layer frees it.
+
 ## Layout
 
 ONE DIRECTORY PER NATIVE LIBRARY, ONE FILE PER SUBJECT. Every binding
@@ -351,7 +362,8 @@ behind the definition that says the SDK is there.
   `bindComposeMasks`, `bindComposePaintPrograms`, `bindComposeSchemes`,
   `bindComposeScope`, `bindComposeSelectors`, `bindComposeTextEffects`,
   `bindComposeTextureScene`, `bindDocument`
-* `draw/Registration.h` — `bindPen`, `bindBrush`, `bindDrawCanvasSeam`
+* `draw/Registration.h` — `bindPen`, `bindDrawStack`, `bindBrush`,
+  `bindDrawCanvasSeam`
 * `world/Registration.h` — `bindWorld`
 * `io/Registration.h` — `bindIO`, `bindIOFrames`
 * `data/Registration.h` — `bindData`, `bindDataConnection`

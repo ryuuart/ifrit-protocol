@@ -1,6 +1,7 @@
 import os
 
 import sigil.compose
+import sigil.draw
 
 def open(
     size: tuple[float, float] | list[float] = ...,
@@ -21,7 +22,9 @@ class Window:
         headless: bool = ...,
         assets: str | os.PathLike[str] | None = ...,
     ) -> None: ...
-    def show(self, what: sigil.compose.Element | type[object] | object) -> object: ...
+    def show(
+        self, what: sigil.compose.Element | sigil.draw.Stack | type[object] | object
+    ) -> object: ...
     @property
     def sketch(self) -> object: ...
     def still(self, path: str | os.PathLike[str], *, density: float = ...) -> str: ...

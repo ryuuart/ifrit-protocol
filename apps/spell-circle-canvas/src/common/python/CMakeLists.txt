@@ -31,7 +31,7 @@ sigil_library(SigilPython
     compose/Kit.cpp compose/Nodes.cpp data/Data.cpp draw/Brush.cpp
     draw/BrushBinding.h draw/BrushEngine.cpp draw/BrushFields.cpp
     draw/BrushFormat.cpp draw/BrushGeometry.cpp draw/BrushRecords.cpp
-    draw/BrushStrokes.cpp draw/Pen.cpp geometry/Geometry.cpp
+    draw/BrushStrokes.cpp draw/Pen.cpp draw/Stack.cpp geometry/Geometry.cpp
     io/Resources.cpp material/Material.cpp
     motion/Motion.cpp skia/Values.cpp weave/Layout.cpp weave/Type.cpp
     world/World.cpp

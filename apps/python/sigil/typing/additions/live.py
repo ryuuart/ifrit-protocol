@@ -2,6 +2,7 @@
 
 ``window = live.open(size=(960, 540))`` puts a window on screen in the
 process that asked for it. ``window.show(tree)`` draws a compose tree,
+``window.show(stack)`` draws a ``draw.Stack`` of layers every frame,
 ``window.show(Sketch)`` runs a ``@sketch`` class as Grimoire runs it, and
 ``window.sketch`` is the running instance, so an attribute assigned at the
 prompt is what the next frame's ``draw`` or ``describe`` reads.
@@ -23,6 +24,7 @@ import time as _time
 from os import fspath as _fspath
 
 from _sigil import live as _native
+from _sigil.draw import Stack as _Stack
 from _sigil.live import Window as _NativeWindow
 
 # How often a window turns while something else waits: once a frame at the
@@ -77,7 +79,10 @@ class Window:
         """Draw ``what`` from the next frame on, and answer what is running.
 
         ``what`` is a compose tree, drawn on a canvas the window's size over
-        its background; a ``@sketch`` class, instantiated once and run as
+        its background; a ``draw.Stack``, composited every frame on a canvas
+        the stack's size over the background, so a layer drawn, baked or
+        set at the prompt is in the next frame; a ``@sketch`` class,
+        instantiated once and run as
         Grimoire runs it, with setup, update, draw or describe, its timers
         and its engine; or an instance of one, run as it stands. The answer
         is the running instance, kept as ``window.sketch``. A sketch whose
@@ -85,6 +90,8 @@ class Window:
         """
         if isinstance(what, type):
             body, scene3d, needsDevice = self._class_body(what)
+        elif isinstance(what, _Stack):
+            body, scene3d, needsDevice = self._stack_body(what)
         elif _is_sketch(what):
             body, scene3d, needsDevice = self._instance_body(what)
         else:
@@ -98,7 +105,7 @@ class Window:
 
     @property
     def sketch(self):
-        """The running instance; for a tree, the tree."""
+        """The running instance; for a tree or a stack, what was shown."""
         return self._sketch
 
     def still(self, path, *, density=1.0):
@@ -196,6 +203,29 @@ class Window:
 
         shown = Shown()
         self._sketch = tree
+        return (lambda: shown), False, False
+
+    def _stack_body(self, stack):
+        width, height = stack.size
+        background = self._background
+
+        def program(pen):
+            # The leaf keeps its pixels from frame to frame, so each frame
+            # starts from nothing and the composite is the whole picture.
+            pen.clear()
+            stack.composite(pen)
+
+        class Shown:
+            def setup(self, ctx):
+                from .compose import graphics
+
+                ctx.canvas(width, height)
+                if background is not None:
+                    ctx.background(background)
+                ctx.render(graphics("live.stack", program).absolute().inset(0))
+
+        shown = Shown()
+        self._sketch = stack
         return (lambda: shown), False, False
 
 

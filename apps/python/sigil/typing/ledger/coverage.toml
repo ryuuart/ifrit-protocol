@@ -1502,6 +1502,43 @@ native = "an owned raster surface for drawing before the first frame or outside 
 python = ["skia.Surface.raster"]
 
 [[section.surface]]
+name = "Layer stacks"
+
+[[section.surface.item]]
+bound = "`draw.Stack` of named layers, each answered again by `layer(name)`, with `find`, `remove`, `reorder`, `names` and `layers`; a layer drawn through `with layer.pen() as pen` with no frame open or under a host pen, or baked from a compose tree; the pen's blend words, `opacity`, a `transform` read back as its `placement`, a `LayerTransform`, a mask by another layer's alpha or luminance, a clip shape, `show` and `hide`; the composite as an image, kept until a layer changes, put down by `stack.composite(pen)` or `pen.stack(stack)`, shown by a live window and inline in Jupyter through `_repr_png_`"
+python = [
+  "draw.Stack",
+  "draw.Stack.layer",
+  "draw.Stack.find",
+  "draw.Stack.remove",
+  "draw.Stack.reorder",
+  "draw.Stack.names",
+  "draw.Stack.layers",
+  "draw.Stack.image",
+  "draw.Stack.composite",
+  "draw.Stack._repr_png_",
+  "draw.Layer.pen",
+  "draw.Layer.bake",
+  "draw.Layer.blend",
+  "draw.Layer.opacity",
+  "draw.Layer.transform",
+  "draw.Layer.placement",
+  "draw.Layer.mask",
+  "draw.Layer.clip",
+  "draw.Layer.show",
+  "draw.Layer.hide",
+  "draw.Layer._repr_png_",
+  "draw.LayerTransform",
+  "draw.Pen.stack",
+]
+
+[[section.surface.item]]
+bound = "a stack held in Python stands on raster pixels, composited on the CPU at the density a pen last put it down at"
+
+[[section.surface.item]]
+native = "a stack composited on the device of the pen that puts it down, and a layer begun under a device pen standing on that device"
+
+[[section.surface]]
 name = "Brush"
 
 [[section.surface.item]]

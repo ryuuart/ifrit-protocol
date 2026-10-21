@@ -651,7 +651,9 @@ $ python -i sketch.py
 
 `live.open(size, background=..., title=..., assets=...)` opens the
 window. `window.show(what)` draws a compose tree on a canvas the window's
-size over `background`, runs a `@sketch` class as Grimoire runs it —
+size over `background`, draws a `draw.Stack` every frame on a canvas the
+stack's size, as [A picture built from layers](#a-picture-built-from-layers)
+shows, runs a `@sketch` class as Grimoire runs it —
 setup, update, draw or describe, its timers, its engine and its feeds —
 or runs an instance of one as it stands; it answers the running instance,
 which stays reachable as `window.sketch`. A `draw` or `describe` is looked
@@ -690,6 +692,119 @@ a test or a machine without a display opens. The window library and Qt are
 loaded the first time a window opens and never by an import, and an
 interpreter that cannot reach Qt is told so by `live.open`, naming what is
 missing. Grimoire shows its sketches through the same window library.
+
+### A picture built from layers
+
+`draw.Stack` is a picture made at the prompt and kept there: an ordered
+list of named pixel layers at one canvas size, composited bottom to top.
+Each layer is drawn with a pen of its own, or holds a compose tree baked
+into it, and carries how it meets the layers beneath it: a blend, an
+opacity, a placement, a mask and whether it shows. `window.show(stack)`
+draws the stack every frame, so each line that draws on a layer or sets
+one is in the next frame:
+
+```pycon
+>>> from sigil import live, draw, compose, weave
+>>> window = live.open(size=(1200, 800))
+>>> stack = draw.Stack((1200, 800))
+>>> window.show(stack)
+Stack((1200, 800), layers=[])
+>>> rings = stack.layer("rings")
+>>> with rings.pen() as pen:
+...     pen.noFill(); pen.stroke("#e8c547"); pen.strokeWeight(10)
+...     for radius in (120, 180, 240): pen.circle(600, 400, 2 * radius)
+...
+>>> field = stack.layer("field")
+>>> avenir = weave.fonts.find("Avenir", "Heavy")
+>>> words = compose.text("666 666 666", size=150, color="#7fd1c7").fontFamily(avenir)
+>>> field.bake(compose.box(words).alignItems("center").justifyContent("center"), (1200, 800))
+>>> field.transform(scale=(0.85, 1.0), origin=(600, 400))
+>>> field.blend("screen"); field.opacity = 0.8
+>>> cut = stack.layer("cut")
+>>> with cut.pen() as pen: pen.fill(255); pen.circle(600, 400, 180)
+...
+>>> cut.blend("remove")                       # deletes what lies beneath it
+>>> rings.mask(field)                         # rings only where the field has ink
+>>> stack.names                               # bottom to top
+['rings', 'field', 'cut']
+>>> rings                                     # the layer alone, inline in Jupyter
+Layer('rings')
+>>> window.still("ring-study.png")
+'ring-study.png'
+```
+
+`stack.layer(name)` answers the layer of that name, or makes it on top,
+so a line run again edits the layer rather than piling up another.
+`stack.names` and `stack.layers` read the layers bottom to top,
+`stack.find(name)` answers one or `None`, `stack.remove(layer)` takes one
+away with every mask it served, and `stack.reorder(layer, position)`
+moves one, counting from the bottom at zero; each takes a name or the
+layer itself. A layer handle kept past its removal raises.
+
+What a layer holds and how it meets the others:
+
+| verb | meaning |
+| --- | --- |
+| `with layer.pen() as pen:` | a frame on the layer; what was drawn before stands until `pen.clear()` |
+| `layer.bake(tree, size)` | clears the layer and paints a compose tree laid out at `size`, the stack's size when none is given |
+| `layer.blend(mode)` | the pen's blend words, as a constant or its word: `"blend"`, where a layer starts; `"remove"`, which erases what lies beneath wherever the layer has ink; `"multiply"`, `"screen"`, `"add"`, `"hard light"` and the rest |
+| `layer.opacity` | from 0 to 1, clamped |
+| `layer.transform(scale=, shear=, rotate=, translate=, origin=)` | the placement, about `origin`; unequal factors squash; angles in radians; a word left out takes its default |
+| `layer.mask(other, channel="alpha")` | shows the layer only where `other` has ink, read by `"alpha"` or `"luminance"`; `layer.mask(None)` removes it |
+| `layer.clip(shape, invert=False)` | shows the layer only where `shape`, drawn with a pen in the stack's units, covers; `layer.clip(None)` removes it |
+| `layer.show()`, `layer.hide()` | a hidden layer composites nothing and still serves as a mask |
+
+`layer.blend()` and `layer.mask()` with no argument read the setting
+back, and `layer.placement` the placement, which `other.transform(placement)`
+copies onto another layer; `layer.transform()` with no word is
+`layer.resetMatrix()`. `layer.image()` and `stack.image()`
+answer the layer alone and the composite as a `skia.Image`. The
+composite is kept and made again only when a layer changed, so a still
+stack costs one picture drawn a frame.
+
+A stack and a layer show themselves inline in Jupyter and IPython: each
+answers `_repr_png_` with its picture as PNG bytes at one pixel per
+canvas unit, so a cell ending in `stack` or `rings` shows the picture.
+
+A STACK HELD IN PYTHON STANDS ON RASTER PIXELS. Its layers and its
+composite are drawn by the CPU, which is what lets a layer be drawn on,
+baked and looked at with no frame open and no window, and a pen that puts
+the stack down draws the composite as an image. A pen with no host draws
+at the stack's density: the density a pen last put the stack down at,
+which is the window's once it has drawn a frame, and one before any pen
+has; `stack.setDensityFloor(2)` draws finer from the first line. It shapes
+text with the platform's installed families, so a face found with
+`weave.fonts.find` sets anywhere. `layer.pen(pen)` opens the frame under a
+host pen instead, with that pen's clock, input, fonts and density, and the
+frame closes with the host's. Edges are antialiased by the CPU rasterizer,
+so a layer's edges can differ by a shade from the same drawing made by a
+device pen.
+
+The same calls in a sketch's `setup` rebuild the stack, which is how a
+session at the prompt becomes a sketch; `draw` puts it down with
+`pen.stack(stack)`, or `stack.composite(pen, x, y)` with its corner
+placed:
+
+```python
+from sigil import draw
+from sigil.sketch import sketch
+
+
+@sketch(size=(1200, 800))
+class RingStudy:
+    def setup(self):
+        self.stack = draw.Stack((1200, 800))
+        with self.stack.layer("rings").pen() as ink:
+            ink.noFill()
+            ink.stroke("#e8c547")
+            ink.strokeWeight(10)
+            for radius in (120, 180, 240):
+                ink.circle(600, 400, 2 * radius)
+
+    def draw(self, pen):
+        pen.clear()
+        pen.stack(self.stack)
+```
 
 ### A prompt into a window elsewhere
 

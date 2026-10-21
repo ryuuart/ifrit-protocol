@@ -12,7 +12,8 @@ running instance and its context are ordinary variables at the prompt.
 This guide opens `python_hello` — a circle swinging under a greeting —
 and, without touching the file, changes its colour, adds a card, sets the
 card moving, sets its text in another family and its title in one of
-that family's styles, and takes a picture.
+that family's styles, and takes a picture. Then it builds a picture of
+its own at the prompt, out of layers that mask and erase one another.
 
 ## Open a window in your interpreter
 
@@ -175,6 +176,68 @@ another matter: the sketch stops, as it does after a bad save, and
 you assigned to it stands. `window.close()` takes the window away; so
 does leaving the prompt.
 
+## Build a picture from layers
+
+A sketch's file is one picture; a stack is one you build up at the
+prompt. `draw.Stack` is a list of named pixel layers, composited bottom
+to top, and the window draws it every frame once it shows it, in place of
+the sketch:
+
+```pycon
+>>> from sigil import draw, compose
+>>> stack = draw.Stack((960, 640))
+>>> window.show(stack)
+Stack((960, 640), layers=[])
+>>> rings = stack.layer("rings")
+>>> with rings.pen() as pen:
+...     pen.noFill(); pen.stroke("#efb87e"); pen.strokeWeight(8)
+...     for radius in (100, 150, 200): pen.circle(480, 320, 2 * radius)
+...
+>>> stack.layer("rings") == rings
+True
+```
+
+A layer's pen is a `with` block: it opens a frame on the layer, and what
+it drew stands on the layer when the block ends. Asking the stack for a
+name again answers the same layer, so a block run again draws on it
+rather than adding another.
+
+A layer can hold a compose tree instead. Bake the greeting's family into
+a second layer, squash it, and let it meet the rings in a screen blend:
+
+```pycon
+>>> field = stack.layer("field")
+>>> avenir = weave.fonts.find("Avenir", "Heavy")
+>>> words = compose.text("666 666 666", size=120, color="#7fd1c7").fontFamily(avenir)
+>>> field.bake(compose.box(words).alignItems("center").justifyContent("center"))
+>>> field.transform(scale=(0.85, 1.0), origin=(480, 320))
+>>> field.blend("screen"); field.opacity = 0.8
+```
+
+Layers work off each other through their blend and their mask. A layer
+blended `"remove"` deletes what lies beneath it wherever it has ink, and
+a layer masked by another shows only where that one has ink:
+
+```pycon
+>>> cut = stack.layer("cut")
+>>> with cut.pen() as pen: pen.fill(255); pen.circle(480, 320, 150)
+...
+>>> cut.blend("remove")
+>>> rings.mask(field)
+>>> stack.names
+['rings', 'field', 'cut']
+```
+
+`cut.hide()` and `cut.show()` take the hole away and put it back;
+`stack.reorder("cut", 0)` moves it to the bottom, where it has nothing
+beneath it to delete. In Jupyter, a cell ending in `stack` or `rings`
+shows its picture inline. `window.still("layers.png", density=2)` takes
+it as it stands.
+
+The calls you typed are the record of the picture: the same calls in a
+sketch's `setup`, with `pen.stack(self.stack)` in its `draw`, draw it from
+a file. The Python package's README lists every verb a layer takes.
+
 ## How it works
 
 A window belongs to the thread that opened it, and on macOS that must be
@@ -251,7 +314,8 @@ time and evaluates nothing, so the prompt is refused there, saying so.
 
 - [Write a sketch in Python](guide:a-sketch-in-python) — the file this
   prompt explores, written from the start.
-- The Python package's README — `sigil.live` and its window, and
-  `sigil repl` beside `sigil open` and `sigil render`.
+- The Python package's README — `sigil.live` and its window, the layers
+  of a `draw.Stack`, and `sigil repl` beside `sigil open` and
+  `sigil render`.
 - SigilProtocol's README — the evaluate door among the commands every
   host speaks.
