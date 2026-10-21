@@ -20,7 +20,7 @@
 #include <array>
 #include <string>
 
-#include "eva_magi_interior/EvangelionUi.h"
+#include "evangelion/EvangelionUi.h"
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;

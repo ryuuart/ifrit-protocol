@@ -10,7 +10,8 @@
 //
 // Placement does not belong here. Each frame decides where its panels and
 // labels stand; this header only describes the shapes and type registers they
-// share.
+// share. It stands beside the catalogue in a directory holding no entry, so
+// no one study owns it and the registry takes it for no sketch.
 
 #include <include/core/SkColor.h>
 #include <include/core/SkPaint.h>

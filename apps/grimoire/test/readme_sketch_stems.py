@@ -133,7 +133,9 @@ def cardinal(word):
 
 def sketch_stems(sketch_dir):
     """Every stem the registry can address: one .cpp or .py file, or one directory
-    holding a sketch's own unit files."""
+    whose entry, <stem>/<stem>.cpp or <stem>/<stem>.py, carries its name. A
+    directory with no entry is no sketch, whatever it holds: headers several
+    sketches share stand in one."""
     stems = set()
     if not os.path.isdir(sketch_dir):
         return stems
@@ -141,7 +143,14 @@ def sketch_stems(sketch_dir):
         path = os.path.join(sketch_dir, entry)
         if os.path.isfile(path) and entry.endswith((".cpp", ".py")):
             stems.add(os.path.splitext(entry)[0])
-        elif os.path.isdir(path) and not entry.startswith("."):
+        elif (
+            os.path.isdir(path)
+            and not entry.startswith(".")
+            and any(
+                os.path.isfile(os.path.join(path, entry + extension))
+                for extension in (".cpp", ".py")
+            )
+        ):
             stems.add(entry)
     return stems
 
@@ -261,10 +270,24 @@ def self_test():
         (root / "python_sketch.py").touch()
         (root / "notes.md").touch()
         (root / "directory_sketch").mkdir()
+        (root / "directory_sketch" / "directory_sketch.cpp").touch()
+        (root / "python_directory").mkdir()
+        (root / "python_directory" / "python_directory.py").touch()
+        (root / "shared_headers").mkdir()
+        (root / "shared_headers" / "Shared.h").touch()
         check(
             sketch_stems(root)
-            == {"native_sketch", "python_sketch", "directory_sketch"},
+            == {
+                "native_sketch",
+                "python_sketch",
+                "directory_sketch",
+                "python_directory",
+            },
             "native, Python and directory sketch stems are discovered",
+        )
+        check(
+            "shared_headers" not in sketch_stems(root),
+            "a directory with no entry of its own name is no stem",
         )
 
     c = fixture_check("The `blur_falloff` study draws the falloff.\n")
