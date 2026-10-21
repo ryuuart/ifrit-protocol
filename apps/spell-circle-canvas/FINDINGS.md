@@ -97,19 +97,6 @@ reporter installed with `installReporter` should hear every library's
 warning and nothing should reach stderr. A test per library should
 install a reporter and find the warning there.
 
-## The decoration contract does not say which marks stand on the outline
-
-The decoration contract in `sigilcompose/core/Shape.h` says every
-decoration is drawn across an outline and measures bleed from the box,
-while `Slice`, `Brackets` and `TickRail` paint against the box, and the
-schemes that plainly stroke along the outline in brush and kit (the path
-formats, `Brush`, `Stamps`, `Art`, the adaptors) do not declare
-`staysOnOutline()`, so a shaped node carrying one still pays a box-sized
-layer. The contract is meant to say a mark is either on the outline or on
-the box, and every outline mark to say so. A test per scheme should find
-the layer of a shaped node carrying it equal to the shape grown by its
-bleed, and a shaped node carrying `Brackets` keeping its box.
-
 ## The window lane refuses a locked screen for a reason that no longer holds
 
 `scripts/sigil/bench.py` refuses to run the fps lane behind a lock screen
@@ -192,6 +179,32 @@ should hand the door two trees that differ only in the program behind one
 `Operator` and on the text-effect key saying its equality is the author's
 word, which the door treats as equal only to the same node, as it does for
 a keyed `custom`.
+
+## The stock strokes understate a mitred corner's reach
+
+`PathFormat::bleed()` answers half the width for a centred stroke and the
+width for an outer one, and `Border`, `LayeredBrush` and a mitred
+`lines::Line` answer the same way, while their default join is a mitre at
+the renderer's limit of four, which reaches twice the width centred and
+four times outside, and a square cap reaches a further seven tenths of
+the width; `detail::CoverageMark` in `core/paint/MaterialEffects.h`
+declares it stays on the outline while its stroke step's bleed is the
+width under the same mitre. A bleed is meant to hold the mark's widest
+reach, as the material stroke and the ribbon already do, so a bake or a
+layer holds the mitre tips and the marks can stand on the outline under
+their defaults. A test should stroke a star whose tips touch its box with
+`brush::solid` under `Cache::Texture` and find it pixel-equal to its live
+paint, and find a faded shaped node with an acute corner wearing a
+material stroke opening a layer that holds the tip; the fix grows bake
+extents and moves plates, with the cause stated.
+
+## A contour walk states no extent
+
+`ContourWalk` has neither `bleed()` nor `reach()`, so a walk's stamps are
+clipped by any cache sized from the box once they overhang it; it is
+meant to declare its reach as `Scatter` does with `bleedPx`. A test
+should walk art wider than the box's margin under `Cache::Texture` and
+find it pixel-equal to the live paint.
 
 ## The triplet comment still explains shared TBB by a port that is gone
 
