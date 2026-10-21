@@ -97,6 +97,53 @@ reporter installed with `installReporter` should hear every library's
 warning and nothing should reach stderr. A test per library should
 install a reporter and find the warning there.
 
+## A registry run of the window lane reads a sketch's rate off whatever the last selection left running
+
+`Grimoire --window-bench` over the whole registry, one process for every
+sketch, reads a cheap static page at anything from one frame a second to
+the refresh rate with under two milliseconds of work, and the same page
+alone reads the refresh rate every time; the lane driving it
+(`scripts/sigil/bench.py`, `subprocess.run` with its output captured)
+also stood down 107 sketches as presenting no frame in thirty seconds
+that present at once on their own. A row is meant to be the sketch on
+screen and nothing else. A test should select a cheap static page twice
+in a row in one process and find both rows within the band of the page
+alone, and a lane run over a handful of stems should stand none of them
+down.
+
+## A narrowed plate run clears the plates it did not render
+
+`sigil.py plates --tier device --scenes a b` empties
+`build/plates_Release/device/gpu/` before it renders, so one narrowed run
+deletes the plates another run just took. A narrowed run is meant to
+leave what it did not render. A test under `scripts/test` should run a
+narrowed sweep beside a plate it did not name and find that plate still
+there.
+
+## A value-keyed texture shares a tree whose custom node is keyed
+
+`compose::Textures` judges two trees the same through `sameDescription`,
+which treats two `custom(key, …)` nodes with one non-empty key as equal
+because that is the reconciler's per-position contract, so two different
+maps that draw through the same custom key in the same shape would be
+handed one texture. The door is meant to paint once per distinct picture.
+A test should hand the door two trees that differ only in the program
+behind one custom key and find two textures, or find the door refusing to
+share a tree holding a keyed custom.
+
+## The decoration contract does not say which marks stand on the outline
+
+The decoration contract in `sigilcompose/core/Shape.h` says every
+decoration is drawn across an outline and measures bleed from the box,
+while `Slice`, `Brackets` and `TickRail` paint against the box, and the
+schemes that plainly stroke along the outline in brush and kit (the path
+formats, `Brush`, `Stamps`, `Art`, the adaptors) do not declare
+`staysOnOutline()`, so a shaped node carrying one still pays a box-sized
+layer. The contract is meant to say a mark is either on the outline or on
+the box, and every outline mark to say so. A test per scheme should find
+the layer of a shaped node carrying it equal to the shape grown by its
+bleed, and a shaped node carrying `Brackets` keeping its box.
+
 ## The triplet comment still explains shared TBB by a port that is gone
 
 `cmake/triplets/arm64-osx.cmake` explains its shared oneTBB rule by the
