@@ -83,15 +83,20 @@ struct Draw {
   bool castShadow = true;
   /** Whether those lights' shadows darken it. */
   bool receiveShadow = true;
+  /** WHETHER A TEXTURE PASS PAINTED, this frame, a page the surface
+   *  wears: its pixels may differ from the frame before's while the
+   *  surface, as a value, is the same. An executor keeping something it
+   *  drew from the surface's pixels draws it again. */
+  bool repainted = false;
 };
 
-/** A TEXTURE AS A MESH SAMPLES IT: the image, where it is read at over
- *  the mesh's own uv coordinates, and whether it repeats outside them.
+/** A TEXTURE AS A MESH SAMPLES IT: where it is read at over the mesh's
+ *  own uv coordinates, whether it repeats outside them and how it is
+ *  read between its texels. The pixels are the executor's to bind.
  *  The matrix is carried across rather than copied — inverted and taken
  *  through the image's size — so a placement and a scale mean the same
  *  thing on a mesh as they do in a plane. */
 struct Sampling {
-  media::Picture image;
   /** Where the image is read at, over the mesh's own uv coordinates, as
    *  a 2D affine matrix acting on column vectors `(u, v, 1)`. */
   glm::mat3 uv{1.0f};
@@ -102,8 +107,9 @@ struct Sampling {
   ::sigil::material::Sampling filter = ::sigil::material::Sampling::Linear;
 };
 
-/** @p texture as a mesh samples it. An empty texture answers an empty
- *  Sampling, whose null image is a body that is simply not dressed. */
+/** @p texture as a mesh samples it, read off the texture and the size its
+ *  source states, so no pixel crosses to answer it. An empty texture
+ *  answers an empty Sampling. */
 Sampling samplingOf(const ::sigil::material::Texture& texture);
 
 /** WHERE A FRAME'S TARGETS STAND IN A LARGER PICTURE: one `whole` pixels

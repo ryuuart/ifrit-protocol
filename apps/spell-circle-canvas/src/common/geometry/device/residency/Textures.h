@@ -82,17 +82,31 @@ struct SampledImage {
 
 /** A PAGE WRAPPED WHERE IT STANDS, in its own format and with the levels
  *  it was made with. Its painter painted level zero, so the levels below
- *  are filled IN PLACE, from level zero, once in every frame that wears
- *  it — a page may be painted again between two frames and nothing says
- *  when. `levelZero` is the same page described at its one painted
- *  level, for a draw that asks for no smaller copies; it is made the
- *  first time one does. `filled` is the frame the levels were last
- *  filled on; `used` the frame it was last drawn with. */
+ *  are filled IN PLACE, from level zero, once for every painting of it a
+ *  frame wears — and, for a page whose painter does not count its
+ *  paintings, once in every frame that wears it, since nothing then says
+ *  when it was painted again. `levelZero` is the same page described at
+ *  its one painted level, for a draw that asks for no smaller copies; it
+ *  is made the first time one does. `filled` is the frame the levels
+ *  were last filled on and `filledRevision` the painting they were
+ *  filled from; `waitedRevision` is the painting the device's queue last
+ *  waited for; `used` the frame it was last drawn with. */
 struct WrappedImage {
   Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
   Diligent::RefCntAutoPtr<Diligent::ITexture> levelZero;
   uint64_t used = 0;
   uint64_t filled = UINT64_MAX;
+  uint64_t filledRevision = 0;
+  uint64_t waitedRevision = 0;
+};
+
+/** WHAT THE PAGES A RESIDENCY WORE HAVE COST IT, counted from its making:
+ *  how many times the device's queue was made to wait for the painting,
+ *  and how many times a page's levels were filled. A page that was not
+ *  painted again since it was last worn adds to neither. */
+struct PageWork {
+  uint64_t waits = 0;
+  uint64_t fills = 0;
 };
 
 /**
@@ -127,9 +141,13 @@ class TextureResidency {
    *  host memory for either, and no second texture is kept.
    *
    *  A PAGE ANOTHER QUEUE PAINTS is waited for: the first page met in a
-   *  frame has the device's queue wait for every painting submitted
-   *  before it (`Device::waitForPainting`), and a frame that wore one has
-   *  the next painting wait for the device's queue at `endFrame`. */
+   *  frame that was painted since the device's queue last waited for it
+   *  has that queue wait for every painting submitted before it
+   *  (`Device::waitForPainting`), and a frame that wore one has the next
+   *  painting wait for the device's queue at `endFrame`. A page whose
+   *  painter counts its paintings and has not painted it again is read as
+   *  it stands: nothing is waited for and its levels are not filled
+   *  again. */
   Diligent::ITexture* sample(const material::Texture& map,
                              const MapForm& form = {},
                              std::chrono::duration<double> time = {});
@@ -169,14 +187,17 @@ class TextureResidency {
    *  wait for it, and the maps no draw has named lately are released. */
   void endFrame();
 
+  /** What the pages worn so far have cost: the waits and the fills. */
+  [[nodiscard]] PageWork pageWork() const { return m_pageWork; }
+
  private:
   /** The page @p where names, wrapped and waited for this frame; null
    *  when it is not a page standing on this device or the device refused
    *  the wrap. */
   WrappedImage* wrap(const media::DeviceFrame& where);
-  /** @p held with the levels below zero filled for this frame; false when
-   *  it carries none the device can fill. */
-  bool fill(WrappedImage& held);
+  /** @p held with the levels below zero filled from painting @p revision
+   *  of it; false when it carries none the device can fill. */
+  bool fill(WrappedImage& held, uint64_t revision);
   /** @p held as its one painted level; null when the device refused it. */
   Diligent::ITexture* levelZeroOf(WrappedImage& held);
 
@@ -186,6 +207,7 @@ class TextureResidency {
   uint64_t m_waited = UINT64_MAX;
   /** Whether a draw of this frame wore a page. */
   bool m_woreAPage = false;
+  PageWork m_pageWork;
   /** Maps whose pixels already stand on this device, under the name the
    *  API gave them. Nothing crosses through host memory for one of
    *  these. */

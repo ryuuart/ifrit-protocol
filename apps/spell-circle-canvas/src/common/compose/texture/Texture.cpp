@@ -384,6 +384,9 @@ media::Frame SceneSource::frameAt(std::chrono::duration<double>) const {
   frame.device.width = where.width;
   frame.device.height = where.height;
   frame.device.mipLevels = where.mipLevels;
+  // The scene's own count and not the one this source was taken at: the
+  // surface holds the latest paint whichever revision a body was handed.
+  frame.device.revision = m_scene->revision();
   return frame;
 }
 SkISize TextureScene::size() const { return m_impl->info.dimensions(); }

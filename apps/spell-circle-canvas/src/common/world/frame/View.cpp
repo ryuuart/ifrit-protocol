@@ -4,21 +4,25 @@
  */
 
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmaterial/skia/Texture.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/advanced/View.h>
 
 namespace sigil::world {
 
 Sampling samplingOf(const material::Texture& texture) {
+  // THE SIZE IS ASKED OF THE SOURCE, never of its pixels: a page standing
+  // on a device answers its size where it stands, and reading it back to
+  // host memory to learn it would hold the frame until the device had
+  // painted it. A region is the region's size, as it is on an image.
+  glm::ivec2 sized = texture.size();
+  if (sized.x <= 0 || sized.y <= 0) {
+    // A region that misses the picture leaves a device's surface sampled
+    // whole, which is what a renderer binding it does.
+    const material::DeviceImage where = texture.deviceImage();
+    sized = {where.width, where.height};
+  }
+  if (sized.x <= 0 || sized.y <= 0) return {};
   Sampling out;
-  out.image = material::skia::image(texture);
-  // A source may hold its pixels on a device and NOWHERE ELSE, in which
-  // case there is no host image to read and the size comes from where
-  // they stand — the placement is a question about the picture, not
-  // about which side of the bus it is on.
-  const material::DeviceImage where = texture.deviceImage();
-  if (!out.image && !where) return {};
   // Either axis repeating is a repeat: a mesh's sampler has one wrap for
   // both, and clamping the axis that was asked to repeat would drag one
   // edge's pixels across the whole face.
@@ -26,8 +30,7 @@ Sampling samplingOf(const material::Texture& texture) {
              texture.tileY() != material::Repeat::Pad;
   out.filter = texture.sampling();
 
-  const SkISize size = out.image ? media::toSk(out.image.size())
-                                 : SkISize::Make(where.width, where.height);
+  const SkISize size = SkISize::Make(sized.x, sized.y);
   SkMatrix lookup;
   if (size.isEmpty() ||
       !material::skia::toSkMatrix(texture.uv()).invert(&lookup))

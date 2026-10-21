@@ -57,6 +57,13 @@ struct DeviceFrame {
    *  chain. Whoever wears the texture fills the levels below zero from
    *  level zero, since what painted it painted level zero alone. */
   int mipLevels = 1;
+  /** HOW MANY TIMES WHAT PAINTS THE SURFACE HAS PAINTED IT, where it
+   *  counts: a renderer that already waited for and derived from the
+   *  surface at this number reads it as it stands, with nothing to wait
+   *  for and nothing to derive again. Zero for a surface whose painter
+   *  does not count, which a renderer takes as painted since it last
+   *  looked. */
+  uint64_t revision = 0;
   YuvMatrix yuvMatrix = YuvMatrix::Bt601;
   /** Whether a planar surface's samples span the full range rather than
    *  the studio range the matrix otherwise implies. */

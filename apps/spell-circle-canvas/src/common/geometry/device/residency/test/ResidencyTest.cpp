@@ -17,6 +17,7 @@
 #include <sigilskia/graphite/OffscreenSurface.h>
 
 #include <chrono>
+#include <cstdint>
 #include <thread>
 #include <vector>
 
@@ -37,6 +38,9 @@ namespace hardware = ::sigil::core::hardware;
 struct StandingSource {
   const void* device = nullptr;
   hardware::NativeTexture image;
+  /** How many times the page has been painted, as its painter counts;
+   *  zero for a painter that does not count. */
+  uint64_t revision = 0;
   sigil::media::Frame frameAt(std::chrono::duration<double>) const {
     sigil::media::Frame frame;
     frame.device.kind = sigil::media::DeviceFrame::Kind::Texture;
@@ -47,11 +51,13 @@ struct StandingSource {
     frame.device.width = image.width;
     frame.device.height = image.height;
     frame.device.mipLevels = image.mipLevels;
+    frame.device.revision = revision;
     return frame;
   }
   bool isRunning() const { return false; }
   bool operator==(const StandingSource& other) const {
-    return device == other.device && image.vkImage == other.image.vkImage;
+    return device == other.device && image.vkImage == other.image.vkImage &&
+           revision == other.revision;
   }
 };
 
@@ -357,6 +363,51 @@ TEST(TextureResidency, APageMadeWithAChainIsWornThroughItsOwnChain) {
   EXPECT_NE(flat, worn);
   EXPECT_EQ(flat->GetDesc().MipLevels, 1u);
   resident.endFrame();
+  on->context()->Flush();
+  on->context()->WaitForIdle();
+  gpu->destroy(page);
+}
+
+// A PAGE NOT PAINTED AGAIN COSTS NOTHING TO WEAR AGAIN: the frame that
+// first wears a painting of it has the device's queue wait for the
+// painting and fills its levels, and a later frame wearing that same
+// painting does neither. A new painting is waited for and filled once;
+// a page whose painter does not count is waited for and filled in every
+// frame that wears it, since nothing says it was not painted again.
+TEST(TextureResidency, APageNotPaintedAgainIsNeitherWaitedForNorFilledAgain) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  hardware::GpuDevice* gpu = on->gpu();
+  if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
+  const hardware::TextureHandle page =
+      paintedPage(*on, hardware::TextureFormat::RGBA8Unorm, 64,
+                  device::mapMipLevels(64, 64));
+  ASSERT_TRUE(gpu->isValid(page));
+  const hardware::NativeTexture image = gpu->exportNative(page);
+  device::TextureResidency resident(*on);
+  const auto wearFrame = [&](uint64_t revision) {
+    const sigil::material::Texture map(
+        sigil::media::PixelSource(StandingSource{gpu, image, revision}));
+    resident.prepare(map);
+    EXPECT_NE(resident.sample(map), nullptr);
+    EXPECT_NE(resident.sample(map), nullptr);
+    resident.endFrame();
+    return resident.pageWork();
+  };
+  device::PageWork work = wearFrame(1);
+  EXPECT_EQ(work.waits, 1u);
+  EXPECT_EQ(work.fills, 1u);
+  for (int frame = 0; frame < 3; ++frame) {
+    work = wearFrame(1);
+    EXPECT_EQ(work.waits, 1u) << "a page not painted again was waited for";
+    EXPECT_EQ(work.fills, 1u) << "a page not painted again was filled again";
+  }
+  work = wearFrame(2);
+  EXPECT_EQ(work.waits, 2u);
+  EXPECT_EQ(work.fills, 2u);
+  work = wearFrame(0);
+  work = wearFrame(0);
+  EXPECT_EQ(work.waits, 4u);
+  EXPECT_EQ(work.fills, 4u);
   on->context()->Flush();
   on->context()->WaitForIdle();
   gpu->destroy(page);

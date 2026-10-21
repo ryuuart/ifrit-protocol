@@ -570,9 +570,10 @@ and these are the names it reads them with:
 - `memberOf(draw)` is a body as a `Collection` asks about it, which is
   how a pass realises a `Cull`, paints a coverage, and leaves a body out
   of what a linked light reaches;
-- `samplingOf(texture)` answers a `Sampling` — the image, where it is
+- `samplingOf(texture)` answers a `Sampling` — where the texture is
   read at over the mesh's own uvs, whether it repeats and how it is
-  filtered;
+  filtered — from the size its source states, so a page standing on a
+  device is never read back to answer it;
 - `Scene::stats()` answers a `SceneStats`: what the last frame
   described, cooked, drew and let go;
 - `lanesOf(node, out)` reads a node's fixed lanes in `Slot` order and
@@ -650,9 +651,13 @@ store keeps between runs.
 to frame, and a light's map is drawn again only when what its depth is
 a function of changed: its projection, which follows the light and, for
 a directional light's cascades, the camera; or a body its link keeps
-that casts — where it stands, which cooked triangles it is, its
-instances, and, where its surface cuts it out, the moment that surface
-is read at. `SceneStats::shadowMapsDrawn` counts the maps a frame drew.
+that casts and that stands where the map can see it — where it stands,
+which cooked triangles it is, its instances, and, where its surface cuts
+it out, that surface and its map as values, read at a new moment only
+where the surface runs on its own or a texture pass painted a page it
+wears. A body the map cannot see is neither drawn into it nor moves it,
+so a body turning under one face of a point or panel light redraws that
+face alone. `SceneStats::shadowMapsDrawn` counts the maps a frame drew.
 
 ### Drawing a frame: order, light and the final stage
 
@@ -803,7 +808,10 @@ the Metal texture behind each of its images. Every geometry pass first
 makes the pages its bodies wear ready — wrapped, the device's queue made
 to wait once a frame for every painting submitted before it, and the
 levels below the one painted filled in place from it — before it opens
-a target, so no draw breaks its pass to fill a chain. A frame that wore
+a target, so no draw breaks its pass to fill a chain. A page whose
+painter counts its paintings and has not painted it since the last
+frame that wore it is read as it stands: no wait and no fill, so a
+scene wearing still pages costs nothing for them. A frame that wore
 a page has the next painting wait for the device's queue at its end,
 because a page is repainted in part, in place, over what the frame may
 still be reading; a readback and a headless frame end the same way.

@@ -912,6 +912,38 @@ TEST_F(WorldScene, ABodyWearingATextureWhosePassIsMissingIsANamedError) {
   EXPECT_EQ(scene.stats().texturesSkipped, 1);
 }
 
+TEST_F(WorldScene, ABodyIsRepaintedInAFrameWhoseTexturePassPaintedItsPage) {
+  const Page page(pagePixels());
+  material::Material wearing = material::surface::program();
+  wearing.slot(material::surface::kBaseColorSlot,
+               produced(material::Texture(page.pixels), "page"));
+  std::vector<bool> repainted;
+  Frame frame = framed(group({mesh(card(20)).key("plate").fill(wearing),
+                              mesh(card(20)).key("bare").at({40, 0, 0})})
+                           .key("root"));
+  frame.runtime(Runtime{Recording{}})
+      .pass(texturePass("page", TextureProducer(page)))
+      .pass(geometryPass("hand").writes("colour").body([&](const View& view) {
+        repainted.clear();
+        for (const Draw& body : view.draws) repainted.push_back(body.repainted);
+      }));
+  const auto wearer = [&](const std::vector<bool>& seen) {
+    return std::count(seen.begin(), seen.end(), true);
+  };
+  scene.render(frame);
+  ASSERT_TRUE(scene.error().empty()) << scene.error();
+  ASSERT_EQ(repainted.size(), 2u);
+  // The page was painted, and only the body wearing it says so…
+  EXPECT_EQ(wearer(repainted), 1);
+  // …nothing it paints changed, so nobody is repainted…
+  scene.render(frame);
+  EXPECT_EQ(wearer(repainted), 0);
+  // …until it paints again.
+  *page.changed = true;
+  scene.render(frame);
+  EXPECT_EQ(wearer(repainted), 1);
+}
+
 TEST_F(WorldScene, TheEnvironmentIsReadOnceAFrameFromTheFrame) {
   motion::Animatable<float> strength = motion::animatable(0.5f);
   Environment seen;

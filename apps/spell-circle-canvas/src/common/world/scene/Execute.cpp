@@ -43,7 +43,8 @@ void eachTexture(const material::Material& material, Visit&& visit) {
 
 }  // namespace
 
-void Scene::Impl::restate(const TextureProducerOperations& producer) {
+void Scene::Impl::restate(const TextureProducerOperations& producer,
+                          bool painted) {
   // `view.draws` is a window onto `draws`, so a body restated here is the
   // body the view draws.
   for (Draw& body : draws) {
@@ -53,6 +54,7 @@ void Scene::Impl::restate(const TextureProducerOperations& producer) {
       wears = wears || producer.paints(texture);
     });
     if (!wears) continue;
+    body.repainted = body.repainted || painted;
     std::optional<material::Material> restated =
         producer.restated(*body.material);
     // The vector was sized for every body, so a restatement never moves
@@ -303,11 +305,12 @@ bool Scene::Impl::phaseExecute() {
     // is counted, so skipped work is as visible as work done.
     if (work.pass->stage() == Stage::Texture) {
       if (!work.pass->producer()) continue;
-      if (work.pass->producer()->produce(engine.elapsed()))
+      const bool painted = work.pass->producer()->produce(engine.elapsed());
+      if (painted)
         ++stats.texturesPainted;
       else
         ++stats.texturesSkipped;
-      restate(*work.pass->producer());
+      restate(*work.pass->producer(), painted);
       continue;
     }
     runtime->execute(work, view, targets);

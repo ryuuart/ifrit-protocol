@@ -28,6 +28,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/advanced/Skia.h>
@@ -43,6 +44,7 @@
 #include <deque>
 #include <glm/mat4x4.hpp>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -341,6 +343,19 @@ struct Gpu {
    *  is unchanged keeps its tile. */
   std::vector<uint64_t> shadowFolds;
   const dg::ITexture* shadowFoldsAtlas = nullptr;
+  /** WHAT EACH CASTER WHOSE SURFACE DECIDES WHERE IT COVERS WORE when its
+   *  coverage was last drawn, by its place among the frame's bodies: the
+   *  surface and the map, held by value, and a number that changes
+   *  whenever either does or a texture pass paints a page it wears. A
+   *  map folds that number rather than the surface's address, which the
+   *  next frame's surface may be given while saying something else. */
+  struct CoverageWorn {
+    std::optional<::sigil::material::Material> material;
+    std::optional<::sigil::material::Texture> texture;
+    uint64_t generation = 0;
+  };
+  std::vector<CoverageWorn> shadowWorn;
+  uint64_t shadowWornGenerations = 0;
   /** A tile of cleared depth a redrawn map's tile is reset from. */
   dg::RefCntAutoPtr<dg::ITexture> shadowBlank;
   int shadowBlankSide = 0;

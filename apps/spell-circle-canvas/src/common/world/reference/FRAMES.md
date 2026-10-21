@@ -232,10 +232,11 @@ the levels and the bound.
 WHAT EACH STAGE COST THE DEVICE. A frame that states
 `Frame::timeStages(true)` writes a timestamp at every stage boundary, and
 the scene's `SceneStats::deviceStages` then names each stage with the GPU
-time it took — a geometry pass's shadow stage, its bodies laid over, the
-copy of the scene and its smaller levels, the copy of the depth, the
-bodies that see through themselves, the blended ones, and what it drew
-after them (`<pass>.shadow`, `<pass>.laid`, `<pass>.colour-copy`,
+time it took — a geometry pass's pages made ready, its shadow maps and
+their tint, its bodies laid over, the copy of the scene and its smaller
+levels, the copy of the depth, the bodies that see through themselves,
+the blended ones, and what it drew after them (`<pass>.pages`,
+`<pass>.shadow`, `<pass>.tint`, `<pass>.laid`, `<pass>.colour-copy`,
 `<pass>.mips`, `<pass>.depth-copy`, `<pass>.seen`, `<pass>.blended`,
 `<pass>.extras`); a post pass under its own name; and the final stage a
 picture left the frame through (`present`, `readback`). A device answers

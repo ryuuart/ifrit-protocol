@@ -1,7 +1,8 @@
 /** @file
  * world_diligent_bench — the frame on the device: turning a recipe's
  * Slang body into a pipeline, executing a frame's passes, what a casting
- * light's shadow adds to a lit pixel, and cooking a chain. Run a Release
+ * light's shadow adds to a lit pixel, what the shadow stage costs by what
+ * moves, and cooking a chain. Run a Release
  * build; Debug numbers say nothing. Needs a Vulkan runtime and reports a
  * skip without one.
  *
@@ -27,6 +28,8 @@
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/core/PixelSource.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilworld/World.h>
@@ -37,6 +40,7 @@
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <map>
 #include <memory>
@@ -401,6 +405,126 @@ BENCHMARK(BM_UnshadowedCardOnDevice)
     ->ArgNames({"terms"})
     ->Arg(0)
     ->Arg(1)
+    ->UseManualTime()
+    ->Iterations(60)
+    ->Unit(benchmark::kMillisecond);
+
+/** WHAT THE SHADOW STAGE COSTS A SET UNDER A PANEL, by what moves in
+ *  it: the device time of a geometry pass's shadow stage over a slab and
+ *  nine rounded blocks, each wearing a map so its surface decides where
+ *  it covers, under a panel light casting through its six maps. Nothing
+ *  moves (motion 0); the block under the panel turns on its axis
+ *  (motion 1), which only the map looking straight down sees; or the
+ *  panel glides across the set (motion 2), which every map sees.
+ *
+ *  `maps_drawn` is the maps a frame drew, on average over the timed
+ *  frames, beside the stage's time. The time is the device's own clock
+ *  for the shadow stage alone, read off a frame that asked for it. */
+void BM_ShadowStageOnDevice(benchmark::State& state) {
+  const device::DeviceConfig config;
+  std::string error;
+  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  if (!gpu) {
+    state.SkipWithError(error);
+    return;
+  }
+  namespace gm = ::sigil::geometry::mesh;
+  const int64_t motion = state.range(0);
+  const Runtime runtime = diligent::runtime(*gpu);
+  motion::Engine engine;
+  Scene scene(engine);
+  SkBitmap checks;
+  checks.allocPixels(SkImageInfo::MakeN32Premul(64, 64));
+  for (int row = 0; row < 64; ++row)
+    for (int column = 0; column < 64; ++column)
+      *checks.getAddr32(column, row) =
+          ((row / 8 + column / 8) % 2) ? 0xFFFFFFFFu : 0xFF606060u;
+  checks.setImmutable();
+  material::Material dressed =
+      material::surface::program({.baseColor = {1, 1, 1, 1}});
+  dressed.slot(material::surface::kBaseColorSlot,
+               material::Texture(media::PixelSource(checks.asImage())));
+  const gm::Mesh block = gm::superellipsoid({40, 60, 40}, 2.5f, 48, 24);
+  const auto frameAt = [&](int step) {
+    const float turn = motion == 1 ? (float)step * 3.0f : 0.0f;
+    const float glide = motion == 2 ? std::sin((float)step * 0.05f) : 0.0f;
+    std::vector<Node> content;
+    content.push_back(
+        rectLight({0, -1, 0}, {.width = 120,
+                               .height = 80,
+                               .intensity = 20.0f,
+                               .castShadow = true})
+            .key("panel")
+            .at({160.0f * glide, 300, 0}));
+    content.push_back(mesh(gm::quad(800, 800))
+                          .key("slab")
+                          .rotateX(-90)
+                          .fill(material::surface::program(
+                              {.baseColor = {0.3f, 0.3f, 0.3f, 1},
+                               .roughness = 0.8f})));
+    for (int row = -1; row <= 1; ++row)
+      for (int column = -1; column <= 1; ++column)
+        content.push_back(
+            mesh(block)
+                .key("block " + std::to_string(row) + " " +
+                     std::to_string(column))
+                .at({220.0f * (float)column, 60, 220.0f * (float)row})
+                .rotateY(row == 0 && column == 0 ? turn : 0.0f)
+                .fill(dressed));
+    geometry::mesh::camera::Camera camera;
+    camera.eye = {0, 500, 700};
+    camera.target = {0, 0, 0};
+    content.push_back(world::camera(camera).key("camera"));
+    Frame frame(group(std::move(content)).key("set"));
+    frame.extent({1440, 900})
+        .runtime(runtime)
+        .timeStages(true)
+        .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    return frame;
+  };
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 160));
+  SkCanvas canvas(bitmap);
+  int step = 0;
+  double mapsDrawn = 0.0;
+  // One frame drawn and read back, which waits for the device; the shadow
+  // stage's time, or below zero while no timed frame has finished.
+  const auto frameOnce = [&](bool counted) {
+    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+    scene.render(frameAt(step++));
+    draw(scene, canvas);
+    const SceneStats& stats = scene.stats();
+    if (counted) mapsDrawn += (double)stats.shadowMapsDrawn;
+    if (stats.deviceTiming != DeviceTiming::Measured) return -1.0;
+    for (const DeviceStage& each : stats.deviceStages)
+      if (each.stage == "colour.shadow") return each.ms;
+    return -1.0;
+  };
+  // The device raises its clocks over the first frames it is given.
+  int warm = 0;
+  for (int k = 0; k < 120 && warm < 30; ++k)
+    if (frameOnce(false) >= 0.0) ++warm;
+  if (warm == 0) {
+    state.SkipWithError("the device writes no timestamps");
+    return;
+  }
+  int64_t frames = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    double ms = frameOnce(true);
+    ++frames;
+    for (int k = 0; k < 12 && ms < 0.0; ++k) {
+      ms = frameOnce(true);
+      ++frames;
+    }
+    state.SetIterationTime(std::max(ms, 0.0) / 1000.0);
+  }
+  state.counters["maps_drawn"] = frames ? mapsDrawn / (double)frames : 0.0;
+}
+BENCHMARK(BM_ShadowStageOnDevice)
+    ->ArgNames({"motion"})
+    ->Arg(0)
+    ->Arg(1)
+    ->Arg(2)
     ->UseManualTime()
     ->Iterations(60)
     ->Unit(benchmark::kMillisecond);

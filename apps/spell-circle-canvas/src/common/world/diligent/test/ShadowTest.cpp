@@ -6,7 +6,9 @@
  * shadow away; a spot light's shadow stays in its cone and follows it; a
  * shadow takes only its own light's share; a flat plate grazed by the
  * light is not striped by its own map; every instance of instanced
- * geometry casts; a frame with no light that casts draws no map; and
+ * geometry casts; a frame with no light that casts draws no map; a
+ * still set keeps every map, and a body moving redraws only the maps that
+ * see it; and
  * every lit program carries the same one shadow filter whatever its
  * lobes.
  *
@@ -471,6 +473,116 @@ TEST(Shadow, AStillSetDrawsNoShadowMapOnItsSecondFrame) {
     // …and the picture is the same picture.
     EXPECT_EQ(diligent::worstChannel(first, second), 0);
   }
+}
+
+namespace {
+
+/** Four checks of grey and white, made once, so every frame that wears
+ *  them wears the same image. */
+const material::Texture& checks() {
+  static const material::Texture made = [] {
+    SkBitmap pixels;
+    pixels.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
+    pixels.eraseColor(SK_ColorWHITE);
+    *pixels.getAddr32(0, 0) = 0xFF404040u;
+    *pixels.getAddr32(1, 1) = 0xFF404040u;
+    pixels.setImmutable();
+    return material::Texture(media::PixelSource(pixels.asImage()));
+  }();
+  return made;
+}
+
+/** A panel facing straight down from a hundred and twenty units over the
+ *  ground's middle, reaching four hundred units, so where its six maps
+ *  look and how deep they reach is the light's alone; the ground, a block
+ *  off to one side, and the card under the panel turned @p cardTurn
+ *  degrees about the vertical. With @p dressed, the card wears a map, so
+ *  its surface decides where it covers. */
+Frame underAPanel(float cardTurn, bool dressed, const Runtime& runtime) {
+  material::Material cardSurface = matte(0.8f);
+  if (dressed) {
+    cardSurface = material::surface::program({.baseColor = {1, 1, 1, 1}});
+    cardSurface.slot(material::surface::kBaseColorSlot, checks());
+  }
+  Frame frame(
+      group({rectLight({0, -1, 0}, {.width = 30,
+                                    .height = 30,
+                                    .intensity = 40.0f,
+                                    .range = 400.0f,
+                                    .castShadow = true})
+                 .key("panel")
+                 .at({0, 120, 0}),
+             ground(),
+             mesh(gm::superellipsoid({20, 20, 20}, 2.0f, 16, 8))
+                 .key("block")
+                 .at({110, 20, 0})
+                 .fill(matte(0.6f)),
+             card().rotateY(cardTurn).fill(std::move(cardSurface))})
+          .key("set"));
+  frame.extent(kExtent)
+      .defaultCamera(diligent::raisedEye())
+      .runtime(runtime)
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  return frame;
+}
+
+}  // namespace
+
+TEST(Shadow, AStillSetUnderAPanelDrawsNoShadowMapOnItsSecondFrame) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // The card plain, and the card wearing a map, which is drawn into the
+  // maps through its own surface — kept all the same while that surface
+  // is the same value, however far the clock has run.
+  for (const bool dressed : {false, true}) {
+    SCOPED_TRACE(dressed ? "a card wearing a map" : "a plain card");
+    motion::Engine engine;
+    Scene scene(engine);
+    const auto step = [&] {
+      engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+      scene.render(underAPanel(0.0f, dressed, on.runtime));
+      SkBitmap bitmap;
+      bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+      SkCanvas canvas(bitmap);
+      draw(scene, canvas);
+      return bitmap;
+    };
+    const SkBitmap first = step();
+    // The panel's maps the device did not already hold: the atlas stands
+    // on the runtime, so a map the set before drew the same depth into is
+    // kept even across scenes.
+    EXPECT_GT(scene.stats().shadowMapsDrawn, 0);
+    const SkBitmap second = step();
+    EXPECT_EQ(scene.stats().shadowMapsDrawn, 0);
+    EXPECT_EQ(diligent::worstChannel(first, second), 0);
+  }
+}
+
+TEST(Shadow, TurningACasterUnderAPanelRedrawsOnlyTheMapThatSeesIt) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  motion::Engine engine;
+  Scene scene(engine);
+  const auto step = [&](float turn) {
+    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+    scene.render(underAPanel(turn, true, on.runtime));
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+    SkCanvas canvas(bitmap);
+    draw(scene, canvas);
+    return bitmap;
+  };
+  (void)step(0.0f);
+  const SkBitmap turned = step(30.0f);
+  // The card stands only in the map looking straight down: that one is
+  // drawn again, and the five that cannot see it keep their depth.
+  EXPECT_EQ(scene.stats().shadowMapsDrawn, 1);
+  // A fresh scene drawing the turned card from nothing is the same picture.
+  EXPECT_EQ(diligent::worstChannel(
+                turned, diligent::photograph(underAPanel(30.0f, true,
+                                                         on.runtime),
+                                             on.runtime, kExtent)),
+            0);
 }
 
 TEST(Shadow, MovingOneCasterRedrawsOnlyTheMapsItCastsInto) {

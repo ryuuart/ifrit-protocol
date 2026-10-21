@@ -134,7 +134,9 @@ is the same story for maps: pixels that already stand on this very
 device are wrapped where they are, in the format they were painted in and
 with the levels they were made with, and nothing crosses through host
 memory — a page made with a chain is worn through that chain, its levels
-below zero filled in place from level zero once a frame, so a body
+below zero filled in place from level zero once for each painting of
+it a frame wears (once a frame where its painter does not count its
+paintings, as the device frame's `revision` says), so a body
 wearing a page at a distance does not alias across it, and a renderer
 that has the residency make its pages ready before a pass opens has them
 filled there, so no draw breaks its pass to do it — everything else is brought over once and held

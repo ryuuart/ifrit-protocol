@@ -336,8 +336,9 @@ struct Scene::Impl {
    *  @p camera — stably, so two at one depth stand in tree order. It is
    *  the one place components become the values a draw reads. */
   /** Every body in the view wearing a texture @p producer paints, drawn
-   *  this frame wearing what the producer restates its material as. */
-  void restate(const TextureProducerOperations& producer);
+   *  this frame wearing what the producer restates its material as, and
+   *  said to be repainted where @p painted says the producer painted. */
+  void restate(const TextureProducerOperations& producer, bool painted);
   void collectBodies(const geometry::mesh::camera::Camera& camera,
                      std::vector<Draw>& into) const;
   /** Hands over what the frame before read back. */

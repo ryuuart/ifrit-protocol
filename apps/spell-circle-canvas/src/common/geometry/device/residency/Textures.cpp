@@ -167,14 +167,6 @@ WrappedImage* TextureResidency::wrap(const media::DeviceFrame& where) {
       where.device != m_device->gpu() || where.handle == 0 ||
       format == dg::TEX_FORMAT_UNKNOWN)
     return nullptr;
-  // THE PAINTING BEFORE THE SAMPLING, once a frame: a page another queue
-  // paints is finished there before anything this frame submits reads
-  // it. A wait queued while a pass is still being recorded holds that
-  // pass too, since nothing recorded is submitted until later.
-  if (m_waited != m_frame) {
-    m_device->waitForPainting();
-    m_waited = m_frame;
-  }
   m_woreAPage = true;
   const dg::Uint32 levels = (dg::Uint32)std::max(1, where.mipLevels);
   WrappedImage& held = m_wrapped[where.handle];
@@ -187,6 +179,22 @@ WrappedImage* TextureResidency::wrap(const media::DeviceFrame& where) {
         was.MipLevels != levels)
       held = WrappedImage{.used = m_frame};
   }
+  // THE PAINTING BEFORE THE SAMPLING, once a frame and only for a page
+  // painted since the queue last waited for it: a page another queue
+  // paints is finished there before anything this frame submits reads
+  // it. A wait queued while a pass is still being recorded holds that
+  // pass too, since nothing recorded is submitted until later. A page
+  // whose painter counts and has not painted it again was finished
+  // before an earlier wait, and waiting again would hold this frame
+  // behind whatever else that queue has been handed since.
+  const bool painted = where.revision == 0 || !held.texture ||
+                       held.waitedRevision != where.revision;
+  if (painted && m_waited != m_frame) {
+    m_device->waitForPainting();
+    m_waited = m_frame;
+    ++m_pageWork.waits;
+  }
+  held.waitedRevision = where.revision;
   if (!held.texture) {
     auto* vk = static_cast<dg::IRenderDeviceVk*>(m_device->renderDevice());
     // DESCRIBED AS IT WAS MADE: its format and its levels. The levels
@@ -212,19 +220,24 @@ WrappedImage* TextureResidency::wrap(const media::DeviceFrame& where) {
   return held.texture ? &held : nullptr;
 }
 
-bool TextureResidency::fill(WrappedImage& held) {
+bool TextureResidency::fill(WrappedImage& held, uint64_t revision) {
   if ((held.texture->GetDesc().MiscFlags &
        dg::MISC_TEXTURE_FLAG_GENERATE_MIPS) == 0)
     return false;
-  // ONCE A FRAME, AFTER THE PAINTING: the page may be painted again
-  // between two frames and nothing says when, so its levels are filled
-  // from level zero on the first use of every frame that wears it. The
-  // fill is recorded after the wait for the painting, so it reads the
-  // page as painted.
-  if (held.filled != m_frame) {
+  // ONCE PER PAINTING, AFTER IT: a page whose painter counts has its
+  // levels filled from level zero the first time a frame wears a painting
+  // of it, and a page whose painter does not — which may be painted again
+  // between two frames with nothing to say so — on the first use of
+  // every frame that wears it. The fill is recorded after the wait for
+  // the painting, so it reads the page as painted.
+  const bool stale = revision == 0 ? held.filled != m_frame
+                                   : held.filledRevision != revision;
+  if (stale) {
     m_device->context()->GenerateMips(
         held.texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
     held.filled = m_frame;
+    held.filledRevision = revision;
+    ++m_pageWork.fills;
   }
   return true;
 }
@@ -248,8 +261,8 @@ dg::ITexture* TextureResidency::levelZeroOf(WrappedImage& held) {
 void TextureResidency::prepare(const material::Texture& map,
                                std::chrono::duration<double> time) {
   if (!m_device->renderDevice()) return;
-  if (WrappedImage* held = wrap(map.source().frameAt(time).device))
-    (void)fill(*held);
+  const media::DeviceFrame where = map.source().frameAt(time).device;
+  if (WrappedImage* held = wrap(where)) (void)fill(*held, where.revision);
 }
 
 dg::ITexture* TextureResidency::sample(const material::Texture& map,
@@ -261,8 +274,9 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map,
   // draw needs is a name for them and not a second copy of them. The
   // source is asked at the frame's time, and a frame of it standing on a
   // device is named rather than read back.
-  if (WrappedImage* held = wrap(map.source().frameAt(time).device)) {
-    if (form.mipmaps && fill(*held)) return held->texture;
+  const media::DeviceFrame where = map.source().frameAt(time).device;
+  if (WrappedImage* held = wrap(where)) {
+    if (form.mipmaps && fill(*held, where.revision)) return held->texture;
     return levelZeroOf(*held);
   }
   // A page the wrap was refused is still readable the long way.

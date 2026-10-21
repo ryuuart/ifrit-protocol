@@ -10,6 +10,8 @@
 #include <sigilworld/advanced/Light.h>
 
 #include <algorithm>
+#include <glm/vec4.hpp>
+#include <optional>
 #include <span>
 #include <utility>
 #include <vector>
@@ -41,14 +43,76 @@ bool coverageOf(const Draw& body) {
                                 material::surface::kOpacitySlot) != nullptr;
 }
 
+/** WHETHER @p box CAN REACH THE TILE a map with @p viewProjection draws
+ *  into: some part of it stands inside the map's clip volume. A box every
+ *  corner of which stands beyond one of the volume's six planes draws no
+ *  depth there, since the device clips everything drawn to that volume;
+ *  the corners are tested in clip space, where a plane is linear in them,
+ *  so a box behind a perspective map's eye is answered as exactly as one
+ *  in front of it. */
+bool reaches(const glm::mat4& viewProjection, const Box& box) {
+  if (box.empty()) return false;
+  glm::vec4 corners[8];
+  for (int i = 0; i < 8; ++i)
+    corners[i] = viewProjection * glm::vec4(box.corner(i), 1.0f);
+  const auto allBeyond = [&](auto&& beyond) {
+    for (const glm::vec4& corner : corners)
+      if (!beyond(corner)) return false;
+    return true;
+  };
+  return !(allBeyond([](const glm::vec4& c) { return c.x < -c.w; }) ||
+           allBeyond([](const glm::vec4& c) { return c.x > c.w; }) ||
+           allBeyond([](const glm::vec4& c) { return c.y < -c.w; }) ||
+           allBeyond([](const glm::vec4& c) { return c.y > c.w; }) ||
+           allBeyond([](const glm::vec4& c) { return c.z < 0.0f; }) ||
+           allBeyond([](const glm::vec4& c) { return c.z > c.w; }));
+}
+
+/** WHAT EACH CASTER WHOSE SURFACE DECIDES WHERE IT COVERS IS WEARING, as
+ *  a number per body that stays the same while the surface and its map
+ *  are the same values and no texture pass painted a page it wears, and
+ *  changes otherwise; zero for every other body. */
+std::vector<uint64_t> coverageWorn(Gpu& gpu, const View& view) {
+  std::vector<uint64_t> worn(view.draws.size(), 0);
+  gpu.shadowWorn.resize(view.draws.size());
+  for (size_t i = 0; i < view.draws.size(); ++i) {
+    const Draw& body = view.draws[i];
+    Gpu::CoverageWorn& was = gpu.shadowWorn[i];
+    if (!casts(body) || !coverageOf(body)) {
+      was = {};
+      continue;
+    }
+    const bool sameMaterial =
+        body.material ? was.material && *was.material == *body.material
+                      : !was.material;
+    const bool sameTexture = body.texture
+                                 ? was.texture && *was.texture == *body.texture
+                                 : !was.texture;
+    if (was.generation == 0 || body.repainted || !sameMaterial ||
+        !sameTexture) {
+      was.material = body.material
+                         ? std::optional<material::Material>(*body.material)
+                         : std::nullopt;
+      was.texture = body.texture
+                        ? std::optional<material::Texture>(*body.texture)
+                        : std::nullopt;
+      was.generation = ++gpu.shadowWornGenerations;
+    }
+    worn[i] = was.generation;
+  }
+  return worn;
+}
+
 /** WHAT ONE MAP'S DEPTH IS A FUNCTION OF: where it stands in the atlas
  *  and how it projects, and every body its light's link keeps that casts
- *  — where it stands, which cooked triangles it is, every instance of
- *  it, the eye's turn where it turns to face the eye, and, where its
- *  surface cuts it out, the map and the moment that surface is read at.
+ *  and stands where the map can see it — where it stands, which cooked
+ *  triangles it is, every instance of it, the eye's turn where it turns
+ *  to face the eye, and, where its surface cuts it out, what that surface
+ *  and its map are (@p worn) and the moment a running one is read at.
  *  Two frames folding to the same number draw the same depth into the
  *  tile, so the second keeps the first's. */
 uint64_t shadowFold(const ShadowMap& map, const View& view,
+                    std::span<const Box> boxes, std::span<const uint64_t> worn,
                     const glm::mat4& cameraView, double seconds) {
   Fold fold;
   fold.add(map.viewProjection);
@@ -60,6 +124,7 @@ uint64_t shadowFold(const ShadowMap& map, const View& view,
     const Draw& body = view.draws[i];
     if (!casts(body)) continue;
     if (!link.everything() && !link.contains(memberOf(body))) continue;
+    if (!reaches(map.viewProjection, boxes[i])) continue;
     fold.add(i);
     fold.add(body.world);
     fold.add(body.geometry);
@@ -77,10 +142,12 @@ uint64_t shadowFold(const ShadowMap& map, const View& view,
       if (view.standIns && body.material)
         fold.add(
             programReady(material::inlined(*body.material), kVariantShadow));
-      fold.add(body.material);
-      fold.add(body.texture);
+      fold.add(worn[i]);
       fold.add(body.baseColor);
-      fold.add(seconds);
+      // Only a surface that moves on its own is read at a new moment.
+      if ((body.material && body.material->isRunning()) ||
+          (body.texture && body.texture->animated()))
+        fold.add(seconds);
     }
   }
   return fold.value;
@@ -122,8 +189,12 @@ dg::ITexture* blankTile(Gpu& gpu, int side) {
  *
  *  A MAP NOTHING MOVED IN IS KEPT. The atlas stands from frame to frame,
  *  and a tile is redrawn only when what its depth is a function of
- *  changed — its light, its fit, or a body that casts into it. Answers
- *  how many maps it drew. */
+ *  changed — its light, its fit, or a body that casts into it; a body
+ *  standing where a map cannot see it neither casts into that map nor
+ *  is drawn there. A surface that cuts its caster out is folded as the
+ *  value it is, so the same surface kept from frame to frame keeps its
+ *  maps, and is read at a new moment only where it runs on its own or a
+ *  page it wears was painted again. Answers how many maps it drew. */
 int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
   gpu.shadows.clear();
   const std::vector<size_t> chosen =
@@ -205,11 +276,13 @@ int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
   // anew, holds nothing worth keeping.
   const bool laidOut = atlas == gpu.shadowFoldsAtlas &&
                        gpu.shadowFolds.size() == gpu.shadows.size();
+  const std::vector<uint64_t> worn = coverageWorn(gpu, view);
   std::vector<uint64_t> folds(gpu.shadows.size());
   std::vector<bool> redraw(gpu.shadows.size(), !laidOut);
   size_t redrawn = 0;
   for (size_t at = 0; at < gpu.shadows.size(); ++at) {
-    folds[at] = shadowFold(gpu.shadows[at], view, cameraView, gpu.seconds);
+    folds[at] = shadowFold(gpu.shadows[at], view, boxes, worn, cameraView,
+                           gpu.seconds);
     if (laidOut && folds[at] != gpu.shadowFolds[at]) redraw[at] = true;
     redrawn += redraw[at] ? 1 : 0;
   }
@@ -263,6 +336,8 @@ int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
       const Draw& body = view.draws[i];
       if (!casts(body)) continue;
       if (!link.everything() && !link.contains(memberOf(body))) continue;
+      // A body the map cannot see draws nothing into it.
+      if (!reaches(map.viewProjection, boxes[i])) continue;
       const Caster caster{map.viewProjection, coverageOf(body)};
       // A body turned to the camera keeps the turn the eye sees it at, so
       // its shadow is the shape it shows.

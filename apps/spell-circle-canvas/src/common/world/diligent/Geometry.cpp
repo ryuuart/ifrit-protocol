@@ -156,12 +156,16 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     (void)prefilteredPanorama(gpu, gpu.maps.environment(view.environment.map));
     (void)prefilteredPanorama(gpu, gpu.maps.environment(view.environment.next));
   }
+  // What the pages' painting kept the device waiting for, and their levels,
+  // are the pages' and not the shadow stage's.
+  gpu.mark("pages");
   // THE SHADOW STAGE, before the target is opened: the maps every lit
-  // body below reads.
+  // body below reads, then the tint beside them.
   const int64_t mapsDrawn = drawShadows(gpu, view, viewMatrix);
+  gpu.mark("shadow");
   targets.addShadowMapsDrawn(mapsDrawn +
                              drawTints(gpu, view, viewMatrix, mapsDrawn));
-  gpu.mark("shadow");
+  gpu.mark("tint");
   // THE BACKDROPS' TEXTURES, before the target is opened, so a page met
   // here is wrapped and waited for outside the pass that lays it.
   std::vector<dg::ITexture*> backdrops;

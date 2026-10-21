@@ -334,16 +334,22 @@ kept otherwise; the lit programs read them only in a frame that holds one
 or for a body that receives no shadow, holds no shadow code at all (`kVariantUnshadowed`).
 
 **What a map costs.** A map is drawn only in a frame where something its
-depth depends on moved — its light, its fit, or a body casting into it —
-and kept otherwise, so a still scene pays for its shadows once. A frame
-that draws one pays for every casting body drawn into it once more and
+depth depends on moved — its light, its fit, or a body casting into it
+that stands where the map can see it — and kept otherwise, so a still
+scene pays for its shadows once, a surface that cuts its caster out is
+kept while it is the same value, and a body turning under one face of a
+point light redraws that face alone. A frame that draws one pays for
+every casting body that reaches it once more and
 for its tile's texels: doubling `shadow.mapSize` quadruples the texels
 written and read, a point, sphere, rect or disk light draws six maps and a
 directional one a map per cascade. Reading a map costs every lit pixel nine filtered taps
 per casting light whatever the map's size — or, from a source with a
 width, sixteen texels searched and, where something blocks, twenty-five
 filtered taps. A frame timed with
-`Frame::timeStages` reports the stage as `<pass>.shadow`.
+`Frame::timeStages` reports the maps as `<pass>.shadow` and the tint
+beside them as `<pass>.tint`; what the pages the bodies wear cost before
+either — the wait for their painting and their smaller levels — is
+`<pass>.pages`.
 
 **Filtering.** A shaded point is moved out along its surface's normal,
 carried into the light's map, and compared against nine taps `radius`
