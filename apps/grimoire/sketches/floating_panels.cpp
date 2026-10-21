@@ -13,9 +13,9 @@
  * of a surface that is its own light, because a screen emits and a light
  * term on it would read as a smear across the curve.
  *
- * WHAT IS ON THE PANELS is described in compose and baked once through
- * `ctx.textureScene()`, the host's own door for a compose scene painted
- * into a texture: a card is a column of boxes, a gauge is two filled
+ * WHAT IS ON THE PANELS is described in compose and painted once through
+ * `ctx.texture()`, the host's own door for a compose tree painted into a
+ * texture: a card is a column of boxes, a gauge is two filled
  * sectors, a bar row is boxes of differing height. Nothing here paints a
  * rounded rect by hand — a panel's content is an element tree like any
  * other, and the only thing 3D about it is where it ends up.
@@ -74,20 +74,15 @@ namespace {
 
 constexpr SkSize kCanvas = {1240, 720};
 
-/** How many picture pixels the bake takes per page pixel, so the cockpit
- *  stays sharp on a plate captured at twice the page's size. */
-constexpr int kBakeDensity = 2;
-
 /** A screen's surface: @p picture in the base-colour slot of a surface
  *  that is its own light, at @p opacity; @p layered writes no depth, so
  *  the screen is laid among the other such bodies back to front. */
-material::Material screen(const sk_sp<SkImage>& picture, float opacity,
+material::Material screen(const material::Texture& picture, float opacity,
                           bool layered = false) {
   material::Material surface = material::surface::unlit(
       {.baseColor = {1, 1, 1, opacity}, .depthWrite = layered ? 0.0f : -1.0f});
-  if (picture)
-    surface.slot(material::surface::kBaseColorSlot,
-                 material::Texture(sigil::media::PixelSource(picture)));
+  if (picture.valid())
+    surface.slot(material::surface::kBaseColorSlot, picture);
   return surface;
 }
 
@@ -156,16 +151,6 @@ struct FloatingPanels {
     return sketch::runtimeAvailable(why);
   }
 
-  /** An element tree painted to pixels at a stated size. The session owns
-   *  the scene; what comes back here is the image. */
-  static sk_sp<SkImage> bake(sketch::Scene2DContext& ctx, const Element& tree,
-                             int w, int h) {
-    const std::shared_ptr<TextureScene> scene = ctx.textureScene({w, h});
-    if (!scene) return nullptr;
-    scene->render(tree);
-    return scene->image();
-  }
-
   void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
@@ -174,14 +159,14 @@ struct FloatingPanels {
                         .captureAt = 1.0,
                         .background = sketch::kit::theme().palette.ground});
 
-    const sk_sp<SkImage> cardA =
-        bake(ctx, card(360, 240, {0.2f, 0.85f, 1.0f, 1}), 360, 240);
-    const sk_sp<SkImage> cardB =
-        bake(ctx, card(360, 240, {1.0f, 0.6f, 0.25f, 1}), 360, 240);
-    const sk_sp<SkImage> cardC =
-        bake(ctx, card(360, 240, {0.7f, 0.45f, 1.0f, 1}), 360, 240);
-    const sk_sp<SkImage> wide =
-        bake(ctx, card(720, 200, {0.3f, 1.0f, 0.6f, 1}), 720, 200);
+    const material::Texture cardA =
+        ctx.texture(card(360, 240, {0.2f, 0.85f, 1.0f, 1}), {360, 240});
+    const material::Texture cardB =
+        ctx.texture(card(360, 240, {1.0f, 0.6f, 0.25f, 1}), {360, 240});
+    const material::Texture cardC =
+        ctx.texture(card(360, 240, {0.7f, 0.45f, 1.0f, 1}), {360, 240});
+    const material::Texture wide =
+        ctx.texture(card(720, 200, {0.3f, 1.0f, 0.6f, 1}), {720, 200});
 
     const mesh::Mesh floor = mesh::grid(24, 24, [](float u, float v) {
       return glm::vec3{(u - 0.5f) * 1400, -170, (v - 0.5f) * 1400};
@@ -219,9 +204,7 @@ struct FloatingPanels {
              .transform(camera::place({0, -160, 60}, 0, 10))
              .fill(screen(wide, 1, /*layered=*/true))}));
     const sk_sp<SkImage> picture =
-        ctx.bakeScene3D(cockpit,
-                        {(int)kCanvas.width() * kBakeDensity,
-                         (int)kCanvas.height() * kBakeDensity},
+        ctx.bakeScene3D(cockpit, {(int)kCanvas.width(), (int)kCanvas.height()},
                         {.camera = view});
 
     ctx.composer.render(sketch::kit::page(

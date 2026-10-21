@@ -96,10 +96,6 @@ namespace {
 
 /** Where the wire panel stands on the sheet and how large it is. */
 constexpr SkRect kFlight = SkRect::MakeXYWH(600, 116, 650, 690);
-/** How many picture pixels the wire's bake takes per page pixel, so it
- *  stays sharp on a plate captured at twice the page's size. */
-constexpr int kBakeDensity = 2;
-
 mesh::camera::Camera flightCamera() {
   return {.eye = {0, 620, 900}, .target = {0, 0, 0}, .fovYDegrees = 40};
 }
@@ -259,9 +255,7 @@ struct ShapeworksLab {
              .backface(material::Backface::Visible)
              .fill(std::move(band))}));
     flightPicture = ctx.bakeScene3D(
-        frame,
-        {(int)kFlight.width() * kBakeDensity,
-         (int)kFlight.height() * kBakeDensity},
+        frame, {(int)kFlight.width(), (int)kFlight.height()},
         {.camera = flightCamera(), .at = sigil::motion::Duration(seconds)});
     flightSeconds = seconds;
   }

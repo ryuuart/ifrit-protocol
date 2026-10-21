@@ -49,10 +49,10 @@ coat and a rougher surface.
 - **The crazing** is `path::voronoi` over `path::sample` sites, repeated
   across the page's width so the network closes round the jar. Each cell is
   a Compose shape filled with a `material::linearGradient` in pixels and
-  stroked at its edge. It is painted once into a texture scene
-  (`Scene3DContext::textureScene`) as a height and once as an ink mask. The
+  stroked at its edge. It is painted once into a texture
+  (`Scene3DContext::texture`) as a height and once as an ink mask. The
   height goes through `material::surface::normalFromHeight` into a second
-  texture scene, which is the coat's normal.
+  texture, which is the coat's normal.
 - **The tile** is two `geometry::mesh::box` bodies: the top face wears the
   page, and the four sides wear the clay. Its incisions are Compose strokes
   painted three ways: sharp as a height for the surface's normal, softened

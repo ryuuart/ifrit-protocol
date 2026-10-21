@@ -10,6 +10,7 @@
 
 #include <sigilcompose/texture/SurfaceRange.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
@@ -32,8 +33,10 @@ namespace sigil::weave {
 class FontContext;
 }
 namespace sigil::compose {
+class Element;
 class SurfaceScene;
 class TextureScene;
+class Textures;
 }  // namespace sigil::compose
 
 namespace sigil::sketch {
@@ -76,6 +79,19 @@ struct Scene3DContext {
    *  piece begins where an earlier one left off. */
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
       SkISize size, sigil::material::Color background = {0, 0, 0, 0});
+
+  /** A TREE PAINTED ONCE AS A TEXTURE, @p size pixels across and cleared
+   *  to @p background, for a material to read: a height, a mask, a coat —
+   *  a map that does not move. It is painted where a `textureScene()` is
+   *  painted, and the session keeps it as long as it runs.
+   *
+   *  KEPT BY VALUE, as `compose::Textures` keeps it: a tree equal to one
+   *  already painted at the same size over the same background is handed
+   *  the texture it was painted as, so a setup that builds the same map
+   *  twice paints it once. A tree that moves is a `textureScene()`'s. */
+  [[nodiscard]] material::Texture texture(
+      const compose::Element& tree, SkISize size,
+      sigil::material::Color background = {0, 0, 0, 0});
 
   /** A PAGE THE SCENE LIGHTS, @p size pixels across: a compose tree
    *  painted as the maps of a surface by a pass on the frame. Ask for it
@@ -121,6 +137,9 @@ struct Scene3DContext {
    *  canvas has for it, a live window no more than the sketch declared,
    *  magnified to the pane. */
   bool deterministic = false;
+  /** Host-owned: the trees `texture()` painted, kept by value for the
+   *  session's life. */
+  compose::Textures* textures = nullptr;
 };
 
 /** A SCENE3D SKETCH: any type that can describe a world

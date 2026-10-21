@@ -292,10 +292,10 @@ Element glowMap() {
            laid(alloyStroke(), kWhite).filter(material::Filter::blur(12))});
 }
 
-material::Material image(const std::shared_ptr<compose::TextureScene>& scene) {
-  return material::image(scene->texture()
-                             .tile(material::Repeat::Pad)
-                             .sampling(material::Sampling::Linear));
+material::Material mapImage(const material::Texture& map) {
+  return material::image(
+      material::Texture(map).tile(material::Repeat::Pad).sampling(
+          material::Sampling::Linear));
 }
 
 /** WHAT EVERY MARK ON THE PAGE SHARES: the normal of the one height, the
@@ -437,7 +437,6 @@ const world::kit::Turntable kKeyRail{
     .at = {0, 0, 0}, .radius = 1350, .height = 300};
 
 struct PaintedFields {
-  std::shared_ptr<compose::TextureScene> heightScene, wetScene, glowScene;
   sketch::Page page;
   world::EnvironmentMap room;
   Element tree = compose::stack();
@@ -459,17 +458,12 @@ struct PaintedFields {
                              .captureAt = 11.0,
                              .background = hexColor(0x0c0d0f)});
     const SkISize size{kPageWidth, kPageHeight};
-    heightScene = ctx.textureScene(size, kBlack);
-    heightScene->render(heightMap());
-    wetScene = ctx.textureScene(size, kBlack);
-    wetScene->render(wetMap());
-    glowScene = ctx.textureScene(size, kBlack);
-    glowScene->render(glowMap());
     const Maps maps{
         .normal = material::surface::normalFromHeight(
-            image(heightScene), {.depth = 7, .step = .9f, .directX = true}),
-        .wet = image(wetScene),
-        .glow = image(glowScene)};
+            mapImage(ctx.texture(heightMap(), size, kBlack)),
+            {.depth = 7, .step = .9f, .directX = true}),
+        .wet = mapImage(ctx.texture(wetMap(), size, kBlack)),
+        .glow = mapImage(ctx.texture(glowMap(), size, kBlack))};
     page = ctx.page({kPageWidth, kPageHeight});
     tree = paintedPage(maps);
     room = studio();

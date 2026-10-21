@@ -58,6 +58,16 @@ std::shared_ptr<compose::TextureScene> Scene3DContext::textureScene(
   return scene;
 }
 
+material::Texture Scene3DContext::texture(const compose::Element& tree,
+                                          SkISize size,
+                                          sigil::material::Color background) {
+  if (!textures) return {};
+  // Painted where a screen is painted: on the device in a window, and on
+  // the CPU in a capture that will be diffed.
+  if (!deterministic) standOnTheDevice(*textures);
+  return textures->paint(tree, size, background);
+}
+
 namespace detail {
 
 Page keptPage(glm::ivec2 size, compose::SurfaceRange range,

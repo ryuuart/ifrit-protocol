@@ -4,7 +4,7 @@
  *
  * A frame holds ONE environment, so a sheet that compares its dials
  * cannot be one scene: each cell is its own frame, baked through
- * `Scene2DContext::bakeScene3D` at the pixels the cell will have and painted
+ * `Scene2DContext::bakeScene3D` at the size the cell will have and painted
  * as the picture INSIDE this page.
  *
  * The dials divide cleanly. `diffuse` is how much of the map reaches a

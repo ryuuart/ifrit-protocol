@@ -52,6 +52,7 @@
 #include <sigilcompose/texture/SurfaceRange.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
@@ -71,6 +72,7 @@
 namespace sigil::compose {
 class SurfaceScene;
 class TextureScene;
+class Textures;
 }  // namespace sigil::compose
 namespace sigil::world {
 class Frame;
@@ -109,7 +111,17 @@ struct BakeScene3DOptions {
   sigil::material::Color background{0, 0, 0, 0};
   /** The moment of the bake, on the baked scene's own clock. */
   motion::Duration at{};
+  /** How many picture pixels a canvas unit of the bake is worth. Zero, the
+   *  default, takes the density the sketch is drawn at,
+   *  `Scene2DContext::bakeDensity()`. */
+  float density = 0.0f;
 };
+
+/** HOW MANY DEVICE PIXELS A CANVAS UNIT IS WORTH ON A SCENE2D PLATE that
+ *  declares no oversample of its own: a scene2d canvas is described
+ *  again at the capture's scale, so a still of it is worth taking at
+ *  twice the canvas it declared. */
+inline constexpr float kScene2DOversample = 2.0f;
 
 /** WHAT A SKETCH IS HANDED every time it is asked to describe itself.
  *
@@ -141,6 +153,9 @@ struct Scene2DContext {
   /** Host-owned: the device runtime `bakeScene3D` draws on, where the
    *  session was opened on one of its own; null is the process's. */
   const sigil::world::Runtime* bakeRuntime = nullptr;
+  /** Host-owned: the trees `texture()` painted, kept by value for the
+   *  session's life. */
+  compose::Textures* textures = nullptr;
   [[nodiscard]] std::string local(std::string_view name) const {
     return "sketch://" + std::string(key) + "/" + std::string(name);
   }
@@ -154,7 +169,8 @@ struct Scene2DContext {
       std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn = nullptr,
       std::string_view keyIn = {},
       std::vector<std::shared_ptr<compose::SurfaceScene>>* pagesIn = nullptr,
-      const sigil::world::Runtime* bakeRuntimeIn = nullptr)
+      const sigil::world::Runtime* bakeRuntimeIn = nullptr,
+      compose::Textures* texturesIn = nullptr)
       : composer(composerIn),
         engine(engineIn),
         assets(assetsIn),
@@ -165,6 +181,7 @@ struct Scene2DContext {
         pages(pagesIn),
         key(keyIn),
         bakeRuntime(bakeRuntimeIn),
+        textures(texturesIn),
         deterministic(deterministicIn) {}
   Scene2DContext(const Scene2DContext&) = delete;
   Scene2DContext& operator=(const Scene2DContext&) = delete;
@@ -191,6 +208,23 @@ struct Scene2DContext {
    *  Null only where the host lent no fonts. */
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
       SkISize size, sigil::material::Color background = {0, 0, 0, 0});
+
+  /** A TREE PAINTED ONCE AS A TEXTURE, @p size pixels across and cleared
+   *  to @p background: the door an element becomes a picture by — a map a
+   *  material reads, a card a baked body wears, a fixture an image is
+   *  made from. Read the pixels with `frameAt()` on what comes back.
+   *
+   *  KEPT BY VALUE, as `compose::Textures` keeps it: a tree equal to one
+   *  already painted at the same size over the same background is handed
+   *  the texture it was painted as, so a body that asks for the same map
+   *  twice paints it once. The session keeps every texture the body asked
+   *  for while it last declared itself, and one it stopped asking for
+   *  goes when it declares again. A tree that moves is a `textureScene()`'s.
+   *
+   *  Empty only where the host lent no fonts. */
+  [[nodiscard]] material::Texture texture(
+      const compose::Element& tree, SkISize size,
+      sigil::material::Color background = {0, 0, 0, 0});
 
   /** A PAGE A BAKED 3D FRAME LIGHTS, @p size pixels across: a compose
    *  tree painted as the maps of a surface by a pass on the frame. It is
@@ -220,13 +254,31 @@ struct Scene2DContext {
    *  where the host lent no fonts. */
   [[nodiscard]] Page page(glm::ivec2 size, compose::SurfaceRange range = {});
 
-  /** A LIT 3D SCENE RENDERED ONCE INTO AN IMAGE @p size pixels across — the
-   *  picture INSIDE a page. A scene2d plate is
+  /** HOW MANY DEVICE PIXELS A CANVAS UNIT IS WORTH where this sketch is
+   *  drawn: the density the host declared for the session's bakes
+   *  (`Session::setBakeDensity`) — a window's own pixel ratio, a plate's
+   *  capture density — and, before a host has declared one, which is
+   *  while the body first declares itself, the density a plate of the
+   *  sketch is taken at: the oversample it declared, or the scene2d
+   *  runtime's own (`kScene2DOversample`). A picture the sketch makes
+   *  itself, at a size in canvas units, is made this many pixels to the
+   *  unit so it lands on the device's grid rather than magnified to it. */
+  [[nodiscard]] float bakeDensity() const;
+
+  /** A LIT 3D SCENE RENDERED ONCE INTO AN IMAGE @p size canvas units across
+   *  — the picture INSIDE a page. A scene2d plate is
    *  re-rendered at the capture scale, so a document that wanted a 3D scene
    *  in one of its panels cannot wear it as a texture the way a body
-   *  does: it bakes the scene at the pixels the panel will have and paints
-   *  the image. The frame's own words are SigilWorld's, from
+   *  does: it bakes the scene at the size the panel will have and paints
+   *  the image there. The frame's own words are SigilWorld's, from
    *  `<sigilworld/frame/Frame.h>`.
+   *
+   *  THE IMAGE IS @p size TIMES THE DENSITY in pixels — the options' own,
+   *  or `bakeDensity()` where they state none — so a sketch states the
+   *  panel it fills and the bake lands on the device's pixels, sharp on a
+   *  plate taken at twice the canvas and in a window at the display's
+   *  ratio. Paint it stretched over the @p size it was asked at. A side
+   *  that rounds to no pixel is one pixel.
    *
    *  SEEN THROUGH `BakeScene3DOptions::camera` — unless the tree carries a
    *  camera of its own, which wins here exactly as it wins in the scene3d
@@ -239,7 +291,7 @@ struct Scene2DContext {
    *  `available()` probe over `runtimeAvailable`. A frame that declares no
    *  passes is drawn through one geometry pass clearing to the options'
    *  background. The picture is a function of the frame, the camera, the
-   *  size and the moment; the scene it stands the frame in
+   *  size, the density and the moment; the scene it stands the frame in
    *  lives for this call alone, so what comes back is an image and not a
    *  view onto something still standing.
    *

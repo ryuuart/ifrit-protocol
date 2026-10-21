@@ -454,4 +454,69 @@ material::Texture texture(const Element& root, SkImageInfo info,
   return scene->texture();
 }
 
+struct Textures::Impl {
+  explicit Impl(weave::FontContext& fontsIn) : fonts(fontsIn) {}
+
+  /** One painted tree: what it was asked for with, the texture it was
+   *  painted as, and whether it was asked for since the last sweep. */
+  struct Entry {
+    Element tree;
+    SkISize size;
+    material::Color background;
+    material::Texture texture;
+    bool asked = true;
+  };
+
+  weave::FontContext& fonts;
+  core::hardware::GpuDevice* device = nullptr;
+  skia::GraphiteContext* context = nullptr;
+  std::vector<Entry> entries;
+  uint64_t paints = 0;
+};
+
+Textures::Textures(weave::FontContext& fonts)
+    : m_impl(std::make_unique<Impl>(fonts)) {}
+
+Textures::~Textures() = default;
+
+void Textures::useDevice(core::hardware::GpuDevice& device,
+                         skia::GraphiteContext& context) {
+  m_impl->device = &device;
+  m_impl->context = &context;
+}
+
+material::Texture Textures::paint(const Element& tree, SkISize size,
+                                  material::Color background) {
+  Impl& impl = *m_impl;
+  // The cheap halves of the key first: a size and a background decide
+  // most misses before a whole description is walked.
+  for (Impl::Entry& entry : impl.entries) {
+    if (entry.size != size || entry.background != background) continue;
+    if (!sameDescription(entry.tree, tree)) continue;
+    entry.asked = true;
+    return entry.texture;
+  }
+  const std::shared_ptr<TextureScene> scene =
+      TextureScene::make(size, impl.fonts, background);
+  if (!scene) return {};
+  if (impl.device && impl.context)
+    (void)scene->useDevice(*impl.device, *impl.context);
+  scene->render(tree);
+  ++impl.paints;
+  material::Texture painted = scene->texture();
+  impl.entries.push_back({tree, size, background, painted});
+  return painted;
+}
+
+uint64_t Textures::paints() const { return m_impl->paints; }
+
+size_t Textures::kept() const { return m_impl->entries.size(); }
+
+void Textures::sweep() {
+  std::vector<Impl::Entry>& entries = m_impl->entries;
+  std::erase_if(entries,
+                [](const Impl::Entry& entry) { return !entry.asked; });
+  for (Impl::Entry& entry : entries) entry.asked = false;
+}
+
 }  // namespace sigil::compose

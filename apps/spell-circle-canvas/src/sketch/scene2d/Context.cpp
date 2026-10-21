@@ -17,6 +17,9 @@
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/scene/Scene.h>
 
+#include <algorithm>
+#include <cmath>
+
 #include "../scene3d/KeptPage.h"
 
 namespace sigil::sketch {
@@ -32,9 +35,24 @@ std::shared_ptr<compose::TextureScene> Scene2DContext::textureScene(
   return scene;
 }
 
+material::Texture Scene2DContext::texture(const compose::Element& tree,
+                                          SkISize size,
+                                          sigil::material::Color background) {
+  if (!textures) return {};
+  return textures->paint(tree, size, background);
+}
+
 Page Scene2DContext::page(glm::ivec2 size, compose::SurfaceRange range) {
   if (!fonts) return Page();
   return detail::keptPage(size, range, *fonts, pages);
+}
+
+float Scene2DContext::bakeDensity() const {
+  const float declared = composer.bakeDensity();
+  if (declared > 0) return declared;
+  if (specification && specification->oversample > 0)
+    return (float)specification->oversample;
+  return kScene2DOversample;
 }
 
 sk_sp<SkImage> Scene2DContext::bakeScene3D(const world::Frame& frame,
@@ -44,6 +62,15 @@ sk_sp<SkImage> Scene2DContext::bakeScene3D(const world::Frame& frame,
   // session was opened on, or the process's.
   const world::Runtime& drawnOn = bakeRuntime ? *bakeRuntime : runtime();
   if (!runtimeAvailable(drawnOn, nullptr)) return nullptr;
+  // The size is the panel's, in canvas units; the picture is that many
+  // units at the density the sketch is drawn at.
+  const float density = std::isfinite(options.density) && options.density > 0
+                            ? options.density
+                            : bakeDensity();
+  const auto pixels = [density](int side) {
+    return std::max(1, (int)std::lround((double)side * density));
+  };
+  size = SkISize::Make(pixels(size.width()), pixels(size.height()));
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(size.width(), size.height()));
   if (!surface) return nullptr;

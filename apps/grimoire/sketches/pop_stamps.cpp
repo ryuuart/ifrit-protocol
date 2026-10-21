@@ -76,9 +76,6 @@ namespace world = sigil::world;
 namespace {
 
 constexpr SkSize kCanvas = {1240, 900};
-/** How many picture pixels a bake takes per page pixel, so a figure stays
- *  sharp on a plate captured at twice the page's size. */
-constexpr int kBakeDensity = 2;
 constexpr float kFigureWidth = 568;
 constexpr float kFigureHeight = 238;
 
@@ -128,19 +125,7 @@ struct PopStamps {
     return sketch::runtimeAvailable(why);
   }
 
-  /** An element tree painted to pixels, square, at a stated side. The
-   *  session owns the scene the picture was taken from and lets it go
-   *  when the body declares again, so the sketch holds an image and
-   *  nothing else. */
-  static sk_sp<SkImage> bake(sketch::Scene2DContext& ctx, const Element& tree,
-                             int side) {
-    const std::shared_ptr<TextureScene> scene = ctx.textureScene({side, side});
-    if (!scene) return nullptr;
-    scene->render(tree);
-    return scene->image();
-  }
-
-  /** One figure: @p bodies under one light, baked at the pixels its well
+  /** One figure: @p bodies under one light, baked at the size its well
    *  will have. */
   static Element figure(sketch::Scene2DContext& ctx,
                         std::vector<sigil::world::Node> bodies) {
@@ -154,8 +139,7 @@ struct PopStamps {
     return sketch::kit::well(
         {.width = kFigureWidth, .height = kFigureHeight},
         image(ctx.bakeScene3D(world::Frame(world::group(std::move(bodies))),
-                              {(int)kFigureWidth * kBakeDensity,
-                               (int)kFigureHeight * kBakeDensity},
+                              {(int)kFigureWidth, (int)kFigureHeight},
                               {.camera = view}),
               material::Fit::Stretch));
   }
@@ -167,7 +151,7 @@ struct PopStamps {
               .captureAt = 1.0,
               .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
 
-    const sk_sp<SkImage> atlas = bake(ctx, atlasSheet(128), 256);
+    const material::Texture atlas = ctx.texture(atlasSheet(128), {256, 256});
 
     const std::vector<glm::vec3> ring = ringPoints();
     const glm::vec3 eye = {0, 260, 980};
@@ -218,9 +202,7 @@ struct PopStamps {
     // stands behind them.
     material::Material motifs =
         material::surface::unlit({.baseColor = {1, 1, 1, 1}, .depthWrite = 0});
-    if (atlas)
-      motifs.slot(material::surface::kBaseColorSlot,
-                  material::Texture(sigil::media::PixelSource(atlas)));
+    if (atlas.valid()) motifs.slot(material::surface::kBaseColorSlot, atlas);
     const glm::mat4 crowned = camera::place({}, 14, -10, 0, 0.85f);
     Element tubeFigure =
         figure(ctx, {world::mesh(tube)

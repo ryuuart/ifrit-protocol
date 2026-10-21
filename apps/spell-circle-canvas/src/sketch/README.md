@@ -329,14 +329,18 @@ A scene2d sketch and a scene3d sketch can exchange pictures without sharing thei
 | Context method | Purpose |
 | --- | --- |
 | `ctx.textureScene(size, background)` | a Compose scene painted into a texture |
-| `ctx.bakeScene3D(frame, size, {.camera, .background, .at})` | one World frame baked into an image on a scene2d sketch's surface |
+| `ctx.texture(tree, size, background)` | a Compose tree painted once as a texture, kept by value: an equal tree asked for again is handed the same texture |
+| `ctx.bakeScene3D(frame, size, {.camera, .background, .at, .density})` | one World frame baked into an image on a scene2d sketch's surface: `size` in canvas units, the image that many units at `ctx.bakeDensity()` unless the options state a density |
 | `ctx.page(size, range)` | a `sketch::Page`: a Compose page painted as a surface's maps by a pass on the frame, for the scene's lights to shade — on a scene3d sketch's frame, or on the frame a scene2d sketch bakes; the optional `compose::SurfaceRange` states what its maps stand for at their white |
 
 The session retains texture scenes until the body declares again. Create one
 in `setup()`, keep the returned pointer, and update it at the scene's forward
 time. Creating one every frame keeps every such scene until redeclaration.
 Include `<sigilcompose/texture/Texture.h>` for its `render()`, `image()` and
-`texture()` operations.
+`texture()` operations. A tree that does not move — a height, a mask, a card
+a body wears — comes in by `texture()` instead, which paints it once and hands
+the same texture to every ask for an equal tree; the session keeps what the
+body asked for while it last declared itself.
 
 A scene3d sketch's page is held the same way. It is two calls in `describe`:
 `Page::render(tree)` is the texture pass that paints the tree as the maps of a

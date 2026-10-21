@@ -266,10 +266,10 @@ Element heightPage() {
       std::move(marks));
 }
 
-material::Material image(const std::shared_ptr<compose::TextureScene>& scene) {
-  return material::image(scene->texture()
-                             .tile(material::Repeat::Pad)
-                             .sampling(material::Sampling::Linear));
+material::Material mapImage(const material::Texture& map) {
+  return material::image(
+      material::Texture(map).tile(material::Repeat::Pad).sampling(
+          material::Sampling::Linear));
 }
 
 material::Color copperColour() { return hexColor(0xe08a5a); }
@@ -363,7 +363,6 @@ gm::Mesh ring(float outer) {
 }
 
 struct MetalLinework {
-  std::shared_ptr<compose::TextureScene> height;
   sketch::Page board;
   Element boardTree = compose::stack();
   world::EnvironmentMap room;
@@ -386,10 +385,9 @@ struct MetalLinework {
     sketch::kit::stage(ctx, {.size = {1440, 900},
                              .captureAt = 4.0,
                              .background = hexColor(0x0a0b0c)});
-    height = ctx.textureScene({int(kWidth), int(kDepth)}, kBlack);
-    height->render(heightPage());
     board = ctx.page({int(kWidth), int(kDepth)});
-    boardTree = boardPage(image(height));
+    boardTree = boardPage(mapImage(
+        ctx.texture(heightPage(), {int(kWidth), int(kDepth)}, kBlack)));
 
     slab = gm::box({-kWidth / 2, -24, -kDepth / 2},
                    {kWidth / 2, -.5f, kDepth / 2});

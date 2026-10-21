@@ -7,9 +7,11 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <sigilcompose/core/Factories.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -108,5 +110,50 @@ BENCHMARK(Scene3DFrameThroughPane)
     ->Arg(2)
     ->Arg(4)
     ->Unit(benchmark::kMicrosecond);
+
+/** A SCENE2D SKETCH BAKING THE RING into a panel of its page every frame,
+ *  at the density the arm states: the panel is the same canvas units at
+ *  every density, so what grows is the pixels the bake lands on — the
+ *  price of a bake taken at the device's own scale. */
+struct BakingRing {
+  static inline float density = 1.0f;
+  Ring ring;
+  sk_sp<SkImage> picture;
+  void setup(Scene2DContext& ctx) {
+    ctx.canvas(480, 320);
+    ctx.composer.render(sigil::compose::box().width(10).height(10));
+  }
+  void update(double seconds, Scene2DContext& ctx) {
+    sigil::geometry::mesh::camera::Camera lens;
+    lens.eye = {0, 200, 520};
+    picture = ctx.bakeScene3D(
+        ring.describe(sigil::motion::Duration(seconds)), {320, 200},
+        {.camera = lens, .density = density});
+  }
+};
+
+void Scene2DBakeAtDensity(benchmark::State& state) {
+  std::string why;
+  if (!sigil::sketch::test::installDeviceRuntime(&why)) {
+    state.SkipWithError(("no Vulkan device: " + why).c_str());
+    return;
+  }
+  BakingRing::density = (float)state.range(0);
+  std::unique_ptr<Session> session =
+      kindOf<BakingRing>()->open(fonts(), assets());
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(480, 320));
+  SkCanvas canvas(bitmap);
+  for (int i = 0; i < 4; ++i) session->frame(canvas, 1.0 / 60.0);
+  for (auto&& _ : state) session->frame(canvas, 1.0 / 60.0);
+  session.reset();
+  useRuntime({});
+}
+BENCHMARK(Scene2DBakeAtDensity)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(3)
+    ->ArgName("density")
+    ->Unit(benchmark::kMillisecond);
 
 }  // namespace

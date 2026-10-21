@@ -105,9 +105,6 @@ constexpr SkSize kCanvas = {1400, 500};
 /** How far apart the two halves stand, so one camera holds both. */
 constexpr float kLineupAt = -400.0f;
 constexpr float kRailAt = 470.0f;
-/** How many picture pixels the bake takes per page pixel, so the bodies
- *  stay sharp on a plate captured at twice the page's size. */
-constexpr int kBakeDensity = 2;
 
 camera::Camera lens() {
   return {.eye = {0, 520, 1000}, .target = {0, 0, 0}, .fovYDegrees = 34};
@@ -249,10 +246,9 @@ struct MeshGenerators {
              .backface(material::Backface::Visible)
              .fill(material::surface::unlit(
                  {.baseColor = {0.86f, 0.87f, 0.92f, 1}}))}));
-    picture = ctx.bakeScene3D(bodies,
-                              {(int)kCanvas.width() * kBakeDensity,
-                               (int)kCanvas.height() * kBakeDensity},
-                              {.camera = lens()});
+    picture = ctx.bakeScene3D(
+        bodies, {(int)kCanvas.width(), (int)kCanvas.height()},
+        {.camera = lens()});
 
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.

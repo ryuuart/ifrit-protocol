@@ -163,9 +163,9 @@ struct TwoAdvancedV4 {
   // texture for the sake of one panel. The hero is a picture INSIDE the
   // page, so it is a picture.
   //
-  // The bake is at twice the panel's pixels, because a plate is taken at
-  // up to twice the canvas and a hero resampled up is the one thing a
-  // rebuild of this page cannot afford.
+  // The bake takes the density the page is drawn at, so the hero lands on
+  // the plate's pixels rather than resampled up — the one thing a rebuild
+  // of this page cannot afford.
 
   /** A deterministic value in [0,1) — the skyline is the same skyline on
    *  every machine and in every run. */
@@ -193,7 +193,8 @@ struct TwoAdvancedV4 {
   static world::Group pod(const std::string& key, float x, float z,
                           float scale);
 
-  /** The hero's world, PHOTOGRAPHED ONCE into an image @p w x @p h. The
+  /** The hero's world, PHOTOGRAPHED ONCE into an image @p w x @p h canvas
+   *  units across, at the density the sheet is drawn at. The
    *  set is built here and handed to the host, which stands the frame in
    *  a scene of its own for the length of one call and gives back a
    *  picture rather than a view onto something still standing. */

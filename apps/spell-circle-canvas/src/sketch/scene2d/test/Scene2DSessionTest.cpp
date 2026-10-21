@@ -71,7 +71,11 @@ using sigil::sketch::test::samePicture;
 constexpr float kCardW = 100.0f;
 constexpr float kCardH = 60.0f;
 constexpr float kEyeZ = 300.0f;
-constexpr SkISize kBakeSize{128, 96};
+/** The panel a bake fills, in canvas units, and the picture it comes back
+ *  as: twice the units, the density a body declaring itself is drawn at
+ *  where it declared no oversample of its own. */
+constexpr SkISize kBakeSize{64, 48};
+constexpr SkISize kBakePixels{128, 96};
 /** The ground a bake is cleared to: a colour eight bits hold exactly, so
  *  the picture can be compared with it to the byte. */
 constexpr material::Color kGround{26.0f / 255, 26.0f / 255, 26.0f / 255, 1};
@@ -606,7 +610,7 @@ TEST_F(Scene2DBakes, PaintsTheBodiesUnderAFrameThatNamesOnlyAPostPass) {
   // The card is white at the middle of the picture, bloomed or not; a
   // frame that ran its bloom over nothing is the ground everywhere.
   const SkColor middle =
-      pixels.getColor(kBakeSize.width() / 2, kBakeSize.height() / 2);
+      pixels.getColor(kBakePixels.width() / 2, kBakePixels.height() / 2);
   EXPECT_GT(SkColorGetR(middle), 200u)
       << "the bake bloomed a picture no geometry pass had painted";
   EXPECT_FALSE(silhouetteOf(pixels).isEmpty());
@@ -629,7 +633,7 @@ TEST_F(Scene2DBakes, BakesTheMomentOfAnEntranceRatherThanAlwaysItsFirstFrame) {
   // …and the landed one is the scene as described, symmetric about the
   // middle, which is what says the clock actually reached the end.
   EXPECT_NEAR((float)(settled.left() + settled.right()) / 2.0f,
-              kBakeSize.width() / 2.0f, 1.5f);
+              kBakePixels.width() / 2.0f, 1.5f);
 }
 
 TEST_F(Scene2DBakes, PaintsThePageABakedCardWears) {
@@ -642,7 +646,7 @@ TEST_F(Scene2DBakes, PaintsThePageABakedCardWears) {
   // the green the page was painted, lit by the sun, and the corner is the
   // ground the bake was cleared to.
   const SkColor middle =
-      pixels.getColor(kBakeSize.width() / 2, kBakeSize.height() / 2);
+      pixels.getColor(kBakePixels.width() / 2, kBakePixels.height() / 2);
   EXPECT_GT(SkColorGetG(middle), 100u);
   EXPECT_GT(SkColorGetG(middle), SkColorGetR(middle) + 60);
   EXPECT_GT(SkColorGetG(middle), SkColorGetB(middle) + 60);
@@ -686,8 +690,8 @@ TEST_F(Scene2DBakes, BakesAScene3DAsTheCameraProjectsIt) {
   const std::unique_ptr<Session> session =
       kindOf<Baking>()->open(fonts(), assets());
   ASSERT_TRUE(Baking::near);
-  EXPECT_EQ(Baking::near->width(), kBakeSize.width());
-  EXPECT_EQ(Baking::near->height(), kBakeSize.height());
+  EXPECT_EQ(Baking::near->width(), kBakePixels.width());
+  EXPECT_EQ(Baking::near->height(), kBakePixels.height());
 
   const SkBitmap pixels = pixelsOf(Baking::near);
   // Nothing but the card is in the tree, so the corner is the ground it
@@ -695,7 +699,7 @@ TEST_F(Scene2DBakes, BakesAScene3DAsTheCameraProjectsIt) {
   // unlit, so it is that colour exactly.
   EXPECT_EQ(pixels.getColor(1, 1),
             material::skia::toSkColor(kGround).toSkColor());
-  EXPECT_EQ(pixels.getColor(kBakeSize.width() / 2, kBakeSize.height() / 2),
+  EXPECT_EQ(pixels.getColor(kBakePixels.width() / 2, kBakePixels.height() / 2),
             SK_ColorWHITE);
 
   // THE SILHOUETTE IS THE PROOF. A card of stated size, square to the
@@ -703,14 +707,14 @@ TEST_F(Scene2DBakes, BakesAScene3DAsTheCameraProjectsIt) {
   // projection names to the pixel; a body that collapsed to a point, or
   // one drawn without its transform, would land inside a colour
   // comparison at the centre and nowhere near this.
-  const float scale = pixelsPerUnit(cardCamera(kEyeZ), kBakeSize);
+  const float scale = pixelsPerUnit(cardCamera(kEyeZ), kBakePixels);
   const SkIRect drawn = silhouetteOf(pixels);
   EXPECT_NEAR((float)drawn.width(), kCardW * scale, 2.0f);
   EXPECT_NEAR((float)drawn.height(), kCardH * scale, 2.0f);
   EXPECT_NEAR((float)(drawn.left() + drawn.right()) / 2.0f,
-              kBakeSize.width() / 2.0f, 1.0f);
+              kBakePixels.width() / 2.0f, 1.0f);
   EXPECT_NEAR((float)(drawn.top() + drawn.bottom()) / 2.0f,
-              kBakeSize.height() / 2.0f, 1.0f);
+              kBakePixels.height() / 2.0f, 1.0f);
 }
 
 TEST_F(Scene2DBakes, BakesTheSameScene3DFromTheCameraItIsGiven) {
@@ -724,6 +728,117 @@ TEST_F(Scene2DBakes, BakesTheSameScene3DFromTheCameraItIsGiven) {
   const SkIRect far = silhouetteOf(pixelsOf(Baking::far));
   EXPECT_NEAR((float)far.width(), near.width() / 2.0f, 2.0f);
   EXPECT_NEAR((float)far.height(), near.height() / 2.0f, 2.0f);
+}
+
+/** A sketch that bakes the card at every density it can be told: while
+ *  it declares itself, at a density the bake states for itself, and in
+ *  its update, once a host has stated the density it is drawn at. */
+struct BakingAtDensities {
+  static inline sk_sp<SkImage> declaring;
+  static inline sk_sp<SkImage> stated;
+  static inline sk_sp<SkImage> drawn;
+  static inline int oversample = 0;
+  static BakeScene3DOptions options() {
+    return {.camera = cardCamera(kEyeZ), .background = kGround};
+  }
+  void setup(Scene2DContext& ctx) {
+    ctx.canvas(200, 120);
+    if (oversample > 0) ctx.oversample(oversample);
+    declaring = ctx.bakeScene3D(cardFrame(), kBakeSize, options());
+    BakeScene3DOptions once = options();
+    once.density = 1;
+    stated = ctx.bakeScene3D(cardFrame(), kBakeSize, once);
+    ctx.composer.render(box().width(10).height(10));
+  }
+  void update(double, Scene2DContext& ctx) {
+    drawn = ctx.bakeScene3D(cardFrame(), kBakeSize, options());
+  }
+};
+
+TEST_F(Scene2DBakes, BakesItsSizeInCanvasUnitsAtTheDensityTheSketchIsDrawnAt) {
+  BakingAtDensities::oversample = 0;
+  const std::unique_ptr<Session> session =
+      kindOf<BakingAtDensities>()->open(fonts(), assets());
+  ASSERT_TRUE(BakingAtDensities::declaring);
+  ASSERT_TRUE(BakingAtDensities::stated);
+  // Declaring itself, before any host has said where it is drawn, the
+  // body bakes at the density its plate is taken at.
+  EXPECT_EQ(BakingAtDensities::declaring->width(), kBakePixels.width());
+  EXPECT_EQ(BakingAtDensities::declaring->height(), kBakePixels.height());
+  // A density the bake states is the one it is taken at.
+  EXPECT_EQ(BakingAtDensities::stated->width(), kBakeSize.width());
+  EXPECT_EQ(BakingAtDensities::stated->height(), kBakeSize.height());
+
+  // A host that states the density — a window's pixel ratio, a capture's
+  // own — is what a bake taken after it reads.
+  session->setBakeDensity(3.0f);
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 120));
+  session->frame(*surface->getCanvas(), 1.0 / 60.0);
+  ASSERT_TRUE(BakingAtDensities::drawn);
+  EXPECT_EQ(BakingAtDensities::drawn->width(), kBakeSize.width() * 3);
+  EXPECT_EQ(BakingAtDensities::drawn->height(), kBakeSize.height() * 3);
+
+  // The card is the same share of the panel at every density: the
+  // picture is finer, not a different picture.
+  const SkIRect atTwo = silhouetteOf(pixelsOf(BakingAtDensities::declaring));
+  const SkIRect atThree = silhouetteOf(pixelsOf(BakingAtDensities::drawn));
+  EXPECT_NEAR((float)atThree.width(), atTwo.width() * 1.5f, 3.0f);
+  EXPECT_NEAR((float)atThree.height(), atTwo.height() * 1.5f, 3.0f);
+}
+
+TEST_F(Scene2DBakes, BakesAtTheOversampleTheSketchDeclared) {
+  BakingAtDensities::oversample = 3;
+  const std::unique_ptr<Session> session =
+      kindOf<BakingAtDensities>()->open(fonts(), assets());
+  BakingAtDensities::oversample = 0;
+  ASSERT_TRUE(BakingAtDensities::declaring);
+  EXPECT_EQ(BakingAtDensities::declaring->width(), kBakeSize.width() * 3);
+  EXPECT_EQ(BakingAtDensities::declaring->height(), kBakeSize.height() * 3);
+}
+
+/** A sketch that asks for the same map twice and another once while it
+ *  declares itself, and for the first map alone when it declares again. */
+struct Mapping {
+  static inline material::Texture first;
+  static inline material::Texture again;
+  static inline material::Texture other;
+  static inline material::Texture redeclared;
+  static inline int declarations = 0;
+  static Element map(SkColor4f colour) {
+    return box().width(16).height(16).fill(colour);
+  }
+  void setup(Scene2DContext& ctx) {
+    ctx.canvas(40, 30);
+    if (declarations++ == 0) {
+      first = ctx.texture(map(SkColors::kRed), {16, 16});
+      again = ctx.texture(map(SkColors::kRed), {16, 16});
+      other = ctx.texture(map(SkColors::kBlue), {16, 16});
+    } else {
+      redeclared = ctx.texture(map(SkColors::kRed), {16, 16});
+    }
+    ctx.composer.render(box().width(10).height(10));
+  }
+};
+
+TEST(Scene2DDoors, PaintsATreeOnceAsATextureAndKeepsItByValue) {
+  Mapping::declarations = 0;
+  const std::unique_ptr<Session> session =
+      kindOf<Mapping>()->open(fonts(), assets());
+  ASSERT_TRUE(Mapping::first.valid());
+  EXPECT_EQ(Mapping::first.size(), glm::ivec2(16, 16));
+  // The second ask for an equal tree is handed the first texture.
+  EXPECT_TRUE(Mapping::again == Mapping::first);
+  EXPECT_FALSE(Mapping::other == Mapping::first);
+  EXPECT_NE(session->counters().find("scenes 2"), std::string::npos)
+      << session->counters();
+
+  // Declaring again keeps the map the body asked for again, unpainted,
+  // and lets go of the one it stopped asking for.
+  session->redeclare();
+  EXPECT_TRUE(Mapping::redeclared == Mapping::first);
+  EXPECT_NE(session->counters().find("scenes 1"), std::string::npos)
+      << session->counters();
 }
 
 /** THE THREE SHAPES A SCENE2D SKETCH IS WRITTEN IN, side by side: the

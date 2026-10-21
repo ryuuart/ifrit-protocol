@@ -168,4 +168,65 @@ material::Texture texture(const Element& root, SkImageInfo info,
                           sigil::weave::FontContext& fonts,
                           material::Color background = {0, 0, 0, 0});
 
+/** TREES PAINTED ONCE, KEPT BY VALUE: the texture `texture()` would paint
+ *  for a tree at a size over a background, painted the first time it is
+ *  asked for and handed back as it stands every time an equal one is asked
+ *  for again. Two trees are equal as `sameDescription` judges them, so a
+ *  setup that builds the same map twice — a height read once as relief and
+ *  once as a mask, a crazing worn by two coats — paints it once.
+ *
+ *      compose::Textures maps(fonts);
+ *      const material::Texture height =
+ *          maps.paint(crazing(seed), {1024, 1024}, {0, 0, 0, 1});
+ *
+ *  It is the door a ONE-SHOT map comes in by: a tree that does not move,
+ *  painted for a material to read. A tree that moves is a `TextureScene`'s,
+ *  which paints again as its tree changes; here the moment painted is the
+ *  tree's first, and nothing is painted again.
+ *
+ *  A tree holding something the comparison cannot see into — a paint
+ *  program, an outline written as a callable — equals no other tree, so it
+ *  is painted every time it is asked for, as `texture()` paints it.
+ *
+ *  The textures it hands out keep their scenes standing, as `texture()`'s
+ *  do, so a texture outlives the set; the set keeps every one it painted
+ *  until `sweep()` lets it go. Fonts, and any device it was told to paint
+ *  on, must outlive every texture it handed out. */
+class Textures {
+ public:
+  explicit Textures(sigil::weave::FontContext& fonts);
+  ~Textures();
+  Textures(const Textures&) = delete;
+  Textures& operator=(const Textures&) = delete;
+
+  /** Paint what is asked for from now on on @p device through @p context,
+   *  as `TextureScene::useDevice` does; a scene the device refuses stays on
+   *  the CPU and paints there. What was painted before stands where it was
+   *  painted. */
+  void useDevice(sigil::core::hardware::GpuDevice& device,
+                 sigil::skia::GraphiteContext& context);
+
+  /** @p tree painted at @p size over @p background — or the texture an
+   *  equal tree, size and background were already painted as. Empty where
+   *  the size cannot be painted. */
+  material::Texture paint(const Element& tree, SkISize size,
+                          material::Color background = {0, 0, 0, 0});
+
+  /** How many trees the set has painted: one per distinct value asked
+   *  for, and one per ask of a tree that equals no other. */
+  [[nodiscard]] uint64_t paints() const;
+  /** How many textures the set is keeping. */
+  [[nodiscard]] size_t kept() const;
+
+  /** Let go of every texture no `paint` asked for since the last sweep,
+   *  and start counting asks afresh: what a body that declares itself
+   *  again does after declaring, so a map it still asks for is kept
+   *  unpainted and one it stopped asking for goes. */
+  void sweep();
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> m_impl;
+};
+
 }  // namespace sigil::compose

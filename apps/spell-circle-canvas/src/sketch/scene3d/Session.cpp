@@ -144,7 +144,8 @@ class Scene3DSession final : public Session {
  public:
   Scene3DSession(std::unique_ptr<Scene3DBody> body, weave::FontContext& fonts,
                  Assets& assets, bool deterministic, world::Runtime runtime)
-      : m_body(std::move(body)),
+      : m_textures(fonts),
+        m_body(std::move(body)),
         m_assets(assets),
         m_faceAdoption(assets.adoptFacesInto(fonts)),
         m_scene(m_engine),
@@ -153,8 +154,9 @@ class Scene3DSession final : public Session {
     m_specification.size = {900, 640};
     m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_specification.captureSeconds = 1.0;
-    Scene3DContext ctx{assets,    fonts,    &m_specification, &m_camera,
-                       &m_scenes, &m_pages, deterministic};
+    Scene3DContext ctx{assets,    fonts,         &m_specification,
+                       &m_camera, &m_scenes,     &m_pages,
+                       deterministic, &m_textures};
     m_body->setup(ctx);
     m_declared = m_camera;
     m_window.whole = {(int)m_specification.size.width(),
@@ -305,9 +307,10 @@ class Scene3DSession final : public Session {
                   (long long)stats.nodes, (long long)stats.drawn,
                   (long long)stats.resources, (long long)stats.passes,
                   (long long)stats.readbacks);
-    // …and the screens and pages the sketch asked for at setup, which no
-    // counter of the retained scene's can see.
-    const size_t screens = m_scenes.size() + m_pages.size();
+    // …and the screens, pages and textures the sketch asked for at setup,
+    // which no counter of the retained scene's can see.
+    const size_t screens =
+        m_scenes.size() + m_pages.size() + m_textures.kept();
     if (screens == 0) return line;
     char held[48];
     std::snprintf(held, sizeof held, "   screens %zu", screens);
@@ -465,6 +468,8 @@ class Scene3DSession final : public Session {
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
   /** What the pages the context handed out paint into. */
   std::vector<std::shared_ptr<compose::SurfaceScene>> m_pages;
+  /** The trees the context painted as textures, kept by value. */
+  compose::Textures m_textures;
   std::unique_ptr<Scene3DBody> m_body;
   /** What the sketch reaches for that it did not generate. Held for the
    *  session's life rather than only for the setup that declared it,

@@ -51,9 +51,6 @@ namespace {
 constexpr SkSize kCanvas = {1120, 910};
 constexpr float kCell = 330.66f;
 constexpr float kPicture = 208;
-/** How many picture pixels a bake takes per page pixel, so a figure stays
- *  sharp on a plate captured at twice the page's size. */
-constexpr int kBakeDensity = 2;
 
 constexpr float kR = 62, kr = 23;  // the torus, major and minor radius
 constexpr int kNu = 48, kNv = 24;  // how finely it is tessellated
@@ -140,7 +137,7 @@ struct CodecRoundtrip {
           {.width = kCell, .height = kPicture},
           image(ctx.bakeScene3D(
                     stage(std::move(mesh)),
-                    {(int)kCell * kBakeDensity, (int)kPicture * kBakeDensity},
+                    {(int)kCell, (int)kPicture},
                     {.camera = stageCamera()}),
                 material::Fit::Stretch));
     };

@@ -106,7 +106,6 @@ constexpr int kBannerPx = 3072;  // the banner column's pixel length
 constexpr int kSections = 220;   // rings along a rail
 constexpr int kStations = 34;    // across-vector ticks per panel
 constexpr int kSectors = 16;     // numbered sectors down the banner
-constexpr int kBakeDensity = 2;  // picture pixels per panel pixel
 
 constexpr material::Color kCellGround{0.055f, 0.055f, 0.085f, 1};
 constexpr material::Color kInk{0.925f, 0.957f, 0.996f, 1};
@@ -177,7 +176,7 @@ camera::Camera view() {
 
 /** One panel's cloth: the band swept on @p rail wearing @p art, as a
  *  surface that is its own light with both faces drawn, baked at the
- *  pixels the panel will have. */
+ *  size the panel will have. */
 sk_sp<SkImage> bakeRail(sketch::Scene2DContext& ctx,
                         const std::vector<curve::Frame3>& rail,
                         const sk_sp<SkImage>& art) {
@@ -196,7 +195,7 @@ sk_sp<SkImage> bakeRail(sketch::Scene2DContext& ctx,
            .backface(material::Backface::Visible)
            .fill(std::move(banner))}));
   return ctx.bakeScene3D(
-      frame, {(int)kPanel * kBakeDensity, (int)kPanelH * kBakeDensity},
+      frame, {(int)kPanel, (int)kPanelH},
       {.camera = view()});
 }
 

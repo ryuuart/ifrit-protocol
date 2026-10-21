@@ -309,9 +309,7 @@ Element crazing(int width, int height, float spacing, uint64_t seed, bool wraps,
 /** A texture painted once from @p tree, read as data. */
 material::Texture paintedOnce(sketch::Scene3DContext& ctx, glm::ivec2 size,
                               const Element& tree, material::Repeat repeat) {
-  const auto scene = ctx.textureScene({size.x, size.y}, Color{0, 0, 0, 1});
-  scene->render(tree);
-  return scene->texture()
+  return ctx.texture(tree, {size.x, size.y}, Color{0, 0, 0, 1})
       .tile(repeat)
       .sampling(material::Sampling::Linear)
       .colorSpace(sigil::media::ColorSpace::Data);

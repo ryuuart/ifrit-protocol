@@ -40,7 +40,7 @@ environment, shadows and bloom do all of the shading.
 
 - `ctx.page` makes the page; `page.render(tree)` paints it as the maps of
   a surface and `page.surface()` is what the plate's face wears.
-- `ctx.textureScene` makes three grey maps from one list of strokes:
+- `ctx.texture` paints three grey maps from one list of strokes:
   height, wet coverage and glow. Every stroke is a
   `compose::brush::ribbon` along an SVG spine with a `path::Profile` width
   law.

@@ -77,10 +77,6 @@ constexpr float kBevelPx = 118.0f;
 /** Where the three bodies stand across the canvas. */
 constexpr float kStations[3] = {-320, 0, 380};
 
-/** How many picture pixels a bake takes per page pixel, so the bodies
- *  stay sharp on a plate captured at twice the page's size. */
-constexpr int kBakeDensity = 2;
-
 camera::Camera lens() { return {.eye = {0, 90, 820}, .target = {0, 0, 0}}; }
 
 /** One body alone in @p surroundings, wearing @p finish, baked at the
@@ -96,9 +92,7 @@ sk_sp<SkImage> bakeBody(sketch::Scene2DContext& ctx, mesh::Mesh body,
            .transform(placement)
            .fill(std::move(finish))}));
   frame.environment(surroundings, {.intensity = 1.6f});
-  return ctx.bakeScene3D(frame,
-                         {(int)kCanvas.width() * kBakeDensity,
-                          (int)kCanvas.height() * kBakeDensity},
+  return ctx.bakeScene3D(frame, {(int)kCanvas.width(), (int)kCanvas.height()},
                          {.camera = lens()});
 }
 

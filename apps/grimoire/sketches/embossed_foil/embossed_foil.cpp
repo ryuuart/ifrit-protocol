@@ -220,10 +220,10 @@ Element cornerHeight() {
                "M120 320 C200 200 330 150 420 -20"}));
 }
 
-material::Material image(const std::shared_ptr<compose::TextureScene>& scene) {
-  return material::image(scene->texture()
-                             .tile(material::Repeat::Pad)
-                             .sampling(material::Sampling::Linear));
+material::Material mapImage(const material::Texture& map) {
+  return material::image(
+      material::Texture(map).tile(material::Repeat::Pad).sampling(
+          material::Sampling::Linear));
 }
 
 /** A FOIL'S SURFACE over @p height: metal all through, its roughness
@@ -397,7 +397,6 @@ glm::vec3 railAt(float seconds) {
 }
 
 struct EmbossedFoil {
-  std::shared_ptr<compose::TextureScene> goldHeight, silverHeight;
   sketch::Page gold, silver;
   Element goldTree = compose::stack(), silverTree = compose::stack();
   world::EnvironmentMap room;
@@ -425,15 +424,15 @@ struct EmbossedFoil {
     const auto line = lettering(text, face, u8"THERMAL CONTROL  ·  PANEL 7", 40,
                                 10, {kWidth / 2 - 40, 545});
 
-    goldHeight = ctx.textureScene({int(kWidth), int(kDepth)}, kBlack);
-    goldHeight->render(blanketHeight(word, line));
-    silverHeight = ctx.textureScene({int(kHinge), int(kReach)}, kBlack);
-    silverHeight->render(cornerHeight());
+    const material::Texture goldHeight = ctx.texture(
+        blanketHeight(word, line), {int(kWidth), int(kDepth)}, kBlack);
+    const material::Texture silverHeight =
+        ctx.texture(cornerHeight(), {int(kHinge), int(kReach)}, kBlack);
 
     gold = ctx.page({int(kWidth), int(kDepth)});
     silver = ctx.page({int(kHinge), int(kReach)});
-    goldTree = goldPage(image(goldHeight), word, line);
-    silverTree = silverPage(image(silverHeight));
+    goldTree = goldPage(mapImage(goldHeight), word, line);
+    silverTree = silverPage(mapImage(silverHeight));
 
     sheet = blanket();
     flap = corner();

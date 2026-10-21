@@ -66,9 +66,6 @@ namespace {
 
 constexpr SkSize kCanvas = {1240, 780};
 constexpr int kPieces = 64;
-/** How many picture pixels a bake takes per page pixel, so a figure stays
- *  sharp on a plate captured at twice the page's size. */
-constexpr int kBakeDensity = 2;
 constexpr float kFigureWidth = 372;
 constexpr float kFigureHeight = 360;
 
@@ -105,7 +102,7 @@ struct PopPrims {
   mesh::Mesh facets, baked, pieces;
 
   /** One figure: @p body under one light, matte and white so what shows
-   *  is its colour, baked at the pixels its well will have. The stamped
+   *  is its colour, baked at the size its well will have. The stamped
    *  pieces are their own light, so their runs read flat. */
   static Element figure(sketch::Scene2DContext& ctx, world::Mesh body,
                         bool stamps = false) {
@@ -124,9 +121,7 @@ struct PopPrims {
          world::ambientLight({.intensity = 0.9f}), std::move(body)}));
     return sketch::kit::well(
         {.width = kFigureWidth, .height = kFigureHeight},
-        image(ctx.bakeScene3D(frame,
-                              {(int)kFigureWidth * kBakeDensity,
-                               (int)kFigureHeight * kBakeDensity},
+        image(ctx.bakeScene3D(frame, {(int)kFigureWidth, (int)kFigureHeight},
                               {.camera = view}),
               material::Fit::Stretch));
   }

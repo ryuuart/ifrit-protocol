@@ -107,9 +107,9 @@ auto TwoAdvancedV4::setup(sketch::Scene2DContext& ctx) -> void {
   content =
       ctx.assets.hub().load<sigil::data::Json>(ctx.local("data/content.json"));
 
-  // The hero's world, baked at twice the panel's pixels because a plate
-  // is taken at up to twice the canvas.
-  heroPlate = bakeHero(2356, 632, ctx);
+  // The hero's world, baked at the panel's size; the bake takes the
+  // density the sheet is drawn at.
+  heroPlate = bakeHero(1178, 316, ctx);
 
   // --- the production shell bitmaps, from the restoration host ----------
   // SigilIO's https path caches on disk (CacheFirst), so only the

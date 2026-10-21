@@ -13,10 +13,14 @@
  */
 
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Shape.h>
 #include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Scatter.h>
+#include <sigilgeometry/path/Triangulate.h>
 
 #include <vector>
 
@@ -177,6 +181,89 @@ void PageRepaint(benchmark::State& state) {
   state.counters["paints"] = (double)page->revision();
 }
 
+/** A crazing map as the material studies paint one: @p cells Voronoi
+ *  cells over a square, each a white piece edged in black on a box the
+ *  size of the map, the field softened once. Distinct per @p seed. */
+Element crazingMap(int side, int cells, uint64_t seed) {
+  namespace path = sigil::geometry::path;
+  const float extent = (float)side;
+  const std::vector<glm::vec2> sites = path::sample(
+      path::Region::of(path::Rect::of({0, 0}, {extent, extent})),
+      path::distribution::blueNoise(cells, seed, 2));
+  std::vector<Element> pieces;
+  for (path::Polyline cell :
+       path::voronoi(sites, path::Rect{{0, 0}, {extent, extent}})) {
+    if (cell.points.size() < 3) continue;
+    cell.closed = true;
+    pieces.push_back(box()
+                         .absolute()
+                         .rect(0, 0, extent, extent)
+                         .shape(heldPath(path::toPath(cell)))
+                         .fill(material::Color{1, 1, 1, 1})
+                         .stroke(material::Material(material::Color{0, 0, 0, 1}),
+                                 {.width = 1.5f}));
+  }
+  return box()
+      .width(extent)
+      .height(extent)
+      .fill(material::Color{.5f, .5f, .5f, 1})
+      .children(std::move(pieces))
+      .filter(material::Filter::blur(0.6f));
+}
+
+constexpr int kMapSide = 512;
+constexpr int kMapCells = 160;
+constexpr int kMapAsks = 24;
+
+/** The twenty-four maps a setup asks for, @p distinct of them different:
+ *  ask i is the map of seed i modulo @p distinct, each built afresh, so an
+ *  equal ask is an equal tree and never the same one. */
+std::vector<Element> mapAsks(int distinct) {
+  std::vector<Element> asks;
+  for (int ask = 0; ask < kMapAsks; ++ask)
+    asks.push_back(
+        crazingMap(kMapSide, kMapCells, 1 + (uint64_t)(ask % distinct)));
+  return asks;
+}
+
+/** Every map through a texture scene of its own, as a setup holding one
+ *  scene per map paints them: a composer and a surface per ask. */
+void MapsThroughScenes(benchmark::State& state) {
+  const std::vector<Element> asks = mapAsks((int)state.range(0));
+  uint64_t paints = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    std::vector<material::Texture> maps;
+    for (const Element& tree : asks) {
+      const std::shared_ptr<TextureScene> scene = TextureScene::make(
+          {kMapSide, kMapSide}, fonts(), material::Color{0, 0, 0, 1});
+      scene->render(tree);
+      maps.push_back(scene->texture());
+      ++paints;
+    }
+    benchmark::DoNotOptimize(maps);
+  }
+  state.counters["paints"] =
+      benchmark::Counter((double)paints, benchmark::Counter::kAvgIterations);
+}
+
+/** …and through the door that keeps them by value: one paint per
+ *  distinct tree, the rest found equal and handed back. */
+void MapsThroughTextures(benchmark::State& state) {
+  const std::vector<Element> asks = mapAsks((int)state.range(0));
+  uint64_t paints = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    Textures maps(fonts());
+    std::vector<material::Texture> handed;
+    for (const Element& tree : asks)
+      handed.push_back(maps.paint(tree, {kMapSide, kMapSide},
+                                  material::Color{0, 0, 0, 1}));
+    paints += maps.paints();
+    benchmark::DoNotOptimize(handed);
+  }
+  state.counters["paints"] =
+      benchmark::Counter((double)paints, benchmark::Counter::kAvgIterations);
+}
+
 void cellLadder(::benchmark::Benchmark* b) {
   b->Arg(64)->Arg(256)->Unit(benchmark::kMicrosecond);
 }
@@ -185,6 +272,16 @@ BENCHMARK(TextureSceneStill)->Apply(cellLadder);
 BENCHMARK(TextureScenePaints)->Apply(cellLadder);
 BENCHMARK(ComposerDraw)->Apply(cellLadder);
 BENCHMARK(TextureValue);
+BENCHMARK(MapsThroughScenes)
+    ->Arg(kMapAsks)
+    ->Arg(kMapAsks / 2)
+    ->ArgName("distinct")
+    ->Unit(benchmark::kMillisecond);
+BENCHMARK(MapsThroughTextures)
+    ->Arg(kMapAsks)
+    ->Arg(kMapAsks / 2)
+    ->ArgName("distinct")
+    ->Unit(benchmark::kMillisecond);
 BENCHMARK(PageRepaint)
     ->ArgsProduct({{0, 1}, {0, 1}, {0, 2000}})
     ->ArgNames({"device", "wholePage", "cells"})

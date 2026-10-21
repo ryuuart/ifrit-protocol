@@ -287,6 +287,67 @@ TEST(ComposeTexture, TheOneShotVerbHoldsItsOwnScene) {
   EXPECT_FALSE(value == texture(plate(SkColors::kCyan), {24, 24}, fonts()));
 }
 
+TEST(ComposeTexture, TexturesPaintOncePerDistinctValue) {
+  Textures maps(fonts());
+  // Two trees built apart that describe the same thing are one map: the
+  // second ask is handed the first texture and paints nothing.
+  const sigil::material::Texture red = maps.paint(plate(SkColors::kRed), {8, 8});
+  const sigil::material::Texture again =
+      maps.paint(plate(SkColors::kRed), {8, 8});
+  EXPECT_EQ(maps.paints(), 1u);
+  EXPECT_TRUE(again == red);
+  // A different tree, the same tree at another size and the same tree over
+  // another background are each a map of their own.
+  const sigil::material::Texture blue =
+      maps.paint(plate(SkColors::kBlue), {8, 8});
+  const sigil::material::Texture larger =
+      maps.paint(plate(SkColors::kRed), {16, 8});
+  const sigil::material::Texture grounded =
+      maps.paint(plate(SkColors::kRed), {8, 8}, {0, 0, 0, 1});
+  EXPECT_EQ(maps.paints(), 4u);
+  EXPECT_EQ(maps.kept(), 4u);
+  EXPECT_FALSE(blue == red);
+  EXPECT_FALSE(larger == red);
+  EXPECT_FALSE(grounded == red);
+  EXPECT_EQ(larger.size(), glm::ivec2(16, 8));
+  // What it hands back is the tree painted, as the one-shot verb paints it.
+  const sk_sp<SkImage> pixels = sigil::media::toSk(blue.frameAt({}).image);
+  ASSERT_TRUE(pixels);
+  SkBitmap read;
+  read.allocPixels(SkImageInfo::MakeN32Premul(8, 8));
+  ASSERT_TRUE(pixels->readPixels(nullptr, read.pixmap(), 0, 0));
+  EXPECT_EQ(read.getColor(4, 4), SK_ColorBLUE);
+}
+
+TEST(ComposeTexture, TexturesPaintATreeTheyCannotCompareEveryTimeItIsAsked) {
+  Textures maps(fonts());
+  const auto programmed = [] {
+    // An unkeyed paint program is a callable no comparison sees into; a
+    // key would be the author's word that two programs are one.
+    return box().width(8).height(8).children(
+        {custom([](sigil::draw::Pen&, const PaintContext&) {})});
+  };
+  (void)maps.paint(programmed(), {8, 8});
+  (void)maps.paint(programmed(), {8, 8});
+  EXPECT_EQ(maps.paints(), 2u);
+}
+
+TEST(ComposeTexture, TexturesKeepWhatASweepFoundAskedForAndLetTheRestGo) {
+  Textures maps(fonts());
+  (void)maps.paint(plate(SkColors::kRed), {8, 8});
+  (void)maps.paint(plate(SkColors::kBlue), {8, 8});
+  maps.sweep();
+  EXPECT_EQ(maps.kept(), 2u);
+  // A declaration that asks for the red map again and not the blue one:
+  // the red one is handed back unpainted and the blue one goes.
+  (void)maps.paint(plate(SkColors::kRed), {8, 8});
+  maps.sweep();
+  EXPECT_EQ(maps.kept(), 1u);
+  EXPECT_EQ(maps.paints(), 2u);
+  (void)maps.paint(plate(SkColors::kBlue), {8, 8});
+  EXPECT_EQ(maps.paints(), 3u);
+}
+
 TEST(ComposeTexture,
      ExplicitFormatsRejectInvalidRequestsAndASizeAloneClampsToAnN32Pixel) {
   EXPECT_EQ(TextureScene::make(SkImageInfo{}, fonts()), nullptr);

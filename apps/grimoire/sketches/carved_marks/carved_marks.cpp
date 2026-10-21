@@ -128,10 +128,10 @@ Element depthMap(glm::vec2 face, std::vector<Element> marks) {
       std::move(marks));
 }
 
-material::Material depthOf(const compose::TextureScene& scene) {
-  return material::image(scene.texture()
-                             .tile(material::Repeat::Pad)
-                             .sampling(material::Sampling::Linear));
+material::Material depthOf(const material::Texture& depth) {
+  return material::image(
+      material::Texture(depth).tile(material::Repeat::Pad).sampling(
+          material::Sampling::Linear));
 }
 
 /** A normal from @p depth, with a second, finer one laid over it. */
@@ -289,7 +289,7 @@ Key keyAt(double seconds) {
 }
 
 struct CarvedMarks {
-  std::shared_ptr<compose::TextureScene> stoneDepth, bronzeDepth, tileDepth;
+  material::Texture stoneDepth, bronzeDepth, tileDepth;
   sketch::Page stonePage, bronzePage, tilePage, tablePage;
   Element stoneTree = compose::stack(), bronzeTree = compose::stack(),
           tileTree = compose::stack(), tableTree = compose::stack();
@@ -327,16 +327,13 @@ struct CarvedMarks {
         die(165, 9, {kTileFace.x / 2, kTileFace.y / 2 - 20});
 
     // The depth each face's marks are laid into, white deepest.
-    stoneDepth =
-        ctx.textureScene({int(kStoneFace.x), int(kStoneFace.y)}, kBlack);
     {
       std::vector<Element> marks{pressed(stoneLetters, kStoneFace, .55f, 7)};
       for (auto& mark : ribbon(kStoneFace, 430, 1.35f))
         marks.push_back(std::move(mark));
-      stoneDepth->render(depthMap(kStoneFace, std::move(marks)));
+      stoneDepth = ctx.texture(depthMap(kStoneFace, std::move(marks)),
+                               {int(kStoneFace.x), int(kStoneFace.y)}, kBlack);
     }
-    bronzeDepth =
-        ctx.textureScene({int(kBronzeFace.x), int(kBronzeFace.y)}, kBlack);
     {
       auto chasing = compose::kit::at(0, 0, kBronzeFace.x, kBronzeFace.y)
                          .shape(compose::heldPath(bronzeLetters))
@@ -345,9 +342,10 @@ struct CarvedMarks {
       std::vector<Element> marks{std::move(chasing)};
       for (auto& mark : ribbon(kBronzeFace, 300, .92f))
         marks.push_back(std::move(mark));
-      bronzeDepth->render(depthMap(kBronzeFace, std::move(marks)));
+      bronzeDepth =
+          ctx.texture(depthMap(kBronzeFace, std::move(marks)),
+                      {int(kBronzeFace.x), int(kBronzeFace.y)}, kBlack);
     }
-    tileDepth = ctx.textureScene({int(kTileFace.x), int(kTileFace.y)}, kBlack);
     {
       const auto border =
           slab(kTileFace - glm::vec2(64), 22)
@@ -360,7 +358,8 @@ struct CarvedMarks {
                                  std::move(rule)};
       for (auto& mark : ribbon(kTileFace, 330, .6f))
         marks.push_back(std::move(mark));
-      tileDepth->render(depthMap(kTileFace, std::move(marks)));
+      tileDepth = ctx.texture(depthMap(kTileFace, std::move(marks)),
+                              {int(kTileFace.x), int(kTileFace.y)}, kBlack);
     }
 
     stonePage = ctx.page({int(kStoneFace.x), int(kStoneFace.y)});
@@ -376,13 +375,13 @@ struct CarvedMarks {
                    {.blend = material::BlendMode::Multiply, .opacity = .18f})
             .surface({.roughness = .95f});
     stoneTree =
-        facePage(kStoneFace, limestone(depthOf(*stoneDepth)))
+        facePage(kStoneFace, limestone(depthOf(stoneDepth)))
             .children({compose::kit::at(0, 0, kStoneFace.x, kStoneFace.y)
                            .shape(compose::heldPath(stoneLetters))
                            .background(compose::relief(
                                chiselled, {.shoulder = 24, .depth = -1.1f}))});
-    bronzeTree = facePage(kBronzeFace, bronze(depthOf(*bronzeDepth)));
-    tileTree = facePage(kTileFace, porcelain(depthOf(*tileDepth)));
+    bronzeTree = facePage(kBronzeFace, bronze(depthOf(bronzeDepth)));
+    tileTree = facePage(kTileFace, porcelain(depthOf(tileDepth)));
     tableTree = facePage({1024, 640}, slate());
 
     const auto stoneSides = plain(hexColor(0xd9cfb6), .9f);
