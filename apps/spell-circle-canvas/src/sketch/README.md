@@ -445,6 +445,39 @@ told.
 texture import; a scene2d sketch needing it supplies a fallback or an
 availability probe.
 
+### Drawing with no frame open
+
+A picture drawn where no frame is open — a layer stack drawn at a
+prompt, a Compose tree baked into a layer before any window opens — is
+drawn through SigilDraw's `draw::HostlessPen`, whose device is a seam.
+`sketch::hostlessPainting()`, from `<sigilsketch/core/Painting.h>`, is
+that seam standing on the device this process draws its frames on; a
+host installs it with `draw::useHostlessDevice`, and the Python
+extension installs it as it loads. The device is read at each pen:
+
+| situation | where a pen with no frame draws |
+| --- | --- |
+| a host installed a device (`sketch::useDevice`) | that device's Graphite context, `sketch::deviceGraphite()` — the window's own while a window lends it the device |
+| no device installed | the process's own painter, `sketch::ownPainter()`: Graphite on the system's device, stood up the first time it is asked for and kept for the life of the process |
+| no device the machine can make | raster, the CPU path |
+
+Each thread draws there through a recorder of its own, made from the
+context for it, so a picture drawn with no frame open on one thread never
+records through the recorder another thread is drawing frames with;
+recordings of both are inserted into the one context, and each draws the
+other's images as they stand.
+
+A window opened with no device installed, on the render loop that draws
+on the thread that opened it, which is the thread that stood the own
+painter up, is handed the own painter's device and queue to render on, and `sketch::WindowPainter` draws its frames through
+that painter's context (`sketch::standingOwnPainter()`). So a picture
+drawn with no frame open stands where the window's frames are drawn, and
+a pen in those frames puts it down as it stands, with nothing read back.
+A pen on raster — a headless window's or the in-process renderer's,
+whose frames are drawn by the CPU — is handed a copy read back to the
+CPU, and so is a caller that reads pixels: an image handed to Python, a
+PNG, a comparison.
+
 ### Another application's picture
 
 A host may publish what its canvas draws to other applications on the
@@ -628,7 +661,7 @@ workspaces and mapped-code lifetime are defined in [HOST.md](HOST.md). The proto
 
 | Directory | Responsibility |
 | --- | --- |
-| `core/` | registry, kind, session, assets and crash reporting |
+| `core/` | registry, kind, session, assets, crash reporting, and the device and painter the process draws on |
 | `scene2d/`, `scene3d/` | the two rendering runtimes |
 | `live/` | watching, compilation, the build cache, adoption and residency |
 | `plate/` | captures, sweeps, comparisons and thumbnails |

@@ -184,6 +184,37 @@ TEST(Stack, AClipShapeEqualsAHandDrawnClip) {
   EXPECT_EQ(differingPixels(stacked.pixels(), direct.pixels()), 0);
 }
 
+TEST(Stack, AClipShapeThatThrowsEndsTheCompositeAndTheNextOneSucceeds) {
+  Paper stacked;
+  Stack stack{100, 100};
+  stacked.begin();
+  Layer& subject = stack.layer("subject");
+  drawSubject(subject.begin(stacked.pen));
+  subject.end();
+  subject.clip([](Pen& pen) {
+    pen.rect(15, 25, 60, 40);
+    throw std::runtime_error("no outline");
+  });
+  const int saved = stacked.surface->getCanvas()->getSaveCount();
+  EXPECT_THROW((void)stack.image(stacked.pen), std::runtime_error);
+  EXPECT_EQ(stacked.surface->getCanvas()->getSaveCount(), saved);
+  EXPECT_EQ(stack.revision(), 0u) << "a failed composite is not a made one";
+
+  // The composite's frame was ended, so the next one opens cleanly, and
+  // its pen's push and pop balance: the picture is the layer's own.
+  subject.noClip();
+  stack.composite(stacked.pen);
+  EXPECT_EQ(stack.revision(), 1u);
+  EXPECT_EQ(stacked.surface->getCanvas()->getSaveCount(), saved);
+  stacked.end();
+
+  Paper direct;
+  direct.begin();
+  drawSubject(direct.pen);
+  direct.end();
+  EXPECT_EQ(differingPixels(stacked.pixels(), direct.pixels()), 0);
+}
+
 TEST(Stack, ATransformEqualsThePensOwnMatrix) {
   const LayerTransform placement{.origin = {50, 50},
                                  .translation = {6, -4},

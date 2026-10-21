@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <thread>
 
@@ -23,9 +24,18 @@
 
 namespace sigil::skia {
 
-bool readbackPixels(GraphiteContext& context, SkSurface& surface,
-                    const SkPixmap& pixels) {
-  if (!context.context() || !context.recorder() || !pixels.addr() ||
+namespace {
+
+/** Asks the context to read what it holds into a result handed to
+ *  @p callback with @p opaque: the surface's pixels or an image's. */
+using ReadRequest = std::function<void(skgpu::graphite::Context&,
+                                       SkImage::ReadPixelsCallback,
+                                       SkImage::ReadPixelsContext)>;
+
+bool readThrough(GraphiteContext& context,
+                 skgpu::graphite::Recorder* recorder, const SkPixmap& pixels,
+                 const ReadRequest& request) {
+  if (!context.context() || !recorder || !pixels.addr() ||
       pixels.width() <= 0 || pixels.height() <= 0 ||
       !pixels.info().validRowBytes(pixels.rowBytes()))
     return false;
@@ -34,7 +44,7 @@ bool readbackPixels(GraphiteContext& context, SkSurface& surface,
     std::atomic<bool> called{false};
   };
   const auto read = std::make_shared<Read>();
-  auto recording = context.recorder()->snap();
+  auto recording = recorder->snap();
   {
     // The context is held to insert, queue the read and submit, and not
     // across the wait: the submit does not block, so another thread's
@@ -43,17 +53,15 @@ bool readbackPixels(GraphiteContext& context, SkSurface& surface,
     if (recording) {
       skgpu::graphite::InsertRecordingInfo insert;
       insert.fRecording = recording.get();
-      PendingWaits waits(context.recorder());
+      PendingWaits waits(recorder);
       waits.attach(insert);
       if (context.context()->insertRecording(insert) !=
           skgpu::graphite::InsertStatus::kSuccess)
         return false;
     }
     // The callback owns a reference even if the caller's deadline expires.
-    context.context()->asyncRescaleAndReadPixels(
-        &surface, pixels.info(),
-        SkIRect::MakeWH(surface.width(), surface.height()),
-        SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
+    request(
+        *context.context(),
         [](SkImage::ReadPixelsContext opaque,
            std::unique_ptr<const SkImage::AsyncReadResult> result) {
           const std::unique_ptr<std::shared_ptr<Read>> retained(
@@ -93,6 +101,39 @@ bool readbackPixels(GraphiteContext& context, SkSurface& surface,
     std::memcpy(pixels.writable_addr(0, y), source + size_t(y) * sourceStride,
                 copyBytes);
   return true;
+}
+
+}  // namespace
+
+bool readbackPixels(GraphiteContext& context, SkSurface& surface,
+                    const SkPixmap& pixels) {
+  return readThrough(
+      context, context.recorder(), pixels,
+      [&](skgpu::graphite::Context& device,
+          SkImage::ReadPixelsCallback callback,
+          SkImage::ReadPixelsContext opaque) {
+        device.asyncRescaleAndReadPixels(
+            &surface, pixels.info(),
+            SkIRect::MakeWH(surface.width(), surface.height()),
+            SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
+            callback, opaque);
+      });
+}
+
+bool readbackPixels(GraphiteContext& context,
+                    skgpu::graphite::Recorder& recorder, const SkImage& image,
+                    const SkPixmap& pixels) {
+  return readThrough(
+      context, &recorder, pixels,
+      [&](skgpu::graphite::Context& device,
+          SkImage::ReadPixelsCallback callback,
+          SkImage::ReadPixelsContext opaque) {
+        device.asyncRescaleAndReadPixels(
+            &image, pixels.info(),
+            SkIRect::MakeWH(image.width(), image.height()),
+            SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
+            callback, opaque);
+      });
 }
 
 }  // namespace sigil::skia

@@ -1,6 +1,8 @@
 #include <pybind11/pybind11.h>
+#include <sigildraw/Hostless.h>
 #include <sigilpython/PublicNames.h>
 #include <sigilpython/Python.h>
+#include <sigilsketch/core/Painting.h>
 
 #include "host/Registration.h"
 #include "kit/Registration.h"
@@ -8,6 +10,10 @@
 // One registration body serves the executable's built-in module and the
 // extension imported by an ordinary Python process.
 PYBIND11_MODULE(_sigil, module) {
+  // A stack or a layer drawn at the prompt, with no frame open, is drawn
+  // on the device this process draws its frames on, and on raster only
+  // where it has none.
+  sigil::draw::useHostlessDevice(&sigil::sketch::hostlessPainting());
   sigil::python::bindLibraries(module);
   sigil::sketch::python::bindRuntime(module);
   // The page before the context, so the context's `page` is declared as

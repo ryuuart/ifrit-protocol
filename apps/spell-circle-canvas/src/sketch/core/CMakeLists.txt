@@ -10,6 +10,14 @@ sigil_test(sketch_test
           test/StateTest.cpp
   LIBRARIES SigilSketch SigilMediaImageEncode SigilMediaVideoEncode)
 
+# Drawing with no frame open on the process's own painter wants a device,
+# and skips where the machine offers none.
+sigil_test(sketch_test
+  SOURCES test/PaintingTest.cpp
+  LIBRARIES SigilSketch SigilDraw SigilComposeDraw SigilSkiaGraphite
+            SigilWeavePorts
+  SUITES SketchPainting LABELS gpu)
+
 sigil_bench(sketch_bench
   SOURCES bench/RegistryBench.cpp
   LIBRARIES SigilSketch)

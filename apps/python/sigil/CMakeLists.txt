@@ -46,7 +46,7 @@ set(SIGIL_PYTHON_ROOT "${SIGIL_PYTHON_ROOT}" PARENT_SCOPE)
 # The same registration code is a built-in module in Grimoire and an
 # extension in ordinary Python. Each process loads one native implementation.
 pybind11_add_module(sigil_python NO_EXTRAS "${PROJECT_SOURCE_DIR}/src/sketch/python/Module.cpp")
-target_link_libraries(sigil_python PRIVATE SigilPython SigilSketchPython)
+target_link_libraries(sigil_python PRIVATE SigilPython SigilSketchPython SigilDraw)
 set_target_properties(sigil_python PROPERTIES
   OUTPUT_NAME _sigil
   SIGIL_PYTHON_EXTENSION ON

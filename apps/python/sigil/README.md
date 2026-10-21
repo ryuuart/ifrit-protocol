@@ -766,19 +766,28 @@ A stack and a layer show themselves inline in Jupyter and IPython: each
 answers `_repr_png_` with its picture as PNG bytes at one pixel per
 canvas unit, so a cell ending in `stack` or `rings` shows the picture.
 
-A STACK HELD IN PYTHON STANDS ON RASTER PIXELS. Its layers and its
-composite are drawn by the CPU, which is what lets a layer be drawn on,
-baked and looked at with no frame open and no window, and a pen that puts
-the stack down draws the composite as an image. A pen with no host draws
-at the stack's density: the density a pen last put the stack down at,
-which is the window's once it has drawn a frame, and one before any pen
-has; `stack.setDensityFloor(2)` draws finer from the first line. It shapes
-text with the platform's installed families, so a face found with
-`weave.fonts.find` sets anywhere. `layer.pen(pen)` opens the frame under a
-host pen instead, with that pen's clock, input, fonts and density, and the
-frame closes with the host's. Edges are antialiased by the CPU rasterizer,
-so a layer's edges can differ by a shade from the same drawing made by a
-device pen.
+A STACK HELD IN PYTHON IS DRAWN ON THE DEVICE the process draws its
+frames on, with no frame open and no window needed: an open window's
+device, the device Grimoire brought up when the stack lives in a sketch
+it runs, or else the machine's own device, stood up the first time a
+layer is drawn. A layer is drawn on, baked and composited there, and a
+pen drawing on the same device — a window's frame, a sketch's `draw` in
+Grimoire — puts the composite down as it stands, with nothing copied.
+The pixels are read back to the CPU only where something reads them:
+`stack.image()`, `layer.image()`, `_repr_png_` and a pen that draws on
+the CPU, which a headless window and `sigil.sketch.renderFile` do. Only a
+machine with no device draws a stack on raster.
+
+A pen with no host draws at the stack's density: the density a pen last
+put the stack down at, which is the window's once it has drawn a frame,
+and one before any pen has; `stack.setDensityFloor(2)` draws finer from
+the first line. It shapes text with the platform's installed families, so
+a face found with `weave.fonts.find` sets anywhere. `layer.pen(pen)`
+opens the frame under a host pen instead, with that pen's clock, input,
+fonts and density, and the frame closes with the host's. A layer drawn on
+the device is antialiased by the device, so where a pen on the CPU puts
+the stack down, a layer's edges can differ by a shade from the same
+drawing made by that pen.
 
 The same calls in a sketch's `setup` rebuild the stack, which is how a
 session at the prompt becomes a sketch; `draw` puts it down with

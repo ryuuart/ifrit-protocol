@@ -42,7 +42,7 @@ sigil_library_root(SigilSketch
 # beside the codecs and Graphite handles the implementation uses.
 set(SIGIL_SKETCH_SOURCES
   core/Assets.cpp core/Catalog.cpp core/Crash.cpp core/Device.cpp
-  core/Registry.cpp core/Sources.cpp core/State.cpp
+  core/Painting.cpp core/Registry.cpp core/Sources.cpp core/State.cpp
   scene2d/Context.cpp scene2d/Guest.cpp scene2d/Session.cpp
   scene3d/Context.cpp scene3d/Page.cpp scene3d/Session.cpp
   live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
@@ -50,7 +50,7 @@ set(SIGIL_SKETCH_SOURCES
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp plate/ThumbnailWriter.cpp)
 set(SIGIL_SKETCH_HEADERS
   core/Assets.h core/CanvasSpecification.h core/Catalog.h core/Crash.h
-  core/Device.h
+  core/Device.h core/Painting.h
   core/Kind.h core/Members.h core/Placement.h core/Registry.h core/Session.h
   core/Sources.h core/State.h
   scene2d/Guest.h scene2d/Scene2D.h
@@ -79,7 +79,8 @@ set(SIGIL_SKETCH_PRIVATE
   # A sketch opens network feeds through its assets, so the host is the
   # consumer that links the transports.
   SigilIOTransport
-  SigilGeometryDevice SigilSkiaGraphite SigilMediaVideoDecode
+  SigilGeometryDevice SigilSkiaGraphite SigilCoreHardware SigilDraw
+  SigilMediaVideoDecode
   SigilMediaImageEncode SigilMediaVideoEncode SigilWeaveFonts
   # A font file read as a face is a resource the host's hub answers.
   SigilWeavePorts)
@@ -224,6 +225,7 @@ sigil_doc_probes(sketch
            "<sigilio/transport/Transport.h>"
            "<sigilcompose/Compose.h>"
            "<sigilcompose/draw/Draw.h>"
+           "<sigildraw/Hostless.h>"
            "<sigilcompose/kit/Marquee.h>"
            "<sigilcompose/kit/Plate.h>"
            "<sigilcompose/typography/TextEffect.h>"

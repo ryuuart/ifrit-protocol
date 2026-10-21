@@ -5,7 +5,10 @@
 
 #include "sigilsketch/window/Window.h"
 
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilmotion/clock/Engine.h>
+#include <sigilsketch/core/Device.h>
+#include <sigilsketch/core/Painting.h>
 #include <sigilsketch/live/Host.h>
 
 #include <QtCore/QByteArray>
@@ -15,6 +18,7 @@
 #include <QtCore/QPointer>
 #include <QtGui/QColor>
 #include <QtGui/QGuiApplication>
+#include <QtQuick/QQuickGraphicsDevice>
 #include <QtQuick/QQuickWindow>
 #include <exception>
 #include <utility>
@@ -67,6 +71,28 @@ QGuiApplication* application(std::string* why) {
   return new QGuiApplication(argumentCount, arguments);
 }
 
+/** HANDS @p window THE PROCESS'S OWN PAINTER'S DEVICE AND QUEUE to render
+ *  on, where no device is installed and the window's frames are drawn on
+ *  the thread that opened it, which is the thread the painter's recorder
+ *  belongs to: the window's frames are then drawn through the painter's
+ *  context, where a picture drawn with no frame open already stands. */
+void renderOnOwnPainter(QQuickWindow& window) {
+#ifdef __APPLE__
+  if (device() || qgetenv("QSG_RENDER_LOOP") != QByteArray("basic")) return;
+  const Painter own = ownPainter();
+  if (!own.graphite || hostlessGraphite() != own.graphite) return;
+  const core::hardware::NativeDevice& native = own.device->native();
+  if (native.backend != core::hardware::Backend::Metal || !native.mtlDevice ||
+      !native.mtlCommandQueue)
+    return;
+  window.setGraphicsDevice(QQuickGraphicsDevice::fromDeviceAndCommandQueue(
+      static_cast<MTLDevice*>(native.mtlDevice),
+      static_cast<MTLCommandQueue*>(native.mtlCommandQueue)));
+#else
+  (void)window;
+#endif
+}
+
 /** A WINDOW ON SCREEN, or, headless, the host alone stepped on the wall's
  *  clock. */
 class SketchWindow final : public Window {
@@ -79,6 +105,7 @@ class SketchWindow final : public Window {
     m_window->setTitle(QString::fromStdString(options.title));
     m_window->resize(options.width, options.height);
     m_window->setColor(QColor::fromRgb(kPaneMatte));
+    renderOnOwnPainter(*m_window);
     m_canvas = new WindowCanvas(m_presented, m_window->contentItem());
     m_canvas->setSize(QSizeF(options.width, options.height));
     QQuickItem* content = m_window->contentItem();

@@ -1,9 +1,11 @@
 /** @file
  * The layer stack in Python: named pixel layers, each drawn with a pen of
  * its own, composited bottom to top and put down on any pen. A stack held
- * in Python stands on raster pixels, so it can be drawn on, composited and
- * looked at with no frame open and no window; a pen that puts it down
- * draws the composite as an image.
+ * in Python is drawn with no frame open on the process's host-less device
+ * — the device its frames are drawn on, raster where it has none — so it
+ * can be drawn on, composited and looked at with no window; a pen on that
+ * device puts the composite down as it stands, and a picture handed to
+ * Python is read back.
  */
 
 #include <include/core/SkCanvas.h>
@@ -13,6 +15,7 @@
 #include <pybind11/stl.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Hostless.h>
 #include <sigildraw/Stack.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
@@ -51,41 +54,21 @@ weave::FontContext& hostlessFonts() {
   return fonts;
 }
 
-/** A PEN BEGUN ON A RASTER CANVAS AT A STATED DENSITY, standing in for a
- *  frame's pen where none is open. A buffer formed under it is formed on
- *  raster at that density, and its text shapes with the platform's
- *  installed families; its clock reads zero and it has no input. The
- *  canvas is one pixel: nothing is drawn on it, it only answers the
- *  surface a buffer is formed on. */
-class RasterHost {
- public:
-  RasterHost(float density, float width, float height) {
-    thread_local sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1, 1));
-    m_canvas = surface->getCanvas();
-    m_saveCount = m_canvas->save();
-    m_canvas->resetMatrix();
-    m_canvas->scale(density, density);
-    draw::Frame frame;
-    frame.width = width;
-    frame.height = height;
-    frame.fonts = &hostlessFonts();
-    m_pen.begin(*m_canvas, frame);
-  }
-  ~RasterHost() {
-    m_pen.end();
-    m_canvas->restoreToCount(m_saveCount);
-  }
-  RasterHost(const RasterHost&) = delete;
-  RasterHost& operator=(const RasterHost&) = delete;
+/** A pen with no frame, at @p density, over a canvas @p width by
+ *  @p height, shaping with the platform's installed families. */
+draw::HostlessPen hostless(float density, float width, float height) {
+  return draw::HostlessPen(density, width, height, &hostlessFonts());
+}
 
-  draw::Pen& pen() { return m_pen; }
-
- private:
-  SkCanvas* m_canvas = nullptr;
-  int m_saveCount = 0;
-  draw::Pen m_pen;
-};
+/** @p image on the CPU, read back where it stands on a device, for a
+ *  caller that reads its pixels. */
+sk_sp<SkImage> readable(const sk_sp<SkImage>& image) {
+  if (!image) return nullptr;
+  sk_sp<SkImage> raster = draw::HostlessPen::rasterImage(image);
+  if (!raster)
+    throw std::runtime_error("The picture could not be read back from the device.");
+  return raster;
+}
 
 // ---- the stack as Python holds it -------------------------------------------
 
@@ -116,6 +99,12 @@ class StackHandle {
   /** The first error a clip shape raised while the composite was made,
    *  raised again once the composite is done. */
   std::exception_ptr failure;
+  /** The composite read back to the CPU, and the revision of the stack
+   *  it was read at: a composite that has not been made again is read
+   *  once, however often it is looked at or put down on a pen that draws
+   *  elsewhere. */
+  sk_sp<SkImage> readBack;
+  uint64_t readBackAt = 0;
 
  private:
   std::thread::id m_thread;
@@ -157,8 +146,9 @@ class LayerHandle {
 };
 
 /** The layer named @p name, made on top when the stack has none. A layer
- *  is formed on raster as it is made, at the stack's density, so a frame's
- *  pen beginning it later finds it formed and leaves it there. */
+ *  is formed with no frame as it is made, on the host-less device at the
+ *  stack's density, so a frame's pen beginning it later finds it formed
+ *  and leaves it there. */
 LayerHandle layerNamed(const std::shared_ptr<StackHandle>& owner,
                        const std::string& name) {
   owner->check();
@@ -166,7 +156,8 @@ LayerHandle layerNamed(const std::shared_ptr<StackHandle>& owner,
     return {owner, *existing};
   draw::Layer& made = owner->stack.layer(name);
   owner->serials[&made] = owner->nextSerial++;
-  RasterHost host(owner->density, owner->stack.width(), owner->stack.height());
+  draw::HostlessPen host =
+      hostless(owner->density, owner->stack.width(), owner->stack.height());
   made.begin(host.pen());
   made.end();
   return {owner, made};
@@ -182,12 +173,13 @@ std::string layerName(const std::shared_ptr<StackHandle>& owner,
   return layer.get().name();
 }
 
-/** The composite, re-made under a raster host at the stack's density
- *  when anything in it moved, with any error a clip shape raised raised
- *  here. */
+/** The composite, re-made with no frame at the stack's density when
+ *  anything in it moved, on the device its layers stand on, with any error
+ *  a clip shape raised raised here. */
 sk_sp<SkImage> composite(StackHandle& owner) {
   owner.check();
-  RasterHost host(owner.density, owner.stack.width(), owner.stack.height());
+  draw::HostlessPen host =
+      hostless(owner.density, owner.stack.width(), owner.stack.height());
   owner.failure = nullptr;
   sk_sp<SkImage> image = owner.stack.image(host.pen());
   if (owner.failure) {
@@ -197,10 +189,24 @@ sk_sp<SkImage> composite(StackHandle& owner) {
   return image;
 }
 
+/** The composite of @p owner on the CPU, read back only when it moved
+ *  since the last read. */
+sk_sp<SkImage> readableComposite(StackHandle& owner) {
+  const sk_sp<SkImage> image = composite(owner);
+  if (!image || !image->isTextureBacked()) return image;
+  if (!owner.readBack || owner.readBackAt != owner.stack.revision()) {
+    owner.readBack = readable(image);
+    owner.readBackAt = owner.stack.revision();
+  }
+  return owner.readBack;
+}
+
 /** @p image as PNG bytes at one pixel per canvas unit of a canvas
  *  @p width by @p height: what Jupyter and IPython show inline. */
-py::object canvasPng(const sk_sp<SkImage>& image, float width, float height) {
-  if (!image) return py::none();
+py::object canvasPng(const sk_sp<SkImage>& standing, float width,
+                     float height) {
+  if (!standing) return py::none();
+  const sk_sp<SkImage> image = readable(standing);
   const int columns = std::max(1, static_cast<int>(std::lround(width)));
   const int rows = std::max(1, static_cast<int>(std::lround(height)));
   sk_sp<SkImage> shown = image;
@@ -311,8 +317,8 @@ class LayerFrame {
     if (m_host) {
       pen = &layer.begin(m_host->get());
     } else {
-      RasterHost host(owner.density, owner.stack.width(),
-                      owner.stack.height());
+      draw::HostlessPen host =
+          hostless(owner.density, owner.stack.width(), owner.stack.height());
       pen = &layer.begin(host.pen());
     }
     m_pen = std::make_shared<BorrowedPen>(*pen);
@@ -342,6 +348,10 @@ class LayerFrame {
     owner.open.erase(open);
     pen->invalidate();
     layer.end();
+    // What the frame drew goes to the device as it closes, as a host-less
+    // pen's drawing does as the pen ends.
+    if (draw::HostlessDevice* device = draw::hostlessDevice())
+      device->submit();
   }
 
  private:
@@ -363,11 +373,14 @@ void closeOpenFrame(StackHandle& owner, draw::Layer& layer) {
 
 /** Puts @p owner's composite down on @p pen with its corner at @p x,
  *  @p y and at the stack's canvas size, re-made first at the pen's density
- *  when anything moved. */
+ *  when anything moved: as it stands where the pen draws on the device
+ *  the stack stands on, read back only where it draws elsewhere. */
 void putDown(const std::shared_ptr<StackHandle>& owner, draw::Pen& pen,
              float x, float y) {
   owner->density = pen.contentScale();
-  const sk_sp<SkImage> image = composite(*owner);
+  sk_sp<SkImage> image = composite(*owner);
+  if (image && !draw::HostlessPen::drawnAsItStands(pen, *image))
+    image = readableComposite(*owner);
   if (image)
     pen.image(image, x, y, owner->stack.width(), owner->stack.height());
 }
@@ -465,8 +478,9 @@ void bindLayer(py::module_& module) {
           "pen:` draws on the layer, and what was drawn before stands until "
           "the pen clears it. Under a host pen, the frame reads the host's "
           "clock, input, fonts and density and closes with the host's frame; "
-          "with none, it is drawn on raster at the stack's density, with the "
-          "platform's installed families.")
+          "with none, it is drawn at the stack's density on the device the "
+          "process draws its frames on, or on raster where it has none, with "
+          "the platform's installed families.")
       .def(
           "bake",
           [](const LayerHandle& self, const compose::Element& element,
@@ -480,8 +494,8 @@ void bindLayer(py::module_& module) {
               const SkPoint given = point(*size);
               extent = {given.fX, given.fY};
             }
-            RasterHost host(owner.density, owner.stack.width(),
-                            owner.stack.height());
+            draw::HostlessPen host = hostless(
+                owner.density, owner.stack.width(), owner.stack.height());
             layer.bake(host.pen(), element, extent, index);
           },
           py::arg("element"), py::arg("size") = py::none(),
@@ -492,9 +506,9 @@ void bindLayer(py::module_& module) {
           "index, so a tree baked again keeps its layout and caches.")
       .def(
           "image",
-          [](const LayerHandle& self) { return self.get().image(); },
+          [](const LayerHandle& self) { return readable(self.get().image()); },
           "The layer's pixels alone, before its blend, opacity, placement "
-          "and mask.")
+          "and mask, read back from the device it is drawn on.")
       .def(
           "blend",
           [](const LayerHandle& self) { return self.get().blendMode(); },
@@ -789,9 +803,10 @@ void bindStackClass(py::module_& root, py::module_& module) {
           [](const StackHandle& self) { return self.stack.revision(); },
           "How many times the composite has been made.")
       .def(
-          "image", [](StackHandle& self) { return composite(self); },
+          "image", [](StackHandle& self) { return readableComposite(self); },
           "The composite as an image, made again first when anything in the "
-          "stack moved, at the stack's density.")
+          "stack moved, at the stack's density, and read back from the device "
+          "it is drawn on.")
       .def(
           "composite",
           [](const std::shared_ptr<StackHandle>& self,
@@ -807,7 +822,7 @@ void bindStackClass(py::module_& root, py::module_& module) {
       .def(
           "_repr_png_",
           [](StackHandle& self) {
-            return canvasPng(composite(self), self.stack.width(),
+            return canvasPng(readableComposite(self), self.stack.width(),
                              self.stack.height());
           },
           "The composite as PNG bytes, one pixel per canvas unit: what "

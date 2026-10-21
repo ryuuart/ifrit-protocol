@@ -51,16 +51,21 @@ string, which is the native attribute reference. `Builder.copy` with no
 arguments copies the chain; with a source and a destination it is the
 native lane copy. The builder's sinks cook on the CPU executor.
 
-Draw's `Stack` and `Layer` are held on raster pixels. A layer is formed
-on raster as it is made, at the stack's density, and keeps standing there
-whatever pen begins it later; `with layer.pen() as pen` opens a frame
-under a raster pen at that density, whose text shapes with the
-platform's installed families, or under the host pen it is given. The
-composite is made under a raster pen too, at the density a pen last put
-the stack down at, and a pen that puts it down draws it as an image. So a
-stack is drawn on, composited and encoded as PNG with no frame open, and
-a layer handle checks at every use that its layer still stands, since
-removing a layer frees it.
+Draw's `Stack` and `Layer` are drawn with no frame open through
+`draw::HostlessPen`, on the host-less device the process installed: a
+process that also loads the sketch adapter installs the device its frames
+are drawn on, and one that does not draws on raster, as a machine with no
+device does. A layer is formed on that device as it is made, at the
+stack's density, and keeps standing there whatever pen begins it later;
+`with layer.pen() as pen` opens a frame under a host-less pen at that
+density, whose text shapes with the platform's installed families, or
+under the host pen it is given. The composite is made under a host-less
+pen too, at the density a pen last put the stack down at; a pen on the
+same device puts it down as it stands, and any other pen is handed a copy
+read back to the CPU. `image()` and `_repr_png_` read the picture back,
+since Python reads pixels. So a stack is drawn on, composited and encoded
+as PNG with no frame open, and a layer handle checks at every use that its
+layer still stands, since removing a layer frees it.
 
 ## Layout
 

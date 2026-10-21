@@ -96,5 +96,6 @@ sigil_test(python_test
 
 sigil_doc_probes(python
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  PRELUDES "<sigildraw/Hostless.h>"
   FLOORS 1,0,0,30,0
-  LIBRARIES SigilPython)
+  LIBRARIES SigilPython SigilDraw)

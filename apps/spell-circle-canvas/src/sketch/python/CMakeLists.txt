@@ -12,7 +12,7 @@ sigil_library(SigilSketchPython
     kit/Verdict.cpp
   HEADERS Python.h
   PUBLIC SigilSketch
-  PRIVATE SigilPython SigilSketchKit SigilSketchTesting SigilWorldFrame
+  PRIVATE SigilPython SigilSketchKit SigilSketchTesting SigilWorldFrame SigilDraw
           SigilWeavePorts
           SigilGeometryMeshPopDevice
           SigilGeometryDevice SigilDataDecode SigilMaterialSubstance)

@@ -4,10 +4,11 @@
  * @ingroup sketch-window
  *
  * The render thread's half of a window that shows a sketch: the Graphite
- * context stood up on the device the window's QRhi renders with, the
- * shared device lent that window's queue, a host's captures routed
- * through the same context, and the raster buffer drawn into where no
- * context stands.
+ * context stood up on the device the window's QRhi renders with — or the
+ * process's own painter's, where the window renders on that painter's
+ * device and queue — the shared device lent that window's queue, a host's
+ * captures routed through the same context, and the raster buffer drawn
+ * into where no context stands.
  */
 
 #include <cstdint>
@@ -50,10 +51,12 @@ class WindowPainter {
   /** STANDS GRAPHITE UP ON THE DEVICE @p rhi RENDERS WITH, where that is
    *  Metal, and hands the process's shared device that queue and context
    *  to paint its pages through, so the window's frame and the pages
-   *  share one set of atlases and pipelines. Whatever an earlier QRhi
-   *  made is let go first: a replaced QRhi is a replaced device, and
-   *  every image its context minted goes with it. Answers whether frames
-   *  now draw on the device. */
+   *  share one set of atlases and pipelines. Where @p rhi renders on the
+   *  process's own painter's device and queue (`sketch::ownPainter`), it
+   *  draws through that painter's context instead, which outlives it.
+   *  Whatever an earlier QRhi made is let go first: a replaced QRhi is a
+   *  replaced device, and every image its context minted goes with it.
+   *  Answers whether frames now draw on the device. */
   bool initialize(QRhi* rhi);
   /** Takes back from the shared device what `initialize` lent it, and
    *  lets the context go. */
@@ -85,6 +88,9 @@ class WindowPainter {
    *  the context, so the context goes first. */
   std::unique_ptr<core::hardware::GpuDevice> m_windowDevice;
   std::unique_ptr<skia::GraphiteContext> m_graphiteContext;
+  /** The process's own painter's context, drawn through and never let go
+   *  here, where the QRhi renders on that painter's device and queue. */
+  skia::GraphiteContext* m_borrowedContext = nullptr;
   /** Kept alive for the length of a capture: the fence a still on the
    *  device is described through. */
   std::unique_ptr<skia::PaintOrderCanvas> m_captureCanvas;

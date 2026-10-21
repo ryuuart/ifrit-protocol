@@ -110,6 +110,9 @@ format and dimensions select the output; differing dimensions use nearest
 rescaling. Padding bytes are preserved. False means invalid output, failed
 submission or failed readback; no raster fallback is performed. Callback state
 survives a timeout until Graphite completes or cancels the request.
+`readbackPixels(*graphite, recorder, image, pixmap)` reads an image
+standing on the same device — a surface's snapshot — the same way, after
+submitting what `recorder`, one of the context's recorders, drew.
 
 ### Sampling a texture someone else painted
 

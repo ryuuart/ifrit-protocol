@@ -9,10 +9,10 @@ set(draw_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 find_package(boost_container_hash CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilDraw
-  SOURCES Color.cpp Graphics.cpp Noise.cpp Pen.cpp PenClip.cpp
+  SOURCES Color.cpp Graphics.cpp Hostless.cpp Noise.cpp Pen.cpp PenClip.cpp
           PenImage.cpp PenInternal.cpp PenInternal.h PenShapes.cpp
           PenTransform.cpp Stack.cpp Text.cpp
-  HEADERS Color.h Constants.h Graphics.h Math.h Noise.h Pen.h
+  HEADERS Color.h Constants.h Graphics.h Hostless.h Math.h Noise.h Pen.h
           PenTypes.h Retained.h Stack.h
   PUBLIC SigilMaterialSkia SigilMediaCore SigilCoreCompute SigilGeometryKit
          SigilGeometryPath SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
@@ -45,7 +45,7 @@ sigil_test(draw_test
 
 sigil_bench(draw_bench
   SOURCES bench/DrawBench.cpp
-  LIBRARIES SigilDraw SigilWeavePorts)
+  LIBRARIES SigilDraw SigilWeavePorts SigilSkiaGraphite SigilCoreHardware)
 
 # Probe borrowed names against their originating headers. Names belonging
 # to consumers above this library are excluded to keep dependency direction.

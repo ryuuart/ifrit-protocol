@@ -5,8 +5,13 @@
  * Reading a Graphite surface into pixels owned by the caller.
  */
 
+class SkImage;
 class SkPixmap;
 class SkSurface;
+
+namespace skgpu::graphite {
+class Recorder;
+}  // namespace skgpu::graphite
 
 namespace sigil::skia {
 
@@ -23,6 +28,16 @@ class GraphiteContext;
  *  does not arrive within five seconds fails without writing the output;
  *  its callback remains valid until Graphite completes or cancels it. */
 [[nodiscard]] bool readbackPixels(GraphiteContext& context, SkSurface& surface,
+                                  const SkPixmap& pixels);
+
+/** The same read of an IMAGE standing on @p context's device — a
+ *  surface's snapshot, a buffer's picture — whole, into @p pixels, with
+ *  the same rescale, lock, deadline and answers. What @p recorder, one of
+ *  @p context's recorders, recorded is submitted first, so the image
+ *  holds what that recorder drew; call it on @p recorder's thread. */
+[[nodiscard]] bool readbackPixels(GraphiteContext& context,
+                                  skgpu::graphite::Recorder& recorder,
+                                  const SkImage& image,
                                   const SkPixmap& pixels);
 
 }  // namespace sigil::skia

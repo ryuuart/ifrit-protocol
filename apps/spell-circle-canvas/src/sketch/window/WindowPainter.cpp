@@ -14,6 +14,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilsketch/core/Device.h>
+#include <sigilsketch/core/Painting.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilskia/graphite/PaintOrder.h>
 #include <sigilskia/graphite/Readback.h>
@@ -37,8 +38,24 @@ bool WindowPainter::initialize(QRhi* rhi) {
   // Metal only: the Vulkan adapter does not hand the image's final layout
   // back to QRhi's state tracker, so Qt's later sampling of it would be
   // undefined.
-  if (rhi && rhi->backend() == QRhi::Metal)
-    m_graphiteContext = skia::createGraphiteContext(rhi);
+  if (!rhi || rhi->backend() != QRhi::Metal) return false;
+#ifdef __APPLE__
+  // A QRhi RENDERING ON THE PROCESS'S OWN PAINTER — the window was handed
+  // its device and queue as it opened — draws its frames through that
+  // painter's context, so a picture drawn with no frame open stands where
+  // the frames are drawn and is drawn as it stands.
+  if (const auto* handles =
+          static_cast<const QRhiMetalNativeHandles*>(rhi->nativeHandles())) {
+    const Painter own = standingOwnPainter();
+    if (own.graphite && !device() &&
+        own.device->native().mtlDevice == handles->dev &&
+        own.device->native().mtlCommandQueue == handles->cmdQueue) {
+      m_borrowedContext = own.graphite;
+      return true;
+    }
+  }
+#endif
+  m_graphiteContext = skia::createGraphiteContext(rhi);
 #ifdef __APPLE__
   // ONE METAL CONTEXT FOR THE WINDOW AND ITS PAGES. The shared device
   // paints its pages on Metal; handed the window's own queue and context,
@@ -73,27 +90,30 @@ void WindowPainter::release() {
   }
   m_captureCanvas.reset();
   m_graphiteContext.reset();
+  m_borrowedContext = nullptr;
 }
 
 skia::GraphiteContext* WindowPainter::graphite() const {
-  return m_graphiteContext.get();
+  return m_graphiteContext ? m_graphiteContext.get() : m_borrowedContext;
 }
 
 void WindowPainter::installCaptureBackend(Host& host) {
-  if (!m_graphiteContext) return;
+  if (!graphite()) return;
   host.setCaptureBackend(
       {[this](const SkImageInfo& info) -> sk_sp<SkSurface> {
-         if (!m_graphiteContext) return nullptr;
-         return SkSurfaces::RenderTarget(m_graphiteContext->recorder(), info);
+         skia::GraphiteContext* context = graphite();
+         if (!context) return nullptr;
+         return SkSurfaces::RenderTarget(context->recorder(), info);
        },
        [this](SkSurface& surface, const SkPixmap& out) {
-         return m_graphiteContext &&
-                skia::readbackPixels(*m_graphiteContext, surface, out);
+         skia::GraphiteContext* context = graphite();
+         return context && skia::readbackPixels(*context, surface, out);
        },
        [this](SkSurface& surface) -> SkCanvas* {
-         if (!m_graphiteContext) return nullptr;
+         skia::GraphiteContext* context = graphite();
+         if (!context) return nullptr;
          m_captureCanvas = std::make_unique<skia::PaintOrderCanvas>(
-             *m_graphiteContext, surface.getCanvas());
+             *context, surface.getCanvas());
          return m_captureCanvas.get();
        }});
 }
@@ -101,10 +121,10 @@ void WindowPainter::installCaptureBackend(Host& host) {
 bool WindowPainter::paint(QRhi* rhi, QRhiTexture* texture,
                           QRhiCommandBuffer* commandBuffer,
                           const std::function<void(SkCanvas&)>& paint) {
-  if (!m_graphiteContext)
-    return paintRaster(rhi, texture, commandBuffer, paint);
+  skia::GraphiteContext* context = graphite();
+  if (!context) return paintRaster(rhi, texture, commandBuffer, paint);
   skia::OffscreenSurface surface =
-      skia::wrapTexture(*m_graphiteContext, texture, texture->pixelSize());
+      skia::wrapTexture(*context, texture, texture->pixelSize());
   SkCanvas* canvas = surface.canvas();
   if (!canvas) return false;
   paint(*canvas);

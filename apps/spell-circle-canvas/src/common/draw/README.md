@@ -369,6 +369,43 @@ These details affect a picture built from layers:
 - The composite is a function of the layers' pixels and settings, so a
   sketch drawing a stack is as deterministic as its layers are.
 
+### Drawing with no frame open
+
+A layer, like any buffer, is formed on the device of the host that first
+begins it and stays there. Where no frame's pen is at hand — a stack
+drawn at a prompt, a layer baked before any window opens — a
+`HostlessPen` from `<sigildraw/Hostless.h>` stands in as the host: a pen
+begun with no frame, at a stated density, with a font context, whose
+buffers are formed on the process's host-less device.
+
+```cpp
+#include <sigildraw/Hostless.h>
+
+HostlessPen host(2.0f, stack.width(), stack.height(), &fonts);
+Pen& ink = stack.layer("rings").begin(host.pen());
+ink.circle(600, 400, 240);
+stack.layer("rings").end();
+const sk_sp<SkImage> composite = stack.image(host.pen());
+```
+
+This library owns no device, so which device that is is a seam:
+`HostlessDevice` makes a surface on it, reads one of its images back to
+the CPU and says whether a canvas records onto it, and
+`useHostlessDevice` installs one for the process. A host that holds a
+device installs an executor standing on it, so a layer drawn with no
+frame open is formed on the device the frames it is put down in are
+drawn on; with none installed, the host-less pen draws on raster, which
+is the path for a machine with no device. Two crossings keep a device
+picture where it stands until something needs it elsewhere:
+
+- `HostlessPen::drawableOn(pen, image)` answers the image itself where
+  the pen records onto the device it stands on, so a stack put down in a
+  frame on that device is drawn with no copy, and a copy read back to the
+  CPU only where the pen draws on raster or on another device.
+- `HostlessPen::rasterImage(image)` reads a device image back to the CPU,
+  for a picture that is encoded, compared or handed to code that reads
+  pixels.
+
 ## The brush library
 
 Natural media — device input, dabs, tools, fields and the interiors a
@@ -473,6 +510,7 @@ callback must remain valid for as long as that callback can run.
 | `Constants.h` | p5 mode words and angles |
 | `Graphics.h` | an offscreen surface with its own pen |
 | `Stack.h` | `Stack`, `Layer`, `LayerTransform` and `MaskChannel`: pixel layers composited bottom to top |
+| `Hostless.h` | `HostlessPen` and the `HostlessDevice` seam: a pen begun with no frame, and the device it draws on |
 | `Retained.h` | `Slot` identity and guest storage |
 | `Color.h` | `ColorMode`, `colorFrom` and `parseColor` |
 | `Noise.h` | `NoiseField` |
@@ -480,8 +518,8 @@ callback must remain valid for as long as that callback can run.
 
 The implementation separates frame/style state (`Pen.cpp`), shapes
 (`PenShapes.cpp`), clipping (`PenClip.cpp`), images (`PenImage.cpp`),
-transforms (`PenTransform.cpp`), shaped text (`Text.cpp`) and the layer
-stack (`Stack.cpp`). Brush
+transforms (`PenTransform.cpp`), shaped text (`Text.cpp`), the layer
+stack (`Stack.cpp`) and the host-less pen (`Hostless.cpp`). Brush
 implementations, tests and benchmarks live under `brush/`; importers and
 their tests live under `brush/format/`.
 

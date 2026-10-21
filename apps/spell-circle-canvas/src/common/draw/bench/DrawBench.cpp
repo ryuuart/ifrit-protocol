@@ -3,7 +3,8 @@
  * stroked, ten thousand rects, fourteen thousand segments and points
  * drawn one verb at a time and as one shape, a screen of text, a
  * translucent background laid in place and replayed from a recording,
- * and a stack of layers composited with a few of them redrawn.
+ * and a stack of layers composited with a few of them redrawn, on raster
+ * and on the device.
  */
 
 #include <benchmark/benchmark.h>
@@ -11,12 +12,20 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkSurface.h>
+#include <include/gpu/graphite/Context.h>
+#include <include/gpu/graphite/Recorder.h>
+#include <include/gpu/graphite/Surface.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/PenTypes.h>
 #include <sigildraw/Stack.h>
 
+#include <functional>
+#include <memory>
 #include <string>
 #include <vector>
+
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include "Fonts.h"
 
@@ -28,6 +37,7 @@ using sigil::test::fonts;
 /** A pen over a raster canvas the size of a modest sketch. */
 struct Bench {
   Bench() : surface(SkSurfaces::Raster(SkImageInfo::MakeN32Premul(640, 480))) {}
+  explicit Bench(sk_sp<SkSurface> on) : surface(std::move(on)) {}
   void frame(int count) {
     Frame f;
     f.width = 640;
@@ -240,8 +250,8 @@ BENCHMARK(Noise)->Unit(benchmark::kMicrosecond);
  *  them redrawn this frame, every third one blended and every fifth one
  *  masked by the layer beneath it, then the stack put down. With no layer
  *  redrawn the frame is one image drawn. */
-void StackComposite(benchmark::State& state) {
-  Bench bench;
+void stackFrames(benchmark::State& state, Bench& bench,
+                 const std::function<void()>& finished) {
   const int layers = (int)state.range(0);
   const int dirty = (int)state.range(1);
   Stack stack{640, 480};
@@ -260,6 +270,7 @@ void StackComposite(benchmark::State& state) {
   }
   stack.composite(bench.pen);
   bench.pen.end();
+  finished();
   int count = 0;
   for (auto&& _ : state) {
     bench.frame(++count);
@@ -272,10 +283,48 @@ void StackComposite(benchmark::State& state) {
     }
     stack.composite(bench.pen);
     bench.pen.end();
+    finished();
   }
   state.SetItemsProcessed(state.iterations() * layers);
 }
+
+void StackComposite(benchmark::State& state) {
+  Bench bench;
+  stackFrames(state, bench, [] {});
+}
 BENCHMARK(StackComposite)
+    ->Args({8, 0})
+    ->Args({8, 1})
+    ->Args({8, 8})
+    ->Args({32, 0})
+    ->Args({32, 1})
+    ->Unit(benchmark::kMicrosecond);
+
+/** The same frames on the device: every layer and the composite formed
+ *  on the device of the pen they are begun under, each frame submitted
+ *  and waited for, so a frame's time is the device's work as well as the
+ *  recording. Skipped where the machine has no device of its own. */
+void StackCompositeDevice(benchmark::State& state) {
+  static auto device = sigil::core::hardware::GpuDevice::createOwned();
+  static auto context = device
+                            ? sigil::skia::GraphiteContext::create(*device)
+                            : std::unique_ptr<sigil::skia::GraphiteContext>();
+  if (!context) {
+    state.SkipWithError("no device of the machine's own");
+    return;
+  }
+  Bench bench(SkSurfaces::RenderTarget(context->recorder(),
+                                       SkImageInfo::MakeN32Premul(640, 480)));
+  if (!bench.surface) {
+    state.SkipWithError("the device made no surface");
+    return;
+  }
+  stackFrames(state, bench, [] {
+    (void)context->submit(*context->recorder(),
+                          skgpu::graphite::SyncToCpu::kYes);
+  });
+}
+BENCHMARK(StackCompositeDevice)
     ->Args({8, 0})
     ->Args({8, 1})
     ->Args({8, 8})

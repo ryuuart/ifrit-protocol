@@ -288,9 +288,18 @@ void Stack::drawLayer(Pen& pen, const Layer& layer) {
 
 void Stack::remake(Pen& host) {
   Pen& pen = m_composite.begin(host);
-  pen.clear();
-  for (const auto& layer : m_layers)
-    if (layer->m_visible) drawLayer(pen, *layer);
+  // A clip shape is the caller's code and may throw: the frame is ended
+  // before the error goes on, as a bake ends its own, and the pen's end
+  // closes whatever push the layer had open. Nothing is marked made, so
+  // the next composite makes it again.
+  try {
+    pen.clear();
+    for (const auto& layer : m_layers)
+      if (layer->m_visible) drawLayer(pen, *layer);
+  } catch (...) {
+    m_composite.end();
+    throw;
+  }
   m_composite.end();
   for (const auto& layer : m_layers)
     layer->m_compositedRevision = layer->m_revision;

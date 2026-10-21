@@ -275,11 +275,7 @@ class StackOnAPen(unittest.TestCase):
         self.assertEqual(
             (stacked.width(), stacked.height()), (direct.width(), direct.height())
         )
-        for x, y in ((10, 10), (30, 18), (2, 2), (44, 28)):
-            self.assertEqual(
-                pixel(stacked, x * stacked.width() // 48, y * stacked.height() // 32),
-                pixel(direct, x * direct.width() // 48, y * direct.height() // 32),
-            )
+        self.assertEqual(stacked.rgba(), direct.rgba())
 
     def test_a_layer_drawn_again_in_a_later_frame_is_what_the_next_frame_shows(self):
         picture = self.render(
