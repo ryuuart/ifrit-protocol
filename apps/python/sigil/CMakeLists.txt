@@ -194,7 +194,7 @@ if(SIGIL_TYPING_PYTHON)
         --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_hello.py"
         --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_hello_compose.py"
         --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_compose_stamps.py"
-        --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_live_signals.py"
+        --example "${SIGIL_GRIMOIRE_DIR}/sketches/wardnet_live/wardnet_live.py"
         --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_type_atelier.py"
         --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_document.py"
         --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_world_study.py"

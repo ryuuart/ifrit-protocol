@@ -4,7 +4,7 @@
     python3 sender.py
         plays the show as JSON datagrams to 127.0.0.1:27030, over and
         over until interrupted, which is what makes the console move in
-        a window.
+        a window, and prints the reply the console sends back to each.
 
     python3 sender.py --door ws
         plays the same show over the WebSocket at
@@ -118,9 +118,23 @@ def write_recording(path, show, seconds):
 
 
 def udp_sender(host):
-    """A send over UDP: one datagram a message."""
+    """A send over UDP: one datagram a message. The console answers every
+    message to the port it came from, so each send first prints the
+    replies already waiting on this socket."""
     door = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    return lambda payload: door.sendto(payload, (host, UDP_PORT)) == len(payload)
+    door.setblocking(False)
+
+    def send(payload):
+        sent = door.sendto(payload, (host, UDP_PORT)) == len(payload)
+        while True:
+            try:
+                reply, _ = door.recvfrom(65536)
+            except (BlockingIOError, ConnectionRefusedError):
+                break
+            print(f"reply: {reply.decode('utf-8', errors='replace')}")
+        return sent
+
+    return send
 
 
 def websocket_sender(uri):

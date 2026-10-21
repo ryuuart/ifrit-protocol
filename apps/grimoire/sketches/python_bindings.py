@@ -1,10 +1,18 @@
 """Live values and bindings: one number from an oscillator, followed by a dial,
-a meter, a peak lamp and a stepped readout, each through its own binding."""
+a meter, a peak lamp, a stepped readout and three shaped tracks, each through
+its own binding.
+
+The binding's stages, one each: a range and a seeded wiggle (the dial), a
+clamp (the meter), an envelope (the lamp), quantize (the steps), and on the
+tracks a fold that runs out and back, a cosine envelope and an overshooting
+ease.
+
+EDIT THESE FIRST: SOURCE, SWEEP, SEGMENTS, SHAPES."""
 
 # TAGS: Motion/Bindings, Compose/Motion, Python
 
 from sigil import compose, motion
-from sigil.motion import Oscillator, Range, Wave, Wiggle, bind, envelope
+from sigil.motion import Oscillator, Range, Wave, Wiggle, bind, ease, envelope
 from sigil.sketch import Scene2DContext, sketch
 
 NAME = "Python bindings"
@@ -26,6 +34,17 @@ SWEEP = (-135, 135)  # the needle's travel, in degrees
 FULL_SCALE = Range(0.0, 1.0)  # what the source reads from empty to full
 SEGMENTS = 12
 METER = 520
+PUCK = 22
+
+# The remaining stages, each a track whose puck reads the same live number:
+# the label, then the binding's keywords. A fold runs the lower half out and
+# back; a cosine envelope rises and falls once over the source's range; an
+# overshooting ease passes its stop and settles.
+SHAPES = [
+    ("FOLD · ALTERNATE", dict(from_=(0.0, 0.5), alternate=True)),
+    ("COSINE · ENVELOPE", dict(from_=FULL_SCALE, envelope=envelope.cosine())),
+    ("OVERSHOOT · EASE", dict(from_=FULL_SCALE, ease=ease.outBack())),
+]
 
 SOURCE = Oscillator(wave=Wave.Sine, hertz=0.17, phase=0.6, amplitude=0.46, centre=0.5)
 
@@ -140,6 +159,30 @@ def stepped(level: motion.Animatable) -> compose.Element:
     return compose.box(*lights).row().gap(6)
 
 
+def shaped(level: motion.Animatable, title: str, stages: dict) -> compose.Element:
+    """A track and a puck carried along it by one shaped binding."""
+    puck = (
+        compose.box()
+        .width(PUCK)
+        .height(PUCK)
+        .borderRadius(6)
+        .fill(NEEDLE)
+        .absolute()
+        .left(0)
+        .top(0)
+        .translateX(bind(level, to=(0, METER - PUCK), **stages))
+    )
+    rail = compose.box().width(METER).height(1).fill(RULE).absolute().left(0).top(PUCK / 2)
+    return (
+        compose.box(
+            label(title, 10),
+            compose.box(rail, puck).width(METER).height(PUCK),
+        )
+        .column()
+        .gap(6)
+    )
+
+
 @sketch(size=(WIDTH, HEIGHT), background=GROUND, captureAt=3.4)
 class Bindings:
     def setup(self, ctx: Scene2DContext) -> None:
@@ -155,6 +198,8 @@ class Bindings:
                 compose.box().height(18),
                 label("STEPPED · TWELVE SEGMENTS"),
                 stepped(self.level),
+                compose.box().height(18),
+                *(shaped(self.level, title, stages) for title, stages in SHAPES),
                 compose.box().height(18),
                 label("ONE SOURCE · OSCILLATOR 0.17 HZ"),
                 compose.text(
@@ -178,8 +223,8 @@ class Bindings:
         return (
             compose.box(heading, body)
             .cover()
-            .padding(48, 72)
+            .padding(40, 72)
             .column()
-            .gap(48)
+            .gap(32)
             .fill(GROUND)
         )

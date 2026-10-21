@@ -3,7 +3,8 @@
 A specimen sheet stands in a lit scene: a limestone title cut into dark
 slate, eight big swatches under it — a glowing mark, velvet, a thin film,
 clear glass, a crackled glaze, satin, matte and frosted glass — and a bus
-of brushed copper traces running in the gutter between the rows. The
+of brushed copper traces running in the gutter between the rows, ending
+on plated vias, with a pulse of light running the bus. The
 whole sheet is one Compose page worn by one flat quad. Every swatch is an
 ordinary fill whose material says what it is made of; the page paints the
 maps those materials name and World lights them, so each swatch answers
@@ -40,7 +41,10 @@ GROUND = "#0d1014"
 LIMESTONE = "#ddd5c2"
 LABEL = "#b9b3a6"
 COPPER = "#c27a4c"
+PLATING = "#d8b25a"
 GLOW = "#ffb347"
+PULSE_PERIOD = 2.4  # seconds for the pulse to run the bus end to end
+PULSE_LENGTH = 0.09  # the pulse's length, as a share of the bus
 
 # The grid: four columns of swatches over two rows, with a gutter between
 # the rows wide enough for the copper bus to run through.
@@ -341,9 +345,20 @@ The traces are ribbons: `compose.heldPath` holds a smooth spine as a box's
 shape, and `compose.brush.ribbon` sweeps a band of a width law along it,
 painted in the full material. The width law here is a list of (along,
 width) stops, a quarter wider over the first and last few hundredths of
-the spine where a trace meets its pad. The copper is brushed along the
+the spine where a trace meets its via. The copper is brushed along the
 unit it is painted into, which for a ribbon is the spine's own tangent.
-Three ribbons side by side make a bus along the gutter.
+Three ribbons side by side make a bus along the gutter. A via is a round
+box filled with the dark of a drilled hole and stroked with a ribbon of
+paler plating, brushed round its ring.
+
+```python
+# The vias are plated: a paler, yellower metal, brushed round each ring,
+# over a hole drilled dark and dull through the slate.
+PLATED = (
+    material.from_(PLATING).surface(metallic=1.0, roughness=0.3).brushed(strength=0.7)
+)
+DRILLED = material.from_("#08090a").surface(roughness=1.0)
+```
 
 ```python
 # Copper, brushed along the unit it is painted on.
@@ -355,7 +370,7 @@ COPPER_TRACE = (
 ```python
 def trace(points: list[tuple[float, float]], width: float) -> compose.Element:
     """A copper ribbon swept along a smooth spine through the points, a little
-    wider where it meets its pads at either end."""
+    wider where it meets its vias at either end."""
     spine = compose.heldPath(path.curveThrough(points))
     swell = [(0.0, width * 1.25), (0.04, width), (0.96, width), (1.0, width * 1.25)]
     return (
@@ -367,31 +382,69 @@ def trace(points: list[tuple[float, float]], width: float) -> compose.Element:
     )
 
 
-def bus(offsets: tuple[float, ...], width: float) -> list[compose.Element]:
-    """Parallel copper traces along the gutter, one per offset from its centre line."""
+def bus_line(offset: float) -> list[tuple[float, float]]:
+    """The points one bus trace runs through, an offset from the gutter's centre line."""
     left, right = 24, PAGE_WIDTH - 24
     return [
-        trace(
-            [
-                (left, GUTTER + offset - 3),
-                (300, GUTTER + offset + 4),
-                (540, GUTTER + offset - 5),
-                (right, GUTTER + offset + 2),
-            ],
-            width,
-        )
-        for offset in offsets
+        (left, GUTTER + offset - 3),
+        (300, GUTTER + offset + 4),
+        (540, GUTTER + offset - 5),
+        (right, GUTTER + offset + 2),
     ]
 
 
-def pad(x: float, y: float) -> compose.Element:
-    """A round copper pad a trace ends on."""
+def bus(offsets: tuple[float, ...], width: float) -> list[compose.Element]:
+    """Parallel copper traces along the gutter, one per offset from its centre line."""
+    return [trace(bus_line(offset), width) for offset in offsets]
+
+
+def via(centre: tuple[float, float]) -> compose.Element:
+    """A plated via a trace ends on: a ring swept round a round box over its
+    drilled hole."""
     return (
         compose.box()
         .absolute()
-        .rect(x - 12, y - 12, 24, 24)
+        .centerAt(centre)
+        .width(24)
+        .height(24)
         .borderRadius(12)
-        .fill(COPPER_TRACE)
+        .fill(DRILLED)
+        .stroke(compose.brush.ribbon(7, PLATED))
+    )
+```
+
+The pulse runs the bus's middle trace. It is a second, brighter ribbon on
+the same spine, stroked only over a window of it: `compose.spans.range`
+takes the window's two ends as live values, here two looping tweens a
+pulse's length apart, so the window slides from end to end while the face
+is described once. Its material is the page's own light, past white, so
+the bloom finds it as it finds the mark.
+
+```python
+# The pulse is the page's own light, well past white, so the bloom gathers
+# round it as it does round the mark.
+PULSE = material.from_(GLOW).surface(roughness=0.4, emission=GLOW, emissionStrength=9.0)
+```
+
+```python
+def pulse(points: list[tuple[float, float]], width: float) -> compose.Element:
+    """A short glowing ribbon riding a trace end to end, again and again.
+
+    The stretch it fills is a window of two live values the page reads at
+    the frame's moment, so the face is described once and only the window
+    moves."""
+    lead = motion.animate(
+        from_=0.0, to=1.0 + PULSE_LENGTH, duration=PULSE_PERIOD, ease=ease.linear, loop=-1
+    )
+    tail = motion.animate(
+        from_=-PULSE_LENGTH, to=1.0, duration=PULSE_PERIOD, ease=ease.linear, loop=-1
+    )
+    return (
+        compose.box()
+        .absolute()
+        .inset(0)
+        .shape(compose.heldPath(path.curveThrough(points)))
+        .stroke(compose.spans.range(tail, lead), compose.brush.ribbon(width + 3, PULSE))
     )
 ```
 
@@ -426,8 +479,9 @@ def sheet_face() -> compose.Element:
         *bus((-13, 0, 13), 10),
         trace([(269, 156), (264, 250), (271, GUTTER - 13)], 10),
         trace([(512, GUTTER + 13), (507, 450), (514, 534)], 10),
-        pad(269, 156),
-        pad(514, 534),
+        pulse(bus_line(0), 10),
+        via((269, 156)),
+        via((514, 534)),
     ]
     return (
         compose.box(
@@ -459,8 +513,8 @@ def sheet_face() -> compose.Element:
 
 **What you used.** `emission`, `emissionStrength` past one, `.centerAt`,
 `path.curveThrough`, `compose.heldPath`, `compose.brush.ribbon` with a
-list of width stops, `.stroke(ribbon)`, and
-`Material.brushed(strength=, rotation=)`.
+list of width stops, `.stroke(ribbon)`, `compose.spans.range` over two
+looping tweens, and `Material.brushed(strength=, rotation=)`.
 
 ## Step 9 — the scene: a dark studio, a raking key, a soft panel, a pulse
 

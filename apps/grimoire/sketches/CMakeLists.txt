@@ -67,9 +67,7 @@ set(SIGIL_SKETCH_REQUIREMENTS
   import_native      SigilScry
   substance_swatches SigilMaterialSubstance
   web_panel          SigilComposeWeb
-  web_panel          SigilScry
-  web_script         SigilComposeWeb
-  web_script         SigilScry)
+  web_panel          SigilScry)
 
 list(LENGTH SIGIL_SKETCH_REQUIREMENTS _requirement_entries)
 math(EXPR _requirement_last "${_requirement_entries} / 2 - 1")

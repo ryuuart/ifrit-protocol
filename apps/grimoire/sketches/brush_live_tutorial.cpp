@@ -5,11 +5,19 @@
 // scene signs itself with. Rain and watercolor keep their canvas, so their
 // marks accumulate; the other four are laid on fresh ground every frame as
 // their field, geometry or pressure changes.
+//
+// The fields scene walks every field the engine knows: the stock catalogue,
+// and two the sketch adds as VALUES — a `brush::Wave` that rolls across the
+// sheet and a `brush::Vortex` that turns about its middle. A field is any
+// function of a place and a time, so a value goes into the engine under a
+// name exactly as a stock one does.
 
 // EDIT THESE FIRST
 //   kSceneSeconds  how long each construction remains on screen
 //   kScenes        the six rows: the ground, the seed and the signature
 //   kPalette       the pigments shared by all six scenes
+//   kCurrent       the wave the fields scene adds to the catalogue
+//   kOrbit         the vortex it adds beside it
 
 // TAGS: Drawing/Brushes
 
@@ -24,6 +32,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <span>
@@ -57,6 +66,14 @@ constexpr std::array<material::Color, 6> kRainColors{{
     {0.96f, 0.41f, 0.31f, 1},
     {1.00f, 0.83f, 0.00f, 1},
 }};
+
+/** The two field values the fields scene adds to the stock catalogue: a
+ *  wave rolling across the sheet, and a vortex turning about its middle
+ *  and drawing in toward it. */
+const sigil::draw::brush::Wave kCurrent{
+    .direction = 0.0f, .amplitude = 0.48f, .wavelength = 118.0f, .speed = 0.6f};
+const sigil::draw::brush::Vortex kOrbit{
+    .center = {300, 300}, .direction = -1.0f, .pull = 0.12f};
 
 constexpr std::array<std::string_view, 9> kBrushes{{
     "marker",
@@ -148,6 +165,9 @@ struct BrushLiveTutorial {
     whiteCharcoal.blend = SCREEN;
     brushes.add("white-charcoal", whiteCharcoal);
 
+    brushes.addField("current", kCurrent);
+    brushes.addField("orbit", kOrbit);
+
     context.composer.render(
         compose::graphics("brush_live_tutorial.loop", [this](Pen& pen) {
           draw(pen);
@@ -174,12 +194,16 @@ struct BrushLiveTutorial {
                      pen.random(140, 240), pen.random(360));
   }
 
-  /** Every field in the catalogue in turn, a charcoal circle and thirty
-   *  pencil lines read through whichever one is standing. */
+  /** Every field the engine knows in turn — the stock catalogue and the
+   *  two values added beside it — each given an equal share of the scene,
+   *  a charcoal circle and thirty pencil lines read through whichever one
+   *  is standing. */
   void fields(Pen& pen, float local) {
     const std::vector<std::string> names = brushes.listFields();
     if (!names.empty())
-      brushes.field(names[(size_t)std::floor(local / 0.72f) % names.size()]);
+      brushes.field(names[std::min(
+          (size_t)std::floor(local / kSceneSeconds * (float)names.size()),
+          names.size() - 1)]);
 
     brushes.set("white-charcoal", {0.94f, 0.96f, 0.92f, 1}, 1.0f);
     brushes.circle(pen, 300, 300, 180, 0.3f);
@@ -358,4 +382,5 @@ const std::array<BrushLiveTutorial::Scene, 6> BrushLiveTutorial::kScenes{{
 
 SIGIL_SKETCH(BrushLiveTutorial, "Draw · Procedural",
              "Six timed scenes for fields, tools, hatches, watercolor and "
-             "pressure splines.")
+             "pressure splines; the fields scene walks the stock catalogue "
+             "and a wave and a vortex added as values.")

@@ -1,50 +1,48 @@
-// web_panel.cpp — a live web page standing in a compose scene, and Skia
-// drawing standing inside that page.
-//
-// The door is compose's `web(view)` leaf: a page is an Element like any
-// other, sized and placed by the layout around it. Both directions are
-// here, because they are one picture — the page's background is
-// transparent, so the scene's gradient shows between its cards, and the
-// disc inside it is a Skia drawing the page displays through an image
-// slot it names.
-//
-// ONE SKETCH FOR BOTH BACKENDS, and it could not honestly be two. A
-// process is allowed exactly one web renderer for its lifetime, so a
-// second sketch that booted its own engine would get nothing in a
-// Grimoire that already has one. And there would be nothing to see
-// anyway: `WebView::draw()` absorbs which renderer produced the frame —
-// a wrapped texture on a device engine, a raster frame on this one — so
-// the two spellings of this picture would be the same call.
-//
-// WHY THE PLATE IS REPRODUCIBLE. The engine repaints on its own thread
-// on its own cadence, which is a race a fixed-step capture would lose.
-// So a capture holds its own thread until the page is settled: a static
-// document publishes one picture and then stops, and every frame after
-// that draws the same published frame no matter when it is asked for.
-//
-// AND WHAT SETTLED MEANS — the engine's own two events, never a stretch
-// of clock: the load callback says the document and everything it pulled
-// in are here, and the frame callback says a repaint carrying that
-// document has been handed over. A machine that runs the engine slowly
-// reaches both later and draws this same picture.
-//
-// A WINDOW WAITS FOR NONE OF IT. setup() runs on the thread that
-// presents, so the same settle is started there and advanced from
-// update(): the page's leaf draws whatever the view has published so
-// far — nothing, at first — the caption says the page is still arriving,
-// and the scene is described again when it is there. One sequence, two
-// ways of driving it, decided by ctx.deterministic.
-//
-// EDIT THESE FIRST
-//   kPage                     — the document. It is the subject.
-//   kPageWidth / kPageHeight  — the view's own pixels, which the layout
-//                               around it is sized against.
+/** @file
+ * web_panel — a live web page standing in a compose scene, Skia drawing
+ * standing inside that page, and one document driven four ways.
+ *
+ * A PAGE AS A LEAF. The door is compose's `web(view)` leaf: a page is an
+ * Element like any other, sized and placed by the layout around it. Both
+ * directions are in the first row, because they are one picture — the
+ * page's background is transparent, so the sheet's ground shows between
+ * its cards, and the disc inside it is a Skia drawing the page displays
+ * through an image slot it names (`WebImage`).
+ *
+ * ONE DOCUMENT, DRIVEN FOUR WAYS. Below it, four views load the same
+ * document and each is driven by one call — the load alone, a script
+ * evaluated in the page, a wheel, and a synthetic press — and each cell
+ * says what the PAGE answered about itself, never what a timer guessed.
+ *
+ * ONE SKETCH, ONE ENGINE. A process is allowed exactly one web renderer
+ * for its lifetime, so every view here comes from the engine held beside
+ * the sketch, and all five are made before any is loaded: creating a view
+ * is a call the engine answers on its own thread, and a page already
+ * loading holds that thread.
+ *
+ * WHY THE PLATE IS REPRODUCIBLE. The engine repaints on its own thread on
+ * its own cadence, which is a race a fixed-step capture would lose. So a
+ * capture holds its own thread until each page is settled — the engine's
+ * own events, never a stretch of clock: the load, the page's own answer to
+ * its question, the view going quiet — and each driven cell draws the
+ * frame its settle stopped on. A window waits for none of it: the same
+ * settles are advanced from update() and the sheet is described again
+ * when one lands. One sequence, two ways of driving it, decided by
+ * ctx.deterministic.
+ *
+ * EDIT THESE FIRST
+ *   kPage — the panel's document; page() — the driven one.
+ *   kPageWidth / kPageHeight — the panel view's own pixels, which the
+ *     layout around it is sized against.
+ *   kScrollBy, kClickAt — where the wheel and the press take the views.
+ */
 
 // TAGS: Interfaces/Web
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkSamplingOptions.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/typography/Typography.h>
 #include <sigilcompose/web/Web.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
@@ -52,17 +50,19 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebImage.h>
+#include <sigilscry/engine/WebView.h>
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilsketch/kit/Page.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/scry/Settling.h>
 #include <sigilsketch/scry/SharedEngine.h>
 
-#include <cmath>
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace arrange = sigil::geometry::arrange;
 namespace material = sigil::material;
@@ -74,12 +74,33 @@ using sigil::material::hexColor;
 
 namespace {
 
+constexpr SkSize kCanvas = {1360, 1120};
+constexpr float kMeasure = 1280;
+
 constexpr int kPageWidth = 640;
 constexpr int kPageHeight = 470;
 constexpr int kSlotSize = 168;
 
-constexpr material::Color kInk = hexColor(0xe8ecf6);
-constexpr material::Color kDim = hexColor(0x93a0bd);
+constexpr int kViewWidth = 300;
+constexpr int kViewHeight = 236;
+constexpr int kScrollBy = 220;  // px DOWN the page the third view moves
+constexpr SkIPoint kClickAt = {150, 203};  // view pixels the fourth presses
+constexpr const char* kScript =
+    "document.querySelectorAll('.row').forEach((r,i)=>{"
+    "r.textContent = 'row ' + (i+1) + ' \\u2014 rewritten';"
+    "r.style.background = i%2 ? '#e6dccb' : '#f2ece0';});"
+    "document.getElementById('head').textContent = 'EVALUATED';"
+    "'rewrote ' + document.querySelectorAll('.row').length + ' rows'";
+
+constexpr material::Color kCellGround{0.12f, 0.12f, 0.14f, 1};
+
+/** The sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
+  look.spacing.captionGap = 6;
+  return look;
+}
 
 /** The page. Transparent, so what is behind it in the scene is part of
  *  the composite rather than covered by it, and static, so it settles to
@@ -172,18 +193,48 @@ void drawSigil(SkCanvas& canvas, float size) {
   });
 }
 
-Element note(std::u8string heading, std::u8string body) {
-  return box()
-      .width(236)
-      .borderRadius({12})
-      .padding(14)
-      .fill(Fill::color(hexColor(0x121a2c, 0.86f)))
-      .foreground(stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.22f))))
+/** The document all four views load. It is deliberately taller than the
+ *  view — the scroll cell needs somewhere to go — and its button records
+ *  where it was pressed, so a synthetic click leaves a mark the picture
+ *  can carry. */
+const char* page() {
+  return R"HTML(<!doctype html><meta charset="utf-8"><style>
+  html,body{margin:0;background:#f7f2e7;color:#1d1a15;
+    font:13px/1.4 -apple-system,Helvetica,Arial,sans-serif}
+  h1{margin:0;height:16px;padding:11px 14px;font-size:12px;letter-spacing:2.4px;
+    background:#1d1a15;color:#f7f2e7}
+  .row{height:20px;padding:7px 14px;border-bottom:1px solid #ddd4c2;
+    box-sizing:content-box}
+  #btn{display:block;box-sizing:border-box;width:calc(100% - 28px);
+    height:34px;margin:12px 14px;border:1px solid #8a7a5c;border-radius:6px;
+    background:#efe6d4;font:12px/1 inherit;letter-spacing:1.4px}
+  #btn.hit{background:#a4441f;color:#fdf6e8;border-color:#a4441f}
+</style>
+<h1 id="head">A LIVE DOCUMENT</h1>
+<div class="row">row 1</div><div class="row">row 2</div>
+<div class="row">row 3</div><div class="row">row 4</div>
+<button id="btn">PRESS ME</button>
+<div class="row">row 5</div><div class="row">row 6</div>
+<div class="row">row 7</div><div class="row">row 8</div>
+<div class="row">row 9</div><div class="row">row 10</div>
+<div class="row">row 11</div><div class="row">row 12</div>
+<div class="row">row 13</div><div class="row">row 14</div>
+<script>
+  document.getElementById('btn').addEventListener('mouseup', e => {
+    const b = e.currentTarget;
+    b.classList.add('hit');
+    b.textContent = 'PRESSED AT ' + e.clientX + ', ' + e.clientY;
+  });
+</script>)HTML";
+}
+
+/** One remark beside the panel. */
+Element remark(std::u8string heading, std::u8string body) {
+  return sketch::kit::well({.width = 300, .padding = 14})
       .column()
       .gap(6)
       .children({document::h2(std::move(heading)).font({.size = 14}),
-                 document::paragraph(std::move(body))
-                     .font({.size = 11.5f, .color = kDim})});
+                 document::caption(std::move(body))});
 }
 
 }  // namespace
@@ -196,148 +247,245 @@ struct WebPanelSketch {
   static bool available(std::string* why) { return scry::available(why); }
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.size = {980, 660},
-                             .captureAt = 1.0,
-                             .background = hexColor(0x0b0a16)});
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 1.0});
 
-    m_why.clear();
+    // The settles go before the views they latched.
+    m_pages.clear();
+    m_views.clear();
+    ++m_declared;
     const std::shared_ptr<scry::WebEngine> engine =
         sketch::scry::sharedEngine();
     if (!engine) {
-      m_why = "this sketch host has no shared web engine";
-    } else {
-      m_slotName =
-          "sigil-" + std::to_string(reinterpret_cast<std::uintptr_t>(this));
-      // Registered before the page loads: a page naming a slot that does
-      // not exist yet gets a warning and a hole.
-      m_sigil = engine->createImage(m_slotName, kSlotSize, kSlotSize);
-      if (m_sigil)
-        m_sigil->paint(
-            [](SkCanvas& canvas) { drawSigil(canvas, (float)kSlotSize); });
-
-      // A settle standing from an earlier declaration goes before the
-      // view it latched, which the new view replaces.
-      m_page.reset();
-      m_view = engine->createView(kPageWidth, kPageHeight);
-      // The settle owns the load, so nothing about the document can
-      // happen between asking for it and listening. A capture comes back
-      // from here with the page there; a window comes back at once.
-      m_page = sketch::scry::settle(*m_view, {.html = pageFor(m_slotName)},
-                                    ctx.deterministic);
+      ctx.composer.render(missing("this sketch host has no shared web engine"));
+      return;
     }
+    m_slotName =
+        "sigil-" + std::to_string(reinterpret_cast<std::uintptr_t>(this));
+    // Registered before the page loads: a page naming a slot that does not
+    // exist yet gets a warning and a hole.
+    m_sigil = engine->createImage(m_slotName, kSlotSize, kSlotSize);
+    if (m_sigil)
+      m_sigil->paint(
+          [](SkCanvas& canvas) { drawSigil(canvas, (float)kSlotSize); });
+
+    // EVERY VIEW BEFORE ANY LOAD: the panel's, then the four driven ones.
+    m_views.push_back(engine->createView(kPageWidth, kPageHeight));
+    for (int cell = 0; cell < 4; ++cell)
+      m_views.push_back(engine->createView(kViewWidth, kViewHeight));
+
+    // Each settle owns its view's load, so nothing the engine says can
+    // land between asking and listening; a capture is held here until
+    // each page is there, a window comes straight back.
+    const auto put = [&](sketch::scry::Sequence sequence) {
+      m_pages.push_back(sketch::scry::settle(
+          *m_views[m_pages.size()], std::move(sequence), ctx.deterministic));
+    };
+    put({.html = pageFor(m_slotName)});
+    // The load says the document is here; the page going quiet says its
+    // picture is finished.
+    put({.html = page(),
+         .question = "String(document.readyState)",
+         .expected = "complete",
+         .quiet = true,
+         .whole = true});
+    // The heading the script rewrites is the page's own statement that
+    // the rewrite has landed AND been painted.
+    put({.html = page(),
+         .run = kScript,
+         .question = "document.getElementById('head').textContent",
+         .expected = "EVALUATED",
+         .quiet = true,
+         .whole = true});
+    // A wheel's delta is what the CONTENT moves by, so down the page is a
+    // negative y. The engine walks a wheel smoothly: the scroll offset
+    // says where the walk is heading, the view going quiet that it is
+    // over.
+    put({.html = page(),
+         .wheel = {0, -kScrollBy},
+         .question = "String(window.scrollY)",
+         .expected = std::to_string(kScrollBy),
+         .quiet = true,
+         .whole = true});
+    // The class the page's own handler adds is its statement that the
+    // click arrived and the button was repainted in it.
+    put({.html = page(),
+         .press = kClickAt,
+         .question = "document.getElementById('btn').className",
+         .expected = "hit",
+         .quiet = true,
+         .whole = true});
     describe(ctx);
   }
 
-  /** THE PAGE ARRIVES RATHER THAN BEING WAITED FOR: the settle is
-   *  advanced here, on the thread that draws, and the scene is described
-   *  again on the frame the loaded document is first painted — when the
-   *  leaf starts showing the page rather than the blank a view paints the
-   *  moment it exists — and on the frame the settle finishes. A capture
-   *  has already finished it and this moves nothing. */
+  /** THE PAGES ARRIVE RATHER THAN BEING WAITED FOR: every settle is
+   *  advanced here, on the thread that draws, and the sheet is described
+   *  again on the frame any finishes or the panel first paints its
+   *  document. A capture has finished them all and this moves nothing. */
   void update(double, sketch::Scene2DContext& ctx) {
-    if (!m_page) return;
-    const bool finished = m_page->advance();
-    if (!finished && m_page->painted() == m_shownPage) return;
-    describe(ctx);
+    bool landed = false;
+    for (const std::unique_ptr<sketch::scry::Settling>& settling : m_pages)
+      landed = settling->advance() || landed;
+    if (landed || (!m_pages.empty() && m_pages[0]->painted() != m_shownPanel))
+      describe(ctx);
   }
 
-  /** THE SCENE AS THE PAGE STANDS: the page once a repaint carries the
-   *  loaded document and its well until then — or, once the settle has
-   *  given the page up, the card that says why there is none. The settle
-   *  goes before the view it latched. */
   void describe(sketch::Scene2DContext& ctx) {
-    if (m_page && m_page->broken()) {
-      m_why = "the page never loaded and painted";
-      m_page.reset();
-      m_view.reset();
-    }
-    m_shownPage = m_page && m_page->painted();
-    ctx.composer.render(m_view ? scene() : unavailable(m_why));
+    const sketch::kit::Provide look(sheetTheme());
+    m_shownPanel = m_pages[0]->painted();
+    const bool arrived =
+        std::all_of(m_pages.begin(), m_pages.end(),
+                    [](const auto& settling) { return settling->arrived(); });
+    const bool expired =
+        std::any_of(m_pages.begin(), m_pages.end(),
+                    [](const auto& settling) { return settling->broken(); });
+    const auto answered = [&](size_t at, const std::string& answer) {
+      return m_pages[at]->arrived() ? answer
+                                    : std::string("awaiting the page");
+    };
+    ctx.composer.render(sketch::kit::page(
+        {.title = "A page as a leaf",
+         .subtitle = "HTML laid out by the web engine inside the sheet, Skia "
+                     "inside the page, then one document driven four ways",
+         .footer = expired   ? "A settling wait expired; inspect the result "
+                               "before relying on this capture."
+                   : arrived ? "Every page has answered and the views have "
+                               "finished painting."
+                             : "The pages are still loading or repainting."},
+        box().column().gap(30).children(
+            {sketch::kit::section(
+                 {.label = "BOTH DIRECTIONS",
+                  .note = "web(view) draws the page's newest frame; the "
+                          "page's background is transparent"},
+                 box().row().gap(28).alignItems(Align::Start).children(
+                     {box()
+                          .width(kPageWidth)
+                          .height(kPageHeight)
+                          .borderRadius({16})
+                          .overflow(Overflow::Clip)
+                          .background(
+                              shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
+                          .children({m_shownPanel
+                                         ? web(m_views[0])
+                                               .width(kPageWidth)
+                                               .height(kPageHeight)
+                                         : box()
+                                               .width(kPageWidth)
+                                               .height(kPageHeight)}),
+                      box().column().gap(14).children(
+                          {remark(u8"HTML → canvas",
+                                  u8"The engine publishes each repaint as a "
+                                  u8"frame; the leaf draws the newest one "
+                                  u8"into the bounds the layout gave it."),
+                           remark(u8"canvas → HTML",
+                                  u8"A slot the page names by URL, filled by "
+                                  u8"drawing into the canvas the engine hands "
+                                  u8"back."),
+                           remark(u8"one renderer",
+                                  u8"A process boots exactly one engine, so "
+                                  u8"it is held beside the sketch rather than "
+                                  u8"inside it.")})})),
+             sketch::kit::section(
+                 {.label = "ONE DOCUMENT, DRIVEN FOUR WAYS",
+                  .note = "each view loads the same HTML; one call changes "
+                          "its document, viewport or interaction state"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {cell("plain", 1, "LOAD", "loadHTML",
+                                kit::formatted(
+                                    "The reference · loaded %s, painted %s",
+                                    m_pages[1]->loaded() ? "yes" : "no",
+                                    m_pages[1]->painted() ? "yes" : "no")),
+                           cell("scripted", 2, "EVALUATE", "evaluateScript",
+                                "Heading, rows and fills rewritten · " +
+                                    answered(2, m_pages[2]->reply())),
+                           cell("scrolled", 3, "SCROLL",
+                                kit::formatted("scroll(0, -%d)", kScrollBy),
+                                "Only the viewport moves · " +
+                                    answered(3, kit::formatted(
+                                                    "scrollY %d", kScrollBy))),
+                           cell("pressed", 4, "PRESS", "mouseMove / Down / Up",
+                                "The page's own handler marks the button · " +
+                                    answered(4, "class hit"))},
+                      .measure = kMeasure,
+                      .gap = 24}))})));
   }
 
-  [[nodiscard]] Element scene() const {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    return stack()
-        .fill(Fill::color(sketch::kit::theme().palette.ground))
-        .applyStyleSheet(sketch::kit::theme().styleSheet())
-        // The scene's one ink, stated once; the dim lines say so.
-        .ink(kInk)
-        .children(
-            {document::h1(u8"A page as a leaf").left(40).top(32),
-             // The page at its own pixel size: the view is created at exactly
-             // the box it is laid into, so nothing resamples.
-             box()
-                 .inset(96, 300, 94, 40)
-                 .borderRadius({16})
-                 .overflow(Overflow::Clip)
-                 .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
-                 .children(
-                     {m_page && m_page->painted()
-                          ? web(m_view).width(kPageWidth).height(kPageHeight)
-                          : box().width(kPageWidth).height(kPageHeight)}),
-             box().left(704).top(96).column().gap(14).children(
-                 {note(u8"HTML → canvas",
-                       u8"The engine publishes each repaint as a "
-                       u8"frame; the leaf draws the newest one into "
-                       u8"the bounds the layout gave it."),
-                  note(u8"canvas → HTML",
-                       u8"A slot the page names by URL, filled by "
-                       u8"drawing into the canvas the engine hands "
-                       u8"back — no adapter either way."),
-                  note(u8"one renderer",
-                       u8"A process boots exactly one engine, so it "
-                       u8"is held beside the sketch rather than "
-                       u8"inside it.")}),
-             document::caption(
-                 m_page && !m_page->arrived()
-                     ? u8"the page is still arriving — the window draws "
-                       u8"the view's own latest and never waits"
-                     : u8"the page background is transparent — the scene's "
-                       u8"ground is what shows between its cards")
-                 .font({.size = 12, .color = kDim})
-                 .left(40)
-                 .top(590)
-                 .width(900)});
+  /** One driven cell: THE FRAME ITS SETTLE STOPPED ON, at its own pixel
+   *  size so nothing resamples — and the view itself while that frame is
+   *  still coming. ONE DRAWING UNDER ONE OF TWO KEYS, because a key is a
+   *  program's identity: a page still arriving is the view's own latest,
+   *  which changes without a describe and is declared volatile, and a
+   *  still is one frame of the engine's, named by the declaration that
+   *  took it and cached like any static leaf. A GPU engine publishes a
+   *  texture it reuses, so there is no image to keep and the view draws
+   *  its latest. */
+  sketch::kit::ComparisonCase cell(const std::string& name, size_t at,
+                                   const char* title, std::string control,
+                                   std::string note) const {
+    const SkRect where = SkRect::MakeWH((float)kViewWidth, (float)kViewHeight);
+    scry::WebView::Frame still = m_pages[at]->still();
+    const std::string key = still.image ? name + " · still " +
+                                              std::to_string(m_declared)
+                                        : name + " · arriving";
+    // The view's own latest only once a repaint carries the loaded
+    // document: the blank a view paints the moment it exists is the
+    // engine's page, not this one's.
+    Element picture =
+        custom(key, [view = m_views[at], settling = m_pages[at].get(),
+                     still = std::move(still), where](sigil::draw::Pen& pen) {
+          SkCanvas& canvas = *pen.canvas();
+          if (still.image)
+            canvas.drawImageRect(still.image, where,
+                                 SkSamplingOptions(SkFilterMode::kLinear));
+          else if (view && settling->painted())
+            view->draw(canvas, where);
+        });
+    if (!still.image) picture.cache(Cache::None);
+    return {.title = title,
+            .control = std::move(control),
+            .figure = std::move(picture)
+                          .width((float)kViewWidth)
+                          .height((float)kViewHeight)
+                          .fill(Fill::color(kCellGround)),
+            .note = std::move(note)};
   }
 
-  /** What a host shows in place of the piece when the engine has nothing
-   *  to lay out with. It is drawn rather than left blank because the app
-   *  opens whatever is selected; a sweep never reaches it, having asked
-   *  the registry first. */
-  [[nodiscard]] static Element unavailable(const std::string& why) {
-    return stack()
-        .fill(Fill::color(hexColor(0x0b0a16)))
-        .ink(kInk)
-        .children(
-            {box()
-                 .inset(40)
-                 .borderRadius({16})
-                 .padding(28)
-                 .fill(Fill::color(hexColor(0x121a2c, 0.9f)))
-                 .foreground(
-                     stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.2f))))
-                 .column()
-                 .gap(10)
-                 .children({text(u8"no web engine here").font({.size = 22}),
-                            text(why).font({.size = 13, .color = kDim})})});
+  /** What stands here when the engine has nothing to lay out with. A
+   *  sweep never reaches it, having asked the registry first; the app
+   *  opens whatever is selected, so it is drawn rather than left blank. */
+  static Element missing(const std::string& why) {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    return box()
+        .inset(0)
+        .fill(Fill::color(sheet.palette.ground))
+        .column()
+        .gap(10)
+        .padding(40)
+        .children({text("no web engine here")
+                       .font({.size = 20, .color = sheet.palette.ink}),
+                   text(why)
+                       .font({.size = 12, .color = sheet.palette.ash})
+                       .width(620.0f)});
   }
 
  private:
   std::string m_slotName;
-  /** Why there is no page, where there is none. */
-  std::string m_why;
   std::shared_ptr<scry::WebImage> m_sigil;
-  std::shared_ptr<scry::WebView> m_view;
-  /** After the view it settles, so the events it latched are released
-   *  while that view is still standing. */
-  std::unique_ptr<sketch::scry::Settling> m_page;
-  /** Whether the scene last described showed the page rather than its
-   *  well: the frame that first paints the loaded document is described
-   *  again. */
-  bool m_shownPage = false;
+  /** The panel's view, then the four driven views. */
+  std::vector<std::shared_ptr<scry::WebView>> m_views;
+  /** One settle per view, after the views, so the events each latched
+   *  are released while its view still stands. */
+  std::vector<std::unique_ptr<sketch::scry::Settling>> m_pages;
+  /** How many times the sheet has been declared: what names a still
+   *  apart from an earlier declaration's under the same cell. */
+  int m_declared = 0;
+  /** Whether the sheet last described showed the panel's page rather
+   *  than its well. */
+  bool m_shownPanel = false;
 };
 
 SIGIL_SKETCH(WebPanelSketch, "Start & fixtures",
-             "A live web page as a compose leaf, and Skia drawn back into "
-             "the page")
+             "a live web page as a compose leaf with Skia drawn back into "
+             "the page, then one document in four views, each driven by one "
+             "call and answered by the page itself")

@@ -1,6 +1,6 @@
 # SigilWorld — the studies and their plates
 
-The chapter on the fifteen 3D frames this library is looked at
+The chapter on the twelve 3D frames this library is looked at
 through, and on the ledger that judges them: what each study draws, the
 presets they are built out of, and how the plate ledger's device tier
 holds each to a picture of its own. `README.md` beside the library is
@@ -50,20 +50,20 @@ exercise every feature this library has:
   softened and dimmed; and that is laid over its own output from the
   frame before, so the comet drags a tail no single frame contains. Six
   passes, no stated order, and three of its surfaces are taken in turns.
-- **`material_lab`** — what a surface is made of. Five curved cards over
-  a floor wearing a texture set: one plain, one a STACK of two through a
-  mask, one wearing a normal map, one wearing a packed
-  roughness-and-metallic map read at two channels, and one that emits in
-  a pattern. Every card is chosen because the device SHADES it, so the
-  plate is what the parameters and the maps say. The cards are curved rather than flat, because a Blinn highlight
-  on a flat card is one value over the whole face and a card meant to
-  show a highlight narrowing has to present a range of normals to the
-  key. The turntable is PARKED: a lab is read rather than watched, so the
-  live picture and the plate are the same picture. The texture set is
-  GENERATED in the study rather than read off
-  the disk, through the same `texture::` door a scanned folder arrives
-  by: a plate is a function of the declaration, and what a machine
-  happens to have under `build/assets` is not.
+- **`surface_lab`** — World's one surface model, under a rig and under a
+  sky. A back row of five curved cards, each told something different —
+  a colour, a STACK of two through a noise mask, a normal differentiated
+  from a height field, roughness and metallic from one packed image read
+  at two channels, and an emission map — and a front row that is legible
+  only because of the environment: a mirror, a rough metal, a dielectric,
+  glass, and a flat chrome plate whose bevel is a relief its page paints
+  from the outline's coverage. Every body is the same metallic-roughness
+  surface; what differs is what it is told and what light reaches it. The
+  frame's environment, a studio crossfaded toward a sunset that the kit's
+  environment maker bakes, turns by its `rotation`, turning every
+  reflection while the lights and bodies stand still. The turntable is
+  PARKED: a lab is read rather than watched. Every map is generated, so
+  the plate is a function of the declaration.
 - **`scene_surfaces`** — a compose scene as an ordinary texture, and
   every sampling dial applied to it. Three flat cards on an arc, one
   curved band under them and one swept ribbon whose card repeats along
@@ -71,34 +71,17 @@ exercise every feature this library has:
   its own; the screens are unlit, so what they show is what the trees
   painted, and the ribbon is a lit surface, so the same texture is read
   through shading beside them.
-- **`reflection_lab`** — what a body sees when it looks past the lights.
-  Four spheres in a row under a sky — chrome, a rough metal, a
-  dielectric and glass — each legible only because of the environment
-  map; the frame's environment turns by its `rotation`, which turns the
-  reflections while the lights and bodies stand still, and the row stands
-  under a held crossfade of two panoramas.
 - **`set_stagger`** — the entrances of a scene's children, staggered, and
   the collection that addresses a subtree afterwards. Two rows differ
   only in their stagger's origin, so at one moment they hold different
   shapes of the same run; a `Collection` naming one row's subtree by its
   key narrows a pass to it.
-- **`key_light`** — a light bound to live values. One still scene under the
-  kit's three-point rig, with the key light's strength and colour bound
-  to live values: nothing about the description changes from frame to
-  frame, and what moves is what the light's values are bound to.
 - **`dart_flight`** — `along()`, and nothing else. One winding closed
   loop swept into a rail, a dart flying it at a distance that is a
   function of the scene time, and gates standing on the same loop at
   constant distances and rolled about it — one verb serving a moving
   body and a still one, and composing with the rotation lanes rather
   than replacing them.
-- **`scattered_model`** — the import door. A model decoded through the
-  mesh codec and fitted to the stage, with a cloud scattered over its
-  surface and a flake stamped at every point; the codec's output is the
-  same `Mesh` a generated body is, so the tree past the import cannot
-  tell which it holds. It reads `res://models/`, which nothing in this
-  repository mounts, so what a plate is taken from is the generated
-  subject.
 - **`deformed_cloud`** — the point operators, in a room. A band across a
   scattered body is selected once and addressed twice: the points inside
   it are pushed out along their own normals, and inverting the same
@@ -108,7 +91,10 @@ exercise every feature this library has:
   shells each with a coloured point light, a spot opening downward onto
   the cluster between them, and a directional light faint enough to be an
   outline. A light stands where its node stands and carries no geometry,
-  so a lantern here is two siblings sharing a placement.
+  so a lantern here is two siblings sharing a placement. The amber lamp's
+  strength and colour are bound to live values: nothing about its
+  description changes from frame to frame, and what moves is what the
+  light's values are bound to.
 - **`compute_variant`**, **`import_native`**, **`vagrant_story_target`**
   and **`world_hud`** — the pass verbs that draw nothing by themselves
   (cooking points, re-drawing a selection, asking for a resource back),
@@ -117,7 +103,7 @@ exercise every feature this library has:
 
 Most of them are built out of `kit/`: `kit::threePoint` puts three point
 lights round a subject in its own extents, with the key's strength and
-colour bindable — which is all `key_light` asks of it — `kit::turntable`
+colour bindable, `kit::turntable`
 rides a closed rail looking inward, and `kit::litSet` is both over a
 ground plane. Every one returns an ordinary node, which is why
 `lantern_room`, which lights its own room, takes the turntable alone and

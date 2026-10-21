@@ -1,8 +1,10 @@
-"""The WardNet console, driven from outside: JSON over UDP or a WebSocket.
+"""The WardNet console, driven from outside: JSON over UDP or a WebSocket,
+with a reply to every sender.
 
-The console from wardnet_console.py, with nothing scripted inside it.
-Every row in the scrollback, the alert chip, the marquee, the cards and
-the load meter come from small JSON messages arriving through two doors:
+A security console that behaves like a web page, with nothing scripted
+inside it. Every row in the scrollback, the alert chip, the marquee, the
+cards and the load meter come from small JSON messages arriving through
+two doors:
 
     udp://:27030                 one message a datagram
     ws://:27031/wardnet          one message a WebSocket message; the same
@@ -17,8 +19,16 @@ Four kinds of message, named by "kind":
     {"kind": "card", "title": "RELAY JITTER", "value": "41 ms", "note": "relay/05", "level": "warn"}
 
 A tag is TRACE, INFO, WARN or BREACH; a level is clear, warn or breach.
+Every message is answered to whoever sent it, through the door it came
+by, with what was understood:
 
-    python3 sender.py                  # the scripted show over UDP
+    {"kind": "reply", "understood": "row", "rows": 12, "replies": 31}
+
+A row types itself on behind a blinking cursor; the marquee loops the
+newest alert; the chip breathes faster the worse its level; the meter
+glides to a new load.
+
+    python3 sender.py                  # the scripted show over UDP, printing replies
     python3 sender.py --door ws        # the same show over the WebSocket
     python3 sender.py --record         # the recording a capture replays
 
@@ -26,14 +36,16 @@ A window listens on both ports. A capture replays data/wardnet.feed at
 the UDP door and a recording with nothing in it at the WebSocket door,
 so a still opens no socket and is the same picture every run.
 
-EDIT THESE FIRST: the doors, ROWS_SHOWN, CARDS_SHOWN, METER_EASE.
+EDIT THESE FIRST: the doors, ROWS_SHOWN, CARDS_SHOWN, METER_EASE, answered().
 
-TAGS: Data/Sources, Runtime/Live Input, Compose/Motion, Typography/Console
+TAGS: Data/Sources, Runtime/Live Input, Compose/Motion, Typography/Console, Python
 """
 
+from collections.abc import Callable
 from math import ceil
 
 from sigil import compose, data, material, motion
+from sigil.compose import textFx
 from sigil.material import pattern
 from sigil.motion import animatable, bind, ease
 from sigil.compose import kit as neutral
@@ -94,7 +106,7 @@ def websocket_door(ctx: Scene2DContext) -> str:
     return f"ws://:{WEBSOCKET_PORT}{WEBSOCKET_PATH}?pages={ctx.local(PAGES)}"
 
 
-def label(content: str, size: float = 12, color: str = CHROME) -> compose.Element:
+def label(content: str, size: float = 12, color: str = CHROME) -> compose.Text:
     return (
         compose.text(content, size=size, color=color)
         .fontFamily(MONO)
@@ -108,16 +120,33 @@ def level_of(message: data.Message) -> str:
     return level if level in LEVEL_INK else "clear"
 
 
-def log_row(sequence: int, tag: str, body: str) -> compose.Element:
-    """One scrollback row, keyed by its sequence number. The entrance
-    plays once, when the row mounts; a row already on screen keeps its
-    picture when the slot is described again."""
+def cursor() -> compose.Element:
+    """A block cursor blinking on a loop on its opacity lane."""
+    return (
+        compose.box()
+        .width(8)
+        .height(14)
+        .fill(ACCENT)
+        .opacity(motion.animate(from_=1.0, to=0.0, duration=0.45, loop=-1, alternate=True))
+    )
+
+
+def log_row(sequence: int, tag: str, body: str, newest: bool = False) -> compose.Element:
+    """One scrollback row, keyed by its sequence number. The body types
+    itself on, a glyph at its turn, when the row mounts, and the newest row
+    carries the cursor; a row already on screen keeps its picture when the
+    slot is described again."""
+    parts: list[compose.Element | compose.Text] = [
+        label(f"{sequence:03d}", 12, DIM),
+        label(f"[{tag}]", 12, TAG_INK.get(tag, CHROME)),
+        label(body, 12, CHROME if tag == "TRACE" else BONE).textFx(
+            textFx.entrance(textFx.typeOn())
+        ),
+    ]
+    if newest:
+        parts.append(cursor())
     row = (
-        compose.box(
-            label(f"{sequence:03d}", 12, DIM),
-            label(f"[{tag}]", 12, TAG_INK.get(tag, CHROME)),
-            label(body, 12, CHROME if tag == "TRACE" else BONE),
-        )
+        compose.box(*parts)
         .row()
         .gap(12)
         .alignItems("center")
@@ -153,7 +182,7 @@ def alert_chip(content: str, level: str) -> compose.Element:
     the level."""
     rest, breath = LEVEL_PULSE[level]
     ink = LEVEL_INK[level]
-    pulse = motion.animate(from_=rest, to=ink, duration=breath, loop=-1, alternate=True)
+    pulse = motion.ColorTween(rest, ink, duration=breath, loop=-1, alternate=True)
     return (
         compose.box(label(content, 12, BONE))
         .padding(6, 12)
@@ -197,12 +226,16 @@ class WardNetLive:
             "UDP": data.connect(hub, UDP_DOOR),
             "WEBSOCKET": data.connect(hub, websocket),
         }
+        handlers = {
+            "row": self.take_row,
+            "alert": self.take_alert,
+            "meter": self.take_meter,
+            "card": self.take_card,
+        }
         for door in self.doors.values():
-            door.on("row", self.take_row)
-            door.on("alert", self.take_alert)
-            door.on("meter", self.take_meter)
-            door.on("card", self.take_card)
-            door.otherwise(self.take_stranger)
+            for kind, handler in handlers.items():
+                door.on(kind, self.answered(door, kind, handler))
+            door.otherwise(self.answered(door, "", self.take_stranger))
 
         # THE MODEL the messages write, and the slots each part is drawn in.
         self.sequence = 0
@@ -211,6 +244,7 @@ class WardNetLive:
         self.cards: dict[str, tuple[str, str, str]] = {}
         self.target = 0.0
         self.strangers = 0
+        self.replies = 0
         # The live value the meter's bar follows. A meter message eases it
         # to the new load on the session's clock; the bar reads it through
         # a binding, so the bar moves without the page being described.
@@ -221,6 +255,31 @@ class WardNetLive:
         self.update(0.0, ctx)
 
     # ── the handlers, run as each message is read ─────────────────────
+
+    def answered(
+        self, door: data.Connection, kind: str, handler: Callable[[data.Message], None]
+    ) -> Callable[[data.Message], None]:
+        """The handler for one kind, and then a reply to the message's
+        sender through the door it came by. A recording names no sender, so
+        in a capture nothing is answered."""
+
+        def answer(message: data.Message) -> None:
+            handler(message)
+            # What a sender is told: the kind understood, or nothing where
+            # the kind is not one the console reads, and the counts so far.
+            answered = door.reply(
+                {
+                    "kind": "reply",
+                    "understood": kind or None,
+                    "rows": self.sequence,
+                    "replies": self.replies + 1,
+                }
+            )
+            if answered:
+                self.replies += 1
+                self.changed.add("doors")
+
+        return answer
 
     def take_row(self, message: data.Message) -> None:
         self.sequence += 1
@@ -259,7 +318,7 @@ class WardNetLive:
 
     # ── the frame: describe again only the slots a message changed ────
 
-    def states(self) -> dict:
+    def states(self) -> dict[str, data.ConnectionState]:
         return {name: door.state() for name, door in self.doors.items()}
 
     def update(self, elapsed: float, ctx: Scene2DContext) -> None:
@@ -279,10 +338,15 @@ class WardNetLive:
             self.composer.renderSlot(name, drawn[name](ctx))
         self.changed.clear()
 
-    def scrollback(self, ctx: Scene2DContext) -> compose.Element:
+    def scrollback(self, ctx: Scene2DContext) -> compose.Element | compose.Text:
         if not self.rows:
             return label("nothing has arrived on either door", 12, DIM)
-        return compose.box(*(log_row(*row) for row in self.rows)).column().gap(8)
+        newest = self.rows[-1][0]
+        return (
+            compose.box(*(log_row(*row, newest=row[0] == newest) for row in self.rows))
+            .column()
+            .gap(8)
+        )
 
     def chip(self, ctx: Scene2DContext) -> compose.Element:
         return alert_chip(*self.alert)
@@ -308,7 +372,7 @@ class WardNetLive:
             .overflow(compose.Overflow.Clip)
         )
 
-    def card_column(self, ctx: Scene2DContext) -> compose.Element:
+    def card_column(self, ctx: Scene2DContext) -> compose.Element | compose.Text:
         if not self.cards:
             return label("cards stand here once one arrives", 11, DIM)
         return (
@@ -362,11 +426,17 @@ class WardNetLive:
         status = "replay" if self.replaying else f"http://localhost:{WEBSOCKET_PORT}/"
         if self.strangers:
             status += f" · {self.strangers} not understood"
+        # A recording names no sender, so a replay answers nobody.
+        replies = "none in a replay" if self.replaying else f"{self.replies}"
         return kit.connectionReadout(
             self.doors[newest],
             door=f"{newest} {self.doors[newest].uri().split('?')[0]}",
             rows=neutral.Rows(measure=METER_WIDTH, gap=2),
-            readings=[*others, neutral.Reading(name="status", value=status)],
+            readings=[
+                *others,
+                neutral.Reading(name="replies", value=replies),
+                neutral.Reading(name="status", value=status),
+            ],
         ).applyStyleSheet(TERMINAL_ROWS)
 
     def page(self) -> compose.Element:

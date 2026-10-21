@@ -171,8 +171,9 @@ says so once, as every silent no-op in this library does.
 - `reference/examples/inkPaint_verb.cpp` — one box-unit gradient
   painting the same word at two sizes.
 - `reference/examples/inkPaint_verb.py` — the same picture in Python.
-- `apps/grimoire/sketches/ink_units.cpp` — one ramp laid across a passage
-  and restarted on every letter, word and line.
+- `apps/grimoire/sketches/paint_boxes.cpp` — one ramp read against every
+  paint box, among them laid across a passage and restarted on every
+  letter, word and line.
 
 ## See also
 

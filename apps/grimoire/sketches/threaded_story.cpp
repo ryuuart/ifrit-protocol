@@ -1,7 +1,9 @@
 /** @file
  * threaded_story — one story through a chain of frames: a rectangle, a
  * frame cut round a silhouette, and a two-column set, with the cut moving
- * as the first frame's measure moves and no marker until the last.
+ * as the first frame's measure moves and no marker until the last; then
+ * the keeps that move a cut — widow and orphan lines, and a block that
+ * starts a new frame.
  */
 
 // ONE STORY, THREE FRAMES, ONE CHAIN. The story is declared once — content
@@ -30,12 +32,21 @@
 // begin with are different in the two — which is the whole claim, and a
 // static plate can make it where a moving one only implies it.
 //
+// THE KEEPS ARE SETTLED AT THE CUT. Below the chains, two-frame threads
+// set the same copy with and without a block's keep options: widowLines
+// and orphanLines retract lines into the next frame so the continued
+// paragraph has company on both sides of the boundary, and
+// startInNextFrame moves a block to the next frame however much room is
+// left. A keep never empties a frame, so the story can always advance.
+//
 // EDIT THESE FIRST
 //   kNarrow / kWide — the two measures the first frame is set to. Their
 //                     difference is how far the cut moves.
 //   kFrameH         — how deep each frame is; the shallower they are, the
 //                     more of the story reaches the columns.
 //   kColumnGutter   — the gutter between the two column frames.
+//   kKeepMeasure, kKeepDepth, kCloseDepth — each keep frame's measure, and
+//                     its depth in the widow row and the forced-start row.
 
 // TAGS: Typography/Paragraph, Motion/Transitions
 
@@ -67,7 +78,7 @@ namespace weave = sigil::weave;
 
 namespace {
 
-constexpr SkSize kSceneSize{1180, 760};
+constexpr SkSize kSceneSize{1180, 1260};
 
 namespace story {
 
@@ -78,6 +89,13 @@ constexpr float kFrameH = 190;
 constexpr float kNarrow = 210;
 constexpr float kWide = 320;
 constexpr float kColumnGutter = 24;
+constexpr float kKeepMeasure = 168;
+/** Deep enough for all but the last line of the continuing paragraph, and
+ *  deep enough for the whole of the short story. */
+constexpr float kKeepDepth = 158;
+constexpr float kCloseDepth = 120;
+/** Where the keep rows begin, under the two chains. */
+constexpr float kKeepsTop = 720;
 
 const material::Color kPaper{0.949f, 0.945f, 0.933f, 1};
 const material::Color kInk{0.098f, 0.106f, 0.118f, 1};
@@ -161,6 +179,31 @@ weave::Story article() {
   return built;
 }
 
+/** THE STORY THE KEEP PAIRS SET: a heading, the paragraph that continues
+ *  across the boundary in the mark colour, and a closing block. A short
+ *  body leaves room before the close, which is what startInNextFrame
+ *  overrules. */
+weave::Story keptArticle(bool shortBody, weave::KeepOptions keep,
+                         bool startInNextFrame = false) {
+  weave::Story built(
+      weave::rich()
+          .add(u8"THE FIRST BLOCK\n", weave::Type{.color = kMark})
+          .add(shortBody
+                   ? u8"A widow stands at the head of the next frame.\n"
+                   : u8"A widow stands at the head of the next frame and an "
+                     u8"orphan at the foot of this one, so both are settled "
+                     u8"where the boundary is rather than while the lines "
+                     u8"are being chosen, and the rest is overflow.\n")
+          .add(u8"The last block closes the story."));
+  weave::ParagraphStyle lead{.spaceAfter = 6};
+  weave::ParagraphStyle body{.spaceAfter = 6};
+  body.keep = keep;
+  weave::ParagraphStyle close;
+  close.keep.startInNextFrame = startInNextFrame;
+  built.paragraphs({lead, body, close});
+  return built;
+}
+
 }  // namespace story
 
 struct ThreadedStory {
@@ -203,6 +246,27 @@ struct ThreadedStory {
              .children(
                  {kit::textColumns(article, 2, s::kColumnGutter, measure,
                                    s::kFrameH + 68, column, u8"\u2026")})});
+  }
+
+  /** TWO FRAMES, THREADED: the first hands what it cannot hold to the
+   *  second, at @p depth, keyed under @p prefix. */
+  static Element pair(const std::string& prefix, const weave::Story& article,
+                      float depth) {
+    namespace s = story;
+    const auto leaf = [&](int index) {
+      Text body = frame(article)
+                      .key(prefix + std::to_string(index))
+                      .width(s::kKeepMeasure)
+                      .height(depth);
+      if (index == 1) body.textThreadTo(prefix + "2");
+      return kit::well({.width = Dimension(s::kKeepMeasure + 24),
+                        .height = Dimension(depth + 24),
+                        .ground = Fill::color({1, 1, 1, 0.6f}),
+                        .padding = 12,
+                        .corners = 3})
+          .children({std::move(body)});
+    };
+    return box().row().gap(16).children({leaf(1), leaf(2)});
   }
 
   Element describe() {
@@ -270,6 +334,42 @@ struct ThreadedStory {
                          "the story.")
                          .font({.size = 11, .color = s::kFaint}),
                  }),
+             box()
+                 .inset(s::kKeepsTop, 0, 0, s::kMargin)
+                 .column()
+                 .gap(22)
+                 .font({.face = s::serif(), .size = 13})
+                 .ink(s::kInk)
+                 .children(
+                     {document::h2("KEEPS AT THE CUT")
+                          .font({.face = s::grotesque(),
+                                 .size = 11,
+                                 .color = s::kMark,
+                                 .track = 1.4f}),
+                      box().row().gap(44).children(
+                          {captioned("FILL TO THE FOOT", "No keep options.",
+                                     pair("free-",
+                                          s::keptArticle(false, {}),
+                                          s::kKeepDepth)),
+                           captioned("CARRY A PAIR",
+                                     "widowLines = 2 · orphanLines = 2",
+                                     pair("kept-",
+                                          s::keptArticle(false,
+                                                         {.widowLines = 2,
+                                                          .orphanLines = 2}),
+                                          s::kKeepDepth))}),
+                      box().row().gap(44).children(
+                          {captioned("CONTINUE IN PLACE",
+                                     "A shorter story; the close uses the "
+                                     "room left.",
+                                     pair("close-free-",
+                                          s::keptArticle(true, {}),
+                                          s::kCloseDepth)),
+                           captioned("START A NEW FRAME",
+                                     "The close: startInNextFrame = true",
+                                     pair("close-new-",
+                                          s::keptArticle(true, {}, true),
+                                          s::kCloseDepth))})}),
              document::footer(
                  "a Western column is a FRAME; the vertical writing "
                  "mode keeps the word for the thing it already meant")
@@ -281,4 +381,5 @@ struct ThreadedStory {
 }  // namespace
 
 SIGIL_SKETCH_AS(ThreadedStory, "threaded_story", "Catalog · Type",
-                "one story through a chain of frames, the cut moving")
+                "one story through a chain of frames, the cut moving, then "
+                "widow and orphan keeps and a forced start at the cut")

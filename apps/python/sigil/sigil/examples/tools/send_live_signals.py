@@ -1,8 +1,10 @@
-"""Send JSON through native SigilIO and print the observatory's acknowledgments.
+"""Send JSON through native SigilIO and print the console's replies.
 
-Open python_live_signals.py in Grimoire, then use an installed sigil package:
+Open wardnet_live.py in Grimoire, then use an installed sigil package:
   python -m sigil.examples.tools.send_live_signals --export reply.json
 
+The load rises and falls as meter messages, with a row every second; the
+console answers each message to this sender with what it understood.
 Only --export writes a file: the last reply's exact bytes, through the native hub.
 """
 
@@ -17,7 +19,7 @@ from sigil.io import Feed, Hub, registerTransports
 
 class Options(argparse.Namespace):
     host: str = "127.0.0.1"
-    port: int = 27021
+    port: int = 27030
     duration: float = 10
     rate: float = 20
     export: Path | None = None
@@ -41,11 +43,11 @@ def main() -> int:
     parser.add_argument(
         "--host", default="127.0.0.1", help="Destination host (default: loopback)"
     )
-    parser.add_argument("--port", type=int, default=27021)
+    parser.add_argument("--port", type=int, default=27030)
     parser.add_argument("--duration", type=float, default=10, help="Seconds to send")
     parser.add_argument("--rate", type=float, default=20, help="Messages per second")
     parser.add_argument(
-        "--export", type=Path, help="Write the last acknowledgment's exact bytes"
+        "--export", type=Path, help="Write the last reply's exact bytes"
     )
     options = parser.parse_args(namespace=Options())
     if not 1 <= options.port <= 65535:
@@ -70,13 +72,12 @@ def main() -> int:
         sequence = 0
         while time.monotonic() - started < options.duration:
             elapsed = time.monotonic() - started
-            message = dumps(
-                {
-                    "sequence": sequence,
-                    "pressure": round(0.55 + 0.22 * math.sin(elapsed * 2.1), 4),
-                    "flow": round(0.44 + 0.24 * math.sin(elapsed * 1.4 + 0.8), 4),
-                }
-            ).encode()
+            load = round(0.55 + 0.35 * math.sin(elapsed * 1.3), 4)
+            if sequence % max(1, round(options.rate)) == 0:
+                body = {"kind": "row", "tag": "TRACE", "body": f"load {load:.0%} · message {sequence}"}
+            else:
+                body = {"kind": "meter", "load": load}
+            message = dumps(body).encode()
             if not feed.send(message):
                 raise RuntimeError(
                     feed.state().error or "The native feed refused the message."
@@ -98,13 +99,13 @@ def main() -> int:
 
     if latest is None:
         print(
-            "No acknowledgment received. Open the live sketch and check its listener status."
+            "No reply received. Open wardnet_live.py and check its door's status."
         )
         return 1
     if options.export is not None:
         output = options.export.expanduser().absolute()
         if not hub.write(str(output), latest):
-            print(f"Could not write acknowledgment to {output}")
+            print(f"Could not write the reply to {output}")
             return 1
         print(f"Wrote {len(latest)} bytes to {output}")
     return 0

@@ -1,7 +1,7 @@
 {
-  "title": "A sky, received two ways.",
-  "subtitle": "UDP  ·  SHARED MEMORY  /  One connection per door; each door's newest message becomes its picture.",
-  "footer": "sender.py beside this sketch sends both doors  ·  Captures replay the two recordings under data/",
+  "title": "A sky, received four ways.",
+  "subtitle": "UDP  ·  SHARED MEMORY  ·  FILE  ·  RAW FEED  /  One sky through each way in, and what each says about itself.",
+  "footer": "sender.py sends both sky doors and pulse.py the raw feed  ·  Edit data/sky.json and save  ·  Captures replay the recordings under data/",
   "doors": [
     {
       "label": "UDP · SCHEMA",
@@ -16,5 +16,16 @@
       "recording": "data/shared.feed",
       "note": "A region another process on this machine wrote, mapped read-only: no socket and no copy through the kernel."
     }
-  ]
+  ],
+  "file": {
+    "label": "FILE · SCHEMA JSON",
+    "path": "data/sky.json",
+    "note": "The schema's own JSON form, converted through feed_sky.fbs and watched: a saved edit is a new sky."
+  },
+  "raw": {
+    "label": "RAW FEED · BYTES",
+    "address": "udp://:27021",
+    "recording": "data/pulse.feed",
+    "note": "receive() drains every arrival in order onto the strip; latest() keeps the newest message whatever the queue dropped."
+  }
 }

@@ -32,8 +32,11 @@ RADIUS = 84
 @sketch(size=(640, 360), background=(0, 0, 0, 0), captureAt=1.5)
 class AlphaGround:
     def draw(self, pen: Pen) -> None:
-        # Nothing lays a ground down: what this leaves untouched is what a
-        # subscriber sees its own scene through.
+        # The draw canvas is kept between frames, so each frame starts by
+        # returning every pixel to transparent; nothing lays a ground down,
+        # and what the mark leaves untouched is what a subscriber sees its
+        # own scene through.
+        pen.clear()
         cx = pen.width / 2
         cy = pen.height / 2
 

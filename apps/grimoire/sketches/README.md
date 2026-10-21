@@ -108,14 +108,14 @@ The shared specimen page and captions use these roles too; reference studies
 keep their authored faces, measures and geometry. Literal typography fixtures
 still use the raw text and paragraph APIs when those controls are the subject.
 
-`python_live_signals.py` is a live JSON signal observatory: native UDP feeds
-receive normalized pressure and flow, retained cards report the latest values,
-and native paths draw their history. Each valid message gets a JSON reply.
-Run `python -m sigil.examples.tools.send_live_signals --export reply.json`
-with the matching installed package to send signals and explicitly save the
-last acknowledgment. Headless captures replay synthetic arrivals without
-opening a socket or writing a file; the live waiting state labels its
-reference traces until a sender arrives.
+`python_instrument_board.py` reports three immutable readings twice a
+second from an engine timer and draws each through `memo`, so a well whose
+reading did not change is not described again, beside a signal envelope
+whose 48 bars enter on one `stagger`. `python_numpy_bridge.py` hands NumPy
+arrays to the native drawing in one call each: an angle field as one packed
+line batch through `drawPoints`, and a Gray–Scott reaction stepped at a
+fixed rate on the session's clock as one RGBA transfer through
+`media.fromRgba`, sampled nearest; it needs the package's `studies` extra.
 
 `python_market_tape/` is a live ticker fed by two third-party Python
 libraries with nothing between them and the page: `websockets` subscribes
@@ -159,11 +159,16 @@ canvas returns to TouchDesigner over Syphon.
 
 `wardnet_live/` is the WardNet console driven from outside: JSON messages
 over UDP and over a WebSocket door that serves the sketch's own page of
-buttons add keyed rows that mount with an entrance, set the alert chip
-and the marquee, place cards and ease the load meter. `sender.py` plays a
-scripted show over either door and writes the recording a capture
-replays; `touchdesigner/scripts/wardnet_live.py` sends from a patch. Its
-README and the guide it links say how each sender reaches it.
+buttons add keyed rows that mount with an entrance and type their body
+on behind a blinking cursor, set the alert chip and the marquee, place
+cards and ease the load meter, and every message is answered to its
+sender with what was understood. `sender.py` plays a scripted show over
+either door, printing each reply, and writes the recording a capture
+replays; `python -m sigil.examples.tools.send_live_signals` from the
+installed package sends a load and prints the replies;
+`touchdesigner/scripts/wardnet_live.py` sends from a patch. The guides
+`animated-console-python` (how the page moves) and
+`console-driven-from-outside-python` (the doors and the messages) quote it.
 
 The table below is every sketch filed under a `Study ·` category — the
 studies that rebuild a REFERENCE — with what each one puts under load.
@@ -221,7 +226,7 @@ were read off; the rule above is written for all of them.
 | `dunhuang_star_chart` | BL Or.8210/S.3326, the Dunhuang star chart (c. 649–684) | Reprojected from 1,460 real stars and the published projection, then checked against the published identifications — and it refuses to answer where the source does |
 | `eva_magi_defense` | [*The End of Evangelion*'s MAGI defense plate](https://static.wikia.nocookie.net/evangelion/images/f/f6/Magi_%28EoE%29.png) (1997) | Six installations as one component, rotated |
 | `eva_magi_deliberation` | [Evangelion's MAGI deliberation plate](https://assets.fontsinuse.com/use-media/97461/upto-700xauto/69b54994/1/jpeg/14_95tv_FUI_2.jpeg) | One routed system: a rear circular bus, three rotated instances of one square module, and an information layer over both |
-| `eva_magi_interior` | [*The End of Evangelion*'s Danang Type-B defense screen, Protect No.666](https://tenor.com/view/neon-genesis-evangelion-screen-calculate-anime-gif-17152243) (1997) | Three register arms inside concentric defense rings and a turning field of code, with the infection on one engine timeline: the registers fill one after another, the screen raises and drains them, and the counters run from the raise |
+| `eva_magi_interior` | [*The End of Evangelion*'s Danang Type-B defense screen, Protect No.666](https://tenor.com/view/neon-genesis-evangelion-screen-calculate-anime-gif-17152243) (1997) | Three register arms inside eight numbered defense rings, a labyrinth of channels holding rows of 6s laid in arcs that condense outward and glow in a pulse from the centre, every line in one green-to-red wash, and the infection on one engine timeline: the registers fill one after another, the screen raises and drains them, and the counters run from the raise |
 | `lain_navi` | *Serial Experiments Lain*'s Copland OS | No opaque window anywhere, and text through a fixed focal plane |
 | `sigillum_aemeth` | Dee's Sigillum Dei Aemeth (1582), Sloane MS 3188 f. 30r | Solved from the angels' own jump rule — 33 of 40 cells — and the wax disc's burnish drawn |
 | `thaumonomicon` | Thaumcraft 6's research browser (2018) | Edges that are stamped art, not strokes |
@@ -240,7 +245,7 @@ directory reaches for them, so a rename has somewhere to be noticed:
 | `alpha_ground` | The one sketch grounded in `{0, 0, 0, 0}`: what `sketch_transparent_ground` sweeps, on the raster surface and the device, to prove a ground's alpha survives the clear, and what the publication door in `../README.md` points at as a frame meant to be composited. `python_alpha_ground` is its twin. |
 | `python_entrances` | What the guide `entrances-and-staggers-python` quotes, line for line: staggered entrances over a grid and an axis, a seeded scatter, an engine run that reverses, and a transition. |
 | `python_timeline` | What the guide `timelines-python` quotes, line for line: a title sequence on one timeline with labels, positions, calls into a slot and a transport timer. |
-| `python_bindings` | What the guide `live-values-and-bindings-python` quotes, line for line: one oscillator-driven live value followed through ranges, an envelope, a wiggle and `quantize`. |
+| `python_bindings` | What the guide `live-values-and-bindings-python` quotes, line for line: one oscillator-driven live value followed through ranges, an envelope, a wiggle, `quantize`, a fold, a cosine swell and an overshooting ease. |
 | `python_springs` | What the guide `springs-and-oscillators-python` quotes, line for line: springs stepped from a timer, `flash` and `decay` for a hit, oscillators, and the three words for stillness. |
 
 The Evangelion studies share their type and whole-screen CRT treatment in

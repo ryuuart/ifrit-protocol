@@ -34,7 +34,7 @@
  * one wearing it:
  *
  *     build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
- *         --sketch feed_vitals --publish Guest
+ *         --sketch feed_sky --publish Guest
  *     build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
  *         --sketch guest_body
  *
@@ -139,7 +139,7 @@ Element waiting() {
                         .ink(look.palette.ash),
                     document::code(
                         kit::formatted(
-                            "Grimoire --sketch feed_vitals --publish %s",
+                            "Grimoire --sketch feed_sky --publish %s",
                             kPublication))
                         .font(look.font({.size = 16, .mono = true}))
                         .ink(look.palette.ash)})});

@@ -239,7 +239,7 @@ The wheel includes example sketches. List them with `sigil examples`,
 then render one directly:
 
 ```sh
-.venv/bin/sigil render --example python_orbits --output orbits.png
+.venv/bin/sigil render --example python_hello --output hello.png
 ```
 
 The optional `studies` extra adds NumPy for the vectorized examples. The
@@ -576,10 +576,10 @@ Open either example by path:
 
 ```sh
 build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
-  ../grimoire/sketches/python_orbits.py
+  ../grimoire/sketches/python_hello.py
 
 build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
-  ../grimoire/sketches/python_dashboard.py
+  ../grimoire/sketches/python_instrument_board.py
 ```
 
 For terminal launching and standalone Python rendering, install the
@@ -1035,10 +1035,11 @@ transport puts messages on a feed through `io.testing.inletOf(feed)`, whose
 `deliver` a reader of the feed does not have.
 Use a recording or explicit sample data when `ctx.deterministic` is true.
 
-The bundled `python_live_signals.py` sketch shows received pressure and flow,
-acknowledges accepted packets and distinguishes live input from sample data.
-Its packaged companion sends through a standalone SigilIO hub and can export
-received acknowledgements when requested:
+The `wardnet_live` sketch in the catalogue reads JSON messages through a UDP
+door and a WebSocket door, replies to every sender with what it understood,
+and replays a recording when `ctx.deterministic` is true. The packaged
+companion sends it a load and rows through a standalone SigilIO hub, prints
+each reply and can export the last one when requested:
 
 ```sh
 uv run python -m sigil.examples.tools.send_live_signals
@@ -2142,23 +2143,16 @@ Render one with `sigil render --example NAME -o preview.png`.
 | `python_type_atelier` | Mixed runs and inline objects, selector styling, initial letters, a threaded story and curved lettering |
 | `python_document` | One semantic document under two inherited role stylesheets |
 | `python_kit_specimen` | Native page and captions, stock layouts, scoped theme and deferred memo |
-| `python_motion_signals` | One live value, an engine timer, bindings and a keyframe entrance |
-| `python_memo_station` | Retained model descriptions, memo invalidation and native motion |
+| `python_bindings` | One oscillator's live value read through every binding stage: range, wiggle, clamp, envelope, quantize, a fold and an ease |
+| `python_instrument_board` | Readings reported at a cadence and drawn through memo, beside an envelope entering on one stagger |
 | `python_data_garden` | Native CSV tables, sorting, and linear, band and square-root scales |
-| `python_mesh_observatory` | Parametric 3D knot, lathed vessel, regular solid, camera, native lighting |
-| `python_world_study` | Retained keyed 3D scene, shared vessel mesh, material finishes and moving native light rig |
+| `python_world_study` | Retained keyed 3D scene: a lathed vessel, a parametric knot and a regular solid on three plinths, material finishes and a moving native light rig |
 | `python_flipbook_fire` | Generated textures: a flame sheet played as a flipbook, a flow map, embers reading a per-instance cell, bloom |
 | `python_liquid_glass` | Shader-driven refraction, nested shader inputs, moving field uniforms, Bezier filaments |
 | `python_botanical_study` | Layered natural media, native hatching and dry pigment |
-| `python_liquid_layers` | Pressure-shaped ribbons, wet fibres, pigment blooms and pattern materials |
-| `python_observable_flowfield` | NumPy vectorized angle field and packed line drawing; needs the `studies` extra |
-| `python_observable_l_system` | Python string rewriting, turtle stack and native geometry |
-| `python_observable_reynolds` | Stateful flocking, seeded initialization and transforms |
-| `python_observable_reaction_diffusion` | NumPy Gray–Scott simulation and bulk pixel transfer; needs the `studies` extra |
+| `python_numpy_bridge` | A NumPy angle field drawn as one packed line batch and a NumPy Gray–Scott reaction through one pixel transfer; needs the `studies` extra |
 | `python_compose_stamps` | Compose trees placed by a Draw pen and repeated as a custom brush tip |
-| `python_live_signals` | Native UDP feed arrivals, JSON decoding, drawn traces and a reply to each sender |
-| `python_dashboard` | Functions and iterables constructing retained native elements |
-| `python_orbits` | An animated immediate drawing with fading trails computed from the scene clock |
+| `python_mixed_materials` | One Compose page of many lit materials worn by one quad, with plated vias and a pulse in a live window |
 
 ## Scope
 

@@ -2,21 +2,37 @@
 //
 // Stock tools, a caller-defined tip, field-warped surfaces and an even-odd
 // mass share one instance-owned engine and one deterministic pigment stream.
+// Below them, a brush made of two pictures, the way a painting program means
+// the word: one shape image and one grain image, both drawn here on an
+// offscreen canvas rather than read from disk, carried through what an
+// imported brush states — the spacing and scatter a stamp is placed by, the
+// grain standing still on the paper or riding each dab, and a size the
+// pressure drives.
+//
+// EDIT THESE FIRST
+//   kInk          the six pigments the stock rows cycle through
+//   chiselTip     the shape image: a soft-edged chisel, dark on white
+//   paperGrain    the grain image: a tile of the material grain field
 
 // TAGS: Drawing/Brushes
 
-#include <include/core/SkBitmap.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Constants.h>
+#include <sigildraw/Graphics.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
+#include <cmath>
+#include <memory>
 #include <utility>
 
+namespace field = sigil::material::field;
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
@@ -34,11 +50,63 @@ constexpr std::array<material::Color, 6> kInk{{
     {0.48f, 0.22f, 0.48f, 1.0f},
 }};
 
+/** Where the image-tip section begins, below the engine's rows. */
+constexpr float kImageTips = 860.0f;
+
+/** THE SHAPE IMAGE: a chisel with a soft edge, dark on white, which is the
+ *  artwork a tip is usually drawn as. A radial gradient fitted to the
+ *  ellipse holds the middle at full ink and lets the edge fall to paper. */
+void chiselTip(Pen& pen) {
+  pen.background(255);
+  pen.noStroke();
+  pen.fill(material::radialGradient({0.5f, 0.5f}, 0.71f,
+                                    {{0.0f, {0, 0, 0, 1}},
+                                     {0.40f, {0.08f, 0.08f, 0.08f, 1}},
+                                     {1.0f, {1, 1, 1, 1}}}),
+           SHAPE);
+  pen.ellipse(48, 48, 92, 60);
+}
+
+/** THE GRAIN IMAGE: a tile of the material grain field, its luminance the
+ *  coverage a mark keeps. */
+void paperGrain(Pen& pen) {
+  pen.background(255);
+  pen.noStroke();
+  pen.fill(field::grain(0.18f, 2, 7.0f, 1.3f));
+  pen.rect(0, 0, 128, 128);
+}
+
+/** A brush whose whole look is its pictures. */
+brush::Tool imported(sk_sp<SkImage> shape, material::Color color, float width) {
+  brush::Tool tool = brush::marker(color, width);
+  tool.tip = brush::Tip::Image;
+  tool.opacity = 0.75f;
+  tool.markerTip = false;
+  tool.rotation = brush::Rotation::Natural;
+  tool.shape = brush::Shape{.image = std::move(shape), .spacing = 0.09f};
+  return tool;
+}
+
+/** One arc of the same centreline, so every image-tip row differs only by
+ *  what the brush says. */
+brush::Stroke sweep(float y) {
+  const std::array<brush::Sample, 4> controls{{
+      {{70, y + 26}, 0.35f},
+      {{330, y - 30}, 1.0f},
+      {{640, y + 34}, 0.9f},
+      {{930, y - 18}, 0.3f},
+  }};
+  return brush::spline(controls, 2.0f, 0.7f);
+}
+
 struct BrushEngineAtlas {
   brush::Engine brushes;
+  /** The two pictures the image tips are made of, drawn once on canvases
+   *  of their own the first time the sheet is drawn. */
+  std::unique_ptr<Graphics> shape, grain;
 
   void setup(sketch::Scene2DContext& context) {
-    context.canvas(1000, 900);
+    context.canvas(1000, 1500);
     context.captureAt(0.25);
     brushes.scaleBrushes(3.5f);
 
@@ -60,51 +128,40 @@ struct BrushEngineAtlas {
     };
     brushes.add("diamond", diamond);
 
-    SkBitmap mask;
-    mask.allocN32Pixels(64, 64, true);
-    mask.eraseColor(SK_ColorWHITE);
-    for (int y = 0; y < 64; ++y) {
-      for (int x = 0; x < 64; ++x) {
-        const float dx = ((float)x - 31.5f) / 28.0f;
-        const float dy = ((float)y - 31.5f) / 19.0f;
-        const float radius = dx * dx + dy * dy;
-        if (radius >= 1.0f) continue;
-        const float fiber = 0.5f + 0.5f * std::sin((float)x * 1.7f + y * 0.23f);
-        const int shade = (int)(35.0f + 105.0f * radius + 45.0f * fiber);
-        *mask.getAddr32(x, y) = SkColorSetRGB(shade, shade, shade);
-      }
-    }
-    brush::Tool paperTip = brush::marker(SkColors::kBlack, 22.0f);
-    paperTip.tip = brush::Tip::Image;
-    paperTip.shape = brush::Shape{.image = SkImages::RasterFromBitmap(mask)};
-    paperTip.spacing = 4.2f;
-    paperTip.scatter = 1.8f;
-    paperTip.opacity = 0.18f;
-    paperTip.rotation = brush::Rotation::Natural;
-    paperTip.markerTip = false;
-    brushes.add("paper-tip", std::move(paperTip));
-
     context.composer.render(compose::graphics("brush_engine_atlas.sheet",
                                               [this](Pen& pen) { draw(pen); }));
   }
 
-  void draw(Pen& pen) {
-    pen.randomSeed(0xB2A55u);
-    pen.noiseSeed(0xB2A55u);
-    pen.background(246, 239, 222);
+  /** The picture @p body draws on a @p side square canvas of its own. */
+  static std::unique_ptr<Graphics> picture(Pen& host, float side,
+                                           void (*body)(Pen&)) {
+    auto canvas = std::make_unique<Graphics>(side, side);
+    body(canvas->begin(host));
+    canvas->end();
+    return canvas;
+  }
+
+  void heading(Pen& pen, const char* words, float x, float y) {
+    pen.noStroke();
+    pen.fill(40, 34, 31);
+    pen.textAlign(LEFT, BASELINE);
+    pen.textSize(13);
+    pen.text(words, x, y);
+  }
+
+  void engineRows(Pen& pen) {
     pen.noStroke();
     pen.fill(40, 34, 31);
     pen.textSize(26);
     pen.text("PIGMENT / PRESSURE / PAPER", 48, 40);
-    pen.textSize(13);
     // The three columns' heads, each over the run it names.
     for (const auto& [x, head] : std::array<std::pair<float, const char*>, 3>{
              {{72, "ONE PASS"},
               {250, "SIX PASSES"},
               {610, "FIELD-WARPED WASH"}}})
-      pen.text(head, x, 78);
+      heading(pen, head, x, 78);
 
-    const std::array<const char*, 14> names{{
+    const std::array<const char*, 13> names{{
         "2B",
         "HB",
         "2H",
@@ -118,10 +175,9 @@ struct BrushEngineAtlas {
         "pastel",
         "crayon",
         "diamond",
-        "paper-tip",
     }};
     for (size_t i = 0; i < names.size(); ++i) {
-      const float y = 112.0f + (float)i * 48.0f;
+      const float y = 112.0f + (float)i * 52.0f;
       brushes.set(names[i], kInk[i % kInk.size()], i < 6 ? 4.0f : 1.6f);
       brushes.line(pen, {72, y}, {218, y - 6}, 0.75f, 1.0f);
       for (int pass = 0; pass < 6; ++pass)
@@ -162,17 +218,86 @@ struct BrushEngineAtlas {
                    .jitter = 0.08f,
                    .continuous = true});
     brushes.hatchArray(pen, seal);
+    heading(pen, "EVEN-ODD MASS / HATCH OVERLAY", 570, 790);
+  }
+
+  /** The four image-tip rows: one shape image and one grain image, and the
+   *  same arc under each, so a row shows only what its brush says. */
+  void imageTipRows(Pen& pen) {
+    constexpr material::Color kSoot{0.09f, 0.10f, 0.14f, 1.0f};
+    constexpr material::Color kRust{0.72f, 0.28f, 0.14f, 1.0f};
+    constexpr material::Color kSea{0.10f, 0.36f, 0.44f, 1.0f};
+    const sk_sp<SkImage> chisel = shape->image();
+    const sk_sp<SkImage> speckle = grain->image();
+
+    pen.noStroke();
+    pen.fill(40, 34, 31);
+    pen.textAlign(LEFT, BASELINE);
+    pen.textSize(22);
+    pen.text("A BRUSH MADE OF TWO IMAGES", 48, kImageTips);
+    pen.image(chisel, 760, kImageTips - 40, 72, 72);
+    pen.image(speckle, 856, kImageTips - 40, 72, 72);
+    heading(pen, "SHAPE", 760, kImageTips + 48);
+    heading(pen, "GRAIN", 856, kImageTips + 48);
+
+    const float top = kImageTips + 70.0f;
+    heading(pen, "01 / SHAPE ALONE", 70, top);
+    brush::paint(pen, imported(chisel, kSoot, 46.0f), sweep(top + 50));
+
+    const float scattered = top + 125.0f;
+    heading(pen, "02 / SPACING, SCATTER AND ROTATION", 70, scattered);
+    brush::Tool thrown = imported(chisel, kSoot, 40.0f);
+    thrown.shape->scatter = 0.22f;
+    thrown.shape->angleJitter = 0.55f;
+    thrown.shape->spacing = 0.16f;
+    brush::paint(pen, thrown, sweep(scattered + 50));
+
+    // The grain standing still on the surface: two marks crossing one
+    // place meet one texture.
+    const float onPaper = top + 250.0f;
+    heading(pen, "03 / GRAIN FIXED TO THE PAPER", 70, onPaper);
+    brush::Tool fixed = imported(chisel, kSea, 52.0f);
+    fixed.grain = brush::Grain{.image = speckle,
+                               .space = brush::GrainSpace::Stroke,
+                               .scale = 0.7f,
+                               .depth = 0.85f};
+    brush::paint(pen, fixed, sweep(onPaper + 50));
+    brush::line(pen, fixed, {200, onPaper + 10}, {430, onPaper + 96});
+
+    // The grain riding each stamp, and the size following the pressure.
+    const float onDab = top + 375.0f;
+    heading(pen, "04 / GRAIN ON EACH DAB, SIZE FROM PRESSURE", 70, onDab);
+    brush::Tool loaded = imported(chisel, kRust, 52.0f);
+    loaded.grain = brush::Grain{.image = speckle,
+                                .space = brush::GrainSpace::Dab,
+                                .scale = 0.35f,
+                                .depth = 0.9f};
+    loaded.dynamics.size = brush::Response{
+        .drive = brush::Drive::Pressure,
+        .curve = {.minimum = 0.22f, .maximum = 1.0f, .bend = 1.6f}};
+    brush::paint(pen, loaded, sweep(onDab + 50));
+  }
+
+  void draw(Pen& pen) {
+    if (!shape) shape = picture(pen, 96, chiselTip);
+    if (!grain) grain = picture(pen, 128, paperGrain);
+    pen.randomSeed(0xB2A55u);
+    pen.noiseSeed(0xB2A55u);
+    pen.background(246, 239, 222);
+
+    engineRows(pen);
+    imageTipRows(pen);
 
     pen.noStroke();
     pen.fill(40, 34, 31, 220);
     pen.textAlign(LEFT, BASELINE);
     pen.textSize(14);
-    pen.text("EVEN-ODD MASS / HATCH OVERLAY", 570, 790);
     pen.text("Pressure tapers each stroke. Repeated passes build pigment.", 48,
-             845);
+             1452);
     pen.text(
-        "One engine: stock tools, custom stamps, washes, hatches and masses.",
-        48, 868);
+        "One engine: stock tools, custom stamps, image tips, washes, hatches "
+        "and masses.",
+        48, 1475);
     pen.noLoop();
   }
 };
@@ -180,4 +305,7 @@ struct BrushEngineAtlas {
 }  // namespace
 
 SIGIL_SKETCH(BrushEngineAtlas, "Draw · Procedural",
-             "Stock and custom tips, watercolor fields and even-odd massing.")
+             "Stock and custom tips, watercolor fields and even-odd massing, "
+             "then a brush made of a shape image and a grain image with the "
+             "spacing, scatter, grain space and pressure curve an import "
+             "carries.")

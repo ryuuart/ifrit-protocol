@@ -139,29 +139,21 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `ruby_kenten` | Retain · authored catalog | Cached preview |
 | `tategaki` | Retain · authored catalog | Cached preview |
 | `threaded_story` | Retain · authored catalog | Reviewed GPU plate |
-| `artnet_lights` | Refined · instrument | Rendered plate |
 | `data_scales` | Retain · focused specimen | Cached preview |
 | `data_sources` | Rewritten · subject study | Reviewed GPU plate |
 | `feed_events` | Refined · instrument | Rendered plate |
 | `feed_sky` | Rewritten · two doors on kit panels | Rendered plate |
-| `midi_pads` | Refined · instrument | Rendered plate |
-| `osc_desk` | Refined · instrument | Rendered plate |
 | `phone_sky` | Refined · instrument | Rendered plate |
-| `schema_scene` | Refined · instrument | Rendered plate |
 | `p5_hello` | Retain · drawing as the subject | Cached preview |
 | `p5_mixed_forms` | Retain · drawing as the subject | Cached preview |
 | `p5_fractal_garden` | Retain · drawing as the subject | Cached preview |
 | `p5_liquid_layers` | Retain · drawing as the subject | Cached preview |
 | `p5_refractive_metaballs` | Retain · drawing as the subject | Cached preview |
 | `observable_reaction_diffusion` | Retain · drawing as the subject | Cached preview |
-| `bristle_bloom` | Retain · drawing as the subject | Cached preview |
 | `brush_botanical_study` | Retain · drawing as the subject | Cached preview |
-| `brush_custom` | Retain · drawing as the subject | Cached preview |
 | `brush_dynamics` | Retain · drawing as the subject | Cached preview |
 | `brush_engine_atlas` | Retain · drawing as the subject | Cached preview |
 | `brush_live_tutorial` | Retain · drawing as the subject | Cached preview |
-| `brush_rain` | Retain · drawing as the subject | Cached preview |
-| `brushwork_currents` | Retain · drawing as the subject | Cached preview |
 | `blend_options` | Rewritten · subject study | Reviewed GPU plate |
 | `blur_falloff` | Rewritten · subject study | Reviewed GPU plate |
 | `border_weave` | Rewritten · subject study | Reviewed GPU plate |
@@ -169,7 +161,6 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `cascade` | Rewritten · subject study | Reviewed GPU plate |
 | `channel_bind` | Rewritten · subject study | Reviewed GPU plate |
 | `cjk_rules` | Rewritten · subject study | Reviewed GPU plate |
-| `codec_roundtrip` | Rewritten · subject study | Reviewed GPU plate |
 | `compute_variant` | Retain · 3D subject | Cached preview |
 | `contour_poses` | Rewritten · subject study | Reviewed GPU plate |
 | `coverage_boundary` | Rewritten · subject study | Reviewed GPU plate |
@@ -178,87 +169,50 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `decay_step` | Rewritten · subject study | Reviewed GPU plate |
 | `ember_decode` | Retain · focused specimen | Cached preview |
 | `encode_write` | Rewritten · subject study | Reviewed GPU plate |
-| `feed_vitals` | Rewritten · subject study | Reviewed GPU plate |
-| `floating_panels` | Retain · focused specimen | Cached preview |
 | `frame_grid` | Rewritten · subject study | Reviewed GPU plate |
 | `frame_inputs` | Rewritten · subject study | Reviewed GPU plate |
-| `geo_groups` | Rewritten · subject study | Reviewed GPU plate |
 | `gif_frames` | Rewritten · subject study | Reviewed GPU plate |
 | `grid_layouts` | Rewritten · subject study | Reviewed GPU plate |
-| `hit_slots` | Retain · focused specimen | Cached preview |
-| `hub_reload` | Rewritten · subject study | Reviewed GPU plate |
 | `import_native` | Retain · 3D subject | Cached preview |
-| `keeps_and_frames` | Rewritten · subject study | Reviewed GPU plate |
-| `lane_retarget` | Rewritten · subject study | Reviewed GPU plate |
 | `live_settling` | Rewritten · subject study | Reviewed GPU plate |
 | `material_atlas` | Rewritten · subject study | Reviewed GPU plate |
-| `material_slots` | Rewritten · subject study | Reviewed GPU plate |
 | `matte_luma` | Rewritten · subject study | Reviewed GPU plate |
 | `mesh_generators` | Retain · focused specimen | Cached preview |
-| `mesh_normal_bridge` | Retain · focused specimen | Cached preview |
-| `net_policy` | Rewritten · subject study | Reviewed GPU plate |
 | `nine_slice` | Rewritten · subject study | Reviewed GPU plate |
 | `ocio_view` | Rewritten · subject study | Reviewed GPU plate |
 | `optical_kerning` | Retain · focused specimen | Cached preview |
-| `over_under` | Rewritten · subject study | Reviewed GPU plate |
 | `path_booleans` | Retain · focused specimen | Cached preview |
 | `pattern_sequence` | Rewritten · subject study | Reviewed GPU plate |
 | `pixfont_dotsprite` | Rewritten · subject study | Reviewed GPU plate |
 | `place_repeat_tiles` | Rewritten · subject study | Reviewed GPU plate |
-| `pop_billboards` | Rewritten · subject study | Reviewed GPU plate |
-| `pop_deform` | Rewritten · subject study | Reviewed GPU plate |
-| `pop_math` | Rewritten · subject study | Reviewed GPU plate |
-| `pop_order` | Rewritten · subject study | Reviewed GPU plate |
-| `pop_prims` | Rewritten · subject study | Reviewed GPU plate |
-| `pop_stamps` | Rewritten · subject study | Reviewed GPU plate |
 | `rich_slot_reserve` | Rewritten · subject study | Reviewed GPU plate |
 | `routers_straight` | Rewritten · subject study | Reviewed GPU plate |
-| `routes_probe` | Rewritten · subject study | Reviewed GPU plate |
 | `sdf_star` | Rewritten · subject study | Reviewed GPU plate |
 | `slang_portable` | Rewritten · subject study | Reviewed GPU plate |
-| `spacing_passes` | Retain · focused specimen | Cached preview |
 | `surface_components` | Retain · focused specimen | Cached preview |
-| `ticker_lanes` | Rewritten · subject study | Reviewed GPU plate |
 | `tile_map` | Rewritten · subject study | Reviewed GPU plate |
 | `warichu_placeholder` | Rewritten · subject study | Reviewed GPU plate |
-| `web_script` | Rewritten · subject study | Reviewed GPU plate |
 | `yarn_marquee` | Rewritten · subject study | Reviewed GPU plate |
 | `card_flip` | Retain · focused specimen | Cached preview |
 | `guest_body` | Retain · 3D subject | Cached preview |
 | `guest_picture` | Retain · focused specimen | Cached preview |
 | `sticker_collection` | Retain · focused specimen | Cached preview |
 | `video_compose` | Retain · focused specimen | Cached preview |
-| `video_compositing` | Retain · focused specimen | Cached preview |
 | `python_botanical_study` | Retain · Python composition | Cached preview |
 | `python_compose_stamps` | Retain · Python composition | Cached preview |
-| `python_dashboard` | Retain · Python composition | Cached preview |
 | `python_data_garden` | Retain · Python composition | Cached preview |
 | `python_flipbook_fire` | New · Python authoring study | Reviewed native and standalone plates |
 | `python_hello` | Retain · Python composition | Cached preview |
 | `python_hello_compose` | Retain · Python composition | Cached preview |
 | `python_kit_specimen` | Retain · Python composition | Cached preview |
 | `python_liquid_glass` | Retain · Python composition | Cached preview |
-| `python_liquid_layers` | Retain · Python composition | Cached preview |
-| `python_live_signals` | Retain · Python composition | Cached preview |
-| `python_memo_station` | Retain · Python composition | Cached preview |
-| `python_mesh_observatory` | Retain · Python composition | Cached preview |
-| `python_motion_signals` | Retain · Python composition | Cached preview |
-| `python_observable_flowfield` | Retain · Python composition | Cached preview |
-| `python_observable_l_system` | Retain · Python composition | Cached preview |
-| `python_observable_reaction_diffusion` | Retain · Python composition | Cached preview |
-| `python_observable_reynolds` | Retain · Python composition | Cached preview |
-| `python_orbits` | Retain · Python composition | Cached preview |
 | `python_type_atelier` | New · Python authoring study | Reviewed native and standalone plates |
 | `python_world_study` | New · Python authoring study | Reviewed native and standalone plates |
 | `dart_flight` | Retain · 3D subject | Cached preview |
 | `deformed_cloud` | Retain · 3D subject | Cached preview |
 | `first_light` | Retain · 3D subject | Cached preview |
 | `glow_trail` | Retain · 3D subject | Cached preview |
-| `key_light` | Retain · 3D subject | Cached preview |
 | `lantern_room` | Retain · 3D subject | Cached preview |
-| `material_lab` | Retain · 3D subject | Cached preview |
-| `reflection_lab` | Retain · 3D subject | Cached preview |
-| `scattered_model` | Retain · 3D subject | Cached preview |
 | `scene_surfaces` | Retain · 3D subject | Cached preview |
 | `set_stagger` | Retain · 3D subject | Cached preview |
 | `bound_lane` | Rewritten · subject study | Reviewed GPU plate |

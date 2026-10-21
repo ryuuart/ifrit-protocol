@@ -14,14 +14,8 @@ adapts = "brush_botanical_study"
 [study.python_bundled_type]
 combines = "A font file the sketch carries, loaded through the session's hub and named by its family beside an installed one, with the bundled family read back as a specimen"
 
-[study.python_carved_linework]
-combines = "One Compose page on one baked quad: limestone lettering cut glyph by glyph into slate, brushed copper ribbon traces, plated vias as brushed ribbon rings, and an emissive pulse riding a trace in a live window under a bloom, lit by a key on a rail and a soft panel"
-
 [study.python_compose_stamps]
 combines = "Compose trees placed by a Draw pen and repeated as a custom brush tip"
-
-[study.python_dashboard]
-combines = "Functions and iterables that build retained elements"
 
 [study.python_data_garden]
 combines = "Native table sorting and domain scales over one illustrative CSV dataset"
@@ -40,6 +34,9 @@ combines = "A greeting and a moving circle, with two constants to edit"
 [study.python_hello_compose]
 combines = "Python components, native kits, material paints and an entrance"
 
+[study.python_instrument_board]
+combines = "Immutable readings reported at a cadence and drawn through memo into keyed wells with kit meters, beside a 48-bar envelope entering on one stagger"
+
 [study.python_kit_specimen]
 combines = "Native layout schemes, page furniture and a memo that restores its scoped theme"
 
@@ -47,46 +44,15 @@ combines = "Native layout schemes, page furniture and a memo that restores its s
 combines = "Runtime shader refraction, child slots, moving uniforms and Bezier filaments"
 ports = "p5_refractive_metaballs"
 
-[study.python_liquid_layers]
-combines = "Nibs, wet fibres, pigment blooms and pattern materials"
-adapts = "p5_liquid_layers"
-
-[study.python_live_signals]
-combines = "UDP feed arrivals, JSON decoding, drawn traces and a reply to each sender"
-
 [study.python_market_tape]
 combines = "Two ordinary Python libraries, websockets and httpx, feeding a live page on the sketch's own event loop, replayed from JSON lines recordings for a capture"
 
-[study.python_memo_station]
-combines = "Retained model descriptions, memo invalidation and native motion"
-
-[study.python_mesh_observatory]
-combines = "Parametric, lathed and regular meshes with a camera and native lighting"
-
-[study.python_motion_signals]
-combines = "One live value, native bindings and a keyframe entrance"
-
-[study.python_observable_flowfield]
-combines = "A NumPy angle field drawn as packed line batches"
-ports = "flow_fields"
-
-[study.python_observable_l_system]
-combines = "String rewriting, a turtle stack and a bounds-fitted pen drawing"
-ports = "l_systems"
-
-[study.python_observable_reaction_diffusion]
-combines = "A NumPy Gray–Scott simulation and bulk pixel transfer"
-ports = "observable_reaction_diffusion"
-
-[study.python_observable_reynolds]
-combines = "Stateful flocking, seeded initialization and transforms"
-ports = "flocking"
-
 [study.python_mixed_materials]
-combines = "One Compose page of mixed materials on a baked sheet: carved stone type, brushed copper ribbons, a crackled clear-coated glaze, velvet sheen, a thin film, an emissive mark, satin and matte, under a railed key, a drifting panel and a pulsing light"
+combines = "One Compose page of mixed materials on a baked sheet: carved stone type, brushed copper ribbons ending on plated vias, a pulse riding the bus in a live window, a crackled clear-coated glaze, velvet sheen, a thin film, an emissive mark, satin and matte, under a railed key, a drifting panel and a pulsing light"
 
-[study.python_orbits]
-combines = "Periodic arcs and fading trails computed from the scene clock"
+[study.python_numpy_bridge]
+combines = "A NumPy angle field drawn as one packed line batch beside a NumPy Gray–Scott reaction stepped at a fixed rate and drawn through one RGBA transfer, sampled nearest"
+ports = "flow_fields"
 
 [study.python_plaque]
 combines = "One Compose page as the material of a baked plaque: stone, copper type raised on a rounded shoulder, a glowing rule and flat ink, lit by a moving key and a studio environment"
@@ -98,4 +64,4 @@ combines = "A held scramble, keyframe stops naming a custom property and the ink
 combines = "Mixed runs, inline slots, named selections, initial letters, balanced story frames and a curved baseline"
 
 [study.python_world_study]
-combines = "One vessel mesh under keyed scene nodes, three dielectric finishes and a moving three-point rig, baked on the device"
+combines = "A lathed vessel, a parametric knot and a regular solid on three plinths under keyed scene nodes, three dielectric finishes and a moving three-point rig, with a Compose page of words laid over the frame, baked on the device"

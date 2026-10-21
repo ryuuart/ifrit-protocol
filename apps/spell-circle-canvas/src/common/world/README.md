@@ -897,7 +897,7 @@ one artefact covers a whole settled subtree rather than one per node.
 
 The studies and the ledger over them are their own chapter:
 **[reference/STUDIES.md](reference/STUDIES.md)** — what each of the
-fifteen draws, the presets they are built out of, and how the plate
+twelve draws, the presets they are built out of, and how the plate
 ledger's device tier holds each one to a picture of its own.
 
 ## Testing and benchmarks

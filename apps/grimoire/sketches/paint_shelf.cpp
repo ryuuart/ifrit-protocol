@@ -1,6 +1,6 @@
 /** @file
- * paint_shelf — the paint leaves a plain gradient cannot spell, and the
- * two dials that decide what a paint's coordinates MEAN.
+ * paint_shelf — the paint leaves a plain gradient cannot spell: a focus
+ * off the centre, an angular window, and pixels the caller publishes.
  *
  * A radial with a `.focus` is the offset-focus radial, and it is what a
  * moved radial is not: moving a radial's centre couples the falloff to the
@@ -19,11 +19,6 @@
  * between commits prunes and nothing repaints — which is the whole
  * point, since the alternative gives up the node's picture caching and
  * its decorations.
- *
- * `worldSpace` moves the coordinates a paint is evaluated in from the
- * node's own box to the ROOT's. The bottom-right pair is one paint on
- * two nodes: unflagged each node gets its own copy of the ramp, flagged
- * both read one field that runs across the page.
  *
  * EDIT THESE FIRST
  *   kFocus  — how far the focused radial's hot spot is displaced, px.
@@ -53,7 +48,7 @@ using namespace sigil::compose;
 
 namespace {
 
-constexpr SkSize kCanvas = {1100, 1220};
+constexpr SkSize kCanvas = {1100, 900};
 constexpr float kCell = 328;
 constexpr float kPicture = 210;
 
@@ -125,29 +120,11 @@ struct PaintShelf {
       pixels->commit();
     }
 
-    // The one paint the last two cells share: a diagonal unit ramp, so
-    // "the node's own box" and "the root's box" are two visibly
-    // different readings of the same description.
-    const auto field = [](bool world) {
-      material::Material p =
-          sigil::material::linearGradient({0, 0}, {1, 1},
-                                          {{0.0f, {0.16f, 0.20f, 0.34f, 1}},
-                                           {0.5f, {0.44f, 0.78f, 0.86f, 1}},
-                                           {1.0f, {0.96f, 0.72f, 0.34f, 1}}});
-      return p.worldSpace(world);
-    };
-    // TWO NODES, ONE DESCRIPTION — which is the whole of what worldSpace
-    // is read by.
-    const auto pair = [&](bool world) {
-      return box().row().padding(34, 18).gap(16).children({each(2, [&](int) {
-        return box().flexGrow(1).alignSelf(Align::Stretch).fill(field(world));
-      })});
-    };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "What do paint coordinates mean?",
+        {.title = "Paints a plain gradient cannot spell",
          .subtitle =
-             "A focus, an angular window, a raster source, and a shared field",
+             "A focus, an angular window and a raster source",
          .footer = "The examples keep the colour stops fixed while changing "
                    "the coordinate or source contract."},
         box().column().gap(26).children(
@@ -232,46 +209,14 @@ struct PaintShelf {
                                        material::Repeat::Repeat)))},
                                .measure = 328,
                                .gap = 18}))}),
-             box()
-                 .row()
-                 .alignItems(Align::Start)
-                 .gap(18)
-                 .children(
-                     {sketch::kit::section(
-                          {.label = "WHO OWNS THE COORDINATES?", .note = ""},
-                          sketch::kit::comparison(
-                              {.cases = {cell("EACH NODE",
-                                              "linearUnit(…"
-                                              ").worldSpace(false)",
-                                              "Each node repeats the whole "
-                                              "ramp in its own box.",
-                                              pair(false)),
-                                         cell("THE ROOT",
-                                              "linearUnit(…"
-                                              ").worldSpace(true)",
-                                              "Both nodes sample one field "
-                                              "anchored to the page.",
-                                              pair(true))},
-                               .measure = 674,
-                               .gap = 18})),
-                      box().column().gap(18).children(
-                          {sketch::kit::sectionHeader(
-                               {.label = "ONE PAINT, TWO BOXES", .note = ""}),
-                           document::caption(
-                               "A local ramp starts again in each box. A "
-                               "world-space ramp runs through the page, so "
-                               "the boxes become windows onto different parts "
-                               "of a single field.")
-                               .width(328),
-                           document::caption(
-                               "The buffer is another kind of source: its "
-                               "revision changes when the caller publishes "
-                               "new pixels.")
-                               .width(328)})})})));
+             document::caption(
+                 "The buffer's revision changes when the caller publishes "
+                 "new pixels; an identical description between commits "
+                 "repaints nothing.")})));
   }
 };
 
 SIGIL_SKETCH(PaintShelf, "Specimen",
              "the offset-focus radial beside the plain one, the sweep and "
-             "its clamped window, a caller-owned raster, and one ramp read "
-             "in the node's box and then in the root's")
+             "its clamped window, and a caller-owned raster published by "
+             "commit()")

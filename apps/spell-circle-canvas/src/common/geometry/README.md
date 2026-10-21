@@ -609,10 +609,7 @@ scattered along.
 
 The studies over this library are `blend_options`, `path_booleans`,
 `crossing_rule`, `text_on_path`, `curve_shelf`, `shape_tour`,
-`contour_poses`, `mesh_generators`,
-`mesh_normal_bridge`, `floating_panels`, `pop_stamps`,
-`pop_prims`, `pop_deform`, `pop_math`, `pop_order`, `pop_billboards`,
-`over_under`, `routes_probe`, `geo_groups`,
-`yarn_marquee` and `shapeworks_lab`; `codec_roundtrip` takes a mesh out
-through the codec and back, and `scattered_model` brings a file in
-through it and stands it in a lit room.
+`contour_poses`, `mesh_generators`, `pop_operators`, `pop_sinks`,
+`mesh_attributes`, `material_children`, `composer_queries`,
+`yarn_marquee` and `shapeworks_lab`; `mesh_codecs` takes a mesh, a cloud
+and a group out through the codecs and back.

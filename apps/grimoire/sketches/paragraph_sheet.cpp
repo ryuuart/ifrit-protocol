@@ -1,8 +1,9 @@
 /** @file
  * paragraph_sheet — one story, several block styles: the leading kinds, the
  * one spacing rule, the four indents, a baseline grid two blocks share, a
- * justification that spends past its word gaps, tab stops that align their
- * cells, and the same controls turned a quarter turn into columns.
+ * justification that spends past its word gaps and a line of one word, tab
+ * stops that align their cells, where a frame seats its lines, and the same
+ * controls turned a quarter turn into columns.
  */
 
 // A SPECIMEN SHEET FOR THE BLOCK CONTROLS. Everything here is one text
@@ -11,7 +12,7 @@
 // on the page is positioned by a coordinate that a style could have
 // decided.
 //
-// The six panels, and the one thing each is for:
+// The seven panels, and the one thing each is for:
 //
 //   · LEADING — the same passage set four ways: the face's own, a
 //     multiple of it, an absolute pitch, and a grid. The rules drawn
@@ -23,9 +24,16 @@
 //     in; four blocks, four IndentOptions.
 //   · JUSTIFIED — the same measure set three ways: word gaps alone, gaps
 //     then letter spacing, gaps then letter spacing then a glyph scale.
-//     The third is deliberately over-asked so the scaling shows.
+//     The third is deliberately over-asked so the scaling shows. Under
+//     them, a line of ONE word, which has no gaps to spend: `kAlign`
+//     leaves it at the block's alignment, `kJustify` stretches it with
+//     letter spacing alone.
 //   · TABS — a table of figures on four stops: start, centre, end, and a
 //     decimal point, the last two with leaders.
+//   · SEATING — one passage in a frame deeper than its lines: where the
+//     first baseline sits under the frame's top (the ascent clears it,
+//     the cap height meets it), and whether the spare depth is left
+//     below or spent between the lines.
 //   · COLUMNS — the same block controls in vertical-RL, where the pitch
 //     is the column's width and the indents run down it.
 //
@@ -47,6 +55,7 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/kit/Hyphenation.h>
+#include <sigilweave/layout/Story.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
@@ -65,7 +74,7 @@ namespace weave = sigil::weave;
 
 namespace {
 
-constexpr SkSize kSceneSize{1060, 1280};
+constexpr SkSize kSceneSize{1060, 1370};
 
 namespace sheet {
 
@@ -335,13 +344,39 @@ struct ParagraphSheet {
           .width(s::kMeasure * 0.31f);
     };
 
+    // A LINE OF ONE WORD has no gaps to spend: the stock setting leaves it
+    // at the block's alignment, and kJustify fills the measure with letter
+    // spacing alone once the last line is justified at all.
+    weave::JustificationOptions oneWord = withLetters;
+    oneWord.justifyLastLine = true;
+    oneWord.singleWord = weave::JustificationOptions::SingleWord::kJustify;
+    const auto alone = [&](const char* caption,
+                           const weave::JustificationOptions& spec) {
+      return kit::cell(s::callVoice(s::kMeasure * 0.48f), caption, "",
+                       document::paragraph(u8"Alone.")
+                           .styleClass("body")
+                           .font({.size = 13.0f})
+                           .width(s::kMeasure * 0.48f)
+                           .paragraph({.alignment =
+                                           weave::TextAlignment::kJustify,
+                                       .justification = spec}))
+          .applyStyleSheet(s::callClasses())
+          .width(s::kMeasure * 0.48f);
+    };
+
     return s::panel(
         "JUSTIFIED",
         "Word gaps, letter spacing, then glyph scale. Each pass takes only "
-        "what the previous one cannot fit.",
-        box().row().gap(14).children({column("gaps alone", gapsOnly),
-                                      column("+ letter spacing", withLetters),
-                                      column("+ glyph scale", withScale)}));
+        "what the previous one cannot fit; a lone word can spend only "
+        "letter spacing.",
+        box().column().gap(16).children(
+            {box().row().gap(14).children(
+                 {column("gaps alone", gapsOnly),
+                  column("+ letter spacing", withLetters),
+                  column("+ glyph scale", withScale)}),
+             box().row().gap(18).children(
+                 {alone("one word · singleWord = kAlign", withLetters),
+                  alone("one word · singleWord = kJustify", oneWord)})}));
   }
 
   Element tabPanel() {
@@ -366,6 +401,50 @@ struct ParagraphSheet {
             .font({.size = 13.5f})
             .width(520.0f)
             .paragraph({.tabStops = stops}));
+  }
+
+  Element seatingPanel() {
+    using Seat = weave::FrameOptions::FirstBaseline;
+    using Spend = weave::FrameOptions::Distribute;
+    constexpr float kWidth = 116, kDepth = 104;
+    const auto seated = [&](const char* caption, const char* key, Seat first,
+                            Spend spend) {
+      // The frame's top in the mark colour and its foot in the rule's, so
+      // where the first line sits and where the spare depth went are both
+      // read against a line.
+      return kit::cell(
+                 s::callVoice(kWidth), caption, "",
+                 box().width(kWidth).height(kDepth).children(
+                     {box().absolute().inset(0, 0, kDepth - 1, 0).fill(
+                          Fill::color(s::kMark)),
+                      box().absolute().inset(kDepth - 1, 0, 0, 0).fill(
+                          Fill::color(s::kFaint)),
+                      frame(weave::Story(
+                                "One passage, one measure; only where its "
+                                "lines sit changes.",
+                                weave::textStyle({.face = s::serif(),
+                                                  .size = 12.5f,
+                                                  .color = s::kInk})))
+                          .key(key)
+                          .width(kWidth)
+                          .height(kDepth)
+                          .textFirstBaseline(first)
+                          .textVerticalAlign(spend)}))
+          .applyStyleSheet(s::callClasses())
+          .width(kWidth);
+    };
+    return s::panel(
+        "SEATING",
+        "A frame deeper than its lines: the first baseline under the top, "
+        "then the spare depth left below or spent between them.",
+        box().row().gap(14).children(
+            {seated("ascent", "seat-ascent", Seat::kAscent, Spend::kStart),
+             seated("cap height", "seat-cap", Seat::kCapHeight,
+                    Spend::kStart),
+             seated("leave the room", "seat-start", Seat::kAscent,
+                    Spend::kStart),
+             seated("spend the room", "seat-justify", Seat::kAscent,
+                    Spend::kJustify)}));
   }
 
   Element columnPanel() {
@@ -410,14 +489,15 @@ struct ParagraphSheet {
     return sketch::kit::page(
                {.title = u8"How a paragraph holds together",
                 .subtitle =
-                    u8"Six block controls, shown through the type they arrange",
+                    u8"Seven block controls, shown through the type they "
+                    u8"arrange",
                 .footer =
                     u8"Blocks inherit alignment, justification, hyphenation "
                     u8"and tab stops until they state their own values."},
                kit::cells({.cells = {panels({leadingPanel(), spacingPanel(),
                                              indentPanel()}),
                                      panels({justifiedPanel(), tabPanel(),
-                                             columnPanel()})},
+                                             seatingPanel(), columnPanel()})},
                            .gap = 40}))
         .applyStyleSheet(s::classes());
   }
@@ -427,4 +507,5 @@ struct ParagraphSheet {
 
 SIGIL_SKETCH_AS(ParagraphSheet, "paragraph_sheet", "Specimen",
                 "the block controls — leading, spacing, indents, "
-                "justification, tabs")
+                "justification with a line of one word, tabs, where a frame "
+                "seats its lines, and columns")

@@ -112,7 +112,7 @@ def main():
         examples = subprocess.check_output(
             [str(command), "examples"], cwd=root, env=environment, text=True
         )
-        if not {"python_orbits", "python_live_signals"}.issubset(examples.splitlines()):
+        if not {"python_hello", "python_instrument_board"}.issubset(examples.splitlines()):
             raise RuntimeError(
                 "The installed package does not include its example sketches"
             )
@@ -121,7 +121,7 @@ def main():
                 str(command),
                 "render",
                 "--example",
-                "python_orbits",
+                "python_hello",
                 "-o",
                 str(root / "example.png"),
                 "--at",
@@ -136,9 +136,9 @@ def main():
                 str(command),
                 "render",
                 "--example",
-                "python_live_signals",
+                "python_instrument_board",
                 "-o",
-                str(root / "signals.png"),
+                str(root / "board.png"),
             ],
             cwd=root,
             env=environment,

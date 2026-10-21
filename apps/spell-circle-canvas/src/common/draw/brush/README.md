@@ -275,11 +275,10 @@ file's and the numbers are this library's.
 
 ### Sketches
 
-`brush_live_tutorial` moves through field lines, the stock-tool wheel,
+`brush_live_tutorial` moves through field lines — the stock catalogue and
+a `Wave` and a `Vortex` added to it as values — the stock-tool wheel,
 overlapping hatches, accumulating watercolor and pressure-bearing splines
-in one authoring example. `brush_engine_atlas` and `brush_dynamics` are
-compact plates for tool definitions and stylus input, and `brush_custom`
-is the one for a tool built from one shape source and one grain source.
-`brush_rain`,
-`brushwork_currents` and `brush_botanical_study` use the same parts in
-complete compositions.
+in one authoring example. `brush_engine_atlas` is the compact plate for
+tool definitions, ending in a tool built from one shape image and one
+grain image, and `brush_dynamics` the one for stylus input.
+`brush_botanical_study` uses the same parts in a complete composition.

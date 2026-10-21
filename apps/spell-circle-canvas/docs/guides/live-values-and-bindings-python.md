@@ -2,7 +2,8 @@
 
 An instrument panel that follows one number: a dial whose needle sweeps
 and trembles, a meter bar, a peak lamp that lights only near the top,
-and a row of twelve lights that step on one at a time. Every mark reads
+a row of twelve lights that step on one at a time, and three tracks whose
+pucks fold, swell and overshoot. Every mark reads
 the same live value, each through its own binding, and one line of
 Python writes that value. The whole file is
 `apps/grimoire/sketches/python_bindings.py`; open it with
@@ -145,24 +146,46 @@ twelfths. A text readout of the number is different: the digits are
 structure, not a property, so they belong in a slot re-rendered when the
 shown value changes, not in a binding.
 
-## Step 5 — the same binding, fed from the wire
+## Step 5 — the remaining stages, one track each
+
+Three more readings of the same number, each a puck carried along a
+track by one binding: `alternate` over the lower half of the range runs
+the puck out and back while the source rises once, a cosine envelope
+swells it out and home over the full range, and an overshooting ease
+carries it past its stop near the top before it settles. Each track is
+the label and the keywords of its binding, so a new stage is one more
+line:
+
+```python
+SHAPES = [
+    ("FOLD · ALTERNATE", dict(from_=(0.0, 0.5), alternate=True)),
+    ("COSINE · ENVELOPE", dict(from_=FULL_SCALE, envelope=envelope.cosine())),
+    ("OVERSHOOT · EASE", dict(from_=FULL_SCALE, ease=ease.outBack())),
+]
+```
+
+```python
+        .translateX(bind(level, to=(0, METER - PUCK), **stages))
+```
+
+## Step 6 — the same binding, fed from the wire
 
 The bindings never ask where the number came from. To drive the panel
 from a sender instead of the oscillator, take the timer out and write
-the live value where arrivals are read. `python_live_signals.py` reads
-JSON datagrams such as `{"sequence": 1, "pressure": 0.62, "flow": 0.35}`
-from a feed in `update`, decodes each into a `Signal`, and keeps the
-newest. One line after the decode, `self.level.set(signal.pressure)`,
-connects every mark on this panel to the pressure channel; nothing in
-`dial`, `meter` or `stepped` changes. Both channels there are already
-normalised to 0 to 1, which is what `FULL_SCALE` says the panel expects;
-a sender in other units changes `FULL_SCALE` and nothing else.
+the live value where arrivals are read. The `wardnet_live` console does
+exactly this for its load meter: a `meter` message eases the live value
+`self.load` to the load it carries, and the bar follows it through
+`bind(self.load, to=(-METER_WIDTH, 0))`. Here, one line in a handler,
+`self.level.set(message["load"].number())`, would connect every mark on
+this panel to a sender; nothing in `dial`, `meter`, `stepped` or
+`shaped` changes. A sender in units other than 0 to 1 changes
+`FULL_SCALE` and nothing else.
 
 This sketch keeps the oscillator so its still is the same on every
 machine; a capture of the live sketch replays a recording for the same
 reason.
 
-## Step 6 — run it
+## Step 7 — run it
 
 ```sh
 Grimoire python_bindings.py                                # live

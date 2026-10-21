@@ -15,6 +15,15 @@
  * that cannot — placed together. Nothing binds them but the placement
  * they share, which is why moving one number moves both.
  *
+ * ONE LANTERN IS BOUND TO LIVE VALUES. The amber lamp's strength and
+ * colour are not numbers in the description but two Animatables the
+ * study holds, so the lamp gutters like a flame while the node that
+ * declares it says the same thing every frame. A body is shaded by the
+ * lights the frame gathered, and the gather happens on the walk that
+ * visits every node — so a light whose bound value moves stales no cache.
+ * That is the second of the library's two write paths: the first
+ * re-describes, the second writes a value something is bound to.
+ *
  * WHAT THIS STUDY DOES NOT SHOW is a lamp's pool on the ground. The
  * device shades an emitter PER VERTEX, so a falloff is only ever as
  * detailed as the surface it lands on, and the plinth below is small and dark
@@ -39,6 +48,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
@@ -112,6 +122,13 @@ material::Material glow(glm::vec4 color) {
 namespace {
 
 struct LanternRoom {
+  /** WHAT THE AMBER LAMP IS BOUND TO. Live values the study drives from
+   *  the scene time, held for as long as the study is, because a light
+   *  reads the value rather than copying it. */
+  sigil::motion::Animatable<float> flame = sigil::motion::animatable(1.0f);
+  sigil::motion::Animatable<material::Color> flameColor =
+      sigil::motion::animatable(material::Color{1, 1, 1, 1});
+
   void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {900, 600},
@@ -121,6 +138,14 @@ struct LanternRoom {
 
   world::Frame describe(sigil::motion::Duration now) {
     const float seconds = (float)now.count();
+    // The values the amber lamp reads, written from the scene time — so the
+    // plate is a function of the declared moment and of nothing else. Two
+    // unrelated rates make the gutter irregular rather than a pulse.
+    const float gutter = 0.5f + 0.25f * std::sin(seconds * 7.3f) +
+                         0.25f * std::sin(seconds * 2.9f + 1.1f);
+    flame = world::intensityAt(2.0f * (0.45f + 1.35f * gutter), kRing);
+    flameColor = material::Color{1.0f, 0.42f + 0.22f * gutter,
+                                 0.08f + 0.16f * gutter, 1.0f};
     std::vector<world::Node> lanterns;
     for (const Lantern& lantern : kLanterns) {
       // Each lantern rides a slow bob of its own, so what it reaches
@@ -143,11 +168,18 @@ struct LanternRoom {
       // …and the light at the same place, a sibling rather than a child:
       // a light carries no geometry, and nothing about a light is welded
       // to a body.
+      // The amber lamp reads the bound values; the others state theirs.
+      const bool bound = lantern.key == std::string_view("amber");
+      const float strength = world::intensityAt(2.0f, kRing);
       lanterns.push_back(
           world::pointLight(
-              {.color = material::Color{lantern.color.r, lantern.color.g,
-                                        lantern.color.b, lantern.color.a},
-               .intensity = world::intensityAt(2.0f, kRing),
+              {.color = bound ? flameColor
+                              : sigil::motion::Animatable<material::Color>(
+                                    material::Color{
+                                        lantern.color.r, lantern.color.g,
+                                        lantern.color.b, lantern.color.a}),
+               .intensity = bound ? flame
+                                  : sigil::motion::Animatable<float>(strength),
                .range = kReach,
                .castShadow = true})
               .key(std::string(lantern.key) + "-lamp")
@@ -215,4 +247,5 @@ SIGIL_SKETCH(LanternRoom, "Scene3D",
              "The three kinds of light in one dark room — four coloured "
              "lanterns that are their own light and carry a lamp each, a "
              "spot from above, and a directional light faint enough to be "
-             "an outline")
+             "an outline; the amber lamp's strength and colour are bound to "
+             "live values while its description stands still")

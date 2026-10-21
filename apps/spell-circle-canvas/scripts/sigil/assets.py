@@ -139,8 +139,8 @@ ASSETS = [
         "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
     ),
     # Khronos glTF sample asset "Avocado" (CC0, textures embedded in the
-    # GLB) — SigilGeometry's model import (the scattered_model sketch
-    # names this file among the ones it looks for under models/).
+    # GLB) — SigilGeometry's model import (the codec's glTF and model tests
+    # read it when it has been fetched).
     Asset(
         "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/"
         "2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/Models/Avocado/"

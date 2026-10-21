@@ -660,6 +660,11 @@ native = "`compose::atCapHeight` and `compose::fitRun`: a style solved from a ca
 library = "Compose"
 python = ["compose.atCapHeight", "compose.fitRun"]
 
+[requirement.scene3d-texture-door]
+native = "`Scene3DContext::texture`, a tree painted once as a texture a body's material reads"
+library = "Sketch host"
+python = ["sketch.Scene3DContext.texture"]
+
 [requirement.schedules]
 native = "`motion::stagger` values and the `motion::Schedule` they resolve into"
 library = "Motion"
