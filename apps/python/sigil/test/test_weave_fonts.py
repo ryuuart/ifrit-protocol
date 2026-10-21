@@ -3,7 +3,9 @@ through a session's hub, it is set by name with `fontFamily`, it is the
 face Skia draws and the face Weave's font context answers, and it stands
 in `weave.fonts` beside the installed families, marked bundled.
 
-The catalogue's installed half asks this machine's own families."""
+The catalogue's installed half asks this machine's own families, and
+finds a face under the font's own name for its style, which is what a
+prompt reads a family's styles by and sets text in."""
 
 import json
 import shutil
@@ -11,7 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sigil import media, weave
+from sigil import compose, live, media, weave
 from sigil.sketch import renderFile
 
 INSTRUMENTS = (
@@ -123,6 +125,82 @@ class Catalogue(unittest.TestCase):
         fonts.adopt(face, "res://Georgia.ttf")
         self.assertEqual(fonts.adoptedFaces()[0].origin, "res://Georgia.ttf")
         self.assertEqual(fonts.familyTypeface("Georgia"), face)
+
+
+def georgia_bold_italic_name():
+    georgia = weave.fonts.family("Georgia")
+    return next(
+        style.name
+        for style in georgia.styles
+        if style.weight == 700 and style.slant == weave.FaceSlant.Italic
+    )
+
+
+class StyleByName(unittest.TestCase):
+    def test_a_family_answers_a_style_by_the_fonts_own_name(self):
+        georgia = weave.fonts.family("Georgia")
+        named = georgia_bold_italic_name()
+        style = georgia.style(named)
+        self.assertEqual(style.weight, 700)
+        self.assertEqual(style.slant, weave.FaceSlant.Italic)
+        # Case and spaces aside.
+        self.assertEqual(georgia.style(named.replace(" ", "").lower()), style)
+        self.assertIsNone(georgia.style("No Style Is Named This"))
+
+    def test_find_answers_the_face_under_the_style_name(self):
+        named = georgia_bold_italic_name()
+        face = weave.fonts.find("Georgia", named)
+        self.assertEqual(face.familyName(), "Georgia")
+        self.assertEqual(face.style().weight, 700)
+        self.assertEqual(face.style().slant, weave.FaceSlant.Italic)
+        self.assertEqual(weave.fonts.find("georgia", style=named.upper()), face)
+        self.assertIsNone(weave.fonts.find("Georgia", "No Style Is Named This"))
+        self.assertIsNone(weave.fonts.find("No Family Is Named This", named))
+
+    def test_an_adopted_family_answers_its_style_names_alone(self):
+        fonts = weave.FontContext()
+        # Before anything is adopted, the context's manager answers.
+        self.assertEqual(
+            weave.fonts.find("Georgia", "Bold", fonts).style().weight, 700
+        )
+        held = weave.Face(weave.fonts.find("Georgia", "Regular").typeface())
+        fonts.adopt(held, "res://Georgia.ttf")
+        self.assertEqual(weave.fonts.find("Georgia", "regular", fonts), held)
+        # The adopted family stands in front of the installed one, which
+        # still has a bold the adopted one lacks.
+        self.assertIsNone(weave.fonts.find("Georgia", "Bold", fonts))
+        regular = weave.fonts.family("Georgia", fonts).style("Regular")
+        self.assertEqual(regular.uri, "res://Georgia.ttf")
+
+    def test_a_face_found_by_its_style_name_sets_text_at_a_prompt(self):
+        named = weave.fonts.find("Georgia", georgia_bold_italic_name())
+        styled = weave.fonts.find(
+            "Georgia", weave.FaceStyle(weight=700, slant=weave.FaceSlant.Italic)
+        )
+        regular = weave.fonts.find("Georgia", "Regular")
+        window = live.open(size=(320, 64), headless=True)
+        with tempfile.TemporaryDirectory() as folder:
+
+            def still(face, name):
+                window.show(
+                    compose.text("Waveform")
+                    .fontFamily(face)
+                    .fontSize(36)
+                    .ink("#ffffff")
+                )
+                for _ in range(2):
+                    window.pump()
+                path = window.still(Path(folder) / name)
+                return media.load(path).frameAt(0).image.rgba()
+
+            try:
+                by_name = still(named, "named.png")
+                by_style = still(styled, "styled.png")
+                upright = still(regular, "regular.png")
+            finally:
+                window.close()
+        self.assertEqual(by_name, by_style)
+        self.assertNotEqual(by_name, upright)
 
 
 if __name__ == "__main__":

@@ -1755,17 +1755,54 @@ no lookup by name.
 
 #### Exploring type
 
-`weave.fonts` reads the type there is as values to print and look through:
+`weave.fonts` reads the type there is as values to print and look through.
+At a prompt with a window open, the whole path from a family's name to a
+line set in one of its faces is a handful of lines:
 
-```python
-from sigil import weave
-
-weave.fonts.families()            # every installed family name
-weave.fonts.family("Avenir Next")  # Family(Avenir Next · 12 styles: Regular, … · installed)
-for style in weave.fonts.family("Avenir Next").styles:
-    print(style)                   # Style(Demi Bold Italic · 600 Semi Bold · width 5 · italic)
-weave.fonts.find("Avenir Next", weave.FaceStyle(weight=600))  # Face(Avenir Next, 600)
+```pycon
+>>> from sigil import compose, live, weave
+>>> [name for name in weave.fonts.families() if name.startswith("Avenir")]
+['Avenir', 'Avenir Next', 'Avenir Next Condensed']
+>>> avenir = weave.fonts.family("Avenir")
+>>> [style.name for style in avenir.styles]
+['Book', 'Roman', 'Book Oblique', 'Oblique', 'Light', 'Light Oblique', 'Medium', 'Medium Oblique', 'Heavy', 'Heavy Oblique', 'Black', 'Black Oblique']
+>>> avenir.style("Roman")
+Style(Roman · 400 Normal · width 5 · upright)
+>>> avenir.style("book oblique")
+Style(Book Oblique · 400 Normal · width 5 · italic)
+>>> book = weave.fonts.find("Avenir", "Book")
+>>> roman = weave.fonts.find("Avenir", "Roman")
+>>> book, roman
+(Face(Avenir, 400), Face(Avenir, 400))
+>>> book == roman
+False
+>>> weave.fonts.find("Avenir", weave.FaceStyle(weight=400)) == book
+True
+>>> print(weave.fonts.find("Avenir", "Hairline"))
+None
+>>> window = live.open(size=(640, 200))
+>>> specimen = window.show(compose.column(
+...     compose.text("Avenir Book").fontFamily(book).fontSize(48),
+...     compose.text("Avenir Roman").fontFamily(roman).fontSize(48),
+... ))
+>>> window.still("avenir.png", density=2)
+'avenir.png'
 ```
+
+`weave.fonts.families()` lists every family name, and
+`weave.fonts.family(name)` one family: `print` it for a specimen line, or
+read its `styles`. A family's `style(name)` answers the style its font
+names so, and `weave.fonts.find(family, name)` the face under it, with
+case and spaces aside, so "book oblique" finds "Book Oblique"; either
+answers None where no style goes by the name. The font's own name is the
+way to a face CSS cannot pick: Book and Roman are both an upright 400, so
+`find` at a `FaceStyle` reaches only one of them, and the name reaches
+either. `.fontFamily(face)` sets a text in the face
+found, and so does `pen.textFont(face)` in a drawing.
+
+At `sigil repl sketch.py` the same lines run inside the sketch Grimoire
+is drawing: `weave` is already in scope, and a face found there goes into
+the tree the sketch's `setup` returns or into its `draw`.
 
 A `Style` carries `weight`, its CSS name `weightName`, `width`, `slant`,
 the font's own `name` for it and, for a bundled face, the `uri` it was read
@@ -1773,8 +1810,10 @@ from; `style.faceStyle()` is what `find` takes. A `Family` carries its
 `styles`, the variation `axes` its faces carry and whether it is
 `bundled`. Handed a font context — `ctx.fonts` in a sketch — each answers
 the families its hub loaded first, marked bundled:
-`weave.fonts.family("Muthur Study", ctx.fonts)`.
-`weave.fonts.weightName(600)` is "Semi Bold".
+`weave.fonts.family("Muthur Study", ctx.fonts)`, and
+`weave.fonts.find("Muthur Study", "Regular", ctx.fonts)`, where a family
+the context adopted answers alone. `weave.fonts.weightName(600)` is
+"Semi Bold".
 
 #### Faces and styles
 

@@ -11,7 +11,8 @@ running instance and its context are ordinary variables at the prompt.
 
 This guide opens `python_hello` — a circle swinging under a greeting —
 and, without touching the file, changes its colour, adds a card, sets the
-card moving, sets its text in another family, and takes a picture.
+card moving, sets its text in another family and its title in one of
+that family's styles, and takes a picture.
 
 ## Open a window in your interpreter
 
@@ -108,6 +109,38 @@ It was imported beside `live`:
 
 `weave.fonts.family(name)` answers one family with its styles and
 variation axes, and `weave.fonts.find(name, style)` the face it names.
+
+## Set the title in one of its styles
+
+A family's styles go by the names its font gives them, and those names
+are how you ask for one. Read Avenir's, pick its Heavy, and redefine
+`card` to set the title in that face:
+
+```pycon
+>>> FAMILY = "Avenir"
+>>> avenir = weave.fonts.family("Avenir")
+>>> [style.name for style in avenir.styles][:6]
+['Book', 'Roman', 'Book Oblique', 'Oblique', 'Light', 'Light Oblique']
+>>> avenir.style("Heavy")
+Style(Heavy · 800 Extra Bold · width 5 · upright)
+>>> TITLE = weave.Type(face=weave.fonts.find("Avenir", "Heavy"), size=30)
+>>> def card(pen):
+...     y = 40 + BOB * sin(pen.millis() / 350)
+...     pen.fill("#1b2230")
+...     pen.rect(404, y, 196, 104, 14)
+...     pen.fill(COLOR)
+...     pen.textFont(TITLE)
+...     pen.text("A card", 426, y + 52)
+...     pen.fill("#9aa4b2")
+...     pen.textFont(FAMILY, 15)
+...     pen.text("drawn from the prompt", 426, y + 82)
+...
+```
+
+`weave.fonts.find(family, name)` answers the face whose font names its
+style so, with case and spaces aside, and None where none does. A name
+reaches faces a weight cannot: Avenir's Book and Roman are both an
+upright 400, and only their names tell them apart.
 
 ## Take a still
 

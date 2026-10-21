@@ -6,13 +6,16 @@
  * THE TYPE A PROGRAM CAN SET IN, as values to look through: the families
  * the platform's font manager has, each with its styles — weight, width,
  * slant and the font's own name for the style — and the variation axes
- * its faces carry, and the face a family names at a style. Asked with a
- * font context, the faces that context adopted stand in the same
- * catalogue, marked as bundled and carrying the resource each came from.
+ * its faces carry, and the face a family names at a style, asked either
+ * by CSS's weight, width and slant or by the font's own name for the
+ * style. Asked with a font context, the faces that context adopted stand
+ * in the same catalogue, marked as bundled and carrying the resource each
+ * came from.
  *
  *     for (const std::string& name : weave::fonts::families()) …
- *     auto inter = weave::fonts::family("Inter");  // its styles and axes
- *     weave::Face bold = weave::fonts::find("Inter", {.weight = 700});
+ *     auto avenir = weave::fonts::family("Avenir");  // its styles and axes
+ *     weave::Face bold = weave::fonts::find("Avenir", {.weight = 700});
+ *     weave::Face book = weave::fonts::find("Avenir", "Book");
  */
 
 #include <optional>
@@ -20,6 +23,7 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilweave/fonts/FamilyName.h"
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/style/Face.h"
 
@@ -53,6 +57,10 @@ struct Family {
   /** Whether the family's faces are ones a font context adopted rather
    *  than the font manager's. */
   bool bundled = false;
+  /** The style the font itself names @p name — "Book", "Roman",
+   *  "Demi Bold Italic" — compared with ASCII case and spaces aside, so
+   *  "demibold italic" finds it too; null where no style goes by it. */
+  [[nodiscard]] const Style* style(std::string_view name) const;
   bool operator==(const Family&) const = default;
 };
 
@@ -82,5 +90,17 @@ struct Family {
  *  faces first — which is the face `familyTypeface` answers. */
 [[nodiscard]] Face find(std::string_view family, FaceStyle style,
                         FontContext& context);
+
+/** The face of @p family whose font names its style @p styleName — the
+ *  name `Family::style` matches, with ASCII case and spaces aside — from
+ *  the platform's font manager; no face where the family has no style of
+ *  that name. Where two faces share the name, the first the family lists
+ *  answers. */
+[[nodiscard]] Face find(std::string_view family, std::string_view styleName);
+/** The face of @p family that @p context answers under @p styleName: of
+ *  its adopted faces where it adopted any of that family, as
+ *  `family(name, context)` lists them, else of its font manager's. */
+[[nodiscard]] Face find(std::string_view family, std::string_view styleName,
+                        const FontContext& context);
 
 }  // namespace sigil::weave::fonts

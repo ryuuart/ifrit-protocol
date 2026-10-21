@@ -16,6 +16,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <ranges>
 #include <utility>
 
 #include "sigilweave/advanced/Skia.h"
@@ -24,18 +25,21 @@ namespace sigil::weave::fonts {
 
 namespace {
 
-bool sameName(std::string_view left, std::string_view right) {
+/** Whether @p left and @p right name one style, ASCII case and spaces
+ *  aside: a font says "Demi Bold" where a writer types "DemiBold", and
+ *  neither CSS nor the naming table holds a style name to one spelling. */
+bool sameStyleName(std::string_view left, std::string_view right) {
+  const auto letters = [](std::string_view name) {
+    return name | std::views::filter([](char character) {
+             return character != ' ';
+           });
+  };
   return std::ranges::equal(
-      left, right, [](char leftCharacter, char rightCharacter) {
+      letters(left), letters(right),
+      [](char leftCharacter, char rightCharacter) {
         return std::tolower(static_cast<unsigned char>(leftCharacter)) ==
                std::tolower(static_cast<unsigned char>(rightCharacter));
       });
-}
-
-std::string familyNameOf(const SkTypeface& typeface) {
-  SkString name;
-  typeface.getFamilyName(&name);
-  return name.c_str();
 }
 
 uint16_t bigEndian16(const uint8_t* at) {
@@ -156,10 +160,34 @@ std::optional<Family> managerFamily(SkFontMgr* manager, std::string_view name) {
     family.styles.push_back(styleOf(fontStyle, styleName.c_str()));
     const sk_sp<SkTypeface> typeface = set->createTypeface(index);
     if (!typeface) continue;
-    if (index == 0) family.name = familyNameOf(*typeface);
+    if (index == 0) family.name = familyName(*typeface);
     gatherAxes(family, fromSk(typeface));
   }
   return family;
+}
+
+/** The face of @p family whose style goes by @p styleName, each style
+ *  named as `managerFamily` names it, so a name the family lists is a
+ *  name this finds. */
+Face managerFaceNamed(SkFontMgr* manager, std::string_view family,
+                      std::string_view styleName) {
+  if (!manager || family.empty()) return {};
+  const std::string terminated(family);
+  const sk_sp<SkFontStyleSet> set = manager->matchFamily(terminated.c_str());
+  if (!set) return {};
+  for (int index = 0; index < set->count(); ++index) {
+    SkFontStyle fontStyle;
+    SkString name;
+    set->getStyle(index, &fontStyle, &name);
+    if (sameStyleName(styleOf(fontStyle, name.c_str()).name, styleName))
+      return fromSk(set->createTypeface(index));
+  }
+  return {};
+}
+
+/** An adopted face's style, named as its own naming table names it. */
+Style adoptedStyle(const SkTypeface& typeface) {
+  return styleOf(typeface.fontStyle(), styleNameOf(typeface));
 }
 
 std::optional<Family> adoptedFamily(const FontContext& context,
@@ -168,10 +196,10 @@ std::optional<Family> adoptedFamily(const FontContext& context,
   std::optional<Family> family;
   for (const AdoptedFace& adopted : context.adoptedFaces()) {
     const sk_sp<SkTypeface> typeface = toSk(adopted.face);
-    if (!typeface || !sameName(familyNameOf(*typeface), name)) continue;
+    if (!typeface || !sameFamily(familyName(*typeface), name)) continue;
     if (!family)
-      family = Family{.name = familyNameOf(*typeface), .bundled = true};
-    Style style = styleOf(typeface->fontStyle(), styleNameOf(*typeface));
+      family = Family{.name = familyName(*typeface), .bundled = true};
+    Style style = adoptedStyle(*typeface);
     style.uri = adopted.origin;
     family->styles.push_back(std::move(style));
     gatherAxes(*family, adopted.face);
@@ -192,7 +220,7 @@ void appendManagerFamilies(SkFontMgr* manager,
     // once, as the adopted one.
     if (std::any_of(names.begin(), names.begin() + static_cast<long>(adopted),
                     [candidate](const std::string& held) {
-                      return sameName(held, candidate);
+                      return sameFamily(held, candidate);
                     }))
       continue;
     names.emplace_back(candidate);
@@ -220,9 +248,9 @@ std::vector<std::string> families(const FontContext& context) {
   for (const AdoptedFace& adopted : context.adoptedFaces()) {
     const sk_sp<SkTypeface> typeface = toSk(adopted.face);
     if (!typeface) continue;
-    std::string name = familyNameOf(*typeface);
+    std::string name = familyName(*typeface);
     if (std::ranges::none_of(names, [&name](const std::string& held) {
-          return sameName(held, name);
+          return sameFamily(held, name);
         }))
       names.push_back(std::move(name));
   }
@@ -250,6 +278,31 @@ Face find(std::string_view family, FaceStyle style) {
 
 Face find(std::string_view family, FaceStyle style, FontContext& context) {
   return context.familyTypeface(family, style);
+}
+
+const Style* Family::style(std::string_view name) const {
+  const auto found = std::ranges::find_if(styles, [name](const Style& held) {
+    return sameStyleName(held.name, name);
+  });
+  return found == styles.end() ? nullptr : &*found;
+}
+
+Face find(std::string_view family, std::string_view styleName) {
+  return managerFaceNamed(ports::systemFontManager().get(), family, styleName);
+}
+
+Face find(std::string_view family, std::string_view styleName,
+          const FontContext& context) {
+  bool adoptsFamily = false;
+  for (const AdoptedFace& adopted : context.adoptedFaces()) {
+    const sk_sp<SkTypeface> typeface = toSk(adopted.face);
+    if (!typeface || !sameFamily(familyName(*typeface), family)) continue;
+    adoptsFamily = true;
+    if (sameStyleName(adoptedStyle(*typeface).name, styleName))
+      return adopted.face;
+  }
+  if (adoptsFamily) return {};
+  return managerFaceNamed(context.fontManager(), family, styleName);
 }
 
 }  // namespace sigil::weave::fonts

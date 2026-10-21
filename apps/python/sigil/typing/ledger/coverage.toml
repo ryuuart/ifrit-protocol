@@ -1079,6 +1079,18 @@ bound = "a thread-checked `FontContext` over the system font manager"
 python = ["weave.FontContext"]
 
 [[section.surface.item]]
+bound = "the type catalogue `weave.fonts`: `families`, a `Family` with its `Style`s and axes and one style by the font's own name through `Family.style`, the face `find` answers at a `FaceStyle` or under a style name, and `weightName`, each answering a font context's adopted families first"
+python = [
+  "weave.fonts.families",
+  "weave.fonts.family",
+  "weave.fonts.Family",
+  "weave.fonts.Family.style",
+  "weave.fonts.Style",
+  "weave.fonts.find",
+  "weave.fonts.weightName",
+]
+
+[[section.surface.item]]
 bound = "`BlockFlow`, `VerticalBlockFlow`, `PathFlow`, `LineSetFlow` and `ExclusionFlow` with `flowshape` shapes"
 python = [
   "weave.BlockFlow",

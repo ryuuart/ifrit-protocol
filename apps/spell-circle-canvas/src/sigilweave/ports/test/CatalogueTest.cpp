@@ -11,6 +11,7 @@
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <fstream>
 #include <iterator>
@@ -46,6 +47,37 @@ TEST(TypeCatalogue, AnInstalledFamilyListsItsStylesByName) {
   EXPECT_GE(bold.style().weight, 600);
 }
 
+TEST(TypeCatalogue, AStyleIsFoundByTheFontsOwnNameForIt) {
+  const std::optional<fonts::Family> georgia = fonts::family("Georgia");
+  ASSERT_TRUE(georgia);
+  const auto boldItalic =
+      std::ranges::find_if(georgia->styles, [](const fonts::Style& style) {
+        return style.weight == 700 && style.slant == FaceSlant::Italic;
+      });
+  ASSERT_NE(boldItalic, georgia->styles.end());
+  const std::string named = boldItalic->name;
+  // The family's own lookup, with case and spaces aside.
+  const fonts::Style* listed = georgia->style(named);
+  ASSERT_NE(listed, nullptr);
+  EXPECT_EQ(*listed, *boldItalic);
+  std::string loose;
+  for (const char character : named)
+    if (character != ' ')
+      loose.push_back(static_cast<char>(
+          std::tolower(static_cast<unsigned char>(character))));
+  EXPECT_EQ(georgia->style(loose), listed);
+  EXPECT_EQ(georgia->style("No Style Is Named This"), nullptr);
+  // The face under that name is the one the family lists under it.
+  const Face face = fonts::find("Georgia", named);
+  ASSERT_TRUE(face);
+  EXPECT_EQ(face.familyName(), "Georgia");
+  EXPECT_EQ(face.style().weight, 700);
+  EXPECT_EQ(face.style().slant, FaceSlant::Italic);
+  EXPECT_EQ(fonts::find("georgia", loose), face);
+  EXPECT_FALSE(fonts::find("Georgia", "No Style Is Named This"));
+  EXPECT_FALSE(fonts::find("No Family Is Named This", named));
+}
+
 TEST(TypeCatalogue, AFamilyNobodyInstalledIsNothing) {
   EXPECT_FALSE(fonts::family("No Family Is Named This"));
   EXPECT_FALSE(fonts::find("No Family Is Named This"));
@@ -78,7 +110,28 @@ TEST(BundledCatalogue, AnAdoptedFaceStandsInTheCatalogueAsBundled) {
   EXPECT_EQ(bundled->styles.front().uri, "sketch://type/data/Sans.ttf");
   EXPECT_EQ(bundled->styles.front().weightName, "Normal");
   EXPECT_EQ(bundled->styles.front().name, "Regular");
-  EXPECT_EQ(fonts::find(family, {}, context), face);
+  EXPECT_EQ(fonts::find(family, FaceStyle{}, context), face);
+}
+
+TEST(BundledCatalogue, AnAdoptedFaceIsFoundByItsOwnStyleName) {
+  FontContext context(ports::systemFontManager());
+  const Face face = ports::faceFromBytes(test::instrumentBytes("Sans.ttf"));
+  ASSERT_TRUE(face);
+  const std::string family = face.familyName();
+  EXPECT_FALSE(fonts::find(family, "Regular", context));
+  context.adopt(face, "sketch://type/data/Sans.ttf");
+  EXPECT_EQ(fonts::find(family, "Regular", context), face);
+  EXPECT_EQ(fonts::find(family, " regular ", context), face);
+  // An adopted family answers alone: a style it lacks is no face, never
+  // a face of the manager's.
+  EXPECT_FALSE(fonts::find(family, "Bold", context));
+  // The process's own catalogue is the manager's alone.
+  EXPECT_FALSE(fonts::find(family, "Regular"));
+  const std::optional<fonts::Family> bundled = fonts::family(family, context);
+  ASSERT_TRUE(bundled);
+  const fonts::Style* regular = bundled->style("REGULAR");
+  ASSERT_NE(regular, nullptr);
+  EXPECT_EQ(regular->uri, "sketch://type/data/Sans.ttf");
 }
 
 TEST(BundledCatalogue, AVariableFamilyListsItsAxes) {

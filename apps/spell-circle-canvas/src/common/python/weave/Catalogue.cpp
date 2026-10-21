@@ -1,7 +1,8 @@
 /** @file
  * `weave.fonts`: the type catalogue, as Python reads it — family names,
- * a family's styles and axes, the face a family names at a style, and the
- * faces a font context adopted among them.
+ * a family's styles and axes, the face a family names at a style or under
+ * the font's own name for the style, and the faces a font context adopted
+ * among them.
  */
 
 #include <pybind11/stl.h>
@@ -114,6 +115,18 @@ void bindWeaveCatalogue(py::module_& module) {
       .def_readonly("axes", &weave::fonts::Family::axes)
       .def_readonly("bundled", &weave::fonts::Family::bundled)
       .def(
+          "style",
+          [](const weave::fonts::Family& family,
+             std::string_view name) -> std::optional<weave::fonts::Style> {
+            if (const weave::fonts::Style* style = family.style(name))
+              return *style;
+            return std::nullopt;
+          },
+          py::arg("name"),
+          "The style the font itself names so — \"Book\", \"Roman\", "
+          "\"Demi Bold Italic\" — with case and spaces aside, or None where "
+          "no style goes by the name.")
+      .def(
           "__eq__",
           [](const weave::fonts::Family& left,
              const weave::fonts::Family& right) { return left == right; },
@@ -151,6 +164,19 @@ void bindWeaveCatalogue(py::module_& module) {
       py::arg("context") = py::none(),
       "The face the family names nearest the style, or None where no "
       "family has the name.");
+  fonts.def(
+      "find",
+      [](const std::string& family, const std::string& styleName,
+         const FontContextHandle* context) {
+        return context ? weave::fonts::find(family, styleName, context->get())
+                       : weave::fonts::find(family, styleName);
+      },
+      py::arg("family"), py::arg("style"), py::arg("context") = py::none(),
+      "The face of the family whose font names its style so — "
+      "find(\"Avenir\", \"Book\") — with case and spaces aside, as "
+      "Family.style matches; None where the family has no style of that "
+      "name. With a font context, a family it adopted answers in place of "
+      "an installed one.");
   fonts.def(
       "weightName",
       [](int weight) { return std::string(weave::fonts::weightName(weight)); },

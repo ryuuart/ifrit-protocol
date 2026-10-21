@@ -7,9 +7,9 @@ find_package(boost_unordered CONFIG REQUIRED)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeaveFonts
-  SOURCES FontContext.cpp Shaper.cpp OpticalKerning.cpp FontContextImpl.h
-          OpticalKerning.h
-  HEADERS FontContext.h Shaper.h
+  SOURCES FontContext.cpp FamilyName.cpp Shaper.cpp OpticalKerning.cpp
+          FontContextImpl.h OpticalKerning.h
+  HEADERS FontContext.h FamilyName.h Shaper.h
   PUBLIC SigilWeaveStyle unofficial::skia::skia
   PRIVATE harfbuzz::harfbuzz Boost::container_hash Boost::unordered)
 
@@ -30,6 +30,12 @@ sigil_test(weave_test
 sigil_test(weave_test
   SOURCES test/SkiaDoorTest.cpp
   LIBRARIES SigilWeaveFonts SigilWeaveLayout SigilWeavePorts)
+
+# A face's family name and whether two names are one family, asked of the
+# committed instrument faces, so no installed font is needed.
+sigil_test(weave_test
+  SOURCES test/FamilyNameTest.cpp
+  LIBRARIES SigilWeaveFonts SigilWeavePorts)
 
 # A face found by its family's name, which only the machine's font list
 # can answer: the one promise of this directory a runner needs fonts for,

@@ -11,13 +11,13 @@
 #include <include/core/SkString.h>
 
 #include <algorithm>
-#include <cctype>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
 #include "FontContextImpl.h"
+#include "sigilweave/fonts/FamilyName.h"
 #include "sigilweave/advanced/Skia.h"
 
 namespace sigil::weave {
@@ -54,22 +54,6 @@ Face resolveSystemFallback(SkFontMgr& fontManager, const Face& primaryFace,
       codePoint);
 }
 
-/** Whether two family names are one, ASCII case aside, as CSS compares
- *  them. */
-bool sameFamily(std::string_view left, std::string_view right) {
-  return std::ranges::equal(
-      left, right, [](char leftCharacter, char rightCharacter) {
-        return std::tolower(static_cast<unsigned char>(leftCharacter)) ==
-               std::tolower(static_cast<unsigned char>(rightCharacter));
-      });
-}
-
-std::string familyNameOf(const SkTypeface& typeface) {
-  SkString name;
-  typeface.getFamilyName(&name);
-  return name.c_str();
-}
-
 /** The faces of one family a context adopted, as the style set Skia's own
  *  CSS matcher walks, so the nearest face to a style is chosen exactly as
  *  an installed family's is. */
@@ -101,7 +85,7 @@ sk_sp<SkTypeface> nearestAdopted(const std::vector<AdoptedFace>& adopted,
   std::vector<sk_sp<SkTypeface>> members;
   for (const AdoptedFace& entry : adopted) {
     sk_sp<SkTypeface> typeface = toSk(entry.face);
-    if (typeface && sameFamily(familyNameOf(*typeface), family))
+    if (typeface && fonts::sameFamily(fonts::familyName(*typeface), family))
       members.push_back(std::move(typeface));
   }
   if (members.empty()) return nullptr;
@@ -223,7 +207,7 @@ void FontContext::adopt(Face face, std::string origin) {
   std::vector<AdoptedFace>& adopted = m_impl->adoptedFaces;
   // The families whose answers this adoption can change: the new face's,
   // and that of the face it replaces.
-  std::vector<std::string> touched{familyNameOf(*typeface)};
+  std::vector<std::string> touched{fonts::familyName(*typeface)};
   const auto sameOrigin = [&origin](const AdoptedFace& entry) {
     return !origin.empty() && entry.origin == origin;
   };
@@ -231,7 +215,7 @@ void FontContext::adopt(Face face, std::string origin) {
   if (replaced != adopted.end()) {
     if (replaced->face == face) return;
     if (const sk_sp<SkTypeface> old = toSk(replaced->face))
-      touched.push_back(familyNameOf(*old));
+      touched.push_back(fonts::familyName(*old));
     replaced->face = std::move(face);
   } else {
     if (std::ranges::any_of(adopted, [&face](const AdoptedFace& entry) {
@@ -247,7 +231,7 @@ void FontContext::adopt(Face face, std::string origin) {
         const std::string_view name =
             std::string_view(entry.first).substr(0, entry.first.find('\n'));
         return std::ranges::any_of(touched, [name](const std::string& family) {
-          return sameFamily(name, family);
+          return fonts::sameFamily(name, family);
         });
       });
 }

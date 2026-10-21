@@ -174,6 +174,30 @@ and its variation axes, and `fonts::find(family, style)` the face. Handed
 a font context, each answers its adopted families first, marked bundled,
 every style carrying the resource it was read from.
 
+CSS reaches a face through weight, width and slant alone, and a family
+can hold two faces those three numbers cannot tell apart: Avenir's Book
+and Roman are both an upright 400. The font's own name for the style
+tells them apart, so the catalogue answers by it too:
+
+```cpp
+const std::optional<fonts::Family> avenir = fonts::family("Avenir");
+const fonts::Style* roman = avenir->style("Roman");  // null where none is
+Face book = fonts::find("Avenir", "Book");
+Face machine = fonts::find("Muthur Study", "Regular", context);  // adopted
+```
+
+A style name is compared with ASCII case and spaces aside, so
+`"demibold italic"` finds "Demi Bold Italic". Handed a font context, the
+lookup reads the family `fonts::family(name, context)` lists: a family the
+context adopted answers alone, so a style it lacks is no face rather
+than an installed one.
+
+The font context and the catalogue ask the same two questions of a face,
+and both answer them with one pair: `fonts::familyName(typeface)`, the
+family a Skia typeface states, and `fonts::sameFamily(left, right)`,
+whether two names are one family with ASCII case aside, as CSS compares
+them.
+
 ### Text as an outline
 
 A string a solid is extruded from, a stencil is cut from or a depth map is
@@ -460,7 +484,7 @@ own.
 |---|---|---|
 | `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
 | `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `TypeSheet` of named partials | SigilMaterialColor (public: `Type::color` is a `material::Color`) |
-| `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
+| `SigilWeaveFonts` | the font service and the shaper; `fonts::familyName()` and `fonts::sameFamily()`, a face's family name and whether two names are one family | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
 | `SigilWeaveLayout` | flows and flow shapes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilMediaField (the distance field a flow shape measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
 | `SigilWeaveDecoration` | decoration bands | Boost.Unordered (the stir the skip-ink cache keys with) — private |
@@ -468,7 +492,7 @@ own.
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |
 | `SigilWeave` | interface over every target above | — |
-| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — which answers CSS's generic names `serif`, `sans-serif`, `monospace` and `system-ui` with the first installed of the families `ports::genericFamilies()` names for each on the platform; `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder; `ports::faceFromBytes()`, the face a font file's bytes hold, and `ports::registerDecoders()`, which puts that read on a resource hub so `hub.load<Face>(uri)` answers a bundled font cached, held and reloaded as the hub holds any resource, under the name `meaningName()` gives a face, and hands each face it reads to a host that asks; `fonts::families()`, `fonts::family()` and `fonts::find()`, the catalogue of families, styles and axes, a font context's adopted faces among them | Skia platform ports; SigilWeaveFonts, public, since the catalogue reads a font context |
+| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — which answers CSS's generic names `serif`, `sans-serif`, `monospace` and `system-ui` with the first installed of the families `ports::genericFamilies()` names for each on the platform; `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder; `ports::faceFromBytes()`, the face a font file's bytes hold, and `ports::registerDecoders()`, which puts that read on a resource hub so `hub.load<Face>(uri)` answers a bundled font cached, held and reloaded as the hub holds any resource, under the name `meaningName()` gives a face, and hands each face it reads to a host that asks; `fonts::families()`, `fonts::family()` and `fonts::find()`, the catalogue of families, styles and axes, a font context's adopted faces among them, with `fonts::Family::style()` and `fonts::find()` answering a style by the font's own name for it | Skia platform ports; SigilWeaveFonts, public, since the catalogue reads a font context |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
 | `SigilWeaveTesting` | the library's own harness, linked by test binaries alone: a passage laid under a stated font context (`testing::lay`), read back as values (`testing::read`), rendered on the CPU (`testing::Plate`) and held against a committed baseline (`testing::compareToBaseline`) | SigilMediaDifference (public: a comparison carries the `media::PixelDifference` it found); SigilMediaImageDecode, SigilMediaImageEncode and SigilIOSource for the baseline file — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding; defined only when the tree builds with `SIGIL_BUILD_APPS` | Qt6::Gui |
@@ -684,6 +708,8 @@ What each feature's `test/` holds:
   `AdoptedFaceTest.cpp` adopts the committed instrument faces and finds
   their family by name, its nearest face for a style, and a face from the
   same origin replacing it.
+  `FamilyNameTest.cpp` reads an instrument face's family name and holds
+  the family comparison to CSS's: case aside, spaces kept.
   `VerticalFeaturesTest.cpp` beside it asks which vertical OpenType
   features a column takes by itself and which a style must name, of the
   constructed face committed under `test/assets/` rather than of the
@@ -733,8 +759,9 @@ What each feature's `test/` holds:
   the style it was asked for, and the face the port holds once per ask so
   that everything keyed on a face by pointer keys on one value; a
   font file's bytes read as the face the file holds; and the catalogue,
-  the machine's families read as styles (`TypeCatalogue`, labelled
-  `fonts`) and a context's adopted faces among them (`BundledCatalogue`).
+  the machine's families read as styles and a style found by the font's
+  own name for it (`TypeCatalogue`, labelled `fonts`), and a context's
+  adopted faces among them, found the same two ways (`BundledCatalogue`).
 - `testing/test/` — the harness itself (`ReadingTest`, `BaselineTest`),
   over the instrument faces and a scratch directory, and THE PLATES: nine
   pictures of what only this library draws, one case each, rendered

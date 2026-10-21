@@ -221,6 +221,9 @@ text (its own section below).
 - **`fonts/FontContext.h`** — the per-thread service object: HarfBuzz
   faces, fallback memos, varied-typeface clones (retained, or transient for
   a continuously varying coordinate), the shape cache, observable `Stats`.
+- **`fonts/FamilyName.h`** — `familyName()`, the family a Skia typeface
+  states, and `sameFamily()`, whether two names are one family with ASCII
+  case aside: the pair the font context and the catalogue both ask.
 - **`fonts/Shaper.h`** — `ShapedWord`, `shapeWord()`, `wordBlob()`,
   `makeFont()`. Reach for it to inspect or reuse individual glyph runs —
   and for `faceMetrics()`, `lineHeightOf()` and `zeroAdvanceOf()`, the
