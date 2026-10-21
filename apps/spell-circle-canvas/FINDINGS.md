@@ -97,29 +97,6 @@ reporter installed with `installReporter` should hear every library's
 warning and nothing should reach stderr. A test per library should
 install a reporter and find the warning there.
 
-## A registry run of the window lane reads a sketch's rate off whatever the last selection left running
-
-`Grimoire --window-bench` over the whole registry, one process for every
-sketch, reads a cheap static page at anything from one frame a second to
-the refresh rate with under two milliseconds of work, and the same page
-alone reads the refresh rate every time; the lane driving it
-(`scripts/sigil/bench.py`, `subprocess.run` with its output captured)
-also stood down 107 sketches as presenting no frame in thirty seconds
-that present at once on their own. A row is meant to be the sketch on
-screen and nothing else. A test should select a cheap static page twice
-in a row in one process and find both rows within the band of the page
-alone, and a lane run over a handful of stems should stand none of them
-down.
-
-## A narrowed plate run clears the plates it did not render
-
-`sigil.py plates --tier device --scenes a b` empties
-`build/plates_Release/device/gpu/` before it renders, so one narrowed run
-deletes the plates another run just took. A narrowed run is meant to
-leave what it did not render. A test under `scripts/test` should run a
-narrowed sweep beside a plate it did not name and find that plate still
-there.
-
 ## A value-keyed texture shares a tree whose custom node is keyed
 
 `compose::Textures` judges two trees the same through `sameDescription`,
@@ -143,6 +120,28 @@ layer. The contract is meant to say a mark is either on the outline or on
 the box, and every outline mark to say so. A test per scheme should find
 the layer of a shaped node carrying it equal to the shape grown by its
 bleed, and a shaped node carrying `Brackets` keeping its box.
+
+## The window lane refuses a locked screen for a reason that no longer holds
+
+`scripts/sigil/bench.py` refuses to run the fps lane behind a lock screen
+because a hidden window's work ran several times slower after half a
+minute; the lane now keeps the process user-facing for the whole run, and
+rows taken behind the lock screen read the refresh rate at normal
+priority. Either a covered or locked window's row is as good as the
+unlocked one and the refusal goes, or the refusal states its real reason.
+A test should present one cheap page unlocked and locked and find the two
+rows within the band, or find the lane naming why a locked row does not
+count.
+
+## The window lane's window is not the size asked for on this display
+
+With the main display at 3840 x 1080 and one pixel a point, a window
+asked for at 900 x 700 at ratio 2 came back as `window=900x600@2`, and
+one asked for at 1440 x 900 as `1440x900@2`; the row reports what the
+window really was and the lane says when that differs from the ask, but
+a window inside the display's pixel bounds is meant to come back at the
+size asked. A test should ask for a window within the display's bounds
+and find the row reporting that size.
 
 ## The triplet comment still explains shared TBB by a port that is gone
 
