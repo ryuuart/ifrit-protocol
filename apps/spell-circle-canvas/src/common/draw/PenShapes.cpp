@@ -41,14 +41,23 @@ void Pen::paintFilled(const SkPath& path) {
 }
 
 void Pen::paintOval(const SkRect& oval) {
-  if (recordShape(SkPath::Oval(oval))) return;
+  // A path only for a mask being recorded: an oval and a rect are drawn
+  // by Skia's own words, and a path built for nobody to read is a heap
+  // allocation on every mark.
+  if (m_clipRecording) {
+    recordShape(SkPath::Oval(oval));
+    return;
+  }
   if (const SkPaint* fill = fillPaint(&oval)) m_canvas->drawOval(oval, *fill);
   if (const SkPaint* stroke = strokePaint(&oval))
     m_canvas->drawOval(oval, *stroke);
 }
 
 void Pen::paintRect(const SkRect& rect) {
-  if (recordShape(SkPath::Rect(rect))) return;
+  if (m_clipRecording) {
+    recordShape(SkPath::Rect(rect));
+    return;
+  }
   if (const SkPaint* fill = fillPaint(&rect)) m_canvas->drawRect(rect, *fill);
   if (const SkPaint* stroke = strokePaint(&rect))
     m_canvas->drawRect(rect, *stroke);
@@ -75,18 +84,68 @@ void Pen::shape(const SkPath& path) {
 
 void Pen::point(float x, float y) {
   if (!m_canvas) return;
-  if (recordShape(SkPath::Circle(x, y, m_style.strokeWeight / 2.0f))) return;
+  const SkPoint at = {x, y};
+  paintPoints({&at, 1});
+}
+
+void Pen::paintPoints(std::span<const SkPoint> centres) {
+  const float radius = m_style.strokeWeight / 2.0f;
+  if (m_clipRecording) {
+    for (const SkPoint& centre : centres)
+      recordShape(SkPath::Circle(centre.x(), centre.y(), radius));
+    return;
+  }
   // p5 draws a point as a disc of the stroke weight in the stroke colour.
-  const SkRect disc = SkRect::MakeLTRB(
-      x - m_style.strokeWeight / 2.0f, y - m_style.strokeWeight / 2.0f,
-      x + m_style.strokeWeight / 2.0f, y + m_style.strokeWeight / 2.0f);
-  const SkPaint* stroke = strokePaint(&disc);
-  if (!stroke) return;
-  SkPaint dot = *stroke;
-  dot.setStyle(SkPaint::kFill_Style);
-  // A disc is not a stroke, so a dash has nothing to break up here.
-  dot.setPathEffect(nullptr);
-  m_canvas->drawCircle(x, y, m_style.strokeWeight / 2.0f, dot);
+  // A disc is not a stroke, so a dash has nothing to break up here. The
+  // paint is the stroke's as it stands, made a fill once for the run; a
+  // stroke fitted to each shape's box is fitted to each disc's.
+  const bool fittedToEachDisc = m_style.strokeFitted &&
+                                !m_style.stroke.isSolid() &&
+                                !m_style.stroke.isNone();
+  SkPaint dot;
+  bool resolved = false;
+  for (const SkPoint& centre : centres) {
+    if (fittedToEachDisc || !resolved) {
+      const SkRect disc =
+          SkRect::MakeLTRB(centre.x() - radius, centre.y() - radius,
+                           centre.x() + radius, centre.y() + radius);
+      const SkPaint* stroke = strokePaint(&disc);
+      if (!stroke) return;
+      dot = *stroke;
+      dot.setStyle(SkPaint::kFill_Style);
+      dot.setPathEffect(nullptr);
+      resolved = true;
+    }
+    // One draw per disc whatever the run: Skia's own run of round points
+    // is a stroked zero-length line on a device and a path on raster,
+    // neither of which is the disc a single point draws.
+    m_canvas->drawCircle(centre.x(), centre.y(), radius, dot);
+  }
+}
+
+void Pen::paintSegments(std::span<const SkPoint> ends) {
+  // A line has no inside, so it adds nothing to a mask being recorded.
+  if (!m_canvas || m_clipRecording) return;
+  const size_t count = ends.size() & ~size_t{1};
+  if (count == 0) return;
+  // ONE DRAW FOR THE RUN, which is the picture a draw per pair makes:
+  // Skia draws a single line as a run of two points and strokes every
+  // pair of a run on its own, so overlaps meet exactly as separate lines
+  // do. Two things are per pair and keep the pair's own draw: a stroke
+  // fitted to each segment's box, and a dash, which Skia lays out
+  // differently for a lone segment.
+  const bool perPair =
+      (m_style.strokeFitted && !m_style.stroke.isSolid() &&
+       !m_style.stroke.isNone()) ||
+      m_style.dash != nullptr;
+  if (perPair) {
+    for (size_t i = 0; i < count; i += 2)
+      line(ends[i].x(), ends[i].y(), ends[i + 1].x(), ends[i + 1].y());
+    return;
+  }
+  if (const SkPaint* stroke = strokePaint())
+    m_canvas->drawPoints(SkCanvas::kLines_PointMode,
+                         SkSpan<const SkPoint>(ends.data(), count), *stroke);
 }
 
 void Pen::line(float x1, float y1, float x2, float y2) {
@@ -235,6 +294,8 @@ void Pen::vertex(float x, float y) {
   flushCurve();
   if (m_shapeKind != POLYGON) {
     m_vertices.push_back({x, y});
+    // Points and lines wear the stroke, so their corners carry no fill.
+    if (m_shapeKind == POINTS || m_shapeKind == LINES) return;
     // The fill AT THIS MOMENT, so a fill() between two vertex() calls
     // colours the corners either side of it differently. A fill that is
     // not a solid carries no per-corner colour, and one such corner
@@ -365,11 +426,10 @@ void Pen::emitKind(std::span<const SkPoint> v) {
   };
   switch (m_shapeKind) {
     case POINTS:
-      for (const SkPoint& p : v) point(p.x(), p.y());
+      paintPoints(v);
       return;
     case LINES:
-      for (size_t i = 0; i + 1 < n; i += 2)
-        line(v[i].x(), v[i].y(), v[i + 1].x(), v[i + 1].y());
+      paintSegments(v);
       return;
     case TRIANGLES:
       for (size_t i = 0; i + 2 < n; i += 3) closed({i, i + 1, i + 2});

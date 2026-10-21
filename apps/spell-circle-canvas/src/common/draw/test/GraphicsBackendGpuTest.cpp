@@ -2,7 +2,8 @@
  * Where a persistent buffer stands: on the device of the host that first
  * begins it, staying there whatever host begins it next and re-formed
  * beside itself; on raster where its first host makes no surface; and
- * formed again on no frame that changes nothing.
+ * formed again on no frame that changes nothing; and a trail faded on
+ * the device reaching its ground.
  */
 
 #include <gtest/gtest.h>
@@ -194,4 +195,44 @@ TEST(GraphicsBackendGpu, ADeviceThatCannotFormTheBufferLeavesItOnRaster) {
   buffer.end();
   pen.end();
   EXPECT_EQ(buffer.image()->uniqueID(), held);
+}
+
+TEST(GraphicsBackendGpu, ATranslucentGroundFadesATrailToTheGroundOnTheDevice) {
+  // A device blends in eight bits and rounds, so a plain fade stops a few
+  // steps short of the ground; the pen's fade moves at least a step a
+  // frame there as on raster.
+  auto device = sigil::core::hardware::GpuDevice::createOwned();
+  if (!device) GTEST_SKIP() << "no GPU device";
+  auto context = GraphiteContext::create(*device);
+  if (!context) GTEST_SKIP() << "no Graphite context";
+  auto deviceHost = SkSurfaces::RenderTarget(
+      context->recorder(), SkImageInfo::MakeN32Premul(kExtent));
+  ASSERT_TRUE(deviceHost);
+
+  draw::Graphics buffer(float(kExtent.width()), float(kExtent.height()));
+  const auto run = [&](auto&& program) {
+    draw::Pen pen;
+    pen.begin(*deviceHost->getCanvas(), {.width = float(kExtent.width()),
+                                         .height = float(kExtent.height())});
+    program(buffer.begin(pen));
+    buffer.end();
+    pen.end();
+  };
+  run([](draw::Pen& pen) {
+    pen.background(20);
+    pen.noStroke();
+    pen.fill(255);
+    pen.rect(8, 8, 24, 16);
+  });
+  for (int frame = 0; frame < 40; ++frame)
+    run([](draw::Pen& pen) { pen.background(20, 30); });
+  ASSERT_TRUE(buffer.image());
+  ASSERT_TRUE(buffer.image()->isTextureBacked());
+  const auto faded = pixelsOf(buffer, context.get());
+  ASSERT_FALSE(faded.empty());
+  int left = 0;
+  for (int y = 0; y < kExtent.height(); ++y)
+    for (int x = 0; x < kExtent.width(); ++x)
+      if (at(faded, x, y) != SkColorSetRGB(20, 20, 20)) ++left;
+  EXPECT_EQ(left, 0);
 }

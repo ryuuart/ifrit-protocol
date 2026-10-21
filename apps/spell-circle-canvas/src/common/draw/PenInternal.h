@@ -10,11 +10,13 @@
  */
 
 #include <include/core/SkBlender.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigildraw/Constants.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/skia/Paint.h>
 
@@ -44,6 +46,18 @@ SkSamplingOptions samplingFor(bool smooth);
 
 /** p5's blend words onto @p paint, as Skia spells them. */
 void setBlend(SkPaint& paint, Constant mode);
+
+/** A translucent ground's blend: the plain one, with every channel moved
+ *  at least one 8-bit step toward the ground while it differs, so a fade
+ *  repeated every frame reaches the ground. */
+sk_sp<SkBlender> fadeBlender();
+
+/** The same fade done in place, where @p canvas draws into pixels this
+ *  process holds and @p ground, under the canvas's transform, covers
+ *  every one of them: a table per channel instead of a blender run per
+ *  pixel. Answers whether it was done; anything else is the blender's. */
+bool fadeInPlace(SkCanvas& canvas, const SkRect& ground,
+                 const material::Color& colour);
 
 /** p5's arc angles made drawable: both brought into [0, 2π), corrected
  *  for the ellipse's own aspect, and ordered. */

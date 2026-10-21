@@ -164,13 +164,20 @@ These details affect a ported sketch:
   `PIE`. Ellipse angles describe geometric directions. `bezier` and
   `curve` can fill as well as stroke.
 - `background` covers the whole canvas regardless of the transform.
-  Its alpha blends with the existing picture, which makes trails.
+  Its alpha blends with the existing picture, which makes trails. A
+  translucent solid under `BLEND` moves every channel at least one 8-bit
+  step toward its colour, so a trail laid every frame reaches the
+  ground and leaves no ghost.
   `noSmooth` disables both antialiasing and image smoothing; `smooth`
   restores them.
 - Changing `fill` between vertices interpolates corner colours for
   triangle and quad shapes. Their stroke still follows the outline.
   A shape with one fill uses a path. `point` is a disc of the stroke
   colour and weight.
+- A `LINES` shape is one draw for the whole run, and the same picture as
+  a `line` per pair: overlaps meet as separate lines do. A dash, or a
+  stroke fitted to each segment's box, keeps a draw per pair. A `POINTS`
+  shape resolves the stroke once and draws a disc per point.
 - Text starts black, gains the selected or inherited fill, and gains a
   stroke only when one is selected. `textSize` sets leading to five
   quarters of the size until `textLeading` overrides it.

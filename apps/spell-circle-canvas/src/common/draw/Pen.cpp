@@ -29,6 +29,8 @@
 namespace sigil::draw {
 
 using detail::capOf;
+using detail::fadeBlender;
+using detail::fadeInPlace;
 using detail::fittable;
 using detail::joinOf;
 using detail::kDefaultSeed;
@@ -288,12 +290,21 @@ void Pen::background(const material::Paint& paint) {
   SkPaint ground;
   resolve(paint, ground, paintFrame());
   blendInto(ground);
+  // A translucent solid over what is there is a fade, and a fade has to
+  // arrive: blended plainly, an 8-bit canvas stops short of the ground by
+  // the amount the alpha's fraction of it rounds away, so a trail would
+  // leave a ghost of every mark for good.
+  const float alpha = paint.isSolid() ? paint.solidColor().a : 1.0f;
+  const bool fade = m_style.blend == BLEND && alpha > 0.0f && alpha < 1.0f;
+  if (fade) ground.setBlender(fadeBlender());
   // The whole canvas under the transform the frame began on: a
   // background is not a rect in the sketch's current space, and it is
   // not a clear either, since it may carry alpha and must blend.
   SkAutoCanvasRestore restore(m_canvas, true);
   m_canvas->setMatrix(m_base);
-  m_canvas->drawRect(SkRect::MakeWH(width, height), ground);
+  const SkRect whole = SkRect::MakeWH(width, height);
+  if (fade && fadeInPlace(*m_canvas, whole, paint.solidColor())) return;
+  m_canvas->drawRect(whole, ground);
 }
 
 void Pen::background(const material::Material& material) {

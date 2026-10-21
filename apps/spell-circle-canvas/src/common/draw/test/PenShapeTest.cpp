@@ -1,12 +1,15 @@
 /** @file
  * The shapes the pen draws: p5's rect, ellipse and arc modes, a closed
  * begin/end outline, a silhouette in the rect mode's box, and the meshes
- * a fill governs corner by corner.
+ * a fill governs corner by corner, and the runs of points and segments
+ * drawn as one shape.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkPicture.h>
+#include <include/core/SkPictureRecorder.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
 #include <sigildraw/Constants.h>
@@ -327,6 +330,107 @@ TEST(Pen, AStrokedMeshStillWearsItsOutline) {
   paper.end();
   EXPECT_EQ(paper.pixel(50, 20), SK_ColorWHITE);
   EXPECT_GT(SkColorGetR(paper.pixel(24, 50)), 200u);
+}
+
+// ---- runs of points and segments --------------------------------------------
+
+/** A scatter of segment ends, every pair one segment, laid so that many
+ *  cross and a translucent stroke shows where they overlap. */
+std::vector<SkPoint> segmentEnds() {
+  std::vector<SkPoint> ends;
+  for (int index = 0; index < 60; ++index) {
+    const float x = (float)((index * 37) % 90) + 5.0f;
+    const float y = (float)((index * 53) % 90) + 5.0f;
+    const float angle = (float)index * 0.7f;
+    ends.push_back({x, y});
+    ends.push_back({x + std::cos(angle) * 18.0f, y + std::sin(angle) * 18.0f});
+  }
+  return ends;
+}
+
+/** The pen's translucent stroke a run is drawn in, with @p configure
+ *  adding whatever else the case is about. */
+template <typename Configure>
+void segmentStroke(Pen& pen, Configure&& configure) {
+  pen.noFill();
+  pen.stroke(255, 200, 40, 120);
+  pen.strokeWeight(2.5f);
+  configure(pen);
+}
+
+/** Every pixel of @p first and @p second agrees. */
+void expectSamePixels(Paper& first, Paper& second) {
+  const SkBitmap one = first.pixels();
+  const SkBitmap two = second.pixels();
+  int differing = 0;
+  for (int y = 0; y < first.height; ++y)
+    for (int x = 0; x < first.width; ++x)
+      if (one.getColor(x, y) != two.getColor(x, y)) ++differing;
+  EXPECT_EQ(differing, 0);
+}
+
+template <typename Configure>
+void expectRunMatchesOneAtATime(Constant kind, Configure&& configure) {
+  const std::vector<SkPoint> ends = segmentEnds();
+  Paper oneAtATime;
+  oneAtATime.begin();
+  segmentStroke(oneAtATime.pen, configure);
+  if (kind == LINES)
+    for (size_t index = 0; index + 1 < ends.size(); index += 2)
+      oneAtATime.pen.line(ends[index], ends[index + 1]);
+  else
+    for (const SkPoint& end : ends) oneAtATime.pen.point(end);
+  oneAtATime.end();
+
+  Paper run;
+  run.begin();
+  segmentStroke(run.pen, configure);
+  run.pen.beginShape(kind);
+  for (const SkPoint& end : ends) run.pen.vertex(end.x(), end.y());
+  run.pen.endShape();
+  run.end();
+  expectSamePixels(oneAtATime, run);
+}
+
+TEST(Pen, ARunOfLinesIsThePictureOfALinePerPair) {
+  // Overlapping translucent segments meet as separate lines do, so the
+  // crossings are as dark as a line per pair makes them.
+  expectRunMatchesOneAtATime(LINES, [](Pen&) {});
+  expectRunMatchesOneAtATime(LINES, [](Pen& pen) { pen.strokeCap(SQUARE); });
+  expectRunMatchesOneAtATime(LINES, [](Pen& pen) { pen.strokeWeight(0.55f); });
+}
+
+TEST(Pen, ARunOfDashedLinesIsStillThePictureOfALinePerPair) {
+  expectRunMatchesOneAtATime(LINES,
+                             [](Pen& pen) { pen.strokeDash({4.0f, 3.0f}); });
+}
+
+TEST(Pen, ARunOfPointsIsThePictureOfAPointEach) {
+  expectRunMatchesOneAtATime(POINTS, [](Pen& pen) { pen.strokeWeight(5.0f); });
+}
+
+TEST(Pen, ARunOfLinesIsOneDraw) {
+  // What the run is for: a dense field of segments costs the canvas one
+  // draw, not one per pair.
+  const std::vector<SkPoint> ends = segmentEnds();
+  const auto recorded = [&](bool asRun) {
+    SkPictureRecorder recorder;
+    SkCanvas* canvas = recorder.beginRecording(SkRect::MakeWH(100, 100));
+    on(*canvas, {100, 100}, [&](Pen& pen) {
+      segmentStroke(pen, [](Pen&) {});
+      if (asRun) {
+        pen.beginShape(LINES);
+        for (const SkPoint& end : ends) pen.vertex(end.x(), end.y());
+        pen.endShape();
+      } else {
+        for (size_t index = 0; index + 1 < ends.size(); index += 2)
+          pen.line(ends[index], ends[index + 1]);
+      }
+    });
+    return recorder.finishRecordingAsPicture()->approximateOpCount();
+  };
+  const int pairs = (int)ends.size() / 2;
+  EXPECT_EQ(recorded(false) - recorded(true), pairs - 1);
 }
 
 }  // namespace

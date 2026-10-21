@@ -1,10 +1,14 @@
 /** @file
  * What a frame of the pen costs: ten thousand circles, filled and
- * stroked, ten thousand rects, a screen of text, and a background.
+ * stroked, ten thousand rects, fourteen thousand segments and points
+ * drawn one verb at a time and as one shape, a screen of text, and a
+ * translucent background laid in place and replayed from a recording.
  */
 
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkPicture.h>
+#include <include/core/SkPictureRecorder.h>
 #include <include/core/SkSurface.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/PenTypes.h>
@@ -87,6 +91,93 @@ void Rects(benchmark::State& state) {
 }
 BENCHMARK(Rects)->Arg(10000)->Unit(benchmark::kMillisecond);
 
+/** The segments a dense flow field lays down each frame, one per pair
+ *  of points, at the stroke such a field draws them in. */
+void segmentStyle(Pen& pen) {
+  pen.randomSeed(1);
+  pen.noFill();
+  pen.stroke(255, 190);
+  pen.strokeWeight(0.55f);
+  pen.strokeCap(SQUARE);
+}
+
+/** One `line` per segment: a draw, and a paint resolved, per pair. */
+void LinesOneAtATime(benchmark::State& state) {
+  Bench bench;
+  const int n = (int)state.range(0);
+  int count = 0;
+  for (auto&& _ : state) {
+    bench.frame(++count);
+    segmentStyle(bench.pen);
+    for (int i = 0; i < n; ++i) {
+      const float x = bench.pen.random(640);
+      const float y = bench.pen.random(480);
+      bench.pen.line(x, y, x + 14.0f, y + 6.0f);
+    }
+    bench.pen.end();
+  }
+  state.SetItemsProcessed(state.iterations() * n);
+}
+BENCHMARK(LinesOneAtATime)->Arg(14000)->Unit(benchmark::kMillisecond);
+
+/** The same segments as one `beginShape(LINES)` run. */
+void LinesAsOneShape(benchmark::State& state) {
+  Bench bench;
+  const int n = (int)state.range(0);
+  int count = 0;
+  for (auto&& _ : state) {
+    bench.frame(++count);
+    segmentStyle(bench.pen);
+    bench.pen.beginShape(LINES);
+    for (int i = 0; i < n; ++i) {
+      const float x = bench.pen.random(640);
+      const float y = bench.pen.random(480);
+      bench.pen.vertex(x, y);
+      bench.pen.vertex(x + 14.0f, y + 6.0f);
+    }
+    bench.pen.endShape();
+    bench.pen.end();
+  }
+  state.SetItemsProcessed(state.iterations() * n);
+}
+BENCHMARK(LinesAsOneShape)->Arg(14000)->Unit(benchmark::kMillisecond);
+
+/** One `point` per dot, at a weight that makes each a small disc. */
+void PointsOneAtATime(benchmark::State& state) {
+  Bench bench;
+  const int n = (int)state.range(0);
+  int count = 0;
+  for (auto&& _ : state) {
+    bench.frame(++count);
+    segmentStyle(bench.pen);
+    bench.pen.strokeWeight(3.0f);
+    for (int i = 0; i < n; ++i)
+      bench.pen.point(bench.pen.random(640), bench.pen.random(480));
+    bench.pen.end();
+  }
+  state.SetItemsProcessed(state.iterations() * n);
+}
+BENCHMARK(PointsOneAtATime)->Arg(14000)->Unit(benchmark::kMillisecond);
+
+/** The same dots as one `beginShape(POINTS)` run. */
+void PointsAsOneShape(benchmark::State& state) {
+  Bench bench;
+  const int n = (int)state.range(0);
+  int count = 0;
+  for (auto&& _ : state) {
+    bench.frame(++count);
+    segmentStyle(bench.pen);
+    bench.pen.strokeWeight(3.0f);
+    bench.pen.beginShape(POINTS);
+    for (int i = 0; i < n; ++i)
+      bench.pen.vertex(bench.pen.random(640), bench.pen.random(480));
+    bench.pen.endShape();
+    bench.pen.end();
+  }
+  state.SetItemsProcessed(state.iterations() * n);
+}
+BENCHMARK(PointsAsOneShape)->Arg(14000)->Unit(benchmark::kMillisecond);
+
 void Text(benchmark::State& state) {
   Bench bench;
   const int n = (int)state.range(0);
@@ -114,6 +205,19 @@ void Background(benchmark::State& state) {
   }
 }
 BENCHMARK(Background)->Unit(benchmark::kMicrosecond);
+
+/** The same translucent ground replayed from a recording, which carries
+ *  the fade as a blender run per pixel rather than the table the pen
+ *  applies to pixels it holds. */
+void BackgroundReplayed(benchmark::State& state) {
+  Bench bench;
+  SkPictureRecorder recorder;
+  on(*recorder.beginRecording(SkRect::MakeWH(640, 480)), {640, 480},
+     [](Pen& pen) { pen.background(0, 20); });
+  const sk_sp<SkPicture> fade = recorder.finishRecordingAsPicture();
+  for (auto&& _ : state) bench.surface->getCanvas()->drawPicture(fade);
+}
+BENCHMARK(BackgroundReplayed)->Unit(benchmark::kMicrosecond);
 
 void Noise(benchmark::State& state) {
   Pen pen;

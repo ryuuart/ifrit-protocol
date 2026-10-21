@@ -7,6 +7,9 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkPicture.h>
+#include <include/core/SkPictureRecorder.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
 #include <sigildraw/Pen.h>
@@ -53,6 +56,111 @@ TEST(Pen, BackgroundCoversTheCanvasWhateverTheTransform) {
   paper.end();
   EXPECT_EQ(paper.pixel(2, 2), SK_ColorWHITE);
   EXPECT_EQ(paper.pixel(97, 97), SK_ColorWHITE);
+}
+
+/** Frames of a translucent ground laid over a kept canvas holding a
+ *  white disc, as a p5 trail lays them; answers how many pixels still
+ *  differ from @p expected afterwards. */
+int pixelsLeftAfterFading(Paper& paper, int frames, float gray, float alpha,
+                          SkColor expected) {
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(255);
+  paper.pen.circle(50, 50, 60);
+  paper.end();
+  for (int frame = 2; frame < frames + 2; ++frame) {
+    paper.begin(frame);
+    paper.pen.background(gray, alpha);
+    paper.end();
+  }
+  const SkBitmap pixels = paper.pixels();
+  int left = 0;
+  for (int y = 0; y < paper.height; ++y)
+    for (int x = 0; x < paper.width; ++x)
+      if (pixels.getColor(x, y) != expected) ++left;
+  return left;
+}
+
+TEST(Pen, ATranslucentGroundFadesATrailAllTheWayToTheGround) {
+  // An 8-bit canvas faded by a fraction of what separates it from the
+  // ground stops moving once that fraction rounds to nothing, and leaves
+  // a ghost of every mark. The fade moves each channel at least one step
+  // a frame, so the trail reaches the ground.
+  const SkColor ground = SkColorSetRGB(20, 20, 20);
+  Paper paper(100, 100, ground);
+  EXPECT_EQ(pixelsLeftAfterFading(paper, 40, 20, 30, ground), 0);
+}
+
+TEST(Pen, TheFaintestGroundStillReachesTheGround) {
+  // Alpha one in two hundred and fifty-five moves nothing on its own; a
+  // step a frame carries white to black in as many frames as there are
+  // steps between them.
+  Paper paper(100, 100, SK_ColorBLACK);
+  EXPECT_EQ(pixelsLeftAfterFading(paper, 255, 0, 1, SK_ColorBLACK), 0);
+}
+
+TEST(Pen, ATranslucentGroundOverNothingBecomesTheGround) {
+  // A kept canvas opens transparent; the ground builds up to opaque.
+  Paper paper;
+  EXPECT_EQ(pixelsLeftAfterFading(paper, 60, 20, 30, SkColorSetRGB(20, 20, 20)),
+            0);
+}
+
+TEST(Pen, AFadeLaidThroughARecordingIsTheFadeLaidInPlace) {
+  // Pixels this process holds are faded in place; a recording carries the
+  // blend, which lays the same steps wherever the recording is played.
+  const SkColor ground = SkColorSetRGB(20, 20, 20);
+  Paper inPlace(100, 100, ground);
+  Paper played(100, 100, ground);
+  for (Paper* paper : {&inPlace, &played}) {
+    paper->begin();
+    paper->pen.noStroke();
+    paper->pen.fill(255, 160, 40);
+    paper->pen.circle(50, 50, 60);
+    paper->end();
+  }
+  for (int frame = 0; frame < 12; ++frame) {
+    inPlace.begin(frame + 2);
+    inPlace.pen.background(20, 30);
+    inPlace.end();
+    SkPictureRecorder recorder;
+    on(*recorder.beginRecording(SkRect::MakeWH(100, 100)), {100, 100},
+       [](Pen& pen) { pen.background(20, 30); });
+    played.surface->getCanvas()->drawPicture(
+        recorder.finishRecordingAsPicture());
+  }
+  const SkBitmap one = inPlace.pixels();
+  const SkBitmap two = played.pixels();
+  int differing = 0;
+  for (int y = 0; y < 100; ++y)
+    for (int x = 0; x < 100; ++x)
+      if (one.getColor(x, y) != two.getColor(x, y)) ++differing;
+  EXPECT_EQ(differing, 0);
+}
+
+TEST(Pen, AFadeInPlaceLeavesAnImageTakenBeforeItAlone) {
+  // A kept canvas is shown through images of it; fading the pixels the
+  // canvas holds must not reach back into the image the last frame took.
+  Paper paper(100, 100, SK_ColorWHITE);
+  const sk_sp<SkImage> before = paper.surface->makeImageSnapshot();
+  paper.begin();
+  paper.pen.background(0, 128);
+  paper.end();
+  SkBitmap held;
+  held.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  ASSERT_TRUE(before->readPixels(nullptr, held.pixmap(), 50, 50));
+  EXPECT_EQ(held.getColor(0, 0), SK_ColorWHITE);
+  EXPECT_NE(paper.pixel(50, 50), SK_ColorWHITE);
+}
+
+TEST(Pen, ATranslucentGroundStillBlendsOnce) {
+  Paper paper(100, 100, SK_ColorWHITE);
+  paper.begin();
+  paper.pen.background(0, 128);
+  paper.end();
+  const SkColor blended = paper.pixel(50, 50);
+  EXPECT_NEAR((int)SkColorGetR(blended), 127, 1);
+  EXPECT_EQ(SkColorGetA(blended), 255u);
 }
 
 TEST(Pen, ColourArgumentsReadAsP5Reads) {

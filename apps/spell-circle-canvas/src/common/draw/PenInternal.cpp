@@ -5,6 +5,10 @@
 #include "PenInternal.h"
 
 #include <include/core/SkBlendMode.h>
+#include <include/core/SkColor.h>
+#include <include/core/SkColorSpace.h>
+#include <include/core/SkImageInfo.h>
+#include <include/core/SkSurface.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Color.h>
@@ -55,6 +59,92 @@ sk_sp<SkBlender> subtractBlender() {
     return made.effect ? made.effect->makeBlender(nullptr) : sk_sp<SkBlender>();
   }();
   return blender;
+}
+
+sk_sp<SkBlender> fadeBlender() {
+  static const sk_sp<SkBlender> blender = [] {
+    SkRuntimeEffect::Result made =
+        SkRuntimeEffect::MakeForBlender(SkString(shaderSource("Fade.sksl")));
+    return made.effect ? made.effect->makeBlender(nullptr) : sk_sp<SkBlender>();
+  }();
+  return blender;
+}
+
+namespace {
+
+/** Where one 8-bit channel at @p level goes under the fade toward
+ *  @p target, in the same arithmetic the blender does: the plain blend's
+ *  move, or one step if that is less, never past the target. */
+uint8_t fadedLevel(int level, float target, float alpha) {
+  const float toward = target - (float)level;
+  const float least = std::min(std::fabs(toward), 1.0f);
+  const float move = std::max(std::fabs(alpha * toward), least);
+  const float moved = (float)level + std::copysign(move, toward);
+  return (uint8_t)std::clamp(std::lround(moved), 0L, 255L);
+}
+
+}  // namespace
+
+bool fadeInPlace(SkCanvas& canvas, const SkRect& ground,
+                 const material::Color& colour) {
+  SkImageInfo info;
+  size_t rowBytes = 0;
+  SkIPoint origin;
+  void* pixels = canvas.accessTopLayerPixels(&info, &rowBytes, &origin);
+  if (!pixels || info.colorType() != kN32_SkColorType ||
+      info.alphaType() != kPremul_SkAlphaType)
+    return false;
+  // Colours are laid as given on a canvas with no colour space or an sRGB
+  // one; any other converts them, which the blender does and a table
+  // would have to repeat.
+  if (info.colorSpace() && !info.colorSpace()->isSRGB()) return false;
+  // Every pixel at full coverage: the clip a rectangle holding the whole
+  // layer, and the ground, carried to the device, holding it too.
+  const SkIRect layer = SkIRect::MakeXYWH(origin.x(), origin.y(),
+                                          info.width(), info.height());
+  if (!canvas.isClipRect() || !canvas.getDeviceClipBounds().contains(layer))
+    return false;
+  const SkMatrix toDevice = canvas.getTotalMatrix();
+  if (!toDevice.rectStaysRect() ||
+      !toDevice.mapRect(ground).contains(SkRect::Make(layer)))
+    return false;
+
+  const float alpha = std::clamp(colour.a, 0.0f, 1.0f);
+  const auto level = [](float channel) {
+    return std::clamp(channel, 0.0f, 1.0f) * 255.0f;
+  };
+  // The ground is opaque, so premultiplied it is its own colour.
+  uint8_t red[256], green[256], blue[256], opacity[256];
+  for (int value = 0; value < 256; ++value) {
+    red[value] = fadedLevel(value, level(colour.r), alpha);
+    green[value] = fadedLevel(value, level(colour.g), alpha);
+    blue[value] = fadedLevel(value, level(colour.b), alpha);
+    opacity[value] = fadedLevel(value, 255.0f, alpha);
+  }
+  // An image taken of the surface before this keeps what it showed: the
+  // surface copies its pixels away from the image first, so they are
+  // asked for again afterwards.
+  if (SkSurface* surface = canvas.getSurface()) {
+    surface->notifyContentWillChange(SkSurface::kRetain_ContentChangeMode);
+    pixels = canvas.accessTopLayerPixels(&info, &rowBytes, &origin);
+    if (!pixels) return false;
+  }
+  for (int row = 0; row < info.height(); ++row) {
+    uint32_t* pixel =
+        reinterpret_cast<uint32_t*>(static_cast<char*>(pixels) + row * rowBytes);
+    for (int column = 0; column < info.width(); ++column) {
+      const uint32_t value = pixel[column];
+      const auto channel = [&](int shift) { return (value >> shift) & 0xFF; };
+      const uint32_t a = opacity[channel(SK_A32_SHIFT)];
+      // A premultiplied channel never stands above its alpha.
+      const auto under = [&](const uint8_t* table, int shift) {
+        return std::min<uint32_t>(table[channel(shift)], a) << shift;
+      };
+      pixel[column] = (a << SK_A32_SHIFT) | under(red, SK_R32_SHIFT) |
+                      under(green, SK_G32_SHIFT) | under(blue, SK_B32_SHIFT);
+    }
+  }
+  return true;
 }
 
 /** p5's blend words as Skia spells them. All but one are a blend mode,

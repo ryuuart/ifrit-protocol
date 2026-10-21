@@ -617,6 +617,12 @@ class Pen {
                      std::span<const SkColor> colors);
   void paintOval(const SkRect& oval);
   void paintRect(const SkRect& rect);
+  /** A run of p5 points, each a disc of the stroke weight, with the
+   *  stroke resolved once for the run unless it is fitted to each disc. */
+  void paintPoints(std::span<const SkPoint> centres);
+  /** A run of segments, each pair of @p ends one line, in one draw. An
+   *  odd last end is dropped, as p5 drops it. */
+  void paintSegments(std::span<const SkPoint> ends);
   void flushCurve();
   void emitKind(std::span<const SkPoint> v);
   [[nodiscard]] sk_sp<SkTypeface> face();

@@ -1,0 +1,16 @@
+// A translucent ground laid over what is already there: the destination
+// moved toward the ground by the source's alpha, as a plain blend moves
+// it, and by no less than one 8-bit step while the two still differ, so
+// a fade repeated every frame arrives at the ground instead of stopping
+// where the fraction rounds to nothing. The ground is the source's own
+// colour made opaque; the source is premultiplied, so its alpha is never
+// zero here.
+half4 main(half4 src, half4 dst) {
+  float4 ground = float4(float3(src.rgb) / float(src.a), 1.0);
+  float4 destination = float4(dst);
+  float4 toward = ground - destination;
+  float4 blended = float4(src) + destination * (1.0 - float(src.a));
+  float4 step = blended - destination;
+  float4 least = min(abs(toward), float4(1.0 / 255.0));
+  return half4(destination + sign(toward) * max(abs(step), least));
+}
