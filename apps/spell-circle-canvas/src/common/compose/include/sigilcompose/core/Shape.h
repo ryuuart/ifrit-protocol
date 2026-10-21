@@ -511,9 +511,10 @@ concept BorrowingDecoration = requires(const D& d) {
  *  page coordinates on a page-sized box, a cell of a tiling on its page)
  *  is sized to its ink, not its box, when everything it paints says so:
  *  its fill is cut to the shape, and each of its marks answers true here.
- *  That size is what the layer under its opacity or its filter is
- *  allocated at, so a blurred stroke filters the ground the stroke covers
- *  rather than the whole page. A mark laid against the box instead — a
+ *  That size is what the layer under its opacity is allocated at, so a
+ *  faded stroke composites the ground the stroke covers rather than the
+ *  whole page; a filter over it and a bake of it still take the box, the
+ *  extent their pixels are exact to. A mark laid against the box instead — a
  *  nine-slice frame, corner brackets, a tick rail along the edges —
  *  answers false, or says nothing, and the node keeps its box.
  *

@@ -91,8 +91,9 @@ float declaredBleed(const Instance& inst, SkSize skiaSize) {
  *  and a band's backdrop is cut to the box, so either keeps the box.
  *
  *  This is what lets a stroke laid in page coordinates on a page-sized box
- *  be a stroke-sized layer under its filter rather than a page-sized one:
- *  the box is where the coordinates come from, not where the ink goes. */
+ *  be a stroke-sized layer under its opacity rather than a page-sized one:
+ *  the box is where the coordinates come from, not where the ink goes. A
+ *  filter over it and a bake of it still read the box (recordBounds). */
 bool inkIsItsShape(const Instance& inst) {
   const ElementNode& node = inst.painted();
   if (!inst.description->shapeFn && !node.bandWidth()) return false;
@@ -141,7 +142,8 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   const SkRect rect = instanceRect(inst);
   // A node whose ink is its shape starts from nothing, and the shape
   // joined below is the whole of it; every other node starts from its box.
-  const bool shapeOnly = inkIsItsShape(inst);
+  const bool shapeOnly = !boundsByBox && inkIsItsShape(inst);
+  if (shapeOnly) boundedByInk = true;
   SkRect local = shapeOnly ? SkRect::MakeEmpty()
                            : SkRect::MakeWH(rect.width(), rect.height());
   // A GLYPH'S OUTLINE IS NOT ITS LINE BOX. A text leaf is measured to the
@@ -426,6 +428,39 @@ SkRect filteredReach(const ElementNode& node, const SkRect& local,
  *  sizes from this holds the faces of a cube wherever they have turned. */
 SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
                                     bool forBake) {
+  const bool outerInk = std::exchange(boundedByInk, false);
+  SkRect local = unionBounds(inst, space, forBake);
+  const bool inkInside = boundedByInk;
+  boundedByInk = outerInk || inkInside;
+  if (!inkInside || boundsByBox) return local;
+  // TWO THINGS READ PAST THE INK they are handed, and are given the rect
+  // a box would have given them, so that sizing a node to its ink changes
+  // no pixel.
+  //
+  // A BAKE is blitted back with linear sampling, so under a turn or a
+  // scale its texels spread past the ink it holds; it is allocated at the
+  // box (bakeBounds), and a node that bakes covers what its bake covers.
+  //
+  // A FILTER reads the rect it is given as the extent of what it filters,
+  // and a wide blur is not exact to that extent: the same ink blurred over
+  // a different extent lands a level apart across the glow, and its faint
+  // far edge ends where the reach of the extent ends. A node whose effect
+  // filters ink-sized content filters the extent its box gives it.
+  const ElementNode& node = inst.painted();
+  const bool baked =
+      node.cacheMode == Cache::Texture || node.cacheMode == Cache::Group;
+  if (!baked && !layerEffectOf(node)) return local;
+  // A second measure of nodes already counted, so it counts none.
+  const size_t counted = stats.nodesBounded;
+  const bool outerBox = std::exchange(boundsByBox, true);
+  local.join(unionBounds(inst, space, forBake));
+  boundsByBox = outerBox;
+  stats.nodesBounded = counted;
+  return local;
+}
+
+SkRect Composer::Impl::unionBounds(Instance& inst, const SkM44* space,
+                                   bool forBake) {
   const ComputedStyle& style = inst.computed;
   // A node with no box paints nothing, its decorations' reach included.
   if (style.layout.display == Display::None) return SkRect::MakeEmpty();
@@ -500,7 +535,10 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
  *  answers, so a bake stands clear of the skirt a blur, a glow or a shadow
  *  puts outside the content it filters. */
 SkRect Composer::Impl::bakeBounds(Instance& inst) {
-  return recordBounds(inst, nullptr, true);
+  const bool outer = std::exchange(boundsByBox, true);
+  const SkRect bounds = recordBounds(inst, nullptr, true);
+  boundsByBox = outer;
+  return bounds;
 }
 
 SkRect Composer::Impl::declaredShapeBounds(Instance& inst) {

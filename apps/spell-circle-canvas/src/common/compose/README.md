@@ -553,8 +553,9 @@ moved ancestor invalidates its held paint. A scheme whose ink stands only
 on the outline it is handed, within its bleed of it, declares
 `staysOnOutline()`: a node that declares a shape smaller than its box and
 paints only its fill and such marks is then sized to the shape, so the
-layer under its opacity or its filter covers the stroke rather than the
-box its coordinates came from. A described tree may be
+layer under its opacity covers the stroke rather than the box its
+coordinates came from; a filter over it and a bake of it still take the
+box, the extent their pixels are exact to. A described tree may be
 painted by several composers at once, so a scheme keeps nothing it
 prepares in its own value: what a mark keeps between paints stands on the
 instance painting it, handed to the mark through `PaintContext::markState`

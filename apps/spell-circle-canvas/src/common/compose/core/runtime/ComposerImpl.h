@@ -624,6 +624,11 @@ struct Composer::Impl : detail::CascadeRoot,
    *  hosting node nested in a space needs it to place its own plane. */
   SkRect recordBounds(detail::Instance& inst, const SkM44* space = nullptr,
                       bool forBake = false);
+  /** The node's own paint bounds joined with its children's, as
+   *  recordBounds measures them before a filter or a bake over ink-sized
+   *  content is given the box. */
+  SkRect unionBounds(detail::Instance& inst, const SkM44* space,
+                     bool forBake = false);
   /** The same union, for the rect a SURFACE is allocated to rather than the
    *  rect a layer or a recording is bounded by: every layer effect in the
    *  subtree is given the reach its own filter answers, because the skirt a
@@ -633,6 +638,17 @@ struct Composer::Impl : detail::CascadeRoot,
    *  saveLayer for its filter already, and growing it here too would
    *  composite the layer over ground the picture does not stand on. */
   SkRect bakeBounds(detail::Instance& inst);
+  /** Set while bakeBounds measures, and while recordBounds measures what
+   *  a box would bound: every node is bounded by its box. A SURFACE is
+   *  allocated at the box: what a bake holds is blitted back with linear
+   *  sampling and its effects run over the surface it is given, so a bake
+   *  laid from the ink rather than the box stands a fraction of a texel
+   *  off and is not the same picture. */
+  bool boundsByBox = false;
+  /** Set by ownPaintBounds when a node it measured was sized to its ink
+   *  rather than its box; recordBounds clears it to learn whether its own
+   *  subtree held one. */
+  bool boundedByInk = false;
   /** WHERE THE SHAPE A NODE DECLARES ACTUALLY REACHES, outset by the same
    *  bleed its box is — empty on a node that declares none. A Shape is a
    *  function of a size and nothing requires what it returns to stand
