@@ -726,3 +726,83 @@ TEST(ComposeEffects, APhosphorBloomKeepsWhatALeafPaintsOutsideItsBox) {
   ASSERT_GT(plain, 200) << "the mark stands below the leaf's box";
   EXPECT_GE(greenBelow(true), plain * 9 / 10);
 }
+
+// ---------------------------------------------------------------------------
+// A backdrop over a ground the host keeps: filtered once, then held for as
+// long as what is painted beneath it holds.
+
+namespace {
+
+/** A frosted pane over a ground with an edge in it: a strip beneath the
+ *  pane on @p beneath, a square above it on @p above. */
+Element frostedPane(const sigil::motion::Animatable<float>& beneath,
+                    const sigil::motion::Animatable<float>& above) {
+  return stack().children(
+      {box().inset(0).fill(red()),
+       box()
+           .absolute()
+           .left(0)
+           .top(0)
+           .width(90)
+           .height(200)
+           .fill(green())
+           .translateY(beneath),
+       box()
+           .key("pane")
+           .absolute()
+           .left(40)
+           .top(40)
+           .width(120)
+           .height(120)
+           .borderRadius({18})
+           .backdropFilter(
+               material::skia::filter(SkImageFilters::Blur(6, 6, nullptr)))
+           .fill(Fill::color({1, 1, 1, 0.15f})),
+       box()
+           .absolute()
+           .left(150)
+           .top(10)
+           .width(30)
+           .height(30)
+           .fill(blue())
+           .translateY(above)});
+}
+
+}  // namespace
+
+TEST(ComposeEffects, AHeldGroundKeepsTheFilteredBackdropUntilBeneathChanges) {
+  // Two composers over one description: one told its ground holds, one
+  // not. Every frame the two pictures are compared whole — the held pixels
+  // must be the pixels the filter leaves — and the count says which of
+  // them ran the filter.
+  sigil::motion::Animatable<float> beneath = sigil::motion::animatable(0.0f);
+  sigil::motion::Animatable<float> above = sigil::motion::animatable(0.0f);
+  Host held, live;
+  held.composer.setGroundHeld(true);
+  held.composer.render(frostedPane(beneath, above));
+  live.composer.render(frostedPane(beneath, above));
+  const auto step = [&] {
+    held.frame();
+    live.frame();
+    return identicalPixels(held, live, 200, 200);
+  };
+  for (int frame = 0; frame < 3; ++frame)
+    ASSERT_TRUE(step()) << "frame " << frame;
+  EXPECT_EQ(held.composer.stats().backdropsFiltered, 0u)
+      << "nothing beneath the pane changed: its pixels are copied back";
+  EXPECT_EQ(live.composer.stats().backdropsFiltered, 1u)
+      << "a ground not held is filtered at every draw";
+
+  above = 30.0f;
+  ASSERT_TRUE(step());
+  EXPECT_EQ(held.composer.stats().backdropsFiltered, 0u)
+      << "what moved is painted above the pane";
+
+  beneath = 25.0f;
+  ASSERT_TRUE(step());
+  EXPECT_EQ(held.composer.stats().backdropsFiltered, 1u)
+      << "what moved is beneath it: filtered again";
+  ASSERT_TRUE(step());
+  EXPECT_EQ(held.composer.stats().backdropsFiltered, 0u)
+      << "…and held again once it stands still";
+}

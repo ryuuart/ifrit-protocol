@@ -35,7 +35,9 @@ class EffectVerbs {
   /** Filters what is already painted beneath this node's bounds before
    *  the node paints — CSS `backdrop-filter`. Incompatible with
    *  `Cache::Texture`, since the backdrop depends on the live
-   *  destination; such nodes fall back to picture caching. */
+   *  destination; such nodes fall back to picture caching. Where the
+   *  host holds its ground (`Composer::setGroundHeld`), the filtered
+   *  pixels are kept and copied back while nothing beneath changes. */
   Derived& backdropFilter(material::Filter e);
 
  private:

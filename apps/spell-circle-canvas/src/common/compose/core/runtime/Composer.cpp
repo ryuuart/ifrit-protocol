@@ -295,6 +295,7 @@ void Composer::draw(SkCanvas& canvas) {
   impl.stats.picturesRecorded = 0;
   impl.stats.texturesBaked = 0;
   impl.stats.nodesPainted = 0;
+  impl.stats.backdropsFiltered = 0;
   impl.stats.nodesBounded = 0;
   impl.bakedBytesLast = impl.bakedBytes;
   impl.bakedBytes = 0;
@@ -357,6 +358,23 @@ void Composer::draw(SkCanvas& canvas) {
     viewPaint.setImageFilter(material::skia::imageFilter(impl.view));
     viewPaint.setColorFilter(material::skia::colorFilter(impl.view));
     canvas.saveLayer(nullptr, &viewPaint);
+  }
+  // What is painted beneath the first node: the target as this draw
+  // found it — its size and format, the matrix and clip it was handed
+  // under, and whether the view's layer stands between.
+  ++impl.drawSerial;
+  impl.paintedBeneath = 14695981039346656037ull;
+  {
+    const SkISize base = canvas.getBaseLayerSize();
+    const SkColorType colorType = canvas.imageInfo().colorType();
+    SkScalar matrixValues[9];
+    canvas.getTotalMatrix().get9(matrixValues);
+    impl.foldBeneath(base);
+    impl.foldBeneath(colorType);
+    impl.foldBeneath(matrixValues);
+    impl.foldBeneath(canvas.getDeviceClipBounds());
+    impl.foldBeneath(hasView);
+    impl.foldBeneath(impl.outputRecorderId);
   }
   impl.paint(*impl.root, canvas);
   if (hasView) canvas.restore();
@@ -479,6 +497,17 @@ std::optional<material::texture::Role> Composer::surfaceMap() const {
   return m_impl->surfaceMap;
 }
 
+void Composer::setGroundHeld(bool held) {
+  if (m_impl->groundHeld == held) return;
+  m_impl->groundHeld = held;
+  // Whether a backdrop is decided at every draw is part of what the
+  // volatility walk tells its ancestors.
+  m_impl->volatileDirty = true;
+  m_impl->contentDirty = true;
+}
+
+bool Composer::groundHeld() const { return m_impl->groundHeld; }
+
 void Composer::purgeCaches() {
   Impl& impl = *m_impl;
   impl.changesUnknown = true;
@@ -489,6 +518,7 @@ void Composer::purgeCaches() {
   std::function<void(Instance&)> walk = [&walk](Instance& inst) {
     inst.picture.reset();
     inst.textureImage.reset();
+    inst.heldBackdrop = {};
     inst.bakedLiveShader.reset();
     inst.hasPendingLiveFill = false;
     inst.stampCache = {};

@@ -5,6 +5,7 @@
 
 #include <include/core/SkBBHFactory.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkSurface.h>
@@ -14,6 +15,7 @@
 #include <sigilcompose/core/Table.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -679,3 +681,75 @@ static void BM_Bake_TiledStrip_SurfacesOnly(benchmark::State& state) {
   state.counters["tiles"] = (double)bake.tiles;
 }
 BENCHMARK(BM_Bake_TiledStrip_SurfacesOnly)->Apply(tileLadder);
+
+// ---- A still leaf of many draw operations: replayed or blitted -------------
+//
+// One custom leaf drawing N translucent anti-aliased dots, painted the same
+// on every draw. Second arg 0: held as its recording, which replays all N
+// operations every draw. Second arg 1: held as a texture, blitted once a
+// draw. The first draw takes either; the arms time the draws after it.
+
+namespace {
+
+Element dottedLeaf(int operations, Cache mode) {
+  return box().width(800).height(600).fill(Fill::color({0.08f, 0.08f, 0.1f, 1}))
+      .children({custom("dots", [operations](sigil::draw::Pen& pen,
+                                              const PaintContext&) {
+                   SkCanvas& canvas = *pen.canvas();
+                   SkPaint paint;
+                   paint.setAntiAlias(true);
+                   for (int index = 0; index < operations; ++index) {
+                     const float x = (float)((index * 7919) % 6000) * 0.1f;
+                     const float y = (float)((index * 104729) % 4000) * 0.1f;
+                     paint.setColor4f({0.4f + 0.5f * (float)(index % 3) / 2.0f,
+                                       0.6f, 0.9f, 0.35f});
+                     canvas.drawCircle(x, y, 2.5f, paint);
+                   }
+                 })
+                     .absolute()
+                     .left(100)
+                     .top(100)
+                     .width(600)
+                     .height(400)
+                     .cache(mode)});
+}
+
+}  // namespace
+
+static void BM_Draw_ManyOperationLeaf(benchmark::State& state) {
+  const int operations = (int)state.range(0);
+  const Cache mode = state.range(1) == 1 ? Cache::Texture : Cache::Picture;
+  Host host(800, 600);
+  host.composer.render(box().children(
+      {dottedLeaf(operations, mode).cache(Cache::None)}));
+  host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
+  state.counters["operations"] = operations;
+}
+BENCHMARK(BM_Draw_ManyOperationLeaf)
+    ->ArgsProduct({{100, 1000, 10000}, {0, 1}})
+    ->Unit(benchmark::kMicrosecond);
+
+#ifdef SIGIL_BENCH_GPU
+
+static void BM_Draw_ManyOperationLeaf_Graphite(benchmark::State& state) {
+  const int operations = (int)state.range(0);
+  const Cache mode = state.range(1) == 1 ? Cache::Texture : Cache::Picture;
+  sigil::compose::bench::GraphiteTarget target(state, 800, 600);
+  if (!target.ok()) return;
+  Host host(800, 600);
+  host.composer.render(box().children(
+      {dottedLeaf(operations, mode).cache(Cache::None)}));
+  host.composer.draw(target.canvas());
+  target.submitSynced();
+  for ([[maybe_unused]] auto iteration : state) {
+    host.composer.draw(target.canvas());
+    target.submitSynced();
+  }
+  state.counters["operations"] = operations;
+}
+BENCHMARK(BM_Draw_ManyOperationLeaf_Graphite)
+    ->ArgsProduct({{100, 1000, 10000}, {0, 1}})
+    ->Unit(benchmark::kMicrosecond);
+
+#endif  // SIGIL_BENCH_GPU

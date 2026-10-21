@@ -43,6 +43,10 @@ idiom in two verbs.
 depends on the live destination rather than on anything the node holds:
 such a node falls back to picture caching. That is the cost of the
 effect, and it is worth stating out loud when a whole panel wears one.
+Where the host holds its ground (`Composer::setGroundHeld`), the
+filtered pixels are kept and copied back on every draw that paints
+everything beneath the node as the last one did, so a pane over a still
+wallpaper is filtered once.
 
 **The result is clipped to the node's shape.** Input sampling follows the
 filter's bounded reach and can read the backdrop outside that shape.

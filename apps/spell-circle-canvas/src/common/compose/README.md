@@ -549,7 +549,12 @@ schemes must forward their animation, overflow, mark width, backdrop,
 root-space sampling and borrowing capabilities when composed;
 `DecorationStack` and the stock adaptors do that for their members. A
 scheme that samples root coordinates declares `usesWorldSpace()` so a
-moved ancestor invalidates its held paint. A described tree may be
+moved ancestor invalidates its held paint. A scheme whose ink stands only
+on the outline it is handed, within its bleed of it, declares
+`staysOnOutline()`: a node that declares a shape smaller than its box and
+paints only its fill and such marks is then sized to the shape, so the
+layer under its opacity or its filter covers the stroke rather than the
+box its coordinates came from. A described tree may be
 painted by several composers at once, so a scheme keeps nothing it
 prepares in its own value: what a mark keeps between paints stands on the
 instance painting it, handed to the mark through `PaintContext::markState`
@@ -622,6 +627,14 @@ recorder — another context on the same device included — or none, with a
 host copy read once per revision (`TextureScene::recorder` names the
 scene's own). `SceneSource` reads the latest scene image and compares by
 its captured revision, rather than preserving historical pixels.
+`compose::Textures` is the door a tree that does not move comes in by: it
+paints a tree at a size over a background once and hands the same texture
+to every later ask for an equal one, equal as `sameDescription` judges, so
+a setup that builds the same map twice paints it once. A tree holding an
+unkeyed paint program equals no other and is painted at every ask.
+`Textures::sweep` lets go of what was not asked for since the sweep before,
+which is how a host that declares a body again keeps the maps it still
+asks for.
 
 The depth features project planes in a 2D tree; use SigilWorld for a
 world scene. [Depth](reference/DEPTH.md) explains projection and hit testing.

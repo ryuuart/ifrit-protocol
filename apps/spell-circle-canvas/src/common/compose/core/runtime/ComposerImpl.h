@@ -612,9 +612,10 @@ struct Composer::Impl : detail::CascadeRoot,
   SkPath boundaryOutlineOf(detail::Instance& target, float width, float height);
   /** What the node paints BY ITSELF, in its own local space: its box grown
    *  by every decoration's declared bleed, any routed path and the shape it
-   *  declares, and NOTHING from its children: what a coverage trace of the
-   *  node's own paint and the repaint region read, which must not move
-   *  when only a child does. */
+   *  declares — or, for a node whose fill and marks all stand on the shape
+   *  it declares, that shape and their reach alone — and NOTHING from its
+   *  children: what a coverage trace of the node's own paint and the
+   *  repaint region read, which must not move when only a child does. */
   SkRect ownPaintBounds(detail::Instance& inst);
   /** The rect a node's recording must cover — in its own local plane, or,
    *  for a node hosting a shared space, in the plane that space is drawn

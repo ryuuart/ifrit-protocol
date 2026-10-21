@@ -61,6 +61,10 @@ struct PaintMemos {
   SkRect heldBakeBounds = SkRect::MakeEmpty();
   bool bakeBoundsHeld = false;
   bool ownVaries = false;
+  /** Whether the node's own paint draws something different from frame to
+   *  frame, whatever its transform and opacity do to where it lands: the
+   *  content half of `ownVaries`. Written by the volatility walk. */
+  bool ownContentVaries = false;
   /** Whether the node's own paint lands differently from frame to frame —
    *  its transform, opacity or blend in motion — whatever it draws. */
   bool ownPaintMoves = false;

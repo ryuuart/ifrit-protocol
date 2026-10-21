@@ -525,7 +525,12 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       {
           .policy = cachePolicy(node.cacheMode),
           .holdSubtree = node.cacheMode == Cache::Group,
-          .ownPaint = ownPaint,
+          // A backdrop held for a ground the host keeps is decided at
+          // every draw against what was painted beneath it, which a
+          // recording above it would freeze: to its ancestors the node's
+          // composite moves, exactly as a moving opacity does, and its
+          // own artefacts are held as before.
+          .ownPaint = ownPaint || (backdropFx && groundHeld),
           .ownContent = ownPaintVolatile,
           .memoOpaque = opaqueToTheMemo || worldUnderMotion,
           .readsBackdrop = inst.ownReadsBackdrop,
@@ -566,6 +571,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool blocked = verdict.subtreeVolatile;
   inst.ownCoverageVolatile = ownContent;
   inst.ownVaries = ownPaint || ownPaintVolatile;
+  inst.ownContentVaries = ownPaintVolatile;
   // The resolve-memo carve-out: volatility caused SOLELY by a live
   // material keeps its picture — paint() replays it while resolve() stays
   // stable and re-records only when the shader actually changes. Stated as

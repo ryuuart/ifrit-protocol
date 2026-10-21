@@ -9,6 +9,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
@@ -556,3 +557,219 @@ BENCHMARK(BM_Draw_CoverageSheet_TurningChild_Graphite)
     ->Unit(benchmark::kMillisecond);
 
 #endif  // SIGIL_BENCH_GPU
+
+// ---- A frosted pane over a ground that holds, and over one that steps ------
+//
+// A 600x440 backdrop blur over a gradient ground with edges in it. Arg 0:
+// the ground is not held, so the pane is filtered at every draw. Arg 1:
+// the ground is held and nothing beneath the pane moves, so the pixels the
+// first pass left are copied back. Arg 2: held, with a strip beneath the
+// pane stepping every sixth draw — a wallpaper on a 10 Hz clock under a
+// 60 Hz frame.
+
+namespace {
+
+Element frostedDesktop(const sigil::motion::Animatable<float>& step) {
+  Element ground =
+      box()
+          .inset(0)
+          .fill(sigil::material::linearGradient(
+              {0, 0}, {800, 600},
+              {{0.0f, {0.05f, 0.10f, 0.30f, 1}},
+               {1.0f, {0.30f, 0.70f, 0.55f, 1}}},
+              {.units = sigil::material::GradientUnits::Pixels}));
+  Element strip = box()
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .width(160)
+                      .height(600)
+                      .fill(Fill::color({0.9f, 0.4f, 0.2f, 1}))
+                      .translateX(step);
+  Element pane =
+      box()
+          .absolute()
+          .left(100)
+          .top(80)
+          .width(600)
+          .height(440)
+          .borderRadius({8, 8, 0, 0})
+          .backdropFilter(sigil::material::skia::filter(
+              SkImageFilters::Blur(6, 6, nullptr)))
+          .fill(Fill::color({1, 1, 1, 0.2f}));
+  return stack().children(
+      {std::move(ground), std::move(strip), std::move(pane)});
+}
+
+template <typename Draw>
+void frostedArm(benchmark::State& state, Host& host, Draw&& draw) {
+  const int mode = (int)state.range(0);
+  sigil::motion::Animatable<float> step = sigil::motion::animatable(0.0f);
+  host.composer.setGroundHeld(mode >= 1);
+  host.composer.render(frostedDesktop(step));
+  draw();
+  int frame = 0;
+  size_t filtered = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    if (mode == 2 && ++frame % 6 == 0) step = (float)((frame / 6) % 40);
+    draw();
+    filtered += host.composer.stats().backdropsFiltered;
+  }
+  state.counters["filtered_per_draw"] =
+      state.iterations() ? (double)filtered / (double)state.iterations() : 0;
+}
+
+}  // namespace
+
+static void BM_Draw_FrostedPane(benchmark::State& state) {
+  Host host(800, 600);
+  frostedArm(state, host, [&] {
+    host.canvas().clear(SK_ColorBLACK);
+    host.draw();
+  });
+}
+BENCHMARK(BM_Draw_FrostedPane)
+    ->Arg(0)
+    ->Arg(1)
+    ->Arg(2)
+    ->Unit(benchmark::kMillisecond);
+
+#ifdef SIGIL_BENCH_GPU
+
+static void BM_Draw_FrostedPane_Graphite(benchmark::State& state) {
+  sigil::compose::bench::GraphiteTarget target(state, 800, 600);
+  if (!target.ok()) return;
+  Host host(800, 600);
+  frostedArm(state, host, [&] {
+    target.canvas().clear(SK_ColorBLACK);
+    host.composer.draw(target.canvas());
+    target.submitSynced();
+  });
+}
+BENCHMARK(BM_Draw_FrostedPane_Graphite)
+    ->Arg(0)
+    ->Arg(1)
+    ->Arg(2)
+    ->Unit(benchmark::kMillisecond);
+
+#endif  // SIGIL_BENCH_GPU
+
+// ---- A glow over a panel with one moving child -----------------------------
+//
+// A blur glow over a panel of forty static readouts and one cursor. Arg 0:
+// the cursor holds still, so the whole panel and its glow are held. Arg 1:
+// the cursor moves every draw, and the glow re-filters the whole panel.
+// Arg 2: the same moving cursor with the panel laid out as the static
+// readouts under one glow and the cursor under a glow of its own — the
+// picture a "filter the static part once" tier would compose.
+
+namespace {
+
+Element glowingReadouts(const sigil::motion::Animatable<float>& cursor,
+                        bool cursorApart) {
+  const auto glow = [] {
+    return sigil::material::skia::filter(SkImageFilters::Blur(5, 5, nullptr));
+  };
+  Element readouts = box().absolute().inset(0);
+  for (int index = 0; index < 40; ++index)
+    readouts.children({box()
+                           .absolute()
+                           .left((float)(20 + (index % 5) * 110))
+                           .top((float)(20 + (index / 5) * 50))
+                           .width(90)
+                           .height(30)
+                           .borderRadius({4})
+                           .fill(Fill::color({0.3f, 1.0f, 0.4f, 1}))});
+  Element pointer = box()
+                        .absolute()
+                        .left(20)
+                        .top(10)
+                        .width(12)
+                        .height(400)
+                        .fill(Fill::color({0.6f, 1.0f, 0.6f, 1}))
+                        .translateX(cursor);
+  if (!cursorApart)
+    return box().width(600).height(440).children(
+        {box().absolute().inset(0).filter(glow()).children(
+            {std::move(readouts), std::move(pointer)})});
+  return box().width(600).height(440).children(
+      {box().absolute().inset(0).filter(glow()).children({std::move(readouts)}),
+       box().absolute().inset(0).filter(glow()).children({std::move(pointer)})});
+}
+
+}  // namespace
+
+static void BM_Draw_GlowOverMovingChild(benchmark::State& state) {
+  const int mode = (int)state.range(0);
+  sigil::motion::Animatable<float> cursor = sigil::motion::animatable(0.0f);
+  Host host(600, 440);
+  host.composer.render(glowingReadouts(cursor, mode == 2));
+  host.draw();
+  float at = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    if (mode >= 1) cursor = (at = std::fmod(at + 3.0f, 540.0f));
+    host.canvas().clear(SK_ColorBLACK);
+    host.draw();
+  }
+}
+BENCHMARK(BM_Draw_GlowOverMovingChild)
+    ->Arg(0)
+    ->Arg(1)
+    ->Arg(2)
+    ->Unit(benchmark::kMillisecond);
+
+// ---- A filtered layer that turns -------------------------------------------
+//
+// A 400x400 band of marks wearing a blur, turning a little every draw.
+// Arg 0: painted live, so the marks and the blur run every draw. Arg 1:
+// held as the node's own texture bake, so the marks and the blur are
+// baked once and the turn resamples the bake — the cost a turning bake
+// keeps is its bounding box. Arg 2: the bake held and the node still.
+
+namespace {
+
+Element turningFilteredBand(const sigil::motion::Animatable<float>& turn,
+                            Cache mode) {
+  Element band = box()
+                     .absolute()
+                     .left(200)
+                     .top(100)
+                     .width(400)
+                     .height(400)
+                     .cache(mode)
+                     .filter(sigil::material::skia::filter(
+                         SkImageFilters::Blur(4, 4, nullptr)))
+                     .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}));
+  for (int index = 0; index < 60; ++index)
+    band.children({box()
+                       .absolute()
+                       .left((float)(index % 10) * 40.0f)
+                       .top((float)(index / 10) * 66.0f)
+                       .width(30)
+                       .height(50)
+                       .borderRadius({6})
+                       .fill(Fill::color({0.9f, 0.75f, 0.3f, 1}))});
+  return box().width(800).height(600).children({std::move(band)});
+}
+
+}  // namespace
+
+static void BM_Draw_TurningFilteredBand(benchmark::State& state) {
+  const int mode = (int)state.range(0);
+  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
+  Host host(800, 600);
+  host.composer.render(
+      turningFilteredBand(turn, mode == 0 ? Cache::None : Cache::Texture));
+  host.draw();
+  float at = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    if (mode != 2) turn = (at += 0.001f);
+    host.canvas().clear(SK_ColorBLACK);
+    host.draw();
+  }
+}
+BENCHMARK(BM_Draw_TurningFilteredBand)
+    ->Arg(0)
+    ->Arg(1)
+    ->Arg(2)
+    ->Unit(benchmark::kMillisecond);

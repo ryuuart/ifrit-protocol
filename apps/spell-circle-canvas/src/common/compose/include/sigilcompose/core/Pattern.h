@@ -18,10 +18,12 @@
  * and offset act on the shader matrix only — no rebake, and a rotated
  * repeat stays seamless.
  *
- * THE BAKE IS THE IDENTITY, and that decides where a Pattern is stored.
- * Hold one where you hold assets — a sketch member, a model field.
- * Re-describing with a freshly minted Pattern each frame mints a fresh
- * shared state with no bake in it, so every render re-renders the tile.
+ * A TILE MADE FROM A RECIPE IS ITS RECIPE: every stock generator states
+ * one, so a Pattern re-described from the same numbers on every render
+ * finds the bake the page is painting with and bakes nothing. A program
+ * tile or an element tile states none, so its bake is its identity: hold
+ * one where you hold assets — a sketch member, a model field — since a
+ * fresh one each render re-renders the tile.
  */
 
 #include <glm/vec2.hpp>

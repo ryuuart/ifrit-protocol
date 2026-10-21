@@ -125,6 +125,13 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     paint(inst, unseen);
     return;
   }
+  // What is painted beneath every node after this one: this node, at
+  // this opacity. A node that stops showing drops out of the sequence,
+  // which is a change there as surely as a node that starts.
+  if (!paintingUnseen) {
+    foldBeneath(&inst);
+    foldBeneath(opacity);
+  }
   ProfileScope profileScope(this, inst, rect);
   if (opacity <= 0.0f && !bakeAhead) return;
 
@@ -159,6 +166,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                 (node.depthData &&
                  node.depthData->backface == material::Backface::Hidden &&
                  facesAway(*depth));
+    if (!paintingUnseen) foldBeneath(ownHidden);
     if (ownHidden && !spaceHost) return;
   }
 
@@ -323,25 +331,13 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   pass.deferLiveEffect = deferLiveEffect;
   pass.deferEffect = deferLiveEffect;
 
-  const bool hasBackdrop = (bool)backdropFilter;
-  if (hasBackdrop) {
-    // The filtered backdrop composites as a CLOSED pass clipped to the
-    // node's shape — the node's own decorations and overflowing children
-    // then paint unclipped above it (CSS clips the FILTER REGION to the
-    // element, not the element's overflow).
-    canvas.save();
-    if (node.shapeFn)
-      canvas.clipPath(resolveOutline(inst, {rect.width(), rect.height()}),
-                      true);
-    else
-      canvas.clipRRect(cornersRRect(SkRect::MakeWH(rect.width(), rect.height()),
-                                    style.corners),
-                       true);
-    SkCanvas::SaveLayerRec rec(nullptr, nullptr, backdropFilter.get(), 0);
-    canvas.saveLayer(rec);
-    canvas.restore();  // composite the filtered backdrop through the clip
-    canvas.restore();  // release the clip — content is NOT bounded by it
-  }
+  if (backdropFilter)
+    paintBackdrop(
+        pass, *backdropFilter,
+        node.shapeFn ? &resolveOutline(inst, {rect.width(), rect.height()})
+                     : nullptr,
+        cornersRRect(SkRect::MakeWH(rect.width(), rect.height()),
+                     style.corners));
 
   // The live-material resolve probe: when the node's only volatility is its
   // live material, resolve NOW — an unchanged shader means the cached
@@ -556,6 +552,22 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // image is what the blit lands.
   pass.deviceBakeable = recording.unpinnedDepth == 0 && bakeDepth == 0 &&
                         (recording.depth == 0 || matrixStable);
+
+  // …and this node's own paint, as it lands: under this matrix and clip,
+  // and different from the last draw's wherever its content is dirty or
+  // moves with nothing proving it held still. Its children fold their own
+  // as the walk reaches them; a held recording or bake that paints them
+  // without a walk holds them unchanged by the rules that keep it.
+  if (!paintingUnseen) {
+    SkScalar matrixValues[9];
+    totalM.get9(matrixValues);
+    foldBeneath(matrixValues);
+    foldBeneath(canvas.getDeviceClipBounds());
+    const bool memoHolds = (inst.liveMatOnly && liveStable) ||
+                           (inst.scalarMemo && scalarsStable);
+    if (inst.paintDirty || (inst.ownContentVaries && !memoHolds))
+      foldBeneath(drawSerial);
+  }
 
   if (paintGroupBake(pass)) return;
 

@@ -11,7 +11,9 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
+#include <include/core/SkPath.h>
 #include <include/core/SkPicture.h>
+#include <include/core/SkRRect.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 
@@ -109,6 +111,25 @@ struct HeldBakes {
   // twice or not at all; a flip re-bakes, exactly as a change of space
   // does.
   bool textureEffectDeferred = false;
+  /** THE FILTERED BACKDROP, HELD: the pixels a backdrop filter's pass left
+   *  on the device, over the rect its layer covered, and what they were
+   *  taken under — everything painted beneath (`PaintWalk::paintedBeneath`),
+   *  the device matrix, the device clip, the description, the box and the
+   *  outline the pass was cut to. A
+   *  draw that finds all of them as they were copies the pixels back
+   *  instead of filtering again. */
+  struct HeldBackdrop {
+    sk_sp<SkImage> pixels;
+    SkIRect rect = SkIRect::MakeEmpty();  ///< where they go, in global pixels
+    uint64_t beneath = 0;
+    SkMatrix matrix = SkMatrix::I();
+    SkIRect clip = SkIRect::MakeEmpty();
+    const void* description = nullptr;
+    SkRect box = SkRect::MakeEmpty();
+    SkPath shape;    ///< the outline it was cut to, for a shaped node
+    SkRRect corners;  ///< …and for any other
+  };
+  HeldBackdrop heldBackdrop;
   // Is this node's OWN transform animating? (Geometric slots only — opacity
   // does not move the device rect.) A device-space bake is exact but is
   // pinned to one device rect, so it re-bakes whenever the node moves;

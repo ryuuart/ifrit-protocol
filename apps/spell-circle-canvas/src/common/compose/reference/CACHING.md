@@ -50,8 +50,14 @@ change. But the volatility is applied *outside* the content, so the
 content is rasterized ONCE with the effect left out and the effect runs
 over that one image at every blit. The image's identity holds, and the
 bake is held across every value the parameter takes. `backdropFilter()` is the
-exception and always paints live: it reads what is already on the canvas,
-and a bake holds none of that. A masked node is refused too, since the
+exception and is never baked: it reads what is already on the canvas,
+and a bake holds none of that. What it does keep, where the host holds
+its ground (`Composer::setGroundHeld`), is the pixels its own pass left:
+each draw folds everything painted before the node — each node, its
+opacity, its device matrix and clip, and a fresh number wherever its own
+content may have changed — into one value, and a draw that reaches the
+node with the value, matrix, clip and outline the pixels were taken
+under copies them back instead of filtering again. A masked node is refused too, since the
 blit-side resolve hands the effect's child materials the node's box and
 clock rather than a gated outline.
 

@@ -14,6 +14,8 @@
 #include <include/core/SkImageFilter.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkPath.h>
+#include <include/core/SkRRect.h>
 #include <include/core/SkRect.h>
 
 #include <cstdint>
@@ -262,5 +264,12 @@ void paintThroughPicture(PaintPass& pass);
 
 /** The live draw (PictureTier.cpp), for a node that records nothing. */
 void paintLive(PaintPass& pass);
+
+/** The backdrop pass (Backdrop.cpp), before any tier: @p filter run over
+ *  what lies beneath the node, cut to @p shape where the node has one and
+ *  to @p corners where it has none, or the pixels the last such pass left
+ *  copied back where nothing beneath has changed. */
+void paintBackdrop(PaintPass& pass, const SkImageFilter& filter,
+                   const SkPath* shape, const SkRRect& corners);
 
 }  // namespace sigil::compose

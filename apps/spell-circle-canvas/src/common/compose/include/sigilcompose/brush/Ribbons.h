@@ -118,6 +118,8 @@ struct Ribbon {
   bool isRunning() const;
   bool usesWorldSpace() const;
   float bleed(glm::vec2 size) const;
+  /** The band is swept along the outline it is handed and nowhere else. */
+  bool staysOnOutline() const { return true; }
   bool operator==(const Ribbon& o) const {
     return fill == o.fill && fillMaterial == o.fillMaterial &&
            widthStart == o.widthStart && widthEnd == o.widthEnd &&

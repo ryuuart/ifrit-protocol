@@ -503,6 +503,29 @@ concept BorrowingDecoration = requires(const D& d) {
   { d.borrows() } -> std::convertible_to<std::vector<std::string>>;
 };
 
+/** Optional on a DecorationScheme: does its ink stand ON THE OUTLINE it
+ *  is handed — inside that outline's bounds grown by its `bleed()`, and
+ *  nowhere else — rather than somewhere on the node's box?
+ *
+ *  A node that declares a shape smaller than its box (a stroke laid in
+ *  page coordinates on a page-sized box, a cell of a tiling on its page)
+ *  is sized to its ink, not its box, when everything it paints says so:
+ *  its fill is cut to the shape, and each of its marks answers true here.
+ *  That size is what the layer under its opacity or its filter is
+ *  allocated at, so a blurred stroke filters the ground the stroke covers
+ *  rather than the whole page. A mark laid against the box instead — a
+ *  nine-slice frame, corner brackets, a tick rail along the edges —
+ *  answers false, or says nothing, and the node keeps its box.
+ *
+ *  Declared rather than introspected, for the same reason isRunning() is.
+ *  Say nothing and the mark is taken to stand anywhere on the box. A bare
+ *  PaintProgram declares nothing. A composite decoration answers true only
+ *  when every member does. */
+template <typename D>
+concept OutlineDecoration = requires(const D& d) {
+  { d.staysOnOutline() } -> std::convertible_to<bool>;
+};
+
 /** Type-erased decoration: the kernel seam the extension primitives
  *  (PathFormat, Slice, ContourWalk) plug into. A bare
  *  PaintProgram works too, at the cost of comparability — see
@@ -526,6 +549,12 @@ class Decoration {
         m_worldSpace([&] {
           if constexpr (WorldSpaceDecoration<D>)
             return scheme.usesWorldSpace();
+          else
+            return false;
+        }()),
+        m_staysOnOutline([&] {
+          if constexpr (OutlineDecoration<D>)
+            return scheme.staysOnOutline();
           else
             return false;
         }()),
@@ -600,6 +629,10 @@ class Decoration {
   bool blends() const { return m_blends; }
   /** Whether its paint samples a field anchored to the composer root. */
   bool usesWorldSpace() const { return m_worldSpace; }
+  /** Whether its ink stands on the outline it is handed, within its
+   *  bleed of it (see OutlineDecoration). False for a bare PaintProgram,
+   *  which declares nothing. */
+  bool staysOnOutline() const { return m_staysOnOutline; }
   /** Keyed elements whose resolved paths this decoration reads (see
    *  BorrowingDecoration). Empty for everything that borrows nothing. */
   const std::vector<std::string>& borrows() const { return m_borrows; }
@@ -622,6 +655,7 @@ class Decoration {
   bool m_animated = false;
   bool m_blends = false;
   bool m_worldSpace = false;
+  bool m_staysOnOutline = false;
   float m_bleed = 0.0f;
   float m_reach = 0.0f;
   std::function<float(glm::vec2)> m_sizedBleed;
@@ -653,6 +687,11 @@ struct DecorationStack {
     for (const Decoration& mark : marks)
       if (mark.usesWorldSpace()) return true;
     return false;
+  }
+  bool staysOnOutline() const {
+    for (const Decoration& mark : marks)
+      if (!mark.staysOnOutline()) return false;
+    return true;
   }
   float bleed(glm::vec2 size) const {
     float most = 0;

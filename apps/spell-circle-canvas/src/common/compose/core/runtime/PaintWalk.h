@@ -14,6 +14,8 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkSize.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 
 #include "paint/RecordingState.h"
@@ -41,6 +43,32 @@ struct PaintWalk {
   // on a canvas that keeps the matrix and clip and discards the pixels, so
   // nothing painted here may be counted as reaching the canvas.
   bool paintingUnseen = false;
+  /** Composer::setGroundHeld: the canvas each draw is handed holds the
+   *  same ground beneath the composer, so what lies under a node is what
+   *  the composer painted there over that ground. */
+  bool groundHeld = false;
+  /** WHAT HAS BEEN PAINTED SO FAR THIS DRAW, as one number: the target the
+   *  draw was handed, then every node the walk reaches folded in the order
+   *  it reaches it — the node, its opacity, the device matrix and clip it
+   *  is drawn under, and this draw's own number wherever the node's own
+   *  paint may differ from the last draw's. Equal at a node on two draws,
+   *  everything painted before the node was painted the same way both
+   *  times, which is what a held backdrop is keyed by. */
+  uint64_t paintedBeneath = 0;
+  /** Counts draws; the number folded in for a paint that may differ. */
+  uint64_t drawSerial = 0;
+  /** Folds @p size bytes at @p bytes into `paintedBeneath`. */
+  void foldBeneath(const void* bytes, size_t size) {
+    const auto* byte = static_cast<const unsigned char*>(bytes);
+    for (size_t index = 0; index < size; ++index) {
+      paintedBeneath ^= byte[index];
+      paintedBeneath *= 1099511628211ull;
+    }
+  }
+  template <typename Value>
+  void foldBeneath(const Value& value) {
+    foldBeneath(&value, sizeof(Value));
+  }
   // Set by a paint that was handed the content scale while a node painted
   // (`PaintContext::contentScaleRead`). What was drawn is then a picture of
   // that one scale: a recording is pinned to it, and a local bake is keyed

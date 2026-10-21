@@ -29,6 +29,9 @@ struct CoverageMark {
   bool operator==(const CoverageMark&) const = default;
   /** How far past the node's box the mark paints. */
   float bleed() const;
+  /** Every step is cast from the outline it is handed: a shadow or a glow
+   *  around it, a stroke along it, a bevel and an inner shadow cut to it. */
+  bool staysOnOutline() const { return true; }
   void paint(draw::Pen& pen, const PaintContext& context) const;
 
  private:
@@ -53,6 +56,8 @@ struct MaterialStroke {
    *  half. A square cap reaches its half width past the end on either
    *  side of it, and a mitred corner up to its limit. */
   float bleed() const;
+  /** The keyline is the outline it is handed, widened. */
+  bool staysOnOutline() const { return true; }
   void paint(draw::Pen& pen, const PaintContext& context) const;
 };
 

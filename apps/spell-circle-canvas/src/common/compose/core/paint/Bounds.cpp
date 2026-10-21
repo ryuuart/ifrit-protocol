@@ -17,6 +17,7 @@
 #include <optional>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "PaintInternal.h"
 #include "runtime/ComposeRuntime.h"
@@ -80,6 +81,40 @@ float declaredBleed(const Instance& inst, SkSize skiaSize) {
   return bleed;
 }
 
+/** WHETHER A NODE'S OWN INK IS ITS SHAPE, so its box bounds nothing it
+ *  paints. True of a node that declares a shape — a `shape()` or a band's
+ *  swept region — draws no content of its own in its box, and paints only
+ *  what stands on that shape: the fill, which is cut to it, its echoes,
+ *  which are the shape moved by an offset its bleed already holds, and
+ *  marks that each say they stay on the outline they are handed. A
+ *  coverage boundary hands its marks the silhouette of the children too,
+ *  and a band's backdrop is cut to the box, so either keeps the box.
+ *
+ *  This is what lets a stroke laid in page coordinates on a page-sized box
+ *  be a stroke-sized layer under its filter rather than a page-sized one:
+ *  the box is where the coordinates come from, not where the ink goes. */
+bool inkIsItsShape(const Instance& inst) {
+  const ElementNode& node = inst.painted();
+  if (!inst.description->shapeFn && !node.bandWidth()) return false;
+  if (node.kind != Kind::Box && node.kind != Kind::Stack &&
+      node.kind != Kind::Slot)
+    return false;
+  if (node.boundary == Boundary::Coverage || backdropEffectOf(node))
+    return false;
+  const auto onOutline = [](const std::vector<Decoration>& marks) {
+    for (const Decoration& mark : marks)
+      if (!mark.staysOnOutline()) return false;
+    return true;
+  };
+  if (!onOutline(node.backgrounds) || !onOutline(node.foregrounds))
+    return false;
+  if (node.fxData && !onOutline(node.fxData->overlays)) return false;
+  if (node.strokeData)
+    for (const detail::StrokePass& pass : node.strokeData->passes)
+      if (!pass.what.staysOnOutline()) return false;
+  return true;
+}
+
 }  // namespace
 
 /** The rect this node's OWN paint covers, in its own local space — children
@@ -88,7 +123,9 @@ float declaredBleed(const Instance& inst, SkSize skiaSize) {
  *  band width profiles, material reserves), then joined with what a layout
  *  rect does not bound at all: the ink of the glyphs a text leaf placed, a
  *  text run's path baseline, a band's spine, and the shape the node
- *  declares, each outset by its own reach.
+ *  declares, each outset by its own reach. A node whose ink is its shape
+ *  (inkIsItsShape above) is the shape and its reach alone: the box it was
+ *  laid out in bounds none of its paint.
  *
  *  THIS IS THE ONE PLACE A NODE IS SIZED. Everything allocated from a
  *  node's extent begins here — the recording cull and the child union over
@@ -102,7 +139,11 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   ++stats.nodesBounded;
   const ElementNode& node = inst.painted();
   const SkRect rect = instanceRect(inst);
-  SkRect local = SkRect::MakeWH(rect.width(), rect.height());
+  // A node whose ink is its shape starts from nothing, and the shape
+  // joined below is the whole of it; every other node starts from its box.
+  const bool shapeOnly = inkIsItsShape(inst);
+  SkRect local = shapeOnly ? SkRect::MakeEmpty()
+                           : SkRect::MakeWH(rect.width(), rect.height());
   // A GLYPH'S OUTLINE IS NOT ITS LINE BOX. A text leaf is measured to the
   // band of its lines, and the ink a face draws stands outside that band
   // wherever the face says it does — a comma's tail below the descent, an
@@ -114,7 +155,7 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   // second opinion about it. Empty on every node that is not type.
   local.join(inst.textInk);
   const float bleed = declaredBleed(inst, {rect.width(), rect.height()});
-  if (bleed > 0) local.outset(bleed, bleed);
+  if (bleed > 0 && !shapeOnly) local.outset(bleed, bleed);
   // A PATH BASELINE is the same problem once more. The baseline resolves
   // against the node's own box, so a `shapes::` generator normally stays
   // inside it — but nothing requires that: a Shape may return a curve well

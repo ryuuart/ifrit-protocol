@@ -153,6 +153,7 @@ sigil_library(SigilComposeCore
     paint/Tiles.cpp
     paint/WorldMatrix.cpp
     # cache validity, recordings, bakes and resource stores
+    cache/Backdrop.cpp
     cache/GroupBake.cpp
     cache/GroupScalars.cpp
     cache/MarkStates.h
@@ -199,7 +200,7 @@ sigil_test(compose_test
           test/ComposeTestBakeReuse.cpp test/ComposeTestBakeFormat.cpp
           test/ComposeTestGroupSettling.cpp
           test/ComposeTestFlowAroundCore.cpp
-          test/ComposeTestBakeBounds.cpp
+          test/ComposeTestBakeBounds.cpp test/ComposeTestShapeInk.cpp
           test/StandardExceptionsTest.cpp
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
@@ -230,7 +231,7 @@ sigil_test(compose_test
 sigil_bench(compose_bench
   SOURCES bench/ComposeCoreBench.cpp bench/ComposeCoreScoreboardBench.cpp
           bench/ComposeCoreEffectBench.cpp bench/ComposeCoreBatchBench.cpp
-          bench/ComposeCoreSceneBench.cpp
+          bench/ComposeCoreSceneBench.cpp bench/ComposeCoreInkBoundsBench.cpp
   LIBRARIES SigilComposeCore EnTT::EnTT SigilWeavePorts
   GPU_LIBRARIES SigilSkia)
 

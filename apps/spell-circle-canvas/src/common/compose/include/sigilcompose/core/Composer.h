@@ -206,6 +206,21 @@ class Composer {
    *  after a draw no region was asked for. */
   bool drewWithinChangedRegion() const;
 
+  /** WHETHER THE GROUND HOLDS: @p held says the canvas every draw is
+   *  handed holds the same ground beneath the composer — cleared to one
+   *  colour before each draw — so what lies under a node is exactly what
+   *  this composer painted there. A `backdropFilter()`
+   *  then keeps the pixels its pass left and copies them back on every
+   *  draw that paints everything beneath the node the way the last one
+   *  did, under the same matrix and clip, instead of filtering again; the
+   *  pixels are the ones the filter would leave. Off by default, which a
+   *  host that draws its own changing content beneath the composer, or
+   *  draws over what the last draw left, leaves it: every backdrop is
+   *  filtered afresh at every draw. */
+  void setGroundHeld(bool held);
+  /** Whether the ground is held. */
+  bool groundHeld() const;
+
   /** Drops every per-node cache (auto pictures, Cache::Texture bakes,
    *  held live-material shaders) and marks the tree for a full repaint.
    *  GPU hosts call this on device loss or a backend switch: cached
@@ -392,6 +407,9 @@ class Composer {
     size_t picturesRecorded = 0;
     size_t texturesBaked = 0;  ///< of those, bakes rather than recordings
     size_t nodesPainted = 0;   ///< instances painted live last draw()
+    /** Backdrop filters run last draw(): a backdrop whose held pixels
+     *  were copied back is not counted (`setGroundHeld`). */
+    size_t backdropsFiltered = 0;
     /** Nodes whose own paint bounds were measured last draw(): a held
      *  subtree that has not changed is not measured again. */
     size_t nodesBounded = 0;
