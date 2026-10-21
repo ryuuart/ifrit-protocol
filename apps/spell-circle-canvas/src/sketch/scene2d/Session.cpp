@@ -82,6 +82,10 @@ class Scene2DSession final : public Session {
     // in every session this runtime opens, whoever opened it.
     installTextMaterialResolver();
     m_composer = std::make_unique<compose::Composer>(m_engine, m_fonts);
+    // Every host clears the canvas to the sketch's ground before it asks
+    // for a frame, so what lies beneath a node is what the composer
+    // painted over that ground, and a backdrop can keep what it filtered.
+    m_composer->setGroundHeld(true);
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
     // inside setup. The second call is a no-op when they agree.
@@ -120,7 +124,9 @@ class Scene2DSession final : public Session {
    *  moment it was asked for. */
   void still(SkCanvas& canvas) override { frame(canvas, 0.0); }
 
-  [[nodiscard]] float oversample() const override { return 2.0f; }
+  [[nodiscard]] float oversample() const override {
+    return kScene2DOversample;
+  }
 
   void redeclare() override {
     // The body declares everything again, its texture scenes and pages
@@ -128,8 +134,13 @@ class Scene2DSession final : public Session {
     // asks.
     m_scenes.clear();
     m_pages.clear();
+    // The textures it painted are kept by value, so the ones the body asks
+    // for again are handed back unpainted; the ones it stopped asking for
+    // go once it has declared.
+    m_textures.sweep();
     Scene2DContext ctx = context();
     m_sketch->setup(ctx);
+    m_textures.sweep();
     applySize();
   }
 
@@ -157,7 +168,8 @@ class Scene2DSession final : public Session {
     // composer's own counters cannot see: a scene it asked for once is a
     // fixture, and a count that climbs frame by frame is a body asking
     // for one every frame.
-    const size_t scenes = m_scenes.size() + m_pages.size();
+    const size_t scenes =
+        m_scenes.size() + m_pages.size() + m_textures.kept();
     if (scenes == 0) return line;
     char held[48];
     std::snprintf(held, sizeof held, "   scenes %zu", scenes);
@@ -283,7 +295,8 @@ class Scene2DSession final : public Session {
                           &m_scenes,
                           m_key,
                           &m_pages,
-                          m_runtime.get()};
+                          m_runtime.get(),
+                          &m_textures};
   }
 
   weave::FontContext& m_fonts;
@@ -303,6 +316,9 @@ class Scene2DSession final : public Session {
   /** What the pages the context handed out paint into, kept beside the
    *  texture scenes for the same reason. */
   std::vector<std::shared_ptr<compose::SurfaceScene>> m_pages;
+  /** The trees the context painted as textures, kept by value beside the
+   *  texture scenes for the same reason. */
+  compose::Textures m_textures{m_fonts};
   std::unique_ptr<Scene2DBody> m_sketch;
   // After the sketch: reverse destruction releases retained descriptions
   // (which may point at sketch-owned Outputs) before their owner.
