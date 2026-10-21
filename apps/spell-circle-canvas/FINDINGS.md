@@ -143,6 +143,52 @@ a window inside the display's pixel bounds is meant to come back at the
 size asked. A test should ask for a window within the display's bounds
 and find the row reporting that size.
 
+## A filter over an ink-sized leaf takes the box, so a blurred stroke on a page-sized box pays a page-sized layer
+
+A node whose marks stay on its outline is bounded by its ink, except that a
+layer effect over it measures the box, because a device blur's result moves
+with the extent its layer is given: a layer at the ink grown by the filter's
+reach keeps the speed (`BM_Draw_BlurredStrokes` on a page-sized box with the
+layer at the ink runs as the fitted box does) but moves rota_convocationis by
+one level and painted_fields by three. The layer is meant to be the ink
+grown by the reach and the picture meant to be the box's; the way there is
+a layer whose origin stands on the grid the box's layer stands on. A test
+should blur a stroke on a page-sized box with the layer at the ink and at
+the box and find the pixels byte-equal at blur 12, 24 and 48.
+
+## embossed_foil moved by a few scattered specular pixels before this pass
+
+`embossed_foil` renders 87 pixels, five levels at most, away from its
+device plate, and its hash differs from one render to the next, with every
+mechanism this pass touched switched off one at a time; it was byte-
+identical two days earlier. The plate is meant to be a pure function of
+scene time. A test should render it ten times and find the renders
+identical, and a bisection over the commits between should name the one
+that moved it and pin its picture in that library.
+
+## The tint beside the shadow maps folds a material by its address
+
+`src/common/world/diligent/ShadowTints.cpp` folds a transmissive caster's
+material by its address and folds the frame's seconds only when the
+material is running, so a surface re-described each frame with different
+values at a reused address, or a repainted page it wears, keeps a stale
+tint. The tint is meant to redraw whenever what it is a function of
+changed. A test should repaint a transmissive caster's transmission map
+through a texture pass, and change its colour at the same address, and
+find the tint redrawn on that frame.
+
+## A device page is read back to host memory by any caller that only wants its size
+
+`media::deviceImage(frame, nullptr)`, and so `Texture::frameAt` and
+`material::skia::image(texture)`, read a device-standing page back to host
+memory through `skia::readbackPixels`, which waits by polling with
+`sleep_for`; `world::samplingOf` no longer calls them, but any caller that
+wants only metadata still pays a readback with sleep granularity on top.
+The doors are meant for pixels and a readback meant to block only as long
+as the device needs. A test should ask a device-standing texture for its
+size and device image and find `DeviceBinding::image` never called, and a
+readback of a finished paint returning within one paint's device time.
+
 ## The triplet comment still explains shared TBB by a port that is gone
 
 `cmake/triplets/arm64-osx.cmake` explains its shared oneTBB rule by the
