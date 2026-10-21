@@ -132,16 +132,6 @@ a layer whose origin stands on the grid the box's layer stands on. A test
 should blur a stroke on a page-sized box with the layer at the ink and at
 the box and find the pixels byte-equal at blur 12, 24 and 48.
 
-## embossed_foil moved by a few scattered specular pixels before this pass
-
-`embossed_foil` renders 87 pixels, five levels at most, away from its
-device plate, and its hash differs from one render to the next, with every
-mechanism this pass touched switched off one at a time; it was byte-
-identical two days earlier. The plate is meant to be a pure function of
-scene time. A test should render it ten times and find the renders
-identical, and a bisection over the commits between should name the one
-that moved it and pin its picture in that library.
-
 ## A device page is read back to host memory by any caller that only wants its size
 
 `media::deviceImage(frame, nullptr)`, and so `Texture::frameAt` and
@@ -205,6 +195,97 @@ clipped by any cache sized from the box once they overhang it; it is
 meant to declare its reach as `Scatter` does with `bleedPx`. A test
 should walk art wider than the box's margin under `Cache::Texture` and
 find it pixel-equal to the live paint.
+
+## material::over crashes on an operand with no recipe
+
+`composed()` in `src/common/material/core/Combine.cpp` asks an operand's
+recipe whether it has a target without checking for a recipe, so
+`over(program, from(Color).surface({...}), noise)` dereferences null. An
+operand with no recipe is meant to have no body for any target, so the
+composition is skipped and the stack falls back to the slotted `over`
+recipe. A test should call `over()` with a `from(Color)` operand and find
+a material.
+
+## A gradient given as a surface channel reads flat on a World body
+
+A `linearGradient` passed as `.metallic` or `.roughness` through
+`.surface({...})` on a `cylinderPanel` renders as one value, while the
+same gradient painted as a texture and slotted at the two channels shows
+its sweep. A material channel is meant to vary over the body's texture
+coordinates. A test should give a World body a gradient roughness channel
+and find different highlight widths at its two ends.
+
+## An emission map ignores its repeat and scale
+
+A texture built from `pattern::gridLines(...).texture()` with
+`.tile(Repeat).uv(Scale(...))`, wrapped in `material::image()` as a World
+mesh's emission map, draws one tile stretched over the whole card whatever
+the scale, while the floor's base-colour slot honours the same settings.
+A test should give an emission map a 5 by 7 repeat on a unit quad and
+count 35 cells.
+
+## A colour function over half-float pixels clamps before it scales
+
+`Filter::brightness(0.2)` on an image element holding an F16 image made
+from `halfFloatPixels` draws the same picture as on the 8-bit readback,
+because the stored values past one are clamped before scaling. A colour
+function over float content is meant to scale the stored value. A test
+should apply brightness(0.2) over an F16 texel of 4.0 and read 0.8.
+
+## A closed contour's band carries a spur at its start vertex
+
+`bandRegion` over a closed hexagon leaves a radial tick at the start
+vertex at every formation, which contour_poses shows in its rail rows. A
+closed contour's band is meant to close with no seam. A test should take
+the band of a closed hexagon at each formation and find no pixel outside
+the band's offset envelope at the start vertex.
+
+## A class read only by an operator is warned about as unused
+
+`styleClass("chosen")`, read only by `outline::Hull`, triggers the warning
+that it names a class no rule speaks about. A class consumed by an
+operator's `styleClass` field is meant to be a legitimate selector. A test
+should assert that a class an operator reads raises no warning.
+
+## hitTestable(false) does not take a subtree with it
+
+A keyless leaf under a node opted out with `hitTestable(false)` still
+answers a hit test with the node's inherited key, so composer_queries'
+marker under the probe point answered as the probe itself. The verb is
+documented as CSS `pointer-events: none`, which inherits; an opted-out
+slot or overlay is meant to take its keyless contents with it. A test
+should put an unkeyed dot inside an opted-out slot over a keyed target and
+find the hit test answering the target.
+
+## Content given to a slot before its tree mounts is dropped
+
+A Python `setup` that calls `composer.renderSlot("readings", ...)` and then
+returns the tree holding `slot("readings")` is warned that no slot has that
+name and the content is dropped, because the returned tree is rendered
+after setup; python_instrument_board renders its page first to avoid it.
+Content given to a slot before the tree that holds it mounts is meant to be
+kept and shown once it mounts. A test should fill slot "x" in setup, return
+a tree containing it, and find the content at frame zero.
+
+## The declared fill type omits a described colour animation
+
+`Element.fill` is declared as `MotionFillLike`, which leaves out
+`ColorAnimatable`, so `fill(motion.animate(from_=colour, to=colour, ...))`
+fails strict typing although the binding accepts a described one. The
+declaration is meant to list what the binding accepts, or the binding to
+refuse it as it refuses a live colour. A typing fixture should fill a box
+with a described colour animation and check clean while a live
+`ColorAnimatable` stays an error.
+
+## Flocking weights are in incomparable units
+
+`applyFlock` in SigilMotion's `Forces.cpp` sums separation as the inverse
+of distance, alignment as a velocity difference and cohesion as an offset,
+so the default `Flocking{1.5, 1, 1}` leaves separation around a hundredth
+of cohesion and flocking.cpp needs separation weights in the hundreds to
+hold birds apart. The three are meant to be weights on one another whose
+ratios shape the flock. A test should step a flock under default weights
+and find the minimum pair spacing above a fraction of the reach.
 
 ## The triplet comment still explains shared TBB by a port that is gone
 

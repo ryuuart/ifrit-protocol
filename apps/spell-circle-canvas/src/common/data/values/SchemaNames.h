@@ -21,23 +21,23 @@ using flatbuffers::FieldDef;
 using flatbuffers::StructDef;
 using flatbuffers::Type;
 
-/** The stem of a path: `a/b/schema_scene.fbs` is `schema_scene`. */
+/** The stem of a path: `a/b/feed_sky.fbs` is `feed_sky`. */
 std::string stemOf(const std::string& path);
 
-/** A schema's namespace as C++ spells it: `schema_scene`, or empty for
+/** A schema's namespace as C++ spells it: `feed_sky`, or empty for
  *  a schema that declares none. */
 std::string namespaceOf(const flatbuffers::Namespace* space);
 
 /** A generated type as the generated header declares it, qualified from
  *  the global namespace so the value namespace under it cannot shadow
- *  anything: `::schema_scene::Sky`. */
+ *  anything: `::feed_sky::Sky`. */
 std::string wireName(const std::string& space, const std::string& name);
 
 /** A value type as a reader outside the value namespace spells it:
- *  `::schema_scene::values::Sky`. */
+ *  `::feed_sky::values::Sky`. */
 std::string valueName(const std::string& valueSpace, const std::string& name);
 
-/** One enumerator of a union's tag enum: `::schema_scene::Message_Sky`. */
+/** One enumerator of a union's tag enum: `::feed_sky::Message_Sky`. */
 std::string wireEnumerator(const std::string& space, const EnumDef& tag,
                            const std::string& value);
 
