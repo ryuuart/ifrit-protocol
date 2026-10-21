@@ -2020,10 +2020,16 @@ class Vessel:
 ```
 
 A scene2d sketch can still show one frame as a picture:
-`ctx.bakeScene3D(frame, size, camera=…, background=…, at=…)` draws it on
-the device the host brought up and answers `None` where there is none,
-and a class that bakes declares `needsDevice = True` on a line of its own
-so the host brings the device up before the sketch opens.
+`ctx.bakeScene3D(frame, size, camera=…, background=…, at=…, density=…)`
+draws it on the device the host brought up and answers `None` where there
+is none, and a class that bakes declares `needsDevice = True` on a line of
+its own so the host brings the device up before the sketch opens. `size` is
+the panel the picture fills, in canvas units; the image is `size` times the
+density in pixels, and the density is the one the sketch is drawn at — a
+plate's capture density, a window's pixel ratio — unless `density=` states
+one. Paint the image stretched over `size`, as
+`compose.image(still).width(…).height(…)` or `pen.image(still, x, y, width,
+height)` does, and it lands on the device's pixels.
 
 A scene is typed nodes: `world.group(...)` holds children, given as
 variadic nodes or one iterable, including a tuple; `world.mesh(m)` is a body

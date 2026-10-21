@@ -1,11 +1,15 @@
 /** @file
  * A Python sketch that bakes a 3D frame: the pages its cards wear, a
  * page's stated emission range, a sized light's shadow, a page described
- * before its first paint, and a keyframed turn baked at a moment.
+ * before its first paint, a keyframed turn baked at a moment, and the
+ * density a still is baked at.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkColor.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <cmath>
@@ -436,6 +440,61 @@ TEST_F(SketchPythonBakes, AKeyframedTurnBakedAtAMomentStandsBetweenItsSteps) {
       << "half way through the first step the card has turned toward 0";
   EXPECT_LT(turned, whole * 92 / 100)
       << "half way through the first step the card is still turned";
+}
+
+TEST_F(SketchPythonBakes, AStillIsItsSizeTimesTheDensityTheSketchIsDrawnAt) {
+  PythonSource source("sigil_python_bake_density");
+  // One frame baked at one size in canvas units: at the density the sketch
+  // is drawn at before a host declares one, which is the scene2d runtime's
+  // own; at two densities stated; and again after the sketch declares an
+  // oversample of its own, which is then the density it is drawn at.
+  source.write(
+      "entry.py",
+      "import builtins\n"
+      "from sigil import compose, world\n"
+      "from sigil.geometry import mesh\n"
+      "from sigil.material import surface as surfaces\n"
+      "from sigil.sketch import sketch\n"
+      "\n"
+      "@sketch(size=(64, 48), background='#000000', captureAt=0)\n"
+      "class Dense:\n"
+      "    needsDevice = True\n"
+      "\n"
+      "    def setup(self, ctx):\n"
+      "        lens = mesh.camera.Camera()\n"
+      "        lens.eye = (0, 0, 300)\n"
+      "        lens.target = (0, 0, 0)\n"
+      "        card = (world.mesh(mesh.quad(100, 60)).key('card')\n"
+      "                .fill(surfaces.unlit(\n"
+      "                    surfaces.SurfaceParameters(baseColor='#00ff00'))))\n"
+      "        frame = world.Frame(world.group(card).key('set'))\n"
+      "        def size(**stated):\n"
+      "            still = ctx.bakeScene3D(frame, (40, 30), camera=lens,\n"
+      "                                    **stated)\n"
+      "            return (still.width(), still.height())\n"
+      "        sizes = [size(), size(density=1), size(density=2.5)]\n"
+      "        ctx.oversample(3)\n"
+      "        sizes.append(size())\n"
+      "        builtins._sigil_bake_density = sizes\n"
+      "        ctx.render(compose.box())\n");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  auto session = kind->open(fonts(), assets(), true, "dense");
+  const pybind11::gil_scoped_acquire lock;
+  const pybind11::module_ builtins = pybind11::module_::import("builtins");
+  const auto sizes = builtins.attr("_sigil_bake_density")
+                         .cast<std::vector<std::pair<int, int>>>();
+  builtins.attr("__dict__").attr("pop")("_sigil_bake_density");
+  ASSERT_EQ(sizes.size(), 4u);
+  const auto scaled = [](float density) {
+    return std::pair<int, int>((int)std::lround(40 * density),
+                               (int)std::lround(30 * density));
+  };
+  EXPECT_EQ(sizes[0], scaled(sketch::kScene2DOversample))
+      << "a still stating no density is baked at the scene2d runtime's own";
+  EXPECT_EQ(sizes[1], scaled(1.0f)) << "a stated density is the still's";
+  EXPECT_EQ(sizes[2], scaled(2.5f)) << "a stated density need not be whole";
+  EXPECT_EQ(sizes[3], scaled(3.0f))
+      << "an oversample the sketch declared is the density it bakes at";
 }
 
 }  // namespace

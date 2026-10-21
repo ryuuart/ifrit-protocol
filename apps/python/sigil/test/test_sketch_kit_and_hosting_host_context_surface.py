@@ -181,6 +181,9 @@ class HostContextSurface(unittest.TestCase):
                         at=0.5,
                     )
                     wider = ctx.bakeScene3D(frame, (48, 32), camera=lens)
+                    denser = ctx.bakeScene3D(
+                        frame, (48, 32), camera=lens, density=1.5
+                    )
                     refusals = []
                     for bad in ((0, 8), (8, -1)):
                         try:
@@ -191,17 +194,27 @@ class HostContextSurface(unittest.TestCase):
                         ctx.bakeScene3D(frame, (8, 8), camera=lens, at=-1)
                     except ValueError as error:
                         refusals.append(str(error))
-                    builtins._sigil_host_context = (still, later, wider, refusals)
+                    for density in (0, -2, float("nan"), float("inf")):
+                        try:
+                            ctx.bakeScene3D(frame, (8, 8), density=density)
+                        except ValueError as error:
+                            refusals.append(str(error))
+                    builtins._sigil_host_context = (
+                        still, later, wider, denser, refusals
+                    )
                     ctx.render(box())
         """)
-        still, later, wider, refusals = builtins._sigil_host_context
+        still, later, wider, denser, refusals = builtins._sigil_host_context
         self.assertIsNone(still)
         self.assertIsNone(later)
         self.assertIsNone(wider)
-        self.assertEqual(len(refusals), 3)
+        self.assertIsNone(denser)
+        self.assertEqual(len(refusals), 7)
         for refusal in refusals[:2]:
             self.assertIn("positive", refusal)
         self.assertIn("finite and nonnegative", refusals[2])
+        for refusal in refusals[3:]:
+            self.assertIn("density must be finite and positive", refusal)
 
     def test_a_page_paints_a_tree_for_a_baked_frame_and_is_worn_as_a_surface(
         self,

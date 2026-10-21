@@ -62,6 +62,7 @@ glm::ivec2 pagePixels(std::array<int, 2> size) {
   return {size[0], size[1]};
 }
 
+/** A bake's size in canvas units, refused before a scene is made of it. */
 SkISize pixels(std::array<int, 2> size) {
   if (size[0] <= 0 || size[1] <= 0)
     throw py::value_error("A baked 3D frame's extent must be positive");
@@ -199,21 +200,35 @@ void bindContext(py::module_& module) {
           [](const Context& ctx, const world::Frame& frame,
              std::array<int, 2> size,
              const geometry::mesh::camera::Camera& camera,
-             material::Color background, double at) {
+             material::Color background, double at,
+             std::optional<double> density) {
             if (!std::isfinite(at) || at < 0)
               throw py::value_error(
                   "A bake's moment must be finite and nonnegative");
+            if (density && (!std::isfinite(*density) || *density <= 0))
+              throw py::value_error(
+                  "A bake's density must be finite and positive");
             const SkISize extent = pixels(size);
+            // No density stated is zero to the context, which then bakes
+            // at the density the sketch is drawn at.
             return ctx.state()->context().bakeScene3D(
                 frame, extent,
                 {.camera = camera,
                  .background = background,
-                 .at = motion::Duration(at)});
+                 .at = motion::Duration(at),
+                 .density = density ? (float)*density : 0.0f});
           },
           py::arg("frame"), py::arg("size"),
           py::arg("camera") = geometry::mesh::camera::Camera{},
           py::arg("background") = material::Color{0, 0, 0, 0},
-          py::arg("at") = 0.0)
+          py::arg("at") = 0.0, py::arg("density") = std::nullopt,
+          "The frame drawn once into an image on the device the host brought "
+          "up, or None where there is none. size is the panel the image "
+          "fills, in canvas units; the image is size times density pixels "
+          "across, and density, unless stated, is the density the sketch is "
+          "drawn at, so the bake lands on the device's pixels. Paint it "
+          "stretched over size. at is the moment of the bake on the baked "
+          "scene's own clock.")
       .def(
           "page",
           [](const Context& ctx, std::array<int, 2> size,

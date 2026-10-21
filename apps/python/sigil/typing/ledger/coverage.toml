@@ -75,7 +75,7 @@ python = [
 
 [[section.surface.item]]
 native = "`Scene2DContext::bakeScene3D`, `canvas(CanvasSpecification)` and `key`"
-bound_text = "`bakeScene3D`, `canvas` over a `CanvasSpecification` (whose `paintDiscardedFrames` lets unobserved capture steps go unpainted) and `key` on the context"
+bound_text = "`bakeScene3D`, sized in canvas units and baked at the density the sketch is drawn at or a stated `density`, `canvas` over a `CanvasSpecification` (whose `paintDiscardedFrames` lets unobserved capture steps go unpainted) and `key` on the context"
 python = [
   "sketch.Scene2DContext.bakeScene3D",
   "sketch.Scene2DContext.canvas",
