@@ -17,15 +17,23 @@
 #include <cmath>
 #include <glm/vec4.hpp>
 #include <string>
+#include <vector>
 
 namespace sigil::material::pattern {
 
 namespace {
 SkColor4f sk(Color c) { return {c.r, c.g, c.b, c.a}; }
 
-/** A tile of @p size baked by @p painter into a raster canvas. */
-Tile paintedTile(glm::vec2 size, skia::Painter painter) {
-  return Tile::of(size, skia::painted(std::move(painter)));
+/** A tile of @p size baked by @p painter into a raster canvas, which is
+ *  what @p recipe describes. */
+Tile paintedTile(glm::vec2 size, skia::Painter painter, TileRecipe recipe) {
+  return Tile::of(size, skia::painted(std::move(painter)), std::move(recipe));
+}
+
+/** @p numbers with @p color's four channels after them. */
+std::vector<double> withColor(std::vector<double> numbers, Color color) {
+  numbers.insert(numbers.end(), {color.r, color.g, color.b, color.a});
+  return numbers;
 }
 }  // namespace
 
@@ -46,7 +54,8 @@ Tile halftone(float spacing, float radius, Color color, bool staggered) {
         };
         dot(s * 0.5f, s * 0.5f);
         if (staggered) dot(0.0f, s * 1.5f);  // half-cell offset row
-      });
+      },
+      {"halftone", withColor({s, radius, staggered ? 1.0 : 0.0}, color)});
 }
 
 Tile stripes(float on, float off, Color color) {
@@ -56,7 +65,8 @@ Tile stripes(float on, float off, Color color) {
                        SkPaint p;
                        p.setColor4f(sk(color), nullptr);
                        c.drawRect(SkRect::MakeWH(on, sz.height()), p);
-                     });
+                     },
+                     {"stripes", withColor({on, period}, color)});
 }
 
 Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
@@ -66,6 +76,11 @@ Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
   if (period <= 0) return stripes(1, 0, {0, 0, 0, 0});  // draws nothing
   const bool down = along == Axis::V;
   const glm::vec2 size = down ? glm::vec2{8, period} : glm::vec2{period, 8};
+  TileRecipe recipe{"sequence", {phase, down ? 1.0 : 0.0}};
+  for (const auto& [width, color] : runs) {
+    recipe.numbers.push_back(width);
+    recipe.numbers = withColor(std::move(recipe.numbers), color);
+  }
   return paintedTile(size, [runs = std::move(runs), period, phase, down](
                                SkCanvas& c, SkSize sz, uint32_t) {
     // Start one wrapped phase back along the axis and paint two periods,
@@ -81,7 +96,7 @@ Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
                    p);
         at += w;
       }
-  });
+  }, std::move(recipe));
 }
 
 Tile checker(float cell, Color first, Color second) {
@@ -95,7 +110,8 @@ Tile checker(float cell, Color first, Color second) {
                        c.drawRect(SkRect::MakeXYWH(s, s, s, s), pa);
                        c.drawRect(SkRect::MakeXYWH(s, 0, s, s), pb);
                        c.drawRect(SkRect::MakeXYWH(0, s, s, s), pb);
-                     });
+                     },
+                     {"checker", withColor(withColor({s}, first), second)});
 }
 
 Tile gridLines(float spacingHorizontal, float spacingVertical, float width,
@@ -108,12 +124,16 @@ Tile gridLines(float spacingHorizontal, float spacingVertical, float width,
                        p.setColor4f(sk(color), nullptr);
                        c.drawRect(SkRect::MakeWH(sz.width(), width), p);
                        c.drawRect(SkRect::MakeWH(width, sz.height()), p);
-                     });
+                     },
+                     {"gridLines", withColor({sx, sy, width}, color)});
 }
 
 Tile speckle(float tileSize, int count, float minimumRadius,
              float maximumRadius, std::vector<Color> palette) {
   const float s = std::max(tileSize, 8.0f);
+  TileRecipe recipe{"speckle", {s, (double)count, minimumRadius, maximumRadius}};
+  for (const Color& color : palette)
+    recipe.numbers = withColor(std::move(recipe.numbers), color);
   return paintedTile({s, s}, [s, count, minimumRadius, maximumRadius,
                               palette = std::move(palette)](SkCanvas& c, SkSize,
                                                             uint32_t seed) {
@@ -132,7 +152,7 @@ Tile speckle(float tileSize, int count, float minimumRadius,
         for (int dy = -1; dy <= 1; ++dy)
           c.drawCircle(x + (float)dx * s, y + (float)dy * s, r, p);
     }
-  });
+  }, std::move(recipe));
 }
 
 namespace {

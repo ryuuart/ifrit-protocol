@@ -67,6 +67,54 @@ TEST(Tile, BakesOnceAndCopiesShareTheBake) {
   EXPECT_EQ(t.currentSeed(), 9u);
 }
 
+TEST(Tile, TilesRebuiltFromAnEqualRecipeShareOneBake) {
+  int draws = 0;
+  const auto made = [&](double edge) {
+    return pattern::Tile::of({4, 4},
+                             skia::painted([&](SkCanvas& c, SkSize, uint32_t) {
+                               ++draws;
+                               c.clear(SK_ColorRED);
+                             }),
+                             {"red square", {edge}});
+  };
+  pattern::Tile held = made(4);
+  const sk_sp<SkImage> first = skia::image(held.texture());
+  EXPECT_EQ(draws, 1);
+  pattern::Tile rebuilt = made(4);
+  EXPECT_EQ(rebuilt, held) << "an equal recipe is the same tile";
+  EXPECT_TRUE(rebuilt.baked());
+  EXPECT_EQ(skia::image(rebuilt.texture()).get(), first.get());
+  EXPECT_EQ(draws, 1) << "…so it is not baked again";
+  EXPECT_FALSE(made(5) == held) << "another recipe is another tile";
+
+  // Reseeding one of them leaves the shared tile alone, even where it is
+  // the only holder: a tile made from the recipe later is made from it.
+  rebuilt.seed(7);
+  EXPECT_EQ(held.currentSeed(), 1u);
+  EXPECT_TRUE(held.baked());
+  pattern::Tile sole = made(6);
+  sole.seed(3);
+  EXPECT_EQ(made(6).currentSeed(), 1u);
+
+  // A bake something still paints with outlives every tile that held it,
+  // so a pattern described afresh on the next render finds it.
+  sk_sp<SkImage> painting;
+  {
+    const pattern::Tile once = made(8);
+    painting = skia::image(once.texture());
+  }
+  const int bakesBefore = draws;
+  EXPECT_TRUE(made(8).baked());
+  EXPECT_EQ(draws, bakesBefore);
+  painting.reset();
+
+  // The stock generators carry theirs.
+  EXPECT_EQ(pattern::speckle(64, 20, 0.5f, 2, {{1, 1, 1, 1}}),
+            pattern::speckle(64, 20, 0.5f, 2, {{1, 1, 1, 1}}));
+  EXPECT_FALSE(pattern::checker(8, {0, 0, 0, 1}, {1, 1, 1, 1}) ==
+               pattern::checker(8, {0, 0, 0, 1}, {1, 1, 0, 1}));
+}
+
 TEST(Tile, MappingIsPerObjectAndNeverRebakes) {
   int draws = 0;
   pattern::Tile t = pattern::Tile::of(

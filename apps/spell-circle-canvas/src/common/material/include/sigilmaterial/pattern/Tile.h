@@ -7,8 +7,11 @@
  * tile plus a mapping. The bake is memoised on shared state and
  * regeneration is explicit; scale, rotation and offset act on the
  * sampling matrix only, so a rotated repeat stays seamless and costs no
- * rebake. THE BAKE IS THE IDENTITY, so hold a tile where assets are
- * held: one re-minted each frame carries no bake and re-renders.
+ * rebake. A tile made from a RECIPE — every stock generator's is — is
+ * the same tile as any other held from an equal recipe at its size, so a
+ * pattern rebuilt from the same numbers finds the bake already made. A
+ * tile made from a bare program cannot be compared, so its bake is its
+ * identity: one re-minted each frame carries no bake and re-renders.
  */
 
 #include <sigilmaterial/texture/Texture.h>
@@ -19,6 +22,9 @@
 #include <glm/mat3x3.hpp>
 #include <glm/vec2.hpp>
 #include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 /** Procedural patterns: one tile baked once from a program and repeated
  *  under a mapping of scale, rotation and offset, the stock tile
@@ -37,6 +43,16 @@ namespace sigil::material::pattern {
 using Program =
     std::function<media::PixelSource(glm::ivec2 size, uint32_t seed)>;
 
+/** WHAT A TILE IS MADE FROM, AS A VALUE: the generator that draws it and
+ *  every number it was handed, in the generator's own order. Equal
+ *  recipes at one size draw the same tile, which is what lets a tile
+ *  rebuilt from them share the bake of one already held. */
+struct TileRecipe {
+  std::string generator;
+  std::vector<double> numbers;
+  bool operator==(const TileRecipe&) const = default;
+};
+
 /** A repeating fill built from one tile. A value: the mapping is
  *  per-object, the recipe and its bake are shared, and the editors of the
  *  shared part copy-on-write so re-rolling a copy never re-rolls the
@@ -48,6 +64,12 @@ class Tile {
   /** A tile of @p size pixels baked by @p draw, at whole pixels rounded
    *  up. */
   static Tile of(glm::vec2 size, Program draw);
+  /** A tile of @p size baked by @p draw, which is what @p recipe
+   *  describes: while any tile made from an equal recipe at this size is
+   *  held, or anything still paints with its bake, this one is that tile —
+   *  the same recipe, the same bake, and equal to it. Reseeding or reprogramming either copies it first, so
+   *  neither ever changes the other. */
+  static Tile of(glm::vec2 size, Program draw, TileRecipe recipe);
 
   /** Change the seed, drop the bake: the next texture() regenerates. */
   Tile& seed(uint32_t value);
@@ -108,6 +130,9 @@ class Tile {
     Program draw;
     uint32_t seed = 1;
     media::PixelSource baked;
+    /** The recipe this state was made from, while it is the one tiles
+     *  made from that recipe share; an edited copy carries none. */
+    std::optional<TileRecipe> recipe;
   };
   void detach();
 
