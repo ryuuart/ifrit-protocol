@@ -62,18 +62,6 @@ hands back no key, so keying such a program by its text hash wants a
 Skia port patch. A test should key a program over an effect declared
 past the limit and find it stood up on the next open.
 
-## The Syphon receiver patch waits for the registry push
-
-The port patch `001-receiver-outlives-its-port.patch` for Syphon, which
-gives the message receiver's port context retain and release and
-releases the port on invalidate, is committed locally in the registry
-checkout as syphon 2025-10-06#1 and is not pushed, and the baseline in
-`vcpkg-configuration.json` is not bumped; the patched framework was
-swapped into the build tree for the test runs and a manifest install
-restores the unpatched one until the bump. Once pushed and bumped,
-`io_frames_delivery_in_two_processes` and repeated `FramesDelivery` runs
-under load should never crash.
-
 ## Two scene3d sessions stepped to one moment can differ under load
 
 `Scene3DSession.TheSameMomentIsTheSamePicture` failed in two parallel

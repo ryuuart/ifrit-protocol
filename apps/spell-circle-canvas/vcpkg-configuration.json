@@ -8,7 +8,7 @@
     {
       "kind": "git",
       "repository": "https://github.com/ryuuart/sigil-vcpkg-registry",
-      "baseline": "e159100836c056aebdc1cf756baa9ef580a6cebe",
+      "baseline": "478d5db63b04fc71f11349d8689935b02d65f1ab",
       "packages": [
         "choreograph",
         "shader-slang",
