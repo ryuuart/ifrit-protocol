@@ -286,16 +286,27 @@ test per site should find it answering what `fonts::familyName` answers;
 `Face::familyName` in the style target below the fonts target stays as it
 is.
 
-## A clip shape that throws leaves a stack's composite frame open
+## A stack made in a Python sketch's setup may be put down from another thread under Grimoire
 
-`Stack::remake` in `src/common/draw/Stack.cpp` opens the composite's
-frame and `drawLayer` pushes the pen before it runs a layer's clip shape,
-so a shape that throws escapes with the frame open and the push unpopped;
-the Python binding catches inside the shape and is safe. The remake is
-meant to end the frame and rethrow, as `Layer::bake` does. A test should
-find `Stack::image` throwing for a layer whose clip throws, and after
-`noClip()` the next composite succeeding with the pen's push and pop
-balanced.
+A stack is used on the thread that made it, and under Grimoire a Python
+sketch's setup may run from the view's poll on the GUI thread while its
+`draw` runs on the render thread, so a stack built in setup and put down
+in `draw` would raise the binding's thread check; a stack built in setup
+is meant to be put down in `draw`. A test should run a Python sketch that
+builds a stack in setup and puts it down in `draw` under Grimoire's live
+window and find it rendered.
+
+## A layer formed on one context is lost when the context changes
+
+A layer is formed on the context the pen with no frame open had when it
+was first drawn, and stays there when a host later installs a device or a
+window's render interface is replaced, so its later drawing is lost; the
+headless window and `renderFile` still draw their frames on the CPU and so
+read a device stack back once per change. A layer is meant to follow the
+context the process draws on, and every host meant to draw on the device
+it has. A test should install a device after a layer was drawn and find
+the next composite carrying that drawing, and a headless capture of a
+stack found pixel-equal to the window's.
 
 ## The triplet comment still explains shared TBB by a port that is gone
 
