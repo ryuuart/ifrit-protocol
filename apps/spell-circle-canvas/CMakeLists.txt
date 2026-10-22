@@ -11,7 +11,7 @@ if(SIGIL_BUILD_APPS AND NOT SIGIL_BUILD_PYTHON)
   message(FATAL_ERROR "The bundled applications require Python bindings; set SIGIL_BUILD_APPS=OFF to build the native libraries alone")
 endif()
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

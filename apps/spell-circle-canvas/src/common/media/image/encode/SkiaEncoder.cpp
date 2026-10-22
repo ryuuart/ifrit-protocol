@@ -38,6 +38,8 @@ sk_sp<SkData> encodeWithSkia(const SkPixmap& pixels, Format format,
     }
     case Format::Exr:
       return nullptr;  // not Skia's; the OIIO backend writes it
+    case Format::Mp4:
+      return nullptr;  // a movie, which the video encoder writes
   }
   return nullptr;
 }

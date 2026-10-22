@@ -6,6 +6,10 @@
  * arbGeomParams as named lanes.
  */
 
+// workaround: Alembic's Foundation.h uses the pthread mutex calls without
+// including <pthread.h>, and under C++23 no standard header brings it in.
+#include <pthread.h>
+
 #include <Alembic/Abc/All.h>
 #include <Alembic/AbcCoreFactory/All.h>
 #include <Alembic/AbcCoreOgawa/All.h>

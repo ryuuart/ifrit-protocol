@@ -32,7 +32,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   project(Grimoire VERSION 0.1 LANGUAGES CXX)
   # What the library tree's top level sets for its own targets, set again
   # for this one's: these are read per directory and per target.
-  set(CMAKE_CXX_STANDARD 20)
+  set(CMAKE_CXX_STANDARD 23)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
   set(CMAKE_CXX_EXTENSIONS OFF)
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
