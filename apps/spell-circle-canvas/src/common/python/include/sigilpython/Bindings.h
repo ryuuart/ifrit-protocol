@@ -22,6 +22,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -143,9 +144,15 @@ decltype(auto) unlocked(Function&& function) {
 }
 
 /** Reads a native color from a colour object, a CSS string, or an RGB or
- *  RGBA sequence whose channels are between zero and one. Requires the
- *  interpreter lock. */
+ *  RGBA sequence whose channels are between zero and one. Text no CSS
+ *  colour grammar reads raises ValueError naming it, and so does
+ *  `currentcolor` or `var(...)`, which a flat colour cannot resolve.
+ *  Requires the interpreter lock. */
 SkColor4f color(pybind11::handle value);
+
+/** The colour CSS text @p text spells, or ValueError naming the text and
+ *  the forms a colour is written in. */
+material::Color colorFromText(std::string_view text);
 
 /** A callback-scoped pen. Native extensions pass this same checked wrapper
  *  through every binding that draws, including offscreen and brush calls. */
@@ -292,13 +299,19 @@ template <>
 struct type_caster<SkColor4f> {
   PYBIND11_TYPE_CASTER(SkColor4f, const_name<sigil::material::Color>());
 
-  bool load(handle input, bool) {
+  bool load(handle input, bool convert) {
     if (input.is_none()) return false;
     // A caster answers whether the value fits, so the reasons colour
     // reading gives are dropped for the message pybind11 writes from the
-    // signature, which names the parameter that refused the value.
+    // signature, which names the parameter that refused the value. Text
+    // is the exception: in the converting pass, after every overload has
+    // been offered the text as it stands, text no colour grammar reads
+    // raises the reader's ValueError, which names the text.
     try {
       value = sigil::python::color(input);
+    } catch (const pybind11::value_error&) {
+      if (convert && pybind11::isinstance<pybind11::str>(input)) throw;
+      return false;
     } catch (const std::exception&) {
       return false;
     }

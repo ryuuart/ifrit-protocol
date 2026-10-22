@@ -4,12 +4,19 @@
 #include <sigilmaterial/color/Dither.h>
 #include <sigilmaterial/color/Extract.h>
 #include <sigilmaterial/color/Harmony.h>
+#include <sigilmaterial/color/Mix.h>
 #include <sigilmaterial/color/Ramp.h>
 #include <sigilmaterial/core/Backface.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
+
+#include <cctype>
+#include <charconv>
+#include <cmath>
+#include <optional>
+#include <string>
 
 namespace sigil::python {
 namespace py = pybind11;
@@ -25,14 +32,255 @@ material::Color materialColor(py::handle value) {
   return material::Color(color(value));
 }
 
+namespace {
+
+/** A channel written as a number, or as CSS percentage text read against
+ *  @p hundredPercent. */
+float channelOf(py::handle value, float hundredPercent) {
+  if (py::isinstance<py::str>(value)) {
+    std::string text = value.cast<std::string>();
+    while (!text.empty() && std::isspace((unsigned char)text.back()))
+      text.pop_back();
+    if (text.empty() || text.back() != '%')
+      throw py::value_error("'" + value.cast<std::string>() +
+                            "' is no channel: a channel is a number or a "
+                            "percentage written as text, such as '50%'.");
+    text.pop_back();
+    const double percent = py::float_(py::str(text)).cast<double>();
+    return (float)(percent / 100.0 * hundredPercent);
+  }
+  return value.cast<float>();
+}
+
+/** Whether @p channel is exactly one of the 256 eight-bit steps, and
+ *  which. */
+std::optional<int> eightBit(float channel) {
+  const float scaled = std::round(channel * 255.0f);
+  if (scaled < 0.0f || scaled > 255.0f) return std::nullopt;
+  if ((float)(int)scaled / 255.0f != channel) return std::nullopt;
+  return (int)scaled;
+}
+
+/** The shortest decimal that reads back as @p value. */
+std::string shortest(float value) {
+  char buffer[32];
+  const auto written = std::to_chars(buffer, buffer + sizeof buffer, value);
+  return std::string(buffer, written.ptr);
+}
+
+/** `#rrggbb` or `#rrggbbaa` where every channel is an eight-bit step. */
+std::optional<std::string> hexText(const material::Color& color) {
+  const float channels[4] = {color.r, color.g, color.b, color.a};
+  std::string text = "#";
+  for (int index = 0; index < 4; ++index) {
+    const std::optional<int> step = eightBit(channels[index]);
+    if (!step) return std::nullopt;
+    if (index == 3 && *step == 255) break;
+    constexpr char kDigits[] = "0123456789abcdef";
+    text += kDigits[*step / 16];
+    text += kDigits[*step % 16];
+  }
+  return text;
+}
+
+/** The CSS text for @p color: its hex where every channel is an
+ *  eight-bit step, otherwise `color(srgb …)`, which carries any float. */
+std::string cssText(const material::Color& color) {
+  if (const std::optional<std::string> hex = hexText(color)) return *hex;
+  std::string text = "color(srgb " + shortest(color.r) + " " +
+                     shortest(color.g) + " " + shortest(color.b);
+  if (color.a != 1.0f) text += " / " + shortest(color.a);
+  return text + ")";
+}
+
+std::string reprText(const material::Color& color) {
+  if (const std::optional<std::string> hex = hexText(color))
+    return "Color('" + *hex + "')";
+  std::string text = "Color.srgb(" + shortest(color.r) + ", " +
+                     shortest(color.g) + ", " + shortest(color.b);
+  if (color.a != 1.0f) text += ", alpha=" + shortest(color.a);
+  return text + ")";
+}
+
+material::HueArc hueArcNamed(const std::string& name) {
+  if (name == "shorter") return material::HueArc::Shorter;
+  if (name == "longer") return material::HueArc::Longer;
+  if (name == "increasing") return material::HueArc::Increasing;
+  if (name == "decreasing") return material::HueArc::Decreasing;
+  throw py::value_error("Unknown hue arc: '" + name +
+                        "'; it is 'shorter', 'longer', 'increasing' or "
+                        "'decreasing', as CSS names them.");
+}
+
+}  // namespace
+
 void bindColor(py::module_& root) {
   using material::Color;
   auto module = submodule(root, "material");
   py::class_<Color>(module, "Color")
-      .def(py::init<float, float, float, float>(), py::arg("red") = 0,
-           py::arg("green") = 0, py::arg("blue") = 0, py::arg("alpha") = 1)
       .def(py::init([](py::handle value) { return materialColor(value); }),
-           py::arg("value"))
+           py::arg("value"),
+           "A colour from one CSS colour: its text ('#6e99bb', 'steelblue', "
+           "'rgb(110 153 187)', 'oklch(0.7 0.1 240)'), a Color, or three or "
+           "four unit floats. Channels are written through the named "
+           "constructors, rgb() on 0..255 and srgb() on 0..1.")
+      .def_static(
+          "rgb",
+          [](py::handle red, py::handle green, py::handle blue,
+             py::handle opacity) {
+            return material::rgb(
+                channelOf(red, 255.0f), channelOf(green, 255.0f),
+                channelOf(blue, 255.0f), channelOf(opacity, 1.0f));
+          },
+          py::arg("red"), py::arg("green"), py::arg("blue"),
+          py::arg("alpha") = 1.0f,
+          "CSS rgb(): channels on 0..255 or as '50%', alpha on 0..1, each "
+          "clamped to its range.")
+      .def_static(
+          "srgb",
+          [](py::handle red, py::handle green, py::handle blue,
+             py::handle opacity) {
+            return Color{channelOf(red, 1.0f), channelOf(green, 1.0f),
+                         channelOf(blue, 1.0f), channelOf(opacity, 1.0f)};
+          },
+          py::arg("red"), py::arg("green"), py::arg("blue"),
+          py::arg("alpha") = 1.0f,
+          "CSS color(srgb r g b / alpha): unit floats, kept as written, so a "
+          "channel above 1 is the brighter-than-white value a float colour "
+          "can hold.")
+      .def_static(
+          "hsl",
+          [](float hue, py::handle saturation, py::handle lightness,
+             py::handle opacity) {
+            return material::hsl(hue, channelOf(saturation, 100.0f),
+                                 channelOf(lightness, 100.0f),
+                                 channelOf(opacity, 1.0f));
+          },
+          py::arg("hue"), py::arg("saturation"), py::arg("lightness"),
+          py::arg("alpha") = 1.0f,
+          "CSS hsl(): the hue in degrees, saturation and lightness on 0..100 "
+          "or as '50%'.")
+      .def_static(
+          "hwb",
+          [](float hue, py::handle whiteness, py::handle blackness,
+             py::handle opacity) {
+            return material::hwb(hue, channelOf(whiteness, 100.0f),
+                                 channelOf(blackness, 100.0f),
+                                 channelOf(opacity, 1.0f));
+          },
+          py::arg("hue"), py::arg("whiteness"), py::arg("blackness"),
+          py::arg("alpha") = 1.0f,
+          "CSS hwb(): the hue in degrees, whiteness and blackness on 0..100 "
+          "or as '50%'.")
+      .def_static(
+          "lab",
+          [](py::handle lightness, py::handle greenRed, py::handle blueYellow,
+             py::handle opacity) {
+            return material::lab(
+                channelOf(lightness, 100.0f), channelOf(greenRed, 125.0f),
+                channelOf(blueYellow, 125.0f), channelOf(opacity, 1.0f));
+          },
+          py::arg("lightness"), py::arg("greenRed"), py::arg("blueYellow"),
+          py::arg("alpha") = 1.0f,
+          "CSS lab(), under the D50 white: lightness on 0..100 and the two "
+          "axes, brought inside sRGB by reducing chroma.")
+      .def_static(
+          "lch",
+          [](py::handle lightness, py::handle chroma, float hue,
+             py::handle opacity) {
+            return material::lch(channelOf(lightness, 100.0f),
+                                 channelOf(chroma, 150.0f), hue,
+                                 channelOf(opacity, 1.0f));
+          },
+          py::arg("lightness"), py::arg("chroma"), py::arg("hue"),
+          py::arg("alpha") = 1.0f,
+          "CSS lch(), under the D50 white: lightness on 0..100, the chroma "
+          "and the hue in degrees, brought inside sRGB by reducing chroma.")
+      .def_static(
+          "oklab",
+          [](py::handle lightness, py::handle greenRed, py::handle blueYellow,
+             py::handle opacity) {
+            return material::oklab(
+                channelOf(lightness, 1.0f), channelOf(greenRed, 0.4f),
+                channelOf(blueYellow, 0.4f), channelOf(opacity, 1.0f));
+          },
+          py::arg("lightness"), py::arg("greenRed"), py::arg("blueYellow"),
+          py::arg("alpha") = 1.0f,
+          "CSS oklab(): lightness on 0..1 and the two axes, brought inside "
+          "sRGB by reducing chroma.")
+      .def_static(
+          "oklch",
+          [](py::handle lightness, py::handle chroma, float hue,
+             py::handle opacity) {
+            return material::oklch(channelOf(lightness, 1.0f),
+                                   channelOf(chroma, 0.4f), hue,
+                                   channelOf(opacity, 1.0f));
+          },
+          py::arg("lightness"), py::arg("chroma"), py::arg("hue"),
+          py::arg("alpha") = 1.0f,
+          "CSS oklch(): lightness on 0..1, the chroma and the hue in "
+          "degrees, brought inside sRGB by reducing chroma.")
+      .def_static(
+          "hex",
+          [](py::handle value, std::optional<float> opacity) {
+            Color read;
+            if (py::isinstance<py::str>(value)) {
+              std::string text = value.cast<std::string>();
+              if (!text.starts_with("#")) text = "#" + text;
+              const std::optional<Color> parsed = material::readColor(text);
+              if (!parsed)
+                throw py::value_error(
+                    "'" + value.cast<std::string>() +
+                    "' is no hex colour: one is 3, 4, 6 or 8 hex digits, "
+                    "with or without the leading #.");
+              read = *parsed;
+            } else {
+              read = material::hexColor(value.cast<uint32_t>());
+            }
+            if (opacity) read.a = std::clamp(*opacity, 0.0f, 1.0f);
+            return read;
+          },
+          py::arg("value"), py::arg("alpha") = py::none(),
+          "A colour from its hex: text such as '#6e99bb' or '#6e99bb80', or "
+          "a packed 0xRRGGBB integer; alpha, when given, replaces the "
+          "alpha the digits say.")
+      .def_static(
+          "named",
+          [](const std::string& name) {
+            if (const std::optional<Color> read = material::namedColor(name))
+              return *read;
+            throw py::value_error("'" + name +
+                                  "' is not one of CSS's named colours.");
+          },
+          py::arg("name"), "One of CSS's 148 named colours.")
+      .def_static(
+          "mix",
+          [](py::handle first, py::handle second, float amount,
+             const std::string& space, const std::string& hue) {
+            const std::optional<material::ColorSpace> named =
+                material::readColorSpace(space);
+            if (!named)
+              throw py::value_error(
+                  "Unknown colour space: '" + space +
+                  "'; it is one CSS names: 'srgb', 'srgb-linear', "
+                  "'display-p3', 'rec2020', 'a98-rgb', 'prophoto-rgb', "
+                  "'xyz', 'xyz-d50', 'xyz-d65', 'lab', 'lch', 'oklab', "
+                  "'oklch', 'hsl' or 'hwb'.");
+            return material::colorMix(materialColor(first),
+                                      materialColor(second), amount, *named,
+                                      hueArcNamed(hue));
+          },
+          py::arg("first"), py::arg("second"), py::arg("amount") = 0.5f,
+          py::arg("space") = "oklab", py::arg("hue") = "shorter",
+          "CSS color-mix(): amount of the way from first to second, mixed in "
+          "the named space, premultiplied by alpha, a hue walked along the "
+          "named arc.")
+      .def("css", &cssText,
+           "The colour as CSS text: its hex where every channel is an "
+           "eight-bit step, otherwise color(srgb ...), which carries any "
+           "float.")
+      .def("__str__", &cssText)
+      .def("__repr__", &reprText)
       .def_readwrite("r", &Color::r)
       .def_readwrite("g", &Color::g)
       .def_readwrite("b", &Color::b)
@@ -44,8 +292,18 @@ void bindColor(py::module_& root) {
       .def("copy", [](const Color& c) { return c; })
       .def(py::self == py::self);
   // Every colour spelling reaches a parameter declared as the class
-  // itself, not only the parameters that read a handle by hand.
-  py::implicitly_convertible<py::str, Color>();
+  // itself, not only the parameters that read a handle by hand. Text is
+  // converted here rather than by a plain implicit conversion, which
+  // would turn the reader's ValueError naming the text into a TypeError
+  // that does not.
+  py::detail::get_type_info(typeid(Color))
+      ->implicit_conversions.emplace_back(
+          [](PyObject* object, PyTypeObject*) -> PyObject* {
+            if (!PyUnicode_Check(object)) return nullptr;
+            const Color read = colorFromText(
+                py::reinterpret_borrow<py::str>(object).cast<std::string>());
+            return py::cast(read).release().ptr();
+          });
   py::implicitly_convertible<py::tuple, Color>();
   py::implicitly_convertible<py::list, Color>();
 }

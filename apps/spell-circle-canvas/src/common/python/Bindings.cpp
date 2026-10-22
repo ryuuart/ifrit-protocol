@@ -6,8 +6,10 @@
 #include <sigilpython/Bindings.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -18,6 +20,45 @@ namespace sigil::python {
 
 namespace py = pybind11;
 
+namespace {
+
+std::string loweredTrimmed(std::string_view text) {
+  while (!text.empty() && std::isspace((unsigned char)text.front()))
+    text.remove_prefix(1);
+  while (!text.empty() && std::isspace((unsigned char)text.back()))
+    text.remove_suffix(1);
+  std::string lowered(text);
+  for (char& character : lowered)
+    character = (char)std::tolower((unsigned char)character);
+  return lowered;
+}
+
+}  // namespace
+
+material::Color colorFromText(std::string_view text) {
+  if (const std::optional<material::Color> read = material::readColor(text))
+    return *read;
+  const std::string lowered = loweredTrimmed(text);
+  const std::string quoted = "'" + std::string(text) + "'";
+  if (lowered == "currentcolor")
+    throw py::value_error(
+        quoted +
+        " names the ink in force, and a flat colour resolves nothing from "
+        "the tree. Write it where a fill is taken, or spell "
+        "compose.Fill.currentInk().");
+  if (lowered.starts_with("var(") && lowered.ends_with(")"))
+    throw py::value_error(
+        quoted +
+        " names a custom property, and a flat colour resolves nothing from "
+        "the tree. Write it where a fill is taken, or spell "
+        "compose.Fill.var(name).");
+  throw py::value_error(
+      quoted +
+      " is no CSS colour. A colour is written as hex (#rgb, #rgba, #rrggbb "
+      "or #rrggbbaa), a CSS name such as 'steelblue', or rgb(), hsl(), "
+      "hwb(), lab(), lch(), oklab(), oklch(), color() or color-mix().");
+}
+
 SkColor4f color(py::handle value) {
   // The colour class itself is read first and read directly: the caster
   // that gives every SkColor4f parameter this reading calls in here, so
@@ -27,10 +68,11 @@ SkColor4f color(py::handle value) {
     return material::skia::toSkColor(py::cast<material::Color>(value));
   if (py::isinstance<py::str>(value))
     return material::skia::toSkColor(
-        draw::parseColor(py::cast<std::string>(value)));
+        colorFromText(py::cast<std::string>(value)));
   if (!py::isinstance<py::tuple>(value) && !py::isinstance<py::list>(value))
     throw py::type_error(
-        "A color is a Color, a CSS string, or an RGB or RGBA sequence.");
+        "A color is a Color, a CSS string, or an RGB or RGBA sequence of "
+        "unit floats.");
   auto channels = py::reinterpret_borrow<py::sequence>(value);
   if (channels.size() != 3 && channels.size() != 4)
     throw py::value_error("A color needs three or four channels.");
@@ -39,7 +81,9 @@ SkColor4f color(py::handle value) {
     rgba[i] = py::cast<float>(channels[i]);
     if (!std::isfinite(rgba[i]) || rgba[i] < 0 || rgba[i] > 1)
       throw py::value_error(
-          "Color sequence channels must be between zero and one.");
+          "Color sequence channels are unit floats between zero and one; "
+          "channels on 0..255 are written material.Color.rgb(red, green, "
+          "blue).");
   }
   return {rgba[0], rgba[1], rgba[2], rgba[3]};
 }

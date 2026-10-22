@@ -443,7 +443,7 @@ class World(unittest.TestCase):
             self.assertAlmostEqual(written, built, places=4)
         # The attenuation colour is a colour like the others: what is
         # written is what is read back.
-        parameters.attenuationColor = Color(0.25, 0.5, 0.75)
+        parameters.attenuationColor = Color.srgb(0.25, 0.5, 0.75)
         for channel, expected in zip(parameters.attenuationColor, (0.25, 0.5, 0.75)):
             self.assertAlmostEqual(channel, expected, places=4)
         parameters.attenuationDistance = 2.0

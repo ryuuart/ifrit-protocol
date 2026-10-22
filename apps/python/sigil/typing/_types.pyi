@@ -83,11 +83,15 @@ ColorLike: TypeAlias = (
     | tuple[FloatLike, FloatLike, FloatLike, FloatLike]
     | list[FloatLike]
 )
-"""A FLAT COLOUR VALUE. The colour class, a CSS string, or three or four
-unit channels. A slot that takes it promises only to read a colour: it
-resolves nothing from the tree and follows no binding, so what it is
-given is what it paints. Colours read back out of the libraries are the
-colour class, so a colour taken off one value passes into the next."""
+"""A FLAT COLOUR VALUE. The colour class, any CSS colour as text (hex,
+a name, `rgb()`, `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`,
+`oklch()`, `color()` or `color-mix()`), or three or four unit channels.
+Text no CSS colour grammar reads raises ValueError naming it. A slot that
+takes it promises only to read a colour: it resolves nothing from the
+tree and follows no binding, so what it is given is what it paints, and
+`currentcolor` or `var(--name)` raise here. Colours read back out of the
+libraries are the colour class, so a colour taken off one value passes
+into the next."""
 PointLike: TypeAlias = _sigil.skia.Point | Sequence[FloatLike]
 RectLike: TypeAlias = _sigil.skia.Rect | Sequence[FloatLike]
 IntRectLike: TypeAlias = Sequence[SupportsIndex]
@@ -119,7 +123,8 @@ FillLike: TypeAlias = (
 )
 """WHAT A SURFACE IS PAINTED WITH: a colour, a Fill, a paint of any
 tier, a recipe instance, a custom-property reference, and None for no
-fill at all. A paint that needs a frame is resolved where it paints; a
+fill at all. The CSS text `currentcolor` is the ink in force and
+`var(--name)` the custom property. A paint that needs a frame is resolved where it paints; a
 slot measured without one reads it as the ink in force."""
 MotionFillLike: TypeAlias = (
     FillLike

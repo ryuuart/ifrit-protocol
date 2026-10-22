@@ -141,6 +141,9 @@ void bindFontVerbs(py::class_<Node>& element) {
           [](Node& self, py::object value, compose::PaintBox box) -> Node& {
             if (py::isinstance<compose::VarRef>(value))
               return self.ink(value.cast<compose::VarRef>());
+            if (const std::optional<compose::VarRef> property =
+                    customPropertyText(value))
+              return self.ink(*property);
             // A material carries effects a fill does not, so it takes the
             // material's own route.
             if (py::isinstance<material::Material>(value))

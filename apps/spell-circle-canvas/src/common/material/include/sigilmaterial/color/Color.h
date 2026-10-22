@@ -16,6 +16,7 @@
 #include <compare>
 #include <concepts>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -75,19 +76,91 @@ constexpr Color hexColor(uint32_t rrggbb, float alpha = 1.0f) {
           (float)(rrggbb & 0xffu) / 255.0f, alpha};
 }
 
-/** A COLOUR FROM ITS CSS TEXT — the spelling a palette kept in a words
- *  file is written in: `#rgb`, `#rgba`, `#rrggbb` and `#rrggbbaa`, the
- *  hex digits in either case, a short digit standing for itself twice
- *  (`#ed7` is `#eedd77`); `transparent`; and the named colours a palette
- *  reaches for — HTML's first sixteen with `grey`, `aqua` and `fuchsia`,
- *  and `orange`, `pink`, `brown`, `gold`, `violet`, `indigo`, `crimson`,
- *  `coral`, `salmon`, `tomato`, `turquoise`, `skyblue`, `steelblue`,
- *  `slategray`, `darkgray` and `lightgray`.
+/** A COLOUR FROM ITS CSS TEXT, or nothing where no CSS colour grammar
+ *  reads it. It reads the whole of CSS Color 4, case-insensitively and
+ *  with the surrounding blank space trimmed:
  *
- *  Text it cannot read is opaque black, which is what a canvas gives an
- *  unparseable colour too, so a misspelt entry shows as a black shape
- *  rather than as nothing. */
+ *  - hex in its four lengths, `#rgb`, `#rgba`, `#rrggbb` and `#rrggbbaa`,
+ *    a short digit standing for itself twice (`#ed7` is `#eedd77`);
+ *  - the 148 named colours and `transparent`;
+ *  - `rgb()` and `rgba()`, `hsl()` and `hsla()`, in the legacy comma
+ *    syntax (`rgb(255, 0, 0)`) and the modern space-separated one with an
+ *    optional `/ alpha` (`rgb(255 0 0 / 50%)`);
+ *  - `hwb()`, `lab()`, `lch()`, `oklab()` and `oklch()`, with `lab` and
+ *    `lch` under the D50 white CSS defines them in;
+ *  - `color(<space> c1 c2 c3 [/ alpha])` over `srgb`, `srgb-linear`,
+ *    `display-p3`, `rec2020`, `a98-rgb`, `prophoto-rgb`, `xyz`,
+ *    `xyz-d50` and `xyz-d65`;
+ *  - `color-mix(in <space> [<arc> hue], <colour> [p%], <colour> [p%])`,
+ *    as `colorMix` mixes.
+ *
+ *  A component may be a number, a percentage or `none`, which reads as
+ *  zero; a hue may carry `deg`, `rad`, `grad` or `turn`. A colour outside
+ *  what sRGB can show is brought inside by reducing its OKLCH chroma at
+ *  its hue and lightness, as `fitToSrgb` does, which is CSS's own gamut
+ *  mapping; `color(srgb …)` alone keeps a channel above 1, since that is a
+ *  legal float colour here.
+ *
+ *  `currentcolor` reads as nothing: it names the ink in force where the
+ *  colour is used, which a value read on its own does not know. */
+std::optional<Color> readColor(std::string_view css);
+
+/** A COLOUR FROM ITS CSS TEXT, FORGIVINGLY — the reading of a palette
+ *  kept in a words file or a JSON value, where one misspelt entry must
+ *  not stop the rest. It reads what `readColor` reads; text no grammar
+ *  reads is opaque black, so a misspelt entry shows as a black shape
+ *  rather than as nothing, and is reported once per distinct text
+ *  through the reporting door.
+ *  @trap A 2D canvas keeps its previous style when handed a colour it
+ *  cannot read, and CSS drops the declaration; this answers black
+ *  instead. A caller that must tell the two apart asks `readColor`. */
 Color parseColor(std::string_view css);
+
+/** One of CSS's 148 named colours, read case-insensitively, or nothing
+ *  for a word that is not one. `transparent` and `currentcolor` are
+ *  keywords rather than names and are not read here. */
+std::optional<Color> namedColor(std::string_view name);
+
+/** CSS `rgb()`: three channels on 0..255 and an alpha on 0..1, each
+ *  clamped to its range as CSS clamps them. `rgb(110, 153, 187)` is the
+ *  same four floats as `hexColor(0x6e99bb)`. `Color{r, g, b, a}` is CSS's
+ *  `color(srgb r g b / a)`, the unit-float spelling. */
+constexpr Color rgb(float red, float green, float blue, float alpha = 1.0f) {
+  return {std::clamp(red, 0.0f, 255.0f) / 255.0f,
+          std::clamp(green, 0.0f, 255.0f) / 255.0f,
+          std::clamp(blue, 0.0f, 255.0f) / 255.0f, std::clamp(alpha, 0.0f, 1.0f)};
+}
+
+/** CSS `hsl()`: the hue in degrees, wrapping, and the saturation and
+ *  lightness on 0..100 as CSS's percentages are, clamped there. */
+Color hsl(float hueDegrees, float saturation, float lightness,
+          float alpha = 1.0f);
+
+/** CSS `hwb()`: the hue in degrees, and how much white and black are
+ *  mixed into it on 0..100. Whiteness and blackness summing past 100 are
+ *  scaled back to a grey, as CSS reads them. */
+Color hwb(float hueDegrees, float whiteness, float blackness,
+          float alpha = 1.0f);
+
+/** CSS `lab()`: CIELAB under the D50 white, lightness on 0..100. It is
+ *  CSS's space, and a different one from the D65 `Lab` the measured
+ *  difference `deltaE` is read in; the two differ by the adaptation
+ *  between the two whites. Gamut-mapped as `readColor` maps. */
+Color lab(float lightness, float a, float b, float alpha = 1.0f);
+
+/** CSS `lch()`: `lab()` in polar form, the chroma and the hue in
+ *  degrees. Gamut-mapped as `readColor` maps. */
+Color lch(float lightness, float chroma, float hueDegrees, float alpha = 1.0f);
+
+/** CSS `oklab()`: lightness on 0..1 and the two OKLab axes.
+ *  Gamut-mapped as `readColor` maps, where `fromOklab` cuts channels. */
+Color oklab(float lightness, float a, float b, float alpha = 1.0f);
+
+/** CSS `oklch()`: lightness on 0..1, the chroma and the hue in degrees.
+ *  Gamut-mapped as `readColor` maps, which is `fitToSrgb` over the same
+ *  three numbers. */
+Color oklch(float lightness, float chroma, float hueDegrees,
+            float alpha = 1.0f);
 
 /** A colour from HUE, SATURATION and VALUE — the wheel a palette is
  *  WALKED on, where `hexColor()` is the one an authored palette is typed in.

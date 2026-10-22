@@ -48,8 +48,16 @@ The four reasoning records:
 
 | Spelling | Language | What it gives |
 | --- | --- | --- |
-| `Color(r, g, b)` / `Color(r, g, b, a)` | C++ | the components directly |
+| `Color(r, g, b)` / `Color(r, g, b, a)` | C++ | the components directly, as CSS's `color(srgb r g b / a)` |
 | `hexColor(0x1f2933)` | C++ | a packed sRGB integer — the spelling a palette is authored in, constexpr, so palette constants stay constexpr |
+| `rgb(31, 41, 51)`, `rgb(r, g, b, alpha)` | C++ | CSS `rgb()`: channels on 0..255, clamped, constexpr |
+| `hsl(hue, saturation, lightness)`, `hwb(hue, whiteness, blackness)` | C++ | CSS `hsl()` and `hwb()`: the hue in degrees, the rest on 0..100 |
+| `oklab(lightness, a, b)`, `oklch(lightness, chroma, hue)` | C++ | CSS `oklab()` and `oklch()`, lightness on 0..1, gamut-mapped |
+| `lab(lightness, a, b)`, `lch(lightness, chroma, hue)` | C++ | CSS `lab()` and `lch()`, under the D50 white, gamut-mapped |
+| `readColor("oklch(0.7 0.1 240)")` | C++ | any CSS Color 4 text, or nothing where no grammar reads it |
+| `parseColor("#1f2933")` | C++ | the same grammar, forgiving: opaque black for what it cannot read, reported once |
+| `namedColor("rebeccapurple")` | C++ | one of CSS's 148 names, or nothing |
+| `colorMix(a, b, amount, ColorSpace::Oklab)` | C++ | CSS `color-mix()` in any space CSS names |
 | `hsv(hue, saturation, value)` | C++ | the wheel a palette is WALKED on; the hue wraps, s and v clamp |
 | an `SkColor4f`, implicitly | C++ | any `FourFloatColor`, field for field |
 | `skia::toColor(colour)` | C++ | the same crossing, spelled, from the Skia side |
@@ -57,11 +65,14 @@ The four reasoning records:
 | `fitToSrgb(lch)` | C++ | the nearest colour the display can show at that hue and lightness — the chroma reduced, nothing else touched |
 | `withAlpha(c, a)`, `scale(c, k)`, `lighten(c, k)` | C++ | a colour derived from a colour |
 | `lerpOklab(a, b, t)`, `mixLinear(a, b, t)`, `mixToward(c, target, t, a)` | C++ | the three mixes |
-| `"#1f2933"` | Python | a CSS colour string, implicitly |
+| `"#1f2933"`, `"steelblue"`, `"rgb(31 41 51 / 50%)"`, `"oklch(0.7 0.1 240)"` | Python | any CSS colour text, implicitly; text no grammar reads raises ValueError |
 | `(0.12, 0.16, 0.20)` / `(0.12, 0.16, 0.20, 0.5)` | Python | a 3- or 4-tuple of unit floats, implicitly |
 | `[0.12, 0.16, 0.20]` | Python | a list, implicitly |
-| `material.hexColor(0x1f2933)`, `material.hsv(...)` | Python | the two authoring spellings |
-| `material.Color(0.12, 0.16, 0.20)` | Python | direct |
+| `material.Color("#1f2933")` | Python | one CSS colour, a colour or a unit-float sequence, never loose channels |
+| `material.Color.rgb(31, 41, 51)`, `material.Color.srgb(0.12, 0.16, 0.20)` | Python | channels on 0..255 as CSS `rgb()`, or unit floats as `color(srgb …)` |
+| `material.Color.hsl(...)`, `.hwb(...)`, `.oklab(...)`, `.oklch(...)`, `.lab(...)`, `.lch(...)` | Python | the CSS functions, with their ranges; a fraction may be `"50%"` |
+| `material.Color.hex("#1f2933")`, `material.Color.named("peru")`, `material.Color.mix(a, b, 0.3, space="oklab")` | Python | hex text or integer, a name, and `color-mix()` |
+| `material.hexColor(0x1f2933)`, `material.hsv(...)` | Python | the packed integer and the palette wheel |
 
 In Python the whole of that column is the union `ColorLike`, and every
 parameter that takes a colour takes every row of it.

@@ -1911,6 +1911,23 @@ bound = "`hexColor`"
 python = ["material.hexColor"]
 
 [[section.surface.item]]
+bound = "colours written as CSS: `Color` read from any CSS Color 4 text, the constructors named after CSS's functions (`rgb`, `srgb`, `hsl`, `hwb`, `lab`, `lch`, `oklab`, `oklch`), `hex`, `named`, `mix` as `color-mix()`, and a colour read back as CSS text"
+python = [
+  "material.Color.rgb",
+  "material.Color.srgb",
+  "material.Color.hsl",
+  "material.Color.hwb",
+  "material.Color.lab",
+  "material.Color.lch",
+  "material.Color.oklab",
+  "material.Color.oklch",
+  "material.Color.hex",
+  "material.Color.named",
+  "material.Color.mix",
+  "material.Color.css",
+]
+
+[[section.surface.item]]
 bound = "`shader`, a shader's source over a dict or NamedTuple of uniforms, with `key`, `target` (`Target`), `sampling` (`Sampling`) and the `textures` it samples, and the same over a file read through a hub, which keeps its last text that compiled and answers `placeholder` while none has"
 python = ["material.shader", "material.Target", "material.Sampling", "material.placeholder"]
 

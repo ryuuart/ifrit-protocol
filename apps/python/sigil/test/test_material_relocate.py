@@ -301,7 +301,7 @@ class TheFieldSubject(unittest.TestCase):
             self.assertIsInstance(made, material.Material)
 
     def test_the_halftone_ramp_reads_every_colour_spelling(self):
-        for value in ("#ff0000", (1, 0, 0), [1, 0, 0, 1], material.Color(1, 0, 0)):
+        for value in ("#ff0000", (1, 0, 0), [1, 0, 0, 1], material.Color.srgb(1, 0, 0)):
             with self.subTest(colour=value):
                 made = material.field.halftoneRamp(
                     spacing=6, minimumRadius=1, maximumRadius=2, color=value
@@ -313,9 +313,9 @@ class TheColourSubject(unittest.TestCase):
     """The colour leaf, which stayed in the file the split began with."""
 
     def test_a_colour_is_written_as_channels_or_as_a_string(self):
-        self.assertEqual(material.Color("#ff0000"), material.Color(1, 0, 0, 1))
-        self.assertEqual(material.hexColor(0xFF0000), material.Color(1, 0, 0, 1))
-        self.assertEqual(tuple(material.Color(red=1, green=0, blue=0)), (1, 0, 0, 1))
+        self.assertEqual(material.Color("#ff0000"), material.Color.srgb(1, 0, 0, 1))
+        self.assertEqual(material.hexColor(0xFF0000), material.Color.srgb(1, 0, 0, 1))
+        self.assertEqual(tuple(material.Color.srgb(red=1, green=0, blue=0)), (1, 0, 0, 1))
 
     def test_a_ramp_answers_the_colour_it_was_built_from(self):
         ramp = material.Ramp(
@@ -324,15 +324,15 @@ class TheColourSubject(unittest.TestCase):
                 material.ColorStop(1.0, "#ffffff"),
             ]
         )
-        self.assertEqual(ramp.at(0.0), material.Color(0, 0, 0, 1))
-        self.assertEqual(ramp(1.0), material.Color(1, 1, 1, 1))
+        self.assertEqual(ramp.at(0.0), material.Color.srgb(0, 0, 0, 1))
+        self.assertEqual(ramp(1.0), material.Color.srgb(1, 1, 1, 1))
         self.assertEqual(ramp, ramp.copy())
 
     def test_a_palette_is_indexed_and_iterated(self):
         palette = material.Palette(["#000000", "#ffffff"])
         self.assertEqual(len(palette), 2)
-        self.assertEqual(palette[-1], material.Color(1, 1, 1, 1))
-        self.assertEqual(next(iter(palette)), material.Color(0, 0, 0, 1))
+        self.assertEqual(palette[-1], material.Color.srgb(1, 1, 1, 1))
+        self.assertEqual(next(iter(palette)), material.Color.srgb(0, 0, 0, 1))
 
 
 class PublicNaming(unittest.TestCase):

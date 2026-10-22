@@ -96,12 +96,13 @@ for this one where a pasted sketch wants p5's.
 The pen's name for `sigil::material::parseColor`, which reads it: a
 colour's text means one colour to a pen, a material and a sheet alike.
 
-`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, and the named colours a sketch
-reaches for — the sixteen of HTML's first palette with `grey`, `orange`,
-`pink`, `brown`, `gold`, `violet`, `indigo`, `crimson`, `coral`,
-`salmon`, `tomato`, `turquoise`, `skyblue`, `steelblue`, `slategray`,
-`darkgray`, `lightgray`, `transparent`. Anything else is opaque black,
-which is what a canvas gives an unparseable colour too.
+The CSS that p5's `color()` reads and the rest of CSS Color 4 with it —
+p5's own `hsb()` is not CSS and is not read: hex in its four lengths, CSS's 148 named colours and `transparent`,
+`rgb()`/`rgba()` and `hsl()`/`hsla()` with commas or spaces, `hwb()`,
+`lab()`, `lch()`, `oklab()`, `oklch()`, `color()` and `color-mix()`.
+Text no grammar reads is opaque black and is reported once; p5's canvas
+keeps its previous style instead, and `sigil::material::readColor` is
+the reading that tells the two apart.
 
 ## Constant: the words a verb takes
 

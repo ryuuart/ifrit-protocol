@@ -27,7 +27,7 @@ read before the four rows under *The surface*.
 | [`Fill`](pages/types/Fill.md) | Nothing, a colour, a material, or a reference the tree resolves at paint — the one value a component declares for a surface. | `Fill::color`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `toFill`, and implicitly from a `material::Material` | `Element::fill`, `Element::ink`, `Text::textStroke`, `PathFormat::strokeFill`, the kit's wells and sheets, every decoration's own paint |
 | [`PaintBox`](pages/types/PaintBox.md) | The rectangle a paint's unit square is stretched over: the element's own box, its padding or content box, the subtree's, the canvas, or each glyph, cluster, word, line or sentence of a passage. | `PaintBox::Element`, `PaintBox::Canvas`, `PaintBox::Glyph`, … | `Element::fill`, `Element::ink`, `Rule::ink`, `SpanStyle::ink` |
 | `material::Material` | What a surface is painted with: a base, the layers over it and the effects around it. | `material::linearGradient`, `material::radialGradient`, `material::conicGradient`, `material::noise`, `material::shader`, `material::from(base).layer(…)`, SigilMaterial's own catalogue | `Element::fill`, `Element::ink`, `Text::textStroke`, `Fill`, a mask's coverage, a text pass, a ribbon's surface |
-| `material::Color` | The one colour class: a colour in a stated space. | SigilMaterial's colour vocabulary | Anywhere a colour is taken, and anywhere a `material::Material` is: a colour converts to one |
+| `material::Color` | The one colour class: four straight sRGB floats, uploaded as one float4. | SigilMaterial's colour vocabulary | Anywhere a colour is taken, and anywhere a `material::Material` is: a colour converts to one |
 
 ## The marks
 
@@ -83,8 +83,13 @@ Python the reference is `compose.var` and the table is the dictionary
 ## What Python spells differently
 
 `material.Color` is the one colour class, and a colour is accepted
-wherever it is written as a string — `"#rrggbb"` and `"#rrggbbaa"` — as
-a three- or four-number sequence, or as a colour value. The paint and
+wherever it is written as CSS colour text — hex, a name, `rgb()`,
+`hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()` or
+`color-mix()` — as a three- or four-number sequence of unit floats, or as
+a colour value; text no grammar reads raises. Channels are written
+through `material.Color.rgb` and its siblings, named after CSS's
+functions. Where a fill is taken, the text `currentcolor` is the ink in
+force and `var(--name)` the custom property. The paint and
 the effect are `material.Paint` and `material.Filter`.
 
 A fill is anything in that list plus `compose.Fill`, a custom property

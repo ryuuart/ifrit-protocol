@@ -1017,6 +1017,66 @@ Access through a pen after its callback, or a context after its session
 ends, raises an exception. Context and pen operations run on the
 session's owning thread.
 
+## Colours
+
+A colour is written the way a stylesheet writes one. Any slot that takes
+a colour takes its CSS text, and `material.Color(text)` reads the same
+text into the colour class:
+
+```python
+from sigil import compose, material
+
+ground = "#18252e"                     # hex: #rgb, #rgba, #rrggbb, #rrggbbaa
+accent = "steelblue"                   # any of CSS's 148 named colours
+glow = "rgb(255 180 90 / 60%)"         # rgb() and rgba(), commas or spaces
+leaf = "hsl(140 45% 38%)"              # hsl(), hwb()
+sky = "oklch(0.72 0.11 240)"           # oklab(), oklch(), lab(), lch()
+wide = "color(display-p3 1 0.2 0.1)"   # color() over CSS's predefined spaces
+between = "color-mix(in oklab, #18252e 70%, steelblue)"
+
+card = compose.box().fill(ground).ink(accent)
+swatch = material.Color(sky)
+```
+
+Text no CSS colour grammar reads raises `ValueError` naming the text, so a
+misspelt colour stops where it is written rather than painting black.
+
+**Channels go through constructors named after CSS's functions**, each
+taking the ranges its CSS function takes; a fraction may be a number or
+percentage text such as `"50%"`:
+
+| Constructor | Reads |
+| --- | --- |
+| `Color.rgb(255, 180, 90, alpha=0.6)` | CSS `rgb()`: channels on 0..255, alpha on 0..1, clamped |
+| `Color.srgb(1.0, 0.7, 0.35)` | CSS `color(srgb …)`: unit floats, a channel above 1 kept |
+| `Color.hsl(140, 45, 38)`, `Color.hwb(140, 20, 30)` | hue in degrees, the rest on 0..100 |
+| `Color.oklch(0.72, 0.11, 240)`, `Color.oklab(0.72, -0.05, -0.1)` | lightness on 0..1 |
+| `Color.lch(70, 40, 240)`, `Color.lab(70, -10, -38)` | CSS's CIELAB, under the D50 white |
+| `Color.hex("#18252e")`, `Color.hex(0x18252E, alpha=0.5)` | hex text or a packed integer |
+| `Color.named("rebeccapurple")` | a CSS name |
+| `Color.mix("#18252e", "steelblue", 0.3, space="oklab")` | CSS `color-mix()` |
+
+`material.Color(value)` takes one colour — text, a `Color`, or three or
+four unit floats — and never loose channels: `Color(255, 0, 0)` raises,
+because 255 means a byte to `rgb()` and two hundred and fifty-five times
+white to `srgb()`. The tuple form is unit floats too, the bridge from
+`numpy` and `colorsys`, and refuses a channel outside 0..1.
+
+The colour class is one sRGB float4. A colour outside what sRGB can show
+— `color(display-p3 …)`, a wide `oklch()` — keeps its OKLCH lightness and
+hue and gives up chroma until it fits, which is CSS's own gamut mapping.
+A colour reads back as CSS: `repr` is `Color('#18252e')` where every
+channel is an eight-bit step and `Color.srgb(…)` otherwise, and `css()`
+and `str()` give the text.
+
+Where a fill is taken — `fill`, `ink`, a stroke's paint, a text shadow —
+the text `currentcolor` is the ink in force and `var(--name)` the custom
+property, as `compose.Fill.currentInk()` and `compose.Fill.var(name)`
+spell them. A flat colour slot resolves nothing from the tree and raises
+on both. `Element.var(name, text)` holds a length where the length
+grammar reads the text (`"12px"`, `"1.5em"`, `"50%"`) and a colour where
+the colour grammar does.
+
 ## Session services
 
 The context exposes checked views of the native services:

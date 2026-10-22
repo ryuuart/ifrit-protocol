@@ -110,12 +110,16 @@ Three unions name the three roles, and in Python they are spelled:
 
 | Role | Python union | What it accepts |
 | --- | --- | --- |
-| a flat colour value | `ColorLike` | `material.Color`, a CSS string, a 3- or 4-tuple or list of unit floats |
-| a fill | `FillLike` | everything in `ColorLike`, plus `compose.Fill`, `compose.VarRef`, `material.Material`, `material.Paint` as the base of a material, and `None` |
+| a flat colour value | `ColorLike` | `material.Color`, any CSS colour text, a 3- or 4-tuple or list of unit floats |
+| a fill | `FillLike` | everything in `ColorLike`, plus `compose.Fill`, `compose.VarRef`, the text `currentcolor` and `var(--name)`, `material.Material`, `material.Paint` as the base of a material, and `None` |
 | a fill that may move | `MotionFillLike` | everything in `FillLike`, plus the transitions and outputs |
 
 The narrowings that ARE modelled, with their reasons:
 
+- **A flat colour slot refuses `currentcolor` and `var(--name)`.** It
+  resolves nothing from the tree, so the two words would have no colour
+  to give it; it raises ValueError saying so, where a fill slot reads
+  them as `Fill.currentInk()` and `Fill.var(name)`.
 - **`Element::ink` takes a colour and not an animatable.** The ink
   inherits, so a bound ink would make the whole inheriting subtree
   volatile.

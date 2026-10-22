@@ -16,8 +16,9 @@ tables are the control a colour tool reaches for.
 
 ## Colour
 
-**THE BOUNDARY: this feature is colour and nothing else.** It links
-nothing of this project's and no renderer, so every value here is stated
+**THE BOUNDARY: this feature is colour and nothing else.** It links no
+renderer — of this project's own libraries only the core's curve and its
+reporting door — so every value here is stated
 over colours and numbers — a table of pixels rather than an image, a
 function pointer rather than a curve object, a stop list rather than a
 gradient. Where a value has to meet a picture, the crossing lives with
@@ -142,21 +143,63 @@ written. There is no Skia-coloured spelling of them: a consumer holding
 Skia's colour crosses once, with `skia::toColor`, and reaches the verbs
 themselves.
 
-**Two ways to name a colour, for two different jobs.** `hexColor()` is how an
-authored palette is typed in — and `parseColor()` how one kept as text is
-read, in a words file or a JSON value a sheet's custom property is set
-from: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `transparent` and the named
-colours, anything else opaque black. It is the one reading of a colour's
-text in the tree, so the pen library's `parseColor` is this one; `hsv(hueDegrees, saturation, value)` is how
-a palette is WALKED — a wheel, a run of chips on a golden-angle step, one
-hue's tone ladder read off saturation and value together. The hue wraps
-and the other two clamp, and both folds are in the verb rather than at
-the call site because the sextant ladder underneath answers magenta for
-any hue it does not recognise, which is exactly what an unwrapped angle
-hands it. HSV is not a perceptual space and must not be used as one:
-`value` is the largest channel and nothing more, so a full-value yellow
-and a full-value blue are nowhere near the same brightness. Anything that
-INTERPOLATES goes through `lerpOklab`.
+**A colour is named the way CSS names one.** `hexColor()` is how an
+authored palette is typed in, and beside it stand builders named after
+CSS's colour functions, each taking its function's ranges: `rgb(r, g, b,
+alpha)` on 0..255, `hsl(hue, saturation, lightness)` and `hwb(hue,
+whiteness, blackness)` with the hue in degrees and the rest on 0..100,
+`oklab()` and `oklch()` with a lightness on 0..1, and `lab()` and `lch()`
+in CSS's CIELAB. `Color{r, g, b, a}` itself is CSS's `color(srgb …)`.
+
+`readColor()` reads a colour's text — the whole of CSS Color 4: hex in
+its four lengths, the 148 names and `transparent`, `rgb()`/`rgba()` and
+`hsl()`/`hsla()` in the legacy comma syntax and the modern one with
+`/ alpha`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()`
+over `srgb`, `srgb-linear`, `display-p3`, `rec2020`, `a98-rgb`,
+`prophoto-rgb` and the XYZ spaces, and `color-mix()`; percentages and
+`none` where CSS takes them, `deg`, `rad`, `grad` and `turn` on a hue,
+case-insensitively and trimmed. Text no grammar reads is nothing, and so
+is `currentcolor`, which names a colour only the place it is used knows.
+`parseColor()` is the forgiving reading a words file or a JSON value a
+sheet's custom property is set from wants: the same grammar, opaque black
+for what it cannot read, and the text said once through the reporting
+door, so one misspelt entry shows as a black shape and a line in the log
+rather than stopping the rest. A 2D canvas keeps its previous style
+instead, and CSS drops the declaration; a caller that must tell the two
+apart asks `readColor()`. It is the one reading of a colour's text in the
+tree, so the pen library's `parseColor` is this one.
+
+**`lab()` is CSS's CIELAB, and `Lab` is not.** CSS states `lab()` and
+`lch()` under the D50 white and adapts to sRGB's D65 with Bradford, so a
+stylesheet's `lab(54.29 80.82 69.91)` is red here as it is in a browser.
+The `Lab` record, `toLab` and `deltaE` measure under D65, the white a
+published difference is quoted against; the two read the same colour as
+numbers a few units apart.
+
+**Wide gamut is mapped at the door.** A colour outside what sRGB can show
+— `color(display-p3 1 0 0)`, an `oklch()` with more chroma than the hue
+holds, a `lab()` far from grey — keeps its OKLCH lightness and hue and
+gives up chroma until it fits: `fitToSrgb`, which is CSS's own gamut
+mapping. `color(srgb …)` alone keeps a channel above 1, which is a legal
+float colour here.
+
+**`colorMix` is CSS's `color-mix()`** (`Mix.h`): two colours mixed in any
+`ColorSpace` CSS names, `readColorSpace` reading the name, the channels
+premultiplied by alpha, a polar space's hue walked along a `HueArc`, and
+a grey taking the other end's hue. `lerpOklab`, `mixLinear` and
+`mixToward` stay as the three mixes a hot loop reaches for.
+
+`hsv(hueDegrees, saturation, value)` is how a palette is WALKED — a
+wheel, a run of chips on a golden-angle step, one hue's tone ladder read
+off saturation and value together. It is no CSS function, and its two
+fractions stay on 0..1. The hue wraps and the other two clamp, and both
+folds are in the verb rather than at the call site because the sextant
+ladder underneath answers magenta for any hue it does not recognise,
+which is exactly what an unwrapped angle hands it. HSV is not a
+perceptual space and must not be used as one: `value` is the largest
+channel and nothing more, so a full-value yellow and a full-value blue
+are nowhere near the same brightness. Anything that INTERPOLATES goes
+through `lerpOklab`.
 
 **A Skia colour crosses at one place, and it is `Color` itself.**
 `SkColor4f` holds the same four straight sRGB floats in the same order,

@@ -125,6 +125,26 @@ def register(table: Table) -> None:
         "_sigil.material.pattern", "gridLines halftone stripes", "_t.ColorLike"
     )
     table.erased("_sigil.material.Color", "__init__", "_t.ColorLike")
+    # A channel of a named constructor is a number or CSS percentage text.
+    channel = "_t.FloatLike | str"
+    for constructor, names in (
+        ("rgb", ("red", "green", "blue", "alpha")),
+        ("srgb", ("red", "green", "blue", "alpha")),
+        ("hsl", ("saturation", "lightness", "alpha")),
+        ("hwb", ("whiteness", "blackness", "alpha")),
+        ("lab", ("lightness", "greenRed", "blueYellow", "alpha")),
+        ("lch", ("lightness", "chroma", "alpha")),
+        ("oklab", ("lightness", "greenRed", "blueYellow", "alpha")),
+        ("oklch", ("lightness", "chroma", "alpha")),
+    ):
+        table.parameters(
+            "_sigil.material.Color." + constructor,
+            **{name: channel for name in names},
+        )
+    table.parameters("_sigil.material.Color.hex", value="str | typing.SupportsInt")
+    table.parameters(
+        "_sigil.material.Color.mix", first="_t.ColorLike", second="_t.ColorLike"
+    )
     table.returns(
         "_sigil.material.Color", "__iter__", "collections.abc.Iterator[float]"
     )

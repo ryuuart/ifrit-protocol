@@ -190,10 +190,10 @@ def flame(
             startFrame=start_frame,
         ),
     )
-    return material.from_(Color(0, 0, 0, 1)).surface(
+    return material.from_(Color.srgb(0, 0, 0, 1)).surface(
         metallic=1.0,
         roughness=1.0,
-        emission=Color(1, 1, 1, 1),
+        emission=Color.srgb(1, 1, 1, 1),
         emissionStrength=3.2,
         emissionMap=played,
         blend=material.BlendMode.PlusLighter,
@@ -210,10 +210,10 @@ def ember(sheet: material.Texture) -> material.Material:
             columns=COLUMNS, rows=ROWS, framesPerSecond=0, frameAttribute="cell"
         ),
     )
-    return material.from_(Color(0, 0, 0, 1)).surface(
+    return material.from_(Color.srgb(0, 0, 0, 1)).surface(
         metallic=1.0,
         roughness=1.0,
-        emission=Color(1.0, 0.78, 0.52, 1),
+        emission=Color.srgb(1.0, 0.78, 0.52, 1),
         emissionStrength=3.0,
         emissionMap=played,
         blend=material.BlendMode.PlusLighter,
@@ -268,9 +268,9 @@ def coals(mask: material.Texture, flow: material.Texture) -> material.Material:
     """The coals: dark where cold, glowing where the packed mask's noise,
     streaming slowly along the swirl, says they are hot."""
     grain = material.channel(material.image(mask), material.ColorChannel.Green)
-    return material.from_(Color(0.07, 0.05, 0.045, 1)).surface(
+    return material.from_(Color.srgb(0.07, 0.05, 0.045, 1)).surface(
         roughness=0.9,
-        emission=Color(1.0, 0.36, 0.08, 1),
+        emission=Color.srgb(1.0, 0.36, 0.08, 1),
         emissionStrength=4.0,
         emissionMap=material.flowmap(
             grain, material.FlowmapOptions(flow=flow, strength=0.18, speed=0.5)
@@ -324,12 +324,12 @@ class PythonFlipbookFire:
         self.sheet = flame_sheet()
         self.iron = surfaces.program(
             surfaces.SurfaceParameters(
-                baseColor=Color(0.20, 0.18, 0.16, 1), metallic=1.0, roughness=0.42
+                baseColor=Color.srgb(0.20, 0.18, 0.16, 1), metallic=1.0, roughness=0.42
             )
         )
         self.floor = surfaces.program(
             surfaces.SurfaceParameters(
-                baseColor=Color(0.16, 0.14, 0.13, 1), roughness=0.85
+                baseColor=Color.srgb(0.16, 0.14, 0.13, 1), roughness=0.85
             )
         )
         self.embers = coals(packed_mask(), swirl())
@@ -366,7 +366,7 @@ class PythonFlipbookFire:
                 .facing(world.Facing.Camera)
                 .fill(self.sparks),
                 world.pointLight(
-                    color=Color(1.0, 0.62, 0.30, 1),
+                    color=Color.srgb(1.0, 0.62, 0.30, 1),
                     intensity=world.intensityAt(1.6 * burning, 220.0),
                 )
                 .key("light")
@@ -380,8 +380,8 @@ class PythonFlipbookFire:
         model = world.group(
             world.camera(self.lens, exposure=1.4, toneCurve=world.ToneCurve.Neutral),
             world.hemisphereLight(
-                color=Color(0.10, 0.12, 0.20, 1),
-                groundColor=Color(0.05, 0.03, 0.02, 1),
+                color=Color.srgb(0.10, 0.12, 0.20, 1),
+                groundColor=Color.srgb(0.05, 0.03, 0.02, 1),
                 intensity=0.25,
             ),
             world.mesh(mesh.quad(1600, 1600))

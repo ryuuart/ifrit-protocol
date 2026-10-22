@@ -33,7 +33,8 @@ enum class RampSpace : uint8_t { Srgb, Linear, Oklab, Oklch };
  *  `Longer` is the other one, the way a ramp is made to travel through
  *  the rest of the wheel; `Increasing` and `Decreasing` force the sign,
  *  which is what a sweep meant to keep turning the same way needs when
- *  its stops cross the wrap. Read only when the space is `Oklch`. */
+ *  its stops cross the wrap. Read where a ramp walks `Oklch`, and where
+ *  `colorMix` mixes in a space with a hue. */
 enum class HueArc : uint8_t { Shorter, Longer, Increasing, Decreasing };
 
 /** THE RAMP: stops, and the five decisions about how they are read.

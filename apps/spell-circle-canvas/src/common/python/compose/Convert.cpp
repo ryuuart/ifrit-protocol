@@ -18,9 +18,12 @@
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
 
+#include <cctype>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace sigil::python {
@@ -46,8 +49,54 @@ compose::Dimension dimension(py::handle value) {
       "'9pt', '50%', '10pw', '10ph' or var(name).");
 }
 
+std::optional<compose::VarRef> customPropertyText(py::handle value) {
+  if (!py::isinstance<py::str>(value)) return std::nullopt;
+  std::string_view text = value.cast<std::string_view>();
+  while (!text.empty() && std::isspace((unsigned char)text.front()))
+    text.remove_prefix(1);
+  while (!text.empty() && std::isspace((unsigned char)text.back()))
+    text.remove_suffix(1);
+  if (text.size() < 5 || text.back() != ')') return std::nullopt;
+  for (size_t index = 0; index < 4; ++index)
+    if (std::tolower((unsigned char)text[index]) != "var("[index])
+      return std::nullopt;
+  std::string_view name = text.substr(4, text.size() - 5);
+  while (!name.empty() && std::isspace((unsigned char)name.front()))
+    name.remove_prefix(1);
+  while (!name.empty() && std::isspace((unsigned char)name.back()))
+    name.remove_suffix(1);
+  // A leading `--` is CSS's mark for a custom property and names the same
+  // property as the bare name does.
+  if (name.starts_with("--")) name.remove_prefix(2);
+  if (name.empty()) return std::nullopt;
+  return compose::var(name);
+}
+
+namespace {
+
+/** Whether @p value is the text `currentcolor`, in any case. */
+bool currentColorText(py::handle value) {
+  if (!py::isinstance<py::str>(value)) return false;
+  std::string_view text = value.cast<std::string_view>();
+  while (!text.empty() && std::isspace((unsigned char)text.front()))
+    text.remove_prefix(1);
+  while (!text.empty() && std::isspace((unsigned char)text.back()))
+    text.remove_suffix(1);
+  constexpr std::string_view kWord = "currentcolor";
+  if (text.size() != kWord.size()) return false;
+  for (size_t index = 0; index < text.size(); ++index)
+    if (std::tolower((unsigned char)text[index]) != kWord[index]) return false;
+  return true;
+}
+
+}  // namespace
+
 compose::Fill fill(py::handle value) {
   if (value.is_none()) return compose::Fill::none();
+  // CSS's two ways of naming a colour the tree resolves, as text.
+  if (currentColorText(value)) return compose::Fill::currentInk();
+  if (const std::optional<compose::VarRef> property = customPropertyText(value))
+    return compose::Fill::var(*property);
   if (py::isinstance<compose::Fill>(value)) return value.cast<compose::Fill>();
   if (py::isinstance<compose::VarRef>(value))
     return compose::Fill::var(value.cast<compose::VarRef>());
@@ -179,9 +228,21 @@ compose::VarValue variable(py::handle value) {
     if (paint.kind == compose::Fill::Kind::Color) return paint.colorValue;
     return paint;
   }
+  // Text is a length where the length grammar reads it and a colour
+  // where the colour grammar does; the two grammars share no text.
   if (py::isinstance<py::str>(value)) {
     const auto text = value.cast<std::string>();
-    if (text != "auto" && !text.ends_with("%")) return color(value);
+    if (const std::optional<compose::Dimension> length =
+            compose::parseDimension(text))
+      return *length;
+    if (const std::optional<material::Color> read = material::readColor(text))
+      return *read;
+    throw py::value_error(
+        "'" + text +
+        "' is neither a length nor a colour. A custom property holds a "
+        "length written as text ('12px', '1.5em', '50%', 'auto'), a colour "
+        "written as CSS ('#18252e', 'steelblue', 'oklch(0.7 0.1 240)'), a "
+        "number, a Color, a Dimension, a Material or a Paint.");
   }
   if (py::isinstance<material::Color>(value) ||
       py::isinstance<py::tuple>(value) || py::isinstance<py::list>(value))

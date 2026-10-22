@@ -64,12 +64,14 @@ version of its top.
 | `Fill::var(name)` | C++ | the same, interning the name through `compose::var` — C++ only, since Python's `Fill.var` takes the reference alone |
 | `material::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as the `material::Color` a `Fill::color` takes |
 | `compose::toFill(material)` | C++ | the static collapse of a material — a flat one is its colour, a static one is itself, and one that needs a frame is nothing |
-| `"#1f2933"` | Python | a CSS colour string, implicitly |
+| `"#1f2933"`, `"steelblue"`, `"oklch(0.7 0.1 240)"` | Python | any CSS colour text, implicitly |
+| `"currentcolor"` | Python | `Fill.currentInk()`, written as CSS writes it |
+| `"var(--gutter)"` | Python | `Fill.var(compose.var("gutter"))`, written as CSS writes it |
 | `(0.12, 0.16, 0.20)` | Python | a 3-tuple of unit floats, implicitly |
 | `(0.12, 0.16, 0.20, 0.5)` | Python | a 4-tuple, the fourth being alpha |
 | `[0.12, 0.16, 0.20]` | Python | a list of unit floats, implicitly |
-| `material.Color(0.12, 0.16, 0.20)` | Python | the one colour class, implicitly |
-| `material.rgb(0x1f2933)` | Python | the packed integer, which Python spells as a colour rather than as a fill |
+| `material.Color.srgb(0.12, 0.16, 0.20)`, `material.Color.rgb(31, 41, 51)` | Python | the one colour class, implicitly |
+| `material.Color.hex(0x1f2933)` | Python | the packed integer, which Python spells as a colour rather than as a fill |
 | `compose.var("gutter")` | Python | a custom-property reference, implicitly — the colour the nearest ancestor set under that name |
 | `compose.Fill.color(...)`, `compose.Fill.currentInk()` | Python | the named constructors, each under its own name |
 | `compose.Fill.var(compose.var("gutter"))` | Python | the reference form, which is the only one Python's `Fill.var` takes |

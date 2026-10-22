@@ -134,11 +134,11 @@ class Colors(unittest.TestCase):
     def test_one_colour_class_reads_every_spelling(self):
         self.assertEqual(
             material.Color("#6e99bb"),
-            material.Color(0x6E / 255, 0x99 / 255, 0xBB / 255),
+            material.Color.srgb(0x6E / 255, 0x99 / 255, 0xBB / 255),
         )
         read = compose.Fill.color((0.25, 0.5, 0.75)).colorValue
         self.assertIsInstance(read, material.Color)
-        self.assertEqual(read, material.Color(0.25, 0.5, 0.75))
+        self.assertEqual(read, material.Color.srgb(0.25, 0.5, 0.75))
         # A colour returned by one library is a colour the next accepts.
         self.assertEqual(Paint.solid(read), Paint.solid((0.25, 0.5, 0.75)))
         with self.assertRaises(TypeError):

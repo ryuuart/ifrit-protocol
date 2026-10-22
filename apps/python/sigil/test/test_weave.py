@@ -156,7 +156,7 @@ class Typography(unittest.TestCase):
         def tracked(color):
             return weave.kit.tracked(None, 12.0, color, 40.0)
 
-        red = tracked(material.Color(1.0, 0.0, 0.0, 1.0))
+        red = tracked(material.Color.srgb(1.0, 0.0, 0.0, 1.0))
         self.assertEqual(tracked("#ff0000"), red)
         self.assertEqual(tracked((1.0, 0.0, 0.0)), red)
         self.assertNotEqual(tracked("#00ff00"), red)

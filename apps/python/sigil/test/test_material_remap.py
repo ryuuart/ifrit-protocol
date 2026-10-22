@@ -56,9 +56,9 @@ class Remap(unittest.TestCase):
                     compose.box().size(40, 10).fill(material.remap(
                         ramp, from_=(0.1, 0.9), to=(0.2, 0.7))),
                     compose.box().size(40, 10).fill(
-                        material.Material(material.Color(0.2, 0.2, 0.2))),
+                        material.Material(material.Color.srgb(0.2, 0.2, 0.2))),
                     compose.box().size(40, 10).fill(
-                        material.Material(material.Color(0.7, 0.7, 0.7))),
+                        material.Material(material.Color.srgb(0.7, 0.7, 0.7))),
                 ).column().size(40, 30))
             """,
             size=size,
@@ -73,7 +73,7 @@ class Remap(unittest.TestCase):
         self.assertLess(middle, high)
 
     def test_the_record_form_is_the_keyword_form(self):
-        ramp = material.Material(material.Color(0.5, 0.5, 0.5))
+        ramp = material.Material(material.Color.srgb(0.5, 0.5, 0.5))
         options = material.RemapOptions(
             from_=material.ValueRange(0.1, 0.9), to=material.ValueRange(0.2, 0.7)
         )
@@ -83,17 +83,17 @@ class Remap(unittest.TestCase):
         )
 
     def test_a_layer_mask_takes_its_fields_as_a_tuple(self):
-        depth = material.Material(material.Color(0.5, 0.5, 0.5))
-        white = material.Color(1, 1, 1)
-        by_tuple = material.Material(material.Color(0, 0, 0)).layer(
+        depth = material.Material(material.Color.srgb(0.5, 0.5, 0.5))
+        white = material.Color.srgb(1, 1, 1)
+        by_tuple = material.Material(material.Color.srgb(0, 0, 0)).layer(
             white, mask=(depth, material.ColorChannel.Luminance)
         )
-        by_record = material.Material(material.Color(0, 0, 0)).layer(
+        by_record = material.Material(material.Color.srgb(0, 0, 0)).layer(
             white, mask=material.Mask(depth, material.ColorChannel.Luminance)
         )
         self.assertEqual(by_tuple, by_record)
         with self.assertRaises(TypeError):
-            material.Material(material.Color(0, 0, 0)).layer(white, mask=(depth,))
+            material.Material(material.Color.srgb(0, 0, 0)).layer(white, mask=(depth,))
 
 
 if __name__ == "__main__":

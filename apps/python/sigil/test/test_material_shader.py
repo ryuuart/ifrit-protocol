@@ -27,7 +27,7 @@ from sigil.sketch import sketch
 @sketch(size=(8, 8), background="#000000", captureAt=0)
 class Scene:
     def setup(self, ctx):
-        flat = material.shader({source!r}, {{"ink": material.Color(0, 0, 1, 1), "level": 1.0}})
+        flat = material.shader({source!r}, {{"ink": material.Color.srgb(0, 0, 1, 1), "level": 1.0}})
         ctx.render(box().width(8).height(8).fill(flat))
 """
 
@@ -39,7 +39,7 @@ class Tone(NamedTuple):
 
 class Shader(unittest.TestCase):
     def test_one_source_is_one_definition(self):
-        red = {"ink": material.Color(1, 0, 0, 1), "level": 0.5}
+        red = {"ink": material.Color.srgb(1, 0, 0, 1), "level": 0.5}
         self.assertEqual(material.shader(FLAT, red), material.shader(FLAT, red))
         self.assertNotEqual(
             material.shader(FLAT, red), material.shader(FLAT + "\n", red)
@@ -47,13 +47,13 @@ class Shader(unittest.TestCase):
 
     def test_a_named_tuple_is_the_same_parameters_as_a_dict(self):
         self.assertEqual(
-            material.shader(FLAT, Tone(material.Color(1, 0, 0, 1), 0.5)),
-            material.shader(FLAT, {"ink": material.Color(1, 0, 0, 1), "level": 0.5}),
+            material.shader(FLAT, Tone(material.Color.srgb(1, 0, 0, 1), 0.5)),
+            material.shader(FLAT, {"ink": material.Color.srgb(1, 0, 0, 1), "level": 0.5}),
         )
 
     def test_color_strings_declare_colors_and_numeric_sequences_declare_vectors(self):
         explicit = material.shader(
-            FLAT, {"ink": material.Color(0, 0, 1, 1), "level": 1.0}
+            FLAT, {"ink": material.Color.srgb(0, 0, 1, 1), "level": 1.0}
         )
         self.assertEqual(
             explicit, material.shader(FLAT, {"ink": "#0000ff", "level": 1.0})
@@ -63,7 +63,7 @@ class Shader(unittest.TestCase):
         )
 
     def test_a_field_is_written_through_the_material_by_name(self):
-        tone = {"ink": material.Color(1, 0, 0, 1), "level": 0.5}
+        tone = {"ink": material.Color.srgb(1, 0, 0, 1), "level": 0.5}
         moved = material.shader(FLAT, tone)
         moved.set("level", 0.8)
         self.assertNotEqual(moved, material.shader(FLAT, tone))
@@ -71,7 +71,7 @@ class Shader(unittest.TestCase):
     def test_color_bindings_accept_typed_constants_and_motion_values(self):
         factories = (
             lambda: material.shader(
-                FLAT, {"ink": material.Color(1, 0, 0, 1), "level": 1.0}
+                FLAT, {"ink": material.Color.srgb(1, 0, 0, 1), "level": 1.0}
             ),
             lambda: material.Paint.sksl(
                 "uniform float4 ink; uniform float level; " + FLAT,
@@ -80,7 +80,7 @@ class Shader(unittest.TestCase):
         )
         for make in factories:
             for value in (
-                material.Color(0, 0, 1, 1),
+                material.Color.srgb(0, 0, 1, 1),
                 motion.ColorTween(to="#0000ff"),
                 motion.animatable("#0000ff"),
             ):
@@ -104,7 +104,7 @@ class Shader(unittest.TestCase):
     def test_a_bound_color_is_read_in_every_color_spelling(self):
         factories = (
             lambda: material.shader(
-                FLAT, {"ink": material.Color(1, 0, 0, 1), "level": 1.0}
+                FLAT, {"ink": material.Color.srgb(1, 0, 0, 1), "level": 1.0}
             ),
             lambda: material.Paint.sksl(
                 "uniform float4 ink; uniform float level; " + FLAT,
@@ -115,7 +115,7 @@ class Shader(unittest.TestCase):
             # Copies of one value share its program, so what differs
             # between them is only what was bound.
             base = make()
-            expected = base.copy().bind("ink", material.Color(0, 0, 1, 1))
+            expected = base.copy().bind("ink", material.Color.srgb(0, 0, 1, 1))
             for value in ("#0000ff", (0, 0, 1), [0, 0, 1, 1]):
                 with self.subTest(factory=make, value=value):
                     bound = base.copy().bind("ink", value)
@@ -146,7 +146,7 @@ class Shader(unittest.TestCase):
                         paint = material.shader(body, {"ink": self.tint,
                                                       "level": self.level})
                     elif mode == "material":
-                        paint = material.shader(body, {"ink": material.Color(1, 0, 0, 1),
+                        paint = material.shader(body, {"ink": material.Color.srgb(1, 0, 0, 1),
                                                       "level": 1.0})
                         paint.bind("ink", self.tint)
                     else:
@@ -214,7 +214,7 @@ class Shader(unittest.TestCase):
             )
             (Path(folder) / "absent.sksl").write_text(FLAT)
             self.assertTrue(hub.poll())
-            tone = {"ink": material.Color(1, 0, 0, 1), "level": 0.5}
+            tone = {"ink": material.Color.srgb(1, 0, 0, 1), "level": 0.5}
             good = material.shader(hub, "res://absent.sksl", tone)
             self.assertNotEqual(good, material.placeholder())
             self.assertFalse(hub.problems())

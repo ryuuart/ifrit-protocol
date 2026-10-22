@@ -81,6 +81,41 @@ material::Material panel = material::from({
 
 Use either form; both build the same value model.
 
+### Colours
+
+`material::Color` is four straight sRGB floats, uploaded as one float4;
+`Color{r, g, b, a}` is CSS's `color(srgb r g b / a)`. Beside it stand
+builders named after CSS's colour functions, each taking the ranges its
+function takes, and a reader of a colour's CSS text:
+
+```cpp
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/color/Mix.h>
+
+namespace material = sigil::material;
+
+const material::Color ground = material::hexColor(0x18252e);
+const material::Color glow = material::rgb(255, 180, 90, 0.6f);
+const material::Color leaf = material::hsl(140, 45, 38);
+const material::Color sky = material::oklch(0.72f, 0.11f, 240);
+const material::Color between =
+    material::colorMix(ground, sky, 0.3f, material::ColorSpace::Oklab);
+const std::optional<material::Color> read =
+    material::readColor("color(display-p3 1 0.2 0.1)");
+```
+
+`rgb` takes channels on 0..255; `hsl` and `hwb` a hue in degrees and the
+rest on 0..100; `oklab` and `oklch` a lightness on 0..1; `lab` and `lch`
+CSS's CIELAB under the D50 white. `material::readColor` reads the whole of
+CSS Color 4 — hex, the 148 names, `rgb()`, `hsl()`, `hwb()`, `lab()`,
+`lch()`, `oklab()`, `oklch()`, `color()` over the predefined spaces and
+`color-mix()` — and answers nothing for text no grammar reads.
+`material::parseColor` is the forgiving reading a words file wants: the
+same grammar, opaque black for what it cannot read, said once through the
+reporting door. A colour outside sRGB keeps its OKLCH lightness and hue
+and gives up chroma until it fits, as `material::fitToSrgb` does, which is
+CSS's own gamut mapping. `COLOUR.md` is the chapter.
+
 ## Gradients and images
 
 ```cpp

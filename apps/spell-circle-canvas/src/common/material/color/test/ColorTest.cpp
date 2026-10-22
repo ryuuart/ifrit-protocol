@@ -1,13 +1,18 @@
 /** @file
  * The colour feature: the sRGB curve round-trips and clamps, so does
  * OKLab, its midpoint is perceptual, the hue wheel folds whatever it is
- * handed, and a four-float colour crosses in by shape.
+ * handed, a four-float colour crosses in by shape, and a colour's CSS
+ * text reads in every notation CSS Color 4 gives it.
  */
 
 #include <gtest/gtest.h>
+#include <sigilcore/report/Report.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/color/Mix.h>
 
 #include <algorithm>
+#include <string>
+#include <vector>
 
 using namespace sigil::material;
 
@@ -261,24 +266,231 @@ TEST(Color, APaletteIsReadExactlyWhereARampIsReadBetween) {
 }
 
 // A colour's text reads to the colour and alpha its digits say, whichever
-// of the four hex lengths spells it; a named colour reads to its CSS
-// value; and text it cannot read is opaque black.
+// of the four hex lengths spells it, and a named colour reads to its CSS
+// value whatever its case.
 TEST(Color, ACssColourReadsToTheColourItsDigitsSay) {
   const Color six = parseColor("#e3d7b6");
   EXPECT_EQ(six, hexColor(0xe3d7b6));
   EXPECT_EQ(parseColor("#e3d7b6ff"), six);
   EXPECT_EQ(parseColor("#E3D7B6"), six);
+  EXPECT_EQ(parseColor("  #e3d7b6\n"), six);
   EXPECT_EQ(parseColor("#ed7"), hexColor(0xeedd77));
   EXPECT_EQ(parseColor("#ed78"), hexColor(0xeedd77, (float)0x88 / 255.0f));
   EXPECT_EQ(parseColor("#3a3125b8"), hexColor(0x3a3125, (float)0xb8 / 255.0f));
 
   EXPECT_EQ(parseColor("steelblue"), hexColor(0x4682b4));
+  EXPECT_EQ(parseColor("Steelblue"), hexColor(0x4682b4));
   EXPECT_EQ(parseColor("grey"), hexColor(0x808080));
+  EXPECT_EQ(parseColor("rebeccapurple"), hexColor(0x663399));
+  EXPECT_EQ(parseColor("LightGoldenrodYellow"), hexColor(0xfafad2));
   EXPECT_EQ(parseColor("transparent"), (Color{0, 0, 0, 0}));
+  EXPECT_EQ(namedColor("peru"), hexColor(0xcd853f));
+  EXPECT_FALSE(namedColor("transparent"));
+}
 
-  const Color black{0, 0, 0, 1};
-  for (const char* unreadable :
-       {"", "#", "#12", "#12345", "#1234567", "#e3d7bg", "e3d7b6",
-        "rebeccapurple", "Steelblue"})
-    EXPECT_EQ(parseColor(unreadable), black) << unreadable;
+// Text no CSS colour grammar reads is nothing to the strict reading, and
+// opaque black to the forgiving one, which says so once per text.
+TEST(Color, TextNoGrammarReadsIsNothingAndSaidOnce) {
+  for (const char* unreadable : {"",
+                                 "#",
+                                 "#12",
+                                 "#12345",
+                                 "#1234567",
+                                 "#e3d7bg",
+                                 "e3d7b6",
+                                 "notacolour",
+                                 "currentcolor",
+                                 "var(--accent)",
+                                 "rgb(1 2)",
+                                 "rgb(1, 2 3)",
+                                 "rgb(1 2 3 /)",
+                                 "rgb(1 2 3 / 4 / 5)",
+                                 "rgb(none, 0, 0)",
+                                 "hsl(120, 50, 50)",
+                                 "lab(50, 0, 0)",
+                                 "hwb(0, 0%, 0%)",
+                                 "rgb(10deg 0 0)",
+                                 "rgb(1 2 3",
+                                 "color(lab 1 2 3)",
+                                 "color(srgb 1 0)",
+                                 "color-mix(in srgb, red)",
+                                 "color-mix(in srgb, red 120%, blue)",
+                                 "color-mix(srgb, red, blue)",
+                                 "color-mix(in srgb longer hue, red, blue)"})
+    EXPECT_FALSE(readColor(unreadable)) << unreadable;
+
+  std::vector<std::string> heard;
+  const sigil::core::Reporter previous = sigil::core::installReporter(
+      [&heard](std::string_view, std::string_view message) {
+        heard.emplace_back(message);
+      });
+  EXPECT_EQ(parseColor("not a colour, twice"), (Color{0, 0, 0, 1}));
+  EXPECT_EQ(parseColor("not a colour, twice"), (Color{0, 0, 0, 1}));
+  sigil::core::installReporter(previous);
+  ASSERT_EQ(heard.size(), 1u);
+  EXPECT_NE(heard.front().find("not a colour, twice"), std::string::npos);
+}
+
+void expectNear(const Color& actual, const Color& expected, float tolerance,
+                const char* written) {
+  EXPECT_NEAR(actual.r, expected.r, tolerance) << written;
+  EXPECT_NEAR(actual.g, expected.g, tolerance) << written;
+  EXPECT_NEAR(actual.b, expected.b, tolerance) << written;
+  EXPECT_NEAR(actual.a, expected.a, tolerance) << written;
+}
+
+// Every RGB spelling CSS has, legacy commas and modern spaces, numbers
+// and percentages, reads to one colour; channels clamp and `none` is zero.
+TEST(Color, EveryRgbSpellingReadsToOneColour) {
+  const Color red{1, 0, 0, 1};
+  for (const char* written :
+       {"rgb(255 0 0)", "rgb(255, 0, 0)", "rgba(255,0,0,1)", "RGB(255 0 0)",
+        "rgb(100% 0% 0%)", "rgb(100%, 0%, 0%)", "#f00", "red", "rgb(300 -5 0)",
+        "rgb(255 none none)", "rgb(255 0 0 / 1)", "rgb(255 0 0/100%)",
+        "rgb(2.55e2 0 0)"})
+    EXPECT_EQ(readColor(written), red) << written;
+  // Divided as the hex digits are, so the two spellings are one colour.
+  EXPECT_EQ(readColor("rgb(110 153 187)"), hexColor(0x6e99bb));
+  EXPECT_EQ(rgb(110, 153, 187), hexColor(0x6e99bb));
+  const Color translucent = rgb(29, 164, 192, 0.95f);
+  for (const char* written :
+       {"rgb(29 164 192 / 95%)", "rgba(29, 164, 192, 0.95)",
+        "rgb(29 164 192 / 0.95)", "rgba(29 164 192 / 95%)"})
+    expectNear(*readColor(written), translucent, 1e-6f, written);
+  EXPECT_EQ(rgb(300, -5, 0, 2), red);
+}
+
+// hsl() and hwb() read their CSS forms, hue units included, and the
+// builders take CSS's 0..100 for every fraction.
+TEST(Color, HslAndHwbReadAsCssDefinesThem) {
+  EXPECT_EQ(readColor("hsl(0 100% 50%)"), (Color{1, 0, 0, 1}));
+  EXPECT_EQ(readColor("hsl(120, 100%, 50%)"), (Color{0, 1, 0, 1}));
+  EXPECT_EQ(readColor("hsl(120 100 50)"), (Color{0, 1, 0, 1}));
+  EXPECT_EQ(readColor("hsla(240, 100%, 50%, 0.5)"), (Color{0, 0, 1, 0.5f}));
+  expectNear(*readColor("hsl(0.5turn 100% 50%)"), {0, 1, 1, 1}, 1e-6f, "turn");
+  expectNear(*readColor("hsl(200grad 100% 50%)"), {0, 1, 1, 1}, 1e-6f, "grad");
+  expectNear(*readColor("hsl(3.14159265rad 100% 50%)"), {0, 1, 1, 1}, 1e-6f,
+             "rad");
+  expectNear(*readColor("hsl(-240deg 100% 50%)"), {0, 1, 0, 1}, 1e-6f, "wrap");
+  EXPECT_EQ(hsl(0, 100, 50), (Color{1, 0, 0, 1}));
+  expectNear(hsl(210, 40, 60), *readColor("hsl(210 40% 60%)"), 1e-6f, "hsl");
+
+  EXPECT_EQ(readColor("hwb(0 0% 0%)"), (Color{1, 0, 0, 1}));
+  expectNear(*readColor("hwb(120 0% 50%)"), {0, 0.5f, 0, 1}, 1e-6f, "hwb");
+  // Whiteness and blackness past a whole scale back to a grey.
+  expectNear(*readColor("hwb(0 60% 60%)"), {0.5f, 0.5f, 0.5f, 1}, 1e-6f,
+             "grey");
+  expectNear(hwb(200, 10, 20, 0.5f), *readColor("hwb(200 10% 20% / 0.5)"),
+             1e-6f, "hwb builder");
+}
+
+// The specification's own example: one colour written in every notation
+// CSS Color 4 gives it reads back as that colour.
+TEST(Color, OneColourWrittenInEveryCssNotationReadsAsOne) {
+  const Color written = hexColor(0x7654cd);
+  for (const char* css :
+       {"rgb(46.27% 32.94% 80.39%)", "lab(44.36% 36.05 -58.99)",
+        "lch(44.36% 69.13 301.43)", "oklab(54.43% 0.0682 -0.1657)",
+        "oklch(54.43% 0.1791 292.37)", "color(xyz-d50 0.2005 0.14089 0.4472)",
+        "color(xyz-d65 0.21661 0.14602 0.59452)",
+        "color(xyz 0.21661 0.14602 0.59452)",
+        "color(srgb 0.4627 0.3294 0.8039)"}) {
+    const std::optional<Color> read = readColor(css);
+    ASSERT_TRUE(read) << css;
+    expectNear(*read, written, 2.0f / 255.0f, css);
+  }
+  expectNear(lab(44.36f, 36.05f, -58.99f), written, 2.0f / 255.0f, "lab");
+  expectNear(lch(44.36f, 69.13f, 301.43f), written, 2.0f / 255.0f, "lch");
+  expectNear(oklab(0.5443f, 0.0682f, -0.1657f), written, 2.0f / 255.0f,
+             "oklab");
+  expectNear(oklch(0.5443f, 0.1791f, 292.37f), written, 2.0f / 255.0f, "oklch");
+  // CSS's red, in the two spaces a stylesheet most often names it in.
+  expectNear(*readColor("lab(54.29 80.82 69.91)"), {1, 0, 0, 1}, 2.0f / 255.0f,
+             "lab red");
+  expectNear(*readColor("oklch(62.8% 0.2577 29.23)"), {1, 0, 0, 1},
+             2.0f / 255.0f, "oklch red");
+  // Percentages are read against the reference CSS gives each component.
+  expectNear(*readColor("oklch(100% 0% 0)"), {1, 1, 1, 1}, 1e-4f, "white");
+  expectNear(*readColor("lab(100% 0% 0%)"), {1, 1, 1, 1}, 1e-3f, "lab white");
+}
+
+// The predefined RGB spaces reach sRGB through their own primaries and
+// curves; white is white in each, and srgb alone keeps a channel past 1.
+TEST(Color, ThePredefinedSpacesReadThroughTheirOwnPrimaries) {
+  for (const char* white :
+       {"color(srgb 1 1 1)", "color(srgb-linear 1 1 1)",
+        "color(display-p3 1 1 1)", "color(rec2020 1 1 1)",
+        "color(a98-rgb 1 1 1)", "color(prophoto-rgb 1 1 1)",
+        "color(xyz-d65 0.95046 1 1.08906)", "color(xyz-d50 0.96422 1 0.82521)"})
+    expectNear(*readColor(white), {1, 1, 1, 1}, 1e-3f, white);
+  EXPECT_EQ(readColor("color(srgb 1.5 0 0)"), (Color{1.5f, 0, 0, 1}));
+  expectNear(*readColor("color(srgb-linear 0.214 0.214 0.214 / 50%)"),
+             {0.5f, 0.5f, 0.5f, 0.5f}, 1e-3f, "linear grey");
+  expectNear(*readColor("color(display-p3 0.5 0.5 0.5)"), {0.5f, 0.5f, 0.5f, 1},
+             1e-4f, "p3 grey");
+}
+
+// A colour outside sRGB keeps its OKLCH lightness and hue and gives up
+// chroma until it fits, which is CSS's gamut mapping and `fitToSrgb`.
+TEST(Color, AColourOutsideSrgbIsMappedByReducingChroma) {
+  const Color mapped = *readColor("color(display-p3 1 0 0)");
+  for (float channel : {mapped.r, mapped.g, mapped.b}) {
+    EXPECT_GE(channel, 0.0f);
+    EXPECT_LE(channel, 1.0f);
+  }
+  // Display P3's red, measured in OKLCH, is lightness 0.6486 at hue 28.96
+  // with a chroma sRGB cannot show.
+  const Oklch fitted = toOklch(mapped);
+  EXPECT_NEAR(fitted.L, 0.6486f, 2e-3f);
+  EXPECT_NEAR(fitted.hueDegrees, 28.96f, 1.0f);
+  EXPECT_LT(fitted.chroma, 0.2995f);
+  EXPECT_GT(fitted.chroma, 0.2f);
+
+  expectNear(oklch(0.7f, 0.4f, 150), fitToSrgb({0.7f, 0.4f, 150, 1}), 2e-3f,
+             "far outside");
+  expectNear(*readColor("oklch(0.7 0.4 150)"), oklch(0.7f, 0.4f, 150), 1e-5f,
+             "text and builder");
+  // Lightness past white leaves no chroma to keep.
+  expectNear(*readColor("oklch(1.2 0.1 30)"), {1, 1, 1, 1}, 2e-3f,
+             "past white");
+  expectNear(*readColor("lch(50 200 30)"), fitToSrgb(toOklch(lch(50, 200, 30))),
+             2e-3f, "lch outside");
+}
+
+// color-mix() reads as `colorMix` mixes: shares normalised as CSS does,
+// premultiplied by alpha, along the hue arc it names.
+TEST(Color, ColorMixReadsAsCssMixes) {
+  EXPECT_EQ(readColor("color-mix(in srgb, red, blue)"),
+            (Color{0.5f, 0, 0.5f, 1}));
+  EXPECT_EQ(readColor("color-mix(in srgb, red 25%, blue)"),
+            (Color{0.25f, 0, 0.75f, 1}));
+  EXPECT_EQ(readColor("color-mix(in srgb, 25% red, blue 75%)"),
+            (Color{0.25f, 0, 0.75f, 1}));
+  EXPECT_EQ(colorMix({1, 0, 0, 1}, {0, 0, 1, 1}, 0.75f, ColorSpace::Srgb),
+            (Color{0.25f, 0, 0.75f, 1}));
+  // Two shares short of a whole leave the shortfall as transparency.
+  expectNear(*readColor("color-mix(in srgb, red 20%, blue 20%)"),
+             {0.5f, 0, 0.5f, 0.4f}, 1e-6f, "short");
+  // A transparent end lends its alpha and none of its colour.
+  expectNear(*readColor("color-mix(in srgb, rgb(255 0 0 / 0), blue)"),
+             {0, 0, 1, 0.5f}, 1e-6f, "premultiplied");
+  expectNear(*readColor("color-mix(in oklab, white, black)"),
+             colorMix({1, 1, 1, 1}, {0, 0, 0, 1}, 0.5f, ColorSpace::Oklab),
+             1e-6f, "oklab");
+  // The specification's example, mixed in CSS's LCH.
+  expectNear(*readColor("color-mix(in lch, peru 40%, palegoldenrod)"),
+             lch(79.7256f, 40.448f, 84.771f), 2.0f / 255.0f, "lch");
+  // The long way round passes through the hues the short way skips.
+  const Color shorter = *readColor("color-mix(in oklch, red, blue)");
+  const Color longer = *readColor("color-mix(in oklch longer hue, red, blue)");
+  EXPECT_GT(toOklch(shorter).hueDegrees, 300.0f);
+  EXPECT_LT(toOklch(longer).hueDegrees, 200.0f);
+  // A grey has no hue of its own, so the mix keeps the other's.
+  const Color tinted =
+      colorMix({1, 1, 1, 1}, hexColor(0x0000ff), 0.5f, ColorSpace::Oklch);
+  EXPECT_NEAR(toOklch(tinted).hueDegrees,
+              toOklch(hexColor(0x0000ff)).hueDegrees, 1.0f);
+  EXPECT_EQ(readColorSpace("Display-P3"), ColorSpace::DisplayP3);
+  EXPECT_EQ(readColorSpace("xyz"), ColorSpace::XyzD65);
+  EXPECT_FALSE(readColorSpace("cmyk"));
 }

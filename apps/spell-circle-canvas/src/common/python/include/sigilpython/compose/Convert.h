@@ -10,6 +10,7 @@
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Element.h>
 
+#include <optional>
 #include <vector>
 
 namespace sigil::python {
@@ -17,9 +18,13 @@ namespace sigil::python {
  *  "auto", a percentage, or a number with its unit after it. */
 compose::Dimension dimension(pybind11::handle value);
 /** A fill read from @p value: None is no fill, a paint or a material is
- *  that paint, a token is the variable it names, and anything else is a
- *  colour. */
+ *  that paint, a token is the variable it names, the text
+ *  `currentcolor` is the ink in force and `var(--name)` the custom
+ *  property, and anything else is a colour. */
 compose::Fill fill(pybind11::handle value);
+/** The custom property CSS text @p value names, `var(--name)` or
+ *  `var(name)`, or nothing where @p value is not that text. */
+std::optional<compose::VarRef> customPropertyText(pybind11::handle value);
 /** A colour term read from what a fill takes: a colour, the ink in force
  *  (`Fill.currentInk()`) or a custom property — never a paint, which
  *  raises. */
@@ -41,7 +46,9 @@ compose::Decoration decoration(pybind11::handle value);
  *  box as readily as a pixel count. */
 compose::Dimension originLength(pybind11::handle value);
 /** What a custom property holds, read from @p value: a colour, a paint
- *  (a material), or a length. */
+ *  (a material), or a length. Text is told apart by which grammar reads
+ *  it: what the length grammar reads is a length, what the colour
+ *  grammar reads is a colour, and anything else raises. */
 compose::VarValue variable(pybind11::handle value);
 /** Whether @p value is a node: an element, or one of the typed leaves a
  *  factory hands back. Each leaf is a class of its own in Python rather

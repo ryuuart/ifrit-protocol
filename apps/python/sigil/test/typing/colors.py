@@ -40,6 +40,17 @@ assert_type(written[0], material.Color)
 assert all(abs(read.r - 0.43) < 0.01 and abs(read.a - 1.0) < 0.01 for read in written)
 assert_type(material.Paint.solid(written[0]), material.Paint)
 
+# The constructors named after CSS's functions each answer the colour
+# class, and a channel may be a number or percentage text.
+assert_type(material.Color.rgb(110, 153, 187), material.Color)
+assert_type(material.Color.srgb(0.43, 0.6, 0.73, alpha=0.5), material.Color)
+assert_type(material.Color.hsl(210, "40%", 60), material.Color)
+assert_type(material.Color.oklch(0.7, 0.1, 240), material.Color)
+assert_type(material.Color.hex(0x6E99BB), material.Color)
+assert_type(material.Color.mix("#6e99bb", (0.1, 0.2, 0.3), 0.25, space="oklch"), material.Color)
+assert material.Color.rgb(110, 153, 187) == material.Color("rgb(110 153 187)")
+assert_type(material.Color("#6e99bb").css(), str)
+
 # ---------------------------------------------------------------------------
 # FillLike — a colour, a paint, a material or a reference, at compose.Fill.
 
@@ -55,6 +66,9 @@ assert_type(compose.Fill(accent), compose.Fill)
 assert_type(compose.Fill(solid), compose.Fill)
 assert_type(compose.Fill(None), compose.Fill)
 assert compose.Fill(None) == compose.Fill.none()
+# CSS's two words for a colour the tree resolves are fills, as text.
+assert compose.Fill("currentcolor") == compose.Fill.currentInk()
+assert compose.Fill("var(--accent)") == compose.Fill.var(accent)
 # A fill compares as its paint does, so the same paint written twice is
 # one fill.
 assert compose.Fill(solid) == compose.Fill(material.Paint.solid("#b34a2f"))

@@ -51,7 +51,7 @@ class ValueCopyProtocol(unittest.TestCase):
         self.assertEqual(original, kit.houseTheme())
 
     def test_a_deep_copy_of_a_colour_is_a_colour_of_its_own(self):
-        original = material.Color(0.25, 0.5, 0.75, 1)
+        original = material.Color.srgb(0.25, 0.5, 0.75, 1)
         made = copy.deepcopy(original)
         self.assertEqual(made, original)
         made.g = 0.125
