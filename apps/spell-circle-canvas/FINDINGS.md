@@ -308,6 +308,58 @@ it has. A test should install a device after a layer was drawn and find
 the next composite carrying that drawing, and a headless capture of a
 stack found pixel-equal to the window's.
 
+## Colour text no grammar reads paints opaque black in Python
+
+`sigil::python::color()` hands every string to `material::parseColor`,
+which answers opaque black for text it cannot read, so `fill("rgb(255 0
+0)")`, `fill("hsl(120 50% 50%)")`, `fill("Red")` and
+`background("rebeccapurple")` all paint black while the `ColorLike`
+declaration promises a CSS string; the reader itself takes hex,
+`transparent` and a short list of names, none of the web's functional
+forms. The reader is meant to take every CSS Color 4 form and text no
+grammar reads is meant to raise, naming the text. A test should find
+`Color("rgb(255 0 0)")` equal to `Color("#f00")` and `Color("Red")`
+raising.
+
+## A bare Color of 255, 0, 0 is an HDR red while the same tuple is refused
+
+`material.Color(255, 0, 0)` is accepted unchecked and becomes a red two
+hundred and fifty-five times brighter than white, while the tuple
+`(255, 0, 0)` handed to a colour slot raises; the two are meant to follow
+one rule. A test should find both forms answered by one rule.
+
+## A length given to Element.var as text is stored as a black colour
+
+`variable()` in compose's `Convert.cpp` reads every string but `"auto"`
+and a percentage as a colour, so `.var("gap", "12px")` stores black
+while a `VarValue` is meant to hold a colour or a length by which grammar
+reads the text. A test should find `.var("gap", "12px")` and `.var("gap",
+"1.5em")` storing lengths and `.var("ground", "#18252e")` a colour.
+
+## currentcolor and var(--name) as fill text are black
+
+`compose.Fill("currentcolor")` and `Fill("var(--accent)")` read as black
+colours, while CSS's `currentcolor` is `Fill.currentInk()` and the length
+reader already reads `var(name)` text; the fill reader is meant to answer
+those two values. A test should find each text equal to its typed form.
+
+## The font length verbs refuse the lengths the rest of compose reads
+
+`fontLength()` behind `fontSize` and `letterSpacing` takes a
+`weave.Length` or a number, so `"1.5em"` and `compose.em(1.5)` raise an
+opaque cast error while every other length slot reads them. A test should
+find `text("a").fontSize("1.5em")` equal to
+`text("a").fontSize(weave.em(1.5))`.
+
+## The compose values reference misstates what a colour is
+
+`compose/reference/VALUES.md` says `material::Color` is a colour in a
+stated space, while it is sRGB only, and that Python colour strings are
+`#rrggbb` and `#rrggbbaa`, while the reader takes every hex length and
+the named colours. The document is meant to say what the code reads. A
+test is the doc probe once the reader's forms are listed in one place
+the document can point at.
+
 ## The triplet comment still explains shared TBB by a port that is gone
 
 `cmake/triplets/arm64-osx.cmake` explains its shared oneTBB rule by the
