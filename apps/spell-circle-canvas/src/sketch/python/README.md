@@ -49,7 +49,7 @@ registered with the libraries ahead of every sketch feature. `host/Runtime.cpp` 
 class the decorator marked scene3d through `openScene3D`, and reads the
 kind of a source it has not loaded from its text: a `describe`, method or
 top-level function, whose return annotation names `Frame`. `kit/Specimen.cpp` binds sketch specimen values and
-typed theme providers; `kit/Charts.cpp` the plot frame and its layers,
+the theme; `kit/Charts.cpp` the plot frame and its layers,
 calling a curve written in Python as the plot is laid out and a row reader
 once as its layer is made; `kit/Legends.cpp` the key, the swatch strip,
 the chip, the meter and the dial; `kit/Panels.cpp` the headings, the

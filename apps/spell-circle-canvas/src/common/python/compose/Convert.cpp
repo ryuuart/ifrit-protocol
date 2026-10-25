@@ -236,7 +236,6 @@ compose::Shape shape(py::handle value) {
     auto callback = retainCallback(py::reinterpret_borrow<py::function>(value));
     return compose::Shape{[callback](glm::vec2 size) {
       const py::gil_scoped_acquire lock;
-      const CallbackBoundary boundary;
       try {
         return geometry::path::fromSk(
             callback->get()(size.x, size.y).cast<SkPath>());

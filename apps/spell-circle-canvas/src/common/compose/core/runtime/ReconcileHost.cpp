@@ -211,8 +211,8 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   // Shell overrides follow Element's copy-on-write path: a deferred
   // describe can return a value shared with its author or another composer.
   // A memo hit returns before this runs and keeps the payload it merged
-  // on the patch that produced it, so a `.cache()` changed while properties and
-  // environment compare equal does not take — the memo's own contract.
+  // on the patch that produced it, so a `.cache()` changed while the
+  // properties compare equal does not take — the memo's own contract.
   if (inst.memoShell) mergeMemoShell(inst.description, *inst.memoShell);
   const ElementNode& next = *inst.description;
 

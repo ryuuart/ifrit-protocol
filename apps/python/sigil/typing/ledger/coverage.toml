@@ -253,15 +253,11 @@ python = [
 name = "Memo"
 
 [[section.surface.item]]
-bound = "`compose.memo(properties, describe)`: a deep-copied model compared with Python equality, native reconciliation, the inherited environment restored around the deferred builder, and builder failures reported with a traceback"
+bound = "`compose.memo(properties, describe)`: a deep-copied model compared with Python equality, native reconciliation, and builder failures reported with a traceback"
 python = ["compose.memo"]
 
 [[section.surface.item]]
 native = "`copy.deepcopy` on every bound value type, which the enumerations and several values still refuse, so a model cannot hold every bound value"
-
-[[section.surface.item]]
-native = "Python values in `core::environment` (`Provide`, `inherited`, `inheritedOr`, `bound`), so a Python kit's own theme is not a captured dependency"
-python = ["core.environment.inheritedOr"]
 
 [[section]]
 title = "Composition"

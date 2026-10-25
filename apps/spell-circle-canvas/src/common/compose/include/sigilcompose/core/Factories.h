@@ -338,8 +338,9 @@ Element pathFigure(const geometry::path::Outline& absolute, float bleed = 0.0f);
  *  and facts (`Element::attribute`) and draws nothing. Out of the flow,
  *  so it takes no room beside its siblings; put it where it names with
  *  the placement longhand or a centre pin — a port on a card is
- *  `point().key("out").left(percent(100)).top(percent(50))`. A skeleton of points
- *  is what an arranging operator places and an adding operator builds on. */
+ *  `point().key("out").left(percent(100)).top(percent(50))`. A skeleton of
+ * points is what an arranging operator places and an adding operator builds on.
+ */
 Element point();
 
 /** A container whose children are placed by @p scheme instead of
@@ -382,12 +383,11 @@ Element makeMemo(std::any properties,
 }  // namespace detail
 
 /** Deferred description: `fn` runs only when `properties` changed (by
- *  operator==) since the last render on this position/key — AND the
- *  ambient `environment::` bindings are unchanged, because a memo is a pure
- *  function of (properties, environment) and would otherwise serve the theme
- *  it first described under forever. The captured stack is re-established
- *  around the deferred call, so `environment::inherited<T>()` inside `fn` reads
- *  what was bound where the memo was WRITTEN, not where it runs.
+ *  operator==) since the last render on this position/key. A memo is a
+ *  pure function of its properties, so everything `fn` reads belongs in
+ *  them; a value the sheet in force sets — a custom property `var()`
+ *  names, a rule a class takes — is resolved by the cascade after `fn`
+ *  runs, so it needs no place in them.
  *
  *  THE SHELL. The element this returns is a shell; the element `fn`
  *  produces is the node's whole look. Four calls on the shell speak for
@@ -399,9 +399,8 @@ Element makeMemo(std::any properties,
  *  property set on the shell (a fill, a transform, a layout dimension, a
  *  child, a decoration) describes nothing, is warned about once and
  *  ignored: set it on the element produced inside `fn`. A `.cache()`
- *  changed while the properties and the environment compare equal does not
- *  take, because a hit reuses the retained produce untouched — change a
- *  prop to re-describe. */
+ *  changed while the properties compare equal does not take, because a hit
+ * reuses the retained produce untouched — change a prop to re-describe. */
 template <ComponentProperties P, ComponentFunction<P> F>
 Element memo(P properties, F fn) {
   return detail::makeMemo(

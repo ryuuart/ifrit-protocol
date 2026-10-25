@@ -72,7 +72,6 @@ namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace compose = sigil::compose;
-namespace environment = sigil::core::environment;
 namespace weave = sigil::weave;
 namespace gm = sigil::geometry::mesh;
 namespace sections = sigil::geometry::sections;
@@ -138,7 +137,10 @@ compose::Element levels(float seconds, material::Color accent) {
         62.0f * (0.5f + 0.5f * std::sin(seconds * 2.1f + (float)i * 0.55f));
     return compose::box().width(14.0f).children(
         {compose::box().width(compose::percent(100)).height(92.0f - height),
-         compose::box().width(compose::percent(100)).height(height).fill(accent)});
+         compose::box()
+             .width(compose::percent(100))
+             .height(height)
+             .fill(accent)});
   };
   return screen(8.0f, sigil::material::hexColor(0x12171f))
       .children({compose::document::h1(u8"LEVELS"),

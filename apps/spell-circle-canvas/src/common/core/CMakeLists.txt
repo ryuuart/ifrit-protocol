@@ -21,8 +21,7 @@
 #   SigilCoreReconcile   reconcile/   descriptions reconciled onto a host's
 #                                     retained tree: keyed matching, the
 #                                     memo, the identity prune, the
-#                                     inherited-value channel, the animation
-#                                     lanes and the phase runner
+#                                     animation lanes and the phase runner
 #   SigilCoreCache       cache/       what a host may keep between frames:
 #                                     the cache policy, the settled-subtree
 #                                     proof, the stability release and the
@@ -49,7 +48,7 @@
 # and two of them stand on the same one. Only a consumer that needs a
 # device links it.
 sigil_library_root(SigilCore
-  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, inherited values, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over four leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, the one prefix search a callable is called with the parameters it named through, and the GPU device with its handles and fences, and the one door a library's warning is reported through"
+  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over four leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, the one prefix search a callable is called with the parameters it named through, and the GPU device with its handles and fences, and the one door a library's warning is reported through"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
        ${CMAKE_CURRENT_SOURCE_DIR}/CACHE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/CALLABLE.md
@@ -92,7 +91,6 @@ sigil_doc_probes(core
           ${CMAKE_CURRENT_SOURCE_DIR}/SCHEDULE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Curve.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Field.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Provide.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/ReconcileHost.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/concurrentIo.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/mix64.md

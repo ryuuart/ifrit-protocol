@@ -162,7 +162,6 @@ geometry::path::Outline routeBetween(const PythonValue& held, bool scheme,
                                      const geometry::path::Rect& from,
                                      const geometry::path::Rect& to) {
   const py::gil_scoped_acquire lock;
-  const CallbackBoundary boundary;
   try {
     return geometry::path::fromSk(readRoutedPath(
         routeOf(held, scheme)(py::cast(geometry::path::toSk(from), copied),
@@ -177,7 +176,6 @@ geometry::path::Outline routeBetween(const PythonValue& held, bool scheme,
 geometry::path::Outline routeThrough(const PythonValue& held, bool scheme,
                                      std::span<const glm::vec2> anchors) {
   const py::gil_scoped_acquire lock;
-  const CallbackBoundary boundary;
   try {
     py::list points;
     for (const glm::vec2 anchor : anchors)

@@ -362,9 +362,9 @@ inline void featurePoint(uint32_t seed, int x, int y, int z, int period,
 /** A NOISE LOOK AS ONE VALUE, read at a point: the ten numbers a grain,
  *  a drift, a flow or an erosion is set by, chosen once for a drawing
  *  far more often than per call. It compares exactly, member for
- *  member, so a memo keyed on one may be skipped and a theme may bind
- *  one. The range is [-1, 1] at `Fold::None` and `Fold::Ridged` and
- *  [0, 1] at `Fold::Turbulence`, whatever the octave count.
+ *  member, so a memo keyed on one may be skipped. The range is [-1, 1] at
+ * `Fold::None` and `Fold::Ridged` and [0, 1] at `Fold::Turbulence`, whatever
+ * the octave count.
  *  @trap `Gradient` and `Simplex` approach the ends of the range
  *  without a hard bound, and neither is clamped. */
 struct Field {

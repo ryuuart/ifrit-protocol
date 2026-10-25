@@ -6,8 +6,8 @@ of them as and the distributions drawn out of it, the noise field read at
 a point, the folds a cache key is accumulated with, the normal form a set
 of runs over one axis is put in, the shaped curve a unit position is
 reshaped by, and the one rounding between degrees and radians. `README.md` beside this file is the library; `COMPARABLE.md`
-is the other leaf that links nothing, and `RECONCILE.md` holds the
-inherited-value channel the last section here reads a bound value through.
+is the other leaf that links nothing, and `RECONCILE.md` holds the memo
+whose key the last section here shapes two of these values for.
 
 The standard library is the whole of its dependencies, so a shader's CPU
 twin, a point cook, a text cache and a resource store all reach the same
@@ -149,15 +149,13 @@ triangles carries no Cartesian period through it, so a period on a simplex
 field is ignored rather than producing a seam, and the header and the test
 both say so.
 
-## Which of these a theme may carry
+## Which of these a drawing may choose once
 
-A drawing's look is chosen once and read in many places, and
-`reconcile/Environment.h` is how a value chosen once reaches every reader without
-being passed through them: `environment::Provide<T>` binds it for a describe scope
-and `environment::inherited<T>()` reads it any number of levels down, at no cost to
-the prune, because an inherited value is read DURING describe and lands in
-the reading node's own description. Two of the values above are shaped for
-exactly that, and they are shaped for it on purpose:
+A drawing's look is chosen once and read in many places, and a value
+chosen once reaches its readers as a component's properties — which a memo
+compares to decide whether the component is described again. Two of the
+values above are shaped for exactly that, and they are shaped for it on
+purpose:
 
 - **`chance::Chance` is a sheet's seed.** The seed, the source drawn from,
   and the `density` and `jitter` a scatter is set by; every element asks
@@ -166,23 +164,22 @@ exactly that, and they are shaped for it on purpose:
   and changing the one seed re-rolls the whole sheet at once — which is
   otherwise an edit to every seed literal in a drawing.
 - **`noise::Field` is a sheet's grain.** Ten numbers that say what a grain,
-  a drift or an erosion looks like, so one bound value makes a whole
+  a drift or an erosion looks like, so one value chosen once makes a whole
   sheet's paper agree instead of ten arguments being re-spelled at each
   call.
 
-`Environment.h` binds two conditions on anything carried this way, and both are why
-these are structs of plain members with a defaulted `==`. A binding is
-keyed by its C++ TYPE, so a token group is its own small struct and there
-is no name-keyed lookup to invent. And a derived value must be MATERIALISED
-into the type: a token carrying a `std::function`, a sampler or any other
-closure compares equal to nothing and makes every memo below it a permanent
-miss. `Field` is the ten numbers, never a bound sampler; `Chance` is the
-seed and the source, never a stream that has already been drawn from.
+A memo's key binds one condition on anything carried this way, and it is
+why these are structs of plain members with a defaulted `==`: a derived
+value must be MATERIALISED into the type. A token carrying a
+`std::function`, a sampler or any other closure compares equal to nothing
+and makes every memo keyed on it a permanent miss. `Field` is the ten
+numbers, never a bound sampler; `Chance` is the seed and the source, never
+a stream that has already been drawn from.
 
 The line between a token and an argument runs through the same place in
 both: WHAT the look is, is chosen for the sheet; WHERE it is read, is the
 call's own. A field's properties are a token and the point it is evaluated at is
 an argument; a chance's seed and source are a token and the shape drawn
-from it is an argument. Nothing here binds anything — this library holds no
+from it is an argument. Nothing here chooses anything — this library holds no
 theme and knows of no drawing — it only says which of its values are shaped
-to be bound by one that does.
+to be chosen once by one that does.

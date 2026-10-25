@@ -152,12 +152,10 @@ void bindRing(py::module_& module, const char* name, const char* documentation,
 
 /** What @p row answers for @p value, which has to be a node — an
  *  element or any typed leaf. The call happens on the thread and under
- *  the interpreter lock of the Python call that asked for the feed, and
- *  native scopes it opened and left open are closed before it returns.
- *  What it raises travels out through the native column as the Python
+ *  the interpreter lock of the Python call that asked for the feed. What
+ *  it raises travels out through the native column as the Python
  *  error it is. */
 Element rowElement(const py::function& row, py::object value) {
-  const CallbackBoundary boundary;
   const py::object built = row(std::move(value));
   if (!isNode(built))
     throw py::type_error("A feed row function returns a node.");

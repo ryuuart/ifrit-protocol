@@ -188,8 +188,8 @@ put there.
 ## Callback ownership
 
 * `Bindings.h` — `PythonValue`, `PythonCallback`, `CallbackLifetime`,
-  `CallbackScope`, `CallbackBoundary`, `BorrowedPen`, `retainCallback`,
-  `retainValue`, `retainScope`, `isCurrentScope`, `closeScope`, `invokePen`
+  `CallbackScope`, `BorrowedPen`, `retainCallback`, `retainValue`,
+  `invokePen`
 
 A host owns a callback lifetime and opens a callback scope while Python creates
 retained descriptions. Native elements, brushes and animation descriptions can
@@ -203,14 +203,6 @@ has ordinary shared ownership and stays callable until its native owners release
 it. Python reference destruction acquires the interpreter lock; the interpreter
 must outlive native values that can release Python references. Native embedding
 hosts keep the interpreter alive through their process teardown.
-
-A callback boundary unwinds native scopes that Python opened but failed to
-close. A scope registers an owned handle and a nonthrowing native close function;
-explicit close and automatic unwinding both leave escaped handles inert. Scope
-owners and boundaries operate on the same thread. Typed scope adapters still
-validate their native environment and thread before requesting explicit close.
-Boundaries close before an enclosing native environment restore, so deferred
-memo descriptions cannot leave providers in a different stack.
 
 The pen wrapper checks both its drawing thread and callback lifetime. Every
 native drawing callback receives this same wrapper. Retaining it in Python
@@ -344,7 +336,7 @@ The Compose document submodule binds native semantic components. Containers
 accept the same Element children as ordinary Compose containers; paragraphs
 accept plain strings or native rich text. Role rules and default properties
 remain native declarations resolved from the eventual parent tree. They do
-not read a Python theme or capture an authoring-time environment.
+not read a Python theme where they are written.
 
 ## The registration index
 
@@ -421,8 +413,8 @@ the ones a build may lack, and its generator leaves their declarations
 and modules alone instead of deleting them.
 
 `python_test` links this library without any sketch target. It checks common
-module registration, neutral Compose kit callbacks, explicit callback cleanup,
-native scope unwinding and retained World engine, frame and image ownership. The sketch adapter separately tests hot reload,
+module registration, neutral Compose kit callbacks, explicit callback cleanup
+and retained World engine, frame and image ownership. The sketch adapter separately tests hot reload,
 context invalidation and its session-owned resources. Package tests exercise
 the combined extension and its Python convenience surface.
 

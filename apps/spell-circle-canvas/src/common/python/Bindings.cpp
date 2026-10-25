@@ -126,26 +126,6 @@ namespace {
 
 thread_local CallbackLifetime* currentLifetime = nullptr;
 
-struct NativeScope {
-  std::uint64_t sequence;
-  std::shared_ptr<void> owner;
-  void (*close)(void*) noexcept;
-};
-struct NativeScopes {
-  std::vector<NativeScope> values;
-  std::uint64_t sequence = 0;
-  void closeLast() {
-    auto value = std::move(values.back());
-    values.pop_back();
-    value.close(value.owner.get());
-  }
-  void unwind(std::uint64_t lastScope) {
-    while (!values.empty() && values.back().sequence > lastScope) closeLast();
-  }
-  ~NativeScopes() { unwind(0); }
-};
-thread_local NativeScopes nativeScopes;
-
 }  // namespace
 
 struct CallbackLifetime::Impl {
@@ -191,7 +171,6 @@ void invokePen(const py::function& function, draw::Pen& native) {
     ~Invalidate() { value.invalidate(); }
   } invalidate{*borrowed};
   try {
-    const CallbackBoundary boundary;
     function(borrowed);
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());
@@ -263,28 +242,5 @@ CallbackScope::CallbackScope(CallbackLifetime& owner)
     : m_previous(std::exchange(currentLifetime, &owner)) {}
 
 CallbackScope::~CallbackScope() { currentLifetime = m_previous; }
-
-void retainScope(std::shared_ptr<void> owner, void (*close)(void*) noexcept) {
-  if (!owner || !close)
-    throw std::invalid_argument(
-        "A native scope needs an owner and close function");
-  nativeScopes.values.push_back(
-      {++nativeScopes.sequence, std::move(owner), close});
-}
-
-bool isCurrentScope(const void* owner) {
-  return !nativeScopes.values.empty() &&
-         nativeScopes.values.back().owner.get() == owner;
-}
-
-void closeScope(const void* owner) {
-  if (!isCurrentScope(owner))
-    throw std::runtime_error(
-        "Native scopes must close in reverse nesting order");
-  nativeScopes.closeLast();
-}
-
-CallbackBoundary::CallbackBoundary() : m_lastScope(nativeScopes.sequence) {}
-CallbackBoundary::~CallbackBoundary() { nativeScopes.unwind(m_lastScope); }
 
 }  // namespace sigil::python

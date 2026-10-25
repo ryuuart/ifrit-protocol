@@ -234,48 +234,4 @@ weak = weakref.ref(owner)
   EXPECT_NO_THROW(lifetime.clear());
 }
 
-TEST(PythonBindings, CallbackBoundariesUnwindOnlyTheirNativeScopes) {
-  (void)native();
-  /** A native scope standing open until whoever retained it closes it. */
-  struct Scope {
-    bool open = true;
-  };
-  const auto retain = [](const std::shared_ptr<Scope>& scope) {
-    sigil::python::retainScope(scope, [](void* value) noexcept {
-      static_cast<Scope*>(value)->open = false;
-    });
-  };
-  auto outer = std::make_shared<Scope>();
-  retain(outer);
-  std::shared_ptr<Scope> inner;
-  try {
-    const sigil::python::CallbackBoundary boundary;
-    inner = std::make_shared<Scope>();
-    retain(inner);
-    ASSERT_TRUE(sigil::python::isCurrentScope(inner.get()));
-    throw std::runtime_error("intentional callback failure");
-  } catch (const std::runtime_error&) {
-  }
-  EXPECT_FALSE(inner->open);
-  EXPECT_TRUE(outer->open);
-  EXPECT_TRUE(sigil::python::isCurrentScope(outer.get()));
-  sigil::python::closeScope(outer.get());
-  EXPECT_FALSE(outer->open);
-
-  // A callback may close an older scope before opening a new one. Its
-  // checkpoint identifies creation order rather than the resulting depth.
-  auto previous = std::make_shared<Scope>();
-  retain(previous);
-  std::shared_ptr<Scope> replacement;
-  {
-    const sigil::python::CallbackBoundary boundary;
-    sigil::python::closeScope(previous.get());
-    replacement = std::make_shared<Scope>();
-    retain(replacement);
-    EXPECT_TRUE(sigil::python::isCurrentScope(replacement.get()));
-  }
-  EXPECT_FALSE(previous->open);
-  EXPECT_FALSE(replacement->open);
-}
-
 }  // namespace

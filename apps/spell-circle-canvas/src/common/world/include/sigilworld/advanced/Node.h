@@ -186,12 +186,9 @@ Node makeMemo(std::any properties,
 }  // namespace detail
 
 /** Deferred description: @p fn runs only when @p properties changed (by
- *  `operator==`) since the last render at this position or key, AND the
- *  ambient `environment::` bindings are unchanged — a memo is a pure
- *  function of (properties, environment). The captured stack is
- *  re-established around the deferred call, so
- *  `environment::inherited<T>()` inside @p fn reads what was bound where
- *  the memo was WRITTEN. */
+ *  `operator==`) since the last render at this position or key — a memo
+ *  is a pure function of its properties, so everything @p fn reads
+ *  belongs in them. */
 template <class P, class F>
   requires std::equality_comparable<P> && std::invocable<F, const P&>
 Node memo(P properties, F fn) {

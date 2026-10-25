@@ -559,7 +559,10 @@ sharp still draws its corners at the width it was designed for);
 `ContourWalk` (walk the outline
 and run a program at each sample — its `draw` is handed the canvas, the
 sample and the paint context and names only the ones it reads, its
-`stampAt` the sample and the sample's index); `Wash`; `Border`. `brush/Adaptors.h`
+`stampAt` the sample and the sample's index); `Wash` (a material over the
+outline, or with a `Wash::fill` the material as a mask and that fill — a
+colour, a property or a paint, read where it paints — laid through it, so
+one stipple serves every colour a theme sets); `Border`. `brush/Adaptors.h`
 runs any of them on another outline than the node's own: `onEdges`,
 against only the sub-contours facing chosen box edges, and `inset`,
 against a concentric copy of the outline. **A stroke sliced to chosen
@@ -672,10 +675,12 @@ groove a separator is and carrying its own `BevelInner::edges` and
 `BevelInner::ends`, which is the doubled edge a key wears on its two
 shaded sides alone. It is a value
 decoration in its own right, so `.overlay(theBevel)` dresses a panel, and
-its tones come through the cascade: a subtree that sets the custom
-properties `bevel-light` and `bevel-shadow` dresses every
-`kit::bevels::inherited()` bevel under it in one era's tones, and a bevel
-outside any such subtree keeps its own. `kit::bevels::motif`, `motifEtched`, `flash`,
+its tones come through the cascade: each tone is a `ColorTerm`, so a tone
+may be a custom property read where the ring paints, and a subtree that
+sets the custom properties `bevel-light` and `bevel-shadow` dresses every
+`kit::bevels::inherited()` bevel under it in one era's tones — an inner
+ring that restates the outer pair, as an etched groove's does, included —
+and a bevel outside any such subtree keeps its own. `kit::bevels::motif`, `motifEtched`, `flash`,
 `skin` and `plate` are the token sets four toolkits' edges resolve to.
 `core/Pattern.h` adds the one thing a tile cannot do for itself — an
 element tree AS the tile, baked through `snapshot()`. A recipe instance
@@ -868,7 +873,8 @@ always travel together and say one thing between them, with an overload round
 the one child most of them hold), the pixel art in `kit/Sprites.h` —
 `kit::PixelInk`, a canvas and a cell size with the three verbs a pixel artist
 has, and `kit::Sprite`, the same verbs recorded as `kit::SpriteRun` marks over
-a palette, so WHAT is painted is separate from WHICH COLOUR each mark takes;
+a palette of colour terms, so WHAT is painted is separate from WHICH COLOUR
+each mark takes and an entry may be a custom property the tree supplies;
 `kit::pixelMap` reads one out of a character grid through a `kit::SpriteKey`
 (and REFUSES a character the key does not carry rather than leave an unfindable
 hole), `kit::pixelSprite` presents it as nodes, `kit::spriteImage` bakes it,

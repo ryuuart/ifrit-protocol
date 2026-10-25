@@ -15,7 +15,9 @@
  * painted, in whole sprite pixels, is separate from WHICH COLOUR each mark
  * takes. The separation is the whole point of the form. One drawing serves
  * every palette a caller has: a theme swap re-colours it with no
- * re-authoring, and a shader that reads indices rather than colours (see
+ * re-authoring, a palette entry may be a custom property the tree supplies
+ * where the sprite stands, and a shader that reads indices rather than
+ * colours (see
  * `indexImage`) can re-colour it per draw, which is how an 8-bit sprite
  * sheet always shaded a tile.
  *
@@ -42,16 +44,16 @@
  *   handed back the rectangle it occupies.
  */
 
-#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmedia/core/Image.h>
 
-#include <memory>
-
 #include <algorithm>
+#include <glm/vec2.hpp>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -80,8 +82,7 @@ namespace sigil::compose::kit {
  *
  *  Bake it once and hold the result — this allocates a surface and
  *  rasterises. */
-std::shared_ptr<const media::Image> dotSprite(int px = 32,
-                                              float margin = 2.0f);
+std::shared_ptr<const media::Image> dotSprite(int px = 32, float margin = 2.0f);
 
 // ---------------------------------------------------------------------------
 // The pen
@@ -125,7 +126,11 @@ struct SpriteRun {
 };
 
 /** A palette-indexed sprite: the marks, in order, and the colours they
- *  name.
+ *  name. Each palette entry is a colour term — a colour, the ink in force
+ *  or `var(name)` — and a reference is read where each mark paints when
+ *  the sprite is presented as nodes (`pixelSprite`); drawn or baked, where
+ *  no tree stands around it, a reference takes the numbers that stand in
+ *  for it.
  *
  *  ORDER IS KEPT and marks may overlap. A later mark paints over an
  *  earlier one exactly as it would on a canvas, so a translucent
@@ -141,7 +146,7 @@ struct Sprite {
    *  whose marks stop short of its edge still occupies its whole cell, and
    *  a sheet packs the cell. */
   glm::ivec2 grid{0, 0};
-  std::vector<material::Color> colours;
+  std::vector<ColorTerm> colours;
   std::vector<SpriteRun> runs;
 
   bool empty() const { return runs.empty(); }
@@ -149,7 +154,7 @@ struct Sprite {
   /** The index of @p colour, appended if this is its first use. Linear —
    *  a palette is a handful of entries, and holding a map beside it would
    *  cost more than the scan saves. */
-  int entry(const material::Color& colour) {
+  int entry(const ColorTerm& colour) {
     for (size_t i = 0; i < colours.size(); ++i)
       if (colours[i] == colour) return (int)i;
     colours.push_back(colour);
@@ -160,37 +165,47 @@ struct Sprite {
     if (w <= 0 || h <= 0 || index < 0) return;
     runs.push_back({x, y, w, h, index});
   }
-  void rect(float x, float y, float w, float h, const material::Color& colour) {
+  void rect(float x, float y, float w, float h, const ColorTerm& colour) {
     rect(x, y, w, h, entry(colour));
   }
   void px(float x, float y, int index) { rect(x, y, 1, 1, index); }
-  void px(float x, float y, const material::Color& colour) {
+  void px(float x, float y, const ColorTerm& colour) {
     rect(x, y, 1, 1, colour);
   }
   /** A run of one row: [x, x + w) at row @p y. */
   void row(float x, float y, float w, int index) { rect(x, y, w, 1, index); }
-  void row(float x, float y, float w, const material::Color& colour) {
+  void row(float x, float y, float w, const ColorTerm& colour) {
     rect(x, y, w, 1, colour);
   }
 
-  const material::Color& colourOf(int index) const {
-    static const material::Color none{0, 0, 0, 0};
+  /** The entry at @p index, clear past the palette's end. */
+  const ColorTerm& termOf(int index) const {
+    static const ColorTerm none{0, 0, 0, 0};
     return index >= 0 && (size_t)index < colours.size() ? colours[(size_t)index]
                                                         : none;
   }
+  /** The entry's numbers: its colour, or what stands in for a reference. */
+  const material::Color& colourOf(int index) const { return termOf(index); }
 };
 
 /** The palette a CHARACTER GRID names its colours through: one character
  *  per entry, in the same order, so `chars[i]` is the character that means
- *  `colours[i]`.
+ *  `colours[i]`. The entries are colours, or colour terms where a character
+ *  means a colour the tree supplies — `var("background")` re-colours every
+ *  mark in that character wherever the property changes.
  *
  *  A blank is not special-cased: give the character that means "nothing"
  *  an entry whose alpha is zero, and it draws nothing like any other
  *  transparent entry. Every character a grid uses has to be in `chars` —
  *  see `pixelMap`. */
 struct SpriteKey {
+  SpriteKey(std::string_view characters,
+            std::span<const material::Color> entries)
+      : chars(characters), colours(entries.begin(), entries.end()) {}
+  SpriteKey(std::string_view characters, std::span<const ColorTerm> entries)
+      : chars(characters), colours(entries.begin(), entries.end()) {}
   std::string_view chars;
-  std::span<const material::Color> colours;
+  std::vector<ColorTerm> colours;
 };
 
 /** Read a character grid into a sprite: each character names a palette
@@ -233,9 +248,13 @@ void drawSprite(draw::Pen& pen, const Sprite& sprite, glm::vec2 at,
  *  placed box per mark.
  *
  *  Boxes rather than a baked image because the marks then carry the
- *  drawing's own colours into the tree: a palette taken from a theme
- *  re-colours on a theme change with nothing re-baked, and the node can be
- *  scaled by layout without resampling anything. A sprite that never
+ *  drawing's own colours into the tree: an entry that names a custom
+ *  property fills its marks with the colour the property holds where the
+ *  sprite stands, so a palette taken from a theme re-colours on a theme
+ *  change with nothing re-described or re-baked, and the node can be
+ *  scaled by layout without resampling anything. Under an `alpha` below
+ *  one, a mark whose entry is a reference fades by its own opacity, which
+ *  is the same per-mark reading. A sprite that never
  *  changes is a candidate for `Cache::Texture` on the node above it, which
  *  is the seam that turns a settled subtree into one image. */
 Element pixelSprite(const Sprite& sprite, const SpriteStyle& style = {});

@@ -183,7 +183,6 @@ struct PythonStamp {
         .lane = lane, .key = key, .make = [&](const compose::Scope::Node& one) {
           py::object made;
           try {
-            const CallbackBoundary boundary;
             made = maker(ScopeNode{view, (size_t)(&one - first)});
           } catch (const py::error_already_set& error) {
             throw std::runtime_error(error.what());

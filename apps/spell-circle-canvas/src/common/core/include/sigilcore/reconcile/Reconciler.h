@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "sigilcore/reconcile/Environment.h"
 #include "sigilcore/reconcile/Host.h"
 #include "sigilcore/reconcile/Stats.h"
 
@@ -36,8 +35,8 @@
  *  The nested namespaces are the leaves a library far from any
  *  reconciler links on its own: `noise`, `chance`, `hash` and `curve`
  *  for the arithmetic several libraries must agree on to the bit,
- *  `schedule` for where independent work runs, `hardware` for the GPU
- *  device seam, and `environment` for the inherited-value channel. */
+ *  `schedule` for where independent work runs, and `hardware` for the GPU
+ *  device seam. */
 namespace sigil::core {
 
 /** The hash of an addressable key, taking the key as the view a caller
@@ -242,9 +241,8 @@ class Reconciler {
   }
 
   /** The description a memo resolves to: the retained payload on a hit
-   *  (environment equal, then properties equal — both compared because both are
-   * read by the deferred describe), else the memo's produce under the
-   *  environment its author had. A non-memo resolves to itself. */
+   *  (properties of the same type and equal), else the memo's produce. A
+   *  non-memo resolves to itself. */
   Description resolveMemo(Node* existing, const Description& node,
                           bool& described) {
     const auto* memo = m_host.memoOf(node);
@@ -252,15 +250,11 @@ class Reconciler {
       described = true;
       return node;
     }
-    // A memo is a pure function of (properties, ENVIRONMENT). The environment
-    // is compared first and for the same reason properties are: an
-    // `environment::` binding is read live by the deferred describe, so a memo
-    // that hit on properties alone would keep serving whatever environment it
-    // first described under.
+    // A memo is a pure function of its properties, so equal properties
+    // reuse the payload the previous describe produced.
     if (existing && existing->memoShell) {
       const auto* previous = m_host.memoOf(existing->memoShell);
       if (previous && previous->properties.type() == memo->properties.type() &&
-          previous->environment == memo->environment &&
           previous->equal(previous->properties, memo->properties)) {
         m_stats.memoHits++;
         described = false;
@@ -268,9 +262,6 @@ class Reconciler {
       }
     }
     described = true;
-    // …and the deferred call runs under the bindings its AUTHOR had, not
-    // whatever scope this reconcile happens to sit inside (usually none).
-    environment::Restore restore(memo->environment);
     return m_host.produce(*memo);
   }
 

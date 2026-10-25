@@ -47,7 +47,6 @@ void part(py::class_<T>& type, const char* name,
         value.*
             member = [held, arity](const compose::Utf8& words, const T& props) {
           const py::gil_scoped_acquire lock;
-          const CallbackBoundary scopes;
           try {
             const auto& bytes = words.bytes();
             const std::string text(bytes.begin(), bytes.end());
@@ -270,9 +269,8 @@ void bindLayouts(py::module_& compose) {
   auto radial = record<layouts::Radial>(module, "Radial");
   field(radial, "radiusFraction", &layouts::Radial::radiusFraction);
   radial
-      .def_property(
-          "startDegrees", angleGetter(&layouts::Radial::startDegrees),
-          angleSetter<AngleInDegrees>(&layouts::Radial::startDegrees))
+      .def_property("startDegrees", angleGetter(&layouts::Radial::startDegrees),
+                    angleSetter<AngleInDegrees>(&layouts::Radial::startDegrees))
       .def_property(
           "sweepDegrees", angleGetter(&layouts::Radial::sweepDegrees),
           angleSetter<AngleInDegrees>(&layouts::Radial::sweepDegrees));

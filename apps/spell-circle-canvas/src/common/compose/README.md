@@ -144,11 +144,12 @@ An unkeyed node, a node with nothing under it that entered, and a node in
 a capture that draws settled values, such as `compose::snapshot`, drop at
 once. On a memo, `.exit()` is stated on the shell beside `.key()`.
 
-`memo(props, describe)` skips the component call while the properties and
-captured environment compare equal. It is optional: ordinary value
-properties already compare structurally. Use memo when describing a
-subtree is expensive, and include every input the component reads in its
-properties or captured environment.
+`memo(props, describe)` skips the component call while the properties
+compare equal. It is optional: ordinary value properties already compare
+structurally. Use memo when describing a subtree is expensive, and include
+every input the component reads in its properties; a value the sheet in
+force sets, such as a custom property `var()` names, is resolved by the
+cascade after the call and needs no place in them.
 
 An `Element` is a shared, copy-on-write description. Copying it is cheap;
 changing a shared copy clones its payload. It owns no Yoga node or paint

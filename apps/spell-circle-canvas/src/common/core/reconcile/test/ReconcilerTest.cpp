@@ -2,7 +2,7 @@
  * The reconciler over a fake host: mount and patch, the identity prune,
  * keyed reorder keeping its handles, identity change keeping the handle and
  * its lanes, retirement stamped with the pass, the remount rule, the memo
- * with its captured environment, slot content and the key index.
+ * keyed by its properties, slot content and the key index.
  */
 
 #include <gtest/gtest.h>
@@ -186,15 +186,9 @@ Description memoOf(std::string key, int properties, int* calls) {
     ++*calls;
     return description(key, std::any_cast<int>(p));
   };
-  memo.environment = environment::capture();
   shell->memo = std::move(memo);
   return shell;
 }
-
-struct Theme {
-  int tone = 0;
-  bool operator==(const Theme&) const = default;
-};
 
 }  // namespace
 
@@ -240,48 +234,6 @@ TEST(Reconciler, AMemoWithDifferentPropertiesTypeMissesBeforeComparing) {
   host.render(description("root", 0, {shell}));
   EXPECT_EQ(calls, 2);
   EXPECT_EQ(host.reconciler.stats().memoHits, 1);
-}
-
-TEST(Reconciler, AMemoIsKeyedByItsEnvironmentToo) {
-  FakeHost host;
-  int calls = 0;
-  {
-    environment::Provide<Theme> theme(Theme{1});
-    host.render(description("root", 0, {memoOf("m", 7, &calls)}));
-  }
-  EXPECT_EQ(calls, 1);
-  {
-    environment::Provide<Theme> theme(Theme{1});
-    host.render(description("root", 0, {memoOf("m", 7, &calls)}));
-  }
-  EXPECT_EQ(calls, 1);  // same properties, equal environment: a hit
-  {
-    environment::Provide<Theme> theme(Theme{2});
-    host.render(description("root", 0, {memoOf("m", 7, &calls)}));
-  }
-  EXPECT_EQ(calls, 2);  // same properties, different environment: a miss
-}
-
-TEST(Reconciler, ADeferredDescribeRunsUnderTheEnvironmentItWasWrittenIn) {
-  FakeHost host;
-  Description shell;
-  {
-    environment::Provide<Theme> theme(Theme{5});
-    shell = description("m");
-    Memo<Description> memo;
-    memo.properties = 0;
-    memo.equal = [](const std::any&, const std::any&) { return true; };
-    memo.invoke = [](const std::any&) {
-      const Theme* t = environment::inherited<Theme>();
-      return description("m", t ? t->tone : -1);
-    };
-    memo.environment = environment::capture();
-    shell->memo = std::move(memo);
-  }
-  ASSERT_FALSE(environment::bound<Theme>());  // the author's scope is gone
-  host.render(description("root", 0, {shell}));
-  EXPECT_EQ(host.child(0)->description->value, 5);
-  EXPECT_FALSE(environment::bound<Theme>());  // and restored after the invoke
 }
 
 TEST(Reconciler, SlotContentIsNotWalkedAndReplaceContentFillsIt) {

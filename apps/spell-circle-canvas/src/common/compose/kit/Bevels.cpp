@@ -73,17 +73,21 @@ float Bevel::reach() const {
 }
 
 void Bevel::paint(draw::Pen& pen, const PaintContext& ctx) const {
-  material::Color outerLight = light;
-  material::Color outerShadow = shadow;
+  material::Color outerLight = resolveColor(light, ctx);
+  material::Color outerShadow = resolveColor(shadow, ctx);
   if (tonesInForce) {
     static const VarRef lightName = var("bevel-light");
     static const VarRef shadowName = var("bevel-shadow");
-    outerLight = toneInForce(ctx, lightName, light);
-    outerShadow = toneInForce(ctx, shadowName, shadow);
+    outerLight = toneInForce(ctx, lightName, outerLight);
+    outerShadow = toneInForce(ctx, shadowName, outerShadow);
   }
   ring(pen, ctx, *this, outerLight, outerShadow, depth, shadowDepth, sunken,
        edges, ends);
   if (!inner) return;
+  // An inner ring that restates the outer pair is drawn in whatever that
+  // pair resolved to, the tones in force included; one with tones of its
+  // own reads them.
+  const bool restated = inner->light == light && inner->shadow == shadow;
   PaintContext local = ctx;
   if (inner->gap != 0) {
     local.outline = geometry::path::fromSk(geometry::path::insetOutline(
@@ -96,7 +100,9 @@ void Bevel::paint(draw::Pen& pen, const PaintContext& ctx) const {
       local.silhouette = geometry::path::fromSk(geometry::path::insetOutline(
           geometry::path::toSk(ctx.silhouette), inner->gap));
   }
-  ring(pen, local, *this, inner->light, inner->shadow, inner->depth,
+  ring(pen, local, *this,
+       restated ? outerLight : resolveColor(inner->light, ctx),
+       restated ? outerShadow : resolveColor(inner->shadow, ctx), inner->depth,
        inner->shadowDepth, sunken != inner->inverted, inner->edges,
        inner->ends);
 }
@@ -114,9 +120,11 @@ Element& bevelled(Element& e, const Bevel& b) {
   in.sunken = b.sunken != b.inner->inverted;
   in.edges = b.inner->edges;
   in.ends = b.inner->ends;
-  // The properties in force name the OUTER ring's tones; the inner ring
-  // keeps the tones its own token states.
-  in.tonesInForce = false;
+  // The properties in force name the outer pair, so the inner ring takes
+  // them only where its token restates that pair, as an etched groove's
+  // does; an inner ring with tones of its own keeps them.
+  in.tonesInForce = b.tonesInForce && b.inner->light == b.light &&
+                    b.inner->shadow == b.shadow;
   e.foreground(inset(b.inner->gap, Decoration(in)));
   return e;
 }
@@ -128,8 +136,7 @@ Bevel inherited(Bevel shape) {
   return shape;
 }
 
-Bevel motif(material::Color light, material::Color shadow, float depth,
-            bool sunken) {
+Bevel motif(ColorTerm light, ColorTerm shadow, float depth, bool sunken) {
   Bevel b;
   b.light = light;
   b.shadow = shadow;
@@ -141,8 +148,7 @@ Bevel motif(material::Color light, material::Color shadow, float depth,
   return b;
 }
 
-Bevel motifEtched(material::Color light, material::Color shadow, float depth,
-                  bool sunken) {
+Bevel motifEtched(ColorTerm light, ColorTerm shadow, float depth, bool sunken) {
   // Half of one pixel is no pixel: below two the groove has no room for
   // two rings and is the plain shadow.
   const float half = std::floor(depth * 0.5f);
@@ -170,8 +176,7 @@ Bevel flash(material::Color face, float gap) {
   return b;
 }
 
-Bevel skin(material::Color light, material::Color shadow, float depth,
-           bool sunken) {
+Bevel skin(ColorTerm light, ColorTerm shadow, float depth, bool sunken) {
   Bevel b;
   b.light = light;
   b.shadow = shadow;
@@ -181,8 +186,8 @@ Bevel skin(material::Color light, material::Color shadow, float depth,
   return b;
 }
 
-Bevel plate(material::Color light, material::Color shadow, float depth,
-            float softness, bool sunken) {
+Bevel plate(ColorTerm light, ColorTerm shadow, float depth, float softness,
+            bool sunken) {
   Bevel b;
   b.light = light;
   b.shadow = shadow;

@@ -7,7 +7,6 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilweave/layout/ParagraphBlock.h>

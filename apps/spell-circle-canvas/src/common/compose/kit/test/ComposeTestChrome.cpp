@@ -311,6 +311,30 @@ TEST(KitChrome, AStippleTakesEveryOtherCellAndLeavesTheRest) {
           << x << "," << y;
 }
 
+TEST(KitChrome, AStippleWashedInAPropertyTakesTheColourThePropertyHolds) {
+  // The stipple is the mask and the property the colour laid through it,
+  // so one lattice serves every colour a theme puts there and a change of
+  // the property alone re-colours it.
+  const Element washed = box().width(kW).height(kH).fill(kFace).foreground(
+      sigil::compose::decorations::wash(var("shade"),
+                                        sigil::material::pattern::stipple()));
+  const auto under = [&](sigil::material::Color shade) {
+    return box().padding(kX).var("shade", shade).children({washed});
+  };
+  Host host(140, 100);
+  host.composer.render(under(kLit));
+  host.frame();
+  for (int y = 0; y < 4; ++y)
+    for (int x = 0; x < 4; ++x)
+      EXPECT_EQ(at(host, x, y),
+                ((x + y) % 2 == 0) ? SK_ColorRED : SK_ColorGREEN)
+          << x << "," << y;
+  host.composer.render(under(kShade));
+  host.frame();
+  EXPECT_EQ(at(host, 0, 0), SK_ColorBLUE);
+  EXPECT_EQ(at(host, 1, 0), SK_ColorGREEN);
+}
+
 TEST(KitChrome, ADitherTakesAsManyCellsAsItsToneAsksFor) {
   // The ordered dither's tones are counts, and a darker tone's cells are
   // a SUBSET of a lighter one's, which is what keeps a ramp built out of
@@ -433,6 +457,60 @@ TEST(KitChrome, TheTonesInForceDressEveryPanelUnderThem) {
   bare.frame();
   EXPECT_EQ(at(bare, 50, 0), SK_ColorGREEN);
   EXPECT_EQ(at(bare, 50, kH - 1), SK_ColorGREEN);
+}
+
+TEST(KitChrome, AnEtchedGrooveTakesTheTonesInForceOnBothRings) {
+  // The groove's inner ring is the outer pair the other way up, so under
+  // a window that set the pair both rings are drawn in it and neither
+  // token tone shows anywhere — whether the value is one overlay or is
+  // dressed ring by ring.
+  constexpr sigil::material::Color kTokenLight{1, 1, 0, 1};
+  constexpr sigil::material::Color kTokenShadow{1, 0, 1, 1};
+  const kit::Bevel groove = kit::bevels::inherited(
+      kit::bevels::motifEtched(kTokenLight, kTokenShadow, 4));
+  Element overlaid = box().width(kW).height(kH).fill(kFace).overlay(groove);
+  Element dressed = box().width(kW).height(kH).fill(kFace);
+  kit::bevelled(dressed, groove);
+  for (const Element* panel : {&overlaid, &dressed}) {
+    Host host(140, 100);
+    host.composer.render(box()
+                             .padding(kX)
+                             .var("bevel-light", kLit)
+                             .var("bevel-shadow", kShade)
+                             .children({*panel}));
+    host.frame();
+    int lit = 0, shaded = 0;
+    for (int y = 0; y < 100; ++y)
+      for (int x = 0; x < 140; ++x) {
+        const SkColor pixel = host.pixel(x, y);
+        EXPECT_NE(pixel, SK_ColorYELLOW) << "at (" << x << ", " << y << ")";
+        EXPECT_NE(pixel, SK_ColorMAGENTA) << "at (" << x << ", " << y << ")";
+        lit += pixel == SK_ColorRED;
+        shaded += pixel == SK_ColorBLUE;
+      }
+    EXPECT_GT(lit, 0);
+    EXPECT_GT(shaded, 0);
+    // The inner ring, two pixels in, is drawn too, the other way up: its
+    // top band is the shaded tone.
+    EXPECT_EQ(at(host, 50, 2), SK_ColorBLUE);
+  }
+}
+
+TEST(KitChrome, ABevelToneMayBeAProperty) {
+  // A tone is a colour term, so a bevel drawn in one property on both
+  // faces — a flat outline in a theme's foreground — needs no tones in
+  // force at all.
+  Host host(140, 100);
+  host.composer.render(
+      box()
+          .padding(kX)
+          .var("rule", kShade)
+          .children({box().width(kW).height(kH).fill(kFace).overlay(
+              kit::bevels::motif(var("rule"), var("rule"), 2))}));
+  host.frame();
+  EXPECT_EQ(at(host, 50, 0), SK_ColorBLUE);
+  EXPECT_EQ(at(host, 50, kH - 1), SK_ColorBLUE);
+  EXPECT_EQ(at(host, 50, 2), SK_ColorGREEN);
 }
 
 TEST(KitChrome, ABevelUnderASpanGateKeepsItsRingInsideTheShape) {

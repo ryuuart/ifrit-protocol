@@ -114,9 +114,7 @@ template <>
 struct Taken<std::span<const compose::Utf8>> {
   using Held = std::vector<compose::Utf8>;
   static Held read(py::handle value) { return kit::converted<Held>(value); }
-  static std::span<const compose::Utf8> view(const Held& held) {
-    return held;
-  }
+  static std::span<const compose::Utf8> view(const Held& held) { return held; }
 };
 template <>
 struct Taken<composeKit::Table> {
@@ -145,8 +143,9 @@ void partField(py::class_<Record>& type, const char* name,
         if (!draw) return py::none();
         return py::cpp_function([draw](py::args arguments) {
           if (py::len(arguments) != sizeof...(Offered))
-            throw py::type_error("A kit part is called with every value it "
-                                 "is offered.");
+            throw py::type_error(
+                "A kit part is called with every value it "
+                "is offered.");
           return [&]<std::size_t... Index>(std::index_sequence<Index...>) {
             std::tuple<typename Taken<Offered>::Held...> held{
                 Taken<Offered>::read(arguments[Index])...};
@@ -168,7 +167,6 @@ void partField(py::class_<Record>& type, const char* name,
             retainCallback(py::reinterpret_borrow<py::function>(callable));
         self.*member = [held, arity](const Offered&... values) {
           const py::gil_scoped_acquire lock;
-          const CallbackBoundary scopes;
           try {
             const py::object all[] = {offered(values)...};
             py::tuple taken(arity);
@@ -253,21 +251,16 @@ void bindComposeKitRows(py::module_& root) {
       }))
       .def("copy", [](const HeldTable& value) { return value; });
   copyProtocol(table);
-  field(table, "columns",
-        heldMember<HeldTable>(&composeKit::Table::columns));
-  field(table, "gap",
-        heldMember<HeldTable>(&composeKit::Table::gap));
-  field(table, "rowGap",
-        heldMember<HeldTable>(&composeKit::Table::rowGap));
-  field(table, "divider",
-        heldMember<HeldTable>(&composeKit::Table::divider));
+  field(table, "columns", heldMember<HeldTable>(&composeKit::Table::columns));
+  field(table, "gap", heldMember<HeldTable>(&composeKit::Table::gap));
+  field(table, "rowGap", heldMember<HeldTable>(&composeKit::Table::rowGap));
+  field(table, "divider", heldMember<HeldTable>(&composeKit::Table::divider));
   field(table, "dividerWidth",
         heldMember<HeldTable>(&composeKit::Table::dividerWidth));
   field(table, "headRuled",
         heldMember<HeldTable>(&composeKit::Table::headRuled));
   table.def_property(
-      "swatches",
-      [](const HeldTable& self) { return self.swatchRun; },
+      "swatches", [](const HeldTable& self) { return self.swatchRun; },
       [](HeldTable& self, py::handle value) {
         self.swatchRun = kit::converted<std::vector<compose::Fill>>(value);
         self.point();
@@ -313,22 +306,15 @@ void bindComposeKitRows(py::module_& root) {
       }))
       .def("copy", [](const HeldBars& value) { return value; });
   copyProtocol(bars);
-  field(bars, "length",
-        heldMember<HeldBars>(&composeKit::Bars::length));
-  field(bars, "largest",
-        heldMember<HeldBars>(&composeKit::Bars::largest));
+  field(bars, "length", heldMember<HeldBars>(&composeKit::Bars::length));
+  field(bars, "largest", heldMember<HeldBars>(&composeKit::Bars::largest));
   field(bars, "labelMeasure",
         heldMember<HeldBars>(&composeKit::Bars::labelMeasure));
-  field(bars, "barHeight",
-        heldMember<HeldBars>(&composeKit::Bars::barHeight));
-  field(bars, "gap",
-        heldMember<HeldBars>(&composeKit::Bars::gap));
-  field(bars, "rowGap",
-        heldMember<HeldBars>(&composeKit::Bars::rowGap));
-  field(bars, "bar",
-        heldMember<HeldBars>(&composeKit::Bars::bar));
-  field(bars, "rest",
-        heldMember<HeldBars>(&composeKit::Bars::rest));
+  field(bars, "barHeight", heldMember<HeldBars>(&composeKit::Bars::barHeight));
+  field(bars, "gap", heldMember<HeldBars>(&composeKit::Bars::gap));
+  field(bars, "rowGap", heldMember<HeldBars>(&composeKit::Bars::rowGap));
+  field(bars, "bar", heldMember<HeldBars>(&composeKit::Bars::bar));
+  field(bars, "rest", heldMember<HeldBars>(&composeKit::Bars::rest));
   bars.def_property(
       "inks", [](const HeldBars& self) { return self.inkRun; },
       [](HeldBars& self, py::handle value) {

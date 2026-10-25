@@ -32,7 +32,7 @@ The ten numbers are what a grain, a drift, a flow or an erosion is set
 by, and they are chosen once for a drawing far more often than they are
 chosen per call — which is what makes this a value to carry rather than
 a call to repeat. It compares exactly, member for member, so a memo
-keyed on one may be skipped and a theme may bind one.
+keyed on one may be skipped.
 
 ## The range
 

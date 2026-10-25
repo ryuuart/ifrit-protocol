@@ -3,8 +3,8 @@
 // shader reads, the sheet that packs many sprites under their names, and
 // the round stamp a point sink draws with.
 
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/kit/Sprites.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmedia/advanced/Skia.h>
 
 #include "support/ShapeTestSupport.h"
@@ -12,11 +12,11 @@
 namespace {
 
 /** The still a sprite bake answered, as the Skia image a case reads. */
-sk_sp<SkImage> pictureOf(const std::shared_ptr<const sigil::media::Image>& image) {
+sk_sp<SkImage> pictureOf(
+    const std::shared_ptr<const sigil::media::Image>& image) {
   return image && !image->frames().empty() ? image->frames().front().image
                                            : nullptr;
 }
-
 
 using sigil::compose::kit::dotSprite;
 using sigil::compose::kit::pixelMap;
@@ -162,6 +162,33 @@ TEST(KitSprites, TheNodeFormPaintsWhatTheBakedFormDoes) {
   EXPECT_EQ(host.pixel(15, 15), SK_ColorRED);
 }
 
+TEST(KitSprites,
+     APaletteEntryNamingAPropertyTakesTheColourItHoldsWhereItStands) {
+  // One entry is the tree's, the other a colour of its own: the property
+  // fills its marks wherever the sprite stands, and a change of the
+  // property re-colours them with the sprite described once.
+  const std::vector<sigil::compose::ColorTerm> palette{kBlank, var("x"), kBlue};
+  const std::optional<Sprite> sprite =
+      pixelMap(threeByThree(), {kChars, palette});
+  ASSERT_TRUE(sprite.has_value());
+  const Element drawing =
+      sigil::compose::kit::pixelSprite(*sprite, {.cell = 10.0f});
+  const auto under = [&](sigil::material::Color colour) {
+    return box().absolute().inset(0).var("x", colour).children({drawing});
+  };
+  Host host;
+  host.composer.render(under(kRed));
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);     // a, the property
+  EXPECT_EQ(host.pixel(15, 5), SK_ColorBLUE);   // b, its own colour
+  EXPECT_EQ(host.pixel(25, 5), SK_ColorBLACK);  // the hole
+  host.composer.render(under({0, 1, 0, 1}));
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(15, 15), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(15, 5), SK_ColorBLUE);
+}
+
 TEST(KitSprites, ASheetPacksEverySpriteUnderItsNameWithoutOverlap) {
   SpriteSheet sheet;
   const std::vector<std::string> flat{"aa", "aa"};
@@ -175,8 +202,9 @@ TEST(KitSprites, ASheetPacksEverySpriteUnderItsNameWithoutOverlap) {
   ASSERT_TRUE(sheet.bake({.cell = 3.0f}));
   ASSERT_TRUE(sheet.image());
 
-  const SkRect bounds = SkRect::MakeWH((float)pictureOf(sheet.image())->width(),
-                                       (float)pictureOf(sheet.image())->height());
+  const SkRect bounds =
+      SkRect::MakeWH((float)pictureOf(sheet.image())->width(),
+                     (float)pictureOf(sheet.image())->height());
   std::vector<SkRect> cells;
   for (std::string_view name : sheet.names()) {
     const SkRect cell = sigil::geometry::path::toSk(sheet.rect(name));
@@ -189,12 +217,14 @@ TEST(KitSprites, ASheetPacksEverySpriteUnderItsNameWithoutOverlap) {
   }
   // Each name's rectangle holds that name's own drawing, so a caller can
   // trust the window it is handed.
-  EXPECT_EQ(pixelOf(pictureOf(sheet.image()), (int)sheet.rect("icon1").centre().x,
-                    (int)sheet.rect("icon1").centre().y),
-            SK_ColorRED);
-  EXPECT_EQ(pixelOf(pictureOf(sheet.image()), (int)sheet.rect("icon2").centre().x,
-                    (int)sheet.rect("icon2").centre().y),
-            SK_ColorBLUE);
+  EXPECT_EQ(
+      pixelOf(pictureOf(sheet.image()), (int)sheet.rect("icon1").centre().x,
+              (int)sheet.rect("icon1").centre().y),
+      SK_ColorRED);
+  EXPECT_EQ(
+      pixelOf(pictureOf(sheet.image()), (int)sheet.rect("icon2").centre().x,
+              (int)sheet.rect("icon2").centre().y),
+      SK_ColorBLUE);
 }
 
 TEST(KitSprites, ASheetAnswersByNameAndGivesNothingForOneItDoesNotHold) {

@@ -103,9 +103,8 @@ void bindBrushRecords(py::module_& module) {
   field(tool, "pressure", &brush::Tool::pressure);
   field(tool, "blend", &brush::Tool::blend);
   field(tool, "rotation", &brush::Tool::rotation);
-  tool.def_property(
-      "angle", angleGetter(&brush::Tool::angle),
-      angleSetter<AngleInRadians>(&brush::Tool::angle));
+  tool.def_property("angle", angleGetter(&brush::Tool::angle),
+                    angleSetter<AngleInRadians>(&brush::Tool::angle));
   field(tool, "aspect", &brush::Tool::aspect);
   field(tool, "sizeJitter", &brush::Tool::sizeJitter);
   field(tool, "opacityJitter", &brush::Tool::opacityJitter);
@@ -133,25 +132,21 @@ void bindBrushRecords(py::module_& module) {
       "barrelRotation", angleGetter(&brush::Input::barrelRotation),
       angleSetter<AngleInRadians>(&brush::Input::barrelRotation));
   field(input, "seconds", &brush::Input::seconds);
-  input.def_property(
-      "tiltDirection", angleGetter(&brush::Input::tiltDirection),
-      angleSetter<AngleInRadians>(&brush::Input::tiltDirection));
+  input.def_property("tiltDirection", angleGetter(&brush::Input::tiltDirection),
+                     angleSetter<AngleInRadians>(&brush::Input::tiltDirection));
   auto dab = record<brush::Dab>(module, "Dab");
   field(dab, "position", &brush::Dab::position);
   field(dab, "pressure", &brush::Dab::pressure);
   field(dab, "tilt", &brush::Dab::tilt);
-  dab.def_property(
-      "barrelRotation", angleGetter(&brush::Dab::barrelRotation),
-      angleSetter<AngleInRadians>(&brush::Dab::barrelRotation))
-      .def_property(
-          "direction", angleGetter(&brush::Dab::direction),
-          angleSetter<AngleInRadians>(&brush::Dab::direction));
+  dab.def_property("barrelRotation", angleGetter(&brush::Dab::barrelRotation),
+                   angleSetter<AngleInRadians>(&brush::Dab::barrelRotation))
+      .def_property("direction", angleGetter(&brush::Dab::direction),
+                    angleSetter<AngleInRadians>(&brush::Dab::direction));
   field(dab, "speed", &brush::Dab::speed);
   field(dab, "distance", &brush::Dab::distance);
   field(dab, "progress", &brush::Dab::progress);
-  dab.def_property(
-      "tiltDirection", angleGetter(&brush::Dab::tiltDirection),
-      angleSetter<AngleInRadians>(&brush::Dab::tiltDirection));
+  dab.def_property("tiltDirection", angleGetter(&brush::Dab::tiltDirection),
+                   angleSetter<AngleInRadians>(&brush::Dab::tiltDirection));
   auto sample = record<brush::Sample>(module, "Sample");
   field(sample, "position", &brush::Sample::position);
   field(sample, "pressure", &brush::Sample::pressure);
@@ -170,9 +165,8 @@ void bindBrushRecords(py::module_& module) {
   field(wash, "border", &brush::Wash::border);
   field(wash, "scatter", &brush::Wash::scatter);
   field(wash, "bleedDirection", &brush::Wash::bleedDirection);
-  wash.def_property(
-      "bleedAngle", angleGetter(&brush::Wash::bleedAngle),
-      angleSetter<AngleInRadians>(&brush::Wash::bleedAngle));
+  wash.def_property("bleedAngle", angleGetter(&brush::Wash::bleedAngle),
+                    angleSetter<AngleInRadians>(&brush::Wash::bleedAngle));
   field(wash, "layers", &brush::Wash::layers);
   field(wash, "blend", &brush::Wash::blend);
   auto mass = record<brush::Mass>(module, "Mass");
@@ -188,9 +182,8 @@ void bindBrushRecords(py::module_& module) {
   field(vortex, "direction", &brush::Vortex::direction);
   field(vortex, "pull", &brush::Vortex::pull);
   auto wave = record<brush::Wave>(module, "Wave");
-  wave.def_property(
-      "direction", angleGetter(&brush::Wave::direction),
-      angleSetter<AngleInRadians>(&brush::Wave::direction));
+  wave.def_property("direction", angleGetter(&brush::Wave::direction),
+                    angleSetter<AngleInRadians>(&brush::Wave::direction));
   field(wave, "amplitude", &brush::Wave::amplitude);
   field(wave, "wavelength", &brush::Wave::wavelength);
   field(wave, "speed", &brush::Wave::speed);
@@ -219,8 +212,9 @@ void bindBrushRecords(py::module_& module) {
       py::init([](py::handle position, float pressure, float tilt,
                   AngleInRadians barrelRotation, double seconds,
                   AngleInRadians tiltDirection) {
-        return brush::Input{point(position),      pressure, tilt,
-                            barrelRotation.value, seconds,  tiltDirection.value};
+        return brush::Input{
+            point(position),      pressure, tilt,
+            barrelRotation.value, seconds,  tiltDirection.value};
       }),
       py::arg("position"), py::arg("pressure") = 1.0f, py::arg("tilt") = 0.0f,
       py::arg("barrelRotation") = AngleInRadians{}, py::arg("seconds") = 0.0,
@@ -246,7 +240,6 @@ void bindBrushRecords(py::module_& module) {
         auto held = retainCallback(callable);
         tool.customTip = [held, count](draw::Pen& pen, const brush::Dab& dab) {
           const py::gil_scoped_acquire lock;
-          const CallbackBoundary boundary;
           auto borrowed = std::make_shared<BorrowedPen>(pen);
           struct Invalidate {
             BorrowedPen& pen;

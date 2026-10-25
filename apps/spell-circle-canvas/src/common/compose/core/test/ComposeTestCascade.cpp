@@ -8,7 +8,6 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/paint/Paint.h>
 #include <sigilmaterial/skia/Paint.h>

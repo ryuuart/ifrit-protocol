@@ -15,8 +15,8 @@
 #include <sigilcompose/kit/Sprites.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmedia/advanced/Skia.h>
 
@@ -29,8 +29,8 @@ namespace {
 
 /** One axis-aligned mark on @p canvas, antialiasing off, in a palette
  *  entry: the plotting every sprite verb comes down to. */
-void plot(SkCanvas& canvas, float cell, glm::vec2 at, float x, float y,
-          float w, float h, const material::Color& colour) {
+void plot(SkCanvas& canvas, float cell, glm::vec2 at, float x, float y, float w,
+          float h, const material::Color& colour) {
   if (colour.a <= 0) return;
   SkPaint paint;
   paint.setAntiAlias(false);
@@ -90,7 +90,8 @@ std::optional<Sprite> pixelMap(std::span<const std::string> rows,
       if (taken[seed]) continue;
       const int idx = index[seed];
       taken[seed] = 1;
-      if (out.colourOf(idx).a <= 0) continue;  // the grid's own blank
+      const ColorTerm& entry = out.termOf(idx);
+      if (!entry.references() && entry.a <= 0) continue;  // the grid's blank
       // Widest first, then as deep as that whole width stays this entry —
       // the largest rectangle anchored here, which is what keeps a flat
       // field of one colour to a single mark.
@@ -138,20 +139,27 @@ void drawSprite(draw::Pen& pen, const Sprite& sprite, glm::vec2 at,
 }
 
 Element pixelSprite(const Sprite& sprite, const SpriteStyle& style) {
-  Element root =
-      stack()
-          .width(Dimension((float)sprite.grid.x * style.cell))
-          .height(Dimension((float)sprite.grid.y * style.cell));
+  Element root = stack()
+                     .width(Dimension((float)sprite.grid.x * style.cell))
+                     .height(Dimension((float)sprite.grid.y * style.cell));
   for (const SpriteRun& run : sprite.runs) {
-    const material::Color colour =
-        faded(sprite.colourOf(run.index), style.alpha);
-    if (colour.a <= 0) continue;
-    root.children({box()
+    const ColorTerm& entry = sprite.termOf(run.index);
+    Element mark = box()
                        .left(Dimension(run.x * style.cell))
                        .top(Dimension(run.y * style.cell))
                        .width(Dimension(run.w * style.cell))
-                       .height(Dimension(run.h * style.cell))
-                       .fill(colour)});
+                       .height(Dimension(run.h * style.cell));
+    if (entry.references()) {
+      // The colour is the tree's, read where the mark paints, so the fade
+      // is the mark's own opacity rather than its colour's alpha.
+      mark.fill(entry.fill());
+      if (style.alpha < 1.0f) mark.opacity(style.alpha);
+    } else {
+      const material::Color colour = faded(entry, style.alpha);
+      if (colour.a <= 0) continue;
+      mark.fill(colour);
+    }
+    root.children({std::move(mark)});
   }
   return root;
 }

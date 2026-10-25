@@ -16,14 +16,16 @@
  * corner and whether the edge is drawn or moulded, not four families of
  * painters.
  *
- * The tones flow through the cascade. A subtree that sets the custom
- * properties `bevel-light` and `bevel-shadow` dresses every bevel inside it
- * that takes its tones in force, with nothing said at the use site but the
- * shape:
+ * The tones flow through the cascade. Each tone is a colour term — a
+ * colour, the ink in force or `var(name)` — read where the bevel paints,
+ * and a subtree that sets the custom properties `bevel-light` and
+ * `bevel-shadow` dresses every bevel inside it that takes its tones in
+ * force, with nothing said at the use site but the shape:
  *
  *     window.var("bevel-light", hi).var("bevel-shadow", lo);
  *     …
  *     panel.overlay(kit::bevels::inherited(kit::bevels::motif(hi, lo)));
+ *     outline.overlay(kit::bevels::motif(var("rule"), var("rule"), 1));
  */
 
 #include <sigilcompose/brush/Decorations.h>
@@ -49,8 +51,8 @@ namespace sigil::compose::kit {
 struct BevelInner {
   /** Px inside the outer ring. 0 puts the two rings edge to edge. */
   float gap = 1;
-  material::Color light = {1, 1, 1, 0.6f};
-  material::Color shadow = {0, 0, 0, 0.5f};
+  ColorTerm light = {1, 1, 1, 0.6f};
+  ColorTerm shadow = {0, 0, 0, 0.5f};
   /** Px of the lit edge. */
   float depth = 1;
   /** Px of the shadowed edge; 0 takes `depth`. */
@@ -86,8 +88,10 @@ struct BevelInner {
  *  wants. The tones and the depth mean the same thing on both sides of
  *  that line, so a look moves between them by one number. */
 struct Bevel {
-  material::Color light = {1, 1, 1, 0.6f};
-  material::Color shadow = {0, 0, 0, 0.5f};
+  /** The lit tone and the shaded one: each a colour, the ink in force or
+   *  a custom property, read where the ring paints. */
+  ColorTerm light = {1, 1, 1, 0.6f};
+  ColorTerm shadow = {0, 0, 0, 0.5f};
   /** Px of the lit edge. */
   float depth = 1;
   /** Px of the shadowed edge; 0 takes `depth`. */
@@ -111,7 +115,10 @@ struct Bevel {
   /** THE TONES IN FORCE: where set, the outer ring's light and shadow are
    *  the custom properties `bevel-light` and `bevel-shadow` in force where
    *  the bevel paints, each a colour, and `light` and `shadow` above are
-   *  the fallback where no ancestor set one. */
+   *  the fallback where no ancestor set one. An inner ring whose tones
+   *  restate the outer pair — an etched groove's, which is the same pair
+   *  the other way up — takes the pair in force with it; an inner ring
+   *  with tones of its own keeps them. */
   bool tonesInForce = false;
 
   bool operator==(const Bevel&) const = default;
@@ -144,22 +151,23 @@ Element& bevelled(Element& e, const Bevel& b);
  *  toolkit's own arithmetic and belongs where the face is. */
 namespace bevels {
 
-/** @p shape with its outer ring's tones read from the properties in
- *  force — `bevel-light` and `bevel-shadow` — and @p shape's own tones
- *  where no ancestor set them, so a panel outside any era is still drawn. */
+/** @p shape with its outer ring's tones, and an inner ring's that restate
+ *  them, read from the properties in force — `bevel-light` and
+ *  `bevel-shadow` — and @p shape's own tones where no ancestor set them,
+ *  so a panel outside any era is still drawn. */
 Bevel inherited(Bevel shape = {});
 
 /** THE TWO-TONE SHADOW of the Motif toolkits: @p depth px on the pixel
  *  lattice, mitred, drawn in the colour set of the window it is in. Every
  *  control in a CDE session is this, at 1 or 2 px, raised or sunken. */
-Bevel motif(material::Color light, material::Color shadow, float depth = 2,
+Bevel motif(ColorTerm light, ColorTerm shadow, float depth = 2,
             bool sunken = false);
 
 /** THE ETCHED GROOVE the same toolkits scored a separator with: half the
  *  depth twice, the inner ring the other way up, and the corner pixel to
  *  the far band on both rings so the groove closes. */
-Bevel motifEtched(material::Color light, material::Color shadow,
-                  float depth = 2, bool sunken = false);
+Bevel motifEtched(ColorTerm light, ColorTerm shadow, float depth = 2,
+                  bool sunken = false);
 
 /** THE CHAMFERED PANEL of a Flash-era component kit: an asymmetric pair
  *  over an antialiased silhouette — the lift wider than the drop, both
@@ -171,14 +179,14 @@ Bevel flash(material::Color face, float gap = 0);
  *  stated tones — a bitmap skin's chrome was pixels someone placed, so
  *  neither tone is derived from anything and every part of the window,
  *  from the title bar to the smallest key, is this one value. */
-Bevel skin(material::Color light, material::Color shadow, float depth = 1,
+Bevel skin(ColorTerm light, ColorTerm shadow, float depth = 1,
            bool sunken = false);
 
 /** THE STAMPED PLATE: a moulded edge rather than a drawn one — the
  *  blurred plane pair a pressed, cast or embossed surface has, lit from
  *  the upper left. @p sunken is the recess punched into the same plate.
  */
-Bevel plate(material::Color light, material::Color shadow, float depth = 1.4f,
+Bevel plate(ColorTerm light, ColorTerm shadow, float depth = 1.4f,
             float softness = 1.8f, bool sunken = false);
 
 }  // namespace bevels

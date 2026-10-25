@@ -232,7 +232,6 @@ compose::ScopeProgram scopeProgram(py::handle value) {
       }
     } endLoan{borrowed.get()};
     try {
-      const CallbackBoundary boundary;
       if (named == 0)
         program();
       else

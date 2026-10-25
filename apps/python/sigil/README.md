@@ -1507,8 +1507,10 @@ to an image and reuse it; a retained layout per dab has additional work.
 
 `memo(properties, describe).key("identity")` uses the native reconciler. Its
 properties must support `copy.deepcopy` and equality; the description
-captures a copied model and the current native environment. The builder
-is a pure function of those values. A changed closure alone does not
+captures a copied model, and the builder is a pure function of it. A value
+the sheet in force sets, such as a custom property `var()` names, is
+resolved by the cascade after the builder runs and needs no place in the
+model. A changed closure alone does not
 invalidate the memo. Style the element the builder returns, rather than
 the memo's description shell.
 

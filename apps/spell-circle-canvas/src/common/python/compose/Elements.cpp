@@ -43,7 +43,6 @@ using Model = std::shared_ptr<PythonValue>;
 Element memo(py::object properties, py::function describe) {
   // Capture a model value, rather than an alias whose mutation would make
   // the old and new declarations compare against the same changed object.
-  const CallbackBoundary boundary;
   auto snapshot =
       retainValue(py::module_::import("copy").attr("deepcopy")(properties));
   auto callback = retainCallback(std::move(describe));
@@ -51,7 +50,6 @@ Element memo(py::object properties, py::function describe) {
       std::any(std::move(snapshot)),
       [](const std::any& left, const std::any& right) {
         const py::gil_scoped_acquire lock;
-        const CallbackBoundary boundary;
         try {
           const auto a = std::any_cast<const Model&>(left)->get();
           const auto b = std::any_cast<const Model&>(right)->get();
@@ -64,7 +62,6 @@ Element memo(py::object properties, py::function describe) {
       },
       [callback](const std::any& value) {
         const py::gil_scoped_acquire lock;
-        const CallbackBoundary boundary;
         try {
           return callback->get()(std::any_cast<const Model&>(value)->get())
               .cast<Element>();

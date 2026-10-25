@@ -340,30 +340,6 @@ class CallbackScope {
   CallbackLifetime* m_previous;
 };
 
-/** Keeps an active native scope on its owning thread until explicitly closed
- *  or unwound at a Python callback boundary. The close function must not throw
- *  and releases only the scope's native state, leaving retained handles inert.
- */
-void retainScope(std::shared_ptr<void> owner, void (*close)(void*) noexcept);
-/** Whether @p owner is the innermost retained scope on this thread. */
-[[nodiscard]] bool isCurrentScope(const void* owner);
-/** Closes the innermost retained scope. The caller validates its thread and
- *  native environment before requesting a close. */
-void closeScope(const void* owner);
-
-/** Closes native scopes opened by a Python callback before the enclosing
- *  native environment is restored, including scopes the author abandoned. */
-class CallbackBoundary {
- public:
-  CallbackBoundary();
-  ~CallbackBoundary();
-  CallbackBoundary(const CallbackBoundary&) = delete;
-  CallbackBoundary& operator=(const CallbackBoundary&) = delete;
-
- private:
-  std::uint64_t m_lastScope;
-};
-
 }  // namespace sigil::python
 
 namespace pybind11::detail {
@@ -447,9 +423,9 @@ struct type_caster<sigil::weave::Face> {
  *  read back is most often fed into arithmetic. */
 template <>
 struct type_caster<std::chrono::duration<double>> {
-  PYBIND11_TYPE_CASTER(std::chrono::duration<double>,
-                       io_name("datetime.timedelta | typing.SupportsFloat | str",
-                               "float"));
+  PYBIND11_TYPE_CASTER(
+      std::chrono::duration<double>,
+      io_name("datetime.timedelta | typing.SupportsFloat | str", "float"));
 
   bool load(handle input, bool convert) {
     if (!input || input.is_none() || PyBool_Check(input.ptr())) return false;
@@ -547,8 +523,7 @@ struct angle_slot_caster {
 
 /** An angle whose bare number is degrees, read in degrees. */
 template <>
-struct type_caster<sigil::python::AngleInDegrees>
-    : angle_slot_caster {
+struct type_caster<sigil::python::AngleInDegrees> : angle_slot_caster {
   PYBIND11_TYPE_CASTER(
       sigil::python::AngleInDegrees,
       io_name("_sigil.core.angle.Angle | typing.SupportsFloat | str", "float"));
@@ -569,8 +544,7 @@ struct type_caster<sigil::python::AngleInDegrees>
 
 /** An angle whose bare number is radians, read in radians. */
 template <>
-struct type_caster<sigil::python::AngleInRadians>
-    : angle_slot_caster {
+struct type_caster<sigil::python::AngleInRadians> : angle_slot_caster {
   PYBIND11_TYPE_CASTER(
       sigil::python::AngleInRadians,
       io_name("_sigil.core.angle.Angle | typing.SupportsFloat | str", "float"));
@@ -593,8 +567,7 @@ struct type_caster<sigil::python::AngleInRadians>
  *  kept apart from an angle that names its own measure until the verb
  *  knows the pen. */
 template <>
-struct type_caster<sigil::python::AngleInPenMode>
-    : angle_slot_caster {
+struct type_caster<sigil::python::AngleInPenMode> : angle_slot_caster {
   PYBIND11_TYPE_CASTER(
       sigil::python::AngleInPenMode,
       io_name("_sigil.core.angle.Angle | typing.SupportsFloat | str", "float"));
@@ -629,10 +602,10 @@ struct type_caster<std::expected<Value, sigil::core::Error>> {
                      handle parent) {
     if (!answer) {
       const sigil::core::Error& error = answer.error();
-      throw std::runtime_error(
-          error.line ? "line " + std::to_string(*error.line) + ": " +
-                           error.message
-                     : error.message);
+      throw std::runtime_error(error.line
+                                   ? "line " + std::to_string(*error.line) +
+                                         ": " + error.message
+                                   : error.message);
     }
     if constexpr (!std::is_lvalue_reference_v<Answer>)
       policy = return_value_policy_override<Value>::policy(policy);

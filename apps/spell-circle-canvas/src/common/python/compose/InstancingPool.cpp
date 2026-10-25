@@ -87,7 +87,6 @@ void flyPool(Pool& pool, float seconds, py::handle ease) {
   std::vector<float> eased;
   eased.reserve(progress.size());
   {
-    const CallbackBoundary boundary;
     for (const float unit : progress) {
       const py::object answer = ease(unit);
       try {
@@ -126,12 +125,10 @@ void bindFlight(PoolClass& pool) {
         return keywordValue<Flight>(fields, "Unknown Flight field: ");
       }))
       .def("copy", [](const Flight& value) { return value; })
-      .def_property(
-          "rotateFrom", angleGetter(&Flight::rotateFrom),
-          angleSetter<AngleInRadians>(&Flight::rotateFrom))
-      .def_property(
-          "rotateTo", angleGetter(&Flight::rotateTo),
-          angleSetter<AngleInRadians>(&Flight::rotateTo))
+      .def_property("rotateFrom", angleGetter(&Flight::rotateFrom),
+                    angleSetter<AngleInRadians>(&Flight::rotateFrom))
+      .def_property("rotateTo", angleGetter(&Flight::rotateTo),
+                    angleSetter<AngleInRadians>(&Flight::rotateTo))
       .def_readwrite("scaleFrom", &Flight::scaleFrom)
       .def_readwrite("scaleTo", &Flight::scaleTo)
       .def_readwrite("alphaFrom", &Flight::alphaFrom)

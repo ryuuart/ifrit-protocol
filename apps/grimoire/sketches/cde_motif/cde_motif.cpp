@@ -477,17 +477,16 @@ struct CdeMotifSketch {
     return kit::centred()
         .width(18)
 
-        .children(
-            {box()
-                 .width(18)
-                 .height(31)
-                 .fill(var("bevel-shadow"))
-                 .overlay(cde::WashInForce{
-                     [](material::Color light) {
-                       return pattern::scanlines(
-                           {.color = light, .period = 2, .on = 1, .phase = 1});
-                     },
-                     var("bevel-light")})});
+        .children({box()
+                       .width(18)
+                       .height(31)
+                       .fill(var("bevel-shadow"))
+                       .overlay(decorations::wash(
+                           var("bevel-light"),
+                           pattern::scanlines({.color = {0, 0, 0, 1},
+                                               .period = 2,
+                                               .on = 1,
+                                               .phase = 1})))});
   }
 
   Element panelSeparator() {

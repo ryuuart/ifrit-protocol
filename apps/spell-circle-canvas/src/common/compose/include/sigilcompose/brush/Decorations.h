@@ -352,6 +352,13 @@ struct ContourWalk {
  *
  *      .foreground(decorations::wash(material::noise(0.3f, {.octaves = 2,
  * .grain = true}), material::BlendMode::SoftLight, 0.35f))
+ *
+ *  With a `fill`, the material is a MASK and the fill is what shows
+ *  through it — the one spelling of a lattice in a colour the tree
+ *  supplies, since a material's own colours sit where no property reaches:
+ *
+ *      .foreground(decorations::wash(var("shade"),
+ * material::pattern::stipple()))
  */
 struct Wash {
   material::Material material;
@@ -359,11 +366,22 @@ struct Wash {
   /** Strength, 0..1, applied as alpha on the pass. Clamped at paint; 0
    *  paints nothing at all. */
   float amount = 1.0f;
+  /** THE FILL LAID THROUGH THE MATERIAL. Unset, the material is the paint.
+   *  Set — a colour, the ink in force, a custom property or a paint, each
+   *  read where the wash paints — the material is a mask: its alpha is
+   *  where and how strongly this fill shows, so one stipple serves every
+   *  colour a theme puts in the property. */
+  std::optional<Fill> fill;
 
   bool operator==(const Wash& o) const {
-    return material == o.material && blend == o.blend && amount == o.amount;
+    return material == o.material && blend == o.blend && amount == o.amount &&
+           fill == o.fill;
   }
-  bool isRunning() const { return material.isRunning(); }
+  bool isRunning() const {
+    if (material.isRunning()) return true;
+    const material::Material* shown = fill ? fill->material() : nullptr;
+    return shown != nullptr && shown->isRunning();
+  }
   bool usesWorldSpace() const;
   /** A wash through anything but source-over reads what is under the node
    *  — which is the point of it, and why such a node cannot be baked. */
@@ -472,6 +490,15 @@ inline Wash wash(const material::Material& material,
                  material::BlendMode blend = material::BlendMode::Normal,
                  float amount = 1.0f) {
   return Wash{material, blend, amount};
+}
+
+/** @p fill laid through @p mask: `wash(var("shade"), stipple())` floods the
+ *  outline with the colour the property holds where the wash paints,
+ *  wherever the stipple sets a cell. */
+inline Wash wash(Fill fill, const material::Material& mask,
+                 material::BlendMode blend = material::BlendMode::Normal,
+                 float amount = 1.0f) {
+  return Wash{mask, blend, amount, std::move(fill)};
 }
 
 /** A plain rule around the node's outline, `inset` px inside it. */

@@ -59,7 +59,6 @@ int registerVariants(CellSheet& sheet, int count, std::optional<SkSize> shared,
                      const py::function& make) {
   const int named = recipeParameters(make);
   return sheet.variants(count, [&](int index) -> std::pair<Element, SkSize> {
-    const CallbackBoundary boundary;
     const py::object answer = named == 0 ? make() : make(index);
     if (isNode(answer)) {
       if (!shared)

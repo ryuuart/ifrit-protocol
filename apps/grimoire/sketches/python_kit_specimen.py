@@ -169,7 +169,7 @@ class OrderSpecimen:
         inset.palette.cellGround = "#254a48"
         # The inset's look is part of the memo's key, and its properties a
         # nearer sheet on the palette's own subtree.
-        palette = memo(("A theme held beyond its scope", inset), captured_palette)
+        palette = memo(("A theme carried in a key", inset), captured_palette)
         first = kit.cells(
             specimen(
                 radial(),
@@ -206,8 +206,8 @@ class OrderSpecimen:
             specimen(
                 palette,
                 6,
-                "Memo + Provide",
-                "A deferred component restores its native environment.",
+                "Memo + Properties",
+                "Its key holds a theme the function sets as properties.",
             ),
         )
         sheet = kit.page(

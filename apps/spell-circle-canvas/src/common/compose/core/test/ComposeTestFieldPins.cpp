@@ -222,12 +222,11 @@ TEST(ComposeDeclarations, EveryPaintPropsFieldParticipatesInTheStyleCompare) {
   // The paint block is the half of the computed style with a hand-written
   // comparison, so it is walked field by field there as it is here.
   static const char* const kNames[] = {
-      "fill",          "opacity",          "blendMode",
-      "fillBox",       "translateX",       "translateY",
-      "translateXLength", "translateYLength", "rotate",
-      "scale",         "scaleX",           "scaleY",
-      "skewX",         "skewY",            "originX",
-      "originY",       "zIndex"};
+      "fill",       "opacity",    "blendMode",        "fillBox",
+      "translateX", "translateY", "translateXLength", "translateYLength",
+      "rotate",     "scale",      "scaleX",           "scaleY",
+      "skewX",      "skewY",      "originX",          "originY",
+      "zIndex"};
   static const bool kParticipates[] = {true, true, true, true, true, true,
                                        true, true, true, true, true, true,
                                        true, true, true, true, true};
@@ -247,12 +246,11 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
   // The per-axis scales are the easiest ones to leave out, because the
   // uniform `scale` beside them makes a comparator look complete.
   static const char* const kNames[] = {
-      "fill",          "opacity",          "blendMode",
-      "fillBox",       "translateX",       "translateY",
-      "translateXLength", "translateYLength", "rotate",
-      "scale",         "scaleX",           "scaleY",
-      "skewX",         "skewY",            "originX",
-      "originY",       "zIndex"};
+      "fill",       "opacity",    "blendMode",        "fillBox",
+      "translateX", "translateY", "translateXLength", "translateYLength",
+      "rotate",     "scale",      "scaleX",           "scaleY",
+      "skewX",      "skewY",      "originX",          "originY",
+      "zIndex"};
   static const bool kParticipates[] = {true, true, true, true, true, true,
                                        true, true, true, true, true, true,
                                        true, true, true, true, true};
@@ -333,11 +331,10 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   // inertness rather than describing it, so an accidental inclusion fails
   // here too:
   //
-  //  - `memoData` never reaches propertiesEqual at all. resolveMemo() compares
-  //  a
-  //    memo EARLIER and more strictly (the environment snapshot, then the
-  //    author's own properties comparator) and `inst.description` holds the
-  //    memo's PRODUCED payload, which carries no memo block.
+  //  - `memoData` never reaches propertiesEqual at all. resolveMemo()
+  //    compares a memo EARLIER and more strictly (the author's own
+  //    properties comparator) and `inst.description` holds the memo's
+  //    PRODUCED payload, which carries no memo block.
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
   static const char* const kNames[] = {

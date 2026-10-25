@@ -14,7 +14,6 @@
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/core/Table.h>
 #include <sigilcompose/kit/Layouts.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -359,79 +358,6 @@ BENCHMARK(BM_Query_Bounds)
     ->Arg(10000)
     ->Unit(benchmark::kNanosecond);
 
-// ---- The cost of an environment change under memos that never read it ----
-//
-// A memo captures the ambient environment stack when it is constructed and
-// compares that stack BEFORE it compares its own properties. So changing
-// anything in the environment misses every memo below the provider, including
-// memos that never read the environment at all.
-//
-// These two arms bracket that cost. `_ThemeHeld` is the all-hits steady
-// state. `_ThemeChange` flips one environment value each iteration, which
-// forces every memo to re-describe; the describes then all compare equal, so
-// the `patched` counter stays at zero and the difference between the arms is
-// pure wasted describe work. That difference is what tracking which memos
-// actually read the environment would be able to recover.
-
-namespace {
-
-struct BenchPalette {
-  SkColor4f surface{0.20f, 0.40f, 0.60f, 1.0f};
-  bool operator==(const BenchPalette&) const = default;
-};
-
-struct MemoCellProps {
-  int id = 0;
-  bool operator==(const MemoCellProps&) const = default;
-};
-
-Element memoGridUnder(int count, const BenchPalette& palette) {
-  core::environment::Provide<BenchPalette> theme(palette);
-  auto root = box().row().flexWrap().gap(1);
-  for (int id = 0; id < count; ++id)
-    root.children({memo(MemoCellProps{id}, [](const MemoCellProps& properties) {
-                     // Deliberately never reads core::environment::inherited:
-                     // this memo has no reason to miss when the theme changes.
-                     return box().width(19).height(19).fill(
-                         cellFill(properties.id));
-                   }).key("m" + std::to_string(id))});
-  return root;
-}
-
-}  // namespace
-
-static void BM_Env_ThemeChange_MemosNeverRead(benchmark::State& state) {
-  const int count = (int)state.range(0);
-  Host host(1024, 1024);
-  host.composer.render(memoGridUnder(count, BenchPalette{}));
-  host.draw();
-  bool dark = false;
-  for ([[maybe_unused]] auto iteration : state) {
-    dark = !dark;
-    BenchPalette palette;
-    palette.surface = dark ? SkColor4f{0.10f, 0.12f, 0.16f, 1.0f}
-                           : SkColor4f{0.20f, 0.40f, 0.60f, 1.0f};
-    host.composer.render(memoGridUnder(count, palette));
-  }
-  state.counters["memoHits"] = (double)host.composer.stats().memoHits;
-  state.counters["patched"] = (double)host.composer.stats().patchedNodes;
-  reportNodes(state, count);
-}
-BENCHMARK(BM_Env_ThemeChange_MemosNeverRead)->Apply(nodeLadder);
-
-static void BM_Env_ThemeHeld_MemosNeverRead(benchmark::State& state) {
-  const int count = (int)state.range(0);
-  Host host(1024, 1024);
-  host.composer.render(memoGridUnder(count, BenchPalette{}));
-  host.draw();
-  for ([[maybe_unused]] auto iteration : state)
-    host.composer.render(memoGridUnder(count, BenchPalette{}));
-  state.counters["memoHits"] = (double)host.composer.stats().memoHits;
-  state.counters["patched"] = (double)host.composer.stats().patchedNodes;
-  reportNodes(state, count);
-}
-BENCHMARK(BM_Env_ThemeHeld_MemosNeverRead)->Apply(nodeLadder);
-
 // ---- Cache::Group ---------------------------------------------------------
 
 static void BM_Draw_GroupCache_LivePictures(benchmark::State& state) {
@@ -692,26 +618,30 @@ BENCHMARK(BM_Bake_TiledStrip_SurfacesOnly)->Apply(tileLadder);
 namespace {
 
 Element dottedLeaf(int operations, Cache mode) {
-  return box().width(800).height(600).fill(Fill::color({0.08f, 0.08f, 0.1f, 1}))
-      .children({custom("dots", [operations](sigil::draw::Pen& pen,
-                                              const PaintContext&) {
-                   SkCanvas& canvas = *pen.canvas();
-                   SkPaint paint;
-                   paint.setAntiAlias(true);
-                   for (int index = 0; index < operations; ++index) {
-                     const float x = (float)((index * 7919) % 6000) * 0.1f;
-                     const float y = (float)((index * 104729) % 4000) * 0.1f;
-                     paint.setColor4f({0.4f + 0.5f * (float)(index % 3) / 2.0f,
-                                       0.6f, 0.9f, 0.35f});
-                     canvas.drawCircle(x, y, 2.5f, paint);
-                   }
-                 })
-                     .absolute()
-                     .left(100)
-                     .top(100)
-                     .width(600)
-                     .height(400)
-                     .cache(mode)});
+  return box()
+      .width(800)
+      .height(600)
+      .fill(Fill::color({0.08f, 0.08f, 0.1f, 1}))
+      .children(
+          {custom("dots",
+                  [operations](sigil::draw::Pen& pen, const PaintContext&) {
+                    SkCanvas& canvas = *pen.canvas();
+                    SkPaint paint;
+                    paint.setAntiAlias(true);
+                    for (int index = 0; index < operations; ++index) {
+                      const float x = (float)((index * 7919) % 6000) * 0.1f;
+                      const float y = (float)((index * 104729) % 4000) * 0.1f;
+                      paint.setColor4f({0.4f + 0.5f * (float)(index % 3) / 2.0f,
+                                        0.6f, 0.9f, 0.35f});
+                      canvas.drawCircle(x, y, 2.5f, paint);
+                    }
+                  })
+               .absolute()
+               .left(100)
+               .top(100)
+               .width(600)
+               .height(400)
+               .cache(mode)});
 }
 
 }  // namespace
@@ -720,8 +650,8 @@ static void BM_Draw_ManyOperationLeaf(benchmark::State& state) {
   const int operations = (int)state.range(0);
   const Cache mode = state.range(1) == 1 ? Cache::Texture : Cache::Picture;
   Host host(800, 600);
-  host.composer.render(box().children(
-      {dottedLeaf(operations, mode).cache(Cache::None)}));
+  host.composer.render(
+      box().children({dottedLeaf(operations, mode).cache(Cache::None)}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["operations"] = operations;
@@ -738,8 +668,8 @@ static void BM_Draw_ManyOperationLeaf_Graphite(benchmark::State& state) {
   sigil::compose::bench::GraphiteTarget target(state, 800, 600);
   if (!target.ok()) return;
   Host host(800, 600);
-  host.composer.render(box().children(
-      {dottedLeaf(operations, mode).cache(Cache::None)}));
+  host.composer.render(
+      box().children({dottedLeaf(operations, mode).cache(Cache::None)}));
   host.composer.draw(target.canvas());
   target.submitSynced();
   for ([[maybe_unused]] auto iteration : state) {

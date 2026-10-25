@@ -8,7 +8,6 @@
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>

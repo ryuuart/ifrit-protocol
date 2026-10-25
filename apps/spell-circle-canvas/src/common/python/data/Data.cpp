@@ -591,10 +591,8 @@ void bindData(py::module_& root) {
       .def(
           "filter",
           [](const data::Table& value, const py::function& keep) {
-            return value.filter([&](size_t row) {
-              const CallbackBoundary boundary;
-              return keep(row).cast<bool>();
-            });
+            return value.filter(
+                [&](size_t row) { return keep(row).cast<bool>(); });
           },
           py::arg("predicate"))
       .def(
@@ -603,7 +601,6 @@ void bindData(py::module_& root) {
              py::handle type) {
             py::list cells;
             for (size_t row = 0, count = value.size(); row < count; ++row) {
-              const CallbackBoundary boundary;
               cells.append(function(row));
             }
             value.add(column(std::move(name), cells, type));
@@ -683,7 +680,6 @@ void bindData(py::module_& root) {
           "through",
           [](const data::Scale& value, double input,
              const py::function& interpolate) {
-            const CallbackBoundary boundary;
             return value.through(
                 input, [&](double position) { return interpolate(position); });
           },

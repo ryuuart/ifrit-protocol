@@ -255,11 +255,8 @@ enters at once; and children already standing never re-enter.
 
 `memo` is a deferred description: the function runs only when its
 properties changed, by `operator==`, since the last render at this
-position or key, AND the ambient environment bindings are unchanged — a
-memo is a pure function of its properties and its environment. The
-captured stack is re-established around the deferred call, so an
-inherited value read inside it reads what was bound where the memo was
-WRITTEN.
+position or key — a memo is a pure function of its properties, so
+everything the function reads belongs in them.
 
 `each` is THE CHILDREN A RANGE DESCRIBES, one per item in the range's
 order, for a group's braced list. Its function takes the item, or the
@@ -304,9 +301,8 @@ a wrong answer where the mistake is, it produces a node that never
 patches on that field again.
 
 Two fields are deliberately excluded and both are compared elsewhere: the
-memo is compared earlier and more strictly by the reconciler, first the
-captured environment and then the author's own properties comparison, and
-the children are reconciled by key rather than compared.
+memo is compared earlier and more strictly by the reconciler, by the
+author's own properties comparison, and the children are reconciled by key rather than compared.
 
 ## Scene: the retained side
 

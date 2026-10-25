@@ -84,7 +84,7 @@ catalog. One target per directory:
 | `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form, the shaped curve, the degrees-to-radians rounding |
 | `SigilCoreCallable` | `callable/` | the prefix search, the concept over it, and the type-erased call a verb holds one in |
 | `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
-| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
+| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
 | `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
 | `SigilCoreReport` | `report/` | the reporting door: `report`, the installed `Reporter`, and the one line format; the `Error` a refusing door answers |
@@ -117,7 +117,7 @@ everything below is the library as a whole.
 
 | chapter | what it covers |
 |---------|----------------|
-| **[RECONCILE.md](RECONCILE.md)** | the reconciler over a host: the prune, keyed matching, the memo and its environment, declared reads, and the phase runner |
+| **[RECONCILE.md](RECONCILE.md)** | the reconciler over a host: the prune, keyed matching, the memo and its key, declared reads, and the phase runner |
 | **[CACHE.md](CACHE.md)** | the caching proof: the policy, the settled-subtree verdict, the stability release, the bake seam and the rebuild guard |
 | **[COMPARABLE.md](COMPARABLE.md)** | `Erased<Ops>` and `kFieldCount<T>`: what a value needs before anything can decide it did not change |
 | **[COMPUTE.md](COMPUTE.md)** | the mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form and the shaped curve |
@@ -203,7 +203,7 @@ what a label promises. What is only true of SigilCore:
 | `comparable/test/` | `Erased`, `Fields` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes |
 | `compute/test/` | `Angle`, `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `ChanceStream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field`, `NoiseField`, `Curve` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points; the curve, held to what makes it a value and to the character each house shape is chosen for; the angle conversion, pinned to the nearest float of each exact ratio and held against the two spellings that round twice; the angle that names its unit, read from CSS text in each of the four units and refused without one, reaching its own measure unchanged |
 | `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |
-| `reconcile/test/` | `Reconciler`, `Environment`, `Phases`, `Reads` | the reconciler over a fake host, the inherited-value channel and restored scope identities, the phase runner and the read ordering |
+| `reconcile/test/` | `Reconciler`, `Phases`, `Reads` | the reconciler over a fake host, the phase runner and the read ordering |
 | `cache/test/` | `CacheProof`, `Volatility`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |
 | `report/test/` | `CoreReport`, `CoreError` | the one line format, the standard error when no reporter is installed, and an installed reporter hearing a warning in its place; the error's line and code unset until stated, compared as a value and carried as the refusing side of an expected answer |
 | `hardware/test/` | `HardwareHandle`, `MipChain` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows |

@@ -196,7 +196,6 @@ class Body final : public Scene2DBody {
   Body(const std::shared_ptr<Generation>& generation,
        const std::shared_ptr<State>& state)
       : m_generation(generation), m_state(state) {
-    const sigil::python::CallbackBoundary themes;
     const py::object instance = generation->body->get()();
     m_instance = std::make_shared<Object>(instance);
     const py::object arity =
@@ -232,7 +231,6 @@ class Body final : public Scene2DBody {
     m_state->feedLeases.clear();
     const auto previousHeld = std::move(m_state->held);
     m_state->held.clear();
-    const sigil::python::CallbackBoundary themes;
     try {
       if (m_setupArity == 0)
         m_setup->get()();
@@ -246,7 +244,6 @@ class Body final : public Scene2DBody {
 
   void update(double elapsed, Scene2DContext& ctx) override {
     m_state->update(ctx);
-    const sigil::python::CallbackBoundary themes;
     if (!m_update) return;
     if (m_updateArity == 0)
       m_update->get()();
@@ -276,7 +273,6 @@ class Scene3DPythonBody final : public Scene3DBody {
   Scene3DPythonBody(const std::shared_ptr<Generation>& generation,
                     const std::shared_ptr<State>& state)
       : m_generation(generation), m_state(state) {
-    const sigil::python::CallbackBoundary themes;
     const py::object instance = generation->body->get()();
     m_instance = std::make_shared<Object>(instance);
     const py::object arity =
@@ -309,7 +305,6 @@ class Scene3DPythonBody final : public Scene3DBody {
       Scene3DLoan& loan;
       ~Returned() { loan.context = nullptr; }
     } returned{*loan};
-    const sigil::python::CallbackBoundary themes;
     try {
       if (m_setupArity == 0)
         m_setup->get()();
@@ -322,7 +317,6 @@ class Scene3DPythonBody final : public Scene3DBody {
   }
 
   world::Frame describe(motion::Duration now) override {
-    const sigil::python::CallbackBoundary themes;
     const py::object described = m_describeArity == 0
                                      ? m_describe->get()()
                                      : m_describe->get()(now.count());
@@ -456,7 +450,6 @@ class PythonSession final : public Session {
     bool redescribe = false;
     {
       const sigil::python::CallbackScope callbacks(m_state->callbacks);
-      const sigil::python::CallbackBoundary themes;
       try {
         const py::object context =
             m_evaluated.context ? py::cast(m_evaluated.context) : py::none();
@@ -500,7 +493,6 @@ class PythonSession final : public Session {
     const py::gil_scoped_acquire lock;
     if (m_state->failed) throw std::runtime_error(m_error);
     const sigil::python::CallbackScope callbacks(m_state->callbacks);
-    const sigil::python::CallbackBoundary themes;
     try {
       function();
     } catch (const py::error_already_set& error) {
@@ -578,7 +570,6 @@ class PythonKind final : public KindOperations, public OpensOnRuntime {
     try {
       const auto state = std::make_shared<State>();
       const sigil::python::CallbackScope callbacks(state->callbacks);
-      const sigil::python::CallbackBoundary themes;
       if (m_generation->scene3d) {
         // Refused before a body is made, so a scene3d sketch that cannot be
         // drawn runs none of its own Python.
@@ -882,7 +873,6 @@ Kind load(const std::filesystem::path& source) {
     py::module_::import("_sigil");
     auto generation = std::make_shared<Generation>();
     const sigil::python::CallbackScope callbacks(generation->callbacks);
-    const sigil::python::CallbackBoundary themes;
     const py::tuple result =
         py::module_::import("sigil._loader").attr("load")(source.string());
     generation->body = std::make_shared<Object>(result[0]);

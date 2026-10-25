@@ -155,7 +155,6 @@ compose::Shape shapeKeyedBy(py::object key, py::function function) {
       PythonShapeKey{retainValue(std::move(key))},
       [held, named](glm::vec2 size) {
         const py::gil_scoped_acquire lock;
-        const CallbackBoundary boundary;
         try {
           const py::function outline = held->get();
           const py::object path =
@@ -238,14 +237,11 @@ compose::PaintProgram paintProgram(py::handle value) {
     SkCanvas& canvas = *pen.canvas();
     const py::gil_scoped_acquire lock;
     const py::function program = held->get();
-    // The loans outlive the callback boundary, so a native scope Python
-    // left open is closed while the canvas it drew on is still lent.
     std::optional<CanvasLoan> lent;
     std::optional<PaintContextLoan> frame;
     if (named >= 1) lent.emplace(canvas);
     if (named >= 2) frame.emplace(context);
     try {
-      const CallbackBoundary boundary;
       if (named == 0)
         program();
       else if (named == 1)
@@ -282,7 +278,6 @@ compose::PenProgram penProgram(py::handle value) {
       }
     } endLoan{borrowed.get()};
     try {
-      const CallbackBoundary boundary;
       if (named == 0)
         program();
       else

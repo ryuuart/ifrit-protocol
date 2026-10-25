@@ -8,7 +8,6 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmedia/advanced/Skia.h>
@@ -220,9 +219,6 @@ Element makeMemo(std::any properties,
   memo.properties = std::move(properties);
   memo.equal = std::move(equal);
   memo.invoke = std::move(invoke);
-  // Captured HERE, in the author's scope — the whole point. By the time
-  // the reconciler decides whether to call `invoke`, this stack is gone.
-  memo.environment = core::environment::capture();
   return e;
 }
 

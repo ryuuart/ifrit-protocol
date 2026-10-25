@@ -155,42 +155,6 @@
     "unit": "ns",
     "repetitions": 4
    },
-   "BM_Env_ThemeChange_MemosNeverRead/100": {
-    "real_ns": 42632.057869567085,
-    "cpu_ns": 42600.030220610395,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Env_ThemeChange_MemosNeverRead/500": {
-    "real_ns": 216371.99223851383,
-    "cpu_ns": 216145.96273292258,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Env_ThemeChange_MemosNeverRead/2000": {
-    "real_ns": 1025762.3106361169,
-    "cpu_ns": 1024223.4848484604,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Env_ThemeHeld_MemosNeverRead/100": {
-    "real_ns": 25015.35972564222,
-    "cpu_ns": 24995.814036337495,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Env_ThemeHeld_MemosNeverRead/500": {
-    "real_ns": 131915.25539955404,
-    "cpu_ns": 131817.49764816544,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Env_ThemeHeld_MemosNeverRead/2000": {
-    "real_ns": 640830.882388795,
-    "cpu_ns": 639963.8009049613,
-    "unit": "us",
-    "repetitions": 4
-   },
    "BM_Draw_GroupCache_LivePictures/16": {
     "real_ns": 297147.07116598374,
     "cpu_ns": 296918.2590233532,

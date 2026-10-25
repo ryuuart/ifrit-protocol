@@ -99,11 +99,8 @@ void callArrange(const PythonValue& held, Arrangement& arrangement) {
   } catch (const std::runtime_error&) {
     return;
   }
-  // The loan outlives the callback boundary, so a native scope Python
-  // left open is closed while the arrangement it read is still lent.
   const ArrangementLoan lent{arrangement};
   try {
-    const CallbackBoundary boundary;
     value.attr("arrange")(lent.arrangement());
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());
@@ -121,7 +118,6 @@ void callAdd(const PythonValue& held, Scope& scope) {
   }
   const ScopeLoan lent{scope};
   try {
-    const CallbackBoundary boundary;
     value.attr("add")(lent.scope());
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());

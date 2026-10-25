@@ -1,9 +1,6 @@
 #pragma once
 
-#include <include/core/SkFontMetrics.h>
-#include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/PixelStyles.h>
@@ -36,11 +33,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdlib>
-#include <memory>
 #include <optional>
 #include <string>
-#include <variant>
 #include <vector>
 
 namespace data = sigil::data;
@@ -343,17 +337,6 @@ struct Theme {
   }
 };
 
-/** The colour the property @p name holds where @p context paints: how a
- *  mark whose colours sit inside a value the cascade cannot see into — a
- *  bevel's inner ring, a material's tile — reads the set in force. */
-inline material::Color inForce(const PaintContext& context, VarRef name) {
-  if (context.vars != nullptr)
-    if (const VarValue* value = context.vars->find(name))
-      if (const auto* colour = std::get_if<material::Color>(value))
-        return *colour;
-  return {};
-}
-
 /** A SURFACE WEARING THE SET IN FORCE: grounded in its background and
  *  INKED in its foreground, which is what every plane in a CDE session is.
  *  The ink is the half a widget used to have to hand to each of its labels
@@ -367,31 +350,9 @@ inline Element surface() {
 // 4. THE BEVEL — lib/Xm/Draw.c, DrawSimpleShadow().
 // ===========================================================================
 
-/** XmeDrawShadows IN THE SET IN FORCE: @p shape's rings, inner as well as
- *  outer, in the colours the properties `light` and `shadow` hold where it
- *  paints. An etched groove's inner ring is the same pair the other way
- *  up, so both rings read the set. */
-struct BevelInForce {
-  kit::Bevel shape;
-  VarRef light = var("bevel-light");
-  VarRef shadow = var("bevel-shadow");
-  bool operator==(const BevelInForce&) const = default;
-  float reach() const { return shape.reach(); }
-  bool staysOnOutline() const { return shape.staysOnOutline(); }
-  void paint(sigil::draw::Pen& pen, const PaintContext& context) const {
-    kit::Bevel bevel = shape;
-    bevel.light = inForce(context, light);
-    bevel.shadow = inForce(context, shadow);
-    if (bevel.inner) {
-      bevel.inner->light = bevel.light;
-      bevel.inner->shadow = bevel.shadow;
-    }
-    bevel.paint(pen, context);
-  }
-};
-
 /** The bevel of the colour set in force — top shadow over bottom shadow.
- *  Handed nothing: a bevel is drawn in the set of the window it is in.
+ *  Handed nothing: a bevel is drawn in the set of the window it is in,
+ *  inner ring and all, since an etched groove's is the same pair.
  *
  *  XmeDrawShadows IS the kit's Motif token set. `sunken` is XmSHADOW_IN
  *  and is literally the two colours swapped, which is one bool there;
@@ -406,14 +367,15 @@ struct BevelInForce {
  *  Antialiasing is OFF and the marks land on whole pixels, which is the
  *  token set's own doing: every coordinate a 1993 toolkit computed was an
  *  integer and AA can only soften it. */
-inline BevelInForce bevel(float T, bool sunken, bool etched) {
-  return {etched ? kit::bevels::motifEtched({}, {}, T, sunken)
-                 : kit::bevels::motif({}, {}, T, sunken)};
+inline kit::Bevel bevel(float T, bool sunken, bool etched) {
+  return kit::bevels::inherited(
+      etched ? kit::bevels::motifEtched({}, {}, T, sunken)
+             : kit::bevels::motif({}, {}, T, sunken));
 }
 /** A bevel drawn in the FOREGROUND on both faces — the flat outline Motif
  *  puts inside a maximise box, which is a shadow with one colour. */
-inline BevelInForce bevelFg(float T) {
-  return {kit::bevels::motif({}, {}, T), var("foreground"), var("foreground")};
+inline kit::Bevel bevelFg(float T) {
+  return kit::bevels::motif(var("foreground"), var("foreground"), T);
 }
 
 /** XmeDrawHighlight: a square ring of `highlightThickness` inside the
@@ -431,34 +393,13 @@ inline PathFormat highlight(float T) {
                     .antiAlias = false};
 }
 
-/** A WASH IN THE SET IN FORCE: the material @p tile makes of the colour
- *  the property `colour` holds where it paints. A material holds its
- *  colours inside its tile, where no property reaches, so the tile is
- *  made at paint from the colour the set put there. */
-struct WashInForce {
-  material::Material (*tile)(material::Color);
-  VarRef colour;
-  bool operator==(const WashInForce&) const = default;
-  bool staysOnOutline() const { return true; }
-  void paint(sigil::draw::Pen& pen, const PaintContext& context) const {
-    decorations::wash(tile(inForce(context, colour))).paint(pen, context);
-  }
-};
-
 /** Motif's insensitive treatment: the label is painted through a 50%
  *  checkerboard, `stipple(x, y) = (x + y) & 1`. Reproduced the other way
  *  round — the background painted over the complementary half — which is
- *  the identical result and lets the colour be the set's.
- *
- *  patterns::checker(1, on, off) is this pattern and is not usable here:
- *  a Pattern BAKES its colours into the tile, so a themed stipple would
- *  need one Pattern per palette per colour. The kit's stipple is a mask
- *  the colour is laid THROUGH, which is one lattice for all of them. */
-inline WashInForce stipple() {
-  return {[](material::Color colour) {
-            return pattern::stipple({.color = colour});
-          },
-          var("background")};
+ *  the identical result and lets the colour be the set's: the stipple is
+ *  the mask the set's background is laid through. */
+inline Wash stipple() {
+  return decorations::wash(var("background"), pattern::stipple());
 }
 
 // ===========================================================================
@@ -644,11 +585,6 @@ inline Element textField(
 //
 //   B background   T topShadowColor   S bottomShadowColor   L selectColor
 //   F foreground   1..8 iconGray1..8 (FIXED)   k w r g u y c m iconColor
-//
-// The grid, the palette and the greedy rectangle merge are the kit's
-// `kit::pixelMap`; what belongs here is the VOCABULARY — which character
-// means which colour, and that five of the twenty-two move with the theme
-// while the rest never do.
 // ---------------------------------------------------------------------------
 
 /** The characters an icon grid is written in, in palette order: the blank,
@@ -661,31 +597,18 @@ constexpr std::string_view kIconChars = " BTSLF12345678kwrguycm";
 constexpr std::array<std::string_view, 5> kIconProperties = {
     "background", "bevel-light", "bevel-shadow", "select", "foreground"};
 
-/** An icon grid as one box per mark: a symbolic character filled from the
- *  set in force — so the same grid is a different picture under a different
+/** An icon grid with each symbolic character a property of the set in
+ *  force — so the same grid is a different picture under a different
  *  theme, which is the whole reason CDE icons re-colour and Win95 icons do
  *  not — and the rest in their fixed colours. */
 inline Element art(const std::vector<std::string>& rows, float cell) {
-  std::vector<material::Color> colours(1 + kIconProperties.size(),
-                                       {0, 0, 0, 1});
-  colours.front() = {0, 0, 0, 0};
-  for (uint32_t gray : kIconGray) colours.push_back(C(gray));
-  for (uint32_t colour : kIconColor) colours.push_back(C(colour));
-  const kit::Sprite sprite =
-      kit::pixelMap(rows, {kIconChars, colours}).value_or(kit::Sprite{});
-  Element icon = stack()
-                     .width((float)sprite.grid.x * cell)
-                     .height((float)sprite.grid.y * cell);
-  for (const kit::SpriteRun& run : sprite.runs)
-    icon.children({box()
-                       .left(run.x * cell)
-                       .top(run.y * cell)
-                       .width(run.w * cell)
-                       .height(run.h * cell)
-                       .fill(run.index >= 1 && run.index <= 5
-                                 ? var(kIconProperties[(size_t)run.index - 1])
-                                 : Fill::color(sprite.colourOf(run.index)))});
-  return icon;
+  std::vector<ColorTerm> palette = {ColorTerm{0, 0, 0, 0}};
+  for (std::string_view name : kIconProperties) palette.push_back(var(name));
+  for (uint32_t gray : kIconGray) palette.push_back(C(gray));
+  for (uint32_t colour : kIconColor) palette.push_back(C(colour));
+  return kit::pixelSprite(
+      kit::pixelMap(rows, {kIconChars, palette}).value_or(kit::Sprite{}),
+      {.cell = cell});
 }
 
 // The icon set. 24 x 24 grids at cell 2 => the 48 x 48 that Fpclock.l.pm's

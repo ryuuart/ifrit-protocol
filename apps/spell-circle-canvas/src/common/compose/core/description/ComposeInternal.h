@@ -620,9 +620,8 @@ struct CascadeData {
 };
 
 /** The memo shell's payload: SigilCore's Memo, producing an Element. The
- *  reconciler compares its captured `environment` and then its properties
- * against the memo the node was last described from, and runs `invoke` under
- * that environment on a miss. */
+ *  reconciler compares its properties against the memo the node was last
+ *  described from, and runs `invoke` on a miss. */
 using MemoData = core::Memo<Element>;
 
 struct ElementNode {

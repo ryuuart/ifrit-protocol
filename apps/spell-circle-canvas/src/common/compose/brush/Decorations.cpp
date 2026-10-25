@@ -6,6 +6,7 @@
 #include <include/core/SkClipOp.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPicture.h>
+#include <include/core/SkShader.h>
 #include <include/effects/Sk1DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
 #include <sigilcompose/advanced/PathEffect.h>
@@ -23,8 +24,8 @@
 
 #include <cmath>
 
-#include "paint/FillLowering.h"
 #include "StrokeReach.h"
+#include "paint/FillLowering.h"
 #include "paint/HeldCoverage.h"
 
 namespace sigil::compose {
@@ -196,19 +197,48 @@ void ContourWalk::paint(draw::Pen& pen, const PaintContext& ctx) const {
 }
 
 bool Wash::usesWorldSpace() const {
-  return material::skia::paint(material).usesWorldSpace();
+  if (material::skia::paint(material).usesWorldSpace()) return true;
+  const material::Material* shown = fill ? fill->material() : nullptr;
+  return shown != nullptr && material::skia::paint(*shown).usesWorldSpace();
 }
+
+namespace {
+
+/** A resolved fill as the shader it paints with: a colour as a flat
+ *  shader, a paint as its lowering; null for no fill. */
+sk_sp<SkShader> shaderOf(const Fill& fill) {
+  if (fill.kind == Fill::Kind::Color)
+    return SkShaders::Color(material::skia::toSkColor(fill.colorValue),
+                            nullptr);
+  if (fill.kind == Fill::Kind::Paint)
+    return material::skia::staticShader(detail::paintOf(fill));
+  return nullptr;
+}
+
+}  // namespace
 
 void Wash::paint(draw::Pen& pen, const PaintContext& ctx) const {
   SkCanvas& canvas = *pen.canvas();
   const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
   if (a <= 0.0f) return;
-  // The material is lowered to the executor's paint where it is drawn,
-  // against this node's frame.
-  const Fill fill = resolveFill(material, ctx);
   SkPaint p;
   p.setAntiAlias(true);
   p.setBlendMode(material::skia::toSkBlendMode(blend));
+  if (this->fill) {
+    // The fill shows where the mask's alpha says, both resolved against
+    // this node: the source-in of the fill over the mask.
+    sk_sp<SkShader> mask = shaderOf(resolveFill(material, ctx));
+    sk_sp<SkShader> shown = shaderOf(resolveFill(*this->fill, ctx));
+    if (!mask || !shown) return;
+    p.setShader(SkShaders::Blend(SkBlendMode::kSrcIn, std::move(mask),
+                                 std::move(shown)));
+    p.setAlphaf(a);
+    canvas.drawPath(geometry::path::toSk(ctx.outline), p);
+    return;
+  }
+  // The material is lowered to the executor's paint where it is drawn,
+  // against this node's frame.
+  const Fill fill = resolveFill(material, ctx);
   if (fill.kind == Fill::Kind::Color) {
     material::Color c = fill.colorValue;
     c.a *= a;
@@ -226,7 +256,8 @@ float Border::bleed() const {
   // An inward copy of the outline stands `inset` inside it everywhere, so
   // the rule's reach past the outline is its own reach less the inset.
   return std::max(
-      0.0f, detail::strokeReach(std::max(width, cornerWidth), join, cap) - inset);
+      0.0f,
+      detail::strokeReach(std::max(width, cornerWidth), join, cap) - inset);
 }
 
 bool Border::staysOnOutline() const { return inset >= 0; }

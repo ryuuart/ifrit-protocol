@@ -93,8 +93,8 @@ Node detail::makeMemo(
     std::function<bool(const std::any&, const std::any&)> equal,
     std::function<Node(const std::any&)> invoke) {
   Node out;
-  out.edit().memo = Memo{std::move(properties), std::move(equal),
-                         std::move(invoke), core::environment::capture()};
+  out.edit().memo =
+      Memo{std::move(properties), std::move(equal), std::move(invoke)};
   return out;
 }
 

@@ -29,7 +29,6 @@ std::function<float(float)> scalarCurve(py::handle value) {
   auto held = retainCallback(py::reinterpret_borrow<py::function>(value));
   return [held](float x) {
     const py::gil_scoped_acquire lock;
-    const CallbackBoundary boundary;
     try {
       return held->get()(x).template cast<float>();
     } catch (const py::error_already_set& error) {
@@ -78,7 +77,6 @@ brush::Direction direction(py::handle value) {
   auto held = retainCallback(py::reinterpret_borrow<py::function>(value));
   return [held](SkPoint at, float seconds) {
     const py::gil_scoped_acquire lock;
-    const CallbackBoundary boundary;
     try {
       return held->get()(at, seconds).template cast<float>();
     } catch (const py::error_already_set& error) {

@@ -94,10 +94,9 @@ void bindHeldMotion(py::module_& module) {
       "retarget",
       [](const EngineHandle& engine, HeldSlot& held, py::handle previous,
          py::handle next, py::handle transition) {
-        return motion::retarget(engine.get(), held.motion,
-                                motionAnimatable(previous),
-                                motionAnimatable(next),
-                                heldTransition(transition));
+        return motion::retarget(
+            engine.get(), held.motion, motionAnimatable(previous),
+            motionAnimatable(next), heldTransition(transition));
       },
       py::arg("engine"), py::arg("held"), py::arg("previous"), py::arg("next"),
       py::arg("transition") = py::none(),
@@ -207,7 +206,6 @@ std::shared_ptr<PythonCallback> retainForEngine(const EngineHandle& engine,
 std::function<void()> notification(std::shared_ptr<PythonCallback> retained) {
   return [retained = std::move(retained)] {
     const py::gil_scoped_acquire lock;
-    const CallbackBoundary boundary;
     try {
       retained->get()();
     } catch (const py::error_already_set& error) {
@@ -225,7 +223,6 @@ std::function<bool(motion::Duration, motion::Duration)> timerUpdate(
   auto retained = retainForEngine(engine, std::move(function));
   return [retained, arity](motion::Duration delta, motion::Duration elapsed) {
     const py::gil_scoped_acquire lock;
-    const CallbackBoundary boundary;
     try {
       auto callback = retained->get();
       py::object result;

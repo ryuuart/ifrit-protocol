@@ -87,7 +87,6 @@ class Scene {
     (void)get();
     if (!std::isfinite(seconds) || seconds < 0)
       throw py::value_error("A World step must be finite and nonnegative.");
-    const CallbackBoundary boundary;
     m_engine.advance(m_engine.elapsed() + motion::Duration(seconds));
     if (m_frame) {
       m_scene.render(*m_frame);
@@ -445,8 +444,7 @@ void bindKinds(py::module_& module) {
       "spotLight",
       [](const glm::vec3& direction, py::handle tint, py::handle intensity,
          float range, AngleInDegrees innerAngle, AngleInDegrees outerAngle,
-         bool castShadow,
-         const world::LightShadow& shadow) {
+         bool castShadow, const world::LightShadow& shadow) {
         return world::spotLight(direction,
                                 {.color = lightColor(tint),
                                  .intensity = motionAnimatable(intensity),
@@ -460,8 +458,7 @@ void bindKinds(py::module_& module) {
       py::arg("intensity") = 1, py::arg("range") = 0,
       py::arg("innerAngle") = AngleInDegrees{},
       py::arg("outerAngle") = AngleInDegrees{45.0f},
-      py::arg("castShadow") = false,
-      py::arg("shadow") = world::LightShadow{});
+      py::arg("castShadow") = false, py::arg("shadow") = world::LightShadow{});
   module.def(
       "rectLight",
       [](const glm::vec3& direction, float width, float height, py::handle tint,
@@ -575,12 +572,10 @@ void bindWorldKit(py::module_& kit) {
   using Set = world::kit::Set;
   bindRecord<Rig>(kit, "Rig", "Unknown rig field: ")
       .def_readwrite("extent", &Rig::extent)
-      .def_property(
-          "bearing", angleGetter(&Rig::bearing),
-          angleSetter<AngleInDegrees>(&Rig::bearing))
-      .def_property(
-          "elevation", angleGetter(&Rig::elevation),
-          angleSetter<AngleInDegrees>(&Rig::elevation))
+      .def_property("bearing", angleGetter(&Rig::bearing),
+                    angleSetter<AngleInDegrees>(&Rig::bearing))
+      .def_property("elevation", angleGetter(&Rig::elevation),
+                    angleSetter<AngleInDegrees>(&Rig::elevation))
       .def_readwrite("fillIntensity", &Rig::fillIntensity)
       .def_property(
           "fillColor", [](const Rig& self) { return self.fillColor; },
@@ -618,9 +613,8 @@ void bindWorldKit(py::module_& kit) {
           [](Turntable& self, motion::Duration period) {
             self.period = period;
           })
-      .def_property(
-          "fieldOfView", angleGetter(&Turntable::fieldOfView),
-          angleSetter<AngleInDegrees>(&Turntable::fieldOfView))
+      .def_property("fieldOfView", angleGetter(&Turntable::fieldOfView),
+                    angleSetter<AngleInDegrees>(&Turntable::fieldOfView))
       .def_readwrite("stations", &Turntable::stations);
   using Wave = world::kit::Wave;
   using Winding = world::kit::Winding;

@@ -33,7 +33,6 @@ template <class Result, class Read, class... Arguments>
 Result calledBack(const std::shared_ptr<sigil::python::PythonCallback>& held,
                   Read read, Arguments&&... arguments) {
   const py::gil_scoped_acquire lock;
-  const sigil::python::CallbackBoundary scopes;
   try {
     return read(held->get()(std::forward<Arguments>(arguments)...));
   } catch (const py::error_already_set& error) {
@@ -100,16 +99,14 @@ sketchKit::Layer layerOf(py::handle value) {
   return [function = held(value), arity](const sketchKit::Plot& frame,
                                          std::string_view key,
                                          std::size_t index) {
-    const auto read = [](py::object made) {
-      return sigil::python::node(made);
-    };
+    const auto read = [](py::object made) { return sigil::python::node(made); };
     if (arity == 0) return calledBack<compose::Element>(function, read);
     if (arity == 1) return calledBack<compose::Element>(function, read, frame);
     if (arity == 2)
       return calledBack<compose::Element>(function, read, frame,
                                           std::string(key));
-    return calledBack<compose::Element>(function, read, frame,
-                                        std::string(key), index);
+    return calledBack<compose::Element>(function, read, frame, std::string(key),
+                                        index);
   };
 }
 
@@ -149,7 +146,8 @@ void bindFrame(py::module_& module) {
           "scale",
           [](const sketchKit::Plot& frame, sketchKit::Axis which,
              py::handle size) {
-            return frame.scale(which, sigil::python::kit::converted<SkSize>(size));
+            return frame.scale(which,
+                               sigil::python::kit::converted<SkSize>(size));
           },
           py::arg("which"), py::arg("size"))
       .def(
@@ -196,8 +194,7 @@ void bindPaths(py::module_& module) {
       [](const sketchKit::Ruler& self) -> py::object {
         if (!self.tickLine) return py::none();
         return py::cpp_function(
-            [draw = self.tickLine](double value,
-                                   const sketchKit::Ruler& how) {
+            [draw = self.tickLine](double value, const sketchKit::Ruler& how) {
               return draw(value, how);
             },
             py::arg("value"), py::arg("ruler"));

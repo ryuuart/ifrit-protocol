@@ -411,9 +411,9 @@ bool operatorInputsEqual(const ElementNode& a, const ElementNode& b) {
  *
  *  The two legitimate exclusions, stated rather than assumed:
  *  `memoData` is compared EARLIER and more strictly by resolveMemo()
- *  (environment snapshot + the author's own properties comparator) and never
- * reaches here, because `inst.description` holds the memo's PRODUCED payload;
- * and `children` are reconciled by key rather than compared — a node that
+ *  (the author's own properties comparator) and never reaches here,
+ *  because `inst.description` holds the memo's PRODUCED payload; and
+ *  `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
 static_assert(kFieldCount<ElementNode> == 26 &&
                   kFieldCount<DeclaredFields::Storage> == 6 &&

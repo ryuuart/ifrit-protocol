@@ -413,7 +413,6 @@ motion::Easing motionEase(py::handle value) {
   auto held = retainCallback(py::reinterpret_borrow<py::function>(value));
   return [held](float progress) {
     const py::gil_scoped_acquire lock;
-    const CallbackBoundary boundary;
     try {
       return held->get()(progress).cast<float>();
     } catch (const py::error_already_set& error) {
