@@ -147,6 +147,19 @@ caption-label register in `Palette::figure`. Eight `.plot` classes dress
 chart marks and labels. These data treatments are separate from the
 heading and prose hierarchy.
 
+The sheet also sets the theme's numbers and colours as custom properties
+on the node it is applied on (its `:root`), so a component reads one where
+it uses it and the cascade carries it down: a length written
+`compose::var("spacing-cell-gap")` lays out at the theme's `Spacing::cellGap`,
+and `compose::Fill::var("palette-figure")` fills in its `Palette::figure`.
+The names follow one scheme: the register, then the field in full words,
+hyphenated — `spacing-margin-horizontal`, `spacing-content-gap`,
+`spacing-chip-padding-horizontal`, `palette-cell-ground` — one for every
+field of `Spacing` and `Palette`. A value a component scales is its own
+property, computed by the sheet rather than at the use site:
+`spacing-rule-gap` is half the content gap and
+`spacing-plate-padding-vertical` is six tenths of the panel padding.
+
 A sketch starts from `Theme::styleSheet()`, joins rules of its own to it
 with `+`, and applies the result on its root. A panel can apply a nearer
 sheet when its content has a separate treatment. Layout remains ordinary Compose layout;

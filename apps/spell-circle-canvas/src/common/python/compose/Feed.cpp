@@ -280,13 +280,13 @@ void bindColumns(py::module_& module) {
       py::arg("ring"), py::arg("options"),
       "The text feed: the newest rows, each set in the style it names, "
       "keyed by its sequence id, in a clipped column.");
-  // Styled by whichever native scope provides the text options on this
-  // thread, and by default-constructed options where none does.
+  // Styled by the rules of the sheet in force: each row carries the name
+  // of its style as its class.
   module.def(
       "feed", [](const feed::TextRing& ring) { return feed::feed(ring); },
       py::arg("ring"),
-      "The text feed under the options a native scope provides, or the "
-      "default ones.");
+      "The text feed styled by the sheet in force: each row's style name "
+      "is its class, set by the rule that names it.");
   module.def(
       "feed",
       [](const feed::TextRing& ring, const feed::Options& options,

@@ -4,6 +4,7 @@
 // parameters a wiggled binding has to match before it prunes, and the
 // structural prune that needs no memo to reach it.
 
+#include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Pen.h>
 
 #include "support/CoreTestSupport.h"
@@ -518,38 +519,35 @@ TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
   EXPECT_FALSE(core::environment::bound<EnvPalette>());
 }
 
-TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
-  // The entry's actual complaint: a library component had to be handed its
-  // colours by whoever composed it. The environment key is feed::TextOptions —
-  // the component's OWN properties type — so no library-wide Theme exists or
-  // needs to.
+TEST(ComposeFeed, ARowTakesTheRuleOfTheStyleItNames) {
+  // A library component is themed the way every element is: by the rules of
+  // the sheet in force. A text feed's row carries the name of its style as
+  // its class, so whoever composed the feed sets it without handing the
+  // feed anything.
   feed::TextRing ring;
-  ring.append({u8"ready."});
+  ring.append({u8"ready.", "loud"});
 
-  feed::TextOptions themed;
-  themed.styles.base(whiteStyle(12));
-  themed.window.gap = 7.0f;
+  const auto describe = [&](StyleSheet sheet) {
+    return box()
+        .padding(4)
+        .applyStyleSheet(std::move(sheet))
+        .children({box().children({feed::feed(ring)})});
+  };
+  Host themed;
+  themed.composer.render(
+      describe(StyleSheet{rule(".loud").font(sigil::weave::Type{.size = 30})}));
+  themed.frame();
+  const SkRect loud = require(themed.composer.bounds(feed::rowKey(1)));
 
-  Element tree = [&] {
-    core::environment::Provide<feed::TextOptions> style(themed);
-    return box().padding(4).children({box().children({feed::feed(ring)})});
-  }();
-  ASSERT_FALSE(core::environment::bound<feed::TextOptions>());
-
-  Host host;
-  host.composer.render(tree);
-  host.frame();
-  const SkRect got = require(host.composer.bounds(feed::rowKey(1)));
-  EXPECT_GT(got.width(), 0.0f);
-
-  // The unbound spelling still compiles to the component's own default —
-  // and a DIFFERENT default, which is what proves the binding was read.
-  Host bare;
-  bare.composer.render(box().padding(4).children(
-      {box().children({feed::feed(ring, feed::TextOptions{})})}));
-  bare.frame();
-  EXPECT_NE(require(bare.composer.bounds(feed::rowKey(1))).width(),
-            got.width());
+  // The same feed under a sheet that names another class sets the row in
+  // the font in force, which is what proves the rule was read.
+  Host plain;
+  plain.composer.render(describe(
+      StyleSheet{rule(".quiet").font(sigil::weave::Type{.size = 30})}));
+  plain.frame();
+  const SkRect quiet = require(plain.composer.bounds(feed::rowKey(1)));
+  EXPECT_GT(quiet.width(), 0.0f);
+  EXPECT_GT(loud.width(), quiet.width());
 }
 
 // ---------------------------------------------------------------------------

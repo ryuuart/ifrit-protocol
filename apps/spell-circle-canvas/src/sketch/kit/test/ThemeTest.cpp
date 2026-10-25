@@ -134,8 +134,8 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
   {
     const compose::StyleSheet sheet = house.styleSheet();
     // The eight registers, `readout`, the eight a chart's parts are
-    // dressed in, and the three a verdict names.
-    EXPECT_EQ(sheet.size(), 20u);
+    // dressed in, the three a verdict names, and the root's properties.
+    EXPECT_EQ(sheet.size(), 21u);
     ASSERT_NE(ruleFor(sheet, "eyebrow"), nullptr);
     EXPECT_EQ(ruleFor(sheet, "eyebrow")->type(), house.font(house.type.eyebrow))
         << "a register a sheet sets inside its content names no colour";
@@ -164,10 +164,66 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
     compose::StyleSheet own =
         house.styleSheet() +
         compose::StyleSheet{compose::rule(".value").font({.size = 13.0f})};
-    EXPECT_EQ(own.size(), 21u) << "the registers and the sketch's own";
+    EXPECT_EQ(own.size(), 22u) << "the registers and the sketch's own";
     EXPECT_NE(ruleFor(own, ".value"), nullptr);
-    EXPECT_EQ(house.styleSheet().size(), 20u) << "a copy, not the theme's";
+    EXPECT_EQ(house.styleSheet().size(), 21u) << "a copy, not the theme's";
   }
+}
+
+/** A component under a theme's sheet reads the sheet's spacing where it
+ *  uses it: a length written as the property lays out as the number the
+ *  theme states, under whichever theme's sheet stands above it. */
+TEST(SketchKitTheme, ALengthReadsTheSpacingOfTheSheetInForce) {
+  using compose::var;
+  const auto under = [](const kit::Theme& look, compose::Dimension padding,
+                        compose::Dimension gap) {
+    return compose::box()
+        .applyStyleSheet(look.styleSheet())
+        .children({compose::box().row().padding(padding).gap(gap).children(
+            {subject(), subject()})});
+  };
+  for (const kit::Theme* look : {&kit::houseTheme(), &kit::studyTheme()}) {
+    EXPECT_TRUE(sameDrawing(
+        under(*look, var("spacing-margin-horizontal"), var("spacing-cell-gap")),
+        under(*look, look->spacing.marginHorizontal, look->spacing.cellGap)));
+  }
+  // Two themes whose margins differ draw differently through one spelling,
+  // which is what proves the property was read.
+  ASSERT_NE(kit::houseTheme().spacing.marginHorizontal,
+            kit::studyTheme().spacing.marginHorizontal);
+  EXPECT_FALSE(sameDrawing(
+      under(kit::houseTheme(), var("spacing-margin-horizontal"), 0.0f),
+      under(kit::studyTheme(), var("spacing-margin-horizontal"), 0.0f)));
+}
+
+/** A value the sheet scales for a component is its own property, so the
+ *  component does no arithmetic where it reads it. */
+TEST(SketchKitTheme, AScaledSpacingIsItsOwnProperty) {
+  using compose::var;
+  const kit::Theme& look = kit::studyTheme();
+  const auto padded = [&](compose::Dimension padding) {
+    return compose::box()
+        .applyStyleSheet(look.styleSheet())
+        .children({compose::box().padding(padding).children({subject()})});
+  };
+  EXPECT_TRUE(sameDrawing(padded(var("spacing-rule-gap")),
+                          padded(look.spacing.contentGap * 0.5f)));
+  EXPECT_TRUE(sameDrawing(padded(var("spacing-plate-padding-vertical")),
+                          padded(look.spacing.panelPadding * 0.6f)));
+}
+
+/** A fill under a theme's sheet reads the sheet's palette. */
+TEST(SketchKitTheme, AFillReadsThePaletteOfTheSheetInForce) {
+  const kit::Theme& look = kit::featureTheme();
+  const auto filled = [&](Fill fill) {
+    return compose::box()
+        .applyStyleSheet(look.styleSheet())
+        .children({compose::box().width(60).height(40).fill(std::move(fill))});
+  };
+  EXPECT_TRUE(sameDrawing(filled(Fill::var("palette-figure")),
+                          filled(Fill::color(look.palette.figure))));
+  EXPECT_TRUE(sameDrawing(filled(Fill::var("palette-cell-ground")),
+                          filled(Fill::color(look.palette.cellGround))));
 }
 
 /** The four registers a sheet is set in, spelled the long way at the call

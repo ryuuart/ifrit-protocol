@@ -39,7 +39,6 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/core/Utf8.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilweave/style/TypeSheet.h>
 
 #include <chrono>
@@ -219,13 +218,10 @@ struct TextRow {
 
 using TextRing = Ring<TextRow>;
 
-/** A text feed's whole appearance: the layout and the styles its rows name.
- *
- *  Comparable, so it can BE an inherited value: `environment::` bindings are
- * keyed by C++ type, and the key this component uses is its own properties type
- * — which is how a feed gets themed from above without the library shipping a
- * palette layer (see `feed(const TextRing&)`). Exact and structural, like every
- * other value the reconciler compares. */
+/** A text feed's whole appearance, stated at the call: the layout and the
+ *  styles its rows name. Exact and structural, like every other value the
+ *  reconciler compares. A feed styled by whoever composed it instead takes
+ *  `feed(const TextRing&)` and the sheet's rules. */
 struct TextOptions {
   Options window;
   /** Row style by name, each a partial over the base, which sets every row
@@ -253,16 +249,23 @@ struct TextOptions {
 }
 
 /** The same feed, styled by whoever composed it rather than by whoever
- *  wrote this call — bind `environment::Provide<feed::TextOptions>` upstream
- * and nothing has to be threaded through the containers in between. Falls back
- *  to default-constructed options when nothing is bound.
+ *  wrote this call: each row is a text leaf carrying the NAME of its style
+ *  as its class, so the rules of the sheet in force set it — a row naming
+ *  `warning` takes the sheet's `.warning` rule, and a row naming nothing
+ *  takes the font in force. The window is the default `Options`; a feed
+ *  that needs another states it through `feed(ring, options)`.
  *
- *  The environment key is this component's own properties type. There is no
- *  library-wide theme value to inherit instead: a design-token layer would
- *  have to decide what a token IS for every component, and this library
- *  deliberately leaves that to the composition. */
+ *      root.applyStyleSheet(StyleSheet{rule(".warning").font({.color =
+ * amber})}) .children({feed::feed(ring)});
+ *
+ *  There is no library-wide theme value: the look is the composition's
+ *  rules, which is how every other element is themed. */
 [[nodiscard]] inline Element feed(const TextRing& ring) {
-  return feed(ring, core::environment::inheritedOr(TextOptions{}));
+  return feed(ring, Options{}, [](const TextRow& row) -> Element {
+    Text line = text(row.text);
+    if (!row.style.empty()) line.styleClass(row.style);
+    return line;
+  });
 }
 
 /** How tall a text feed of @p rows rows is — `height()` with the base style

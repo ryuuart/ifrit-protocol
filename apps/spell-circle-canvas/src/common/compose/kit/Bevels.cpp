@@ -4,8 +4,8 @@
  */
 
 #include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/kit/Chrome.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Edges.h>
@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <variant>
 
 #include "paint/MaterialEffects.h"
 
@@ -51,6 +52,17 @@ void ring(draw::Pen& pen, const PaintContext& ctx, const Bevel& b,
       .paint(pen, ctx);
 }
 
+/** The colour the property @p name holds where @p ctx paints, or
+ *  @p fallback where no ancestor set it or it holds something else. */
+material::Color toneInForce(const PaintContext& ctx, VarRef name,
+                            material::Color fallback) {
+  if (ctx.vars == nullptr) return fallback;
+  const VarValue* found = ctx.vars->find(name);
+  if (found == nullptr) return fallback;
+  if (const auto* colour = std::get_if<material::Color>(found)) return *colour;
+  return fallback;
+}
+
 }  // namespace
 
 float Bevel::reach() const {
@@ -61,7 +73,16 @@ float Bevel::reach() const {
 }
 
 void Bevel::paint(draw::Pen& pen, const PaintContext& ctx) const {
-  ring(pen, ctx, *this, light, shadow, depth, shadowDepth, sunken, edges, ends);
+  material::Color outerLight = light;
+  material::Color outerShadow = shadow;
+  if (tonesInForce) {
+    static const VarRef lightName = var("bevel-light");
+    static const VarRef shadowName = var("bevel-shadow");
+    outerLight = toneInForce(ctx, lightName, light);
+    outerShadow = toneInForce(ctx, shadowName, shadow);
+  }
+  ring(pen, ctx, *this, outerLight, outerShadow, depth, shadowDepth, sunken,
+       edges, ends);
   if (!inner) return;
   PaintContext local = ctx;
   if (inner->gap != 0) {
@@ -80,10 +101,6 @@ void Bevel::paint(draw::Pen& pen, const PaintContext& ctx) const {
        inner->ends);
 }
 
-Bevel ambientBevel(Bevel fallback) {
-  return core::environment::inheritedOr(fallback);
-}
-
 Element& bevelled(Element& e, const Bevel& b) {
   Bevel outer = b;
   outer.inner.reset();
@@ -97,11 +114,19 @@ Element& bevelled(Element& e, const Bevel& b) {
   in.sunken = b.sunken != b.inner->inverted;
   in.edges = b.inner->edges;
   in.ends = b.inner->ends;
+  // The properties in force name the OUTER ring's tones; the inner ring
+  // keeps the tones its own token states.
+  in.tonesInForce = false;
   e.foreground(inset(b.inner->gap, Decoration(in)));
   return e;
 }
 
 namespace bevels {
+
+Bevel inherited(Bevel shape) {
+  shape.tonesInForce = true;
+  return shape;
+}
 
 Bevel motif(material::Color light, material::Color shadow, float depth,
             bool sunken) {

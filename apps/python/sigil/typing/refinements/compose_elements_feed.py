@@ -33,7 +33,7 @@ def feed(ring: TextRing, options: TextOptions) -> {ELEMENT}:
     \"\"\"The text feed: the newest rows, each set in the style it names.\"\"\"
 @typing.overload
 def feed(ring: TextRing) -> {ELEMENT}:
-    \"\"\"The text feed under the options a native scope provides, or the default ones.\"\"\"
+    \"\"\"The text feed styled by the sheet in force: each row's style name is its class, set by the rule that names it.\"\"\"
 @typing.overload
 def feed(ring: TextRing, options: Options, row: collections.abc.Callable[[TextRow], _t.NodeLike]) -> {ELEMENT}:
     \"\"\"The newest rows of a text ring, each built by the row function.\"\"\"

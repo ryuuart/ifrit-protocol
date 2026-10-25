@@ -16,13 +16,14 @@
  * corner and whether the edge is drawn or moulded, not four families of
  * painters.
  *
- * The tokens flow through the theme. Provide one over a subtree and every
- * panel, button and well inside it wears the same era with nothing said
- * at the use site:
+ * The tones flow through the cascade. A subtree that sets the custom
+ * properties `bevel-light` and `bevel-shadow` dresses every bevel inside it
+ * that takes its tones in force, with nothing said at the use site but the
+ * shape:
  *
- *     const environment::Provide<kit::Bevel> era(kit::bevels::motif(hi, lo));
+ *     window.var("bevel-light", hi).var("bevel-shadow", lo);
  *     …
- *     panel.overlay(kit::ambientBevel());
+ *     panel.overlay(kit::bevels::inherited(kit::bevels::motif(hi, lo)));
  */
 
 #include <sigilcompose/brush/Decorations.h>
@@ -107,6 +108,11 @@ struct Bevel {
   /** Where the light stands, in degrees, for a softened edge. */
   float angleDegrees = 120;
   std::optional<BevelInner> inner;
+  /** THE TONES IN FORCE: where set, the outer ring's light and shadow are
+   *  the custom properties `bevel-light` and `bevel-shadow` in force where
+   *  the bevel paints, each a colour, and `light` and `shadow` above are
+   *  the fallback where no ancestor set one. */
+  bool tonesInForce = false;
 
   bool operator==(const Bevel&) const = default;
   /** How far in from the outline the marks reach. */
@@ -117,10 +123,6 @@ struct Bevel {
   bool staysOnOutline() const { return !inner || inner->gap >= 0; }
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
-
-/** The bevel the theme provides over this subtree, or @p fallback where
- *  nothing provides one. */
-Bevel ambientBevel(Bevel fallback = {});
 
 /** @p e DRESSED in @p b — the whole bevel, each ring in the slot it
  *  belongs in, which is the one call a panel needs.
@@ -141,6 +143,11 @@ Element& bevelled(Element& e, const Bevel& b);
  *  tones, because how a toolkit derived its tones from a face is that
  *  toolkit's own arithmetic and belongs where the face is. */
 namespace bevels {
+
+/** @p shape with its outer ring's tones read from the properties in
+ *  force — `bevel-light` and `bevel-shadow` — and @p shape's own tones
+ *  where no ancestor set them, so a panel outside any era is still drawn. */
+Bevel inherited(Bevel shape = {});
 
 /** THE TWO-TONE SHADOW of the Motif toolkits: @p depth px on the pixel
  *  lattice, mitred, drawn in the colour set of the window it is in. Every

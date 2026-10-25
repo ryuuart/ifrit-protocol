@@ -672,9 +672,10 @@ groove a separator is and carrying its own `BevelInner::edges` and
 `BevelInner::ends`, which is the doubled edge a key wears on its two
 shaded sides alone. It is a value
 decoration in its own right, so `.overlay(theBevel)` dresses a panel, and
-it is a theme token: `environment::Provide<kit::Bevel>` over a subtree and
-`kit::ambientBevel()` at each use site puts one era on every button,
-panel and well under it. `kit::bevels::motif`, `motifEtched`, `flash`,
+its tones come through the cascade: a subtree that sets the custom
+properties `bevel-light` and `bevel-shadow` dresses every
+`kit::bevels::inherited()` bevel under it in one era's tones, and a bevel
+outside any such subtree keeps its own. `kit::bevels::motif`, `motifEtched`, `flash`,
 `skin` and `plate` are the token sets four toolkits' edges resolve to.
 `core/Pattern.h` adds the one thing a tile cannot do for itself — an
 element tree AS the tile, baked through `snapshot()`. A recipe instance

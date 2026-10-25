@@ -74,6 +74,45 @@ compose::StyleSheet Theme::styleSheet() const {
       rule(".checkPass").font(ink(palette.pass)),
       rule(".checkFail").font(ink(palette.fail)),
       rule(".checkHeading").font(font(type.section, palette.ink)),
+      // THE LOOK'S NUMBERS AND COLOURS AS CUSTOM PROPERTIES on the node the
+      // sheet stands on, so a component reads one where it uses it — a
+      // length written `var("spacing-row-gap")`, a fill written
+      // `Fill::var("palette-figure")` — and the cascade carries it down.
+      // A value a component scales is its own property, computed here.
+      rule(":root")
+          .var("spacing-margin-horizontal", spacing.marginHorizontal)
+          .var("spacing-margin-top", spacing.marginTop)
+          .var("spacing-margin-bottom", spacing.marginBottom)
+          .var("spacing-subtitle-gap", spacing.subtitleGap)
+          .var("spacing-content-gap", spacing.contentGap)
+          .var("spacing-rule-gap", spacing.contentGap * 0.5f)
+          .var("spacing-caption-gap", spacing.captionGap)
+          .var("spacing-caption-note-gap", spacing.captionNoteGap)
+          .var("spacing-cell-gap", spacing.cellGap)
+          .var("spacing-comparison-gap", spacing.comparisonGap)
+          .var("spacing-section-gap", spacing.sectionGap)
+          .var("spacing-well-padding", spacing.wellPadding)
+          .var("spacing-row-gap", spacing.rowGap)
+          .var("spacing-label-gap", spacing.labelGap)
+          .var("spacing-chip-padding-horizontal", spacing.chipPaddingX)
+          .var("spacing-chip-padding-vertical", spacing.chipPaddingY)
+          .var("spacing-panel-padding", spacing.panelPadding)
+          .var("spacing-plate-padding-vertical", spacing.panelPadding * 0.6f)
+          .var("spacing-swatch-side", spacing.swatchSide)
+          .var("spacing-bar-height", spacing.barHeight)
+          .var("spacing-panel-corners", spacing.panelCorners)
+          .var("spacing-screen-corners", spacing.screenCorners)
+          .var("spacing-bezel", spacing.bezel)
+          .var("spacing-chip-corners", spacing.chipCorners)
+          .var("spacing-tick-reach", spacing.tickReach)
+          .var("palette-ground", palette.ground)
+          .var("palette-cell-ground", palette.cellGround)
+          .var("palette-ink", palette.ink)
+          .var("palette-ash", palette.ash)
+          .var("palette-rule", palette.rule)
+          .var("palette-figure", palette.figure)
+          .var("palette-pass", palette.pass)
+          .var("palette-fail", palette.fail),
   };
 }
 

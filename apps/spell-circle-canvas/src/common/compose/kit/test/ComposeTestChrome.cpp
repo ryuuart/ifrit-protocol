@@ -6,7 +6,6 @@
 #include <include/core/SkColor.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/kit/Chrome.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/pattern/Patterns.h>
 
 #include "support/ShapeTestSupport.h"
@@ -407,25 +406,33 @@ TEST(KitChrome, AMouldedEdgeIsBlurredWhereADrawnOneIsNot) {
   EXPECT_NE(at(moulded, 50, 4), SK_ColorGREEN);
 }
 
-TEST(KitChrome, TheThemeCarriesTheEraToEveryPanelUnderIt) {
-  // Every use site says "the bevel of the window I am in" and nothing
-  // else, which is the whole point of the token set.
-  const auto describe = [](kit::Bevel era) {
-    const sigil::core::environment::Provide<kit::Bevel> bound(era);
-    return box().padding(kX).children(
-        {box().width(kW).height(kH).fill(kFace).overlay(kit::ambientBevel())});
+TEST(KitChrome, TheTonesInForceDressEveryPanelUnderThem) {
+  // Every use site says "the tones of the window I am in" and nothing else:
+  // the window sets them as custom properties and the cascade carries them.
+  kit::Bevel fallback = plain();
+  fallback.light = {0, 1, 0, 1};
+  fallback.shadow = {0, 1, 0, 1};
+  const auto panel = [&] {
+    return box().width(kW).height(kH).fill(kFace).overlay(
+        kit::bevels::inherited(fallback));
   };
   Host host(140, 100);
-  host.composer.render(describe(plain()));
+  host.composer.render(box()
+                           .padding(kX)
+                           .var("bevel-light", material::Color{1, 0, 0, 1})
+                           .var("bevel-shadow", material::Color{0, 0, 1, 1})
+                           .children({panel()}));
   host.frame();
   EXPECT_EQ(at(host, 50, 0), SK_ColorRED);
   EXPECT_EQ(at(host, 50, kH - 1), SK_ColorBLUE);
 
-  // Unbound, the fallback stands: a panel outside any era is not undrawn.
-  EXPECT_FALSE(sigil::core::environment::bound<kit::Bevel>());
-  kit::Bevel fallback = plain();
-  fallback.sunken = true;
-  EXPECT_TRUE(kit::ambientBevel(fallback).sunken);
+  // Where no ancestor sets them, the bevel's own tones stand: a panel
+  // outside any era is not undrawn.
+  Host bare(140, 100);
+  bare.composer.render(box().padding(kX).children({panel()}));
+  bare.frame();
+  EXPECT_EQ(at(bare, 50, 0), SK_ColorGREEN);
+  EXPECT_EQ(at(bare, 50, kH - 1), SK_ColorGREEN);
 }
 
 TEST(KitChrome, ABevelUnderASpanGateKeepsItsRingInsideTheShape) {

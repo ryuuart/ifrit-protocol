@@ -3,7 +3,6 @@
 
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilcore/reconcile/Environment.h>
 
 #include <string>
 
@@ -69,11 +68,14 @@ static void BM_Chrome_Panels(benchmark::State& state) {
   const int count = (int)state.range(0);
   bench::Host host(240, 60 * 44 + 40);
   const auto tree = [&] {
-    const sigil::core::environment::Provide<kit::Bevel> bound(
-        kit::bevels::motif(kLit, kShade));
-    Element page = box().padding(20).gap(4);
-    for (int i = 0; i < count; ++i)
-      page.children({panelOf(kit::ambientBevel(), i)});
+    Element page = box()
+                       .padding(20)
+                       .gap(4)
+                       .var("bevel-light", kLit)
+                       .var("bevel-shadow", kShade);
+    const kit::Bevel era =
+        kit::bevels::inherited(kit::bevels::motif(kLit, kShade));
+    for (int i = 0; i < count; ++i) page.children({panelOf(era, i)});
     return page;
   };
   host.composer.render(tree());
@@ -91,13 +93,17 @@ BENCHMARK(BM_Chrome_Panels)->Arg(60)->Unit(benchmark::kMicrosecond);
 static void BM_Chrome_Stipple(benchmark::State& state) {
   bench::Host host(240, 80);
   const auto tree = [] {
-    return box().padding(20).children({box()
-                                           .width(Dimension(180))
-                                           .height(Dimension(40))
-                                           .fill(sigil::material::from(sigil::material::Color{kFace.fR, kFace.fG, kFace.fB, kFace.fA})
-                                                     .layer(sigil::material::pattern::stipple(
-                                                         {.color = {kShade.fR, kShade.fG, kShade.fB, kShade.fA}})))
-                                           .key("stippled")});
+    return box().padding(20).children(
+        {box()
+             .width(Dimension(180))
+             .height(Dimension(40))
+             .fill(sigil::material::from(
+                       sigil::material::Color{kFace.fR, kFace.fG, kFace.fB,
+                                              kFace.fA})
+                       .layer(sigil::material::pattern::stipple(
+                           {.color = {kShade.fR, kShade.fG, kShade.fB,
+                                      kShade.fA}})))
+             .key("stippled")});
   };
   host.composer.render(tree());
   host.draw();

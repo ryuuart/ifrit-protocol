@@ -140,12 +140,10 @@ tokens and a class names its stone by name. It reaches exactly what the
 kernel resolves — a fill, a stroke, a mark (a shadow, a layered brush's
 pass), a length, the ink — and no further: the inside of a material, a
 layer style and every other value the kernel cannot see inside take
-concrete values, so inside those the look is still read
-where it is written, through `core::environment::Provide`. That channel
-is LEXICAL, read by the code that builds an element; the cascade is
-STRUCTURAL, carried by the tree the element ends up in. One sentence
-holds both: the tree carries the font, the ink and the properties; code
-reads the look.
+concrete values, and a paint program reaches the rest through
+`PaintContext::vars`, the properties in force where it paints. The
+cascade is the one inheritance: the tree carries the font, the ink and
+the properties, and a look is a sheet applied on a subtree.
 
 **Lengths measure against the font.** `Dimension` takes SigilWeave's
 `weave::Length` and its literals: `1_em` on a box property is the node's

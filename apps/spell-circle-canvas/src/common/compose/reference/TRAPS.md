@@ -25,11 +25,13 @@ exactly like a layout bug.
   inheriting leaf inside one is 16 px in the font context's family. Set
   the font and ink on the baked tree itself, or seed the composer with
   `Composer::setInherited`.
-- **The theme is lexical; the cascade is not.** A value read through
-  `core::environment::Provide` is copied into the element by the code
-  that builds it, so a component built outside a scope and mounted inside
-  it keeps the outer look — while its text still takes the inner ink,
-  because the font, the ink and the properties are carried by the tree.
+- **A number copied while building does not follow the tree.** A value a
+  component reads into its description — a spacing multiplied out, a
+  colour taken from a struct — stays what it was where the code ran, so a
+  component built outside a themed subtree and mounted inside it keeps the
+  outer number. A length written `var(...)` and a fill written `Fill::var`
+  resolve where the element ends up, which is why a theme's numbers are
+  properties.
 - **An unknown key resolves to nothing, everywhere in the derive family.**
 `contentFlowAround("typo")`, `spans::fit("typo")`, a wire to a node its
 operator's scope does not hold, a `strand::from` on a missing key —
@@ -104,9 +106,9 @@ the prune, and a pruned node replays the picture it recorded — so a
 number left out of the key freezes at whatever it was on the frame that
 recorded, with no error and no warning.
 
-This matters more than it sounds. An inherited value carried through
-`core::environment::` that holds a `std::function` is incomparable, and that turns every
-`memo` below it into a permanent miss. Materialise derived values *into*
+This matters more than it sounds. A memo prop that holds a
+`std::function` is incomparable, and that turns the `memo` into a
+permanent miss. Materialise derived values *into*
 the type: run the function, store the result.
 
 ## Ordering
