@@ -17,3 +17,7 @@ build
 
 # Generated demo renders
 *_demo_out/
+
+# A merge tool's leftovers are never sources.
+*.orig
+*.rej
