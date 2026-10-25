@@ -8,6 +8,7 @@ from _sigil.core import (
 )
 
 from . import (
+    angle,
     chance,
     hardware,
     hash,
@@ -16,6 +17,7 @@ from . import (
 )
 
 __all__ = [
+    "angle",
     "chance",
     "hardware",
     "hash",

@@ -100,8 +100,13 @@ void bindGeometryOutlines(pybind11::module_& module) {
   py::class_<path::Transform> transform(paths, "Transform");
   transform.def(py::init<>())
       .def_static("translate", &path::Transform::translate, py::arg("offset"))
-      .def_static("rotate", &path::Transform::rotate, py::arg("degrees"),
-                  py::arg("about") = glm::vec2{0, 0})
+      .def_static(
+          "rotate",
+          [](AngleInDegrees degrees, glm::vec2 about) {
+            return path::Transform::rotate(degrees.value, about);
+          },
+          py::arg("degrees"),
+          py::arg("about") = glm::vec2{0, 0})
       .def_static("scale", &path::Transform::scale, py::arg("factors"),
                   py::arg("about") = glm::vec2{0, 0})
       .def_static("skew", &path::Transform::skew, py::arg("degrees"))
@@ -225,14 +230,21 @@ void bindGeometryOutlines(pybind11::module_& module) {
   mark.def(py::init<>())
       .def_static("line", &path::Mark::line, py::arg("inner") = 0.92f,
                   py::arg("outer") = 1.0f)
-      .def_static("segment", &path::Mark::segment, py::arg("spanDegrees"),
-                  py::arg("inner") = 0.88f, py::arg("outer") = 1.0f)
+      .def_static(
+          "segment",
+          [](AngleInDegrees spanDegrees, float inner, float outer) {
+            return path::Mark::segment(spanDegrees.value, inner, outer);
+          },
+          py::arg("spanDegrees"),
+          py::arg("inner") = 0.88f, py::arg("outer") = 1.0f)
       .def_static("bar", &path::Mark::bar, py::arg("width"),
                   py::arg("inner") = 0.92f, py::arg("outer") = 1.0f)
       .def_static("shape", &path::Mark::shape, py::arg("figure"))
       .def_readwrite("inner", &path::Mark::inner)
       .def_readwrite("outer", &path::Mark::outer)
-      .def_readwrite("spanDegrees", &path::Mark::spanDegrees)
+      .def_property(
+          "spanDegrees", angleGetter(&path::Mark::spanDegrees),
+          angleSetter<AngleInDegrees>(&path::Mark::spanDegrees))
       .def_readwrite("width", &path::Mark::width)
       .def(py::self == py::self);
   copyProtocol(mark);
@@ -240,9 +252,15 @@ void bindGeometryOutlines(pybind11::module_& module) {
   auto radial = bindRecord<path::RadialOptions>(paths, "RadialOptions",
                                                 "Unknown radial option: ");
   radial.def_readwrite("radii", &path::RadialOptions::radii)
-      .def_readwrite("fromDegrees", &path::RadialOptions::fromDegrees)
-      .def_readwrite("sweepDegrees", &path::RadialOptions::sweepDegrees)
-      .def_readwrite("stepDegrees", &path::RadialOptions::stepDegrees)
+      .def_property(
+          "fromDegrees", angleGetter(&path::RadialOptions::fromDegrees),
+          angleSetter<AngleInDegrees>(&path::RadialOptions::fromDegrees))
+      .def_property(
+          "sweepDegrees", angleGetter(&path::RadialOptions::sweepDegrees),
+          angleSetter<AngleInDegrees>(&path::RadialOptions::sweepDegrees))
+      .def_property(
+          "stepDegrees", angleGetter(&path::RadialOptions::stepDegrees),
+          angleSetter<AngleInDegrees>(&path::RadialOptions::stepDegrees))
       .def_readwrite("closed", &path::RadialOptions::closed)
       .def_readwrite("skip", &path::RadialOptions::skip)
       .def_readwrite("connect", &path::RadialOptions::connect)

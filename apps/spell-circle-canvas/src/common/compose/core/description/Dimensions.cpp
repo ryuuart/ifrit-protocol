@@ -1,7 +1,8 @@
 /** @file
  * A length written as text, read into a Dimension: the one grammar a
  * rule's declaration and a length handed in from another language are
- * both taken through.
+ * both taken through; the length a font field holds; and a fraction
+ * written as a number or a percentage.
  */
 
 #include <sigilcompose/core/Layout.h>
@@ -37,9 +38,11 @@ bool sameWord(std::string_view text, std::string_view word) {
  *  pixels, which is what a bare number is everywhere else here. */
 std::optional<Dimension> inUnit(float amount, std::string_view suffix) {
   if (suffix.empty() || sameWord(suffix, "px")) return Dimension(amount);
-  if (sameWord(suffix, "%")) return pct(amount);
-  if (sameWord(suffix, "pw")) return pw(amount);
-  if (sameWord(suffix, "ph")) return ph(amount);
+  if (sameWord(suffix, "%")) return percent(amount);
+  if (sameWord(suffix, "vw")) return vw(amount);
+  if (sameWord(suffix, "vh")) return vh(amount);
+  if (sameWord(suffix, "vmin")) return vmin(amount);
+  if (sameWord(suffix, "vmax")) return vmax(amount);
   if (sameWord(suffix, "em")) return Dimension(sigil::weave::em(amount));
   if (sameWord(suffix, "rem")) return Dimension(sigil::weave::rem(amount));
   if (sameWord(suffix, "lh")) return Dimension(sigil::weave::lh(amount));
@@ -243,6 +246,43 @@ std::optional<Dimension> parseDimension(std::string_view text) {
   // refused here rather than handed on to a layout that cannot lay it out.
   if (!std::isfinite(amount)) return std::nullopt;
   return inUnit(amount, std::string_view(read.ptr, (size_t)(last - read.ptr)));
+}
+
+std::optional<sigil::weave::Length> fontLength(const Dimension& length) {
+  using sigil::weave::Length;
+  switch (length.unit) {
+    case Dimension::Unit::Px:
+      return Length(length.value);
+    case Dimension::Unit::Pt:
+      return Length(length.value, Length::Unit::Pt);
+    case Dimension::Unit::Em:
+      return Length(length.value, Length::Unit::Em);
+    case Dimension::Unit::Rem:
+      return Length(length.value, Length::Unit::Rem);
+    case Dimension::Unit::Lh:
+      return Length(length.value, Length::Unit::Lh);
+    case Dimension::Unit::Ch:
+      return Length(length.value, Length::Unit::Ch);
+    case Dimension::Unit::Percent:
+      return Length(length.value / 100.0f, Length::Unit::Em);
+    default:
+      return std::nullopt;
+  }
+}
+
+std::optional<float> parseFraction(std::string_view text) {
+  std::string_view body = trimmed(text);
+  if (!body.empty() && body.front() == '+') body.remove_prefix(1);
+  if (body.empty()) return std::nullopt;
+  float amount = 0;
+  const char* const first = body.data();
+  const char* const last = first + body.size();
+  const std::from_chars_result read = std::from_chars(first, last, amount);
+  if (read.ec != std::errc{} || !std::isfinite(amount)) return std::nullopt;
+  const std::string_view suffix(read.ptr, (size_t)(last - read.ptr));
+  if (suffix.empty()) return amount;
+  if (suffix == "%") return amount / 100.0f;
+  return std::nullopt;
 }
 
 }  // namespace sigil::compose

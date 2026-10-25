@@ -418,7 +418,7 @@ TextEffect catchEffect() {
 /** The ruler's place under a letter: its foot and the margin below it. */
 template <class Node>
 Node belowTheLetter(Node mark, float drop) {
-  mark.left(0).top(pct(100)).marginTop(drop);
+  mark.left(0).top(percent(100)).marginTop(drop);
   return mark;
 }
 
@@ -477,7 +477,7 @@ Text withCountIn(Text line, const motion::Animatable<float>& cycle) {
                 kCountDot, kCountDot)
             .shape(sigil::geometry::shapes::circle())
             .styleClass("count")
-            .transformOrigin(pct(50), pct(50))
+            .transformOrigin(percent(50), percent(50))
             .scale(motion::bind(cycle, {.from = {landing, landing + kPop},
                                         .clampFrom = true,
                                         .to = {1.0f, 2.6f}}))
@@ -613,7 +613,7 @@ struct KaraokeWipe {
                                    .background(shadow(kBallLight, {0, 0}, 7))
                                    .fill(kBall)
                                    .key("ball")
-                                   .transformOrigin(pct(50), pct(100))
+                                   .transformOrigin(percent(50), percent(100))
                                    .translateX(ballX)
                                    .translateY(ballY)
                                    .scaleX(ballWidth)

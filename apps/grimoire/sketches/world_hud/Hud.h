@@ -211,7 +211,7 @@ inline Element bar(const Bar& b) {
   if (b.live)
     e.children({box()
                     .rect(padX, padY, b.innerW, b.innerH)
-                    .transformOrigin(pct(0), pct(50))
+                    .transformOrigin(percent(0), percent(50))
                     .scaleX(*b.live)
                     .fill(body)});
   else

@@ -167,6 +167,14 @@ class Motion(unittest.TestCase):
         self.assertEqual(live.form, AnimatableForm.Live)
         self.assertTrue(live.isRunning())
 
+    def test_a_described_colour_fills_and_a_live_colour_is_refused(self):
+        # The declared fill type names a colour animation, and the fill
+        # takes a described one as the fill of its colour; a live colour
+        # has to be made a fill to fill a surface.
+        box().fill(animate(from_="#ff0000", to="#0000ff", duration=1))
+        with self.assertRaisesRegex(TypeError, "live colour cannot fill"):
+            box().fill(animatable("#ff0000"))
+
     def test_a_live_value_is_one_cell_every_copy_reads(self):
         live = animatable(0.5)
         other = live.copy()

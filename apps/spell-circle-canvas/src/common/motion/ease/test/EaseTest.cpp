@@ -111,3 +111,26 @@ TEST(Ease, ACurveComparesByItsShapeAndItsSettings) {
   EXPECT_FALSE(easeEqual(captured, captured));
   EXPECT_TRUE(easeEqual({}, {}));
 }
+
+TEST(Ease, CssTimingFunctionTextReadsOntoTheCurves) {
+  using sigil::motion::readEasing;
+  const auto same = [](const std::optional<sigil::motion::Easing>& read,
+                       const sigil::motion::Easing& wanted) {
+    return read && sigil::motion::easeEqual(*read, wanted);
+  };
+  namespace ease = sigil::motion::ease;
+  EXPECT_TRUE(same(readEasing("ease"), ease::cubicBezier(0.25f, 0.1f, 0.25f, 1)));
+  EXPECT_TRUE(same(readEasing(" Ease-In-Out "),
+                   ease::cubicBezier(0.42f, 0, 0.58f, 1)));
+  EXPECT_TRUE(same(readEasing("linear"), ease::linear));
+  EXPECT_TRUE(same(readEasing("cubic-bezier(.2, .8, .2, 1)"),
+                   ease::cubicBezier(0.2f, 0.8f, 0.2f, 1)));
+  EXPECT_TRUE(same(readEasing("steps(4, jump-start)"), ease::steps(4, true)));
+  EXPECT_TRUE(same(readEasing("steps(4)"), ease::steps(4)));
+  EXPECT_TRUE(same(readEasing("step-end"), ease::steps(1)));
+  // What the curves cannot draw, and what is not CSS, reads as nothing.
+  EXPECT_FALSE(readEasing("steps(4, jump-none)"));
+  EXPECT_FALSE(readEasing("cubic-bezier(1.5, 0, 0, 1)"));
+  EXPECT_FALSE(readEasing("ease_in"));
+  EXPECT_FALSE(readEasing("steps(0)"));
+}

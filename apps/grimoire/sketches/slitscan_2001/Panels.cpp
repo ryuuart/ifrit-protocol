@@ -156,7 +156,7 @@ auto SlitScan2001::s4Sampling() -> Element {
                                                    .to = 1.0f,
                                                    .duration = 220ms,
                                                    .ease = ease::outBack()}))
-                       .transformOrigin(pct(0), pct(50))
+                       .transformOrigin(percent(0), percent(50))
                        .children({instancing::instances(
                            flatAtlas, s4[idx], instancing::Mode::Data,
                            material::BlendMode::PlusLighter)});

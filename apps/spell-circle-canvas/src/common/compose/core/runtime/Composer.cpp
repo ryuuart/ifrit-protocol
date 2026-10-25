@@ -114,6 +114,10 @@ void Composer::render(const Element& root) {
     impl.cascadeDirty = true;
   }
   impl.rebuildKeyIndex();
+  if (!impl.pendingSlots.empty()) {
+    impl.mountPendingSlots();
+    impl.warnPendingSlots();
+  }
   // THE CASCADE BELONGS TO THE DESCRIBE, not to the draw that asks for a
   // layout, and the reason is the clock. Both passes start transition
   // lanes — the patch above for a node whose own description moved, this
@@ -134,28 +138,11 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
   const sigil::measure::Stopwatch reconcile;
   auto it = impl.bySlot.find(name);
   if (it == impl.bySlot.end()) {
-    // A miss must be loud, because the SYMPTOM points somewhere else: an
-    // empty slot lays out W x 0, which reads as a layout bug and sends the
-    // reader into Yoga rather than to the name they typed.
-    //
-    // The likely cause is the one the message names: `slot(name)` stores the
-    // name in `key`, so any later `.key(...)` on that element renames the
-    // slot with no type error and no second field to disagree with itself.
-    // Listing the names that DO exist turns the diagnosis into one read.
-    static thread_local boost::unordered_flat_set<std::string> warned;
-    if (warned.insert(std::string(name)).second) {
-      std::string have;
-      for (const auto& [key, inst] : impl.bySlot)
-        have += (have.empty() ? "" : ", ") + key;
-      SkDebugf(
-          "[compose] renderSlot(\"%.*s\") — no slot by that name, so "
-          "nothing was rendered into it and it will lay out at zero "
-          "on its content axis. Slots that DO exist: [%s]. NOTE: "
-          "slot(name) stores the name in key(), so slot(\"%.*s\")"
-          ".key(\"something\") RENAMES the slot to \"something\".\n",
-          (int)name.size(), name.data(), have.empty() ? "none" : have.c_str(),
-          (int)name.size(), name.data());
-    }
+    // No mounted tree holds the slot yet. The content is kept and mounted
+    // when a described tree brings the slot, so a setup may fill a slot
+    // before it returns the tree; a tree that still lacks it is warned
+    // about, at the describe that lacks it or at the next draw.
+    impl.pendingSlots[std::string(name)] = content.node();
     return;
   }
   Instance& slotInst = *it->second;
@@ -168,8 +155,53 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
   // described, so the pass resolves it under the slot's ancestors.
   impl.cascadeDirty = true;
   impl.rebuildKeyIndex();
+  // The content may itself hold a slot that was given content first.
+  if (!impl.pendingSlots.empty()) impl.mountPendingSlots();
   impl.reconcileAccumulatedMilliseconds +=
       sigil::measure::Milliseconds(reconcile.elapsed()).count();
+}
+
+void Composer::Impl::mountPendingSlots() {
+  bool mounted = false;
+  for (auto it = pendingSlots.begin(); it != pendingSlots.end();) {
+    const auto slot = bySlot.find(it->first);
+    if (slot == bySlot.end()) {
+      ++it;
+      continue;
+    }
+    reconciler.replaceContent(*slot->second, it->second);
+    it = pendingSlots.erase(it);
+    mounted = true;
+  }
+  if (!mounted) return;
+  volatileDirty = true;
+  cascadeDirty = true;
+  rebuildKeyIndex();
+}
+
+void Composer::Impl::warnPendingSlots() const {
+  // A miss must be loud, because the SYMPTOM points somewhere else: an
+  // empty slot lays out W x 0, which reads as a layout bug and sends the
+  // reader into Yoga rather than to the name they typed.
+  //
+  // The likely cause is the one the message names: `slot(name)` stores the
+  // name in `key`, so any later `.key(...)` on that element renames the
+  // slot with no type error and no second field to disagree with itself.
+  // Listing the names that DO exist turns the diagnosis into one read.
+  static thread_local boost::unordered_flat_set<std::string> warned;
+  for (const auto& [name, content] : pendingSlots) {
+    if (!warned.insert(name).second) continue;
+    std::string have;
+    for (const auto& [key, inst] : bySlot)
+      have += (have.empty() ? "" : ", ") + key;
+    SkDebugf(
+        "[compose] renderSlot(\"%s\") — no slot by that name in the "
+        "described tree, so its content waits unshown until a tree holding "
+        "the slot is described. Slots that DO exist: [%s]. NOTE: "
+        "slot(name) stores the name in key(), so slot(\"%s\")"
+        ".key(\"something\") RENAMES the slot to \"something\".\n",
+        name.c_str(), have.empty() ? "none" : have.c_str(), name.c_str());
+  }
 }
 
 void Composer::setInherited(const sigil::weave::Type& font,
@@ -260,6 +292,7 @@ bool Composer::drewWithinChangedRegion() const {
 void Composer::draw(SkCanvas& canvas) {
   Impl& impl = *m_impl;
   if (!impl.root) return;
+  if (!impl.pendingSlots.empty()) impl.warnPendingSlots();
   // A page painted as a surface map is drawn through the canvas that turns
   // content that is its own colour into the map's reading of it.
   if (impl.surfaceMap && !impl.drawingSurfaceMap) {
@@ -294,6 +327,7 @@ void Composer::draw(SkCanvas& canvas) {
 
   impl.stats.picturesRecorded = 0;
   impl.stats.texturesBaked = 0;
+  impl.stats.nodesHeldWhileMoving = 0;
   impl.stats.nodesPainted = 0;
   impl.stats.backdropsFiltered = 0;
   impl.stats.nodesBounded = 0;
@@ -508,6 +542,10 @@ void Composer::setGroundHeld(bool held) {
 
 bool Composer::groundHeld() const { return m_impl->groundHeld; }
 
+void Composer::setLive(bool live) { m_impl->live = live; }
+
+bool Composer::live() const { return m_impl->live; }
+
 void Composer::purgeCaches() {
   Impl& impl = *m_impl;
   impl.changesUnknown = true;
@@ -518,6 +556,7 @@ void Composer::purgeCaches() {
   std::function<void(Instance&)> walk = [&walk](Instance& inst) {
     inst.picture.reset();
     inst.textureImage.reset();
+    inst.movingImage.reset();
     inst.heldBackdrop = {};
     inst.bakedLiveShader.reset();
     inst.hasPendingLiveFill = false;

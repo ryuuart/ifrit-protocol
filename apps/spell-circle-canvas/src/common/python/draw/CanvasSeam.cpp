@@ -154,8 +154,8 @@ void bindDrawCanvasSeam(py::module_& root) {
           py::arg("x"), py::arg("y"))
       .def(
           "rotate",
-          [](BorrowedCanvas& self, float degrees) {
-            self.get().rotate(degrees);
+          [](BorrowedCanvas& self, AngleInDegrees degrees) {
+            self.get().rotate(degrees.value);
           },
           py::arg("degrees"))
       .def("resetMatrix",

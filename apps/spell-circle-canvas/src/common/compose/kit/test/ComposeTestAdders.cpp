@@ -88,6 +88,29 @@ TEST(ComposeAdders, HullEnclosesTheClassedNodesAndNoOther) {
   EXPECT_EQ(host.pixel(10, 190), SK_ColorBLACK);
 }
 
+TEST(ComposeAdders, AClassAnOperatorReadsIsNoUnknownClass) {
+  // A class named only for the hull that picks nodes by it is a selector
+  // the composer knows, so it raises no warning; one nothing reads does.
+  Host host;
+  ::testing::internal::CaptureStderr();
+  host.composer.render(
+      box().width(200).height(200)
+          .children({node("a", 20, 20).styleClass("hulledOnly"),
+                     node("b", 150, 20).styleClass("hulledOnly"),
+                     node("c", 80, 150).styleClass("hulledOnly")})
+          .operators({outline::Hull{.styleClass = "hulledOnly"}}));
+  host.frame();
+  const std::string read = ::testing::internal::GetCapturedStderr();
+  EXPECT_EQ(read.find("hulledOnly"), std::string::npos) << read;
+  ::testing::internal::CaptureStderr();
+  host.composer.render(
+      box().width(200).height(200)
+          .children({node("a", 20, 20).styleClass("readByNothing")}));
+  host.frame();
+  const std::string unread = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(unread.find("readByNothing"), std::string::npos) << unread;
+}
+
 TEST(ComposeAdders, StampMakesOneElementPerNodeAttachedToIt) {
   Host host;
   host.composer.render(

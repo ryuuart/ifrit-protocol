@@ -171,7 +171,7 @@ struct Zellige {
              .borderRadius({3})
              .fill(sigil::material::from(one.tile.material())
                        .effects(sigil::material::Filter::shadow(
-                           {1, 1, 1, 0.26f}, {.blur = 2, .inside = true})))
+                           {1, 1, 1, 0.26f}, {.blur = 2, .inset = true})))
              // GLAZED, not carved. An inner shadow with an inner glow
              // is a bevel cut into plaster; a glazed tile is a hard
              // gloss with a sheen running off the light and a thin

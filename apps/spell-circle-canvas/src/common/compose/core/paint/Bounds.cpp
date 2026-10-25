@@ -292,7 +292,7 @@ Pivot Composer::Impl::pivotOf(const Instance& inst, const Dimension& x,
     offset = 0.0f;
     if (length.unit == Dimension::Unit::Auto) {
       fraction = rest;
-    } else if (length.unit == Dimension::Unit::Pct) {
+    } else if (length.unit == Dimension::Unit::Percent) {
       // Divided, never multiplied by a hundredth: fifty percent is exactly
       // the half a matrix was built about before it had a unit.
       fraction = length.value / 100.0f;
@@ -315,6 +315,27 @@ Pivot Composer::Impl::pivotOf(const Instance& inst, const Dimension& x,
     resolve(*z, 0.0f, fraction, out.depth);
   }
   return out;
+}
+
+float Composer::Impl::translateLength(const Instance& inst,
+                                     const Dimension& length,
+                                     float extent) const {
+  if (length.unit == Dimension::Unit::Px) return length.value;
+  const Dimension* stated = &length;
+  if (length.unit == Dimension::Unit::Var) {
+    const VarValue* value =
+        inst.vars ? inst.vars->find(length.reference()) : nullptr;
+    stated = value ? std::get_if<Dimension>(value) : nullptr;
+    if (stated == nullptr || stated->unit == Dimension::Unit::Var) {
+      if (inst.cascadeResolved) warnNoSuchVar(length.reference(), false);
+      return 0.0f;
+    }
+  }
+  if (stated->unit == Dimension::Unit::Auto) return 0.0f;
+  if (stated->unit == Dimension::Unit::Percent)
+    return stated->value / 100.0f * extent;
+  bool relative = false;
+  return resolveLength(inst, *stated, relative, /*percentBasis=*/extent);
 }
 
 NodeTransform Composer::Impl::transformOf(Instance& inst) {
@@ -355,8 +376,10 @@ NodeTransform Composer::Impl::transformOf(Instance& inst) {
     out.rot += sample->second;
     return out;
   }
-  out.tx = inst.resolveFloat(Instance::kTx, style.paint.translateX);
-  out.ty = inst.resolveFloat(Instance::kTy, style.paint.translateY);
+  out.tx = inst.resolveFloat(Instance::kTx, style.paint.translateX) +
+           translateLength(inst, style.paint.translateXLength, rect.width());
+  out.ty = inst.resolveFloat(Instance::kTy, style.paint.translateY) +
+           translateLength(inst, style.paint.translateYLength, rect.height());
   return out;
 }
 

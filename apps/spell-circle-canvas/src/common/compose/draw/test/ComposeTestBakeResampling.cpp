@@ -99,7 +99,7 @@ Element turningRing(Cache mode, const sigil::motion::Animatable<float>& turn) {
                      .width(side)
                      .height(side)
                      .cache(mode)
-                     .transformOrigin(pct(50), pct(50))
+                     .transformOrigin(percent(50), percent(50))
                      .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}));
   const char8_t* words[] = {u8"ANIMA", u8"LUMEN", u8"ORDO",  u8"SIGNUM",
                             u8"VOX",   u8"NOMEN", u8"CIRCU", u8"TERRA",

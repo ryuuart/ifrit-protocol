@@ -71,7 +71,7 @@ auto HitmanVerlet::panelA3() -> Element {
              .duration = 220ms,
              .delay = sigil::motion::stagger(60ms, {.start = 1600ms}),
              .ease = ease::outBack()}))
-        .transformOrigin(pct(50), pct(100));
+        .transformOrigin(percent(50), percent(100));
   };
   return panel(kPanelAH[2], a3["heading"].string(), 3)
       .applyStyleSheet(plotClasses())

@@ -48,11 +48,11 @@ class Fixture:
         (self.root / "window.txt").write_text(window)
         (self.root / "bench").mkdir()
 
-    def run(self, *arguments):
+    def run(self, *arguments, asleep=False):
         patches = [
             mock.patch.object(tree, "grimoire", lambda *a, **k: self.binary),
             mock.patch.object(tree, "PROJECT_DIR", self.root),
-            mock.patch.object(bench, "screen_is_locked", lambda: False),
+            mock.patch.object(bench, "display_is_asleep", lambda: asleep),
         ]
         printed = io.StringIO()
         with contextlib.ExitStack() as stack:
@@ -90,6 +90,27 @@ class TheLaneRunsOverTheStemsNamed(unittest.TestCase):
         status, printed = fixture.run("--sketch", "alpha_ground", "--rebase")
         self.assertEqual(status, 0, printed)
         self.assertIn("the window is 1440x600@4, asked for 1440x900@2", printed)
+
+
+class ASleepingDisplayIsRefusedWithItsReason(unittest.TestCase):
+    def test_the_lane_names_why_a_sleeping_display_row_does_not_count(self):
+        fixture = Fixture("1440x900@2")
+        self.addCleanup(fixture.close)
+        status, printed = fixture.run("--sketch", "alpha_ground", "--rebase",
+                                      asleep=True)
+        self.assertEqual(status, 1, printed)
+        self.assertIn("the display is asleep", printed)
+        self.assertIn("at a fraction of the display's rate", printed)
+        # Nothing was presented and nothing was written down.
+        self.assertFalse((fixture.root / "asked.json").exists())
+        self.assertEqual(list((fixture.root / "bench").iterdir()), [])
+
+    def test_the_answer_is_a_yes_or_no_where_the_window_server_answers(self):
+        answer = bench.display_is_asleep()
+        if sys.platform == "darwin":
+            self.assertIn(answer, (True, False))
+        else:
+            self.assertIsNone(answer)
 
 
 if __name__ == "__main__":

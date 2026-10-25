@@ -32,7 +32,7 @@ Element cell(const char* caption, material::BlendMode mode) {
       .alignItems(Align::Center)
       .children(
           {stack()
-               .width(pct(100))
+               .width(percent(100))
                .height(120)
                .borderRadius({10})
                .overflow(Overflow::Clip)
@@ -42,7 +42,7 @@ Element cell(const char* caption, material::BlendMode mode) {
                                                         .borderRadius({42})
                                                         .fill(kDisc)
                                                         .blendMode(mode)
-                                                        .left(pct(30))
+                                                        .left(percent(30))
                                                         .top(18)}),
            text(caption).font({.size = 12, .color = kAsh})});
 }

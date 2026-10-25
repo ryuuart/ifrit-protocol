@@ -19,7 +19,9 @@ void bindGeometryShapes(pybind11::module_& module) {
   auto hatch = bindRecord<geometry::shapes::Hatch>(shapes, "Hatch",
                                                    "Unknown hatch property: ");
   hatch.def_readwrite("spacing", &geometry::shapes::Hatch::spacing)
-      .def_readwrite("angle", &geometry::shapes::Hatch::angle)
+      .def_property(
+          "angle", angleGetter(&geometry::shapes::Hatch::angle),
+          angleSetter<AngleInRadians>(&geometry::shapes::Hatch::angle))
       .def_readwrite("taper", &geometry::shapes::Hatch::taper)
       .def_readwrite("origin", &geometry::shapes::Hatch::origin)
       .def_readwrite("inset", &geometry::shapes::Hatch::inset)
@@ -47,8 +49,12 @@ void bindGeometryShapes(pybind11::module_& module) {
       .value("Pie", kit::Close::Pie);
   auto options = bindRecord<kit::EllipseOptions>(shapes, "EllipseOptions",
                                                  "Unknown ellipse option: ");
-  options.def_readwrite("fromDegrees", &kit::EllipseOptions::fromDegrees)
-      .def_readwrite("sweepDegrees", &kit::EllipseOptions::sweepDegrees)
+  options.def_property(
+      "fromDegrees", angleGetter(&kit::EllipseOptions::fromDegrees),
+      angleSetter<AngleInDegrees>(&kit::EllipseOptions::fromDegrees))
+      .def_property(
+          "sweepDegrees", angleGetter(&kit::EllipseOptions::sweepDegrees),
+          angleSetter<AngleInDegrees>(&kit::EllipseOptions::sweepDegrees))
       .def_readwrite("close", &kit::EllipseOptions::close)
       .def_readwrite("inner", &kit::EllipseOptions::inner)
       .def_readwrite("thickness", &kit::EllipseOptions::thickness)
@@ -83,8 +89,12 @@ void bindGeometryShapes(pybind11::module_& module) {
           },
           py::arg("source"), py::arg("preserveAspect") = false)
       // The stock values: each the general form with its options fixed.
-      .def("polygon", &kit::polygon, py::arg("sides"),
-           py::arg("rotationDegrees") = 0.0f)
+      .def(
+          "polygon",
+          [](int sides, AngleInDegrees rotationDegrees) {
+            return kit::polygon(sides, rotationDegrees.value);
+          },
+          py::arg("sides"), py::arg("rotationDegrees") = AngleInDegrees{})
       .def("star", &kit::star, py::arg("points"), py::arg("innerRatio") = 0.5f,
            py::arg("waist") = 0.0f)
       .def(
@@ -98,10 +108,22 @@ void bindGeometryShapes(pybind11::module_& module) {
       .def("annulus", &kit::annulus, py::arg("innerRatio") = 0.6f)
       .def("ring", &kit::ring, py::arg("thickness"), py::arg("dot") = 0.0f)
       .def("squircle", &kit::squircle, py::arg("exponent") = 4.0f)
-      .def("arc", &kit::arc, py::arg("startDegrees"),
-           py::arg("sweepDegrees") = 359.9f)
-      .def("sector", &kit::sector, py::arg("startDegrees"),
-           py::arg("sweepDegrees"), py::arg("innerRatio") = 0.0f)
+      .def(
+          "arc",
+          [](AngleInDegrees startDegrees, AngleInDegrees sweepDegrees) {
+            return kit::arc(startDegrees.value, sweepDegrees.value);
+          },
+          py::arg("startDegrees"),
+          py::arg("sweepDegrees") = AngleInDegrees{359.9f})
+      .def(
+          "sector",
+          [](AngleInDegrees startDegrees, AngleInDegrees sweepDegrees,
+             float innerRatio) {
+            return kit::sector(startDegrees.value, sweepDegrees.value,
+                               innerRatio);
+          },
+          py::arg("startDegrees"), py::arg("sweepDegrees"),
+          py::arg("innerRatio") = 0.0f)
       .def("svg", &kit::svg, py::arg("data"),
            py::arg("preserveAspect") = false);
 
@@ -114,7 +136,9 @@ void bindGeometryShapes(pybind11::module_& module) {
       .def(py::self == py::self);
   copyProtocol(blob);
   py::class_<kit::Parallelogram> parallelogram(shapes, "Parallelogram");
-  parallelogram.def_readwrite("skewDegrees", &kit::Parallelogram::skewDegrees)
+  parallelogram.def_property(
+      "skewDegrees", angleGetter(&kit::Parallelogram::skewDegrees),
+      angleSetter<AngleInDegrees>(&kit::Parallelogram::skewDegrees))
       .def("outline", &kit::Parallelogram::outline, py::arg("size"))
       .def(py::self == py::self);
   copyProtocol(parallelogram);
@@ -136,7 +160,12 @@ void bindGeometryShapes(pybind11::module_& module) {
   shapes
       .def("blob", &kit::blob, py::arg("seed"), py::arg("amplitude") = 0.18f,
            py::arg("lobes") = 8)
-      .def("parallelogram", &kit::parallelogram, py::arg("skewDegrees"))
+      .def(
+          "parallelogram",
+          [](AngleInDegrees skewDegrees) {
+            return kit::parallelogram(skewDegrees.value);
+          },
+          py::arg("skewDegrees"))
       .def("arrow", &kit::arrow, py::arg("shaftFraction") = 0.34f,
            py::arg("headFraction") = 0.42f, py::arg("headSpan") = 1.0f)
       .def("chevron", &kit::chevron, py::arg("spread") = 0.20f,

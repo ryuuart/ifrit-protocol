@@ -23,7 +23,9 @@
 #include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
+#include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "support/BakeTestSupport.h"
@@ -336,10 +338,10 @@ Shape triangle() {
 
 const SkRect kTriangleBounds = SkRect::MakeLTRB(100, 100, 160, 140);
 
-/** The triangle filled and faded on a box the size of the page, wearing
- *  @p mark over its fill, painted live so the fade's layer is opened on
- *  the canvas itself. */
-Element markedOnThePage(const Decoration& mark) {
+/** The triangle filled and faded by @p opacity on a box the size of the
+ *  page, wearing @p mark over its fill, painted live so the fade's layer
+ *  is opened on the canvas itself. */
+Element markedOnThePage(const Decoration& mark, float opacity = 0.5f) {
   Element shaped = box()
                        .absolute()
                        .left(0)
@@ -348,7 +350,7 @@ Element markedOnThePage(const Decoration& mark) {
                        .height(kPageHeight)
                        .shape(triangle())
                        .fill(material::Material(material::Color{1, 1, 1, 1}))
-                       .opacity(0.5f)
+                       .opacity(opacity)
                        .cache(Cache::None);
   shaped.foreground(mark);
   Element page = box().width(kPageWidth).height(kPageHeight);
@@ -388,10 +390,10 @@ std::vector<MarkCase> markCases() {
   PathFormat inner = brush::solid(4, Fill::color({1, 1, 1, 1}),
                                   PathFormat::Align::Inner);
   add("a mitred inner stroke", inner, true);
-  add("a mitred stroke", brush::solid(4, Fill::color({1, 1, 1, 1})), false);
+  add("a mitred stroke", brush::solid(4, Fill::color({1, 1, 1, 1})), true);
   PathFormat square = roundStroke();
   square.cap = geometry::path::Cap::Square;
-  add("a square-capped stroke", square, false);
+  add("a square-capped stroke", square, true);
   PathFormat stamped = roundStroke();
   stamped.stampPath = geometry::path::fromSk([] {
     SkPathBuilder spike;
@@ -414,7 +416,7 @@ std::vector<MarkCase> markCases() {
   add("a border set outside the outline", border, false);
   add("a brush", Brush{}.layer(roundStroke()), true);
   add("a brush over a mitred stroke",
-      Brush{}.layer(brush::solid(4, Fill::color({1, 1, 1, 1}))), false);
+      Brush{}.layer(brush::solid(4, Fill::color({1, 1, 1, 1}))), true);
   add("layers", brush::layers({roundStroke(), roundStroke(2)}), true);
   add("a restyled stroke",
       brush::restyle(geometry::shapers::Rounded{6}, roundStroke()), true);
@@ -425,13 +427,13 @@ std::vector<MarkCase> markCases() {
   add("a line", lines::Line{}, true);
   lines::Line mitredLine;
   mitredLine.join = geometry::path::Join::Miter;
-  add("a mitred line", mitredLine, false);
+  add("a mitred line", mitredLine, true);
   add("rails",
       lines::rails({{.across = -3, .width = 2}, {.across = 3, .width = 2}}),
       true);
   add("a hatch", lines::Hatch{}, true);
   add("a radial hatch", lines::RadialHatch{}, true);
-  add("a layered brush", LayeredBrush{{StrokeLayer{.width = 2}}}, false);
+  add("a layered brush", LayeredBrush{{StrokeLayer{.width = 2}}}, true);
   add("a bevel pair", styles::BevelPair{}, true);
   add("a bevel", kit::Bevel{}, true);
   kit::Bevel outside;
@@ -449,6 +451,10 @@ std::vector<MarkCase> markCases() {
   add("a tick rail", styles::tickRail(material::Color{1, 1, 1, 1}), false);
   add("a slice", Slice{}, false);
   add("a contour walk", ContourWalk{}, false);
+  ContourWalk declared;
+  declared.stamp = stampArt();
+  declared.bleedPx = 6;
+  add("a contour walk declaring its reserve", declared, true);
   return cases;
 }
 
@@ -488,6 +494,68 @@ TEST(ComposePaintBounds, EveryMarkStandsOnTheOutlineOrOnTheBox) {
             << " may stand anywhere on the page-sized box";
     }
   }
+}
+
+TEST(ComposePaintBounds, AFadedShapeHoldsTheMitredTipsItsMarksLay) {
+  // The triangle's sharpest corner turns by about 140 degrees, so a mitre
+  // there stands about three half-widths past it, and the layer its fade
+  // opens is sized from the marks' bleeds: every pixel the shape and its
+  // mark paint unfaded is still painted faded.
+  std::vector<std::pair<std::string, Decoration>> marks;
+  marks.emplace_back("the stock stroke",
+                     brush::solid(6, Fill::color({1, 1, 1, 1})));
+  marks.emplace_back("an outer stroke",
+                     brush::solid(4, Fill::color({1, 1, 1, 1}),
+                                  PathFormat::Align::Outer));
+  marks.emplace_back("a border",
+                     decorations::border(6, Fill::color({1, 1, 1, 1})));
+  marks.emplace_back("a layered brush",
+                     LayeredBrush{{StrokeLayer{.width = 6,
+                                               .ink = Fill::color(
+                                                   {1, 1, 1, 1})}}});
+  lines::Line mitredLine;
+  mitredLine.width = 6;
+  mitredLine.join = geometry::path::Join::Miter;
+  marks.emplace_back("a mitred line", mitredLine);
+  const auto lostWhenFaded = [](const std::function<Element(float)>& page) {
+    const std::vector<SkColor> whole = drawnOnce(page(1));
+    const std::vector<SkColor> faded = drawnOnce(page(0.5f));
+    // A pixel the antialiased edge barely touches may round to nothing at
+    // half its strength, so only one the mark plainly paints is counted.
+    size_t lost = 0;
+    for (size_t i = 0; i < whole.size(); ++i)
+      if (SkColorGetR(whole[i]) >= 16 && faded[i] == SK_ColorBLACK) ++lost;
+    return lost;
+  };
+  for (const auto& [name, mark] : marks)
+    EXPECT_EQ(lostWhenFaded([&mark](float opacity) {
+                return markedOnThePage(mark, opacity);
+              }),
+              0u)
+        << "the faded triangle wearing " << name
+        << " lost pixels its unfaded paint draws";
+  // A material's own stroke step, laid by its effects outside the shape.
+  const size_t lost = lostWhenFaded([](float opacity) {
+    Element shaped =
+        box()
+            .absolute()
+            .left(0)
+            .top(0)
+            .width(kPageWidth)
+            .height(kPageHeight)
+            .shape(triangle())
+            .fill(material::from(material::Color{1, 1, 1, 1})
+                      .effects(material::Filter::stroke({1, 1, 1, 1},
+                                                        {.width = 6})))
+            .opacity(opacity)
+            .cache(Cache::None);
+    Element page = box().width(kPageWidth).height(kPageHeight);
+    page.children({std::move(shaped)});
+    page.cache(Cache::None);
+    return page;
+  });
+  EXPECT_EQ(lost, 0u) << "the faded triangle whose material strokes it lost "
+                      << lost << " pixels its unfaded paint draws";
 }
 
 TEST(ComposePaintBounds, AShapedLeafCarryingBracketsKeepsItsBox) {

@@ -13,9 +13,14 @@ from __future__ import annotations
 # same four floats, and the bindings' caster makes this the class every colour
 # is read back as.
 COLOR = "_sigil.material.Color"
-# A length of time crosses one caster, which takes a number of seconds or a
-# timedelta and names both; every parameter it reads is the one alias.
-DURATION = "datetime.timedelta | typing.SupportsFloat"
+# A length of time crosses one caster, which takes a number of seconds, a
+# timedelta or CSS time text and names all three; every parameter it reads
+# is the one alias.
+DURATION = "datetime.timedelta | typing.SupportsFloat | str"
+# An angle crosses one of three casters, which differ only in the measure a
+# bare number is read in and name the same three spellings; every parameter
+# they read is the one alias.
+ANGLE = "_sigil.core.angle.Angle | typing.SupportsFloat | str"
 # A recipe instance is one kind of paint, and Python converts one into a paint
 # wherever a paint is taken, so every parameter written as the material paint
 # accepts a material as well.

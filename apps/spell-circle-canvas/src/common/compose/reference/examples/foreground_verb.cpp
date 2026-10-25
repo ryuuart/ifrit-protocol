@@ -35,7 +35,7 @@ Element tile(const char* caption, Element plate) {
       .flexGrow(1)
       .alignItems(Align::Center)
       .children(
-          {plate.width(pct(100)).height(120).borderRadius({10}).children(
+          {plate.width(percent(100)).height(120).borderRadius({10}).children(
                {box()
                     .cover()
                     .borderRadius({10})

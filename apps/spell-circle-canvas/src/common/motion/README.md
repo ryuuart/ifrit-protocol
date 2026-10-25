@@ -60,7 +60,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilMotionEase`   | `ease/Ease.h` | `Easing`, the one type every curve slot holds; the named curves `ease::linear`, then `ease::inQuad`, `ease::outQuad`, `ease::inOutQuad` and the same three for Cubic, Quart, Quint, Sine, Expo and Circ as plain functions, and for Back, Elastic and Bounce as factories over their shape parameter (`ease::outBack(overshoot)`, `ease::outElastic(amplitude, period)`, `ease::inOutBounce(overshoot)`); the families `ease::in(power)`, `ease::out(power)`, `ease::inOut(power)`, `ease::steps(count, jumpAtStart)`, `ease::cubicBezier(x1, y1, x2, y2)` and `ease::smoothstep`; `ease::Curve`, SigilCore's comparable shaped curve; `easeEqual()`; `clamp01()`, a value held inside the range every curve is defined on |
-| `SigilMotionTime`   | `time/Duration.h` | `Duration`, the one time unit |
+| `SigilMotionTime`   | `time/Duration.h` | `Duration`, the one time unit, and `readDuration()`, which reads one from CSS time text, `"300ms"` or `"0.3s"`, and refuses text without a unit |
 | `SigilMotionBind`   | `bind/Binding.h`, `bind/WiggleNoise.h` | `Binding`, the stages a followed number is shaped through as fields, with `Range`, `Envelope` and its `envelope::` factories, and `Wiggle`; the wiggle noise field |
 | `SigilMotionValues` | `values/Tween.h`, `values/Interpolate.h`, `values/Animatable.h`, `values/Oscillator.h`, `values/Spring.h`, `values/Time.h` | `Tween`, `Keyframe`, `Composition`, `animate()`, `tweenEqual()` and `timingOf()`; `interpolate()`, the one line a value of any type moves along, with `Additive` and `Interpolable`; `Animatable<T>`, `animatable()`, `bind()` and `propertyEqual()`; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `SpringParameters`, `Spring::step` and `Spring::isSettled`; `Oscillator` and `Wave`, the repeating signal |
 | `SigilMotionClock`  | `clock/Engine.h`, `clock/Playback.h`, `clock/Animation.h`, `advanced/ClockPolicy.h`, `advanced/Held.h` | `Engine`, with `Playback`, `Animation`, `Timeline`, `Timer`, `Position` and its `at()`, `afterEnd()`, `afterPrevious()`, `withPrevious()` and `atLabel()`, `TimerOptions` and `EngineOptions`; `ClockPolicy`, who moves it; `HeldMotion`, `valueOf()`, `retarget()`, `enter()`, `progress()`, `Lane`, `LaneSlot`, `familyLanes()`, `retargetFixed()` and `retargetPositional()`, the reconciler's seam |
@@ -175,6 +175,7 @@ the umbrella.
 | directory | suites | what they prove | what the feature must not be able to link |
 |---|---|---|---|
 | `ease/test/` | `Ease` | every named curve against the animation runtime's own numbers at 65 positions, exactly; the power families at a whole power against the named curve; the steps; and `easeEqual` over plain, shaped and captured curves | the rest of the library — the curves are its bottom floor, and the animation runtime is linked only to read its numbers against |
+| `time/test/` | `Duration` | CSS time text in seconds and milliseconds, in any case, with CSS's plus and blank space, and the refusal of a time with no unit or another one | anything else — the time unit stands under every feature and links nothing |
 | `bind/test/` | `Binding`, `Stages`, `Envelopes`, `PeriodicEnvelopes`, `BindingEquality`, `Wiggle`, `WiggleNoise` | a `Binding`: every stage against the arithmetic it stands in for, the order the stages run in, the envelopes, `wrap`, the wiggle field, and its equality field by field | anything above the leaf — the record that carries a curve is the lowest thing here |
 | `clock/test/` | `Engine`, `Playback`, `Timeline`, `Timer`, `Held`, `Lanes` | the wall and stated frames, the stall ceiling, the hold and the speed; which frames each policy lets move the clock and the budget that runs out once; animations, blends, timelines and their positions, the playback verbs; the step-rate timer that keeps its own rate whatever the host draws at; the held motion of an animatable and the lanes a host retargets through | a renderer |
 | `values/test/` | `Values`, `Forms`, `Oscillator`, `Spring` | `Tween`, a tween read at a time and read as a transition, `quantizeTime`, the four forms an `Animatable<T>` holds, the signals read from a time alone, and springs | the clock and a renderer |
@@ -194,6 +195,7 @@ One file per subject: in `bind/test/`,
 `BindingTest` (the stages, the envelopes and the wrap),
 `WiggleNoiseTest` (the noise stage and the field under it) and
 `CurveComparatorTest` (the two comparators); `ease/test/EaseTest.cpp`;
+`time/test/DurationTest.cpp`;
 then
 `clock/test/ClockTest.cpp`; then `physics/test/PhysicsTest.cpp` (the
 stepper) and `ParticlesTest.cpp` (what is born, ages and dies);

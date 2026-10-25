@@ -11,13 +11,47 @@ namespace sigil::compose {
 
 template <class Derived>
 Derived& TransformVerbs<Derived>::translateX(motion::Animatable<float> v) {
-  declarations()->fields.translateX() = std::move(v);
+  detail::DeclaredFields& fields = declarations()->fields;
+  fields.translateX() = std::move(v);
+  fields.translateXLength() = Dimension(0.0f);
   return self();
 }
 
 template <class Derived>
 Derived& TransformVerbs<Derived>::translateY(motion::Animatable<float> v) {
-  declarations()->fields.translateY() = std::move(v);
+  detail::DeclaredFields& fields = declarations()->fields;
+  fields.translateY() = std::move(v);
+  fields.translateYLength() = Dimension(0.0f);
+  return self();
+}
+
+template <class Derived>
+Derived& TransformVerbs<Derived>::translateX(float pixels) {
+  return translateX(motion::Animatable<float>(pixels));
+}
+
+template <class Derived>
+Derived& TransformVerbs<Derived>::translateY(float pixels) {
+  return translateY(motion::Animatable<float>(pixels));
+}
+
+template <class Derived>
+Derived& TransformVerbs<Derived>::translateX(Dimension length) {
+  // Pixels are the lane's own number, so a length in pixels is exactly
+  // the number written there.
+  if (length.unit == Dimension::Unit::Px) return translateX(length.value);
+  detail::DeclaredFields& fields = declarations()->fields;
+  fields.translateX() = 0.0f;
+  fields.translateXLength() = std::move(length);
+  return self();
+}
+
+template <class Derived>
+Derived& TransformVerbs<Derived>::translateY(Dimension length) {
+  if (length.unit == Dimension::Unit::Px) return translateY(length.value);
+  detail::DeclaredFields& fields = declarations()->fields;
+  fields.translateY() = 0.0f;
+  fields.translateYLength() = std::move(length);
   return self();
 }
 
@@ -83,7 +117,7 @@ Derived& TransformVerbs<Derived>::transformOrigin(Dimension x, Dimension y,
   origin.x = x;
   origin.y = y;
   detail::Box<detail::DepthData>& depth = node->transformOriginZ();
-  if (z.unit == Dimension::Unit::Pct) {
+  if (z.unit == Dimension::Unit::Percent) {
     detail::warnPercentOriginDepth();
     z = Dimension(0.0f);
   }

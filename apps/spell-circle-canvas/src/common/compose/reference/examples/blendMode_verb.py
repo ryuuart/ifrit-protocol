@@ -25,10 +25,10 @@ def cell(caption: str, mode: material.BlendMode) -> compose.Element:
                 .borderRadius(42)
                 .fill(DISC)
                 .blendMode(mode)
-                .left(compose.pct(30))
+                .left(compose.percent(30))
                 .top(18),
             )
-            .width(compose.pct(100))
+            .width(compose.percent(100))
             .height(120)
             .borderRadius(10)
             .overflow(compose.Overflow.Clip),

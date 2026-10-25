@@ -204,10 +204,11 @@ void Composer::Impl::resolveCascade(
       longhands.state(&cascade->role->font, &cascade->role->block, nullptr);
     }
     // A class is unknown only where no rule of the sheets in force names
-    // it, whether that rule matched this node or not.
+    // it, whether that rule matched this node or not, and no operator in
+    // the tree picks its nodes by it.
     if (cascade != nullptr)
       for (const std::string& name : cascade->classes)
-        if (!namesStyleClass(*sheets, name))
+        if (!namesStyleClass(*sheets, name) && !operatorClasses.contains(name))
           warnNoSuchClass(name, !sheets->empty());
     // Weakest first, so the strongest rule is the one left standing,
     // and every one of them under the node's own verbs.
@@ -521,6 +522,10 @@ void Composer::Impl::resolveCascade(
   std::optional<float>& indentPercent = longhands.indentPercent();
   if (longhands.indent())
     resolveTextIndent(inst, *longhands.indent(), block, indentPercent);
+  // A LINE HEIGHT IN A RELATIVE UNIT becomes an absolute pitch here,
+  // against this node's own font, and is inherited as the pitch.
+  if (longhands.lineHeight())
+    resolveLineHeight(inst, *longhands.lineHeight(), block);
   const bool indentPercentMoved = indentPercent != inst.indentPercent;
   inst.indentPercent = indentPercent;
   inst.block = block;

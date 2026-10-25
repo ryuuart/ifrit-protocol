@@ -28,7 +28,7 @@ indents a 20 px leaf under it by 20 px, not 40.
 
 **A percentage is one of EACH PASSAGE's own measure** — its inline
 size, which down a vertical passage is its columns' height. It is
-inherited as the percentage, so `textIndent(10_pct)` on a column indents
+inherited as the percentage, so `textIndent(10_percent)` on a column indents
 a 160 px passage by 16 px and a 240 px one beside it by 24 px. A passage
 with no bound measure — one on a path, one measured for its intrinsic
 width — is not indented by one.

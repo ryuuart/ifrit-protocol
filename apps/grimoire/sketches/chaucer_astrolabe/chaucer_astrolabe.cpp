@@ -236,7 +236,7 @@ Element spoke(SkPoint centre, float angle, float inner, float outer,
   return kit::at(centre.fX + inner, centre.fY - thickness * 0.5f, outer - inner,
                  thickness)
       .fill(std::move(paint))
-      .transformOrigin(Dimension(-inner), pct(50))
+      .transformOrigin(Dimension(-inner), percent(50))
       .rotate(-angle);
 }
 
@@ -376,7 +376,7 @@ struct ChaucerAstrolabe {
         .fill(sigil::material::from(sigil::material::skia::base(brass(0.46f)))
                   .effects(sigil::material::Filter::shadow(
                       material::withAlpha(kEdge, 0.55f),
-                      {.blur = 9, .offset = {0, 3}, .inside = true})))
+                      {.blur = 9, .offset = {0, 3}, .inset = true})))
         .children({
             // the unequal hours stand below the horizon only: they are cut
             // first, and the sky is the plate again laid over them
@@ -527,7 +527,7 @@ struct ChaucerAstrolabe {
             .overflow(Overflow::Clip)
             // the rete turns so the sun's right ascension stands at the
             // hour angle the label reads
-            .transformOrigin(pct(50), pct(50))
+            .transformOrigin(percent(50), percent(50))
             .rotate(sigil::motion::bind(
                 hourAngle,
                 {.to = {sunRightAscension(kSunLongitude) - 90.0f,
@@ -634,7 +634,7 @@ struct ChaucerAstrolabe {
   Element label() const {
     return box().inset(0).children({
         kit::at(kCentre.fX, kCentre.fY - 4.5f, kMater * 1.02f, 9)
-            .transformOrigin(Dimension(0), pct(50))
+            .transformOrigin(Dimension(0), percent(50))
             .rotate(sigil::motion::bind(hourAngle, {.to = {-90.0f, -89.0f}}))
             .fill(sigil::material::skia::base(brass(0.80f)))
             .stroke(stroke(1.2f, Fill::color(material::withAlpha(kEdge, 0.7f))))
@@ -765,7 +765,7 @@ struct ChaucerAstrolabe {
             // the rule, sighted on the sun at 25° 30′
             kit::at(centre.fX - 0.97f * radius, centre.fY - 5, 1.94f * radius,
                     10)
-                .transformOrigin(pct(50), pct(50))
+                .transformOrigin(percent(50), percent(50))
                 .rotate(-kAltitude)
                 .fill(sigil::material::skia::base(brass(0.78f)))
                 .stroke(

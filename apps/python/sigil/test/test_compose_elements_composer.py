@@ -80,7 +80,7 @@ class Spellings(unittest.TestCase):
     def test_the_cache_state_carries_the_native_values(self):
         self.assertEqual(
             list(Composer.CacheState.__members__),
-            ["Live", "Picture", "Texture", "Group"],
+            ["Live", "Picture", "Texture", "Group", "Moving"],
         )
 
 

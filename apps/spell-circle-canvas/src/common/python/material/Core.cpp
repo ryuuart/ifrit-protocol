@@ -112,7 +112,7 @@ void bindMaterialBuilder(py::module_& module) {
              material::Channel clearcoat, material::Channel clearcoatRoughness,
              std::optional<material::Material> clearcoatNormal,
              material::ColorInput sheenColor, material::Channel sheenRoughness,
-             float anisotropy, float anisotropyRotation,
+             float anisotropy, AngleInDegrees anisotropyRotation,
              std::optional<material::Material> anisotropyDirection,
              bool anisotropyAlongUnit, material::Channel iridescence,
              float iridescenceIor,
@@ -144,7 +144,7 @@ void bindMaterialBuilder(py::module_& module) {
                                  std::move(sheenColor),
                                  std::move(sheenRoughness),
                                  anisotropy,
-                                 anisotropyRotation,
+                                 anisotropyRotation.value,
                                  std::move(anisotropyDirection),
                                  anisotropyAlongUnit,
                                  std::move(iridescence),
@@ -186,7 +186,8 @@ void bindMaterialBuilder(py::module_& module) {
                     material::ColorInput(material::Color{0, 0, 0, 1}),
                     "Color(0, 0, 0, 1)"),
           py::arg_v("sheenRoughness", material::Channel(0.0f), "0.0"),
-          py::arg("anisotropy") = 0.0f, py::arg("anisotropyRotation") = 0.0f,
+          py::arg("anisotropy") = 0.0f,
+          py::arg("anisotropyRotation") = AngleInDegrees{},
           py::arg("anisotropyDirection") = py::none(),
           py::arg("anisotropyAlongUnit") = false,
           py::arg_v("iridescence", material::Channel(0.0f), "0.0"),
@@ -221,12 +222,14 @@ void bindMaterialBuilder(py::module_& module) {
       .def(
           "brushed",
           [](material::Material& self, float strength,
-             float rotation) -> material::Material& {
-            return self.brushed({strength, rotation});
+             AngleInDegrees rotation) -> material::Material& {
+            return self.brushed({strength, rotation.value});
           },
           py::kw_only(),
           py::arg("strength") = material::BrushedOptions{}.strength,
-          py::arg("rotation") = material::BrushedOptions{}.rotation, fluent)
+          py::arg("rotation") =
+              AngleInDegrees{material::BrushedOptions{}.rotation},
+          fluent)
       .def(
           "effects",
           [](material::Material& self, const material::Filter& chain)

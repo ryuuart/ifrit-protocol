@@ -157,7 +157,7 @@ struct ChevreulCircle {
                    .paragraph({.alignment = weave::TextAlignment::kCenter})
                    .width(cellWidth)
                    .centerAt(kCircle.at(degrees, middle))
-                   .transformOrigin(pct(50), pct(50))
+                   .transformOrigin(percent(50), percent(50))
                    .rotate(kCircle.screenDegrees(degrees) - 90.0f);
              }))});
   }

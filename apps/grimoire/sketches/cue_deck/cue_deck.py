@@ -332,7 +332,7 @@ class Deck:
                 .gap(12)
                 .children(
                     row()
-                    .justifyContent("space_between")
+                    .justifyContent("space-between")
                     .width(RULER)
                     .children(
                         document.label("THE BAR"),

@@ -46,7 +46,49 @@ compose::Dimension dimension(py::handle value) {
   throw py::value_error(
       "A dimension is a native Dimension or Length, a number, 'auto', or a "
       "length written as text: '12px', '1.5em', '2rem', '0.5lh', '3ch', "
-      "'9pt', '50%', '10pw', '10ph' or var(name).");
+      "'9pt', '50%', '10vw', '10vh', '10vmin', '10vmax' or var(name).");
+}
+
+float pixels(py::handle value, const char* slot) {
+  if (!py::isinstance<py::str>(value) &&
+      !py::isinstance<compose::Dimension>(value) &&
+      !py::isinstance<weave::Length>(value))
+    return value.cast<float>();
+  const compose::Dimension length = dimension(value);
+  if (length.unit == compose::Dimension::Unit::Px) return length.value;
+  if (length.unit == compose::Dimension::Unit::Pt)
+    return weave::pt(length.value).absolutePx();
+  throw py::value_error(
+      std::string(slot) +
+      " is a length in pixels: a number, or text in an absolute unit "
+      "('4px', '3pt'). A length against the font, the canvas or the box has "
+      "nothing to be measured against here.");
+}
+
+float fraction(py::handle value, const char* slot) {
+  if (py::isinstance<compose::Dimension>(value)) {
+    const auto length = value.cast<compose::Dimension>();
+    if (length.unit == compose::Dimension::Unit::Percent)
+      return length.value / 100.0f;
+  } else if (py::isinstance<py::str>(value)) {
+    if (const std::optional<float> amount =
+            compose::parseFraction(value.cast<std::string_view>()))
+      return *amount;
+  } else {
+    return value.cast<float>();
+  }
+  throw py::value_error(std::string(slot) +
+                        " is a fraction: a number, a percentage written as "
+                        "text ('50%') or compose.percent(50).");
+}
+
+glm::vec2 pixelOffset(py::handle value, const char* slot) {
+  if ((py::isinstance<py::tuple>(value) || py::isinstance<py::list>(value)) &&
+      py::len(value) == 2) {
+    const auto pair = py::reinterpret_borrow<py::sequence>(value);
+    return {pixels(pair[0], slot), pixels(pair[1], slot)};
+  }
+  return geometry::path::fromSk(point(value));
 }
 
 std::optional<compose::VarRef> customPropertyText(py::handle value) {
@@ -141,10 +183,13 @@ compose::Justify justification(py::handle value) {
   if (name == "start") return compose::Justify::Start;
   if (name == "center") return compose::Justify::Center;
   if (name == "end") return compose::Justify::End;
-  if (name == "space_between") return compose::Justify::SpaceBetween;
-  if (name == "space_around") return compose::Justify::SpaceAround;
-  if (name == "space_evenly") return compose::Justify::SpaceEvenly;
-  throw py::value_error("Unknown justification: " + name);
+  if (name == "space-between") return compose::Justify::SpaceBetween;
+  if (name == "space-around") return compose::Justify::SpaceAround;
+  if (name == "space-evenly") return compose::Justify::SpaceEvenly;
+  throw py::value_error("Unknown justification: " + name +
+                        "; it is CSS's \"start\", \"center\", \"end\", "
+                        "\"space-between\", \"space-around\" or "
+                        "\"space-evenly\".");
 }
 
 compose::Overflow overflowing(py::handle value) {
@@ -213,7 +258,7 @@ compose::Decoration decoration(py::handle value) {
 compose::Dimension originLength(py::handle value) {
   if (py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value))
     throw py::type_error(
-        "An origin is written with its unit: pct(50) or '50%' of the node's "
+        "An origin is written with its unit: percent(50) or '50%' of the node's "
         "box, Dimension(12) for pixels, a Length or a custom property. A "
         "bare number is refused.");
   return dimension(value);

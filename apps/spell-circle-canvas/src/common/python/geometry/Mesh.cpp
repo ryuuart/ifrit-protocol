@@ -244,7 +244,9 @@ void bindGeometryMesh(py::module_& module) {
   auto revolveOptions = bindRecord<mesh::RevolveOptions>(
       meshes, "RevolveOptions", "A revolution has no option named ");
   revolveOptions.def_readwrite("segments", &mesh::RevolveOptions::segments)
-      .def_readwrite("sweepDegrees", &mesh::RevolveOptions::sweepDegrees)
+      .def_property(
+          "sweepDegrees", angleGetter(&mesh::RevolveOptions::sweepDegrees),
+          angleSetter<AngleInDegrees>(&mesh::RevolveOptions::sweepDegrees))
       .def_readwrite("close", &mesh::RevolveOptions::close)
       .def_readwrite("inward", &mesh::RevolveOptions::inward);
 
@@ -356,14 +358,14 @@ void bindGeometryMesh(py::module_& module) {
   meshes.def(
       "revolve",
       [](const std::vector<glm::vec2>& profile, int segments,
-         float sweepDegrees, bool close, bool inward) {
+         AngleInDegrees sweepDegrees, bool close, bool inward) {
         return mesh::revolve(profile, {.segments = segments,
-                                       .sweepDegrees = sweepDegrees,
+                                       .sweepDegrees = sweepDegrees.value,
                                        .close = close,
                                        .inward = inward});
       },
       py::arg("profile"), py::arg("segments") = 48,
-      py::arg("sweepDegrees") = 360, py::arg("close") = true,
+      py::arg("sweepDegrees") = AngleInDegrees{360.0f}, py::arg("close") = true,
       py::arg("inward") = false);
   meshes.def("bakePrimitiveColor", &mesh::bakePrimitiveColor, py::arg("mesh"),
              py::arg("lane") = "Color");

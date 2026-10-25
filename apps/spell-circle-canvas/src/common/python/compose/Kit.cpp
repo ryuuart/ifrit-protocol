@@ -4,6 +4,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Kit.h>
 #include <sigilpython/compose/Operators.h>
@@ -268,8 +269,13 @@ void bindLayouts(py::module_& compose) {
   grid.def(py::self == py::self);
   auto radial = record<layouts::Radial>(module, "Radial");
   field(radial, "radiusFraction", &layouts::Radial::radiusFraction);
-  field(radial, "startDegrees", &layouts::Radial::startDegrees);
-  field(radial, "sweepDegrees", &layouts::Radial::sweepDegrees);
+  radial
+      .def_property(
+          "startDegrees", angleGetter(&layouts::Radial::startDegrees),
+          angleSetter<AngleInDegrees>(&layouts::Radial::startDegrees))
+      .def_property(
+          "sweepDegrees", angleGetter(&layouts::Radial::sweepDegrees),
+          angleSetter<AngleInDegrees>(&layouts::Radial::sweepDegrees));
   field(radial, "radiusAt", &layouts::Radial::radiusAt);
   field(radial, "lane", &layouts::Radial::lane);
   field(radial, "divisions", &layouts::Radial::divisions);
@@ -279,7 +285,9 @@ void bindLayouts(py::module_& compose) {
   py::enum_<layouts::Diagonal::Anchor>(module, "DiagonalAnchor")
       .value("Start", layouts::Diagonal::Anchor::Start)
       .value("End", layouts::Diagonal::Anchor::End);
-  field(diagonal, "skewDegrees", &layouts::Diagonal::skewDegrees);
+  diagonal.def_property(
+      "skewDegrees", angleGetter(&layouts::Diagonal::skewDegrees),
+      angleSetter<AngleInDegrees>(&layouts::Diagonal::skewDegrees));
   field(diagonal, "gap", &layouts::Diagonal::gap);
   field(diagonal, "anchor", &layouts::Diagonal::anchor);
   auto baseline = record<layouts::BaselineGrid>(module, "BaselineGrid");

@@ -93,7 +93,8 @@ void bindSketchScene3DSketches(py::module_& module) {
           "written with.")
       .def(
           "captureAt",
-          [](const Scene3DContextView& view, double seconds) {
+          [](const Scene3DContextView& view, sigil::motion::Duration moment) {
+            const double seconds = moment.count();
             if (!std::isfinite(seconds) || seconds < 0)
               throw py::value_error(
                   "Capture time must be finite and nonnegative");

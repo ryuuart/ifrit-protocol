@@ -112,10 +112,13 @@ class StructureVerbs {
    *  the painter is allowed to keep of it, and how its plain constants
    *  change.
    *  @{ */
-  /** Takes this node OUT of hit testing — CSS `pointer-events: none`.
-   *  Its CHILDREN are still tested: this excludes the node's own box,
-   *  not its subtree. A keyed, full-bleed shell with no fill otherwise
-   *  swallows every hit in the frame, silently. */
+  /** Takes this node OUT of hit testing — CSS `pointer-events: none`,
+   *  which its keyless contents inherit: they answer neither a key of
+   *  their own nor this node's, so the point falls through to what lies
+   *  beneath. A KEYED descendant states its own identity and is still
+   *  tested, so a keyed, full-bleed shell with no fill, which otherwise
+   *  swallows every hit in the frame silently, opts out and leaves its
+   *  keyed children answering. */
   Derived& hitTestable(bool enabled);
   /** The author-owned identity: what the reconciler matches a child by
    *  across describes, what `Composer::bounds` and `hitTest` answer

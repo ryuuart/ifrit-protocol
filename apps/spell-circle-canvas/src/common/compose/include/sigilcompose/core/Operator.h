@@ -179,6 +179,28 @@ concept ResolvesChildPercentages = requires {
   { T::resolvesChildPercentages } -> std::convertible_to<bool>;
 } && T::resolvesChildPercentages;
 
+/** Whether an operator's equality is the AUTHOR'S WORD rather than its
+ *  parameters: a value holding a program no comparison can see into,
+ *  compared by a key its author vouches for, says so with `bool
+ *  equalityIsTheAuthorsWord() const`. The reconciler takes the word across
+ *  the describes of one place in one tree, where the key names one
+ *  program; a comparison of trees built apart, which share no place, takes
+ *  it for nothing. */
+template <typename O>
+concept VouchedForByItsAuthor = requires(const O& o) {
+  { o.equalityIsTheAuthorsWord() } -> std::convertible_to<bool>;
+};
+
+/** Whether an operator READS CLASSES: a value that picks the nodes of its
+ *  scope by the classes they name — through `Scope::withClass` — says
+ *  which with `std::vector<std::string> styleClassesRead() const`, so a
+ *  class named only for it is a selector the composer knows, as one a
+ *  sheet's rule names is. */
+template <typename O>
+concept ReadsStyleClasses = requires(const O& o) {
+  { o.styleClassesRead() } -> std::convertible_to<std::vector<std::string>>;
+};
+
 namespace detail {
 
 /** WHAT THE OPERATOR SEAM DOES, behind the erasure: one of the two
@@ -252,7 +274,9 @@ class Operator {
              !std::same_as<std::remove_cvref_t<O>, Operator>)
   Operator(
       O operatorValue)  // NOLINT: implicit by design (operators({Ring{…}}))
-      : m_held(detail::ArrangingModel<std::remove_cvref_t<O>>(
+      : m_authorsWord(authorsWord(operatorValue)),
+        m_classesRead(classesRead(operatorValue)),
+        m_held(detail::ArrangingModel<std::remove_cvref_t<O>>(
             std::move(operatorValue))),
         m_readsChildMinSizes(ReadsChildMinSizes<std::remove_cvref_t<O>>),
         m_resolvesChildPercentages(
@@ -263,7 +287,9 @@ class Operator {
              !std::same_as<std::remove_cvref_t<O>, Operator>)
   Operator(O operatorValue)  // NOLINT: implicit by design
                              // (operators({connect::ByLane{…}}))
-      : m_held(detail::AddingModel<std::remove_cvref_t<O>>(
+      : m_authorsWord(authorsWord(operatorValue)),
+        m_classesRead(classesRead(operatorValue)),
+        m_held(detail::AddingModel<std::remove_cvref_t<O>>(
             std::move(operatorValue))) {}
 
   explicit operator bool() const { return (bool)m_held; }
@@ -287,6 +313,15 @@ class Operator {
   /** Does this value take part in structural equality? (False for a
    *  value with no equality of its own.) */
   bool comparable() const { return m_held.comparable(); }
+  /** Whether the held value's equality is its author's word for a program
+   *  it cannot see into (VouchedForByItsAuthor), so a comparison of trees
+   *  built apart takes it as equal only to itself. */
+  bool equalityIsTheAuthorsWord() const { return m_authorsWord; }
+  /** The classes the held value picks its scope's nodes by
+   *  (ReadsStyleClasses). */
+  std::span<const std::string> styleClassesRead() const {
+    return m_classesRead;
+  }
 
   /** WHERE THE ADDITIONS PAINT among the owner's children — CSS
    *  `z-index` on every element this operator attaches that states none
@@ -344,6 +379,24 @@ class Operator {
   bool operator==(const Operator& other) const;
 
  private:
+  template <typename O>
+  static bool authorsWord(const O& value) {
+    if constexpr (VouchedForByItsAuthor<O>)
+      return value.equalityIsTheAuthorsWord();
+    else
+      return false;
+  }
+
+  template <typename O>
+  static std::vector<std::string> classesRead(const O& value) {
+    if constexpr (ReadsStyleClasses<O>)
+      return value.styleClassesRead();
+    else
+      return {};
+  }
+
+  bool m_authorsWord = false;
+  std::vector<std::string> m_classesRead;
   core::Erased<detail::OperatorOperations> m_held;
   bool m_readsChildMinSizes = false;
   bool m_resolvesChildPercentages = false;

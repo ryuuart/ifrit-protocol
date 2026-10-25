@@ -94,6 +94,11 @@ struct PaintProps {
   // there and this struct is inline in every node.
   PaintBox fillBox = PaintBox::Element;
   motion::Animatable<float> translateX = 0.0f, translateY = 0.0f;
+  // translateX(length) / translateY(length): a translate in a unit only the
+  // node's box, font or canvas decides, added to the lane above, which a
+  // length statement leaves at zero. A percentage is of the node's own
+  // box, as CSS's translate reads one.
+  Dimension translateXLength = 0.0f, translateYLength = 0.0f;
   motion::Animatable<float> rotate = 0.0f, scale = 1.0f;
   // Per-axis scale, multiplied INTO `scale`. Bars, wipes, meters,
   // cooldown sweeps and drain rings are the most common animated
@@ -102,7 +107,7 @@ struct PaintProps {
   motion::Animatable<float> skewX = 0.0f, skewY = 0.0f;  // degrees (shear)
   // The pivot: a percentage is of the node's own box, any other length is
   // node-local pixels. Its depth is DepthData::originZ.
-  Dimension originX = pct(50.0f), originY = pct(50.0f);
+  Dimension originX = percent(50.0f), originY = percent(50.0f);
   int zIndex = 0;
 };
 

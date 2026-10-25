@@ -23,9 +23,10 @@ namespace sigil::compose {
 template <class Derived>
 class ShapeVerbs {
  public:
-  /** ROUND THE NODE'S CORNERS, per corner, in pixels — CSS
-   *  `border-radius`. Square when unstated, and overridden outright by
-   *  `shape()`. It is the cheap path: a rounded box clips and strokes
+  /** ROUND THE NODE'S CORNERS, per corner — CSS `border-radius`, each
+   *  radius any length `Corners` holds: pixels when bare, `1_em`, or a
+   *  `percent` of the node's own box. Square when unstated, and
+   *  overridden outright by `shape()`. It is the cheap path: a rounded box clips and strokes
    *  as a round rect where a general shape has to build a path. */
   Derived& borderRadius(Corners c);
   /** THE NODE'S SHAPE: a path generator over its laid-out size, in

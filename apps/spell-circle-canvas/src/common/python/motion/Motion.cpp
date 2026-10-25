@@ -392,8 +392,24 @@ motion::Easing motionEase(py::handle value) {
   // can only be held as an opaque callable, which compares to nothing.
   if (py::isinstance<motion::Oscillator>(value))
     return py::cast<motion::Oscillator>(value);
+  // CSS's timing functions, written as CSS writes them, read onto the
+  // native curves so two equal texts compare equal.
+  if (py::isinstance<py::str>(value)) {
+    const auto text = value.cast<std::string>();
+    if (std::optional<motion::Easing> curve = motion::readEasing(text))
+      return *std::move(curve);
+    throw py::value_error(
+        "'" + text +
+        "' is not a timing function: an easing is written as CSS writes "
+        "one — 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out', "
+        "'step-start', 'step-end', 'cubic-bezier(x1, y1, x2, y2)' or "
+        "'steps(count, jump-start | jump-end)' — or is a native curve or a "
+        "callable.");
+  }
   if (!PyCallable_Check(value.ptr()))
-    throw py::type_error("An easing must be a native curve or a callable.");
+    throw py::type_error(
+        "An easing must be CSS timing-function text, a native curve or a "
+        "callable.");
   auto held = retainCallback(py::reinterpret_borrow<py::function>(value));
   return [held](float progress) {
     const py::gil_scoped_acquire lock;
@@ -435,6 +451,12 @@ motion::Animatable<float> motionAnimatable(py::handle value) {
     throw py::type_error(
         "An animatable number is a number, an Animatable or a Tween.");
   return py::cast<float>(value);
+}
+
+motion::Animatable<float> motionAngle(py::handle value) {
+  if (const std::optional<core::angle::Angle> written = writtenAngle(value))
+    return written->inDegrees();
+  return motionAnimatable(value);
 }
 
 motion::Animatable<material::Color> motionInk(py::handle value) {

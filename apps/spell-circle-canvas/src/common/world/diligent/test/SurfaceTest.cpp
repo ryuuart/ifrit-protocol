@@ -15,11 +15,13 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/ocio/Ocio.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -33,6 +35,7 @@
 #include <cmath>
 #include <cstring>
 #include <functional>
+#include <glm/mat3x3.hpp>
 #include <glm/geometric.hpp>
 #include <string>
 #include <utility>
@@ -253,36 +256,34 @@ TEST(SurfaceSlots, ASlotDressedInWhiteIsTheSamePictureAsOneDressedInNothing) {
   EXPECT_GT(centre.fG, centre.fB);
 }
 
-TEST(SurfaceSlots, AChannelThatIsAMaterialReadsAsEmptyAndSaysSo) {
+TEST(SurfaceSlots, AChannelOnlySkiaRunsIsPaintedForTheDevice) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
-  // A normal given as a material whose only body is a page's is one the
-  // device has no body for, so its slot binds the same white texel an
-  // undressed one does — the card is the plain card exactly — and the
-  // slot is named once on the diagnostic stream, because the picture
-  // alone would show a flat surface and no reason for it.
+  // A normal given as a material whose only body is a page's has no body
+  // a device compiles, so it is painted once into the slot's map: the
+  // card shades as the same normal supplied as an image does, and not as
+  // the plain card.
   struct NoParameters {};
   const material::Material pageOnly(std::make_shared<const material::Recipe>(
       material::Recipe::of<NoParameters>("world.test.pageOnlyNormal")
           .body(material::Target::SkSL,
                 "half4 main(float2 p) { return half4(1, 0.5, 0.5, 1); }")));
   const material::Color grey{0.8f, 0.8f, 0.8f, 1.0f};
-  const material::Material plain = material::from(grey).surface({});
-  const material::Material derived =
-      material::from(grey).surface({.normal = pageOnly});
+  const SkBitmap bare = cardOn(material::from(grey).surface({}), on.runtime);
+  const SkBitmap painted =
+      cardOn(material::from(grey).surface({.normal = pageOnly}), on.runtime);
+  const SkBitmap supplied = cardOn(
+      material::from(grey).surface(
+          {.normal = material::image(
+               flat("world.test.tilted-normal", {1, 0.5f, 0.5f, 1}))}),
+      on.runtime);
 
-  const SkBitmap bare = cardOn(plain, on.runtime);
-  testing::internal::CaptureStderr();
-  const SkBitmap dressed = cardOn(derived, on.runtime);
-  const std::string said = testing::internal::GetCapturedStderr();
-
-  EXPECT_GT(luma(at(dressed, 0.5f, 0.5f)), 0.05f) << "the card is drawn";
-  EXPECT_EQ(diligent::worstChannel(bare, dressed), 0);
-  EXPECT_NE(said.find(std::string(material::surface::kNormalSlot)),
-            std::string::npos)
-      << said;
-  EXPECT_NE(said.find("image texture"), std::string::npos) << said;
+  EXPECT_GT(luma(at(painted, 0.5f, 0.5f)), 0.05f) << "the card is drawn";
+  EXPECT_GT(diligent::worstChannel(bare, painted), 8)
+      << "the painted normal turns the shading";
+  EXPECT_LE(diligent::worstChannel(supplied, painted), 2)
+      << "as the same normal supplied as an image";
 }
 
 // ---- the door a foreign texture comes in by -------------------------
@@ -668,23 +669,162 @@ TEST(SurfaceRefusals, AUnitSourceOnABareBodyIsRefusedByName) {
   EXPECT_NE(said.find("brushing"), std::string::npos) << said;
 }
 
-TEST(SurfaceRefusals, ALayeredStackOnABareBodyIsRefusedByName) {
+// ---- what a device cannot compile, painted -------------------------
+
+TEST(SurfaceSlots, ALayeredStackOnABareBodyIsDrawnAsItsStack) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
-  // A colour with a second colour laid half over it has no program the
-  // device can run as a base colour, so the body says so by name, and
-  // what it carries.
+  // A colour with a second colour laid half over it has no program a
+  // device runs, so it is painted into the base colour's map: the card
+  // shows the red and the blue mixed, not the stock colour.
   const material::Material layered =
       material::from(material::Color{0.9f, 0.2f, 0.1f, 1})
           .layer(material::from(material::Color{0.1f, 0.2f, 0.9f, 1}),
                  {.opacity = .5f})
           .surface({.roughness = .6f});
-  testing::internal::CaptureStderr();
-  const SkBitmap drawn = cardOn(layered, on.runtime);
-  const std::string said = testing::internal::GetCapturedStderr();
-  EXPECT_GT(luma(at(drawn, 0.5f, 0.5f)), 0.05f) << "the card is drawn";
-  EXPECT_NE(said.find("\"card\""), std::string::npos) << said;
-  EXPECT_NE(said.find("layered colour stack"), std::string::npos) << said;
+  const SkColor4f drawn = at(cardOn(layered, on.runtime), 0.5f, 0.5f);
+  EXPECT_GT(drawn.fB, drawn.fG + 0.05f) << "the blue layer shows";
+  EXPECT_GT(drawn.fR, drawn.fG + 0.05f) << "over the red base";
+  EXPECT_NEAR(drawn.fR, drawn.fB, 0.25f * std::max(drawn.fR, drawn.fB))
+      << "mixed half and half";
+}
+
+namespace {
+
+/** A box-unit gradient from @p left at the box's left edge to @p right
+ *  at its right. */
+material::Material acrossTheBox(material::Color left, material::Color right) {
+  return material::linearGradient({0, 0.5f}, {1, 0.5f},
+                                  std::vector<material::Color>{left, right});
+}
+
+/** A box-unit gradient that holds @p left over the box's left half and
+ *  steps to @p right over its right half. */
+material::Material halvesOfTheBox(material::Color left, material::Color right) {
+  return material::linearGradient(
+      {0, 0.5f}, {1, 0.5f},
+      std::vector<material::ColorStop>{
+          {0, left}, {0.5f, left}, {0.5f, right}, {1, right}});
+}
+
+}  // namespace
+
+TEST(SurfaceSlots, AGradientChannelVariesOverTheBody) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A gradient is a program only Skia runs; given as a channel it is
+  // painted into the channel's map, so the body reads smooth on one half
+  // and rough on the other — each half as the same card at that
+  // roughness throughout. The gradient steps at the middle, because a
+  // metal's highlight answers small roughnesses steeply.
+  const material::Color grey{0.7f, 0.7f, 0.7f, 1};
+  const auto wearing = [&](material::Channel roughness) {
+    return cardOn(material::from(grey).surface(
+                      {.metallic = 1.0f, .roughness = std::move(roughness)}),
+                  on.runtime);
+  };
+  const SkBitmap smooth = wearing(0.05f);
+  const SkBitmap rough = wearing(1.0f);
+  const SkBitmap swept =
+      wearing(halvesOfTheBox({0.05f, 0.05f, 0.05f, 1}, {1, 1, 1, 1}));
+  const auto distance = [](SkColor4f a, SkColor4f b) {
+    return std::abs(a.fR - b.fR) + std::abs(a.fG - b.fG) +
+           std::abs(a.fB - b.fB);
+  };
+  // Where the camera sees the sun's highlight differ between the two
+  // cards, the swept card matches the smooth one on one side and the
+  // rough one on the other.
+  int compared = 0;
+  for (float y = 0.2f; y < 0.85f; y += 0.05f) {
+    const float leftEdge = 0.3f, rightEdge = 0.7f;
+    const float apartLeft =
+        distance(at(smooth, leftEdge, y), at(rough, leftEdge, y));
+    const float apartRight =
+        distance(at(smooth, rightEdge, y), at(rough, rightEdge, y));
+    if (apartLeft < 0.05f || apartRight < 0.05f) continue;
+    ++compared;
+    const SkColor4f sweptLeft = at(swept, leftEdge, y);
+    const SkColor4f sweptRight = at(swept, rightEdge, y);
+    EXPECT_LT(distance(sweptLeft, at(smooth, leftEdge, y)),
+              distance(sweptLeft, at(rough, leftEdge, y)))
+        << "the left reads smooth at " << y;
+    EXPECT_LT(distance(sweptRight, at(rough, rightEdge, y)),
+              distance(sweptRight, at(smooth, rightEdge, y)))
+        << "the right reads rough at " << y;
+  }
+  EXPECT_GT(compared, 0) << "the two roughnesses shade the card apart";
+
+  // As an emission map over a black base it is the light itself: dark at
+  // one end, bright at the other.
+  const SkBitmap lit = cardOn(
+      material::from(material::Color{0, 0, 0, 1})
+          .surface({.roughness = 1.0f,
+                    .emission = {1, 1, 1, 1},
+                    .emissionStrength = 1,
+                    .emissionMap = acrossTheBox({0, 0, 0, 1}, {1, 1, 1, 1})}),
+      on.runtime);
+  EXPECT_GT(luma(at(lit, 0.8f, 0.5f)), luma(at(lit, 0.2f, 0.5f)) + 0.4f);
+}
+
+namespace {
+
+/** How many separate bright runs a line of @p plate crosses, from
+ *  @p from to @p to in steps of one pixel. */
+int brightRuns(const SkBitmap& plate, glm::ivec2 from, glm::ivec2 to) {
+  const int steps = std::max(std::abs(to.x - from.x), std::abs(to.y - from.y));
+  int runs = 0;
+  bool inside = false;
+  for (int step = 0; step <= steps; ++step) {
+    const float along = steps ? (float)step / (float)steps : 0.0f;
+    const int x = from.x + (int)std::lround(along * (float)(to.x - from.x));
+    const int y = from.y + (int)std::lround(along * (float)(to.y - from.y));
+    const bool bright = luma(plate.getColor4f(x, y)) > 0.4f;
+    if (bright && !inside) ++runs;
+    inside = bright;
+  }
+  return runs;
+}
+
+/** A ten-pixel square, black with a white square four pixels across in
+ *  its middle: one cell of a lattice of dots. */
+sk_sp<SkImage> dotCell() {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(10, 10));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  SkPaint white;
+  white.setColor(SK_ColorWHITE);
+  surface->getCanvas()->drawRect(SkRect::MakeXYWH(3, 3, 4, 4), white);
+  return surface->makeImageSnapshot();
+}
+
+}  // namespace
+
+TEST(SurfaceSlots, AnEmissionMapKeepsItsOwnRepeatAndScale) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // One dot repeated five across and seven down: the surface program
+  // reads every slot at the mesh's own coordinates, so the map's placing
+  // must travel with it for the card to show thirty-five dots rather
+  // than one stretched over the whole card.
+  material::Texture dots{media::PixelSource(dotCell())};
+  glm::mat3 fifthBySeventh(1.0f);
+  fifthBySeventh[0][0] = 1.0f / 5.0f;
+  fifthBySeventh[1][1] = 1.0f / 7.0f;
+  dots.tile(material::Repeat::Repeat)
+      .uv(fifthBySeventh)
+      .sampling(material::Sampling::Nearest);
+  const SkBitmap plate = cardOn(
+      material::from(material::Color{0, 0, 0, 1})
+          .surface({.roughness = 1.0f,
+                    .emission = {1, 1, 1, 1},
+                    .emissionStrength = 1,
+                    .emissionMap = material::image(dots)}),
+      on.runtime);
+  const int middle = kExtent.x / 2;
+  EXPECT_EQ(brightRuns(plate, {0, middle}, {kExtent.x - 1, middle}), 5)
+      << "five dots across the card's middle row";
+  EXPECT_EQ(brightRuns(plate, {middle, 0}, {middle, kExtent.y - 1}), 7)
+      << "seven down its middle column";
 }
 
 TEST(SurfaceSlots, ANormalDerivedFromAHeightDressesADeviceBody) {

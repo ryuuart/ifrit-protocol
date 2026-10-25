@@ -42,7 +42,7 @@ class CustomElement:
                 # drawing. A pen leaf sizes like an empty box, so this
                 # one states its own dimensions.
                 compose.pen("reference/rings", rings)
-                .width(compose.pct(100))
+                .width(compose.percent(100))
                 .height(190)
                 .borderRadius(10)
                 .fill(CELL)

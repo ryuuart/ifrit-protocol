@@ -153,7 +153,8 @@ void bindReports(py::class_<ComposerHandle>& composer) {
       .value("Live", Composer::CacheState::Live)
       .value("Picture", Composer::CacheState::Picture)
       .value("Texture", Composer::CacheState::Texture)
-      .value("Group", Composer::CacheState::Group);
+      .value("Group", Composer::CacheState::Group)
+      .value("Moving", Composer::CacheState::Moving);
 
   // A record, registered by hand because it is nested in the class it
   // reports about: constructible from keywords, copyable, and answering

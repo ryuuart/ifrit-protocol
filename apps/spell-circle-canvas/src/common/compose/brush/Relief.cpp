@@ -47,7 +47,7 @@ float densityOf(const PaintContext& context) {
 
 bool isBeneath(const material::CoverageEffect& step) {
   return step.kind == material::CoverageEffect::Kind::Shadow &&
-         !step.shadow.inside;
+         !step.shadow.inset;
 }
 
 /** @p drawn over @p outline between @p material's coverage effects, under

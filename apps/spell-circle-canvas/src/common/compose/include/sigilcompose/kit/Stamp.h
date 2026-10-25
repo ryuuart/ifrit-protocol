@@ -46,6 +46,8 @@ struct ByLane {
   bool operator==(const ByLane& other) const {
     return !key.empty() && key == other.key && lane == other.lane;
   }
+  /** The key vouches for a maker no comparison can read. */
+  bool equalityIsTheAuthorsWord() const { return !key.empty(); }
 
   void add(Scope& scope) const;
 };

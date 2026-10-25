@@ -209,7 +209,7 @@ class Scene:
     def test_an_attached_mark_stands_on_its_unit(self):
         pixels = self.render(
             'text("AAAA BBBB").font(sans).textAttach(weave.selectors.words(1, 2), '
-            'box().width(compose.pct(100)).height(compose.pct(100)).fill("#ff0000"))'
+            'box().width(compose.percent(100)).height(compose.percent(100)).fill("#ff0000"))'
         )
 
         def red_in(left, right):

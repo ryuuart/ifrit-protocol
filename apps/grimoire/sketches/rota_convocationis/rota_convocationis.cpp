@@ -464,8 +464,8 @@ struct RotaConvocationis {
               {0.5f, 0.5f},
               {{0.0f, hexColor(0xFFB13A, ahead > 0 ? 0.0f : strength)},
                {1.0f, hexColor(0xFFB13A, ahead > 0 ? strength : 0.0f)}},
-              {.startDegrees = 270.0f - span * 0.5f,
-               .endDegrees = 270.0f + span * 0.5f}));
+              {.startDegrees = 360.0f - span * 0.5f,
+               .endDegrees = 360.0f + span * 0.5f}));
     };
     const glm::vec2 tip =
         piece.eye() +
@@ -760,7 +760,7 @@ struct RotaConvocationis {
         .fill(
             sigil::material::from(kSealGround)
                 .effects(sigil::material::Filter::shadow(
-                    hexColor(0xE79A32, 0.30f), {.blur = 8.0f, .inside = true})))
+                    hexColor(0xE79A32, 0.30f), {.blur = 8.0f, .inset = true})))
         .cache(Cache::Texture)
         .opacity(sealKindle[index])
         .foreground(decorations::border(1.2f, Fill::color(kLine)))

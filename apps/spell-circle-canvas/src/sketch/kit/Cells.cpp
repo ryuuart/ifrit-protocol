@@ -60,7 +60,7 @@ compose::Element well(const Well& specification, compose::Element surface) {
         hole.shade.colorValue,
         {.blur = hole.blur,
          .offset = sigil::geometry::path::fromSk(hole.offset),
-         .inside = true}));
+         .inset = true}));
   }
   if (!effects.isNone()) {
     const material::Material ground =

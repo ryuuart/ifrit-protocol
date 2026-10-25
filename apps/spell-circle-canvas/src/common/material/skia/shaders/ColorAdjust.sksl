@@ -1,13 +1,17 @@
 // The CSS colour filter functions, over the straight colour with coverage
 // kept: uMode 0 is brightness (the colour scaled by uAmount), 1 is contrast
 // (scaled by uAmount about mid-grey), 2 is saturate (uAmount of the way from
-// the luminance grey, CSS's matrix), and 3 is hue-rotate (uAmount radians
-// around the luminance axis, CSS's matrix). Each is the Filter Effects
-// definition of the function of the same name.
+// the luminance grey, CSS's matrix), 3 is hue-rotate (uAmount radians
+// around the luminance axis, CSS's matrix), 4 is grayscale and 5 sepia
+// (uAmount of the way to the matrix's tone), and 6 is invert (uAmount of the
+// way to the colour's complement). 7 is opacity, which scales the coverage
+// itself. Each is the Filter Effects definition of the function of the same
+// name; the four that read a proportion hold it inside [0, 1] as CSS does.
 uniform float uMode;
 uniform float uAmount;
 
 half4 main(half4 color) {
+  if (uMode > 6.5) return color * half(clamp(uAmount, 0.0, 1.0));
   float a = max(float(color.a), 1e-4);
   float3 c = float3(color.rgb) / a;
   if (uMode < 0.5) {
@@ -19,6 +23,21 @@ half4 main(half4 color) {
     float3x3 m = float3x3(0.213 + 0.787 * s, 0.213 - 0.213 * s, 0.213 - 0.213 * s,
                           0.715 - 0.715 * s, 0.715 + 0.285 * s, 0.715 - 0.715 * s,
                           0.072 - 0.072 * s, 0.072 - 0.072 * s, 0.072 + 0.928 * s);
+    c = m * c;
+  } else if (uMode > 5.5) {
+    float s = clamp(uAmount, 0.0, 1.0);
+    c = c * (1.0 - 2.0 * s) + s;
+  } else if (uMode > 4.5) {
+    float k = 1.0 - clamp(uAmount, 0.0, 1.0);
+    float3x3 m = float3x3(0.393 + 0.607 * k, 0.349 - 0.349 * k, 0.272 - 0.272 * k,
+                          0.769 - 0.769 * k, 0.686 + 0.314 * k, 0.534 - 0.534 * k,
+                          0.189 - 0.189 * k, 0.168 - 0.168 * k, 0.131 + 0.869 * k);
+    c = m * c;
+  } else if (uMode > 3.5) {
+    float k = 1.0 - clamp(uAmount, 0.0, 1.0);
+    float3x3 m = float3x3(0.2126 + 0.7874 * k, 0.2126 - 0.2126 * k, 0.2126 - 0.2126 * k,
+                          0.7152 - 0.7152 * k, 0.7152 + 0.2848 * k, 0.7152 - 0.7152 * k,
+                          0.0722 - 0.0722 * k, 0.0722 - 0.0722 * k, 0.0722 + 0.9278 * k);
     c = m * c;
   } else {
     float k = cos(uAmount);

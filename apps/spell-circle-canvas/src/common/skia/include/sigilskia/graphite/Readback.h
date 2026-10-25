@@ -22,7 +22,10 @@ class GraphiteContext;
  *  dimensions differ. Call on the context's recording thread; the helper
  *  holds the context lock to submit and each time it asks after
  *  completion, never across the wait, so another thread's inserts and
- *  submits proceed while the read is on the GPU.
+ *  submits proceed while the read is on the GPU. Where the device raises
+ *  an event the host can wait on, the thread sleeps on it until the read
+ *  has run, so the call blocks as long as the device takes and no
+ *  longer.
  *  False when the output is invalid, submission fails or readback fails.
  *  A completion that
  *  does not arrive within five seconds fails without writing the output;

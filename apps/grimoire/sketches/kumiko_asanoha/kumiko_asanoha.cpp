@@ -266,7 +266,7 @@ struct KumikoAsanoha {
                       sigil::material::Filter::shadow(
                           {0, 0, 0, 0.65f}, {.blur = 18,
                                              .offset = {0, over ? 8.f : -8.f},
-                                             .inside = true})
+                                             .inset = true})
                           .then(sigil::material::Filter::bevel(
                               {.depth = 2.5f,
                                .size = 4,
@@ -286,7 +286,7 @@ struct KumikoAsanoha {
                   .effects(sigil::material::Filter::shadow(
                       {0, 0, 0, 0.60f}, {.blur = 16,
                                          .offset = {right ? -7.f : 7.f, 0},
-                                         .inside = true})));
+                                         .inset = true})));
   }
 
   Element describe() {

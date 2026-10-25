@@ -96,7 +96,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   const bool emitMarks = coverageTrace != &inst && ownVisible;
   const SkRect ownRect = instanceRect(inst);
   const SkRect bounds = SkRect::MakeWH(ownRect.width(), ownRect.height());
-  const SkRRect rrect = cornersRRect(bounds, style.corners);
+  const SkRRect rrect = cornersRRect(inst, bounds);
 
   // The node's shape: a band's swept region, a custom outline(), or the
   // corner-rounded box.

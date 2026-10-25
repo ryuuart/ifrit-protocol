@@ -7,33 +7,51 @@
 
 #include "SkiaPaintTestSupport.h"
 
-TEST(SkiaPaint, AConicWindowPastTheCircleClampsRatherThanWraps) {
-  // A hue wheel that is meant to start at red is written with a window
-  // from 90 to 450 by everyone who writes it once — and no canvas angle ever
-  // reaches past 360, so the run before 90 degrees paints the first
-  // stop's flat colour instead of the ramp's tail. The factory says so,
-  // once for the process.
+TEST(SkiaPaint, AConicWindowWiderThanATurnClampsRatherThanWraps) {
+  // A window is turned to start where Skia's sweep starts, so any window
+  // of one turn or less reads every angle; only one wider than a turn has
+  // a run no canvas angle reaches, which the factory says, once for the
+  // process.
   const std::vector<ColorStop> stops{{0.0f, {1, 0, 0, 1}},
                                      {1.0f, {0, 0, 1, 1}}};
   testing::internal::CaptureStderr();
   const Paint past = Paint::conicGradient(
       {50, 50}, stops,
-      {.units = GradientUnits::Pixels, .startDegrees = 90, .endDegrees = 450});
+      {.units = GradientUnits::Pixels, .startDegrees = 0, .endDegrees = 450});
   const std::string said = testing::internal::GetCapturedStderr();
-  EXPECT_NE(said.find("do not wrap"), std::string::npos) << said;
-
-  const SkBitmap bm = render(skia::staticShader(past), 100, 100);
-  // Down and to the right of the centre is 45 degrees on the canvas —
-  // before the window opens at 90 — so it paints the first stop flat
-  // rather than the ramp the caller thought they had rotated onto it.
-  EXPECT_EQ(SkColorGetR(bm.getColor(85, 85)), 255u);
-  EXPECT_EQ(SkColorGetB(bm.getColor(85, 85)), 0u);
-  // …and a window inside the circle says nothing at all.
+  EXPECT_NE(said.find("wider than one turn"), std::string::npos) << said;
+  // Starting before Skia's zero is no longer past the circle: the window
+  // from 12 o'clock round to 12 o'clock again says nothing at all.
   testing::internal::CaptureStderr();
-  const Paint inside =
-      Paint::conicGradient({50, 50}, stops, {.units = GradientUnits::Pixels});
+  const Paint turned = Paint::conicGradient(
+      {50, 50}, stops,
+      {.units = GradientUnits::Pixels, .startDegrees = -90, .endDegrees = 270});
   EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
-  EXPECT_FALSE(inside == past);
+  EXPECT_FALSE(turned == past);
+}
+
+TEST(SkiaPaint, AConicStartsAtTwelveOClockAsCssDoes) {
+  // The whole turn from 0: just clockwise of straight up is the first
+  // stop and just anticlockwise of it the last, whatever the window
+  // Skia's own sweep starts from.
+  const std::vector<ColorStop> stops{{0.0f, {1, 0, 0, 1}},
+                                     {1.0f, {0, 0, 1, 1}}};
+  const SkBitmap whole = render(
+      skia::staticShader(Paint::conicGradient(
+          {50, 50}, stops, {.units = GradientUnits::Pixels})),
+      100, 100);
+  EXPECT_GT(SkColorGetR(whole.getColor(53, 10)), 230u);
+  EXPECT_GT(SkColorGetB(whole.getColor(47, 10)), 230u);
+  // A window inside Skia's circle is handed over as it is: 3 o'clock is
+  // 90, so the quarter from 90 to 180 runs from 3 o'clock to 6 o'clock.
+  const SkBitmap quarter = render(
+      skia::staticShader(Paint::conicGradient(
+          {50, 50}, stops,
+          {.units = GradientUnits::Pixels, .startDegrees = 90,
+           .endDegrees = 180})),
+      100, 100);
+  EXPECT_GT(SkColorGetR(quarter.getColor(90, 52)), 230u);
+  EXPECT_GT(SkColorGetB(quarter.getColor(48, 90)), 230u);
 }
 
 TEST(SkiaPaint, AFocusMovesTheHotSpotAndLeavesTheOuterCircle) {

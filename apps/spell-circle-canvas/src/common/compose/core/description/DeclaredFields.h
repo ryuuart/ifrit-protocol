@@ -233,6 +233,13 @@ class DeclaredFields {
   motion::Animatable<float>& translateY() {
     return state(Property::TranslateY, m_storage.paint.translateY);
   }
+  /** The length half of each translate: the same statement as the lane. */
+  Dimension& translateXLength() {
+    return state(Property::TranslateX, m_storage.paint.translateXLength);
+  }
+  Dimension& translateYLength() {
+    return state(Property::TranslateY, m_storage.paint.translateYLength);
+  }
   motion::Animatable<float>& rotate() {
     return state(Property::Rotate, m_storage.paint.rotate);
   }

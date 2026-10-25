@@ -85,7 +85,7 @@ Element haloedBand(Boundary boundary,
                      .height(side)
                      .cache(Cache::Texture)
                      .decorationOutline(boundary)
-                     .transformOrigin(pct(50), pct(50))
+                     .transformOrigin(percent(50), percent(50))
                      .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
                      .filter(sigil::material::Filter::glow(
                          {0.35f, 0.85f, 1.0f, 1.0f}, 6.0f));
@@ -441,7 +441,7 @@ Element turningWheel(const sigil::motion::Animatable<float>& turn) {
           .top(150)
           .width(kSide)
           .height(kSide)
-          .transformOrigin(pct(50), pct(50))
+          .transformOrigin(percent(50), percent(50))
           .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}));
   std::vector<Element> spokes;
   for (int i = 0; i < 48; ++i) {

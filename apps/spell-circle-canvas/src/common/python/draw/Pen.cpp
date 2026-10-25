@@ -13,6 +13,7 @@
 #include <src/core/SkScopeExit.h>
 
 #include <exception>
+#include <initializer_list>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -352,9 +353,16 @@ void bindPen(py::module_& root) {
             py::arg("y"), py::arg("width"));
   penMethod(cls, "circle", py::overload_cast<float, float, float>(&Pen::circle),
             py::arg("x"), py::arg("y"), py::arg("diameter"));
-  penMethod(cls, "arc", &Pen::arc, py::arg("x"), py::arg("y"), py::arg("width"),
-            py::arg("height"), py::arg("start"), py::arg("stop"),
-            py::arg("mode") = draw::OPEN);
+  cls.def(
+      "arc",
+      [](BorrowedPen& borrowed, float x, float y, float width, float height,
+         AngleInPenMode start, AngleInPenMode stop, draw::Constant mode) {
+        Pen& pen = borrowed.get();
+        pen.arc(x, y, width, height, angleOnPen(pen, start),
+                angleOnPen(pen, stop), mode);
+      },
+      py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"),
+      py::arg("start"), py::arg("stop"), py::arg("mode") = draw::OPEN);
   penMethod(cls, "triangle", &Pen::triangle, py::arg("x1"), py::arg("y1"),
             py::arg("x2"), py::arg("y2"), py::arg("x3"), py::arg("y3"));
   penMethod(cls, "quad", &Pen::quad, py::arg("x1"), py::arg("y1"),
@@ -403,13 +411,24 @@ void bindPen(py::module_& root) {
   penMethod(cls, "textAscent", &Pen::textAscent);
   penMethod(cls, "textDescent", &Pen::textDescent);
   penMethod(cls, "translate", &Pen::translate, py::arg("x"), py::arg("y"));
-  penMethod(cls, "rotate", &Pen::rotate, py::arg("angle"));
+  // An angle beside the pen is in its angle mode as a bare number, and
+  // in its own measure as text or a typed angle.
+  for (const auto& [name, verb] :
+       std::initializer_list<std::pair<const char*, void (Pen::*)(float)>>{
+           {"rotate", &Pen::rotate},
+           {"shearX", &Pen::shearX},
+           {"shearY", &Pen::shearY}})
+    cls.def(
+        name,
+        [verb](BorrowedPen& borrowed, AngleInPenMode angle) {
+          Pen& pen = borrowed.get();
+          (pen.*verb)(angleOnPen(pen, angle));
+        },
+        py::arg("angle"));
   penMethod(cls, "scale", py::overload_cast<float>(&Pen::scale),
             py::arg("factor"));
   penMethod(cls, "scale", py::overload_cast<float, float>(&Pen::scale),
             py::arg("x"), py::arg("y"));
-  penMethod(cls, "shearX", &Pen::shearX, py::arg("angle"));
-  penMethod(cls, "shearY", &Pen::shearY, py::arg("angle"));
   penMethod(cls, "push", &Pen::push);
   penMethod(cls, "pop", &Pen::pop);
   penMethod(cls, "resetMatrix", &Pen::resetMatrix);

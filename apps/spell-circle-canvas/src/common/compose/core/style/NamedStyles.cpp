@@ -92,6 +92,8 @@ void Composer::Impl::namedStylesOf(
     if (longhands.indent())
       resolveTextIndent(leaf, *longhands.indent(), style.block,
                         style.indentPercent);
+    if (longhands.lineHeight())
+      resolveLineHeight(leaf, *longhands.lineHeight(), style.block);
     blocks.push_back(std::move(style));
   }
 }

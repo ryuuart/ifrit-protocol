@@ -28,14 +28,19 @@ void draw(Pen& pen) override {
 ITS PIXELS ARE THE HOST'S. The buffer is formed at the host pen's own
 density, through the host's canvas, so it lives where the host draws — on
 the device when the host is on one — and falls back to raster where that
-canvas cannot make a surface. It is re-formed when the density changes
-and kept otherwise, so what was drawn on it stands until something draws
-over it, exactly as p5's does.
+canvas cannot make a surface. It FOLLOWS ITS HOST: a host on a device the
+buffer does not stand on — a buffer on raster, on another device, or on a
+recorder of another thread, which belongs to that thread alone — forms it
+again there. It is re-formed when the density changes and kept otherwise,
+so what was drawn on it stands until something draws over it, exactly as
+p5's does.
 
 A RE-FORM KEEPS THE PICTURE. A surface that has to be replaced — the
-density moved, or a resize gave the buffer another canvas size — is not
-handed over empty: what the old one held is drawn into it, scaled to the
-new extent. Changing how large a buffer is, or how many pixels a unit of
+density moved, a resize gave the buffer another canvas size, or the host
+draws elsewhere — is not handed over empty: what the old one held is drawn
+into it, scaled to the new extent, wherever the new device can read it;
+a picture on another device's context cannot be, and the buffer starts
+there transparent. Changing how large a buffer is, or how many pixels a unit of
 it covers, must not erase what earlier frames accumulated on it.
 
 ITS CLOCK IS THE HOST'S. `Graphics::begin` reads the host pen's frame

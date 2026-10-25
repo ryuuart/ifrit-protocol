@@ -6,6 +6,7 @@ import _sigil.compose
 import _sigil.compose.brush
 import _sigil.compose.connect
 import _sigil.compose.layouts
+import _sigil.core.angle
 import _sigil.data
 import _sigil.draw
 import _sigil.geometry.path
@@ -19,6 +20,7 @@ __all__ = [
     "AddingOperator",
     "AlignLike",
     "AnchorLike",
+    "AngleLike",
     "ArrangingOperator",
     "AttributeLike",
     "AttributeValue",
@@ -103,9 +105,19 @@ ScalarLike: TypeAlias = FloatLike | _sigil.motion.Animatable | _sigil.motion.Twe
 """A NUMBER THAT CAN CHANGE OVER TIME. A plain number, an animatable —
 constant, described, live or bound — or a tween, which is the motion it
 describes."""
-DurationLike: TypeAlias = datetime.timedelta | SupportsFloat | SupportsIndex
-"""A LENGTH OF TIME: a number of seconds or a `datetime.timedelta`. A
-length read back is always a number of seconds."""
+DurationLike: TypeAlias = datetime.timedelta | SupportsFloat | SupportsIndex | str
+"""A LENGTH OF TIME: a number of seconds, a `datetime.timedelta`, or CSS
+time text, `"300ms"` or `"0.3s"`. Text names its unit, since CSS has no
+unitless time, and text no time grammar reads raises ValueError naming
+it. A length read back is always a number of seconds."""
+AngleLike: TypeAlias = _sigil.core.angle.Angle | SupportsFloat | SupportsIndex | str
+"""AN ANGLE. A bare number is read in the measure its slot counts in:
+degrees on compose, material, geometry and the canvas, the pen's
+`angleMode` beside a pen, radians inside a brush value and on the draw
+stack. A `core.angle.Angle` and CSS angle text, `"45deg"`, `"1rad"`,
+`"50grad"` or `"0.25turn"`, name their own measure and mean the same angle
+on every slot. Text no angle grammar reads raises ValueError naming it.
+An angle read back is a number in the slot's measure."""
 DimensionLike: TypeAlias = (
     FloatLike
     | str
@@ -131,9 +143,14 @@ MotionFillLike: TypeAlias = (
     | _sigil.motion.FillAnimatable
     | _sigil.motion.FillTween
     | _sigil.motion.ColorTween
+    | _sigil.motion.ColorAnimatable
 )
 """A FILL THAT MAY MOVE: everything a fill is, plus a fill that changes
-over time and a fill or colour tween — what `Element.fill` takes."""
+over time, a fill or colour tween, and a colour animation — what
+`Element.fill` takes. A colour animation fills as the fill of its colour
+when it is described or constant; a live one is refused when the fill is
+set, since a live value has to be a fill to fill a surface:
+`animatable(Fill.color(...))`."""
 ElementInkLike: TypeAlias = FillLike
 """THE INK AN ELEMENT SETS for itself and everything under it. A colour
 is the inherited lane and eases under a transition; any other paint
@@ -147,7 +164,7 @@ AlignLike: TypeAlias = (
 )
 JustifyLike: TypeAlias = (
     _sigil.compose.Justify
-    | Literal["start", "center", "end", "space_between", "space_around", "space_evenly"]
+    | Literal["start", "center", "end", "space-between", "space-around", "space-evenly"]
 )
 AnchorLike: TypeAlias = _sigil.compose.Anchor | str | tuple[str, PointLike] | PointLike
 """ONE STOP OF A WIRE: an anchor, a node's key read at its centre, a key
@@ -301,14 +318,26 @@ beside it is the identity: everything the function reads belongs in the
 key, because a node whose key is unchanged replays the picture it
 recorded."""
 ScalarFunction: TypeAlias = Callable[[float], float]
-EaseLike: TypeAlias = _sigil.motion.Easing | _sigil.motion.Curve | ScalarFunction | None
+EaseLike: TypeAlias = (
+    _sigil.motion.Easing | _sigil.motion.Curve | ScalarFunction | str | None
+)
+"""A CURVE A MOTION IS SHAPED BY: a native curve, a function of a
+fraction, or CSS timing-function text — `"ease"`, `"ease-in-out"`,
+`"linear"`, `"cubic-bezier(.2, .8, .2, 1)"`, `"steps(4, jump-start)"`.
+None is the default ease-out."""
 GradientStops: TypeAlias = (
-    Iterable[_sigil.material.ColorStop | tuple[FloatLike, ColorLike]]
+    Iterable[
+        _sigil.material.ColorStop
+        | tuple[ColorLike, FloatLike | str]
+        | tuple[FloatLike, ColorLike]
+    ]
     | Iterable[ColorLike]
     | _sigil.material.Ramp
 )
-"""THE STOPS A GRADIENT TAKES: colour stops or `(offset, colour)` pairs,
-plain colours spaced evenly, or a ramp."""
+"""THE STOPS A GRADIENT TAKES: plain colours spaced evenly, CSS's
+`(colour, position)` pairs with the position a fraction or percentage
+text (`("#f00", "40%")`), `(offset, colour)` pairs, colour stops, or a
+ramp."""
 RampStops: TypeAlias = Sequence[_sigil.material.ColorStop]
 """THE STOPS A RAMP IS SAMPLED FROM, in the order they climb. A sequence
 rather than any iterable, because the stops are read more than once and

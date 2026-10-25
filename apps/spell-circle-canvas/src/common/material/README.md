@@ -123,17 +123,31 @@ CSS's own gamut mapping. `COLOUR.md` is the chapter.
 #include <sigilmaterial/texture/Image.h>
 
 material::Material gradient = material::linearGradient(
-    {0, 0}, {0, 1},
     {material::hexColor(0x334455), material::hexColor(0x112233)});
+material::Material corner = material::linearGradient(
+    {material::hexColor(0x334455), material::hexColor(0x112233)},
+    material::Toward::TopRight);
+material::Material spot = material::radialGradient(
+    {material::hexColor(0xffffff), material::hexColor(0x000000)},
+    {.shape = material::RadialShape::Circle, .at = {0.25f, 0.5f}});
 
 material::Material picture = material::image(pixels);
 ```
 
 `pixels` is a `sigil::media::PixelSource`, supplied by the caller.
 SigilMedia decodes pixels; SigilIO resolves and reloads resources.
-Gradient coordinates use box units by default: `{0, 0}` is one corner
-and `{1, 1}` the opposite. `GradientOptions` selects pixel units, repeat
-and the other gradient controls. `ImageOptions` controls image repeat.
+The gradients are shaped as CSS's are: the stops first, then what CSS
+writes before them. `linearGradient(stops)` runs to the bottom, an angle
+in degrees runs clockwise from straight up, and a `Toward` runs to a side
+or a corner, the ends landing on the box's corners at any proportions.
+`radialGradient` takes a `RadialEndingShape` — `RadialShape::Ellipse` or
+`RadialShape::Circle`, the `RadialExtent` its last stop reaches measured
+from its own centre, and the centre `at` — and `conicGradient` a
+`ConicStart`, its `fromDegrees` measured clockwise from 12 o'clock.
+The point-to-point forms beneath them, `linearGradient(start, end,
+stops)` and its siblings, place their points in box units by default:
+`{0, 0}` is one corner and `{1, 1}` the opposite. `GradientOptions`
+selects pixel units, repeat and the other gradient controls. `ImageOptions` controls image repeat.
 A box-unit linear or radial gradient of more than sixteen stops is read
 from a lookup made once when its paint is made, the gradient evaluated at
 1025 entries in half floats and filtered between them, so its cost per
@@ -342,6 +356,13 @@ carries (`surface::lobes(Material)`). SigilMaterial shades nothing: a renderer t
 shades a material's surface under the scene's own lights, and a 2D painter
 paints the material's colour stack flat. `material::skia::paint` lowers
 that colour stack whether or not the material states a surface.
+`material::surface::lower` turns the same statement into the surface
+program a device draws, filling each map slot the way a device can read
+it: an image as its texture, read through a child that applies the
+texture's own matrix and tiling where its matrix is not the identity; a
+material with a Slang body as a child the device plays; and anything else
+— a gradient, a colour stack, a program only Skia runs — painted once
+into a square map over the body's texture coordinates.
 
 The lights a surface is shaded under are the renderer's: a scene's are
 SigilWorld's, which names them itself.
@@ -460,7 +481,7 @@ warp, with no dispersion or transport through a closed glass body.
 The coverage effects are an image editor's layer styles, drawn across the
 outline a consumer paints — a box, the contours of a word — and they
 read no light of any scene: each carries its own direction and colours.
-`Filter::shadow` is a drop shadow, or with `.inside` an inner shadow, or
+`Filter::shadow` is a drop shadow, or with `.inset` an inner shadow, or
 with a `.spread` and no offset an outer glow; `Filter::stroke` a keyline;
 `Filter::bevel` a bevel and emboss lit from `angleDegrees`, with its
 `highlight` and `shadow` colours. A bevel that states a gloss contour

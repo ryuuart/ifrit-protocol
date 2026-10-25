@@ -264,7 +264,7 @@ struct WorldHud {
                       cell.children(
                           {box()
                                .rect(3, 3, wh::kSlot - 4, wh::kSlot - 4)
-                               .transformOrigin(pct(50), pct(0))
+                               .transformOrigin(percent(50), percent(0))
                                .scaleY(cooldown[i - 1])
                                .fill(sigil::material::linearGradient(
                                    {0, 0}, {0, wh::kSlot - 4},
@@ -289,7 +289,7 @@ struct WorldHud {
                           .fill(wh::kTrack)
                           .children({box()
                                          .rect(0, 0, 28.0f, 6.0f)
-                                         .transformOrigin(pct(0), pct(50))
+                                         .transformOrigin(percent(0), percent(50))
                                          .scaleX(xp)
                                          .fill(wh::kXp)}),
                       text("34").font(wh::line(13, 0.4f, 640)).at({9, 3})})});
@@ -549,7 +549,7 @@ struct WorldHud {
                            1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
                        .children({box()
                                       .rect(1, 1, 166.0f, 7.0f)
-                                      .transformOrigin(pct(0), pct(50))
+                                      .transformOrigin(percent(0), percent(50))
                                       .scaleX(enemyHp)
                                       .fill(wh::kEnemyHp)})});
   }

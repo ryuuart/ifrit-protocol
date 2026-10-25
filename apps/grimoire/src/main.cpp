@@ -112,6 +112,7 @@
 #include <QtCore/QSysInfo>
 #include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
+#include <QtGui/QScreen>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
@@ -815,6 +816,23 @@ int main(int argc, char* argv[]) {
       return 1;
     }
     window->resize(args.windowBench.width, args.windowBench.height);
+    // A WINDOW THE DISPLAY CANNOT HOLD is sized by the system, not by the
+    // ask: it is clamped to the screen, or left reaching past it. Either
+    // way the row reports the window that presented, and this says why it
+    // may differ — the room the display has, in the units the ask is in,
+    // since the ratio asked for scales every size the window reads.
+    if (const QScreen* screen = window->screen()) {
+      const QSize room = screen->availableGeometry().size();
+      if (args.windowBench.width > room.width() ||
+          args.windowBench.height > room.height())
+        std::fprintf(stderr,
+                     "[grimoire] --window-bench: a window %dx%d at ratio %g "
+                     "does not fit the display, which has room for %dx%d at "
+                     "that ratio; the system sizes it and the rows report "
+                     "the window it gave\n",
+                     args.windowBench.width, args.windowBench.height,
+                     window->devicePixelRatio(), room.width(), room.height());
+    }
     window->raise();
     window->requestActivate();
     if (!startWindowBench(application, *window, *view, args.windowBench,

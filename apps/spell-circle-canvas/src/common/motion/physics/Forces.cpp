@@ -7,6 +7,7 @@
 #include <glm/vec2.hpp>
 #include "sigilmotion/physics/Forces.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <vector>
@@ -99,17 +100,32 @@ void applyFlock(Points& points, const Force& force) {
       ++neighbours;
       heading += points.velocity[j];
       centre += points.position[j];
-      // Weighted by how close it is, so the one about to be collided
-      // with counts for more than the one at the edge of the reach.
-      away -= offset * (1.0f / distanceSquared);
+      // The way back out to the reach, scaled by the reach over how far
+      // the neighbour stands: nothing at the edge of the reach, the way
+      // out itself at half of it, and growing without bound as the two
+      // close, so the one about to be collided with counts for most.
+      const float distance = std::sqrt(distanceSquared);
+      away -= offset * ((force.radius - distance) * force.radius /
+                        distanceSquared);
     }
     if (neighbours == 0) continue;
     const float share = 1.0f / (float)neighbours;
-    const glm::vec2 alignment = heading * share - points.velocity[i];
+    // THE THREE IN ONE UNIT, a distance, and each a mean over the
+    // neighbours, so the weights are ratios and a crowd does not tip
+    // them: the push out of the reach, the way to the neighbours' centre,
+    // and the turn onto their mean heading — the difference of the two
+    // velocities over the faster's speed, as far as the reach.
+    away *= share;
+    const glm::vec2 meanHeading = heading * share;
+    const float pace = std::max(glm::length(meanHeading),
+                                glm::length(points.velocity[i]));
+    const glm::vec2 alignment =
+        pace > 0.0f ? (meanHeading - points.velocity[i]) * (force.radius / pace)
+                    : glm::vec2{};
     const glm::vec2 cohesion = centre * share - points.position[i];
     const glm::vec2 steering = away * force.flock.separation +
-                          alignment * force.flock.alignment +
-                          cohesion * force.flock.cohesion;
+                               alignment * force.flock.alignment +
+                               cohesion * force.flock.cohesion;
     points.force[i] += steering * (force.strength * points.mass[i]);
   }
 }

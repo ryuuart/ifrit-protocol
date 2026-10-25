@@ -33,13 +33,14 @@ void bindComposeTextureScene(py::module_& module) {
       .def(
           "render",
           [](compose::TextureScene& scene, const compose::Element& tree,
-             double seconds) {
+             motion::Duration moment) {
+            const double seconds = moment.count();
             if (!std::isfinite(seconds) || seconds < 0)
               throw py::value_error(
                   "A texture scene's moment must be finite and nonnegative");
             scene.render(tree, seconds);
           },
-          py::arg("tree"), py::arg("seconds") = 0.0,
+          py::arg("tree"), py::arg("seconds") = motion::Duration(0.0),
           "Reconcile tree and paint it when it changed, with the scene's "
           "clock at seconds; an earlier moment leaves the clock where it "
           "stands.")

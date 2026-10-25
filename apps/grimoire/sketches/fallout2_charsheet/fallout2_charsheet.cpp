@@ -253,7 +253,7 @@ Element screw(float x, float y, float turn) {
                .shape(shapes::svg("M0.5 2.6 L5.5 2.6 L5.5 3.4 L0.5 3.4 Z"))
                .fill(hexColor(0x100C06, 0.85f))
                .rotate(turn)
-               .transformOrigin(pct(50), pct(50))});
+               .transformOrigin(percent(50), percent(50))});
 }
 
 /** A plate standing proud of the ground, screwed at its corners. */
@@ -599,9 +599,9 @@ struct Fallout2CharSheet {
              .borderRadius(Corners{px(1.5f)})
              .stroke(stroke(px(1.2f), Fill::color(hexColor(0x2A1C08, 0.8f)),
                             PathFormat::Align::Inner))
-             .background(Shadow{.ink = Fill::color(hexColor(0x000000, 0.7f)),
-                                .offset = {px(1.5f), px(2)},
-                                .blur = px(3)})});
+             .background(Shadow{.offset = {px(1.5f), px(2)},
+                                .blur = px(3),
+                                .color = Fill::color(hexColor(0x000000, 0.7f))})});
   }
 
   /** PRINT, DONE and CANCEL along the foot, each behind a red lamp. */

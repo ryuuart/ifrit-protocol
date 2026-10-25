@@ -92,7 +92,7 @@ Element stack();
  *  wants layout, and this is how to say so.
  *
  *  The child spelling is the ordinary placement longhand:
- *  `.left(x).top(y).width(w).height(h)` — px, or pct() against the
+ *  `.left(x).top(y).width(w).height(h)` — px, or percent() against the
  *  parent's rect; an open width/height with an opposing `.right()`/
  *  `.bottom()` pins the far edge instead; a text leaf with an open
  *  extent measures against its resolved (or the parent's) width.
@@ -338,7 +338,7 @@ Element pathFigure(const geometry::path::Outline& absolute, float bleed = 0.0f);
  *  and facts (`Element::attribute`) and draws nothing. Out of the flow,
  *  so it takes no room beside its siblings; put it where it names with
  *  the placement longhand or a centre pin — a port on a card is
- *  `point().key("out").left(pct(100)).top(pct(50))`. A skeleton of points
+ *  `point().key("out").left(percent(100)).top(percent(50))`. A skeleton of points
  *  is what an arranging operator places and an adding operator builds on. */
 Element point();
 

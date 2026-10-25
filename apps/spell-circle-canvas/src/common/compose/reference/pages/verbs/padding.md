@@ -45,7 +45,7 @@ with `padding(10)` leaves 80 for its content; under
 `BoxSizing::ContentBox` the same box measures 120 across.
 
 Every length is a [`Dimension`](../types/Dimension.md), so a bare number
-is pixels, `pct()` is of the parent, and `1_em` follows the type the
+is pixels, `percent()` is of the parent, and `1_em` follows the type the
 padding surrounds.
 
 ## See also

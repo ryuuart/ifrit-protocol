@@ -314,7 +314,7 @@ struct CdeMotifSketch {
       environment::Provide<cde::ColorSet> scrollColors(t);
       return sketch::kit::scrollbar({.thumb = box().fill(t.bg).overlay(
                                          cde::bevel(2, false, false)),
-                                     .thumbLength = pct(sliderFrac),
+                                     .thumbLength = percent(sliderFrac),
                                      .track = Fill::none()})
           .width(19)
           .fill(t.bg)
@@ -570,7 +570,7 @@ struct CdeMotifSketch {
              .width(3)
              .height(11)
              .fill(cde::C(cde::kIconColor[0]))
-             .transformOrigin(pct(50), pct(100))
+             .transformOrigin(percent(50), percent(100))
              .rotate(motion::bind(clockT,
                                   {.quantize = 61, .to = {300.0f, 330.0f}})),
          box()
@@ -579,7 +579,7 @@ struct CdeMotifSketch {
              .width(2)
              .height(18)
              .fill(cde::C(cde::kIconColor[0]))
-             .transformOrigin(pct(50), pct(100))
+             .transformOrigin(percent(50), percent(100))
              .rotate(
                  motion::bind(clockT, {.quantize = 61, .to = {0.0f, 360.0f}})),
          box().left(22).top(22).width(4).height(4).borderRadius({2}).fill(

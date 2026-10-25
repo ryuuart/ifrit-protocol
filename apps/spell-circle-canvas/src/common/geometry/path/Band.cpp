@@ -107,10 +107,18 @@ std::vector<SkPoint> sampleRail(const SkPath& rail, int steps) {
   return out;
 }
 
+/** One contour of a path as its own path, its arc length, and whether it
+ *  closes on itself. */
+struct SplitContour {
+  SkPath path;
+  float length = 0;
+  bool closed = false;
+};
+
 /** The contours of a path, each as its own path — so a rail pair can be
  *  zipped and CLOSED per contour instead of chained into one run. */
-std::vector<std::pair<SkPath, float>> splitContours(const SkPath& path) {
-  std::vector<std::pair<SkPath, float>> out;
+std::vector<SplitContour> splitContours(const SkPath& path) {
+  std::vector<SplitContour> out;
   SkContourMeasureIter iter(path, false);
   while (sk_sp<SkContourMeasure> m = iter.next()) {
     const float len = m->length();
@@ -118,7 +126,7 @@ std::vector<std::pair<SkPath, float>> splitContours(const SkPath& path) {
     SkPathBuilder b;
     (void)m->getSegment(0, len, &b, true);
     if (m->isClosed()) b.close();
-    out.emplace_back(b.detach(), len);
+    out.push_back({b.detach(), len, m->isClosed()});
   }
   return out;
 }
@@ -147,7 +155,7 @@ SkPath bandRegionImpl(const SkPath& spine, const Profile& width,
   // out on one code path only.
   SkPathBuilder out(spine.getFillType());
   float consumed = 0;
-  for (const auto& [contour, len] : splitContours(spine)) {
+  for (const auto& [contour, len, closed] : splitContours(spine)) {
     const float sliceStart = total > 0 ? consumed / total : 0.0f;
     const float sliceSpan = total > 0 ? len / total : 1.0f;
     consumed += len;
@@ -167,6 +175,20 @@ SkPath bandRegionImpl(const SkPath& spine, const Profile& width,
     const std::vector<SkPoint> innerPts = sampleRail(innerRail, steps);
     if (outerPts.size() < 2 || innerPts.size() < 2) continue;
 
+    // A CLOSED spine's band is a RING: each rail closes on itself, and the
+    // inner one runs backwards so the winding fill leaves the hole between
+    // them open. Zipped into one contour like an open spine's, the two
+    // rails would be joined by a chord across the ring at the start
+    // vertex, which a stroke of the region's boundary draws as a seam.
+    if (closed) {
+      out.moveTo(outerPts.front());
+      for (size_t k = 1; k < outerPts.size(); ++k) out.lineTo(outerPts[k]);
+      out.close();
+      out.moveTo(innerPts.back());
+      for (size_t k = innerPts.size() - 1; k-- > 0;) out.lineTo(innerPts[k]);
+      out.close();
+      continue;
+    }
     out.moveTo(outerPts.front());
     for (size_t k = 1; k < outerPts.size(); ++k) out.lineTo(outerPts[k]);
     for (size_t k = innerPts.size(); k-- > 0;) out.lineTo(innerPts[k]);

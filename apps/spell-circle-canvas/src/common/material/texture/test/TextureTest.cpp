@@ -20,8 +20,11 @@
 #include <sigilmedia/image/Decode.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -158,6 +161,57 @@ TEST(Texture, AnImageMaterialReadsTheLiveSourceAtTheFrameTime) {
   const auto second = skia::shader(material, {.seconds = 2});
   EXPECT_EQ(pixelOf(first, 0, 0), SK_ColorRED);
   EXPECT_EQ(pixelOf(second, 0, 0), SK_ColorBLUE);
+}
+
+namespace {
+
+/** A binding that counts how often a frame standing on a device is
+ *  turned into an image: a read back to host memory, for a caller with
+ *  no recorder. */
+struct CountingBinding : sigil::media::DeviceBinding {
+  std::atomic<int> asked{0};
+  sk_sp<SkImage> image(skgpu::graphite::Recorder*) override {
+    ++asked;
+    return solid(SK_ColorRED, 6, 4);
+  }
+};
+
+/** A source whose one frame stands on a device six by four, turned into
+ *  an image only through @p binding. */
+struct DeviceStanding {
+  std::shared_ptr<CountingBinding> binding;
+  sigil::media::Frame frameAt(std::chrono::duration<double>) const {
+    sigil::media::Frame frame;
+    frame.device.kind = sigil::media::DeviceFrame::Kind::Texture;
+    frame.device.device = this;
+    frame.device.handle = 7;
+    frame.device.width = 6;
+    frame.device.height = 4;
+    frame.device.binding = binding;
+    return frame;
+  }
+  bool isRunning() const { return false; }
+  bool operator==(const DeviceStanding& other) const {
+    return binding == other.binding;
+  }
+};
+
+}  // namespace
+
+TEST(Texture, ItsSizeAndDevicePlaceAreReadWithoutItsPixels) {
+  const auto binding = std::make_shared<CountingBinding>();
+  const Texture page(sigil::media::PixelSource(DeviceStanding{binding}));
+  // What a renderer asks before it draws — how big the page is and where
+  // it stands — is the source's to answer, so nothing is read back.
+  EXPECT_EQ(page.size(), glm::ivec2(6, 4));
+  const DeviceImage where = page.deviceImage();
+  EXPECT_TRUE(where);
+  EXPECT_EQ(where.width, 6);
+  EXPECT_EQ(where.height, 4);
+  EXPECT_EQ(binding->asked.load(), 0);
+  // The pixels are the one question a read back answers.
+  EXPECT_TRUE(page.frameAt().image);
+  EXPECT_EQ(binding->asked.load(), 1);
 }
 
 TEST(Texture, FillsAMaterialSlotAsALeaf) {

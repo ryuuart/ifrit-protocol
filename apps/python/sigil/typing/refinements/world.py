@@ -26,8 +26,11 @@ def group(*children: Node) -> Group: ...
         node = f"{WORLD}.{kind}"
         table.erased(
             node,
-            "translateX translateY translateZ rotateX rotateY rotateZ scale scaleX scaleY scaleZ rotate",
+            "translateX translateY translateZ scale scaleX scaleY scaleZ",
             "_t.ScalarLike",
+        )
+        table.erased(
+            node, "rotateX rotateY rotateZ rotate", "_t.ScalarLike | _t.AngleLike"
         )
         table.erased(node, "transition", "_sigil.motion.Tween | _t.DurationLike")
         table.parameters(node + ".at", position="_t.Vec3Like")
@@ -57,7 +60,14 @@ def group(*children: Node) -> Group: ...
     table.parameters(WORLD + ".rectLight", direction="_t.Vec3Like")
     table.parameters(WORLD + ".diskLight", direction="_t.Vec3Like")
     table.erased(WORLD, "camera", "_t.ScalarLike")
-    table.erased(f"{WORLD}.Frame", "environment", *(["_t.ScalarLike"] * 8))
+    # The panorama's turn, the sixth of the eight, is an angle in degrees.
+    table.erased(
+        f"{WORLD}.Frame",
+        "environment",
+        *(["_t.ScalarLike"] * 5),
+        "_t.ScalarLike | _t.AngleLike",
+        *(["_t.ScalarLike"] * 2),
+    )
     table.declares(
         f"{WORLD}.LightDescription",
         "direction",

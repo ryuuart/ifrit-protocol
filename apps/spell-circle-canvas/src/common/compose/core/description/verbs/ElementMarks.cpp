@@ -79,6 +79,22 @@ Derived& DecorationVerbs<Derived>::foreground(Decoration d, std::string name) {
 }
 
 template <class Derived>
+Derived& DecorationVerbs<Derived>::boxShadow(Shadow shadow) {
+  const bool inset = shadow.inset;
+  Decoration mark(std::move(shadow));
+  return inset ? overlay(std::move(mark)) : background(std::move(mark));
+}
+
+template <class Derived>
+Derived& DecorationVerbs<Derived>::boxShadow(std::vector<Shadow> shadows) {
+  // Each slot paints in the order it was appended, so the list goes in
+  // from its last entry to put its first on top.
+  for (auto shadow = shadows.rbegin(); shadow != shadows.rend(); ++shadow)
+    boxShadow(std::move(*shadow));
+  return self();
+}
+
+template <class Derived>
 Derived& DecorationVerbs<Derived>::stroke(Decoration brush, std::string name) {
   return foreground(std::move(brush), std::move(name));
 }

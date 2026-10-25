@@ -24,6 +24,7 @@
 #include "sigilcompose/core/Paint.h"
 #include "sigilcompose/core/PaintBox.h"
 #include "sigilcompose/core/Selector.h"
+#include "sigilcompose/core/Shadow.h"
 #include "sigilcompose/core/Shape.h"
 #include "sigilcompose/core/Shelf.h"
 #include "sigilcompose/core/Stroke.h"

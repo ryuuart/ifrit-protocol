@@ -114,13 +114,14 @@ the colour chapter on the [SigilCompose](doxygen:SigilCompose) site once
 and you will not have to ask again.
 
 `borderRadius` takes a [`Corners`](value:sigil::compose::Corners) — one
-number rounds all four, four numbers dress each corner. The radius is a
-plain number and not a length, because a radius changes what is drawn
-and never what is measured.
+radius rounds all four, four dress each corner. A radius is a length:
+pixels when bare, `1_em` against the font, and `50_percent` of the box,
+which makes it an ellipse. It changes what is drawn and never what is
+measured.
 
 The sizes are [`Dimension`](value:sigil::compose::Dimension)s.
 A bare number is pixels, which is why `width(220)` reads as a number;
-`width(50_pct)` is half the parent, `width(6_pw)` is six percent of the
+`width(50_percent)` is half the parent, `width(6_vw)` is six percent of the
 canvas whatever the parent is, and `width(2_rem)` follows the root's
 font.
 
@@ -128,7 +129,8 @@ font.
 
 - Give it a border: `.stroke(stroke(1.5f, Fill::color(kAccent)))`, whose
   value is a [`PathFormat`](value:sigil::compose::PathFormat).
-- Give it a shadow: `.background(shadow(kGround, {0, 6}, 18))`, whose
-  value is a [`Shadow`](value:sigil::compose::Shadow) — and note it goes
-  on `background`, which paints beneath the fill rather than over it.
+- Give it a shadow, CSS's `box-shadow`: `.boxShadow({.offset = {0, 6},
+  .blur = 18, .color = Fill::color(kGround)})`, whose value is a
+  [`Shadow`](value:sigil::compose::Shadow) — it lays an outer shadow
+  beneath the fill and an inset one over it, as CSS paints them.
 - Make the colour move: [Animate a fill](guide:animate-a-fill).

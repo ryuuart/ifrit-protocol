@@ -21,6 +21,7 @@
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Gradient.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -159,6 +160,19 @@ bool paintUsesWorldSpace(const Material& material);
  *  per stop count. */
 Paint unitRamp(SkPoint a, SkPoint b, std::vector<material::ColorStop> stops,
                bool radial);
+
+/** THE CSS-SHAPED GRADIENTS as paints, measured against the box: the
+ *  stops' child gradient laid out in px and read at the painted point's
+ *  place in the box, so the direction, the ending shape and the start
+ *  follow the box's proportions as CSS's do. */
+Paint cssLinearGradient(material::ColorStops stops,
+                        material::LinearDirection direction,
+                        const material::GradientOptions& options);
+Paint cssRadialGradient(material::ColorStops stops,
+                        material::RadialEndingShape shape,
+                        const material::GradientOptions& options);
+Paint cssConicGradient(material::ColorStops stops, material::ConicStart start,
+                       const material::GradientOptions& options);
 
 /** THE CHILD-SLOT CONVERSION, in one place because its callers must agree:
  *  sksl()'s children, blend()'s layers and Effect's children all need this

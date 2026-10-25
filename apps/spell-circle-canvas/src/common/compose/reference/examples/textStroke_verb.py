@@ -21,7 +21,7 @@ def cell(caption: str, label: compose.Element) -> compose.Element:
     return (
         compose.box(
             compose.box(label)
-            .width(compose.pct(100))
+            .width(compose.percent(100))
             .height(120)
             .borderRadius(10)
             .fill(BUSY)

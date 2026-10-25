@@ -32,7 +32,7 @@ Element card(float value, const char* caption) {
       .flexBasis(0)
       .flexGrow(1)
       .alignItems(Align::Center)
-      .children({stack().width(pct(100)).height(120).opacity(value).children(
+      .children({stack().width(percent(100)).height(120).opacity(value).children(
                      {box().cover().borderRadius({10}).fill(kPlate),
                       box()
                           .width(64)

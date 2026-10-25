@@ -189,6 +189,25 @@ TEST(Stacking, OneCompositionServesEveryStackOverTheSameThreeDefinitions) {
             first.recipePointer());
 }
 
+TEST(Stacking, AnOperandWithNoRecipeKeepsTheSlottedStack) {
+  registerCompiler(Target::Slang, slangStandIn);
+  const std::shared_ptr<const Recipe> program =
+      markedRecipe("stack.plain.program", "program");
+  const std::shared_ptr<const Recipe> noise =
+      markedRecipe("stack.plain.noise", "noise");
+  const Material painted =
+      from(Color{0.4f, 0.5f, 0.6f, 1}).surface({.metallic = 1.f});
+  ASSERT_EQ(painted.recipePointer(), nullptr);
+
+  // A colour operand has a body for no target, so nothing is composed:
+  // the stack is the slotted recipe with the three operands as children.
+  const Material stack = over(marked(program), painted, marked(noise));
+  EXPECT_EQ(stack.recipePointer(), overRecipe(BlendMode::Normal));
+  ASSERT_NE(stack.slot("top"), nullptr);
+  EXPECT_EQ(*stack.slot("top"), painted);
+  EXPECT_EQ(stackDepth(stack), 1);
+}
+
 // ---- the bank ---------------------------------------------------------------
 
 TEST(Bank, FoldsSeedsIntoBucketsAndKeysOnTheRecipeAndParameters) {

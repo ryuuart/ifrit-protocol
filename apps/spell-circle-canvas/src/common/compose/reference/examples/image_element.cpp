@@ -61,7 +61,7 @@ Element cell(const char* caption, Element leaf) {
       .alignItems(Align::Center)
       .children({box()
                      .height(140)
-                     .width(pct(100))
+                     .width(percent(100))
                      .borderRadius({8})
                      .fill(kCell)
                      .overflow(Overflow::Clip)

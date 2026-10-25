@@ -18,6 +18,7 @@ if(APPLE)
   set(SIGIL_SKIA_GRAPHITE_METAL_SOURCES
       GraphiteContextMetal.mm
       OffscreenSurfaceMetal.mm
+      SignalMetal.mm
       TextureImageMetal.mm)
 else()
   set(SIGIL_SKIA_GRAPHITE_METAL_SOURCES)

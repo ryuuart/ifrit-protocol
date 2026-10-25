@@ -164,7 +164,7 @@ struct CardFlip {
           .font({.color = kPaper, .track = 1})
           .children(
               {document::h2(title).font({.size = 30}),
-               document::paragraph(line).font({.size = 14}).width(pct(100))});
+               document::paragraph(line).font({.size = 14}).width(percent(100))});
     };
     return box()
         .width(w)
@@ -216,12 +216,12 @@ struct CardFlip {
         .padding(22)
         .column()
         .gap(10)
-        .transformOrigin(pct(50), pct(100))  // hinged along its bottom edge
+        .transformOrigin(percent(50), percent(100))  // hinged along its bottom edge
         .rotateX(kTilt)
         .rotateY(motion::bind(sway, {.from = {-1, 1}, .to = {-14.0f, 14.0f}}))
         .children(
             {document::h2("TILTED PLATE").font({.size = 18, .track = 3}),
-             document::paragraph(passage).font({.size = 14}).width(pct(100))});
+             document::paragraph(passage).font({.size = 14}).width(percent(100))});
   }
 
   Element describe() const {

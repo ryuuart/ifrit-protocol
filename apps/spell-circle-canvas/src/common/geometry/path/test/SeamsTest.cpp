@@ -279,6 +279,93 @@ SkPath clockwisePolygon(int sides, float radius, float centre) {
 }
 }  // namespace
 
+TEST(Band, AClosedContoursBandClosesWithNoSeamAtItsStartVertex) {
+  // A closed spine's band is a ring between its two rails: every pixel it
+  // covers stands within the band's offset envelope of the spine — on the
+  // side the formation names, no further than the width — and the start
+  // vertex, where the walk begins and ends, is no exception.
+  const SkPath hexagon = clockwisePolygon(6, 100.0f, 200.0f);
+  const std::vector<glm::vec2> corners = flatten(hexagon).front().points;
+  const auto distanceToSpine = [&](glm::vec2 point) {
+    float nearest = 1e9f;
+    for (size_t k = 0; k < corners.size(); ++k) {
+      const glm::vec2 a = corners[k];
+      const glm::vec2 b = corners[(k + 1) % corners.size()];
+      const glm::vec2 edge = b - a;
+      const float along = std::clamp(
+          glm::dot(point - a, edge) / glm::dot(edge, edge), 0.0f, 1.0f);
+      nearest = std::min(nearest, glm::distance(point, a + edge * along));
+    }
+    return nearest;
+  };
+  constexpr float kWidth = 12.0f;
+  // A pixel the antialiased edge touches stands up to a pixel's diagonal
+  // past the geometry.
+  constexpr float kEdge = 1.5f;
+  for (const Formation formation :
+       {Formation::Center, Formation::Outer, Formation::Inner}) {
+    SCOPED_TRACE((int)formation);
+    const SkPath band = bandRegion(hexagon, Profile(kWidth), formation);
+    ASSERT_FALSE(band.isEmpty());
+    SkBitmap coverage;
+    coverage.allocPixels(SkImageInfo::MakeA8(400, 400));
+    coverage.eraseColor(SK_ColorTRANSPARENT);
+    SkCanvas canvas(coverage);
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    canvas.drawPath(band, paint);
+    int outside = 0;
+    for (int y = 0; y < 400; ++y)
+      for (int x = 0; x < 400; ++x) {
+        if (*coverage.getAddr8(x, y) == 0) continue;
+        const glm::vec2 centre{(float)x + 0.5f, (float)y + 0.5f};
+        const float distance = distanceToSpine(centre);
+        const bool inside = hexagon.contains(centre.x, centre.y);
+        // A hexagon turns by sixty degrees, so a mitred rail stands at
+        // most the width over the sine of sixty degrees off a vertex.
+        const float reach =
+            (formation == Formation::Center ? kWidth * 0.5f : kWidth) /
+            std::sin(3.14159265f / 3.0f);
+        const bool onItsSide = formation == Formation::Center ||
+                               (formation == Formation::Outer) != inside ||
+                               distance <= kEdge;
+        if (distance > reach + kEdge || !onItsSide) ++outside;
+      }
+    EXPECT_EQ(outside, 0) << outside
+                          << " pixels of a closed hexagon's band stand outside "
+                             "its offset envelope";
+
+    // Its boundary is its two rails and nothing else: drawn as a hairline,
+    // every pixel stands on a rail, none on a chord across the ring.
+    SkBitmap boundary;
+    boundary.allocPixels(SkImageInfo::MakeA8(400, 400));
+    boundary.eraseColor(SK_ColorTRANSPARENT);
+    SkCanvas outline(boundary);
+    SkPaint hairline;
+    hairline.setStyle(SkPaint::kStroke_Style);
+    hairline.setStrokeWidth(1.0f);
+    outline.drawPath(band, hairline);
+    const std::vector<float> rails =
+        formation == Formation::Center ? std::vector<float>{kWidth * 0.5f}
+                                       : std::vector<float>{0.0f, kWidth};
+    int across = 0;
+    for (int y = 0; y < 400; ++y)
+      for (int x = 0; x < 400; ++x) {
+        if (*boundary.getAddr8(x, y) == 0) continue;
+        const float distance =
+            distanceToSpine({(float)x + 0.5f, (float)y + 0.5f});
+        bool onARail = false;
+        for (const float rail : rails)
+          onARail |= distance >= rail - kEdge &&
+                     distance <= rail / std::sin(3.14159265f / 3.0f) + kEdge;
+        if (!onARail) ++across;
+      }
+    EXPECT_EQ(across, 0) << across
+                         << " pixels of a closed hexagon's band boundary stand "
+                            "on neither rail";
+  }
+}
+
 TEST(Band, AVaryingRailJoinsAtTheRealVerticesInsteadOfLoopingAtACorner) {
   const SkPath hexagon = clockwisePolygon(6, 100.0f, 200.0f);
   ASSERT_GT(flatten(hexagon).front().signedArea(), 0.0f) << "clockwise";

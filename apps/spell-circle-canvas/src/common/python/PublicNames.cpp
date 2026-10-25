@@ -46,6 +46,7 @@ constexpr std::array<std::pair<std::string_view, std::string_view>, 98> kPublic{
     {"compose.textFx", "sigil.compose.textFx"},
     {"compose.tiles", "sigil.compose.tiles"},
     {"core", "sigil.core"},
+    {"core.angle", "sigil.core.angle"},
     {"core.chance", "sigil.core.chance"},
     {"core.hardware", "sigil.core.hardware"},
     {"core.hash", "sigil.core.hash"},

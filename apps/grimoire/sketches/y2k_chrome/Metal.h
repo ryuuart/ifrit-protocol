@@ -79,7 +79,7 @@ inline material::Material smokedGlass() {
                                        {1.0f, material::hexColor(0x1B3552)}}))
       .effects(
           material::Filter::shadow(
-              {0, 0, 0, 0.78f}, {.blur = 6, .offset = {0, 3}, .inside = true})
+              {0, 0, 0, 0.78f}, {.blur = 6, .offset = {0, 3}, .inset = true})
               .then(material::Filter::bevel(
                   {.depth = 1.3f,
                    .size = 0.65f,

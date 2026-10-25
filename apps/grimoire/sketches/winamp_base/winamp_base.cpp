@@ -1063,7 +1063,7 @@ struct WinampBase {
             stack()
                 .width(kDesktopWidth)
                 .height(kDesktopHeight)
-                .transformOrigin(pct(0), pct(0))
+                .transformOrigin(percent(0), percent(0))
                 .scale(kSkinPixel)
                 .children({
                     pen(

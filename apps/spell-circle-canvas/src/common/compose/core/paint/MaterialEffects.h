@@ -18,10 +18,20 @@
 #include <vector>
 
 class SkCanvas;
+class SkPaint;
 
 namespace sigil::compose::detail {
 
 struct ElementNode;
+
+/** AN INNER SHADOW in @p ink: a band hugging the inner edge of the
+ *  outline at @p context, cast along @p offset (so a downward offset
+ *  shades the top inner edge), @p blur soft and @p spread wider, cut to
+ *  the shape. The band is finite, so a layer cached at an offset from the
+ *  origin paints the same band. */
+void paintInnerShadow(SkCanvas& canvas, const PaintContext& context,
+                      const SkPaint& ink, glm::vec2 offset, float blur,
+                      float spread);
 
 /** One coverage step, painted around the node's outline. */
 struct CoverageMark {

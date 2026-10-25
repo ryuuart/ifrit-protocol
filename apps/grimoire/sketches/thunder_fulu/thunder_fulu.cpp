@@ -555,7 +555,7 @@ struct ThunderFulu {
     return kit::at(474, 786, 104, 104)
         .cache(Cache::Texture)
         .rotate(-6.0f)
-        .transformOrigin(pct(50), pct(50))
+        .transformOrigin(percent(50), percent(50))
         .opacity(
             bind(score, {.from = {kSeal, kSeal + 0.08f}, .clampFrom = true}))
         // The seal is brought down from above the plate and lands hard:

@@ -59,7 +59,7 @@ struct Table {
 
   /** THE WIDTH THE MARKUP GAVE A COLUMN, where it gave one, as ONE length
    *  per column: `Dimension` in pixels (`120`, `120_px`), in percent
-   *  (`30_pct`), or `autoDimension()` for a column sized by what is in it. A
+   *  (`30_percent`), or `autoDimension()` for a column sized by what is in it. A
    *  width of no pixels is that same auto column, and a list shorter than
    *  the grid leaves the columns past its end sized that way too.
    *
@@ -204,7 +204,7 @@ struct Table {
     for (size_t c = 0; c < declaredWidths.size() && c < (size_t)cols; ++c) {
       const Dimension& asked = declaredWidths[c];
       const float px = asked.unit == Dimension::Unit::Px ? asked.value
-                       : asked.unit == Dimension::Unit::Pct
+                       : asked.unit == Dimension::Unit::Percent
                            ? room * asked.value / 100.0f
                            : 0.0f;
       if (px <= 0) continue;  // auto, and a width of nothing with it

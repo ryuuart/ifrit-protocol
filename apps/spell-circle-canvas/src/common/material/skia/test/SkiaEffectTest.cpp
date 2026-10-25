@@ -627,3 +627,39 @@ TEST(SkiaEffect, ConstantAndSlotEditsLeaveHeldFilterCopiesUnchanged) {
   expectFilterCenter(skia::resolvedImageFilter(shared), {0.5f, 0.5f, 0.5f, 1});
   expectFilterCenter(heldImage, {0.25f, 0.25f, 0.25f, 1});
 }
+
+TEST(SkiaEffect, TheFourRemainingCssColourFunctionsMapAsCssDefinesThem) {
+  // Over a square of (0.8, 0.4, 0.2): grayscale(1) is its luminance grey,
+  // sepia(1) the sepia matrix's tone, invert(1) its complement, invert(0.5)
+  // a flat mid-grey, and opacity(0.5) the same colour at half its
+  // coverage, which over the field's opaque black reads half as bright.
+  // Each at 0 leaves the colour as it was.
+  const std::array<float, 4> source = {0.8f, 0.4f, 0.2f, 1.0f};
+  const auto through = [&](const Filter& filter) {
+    const auto pixels = sigil::material::test::bloomThrough(
+        skia::resolvedImageFilter(filter, nullptr),
+        {source[0], source[1], source[2], source[3]});
+    const float* center = sigil::material::test::texel(pixels, 32, 32);
+    return std::array<float, 4>{center[0], center[1], center[2], center[3]};
+  };
+  const auto near = [](std::array<float, 4> actual,
+                       std::array<float, 4> expected) {
+    for (size_t channel = 0; channel < 4; ++channel) {
+      SCOPED_TRACE(channel);
+      EXPECT_NEAR(actual[channel], expected[channel], 2.0f / 255);
+    }
+  };
+  const float grey = 0.2126f * 0.8f + 0.7152f * 0.4f + 0.0722f * 0.2f;
+  near(through(Filter::grayscale(1)), {grey, grey, grey, 1});
+  near(through(Filter::grayscale(0)), source);
+  near(through(Filter::sepia(1)),
+       {std::min(1.0f, 0.393f * 0.8f + 0.769f * 0.4f + 0.189f * 0.2f),
+        0.349f * 0.8f + 0.686f * 0.4f + 0.168f * 0.2f,
+        0.272f * 0.8f + 0.534f * 0.4f + 0.131f * 0.2f, 1});
+  near(through(Filter::invert(1)), {0.2f, 0.6f, 0.8f, 1});
+  near(through(Filter::invert(0.5f)), {0.5f, 0.5f, 0.5f, 1});
+  near(through(Filter::opacity(0.5f)), {0.4f, 0.2f, 0.1f, 1});
+  // A proportion past one is held at one, as CSS's is.
+  near(through(Filter::invert(3)), {0.2f, 0.6f, 0.8f, 1});
+  EXPECT_FALSE(Filter::grayscale(1) == Filter::sepia(1));
+}

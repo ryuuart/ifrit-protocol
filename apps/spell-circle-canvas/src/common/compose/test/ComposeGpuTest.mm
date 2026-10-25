@@ -329,7 +329,7 @@ Element coverageSheetOverATurningBar(const sigil::motion::Animatable<float> &tur
                     .top(100)
                     .width(160)
                     .height(40)
-                    .transformOrigin(pct(50), pct(50))
+                    .transformOrigin(percent(50), percent(50))
                     .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
                     .fill(Fill::color({0.9f, 0.7f, 0.3f, 1}));
   return box().children(

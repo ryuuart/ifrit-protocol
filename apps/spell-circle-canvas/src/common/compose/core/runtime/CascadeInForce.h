@@ -127,7 +127,7 @@ struct CascadeInForce {
   // in the properties, rewrites its Yoga style. Written with the style.
   bool relativeLengths = false;
   // Whether any length this node's layout declares is measured against the
-  // CANVAS — a pw or a ph. Those are resolved into pixels before Yoga sees
+  // CANVAS — a vw, vh, vmin or vmax. Those are resolved into pixels before Yoga sees
   // them, so a canvas that changes size has to have this style written
   // again; nothing else notices a resize.
   bool canvasLengths = false;

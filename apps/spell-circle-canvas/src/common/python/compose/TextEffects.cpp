@@ -145,10 +145,14 @@ void bindDisplaced(py::module_& effects) {
       "its way and at opacity, and on a variable axis.";
   displaced.def_readwrite("dx", &Displaced::dx)
       .def_readwrite("dy", &Displaced::dy)
-      .def_readwrite("rotateDegrees", &Displaced::rotateDegrees)
+      .def_property(
+          "rotateDegrees", angleGetter(&Displaced::rotateDegrees),
+          angleSetter<AngleInDegrees>(&Displaced::rotateDegrees))
       .def_readwrite("scale", &Displaced::scale)
       .def_readwrite("scatterPx", &Displaced::scatterPx)
-      .def_readwrite("scatterLeanDegrees", &Displaced::scatterLeanDegrees)
+      .def_property(
+          "scatterLeanDegrees", angleGetter(&Displaced::scatterLeanDegrees),
+          angleSetter<AngleInDegrees>(&Displaced::scatterLeanDegrees))
       .def_readwrite("fadeOver", &Displaced::fadeOver)
       .def_readwrite("opacity", &Displaced::opacity)
       .def_readwrite("axis", &Displaced::axis)
@@ -229,15 +233,21 @@ void bindGlyphModifier(py::module_& effects) {
   modifier.def_readwrite("dx", &GlyphModifier::dx)
       .def_readwrite("dy", &GlyphModifier::dy)
       .def_readwrite("scale", &GlyphModifier::scale)
-      .def_readwrite("rotateDegrees", &GlyphModifier::rotateDegrees)
+      .def_property(
+          "rotateDegrees", angleGetter(&GlyphModifier::rotateDegrees),
+          angleSetter<AngleInDegrees>(&GlyphModifier::rotateDegrees))
       .def_readwrite("alpha", &GlyphModifier::alpha);
   colorLane("colorMultiplier", &GlyphModifier::colorMultiplier);
   colorLane("colorAdd", &GlyphModifier::colorAdd);
   colorLane("colorScreen", &GlyphModifier::colorScreen);
   modifier.def_readwrite("scaleX", &GlyphModifier::scaleX)
       .def_readwrite("scaleY", &GlyphModifier::scaleY)
-      .def_readwrite("skewXDegrees", &GlyphModifier::skewXDegrees)
-      .def_readwrite("skewYDegrees", &GlyphModifier::skewYDegrees)
+      .def_property(
+          "skewXDegrees", angleGetter(&GlyphModifier::skewXDegrees),
+          angleSetter<AngleInDegrees>(&GlyphModifier::skewXDegrees))
+      .def_property(
+          "skewYDegrees", angleGetter(&GlyphModifier::skewYDegrees),
+          angleSetter<AngleInDegrees>(&GlyphModifier::skewYDegrees))
       .def_readwrite("axis", &GlyphModifier::axis)
       .def_property(
           "codepoint",
@@ -346,12 +356,21 @@ void bindComposeTextEffects(pybind11::module_& module) {
   effects.def("pop", &textFx::pop, py::arg("fromScale") = 0.35f,
               py::arg("overshoot") = 1.70158f,
               "Each glyph grows from small, past its size and back.");
-  effects.def("spinIn", &textFx::spinIn, py::arg("degrees") = 70.0f,
-              py::arg("risePx") = 14.0f,
-              "Each glyph straightens out of a lean as it rises.");
-  effects.def("scatter", &textFx::scatter, py::arg("radiusPx") = 40.0f,
-              py::arg("leanDegrees") = 24.0f,
-              "Each glyph gathers from a seeded scatter.");
+  effects.def(
+      "spinIn",
+      [](AngleInDegrees degrees, float risePx) {
+        return textFx::spinIn(degrees.value, risePx);
+      },
+      py::arg("degrees") = AngleInDegrees{70.0f}, py::arg("risePx") = 14.0f,
+      "Each glyph straightens out of a lean as it rises.");
+  effects.def(
+      "scatter",
+      [](float radiusPx, AngleInDegrees leanDegrees) {
+        return textFx::scatter(radiusPx, leanDegrees.value);
+      },
+      py::arg("radiusPx") = 40.0f,
+      py::arg("leanDegrees") = AngleInDegrees{24.0f},
+      "Each glyph gathers from a seeded scatter.");
   effects.def("typeOn", &textFx::typeOn,
               "Each glyph appears whole at its turn, as typed.");
   effects.def(

@@ -148,7 +148,7 @@ inline Element ballFilmstrip(const sk_sp<SkRuntimeEffect>& program) {
             .fill(ballMaterial(program, 0.1f * (float)frame, C5(0xFF6B29),
                                C5(0xC64210), C5(0x521800), 0.05f));
     if (landing)
-      ball.scaleX(1.14f).scaleY(0.84f).transformOrigin(pct(50), pct(100));
+      ball.scaleX(1.14f).scaleY(0.84f).transformOrigin(percent(50), percent(100));
     strip.children({std::move(ball)});
   }
   return strip;
@@ -325,7 +325,7 @@ inline Element navLabel(weave::FontContext& fonts, const Label& label,
   Element run = text(label.text).font(styleAt(size));
   run.ink(material::from(label.ink).effects(keyline));
   run.left(left).top(top).width(measured.width() + 4.0f);
-  if (condense < 0.999f) run.scaleX(condense).transformOrigin(pct(0), pct(50));
+  if (condense < 0.999f) run.scaleX(condense).transformOrigin(percent(0), percent(50));
   return run;
 }
 
@@ -651,7 +651,7 @@ inline Element artPressBox(sigil::weave::FontContext& fonts,
   // (125, 14): atan2(-27, 120) = -12.6 degrees.
   Element ship = rect(0, 0, width, height)
                      .rotate(-12.6f)
-                     .transformOrigin(pct(50), pct(50));
+                     .transformOrigin(percent(50), percent(50));
   // dorsal fin, swept back from mid-body
   ship.children(
       {rect(38, 6, 52, 20)
@@ -764,7 +764,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts, const Label&) {
         .width(natural.width() + 4.0f)
         .scaleX(condense)
         .skewX(lean)
-        .transformOrigin(pct(0), pct(50));
+        .transformOrigin(percent(0), percent(50));
   };
 
   return artBox(width, height)
@@ -818,7 +818,7 @@ inline Element wordmark(weave::FontContext& fonts, const Label& label,
       .top(-height * 0.22f)
       .width(natural.width() + 4.0f);
   if (natural.width() > measure)
-    run.scaleX(measure / natural.width()).transformOrigin(pct(0), pct(50));
+    run.scaleX(measure / natural.width()).transformOrigin(percent(0), percent(50));
   return artBox(width, height).children({std::move(run)});
 }
 

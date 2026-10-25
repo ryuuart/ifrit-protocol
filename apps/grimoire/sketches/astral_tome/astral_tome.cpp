@@ -280,7 +280,7 @@ struct AstralTome {
         box()
             .rect(at::gx(guiX), at::gy(guiY), at::g(30), at::g(15))
             .key(k)
-            .transformOrigin(pct(50), pct(50))
+            .transformOrigin(percent(50), percent(50))
             .shape(shapes::arrow(0.34f, 0.42f))
             .rotate(flip ? 180.0f : 0.0f)
             .fill(sigil::material::linearGradient(

@@ -345,7 +345,7 @@ TEST(ComposeRuleScope, ARulesDepthOfPivotIsLeftOut) {
   const auto scene = [](Dimension depth) {
     return box()
         .applyStyleSheet(StyleSheet{
-            rule(".turned").rotate(30).transformOrigin(pct(0), pct(0), depth)})
+            rule(".turned").rotate(30).transformOrigin(percent(0), percent(0), depth)})
         .children(
             {box().styleClass("turned").width(60).height(60).fill(red())});
   };

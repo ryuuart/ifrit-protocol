@@ -131,12 +131,20 @@ geometry::path::Outline cornerGaps(const geometry::path::Outline& src,
 
 float Line::bleed() const {
   const float casing = parallels > 1 ? gap * (float)(parallels - 1) : 0.0f;
-  return width + casing + waveAmplitude + std::abs(across) +
-         std::max({tickLength * 0.5f, markerSize, 0.0f});
+  const float heads = std::max({tickLength * 0.5f, markerSize, 0.0f});
+  const float run = width + casing + waveAmplitude + std::abs(across);
+  if (join != geometry::path::Join::Miter) return run + heads;
+  // A mitred corner grows everything that turns it: the outermost rail's
+  // offset, which the casing construction mitres, and the stroke laid on
+  // it, each up to the renderer's miter limit in half-widths.
+  const float turned = std::abs(across) + casing * 0.5f + waveAmplitude;
+  return std::max(run, detail::kDefaultMiterLimit * turned +
+                           detail::strokeReach(width, join,
+                                               geometry::path::Cap::Round)) +
+         heads;
 }
 
 bool Line::staysOnOutline() const {
-  if (join == geometry::path::Join::Miter) return false;
   // A tie reaches half its length off the run, which `bleed()` holds, and
   // half its own width past its end, which the line's width holds.
   const float tie = tickWidth > 0 ? tickWidth : width;

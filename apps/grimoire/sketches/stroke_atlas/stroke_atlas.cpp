@@ -56,7 +56,7 @@ struct StrokeAtlasSketch {
         // is the actual payload: a reader is here to learn what to type.
         plate.children({box()
                             .rect(originX, originY - 19, length, 38)
-                            .transformOrigin(pct(0), pct(50))
+                            .transformOrigin(percent(0), percent(50))
                             .rotate(deg)
                             .shape(hline())
                             .stroke(fan[(size_t)i].dec)});
@@ -406,7 +406,7 @@ struct StrokeAtlasSketch {
                                                                        : 0.0f);
         Element frame = box()
                             .rect(x, y, 150, 100)
-                            .transformOrigin(pct(50), pct(50))
+                            .transformOrigin(percent(50), percent(50))
                             .rotate(frames[i].rot)
                             .shape(frames[i].shape);
         const Frame& spec = frames[i];

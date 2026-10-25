@@ -93,15 +93,17 @@ TEST(ComposeLengths, OnlyWhatNeedsSomethingElseToResolveIsRelative) {
   EXPECT_TRUE(Dimension(1_ch).relative());
   EXPECT_FALSE(Dimension(1_pt).relative());
   EXPECT_FALSE(Dimension(1.0f).relative());
-  EXPECT_FALSE(pct(50.0f).relative());
+  EXPECT_FALSE(percent(50.0f).relative());
 }
 
 TEST(ComposeLengths, ALengthWrittenAsTextIsReadInTheUnitItNames) {
   EXPECT_EQ(parseDimension("12"), Dimension(12.0f));
   EXPECT_EQ(parseDimension("12px"), Dimension(12.0f));
-  EXPECT_EQ(parseDimension("50%"), pct(50.0f));
-  EXPECT_EQ(parseDimension("10pw"), pw(10.0f));
-  EXPECT_EQ(parseDimension("10ph"), ph(10.0f));
+  EXPECT_EQ(parseDimension("50%"), percent(50.0f));
+  EXPECT_EQ(parseDimension("10vw"), vw(10.0f));
+  EXPECT_EQ(parseDimension("10vh"), vh(10.0f));
+  EXPECT_EQ(parseDimension("10vmin"), vmin(10.0f));
+  EXPECT_EQ(parseDimension("10VMAX"), vmax(10.0f));
   EXPECT_EQ(parseDimension("1.5em"), Dimension(1.5_em));
   EXPECT_EQ(parseDimension("2rem"), Dimension(2_rem));
   EXPECT_EQ(parseDimension("0.5lh"), Dimension(0.5_lh));
@@ -133,7 +135,8 @@ TEST(ComposeLengths, TextTheGrammarDoesNotCoverAnswersNothing) {
   EXPECT_FALSE(parseDimension("").has_value());
   EXPECT_FALSE(parseDimension("   ").has_value());
   EXPECT_FALSE(parseDimension("wide").has_value());
-  EXPECT_FALSE(parseDimension("12vh").has_value());
+  EXPECT_FALSE(parseDimension("12pw").has_value());
+  EXPECT_FALSE(parseDimension("12cqw").has_value());
   EXPECT_FALSE(parseDimension("12 px").has_value());
   EXPECT_FALSE(parseDimension("var()").has_value());
 }
@@ -155,7 +158,7 @@ TEST(ComposeLengths, ALeadingPlusIsTheNumbersSign) {
   // the minus would refuse half of what an author copies in.
   EXPECT_EQ(parseDimension("+12px"), Dimension(12.0f));
   EXPECT_EQ(parseDimension("+1.5em"), Dimension(1.5_em));
-  EXPECT_EQ(parseDimension(" +50% "), pct(50.0f));
+  EXPECT_EQ(parseDimension(" +50% "), percent(50.0f));
   EXPECT_FALSE(parseDimension("+").has_value());
 }
 
@@ -163,7 +166,7 @@ TEST(ComposeLengths, ArithmeticInOneUnitStaysInThatUnit) {
   EXPECT_EQ(2 * Dimension(1_em), Dimension(2_em));
   EXPECT_EQ(12_px + 4_px, 16_px);
   EXPECT_EQ(Dimension(3_em) / 3, Dimension(1_em));
-  EXPECT_EQ(50_pct * 2, 100_pct);
+  EXPECT_EQ(50_percent * 2, 100_percent);
   EXPECT_EQ(-(10_px), Dimension(-10.0f));
   // A sum that cancels back to one unit is that unit again, so nothing
   // downstream can tell it was ever a sum.
@@ -224,12 +227,25 @@ TEST(ComposeLengths, ASumRebuiltEveryFrameDoesNotGrowTheTable) {
   EXPECT_EQ(sigil::compose::detail::calcEntries(), before);
 }
 
+TEST(ComposeLengths, AFractionIsANumberOrAPercentage) {
+  // CSS's `<number> | <percentage>` where the two are one amount.
+  EXPECT_EQ(parseFraction("0.5"), 0.5f);
+  EXPECT_EQ(parseFraction(" 50% "), 0.5f);
+  EXPECT_EQ(parseFraction("+150%"), 1.5f);
+  EXPECT_EQ(parseFraction("-25%"), -0.25f);
+  EXPECT_EQ(parseFraction("1"), 1.0f);
+  EXPECT_FALSE(parseFraction("50px").has_value());
+  EXPECT_FALSE(parseFraction("half").has_value());
+  EXPECT_FALSE(parseFraction("").has_value());
+  EXPECT_FALSE(parseFraction("nan%").has_value());
+}
+
 TEST(ComposeLengths, ASumReadsACustomPropertyAndTheCanvas) {
   Host host(400, 200);
   host.composer.render(box().var("gutter", 10_px).children(
       {box()
            .key("measured")
-           .width(Dimension(var("gutter")) * 3 + 10_pw)
+           .width(Dimension(var("gutter")) * 3 + 10_vw)
            .height(10)}));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host), 3.0f * 10.0f + 0.1f * 400.0f);
@@ -239,26 +255,26 @@ TEST(ComposeLengths, APercentageIsATermOfTheSumAndAutoIsRefused) {
   // A percentage is kept in the sum for the property that knows its
   // extent; auto is no length, and arithmetic on it is refused and said
   // once.
-  EXPECT_EQ((50_pct + Dimension(1_em)).unit, Dimension::Unit::Calc);
-  EXPECT_EQ(12_px - 50_pct, -(50_pct - 12_px));
-  EXPECT_EQ(50_pct + Dimension(1_em) - Dimension(1_em), 50_pct)
+  EXPECT_EQ((50_percent + Dimension(1_em)).unit, Dimension::Unit::Calc);
+  EXPECT_EQ(12_px - 50_percent, -(50_percent - 12_px));
+  EXPECT_EQ(50_percent + Dimension(1_em) - Dimension(1_em), 50_percent)
       << "a sum that cancels back to its percentage is that percentage";
   EXPECT_EQ(autoDimension() * 2, autoDimension());
-  EXPECT_EQ(autoDimension() + 50_pct, autoDimension());
+  EXPECT_EQ(autoDimension() + 50_percent, autoDimension());
   // A division by zero is no length, refused as the calc() text refuses it.
   EXPECT_EQ(Dimension(1_em) / 0.0f, autoDimension());
   EXPECT_EQ((Dimension(1_em) + 12_px) / 0.0f, autoDimension());
   // A zero of pixels adds nothing, so it may stand beside one.
-  EXPECT_EQ(50_pct + 0_px, 50_pct);
-  EXPECT_EQ(50_pct + 25_pct, 75_pct);
+  EXPECT_EQ(50_percent + 0_px, 50_percent);
+  EXPECT_EQ(50_percent + 25_percent, 75_percent);
 }
 
 TEST(ComposeLengths, APercentageSumResolvesWhereItsExtentIsKnown) {
-  // A positioned child knows its containing box, so `pct(50) + 10` is half
+  // A positioned child knows its containing box, so `percent(50) + 10` is half
   // of it and ten more. Flex layout cannot hold the sum — Yoga's percent is
   // a unit of its own — so it says so and lays the property out as auto,
   // and the SAME declaration still resolves where the extent is known.
-  const Dimension halfAndTen = pct(50) + Dimension(10);
+  const Dimension halfAndTen = percent(50) + Dimension(10);
   Host host(400, 200);
   host.composer.render(
       positioned().width(300).height(100).children(
@@ -275,7 +291,7 @@ TEST(ComposeLengths, APercentageSumResolvesWhereItsExtentIsKnown) {
   EXPECT_NE(report.find("flex layout"), std::string::npos)
       << "flex layout dropped the sum without saying so: " << report;
   EXPECT_FLOAT_EQ(widthOf(flex), 0.0f) << "laid out as auto";
-  EXPECT_EQ(halfAndTen, pct(50) + Dimension(10))
+  EXPECT_EQ(halfAndTen, percent(50) + Dimension(10))
       << "the declaration kept the sum as written";
 }
 
@@ -286,7 +302,7 @@ TEST(ComposeLengths, CalcTextReadsAsTheArithmeticDoes) {
   EXPECT_EQ(parseDimension("calc(var(--gutter) / 2 + 1ch)"),
             Dimension(var("gutter")) / 2 + Dimension(1_ch));
   EXPECT_EQ(parseDimension("calc(3 * 4)"), 12_px) << "a bare number is px";
-  EXPECT_EQ(parseDimension("calc(100% + 12px)"), 100_pct + 12_px);
+  EXPECT_EQ(parseDimension("calc(100% + 12px)"), 100_percent + 12_px);
   // A length times a length, a division by nothing or by a length, and a
   // sum with a gap in it are none of them lengths.
   EXPECT_FALSE(parseDimension("calc(1em * 2px)"));
@@ -294,4 +310,88 @@ TEST(ComposeLengths, CalcTextReadsAsTheArithmeticDoes) {
   EXPECT_FALSE(parseDimension("calc(1em / 1px)"));
   EXPECT_FALSE(parseDimension("calc(1em +)"));
   EXPECT_FALSE(parseDimension("calc(auto + 1em)"));
+}
+
+TEST(ComposeLengths, AFontHoldsTheFontUnitsAndAPercentageOfTheTypeSize) {
+  // CSS's font-size and letter-spacing read a percentage as a multiple of
+  // the type size, which is an em here; units a font cannot hold answer
+  // nothing.
+  EXPECT_EQ(fontLength(Dimension(12.0f)), sigil::weave::Length(12.0f));
+  EXPECT_EQ(fontLength(9_pt), sigil::weave::pt(9));
+  EXPECT_EQ(fontLength(1.5_em), sigil::weave::em(1.5f));
+  EXPECT_EQ(fontLength(2_rem), sigil::weave::rem(2));
+  EXPECT_EQ(fontLength(percent(150)), sigil::weave::em(1.5f));
+  EXPECT_FALSE(fontLength(vw(10)).has_value());
+  EXPECT_FALSE(fontLength(Dimension(var("size"))).has_value());
+  EXPECT_FALSE(fontLength(autoDimension()).has_value());
+}
+
+TEST(ComposeLengths, AFontSizeInPercentIsAMultipleOfTheParentsSize) {
+  // `fontSize(150_percent)` under a 40 px parent is 60 px, which an em
+  // measured on the node itself then reads.
+  Host host(400, 200);
+  host.composer.render(pageWith(
+      box().fontSize(150_percent).width(1_em).height(10).flexShrink(0),
+      40.0f));
+  host.frame();
+  EXPECT_FLOAT_EQ(widthOf(host), 60.0f);
+}
+
+TEST(ComposeLengths, ALineHeightInARelativeUnitIsAnAbsolutePitch) {
+  // CSS's line-height as a length: 24 px, 1.5em and 150% of a 20 px type
+  // size are all a 30 px pitch, the same one Leading::absolute states.
+  Host host(400, 400);
+  const auto line = [](const char* key) {
+    return text(u8"A").key(key).flexShrink(0);
+  };
+  host.composer.render(
+      box()
+          .font({.face = sigil::test::instrument::sans(), .size = 20})
+          .column()
+          .children({line("pixels").lineHeight(Dimension(30.0f)),
+                     line("em").lineHeight(1.5_em),
+                     line("percent").lineHeight(150_percent),
+                     line("leading").lineHeight(
+                         sigil::weave::Leading::absolute(30))}));
+  host.frame();
+  const float pitch = require(host.composer.bounds("leading")).height();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("pixels")).height(), pitch);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("em")).height(), pitch);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("percent")).height(), pitch);
+}
+
+TEST(ComposeLengths, ARelativeLineHeightIsInheritedAsThePitchItCameTo) {
+  // CSS computes an em line height where it is stated and hands the
+  // pixels down: a passage set twice as large below keeps the 30 px pitch.
+  Host host(400, 400);
+  host.composer.render(
+      box()
+          .font({.face = sigil::test::instrument::sans(), .size = 20})
+          .lineHeight(1.5_em)
+          .column()
+          .children({text(u8"A").key("inherited").fontSize(40).flexShrink(0),
+                     text(u8"A")
+                         .key("stated")
+                         .fontSize(40)
+                         .lineHeight(sigil::weave::Leading::absolute(30))
+                         .flexShrink(0)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("inherited")).height(),
+                  require(host.composer.bounds("stated")).height());
+}
+
+TEST(ComposeLengths, ANumberLineHeightIsAMultiple) {
+  Host host(400, 400);
+  host.composer.render(
+      box()
+          .font({.face = sigil::test::instrument::sans(), .size = 20})
+          .column()
+          .children({text(u8"A").key("number").lineHeight(2.0f).flexShrink(0),
+                     text(u8"A")
+                         .key("leading")
+                         .lineHeight(sigil::weave::Leading::multiple(2))
+                         .flexShrink(0)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("number")).height(),
+                  require(host.composer.bounds("leading")).height());
 }

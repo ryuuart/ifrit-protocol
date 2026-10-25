@@ -24,6 +24,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <limits>
 #include <optional>
 
@@ -102,6 +103,20 @@ struct Composer::Impl : detail::CascadeRoot,
   boost::unordered_flat_map<std::string, detail::Instance*, core::KeyHash,
                             std::equal_to<>>
       bySlot;
+  // Every class an operator in the tree picks its nodes by: a selector
+  // the composer knows as surely as one a sheet's rule names.
+  boost::unordered_flat_set<std::string, core::KeyHash, std::equal_to<>>
+      operatorClasses;
+  // Content given to a slot no mounted tree holds yet, newest per name,
+  // mounted when a described tree brings the slot: a setup may fill a
+  // slot before it returns the tree that holds it.
+  boost::unordered_flat_map<std::string, std::shared_ptr<detail::ElementNode>,
+                            core::KeyHash, std::equal_to<>>
+      pendingSlots;
+  /** Mounts every held content whose slot now stands in the tree. */
+  void mountPendingSlots();
+  /** Says once per name that content waits for a slot no tree holds. */
+  void warnPendingSlots() const;
   bool liveOnly = false;  // snapshot(): skip per-node caches
   // A pixel bake holds what was painted as pixels, which a surface map
   // canvas cannot tell lit content in from content that is its own colour,
@@ -206,6 +221,23 @@ struct Composer::Impl : detail::CascadeRoot,
   void resolveTextIndent(const detail::Instance& inst, const Dimension& indent,
                          sigil::weave::ParagraphBlock& block,
                          std::optional<float>& percent) const;
+  /** THE ROUNDED BOX @p inst's corners cut from @p bounds: each radius in
+   *  pixels against the font, the canvas and the properties in force at
+   *  the node, a percentage of the box's width across and of its height
+   *  down, as CSS reads one. */
+  SkRRect cornersRRect(const detail::Instance& inst,
+                       const SkRect& bounds) const;
+  /** A translate's length half in pixels along an axis @p extent long:
+   *  a percentage of the node's own box, as CSS's translate reads one,
+   *  anything else against the font, the canvas and the properties in
+   *  force at @p inst. */
+  float translateLength(const detail::Instance& inst, const Dimension& length,
+                        float extent) const;
+  /** lineHeight's @p length resolved at @p inst into an absolute leading
+   *  written into @p block, a percentage being of the node's own type
+   *  size and a custom property read once on the way. */
+  void resolveLineHeight(const detail::Instance& inst, const Dimension& length,
+                         sigil::weave::ParagraphBlock& block) const;
   /** Writes every canvas-relative length in the subtree into its flex style
    *  again, for a canvas that has changed size. */
   void reapplyCanvasLengths(detail::Instance& inst);

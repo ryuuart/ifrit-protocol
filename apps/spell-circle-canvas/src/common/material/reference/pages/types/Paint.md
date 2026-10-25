@@ -55,7 +55,8 @@ Every leaf is a static factory, and each names what it is made of.
 | `Paint::solid(colour)` | C++ | a flat colour |
 | `Paint::linearGradient(start, end, stops)` | C++ | an n-stop gradient between two points, in the box's unit square unless `{.units = GradientUnits::Pixels}` |
 | `Paint::radialGradient(centre, radius, stops)` | C++ | a gradient out of a centre; in box units a radius of 1 reaches the box's corners, or its sides with `{.extent = RadialExtent::ClosestSide}`; `.focus` moves the hot spot while the outer circle stays put |
-| `Paint::conicGradient(centre, stops)` | C++ | a gradient swept around a centre; its window CLAMPS outside the circle rather than wrapping |
+| `Paint::conicGradient(centre, stops)` | C++ | a gradient swept clockwise around a centre from 12 o'clock; a window wider than a turn CLAMPS rather than wrapping |
+| `material::linearGradient(stops, direction)`, `material::radialGradient(stops, shape)`, `material::conicGradient(stops, start)` | C++ | CSS's gradients, the stops first, as materials measured against the box |
 | `skia::image(image)` | C++ | an image or sprite as a fill, repeated or padded past its edges (`Repeat`) |
 | `skia::buffer(source)` | C++ | a caller-owned raster the paint samples — a simulation, a decoded frame, a scrollback |
 | `skia::sksl(effect, constants)` | C++ | a runtime effect as a paint |
@@ -126,12 +127,11 @@ Moving the centre instead couples the falloff to the displacement — the
 entire ramp slides, including its outer edge — where here the outer
 circle stays put and only the hot spot moves.
 
-**`Paint::conicGradient` starts at 3 o'clock, so 12 o'clock is -90°, and
-its window CLAMPS rather than wrapping.** A window from 90 to 450 — the
-obvious way to start a hue wheel at red — paints the quarter before 90°
-in the first stop's flat colour, because no canvas angle ever reaches
-past 360. Rotate the STOPS into [0, 360) instead; the factory warns once
-when a window leaves the circle.
+**`Paint::conicGradient` starts at 12 o'clock, as CSS's conic angles
+do, so 3 o'clock is 90°.** Any window of a turn or less is read whole,
+wherever it starts; a window wider than a turn CLAMPS rather than
+wrapping, painting what lies past the turn in the nearest stop's flat
+colour, and the factory warns once when it does.
 
 **`skia::image` takes a local matrix that maps source px into the
 node's space**, which is where a sprite's atlas sub-rect goes as a
@@ -279,7 +279,9 @@ sketch must not take a live-reload host down.
   `BlendMode`; `skia/Paint.h` — the Skia executor and the sources only
   Skia can supply
 - `core/Gradient.h` — what a gradient is told: `ColorStops`,
-  `GradientOptions`, `GradientUnits`, `RadialExtent`, `Repeat`
+  `GradientOptions`, `GradientUnits`, `RadialExtent`, `Repeat`,
+  `RadialShape`, `Toward`, `LinearDirection`, `RadialEndingShape`,
+  `ConicStart`
 - The verbs on this value: [`bind`](../verbs/bind.md),
   [`slot`](../verbs/slot.md), [`amount`](../verbs/amount.md),
   [`fit`](../verbs/fit.md), [`offset`](../verbs/offset.md),

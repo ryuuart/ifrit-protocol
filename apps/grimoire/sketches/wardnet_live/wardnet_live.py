@@ -405,7 +405,7 @@ class WardNetLive:
         heading = (
             compose.box(label("LOAD", 11, DIM), label(f"{self.target:.0%}", 11, ink))
             .row()
-            .justifyContent("space_between")
+            .justifyContent("space-between")
         )
         return compose.box(heading, track).column().gap(8)
 

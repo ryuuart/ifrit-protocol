@@ -8,6 +8,7 @@
  */
 
 #include <sigilcompose/core/Declarations.h>
+#include <sigilcompose/core/Shadow.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilgeometry/path/Stroke.h>
@@ -16,6 +17,7 @@
 
 #include <cstddef>
 #include <string>
+#include <vector>
 
 namespace sigil::compose {
 
@@ -70,6 +72,15 @@ class DecorationVerbs {
   Derived& background(Spans where, Decoration what, std::string name = {});
   /** A decoration painted OVER the children. */
   Derived& foreground(Decoration d, std::string name = {});
+  /** CSS's `box-shadow`: @p shadow laid where CSS paints it — an outer
+   *  shadow beneath the fill, an inset one over the fill and under the
+   *  content and children — following the node's outline:
+   *  `boxShadow({.offset = {0, 4}, .blur = 12, .color =
+   *  Fill::color(shade)})`. Repeated calls append, as every decoration
+   *  slot does. */
+  Derived& boxShadow(Shadow shadow);
+  /** A list of shadows, the FIRST painted on top, as CSS's list is. */
+  Derived& boxShadow(std::vector<Shadow> shadows);
   /** Dress the node's whole BOUNDARY with a brush. This form does not
    *  CLAIM: it overlays the whole boundary, so repeated calls stack and
    *  never collide. It appends to the foregrounds, which is why the

@@ -29,7 +29,7 @@ def card(value: float, caption: str) -> compose.Element:
                 .left(20)
                 .top(28),
             )
-            .width(compose.pct(100))
+            .width(compose.percent(100))
             .height(120)
             .opacity(value),
             compose.text(caption, size=12, color=ASH),

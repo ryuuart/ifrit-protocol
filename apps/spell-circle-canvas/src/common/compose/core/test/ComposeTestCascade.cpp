@@ -249,7 +249,7 @@ TEST(ComposeCascade, AnOriginInEmsFollowsTheFontItIsMeasuredIn) {
                        .absolute()
                        .rect(0, 0, 100, 20)
                        .fill(red())
-                       .transformOrigin(2_em, pct(0))
+                       .transformOrigin(2_em, percent(0))
                        .scaleX(0.04f)});
   };
   host.composer.render(page(10));

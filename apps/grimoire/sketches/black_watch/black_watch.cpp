@@ -343,7 +343,7 @@ struct BlackWatch {
                                            {0, 0, 0, 0.55f},
                                            {.blur = 1.5f,
                                             .offset = {0, 1.5f},
-                                            .inside = true})))),
+                                            .inset = true})))),
                   document::lead(doc.phrase(words["registration"]))}),
              box().row().gap(13).width(440).styleClass("ticket").children(
                  {kit::line({.thickness = 1,
@@ -382,7 +382,7 @@ struct BlackWatch {
                         .height(10)
                         .shape(shapes::polygon(3, 180))
                         .fill(Fill::var("proof"))
-                        .transformOrigin(pct(50), pct(100))
+                        .transformOrigin(percent(50), percent(100))
                         .scale(sigil::motion::bind(
                             loom, {.from = {kWeaveEnd, kWeaveEnd + 0.035f},
                                    .clampFrom = true,
@@ -400,7 +400,7 @@ struct BlackWatch {
                      {document::caption(doc.phrase(words["pivots"][index]))
                           .styleClass("proof")
                           .textAlign(weave::TextAlignment::kCenter)
-                          .width(pct(100))})});
+                          .width(percent(100))})});
     }
     // The numerals of one repeat, each centred under its own band.
     const std::vector<Run> runs = watch.runs();
@@ -446,7 +446,7 @@ struct BlackWatch {
                 // fell. The warp is the same at every height, so squashing
                 // it only shortens it.
                 layer(warpOnBeam.material())
-                    .transformOrigin(pct(50), pct(100))
+                    .transformOrigin(percent(50), percent(100))
                     .scaleY(sigil::motion::bind(loom,
                                                 {.from = {kBeamEnd, kWeaveEnd},
                                                  .clampFrom = true,
@@ -457,7 +457,7 @@ struct BlackWatch {
                 box()
                     .cover()
                     .fill(Fill::var("well"))
-                    .transformOrigin(pct(100), pct(50))
+                    .transformOrigin(percent(100), percent(50))
                     .scaleX(sigil::motion::bind(loom, {.from = {0, kBeamEnd},
                                                        .clampFrom = true,
                                                        .to = {1.0f, 0.0f}})),
@@ -495,7 +495,7 @@ struct BlackWatch {
           .left(position - 0.5f)
           .top(0)
           .width(1)
-          .height(pct(100))
+          .height(percent(100))
           .fill(Fill::var("proof"))
           .opacity(sigil::motion::bind(
               loom, {.from = {kWeaveEnd, kProveEnd},
@@ -521,7 +521,7 @@ struct BlackWatch {
         {box()
              .left(0)
              .top(0)
-             .width(pct(100))
+             .width(percent(100))
              .height(2)
              .fill(Fill::var("proof"))
              .translateY(atFell(0))
@@ -588,7 +588,7 @@ struct BlackWatch {
                                    faded(colours.shadow, 0.5f),
                                    {.blur = 1.2f, .offset = {0.6f, 1.4f}})))
 
-                     .transformOrigin(pct(0), pct(50))
+                     .transformOrigin(percent(0), percent(50))
                      .scaleX(sigil::motion::bind(
                          loom, {.from = {0, kBeamEnd}, .clampFrom = true})),
                  clothPanel()});

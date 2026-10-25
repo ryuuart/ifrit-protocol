@@ -52,7 +52,7 @@ Element rotatedInstrument(float rotationDegrees, bool flagged) {
                    .rect(20, 20, 160, 160)
                    .key("group")
                    .rotate(rotationDegrees)
-                   .transformOrigin(pct(50), pct(50));
+                   .transformOrigin(percent(50), percent(50));
   // The corner child makes the panel RECORD — a childless leaf paints
   // live and re-resolves on every reach, which would hide a stale-W
   // recording from every pin built on this fixture.
@@ -253,7 +253,7 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
                      .rect(20, 20, 160, 160)
                      .key("group")
                      .rotate(rot)
-                     .transformOrigin(pct(50), pct(50));
+                     .transformOrigin(percent(50), percent(50));
     group.children(
         {box()
              .absolute()
@@ -413,7 +413,7 @@ TEST(ComposeWorldSpace, AMaterialMarkedWorldSpaceAnchorsAsItsPaintDoes) {
                                .width(60)
                                .height(50)
                                .rotate(30)
-                               .transformOrigin(pct(50), pct(50))
+                               .transformOrigin(percent(50), percent(50))
                                .fill(ramp)});
   };
   for (const float shift : {0.0f, 23.0f}) {

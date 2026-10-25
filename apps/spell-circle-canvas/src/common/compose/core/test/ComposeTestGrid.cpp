@@ -753,7 +753,7 @@ TEST(ComposeGrid, EqualModulesRespectSpansAndFlowIntoFreeCells) {
                            .gap = {8, 8}};
   host.composer.render(box().children(
       {layout(grid)
-           .width(pct(100))
+           .width(percent(100))
            .flexGrow(1)
            .children({box().key("a").gridCells(0, 0, 2, 1).fill(red())})
            .children({box().key("b").gridCells(3, 0, 1, 3).fill(blue())})
@@ -841,7 +841,7 @@ TEST(ComposeGrid, AGridItemsPercentagesAreOfItsCellNotTheGrid) {
            .children({image(sigil::media::PixelSource(picture)).key("picture")})
            .children({box()
                           .key("half")
-                          .width(pct(50))
+                          .width(percent(50))
                           .height(20)
                           .gridCellAlign(Align::Start, Align::Start)
                           .fill(red())})}));

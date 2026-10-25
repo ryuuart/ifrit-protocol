@@ -7,6 +7,7 @@
  * them as.
  */
 
+#include <glm/vec2.hpp>
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Element.h>
 
@@ -17,6 +18,21 @@ namespace sigil::python {
 /** A length read from @p value: a number is pixels, and a string is
  *  "auto", a percentage, or a number with its unit after it. */
 compose::Dimension dimension(pybind11::handle value);
+/** A length in pixels read from @p value, for a slot nothing resolves a
+ *  relative length in — a shadow's offset and blur, a stroke's width: a
+ *  number is pixels, and text or a typed length is read by the one length
+ *  grammar and taken where its unit is absolute (`"4px"`, `"3pt"`). A
+ *  length against the font, the canvas or the box raises, naming
+ *  @p slot. */
+float pixels(pybind11::handle value, const char* slot);
+/** A fraction read from @p value — CSS's number or percentage where the
+ *  two are one amount: a number is itself, and `"50%"` or
+ *  `compose.percent(50)` is 0.5. Anything else raises, naming @p slot. */
+float fraction(pybind11::handle value, const char* slot);
+/** An offset in pixels read from @p value: a pair whose two entries are
+ *  each read as `pixels` reads one — `(0, 4)`, `("0px", "4px")` — or a
+ *  point. Anything else raises, naming @p slot. */
+glm::vec2 pixelOffset(pybind11::handle value, const char* slot);
 /** A fill read from @p value: None is no fill, a paint or a material is
  *  that paint, a token is the variable it names, the text
  *  `currentcolor` is the ink in force and `var(--name)` the custom

@@ -86,6 +86,9 @@ class Scene2DSession final : public Session {
     // for a frame, so what lies beneath a node is what the composer
     // painted over that ground, and a backdrop can keep what it filtered.
     m_composer->setGroundHeld(true);
+    // A session opened under the wall's clock is watched as it runs; one
+    // opened for a capture is photographed, and paints every node live.
+    m_composer->setLive(!deterministic);
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
     // inside setup. The second call is a no-op when they agree.
@@ -122,7 +125,13 @@ class Scene2DSession final : public Session {
    *  scene stands at: a bake re-runs at that scale instead of being
    *  upsampled, and the clock does not move, so the still shows the
    *  moment it was asked for. */
-  void still(SkCanvas& canvas) override { frame(canvas, 0.0); }
+  void still(SkCanvas& canvas) override {
+    // A still is photographed, so it is painted live whatever was moving
+    // when it was asked for.
+    m_composer->setLive(false);
+    frame(canvas, 0.0);
+    m_composer->setLive(!m_deterministic);
+  }
 
   [[nodiscard]] float oversample() const override {
     return kScene2DOversample;
@@ -212,6 +221,9 @@ class Scene2DSession final : public Session {
           break;
         case Cache::Group:
           state = "[group — subtree baked whole while its bindings hold still]";
+          break;
+        case Cache::Moving:
+          state = "[moving — pixels held while its own transform moves]";
           break;
       }
       char line[320];

@@ -55,6 +55,7 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.compose.textFx": "sigil.compose.textFx",
     "_sigil.compose.tiles": "sigil.compose.tiles",
     "_sigil.core": "sigil.core",
+    "_sigil.core.angle": "sigil.core.angle",
     "_sigil.core.chance": "sigil.core.chance",
     "_sigil.core.hardware": "sigil.core.hardware",
     "_sigil.core.hash": "sigil.core.hash",

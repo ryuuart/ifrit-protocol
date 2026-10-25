@@ -192,7 +192,7 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
                         hole.shade.colorValue,
                         {.blur = hole.blur,
                          .offset = sigil::geometry::path::fromSk(hole.offset),
-                         .inside = true})))
+                         .inset = true})))
           .overlay(compose::styles::bevelPair(*hole.lipLight, *hole.lipDark,
                                               hole.lipWidth,
                                               /*sunken=*/true)),

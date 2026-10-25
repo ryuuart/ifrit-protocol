@@ -173,7 +173,7 @@ TEST(ComposeLayerStyles, AnInnerShadowDarkensARimInsideTheOutline) {
   Host host(120, 120);
   paintBox(host,
            box().fill(material::from(kGrey).effects(material::Filter::shadow(
-               {0, 0, 0, 0.9f}, {.blur = 6, .inside = true}))));
+               {0, 0, 0, 0.9f}, {.blur = 6, .inset = true}))));
   const int centre = luminance(host.pixel(60, 60));
   EXPECT_EQ(host.pixel(60, 60), 0xFF808080u);
   for (const auto& [x, y] : {std::pair{21, 60}, std::pair{98, 60},

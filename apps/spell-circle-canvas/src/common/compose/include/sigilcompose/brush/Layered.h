@@ -62,14 +62,10 @@ struct LayeredBrush {
    *
    *  Taken per layer and then maximised, not summed: a wide hard core and a
    *  narrow soft halo do not compound, since each layer reaches from the
-   *  path independently. Blur counts as 3σ, which covers over 99% of a
-   *  Gaussian. */
-  float bleed() const {
-    float reach = 0;
-    for (const StrokeLayer& layer : layers)
-      reach = std::max(reach, layer.width * 0.5f + layer.blurSigma * 3.0f);
-    return reach;
-  }
+   *  path independently. A pass meets its corners mitred, so its reach
+   *  is its half width grown to the renderer's miter limit. Blur counts
+   *  as 3σ, which covers over 99% of a Gaussian. */
+  float bleed() const;
   /** The widest layer's full mark (see PathFormat::reach). */
   float reach() const {
     float widest = 0;
@@ -77,11 +73,9 @@ struct LayeredBrush {
       widest = std::max(widest, layer.width + layer.blurSigma * 3.0f);
     return widest;
   }
-  /** Whether every pass stands within `bleed()` of the outline it is
-   *  handed (OutlineDecoration). A pass meets its corners mitred, which
-   *  reaches past its half width, so the stack stays on the outline only
-   *  where a wider pass's reach already holds every mitre. */
-  bool staysOnOutline() const;
+  /** Every pass is the outline it is handed, stroked and softened, and
+   *  `bleed()` holds its mitres and its blur (OutlineDecoration). */
+  bool staysOnOutline() const { return true; }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };

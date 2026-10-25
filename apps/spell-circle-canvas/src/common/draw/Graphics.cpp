@@ -5,6 +5,10 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSamplingOptions.h>
+#if defined(SK_GRAPHITE)
+#include <include/gpu/graphite/Recorder.h>
+#include <src/gpu/graphite/RecorderPriv.h>
+#endif
 #include <sigildraw/Graphics.h>
 
 #include <algorithm>
@@ -12,6 +16,7 @@
 #include <limits>
 #include <new>
 #include <stdexcept>
+#include <thread>
 
 namespace sigil::draw {
 namespace {
@@ -29,6 +34,19 @@ int pixelDimension(float units, float density) {
   return static_cast<int>(std::max(1.0, pixels));
 }
 
+/** WHICH DEVICE @p canvas RECORDS ONTO, as an identity: the capabilities
+ *  of a Graphite recorder's shared context, which every recorder on one
+ *  context shares and no other context does, or a Ganesh recording
+ *  context; null for a canvas on no device. */
+const void* deviceOf(SkCanvas* canvas) {
+  if (!canvas) return nullptr;
+#if defined(SK_GRAPHITE)
+  if (skgpu::graphite::Recorder* recorder = canvas->recorder())
+    return recorder->priv().caps();
+#endif
+  return canvas->recordingContext();
+}
+
 }  // namespace
 
 Graphics::Graphics(float width, float height)
@@ -40,16 +58,39 @@ void Graphics::setDensityFloor(float devicePixelsPerUnit) {
   m_densityFloor = std::max(0.0f, devicePixelsPerUnit);
 }
 
+bool Graphics::standsWhere(Pen& host) const {
+  if (!m_surface) return false;
+  // A host that records onto no device — one that draws nothing, or a
+  // raster canvas — forms nothing, so the buffer stands where it is.
+  const void* const device = deviceOf(host.canvas());
+  if (!device) return true;
+  // A device that refused the buffer is not asked again at every frame:
+  // the buffer stays on the raster it took instead.
+  if (!m_device && device == m_refusedBy) return true;
+  // A device's recorder belongs to the thread that made it, so a buffer on
+  // the device is drawn into on the thread it was formed on and no other.
+  return m_device == device && m_thread == std::this_thread::get_id();
+}
+
+void Graphics::follow(Pen& host) {
+  if (!m_surface || standsWhere(host)) return;
+  form(host, m_extent);
+}
+
 void Graphics::form(Pen& host) {
   const float density = std::max(host.contentScale(), m_densityFloor);
   if (!std::isfinite(density) || density < 0)
     throw std::invalid_argument(
         "Graphics host density must be finite and nonnegative");
-  const SkISize extent{pixelDimension(m_width, density),
-                       pixelDimension(m_height, density)};
+  form(host, {pixelDimension(m_width, density),
+              pixelDimension(m_height, density)});
+}
+
+void Graphics::form(Pen& host, SkISize extent) {
   const SkSize scale{(float)extent.width() / m_width,
                      (float)extent.height() / m_height};
-  if (m_surface && m_extent == extent) {
+  const bool stands = standsWhere(host);
+  if (m_surface && m_extent == extent && stands) {
     // The units the buffer's pen draws in are its canvas size whatever
     // extent the surface was formed at, so a `resize` too small to move
     // the rounded extent still moves the scale.
@@ -58,16 +99,19 @@ void Graphics::form(Pen& host) {
   }
   const SkImageInfo info = SkImageInfo::MakeN32Premul(extent);
   // FORMED WHERE THE HOST DRAWS, through the host's canvas, so a buffer
-  // begun under a device stands on that device; and RE-FORMED BESIDE
-  // ITSELF, so it stays where it was formed whatever host begins it next.
-  // A host whose canvas makes no surface — one that draws nothing, or a
+  // begun under a device stands on that device. A re-form at another size
+  // is made BESIDE ITSELF while the buffer stands where its host draws;
+  // a buffer its host's device cannot reach — on raster, on another
+  // context, or on another thread's recorder — FOLLOWS the host there. A
+  // host whose canvas makes no surface — one that draws nothing, or a
   // device refusing the extent — forms it on raster.
   SkCanvas* const hostCanvas = host.canvas();
   sk_sp<SkSurface> surface;
-  if (m_surface) {
+  if (m_surface && stands) {
     surface = m_surface->makeSurface(info);
   } else {
     if (hostCanvas) surface = hostCanvas->makeSurface(info);
+    m_refusedBy = surface ? nullptr : deviceOf(hostCanvas);
     if (!surface) surface = SkSurfaces::Raster(info);
   }
   if (!surface) throw std::bad_alloc();
@@ -75,15 +119,23 @@ void Graphics::form(Pen& host) {
   target.clear(SK_ColorTRANSPARENT);
   // A REPLACEMENT CARRIES THE PICTURE OVER, scaled from the extent it was
   // drawn at to the one it is kept at: a buffer is where earlier frames
-  // accumulate, so moving the density or the size must not erase them.
-  if (m_surface) {
+  // accumulate, so moving the density, the size, the thread or the
+  // device's recorder must not erase them. A picture on raster is drawn
+  // onto any device; one standing on another device's context cannot be
+  // read from this one, and the buffer starts there transparent.
+  const void* const device = deviceOf(&target);
+  sk_sp<SkImage> held = image();
+  if (held && held->isTextureBacked() && m_device != device) held.reset();
+  if (held) {
     SkAutoCanvasRestore restore(&target, true);
-    target.scale((float)extent.width() / (float)m_extent.width(),
-                 (float)extent.height() / (float)m_extent.height());
-    m_surface->draw(&target, 0, 0, SkSamplingOptions(SkFilterMode::kLinear),
-                    nullptr);
+    target.scale((float)extent.width() / (float)held->width(),
+                 (float)extent.height() / (float)held->height());
+    target.drawImage(held, 0, 0, SkSamplingOptions(SkFilterMode::kLinear));
   }
+  m_device = device;
+  m_thread = std::this_thread::get_id();
   m_surface = std::move(surface);
+  m_snapshot.reset();
   m_extent = extent;
   m_scale = scale;
 }
@@ -139,10 +191,15 @@ void Graphics::end() {
   pen.end();
   m_surface->getCanvas()->restore();
   m_open = false;
+  // Taken on the thread that drew, so a host on another thread reads the
+  // picture without reaching into the recorder that drew it.
+  m_snapshot = m_surface->makeImageSnapshot();
 }
 
 sk_sp<SkImage> Graphics::image() const {
-  return m_surface ? m_surface->makeImageSnapshot() : nullptr;
+  if (!m_surface) return nullptr;
+  if (!m_open && m_snapshot) return m_snapshot;
+  return m_surface->makeImageSnapshot();
 }
 
 void Pen::image(const Graphics& buffer, float x, float y) {

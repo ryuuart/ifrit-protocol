@@ -67,9 +67,9 @@ TEST(ComposePositioned, PctAndOpposingInsetsResolve) {
   host.composer.render(
       positioned()
           .inset(0)
-          // pct dims resolve against the container's rect
+          // percent dims resolve against the container's rect
           .children(
-              {box().key("half").left(0).top(0).width(pct(50)).height(pct(25))})
+              {box().key("half").left(0).top(0).width(percent(50)).height(percent(25))})
           // open width + right inset pins the far edge
           .children(
               {box().key("pinned").left(20).top(100).right(30).height(10)}));

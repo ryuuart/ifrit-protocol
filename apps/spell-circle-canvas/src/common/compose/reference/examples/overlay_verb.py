@@ -26,7 +26,7 @@ def band() -> compose.PathFormat:
 def cell(caption: str, plate: compose.Element) -> compose.Element:
     return (
         compose.box(
-            plate.width(compose.pct(100))
+            plate.width(compose.percent(100))
             .height(120)
             .borderRadius(10)
             .fill(PLATE)

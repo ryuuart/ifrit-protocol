@@ -153,6 +153,68 @@ TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
   EXPECT_EQ(host.pixel(80, 40), SK_ColorGREEN);   // stroked top edge
 }
 
+TEST(ComposeDecorations, ABoxShadowSpreadsAndInsetsAsCssDoes) {
+  // An 80 px square at (40, 40). A hard outer shadow spread by 10 reaches
+  // 10 px past every side, its corners square as CSS's are; a negative
+  // spread shrinks it inside the fill, where it is hidden.
+  Host host;
+  host.composer.render(box().children(
+      {box()
+           .width(80)
+           .height(80)
+           .inset(40)
+           .absolute()
+           .fill(red())
+           .boxShadow({.spread = 10, .color = Fill::color({0, 0, 1, 1})})}));
+  host.frame();
+  EXPECT_EQ(host.pixel(80, 34), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(33, 33), SK_ColorBLUE);  // a square corner
+  EXPECT_NE(host.pixel(80, 28), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);
+
+  Host shrunk;
+  shrunk.composer.render(box().children(
+      {box().width(80).height(80).inset(40).absolute().boxShadow(
+          {.offset = {20, 0},
+           .spread = -10,
+           .color = Fill::color({0, 0, 1, 1})})}));
+  shrunk.frame();
+  // Moved 20 right and 10 in from every side: it covers x 70 to 130.
+  EXPECT_EQ(shrunk.pixel(100, 80), SK_ColorBLUE);
+  EXPECT_NE(shrunk.pixel(64, 80), SK_ColorBLUE);
+  EXPECT_NE(shrunk.pixel(80, 46), SK_ColorBLUE);
+
+  // Inset and cast downward, the band hugs the top inner edge OVER the
+  // fill, and nothing paints outside the square.
+  Host inset;
+  inset.composer.render(box().children(
+      {box()
+           .width(80)
+           .height(80)
+           .inset(40)
+           .absolute()
+           .fill(red())
+           .boxShadow({.offset = {0, 6},
+                       .color = Fill::color({0, 0, 1, 1}),
+                       .inset = true})}));
+  inset.frame();
+  EXPECT_EQ(inset.pixel(80, 44), SK_ColorBLUE);
+  EXPECT_EQ(inset.pixel(80, 80), SK_ColorRED);
+  EXPECT_EQ(inset.pixel(80, 117), SK_ColorRED);
+  EXPECT_NE(inset.pixel(80, 37), SK_ColorBLUE);
+}
+
+TEST(ComposeDecorations, ABoxShadowListPaintsItsFirstEntryOnTop) {
+  Host host;
+  host.composer.render(box().children(
+      {box().width(80).height(80).inset(40).absolute().boxShadow(
+          {Shadow{.offset = {10, 10}, .color = Fill::color({0, 1, 0, 1})},
+           Shadow{.offset = {20, 20}, .color = Fill::color({0, 0, 1, 1})}})}));
+  host.frame();
+  EXPECT_EQ(host.pixel(125, 125), SK_ColorGREEN);  // where both fall
+  EXPECT_EQ(host.pixel(135, 135), SK_ColorBLUE);   // past the first
+}
+
 TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
   // Value decorations (Shadow, PathFormat stroke/dash) compare by value, so
   // a static decorated node prunes without a memo. A decoration that did

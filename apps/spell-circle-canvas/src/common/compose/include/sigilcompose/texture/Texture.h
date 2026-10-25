@@ -188,9 +188,11 @@ material::Texture texture(const Element& root, SkImageInfo info,
  *  A tree holding something no comparison can see into — a paint program,
  *  an outline written as a callable — equals only itself: the same value
  *  asked for again is handed back, and one built again is painted again,
- *  as `texture()` paints it. A `custom(key, …)` node's key does not make
- *  two programs one here: it names a program across the describes of one
- *  place in one tree, and the trees this set compares share no place.
+ *  as `texture()` paints it. A key does not make two programs one here —
+ *  a `custom(key, …)` node's, a `drawWith(key, …)` or a keyed
+ *  `stamp::ByLane`'s, a `textFx::effect(key, …)`'s: it names a program
+ *  across the describes of one place in one tree, and the trees this set
+ *  compares share no place.
  *
  *  The textures it hands out keep their scenes standing, as `texture()`'s
  *  do, so a texture outlives the set; the set keeps every one it painted

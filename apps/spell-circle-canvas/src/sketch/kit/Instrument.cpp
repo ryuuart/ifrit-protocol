@@ -23,7 +23,7 @@ compose::Element instrument(const Instrument& specification,
       .absolute()
       .left(0)
       .top(0)
-      .transformOrigin(pct(0), pct(0))
+      .transformOrigin(percent(0), percent(0))
       .scale(scale);
   Element preview =
       box()

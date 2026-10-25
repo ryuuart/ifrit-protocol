@@ -25,13 +25,17 @@
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <initializer_list>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace sigil::python {
@@ -74,12 +78,36 @@ using compose::Rule;
 using compose::Spans;
 using compose::Text;
 
-/** A length a font field takes: a `weave.Length`, or a bare number of
- *  pixels. */
-weave::Length fontLength(py::handle value) {
-  return py::isinstance<weave::Length>(value)
-             ? value.cast<weave::Length>()
-             : weave::Length{value.cast<float>()};
+/** A length a font field takes, read as every length is: a number of
+ *  pixels, a `weave.Length`, a `compose.Dimension` or text, in any unit a
+ *  font holds — px, pt, em, rem, lh, ch, or a percentage of the type
+ *  size. Any other unit raises, naming @p verb. */
+/** Whether @p value is the text @p word, in any case, with blank space
+ *  around it ignored. */
+bool isWord(py::handle value, std::string_view word) {
+  if (!py::isinstance<py::str>(value)) return false;
+  std::string_view text = value.cast<std::string_view>();
+  while (!text.empty() && std::isspace((unsigned char)text.front()))
+    text.remove_prefix(1);
+  while (!text.empty() && std::isspace((unsigned char)text.back()))
+    text.remove_suffix(1);
+  if (text.size() != word.size()) return false;
+  for (size_t index = 0; index < text.size(); ++index)
+    if (std::tolower((unsigned char)text[index]) != word[index]) return false;
+  return true;
+}
+
+weave::Length fontLength(py::handle value, const char* verb) {
+  if (py::isinstance<weave::Length>(value)) return value.cast<weave::Length>();
+  if (const std::optional<weave::Length> length =
+          compose::fontLength(dimension(value)))
+    return *length;
+  throw py::value_error(
+      std::string(verb) +
+      "() takes a length a font holds: a number of pixels, or '12px', "
+      "'9pt', '1.5em', '2rem', '1lh', '3ch' or '150%' (of the type size), "
+      "as text or as compose.em(1.5), compose.percent(150) or weave.em(1.5). "
+      "A viewport unit, a custom property, a sum and auto are not one.");
 }
 }  // namespace
 
@@ -95,21 +123,41 @@ void bindFontVerbs(py::class_<Node>& element) {
       .def(
           "fontSize",
           [](Node& self, py::object value) -> Node& {
-            return self.fontSize(fontLength(value));
+            return self.fontSize(fontLength(value, "fontSize"));
           },
           py::arg("size"), fluent)
       .def("fontWeight", &Node::fontWeight, py::arg("weight"), fluent)
       .def(
           "fontStyle",
           [](Node& self, py::object style) -> Node& {
-            // A FontStyle, or a bare number of degrees, which is the
-            // oblique of that lean.
+            // A FontStyle, or an angle, which is the oblique of that
+            // lean: a bare number of degrees, a typed angle or CSS angle
+            // text.
+            // Text no angle grammar reads is refused as a type, since a
+            // style is not written as a word here: FontStyle.Italic is.
             if (py::isinstance<compose::FontStyle>(style))
               return self.fontStyle(style.cast<compose::FontStyle>());
+            if (py::isinstance<py::str>(style)) {
+              const std::string text = style.cast<std::string>();
+              if (const std::optional<core::angle::Angle> written =
+                      core::angle::read(text))
+                return self.fontStyle(
+                    compose::FontStyle::oblique(written->inDegrees()));
+              throw py::type_error(
+                  "fontStyle() takes a FontStyle or an angle, a number of "
+                  "degrees or angle text such as '14deg'; '" +
+                  text + "' is neither. A style is written FontStyle.Italic "
+                  "or FontStyle.Normal.");
+            }
+            if (const std::optional<core::angle::Angle> written =
+                    writtenAngle(style))
+              return self.fontStyle(
+                  compose::FontStyle::oblique(written->inDegrees()));
             if (!py::isinstance<py::int_>(style) &&
                 !py::isinstance<py::float_>(style))
               throw py::type_error(
-                  "fontStyle() takes a FontStyle or a number of degrees, not " +
+                  "fontStyle() takes a FontStyle or an angle, a number of "
+                  "degrees or angle text such as '14deg', not " +
                   py::str(py::type::of(style)).cast<std::string>());
             return self.fontStyle(
                 compose::FontStyle::oblique(style.cast<float>()));
@@ -118,7 +166,7 @@ void bindFontVerbs(py::class_<Node>& element) {
       .def(
           "letterSpacing",
           [](Node& self, py::object value) -> Node& {
-            return self.letterSpacing(fontLength(value));
+            return self.letterSpacing(fontLength(value, "letterSpacing"));
           },
           py::arg("tracking"), fluent)
       .def(
@@ -207,14 +255,20 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
           py::arg("value"), py::arg("box") = compose::PaintBox::Element, fluent)
       .def(
           "borderRadius",
-          [](Node& self, float all) -> Node& {
-            return self.borderRadius({all});
+          [](Node& self, py::object all) -> Node& {
+            // A Corners, or one radius for all four in any length: a
+            // number of pixels, '1em', '50%' of the box.
+            if (py::isinstance<Corners>(all))
+              return self.borderRadius(all.cast<Corners>());
+            return self.borderRadius(Corners(dimension(all)));
           },
           py::arg("all"), fluent)
       .def(
           "borderRadius",
-          [](Node& self, float tl, float tr, float br, float bl) -> Node& {
-            return self.borderRadius({tl, tr, br, bl});
+          [](Node& self, py::object tl, py::object tr, py::object br,
+             py::object bl) -> Node& {
+            return self.borderRadius(Corners(dimension(tl), dimension(tr),
+                                             dimension(br), dimension(bl)));
           },
           py::arg("topLeft"), py::arg("topRight"), py::arg("bottomRight"),
           py::arg("bottomLeft"), fluent)
@@ -323,8 +377,6 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
             return self.gridCellAlign(alignment(x), alignment(y));
           },
           py::arg("horizontal"), py::arg("vertical"), fluent)
-      .def("borderRadius", py::overload_cast<Corners>(&Node::borderRadius),
-           py::arg("radii"), fluent)
       .def(
           "overflow",
           [](Node& self, py::handle value) -> Node& {
@@ -334,7 +386,29 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
       .def("paragraph",
            py::overload_cast<weave::ParagraphBlock>(&Node::paragraph),
            py::arg("partial"), fluent)
-      .def("lineHeight", &Node::lineHeight, py::arg("leading"), fluent)
+      .def(
+          "lineHeight",
+          [](Node& self, py::object value) -> Node& {
+            // CSS's four forms: a number is a multiple, a length is an
+            // absolute pitch, "normal" is the face's own; a Leading says
+            // any of those and the baseline grid besides.
+            if (py::isinstance<weave::Leading>(value))
+              return self.lineHeight(value.cast<weave::Leading>());
+            if (isWord(value, "normal"))
+              return self.lineHeight(weave::Leading::face());
+            if ((py::isinstance<py::int_>(value) &&
+                 !py::isinstance<py::bool_>(value)) ||
+                py::isinstance<py::float_>(value))
+              return self.lineHeight(value.cast<float>());
+            const compose::Dimension length = dimension(value);
+            if (length.unit == compose::Dimension::Unit::Auto)
+              throw py::value_error(
+                  "lineHeight() takes a number (a multiple), a length "
+                  "('24px', '1.5em', '150%'), 'normal' or a Leading; auto is "
+                  "no pitch.");
+            return self.lineHeight(length);
+          },
+          py::arg("leading"), fluent)
       .def("textAlign", &Node::textAlign, py::arg("alignment"), fluent)
       .def(
           "textIndent",
@@ -393,18 +467,50 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
   for (const auto& [name, setter] : std::initializer_list<
            std::pair<const char*, Node& (Node::*)(motion::Animatable<float>)>>{
            {"opacity", &Node::opacity},
-           {"rotate", &Node::rotate},
            {"scale", &Node::scale},
            {"scaleX", &Node::scaleX},
-           {"scaleY", &Node::scaleY},
-           {"translateX", &Node::translateX},
-           {"translateY", &Node::translateY},
+           {"scaleY", &Node::scaleY}})
+    element.def(
+        name,
+        [setter, name](Node& self, py::object value) -> Node& {
+          // CSS reads a percentage here as the fraction it is: "50%" is a
+          // half.
+          if (py::isinstance<py::str>(value) ||
+              py::isinstance<compose::Dimension>(value))
+            return (self.*setter)(fraction(value, name));
+          return (self.*setter)(motionAnimatable(value));
+        },
+        py::arg("value"), fluent);
+  // A translate is a lane that animates, or a length written with its
+  // unit: '50%' of the node's own box, '1em', compose.vw(10).
+  using Lane = Node& (Node::*)(motion::Animatable<float>);
+  using Length = Node& (Node::*)(compose::Dimension);
+  for (const auto& [name, lane, length] :
+       std::initializer_list<std::tuple<const char*, Lane, Length>>{
+           {"translateX", &Node::translateX, &Node::translateX},
+           {"translateY", &Node::translateY, &Node::translateY}})
+    element.def(
+        name,
+        [lane, length](Node& self, py::object value) -> Node& {
+          if (py::isinstance<py::str>(value) ||
+              py::isinstance<compose::Dimension>(value) ||
+              py::isinstance<weave::Length>(value) ||
+              py::isinstance<compose::VarRef>(value))
+            return (self.*length)(dimension(value));
+          return (self.*lane)(motionAnimatable(value));
+        },
+        py::arg("value"), fluent);
+  // An angle verb reads a number as degrees, and a typed angle or CSS
+  // angle text in the measure it names.
+  for (const auto& [name, setter] : std::initializer_list<
+           std::pair<const char*, Node& (Node::*)(motion::Animatable<float>)>>{
+           {"rotate", &Node::rotate},
            {"skewX", &Node::skewX},
            {"skewY", &Node::skewY}})
     element.def(
         name,
         [setter](Node& self, py::object value) -> Node& {
-          return (self.*setter)(motionAnimatable(value));
+          return (self.*setter)(motionAngle(value));
         },
         py::arg("value"), fluent);
 }
@@ -514,8 +620,6 @@ void bindNodeVerbs(py::class_<Node>& element) {
           py::arg("x"), py::arg("y"), fluent);
   for (const auto& [name, setter] : std::initializer_list<
            std::pair<const char*, Node& (Node::*)(motion::Animatable<float>)>>{
-           {"rotateX", &Node::rotateX},
-           {"rotateY", &Node::rotateY},
            {"translateZ", &Node::translateZ},
            {"scaleZ", &Node::scaleZ},
            {"perspective", &Node::perspective}})
@@ -525,11 +629,23 @@ void bindNodeVerbs(py::class_<Node>& element) {
           return (self.*setter)(motionAnimatable(value));
         },
         py::arg("value"), fluent);
+  for (const auto& [name, setter] : std::initializer_list<
+           std::pair<const char*, Node& (Node::*)(motion::Animatable<float>)>>{
+           {"rotateX", &Node::rotateX},
+           {"rotateY", &Node::rotateY}})
+    element.def(
+        name,
+        [setter](Node& self, py::object value) -> Node& {
+          return (self.*setter)(motionAngle(value));
+        },
+        py::arg("value"), fluent);
   element.def(
       "stroke",
-      [](Node& self, const material::Material& material, float width,
+      [](Node& self, const material::Material& material,
+         const std::variant<float, std::string, compose::Dimension>& width,
          material::StrokePosition position) -> Node& {
-        return self.stroke(material, {width, position});
+        return self.stroke(material, {pixels(py::cast(width), "A stroke's width"),
+                                      position});
       },
       py::arg("material"), py::arg("width") = 1.0f,
       py::arg("position") = material::StrokePosition::Outside, fluent);
@@ -558,6 +674,39 @@ void bindNodeVerbs(py::class_<Node>& element) {
         return self.background(std::move(spans), decoration(value), name);
       },
       py::arg("spans"), py::arg("decoration"), py::arg("name") = "", fluent);
+  element.def(
+      "boxShadow",
+      [](Node& self, py::object shadows, py::object offset, py::object blur,
+         py::object spread, py::object color, bool inset) -> Node& {
+        if (!shadows.is_none()) {
+          if (!offset.is_none() || !blur.is_none() || !spread.is_none() ||
+              !color.is_none() || inset)
+            throw py::type_error(
+                "boxShadow() takes a Shadow or a list of them, or one "
+                "shadow's fields as keywords, not both.");
+          if (py::isinstance<compose::Shadow>(shadows))
+            return self.boxShadow(shadows.cast<compose::Shadow>());
+          return self.boxShadow(shadows.cast<std::vector<compose::Shadow>>());
+        }
+        compose::Shadow shadow;
+        if (!offset.is_none())
+          shadow.offset = pixelOffset(offset, "A box shadow's offset");
+        if (!blur.is_none()) shadow.blur = pixels(blur, "A box shadow's blur");
+        if (!spread.is_none())
+          shadow.spread = pixels(spread, "A box shadow's spread");
+        if (!color.is_none()) shadow.color = fill(color);
+        shadow.inset = inset;
+        return self.boxShadow(std::move(shadow));
+      },
+      py::arg("shadow") = py::none(), py::kw_only(),
+      py::arg("offset") = py::none(), py::arg("blur") = py::none(),
+      py::arg("spread") = py::none(), py::arg("color") = py::none(),
+      py::arg("inset") = false, fluent,
+      "CSS's box-shadow: a shadow of the node's outline moved by offset, "
+      "grown by spread and softened by a blur radius of blur pixels, in "
+      "color (the ink in force when unstated) — beneath the fill, or with "
+      "inset a band hugging the inner edge over it. Takes the fields as "
+      "keywords, or one Shadow, or a list of them with the first on top.");
 }
 
 template void bindDeclarationVerbs(py::class_<Element>&);

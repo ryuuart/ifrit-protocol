@@ -248,7 +248,7 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
                                .key("bar")
                                .absolute()
                                .rect(0, 0, 40, 40)
-                               .transformOrigin(pct(0), pct(0))
+                               .transformOrigin(percent(0), percent(0))
                                .fill(red())
                                .scaleX(sx)});
   };
@@ -273,7 +273,7 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
                                                .key("y")
                                                .absolute()
                                                .rect(0, 60, 40, 40)
-                                               .transformOrigin(pct(0), pct(0))
+                                               .transformOrigin(percent(0), percent(0))
                                                .fill(green())
                                                .scaleY(1.0f)}));
   host.frame();
@@ -281,7 +281,7 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
                                                .key("y")
                                                .absolute()
                                                .rect(0, 60, 40, 40)
-                                               .transformOrigin(pct(0), pct(0))
+                                               .transformOrigin(percent(0), percent(0))
                                                .fill(green())
                                                .scaleY(2.0f)}));
   host.frame();

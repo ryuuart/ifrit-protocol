@@ -11,7 +11,7 @@ import ast
 import copy
 import re
 
-from .table import COLOR, DURATION, MATERIAL, PAINT, Table
+from .table import ANGLE, COLOR, DURATION, MATERIAL, PAINT, Table
 
 # The element, spelled every way the generated declarations spell it: bare
 # inside the module that registers it, through the submodule's name inside
@@ -262,6 +262,11 @@ def refine(table: Table, seen: set[str], module: str, tree: ast.Module) -> None:
                     # in one word.
                     if DURATION in text:
                         text = text.replace(DURATION, "_t.DurationLike")
+                        arg.annotation = expression(text)
+                    # So is an angle, through casters that name the same
+                    # three spellings whatever a bare number means there.
+                    if ANGLE in text:
+                        text = text.replace(ANGLE, "_t.AngleLike")
                         arg.annotation = expression(text)
                     # The paint's own constructor states the material
                     # overload the conversion is registered against, so

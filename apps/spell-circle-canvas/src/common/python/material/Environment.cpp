@@ -63,7 +63,9 @@ void bindMaterialEnvironment(py::module_& module) {
       .def_readwrite("sheenRoughnessChannel",
                      &Parameters::sheenRoughnessChannel)
       .def_readwrite("anisotropy", &Parameters::anisotropy)
-      .def_readwrite("anisotropyRotation", &Parameters::anisotropyRotation)
+      .def_property(
+          "anisotropyRotation", angleGetter(&Parameters::anisotropyRotation),
+          angleSetter<AngleInDegrees>(&Parameters::anisotropyRotation))
       .def_readwrite("iridescence", &Parameters::iridescence)
       .def_readwrite("iridescenceIor", &Parameters::iridescenceIor)
       .def_readwrite("iridescenceThickness", &Parameters::iridescenceThickness)

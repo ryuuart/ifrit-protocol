@@ -6,9 +6,12 @@
 // the box without moving the ink inside it.
 
 #include <include/core/SkFontMetrics.h>
+#include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Brushes.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 
+#include <cmath>
 #include <vector>
 
 #include "support/BakeTestSupport.h"
@@ -658,4 +661,75 @@ TEST(ComposeCache, PaintBoundsBeyondIntegerCoordinatesPaintTheLivePicture) {
   baked.frame();
   EXPECT_TRUE(identicalPixels(plain, baked, 200, 200));
   EXPECT_EQ(baked.pixel(40, 40), SK_ColorRED);
+}
+
+namespace {
+
+/** A FIVE-POINTED STAR WHOSE TIPS TOUCH ITS BOX, stroked by the stock
+ *  brush under its defaults: a mitred join at the renderer's limit of four
+ *  half-widths. A star's tip turns by 144 degrees, so its mitre stands
+ *  about three and a quarter half-widths past the tip, which is past the
+ *  box and past half the width both. */
+Element starWhoseTipsTouchItsBox() {
+  return box()
+      .width(200)
+      .height(200)
+      .shape(skiaShape([] {
+        SkPathBuilder star;
+        for (int point = 0; point < 10; ++point) {
+          const float radius = point % 2 ? 40.0f : 100.0f;
+          const float angle = -1.5707963f + 3.14159265f * (float)point / 5.0f;
+          const SkPoint at{100 + radius * std::cos(angle),
+                           100 + radius * std::sin(angle)};
+          if (point == 0)
+            star.moveTo(at);
+          else
+            star.lineTo(at);
+        }
+        star.close();
+        return star.detach();
+      }))
+      .fill(Fill::none())
+      .stroke(brush::solid(6, Fill::color({1, 1, 1, 1})));
+}
+
+}  // namespace
+
+TEST(ComposeCache, ABakedStarKeepsTheMitredTipsPastItsBox) {
+  // The stock stroke meets its corners mitred, and its bleed is the whole
+  // mitre, so a bake sized from it holds every tip the live paint draws.
+  const BakeDrift drift = bakeDriftOf(starWhoseTipsTouchItsBox,
+                                      SkMatrix::Translate(20, 20), 240, 240);
+  ASSERT_TRUE(drift.baked)
+      << "nothing was baked, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 1)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when a star whose mitred tips stand past its box "
+         "was baked";
+}
+
+namespace {
+
+/** A BOX WALKED BY SQUARES WIDER THAN ITS MARGIN: every sample on its
+ *  outline stamps a square thirty units across, centred on the outline,
+ *  so half of each stands outside the box. The walk declares that half. */
+Element walkedPastItsBox() {
+  ContourWalk walk;
+  walk.spacing = 40;
+  walk.stamp = box().width(30).height(30).fill(Fill::color({1, 1, 1, 1}));
+  walk.bleedPx = 15;
+  return box().width(200).height(200).foreground(std::move(walk));
+}
+
+}  // namespace
+
+TEST(ComposeCache, ABakedWalkKeepsTheStampsPastItsBox) {
+  const BakeDrift drift =
+      bakeDriftOf(walkedPastItsBox, SkMatrix::Translate(20, 20), 240, 240);
+  ASSERT_TRUE(drift.baked)
+      << "nothing was baked, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 1)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when a box walked by stamps wider than its margin "
+         "was baked";
 }

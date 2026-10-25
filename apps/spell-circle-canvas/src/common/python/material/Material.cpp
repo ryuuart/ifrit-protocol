@@ -150,28 +150,28 @@ void bindColor(py::module_& root) {
           "can hold.")
       .def_static(
           "hsl",
-          [](float hue, py::handle saturation, py::handle lightness,
+          [](AngleInDegrees hue, py::handle saturation, py::handle lightness,
              py::handle opacity) {
-            return material::hsl(hue, channelOf(saturation, 100.0f),
+            return material::hsl(hue.value, channelOf(saturation, 100.0f),
                                  channelOf(lightness, 100.0f),
                                  channelOf(opacity, 1.0f));
           },
           py::arg("hue"), py::arg("saturation"), py::arg("lightness"),
           py::arg("alpha") = 1.0f,
-          "CSS hsl(): the hue in degrees, saturation and lightness on 0..100 "
-          "or as '50%'.")
+          "CSS hsl(): the hue in degrees or as angle text such as '0.5turn', "
+          "saturation and lightness on 0..100 or as '50%'.")
       .def_static(
           "hwb",
-          [](float hue, py::handle whiteness, py::handle blackness,
+          [](AngleInDegrees hue, py::handle whiteness, py::handle blackness,
              py::handle opacity) {
-            return material::hwb(hue, channelOf(whiteness, 100.0f),
+            return material::hwb(hue.value, channelOf(whiteness, 100.0f),
                                  channelOf(blackness, 100.0f),
                                  channelOf(opacity, 1.0f));
           },
           py::arg("hue"), py::arg("whiteness"), py::arg("blackness"),
           py::arg("alpha") = 1.0f,
-          "CSS hwb(): the hue in degrees, whiteness and blackness on 0..100 "
-          "or as '50%'.")
+          "CSS hwb(): the hue in degrees or as angle text such as '0.5turn', "
+          "whiteness and blackness on 0..100 or as '50%'.")
       .def_static(
           "lab",
           [](py::handle lightness, py::handle greenRed, py::handle blueYellow,
@@ -186,16 +186,17 @@ void bindColor(py::module_& root) {
           "axes, brought inside sRGB by reducing chroma.")
       .def_static(
           "lch",
-          [](py::handle lightness, py::handle chroma, float hue,
+          [](py::handle lightness, py::handle chroma, AngleInDegrees hue,
              py::handle opacity) {
             return material::lch(channelOf(lightness, 100.0f),
-                                 channelOf(chroma, 150.0f), hue,
+                                 channelOf(chroma, 150.0f), hue.value,
                                  channelOf(opacity, 1.0f));
           },
           py::arg("lightness"), py::arg("chroma"), py::arg("hue"),
           py::arg("alpha") = 1.0f,
           "CSS lch(), under the D50 white: lightness on 0..100, the chroma "
-          "and the hue in degrees, brought inside sRGB by reducing chroma.")
+          "and the hue in degrees or as angle text, brought inside sRGB by "
+          "reducing chroma.")
       .def_static(
           "oklab",
           [](py::handle lightness, py::handle greenRed, py::handle blueYellow,
@@ -210,16 +211,16 @@ void bindColor(py::module_& root) {
           "sRGB by reducing chroma.")
       .def_static(
           "oklch",
-          [](py::handle lightness, py::handle chroma, float hue,
+          [](py::handle lightness, py::handle chroma, AngleInDegrees hue,
              py::handle opacity) {
             return material::oklch(channelOf(lightness, 1.0f),
-                                   channelOf(chroma, 0.4f), hue,
+                                   channelOf(chroma, 0.4f), hue.value,
                                    channelOf(opacity, 1.0f));
           },
           py::arg("lightness"), py::arg("chroma"), py::arg("hue"),
           py::arg("alpha") = 1.0f,
           "CSS oklch(): lightness on 0..1, the chroma and the hue in "
-          "degrees, brought inside sRGB by reducing chroma.")
+          "degrees or as angle text, brought inside sRGB by reducing chroma.")
       .def_static(
           "hex",
           [](py::handle value, std::optional<float> opacity) {
@@ -329,15 +330,17 @@ void bindMaterial(py::module_& root) {
       .def_readwrite("b", &Oklab::b)
       .def_readwrite("alpha", &Oklab::alpha);
   py::class_<Oklch>(module, "Oklch")
-      .def(py::init([](float x, float y, float z, float alpha) {
-             return Oklch{x, y, z, alpha};
+      .def(py::init([](float x, float y, AngleInDegrees hue, float alpha) {
+             return Oklch{x, y, hue.value, alpha};
            }),
            py::arg("L") = 0.0f, py::arg("chroma") = 0.0f,
-           py::arg("hueDegrees") = 0.0f, py::arg("alpha") = 1.0f)
+           py::arg("hueDegrees") = AngleInDegrees{}, py::arg("alpha") = 1.0f)
       .def("copy", [](const Oklch& value) { return value; })
       .def_readwrite("L", &Oklch::L)
       .def_readwrite("chroma", &Oklch::chroma)
-      .def_readwrite("hueDegrees", &Oklch::hueDegrees)
+      .def_property(
+          "hueDegrees", angleGetter(&Oklch::hueDegrees),
+          angleSetter<AngleInDegrees>(&Oklch::hueDegrees))
       .def_readwrite("alpha", &Oklch::alpha);
   py::class_<Lab>(module, "Lab")
       .def(py::init([](float x, float y, float z, float alpha) {
@@ -456,8 +459,13 @@ void bindMaterial(py::module_& root) {
           },
           py::arg("color"), py::arg("column"), py::arg("row"));
   module.def("hexColor", &hexColor, py::arg("rrggbb"), py::arg("alpha") = 1.0f);
-  module.def("hsv", &hsv, py::arg("hueDegrees"), py::arg("saturation"),
-             py::arg("value"), py::arg("alpha") = 1.0f);
+  module.def(
+      "hsv",
+      [](AngleInDegrees hue, float saturation, float value, float alpha) {
+        return hsv(hue.value, saturation, value, alpha);
+      },
+      py::arg("hueDegrees"), py::arg("saturation"), py::arg("value"),
+      py::arg("alpha") = 1.0f);
   module.def(
       "toOklab",
       [](py::handle value) { return material::toOklab(materialColor(value)); },
@@ -536,16 +544,17 @@ void bindMaterial(py::module_& root) {
       py::arg("first"), py::arg("second"));
   module.def(
       "rotateHue",
-      [](py::handle c, float degrees) {
-        return rotateHue(materialColor(c), degrees);
+      [](py::handle c, AngleInDegrees degrees) {
+        return rotateHue(materialColor(c), degrees.value);
       },
       py::arg("color"), py::arg("degrees"));
   module.def(
       "harmony",
-      [](py::handle c, Scheme scheme, float spread) {
-        return harmony(materialColor(c), scheme, spread);
+      [](py::handle c, Scheme scheme, AngleInDegrees spread) {
+        return harmony(materialColor(c), scheme, spread.value);
       },
-      py::arg("color"), py::arg("scheme"), py::arg("spreadDegrees") = 30.0f);
+      py::arg("color"), py::arg("scheme"),
+      py::arg("spreadDegrees") = AngleInDegrees{30.0f});
   module.def("palette", py::overload_cast<const Ramp&, int>(&material::palette),
              py::arg("ramp"), py::arg("entries"));
   module.def(

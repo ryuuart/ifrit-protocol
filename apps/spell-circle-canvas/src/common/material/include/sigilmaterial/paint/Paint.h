@@ -83,10 +83,11 @@ class Paint {
                               GradientOptions options = {});
   /** THE CONIC GRADIENT: the stops swept around @p center, over the
    *  window `options.startDegrees` to `options.endDegrees` (clockwise from
-   *  3 o'clock). In box units the centre is a fraction of the box and the
-   *  angles stay true angles on a box that is not square.
-   *  @trap The window CLAMPS outside [0, 360] rather than wrapping; the
-   *  factory warns once when it leaves the circle. */
+   *  12 o'clock, as CSS's conic angles are). In box units the centre is a
+   *  fraction of the box and the angles stay true angles on a box that is
+   *  not square.
+   *  @trap A window wider than one turn CLAMPS rather than wrapping; the
+   *  factory warns once when it does. */
   static Paint conicGradient(glm::vec2 center, ColorStops stops,
                              GradientOptions options = {});
   /** A `Material` instance as the paint. The recipe's declared frame

@@ -239,7 +239,7 @@ struct Bousen {
                          .paragraph(
                              {.writingMode = weave::WritingMode::kHorizontal})
                          .left(-168.0f)
-                         .top(pct(0))
+                         .top(percent(0))
                          .width(168.0f)
                          // THE LEADER. A note standing in the margin is a
                          // note about nothing until something joins it to

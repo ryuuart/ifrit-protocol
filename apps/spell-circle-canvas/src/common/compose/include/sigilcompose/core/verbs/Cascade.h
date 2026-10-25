@@ -39,10 +39,23 @@ class CascadeVerbs {
    *  and the rest; the longhands below each write one field of it, CSS's
    *  names for the fields CSS has. */
   Derived& paragraph(sigil::weave::ParagraphBlock partial);
-  /** THE PITCH OF THE LINES — CSS `line-height`: the face's own, a
-   *  multiple of the size, an absolute pitch, or a baseline grid. The
-   *  `leading` field of `paragraph()`. The face's own when nothing states
-   *  one. */
+  /** THE PITCH OF THE LINES — CSS `line-height` as a NUMBER: @p multiple
+   *  times the face's own line height, `Leading::multiple`, inherited as
+   *  the multiple. The `leading` field of `paragraph()`. The face's own
+   *  when nothing states one. */
+  Derived& lineHeight(float multiple);
+  /** THE PITCH OF THE LINES AS A LENGTH — CSS `line-height: 24px`, `1.5em`
+   *  or `150%`: pixels and `pt` as they stand, `em`, `rem`, `lh`, `ch`, a
+   *  viewport unit, a custom property or a sum against the font, the
+   *  canvas and the properties where it is stated, and a `percent` of the
+   *  node's own type size, as CSS reads one. It is resolved into an
+   *  absolute pitch, `Leading::absolute`, where it is stated and
+   *  inherited as that pitch, as CSS computes it.
+   *  @trap `auto` is no pitch: it is refused, and said once. */
+  Derived& lineHeight(Dimension length);
+  /** THE PITCH AS A LEADING — the face's own, a multiple, an absolute
+   *  pitch, or a baseline grid (`Leading::grid`, which no CSS form
+   *  spells). */
   Derived& lineHeight(sigil::weave::Leading leading);
   /** WHERE THE LINES SIT ACROSS THE MEASURE — CSS `text-align`: start,
    *  centre, end or justified. The `alignment` field of `paragraph()`. Start
@@ -50,7 +63,7 @@ class CascadeVerbs {
   Derived& textAlign(sigil::weave::TextAlignment alignment);
   /** THE FIRST LINE OF EVERY BLOCK INDENTED — CSS `text-indent`, in any
    *  length: pixels when bare, `em`, `rem`, `lh`, `ch` and `pt` against
-   *  the font where it is stated, `pct` of each passage's measure. Negative
+   *  the font where it is stated, `percent` of each passage's measure. Negative
    *  hangs it out. The `firstLineIndent` field of `paragraph()`, in pixels
    *  once resolved. Zero when nothing states one.
    *  @trap `auto` is no indent: it is refused, and said once. */

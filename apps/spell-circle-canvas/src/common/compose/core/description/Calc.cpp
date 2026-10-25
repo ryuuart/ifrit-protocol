@@ -66,7 +66,8 @@ std::string keyOf(const CalcLength& sum) {
     key.append(bytes, sizeof bytes);
   };
   for (const float term :
-       {sum.px, sum.pct, sum.em, sum.rem, sum.lh, sum.ch, sum.pw, sum.ph})
+       {sum.px, sum.percent, sum.em, sum.rem, sum.lh, sum.ch, sum.vw, sum.vh,
+        sum.vmin, sum.vmax})
     put(term);
   for (const auto& [id, coefficient] : sum.vars) {
     put(std::bit_cast<float>(id));
@@ -79,7 +80,7 @@ const char* unitName(Dimension::Unit unit) {
   switch (unit) {
     case Dimension::Unit::Px:
       return "px";
-    case Dimension::Unit::Pct:
+    case Dimension::Unit::Percent:
       return "%";
     case Dimension::Unit::Auto:
       return "auto";
@@ -91,10 +92,14 @@ const char* unitName(Dimension::Unit unit) {
       return "lh";
     case Dimension::Unit::Var:
       return "var()";
-    case Dimension::Unit::Pw:
-      return "pw";
-    case Dimension::Unit::Ph:
-      return "ph";
+    case Dimension::Unit::Vw:
+      return "vw";
+    case Dimension::Unit::Vh:
+      return "vh";
+    case Dimension::Unit::Vmin:
+      return "vmin";
+    case Dimension::Unit::Vmax:
+      return "vmax";
     case Dimension::Unit::Ch:
       return "ch";
     case Dimension::Unit::Pt:
@@ -120,13 +125,13 @@ void warnRefusedSum(Dimension::Unit left, Dimension::Unit right) {
 }
 
 float percentOf(const Dimension& length) {
-  if (length.unit == Dimension::Unit::Pct) return length.value;
-  if (length.unit == Dimension::Unit::Calc) return calcLength(length).pct;
+  if (length.unit == Dimension::Unit::Percent) return length.value;
+  if (length.unit == Dimension::Unit::Calc) return calcLength(length).percent;
   return 0.0f;
 }
 
 bool percentageSum(const Dimension& length) {
-  return length.unit == Dimension::Unit::Calc && calcLength(length).pct != 0;
+  return length.unit == Dimension::Unit::Calc && calcLength(length).percent != 0;
 }
 
 void warnPercentageSumUnresolved(const char* consumer, const char* instead) {
@@ -168,22 +173,28 @@ CalcLength termsOf(const Dimension& length, float factor) {
     case Dimension::Unit::Ch:
       sum.ch = length.value * factor;
       break;
-    case Dimension::Unit::Pw:
-      sum.pw = length.value * factor;
+    case Dimension::Unit::Vw:
+      sum.vw = length.value * factor;
       break;
-    case Dimension::Unit::Ph:
-      sum.ph = length.value * factor;
+    case Dimension::Unit::Vh:
+      sum.vh = length.value * factor;
       break;
-    case Dimension::Unit::Pct:
-      sum.pct = length.value * factor;
+    case Dimension::Unit::Vmin:
+      sum.vmin = length.value * factor;
+      break;
+    case Dimension::Unit::Vmax:
+      sum.vmax = length.value * factor;
+      break;
+    case Dimension::Unit::Percent:
+      sum.percent = length.value * factor;
       break;
     case Dimension::Unit::Var:
       sum.vars.emplace_back(length.reference().id, factor);
       break;
     case Dimension::Unit::Calc: {
       sum = calcLength(length);
-      for (float* term : {&sum.px, &sum.pct, &sum.em, &sum.rem, &sum.lh,
-                          &sum.ch, &sum.pw, &sum.ph})
+      for (float* term : {&sum.px, &sum.percent, &sum.em, &sum.rem, &sum.lh,
+                          &sum.ch, &sum.vw, &sum.vh, &sum.vmin, &sum.vmax})
         *term *= factor;
       for (auto& [id, coefficient] : sum.vars) coefficient *= factor;
       break;
@@ -200,10 +211,11 @@ CalcLength termsOf(const Dimension& length, float factor) {
 Dimension fromSum(CalcLength sum) {
   std::erase_if(sum.vars, [](const auto& term) { return term.second == 0; });
   const std::pair<float, Dimension::Unit> units[] = {
-      {sum.px, Dimension::Unit::Px}, {sum.pct, Dimension::Unit::Pct},
+      {sum.px, Dimension::Unit::Px}, {sum.percent, Dimension::Unit::Percent},
       {sum.em, Dimension::Unit::Em}, {sum.rem, Dimension::Unit::Rem},
       {sum.lh, Dimension::Unit::Lh}, {sum.ch, Dimension::Unit::Ch},
-      {sum.pw, Dimension::Unit::Pw}, {sum.ph, Dimension::Unit::Ph}};
+      {sum.vw, Dimension::Unit::Vw}, {sum.vh, Dimension::Unit::Vh},
+      {sum.vmin, Dimension::Unit::Vmin}, {sum.vmax, Dimension::Unit::Vmax}};
   int stated = 0;
   Dimension single(0.0f);
   for (const auto& [value, unit] : units)
@@ -299,13 +311,15 @@ Dimension summed(const Dimension& left, const Dimension& right, float sign) {
   CalcLength sum = termsOf(left, 1.0f);
   const CalcLength more = termsOf(right, sign);
   sum.px += more.px;
-  sum.pct += more.pct;
+  sum.percent += more.percent;
   sum.em += more.em;
   sum.rem += more.rem;
   sum.lh += more.lh;
   sum.ch += more.ch;
-  sum.pw += more.pw;
-  sum.ph += more.ph;
+  sum.vw += more.vw;
+  sum.vh += more.vh;
+  sum.vmin += more.vmin;
+  sum.vmax += more.vmax;
   for (const auto& [id, coefficient] : more.vars) {
     const auto found =
         std::find_if(sum.vars.begin(), sum.vars.end(),
@@ -364,11 +378,15 @@ bool calcEqual(float left, float right) {
 }
 
 bool readsCanvas(const Dimension& length) {
-  if (length.unit == Dimension::Unit::Pw || length.unit == Dimension::Unit::Ph)
+  if (length.unit == Dimension::Unit::Vw ||
+      length.unit == Dimension::Unit::Vh ||
+      length.unit == Dimension::Unit::Vmin ||
+      length.unit == Dimension::Unit::Vmax)
     return true;
   if (length.unit != Dimension::Unit::Calc) return false;
   const CalcLength& sum = calcLength(length);
-  return sum.pw != 0.0f || sum.ph != 0.0f;
+  return sum.vw != 0.0f || sum.vh != 0.0f || sum.vmin != 0.0f ||
+         sum.vmax != 0.0f;
 }
 
 }  // namespace detail

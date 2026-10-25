@@ -286,8 +286,8 @@ resolves — a caret, a callout, a tick, a rule standing at a word's edge:
 
 ```cpp
 text(line, style)
-    .textAttach(weave::selectors::word(3), box().left(0).top(pct(100))
-                             .width(pct(100)).height(2).fill(ink));
+    .textAttach(weave::selectors::word(3), box().left(0).top(percent(100))
+                             .width(percent(100)).height(2).fill(ink));
 ```
 
 The child's box is that rect, and its own placement longhand is read

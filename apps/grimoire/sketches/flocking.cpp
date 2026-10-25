@@ -19,6 +19,8 @@
  *   kBirds      how many birds each panel flies
  *   kReach      how far a bird looks for neighbours, px
  *   kCruise     the push along the heading; the speed is kCruise / kDrag
+ *   kSteering   how hard the three steerings pull together, per second
+ *               squared for each pixel of steering
  *   the three Flocking weights on each case below
  */
 
@@ -56,6 +58,7 @@ constexpr float kPanelHeight = 340;
 constexpr int kBirds = 60;
 constexpr float kReach = 46.0f;
 constexpr float kCruise = 90.0f;
+constexpr float kSteering = 4.0f;
 constexpr float kDrag = 1.2f;
 constexpr double kStepRate = 60.0;
 /** How far past the edge a bird flies before it re-enters opposite. */
@@ -81,7 +84,7 @@ struct Flock {
       .timeStep = std::chrono::duration<double>(1.0 / kStepRate)};
 
   explicit Flock(physics::Flocking weights) {
-    forces = {physics::boids(weights, kReach),
+    forces = {physics::boids(weights, kReach, kSteering),
               {.kind = physics::ForceKind::Body,
                .strength = kCruise,
                .body = cruise},
@@ -146,11 +149,11 @@ struct Flocking {
     sketch::kit::stage(context, {.size = kCanvas, .captureAt = 6.0});
 
     flocks = {std::make_unique<Flock>(physics::Flocking{
-                  .separation = 900.0f, .alignment = 0.4f, .cohesion = 0.2f}),
+                  .separation = 3.0f, .alignment = 0.4f, .cohesion = 0.2f}),
               std::make_unique<Flock>(physics::Flocking{
-                  .separation = 600.0f, .alignment = 1.6f, .cohesion = 0.6f}),
+                  .separation = 2.0f, .alignment = 1.6f, .cohesion = 0.6f}),
               std::make_unique<Flock>(physics::Flocking{
-                  .separation = 160.0f, .alignment = 1.0f, .cohesion = 2.4f})};
+                  .separation = 0.6f, .alignment = 1.0f, .cohesion = 2.4f})};
     context.engine.timer(
         [this] {
           for (const auto& flock : flocks) flock->step();
@@ -169,22 +172,22 @@ struct Flocking {
         {.title = "Flocking",
          .subtitle = "Separation, alignment and cohesion as one force over "
                      "one neighbourhood",
-         .footer = "physics::boids(weights, reach) · a cruise against "
-                   "physics::drag() · stepped by physics::Verlet at a fixed "
-                   "rate"},
+         .footer = "physics::boids(weights, reach, strength) · a cruise "
+                   "against physics::drag() · stepped by physics::Verlet at "
+                   "a fixed rate"},
         sketch::kit::comparison(
             {.cases = {{.title = "SEPARATION LEADS",
-                        .control = "{900, 0.4, 0.2}",
+                        .control = "{3, 0.4, 0.2}",
                         .figure = figure(0, 196),
                         .note = "Birds keep their distance and drift as a "
                                 "loose, even scatter."},
                        {.title = "ALIGNMENT LEADS",
-                        .control = "{600, 1.6, 0.6}",
+                        .control = "{2, 1.6, 0.6}",
                         .figure = figure(1, 38),
                         .note = "Neighbours agree on a heading, and the "
                                 "panel fills with parallel streams."},
                        {.title = "COHESION LEADS",
-                        .control = "{160, 1.0, 2.4}",
+                        .control = "{0.6, 1.0, 2.4}",
                         .figure = figure(2, 340),
                         .note = "Birds gather into knots that wheel and "
                                 "merge."}},

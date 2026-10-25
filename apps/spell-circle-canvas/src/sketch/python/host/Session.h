@@ -43,6 +43,11 @@ struct State {
   weave::FontContext* fonts = nullptr;
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
   std::vector<std::shared_ptr<compose::SurfaceScene>>* pages = nullptr;
+  /** The device runtime the session bakes scene3d frames on, null for the
+   *  process's, and the trees it keeps painted by value: the host's, as
+   *  they are for a C++ sketch in the same session. */
+  const sigil::world::Runtime* bakeRuntime = nullptr;
+  compose::Textures* textures = nullptr;
   std::unordered_map<io::Feed, std::shared_ptr<io::Feed>> feedLeases;
   /** What a declaration opened over a feed and Python only borrows, such
    *  as a connection: owned here so that closing the session ends it. */
@@ -75,6 +80,8 @@ struct State {
     fonts = ctx.fonts;
     scenes = ctx.scenes;
     pages = ctx.pages;
+    bakeRuntime = ctx.bakeRuntime;
+    textures = ctx.textures;
     specification = ctx.specification;
     thread = std::this_thread::get_id();
     key = ctx.key;
@@ -83,9 +90,9 @@ struct State {
   }
 
   Scene2DContext context() const {
-    return {*composer,     *engine, *assets,       specification->size,
-            specification, fonts,   deterministic, scenes,
-            key,           pages};
+    return {*composer, *engine,      *assets, specification->size,
+            specification, fonts,    deterministic, scenes,
+            key,       pages,        bakeRuntime, textures};
   }
 };
 

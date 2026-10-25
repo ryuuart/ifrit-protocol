@@ -268,10 +268,14 @@ The pen adds material, geometry and text overloads to the p5 verbs.
   Density is the greater of the host's density and
   `buffer.setDensityFloor(px)`. Style and pixels persist. `resize(w, h)`
   or a density change scales the previous picture into the replacement
-  surface. The buffer forms where its first host draws — on that host's
-  device when it has one, on raster when its canvas makes no surface —
-  and every re-form is made beside the surface it replaces, so the buffer
-  stays where it was formed. Dimensions clamp to at least one
+  surface. The buffer forms where its host draws — on that host's device
+  when it has one, on raster when its canvas makes no surface — and
+  follows it: begun by a host on a device that cannot reach it (a buffer
+  on raster, on another device's context, or on a recorder of another
+  thread), it is formed again there, its picture kept where that device
+  can read it; `buffer.standsWhere(host)` says whether it would be, and
+  `buffer.follow(host)` re-forms it without opening a frame. A host on no
+  device leaves it where it stands. Dimensions clamp to at least one
   canvas unit and must be finite, as must the density floor. Invalid inputs throw
   `std::invalid_argument` without changing them. `begin` throws
   `std::length_error` for an unrepresentable pixel extent or

@@ -40,7 +40,7 @@ Element cell(const char* caption, Element plate) {
       .flexBasis(0)
       .flexGrow(1)
       .alignItems(Align::Center)
-      .children({plate.width(pct(100))
+      .children({plate.width(percent(100))
                      .height(120)
                      .borderRadius({10})
                      .fill(kPlate)

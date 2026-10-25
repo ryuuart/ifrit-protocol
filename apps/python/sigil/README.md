@@ -749,7 +749,7 @@ What a layer holds and how it meets the others:
 | `layer.bake(tree, size)` | clears the layer and paints a compose tree laid out at `size`, the stack's size when none is given |
 | `layer.blend(mode)` | the pen's blend words, as a constant or its word: `"blend"`, where a layer starts; `"remove"`, which erases what lies beneath wherever the layer has ink; `"multiply"`, `"screen"`, `"add"`, `"hard light"` and the rest |
 | `layer.opacity` | from 0 to 1, clamped |
-| `layer.transform(scale=, shear=, rotate=, translate=, origin=)` | the placement, about `origin`; unequal factors squash; angles in radians; a word left out takes its default |
+| `layer.transform(scale=, shear=, rotateRadians=, translate=, origin=)` | the placement, about `origin`; unequal factors squash; a bare angle is radians, and angle text such as `"45deg"` names its own unit; a word left out takes its default |
 | `layer.mask(other, channel="alpha")` | shows the layer only where `other` has ink, read by `"alpha"` or `"luminance"`; `layer.mask(None)` removes it |
 | `layer.clip(shape, invert=False)` | shows the layer only where `shape`, drawn with a pen in the stack's units, covers; `layer.clip(None)` removes it |
 | `layer.show()`, `layer.hide()` | a hidden layer composites nothing and still serves as a mask |
@@ -1049,7 +1049,7 @@ percentage text such as `"50%"`:
 | --- | --- |
 | `Color.rgb(255, 180, 90, alpha=0.6)` | CSS `rgb()`: channels on 0..255, alpha on 0..1, clamped |
 | `Color.srgb(1.0, 0.7, 0.35)` | CSS `color(srgb …)`: unit floats, a channel above 1 kept |
-| `Color.hsl(140, 45, 38)`, `Color.hwb(140, 20, 30)` | hue in degrees, the rest on 0..100 |
+| `Color.hsl(140, 45, 38)`, `Color.hwb(140, 20, 30)` | hue in degrees or as angle text such as `"0.4turn"`, the rest on 0..100 |
 | `Color.oklch(0.72, 0.11, 240)`, `Color.oklab(0.72, -0.05, -0.1)` | lightness on 0..1 |
 | `Color.lch(70, 40, 240)`, `Color.lab(70, -10, -38)` | CSS's CIELAB, under the D50 white |
 | `Color.hex("#18252e")`, `Color.hex(0x18252E, alpha=0.5)` | hex text or a packed integer |
@@ -1076,6 +1076,34 @@ spell them. A flat colour slot resolves nothing from the tree and raises
 on both. `Element.var(name, text)` holds a length where the length
 grammar reads the text (`"12px"`, `"1.5em"`, `"50%"`) and a colour where
 the colour grammar does.
+
+## Angles
+
+**A bare number keeps the meaning its slot gives it**: degrees on
+compose, material, geometry, World and the canvas (`rotate(45)`,
+`Color.hsl(140, …)`, `shapes.polygon(6, 30)`), the pen's `angleMode`
+beside a pen, radians until a sketch sets it as in p5, and radians inside
+a brush value and on the draw stack (`layer.transform(rotateRadians=…)`).
+**Every angle slot also reads CSS angle text and a typed angle**, which
+name their own unit and so mean the same angle on every slot:
+
+```python
+from sigil.core import angle
+
+card = compose.box().rotate("0.25turn")          # a quarter turn, as rotate(90)
+pen.angleMode(draw.RADIANS)
+pen.rotate("45deg")                              # 45 degrees whatever the mode
+hue = material.Color.oklch(0.7, 0.12, angle.turns(0.6))
+```
+
+The text is a number with its unit straight after it: `deg`, `rad`,
+`grad` or `turn`, in any case. `angle.degrees(x)`, `angle.radians(x)`,
+`angle.gradians(x)` and `angle.turns(x)` make the typed angle,
+`angle.Angle("45deg")` reads one from text, and `inDegrees()`,
+`inRadians()` and `inTurns()` read it back. Text without a unit raises
+`ValueError` naming it rather than being read in whichever measure the
+slot counts in. An angle read back off a record is a number in that
+record's measure.
 
 ## Session services
 
@@ -1412,7 +1440,13 @@ fonts passage under Typography shows.
 `textShadow(TextShadow(offset=(2, 2), blur=4, color=…))`, or a list of them,
 casts a shadow from each glyph, CSS's `text-shadow`, which fades, tints and
 deforms with its glyph; its `color` is a colour, `Fill.var(name)` read where
-the shadow is stated, or by default the ink in force. `compose.textStyleOf(root,
+the shadow is stated, or by default the ink in force.
+`boxShadow(offset=(0, 4), blur=12, spread=0, color="#0006", inset=False)` is
+CSS's `box-shadow` on the node's outline, beneath the fill or, inset, over it
+and under the content; it also takes one `compose.Shadow` or a list, the first
+on top. `Shadow`, `TextShadow` and `material.ShadowOptions` share CSS's words
+`offset`, `blur`, `spread`, `color` and `inset`, and their lengths are pixels
+or absolute length text such as `"4px"`. `compose.textStyleOf(root,
 key)` answers the `weave.TextStyle` the keyed leaf is set in, a typeface's
 `variationAxes()` the `weave.VariationAxis` ranges it carries, and a paragraph
 states its page's bidirectional base with `Paragraph.setBaseDirection` or
@@ -1467,9 +1501,26 @@ the memo's description shell.
 Stock layouts are native values from `sigil.compose.layouts`: `Grid`,
 `Radial`, `AlongPath`, `Diagonal`, `BaselineGrid` and `Jittered`. Pass one to
 `layout(scheme).children(...)`. Grid tracks use `px`, `content`,
-`fr` and `minmax`, with named areas or child-owned cells. Relative text
-lengths belong to `sigil.weave`; parent and percentage dimensions belong
-to `sigil.compose`.
+`fr` and `minmax`, with named areas or child-owned cells.
+
+**Every length slot reads a length as CSS writes one.** A number is pixels;
+text is `"12px"`, `"9pt"`, `"1.5em"`, `"2rem"`, `"1lh"`, `"3ch"`, `"50%"`,
+`"10vw"`, `"10vh"`, `"10vmin"`, `"10vmax"`, `"auto"`, `"var(--gutter)"` or
+a `calc(...)` over them; the typed forms are `compose.em`, `rem`, `lh`,
+`ch`, `pt`, `percent`, `vw`, `vh`, `vmin` and `vmax`, and `weave.em` and
+its kin read the same. The viewport units are the canvas the sketch draws
+into. What a percentage is of is the slot's, as in CSS:
+
+| Slot | Reads |
+| --- | --- |
+| `width`, `padding`, `inset` and the other box lengths | `"50%"` of the parent |
+| `fontSize`, `letterSpacing` | px, pt, em, rem, lh, ch, and `"150%"` of the type size (`"1.5em"`) |
+| `lineHeight` | a number (a multiple, `1.4`), a length (`"24px"`, `"1.5em"`, `"150%"` of the type size), `"normal"`, or a `weave.Leading` |
+| `borderRadius`, `compose.Corners` | any length; `"50%"` of the node's own box, across and down |
+| `translateX`, `translateY` | a number or a motion value, or a length; `"50%"` of the node's own box |
+| an opacity, a filter's amount, a gradient stop | a number, or `"50%"` for one half |
+
+A length a slot cannot hold raises `ValueError` naming the forms it reads.
 
 A node states typed FACTS about itself with `attribute(name, value)`, or a
 whole `Attributes` table with `attributes(facts)`, and says nothing about
@@ -1648,6 +1699,22 @@ components; arbitrary text does not become an implicit child of an article.
 
 ## Authoring a Python kit
 
+The gradients are CSS's, the stops first: `material.linearGradient(["#fff",
+"#123"])` runs to the bottom, `angle=90` (or `"0.25turn"`) to the right and
+`toward="top left"` to a corner; `material.radialGradient(stops,
+shape="circle", extent="closest-side", at=("25%", "50%"))` measures its extent
+from its own centre; `material.conicGradient(stops, from_=90, at="center")`
+sweeps clockwise from 12 o'clock. A stop is a colour, or CSS's `("#f00",
+"40%")` with the position a fraction or a percentage, beside the
+offset-first `(0.4, "#f00")`; `Paint.linearGradient(start, end, stops)` and
+its siblings are the point-to-point spelling. `material.Filter` has all ten of
+CSS's filter functions — `blur`, `brightness`, `contrast`, `dropShadow`,
+`grayscale`, `hueRotate`, `invert`, `opacity`, `saturate` and `sepia` — an
+amount a number or percentage text (`"150%"`) and a blur a length (`"4px"`).
+CSS's keywords are spelled as CSS spells them, `justifyContent("space-between")`,
+and an easing may be CSS timing-function text: `"ease"`, `"ease-in-out"`,
+`"linear"`, `"cubic-bezier(.2, .8, .2, 1)"` or `"steps(4, jump-start)"`.
+
 A kit can be an ordinary Python module exporting component functions and
 paint factories. A component returns an `Element`; a paint factory returns
 a native `material.Paint`. Both compose directly with the bound native kits:
@@ -1740,8 +1807,10 @@ description as a value, which `animate(tween)` and `ctx.engine.animate` take. `f
 `to`, `duration` and `delay` each take a `stagger(...)` as well — a delay
 ladder, a spread from the first child's value to the last's, or a table of
 `cues` — which the host resolves at each child's `Place`. A length of time
-is a number of seconds or a `datetime.timedelta`, and one read back is a
-number of seconds. Native easing values live in `sigil.motion.ease`.
+is a number of seconds, a `datetime.timedelta` or CSS time text,
+`"300ms"` or `"0.3s"`, and one read back is a number of seconds; text
+names its unit, since CSS has no unitless time, and text without one
+raises `ValueError`. Native easing values live in `sigil.motion.ease`.
 
 `.exit()` on a keyed element says it leaves as it entered. When a later
 description leaves it out, it keeps its place in the layout, answers no
@@ -2242,6 +2311,11 @@ class Vessel:
         return world.Frame(world.kit.litSet(model, world.kit.Set(ground=0),
                                             now=seconds))
 ```
+
+A map a material reads is painted once through `ctx.texture(tree, size,
+background=…)`: the session keeps the trees it painted by value, so an
+equal tree asked for again is handed the texture already painted, and a
+tree holding a paint program equals only itself.
 
 A scene2d sketch can still show one frame as a picture:
 `ctx.bakeScene3D(frame, size, camera=…, background=…, at=…, density=…)`

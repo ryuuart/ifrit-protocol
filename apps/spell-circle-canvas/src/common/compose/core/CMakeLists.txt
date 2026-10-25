@@ -130,6 +130,7 @@ sigil_library(SigilComposeCore
     paint/Instances.cpp
     paint/SurfaceMapFill.cpp
     paint/MaterialEffects.cpp
+    paint/Shadow.cpp
     paint/MaterialEffects.h
     paint/PaintContent.cpp
     paint/FillInForce.cpp
@@ -156,6 +157,7 @@ sigil_library(SigilComposeCore
     cache/Backdrop.cpp
     cache/GroupBake.cpp
     cache/GroupScalars.cpp
+    cache/MovingHold.cpp
     cache/MarkStates.h
     cache/Pattern.cpp
     cache/PictureTier.cpp
@@ -222,6 +224,7 @@ sigil_test(compose_test
           test/ComposeTestMatching.cpp test/ComposeTestHas.cpp
           test/ComposeTestTypedLeaves.cpp test/ComposeTestRuleScope.cpp
           test/ComposeTestLonghandValues.cpp test/ComposeTestTextIndent.cpp
+          test/ComposeTestMovingHold.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilMaterialField SigilWeavePorts
             yoga::yogacore

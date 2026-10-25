@@ -61,7 +61,7 @@ inline material::Material y2kChrome(ChromeOptions options = {}) {
       {0, 0, 0, 0.45f}, {.blur = 10, .offset = {0, 6}});
   if (options.palette == ChromePalette::Steel)
     effects = effects.then(material::Filter::shadow(
-        chromeSteelTopBand(), {.blur = 4, .offset = {0, 3}, .inside = true}));
+        chromeSteelTopBand(), {.blur = 4, .offset = {0, 3}, .inset = true}));
   effects = effects.then(material::Filter::bevel({.depth = options.bevelDepth,
                                                   .size = options.bevelSize,
                                                   .angleDegrees = 120,

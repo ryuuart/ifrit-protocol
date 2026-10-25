@@ -64,29 +64,33 @@ void releaseCalc(float handle) noexcept;
  *  it where it is read. `pt` is SigilWeave's too, and absolute: four
  *  pixels to every three points.
  *
- *  THE CANVAS-RELATIVE UNITS ARE THE ROOT'S BOX, not the parent's: `pw` is
- *  a percentage of the canvas the composer renders into, `ph` a percentage
- *  of its height, wherever in the tree the node sits. `pct` is the
- *  parent's, which is Yoga's own percent; these two are resolved into
- *  pixels before Yoga sees them, because a percentage of something that is
- *  not the containing block is a thing Yoga cannot express. A poster whose
- *  margin is `6_pw` keeps its proportions at every canvas size, however
- *  many boxes deep it is written. */
+ *  THE VIEWPORT UNITS ARE THE CANVAS, not the parent's box: the canvas
+ *  the composer renders into is the viewport, so `vw` is a percentage of
+ *  its width, `vh` of its height, `vmin` of the smaller of the two and
+ *  `vmax` of the larger, wherever in the tree the node sits — CSS's own
+ *  words for exactly this. `percent` is the parent's, which is Yoga's own
+ *  percent; the viewport units are resolved into pixels before Yoga sees
+ *  them, because a percentage of something that is not the containing
+ *  block is a thing Yoga cannot express. A poster whose margin is `6_vw`
+ *  keeps its proportions at every canvas size, however many boxes deep it
+ *  is written. */
 struct Dimension {
   /** What `value` is measured in. */
   enum class Unit : uint8_t {
     Px,    ///< device-independent pixels
-    Pct,   ///< percent of the parent's corresponding extent
+    Percent,  ///< percent of the parent's corresponding extent
     Auto,  ///< left for layout to decide; `value` unused
     Em,    ///< multiples of the node's own resolved font size
     Rem,   ///< multiples of the root's font size
     Lh,    ///< multiples of the node's own line height
     Var,   ///< a custom property, its id bit-cast into `value`
-    Pw,    ///< percent of the CANVAS's width
-    Ph,    ///< percent of the CANVAS's height
+    Vw,    ///< percent of the CANVAS's width
+    Vh,    ///< percent of the CANVAS's height
     Ch,    ///< multiples of the advance of "0" in the font in force
     Pt,    ///< printer's points, four pixels to every three
-    Calc   ///< a sum over several units, its interned id bit-cast into `value`
+    Calc,  ///< a sum over several units, its interned id bit-cast into `value`
+    Vmin,  ///< percent of the smaller of the CANVAS's width and height
+    Vmax   ///< percent of the larger of the CANVAS's width and height
   };
   Unit unit = Unit::Auto;
   /** The length, or under `Var` and `Calc` an id, bit-cast into the
@@ -150,8 +154,9 @@ struct Dimension {
    *  everything but a pixel, a point, a parent-relative percent and auto. */
   [[nodiscard]] constexpr bool relative() const {
     return unit == Unit::Em || unit == Unit::Rem || unit == Unit::Lh ||
-           unit == Unit::Ch || unit == Unit::Var || unit == Unit::Pw ||
-           unit == Unit::Ph || unit == Unit::Calc;
+           unit == Unit::Ch || unit == Unit::Var || unit == Unit::Vw ||
+           unit == Unit::Vh || unit == Unit::Vmin || unit == Unit::Vmax ||
+           unit == Unit::Calc;
   }
   /** The custom property a `Var` length reads; meaningless otherwise. */
   [[nodiscard]] constexpr VarRef reference() const {
@@ -169,23 +174,40 @@ struct Dimension {
 static_assert(sizeof(Dimension) == 8);
 /** @p v percent of the PARENT's corresponding extent — Yoga's own
  *  percent, and the one CSS means by `%`. */
-constexpr Dimension pct(float v) {
+constexpr Dimension percent(float v) {
   Dimension d;
-  d.unit = Dimension::Unit::Pct;
+  d.unit = Dimension::Unit::Percent;
   d.value = v;
   return d;
 }
-/** @p v percent of the CANVAS's width — the root's box, not the parent's. */
-constexpr Dimension pw(float v) {
+/** @p v percent of the CANVAS's width — the root's box, not the parent's:
+ *  CSS's `vw`, the canvas being the viewport. */
+constexpr Dimension vw(float v) {
   Dimension d;
-  d.unit = Dimension::Unit::Pw;
+  d.unit = Dimension::Unit::Vw;
   d.value = v;
   return d;
 }
-/** @p v percent of the CANVAS's height. */
-constexpr Dimension ph(float v) {
+/** @p v percent of the CANVAS's height — CSS's `vh`. */
+constexpr Dimension vh(float v) {
   Dimension d;
-  d.unit = Dimension::Unit::Ph;
+  d.unit = Dimension::Unit::Vh;
+  d.value = v;
+  return d;
+}
+/** @p v percent of the smaller of the CANVAS's width and height — CSS's
+ *  `vmin`, so a mark sized in it fits a canvas of either orientation. */
+constexpr Dimension vmin(float v) {
+  Dimension d;
+  d.unit = Dimension::Unit::Vmin;
+  d.value = v;
+  return d;
+}
+/** @p v percent of the larger of the CANVAS's width and height — CSS's
+ *  `vmax`. */
+constexpr Dimension vmax(float v) {
+  Dimension d;
+  d.unit = Dimension::Unit::Vmax;
   d.value = v;
   return d;
 }
@@ -197,8 +219,8 @@ constexpr Dimension ph(float v) {
 constexpr Dimension autoDimension() { return {}; }
 
 /** THE ONE PLACE A LENGTH WRITTEN AS TEXT IS READ — `"12"`, `"12px"`,
- *  `"1.5em"`, `"2rem"`, `".5lh"`, `"3ch"`, `"9pt"`, `"50%"`, `"10pw"`,
- *  `"10ph"`, `"auto"`, `var(name)` naming a custom property, and
+ *  `"1.5em"`, `"2rem"`, `".5lh"`, `"3ch"`, `"9pt"`, `"50%"`, `"10vw"`,
+ *  `"10vh"`, `"10vmin"`, `"10vmax"`, `"auto"`, `var(name)` naming a custom property, and
  *  `calc(...)` over any of them with `+ - * /` and brackets — so a
  *  rule's text and a length handed in from Python are one grammar with
  *  one set of units.
@@ -209,6 +231,22 @@ constexpr Dimension autoDimension() { return {}; }
  *  string and a unit no `Dimension` carries; the caller says what an
  *  unreadable length means where it stands. */
 [[nodiscard]] std::optional<Dimension> parseDimension(std::string_view text);
+
+/** THE LENGTH A FONT FIELD HOLDS for @p length — the type size and the
+ *  tracking are SigilWeave lengths, resolved where the type is set:
+ *  pixels, `pt`, `em`, `rem`, `lh` and `ch` as they stand, and a
+ *  `percent` as the multiple of the type size it is in CSS, so `150%` is
+ *  `1.5em`. Nothing is answered for a length a font cannot hold: a
+ *  viewport unit, a custom property, a sum and auto. */
+[[nodiscard]] std::optional<sigil::weave::Length> fontLength(
+    const Dimension& length);
+
+/** A FRACTION WRITTEN AS TEXT — CSS's `<number> | <percentage>` where the
+ *  two mean one amount: `"0.5"` and `"50%"` are both a half. It is what an
+ *  opacity, a scale, a filter's amount and a gradient stop's offset read.
+ *  Case does not matter and surrounding blank space is ignored; nothing is
+ *  answered for text that is neither a number nor a percentage. */
+[[nodiscard]] std::optional<float> parseFraction(std::string_view text);
 
 /** @name CSS's calc(), as arithmetic on lengths
  *  `width(2 * 1_em + 12_px)`, `padding(var("gutter") / 2)`: a sum over
@@ -221,7 +259,7 @@ constexpr Dimension autoDimension() { return {}; }
  *  as `autoDimension()`.
  *
  *  A PERCENTAGE IN A SUM is kept as a term until the property reading it
- *  knows its containing extent: `top(pct(100) + 12)` on a positioned child
+ *  knows its containing extent: `top(percent(100) + 12)` on a positioned child
  *  or a `Text::textAttach` mark is its containing box's bottom and twelve
  *  more, and a transform origin's is a fraction of the box plus an offset.
  *  @trap Flex layout cannot hold such a sum — Yoga's percent is a unit of
@@ -236,7 +274,7 @@ constexpr Dimension autoDimension() { return {}; }
 [[nodiscard]] Dimension operator/(Dimension length, float divisor);
 /** @} */
 
-/** `width(50_pct)`, `width(50_pw)`, `top(10_ph)`, `flexBasis(120_px)` — for the
+/** `width(50_percent)`, `width(50_vw)`, `top(10_vh)`, `flexBasis(120_px)` — for the
  *  Dimension-valued setters; exposed by `using namespace sigil::compose` (or
  *  `using namespace sigil::compose::literals`). */
 inline namespace literals {
@@ -244,14 +282,22 @@ constexpr Dimension operator""_px(long double v) { return Dimension((float)v); }
 constexpr Dimension operator""_px(unsigned long long v) {
   return Dimension((float)v);
 }
-constexpr Dimension operator""_pct(long double v) { return pct((float)v); }
-constexpr Dimension operator""_pct(unsigned long long v) {
-  return pct((float)v);
+constexpr Dimension operator""_percent(long double v) { return percent((float)v); }
+constexpr Dimension operator""_percent(unsigned long long v) {
+  return percent((float)v);
 }
-constexpr Dimension operator""_pw(long double v) { return pw((float)v); }
-constexpr Dimension operator""_pw(unsigned long long v) { return pw((float)v); }
-constexpr Dimension operator""_ph(long double v) { return ph((float)v); }
-constexpr Dimension operator""_ph(unsigned long long v) { return ph((float)v); }
+constexpr Dimension operator""_vw(long double v) { return vw((float)v); }
+constexpr Dimension operator""_vw(unsigned long long v) { return vw((float)v); }
+constexpr Dimension operator""_vh(long double v) { return vh((float)v); }
+constexpr Dimension operator""_vh(unsigned long long v) { return vh((float)v); }
+constexpr Dimension operator""_vmin(long double v) { return vmin((float)v); }
+constexpr Dimension operator""_vmin(unsigned long long v) {
+  return vmin((float)v);
+}
+constexpr Dimension operator""_vmax(long double v) { return vmax((float)v); }
+constexpr Dimension operator""_vmax(unsigned long long v) {
+  return vmax((float)v);
+}
 }  // namespace literals
 
 /** FOUR LENGTHS, ONE PER SIDE, EACH SAYING WHICH SIDE IT IS —

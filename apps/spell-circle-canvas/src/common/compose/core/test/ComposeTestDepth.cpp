@@ -533,7 +533,7 @@ TEST(ComposeDepth, AHingeBehindThePlaneIsATransformOriginWithADepth) {
              .absolute()
              .rect(50, 50, 100, 100)
              .fill(red())
-             .transformOrigin(pct(50), pct(50), Dimension(pivotZ))
+             .transformOrigin(percent(50), percent(50), Dimension(pivotZ))
              .rotateY(45)}));
     host.frame();
     int painted = 0;
@@ -572,14 +572,14 @@ TEST(ComposeDepth, TheViewerStandsWhereThePerspectiveOriginIsWritten) {
   EXPECT_EQ(centred->pixel(100, 100), SK_ColorRED);
   EXPECT_NE(centred->pixel(40, 40), SK_ColorRED);
 
-  const auto cornerInPercent = drawnUnder({{pct(0), pct(0)}});
+  const auto cornerInPercent = drawnUnder({{percent(0), percent(0)}});
   EXPECT_EQ(cornerInPercent->pixel(40, 40), SK_ColorRED);
   EXPECT_NE(cornerInPercent->pixel(100, 100), SK_ColorRED);
 
   const auto cornerInPixels = drawnUnder({{Dimension(0), Dimension(0)}});
   EXPECT_TRUE(identicalPixels(*cornerInPercent, *cornerInPixels, 200, 200));
 
-  const auto farCorner = drawnUnder({{Dimension(200), pct(100)}});
+  const auto farCorner = drawnUnder({{Dimension(200), percent(100)}});
   EXPECT_EQ(farCorner->pixel(150, 150), SK_ColorRED);
   EXPECT_NE(farCorner->pixel(100, 100), SK_ColorRED);
 }

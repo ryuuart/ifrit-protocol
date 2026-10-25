@@ -48,7 +48,7 @@ compose::Element timeline(const Timeline& scale) {
     Element tick =
         box()
             .absolute()
-            .left(compose::pct(std::clamp(mark.at, 0.0f, 1.0f) * 100))
+            .left(compose::percent(std::clamp(mark.at, 0.0f, 1.0f) * 100))
             .width(1)
             .height(reach)
             .fill(inkFill);
@@ -80,7 +80,7 @@ compose::Element timeline(const Timeline& scale) {
     words.children(
         {box()
              .absolute()
-             .left(compose::pct(std::clamp(mark.at, 0.0f, 1.0f) * 100))
+             .left(compose::percent(std::clamp(mark.at, 0.0f, 1.0f) * 100))
              .width(0)
              .row()
              .justifyContent(compose::Justify::Center)

@@ -31,6 +31,17 @@ void warnTextIndentIsNeverAuto() {
       "the measure. (warned once)\n");
 }
 
+/** The once-per-process diagnostic behind `lineHeight(auto)`. */
+void warnLineHeightIsNeverAuto() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "[compose] lineHeight() was given auto, which is no pitch — the line "
+      "height in force was left standing. Give a number, a length or "
+      "Leading::face() for the face's own. (warned once)\n");
+}
+
 }  // namespace
 
 template <class Derived>
@@ -43,6 +54,10 @@ Derived& CascadeVerbs<Derived>::paragraph(
   if (partial.firstLineIndent ||
       partial.keywords.find(sigil::weave::ParagraphField::FirstLineIndent))
     cascade.textIndent.reset();
+  // So does a leading over a line height written in another unit.
+  if (partial.leading ||
+      partial.keywords.find(sigil::weave::ParagraphField::Leading))
+    cascade.lineHeight.reset();
   return self();
 }
 
@@ -52,6 +67,37 @@ Derived& CascadeVerbs<Derived>::paragraph(
 template <class Derived>
 Derived& CascadeVerbs<Derived>::lineHeight(sigil::weave::Leading leading) {
   return paragraph({.leading = leading});
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::lineHeight(float multiple) {
+  return paragraph({.leading = sigil::weave::Leading::multiple(multiple)});
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::lineHeight(Dimension length) {
+  switch (length.unit) {
+    case Dimension::Unit::Px:
+      return paragraph({.leading = sigil::weave::Leading::absolute(length.value)});
+    case Dimension::Unit::Pt:
+      return paragraph({.leading = sigil::weave::Leading::absolute(
+                            sigil::weave::pt(length.value).absolutePx())});
+    case Dimension::Unit::Auto:
+      warnLineHeightIsNeverAuto();
+      return self();
+    default: {
+      // Any other unit is resolved by the cascade, where the font, the
+      // canvas and the properties are known.
+      detail::CascadeData& cascade = declarations()->paragraph();
+      if (cascade.block) {
+        cascade.block->leading.reset();
+        cascade.block->keywords.clear(sigil::weave::ParagraphField::Leading);
+        if (cascade.block->empty()) cascade.block.reset();
+      }
+      cascade.lineHeight = std::move(length);
+      return self();
+    }
+  }
 }
 
 template <class Derived>

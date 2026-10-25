@@ -21,6 +21,8 @@
 #include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
+#include <cmath>
+#include <glm/common.hpp>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -112,13 +114,24 @@ GradientOptions inPixels(GradientOptions options) {
   return options;
 }
 
+/** HOW A BOX GRADIENT READS ITS CHILD: the modes the box read's program
+ *  names, and the numbers each one takes. */
+struct BoxPlacement {
+  enum Mode : int { UnitSquare, PixelsAroundCenter, Along, Ellipse, Circle };
+  Mode mode = UnitSquare;
+  SkPoint center = {0, 0};
+  SkVector direction = {0, 0};
+  SkVector radii = {0, 0};
+  float extent = 0;
+};
+
 /** A BOX-UNIT GRADIENT that the unit-square ramp cannot draw — a repeat, a
- *  focus, a conic: the gradient laid out over the unit square (a conic,
- *  around the origin) as a child, read at the painted point's place in
- *  the box. It rides the GEOMETRY tier through uResolution. A conic is
- *  read in px around its centre, so its angles stay true on a box that
- *  is not square. */
-Paint boxGradient(Paint unitGradient, SkPoint center, bool conic) {
+ *  focus, a conic, a CSS-shaped gradient: the gradient laid out away from
+ *  the box as a child, read at the painted point's place in the box as
+ *  @p placement says. It rides the GEOMETRY tier through uResolution. A
+ *  conic is read in px around its centre, so its angles stay true on a
+ *  box that is not square. */
+Paint boxGradient(Paint unitGradient, const BoxPlacement& placement) {
   static const sk_sp<SkRuntimeEffect> effect = [] {
     auto [built, error] = SkRuntimeEffect::MakeForShader(
         SkString(std::string(shaderSource("BoxGradient.sksl")).c_str()));
@@ -127,10 +140,60 @@ Paint boxGradient(Paint unitGradient, SkPoint center, bool conic) {
     return built;
   }();
   if (!effect) return unitGradient;
-  Paint box = PaintAccess::sksl(effect, {{"uConic", conic ? 1.0f : 0.0f}});
-  box.set("uCenter", std::array<float, 2>{center.x(), center.y()});
+  Paint box = PaintAccess::sksl(
+      effect, {{"uMode", (float)placement.mode}, {"uExtent", placement.extent}});
+  box.set("uCenter",
+          std::array<float, 2>{placement.center.x(), placement.center.y()});
+  box.set("uDirection", std::array<float, 2>{placement.direction.x(),
+                                             placement.direction.y()});
+  box.set("uRadii",
+          std::array<float, 2>{placement.radii.x(), placement.radii.y()});
   box.slot("uGradient", std::move(unitGradient));
   return box;
+}
+
+Paint boxGradient(Paint unitGradient, SkPoint center, bool conic) {
+  return boxGradient(
+      std::move(unitGradient),
+      {.mode = conic ? BoxPlacement::PixelsAroundCenter
+                     : BoxPlacement::UnitSquare,
+       .center = center});
+}
+
+/** The point-to-point options a CSS-shaped gradient's child is built
+ *  with: in px, with the repeat and the conic window it was given. */
+GradientOptions childOptions(const GradientOptions& options) {
+  GradientOptions child;
+  child.units = GradientUnits::Pixels;
+  child.repeat = options.repeat;
+  child.startDegrees = options.startDegrees;
+  child.endDegrees = options.endDegrees;
+  return child;
+}
+
+/** Where a gradient toward @p toward starts and ends in the unit square.
+ *  Toward a corner, the line runs between the two opposite corners, so
+ *  the stops' middle is the other diagonal at any proportions. */
+std::pair<glm::vec2, glm::vec2> towardPoints(Toward toward) {
+  switch (toward) {
+    case Toward::Top:
+      return {{0.5f, 1}, {0.5f, 0}};
+    case Toward::TopRight:
+      return {{0, 1}, {1, 0}};
+    case Toward::Right:
+      return {{0, 0.5f}, {1, 0.5f}};
+    case Toward::BottomRight:
+      return {{0, 0}, {1, 1}};
+    case Toward::Bottom:
+      return {{0.5f, 0}, {0.5f, 1}};
+    case Toward::BottomLeft:
+      return {{1, 0}, {0, 1}};
+    case Toward::Left:
+      return {{1, 0.5f}, {0, 0.5f}};
+    case Toward::TopLeft:
+      return {{1, 1}, {0, 0}};
+  }
+  return {{0.5f, 0}, {0.5f, 1}};
 }
 
 }  // namespace
@@ -223,27 +286,37 @@ Paint Paint::conicGradient(glm::vec2 centerPoint, ColorStops stops,
         true);
   const float startDegrees = options.startDegrees;
   const float endDegrees = options.endDegrees;
-  // Skia's sweep CLAMPS outside [startDegrees, endDegrees] — it never wraps.
-  // A window reaching past the circle (90 to 450, the obvious
-  // hue-wheel-starting-at-red) paints the run before startDegrees in the
-  // first stop's flat colour, silently. The numbers only meet here, so
-  // this is where the diagnostic lives — once per process.
-  if (startDegrees < 0.0f || endDegrees > 360.0f) {
+  // Skia's sweep starts at 3 o'clock and reads only angles inside
+  // [0, 360], clamping rather than wrapping; the window is stated from 12
+  // o'clock. A window that lands inside Skia's circle is handed over as
+  // it is; any other is turned to start at Skia's zero and the sweep
+  // rotated back by the same angle, so only a window wider than a turn
+  // clamps. The numbers only meet here, so this is where the diagnostic
+  // lives — once per process.
+  float sweepStart = startDegrees - 90.0f;
+  float sweepEnd = endDegrees - 90.0f;
+  SkMatrix turn = SkMatrix::I();
+  if (sweepStart < 0.0f || sweepEnd > 360.0f) {
+    turn = SkMatrix::RotateDeg(sweepStart, center);
+    sweepEnd -= sweepStart;
+    sweepStart = 0.0f;
+  }
+  if (sweepEnd > 360.0f) {
     static std::atomic_bool warnedSweepWindow{false};
     if (!warnedSweepWindow.exchange(true, std::memory_order_relaxed)) {
       SkDebugf(
           "[material] material::Paint::conicGradient(start %.1f, end %.1f): "
-          "angles outside [0, 360] CLAMP, they do not wrap — no canvas angle "
-          "ever reaches the part of the window past the circle, so that "
-          "run paints in the nearest stop's flat colour. Rotate the "
-          "stops into [0, 360] instead. (warned once)\n",
+          "a window wider than one turn CLAMPS, it does not wrap, so the "
+          "run past the turn paints in the nearest stop's flat colour. "
+          "(warned once)\n",
           startDegrees, endDegrees);
     }
   }
   const SkTileMode tile = toSkTileMode(options.repeat);
   RampArrays r = split(stops);
   Paint m = PaintAccess::wrap(SkShaders::SweepGradient(
-      center, startDegrees, endDegrees, makeGradient(r, tile)));
+      center, sweepStart, sweepEnd, makeGradient(r, tile),
+      turn.isIdentity() ? nullptr : &turn));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Sweep;
   rec->p0 = center;
@@ -256,6 +329,73 @@ Paint Paint::conicGradient(glm::vec2 centerPoint, ColorStops stops,
 }
 
 }  // namespace sigil::material
+
+namespace sigil::material::skia::detail {
+
+Paint cssLinearGradient(ColorStops stops, LinearDirection direction,
+                        const GradientOptions& options) {
+  if (direction.toward) {
+    const auto [start, end] = towardPoints(*direction.toward);
+    return boxGradient(Paint::linearGradient(start, end, std::move(stops),
+                                             childOptions(options)),
+                       BoxPlacement{});
+  }
+  // CSS's angle runs clockwise from straight up, and the canvas's y grows
+  // downward, so 0 points along -y and 90 along +x.
+  const float radians = direction.angleDegrees * 3.14159265358979f / 180.0f;
+  return boxGradient(
+      Paint::linearGradient({0, 0}, {1, 0}, std::move(stops),
+                            childOptions(options)),
+      {.mode = BoxPlacement::Along,
+       .center = {0.5f, 0.5f},
+       .direction = {std::sin(radians), -std::cos(radians)}});
+}
+
+Paint cssRadialGradient(ColorStops stops, RadialEndingShape shape,
+                        const GradientOptions& options) {
+  Paint child = Paint::radialGradient({0, 0}, 1, std::move(stops),
+                                      childOptions(options));
+  const SkPoint center{shape.at.x, shape.at.y};
+  if (shape.shape == RadialShape::Circle)
+    return boxGradient(std::move(child), {.mode = BoxPlacement::Circle,
+                                          .center = center,
+                                          .extent = (float)shape.extent});
+  // An ellipse is the box's own proportions, so its extents are fractions
+  // of the unit square measured from its centre; through a corner it
+  // keeps the matching side's proportions, which puts it the square root
+  // of two farther out.
+  const glm::vec2 near = glm::min(shape.at, glm::vec2(1) - shape.at);
+  const glm::vec2 far = glm::max(shape.at, glm::vec2(1) - shape.at);
+  glm::vec2 radii = far * 1.41421356f;
+  switch (shape.extent) {
+    case RadialExtent::ClosestSide:
+      radii = near;
+      break;
+    case RadialExtent::FarthestSide:
+      radii = far;
+      break;
+    case RadialExtent::ClosestCorner:
+      radii = near * 1.41421356f;
+      break;
+    case RadialExtent::FarthestCorner:
+      break;
+  }
+  return boxGradient(std::move(child), {.mode = BoxPlacement::Ellipse,
+                                        .center = center,
+                                        .radii = {radii.x, radii.y}});
+}
+
+Paint cssConicGradient(ColorStops stops, ConicStart start,
+                       const GradientOptions& options) {
+  GradientOptions child = childOptions(options);
+  child.startDegrees += start.fromDegrees;
+  child.endDegrees += start.fromDegrees;
+  return boxGradient(Paint::conicGradient({0, 0}, std::move(stops), child),
+                     {.mode = BoxPlacement::PixelsAroundCenter,
+                      .center = {start.at.x, start.at.y}});
+}
+
+}  // namespace sigil::material::skia::detail
 
 namespace sigil::material::skia {
 

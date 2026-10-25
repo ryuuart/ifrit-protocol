@@ -67,11 +67,11 @@ TEST(ComposeTextIndent, ALengthInTheFontIsResolvedWhereItIsStated) {
 TEST(ComposeTextIndent, APercentageIsOneOfEachPassagesOwnMeasure) {
   // Inherited as the percentage: the same ten percent is 16 px of one
   // passage and 24 px of the other.
-  EXPECT_NE(render(box().textIndent(pct(10)).children({passage(160)})),
+  EXPECT_NE(render(box().textIndent(percent(10)).children({passage(160)})),
             render(box().children({passage(160)})));
-  EXPECT_EQ(render(box().textIndent(pct(10)).children({passage(160)})),
+  EXPECT_EQ(render(box().textIndent(percent(10)).children({passage(160)})),
             render(box().textIndent(16).children({passage(160)})));
-  EXPECT_EQ(render(box().textIndent(pct(10)).children(
+  EXPECT_EQ(render(box().textIndent(percent(10)).children(
                 {box().children({passage(240)})})),
             render(box().textIndent(24).children({passage(240)})));
 }
@@ -99,7 +99,7 @@ TEST(ComposeTextIndent, ARuleStatesEveryUnitAsAnElementDoes) {
   // Two em of the matched passage's own 10 px, and ten percent of its 160.
   EXPECT_EQ(indented(StyleSheet{rule(".p").textIndent(sigil::weave::em(2))}),
             render(box().textIndent(20).children({passage(160)})));
-  EXPECT_EQ(indented(StyleSheet{rule(".p").textIndent(pct(10))}),
+  EXPECT_EQ(indented(StyleSheet{rule(".p").textIndent(percent(10))}),
             render(box().textIndent(16).children({passage(160)})));
 }
 
@@ -109,7 +109,7 @@ TEST(ComposeTextIndent, ANamedParagraphTakesAnIndentInAnyUnit) {
     return render(box().applyStyleSheet(sheet).children(
         {passage(160).paragraphStyles(names)}));
   };
-  EXPECT_EQ(named(StyleSheet{rule(".lead").textIndent(pct(10))}),
+  EXPECT_EQ(named(StyleSheet{rule(".lead").textIndent(percent(10))}),
             render(box().textIndent(16).children({passage(160)})));
   EXPECT_EQ(named(StyleSheet{rule(".lead").textIndent(sigil::weave::em(2))}),
             render(box().textIndent(20).children({passage(160)})));
@@ -118,19 +118,19 @@ TEST(ComposeTextIndent, ANamedParagraphTakesAnIndentInAnyUnit) {
 TEST(ComposeTextIndent, AKeywordInAStrongerLayerStandsOverAWeakerIndent) {
   const auto none = render(box().children({passage(160)}));
   // `initial` on the passage stops the percentage its parent states…
-  EXPECT_EQ(render(box().textIndent(pct(10)).children({passage(160).paragraph(
+  EXPECT_EQ(render(box().textIndent(percent(10)).children({passage(160).paragraph(
                 indentAs(sigil::weave::Keyword::Initial))})),
             none);
   // …and on the element stops the one a rule matching it states.
   EXPECT_EQ(
       render(box()
-                 .applyStyleSheet(StyleSheet{rule(".p").textIndent(pct(10))})
+                 .applyStyleSheet(StyleSheet{rule(".p").textIndent(percent(10))})
                  .children({passage(160).styleClass("p").paragraph(
                      indentAs(sigil::weave::Keyword::Initial))})),
       none);
   // `inherit` takes the parent's percentage over the rule's pixels.
   EXPECT_EQ(render(box()
-                       .textIndent(pct(10))
+                       .textIndent(percent(10))
                        .applyStyleSheet(StyleSheet{rule(".p").textIndent(40)})
                        .children({passage(160).styleClass("p").paragraph(
                            indentAs(sigil::weave::Keyword::Inherit))})),
@@ -149,15 +149,15 @@ TEST(ComposeTextIndent, TheLaterOfPixelsAndAnotherUnitStands) {
   EXPECT_TRUE(
       sameDescription(box().textIndent(sigil::weave::em(2)).textIndent(8),
                       box().textIndent(8)));
-  EXPECT_TRUE(sameDescription(box().textIndent(8).textIndent(pct(5)),
-                              box().textIndent(pct(5))));
+  EXPECT_TRUE(sameDescription(box().textIndent(8).textIndent(percent(5)),
+                              box().textIndent(percent(5))));
   EXPECT_TRUE(sameDescription(
-      box().textIndent(pct(5)).paragraph({.firstLineIndent = 8}),
+      box().textIndent(percent(5)).paragraph({.firstLineIndent = 8}),
       box().textIndent(8)));
   // A length written after the keyword is the later statement.
   EXPECT_TRUE(
       sameDescription(box()
                           .paragraph(indentAs(sigil::weave::Keyword::Initial))
-                          .textIndent(pct(5)),
-                      box().textIndent(pct(5))));
+                          .textIndent(percent(5)),
+                      box().textIndent(percent(5))));
 }

@@ -387,7 +387,7 @@ struct FeedSky {
         .height(kSkyHeight)
         .left(0)
         .top(0)
-        .transformOrigin(pct(0), pct(0))
+        .transformOrigin(percent(0), percent(0))
         .scale(kSkyScale)
         .children(each(
             state["bands"].array(), [&](const data::Json& band, size_t index) {
@@ -443,7 +443,7 @@ struct FeedSky {
         .gap(10)
         .padding(0, 16)
         .styleClass("caption")
-        .children({kit::line({.length = pct(100)}).opacity(0.4f),
+        .children({kit::line({.length = percent(100)}).opacity(0.4f),
                    document::caption(line)});
   }
 

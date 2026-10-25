@@ -126,14 +126,26 @@ void bindFlight(PoolClass& pool) {
         return keywordValue<Flight>(fields, "Unknown Flight field: ");
       }))
       .def("copy", [](const Flight& value) { return value; })
-      .def_readwrite("rotateFrom", &Flight::rotateFrom)
-      .def_readwrite("rotateTo", &Flight::rotateTo)
+      .def_property(
+          "rotateFrom", angleGetter(&Flight::rotateFrom),
+          angleSetter<AngleInRadians>(&Flight::rotateFrom))
+      .def_property(
+          "rotateTo", angleGetter(&Flight::rotateTo),
+          angleSetter<AngleInRadians>(&Flight::rotateTo))
       .def_readwrite("scaleFrom", &Flight::scaleFrom)
       .def_readwrite("scaleTo", &Flight::scaleTo)
       .def_readwrite("alphaFrom", &Flight::alphaFrom)
       .def_readwrite("alphaTo", &Flight::alphaTo)
-      .def_readwrite("start", &Flight::start)
-      .def_readwrite("duration", &Flight::duration)
+      .def_property(
+          "start", [](const Flight& self) { return self.start; },
+          [](Flight& self, motion::Duration start) {
+            self.start = (float)start.count();
+          })
+      .def_property(
+          "duration", [](const Flight& self) { return self.duration; },
+          [](Flight& self, motion::Duration duration) {
+            self.duration = (float)duration.count();
+          })
       .def(
           "__eq__",
           [](const Flight& value, const Flight& other) {
@@ -182,15 +194,15 @@ void bindPool(py::module_& module) {
   pool.def(py::init<>())
       .def(
           "add",
-          [](Pool& self, py::handle position, int frame, float rotateRadians,
-             float scale, material::Color tint) {
+          [](Pool& self, py::handle position, int frame,
+             AngleInRadians rotateRadians, float scale, material::Color tint) {
             return self.add(
                 pointFrom(position,
                           "An instance stands at a Point, or an x and a y."),
-                frame, rotateRadians, scale, tint);
+                frame, rotateRadians.value, scale, tint);
           },
           py::arg("position"), py::arg("frame") = 0,
-          py::arg("rotateRadians") = 0.0f, py::arg("scale") = 1.0f,
+          py::arg("rotateRadians") = AngleInRadians{}, py::arg("scale") = 1.0f,
           py::arg("tint") = SkColors::kWhite,
           "Appends one instance and answers its index.")
       .def("clear", &Pool::clear,
@@ -217,8 +229,8 @@ void bindPool(py::module_& module) {
            "and `clear()` is what drops it.")
       .def(
           "fly",
-          [](Pool& self, float seconds, py::handle ease) {
-            flyPool(self, seconds, ease);
+          [](Pool& self, motion::Duration moment, py::handle ease) {
+            flyPool(self, (float)moment.count(), ease);
           },
           py::arg("seconds"), py::arg("ease") = py::none(),
           "Steps every flight to `seconds`, writing the position, "

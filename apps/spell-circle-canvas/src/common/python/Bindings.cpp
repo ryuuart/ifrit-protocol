@@ -88,6 +88,41 @@ SkColor4f color(py::handle value) {
   return {rgba[0], rgba[1], rgba[2], rgba[3]};
 }
 
+core::angle::Angle angleFromText(std::string_view text) {
+  if (const std::optional<core::angle::Angle> read = core::angle::read(text))
+    return *read;
+  throw py::value_error(
+      "'" + std::string(text) +
+      "' is no CSS angle. An angle is written as a number with its unit "
+      "straight after it: '45deg', '1.5rad', '50grad' or '0.25turn'. A bare "
+      "number is written as a number, not as text, and is read in the "
+      "measure the slot counts in.");
+}
+
+std::optional<core::angle::Angle> writtenAngle(py::handle value) {
+  if (py::isinstance<core::angle::Angle>(value))
+    return py::cast<core::angle::Angle>(value);
+  if (py::isinstance<py::str>(value))
+    return angleFromText(py::cast<std::string>(value));
+  return std::nullopt;
+}
+
+float angleOnPen(const draw::Pen& pen, const AngleInPenMode& angle) {
+  if (!angle.written) return angle.number;
+  return pen.angleMode() == draw::DEGREES ? angle.written->inDegrees()
+                                          : angle.written->inRadians();
+}
+
+motion::Duration durationFromText(std::string_view text) {
+  if (const std::optional<motion::Duration> read = motion::readDuration(text))
+    return *read;
+  throw py::value_error(
+      "'" + std::string(text) +
+      "' is no CSS time. A time is written as a number with its unit "
+      "straight after it, '300ms' or '0.3s', or as a number of seconds or a "
+      "datetime.timedelta.");
+}
+
 namespace {
 
 thread_local CallbackLifetime* currentLifetime = nullptr;

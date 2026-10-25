@@ -65,8 +65,14 @@ enum class ForceKind : uint8_t {
 };
 
 /** HOW HARD EACH STEERING OF A FLOCK PULLS. The three are weights on one
- *  another and not absolute numbers: doubling all three is a flock that
- *  turns twice as hard, and the shape of the flock is the ratios. */
+ *  another and not absolute numbers: each steering is a distance, a mean
+ *  over the neighbours — the way back out to the reach, scaled by the
+ *  reach over how far each neighbour stands; the way to the neighbours'
+ *  centre; and the turn onto their mean heading, as far as the reach —
+ *  so doubling all three is a flock that turns twice as hard, and the
+ *  shape of the flock is the ratios. Two birds alone settle where the
+ *  two pulls between them balance: at the defaults, a little over two
+ *  thirds of the reach apart. */
 struct Flocking {
   /** Away from the neighbours nearest it — the one that stops the flock
    *  collapsing to a point. Usually the strongest. */
@@ -100,7 +106,8 @@ struct Force {
   /** How hard, in the units its kind is stated in: `Drag`'s per-second
    *  fraction of speed, `Attract`'s pull at one unit away and its
    *  strongest pull anywhere (negative pushes), `Wind`'s push, `Flock`'s
-   *  overall weight. */
+   *  overall weight: the acceleration, per second squared, of one unit
+   *  of steering distance. */
   float strength = 1.0f;
   /** How far it reaches: `Attract` falls to nothing at this distance and
    *  `Flock` looks no further than it for neighbours. Zero is unbounded

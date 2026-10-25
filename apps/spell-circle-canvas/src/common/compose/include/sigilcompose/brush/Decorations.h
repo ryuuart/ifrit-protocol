@@ -39,6 +39,7 @@
  */
 
 #include <sigilcompose/brush/Lines.h>  // cornerBrackets, cornerGaps
+#include <sigilcompose/core/Shadow.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/color/Color.h>
@@ -166,12 +167,13 @@ struct PathFormat {
    *  without memo (a renderer's path effect compares by identity). */
   bool operator==(const PathFormat&) const = default;
 
-  /** Stroke reach beyond the outline (recording cull grows by this). */
-  float bleed() const {
-    return align == Align::Inner   ? 0.0f
-           : align == Align::Outer ? width
-                                   : width * 0.5f;
-  }
+  /** How far the stroke's ink stands past the outline, which the
+   *  recording cull, a layer and a bake grow by: nothing for an Inner
+   *  stroke, which is clipped to the shape; otherwise the band's half
+   *  width (its whole width outside), grown at a mitred corner to the
+   *  renderer's miter limit and at a square cap to the corner of its
+   *  square. */
+  float bleed() const;
   /** How wide the MARK is either side of the outline — which is NOT
    *  bleed(): an Inner stroke escapes the shape by nothing while painting
    *  a mark `width` px wide inside it. Anything asking where the mark IS
@@ -188,13 +190,11 @@ struct PathFormat {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
   /** Whether the stroke stands within its `bleed()` of the outline it is
-   *  handed (OutlineDecoration). An Inner stroke is clipped to the shape,
-   *  so it always does. Otherwise it does when its corners and ends stay
-   *  inside the width `bleed()` states — a round or bevelled join, a butt
-   *  or round cap — and nothing but the stroke is laid: a mitred corner
-   *  reaches past the half width, and a stamped path or a path effect
-   *  lays ink wherever its own path puts it, so each of those keeps the
-   *  node's box. */
+   *  handed (OutlineDecoration). It does whenever nothing but the stroke
+   *  is laid, since `bleed()` holds its corners and ends; a stamped path
+   *  or a path effect lays ink wherever its own path puts it, so either
+   *  keeps the node's box unless the stroke is Inner and clipped to the
+   *  shape. */
   bool staysOnOutline() const;
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
@@ -216,62 +216,6 @@ inline PathFormat stroke(float width, Fill fill,
 inline PathFormat stroke(float width,
                          PathFormat::Align align = PathFormat::Align::Center) {
   return stroke(width, Fill::currentInk(), align);
-}
-
-/** A soft drop shadow behind the node's outline — a value DecorationScheme
- *  (so a static shadowed node prunes without memo). Attach with .background()
- *  *before* the fill so the fill paints over it. */
-struct Shadow {
-  /** What the shadow is painted in — a colour (`Fill::color`), a
-   *  material, or the ink in force or a custom property, read where the
-   *  shadow is painted — and CSS's `box-shadow` colour: the ink in force
-   *  where none is named. */
-  Fill ink = Fill::currentInk();
-  glm::vec2 offset = {0, 0};
-  float blur = 0;
-
-  /** Bound offsets: when set, the live value's current number REPLACES that
-   *  axis of `offset` each paint, and the decoration declares itself
-   *  animated (per-frame volatility) — the hover-lift shadow slides
-   *  without re-describing. `maxBind` reserves cull reach for the bound
-   *  range (bleed() can't read a future value). */
-  std::optional<motion::Animatable<float>> bindOffsetX;
-  std::optional<motion::Animatable<float>> bindOffsetY;
-  float maxBind = 0.0f;
-
-  /** CSS box-shadow semantics: knock the shape's own footprint OUT of the
-   *  shadow, so nothing paints under the node. A translucent node over a
-   *  knocked-out shadow stays clear instead of sampling its own shadow
-   *  through itself. */
-  bool knockout = false;
-
-  bool operator==(const Shadow&) const = default;
-  bool isRunning() const {
-    return (bindOffsetX && bindOffsetX->isRunning()) ||
-           (bindOffsetY && bindOffsetY->isRunning());
-  }
-  /** Paint reach beyond the node's bounds; the recording's cull rect grows
-   *  by this. Under-report it and a big soft shadow is clipped at the
-   *  node's picture-cache bounds, which is why the bound range has to be
-   *  declared through `maxBind` — bleed() cannot read a future value. */
-  float bleed() const;
-  /** The shadow is the outline it is handed, moved by its offset and
-   *  softened by its blur, both of which `bleed()` holds. */
-  bool staysOnOutline() const { return true; }
-
-  void paint(draw::Pen& pen, const PaintContext& ctx) const;
-};
-
-/** A blurred copy of the node's outline cast at @p offset in @p ink — a
- *  material converts, and `Fill::currentInk()` or `Fill::var(name)` follow
- *  the node's cascade — attach it as the FIRST background so everything
- *  else paints over it. */
-inline Shadow shadow(Fill ink, glm::vec2 offset, float blur) {
-  return Shadow{std::move(ink), offset, blur};
-}
-/** The same in a flat colour. */
-inline Shadow shadow(material::Color ink, glm::vec2 offset, float blur) {
-  return shadow(Fill::color(ink), offset, blur);
 }
 
 /** Image-onto-box through a lattice (per-cell stretch); nine-slice is
@@ -317,9 +261,11 @@ struct PathSample {
 
 /** Walk the outline at `spacing` px intervals; at every sample the
  *  canvas is translated to the sample and rotated so +x follows the
- *  tangent. The general procedural border. Its bodies state no extent,
- *  so it declares no `bleed()` and no `staysOnOutline()`: a shaped node
- *  wearing a walk keeps its box. Three bodies, composable:
+ *  tangent. The general procedural border. Its bodies state no extent
+ *  of their own, so the walk states it for them in `bleedPx`, as a
+ *  scatter does: a walk that declares one stands on the outline within
+ *  it, and one that declares none keeps the node's box and reaches no
+ *  further than it. Three bodies, composable:
  *
  *  - `draw`: a raw program per sample (per-step images, a shader, nested
  *    drawing). Set `animatedWalk` when it depends on
@@ -338,6 +284,12 @@ struct ContourWalk {
   float spacing = 16.0f;
   core::Callable<void(draw::Pen&, const PathSample&, const PaintContext&)> draw;
   bool animatedWalk = false;
+  /** How far a sample's ink stands from the outline: half the extent of
+   *  what a body draws about its sample, measured from the path
+   *  outwards. The CULL's number, which a layer and a bake grow by; a
+   *  stamp wider than twice it is cut wherever the node is held. Zero
+   *  declares nothing, and the walk keeps the node's box. */
+  float bleedPx = 0.0f;
 
   std::optional<Element> stamp;
 
@@ -364,6 +316,13 @@ struct ContourWalk {
   core::Callable<std::optional<Element>(const PathSample&, size_t)> stampAt;
 
   bool isRunning() const { return animatedWalk; }
+  float bleed() const { return std::max(bleedPx, 0.0f); }
+  /** The mark's full width: every body is centred on its sample, so it
+   *  spans the reserve on both sides of the path. */
+  float reach() const { return bleed() * 2.0f; }
+  /** A walk that declares its reserve places every body on the outline it
+   *  is handed, within it; one that declares none keeps the node's box. */
+  bool staysOnOutline() const { return bleedPx > 0; }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 
@@ -486,19 +445,17 @@ struct Border {
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
-  float bleed() const {
-    const float heaviest = std::max(width, cornerWidth);
-    return std::max(0.0f, heaviest * 0.5f - inset);
-  }
+  /** How far the rule's ink stands past the outline: its heaviest half
+   *  width, grown at a mitred corner and a square cap as
+   *  `PathFormat::bleed()` is, less the inset. */
+  float bleed() const;
   /** The mark's own width (see PathFormat::reach) — independent of inset,
    *  which moves the mark rather than widening it. */
   float reach() const { return std::max(width, cornerWidth); }
   /** Whether the rule stands within its `bleed()` of the outline it is
    *  handed (OutlineDecoration): when it is laid inside the outline or on
-   *  it, and its corners and ends stay inside the half width `bleed()`
-   *  states. A negative inset strokes a mitred outward copy whose corners
-   *  stand further out than the inset, and a mitred join reaches past the
-   *  half width, so either keeps the node's box. */
+   *  it. A negative inset strokes a mitred outward copy whose corners
+   *  stand further out than the inset, so it keeps the node's box. */
   bool staysOnOutline() const;
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;

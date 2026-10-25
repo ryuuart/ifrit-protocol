@@ -11,7 +11,11 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Surface.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Stamp.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Track.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilmaterial/advanced/FrameData.h>
@@ -40,7 +44,7 @@ namespace {
 
 /** A tree with something to paint: a filled box the size of the scene. */
 Element plate(SkColor4f colour) {
-  return box().width(pct(100)).height(pct(100)).fill(colour);
+  return box().width(percent(100)).height(percent(100)).fill(colour);
 }
 
 SkBitmap readFloat(const sk_sp<SkImage>& image) {
@@ -383,6 +387,56 @@ TEST(ComposeTexture, TexturesTellApartTwoProgramsDrawingThroughOneKey) {
   EXPECT_EQ(maps.paints(), 3u);
   EXPECT_TRUE(greenAgain == green);
   EXPECT_EQ(middleOf(green), SK_ColorGREEN);
+}
+
+TEST(ComposeTexture, TexturesTellApartTwoProgramsBehindOneOperatorsKey) {
+  // A keyed operator over a program and a keyed text effect over a body
+  // compare equal across the describes of one place on their author's
+  // word; trees built apart share no place, so the door paints each.
+  Textures maps(fonts());
+  const auto drawn = [](SkColor color) {
+    return box().width(8).height(8).operators(
+        {drawWith("ground", [color](sigil::draw::Pen& pen, const Scope&) {
+          pen.canvas()->drawColor(color);
+        })});
+  };
+  const sigil::material::Texture red = maps.paint(drawn(SK_ColorRED), {8, 8});
+  const sigil::material::Texture blue = maps.paint(drawn(SK_ColorBLUE), {8, 8});
+  EXPECT_EQ(maps.paints(), 2u)
+      << "two drawWith programs under one key were handed one texture";
+  EXPECT_EQ(middleOf(red), SK_ColorRED);
+  EXPECT_EQ(middleOf(blue), SK_ColorBLUE);
+
+  const auto stamped = [](sigil::material::Color color) {
+    return box().width(8).height(8).children(
+        {box().key("cell").width(8).height(8).attribute("cell", 1)}).operators(
+        {stamp::ByLane{.lane = "cell",
+                       .key = "ground",
+                       .make = [color](const Scope::Node&) {
+                         return box().width(8).height(8).fill(
+                             Fill::color(color));
+                       }}});
+  };
+  (void)maps.paint(stamped({1, 0, 0, 1}), {8, 8});
+  (void)maps.paint(stamped({0, 0, 1, 1}), {8, 8});
+  EXPECT_EQ(maps.paints(), 4u)
+      << "two stamp makers under one key were handed one texture";
+
+  const auto moved = [](float dx) {
+    GlyphModifier shift;
+    shift.dx = dx;
+    return box().width(8).height(8).children(
+        {text(u8"H").textFx({.effect = textFx::effect(
+                                 "shift",
+                                 [shift](const GlyphInfo&, float,
+                                         sigil::core::noise::Mix64Stream&) {
+                                   return shift;
+                                 })})});
+  };
+  (void)maps.paint(moved(0), {8, 8});
+  (void)maps.paint(moved(4), {8, 8});
+  EXPECT_EQ(maps.paints(), 6u)
+      << "two text effect bodies under one key were handed one texture";
 }
 
 TEST(ComposeTexture, TexturesKeepWhatASweepFoundAskedForAndLetTheRestGo) {
@@ -736,7 +790,7 @@ TEST(ComposeTexture, AStackOfMaskedLayersPaintsOnTheSharedDeviceAsOnTheCpu) {
                   .mask = {depth, ColorChannel::Red, 0, .5f, true}})
           .layer(material::Color{.3f, .3f, .9f, 1},
                  {.opacity = .6f, .mask = {depth, ColorChannel::Blue, 0, 1}});
-  const Element tree = box().width(pct(100)).height(pct(100)).fill(stack);
+  const Element tree = box().width(percent(100)).height(percent(100)).fill(stack);
 
   const auto centreOf = [](const sk_sp<SkImage>& image) {
     SkBitmap pixels;

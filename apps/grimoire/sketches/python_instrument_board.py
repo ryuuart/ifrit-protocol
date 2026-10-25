@@ -95,11 +95,11 @@ def envelope() -> compose.Element:
                 column(document.h2("Signal envelope"), document.caption("A composed view of 48 observations")).gap(6),
                 text("NORMALIZED  /  0—1").styleClass("control"),
             )
-            .justifyContent("space_between")
+            .justifyContent("space-between")
             .alignItems("center"),
             row(*bars).height(136).gap(7).alignItems("end"),
             row(text("00:00").styleClass("control"), text("00:24").styleClass("control"), text("00:48").styleClass("control"))
-            .justifyContent("space_between"),
+            .justifyContent("space-between"),
         )
     )
 

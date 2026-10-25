@@ -153,19 +153,32 @@ void bindGeometryPointBuilder(py::module_& module) {
             return self.peak(distance, laneOf(along));
           },
           py::arg("distance"), py::arg("along") = pop::Attribute::Dir, fluent)
-      .def("twist", &Builder::twist, py::arg("degrees"),
-           py::arg("axis") = glm::vec3{0, 1, 0}, py::arg("low") = 0.0f,
-           py::arg("high") = 100.0f, py::arg("origin") = glm::vec3{0, 0, 0},
-           fluent)
+      .def(
+          "twist",
+          [](Builder& self, AngleInDegrees degrees, glm::vec3 axis, float low,
+             float high, glm::vec3 origin) -> Builder& {
+            return self.twist(degrees.value, axis, low, high, origin);
+          },
+          py::arg("degrees"),
+          py::arg("axis") = glm::vec3{0, 1, 0}, py::arg("low") = 0.0f,
+          py::arg("high") = 100.0f, py::arg("origin") = glm::vec3{0, 0, 0},
+          fluent)
       .def("taper", &Builder::taper, py::arg("scale"),
            py::arg("axis") = glm::vec3{0, 1, 0}, py::arg("low") = 0.0f,
            py::arg("high") = 100.0f, py::arg("origin") = glm::vec3{0, 0, 0},
            fluent)
-      .def("bend", &Builder::bend, py::arg("degrees"),
-           py::arg("axis") = glm::vec3{0, 1, 0},
-           py::arg("direction") = glm::vec3{1, 0, 0}, py::arg("low") = 0.0f,
-           py::arg("high") = 100.0f, py::arg("origin") = glm::vec3{0, 0, 0},
-           fluent)
+      .def(
+          "bend",
+          [](Builder& self, AngleInDegrees degrees, glm::vec3 axis,
+             glm::vec3 direction, float low, float high,
+             glm::vec3 origin) -> Builder& {
+            return self.bend(degrees.value, axis, direction, low, high, origin);
+          },
+          py::arg("degrees"),
+          py::arg("axis") = glm::vec3{0, 1, 0},
+          py::arg("direction") = glm::vec3{1, 0, 0}, py::arg("low") = 0.0f,
+          py::arg("high") = 100.0f, py::arg("origin") = glm::vec3{0, 0, 0},
+          fluent)
       .def(
           "mix",
           [](Builder& self, py::handle first, py::handle second, py::handle to,

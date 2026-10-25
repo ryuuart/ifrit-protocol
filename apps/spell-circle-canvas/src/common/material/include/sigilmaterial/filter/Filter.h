@@ -54,7 +54,7 @@ struct ShadowOptions {
    *  must draw it so. A blurred inverse fill has bounds that depend on
    *  the device, so it floods the whole interior once the layer is cached
    *  at an offset from the origin. */
-  bool inside = false;
+  bool inset = false;
   bool operator==(const ShadowOptions&) const = default;
 };
 
@@ -249,7 +249,7 @@ class Filter {
   static Filter glow(Color color, float sigma);
   /** A SHADOW OF THE LAYER'S COVERAGE, for a material's effects stage:
    *  outside the shape and under it by default, inside it with
-   *  `.inside`; with no offset and a spread, an outer (or inner) glow; with
+   *  `.inset`; with no offset and a spread, an outer (or inner) glow; with
    *  no blur, a hard echo of the shape. Over a whole subtree
    *  (`Element::filter`) use `dropShadow`, which reads pixels.
    *  @silent used as a subtree filter it paints nothing (said once). */
@@ -280,9 +280,11 @@ class Filter {
   /** @} */
 
   /** @name The colour functions
-   *  Per-pixel maps over the straight colour, coverage kept — each is
-   *  CSS's function of the same name. A consumer applies one to the
-   *  layer's paint rather than through a pass.
+   *  Per-pixel maps over the straight colour, coverage kept but for
+   *  `opacity`, which scales it — each is CSS's function of the same
+   *  name, so with `blur` and `dropShadow` all ten of CSS's filter
+   *  functions are here. A consumer applies one to the layer's paint
+   *  rather than through a pass.
    *  @{ */
   /** The colour scaled by @p amount: 0 is black, 1 unchanged. */
   static Filter brightness(float amount);
@@ -294,6 +296,18 @@ class Filter {
   static Filter saturate(float amount);
   /** The hue turned by @p degrees around the luminance axis. */
   static Filter hueRotate(float degrees);
+  /** @p amount of the way to the colour's luminance grey: 0 unchanged, 1
+   *  grey, held inside [0, 1]. */
+  static Filter grayscale(float amount);
+  /** @p amount of the way to the colour's sepia tone: 0 unchanged, 1 the
+   *  whole tone, held inside [0, 1]. */
+  static Filter sepia(float amount);
+  /** @p amount of the way to the colour's complement: 0 unchanged, 1 the
+   *  negative, 0.5 a flat grey, held inside [0, 1]. */
+  static Filter invert(float amount);
+  /** The coverage scaled by @p amount: 0 transparent, 1 unchanged, held
+   *  inside [0, 1]. */
+  static Filter opacity(float amount);
   /** THE LAYER WITH EVERYTHING BUT ITS LIGHT TAKEN OUT: what is brighter
    *  than @p threshold, faded in over @p knee above it, carrying that
    *  brightness as its own coverage — the first half of a bloom. */

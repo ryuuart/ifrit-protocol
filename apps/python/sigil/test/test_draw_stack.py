@@ -277,6 +277,58 @@ class StackOnAPen(unittest.TestCase):
         )
         self.assertEqual(stacked.rgba(), direct.rgba())
 
+    def test_a_stack_made_on_one_thread_is_put_down_on_another(self):
+        # A host may run a sketch's setup on one thread and its frames on
+        # another: a stack built and drawn in setup is put down in draw.
+        picture = self.render(
+            """
+            import threading
+            from sigil import draw
+            from sigil.sketch import sketch
+
+            @sketch(size=(20, 20), background="#000000")
+            class Elsewhere:
+                def setup(self, ctx):
+                    def build():
+                        self.stack = draw.Stack((20, 20))
+                        with self.stack.layer("ink").pen() as ink:
+                            ink.background("#00ff00")
+                    worker = threading.Thread(target=build)
+                    worker.start()
+                    worker.join()
+
+                def draw(self, pen):
+                    pen.stack(self.stack)
+            """
+        )
+        self.assertEqual(pixel(picture, 10, 10)[:3], (0, 255, 0))
+
+    def test_a_frame_left_open_keeps_its_stack_on_its_thread(self):
+        import threading
+
+        stack = draw.Stack((8, 8))
+        frame = stack.layer("ink").pen()
+        frame.__enter__()
+        refused = []
+
+        def elsewhere():
+            try:
+                stack.image()
+            except RuntimeError as error:
+                refused.append(str(error))
+
+        worker = threading.Thread(target=elsewhere)
+        worker.start()
+        worker.join()
+        frame.__exit__(None, None, None)
+        self.assertEqual(len(refused), 1)
+        self.assertIn("frame open", refused[0])
+        # Closed, the stack goes with whichever thread uses it.
+        worker = threading.Thread(target=stack.image)
+        worker.start()
+        worker.join()
+        self.assertIsNotNone(stack.image())
+
     def test_a_layer_drawn_again_in_a_later_frame_is_what_the_next_frame_shows(self):
         picture = self.render(
             """

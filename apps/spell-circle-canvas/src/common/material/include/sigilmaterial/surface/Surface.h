@@ -344,16 +344,26 @@ const Texture* map(const Material& material, std::string_view slot);
  *  states none. */
 Material program(const texture::TextureMaps& maps, SurfaceParameters base = {});
 
-/** THE SURFACE PROGRAM @p material states. A bare program — a surface
- *  program, or any recipe instance with nothing stated around it — comes
- *  back as it is, since a renderer draws a program as the program it is.
- *  Otherwise the base is the base colour: a colour is the `baseColor`
- *  factor, an image base's texture fills `baseColorMap`, and any other
- *  base — a gradient, a noise, a program, or the base with its layers —
- *  fills that slot as a material. Each `SurfaceOptions` channel is a
- *  number or a material, placed the same way in the channel's map slot
- *  with its factor at one. `.unlit` answers the unlit program, and a
- *  material that states no response at all is its base, unlit.
+/** THE SURFACE PROGRAM @p material states, as a device reads it. A bare
+ *  program — a surface program, or any recipe instance with nothing
+ *  stated around it — comes back as it is, since a renderer draws a
+ *  program as the program it is. Otherwise the base is the base colour:
+ *  a colour is the `baseColor` factor and anything else — an image, a
+ *  gradient, a noise, the base with its layers — fills `baseColorMap`.
+ *  Each `SurfaceOptions` channel is a number or a material, placed the
+ *  same way in the channel's map slot with its factor at one.
+ *
+ *  A slot is filled the way a device can read it: an image's texture as
+ *  the texture, read through a child that applies the texture's own
+ *  matrix and tiling where its matrix is not the identity (the base
+ *  colour map and a transmissive body's four tint
+ *  maps keep the texture, which their readers place themselves); a
+ *  material with a Slang body as the child the body plays; and any other
+ *  material — a gradient, a colour stack, a program only Skia runs —
+ *  painted once into a square map over the body's texture coordinates,
+ *  and again at each new time while it runs. `.unlit` answers the unlit
+ *  program, and a material that states no response at all is its base,
+ *  unlit.
  *
  *  A surface has no coverage for an effects stage to read, so effects on
  *  @p material are dropped and said once. */

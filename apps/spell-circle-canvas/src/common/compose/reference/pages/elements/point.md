@@ -30,7 +30,7 @@ None.
 
 A point is out of the flow, so it takes no room beside its siblings, and
 it is placed exactly as any absolute node is: with the placement
-longhand, `point().key("out").left(pct(100)).top(pct(50))` for a port on
+longhand, `point().key("out").left(percent(100)).top(percent(50))` for a port on
 a card's right edge, or with a centre pin. It is zero by zero, so a
 centre pin lands it on the point it names, and it is out of hit testing,
 because it has no box to be hit in — the node under it answers.

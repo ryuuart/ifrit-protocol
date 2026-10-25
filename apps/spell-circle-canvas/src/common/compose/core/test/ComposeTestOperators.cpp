@@ -402,7 +402,7 @@ TEST(ComposeOperators, APointTakesNoRoomAndStandsWhereItIsPinned) {
   Host host;
   host.composer.render(box().row().gap(0).children(
       {box().key("first").width(40).height(40).fill(red()),
-       point().key("port").left(pct(100)).top(pct(50)),
+       point().key("port").left(percent(100)).top(percent(50)),
        box().key("second").width(40).height(40).fill(green())}));
   host.frame();
   // The point sits between the boxes in the list and moves neither.

@@ -307,9 +307,24 @@ timeline, a timer — is a shared state rather than a view into the engine,
 so it outlives the engine and its session without reading storage that
 has gone.
 
-A LENGTH OF TIME IS A NUMBER OF SECONDS OR A `datetime.timedelta` going
-in and a number of seconds coming back: `Bindings.h` carries the one
-caster every duration, delay, step and period crosses through.
+A LENGTH OF TIME IS A NUMBER OF SECONDS, A `datetime.timedelta` OR CSS
+TIME TEXT going in, `"300ms"` or `"0.3s"`, and a number of seconds coming
+back: `Bindings.h` carries the one caster every duration, delay, step,
+period and moment crosses through, and text reads through SigilMotion's
+CSS time reader. Text without a unit raises `ValueError` naming it,
+because CSS has no unitless time.
+
+AN ANGLE IS READ BY ONE OF THREE PARAMETER TYPES, which differ only in the
+measure a bare number is read in: `AngleInDegrees` on compose, material,
+geometry, World and the canvas, `AngleInRadians` inside a brush value and
+on the draw stack, and `AngleInPenMode` beside a pen, whose bare number
+waits for `angleOnPen` to put it in the pen's `angleMode`. All three read
+a `core.angle.Angle` and CSS angle text, `"45deg"`, `"1rad"`, `"50grad"`
+or `"0.25turn"`, through SigilCore's CSS angle reader, so the text means
+one angle on every slot; `writtenAngle` is the same reading for a slot
+that takes any Python object, `motionAngle` the animatable form of it,
+and `angleGetter` with `angleSetter` make an angle property over a
+record's field.
 
 A canvas reaches Python as `draw.Canvas` over a canvas source, and the
 source is asked for the canvas at every verb, so a wrapper kept past its

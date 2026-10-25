@@ -228,6 +228,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>>,
       i->paintDirty = true;
       i->picture.reset();
       i->textureImage.reset();
+      i->movingImage.reset();
     }
     // Every ancestor's held bounds, with no early stop: one already dirty
     // may be in the middle of its paint, holding bounds it measured before

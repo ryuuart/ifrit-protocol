@@ -75,8 +75,8 @@ TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
                        .fill(Fill::color(house.palette.cellGround))
                        .overflow(compose::Overflow::Clip)
                        .children({compose::box()
-                                      .width(compose::pct(40))
-                                      .height(compose::pct(100))
+                                      .width(compose::percent(40))
+                                      .height(compose::percent(100))
                                       .fill(Fill::color(house.palette.figure))
                                       .alignSelf(compose::Align::Stretch)});
   EXPECT_TRUE(sameDrawing(

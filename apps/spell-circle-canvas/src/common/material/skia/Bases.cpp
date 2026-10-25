@@ -273,4 +273,22 @@ Material conicGradient(glm::vec2 center, ColorStops stops,
       Paint::conicGradient(center, std::move(stops), options));
 }
 
+Material linearGradient(ColorStops stops, LinearDirection direction,
+                        GradientOptions options) {
+  return skia::asMaterial(
+      skia::detail::cssLinearGradient(std::move(stops), direction, options));
+}
+
+Material radialGradient(ColorStops stops, RadialEndingShape shape,
+                        GradientOptions options) {
+  return skia::asMaterial(
+      skia::detail::cssRadialGradient(std::move(stops), shape, options));
+}
+
+Material conicGradient(ColorStops stops, ConicStart start,
+                       GradientOptions options) {
+  return skia::asMaterial(
+      skia::detail::cssConicGradient(std::move(stops), start, options));
+}
+
 }  // namespace sigil::material

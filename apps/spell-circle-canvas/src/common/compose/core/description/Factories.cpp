@@ -119,7 +119,7 @@ Image image(sigil::media::PixelSource source, material::Fit fit) {
   // Native asks nothing of the box.
   if (fit == material::Fit::Native) return leaf;
   if (fit == material::Fit::Stretch || size.x <= 0 || size.y <= 0)
-    return leaf.width(pct(100)).height(pct(100));
+    return leaf.width(percent(100)).height(percent(100));
   // Under Contain and Cover the box the fit asks for is a starting shape,
   // not a statement: a box left open is given the picture's proportions
   // as the leaf is styled, and a box that is stated stands, the fit then

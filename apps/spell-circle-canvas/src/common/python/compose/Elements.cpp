@@ -32,6 +32,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <variant>
 
 namespace sigil::python {
 namespace py = pybind11;
@@ -100,7 +101,8 @@ void bindCompose(py::module_& module) {
       SIGIL_STAT(instances) SIGIL_STAT(yogaNodes) SIGIL_STAT(describedNodes)
           SIGIL_STAT(memoHits) SIGIL_STAT(patchedNodes) SIGIL_STAT(picturesLive)
               SIGIL_STAT(texturesLive) SIGIL_STAT(picturesRecorded)
-                  SIGIL_STAT(texturesBaked) SIGIL_STAT(nodesPainted)
+                  SIGIL_STAT(texturesBaked) SIGIL_STAT(nodesHeldWhileMoving)
+                      SIGIL_STAT(nodesPainted)
                       SIGIL_STAT(reconcileMilliseconds)
                           SIGIL_STAT(layoutMilliseconds)
                               SIGIL_STAT(volatileMilliseconds)
@@ -167,14 +169,16 @@ void bindCompose(py::module_& module) {
   auto dim = py::class_<Dimension>(composition, "Dimension");
   py::enum_<Dimension::Unit>(dim, "Unit")
       .value("Px", Dimension::Unit::Px)
-      .value("Pct", Dimension::Unit::Pct)
+      .value("Percent", Dimension::Unit::Percent)
       .value("Auto", Dimension::Unit::Auto)
       .value("Em", Dimension::Unit::Em)
       .value("Rem", Dimension::Unit::Rem)
       .value("Lh", Dimension::Unit::Lh)
       .value("Var", Dimension::Unit::Var)
-      .value("Pw", Dimension::Unit::Pw)
-      .value("Ph", Dimension::Unit::Ph)
+      .value("Vw", Dimension::Unit::Vw)
+      .value("Vh", Dimension::Unit::Vh)
+      .value("Vmin", Dimension::Unit::Vmin)
+      .value("Vmax", Dimension::Unit::Vmax)
       .value("Ch", Dimension::Unit::Ch)
       .value("Pt", Dimension::Unit::Pt)
       .value("Calc", Dimension::Unit::Calc);
@@ -247,9 +251,11 @@ void bindCompose(py::module_& module) {
             return -self;
           },
           py::is_operator());
-  composition.def("pct", &pct, py::arg("percent"))
-      .def("pw", &pw, py::arg("percent"))
-      .def("ph", &ph, py::arg("percent"))
+  composition.def("percent", &percent, py::arg("percent"))
+      .def("vw", &vw, py::arg("percent"))
+      .def("vh", &vh, py::arg("percent"))
+      .def("vmin", &vmin, py::arg("percent"))
+      .def("vmax", &vmax, py::arg("percent"))
       .def("autoDimension", &autoDimension);
   // The font-relative units and the point, each answering a Dimension, so
   // a length written here needs no second type to pass through. The
@@ -270,7 +276,9 @@ void bindCompose(py::module_& module) {
       .def(
           "pt", [](float amount) { return Dimension(weave::pt(amount)); },
           py::arg("amount"))
-      .def("parseDimension", &parseDimension, py::arg("text"));
+      .def("parseDimension", &parseDimension, py::arg("text"))
+      .def("parseFraction", &parseFraction, py::arg("text"))
+      .def("fontLength", &fontLength, py::arg("length"));
   // Every property a verb or a rule may state. The three keywords one may
   // be written as instead of a value are SigilWeave's, beside the text
   // partials that take the same three.
@@ -387,13 +395,21 @@ void bindCompose(py::module_& module) {
       .value("Italic", FontStyle::Kind::Italic)
       .value("Oblique", FontStyle::Kind::Oblique);
   fontStyle
-      .def(py::init<float>(), py::arg("degrees"),
+      .def(py::init([](AngleInDegrees degrees) {
+             return FontStyle(degrees.value);
+           }),
+           py::arg("degrees"),
            "The oblique of `degrees`, positive leaning right.")
       .def_readonly_static("Normal", &FontStyle::Normal)
       .def_readonly_static("Italic", &FontStyle::Italic)
-      .def_static("oblique", &FontStyle::oblique, py::arg("degrees") = 14.0f,
-                  "A lean of `degrees`, positive to the right; 14 when no "
-                  "angle is given.")
+      .def_static(
+          "oblique",
+          [](AngleInDegrees degrees) {
+            return FontStyle::oblique(degrees.value);
+          },
+          py::arg("degrees") = AngleInDegrees{14.0f},
+          "A lean of `degrees`, positive to the right; 14 when no "
+          "angle is given.")
       .def_readonly("kind", &FontStyle::kind)
       .def_readonly("degrees", &FontStyle::degrees,
                     "The lean under Oblique, positive to the right; 0 "
@@ -437,13 +453,35 @@ void bindCompose(py::module_& module) {
       .value("Coverage", Boundary::Coverage);
   py::class_<Corners>(composition, "Corners")
       .def(py::init<>())
-      .def(py::init<float>(), py::arg("radius"))
-      .def(py::init<float, float, float, float>(), py::arg("topLeft"),
-           py::arg("topRight"), py::arg("bottomRight"), py::arg("bottomLeft"))
-      .def_readwrite("topLeft", &Corners::topLeft)
-      .def_readwrite("topRight", &Corners::topRight)
-      .def_readwrite("bottomRight", &Corners::bottomRight)
-      .def_readwrite("bottomLeft", &Corners::bottomLeft)
+      .def(py::init([](py::object radius) {
+             return Corners(dimension(radius));
+           }),
+           py::arg("radius"))
+      .def(py::init([](py::object topLeft, py::object topRight,
+                       py::object bottomRight, py::object bottomLeft) {
+             return Corners(dimension(topLeft), dimension(topRight),
+                            dimension(bottomRight), dimension(bottomLeft));
+           }),
+           py::arg("topLeft"), py::arg("topRight"), py::arg("bottomRight"),
+           py::arg("bottomLeft"))
+      .def_property(
+          "topLeft", [](const Corners& self) { return self.topLeft; },
+          [](Corners& self, py::object value) { self.topLeft = dimension(value); })
+      .def_property(
+          "topRight", [](const Corners& self) { return self.topRight; },
+          [](Corners& self, py::object value) {
+            self.topRight = dimension(value);
+          })
+      .def_property(
+          "bottomRight", [](const Corners& self) { return self.bottomRight; },
+          [](Corners& self, py::object value) {
+            self.bottomRight = dimension(value);
+          })
+      .def_property(
+          "bottomLeft", [](const Corners& self) { return self.bottomLeft; },
+          [](Corners& self, py::object value) {
+            self.bottomLeft = dimension(value);
+          })
       .def("any", &Corners::any)
       .def(py::self == py::self);
   py::class_<Fill>(composition, "Fill")
@@ -550,28 +588,49 @@ void bindCompose(py::module_& module) {
           });
   composition.def(
       "stroke",
-      [](float width, py::object paint, PathFormat::Align align) {
+      [](const std::variant<float, std::string, Dimension>& width,
+         py::object paint, PathFormat::Align align) {
         return compose::stroke(
-            width, paint.is_none() ? Fill::currentInk() : fill(paint), align);
+            pixels(py::cast(width), "A stroke's width"),
+            paint.is_none() ? Fill::currentInk() : fill(paint), align);
       },
       py::arg("width"), py::arg("paint") = py::none(),
       py::arg("align") = PathFormat::Align::Center);
-  // A mark's ink is a fill: a colour, a material, the ink in force or a
-  // custom property.
-  py::class_<Shadow>(composition, "Shadow")
-      .def(py::init<>())
+  // A shadow's colour is a fill: a colour, a material, the ink in force or
+  // a custom property. Its lengths are pixels, written as numbers or as
+  // absolute length text.
+  auto shadowType =
+      bindRecord<Shadow>(composition, "Shadow", "A shadow has no field named ");
+  shadowType.doc() =
+      "CSS's box shadow: the outline moved by offset, grown by spread (shrunk "
+      "where it is negative) and softened by a blur radius of blur pixels, in "
+      "color — a colour, a material, a custom property, or by default the "
+      "ink in force — beneath the fill, or with inset a band hugging the "
+      "inner edge over it. Element.boxShadow lays one where CSS paints it.";
+  shadowType
       .def_property(
-          "ink", [](const Shadow& self) { return self.ink; },
-          [](Shadow& self, py::object value) { self.ink = fill(value); })
+          "color", [](const Shadow& self) { return self.color; },
+          [](Shadow& self, py::object value) { self.color = fill(value); })
       .def_property(
           "offset",
           [](const Shadow& self) { return geometry::path::toSk(self.offset); },
           [](Shadow& self, py::object value) {
-            self.offset = geometry::path::fromSk(point(value));
+            self.offset = pixelOffset(value, "A shadow's offset");
           })
-      .def_readwrite("blur", &Shadow::blur)
+      .def_property(
+          "blur", [](const Shadow& self) { return self.blur; },
+          [](Shadow& self, py::object value) {
+            self.blur = pixels(value, "A shadow's blur");
+          })
+      .def_property(
+          "spread", [](const Shadow& self) { return self.spread; },
+          [](Shadow& self, py::object value) {
+            self.spread = pixels(value, "A shadow's spread");
+          })
+      .def_readwrite("inset", &Shadow::inset)
       .def_readwrite("maxBind", &Shadow::maxBind)
-      .def_readwrite("knockout", &Shadow::knockout);
+      .def_readwrite("knockout", &Shadow::knockout)
+      .def(py::self == py::self);
   // The shadow each glyph casts: its colour is a colour term, read back
   // as the fill of that colour kind.
   using compose::TextShadow;
@@ -589,9 +648,13 @@ void bindCompose(py::module_& module) {
             return geometry::path::toSk(self.offset);
           },
           [](TextShadow& self, py::object value) {
-            self.offset = geometry::path::fromSk(point(value));
+            self.offset = pixelOffset(value, "A text shadow's offset");
           })
-      .def_readwrite("blur", &TextShadow::blur)
+      .def_property(
+          "blur", [](const TextShadow& self) { return self.blur; },
+          [](TextShadow& self, py::object value) {
+            self.blur = pixels(value, "A text shadow's blur");
+          })
       .def_property(
           "color", [](const TextShadow& self) { return self.color.fill(); },
           [](TextShadow& self, py::object value) {
@@ -613,11 +676,12 @@ void bindCompose(py::module_& module) {
       "composer resolves it; None where there is no such leaf.");
   composition.def(
       "shadow",
-      [](py::object value, py::object offset, float blur) {
+      [](py::object value, py::object offset, py::object blur) {
         return compose::shadow(fill(value),
-                               geometry::path::fromSk(point(offset)), blur);
+                               pixelOffset(offset, "A shadow's offset"),
+                               pixels(blur, "A shadow's blur"));
       },
-      py::arg("ink"), py::arg("offset"), py::arg("blur"));
+      py::arg("color"), py::arg("offset"), py::arg("blur"));
   py::class_<Decoration>(composition, "Decoration")
       .def(py::init([](py::object value) { return decoration(value); }),
            py::arg("value"))
@@ -659,10 +723,18 @@ void bindCompose(py::module_& module) {
   selections.def(
       "upTo", [](py::object end) { return spans::upTo(motionAnimatable(end)); },
       py::arg("end"));
-  selections.def("corners", &spans::corners, py::arg("arm"),
-                 py::arg("angle") = 30.0f);
-  selections.def("edges", &spans::edges, py::arg("arm"),
-                 py::arg("angle") = 30.0f);
+  selections.def(
+      "corners",
+      [](float arm, AngleInDegrees angle) {
+        return spans::corners(arm, angle.value);
+      },
+      py::arg("arm"), py::arg("angle") = AngleInDegrees{30.0f});
+  selections.def(
+      "edges",
+      [](float arm, AngleInDegrees angle) {
+        return spans::edges(arm, angle.value);
+      },
+      py::arg("arm"), py::arg("angle") = AngleInDegrees{30.0f});
   selections.def("every", &spans::every, py::arg("count"),
                  py::arg("duty") = 1.0f);
   selections.def("at", &spans::at, py::arg("index"), py::arg("count"));

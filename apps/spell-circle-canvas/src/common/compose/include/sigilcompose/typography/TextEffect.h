@@ -266,6 +266,31 @@ class TextEffect {
     m_state = std::move(state);
   }
 
+  /** AN EFFECT WHOSE BODY ITS AUTHOR NAMES: what `textFx::effect` builds,
+   *  equal to another under the same key, parameters and reach, as every
+   *  effect is, but on the author's word that the key names one body —
+   *  the library cannot read a body it did not write. */
+  static TextEffect vouchedFor(std::string key, std::vector<float> parameters,
+                               GlyphModifierFunction function, float reach) {
+    TextEffect made(std::move(key), std::move(parameters), std::move(function),
+                    reach);
+    std::const_pointer_cast<State>(made.m_state)->authored = true;
+    return made;
+  }
+
+  /** Whether this effect's equality is its author's word: it, or an
+   *  operand it was built from, was named by an author's key over a body
+   *  the library cannot read. The reconciler takes the word across the
+   *  describes of one place; a comparison of trees built apart takes such
+   *  an effect as equal only to itself. */
+  [[nodiscard]] bool equalityIsTheAuthorsWord() const {
+    if (!m_state) return false;
+    if (m_state->authored) return true;
+    for (const TextEffect& operand : m_state->operands)
+      if (operand.equalityIsTheAuthorsWord()) return true;
+    return false;
+  }
+
   /** A VARIABLE-FONT AXIS held at one coordinate for every glyph the track
    *  addresses — a grade, an optical size, a slant applied at draw time
    *  with no reshape. The effect the kernel builds for itself: an
@@ -470,6 +495,9 @@ class TextEffect {
     /** Whether the body moves glyphs off their pen positions — see
      *  displaces(). True is the safe answer, so it is the default. */
     bool displaces = true;
+    /** Set only by vouchedFor(): the author's key names a body the
+     *  library did not write. */
+    bool authored = false;
     /** Set only by pass(): the material run over the units' layer. Held by
      *  pointer so an effect that is not a pass carries nothing; it rides
      *  equality by VALUE (the material's operator==), like an Effect

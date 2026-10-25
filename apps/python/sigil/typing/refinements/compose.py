@@ -18,6 +18,10 @@ RULE = "_sigil.compose.Rule"
 SPAN_STYLE = "_sigil.compose.SpanStyle"
 
 
+# An offset in pixels: a point, or a pair each entry of which is a number
+# or absolute length text.
+PIXEL_OFFSET = "_t.PointLike | tuple[_t.FloatLike | str, _t.FloatLike | str]"
+
 def register(table: Table) -> None:
     for node in NODES:
         registerNode(table, node)
@@ -74,11 +78,10 @@ def children(self, children: collections.abc.Iterable[_t.NodeLike], /) -> Elemen
 def children(self, *children: _t.NodeLike) -> Element: ...
 """,
     )
-    table.erased(
-        node,
-        "rotateX rotateY scaleZ translateZ perspective",
-        "_t.ScalarLike",
-    )
+    table.erased(node, "scaleZ translateZ perspective", "_t.ScalarLike")
+    # An angle verb reads a number as degrees, and a typed angle or angle
+    # text in the measure it names.
+    table.erased(node, "rotateX rotateY", "_t.ScalarLike | _t.AngleLike")
     # An origin takes a length that carries its unit, so the bare number every
     # other dimension accepts as pixels is left out of what these accept.
     origin = "str | Dimension | _sigil.weave.Length | VarRef"
@@ -89,14 +92,27 @@ def children(self, *children: _t.NodeLike) -> Element: ...
     )
     table.erased(node, "shape", "_t.ShapeLike")
     table.erased(node, "background foreground overlay stroke", "_t.DecorationLike")
+    # CSS's box-shadow: one shadow's fields as keywords, or one Shadow or a
+    # list of them with the first on top.
+    table.erased(
+        node,
+        "boxShadow",
+        "Shadow | collections.abc.Iterable[Shadow] | None",
+        PIXEL_OFFSET + " | None",
+        "_t.FloatLike | str | None",
+        "_t.FloatLike | str | None",
+        "_t.FillLike | None",
+    )
     table.erased(node, "transition", "_sigil.motion.Tween | _t.DurationLike")
 
 
 def registerFont(table: _Returning, node: str) -> None:
     """The font and the ink, over the value that states them."""
-    table.erased(node, "fontSize letterSpacing", "_t.FloatLike | _sigil.weave.Length")
-    # A style, or a bare number of degrees, which is the oblique of that lean.
-    table.erased(node, "fontStyle", "FontStyle | _t.FloatLike")
+    # Any length a font holds: px, pt, em, rem, lh, ch, or a percentage of
+    # the type size.
+    table.erased(node, "fontSize letterSpacing", "_t.DimensionLike")
+    # A style, or an angle, which is the oblique of that lean.
+    table.erased(node, "fontStyle", "FontStyle | _t.AngleLike")
     table.erased(node, "ink", "_t.ElementInkLike")
     # One shadow, or any iterable of them, the first drawn nearest the glyph.
     table.erased(
@@ -135,9 +151,27 @@ def inset(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike |
     )
     table.erased(
         node,
-        "opacity rotate scale scaleX scaleY skewX skewY translateX translateY",
-        "_t.ScalarLike",
+        "opacity scale scaleX scaleY",
+        "_t.ScalarLike | str | Dimension",
     )
+    # A translate is a lane that animates, or a length written with its
+    # unit, a percentage being of the node's own box.
+    table.erased(node, "translateX translateY", "_t.ScalarLike | _t.DimensionLike")
+    # CSS's line-height: a number is a multiple, a length an absolute pitch,
+    # "normal" the face's own; a Leading says those and a baseline grid.
+    table.erased(node, "lineHeight", "_t.DimensionLike | _sigil.weave.Leading")
+    # One radius for all four corners, or four clockwise from the top left,
+    # each a length; a percentage is of the node's own box.
+    table.declares(
+        node,
+        "borderRadius",
+        """@typing.overload
+def borderRadius(self, all: _t.DimensionLike | Corners) -> Element: ...
+@typing.overload
+def borderRadius(self, topLeft: _t.DimensionLike, topRight: _t.DimensionLike, bottomRight: _t.DimensionLike, bottomLeft: _t.DimensionLike) -> Element: ...
+""",
+    )
+    table.erased(node, "rotate skewX skewY", "_t.ScalarLike | _t.AngleLike")
     registerFont(table, node)
     table.erased(node, "fill", "_t.MotionFillLike")
     table.erased(node, "alignItems alignSelf", "_t.AlignLike")
@@ -232,6 +266,15 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
     table.erased("_sigil.compose.Composer", "hitTest", "_t.PointLike")
     table.erased("_sigil.compose.Decoration", "__init__", "_t.DecorationLike")
     table.erased("_sigil.compose.Dimension", "__init__", "_t.DimensionLike")
+    # A corner radius is any length; a percentage is of the node's own box.
+    table.parameters(
+        "_sigil.compose.Corners.__init__",
+        radius="_t.DimensionLike",
+        topLeft="_t.DimensionLike",
+        topRight="_t.DimensionLike",
+        bottomRight="_t.DimensionLike",
+        bottomLeft="_t.DimensionLike",
+    )
     # A length is added to anything a length is written as.
     table.erased(
         "_sigil.compose.Dimension",
@@ -250,14 +293,19 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
         "_t.ScalarLike | None",
     )
     table.erased("_sigil.compose.PathFormat", "strokeFill", "_t.FillLike")
-    table.erased("_sigil.compose.Shadow", "ink", "_t.FillLike")
-    table.erased("_sigil.compose.Shadow", "offset", "_t.PointLike")
+    # A shadow's lengths are pixels, a number or absolute length text.
+    table.erased("_sigil.compose.Shadow", "color", "_t.FillLike")
+    table.erased("_sigil.compose.Shadow", "offset", PIXEL_OFFSET)
+    table.erased("_sigil.compose.Shadow", "blur spread", "_t.FloatLike | str")
     # A glyph's shadow is coloured by a colour term: a colour, the ink in
     # force or a custom property, never a paint.
-    table.erased("_sigil.compose.TextShadow", "offset", "_t.PointLike")
+    table.erased("_sigil.compose.TextShadow", "offset", PIXEL_OFFSET)
+    table.erased("_sigil.compose.TextShadow", "blur", "_t.FloatLike | str")
     table.erased("_sigil.compose.TextShadow", "color", "_t.FillLike")
     table.erased("_sigil.compose.Shape", "__init__", "_t.ShapeLike")
-    table.erased("_sigil.compose", "shadow", "_t.FillLike", "_t.PointLike")
+    table.erased(
+        "_sigil.compose", "shadow", "_t.FillLike", PIXEL_OFFSET, "_t.FloatLike | str"
+    )
     table.erased("_sigil.compose", "shape", "_t.ShapeLike")
     # A band's spine is any shape a node takes; the leaf it hands back
     # keeps the band's own verb in reach.

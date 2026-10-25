@@ -50,7 +50,7 @@ class DataGarden:
         summary = (
             row()
             .width(892)
-            .justifyContent("space_between")
+            .justifyContent("space-between")
             .padding(horizontal=19, vertical=0)
             .children(
                 (
@@ -119,7 +119,7 @@ class DataGarden:
                                 (
                                     row()
                                     .width(560)
-                                    .justifyContent("space_between")
+                                    .justifyContent("space-between")
                                     .children(
                                         document.label("LIGHT × HEIGHT"),
                                         legend,

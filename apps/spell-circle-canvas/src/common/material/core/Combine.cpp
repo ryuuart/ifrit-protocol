@@ -297,11 +297,15 @@ bool isStack(std::string_view recipeName) {
  *  and one pipeline; a recipe here is a shared definition held for the
  *  life of the process, so the identity a cache key spells is stable.
  *  Null when there is nothing to compose for — no target that needs it
- *  has a compiler, or an operand has no body for one that does. */
+ *  has a compiler, or an operand has no body for one that does. An
+ *  operand with no recipe at all, a plain colour or a material made of
+ *  parts, has a body for no target, so its stack keeps the slotted
+ *  recipe and reaches its operands as children. */
 std::shared_ptr<const Recipe> composed(
     Blend blend, const std::shared_ptr<const Recipe>& base,
     const std::shared_ptr<const Recipe>& top,
     const std::shared_ptr<const Recipe>& mask) {
+  if (!base || !top || !mask) return nullptr;
   bool wanted = false;
   for (Target target : kComposedTargets) {
     // The operands are asked FIRST, because that answer is the recipes'

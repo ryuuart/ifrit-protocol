@@ -166,7 +166,7 @@ const SlotScene kSlotScenes[] = {
     {cd::Instance::kScaleZ, "scaleZ", 1.0f, 4.0f,
      [](Lane lane) {
        Element plane = square();
-       plane.transformOrigin(pct(50), pct(50), Dimension(80.0f));
+       plane.transformOrigin(percent(50), percent(50), Dimension(80.0f));
        plane.scaleZ(std::move(lane));
        return viewed(std::move(plane));
      }},

@@ -280,7 +280,7 @@ struct AxisRipple {
         .role("level")
         .left(0)
         .right(3)
-        .top(pct(100))
+        .top(percent(100))
         .marginTop(kLevelDrop)
         .height(kLevelHeight)
         .fill(Fill::var("bed"))
@@ -294,7 +294,7 @@ struct AxisRipple {
                             {0.35f, hexColor(0x63B8FF)},
                             {1.0f, hexColor(0x1C3F70)}},
                            {.units = material::GradientUnits::Pixels}))
-                       .transformOrigin(pct(50), pct(100))
+                       .transformOrigin(percent(50), percent(100))
                        .scaleY(motion::bind(
                            phase, {.from = {lag, 1.0f + lag},
                                    .envelope = motion::envelope::shaped(&swell),
@@ -389,13 +389,13 @@ struct AxisRipple {
       float lightWidth, float heavyWidth, std::string_view verdictClass,
       const char* movement, const char* consequence) {
     // An unsliced selector resolves to the union of every glyph's box, so
-    // pct(100) of it is the last letter's trailing edge.
+    // percent(100) of it is the last letter's trailing edge.
     Text lightRun = proofRun(tag, light);
     lightRun.textAttach(weave::Selector{},
                         kit::line({.length = Dimension(96),
                                    .column = true,
                                    .fill = Fill::var(verdictClass)})
-                            .left(pct(100))
+                            .left(percent(100))
                             .top(0));
     const float drift = heavyWidth - lightWidth;
     Text heavyRun = proofRun(tag, heavy);

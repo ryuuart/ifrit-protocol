@@ -9,6 +9,7 @@
 #include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/style/Type.h>
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 
@@ -20,12 +21,31 @@ namespace sigil::compose {
 
 using namespace detail;
 
+namespace {
+
+/** The extent of @p canvas a viewport unit is a percentage of: its width,
+ *  its height, or the smaller or the larger of the two. */
+float viewportExtent(const SkSize& canvas, Dimension::Unit unit) {
+  switch (unit) {
+    case Dimension::Unit::Vw:
+      return canvas.width();
+    case Dimension::Unit::Vh:
+      return canvas.height();
+    case Dimension::Unit::Vmin:
+      return std::min(canvas.width(), canvas.height());
+    default:
+      return std::max(canvas.width(), canvas.height());
+  }
+}
+
+}  // namespace
+
 float Composer::Impl::resolveLength(const Instance& inst,
                                     const Dimension& length, bool& relative,
                                     float percentBasis) const {
   switch (length.unit) {
     case Dimension::Unit::Px:
-    case Dimension::Unit::Pct:
+    case Dimension::Unit::Percent:
       return length.value;
     case Dimension::Unit::Auto:
       return YGUndefined;
@@ -43,17 +63,17 @@ float Composer::Impl::resolveLength(const Instance& inst,
       return length.value * inst.zeroAdvance;
     case Dimension::Unit::Pt:
       return length.value * sigil::weave::Length::kPointPx;
-    case Dimension::Unit::Pw:
-    case Dimension::Unit::Ph: {
+    case Dimension::Unit::Vw:
+    case Dimension::Unit::Vh:
+    case Dimension::Unit::Vmin:
+    case Dimension::Unit::Vmax: {
       // THE CANVAS, never the parent: the box the composer renders into,
       // which is why this is resolved here and not handed to Yoga as a
       // percent. Under an intrinsic root — a snapshot, which has no
       // viewport — the root's own laid-out extent is the honest stand-in.
       relative = true;
       const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
-      const float extent =
-          length.unit == Dimension::Unit::Pw ? canvas.width() : canvas.height();
-      return length.value * 0.01f * extent;
+      return length.value * 0.01f * viewportExtent(canvas, length.unit);
     }
     case Dimension::Unit::Var:
       // Dereferenced by the caller, which decides between a pixel and a
@@ -70,13 +90,17 @@ float Composer::Impl::resolveLength(const Instance& inst,
       const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
       float total = sum.px + sum.em * fontSizePx(inst.font) + sum.rem * remPx +
                     sum.lh * inst.lineHeight + sum.ch * inst.zeroAdvance +
-                    sum.pw * 0.01f * canvas.width() +
-                    sum.ph * 0.01f * canvas.height();
+                    sum.vw * 0.01f * canvas.width() +
+                    sum.vh * 0.01f * canvas.height() +
+                    sum.vmin * 0.01f *
+                        viewportExtent(canvas, Dimension::Unit::Vmin) +
+                    sum.vmax * 0.01f *
+                        viewportExtent(canvas, Dimension::Unit::Vmax);
       // The percentage is of the extent the property reading the sum
       // measures against, which only that property knows.
-      if (sum.pct != 0.0f) {
+      if (sum.percent != 0.0f) {
         if (std::isfinite(percentBasis))
-          total += sum.pct * 0.01f * percentBasis;
+          total += sum.percent * 0.01f * percentBasis;
         else
           warnPercentageSumUnresolved(
               "a property measured without a "
@@ -92,7 +116,7 @@ float Composer::Impl::resolveLength(const Instance& inst,
           if (inst.cascadeResolved) warnNoSuchVar(VarRef{id}, false);
           continue;
         }
-        if (found->unit == Dimension::Unit::Pct ||
+        if (found->unit == Dimension::Unit::Percent ||
             found->unit == Dimension::Unit::Auto) {
           warnRefusedSum(found->unit, Dimension::Unit::Calc);
           continue;
@@ -123,7 +147,7 @@ void Composer::Impl::resolveTextIndent(const Instance& inst,
       return;
     }
   }
-  if (length->unit == Dimension::Unit::Pct) {
+  if (length->unit == Dimension::Unit::Percent) {
     percent = length->value;
     block.firstLineIndent.reset();
     return;
@@ -138,6 +162,68 @@ void Composer::Impl::resolveTextIndent(const Instance& inst,
   block.firstLineIndent =
       resolveLength(inst, *length, relative, /*percentBasis=*/0.0f);
   percent.reset();
+}
+
+SkRRect Composer::Impl::cornersRRect(const Instance& inst,
+                                     const SkRect& bounds) const {
+  const Corners& corners = inst.computed.corners;
+  const auto radius = [&](const Dimension& stated) -> SkVector {
+    const Dimension* length = &stated;
+    if (stated.unit == Dimension::Unit::Var) {
+      const VarValue* value =
+          inst.vars ? inst.vars->find(stated.reference()) : nullptr;
+      length = value ? std::get_if<Dimension>(value) : nullptr;
+      if (length == nullptr || length->unit == Dimension::Unit::Var)
+        return {0, 0};
+    }
+    switch (length->unit) {
+      case Dimension::Unit::Px:
+        return {length->value, length->value};
+      case Dimension::Unit::Auto:
+        return {0, 0};
+      case Dimension::Unit::Percent:
+        return {length->value * 0.01f * bounds.width(),
+                length->value * 0.01f * bounds.height()};
+      default: {
+        // A sum's percentage term is of the width across and of the height
+        // down, as a percentage standing alone is.
+        bool relative = false;
+        return {resolveLength(inst, *length, relative, bounds.width()),
+                resolveLength(inst, *length, relative, bounds.height())};
+      }
+    }
+  };
+  const SkVector radii[4] = {radius(corners.topLeft), radius(corners.topRight),
+                             radius(corners.bottomRight),
+                             radius(corners.bottomLeft)};
+  SkRRect rrect;
+  rrect.setRectRadii(bounds, radii);
+  return rrect;
+}
+
+void Composer::Impl::resolveLineHeight(
+    const Instance& inst, const Dimension& length,
+    sigil::weave::ParagraphBlock& block) const {
+  const Dimension* stated = &length;
+  if (length.unit == Dimension::Unit::Var) {
+    const VarValue* value =
+        inst.vars ? inst.vars->find(length.reference()) : nullptr;
+    stated = value ? std::get_if<Dimension>(value) : nullptr;
+    if (stated == nullptr || stated->unit == Dimension::Unit::Var ||
+        stated->unit == Dimension::Unit::Auto) {
+      warnNoSuchVar(length.reference(), false);
+      return;
+    }
+  }
+  // CSS's percentage of a line height is of the element's own type size,
+  // which is what an em is here.
+  const float sizePx = fontSizePx(inst.font);
+  bool relative = false;
+  const float pitch =
+      stated->unit == Dimension::Unit::Percent
+          ? stated->value / 100.0f * sizePx
+          : resolveLength(inst, *stated, relative, /*percentBasis=*/sizePx);
+  block.leading = sigil::weave::Leading::absolute(pitch);
 }
 
 float Composer::Impl::lineHeightAt(const sigil::weave::Type& font) {

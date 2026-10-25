@@ -64,7 +64,7 @@ struct CustomElement {
             // A custom leaf sizes like an empty box, so this one states
             // its own dimensions.
             custom("reference/rings", rings)
-                .width(pct(100))
+                .width(percent(100))
                 .height(190)
                 .borderRadius({10})
                 .fill(kCell)

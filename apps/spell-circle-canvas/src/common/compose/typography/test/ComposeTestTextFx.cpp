@@ -89,7 +89,7 @@ TEST(ComposeTextFx, ASentenceCascadeBeatsOncePerSentence) {
   host.composer.render(box().padding(10).children(
       {text(u8"One two. Three four. Five.", whiteStyle(16))
            .key("k")
-           .width(pct(100))
+           .width(percent(100))
            .textFx(probeTrack(&samples, {}, {.delay = motion::stagger(100ms), .duration = 100ms},
                               0.5f, sigil::weave::Unit::Sentence))}));
   host.frame();

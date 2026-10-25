@@ -130,7 +130,7 @@ struct EvaMagiDeliberation {
         number == 1 ? u8"1" : (number == 2 ? u8"2" : u8"3");
     return kit::at(box()
                        .rotate(layout.rotationFor(number))
-                       .transformOrigin(pct(50), pct(50))
+                       .transformOrigin(percent(50), percent(50))
                        .fill(kMint),
                    rect.left(), rect.top(), side, side)
         // The module's ink is its label colour; the inner rule is drawn in it.

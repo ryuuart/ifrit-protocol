@@ -3,15 +3,17 @@
 /** @file
  * The pieces every binding in this library is written out of: record
  * construction from keyword arguments, the colour reading, the pen a
- * callback may draw through, the length of time, and the ownership
- * that lets a Python callable be held by a native description without
- * outliving its host.
+ * callback may draw through, the length of time, the angle, and the
+ * ownership that lets a Python callable be held by a native description
+ * without outliving its host.
  */
 
 #include <include/core/SkColor.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/typing.h>
+#include <sigilcore/compute/Angle.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/time/Duration.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilweave/advanced/Skia.h>
 
@@ -21,6 +23,7 @@
 #include <exception>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -153,6 +156,80 @@ SkColor4f color(pybind11::handle value);
 /** The colour CSS text @p text spells, or ValueError naming the text and
  *  the forms a colour is written in. */
 material::Color colorFromText(std::string_view text);
+
+/** AN ANGLE SLOT WHOSE BARE NUMBER IS DEGREES, as on compose, material,
+ *  geometry and the canvas. Its caster also reads CSS angle text and a
+ *  `core.angle.Angle`, each of which names its own measure, and hands
+ *  the binding the angle in degrees. */
+struct AngleInDegrees {
+  float value = 0.0f;
+};
+
+/** AN ANGLE SLOT WHOSE BARE NUMBER IS RADIANS, as inside a brush value
+ *  and on the draw stack. Read on the same terms as `AngleInDegrees`,
+ *  and handed to the binding in radians. */
+struct AngleInRadians {
+  float value = 0.0f;
+};
+
+/** AN ANGLE SLOT BESIDE A PEN, whose bare number is in the pen's
+ *  `angleMode`, radians until the sketch sets it, as p5 reads one. CSS
+ *  text and a `core.angle.Angle` name their own measure, so the mode
+ *  does not apply to them: `angleOnPen` converts them to the mode the
+ *  pen is in when the verb runs. */
+struct AngleInPenMode {
+  /** The bare number, in the pen's mode; read when `written` is empty. */
+  float number = 0.0f;
+  /** The angle text or a typed angle wrote, in its own measure. */
+  std::optional<core::angle::Angle> written;
+};
+
+/** The reading half of an angle property over @p member: the number the
+ *  record holds, in the measure it holds it in. */
+template <class Record>
+auto angleGetter(float Record::* member) {
+  return [member](const Record& self) { return self.*member; };
+}
+/** The reading half of an optional angle property over @p member. */
+template <class Record>
+auto angleGetter(std::optional<float> Record::* member) {
+  return [member](const Record& self) { return self.*member; };
+}
+/** The writing half of an angle property over @p member: `Measure`, one
+ *  of `AngleInDegrees` and `AngleInRadians`, is the measure the record
+ *  holds, which a bare number is read in and a typed angle or angle text
+ *  is converted to. */
+template <class Measure, class Record>
+auto angleSetter(float Record::* member) {
+  return [member](Record& self, Measure angle) { self.*member = angle.value; };
+}
+/** The writing half of an optional angle property over @p member; None
+ *  clears it. */
+template <class Measure, class Record>
+auto angleSetter(std::optional<float> Record::* member) {
+  return [member](Record& self, std::optional<Measure> angle) {
+    self.*member =
+        angle ? std::optional<float>(angle->value) : std::optional<float>();
+  };
+}
+
+/** The angle @p value writes in a measure of its own: a
+ *  `core.angle.Angle`, or CSS angle text such as `"45deg"`, `"1rad"`,
+ *  `"50grad"` or `"0.25turn"`. Text no angle grammar reads raises
+ *  ValueError naming it. Anything else, a bare number above all, answers
+ *  nothing, because its measure is the slot's. */
+std::optional<core::angle::Angle> writtenAngle(pybind11::handle value);
+
+/** The angle CSS text @p text writes, or ValueError naming the text and
+ *  the forms an angle is written in. */
+core::angle::Angle angleFromText(std::string_view text);
+
+/** @p angle in the angle mode @p pen is in now. */
+float angleOnPen(const draw::Pen& pen, const AngleInPenMode& angle);
+
+/** The length of time CSS text @p text writes, `"300ms"` or `"0.3s"`, or
+ *  ValueError naming the text and the forms a time is written in. */
+motion::Duration durationFromText(std::string_view text);
 
 /** A callback-scoped pen. Native extensions pass this same checked wrapper
  *  through every binding that draws, including offscreen and brush calls. */
@@ -357,17 +434,18 @@ struct type_caster<sigil::weave::Face> {
   }
 };
 
-/** A LENGTH OF TIME IN PYTHON: a number of seconds or a
- *  `datetime.timedelta` going in, and a number of seconds coming back.
- *  Every duration, delay, step and period the libraries state is this
- *  one type, so one reading covers all of them. A whole number is taken
- *  as readily as a fraction, because `duration=1` is a second, and a
- *  reading is a plain number, because a time read back is most often
- *  fed into arithmetic. */
+/** A LENGTH OF TIME IN PYTHON: a number of seconds, a
+ *  `datetime.timedelta` or CSS time text, `"300ms"` or `"0.3s"`, going
+ *  in, and a number of seconds coming back. Every duration, delay, step
+ *  and period the libraries state is this one type, so one reading
+ *  covers all of them. A whole number is taken as readily as a fraction,
+ *  because `duration=1` is a second; text names its unit, since CSS has
+ *  no unitless time; and a reading is a plain number, because a time
+ *  read back is most often fed into arithmetic. */
 template <>
 struct type_caster<std::chrono::duration<double>> {
   PYBIND11_TYPE_CASTER(std::chrono::duration<double>,
-                       io_name("datetime.timedelta | typing.SupportsFloat",
+                       io_name("datetime.timedelta | typing.SupportsFloat | str",
                                "float"));
 
   bool load(handle input, bool convert) {
@@ -380,6 +458,19 @@ struct type_caster<std::chrono::duration<double>> {
       }
       value = std::chrono::duration<double>(seconds);
       return true;
+    }
+    // Text no time grammar reads raises in the converting pass, after
+    // every overload has been offered the text as it stands, as colour
+    // text does, so the message names the text rather than the slot.
+    if (PyUnicode_Check(input.ptr())) {
+      const std::string text = input.cast<std::string>();
+      if (const std::optional<sigil::motion::Duration> read =
+              sigil::motion::readDuration(text)) {
+        value = *read;
+        return true;
+      }
+      if (convert) sigil::python::durationFromText(text);
+      return false;
     }
     const auto timedelta =
         pybind11::module_::import("datetime").attr("timedelta");
@@ -402,6 +493,119 @@ struct type_caster<std::chrono::duration<double>> {
   static handle cast(const std::chrono::duration<double>& input,
                      return_value_policy, handle) {
     return PyFloat_FromDouble(input.count());
+  }
+};
+
+/** THE TYPED ANGLE AND THE TEXT OF ONE, the two spellings every angle slot
+ *  reads beside its bare number. A bool is no angle. A number is read in
+ *  the slot's own measure; a `core.angle.Angle` and CSS angle text in
+ *  theirs. Text no angle grammar reads raises in the converting pass,
+ *  after every overload has been offered it as it stands. */
+struct angle_slot_caster {
+  /** Reads @p input: a number into @p number, anything with a measure of
+   *  its own into @p written. */
+  static bool read(handle input, bool convert, float& number,
+                   std::optional<sigil::core::angle::Angle>& written) {
+    if (!input || input.is_none() || PyBool_Check(input.ptr())) return false;
+    if (PyFloat_Check(input.ptr()) || PyLong_Check(input.ptr())) {
+      const double read = PyFloat_AsDouble(input.ptr());
+      if (PyErr_Occurred()) {
+        PyErr_Clear();
+        return false;
+      }
+      number = (float)read;
+      written.reset();
+      return true;
+    }
+    if (PyUnicode_Check(input.ptr())) {
+      const std::string text = input.cast<std::string>();
+      written = sigil::core::angle::read(text);
+      if (written) return true;
+      if (convert) sigil::python::angleFromText(text);
+      return false;
+    }
+    make_caster<sigil::core::angle::Angle> typed;
+    if (typed.load(input, false)) {
+      written = cast_op<const sigil::core::angle::Angle&>(typed);
+      return true;
+    }
+    if (!convert || !PyNumber_Check(input.ptr())) return false;
+    PyObject* converted = PyNumber_Float(input.ptr());
+    if (!converted) {
+      PyErr_Clear();
+      return false;
+    }
+    number = (float)PyFloat_AsDouble(converted);
+    Py_DECREF(converted);
+    written.reset();
+    return true;
+  }
+};
+
+/** An angle whose bare number is degrees, read in degrees. */
+template <>
+struct type_caster<sigil::python::AngleInDegrees>
+    : angle_slot_caster {
+  PYBIND11_TYPE_CASTER(
+      sigil::python::AngleInDegrees,
+      io_name("_sigil.core.angle.Angle | typing.SupportsFloat | str", "float"));
+
+  bool load(handle input, bool convert) {
+    float number = 0.0f;
+    std::optional<sigil::core::angle::Angle> written;
+    if (!read(input, convert, number, written)) return false;
+    value.value = written ? written->inDegrees() : number;
+    return true;
+  }
+
+  static handle cast(const sigil::python::AngleInDegrees& input,
+                     return_value_policy, handle) {
+    return PyFloat_FromDouble(input.value);
+  }
+};
+
+/** An angle whose bare number is radians, read in radians. */
+template <>
+struct type_caster<sigil::python::AngleInRadians>
+    : angle_slot_caster {
+  PYBIND11_TYPE_CASTER(
+      sigil::python::AngleInRadians,
+      io_name("_sigil.core.angle.Angle | typing.SupportsFloat | str", "float"));
+
+  bool load(handle input, bool convert) {
+    float number = 0.0f;
+    std::optional<sigil::core::angle::Angle> written;
+    if (!read(input, convert, number, written)) return false;
+    value.value = written ? written->inRadians() : number;
+    return true;
+  }
+
+  static handle cast(const sigil::python::AngleInRadians& input,
+                     return_value_policy, handle) {
+    return PyFloat_FromDouble(input.value);
+  }
+};
+
+/** An angle beside a pen, whose bare number is in the pen's mode and is
+ *  kept apart from an angle that names its own measure until the verb
+ *  knows the pen. */
+template <>
+struct type_caster<sigil::python::AngleInPenMode>
+    : angle_slot_caster {
+  PYBIND11_TYPE_CASTER(
+      sigil::python::AngleInPenMode,
+      io_name("_sigil.core.angle.Angle | typing.SupportsFloat | str", "float"));
+
+  bool load(handle input, bool convert) {
+    return read(input, convert, value.number, value.written);
+  }
+
+  static handle cast(const sigil::python::AngleInPenMode& input,
+                     return_value_policy, handle) {
+    // A pen-mode angle is only ever taken, never answered; were one
+    // answered, the number it was written as is what it would say.
+    return PyFloat_FromDouble(input.written ? input.written->value
+                                            : input.number);
   }
 };
 

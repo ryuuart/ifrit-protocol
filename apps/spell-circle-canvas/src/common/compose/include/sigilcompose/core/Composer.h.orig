@@ -1,0 +1,575 @@
+#pragma once
+
+/** @file
+ * @ingroup compose-core
+ *
+ * SigilCompose Composer — the retained side: the tree that diffs each
+ * described Element tree against the last, lays out, caches, animates and
+ * paints into a canvas the host owns, and answers queries about what it
+ * laid out.
+ */
+
+#include <include/core/SkPicture.h>
+#include <include/core/SkRefCnt.h>
+#include <include/core/SkSize.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Paint.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/texture/TextureSet.h>
+#include <sigilmotion/clock/Engine.h>
+#include <sigilmotion/time/Duration.h>
+
+#include <functional>
+#include <glm/vec2.hpp>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
+class SkCanvas;
+
+namespace sigil::weave {
+class FontContext;
+// What a text query addresses and at which granularity — the paragraph
+// engine's, in <sigilweave/query/Selector.h> and
+// <sigilweave/paragraph/Unit.h>.
+class Selector;
+enum class Unit : uint8_t;
+}  // namespace sigil::weave
+
+namespace sigil::compose {
+
+namespace detail {
+struct Instance;
+// The one-shot draw at settled values, declared in
+// <sigilcompose/core/Measure.h>.
+void drawSettled(const Element& root, sigil::weave::FontContext& fonts,
+                 SkCanvas& canvas, SkSize viewport);
+// The style a text leaf of a one-shot tree is set in, behind `textStyleOf`
+// in <sigilcompose/core/Measure.h>.
+std::optional<sigil::weave::TextStyle> settledTextStyle(
+    const Element& root, const std::string_view* key,
+    sigil::weave::FontContext& fonts);
+}  // namespace detail
+
+// The typography vocabulary the text queries answer in, defined under
+// <sigilcompose/typography/>: a caller of `beatsOf` or `units` includes
+// the header that spells the value it reads back. What it addresses and
+// at which granularity are SigilWeave's, declared above.
+struct TextUnit;
+struct Beat;
+// How `snapshot` records, declared with it in <sigilcompose/core/Measure.h>.
+struct SnapshotOptions;
+
+/** WHAT A LIVE PASSAGE'S LAST LAYOUT COST — `Composer::settling`'s answer.
+ *
+ *  A text told its input is moving keeps its break decisions and reuses
+ *  them, and this is what a frame actually got for that: how many blocks
+ *  came out of the store, and how many the breaker's floor forced to the
+ *  greedy breaker. It is a REPORT about one input, not a verdict about the
+ *  node — the runtime holds one proof that a node has settled, and folds
+ *  this into it beside everything else the node reads. */
+struct TextSettling {
+  /// The leaf declared its input moving (`Text::textWillChange`). A settled
+  /// passage reports nothing here and answers `reused == 0`: it decided
+  /// its breaks once, and no later frame asks it again.
+  bool live = false;
+  /// Blocks answered from break decisions this thread already had. Under
+  /// `textWillChange`, a frame that reused every block of its passage did no
+  /// composing at all.
+  int reused = 0;
+  /// Blocks the floor forced to the greedy breaker — the count of break
+  /// candidates `Text::textWillChange` carries. A degrade drops the whole
+  /// setting — the hyphens, the justification passes past the word gaps,
+  /// the widow rule — for that frame alone, and the leaf lays out again so
+  /// the setting comes back the frame the floor is met.
+  int degraded = 0;
+  bool operator==(const TextSettling&) const = default;
+};
+
+// ---------------------------------------------------------------------------
+// Composer — the retained side; a guest in the host's canvas
+
+/** The retained tree standing behind the descriptions. It diffs each new
+ *  Element tree against the last one, keeps layout and cached rasters
+ *  alive across frames for the parts that did not change, and paints
+ *  into a canvas the caller owns — it creates no surface and takes over
+ *  no rendering loop. Its pixel caches keep the destination's precision
+ *  and colour space with premultiplied alpha; Compose performs no
+ *  input-space conversion or linear-light compositing. */
+class Composer {
+ public:
+  /** BOTH REFERENCES ARE HELD, not copied, and both must outlive the
+   *  composer. @p engine runs every transition and entrance and is the
+   *  PaintContext's time; @p fontContext measures and shapes every text
+   *  leaf. */
+  Composer(motion::Engine& engine, sigil::weave::FontContext& fontContext);
+  ~Composer();
+
+  Composer(const Composer&) = delete;
+  Composer& operator=(const Composer&) = delete;
+
+  /** Layout viewport in canvas-space px: the root element's containing
+   *  block, so a percentage the root states is of it. The root fills the
+   *  viewport along any axis it states no size on, and a width or height
+   *  it states is its own, as CSS honours one on the root element — a
+   *  root text leaf given a width wraps at it.
+   *  An EMPTY size means INTRINSIC instead: the root sizes to its content
+   *  wherever it states no size. That is the rule the
+   *  snapshot()/intrinsicSize() path runs under. */
+  void setSize(glm::vec2 size);
+
+  /** WHAT A LEAF UNDER NOTHING IS SET IN: the font and the ink the root
+   *  inherits from, which every node that leaves them unset takes in turn.
+   *  Black, 16 px and the font context's family by default — the values
+   *  `weave::initialType()` carries — so a description that names no style
+   *  draws as it always has. A host whose picture stands inside another
+   *  seeds them from where it stands: a pen's guest from the pen, a scene
+   *  painted into a texture from the node that shows it. Every field of
+   *  @p font counts; one it leaves unset takes the initial value. */
+  void setInherited(const sigil::weave::Type& font, material::Color ink);
+
+  /** Output view transform (color management): applied to the composer's
+   *  whole output as the final stage — one saveLayer while set, zero cost
+   *  when cleared (a default Effect{}). The intended source is an OCIO
+   *  display/view baked from a colour config (SigilMaterial's colour
+   *  transforms), but any Effect works. Per-node caches are unaffected
+   *  (this is post-cache, at composite). */
+  void setView(material::Filter view);
+  /** The view as a SigilMaterial recipe whose `content` slot is the
+   *  output. The Material is KEPT rather than built once, because a
+   *  recipe that maps each channel independently — an exponent, a gamma,
+   *  a per-channel display curve — is a per-channel table on an eight-bit
+   *  surface and a full-canvas program on any other, and which surface
+   *  this is only the canvas of a draw can say. Every draw onto the same
+   *  colour type therefore reuses one lowering; a view handed in already
+   *  built, as an Effect, is taken as it stands. */
+  void setView(const sigil::material::Material& view);
+
+  /** THE DESCRIBE PATH: reconciles @p root against the retained tree,
+   *  matching children by key and pruning where a memo hits or the
+   *  description compares equal. Call it whenever your data changed —
+   *  never per frame just to move a value, which is what a binding is
+   *  for. */
+  void render(const Element& root);
+
+  /** Updates only the named slot() mount point. Layout and stacking still
+   *  integrate normally and ancestors re-record their caches, but the rest
+   *  of the tree is untouched — which is the point: two data domains
+   *  changing at different rates do not invalidate each other.
+   *
+   *  A name that matches no slot in the mounted tree keeps the content
+   *  and mounts it when a described tree brings the slot, so a setup may
+   *  fill a slot before it returns the tree that holds it; a describe or
+   *  a draw while the slot is still missing warns once per name. */
+  void renderSlot(std::string_view name, const Element& content);
+
+  /** Content or layout changed since the last draw(). For a redraw gate
+   *  that also observes motions and external bindings, use isRunning(). */
+  bool dirty() const;
+
+  /** Whether another draw can produce different pixels: a description or
+   *  layout is dirty, an engine motion is running, or a retained binding can
+   *  change without another render(). Unlike dirty(), this also polls
+   *  externally-driven bindings that previously settled. */
+  bool isRunning() const;
+
+  /** Lays out if needed and paints at the canvas's current matrix/clip.
+   *  Provably-static subtrees replay their auto-recorded pictures. */
+  void draw(SkCanvas& canvas);
+
+  /** WHAT THE NEXT DRAW CHANGES, for a host that keeps the pixels the last
+   *  draw left and repaints only a region of them: the rects, in canvas
+   *  units and none touching another, outside which the next draw paints
+   *  exactly what the last one did. Every node whose own paint changed, moves
+   * on the clock, moved, or gained, lost or reordered a child contributes where
+   * its ink stood and where it stands, its decorations' bleed and its layer
+   * effects' reach included; a region of many parts is held as the one rect
+   * around them. No rects: the next draw paints what the last did.
+   *
+   *  None when the whole canvas must be painted: before the draw that
+   *  first keeps what it painted, after a new size, view, inherited font,
+   *  surface map or map scale, after `purgeCaches`, on a composer that
+   *  bakes pixels (a bake is cut to the clip it was taken under), and
+   *  when a changed node cannot be bounded on its plane — a backdrop that
+   *  reads what lies beneath it, a plane turned in depth or a shared
+   *  space, a custom program handed the canvas.
+   *
+   *  Asking settles layout, the cascade and volatility as a draw does, and
+   *  the answer holds for the next draw; from the first question on, every
+   *  draw keeps what it painted for the next one. */
+  std::optional<std::vector<geometry::path::Rect>> changedRegion();
+  /** Whether the last draw painted nothing outside the region asked for
+   *  before it. A text leaf of a stated size is set at paint, so a passage
+   *  that changed can reach past the region its old ink promised; a host
+   *  that clipped the draw to the region then paints the whole canvas. True
+   *  after a draw no region was asked for. */
+  bool drewWithinChangedRegion() const;
+
+  /** WHETHER THE GROUND HOLDS: @p held says the canvas every draw is
+   *  handed holds the same ground beneath the composer — cleared to one
+   *  colour before each draw — so what lies under a node is exactly what
+   *  this composer painted there. A `backdropFilter()`
+   *  then keeps the pixels its pass left and copies them back on every
+   *  draw that paints everything beneath the node the way the last one
+   *  did, under the same matrix and clip, instead of filtering again; the
+   *  pixels are the ones the filter would leave. Off by default, which a
+   *  host that draws its own changing content beneath the composer, or
+   *  draws over what the last draw left, leaves it: every backdrop is
+   *  filtered afresh at every draw. */
+  void setGroundHeld(bool held);
+  /** Whether the ground is held. */
+  bool groundHeld() const;
+
+  /** Drops every per-node cache (auto pictures, Cache::Texture bakes,
+   *  held live-material shaders) and marks the tree for a full repaint.
+   *  GPU hosts call this on device loss or a backend switch: cached
+   *  images minted by a dead context must not replay onto the next
+   *  canvas. The retained tree, layout, and animations are untouched. */
+  void purgeCaches();
+
+  /** PAINT THE PAGE AS ONE MAP OF ITS SURFACE, for a renderer that lights
+   *  it: @p role names the map (`texture::Role::BaseColor`, `Normal`,
+   *  `Roughness`, `Metallic`, `Occlusion` or `Emissive`), and none paints
+   *  the page as it is seen. Every fill, ink, stroke and relief whose
+   *  material states a lit surface paints that map of its surface, through
+   *  the same sites that paint its colours flat otherwise; everything else
+   *  is content that is its own colour — its
+   *  colour in the emissive map, and in the others what an unlit surface
+   *  reads there, at the coverage it painted. Draw onto a canvas cleared to
+   *  the role's ground, which is what an unlit surface reads too. Pixel
+   *  bakes are not taken while a map is painted, and a change of map drops
+   *  every cache and every paint held for the previous one. */
+  void setSurfaceMap(std::optional<material::texture::Role> role);
+  /** The map the page is painted as; none for the page as it is seen. */
+  std::optional<material::texture::Role> surfaceMap() const;
+  /** WHAT THE MAP'S WHITE STANDS FOR, in a map whose content can state more
+   *  than white holds: in the emissive map, the emission, as light, painted
+   *  white; in the thickness map, the thickness in scene units painted
+   *  white; in the distortion map, the displacement in scene units painted
+   *  at the full swing either side of the still half. Every lit material's
+   *  map is read against it as it is drawn, so a page whose brightest
+   *  emission is four paints four as white and one as a quarter of that
+   *  light. Other maps ignore it. One, the default, paints what is stated;
+   *  a value that is not positive reads as one. Recordings are kept, since the
+   *  reading is applied as they play back. */
+  void setSurfaceMapScale(float scale);
+  /** The value the map's white stands for. */
+  float surfaceMapScale() const;
+
+  /** @name Queries
+   *  What the RESOLVED side answers about the tree it laid out. Each is
+   *  valid after a `draw()` — or after any call that runs layout —
+   *  and each addresses a node by its `Element::key()`, which is the
+   *  one identity the query side sees.
+   *  @{ */
+  /** Layout rect of a keyed node, in the composer's coordinate space.
+   *  Valid after a draw() (or any other call that runs layout). */
+  std::optional<geometry::path::Rect> bounds(std::string_view key) const;
+  /** Live SigilWeave layout of a keyed text node (valid until the next
+   *  layout; for glyph choreography and queries). */
+  const sigil::weave::ParagraphLayout* paragraphLayout(
+      std::string_view key) const;
+  /** WHAT A LIVE PASSAGE'S LAST LAYOUT COST — the report a host folds into
+   *  its own proof that a node is holding still.
+   *
+   *  A text told its input is moving (`Text::textWillChange`) keeps its
+   * break decisions and reuses them: `reused` is how many blocks this frame
+   *  answered from decisions it already had, and `degraded` how many the
+   *  budget forced to the greedy breaker. A frame that reused every block
+   *  and degraded none is set exactly as the frame before it. A frame that
+   *  degraded is set PROVISIONALLY — the setting the author asked for
+   *  comes back the frame the budget is met, and the leaf lays out again
+   *  to get it.
+   *
+   *  There is one proof in a runtime that a node has settled and this is
+   *  not it: this is a fact about one input, reported so the proof can
+   *  fold it beside every other input the node has. A layout reporting
+   *  degrades every frame is asking for a longer budget or a shorter
+   *  block.
+   *
+   *  Valid after a draw(). An unknown key, and a node that is not text,
+   *  resolve to a zeroed value, as the rest of the query family does. */
+  [[nodiscard]] TextSettling settling(std::string_view key) const;
+
+  /** THE SCHEDULE ONE textFx() TRACK IS RUNNING: a `Beat` per beat of track
+   *  @p trackIndex on the keyed text node, in draw order. Valid after a
+   *  draw() (or any other call that runs layout), and computed on demand —
+   *  nothing pays for it until it is asked for.
+   *
+   *  This is the read-back that keeps a non-glyph mark honest. Position a
+   *  ball, a playhead or an underline from `rect` and `localTime` here and it
+   *  agrees with the glyphs by construction, whatever the cascade turns out
+   *  to be — flat, nested, cue-driven, numbered over the selection or over
+   *  the paragraph.
+   *
+   *  THIS IS THE ANSWER FOR A MOUNTED, ANIMATED RUN, where `measureRun` and
+   *  `runPens` are the answer for a static one that is not in the tree: a
+   *  beat's rect is read off the placement the layout produced, so it knows
+   *  about wrapping, mixed styles and a path baseline, none of which a
+   *  single-style measurement of one run can see.
+   *
+   *  An unknown key, a node that is not text, a track index past the node's
+   *  list, and a track carrying no effect all resolve to an EMPTY vector,
+   *  silently, exactly as an unknown key resolves everywhere else in the
+   *  query family. Check your key first. */
+  [[nodiscard]] std::vector<Beat> beatsOf(std::string_view key,
+                                          size_t trackIndex) const;
+  /** WHERE THE UNITS A SELECTOR ADDRESSES LANDED on the keyed text node —
+   *  one `TextUnit` per addressed unit, in draw order, in the composer's
+   *  coordinate space. Valid after a draw() (or any other call that runs
+   *  layout), and computed on demand.
+   *
+   *  This is what anything BESIDE a text is placed from: a label per word,
+   *  a note per line, a reading over a compound, a dot beside a character.
+   *  `beatsOf` answers the same rects under a schedule and needs an `textFx()`
+   *  track to do it; this needs none, and reports the baseline (or the
+   *  column's axis), the pitch, the face's own band, the writing mode, the
+   *  vertical form, the text range and the style beside each rect —
+   *  everything a thing standing next to a unit has to know about it.
+   *
+   *  It is read off the placement rather than measured again, so it follows
+   *  a wrapped line, a mixed-style run's own size, a path run's curve and a
+   *  vertical column's axis by construction; a unit whose base broke across
+   *  two lines reports two entries, on the two lines.
+   *
+   *  An unknown key, a node that is not text, and a selector that addresses
+   *  nothing all resolve to an EMPTY vector, silently, exactly as an
+   *  unknown key resolves everywhere else in the query family. */
+  [[nodiscard]] std::vector<TextUnit> units(
+      std::string_view key, const sigil::weave::Selector& selector,
+      sigil::weave::Unit unit) const;
+  /** THE SCHEDULE'S WHOLE SPAN — what track @p trackIndex's master
+   *  progress [0,1] maps onto: the moment its last beat closes, compounded
+   *  under a nested stagger and read off the table under cues. `beatsOf`
+   *  reports where each beat OPENS; this is the one number that says when
+   *  the whole schedule is over — what a progress duration must equal for
+   *  the schedule to run at its authored times, and what anything
+   *  sequenced after it offsets from. It is computed by the same resolved
+   *  schedule `beatsOf` and the glyphs read, so the three cannot disagree.
+   *
+   *  A LOOPING track (`Track::loop`) answers its PERIOD: the master
+   *  maps onto one cycle rather than a one-shot span, so the period is
+   *  what a wrapping phase's wall time must span for the schedule to run
+   *  at its authored times.
+   *
+   *  Valid after a draw(), like `beatsOf`. `Track::span` is the
+   *  DECLARE-TIME form of the same number, for the site that needs it
+   *  before any layout exists — handed its unit count, where this reads
+   *  the count off the laid-out text. An unknown key, a node that is not
+   *  text, a track index past the node's list and a track carrying no
+   *  effect all resolve to zero, silently, as `beatsOf` resolves empty. */
+  [[nodiscard]] motion::Duration scheduleSpan(std::string_view key,
+                                              size_t trackIndex) const;
+  /** Topmost key at a canvas-space point. Valid after a draw().
+   *
+   *  Paint-order aware (zIndex, then declaration order, topmost first),
+   *  transform-aware (rotated, scaled and translated nodes hit in their
+   *  visual place), and shape-aware (custom outlines and corner radii
+   *  bound the hit region, so the gap between a star's arms misses). An
+   *  OPEN contour in an outline — a wire, an arc — is hit along its line,
+   *  within 6 units of it in the node's own space, and not inside the
+   *  region a fill would close it over. A
+   *  keyless node's hit resolves to its nearest keyed ancestor, and
+   *  clipped subtrees do not hit outside their clip.
+   *
+   *  It answers for any keyed node whose region contains the point,
+   *  whether or not that node painted anything — so a keyed transparent
+   *  container will answer for its whole box. See
+   *  `Element::hitTestable` for the opt-out. */
+  std::optional<std::string> hitTest(glm::vec2 canvasPoint) const;
+  /** @} */
+
+  /** @name Introspection
+   *  What the retained side is holding and what the last frame did to
+   *  it — read to verify that a description is being reused rather than
+   *  rebuilt, not to drive a picture.
+   *  @{ */
+  /** What the retained tree currently holds and what the last frame
+   *  did to it. Read for verifying that a description is being reused
+   *  rather than rebuilt: describes skipped and nodes kept should
+   *  dominate once a tree has settled. */
+  struct Stats {
+    size_t instances = 0;       ///< live retained nodes
+    size_t yogaNodes = 0;       ///< instances carrying a Yoga node —
+                                ///< positioned() subtrees carry none
+    size_t describedNodes = 0;  ///< element nodes visited last render()
+    size_t memoHits = 0;        ///< memo properties equal → describe skipped
+    size_t patchedNodes = 0;    ///< instances whose properties changed
+    size_t picturesLive = 0;    ///< auto-cached subtree pictures held
+    size_t texturesLive = 0;    ///< Cache::Texture images held
+    /** CACHE WRITES last draw() — every recording AND every pixel bake.
+     *
+     *  The name is narrower than the number: `Cache::Texture` and
+     *  `Cache::Group` bakes count here too, so this answers "how much cache
+     *  work did that frame do". `texturesBaked` breaks out the pixel-bake
+     *  subset. */
+    size_t picturesRecorded = 0;
+    size_t texturesBaked = 0;  ///< of those, bakes rather than recordings
+    size_t nodesPainted = 0;   ///< instances painted live last draw()
+    /** Backdrop filters run last draw(): a backdrop whose held pixels
+     *  were copied back is not counted (`setGroundHeld`). */
+    size_t backdropsFiltered = 0;
+    /** Nodes whose own paint bounds were measured last draw(): a held
+     *  subtree that has not changed is not measured again. */
+    size_t nodesBounded = 0;
+    /** Whole-tree layout calculations since the previous draw(): one for
+     *  a plain relayout, and more where an arrangement must measure its
+     *  children's flex inputs inside a box an outer one has just placed. */
+    size_t layoutCalculations = 0;
+    // Per-phase wall time, so a slow frame localizes at a glance. The paint
+    // number is where per-pixel cost lives (live materials, re-records);
+    // reconcile/layout/volatile are the retained machinery.
+    double reconcileMilliseconds =
+        0;  ///< render()/renderSlot() since previous draw()
+    double layoutMilliseconds = 0;  ///< ensureLayout() inside last draw()
+    double volatileMilliseconds =
+        0;  ///< computeVolatile() walk inside last draw()
+    double paintMilliseconds = 0;  ///< paint traversal inside last draw()
+  };
+  /** The counters as the last `render()` and `draw()` left them. Always
+   *  kept — nothing has to be switched on for these. */
+  const Stats& stats() const;
+
+  /** PER-NODE PAINT COST.
+   *
+   *  `stats().paintMilliseconds` says how long the frame spent painting and
+   * nothing about WHERE. This localizes it.
+   *
+   *      composer.setProfiling(true);
+   *      composer.draw(canvas);
+   *      for (const auto &row : composer.profile())   // worst first
+   *        printf("%7.2f ms  %s\n", row.selfMilliseconds, row.label.c_str());
+   *
+   *  `selfMilliseconds` EXCLUDES children, so the number lands on the node that
+   *  actually costs rather than on its ancestors.
+   *
+   *  A CACHED NODE CAN STILL BE THE MOST EXPENSIVE THING ON THE SHEET. A
+   *  picture records the DRAW CALLS, so replaying it re-runs every shader
+   *  over every pixel; only a texture bake replaces that with a blit. Such
+   *  a node shows up here as `cached() == true` with a large
+   * `selfMilliseconds`.
+   *
+   *  Off by default: the timing calls are cheap but not free. */
+  /** How a node produced its pixels this frame. Picture and Texture are
+   *  named separately rather than collapsed into "cached", because they
+   *  cost radically different amounts — see the note above. */
+  enum class CacheState : uint8_t {
+    Live,     ///< painted from scratch
+    Picture,  ///< replayed a recording — RE-RUNS every shader, every pixel
+    Texture,  ///< blitted a raster bake — the author asked for it
+    /** Blitted a whole-subtree bake held by `Cache::Group`'s value memo:
+     *  the node AND its animated children, composited once into one
+     *  unrotated device layer while every bound scalar below holds still.
+     *  Distinct from Texture because the thing being asserted is
+     *  different — a Texture node is provably static, a Group node is
+     *  provably NOT CHANGING RIGHT NOW, and the difference is one frame. */
+    Group,
+  };
+  /** One node's share of the last frame and how it produced its pixels.
+   *  This is the per-node companion to Stats: Stats says the tree is
+   *  re-rasterizing, these say which node is doing it. */
+  struct NodeCost {
+    std::string label;  ///< key() if set, else kind + size — actionable
+    double selfMilliseconds = 0;  ///< this node's own paint, EXCLUDING children
+    double totalMilliseconds = 0;  ///< including children
+    int depth = 0;
+    CacheState cacheState = CacheState::Live;
+    /** Is the node's layer effect applied OVER its bake rather than
+     *  inside the raster that makes it? Lifted out, the effect is one
+     *  image draw over the finished bake and a re-bake pays its content
+     *  alone; left in, it opens a layer of its own over the node's whole
+     *  band every time the node bakes. Set on a node that holds a bake and
+     *  wears an effect the library could lift; false everywhere else. */
+    bool effectDeferred = false;
+    bool cached() const { return cacheState != CacheState::Live; }
+  };
+  /** Whether every draw() times its nodes and fills `profile()`. Off
+   *  when nothing said otherwise: the timing calls are cheap but not
+   *  free. */
+  void setProfiling(bool on);
+  /** Whether per-node timing is on. */
+  bool profiling() const;
+  /** Rows from the last draw(), sorted by `selfMilliseconds` descending. Empty
+   * when profiling is off. */
+  const std::vector<NodeCost>& profile() const;
+
+  /** @} */
+
+  /** @name Settings
+   *  What the composer is told about the surface it draws onto and the
+   *  input arriving over it: at what density to bake, and
+   *  where the pointer and the keyboard are.
+   *  @{ */
+
+  /** A PIXEL BAKE IS A PICTURE OF THE CANVAS, NOT OF THE VIEW.
+   *
+   *  Left alone, a `Cache::Texture` bake is rasterized at the scale the
+   *  frame's matrix carries, quantized up to a coarse ladder, and it is
+   *  re-baked at every rung a changing scale passes. That is right for a
+   *  host that draws its canvas at one scale and wants the sharpest
+   *  raster for it, and wrong for a host whose reader can zoom: a wheel
+   *  spin walks the ladder, and each rung re-rasterizes every generated
+   *  material in the scene at the new resolution while the reader waits.
+   *
+   *  Declared here, @p devicePixelsPerUnit is the density every pixel
+   *  bake is taken at, whatever matrix the frame is drawn under. The
+   *  bake is then taken ONCE and blitted through the view's transform
+   *  ever after, exactly as an image node's pixels are — sharp at the
+   *  density it was baked for, magnified beyond it, and never re-taken
+   *  for a change of view scale. Content that changes still re-bakes,
+   *  because that is a change of what the picture IS.
+   *
+   *  A node that needs more resolution than the canvas carries says so
+   *  with `Element::cacheScale`, which multiplies this density as it
+   *  multiplies the ladder's rung.
+   *
+   *  Zero, the default, is the ladder. */
+  void setBakeDensity(float devicePixelsPerUnit);
+  /** The density bakes are taken at; zero is the ladder. */
+  float bakeDensity() const;
+
+  /** WHERE THE POINTER STANDS over the scene, in the composer's own canvas
+   *  units, and whether its button is down. A host feeds it as the pointer
+   *  moves and the button changes; a pen program hosted in a node reads it
+   *  as `mouseX`, `mouseY` and `mouseIsPressed`, mapped into the node's
+   *  own box, and a paint program as `PaintContext::pointer`. Nothing is
+   *  invalidated by it — a node that reads the pointer repaints anyway,
+   *  since it is at `Cache::None`. */
+  void setPointer(glm::vec2 canvasPoint, bool pressed);
+  /** A KEY GOING DOWN OR UP, by the name a keyboard spells it and its
+   *  code: what a pen program reads as `keyIsPressed`, `key`, `keyCode`
+   *  and `keyIsDown`, and a paint program as `PaintContext::keys`. */
+  void setKey(std::string_view name, int code, bool pressed);
+  /** WHERE THE HOST LAST PUT THE POINTER, in the composer's own canvas
+   *  units, and whether its button is down: what `setPointer` was handed,
+   *  mapped into no node's box. What a body reads that has no paint
+   *  program to be handed `PaintContext::pointer` in. The origin with the
+   *  button up before the host fed any. */
+  [[nodiscard]] PaintContext::Pointer pointer() const;
+  /** The keys the host has fed `setKey`: the last to go down by name and
+   *  code, whether any is down, and every one that is — what a paint
+   *  program reads as `PaintContext::keys`. */
+  [[nodiscard]] const KeyState& keys() const;
+  /** @} */
+
+  /** @private */
+  struct Impl;
+
+ private:
+  friend struct detail::Instance;
+  friend sk_sp<SkPicture> snapshot(const Element&, sigil::weave::FontContext&,
+                                   SkSize, SnapshotOptions);
+  friend SkSize intrinsicSize(const Element&, sigil::weave::FontContext&,
+                              SkSize);
+  friend std::optional<sigil::weave::TextStyle> detail::settledTextStyle(
+      const Element&, const std::string_view*, sigil::weave::FontContext&);
+  friend void detail::drawSettled(const Element&, sigil::weave::FontContext&,
+                                  SkCanvas&, SkSize);
+  std::unique_ptr<Impl> m_impl;
+};
+
+}  // namespace sigil::compose

@@ -17,6 +17,7 @@ from sigil import (
     weave,
     world,
 )
+from sigil.core import angle
 
 
 @dataclass(frozen=True)
@@ -35,12 +36,19 @@ assert_type(tree, compose.Element)
 assert_type(compose.box().overflow("clip"), compose.Element)
 assert_type(compose.box().overflow("hidden"), compose.Element)
 assert_type(compose.box().overflow(compose.Overflow.Visible), compose.Element)
+# Every length slot reads a length as CSS writes one.
+assert_type(compose.text("a").fontSize("150%").letterSpacing(compose.em(0.1)), compose.Text)
+assert_type(compose.box().lineHeight(1.4).lineHeight("24px"), compose.Element)
+assert_type(compose.box().lineHeight(weave.Leading.grid(8)), compose.Element)
+assert_type(compose.box().borderRadius("50%").borderRadius(compose.Corners("1em")), compose.Element)
+assert_type(compose.box().translateX("-50%").translateY(compose.vh(10)), compose.Element)
+assert_type(compose.box().opacity("50%").width(compose.vmin(40)), compose.Element)
 key = world.pointLight(intensity=motion.animatable(1)).at((0, 0, 180))
 assert_type(key, world.Light)
 assert_type(
     tree.padding(all=8).margin(left=1, top=2, right=3, bottom=4), compose.Element
 )
-assert_type(tree.alignItems("auto").justifyContent("space_between"), compose.Element)
+assert_type(tree.alignItems("auto").justifyContent("space-between"), compose.Element)
 assert_type(
     tree.alignItems(compose.Align.Auto).justifyContent(compose.Justify.End),
     compose.Element,
@@ -200,3 +208,30 @@ standalone = io.Hub()
 io.registerTransports(standalone, ["udp"])
 assert_type(standalone.poll(), bool)
 standalone.advance(0.5)
+
+# An angle is a number in its slot's measure, CSS angle text or a typed
+# angle; a length of time is a number of seconds, a timedelta or CSS time
+# text.
+assert_type(compose.box().rotate("0.25turn").skewX(angle.degrees(8)), compose.Element)
+assert_type(material.Color.hsl("0.5turn", 100, 50), material.Color)
+assert_type(draw.LayerTransform(rotation="90deg").rotation, float)
+assert_type(angle.Angle("45deg").inRadians(), float)
+assert_type(motion.Tween(to=1.0, duration="300ms", delay=timedelta(milliseconds=50)), motion.Tween)
+
+# The CSS-shaped gradients, shadows, filters and timing functions.
+css_stops = [("#ffffff", 0), ("#000000", "100%")]
+assert_type(material.linearGradient(css_stops, "0.25turn"), material.Material)
+assert_type(material.linearGradient(css_stops, toward="top left"), material.Material)
+assert_type(
+    material.radialGradient(css_stops, shape="circle", at=("25%", 0.5)),
+    material.Material,
+)
+assert_type(material.conicGradient(css_stops, from_=90, at="center"), material.Material)
+assert_type(
+    compose.box().boxShadow(offset=(0, "4px"), blur=12, color="#0006"),
+    compose.Element,
+)
+assert_type(compose.box().boxShadow([compose.Shadow(inset=True)]), compose.Element)
+assert_type(material.Filter.grayscale("50%"), material.Filter)
+assert_type(material.Filter.blur("4px"), material.Filter)
+assert_type(motion.Keyframe(1.0, ease="ease-in-out"), motion.Keyframe)

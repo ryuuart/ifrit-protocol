@@ -53,8 +53,8 @@ constexpr float kCell = 328;
 constexpr float kPicture = 210;
 
 constexpr float kFocus = 44;       // the focus's hot spot displacement, px
-constexpr float kWindowFrom = 45;  // the sweep window that does not fill a turn
-constexpr float kWindowTo = 315;
+constexpr float kWindowFrom = 135;  // the sweep window that does not fill a turn
+constexpr float kWindowTo = 405;
 
 glm::vec2 middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
 
@@ -184,7 +184,9 @@ struct PaintShelf {
                                            sigil::material::conicGradient(
                                                middle(), wheel(),
                                                {.units = material::
-                                                    GradientUnits::Pixels})),
+                                                    GradientUnits::Pixels,
+                                                .startDegrees = 90,
+                                                .endDegrees = 450})),
                                     swatch("CLAMPED WINDOW",
                                            "sweep(centre, wheel, 45, 315)",
                                            "Angles outside 45°–315° clamp "

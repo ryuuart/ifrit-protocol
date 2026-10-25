@@ -417,7 +417,7 @@ bool operatorInputsEqual(const ElementNode& a, const ElementNode& b) {
  *  prunes still walks them. */
 static_assert(kFieldCount<ElementNode> == 26 &&
                   kFieldCount<DeclaredFields::Storage> == 6 &&
-                  kFieldCount<PaintProps> == 15 &&
+                  kFieldCount<PaintProps> == 17 &&
                   kFieldCount<ImageData> == 4 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
@@ -518,6 +518,8 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
       pa.fillBox != pb.fillBox ||
       !propertyEqual(pa.translateX, pb.translateX) ||
       !propertyEqual(pa.translateY, pb.translateY) ||
+      pa.translateXLength != pb.translateXLength ||
+      pa.translateYLength != pb.translateYLength ||
       !propertyEqual(pa.rotate, pb.rotate) ||
       !propertyEqual(pa.scale, pb.scale) ||
       // Every transform lane appears in this list, including the per-axis
@@ -576,6 +578,8 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
   const PaintProps &pa = a.fields.paint(), &pb = b.fields.paint();
   if (!propertyEqual(pa.translateX, pb.translateX) ||
       !propertyEqual(pa.translateY, pb.translateY) ||
+      pa.translateXLength != pb.translateXLength ||
+      pa.translateYLength != pb.translateYLength ||
       !propertyEqual(pa.rotate, pb.rotate) ||
       !propertyEqual(pa.scale, pb.scale) ||
       !propertyEqual(pa.scaleX, pb.scaleX) ||

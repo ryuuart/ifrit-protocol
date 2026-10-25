@@ -587,7 +587,7 @@ struct LainNavi {
             box()
                 .rect(10, 118, 400, 8)
                 .fill(Fill::var("wired"))
-                .transformOrigin(pct(0), pct(50))
+                .transformOrigin(percent(0), percent(50))
                 .scaleX(motion::bind(
                     clock, {.from = {kDialogOpens + 0.6f, kDialogCloses - 0.9f},
                             .clampFrom = true,

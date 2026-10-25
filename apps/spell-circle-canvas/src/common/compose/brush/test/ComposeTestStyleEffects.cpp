@@ -27,7 +27,7 @@ TEST(ComposeStyleEffects, AnInnerShadowHugsTheEdgeItIsCastFrom) {
   // Cast downward, so the band lies along the TOP inner edge.
   const Element shadowed =
       box().fill(material::from(kGrey).effects(material::Filter::shadow(
-          {0, 0, 0, 0.8f}, {.blur = 6, .offset = {0, 4}, .inside = true})));
+          {0, 0, 0, 0.8f}, {.blur = 6, .offset = {0, 4}, .inset = true})));
   // The band is held as a blurred mask, which lands within a code value
   // of the blur drawn live.
   const SkColor band = pixelOf(shadowed, 60, 22);

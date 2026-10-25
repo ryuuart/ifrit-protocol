@@ -24,7 +24,7 @@ def tile(caption: str, plate: compose.Element) -> compose.Element:
     children would be covered and a mark over them is not."""
     return (
         compose.box(
-            plate.width(compose.pct(100))
+            plate.width(compose.percent(100))
             .height(120)
             .borderRadius(10)
             .children(

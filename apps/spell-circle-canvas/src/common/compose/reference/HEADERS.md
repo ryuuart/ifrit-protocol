@@ -54,6 +54,9 @@ sound model; nothing below them changes kernel semantics.
   `ShapeScheme`), `MotionPath`, `Decoration` and its declared-volatility
   concepts, and `DecorationStack`; and `Boundary`, which outline a node hands
   its decorations.
+- `core/Shadow.h` — `Shadow` and `shadow`, CSS's box shadow as a value:
+  `offset`, `blur`, `spread`, `color` and `inset`, the words `TextShadow`
+  and `material::ShadowOptions` share.
 - `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`,
   `StrandPath` and `strand::`. The path arithmetic under it is
   SigilGeometry's — the width law `geometry::path::Profile` (a band's
@@ -69,8 +72,9 @@ sound model; nothing below them changes kernel semantics.
   `Arrangement`, `CellSpan`, `StatedLength`, `StatedSize`, `SizeInBox` and the
   `ComponentProperties` / `ComponentFunction` concepts. A `Dimension`
   also takes SigilWeave's `Length` (`em`, `rem`, `lh`) and a `VarRef`, the
-  relative units the cascade resolves, with `pw` and `ph` — the canvas's own
-  width and height — resolved in the same pass. `Arrangement::children`
+  relative units the cascade resolves, with `vw`, `vh`, `vmin` and `vmax` — the
+  canvas's own width, height, smaller and larger side — resolved in the
+  same pass. `Arrangement::children`
   borrows one span of `Arrangement::Child` records: measured sizes,
   baselines, cells, area names and facts, plus mutable placements and turns.
   Each child's `attribute` and `number` read its facts; `sizeIn` resolves
@@ -139,7 +143,7 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Paint.h` — `PaintVerbs`: `fill`, in every form a surface
   can be painted with.
 - `core/verbs/Decoration.h` — `DecorationVerbs`: `background`,
-  `overlay`, `foreground`, `stroke`, `decorationOutline`.
+  `overlay`, `foreground`, `stroke`, `boxShadow`, `decorationOutline`.
 - `core/verbs/Effects.h` — `EffectVerbs`: `opacity`, `blendMode`,
   `filter`, `backdropFilter`.
 - `core/verbs/Transform.h` — `TransformVerbs`: `translateX`,
@@ -549,8 +553,7 @@ a parameter speaks to.
 that plug the `Decoration` seam — `PathFormat` (stroke formatting, whose
 `antiAlias` is how a hard 1 px rule stands beside the equally hard
 `styles::BevelPair`, `Brackets` and `TickRail`) and
-`stroke`, its one-line spelling; `Shadow` / `shadow`, the soft drop
-shadow; `Slice` (lattice image mapping — its `density` is the source's pixels per
+`stroke`, its one-line spelling; `Slice` (lattice image mapping — its `density` is the source's pixels per
 layout unit in the fixed bands, so a frame generated oversized to stay
 sharp still draws its corners at the width it was designed for);
 `ContourWalk` (walk the outline
@@ -630,7 +633,7 @@ and `material::field` are where the signed-distance surfaces, the tiles
 and the fields come from. A look (a glow, a shadow, a bevel, an overlay)
 is a material's effects and layers; a look belongs to the sketch that
 uses it. An inner shadow, an outer glow and a bevel are the effects
-`material::Filter::shadow` (with `.inside`, or with a `.spread` and no
+`material::Filter::shadow` (with `.inset`, or with a `.spread` and no
 offset) and `material::Filter::bevel` on the material a node is filled or
 inked with, and a ripple is `material::Filter::of(material::field::ripple(…))`
 on the node's `filter()`.

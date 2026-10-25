@@ -51,7 +51,7 @@ detail::Insets Composer::Impl::paddingOf(const Instance& inst) const {
     bool relative = false;
     const float px = resolveLength(inst, d, relative, parentW);
     if (!std::isfinite(px)) return 0.0f;
-    return d.unit == Dimension::Unit::Pct ? parentW * px * 0.01f : px;
+    return d.unit == Dimension::Unit::Percent ? parentW * px * 0.01f : px;
   };
   return {edge(pad.left), edge(pad.top), edge(pad.right), edge(pad.bottom)};
 }
@@ -93,7 +93,7 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // A MARK child: the rect its selector resolved is its PARENT BOX, not its
   // box. Everything the child says about its own placement is then read
   // against that rect exactly as a positioned child reads it against its
-  // parent's — px or pct, in the rect's space, and free to land outside it
+  // parent's — px or percent, in the rect's space, and free to land outside it
   // — and a child that says nothing at all simply IS the rect. That is the
   // whole difference from a slot below, whose box the CONTENT reserved and
   // whose child cannot argue with it. Looked up first for the same reason:
@@ -150,11 +150,11 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
       length = *found;
     }
     // A sum's percentage term measures the same extent a percent does, so
-    // `top(pct(100) + 12)` on a mark is the rect's bottom and twelve more.
+    // `top(percent(100) + 12)` on a mark is the rect's bottom and twelve more.
     bool relative = false;
     const float value = resolveLength(inst, length, relative, parentExtent);
     if (!std::isfinite(value)) return std::nullopt;
-    return length.unit == Dimension::Unit::Pct ? parentExtent * value * 0.01f
+    return length.unit == Dimension::Unit::Percent ? parentExtent * value * 0.01f
                                                : value;
   };
   const auto left =

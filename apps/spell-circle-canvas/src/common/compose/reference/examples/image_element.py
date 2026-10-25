@@ -37,7 +37,7 @@ def cell(caption: str, leaf: compose.Element) -> compose.Element:
         compose.box(
             compose.box(leaf.width(120).height(120))
             .height(140)
-            .width(compose.pct(100))
+            .width(compose.percent(100))
             .borderRadius(8)
             .fill(CELL)
             .overflow(compose.Overflow.Clip)

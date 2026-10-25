@@ -19,22 +19,37 @@ void bindGeometry(py::module_& root) {
            py::arg("turn"))
       .def("along", &arrange::along, py::arg("start"), py::arg("extent"),
            py::arg("index"), py::arg("count"), py::arg("turn"))
-      .def("direction", &arrange::direction, py::arg("radians"))
+      .def(
+          "direction",
+          [](AngleInRadians radians) {
+            return arrange::direction(radians.value);
+          },
+          py::arg("radians"))
       .def("heading", &arrange::heading, py::arg("vector"))
-      .def("onEllipse", &arrange::onEllipse, py::arg("center"),
-           py::arg("radii"), py::arg("radians"));
+      .def(
+          "onEllipse",
+          [](glm::vec2 center, glm::vec2 radii, AngleInRadians radians) {
+            return arrange::onEllipse(center, radii, radians.value);
+          },
+          py::arg("center"), py::arg("radii"), py::arg("radians"));
 
   auto ring = bindRecord<arrange::Ring>(module, "Ring", "Unknown ring field: ");
   ring.def_readwrite("center", &arrange::Ring::center)
       .def_readwrite("radii", &arrange::Ring::radii)
-      .def_readwrite("fromDegrees", &arrange::Ring::fromDegrees)
-      .def_readwrite("sweepDegrees", &arrange::Ring::sweepDegrees)
+      .def_property(
+          "fromDegrees", angleGetter(&arrange::Ring::fromDegrees),
+          angleSetter<AngleInDegrees>(&arrange::Ring::fromDegrees))
+      .def_property(
+          "sweepDegrees", angleGetter(&arrange::Ring::sweepDegrees),
+          angleSetter<AngleInDegrees>(&arrange::Ring::sweepDegrees))
       .def_readwrite("turn", &arrange::Ring::turn)
       .def(py::self == py::self);
   auto placement = bindRecord<arrange::Placement>(
       module, "Placement", "Unknown placement field: ");
   placement.def_readwrite("position", &arrange::Placement::position)
-      .def_readwrite("headingDegrees", &arrange::Placement::headingDegrees)
+      .def_property(
+          "headingDegrees", angleGetter(&arrange::Placement::headingDegrees),
+          angleSetter<AngleInDegrees>(&arrange::Placement::headingDegrees))
       .def(py::self == py::self);
   module
       .def("radiansOnRing", &arrange::radiansOnRing, py::arg("index"),
@@ -43,8 +58,12 @@ void bindGeometry(py::module_& root) {
            py::arg("ring") = arrange::Ring{})
       .def("onRing", &arrange::onRing, py::arg("index"), py::arg("count"),
            py::arg("ring") = arrange::Ring{})
-      .def("placeOnEllipse", &arrange::placeOnEllipse, py::arg("center"),
-           py::arg("radii"), py::arg("radians"))
+      .def(
+          "placeOnEllipse",
+          [](glm::vec2 center, glm::vec2 radii, AngleInRadians radians) {
+            return arrange::placeOnEllipse(center, radii, radians.value);
+          },
+          py::arg("center"), py::arg("radii"), py::arg("radians"))
       .def("placeOnRing", &arrange::placeOnRing, py::arg("index"),
            py::arg("count"), py::arg("ring") = arrange::Ring{})
       .def("placeAlong", &arrange::placeAlong, py::arg("position"),

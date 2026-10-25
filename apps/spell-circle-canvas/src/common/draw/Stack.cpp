@@ -287,6 +287,9 @@ void Stack::drawLayer(Pen& pen, const Layer& layer) {
 }
 
 void Stack::remake(Pen& host) {
+  // Every layer is read where the composite is made: one standing where
+  // the host cannot reach it is formed again there first, its picture kept.
+  for (const auto& layer : m_layers) layer->m_buffer.follow(host);
   Pen& pen = m_composite.begin(host);
   // A clip shape is the caller's code and may throw: the frame is ended
   // before the error goes on, as a bake ends its own, and the pen's end
@@ -310,7 +313,9 @@ void Stack::remake(Pen& host) {
 
 sk_sp<SkImage> Stack::image(Pen& host) {
   const float density = std::max(host.contentScale(), m_densityFloor);
-  if (moved(density)) {
+  // A composite standing where the host cannot reach it is made again
+  // there, as one is whose layers moved.
+  if (moved(density) || !m_composite.standsWhere(host)) {
     remake(host);
     m_compositedDensity = density;
   }

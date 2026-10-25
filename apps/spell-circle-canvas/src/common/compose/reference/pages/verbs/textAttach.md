@@ -17,21 +17,21 @@ rule standing at a word's edge.
 
 ```cpp
 text(line, style)
-    .textAttach(weave::selectors::word(3), box().left(0).top(pct(100))
-                                          .width(pct(100)).height(2)
+    .textAttach(weave::selectors::word(3), box().left(0).top(percent(100))
+                                          .width(percent(100)).height(2)
                                           .fill(Fill::color(ink)));
 ```
 
 **`what` becomes a child of this text node whose PARENT BOX is the rect
 the selector resolves to**, so it is written in exactly the placement
-longhand a `positioned()` child takes — px or pct `left`, `top`,
+longhand a `positioned()` child takes — px or percent `left`, `top`,
 `right`, `bottom`, `width`, `height`, measured inside that rect and free
 to sit outside it. With no dimensions at all the mark simply IS the
 rect.
 
 With a stated width or height, `right` or `bottom` places that far edge
 when its opposing inset is auto. Margins offset the placed box; for
-example, `top(pct(100)).marginTop(12)` hangs a mark twelve pixels below
+example, `top(percent(100)).marginTop(12)` hangs a mark twelve pixels below
 the selected unit. Percentage margins use the selected rect's width on
 every edge. Font-relative lengths and sums without percentages resolve
 against the mark's inherited font metrics.

@@ -207,13 +207,13 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
            .key("line")
            .textAttach(
                sigil::weave::selectors::word(1),
-               box().key("caret").left(0).top(pct(100)).width(2).height(9).fill(
+               box().key("caret").left(0).top(percent(100)).width(2).height(9).fill(
                    green()))}));
   pinned.frame();
   const SkRect tick = markRect(pinned, "caret");
   EXPECT_NEAR(tick.left(), caret.left(), 0.01f);
   EXPECT_NEAR(tick.top(), caret.bottom(), 0.01f)
-      << "pct(100) of the unit's rect is its bottom edge";
+      << "percent(100) of the unit's rect is its bottom edge";
   EXPECT_FLOAT_EQ(tick.width(), 2.0f);
 }
 
@@ -227,7 +227,7 @@ TEST(ComposeTextFx, MarkResolvesMarginsFarInsetsAndFontLengths) {
             .var("drop", Dimension(drop))
             .textAttach(selected, box().key("anchor"))
             .textAttach(selected, box().key("near").width(2).height(8)
-                                      .left(0).top(pct(100))
+                                      .left(0).top(percent(100))
                                       .marginLeft(4).marginTop(var("drop")))
             .textAttach(selected, box().key("far").width(2).height(8)
                                       .right(-10).bottom(-20)
@@ -267,7 +267,7 @@ TEST(ComposeTextFx, MarkResolvesMarginsFarInsetsAndFontLengths) {
 TEST(ComposeTextFx, MarkResolvesAPercentagePlusPixelInset) {
   // A sum holding a percentage stays a length until its consumer knows
   // the extent: on a mark that extent is the selected unit's rect, so
-  // `top(pct(100) + 12)` is that rect's bottom and twelve more — and it
+  // `top(percent(100) + 12)` is that rect's bottom and twelve more — and it
   // follows the rect when the type is resized.
   Host host(400, 200);
   const auto selected = sigil::weave::selectors::text(u8"L");
@@ -278,7 +278,7 @@ TEST(ComposeTextFx, MarkResolvesAPercentagePlusPixelInset) {
              .textAttach(selected, box()
                                        .key("drop")
                                        .left(0)
-                                       .top(pct(100) + Dimension(12))
+                                       .top(percent(100) + Dimension(12))
                                        .width(1)
                                        .height(8)
                                        .fill(green()))}));

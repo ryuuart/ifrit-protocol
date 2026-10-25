@@ -13,6 +13,7 @@
 #include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/mask/Mask.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -26,9 +27,11 @@
 #include <array>
 #include <cmath>
 #include <glm/geometric.hpp>
+#include <glm/vec4.hpp>
 #include <limits>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "ShaderTable.h"
 #include "support/Shade.h"
@@ -635,6 +638,97 @@ TEST(Surface, LowersAnImageChannelIntoItsMapSlot) {
   const Texture* base = surface::map(based, surface::kBaseColorSlot);
   ASSERT_NE(base, nullptr);
   EXPECT_EQ(base->source(), media::PixelSource(grey));
+}
+
+namespace {
+
+/** The pixels of @p map's frame at time zero, on the host. */
+SkBitmap pixelsOf(const Texture& map) {
+  SkBitmap bitmap;
+  const sk_sp<SkImage> image = media::toSk(map.frameAt().image);
+  if (!image) return bitmap;
+  bitmap.allocPixels(
+      SkImageInfo::MakeN32Premul(image->width(), image->height()));
+  if (!image->readPixels(bitmap.pixmap(), 0, 0)) bitmap.reset();
+  return bitmap;
+}
+
+/** A gradient from black at the left of the box to white at its right. */
+Material blackToWhite() {
+  return linearGradient({0, 0.5f}, {1, 0.5f},
+                        std::vector<Color>{{0, 0, 0, 1}, {1, 1, 1, 1}});
+}
+
+}  // namespace
+
+TEST(Surface, AChannelNoDeviceCompilesIsPaintedIntoAMapThatVaries) {
+  // A gradient is a program only Skia runs, so a device handed it as a
+  // child has nothing to compile; lowered, it is pixels the device reads
+  // across the body's texture coordinates.
+  const Material lowered = surface::lower(
+      from(Color{1, 1, 1, 1}).surface({.roughness = blackToWhite()}));
+  EXPECT_FLOAT_EQ(lowered.get<float>("roughness"), 1.0f);
+  const Texture* map = surface::map(lowered, surface::kRoughnessSlot);
+  ASSERT_NE(map, nullptr);
+  const SkBitmap pixels = pixelsOf(*map);
+  ASSERT_FALSE(pixels.empty());
+  const int middle = pixels.height() / 2;
+  EXPECT_LT(pixels.getColor4f(1, middle).fR, 0.05f);
+  EXPECT_GT(pixels.getColor4f(pixels.width() - 2, middle).fR, 0.95f);
+  // Two equal channels are one source, so a renderer keeps one map.
+  const Material again = surface::lower(
+      from(Color{1, 1, 1, 1}).surface({.roughness = blackToWhite()}));
+  const Texture* same = surface::map(again, surface::kRoughnessSlot);
+  ASSERT_NE(same, nullptr);
+  EXPECT_EQ(same->source(), map->source());
+  // A gradient base is the base colour's map the same way.
+  const Material based = surface::lower(from(blackToWhite()).surface({}));
+  EXPECT_NE(surface::map(based, surface::kBaseColorSlot), nullptr);
+}
+
+TEST(Surface, AnImageChannelWithItsOwnPlacingIsReadThroughAPlacedChild) {
+  Texture dots(media::PixelSource(test::solid(SK_ColorWHITE, 10, 10)));
+  glm::mat3 fifthBySeventh(1.0f);
+  fifthBySeventh[0][0] = 1.0f / 5.0f;
+  fifthBySeventh[1][1] = 1.0f / 7.0f;
+  dots.tile(Repeat::Repeat, Repeat::Mirror).uv(fifthBySeventh);
+  const Material lowered =
+      surface::lower(from(Color{0, 0, 0, 1})
+                         .surface({.emission = {1, 1, 1, 1},
+                                   .emissionStrength = 1,
+                                   .emissionMap = image(dots)}));
+  // The surface program reads every slot at the mesh's own coordinates,
+  // so the image's placing travels with it as a child that applies it:
+  // five across and seven down, repeating across and mirrored down.
+  const Material* placed = lowered.slot(surface::kEmissiveSlot);
+  ASSERT_NE(placed, nullptr);
+  EXPECT_EQ(placed->recipe().name(), "material.surface.placed");
+  EXPECT_TRUE(placed->recipe().has(Target::Slang));
+  const glm::vec4 across = placed->get<glm::vec4>("uAcross");
+  const glm::vec4 down = placed->get<glm::vec4>("uDown");
+  EXPECT_NEAR(across.x, 5.0f, 1e-4f);
+  EXPECT_NEAR(across.y, 0.0f, 1e-4f);
+  EXPECT_NEAR(down.y, 7.0f, 1e-4f);
+  EXPECT_NEAR(down.x, 0.0f, 1e-4f);
+  const glm::vec2 repeat = placed->get<glm::vec2>("uRepeat");
+  EXPECT_FLOAT_EQ(repeat.x, 1.0f);
+  EXPECT_FLOAT_EQ(repeat.y, 2.0f);
+  const auto* inside = dynamic_cast<const Texture*>(placed->leaf("image"));
+  ASSERT_NE(inside, nullptr);
+  EXPECT_EQ(inside->source(), dots.source());
+  // An emission map is colour, and says so, since the child's own slot
+  // names no role.
+  ASSERT_TRUE(inside->colorSpace());
+  EXPECT_EQ(*inside->colorSpace(), media::ColorSpace::Srgb);
+
+  // An image read once across the body stays the slot's own texture; so does a placed base colour, which the renderer
+  // places itself.
+  const Material unplaced = surface::lower(
+      from(Color{0, 0, 0, 1})
+          .surface({.emissionMap = image(Texture(dots.source()))}));
+  EXPECT_NE(surface::map(unplaced, surface::kEmissiveSlot), nullptr);
+  const Material placedBase = surface::lower(from(image(dots)).surface({}));
+  EXPECT_NE(surface::map(placedBase, surface::kBaseColorSlot), nullptr);
 }
 
 // ---- the optional lobes ----------------------------------------------------

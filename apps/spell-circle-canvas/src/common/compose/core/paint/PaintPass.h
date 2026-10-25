@@ -253,6 +253,13 @@ struct PaintPass {
  *  falls through and paints live. */
 bool paintGroupBake(PaintPass& pass);
 
+/** The pixels a live composer holds while the node's own transform moves
+ *  (MovingHold.cpp): formed where they are missing, stale or formed for a
+ *  smaller scale, and composited under the node's matrix. True when the
+ *  node was composited and its paint is over; false where no pixels could
+ *  be formed, and the node paints through the tiers below. */
+bool paintHeldWhileMoving(PaintPass& pass);
+
 /** The asked-for texture bake (TextureBake.cpp): the device-space exact
  *  bake, else the quantized local one, and the blit over it. True when the
  *  node's paint is over. */

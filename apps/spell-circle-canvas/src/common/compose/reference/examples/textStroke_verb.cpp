@@ -33,7 +33,7 @@ Element cell(const char* caption, Element label) {
       .flexGrow(1)
       .alignItems(Align::Center)
       .children({box()
-                     .width(pct(100))
+                     .width(percent(100))
                      .height(120)
                      .borderRadius({10})
                      .fill(kBusy)

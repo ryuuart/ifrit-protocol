@@ -50,7 +50,8 @@ emit adds a light of the layer, never a light of the first light.
 | `skia::program(effect)` | C++ | an SkSL runtime effect whose content slot is the rendered layer |
 | `Filter::dropShadow(colour, {.blur, .offset})` | C++ | CSS `drop-shadow()`: the layer's shadow beneath it |
 | `Filter::bloom(options)` | C++ | optical bloom: bright colour extracted, spread by two Gaussians, laid back over the source |
-| `Filter::brightness(amount)`, `Filter::contrast(amount)`, `Filter::saturate(amount)`, `Filter::hueRotate(degrees)` | C++ | CSS's colour functions, each a per-pixel map |
+| `Filter::brightness(amount)`, `Filter::contrast(amount)`, `Filter::saturate(amount)`, `Filter::hueRotate(degrees)`, `Filter::grayscale(amount)`, `Filter::sepia(amount)`, `Filter::invert(amount)`, `Filter::opacity(amount)` | C++ | CSS's colour functions, each a per-pixel map; with `blur` and `dropShadow`, all ten of CSS's filter functions |
+| `Filter.grayscale("50%")`, `Filter.brightness(1.5)`, `Filter.blur("4px")` | Python | the same, an amount a number or percentage text and a blur a number of pixels or absolute length text |
 | `Filter::glow(colour, sigma)` | C++ | the layer re-emitted blurred beneath itself, which keeps the content on top |
 | `Filter::blur(sigma)` | C++ | the plain blur |
 | `Filter::blur(sigmaMap, maximumSigma)` | C++ | a blur whose radius is read from a paint, per pixel |
@@ -58,7 +59,7 @@ emit adds a light of the layer, never a light of the first light.
 | `Filter::brightPass(threshold, knee)` | C++ | the layer with everything but its light taken out — the first half of a bloom |
 | `Filter::phosphorBloom(radius, threshold)` | C++ | the whole bloom in one gather |
 | `Filter::dilate(pixels)`, `Filter::deepen(amount)`, `Filter::whiten(amount)` | C++ | the small tonal passes |
-| `Filter::shadow(colour, {.blur, .offset, .inside = true})` | C++ | a material's inner shadow: a finite band cast along the offset, hugging the opposite inner edge |
+| `Filter::shadow(colour, {.blur, .offset, .inset = true})` | C++ | a material's inner shadow: a finite band cast along the offset, hugging the opposite inner edge |
 | `Filter::shadow(colour, {.blur, .spread})` | C++ | a material's outer glow — a spread shadow with no offset |
 | `Filter::bevel({.depth, .size, .angleDegrees, .highlight, .shadow})` | C++ | a material's bevel: the lit edge and the shaded one, as two opposed inner shadows |
 | `Filter::stroke(colour, {.width, .position})` | C++ | a material's keyline |

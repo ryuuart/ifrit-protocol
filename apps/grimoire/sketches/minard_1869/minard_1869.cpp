@@ -524,7 +524,7 @@ struct Minard1869 {
         .role("numeral")
         .centerAt(centre)
         .rotate(degrees)
-        .transformOrigin(pct(50), pct(50))
+        .transformOrigin(percent(50), percent(50))
         .opacity(after(passed, passed + 2));
   }
 

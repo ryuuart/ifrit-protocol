@@ -434,9 +434,14 @@ TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
   const Decoration inner = stroke(9, red(), PathFormat::Align::Inner);
   EXPECT_EQ(inner.bleed({100, 100}), 0.0f) << "unchanged: it escapes nothing";
   EXPECT_EQ(inner.reach({100, 100}), 9.0f) << "…but the mark is 9px wide";
+  // A centred stroke escapes by its half width, and by four half-widths
+  // at a mitred corner, the join it meets its corners with by default.
   const Decoration centred = stroke(9, red());
-  EXPECT_EQ(centred.bleed({100, 100}), 4.5f);
+  EXPECT_EQ(centred.bleed({100, 100}), 18.0f);
   EXPECT_EQ(centred.reach({100, 100}), 9.0f);
+  PathFormat rounded = stroke(9, red());
+  rounded.join = geometry::path::Join::Round;
+  EXPECT_EQ(Decoration(rounded).bleed({100, 100}), 4.5f);
 
   // And it repairs: two CLOSED strands (where Inner is meaningful) — two
   // overlapping circles, which meet at TWO points — stroked Inner, with the

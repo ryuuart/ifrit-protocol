@@ -594,7 +594,7 @@ struct SpaceJam1996 {
         .width(kWindowWidth)
         .height(kWindowHeight)
         .scale(kZoom)
-        .transformOrigin(pct(0), pct(0))
+        .transformOrigin(percent(0), percent(0))
         .imageRendering(material::Sampling::Nearest)
         .applyStyleSheet(chromeSheet())
         .children(
@@ -617,7 +617,7 @@ struct SpaceJam1996 {
              rect(524, kStatusTop + 2, 120, 14)
                  .fill(kCaption)
                  .scaleX(progress)
-                 .transformOrigin(pct(0), pct(50)),
+                 .transformOrigin(percent(0), percent(50)),
              page(), std::move(pointer)});
   }
 

@@ -35,7 +35,7 @@ read before the four rows under *The surface*.
 |---|---|---|---|
 | `Decoration` | A type-erased mark: anything answering `paint(pen, PaintContext)`. | Implicitly from `PathFormat`, `Shadow`, `Slice`, any scheme of your own, or a bare `PaintProgram` | `Element::background`, `Element::overlay`, `Element::foreground`, `Element::stroke` |
 | [`PathFormat`](pages/types/PathFormat.md) | A stroke of the outline, formatted by data: width, paint, alignment, dashes, stamps. | `stroke(width, fill)`, `stroke(width)` for the ink in force, or the struct outright | The four decoration slots |
-| [`Shadow`](pages/types/Shadow.md) | A soft drop shadow behind the outline, with an optional knockout. | `shadow(ink, offset, blur)` | The same slots, `background` first among them |
+| [`Shadow`](pages/types/Shadow.md) | CSS's box shadow: the outline moved, spread and blurred beneath it, or inset within it. | `Shadow{.offset, .blur, .spread, .color, .inset}`, `shadow(color, offset, blur)` | `Element::boxShadow`, and the decoration slots, `background` first among them |
 | `Boundary` | Which outline a node hands its decorations: `Auto`, `Outline`, `Glyphs`, `Coverage`. | The enumeration itself | `Element::decorationOutline` |
 | `Spans` | Which runs of the boundary a pass claims. | `spans::range`, `spans::upTo`, `spans::corners`, `spans::edges`, `spans::every`, `spans::at`, `spans::fit`, `spans::rest`, and `|` between any of them | `Element::stroke`, `Element::background` |
 
@@ -99,10 +99,18 @@ from `motion.animate` or `motion.animatable`, and that union is
 `MotionFillLike`; the narrowest is `ColorLike`. A dimension is a number, a string in the length grammar
 `compose.parseDimension` reads, a `compose.Dimension`, a weave length or
 a property reference; `compose.em`, `rem`, `lh`, `ch` and `pt` spell the
-units that have no literal suffix in this language, beside `pct`, `pw`
-and `ph`. A decoration is a
+units that have no literal suffix in this language, beside `percent`,
+`vw`, `vh`, `vmin` and `vmax`. A decoration is a
 `compose.Decoration`, a `compose.PathFormat` or a `compose.Shadow`: a
 scheme of your own is C++ only.
+
+An angle — `rotate`, `rotateX`, `rotateY`, `skewX`, `skewY`, a
+`fontStyle` oblique, an edge gate's direction — is a number of degrees,
+CSS angle text such as `"45deg"`, `"0.25turn"`, `"1rad"` or `"50grad"`,
+or a `core.angle.Angle`; the annotation is `AngleLike`, and the verbs
+that move take it beside a `ScalarLike`. A length of time is a number of
+seconds, a `datetime.timedelta`, or CSS time text, `"300ms"` or `"0.3s"`;
+the annotation is `DurationLike`. Text no grammar reads raises.
 
 ## Where they live
 
@@ -129,7 +137,7 @@ scheme of your own is C++ only.
 - `core/Stroke.h` — `Spans` and the `spans` factories, with
   `StrandPath`; a band's width is SigilGeometry's `geometry::path::Profile`.
 - `core/Mask.h` — `Gate` and `Parts`, the two halves of a mask.
-- `core/Layout.h` — `Dimension` with `pct`, `pw`, `ph`,
+- `core/Layout.h` — `Dimension` with `percent`, `vw`, `vh`, `vmin`, `vmax`, `fontLength`, `parseFraction`,
   `autoDimension` and the `parseDimension` that reads one written as
   text, the `Edges` that name the four sides around a node, `Align`,
   `Justify`, and `Cache`.
@@ -137,4 +145,5 @@ scheme of your own is C++ only.
   `FontStyle::Italic` and `FontStyle::oblique`.
 - `core/Utf8.h` — `Utf8`.
 - `brush/Decorations.h` — `PathFormat` and the `stroke` that makes one,
-  `Shadow` and `shadow`, and `Slice`.
+  and `Slice`.
+- `core/Shadow.h` — `Shadow` and `shadow`.

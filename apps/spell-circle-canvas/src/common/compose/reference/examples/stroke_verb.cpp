@@ -33,7 +33,7 @@ Element cell(const char* caption, Element plate) {
       .flexGrow(1)
       .alignItems(Align::Center)
       .children(
-          {plate.width(pct(100)).height(120).borderRadius({10}).fill(kPlate),
+          {plate.width(percent(100)).height(120).borderRadius({10}).fill(kPlate),
            text(caption).font({.size = 12, .color = kAsh})});
 }
 

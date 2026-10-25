@@ -20,7 +20,7 @@ carries no box, written through those two setters so it can neither
 describe a node the longhand could not nor drift from it.
 
 **Two lengths in any unit, or a point in hand.** `at(x, y)` takes what
-`left()` and `top()` take, so `at(pct(50), pct(50))` is a percent of the
+`left()` and `top()` take, so `at(percent(50), percent(50))` is a percent of the
 parent's box; `at(glm::vec2)` is the same pin for coordinates already
 measured, in pixels.
 

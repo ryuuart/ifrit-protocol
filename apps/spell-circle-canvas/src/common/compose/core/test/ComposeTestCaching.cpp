@@ -41,13 +41,13 @@ TEST(ComposeCaching, StaticSubtreeRecordsOnce) {
 }
 
 TEST(ComposeCaching, RelayoutInvalidatesStaleRecordings) {
-  // setSize alone — no prop change, no re-render — resizes a pct-width child
+  // setSize alone — no prop change, no re-render — resizes a percent-width child
   // whose geometry is already baked into cached recordings. Invalidation
   // driven only by patching never sees this, so relayout has to compare the
   // new rects against the baked ones and drop what moved.
   Host host;
   host.composer.render(
-      box().children({box().width(pct(50)).height(40).fill(red())}));
+      box().children({box().width(percent(50)).height(40).fill(red())}));
   host.frame();  // child spans x∈[0,100) at 200-wide viewport; recorded
   EXPECT_EQ(host.pixel(80, 20), SK_ColorRED);
   host.composer.setSize({120, 200});  // child now spans x∈[0,60)
@@ -440,7 +440,7 @@ Element haloedNode(Boundary boundary, const motion::Animatable<float>& turn) {
       .height(80)
       .cache(Cache::Texture)
       .decorationOutline(boundary)
-      .transformOrigin(pct(50), pct(50))
+      .transformOrigin(percent(50), percent(50))
       .rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}))
       .filter(material::Filter::glow({0.1f, 0.85f, 1.0f, 1}, 6))
       .children({box().absolute().left(20).top(20).width(40).height(40).fill(
@@ -800,7 +800,7 @@ Element dressedSheet(const motion::Animatable<float>& turn) {
                         .top(40)
                         .width(160)
                         .height(160)
-                        .transformOrigin(pct(50), pct(50))
+                        .transformOrigin(percent(50), percent(50))
                         .rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}));
   turning.children(
       {box().absolute().left(0).top(70).width(160).height(20).fill(

@@ -336,8 +336,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         pass, *backdropFilter,
         node.shapeFn ? &resolveOutline(inst, {rect.width(), rect.height()})
                      : nullptr,
-        cornersRRect(SkRect::MakeWH(rect.width(), rect.height()),
-                     style.corners));
+        cornersRRect(inst, SkRect::MakeWH(rect.width(), rect.height())));
 
   // The live-material resolve probe: when the node's only volatility is its
   // live material, resolve NOW — an unchanged shader means the cached
@@ -568,6 +567,23 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     if (inst.paintDirty || (inst.ownContentVaries && !memoHolds))
       foldBeneath(drawSerial);
   }
+
+  // THE PIXELS HELD WHILE THE NODE MOVES, under a live composer: a node
+  // whose own transform has moved since the last draw, with everything it
+  // paints holding still in its own frame, is composited from its subtree
+  // painted once at the scale it is shown at, as a compositor turns a
+  // layer. Only where the node is painted every draw — never inside a
+  // recording or a bake, which hold it already — and never where the
+  // author named a tier of their own. The draw it holds still it paints
+  // as below, live or recorded, and the held pixels go.
+  const bool heldWhileMoving =
+      live && bakesPixels() && !coverageTrace && !paintingUnseen &&
+      recording.depth == 0 && bakeDepth == 0 && inst.transformLive &&
+      inst.stillInOwnFrame && !matrixStable && !totalM.hasPerspective() &&
+      !spaceHost && !pass.placedByPlane &&
+      (node.cacheMode == Cache::Auto || node.cacheMode == Cache::Picture);
+  if (!heldWhileMoving) inst.movingImage.reset();
+  if (heldWhileMoving && paintHeldWhileMoving(pass)) return;
 
   if (paintGroupBake(pass)) return;
 

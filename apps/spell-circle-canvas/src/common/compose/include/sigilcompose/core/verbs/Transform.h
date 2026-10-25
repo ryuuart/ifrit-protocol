@@ -21,12 +21,27 @@ namespace sigil::compose {
 template <class Derived>
 class TransformVerbs {
  public:
-  /** SLIDE THE NODE ALONG X, in pixels, positive to the right. Zero
-   *  when unstated. */
+  /** SLIDE THE NODE ALONG X, in pixels, positive to the right — a lane
+   *  that animates and binds. Zero when unstated. */
   Derived& translateX(motion::Animatable<float> v);
-  /** SLIDE THE NODE ALONG Y, in pixels, positive downward. Zero when
-   *  unstated. */
+  /** SLIDE THE NODE ALONG Y, in pixels, positive downward — a lane that
+   *  animates and binds. Zero when unstated. */
   Derived& translateY(motion::Animatable<float> v);
+  /** A number of pixels along X, the lane's own spelling. */
+  Derived& translateX(float pixels);
+  /** A number of pixels along Y, the lane's own spelling. */
+  Derived& translateY(float pixels);
+  /** SLIDE THE NODE ALONG X BY A LENGTH — CSS `translate`: a `percent` of
+   *  the node's OWN width, so `translateX(-50_percent)` centres a node on
+   *  its left edge whatever its size; `em`, `rem`, a viewport unit or a
+   *  custom property against the font, the canvas and the properties in
+   *  force.
+   *  @trap A length is a statement, not a lane: it neither animates nor
+   *  eases under `transition()`. */
+  Derived& translateX(Dimension length);
+  /** SLIDE THE NODE ALONG Y BY A LENGTH — a `percent` of the node's own
+   *  height. */
+  Derived& translateY(Dimension length);
   /** Ride a CURVE instead of two lanes. The node's transform origin is
    *  the point that lands on the curve, and the curve is resolved
    *  against the PARENT's box. */
@@ -57,7 +72,7 @@ class TransformVerbs {
   Derived& skewY(motion::Animatable<float> degrees);
   /** THE PIVOT every rotation, scale and skew turns about — CSS
    *  `transform-origin`. A percentage is of the node's own box,
-   *  `pct(0)` its left or top edge and `pct(100)` its right or bottom;
+   *  `percent(0)` its left or top edge and `percent(100)` its right or bottom;
    *  any other length is node-local pixels; @p z is the pivot's
    *  distance in front of the plane, which a percentage cannot say. The
    *  CENTRE, in the plane, when unstated.
@@ -66,7 +81,7 @@ class TransformVerbs {
   Derived& transformOrigin(Dimension x, Dimension y, Dimension z = 0.0f);
   /** A BARE NUMBER IS REFUSED, as CSS refuses a length without a unit
    *  here: it reads as a fraction of the box as readily as a pixel
-   *  count. Write `pct(50)` or `Dimension(12)`. */
+   *  count. Write `percent(50)` or `Dimension(12)`. */
   Derived& transformOrigin(float, float, float = 0.0f) = delete;
   /** PAINT ORDER AMONG SIBLINGS — CSS `z-index`. Zero when unstated,
    *  so siblings paint in declaration order. It reorders nothing

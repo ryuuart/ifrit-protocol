@@ -140,15 +140,95 @@ TEST(SkiaGradient, TheExtentSaysWhatARadiusOfOneReaches) {
 }
 
 TEST(SkiaGradient, AConicInBoxUnitsTurnsAroundThePointOfTheBoxItNames) {
-  // Centred at a quarter across, the sweep's seam runs right from there:
-  // just below it is the start of the stops and just above it the end.
+  // Centred at a quarter across, the sweep's seam runs up from there:
+  // just right of it is the start of the stops and just left of it the
+  // end.
   const Paint conic = Paint::conicGradient(
       {0.25f, 0.5f}, {Color{1, 0, 0, 1}, Color{0, 0, 1, 1}});
   EXPECT_TRUE(conic.geometryDependent());
   const SkBitmap bm = render(
       skia::shader(conic, FrameData{.resolution = {100, 100}}), 100, 100);
-  EXPECT_GT(SkColorGetR(bm.getColor(60, 52)), 200u);
-  EXPECT_GT(SkColorGetB(bm.getColor(60, 48)), 200u);
+  EXPECT_GT(SkColorGetR(bm.getColor(28, 20)), 200u);
+  EXPECT_GT(SkColorGetB(bm.getColor(22, 20)), 200u);
+}
+
+namespace {
+
+const std::vector<ColorStop> kWhiteToBlack{{0.0f, Color{1, 1, 1, 1}},
+                                           {1.0f, Color{0, 0, 0, 1}}};
+
+/** @p material rendered over a box of @p width by @p height. */
+SkBitmap renderBox(const Material& material, int width, int height) {
+  return render(
+      skia::shader(skia::paint(material),
+                   FrameData{.resolution = {(float)width, (float)height}}),
+      width, height);
+}
+
+}  // namespace
+
+TEST(SkiaGradient, ACssLinearGradientRunsToTheBottomUnlessTold) {
+  const SkBitmap down = renderBox(linearGradient(kWhiteToBlack), 200, 50);
+  EXPECT_GT(SkColorGetR(down.getColor(100, 0)), 240u);
+  EXPECT_LT(SkColorGetR(down.getColor(100, 49)), 15u);
+  const SkBitmap right = renderBox(linearGradient(kWhiteToBlack, 90), 200, 50);
+  EXPECT_GT(SkColorGetR(right.getColor(0, 25)), 240u);
+  EXPECT_LT(SkColorGetR(right.getColor(199, 25)), 15u);
+}
+
+TEST(SkiaGradient, ACssAngleSpansTheBoxCornerToCorner) {
+  // At 45 degrees on a box four times wider than tall, the gradient line
+  // is long enough that the bottom-left corner is the first stop and the
+  // top-right the last, as CSS's is.
+  const SkBitmap bm = renderBox(linearGradient(kWhiteToBlack, 45), 200, 50);
+  EXPECT_GT(SkColorGetR(bm.getColor(0, 49)), 245u);
+  EXPECT_LT(SkColorGetR(bm.getColor(199, 0)), 10u);
+}
+
+TEST(SkiaGradient, TowardACornerPutsTheMiddleOnTheOtherDiagonal) {
+  // Toward the top-right of a wide box, the top-left and bottom-right
+  // corners both sit at the middle stop.
+  const SkBitmap bm =
+      renderBox(linearGradient(kWhiteToBlack, Toward::TopRight), 200, 50);
+  const int topLeft = (int)SkColorGetR(bm.getColor(0, 0));
+  const int bottomRight = (int)SkColorGetR(bm.getColor(199, 49));
+  EXPECT_NEAR(topLeft, 128, 8);
+  EXPECT_NEAR(bottomRight, 128, 8);
+  EXPECT_GT(SkColorGetR(bm.getColor(0, 49)), 245u);
+}
+
+TEST(SkiaGradient, ACssCircleKeepsItsRadiusAndMeasuresFromItsOwnCentre) {
+  // Centred a quarter across a 200 by 100 box, the closest side is 50 px
+  // away in every direction, and the circle is as tall as it is wide.
+  const SkBitmap bm = renderBox(
+      radialGradient(kWhiteToBlack, {.shape = RadialShape::Circle,
+                                     .extent = RadialExtent::ClosestSide,
+                                     .at = {0.25f, 0.5f}}),
+      200, 100);
+  EXPECT_LT(SkColorGetR(bm.getColor(50 + 50, 50)), 10u);
+  EXPECT_NEAR((int)SkColorGetR(bm.getColor(50 + 30, 50)),
+              (int)SkColorGetR(bm.getColor(50, 50 + 30)), 2);
+  EXPECT_GT(SkColorGetR(bm.getColor(50 + 30, 50)), 80u);
+}
+
+TEST(SkiaGradient, ACssEllipseTakesTheBoxsProportions) {
+  // The farthest side from the middle of a 200 by 100 box: 100 px across
+  // and 50 down, so half way out reads the same in both directions.
+  const SkBitmap bm = renderBox(
+      radialGradient(kWhiteToBlack, {.extent = RadialExtent::FarthestSide}),
+      200, 100);
+  EXPECT_NEAR((int)SkColorGetR(bm.getColor(150, 50)),
+              (int)SkColorGetR(bm.getColor(100, 75)), 3);
+  EXPECT_LT(SkColorGetR(bm.getColor(199, 50)), 10u);
+}
+
+TEST(SkiaGradient, ACssConicStartsFromTheAngleItIsGiven) {
+  // From 90 degrees the seam is at 3 o'clock: just below it is the first
+  // stop and just above it the last.
+  const SkBitmap bm =
+      renderBox(conicGradient(kWhiteToBlack, {.fromDegrees = 90}), 100, 100);
+  EXPECT_GT(SkColorGetR(bm.getColor(90, 53)), 230u);
+  EXPECT_LT(SkColorGetR(bm.getColor(90, 47)), 25u);
 }
 
 TEST(SkiaRamp, APaletteCrossesToAShaderAsATableSampledNearest) {

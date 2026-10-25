@@ -29,9 +29,11 @@ The units, and what each is a fraction or a multiple OF:
 | --- | --- | --- |
 | `Dimension::Unit::Px` | `24`, `24_px` | canvas pixels — absolute |
 | `Dimension::Unit::Pt` | `9_pt` | printer's points — absolute, four pixels to every three |
-| `Dimension::Unit::Pct` | `50_pct` | the PARENT's box, which is Yoga's own percent |
-| `Dimension::Unit::Pw` | `6_pw` | the CANVAS's width, wherever in the tree the node sits |
-| `Dimension::Unit::Ph` | `6_ph` | the CANVAS's height |
+| `Dimension::Unit::Percent` | `50_percent` | the PARENT's box, which is Yoga's own percent |
+| `Dimension::Unit::Vw` | `6_vw` | the CANVAS's width, wherever in the tree the node sits |
+| `Dimension::Unit::Vh` | `6_vh` | the CANVAS's height |
+| `Dimension::Unit::Vmin` | `6_vmin` | the smaller of the CANVAS's width and height |
+| `Dimension::Unit::Vmax` | `6_vmax` | the larger of the CANVAS's width and height |
 | `Dimension::Unit::Em` | `1.5_em` | the node's own resolved font size |
 | `Dimension::Unit::Rem` | `2_rem` | the root element's computed font size |
 | `Dimension::Unit::Lh` | `0.5_lh` | the node's own line height |
@@ -52,10 +54,12 @@ the advance of "0" in the face in force at the size in force, which is
 why a column written in it holds a known count of digits. A face that
 carries no zero is measured as half its type size.
 
-THE CANVAS UNITS ARE THE ROOT'S BOX, not the parent's. A poster whose
-margin is `6_pw` keeps its proportions at every canvas size, however many
-boxes deep it is written. `Pw`, `Ph` and `Pct` are resolved into pixels
-before Yoga sees them, because a percentage of something that is not the
+THE VIEWPORT UNITS ARE THE CANVAS, not the parent's box: the canvas the
+composer renders into is the viewport, and `vw`, `vh`, `vmin` and `vmax`
+are CSS's own words for a percentage of it. A poster whose margin is
+`6_vw` keeps its proportions at every canvas size, however many boxes
+deep it is written. `Vw`, `Vh`, `Vmin` and `Vmax` are resolved into
+pixels before Yoga sees them, because a percentage of something that is not the
 containing block is a thing Yoga cannot express.
 
 THE FONT UNITS ARE SIGILWEAVE'S. `weave::Length` is the length a text
@@ -82,7 +86,7 @@ here; a length is scaled by a number and divided by one, never by
 another length.
 
 A PERCENTAGE IN A SUM is a term the sum keeps until the property reading
-it knows the extent the percentage is of: `top(pct(100) + 12)` on a
+it knows the extent the percentage is of: `top(percent(100) + 12)` on a
 positioned child or on a `Text::textAttach` mark is its containing box's
 bottom and twelve pixels more, and it follows that box when the box
 changes. A transform origin reads a sum's percentage as a fraction of the
@@ -111,7 +115,7 @@ space is ignored; a bare number is pixels.
 | `"12"`, `"12px"` | pixels |
 | `"9pt"` | points |
 | `"50%"` | a fraction of the parent |
-| `"10pw"`, `"10ph"` | a fraction of the canvas either way |
+| `"10vw"`, `"10vh"`, `"10vmin"`, `"10vmax"` | a fraction of the canvas |
 | `"1.5em"`, `"2rem"`, `"0.5lh"`, `"3ch"` | the font units |
 | `"var(gutter)"`, `"var(--gutter)"` | a custom property |
 | `"auto"` | layout decides |
@@ -133,9 +137,10 @@ distances nothing can lay out.
 | --- | --- | --- |
 | `24` | C++ | pixels — the implicit constructor from a float |
 | `24_px` | C++ | pixels, said out loud |
-| `50_pct` | C++, or `compose::pct(50)` | a fraction of the parent |
-| `6_pw` | C++, or `compose::pw(6)` | a fraction of the canvas's width |
-| `6_ph` | C++, or `compose::ph(6)` | a fraction of the canvas's height |
+| `50_percent` | C++, or `compose::percent(50)` | a fraction of the parent |
+| `6_vw` | C++, or `compose::vw(6)` | a fraction of the canvas's width |
+| `6_vh` | C++, or `compose::vh(6)` | a fraction of the canvas's height |
+| `6_vmin`, `6_vmax` | C++, or `compose::vmin(6)`, `compose::vmax(6)` | a fraction of the canvas's smaller or larger side |
 | `9_pt` | C++ | SigilWeave's `weave::Length`, implicitly |
 | `1.5_em`, `2_rem`, `0.5_lh`, `3_ch` | C++ | SigilWeave's `weave::Length`, implicitly |
 | `compose::var("gutter")` | C++ | a `VarRef`, implicitly — the custom property's length |
@@ -143,7 +148,7 @@ distances nothing can lay out.
 | `24`, `24.0` | Python | pixels |
 | `"50%"`, `"1.5em"`, `"9pt"`, `"3ch"` | Python | any length the text grammar reads |
 | `"auto"` | Python | layout decides |
-| `compose.pct(50)`, `compose.pw(6)`, `compose.ph(6)` | Python | the three percentage units |
+| `compose.percent(50)`, `compose.vw(6)`, `compose.vh(6)`, `compose.vmin(6)`, `compose.vmax(6)` | Python | the percentage units |
 | `compose.em(1.5)`, `compose.rem(2)`, `compose.lh(0.5)`, `compose.ch(3)`, `compose.pt(9)` | Python | the font units and the point, as a `Dimension` |
 | `weave.em(1.5)`, `weave.rem(2)`, `weave.lh(0.5)`, `weave.ch(3)`, `weave.pt(9)` | Python | the same, as a `weave.Length` |
 | `compose.var("gutter")` | Python | the custom property |
@@ -163,6 +168,11 @@ In Python the whole of that column is the union `DimensionLike`.
 | `Element::inset` | verb | SigilCompose |
 | `Element::left`, `Element::top`, `Element::right`, `Element::bottom` | verb | SigilCompose |
 | `Element::var` | verb | SigilCompose — the length a subtree reads under a name |
+| `Element::fontSize`, `Element::letterSpacing` | verb | SigilCompose — a length a font holds, through `compose::fontLength` |
+| `Element::lineHeight` | verb | SigilCompose — an absolute pitch |
+| `Element::textIndent` | verb | SigilCompose |
+| `Element::translateX`, `Element::translateY` | verb | SigilCompose — a percentage of the node's own box |
+| `Corners` | value | SigilCompose — each radius; a percentage of the node's own box |
 | `Well::width`, `Well::height` | field | SigilCompose |
 | `Line::length` | field | SigilCompose |
 
@@ -170,7 +180,7 @@ In Python the whole of that column is the union `DimensionLike`.
 
 | What | Kind | Library |
 | --- | --- | --- |
-| `compose::pct`, `compose::pw`, `compose::ph` | function | SigilCompose |
+| `compose::percent`, `compose::vw`, `compose::vh`, `compose::vmin`, `compose::vmax` | function | SigilCompose |
 | `compose::autoDimension` | function | SigilCompose |
 | `compose::parseDimension` | function | SigilCompose — nothing for text it cannot read |
 
@@ -184,16 +194,17 @@ nearest ancestor that set the name. A length that had been converted at
 authoring time would have frozen the wrong answer.
 
 Two dimensions compare exactly, unit included, so `24` and `24_px` are
-one value and `50_pct` is not `24` even where they measure the same on
+one value and `50_percent` is not `24` even where they measure the same on
 one canvas.
 
 ## See also
 
-- `core/Layout.h` — the header: `Dimension`, `pct`, `pw`, `ph`,
-  `autoDimension`, `parseDimension`, `Align`, `Justify`, `Echo`, `_px`,
-  `_pct`, `_pw`, `_ph`
-- [Corners](value:sigil::compose::Corners) — a radius is a plain
-  number, not a dimension
+- `core/Layout.h` — the header: `Dimension`, `percent`, `vw`, `vh`,
+  `vmin`, `vmax`, `autoDimension`, `parseDimension`, `fontLength`,
+  `parseFraction`, `Align`, `Justify`, `Echo`, `_px`, `_percent`, `_vw`,
+  `_vh`, `_vmin`, `_vmax`
+- [Corners](value:sigil::compose::Corners) — four radii, each a
+  dimension
 - The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
   the other value a custom property can hold, and how a reference
   resolves

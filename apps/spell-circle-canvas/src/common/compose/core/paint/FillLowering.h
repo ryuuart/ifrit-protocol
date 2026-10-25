@@ -3,12 +3,16 @@
 /** @file
  * WHAT A FILL LOWERED TO, as the painter reads it: the Skia executor's
  * paint behind a fill's material, a paint wrapped back into a fill, and
- * the static collapse and per-frame resolves in paint terms. Internal: a
+ * the static collapse and per-frame resolves in paint terms, and a
+ * resolved fill laid on a paint as the ink a mark is drawn in. Internal: a
  * fill's public face is its material, and only the code that draws with
  * the executor reaches the paint beneath it.
  */
 
+#include <include/core/SkPaint.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/paint/Paint.h>
 
 #include <utility>
@@ -38,6 +42,21 @@ inline const material::Paint& paintOf(const Fill& fill) {
 /** @p paint as a fill; see `FillAccess::of`. */
 inline Fill fillOf(material::Paint paint) {
   return FillAccess::of(std::move(paint));
+}
+
+/** Lays @p resolved on @p paint. False where the ink paints nothing — no
+ *  fill, or a colour with no alpha — so a mark can skip its drawing. */
+inline bool layInk(SkPaint& paint, const Fill& resolved) {
+  if (resolved.kind == Fill::Kind::Color) {
+    if (resolved.colorValue.a <= 0.0f) return false;
+    paint.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
+    return true;
+  }
+  if (resolved.kind == Fill::Kind::Paint) {
+    paint.setShader(material::skia::staticShader(paintOf(resolved)));
+    return true;
+  }
+  return false;
 }
 
 /** A text effect's pass material as the executor lowered it. */

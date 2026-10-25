@@ -188,6 +188,8 @@ struct DrawWith {
   bool operator==(const DrawWith& other) const {
     return !key.empty() && key == other.key;
   }
+  /** The key vouches for a program no comparison can read. */
+  bool equalityIsTheAuthorsWord() const { return !key.empty(); }
 
   void add(Scope& scope) const {
     // The program reads the scope at PAINT time, so it is handed a copy

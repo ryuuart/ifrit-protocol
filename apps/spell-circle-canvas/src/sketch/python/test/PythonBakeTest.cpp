@@ -10,6 +10,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/advanced/Runtime.h>
 
 #include <algorithm>
 #include <cmath>
@@ -25,6 +27,7 @@ namespace {
 namespace sketch = sigil::sketch;
 namespace fs = std::filesystem;
 using sketch::test::assets;
+using sketch::test::drawnFrame;
 using sketch::test::fonts;
 using sketch::test::PythonSource;
 using sketch::test::SketchPythonBakes;
@@ -498,3 +501,72 @@ TEST_F(SketchPythonBakes, AStillIsItsSizeTimesTheDensityTheSketchIsDrawnAt) {
 }
 
 }  // namespace
+
+namespace {
+
+/** A Python sketch that bakes one frame and says by its colour whether a
+ *  bake came back: green where the bake is None, red where it drew. */
+constexpr const char* kBakesOrSaysNone =
+    "from sigil import compose, world\n"
+    "from sigil.geometry import mesh\n"
+    "from sigil.sketch import sketch\n"
+    "\n"
+    "@sketch(size=(16, 16), background='#000000', captureAt=0)\n"
+    "class Bakes:\n"
+    "    def setup(self, ctx):\n"
+    "        card = world.mesh(mesh.quad(10, 10)).key('card')\n"
+    "        frame = world.Frame(world.group(card).key('set'))\n"
+    "        still = ctx.bakeScene3D(frame, (16, 16))\n"
+    "        ctx.render(compose.box().width(16).height(16).fill(\n"
+    "            '#00ff00' if still is None else '#ff0000'))\n";
+
+}  // namespace
+
+TEST_F(SketchPythonBakes, APythonSketchBakesOnTheRuntimeItsSessionWasOpenedOn) {
+  // The process has a device; the session is opened on none. A C++ sketch
+  // there bakes nothing, and so does a Python one: its context carries the
+  // session's runtime rather than reaching for the process's.
+  PythonSource source("sigil_python_bake_runtime");
+  source.write("entry.py", kBakesOrSaysNone);
+  const sketch::Kind kind =
+      sketch::onRuntime(sketch::python::load(source.entry()), {});
+  auto session = kind->open(fonts(), assets(), true, "bakes_on_none");
+  const SkBitmap pixels = drawnFrame(*session, 16, 16, 1.0 / 60.0);
+  ASSERT_FALSE(pixels.isNull());
+  EXPECT_EQ(pixels.getColor(8, 8), SK_ColorGREEN)
+      << "a session opened on no device baked on the process's";
+  // Opened on the process's own, the same sketch bakes.
+  auto drawn = sketch::python::load(source.entry())
+                   ->open(fonts(), assets(), true, "bakes_on_the_process");
+  const SkBitmap baked = drawnFrame(*drawn, 16, 16, 1.0 / 60.0);
+  ASSERT_FALSE(baked.isNull());
+  EXPECT_EQ(baked.getColor(8, 8), SK_ColorRED);
+}
+
+TEST(SketchPython, APythonSketchReachesTheSessionsTexturesByValue) {
+  // Two equal trees are one paint and one texture; a different tree is
+  // another. Green when the context answered so.
+  PythonSource source("sigil_python_textures");
+  source.write(
+      "entry.py",
+      "from sigil import compose\n"
+      "from sigil.sketch import sketch\n"
+      "\n"
+      "@sketch(size=(16, 16), background='#000000', captureAt=0)\n"
+      "class Maps:\n"
+      "    def setup(self, ctx):\n"
+      "        def plate(colour):\n"
+      "            return compose.box().width(8).height(8).fill(colour)\n"
+      "        first = ctx.texture(plate('#ff0000'), (8, 8))\n"
+      "        again = ctx.texture(plate('#ff0000'), (8, 8))\n"
+      "        other = ctx.texture(plate('#0000ff'), (8, 8))\n"
+      "        held = first.valid() and first == again and not first == other\n"
+      "        ctx.render(compose.box().width(16).height(16).fill(\n"
+      "            '#00ff00' if held else '#ff0000'))\n");
+  auto session = sketch::python::load(source.entry())
+                     ->open(fonts(), assets(), true, "maps");
+  const SkBitmap pixels = drawnFrame(*session, 16, 16, 1.0 / 60.0);
+  ASSERT_FALSE(pixels.isNull());
+  EXPECT_EQ(pixels.getColor(8, 8), SK_ColorGREEN)
+      << "two equal trees were not handed one texture";
+}

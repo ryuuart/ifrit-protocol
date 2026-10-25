@@ -170,9 +170,34 @@ Derived& FontVerbs<Derived>::fontFamily(sigil::weave::Face face) {
   return font({.face = std::move(face)});
 }
 
+namespace {
+
+/** Says once per verb that it was given a length no font holds, and that
+ *  the value in force stands. */
+void warnNoFontLength(const char* verb, const Dimension& length) {
+  static std::mutex guard;
+  static std::map<std::string, bool> warned;
+  {
+    const std::lock_guard<std::mutex> lock(guard);
+    if (!warned.emplace(verb, true).second) return;
+  }
+  SkDebugf(
+      "[compose] %s() was given a length in a unit no font holds (unit %d) — "
+      "a font is sized in pixels, pt, em, rem, lh, ch or a percentage of "
+      "the parent's size — so the value in force stands. (warned once)\n",
+      verb, (int)length.unit);
+}
+
+}  // namespace
+
 template <class Derived>
-Derived& FontVerbs<Derived>::fontSize(sigil::weave::Length size) {
-  return font({.size = size});
+Derived& FontVerbs<Derived>::fontSize(Dimension size) {
+  const std::optional<sigil::weave::Length> length = fontLength(size);
+  if (!length) {
+    warnNoFontLength("fontSize", size);
+    return self();
+  }
+  return font({.size = *length});
 }
 
 template <class Derived>
@@ -193,8 +218,13 @@ Derived& FontVerbs<Derived>::fontStyle(FontStyle style) {
 }
 
 template <class Derived>
-Derived& FontVerbs<Derived>::letterSpacing(sigil::weave::Length tracking) {
-  return font({.track = tracking});
+Derived& FontVerbs<Derived>::letterSpacing(Dimension tracking) {
+  const std::optional<sigil::weave::Length> length = fontLength(tracking);
+  if (!length) {
+    warnNoFontLength("letterSpacing", tracking);
+    return self();
+  }
+  return font({.track = *length});
 }
 
 template <class Derived>

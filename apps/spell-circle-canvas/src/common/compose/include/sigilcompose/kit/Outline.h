@@ -20,6 +20,7 @@
 #include <limits>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace sigil::compose::outline {
 
@@ -63,6 +64,11 @@ struct Hull {
   float margin = 0.0f;
   std::optional<Fill> fill;
   bool operator==(const Hull&) const = default;
+  /** The class the hull picks its nodes by, when no lane is named. */
+  std::vector<std::string> styleClassesRead() const {
+    if (!lane.empty() || styleClass.empty()) return {};
+    return {styleClass};
+  }
 
   void add(Scope& scope) const;
 };

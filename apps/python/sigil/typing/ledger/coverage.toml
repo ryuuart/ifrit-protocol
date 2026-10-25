@@ -85,6 +85,13 @@ python = [
 ]
 
 [[section.surface.item]]
+native = "`Scene2DContext::texture`"
+bound_text = "`texture` on the context, a tree painted once at a size over a background and handed back for every equal tree the session asks for again"
+python = [
+  "sketch.Scene2DContext.texture",
+]
+
+[[section.surface.item]]
 native = "`Scene2DContext::page` and `sketch::Page`"
 bound_text = "`page` on the context, with a `compose.SurfaceRange` stating what its maps stand for at their white, whose `sketch.Page` paints a tree as a surface's maps through `render(tree)`, the pass a baked frame carries, and dresses a baked body with `surface()` or one region of the page with `surface(region)`"
 python = [
@@ -352,17 +359,19 @@ bound = "`operators` over the stock arranging values, the connecting records and
 python = ["compose.Element.operators", "compose.Arrangement", "compose.Scope"]
 
 [[section.surface.item]]
-bound = "dimensions in px, pct, em, rem, lh, ch, pt, var, pw and ph; children as elements or one iterable"
+bound = "dimensions in px, percent, em, rem, lh, ch, pt, var, vw, vh, vmin and vmax; children as elements or one iterable"
 python = [
-  "compose.pct",
+  "compose.percent",
   "compose.em",
   "compose.rem",
   "compose.lh",
   "compose.ch",
   "compose.pt",
   "compose.var",
-  "compose.pw",
-  "compose.ph",
+  "compose.vw",
+  "compose.vh",
+  "compose.vmin",
+  "compose.vmax",
 ]
 
 [[section.surface.item]]
@@ -578,8 +587,12 @@ python = [
 name = "Decorations"
 
 [[section.surface.item]]
-bound = "`Decoration` over `PathFormat` (stroke fill, alignment, dashes, caps, joins, stamps, trims and animated phases) or `Shadow`"
+bound = "`Decoration` over `PathFormat` (stroke fill, alignment, dashes, caps, joins, stamps, trims and animated phases) or `Shadow`, whose fields are CSS's `offset`, `blur`, `spread`, `color` and `inset`"
 python = ["compose.Decoration", "compose.PathFormat", "compose.Shadow"]
+
+[[section.surface.item]]
+bound = "`Element.boxShadow`, CSS's `box-shadow` by keyword, one `Shadow` or a list with the first on top"
+python = ["compose.Element.boxShadow"]
 
 [[section.surface.item]]
 bound = "`stroke`, `shadow`, and a material's effects through `Element.fill`"
@@ -1858,7 +1871,18 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`Paint` (solid, the three gradients over `ColorStop`s with `GradientOptions`, image, SkSL, recipe and blends over `BlendMode`, with `set` and `bind` parameters, slots, fitting and world space)"
+bound = "the CSS-shaped gradients `linearGradient` (an angle or `toward` a `Toward` side or corner), `radialGradient` (a `RadialShape`, a `RadialExtent` and `at`) and `conicGradient` (`from_` and `at`), their stops in CSS's `(colour, position)` order or offset first"
+python = [
+  "material.linearGradient",
+  "material.radialGradient",
+  "material.conicGradient",
+  "material.Toward",
+  "material.RadialShape",
+  "material.RadialExtent",
+]
+
+[[section.surface.item]]
+bound = "`Paint` (solid, the three point-to-point gradients over `ColorStop`s with `GradientOptions`, image, SkSL, recipe and blends over `BlendMode`, with `set` and `bind` parameters, slots, fitting and world space)"
 python = [
   "material.Paint.solid",
   "material.Paint.linearGradient",
@@ -1879,7 +1903,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`Filter` (blur, `dropShadow` over `ShadowOptions`, glow, `bloom` over `BloomOptions`, `glass` refraction over `GlassOptions`, `phosphorBloom`, the colour functions `brightness`, `contrast`, `saturate` and `hueRotate`, the light stages `dilate`, `deepen` and `whiten` joined by `emit` and `then`, `of` a recipe, `program` over SkSL, slots, and `set` and `bind` parameters driven by motion)"
+bound = "`Filter` (blur, `dropShadow` over `ShadowOptions`, glow, `bloom` over `BloomOptions`, `glass` refraction over `GlassOptions`, `phosphorBloom`, the colour functions `brightness`, `contrast`, `saturate`, `hueRotate`, `grayscale`, `sepia`, `invert` and `opacity`, amounts read from percentage text and a blur from length text, the light stages `dilate`, `deepen` and `whiten` joined by `emit` and `then`, `of` a recipe, `program` over SkSL, slots, and `set` and `bind` parameters driven by motion)"
 python = [
   "material.Filter.blur",
   "material.Filter.dropShadow",
@@ -1894,6 +1918,10 @@ python = [
   "material.Filter.contrast",
   "material.Filter.saturate",
   "material.Filter.hueRotate",
+  "material.Filter.grayscale",
+  "material.Filter.sepia",
+  "material.Filter.invert",
+  "material.Filter.opacity",
   "material.Filter.dilate",
   "material.Filter.deepen",
   "material.Filter.whiten",

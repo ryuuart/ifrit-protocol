@@ -82,7 +82,8 @@ class Scene {
     m_frame = std::move(frame);
   }
 
-  void advance(double seconds) {
+  void advance(motion::Duration step) {
+    const double seconds = step.count();
     (void)get();
     if (!std::isfinite(seconds) || seconds < 0)
       throw py::value_error("A World step must be finite and nonnegative.");
@@ -187,7 +188,7 @@ void bindNodeVerbs(py::class_<Kind, world::Node>& kind) {
       .def(
           "rotate",
           [](Kind& self, glm::vec3 axis, py::handle degrees) -> Kind& {
-            return self.rotate(axis, motionAnimatable(degrees));
+            return self.rotate(axis, motionAngle(degrees));
           },
           py::arg("axis"), py::arg("degrees"), fluent)
       .def(
@@ -213,10 +214,14 @@ void bindNodeVerbs(py::class_<Kind, world::Node>& kind) {
            {"scaleX", &world::PlacementVerbs<Kind>::scaleX},
            {"scaleY", &world::PlacementVerbs<Kind>::scaleY},
            {"scaleZ", &world::PlacementVerbs<Kind>::scaleZ}}) {
+    // A turn reads a number as degrees, and a typed angle or angle text
+    // in the measure it names.
+    const bool turn = std::string_view(name).starts_with("rotate");
     kind.def(
         name,
-        [member](Kind& self, py::handle value) -> Kind& {
-          return (self.*member)(motionAnimatable(value));
+        [member, turn](Kind& self, py::handle value) -> Kind& {
+          return (self.*member)(turn ? motionAngle(value)
+                                     : motionAnimatable(value));
         },
         py::arg("value"), fluent);
   }
@@ -439,20 +444,23 @@ void bindKinds(py::module_& module) {
   module.def(
       "spotLight",
       [](const glm::vec3& direction, py::handle tint, py::handle intensity,
-         float range, float innerAngle, float outerAngle, bool castShadow,
+         float range, AngleInDegrees innerAngle, AngleInDegrees outerAngle,
+         bool castShadow,
          const world::LightShadow& shadow) {
         return world::spotLight(direction,
                                 {.color = lightColor(tint),
                                  .intensity = motionAnimatable(intensity),
                                  .range = range,
-                                 .innerAngle = innerAngle,
-                                 .outerAngle = outerAngle,
+                                 .innerAngle = innerAngle.value,
+                                 .outerAngle = outerAngle.value,
                                  .castShadow = castShadow,
                                  .shadow = shadow});
       },
       py::arg("direction"), py::arg("color") = glm::vec4(1),
-      py::arg("intensity") = 1, py::arg("range") = 0, py::arg("innerAngle") = 0,
-      py::arg("outerAngle") = 45, py::arg("castShadow") = false,
+      py::arg("intensity") = 1, py::arg("range") = 0,
+      py::arg("innerAngle") = AngleInDegrees{},
+      py::arg("outerAngle") = AngleInDegrees{45.0f},
+      py::arg("castShadow") = false,
       py::arg("shadow") = world::LightShadow{});
   module.def(
       "rectLight",
@@ -567,8 +575,12 @@ void bindWorldKit(py::module_& kit) {
   using Set = world::kit::Set;
   bindRecord<Rig>(kit, "Rig", "Unknown rig field: ")
       .def_readwrite("extent", &Rig::extent)
-      .def_readwrite("bearing", &Rig::bearing)
-      .def_readwrite("elevation", &Rig::elevation)
+      .def_property(
+          "bearing", angleGetter(&Rig::bearing),
+          angleSetter<AngleInDegrees>(&Rig::bearing))
+      .def_property(
+          "elevation", angleGetter(&Rig::elevation),
+          angleSetter<AngleInDegrees>(&Rig::elevation))
       .def_readwrite("fillIntensity", &Rig::fillIntensity)
       .def_property(
           "fillColor", [](const Rig& self) { return self.fillColor; },
@@ -603,10 +615,12 @@ void bindWorldKit(py::module_& kit) {
       .def_readwrite("height", &Turntable::height)
       .def_property(
           "period", [](const Turntable& self) { return self.period.count(); },
-          [](Turntable& self, double seconds) {
-            self.period = motion::Duration(seconds);
+          [](Turntable& self, motion::Duration period) {
+            self.period = period;
           })
-      .def_readwrite("fieldOfView", &Turntable::fieldOfView)
+      .def_property(
+          "fieldOfView", angleGetter(&Turntable::fieldOfView),
+          angleSetter<AngleInDegrees>(&Turntable::fieldOfView))
       .def_readwrite("stations", &Turntable::stations);
   using Wave = world::kit::Wave;
   using Winding = world::kit::Winding;
@@ -801,7 +815,7 @@ void bindWorld(py::module_& root) {
                  .roughnessBias = motionAnimatable(roughnessBias),
                  .next = next.value_or(world::EnvironmentMap{}),
                  .crossfade = motionAnimatable(crossfade),
-                 .rotation = motionAnimatable(rotation),
+                 .rotation = motionAngle(rotation),
                  .shown = motionAnimatable(shown),
                  .blur = motionAnimatable(blur),
                  .groundRadius = groundRadius});

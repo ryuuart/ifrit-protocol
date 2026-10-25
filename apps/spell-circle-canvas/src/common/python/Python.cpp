@@ -22,6 +22,7 @@ namespace sigil::python {
 // the packages. Adding a package adds one line.
 void bindLibraries(pybind11::module_& module) {
   bindCore(module);
+  bindCoreAngle(module);
   bindColor(module);
   bindValues(module);
   bindRecordProtocol(module);

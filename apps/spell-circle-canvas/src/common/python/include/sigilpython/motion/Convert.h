@@ -71,6 +71,10 @@ class EngineHandle {
 /** An animatable number read from @p value: an animatable, a tween,
  *  or a plain number that stands still. */
 motion::Animatable<float> motionAnimatable(pybind11::handle value);
+/** An animatable angle in degrees read from @p value: a typed angle or
+ *  CSS angle text, which name their own measure and stand still, or
+ *  anything `motionAnimatable` reads, whose numbers are degrees. */
+motion::Animatable<float> motionAngle(pybind11::handle value);
 /** An animatable colour read from @p value, on the same terms. */
 motion::Animatable<material::Color> motionInk(pybind11::handle value);
 /** An animatable fill read from @p value, on the same terms; a colour

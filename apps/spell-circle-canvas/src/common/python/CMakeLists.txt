@@ -15,7 +15,7 @@ sigil_library(SigilPython
     compose/Masks.cpp compose/OperatorSeam.h compose/PaintPrograms.cpp
     compose/Schemes.cpp compose/Scope.cpp compose/Selectors.cpp
     compose/StrokeOptions.cpp compose/TextEffects.cpp
-    compose/TextureScene.cpp core/Features.cpp core/RecordProtocol.cpp
+    compose/TextureScene.cpp core/Angle.cpp core/Features.cpp core/RecordProtocol.cpp
     core/Values.cpp data/Connection.cpp draw/CanvasSeam.cpp geometry/Mesh.cpp
     geometry/MeshCamera.cpp geometry/MeshCurve.cpp geometry/Outlines.cpp
     geometry/PathOperations.cpp geometry/PointBuilder.cpp

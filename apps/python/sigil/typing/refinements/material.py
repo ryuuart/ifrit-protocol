@@ -49,7 +49,7 @@ def register(table: Table) -> None:
         "sheenColor: _t.ColorLike | Material = ..., "
         "sheenRoughness: typing.SupportsFloat | Material = 0.0, "
         "anisotropy: typing.SupportsFloat = 0.0, "
-        "anisotropyRotation: typing.SupportsFloat = 0.0, "
+        "anisotropyRotation: _t.AngleLike = 0.0, "
         "anisotropyDirection: Material | None = None, "
         "iridescence: typing.SupportsFloat | Material = 0.0, "
         "iridescenceIor: typing.SupportsFloat = 1.3, "
@@ -108,15 +108,50 @@ def register(table: Table) -> None:
         PAINT, "radialGradient conicGradient", "_t.PointLike", "_t.GradientStops"
     )
     table.attribute("_sigil.material.skia.GradientOptions.focus", "_t.PointLike | None")
+    pixelOffset = "_t.PointLike | tuple[_t.FloatLike | str, _t.FloatLike | str]"
     table.accessor(
         "_sigil.material.skia.ShadowOptions",
         "offset",
         "tuple[float, float]",
-        "_t.PointLike",
+        pixelOffset,
     )
+    table.erased("_sigil.material.skia.ShadowOptions", "blur spread", "_t.FloatLike | str")
     table.parameters(
-        "_sigil.material.skia.ShadowOptions.__init__", offset="_t.PointLike"
+        "_sigil.material.skia.ShadowOptions.__init__",
+        offset=pixelOffset,
+        blur="_t.FloatLike | str",
+        spread="_t.FloatLike | str",
     )
+    # The colour functions' amounts are numbers or percentage text, and a
+    # blur is pixels, a number or absolute length text.
+    table.erased(
+        "_sigil.material.skia.Filter",
+        "brightness contrast saturate grayscale sepia invert opacity",
+        "_t.FloatLike | str",
+    )
+    table.erased("_sigil.material.skia.Filter", "blur", "_t.FloatLike | str")
+    # The CSS-shaped gradients: the stops first, then what CSS writes
+    # before them.
+    position = (
+        "_t.PointLike | tuple[_t.FloatLike | str, _t.FloatLike | str] | str | None"
+    )
+    table.erased(
+        "_sigil.material.skia",
+        "linearGradient",
+        "_t.GradientStops",
+        "_t.AngleLike | None",
+        "_sigil.material.skia.Toward | str | None",
+    )
+    table.erased(
+        "_sigil.material.skia",
+        "radialGradient",
+        "_t.GradientStops",
+        "_sigil.material.skia.RadialShape | typing.Literal['ellipse', 'circle']",
+        "_sigil.material.skia.RadialExtent | typing.Literal['closest-side', "
+        "'closest-corner', 'farthest-side', 'farthest-corner']",
+        position,
+    )
+    table.erased("_sigil.material.skia", "conicGradient", "_t.GradientStops", position)
     table.parameters(
         "_sigil.material.skia.GradientOptions.__init__", focus="_t.PointLike | None"
     )

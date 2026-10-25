@@ -358,10 +358,10 @@ auto TwoAdvancedV4::mainframe() -> Element {
   const float share = 100.0f / 6.0f;
   const auto slat = [this, share](int i) {
     return box()
-        .left(pct((float)i * share))
+        .left(percent((float)i * share))
         .top(0)
-        .width(pct(share))
-        .height(100_pct)
+        .width(percent(share))
+        .height(100_percent)
         .fill(material::linearGradient(
             {0, 0}, {1, 0},
             {{0.0f, hexColor(0x2A0708)}, {1.0f, hexColor(0x1A0405)}}))
@@ -370,7 +370,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
             stroke(3, Fill::color(sigil::material::withAlpha(kCyan, 0.5f)),
                    PathFormat::Align::Inner)))
         .scaleY(shutter[(size_t)i])
-        .transformOrigin(pct(50), pct(0));
+        .transformOrigin(percent(50), percent(0));
   };
   // The ACCESSING readout rides the closed shutters, in the middle of the
   // viewport — which is what a centred absolute child says, with no

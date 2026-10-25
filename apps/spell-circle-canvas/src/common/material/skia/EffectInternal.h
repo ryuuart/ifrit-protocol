@@ -43,7 +43,7 @@ enum class EffectProgram {
   HaloDeepening,      ///< a fading halo sinking toward its strongest channel
   CoreWhitening,      ///< a lit source moving toward white at its own peak
   ParametricBlurMix,  ///< the mix between the fixed levels of a blur pyramid
-  ColorAdjust,        ///< CSS's brightness, contrast, saturate and hue-rotate
+  ColorAdjust,        ///< CSS's eight colour functions, brightness to opacity
   Glass,              ///< bounded orthographic refraction of its layer
   Count,
 };

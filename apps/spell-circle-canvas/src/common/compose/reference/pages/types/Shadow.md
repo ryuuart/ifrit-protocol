@@ -9,16 +9,22 @@ status: stable
 
 # Shadow
 
-A soft drop shadow behind the node's outline, as a comparable value — so
-a statically shadowed node prunes with no memo. It is a decoration, not a
-paint: you attach it with `Element::background`, which paints BENEATH
-the fill however late in the chain it is said.
+CSS's box shadow as a comparable value — so a statically shadowed node
+prunes with no memo. It is a decoration, not a paint: `Element::boxShadow`
+lays it where CSS paints it, an outer shadow BENEATH the fill however late
+in the chain it is said and an inset one over the fill and under the
+content.
 
 ## Anatomy
 
-`Shadow::ink` is the `Fill` the silhouette is re-stamped in,
-`Shadow::offset` is how far it is moved, and `Shadow::blur` is how soft
-it is. Those three are the whole of the still shadow.
+The fields are CSS's `box-shadow` words, the same on `TextShadow` and
+`material::ShadowOptions`. `Shadow::color` is the `Fill` the silhouette
+is re-stamped in, `Shadow::offset` is how far it is moved,
+`Shadow::blur` is how soft it is (CSS's blur radius, a Gaussian of half
+of it), and `Shadow::spread` is how far the outline grows first — or
+shrinks, where it is negative — its corners kept square on a square box.
+`Shadow::inset` turns it inward: a band hugging the inner edge, cast
+along the offset, so a downward offset shades the top inner edge.
 
 `Shadow::knockout` is CSS's box-shadow semantics: the shape's own
 footprint is cut OUT of the shadow, so nothing paints under the node. A
@@ -39,11 +45,13 @@ the decoration entry point the seam calls.
 
 | Spelling | Language | What it gives |
 | --- | --- | --- |
-| `compose::shadow(ink, offset, blur)` | C++ | the three-argument spelling |
-| `Shadow{.ink = Fill::color(colour), .blur = 18.0f}` | C++ | designated initialisers, for the fields the three-argument form does not reach |
-| `compose.shadow(ink, offset, blur)` | Python | the same, taking any colour spelling, a material or a fill |
+| `.boxShadow({.offset = {0, 4}, .blur = 12, .color = Fill::color(colour)})` | C++ | CSS's verb, one shadow or a list with the first on top |
+| `.boxShadow(offset=(0, 4), blur=12, spread=0, color="#0006", inset=False)` | Python | the same, by keyword, or one `Shadow` or a list |
+| `Shadow{.blur = 18.0f, .color = Fill::color(colour)}` | C++ | designated initialisers |
+| `compose::shadow(color, offset, blur)` | C++ | the three-argument decoration, with `knockout` and `maxBind` beside it |
+| `compose.shadow(color, offset, blur)` | Python | the same, taking any colour spelling, a material or a fill |
 
-The ink is a `Fill`, as every other mark's is: `compose::shadow` takes a
+The colour is a `Fill`, as every other mark's ink is: `compose::shadow` takes a
 colour — a braced literal names the type, `material::Color{0, 0, 0, 0.5f}`
 — or a material, which converts, and `Fill::currentInk()` and
 `Fill::var(name)` follow the node's cascade where the shadow is painted.
@@ -56,7 +64,8 @@ fill rather than standing beside it.
 
 | Where | Kind | Library |
 | --- | --- | --- |
-| `Element::background` | verb | SigilCompose — the usual place, under the fill |
+| `Element::boxShadow` | verb | SigilCompose — where CSS paints it |
+| `Element::background` | verb | SigilCompose — under the fill, by hand |
 | `Element::foreground` | verb | SigilCompose — over the content, for an inner shadow drawn deliberately on top |
 | `Element::overlay` | verb | SigilCompose |
 | `Decoration` | type | SigilCompose — the implicit constructor every decoration slot takes |
@@ -84,7 +93,8 @@ number the value cannot read ahead.
 
 ## See also
 
-- `brush/Decorations.h` — the header: `Shadow`, `shadow`, `PathFormat`,
+- `core/Shadow.h` — the header: `Shadow`, `shadow`
+- `brush/Decorations.h` — the other value decorations: `PathFormat`,
   `stroke`, `Wash`, `Slice`, `ContourWalk`, `paintOn`
 - [PathFormat](value:sigil::compose::PathFormat) — the other value
   decoration, and the one that formats a stroke

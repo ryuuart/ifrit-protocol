@@ -880,7 +880,7 @@ struct Ds2Bench {
         kit::at(472, 497, 166, 6)
             .fill(material::linearGradient(
                 {0, 0}, {1, 0}, {{0.0f, light(0.6f)}, {1.0f, kWhite}}))
-            .transformOrigin(pct(0), pct(50))
+            .transformOrigin(percent(0), percent(50))
             .scaleX(motion::bind(
                 motion::bind(seconds,
                              {.from = {0, stasisSeconds}, .wrap = 1.0f}),

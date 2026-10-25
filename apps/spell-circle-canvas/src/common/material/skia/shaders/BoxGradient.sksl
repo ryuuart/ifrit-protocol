@@ -1,12 +1,48 @@
+// A gradient laid out away from the box, read at the painted point's place
+// in it. uMode 0 reads the child in the unit square; 1 reads it in px
+// around uCenter, so a conic's angles stay true on a box that is not
+// square; 2 reads a linear child running from 0 to 1 along x at the
+// fraction of the way across the box along uDirection (a px direction),
+// the gradient line long enough that its ends land on the box's corners;
+// 3 reads a radial child of radius 1 with the unit square stretched by
+// uRadii around uCenter (an ellipse); 4 reads it with px divided by the
+// circle's radius, the distance from uCenter to the box's nearest or
+// farthest side or corner as uExtent names (0 farthest corner, 1 closest
+// side, 2 closest corner, 3 farthest side).
 uniform shader uGradient;
 uniform float2 uResolution;
 uniform float2 uCenter;
-uniform float uConic;
+uniform float uMode;
+uniform float2 uDirection;
+uniform float2 uRadii;
+uniform float uExtent;
 
 half4 main(float2 xy) {
   float2 box = max(uResolution, float2(1.0, 1.0));
-  if (uConic > 0.5) {
+  if (uMode < 0.5) {
+    return uGradient.eval(xy / box);
+  }
+  if (uMode < 1.5) {
     return uGradient.eval(xy - uCenter * box);
   }
-  return uGradient.eval(xy / box);
+  if (uMode < 2.5) {
+    float span = abs(box.x * uDirection.x) + abs(box.y * uDirection.y);
+    float along = dot(xy - uCenter * box, uDirection) / max(span, 1e-6) + 0.5;
+    return uGradient.eval(float2(along, 0.0));
+  }
+  if (uMode < 3.5) {
+    return uGradient.eval((xy / box - uCenter) / max(uRadii, float2(1e-6)));
+  }
+  float2 center = uCenter * box;
+  float2 near = min(center, box - center);
+  float2 far = max(center, box - center);
+  float radius = length(far);
+  if (uExtent > 2.5) {
+    radius = max(far.x, far.y);
+  } else if (uExtent > 1.5) {
+    radius = length(near);
+  } else if (uExtent > 0.5) {
+    radius = min(near.x, near.y);
+  }
+  return uGradient.eval((xy - center) / max(radius, 1e-6));
 }

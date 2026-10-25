@@ -14,7 +14,7 @@
 
 #include <cmath>
 
-#include "Ink.h"
+#include "paint/FillLowering.h"
 
 namespace sigil::compose::styles {
 namespace {

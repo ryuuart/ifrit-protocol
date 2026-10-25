@@ -82,10 +82,18 @@ class StackHandle {
   StackHandle(float width, float height)
       : stack(width, height), m_thread(std::this_thread::get_id()) {}
 
+  /** A STACK GOES WITH THE THREAD USING IT, as a host may run a sketch's
+   *  setup on one thread and its frames on another: its layers follow the
+   *  recorder of the thread that draws or composites them. A frame left
+   *  open belongs to the thread that opened it, so while one is open the
+   *  stack is used there and nowhere else. */
   void check() const {
-    if (std::this_thread::get_id() != m_thread)
+    const std::thread::id here = std::this_thread::get_id();
+    if (here == m_thread) return;
+    if (!open.empty())
       throw std::runtime_error(
-          "A stack is used on the thread that made it.");
+          "A stack with a frame open is used on the thread that opened it.");
+    m_thread = here;
   }
 
   draw::Stack stack;
@@ -107,7 +115,7 @@ class StackHandle {
   uint64_t readBackAt = 0;
 
  private:
-  std::thread::id m_thread;
+  mutable std::thread::id m_thread;
 };
 
 /** ONE LAYER OF A STACK, AS PYTHON HOLDS IT: the stack it belongs to, kept
@@ -396,19 +404,21 @@ void bindLayerTransform(py::module_& module) {
       "translate back by the origin. Angles are radians, turning clockwise "
       "on screen.")
       .def(py::init([](py::object origin, py::object translation,
-                       py::object scale, py::object shear, float rotation) {
+                       py::object scale, py::object shear,
+                       AngleInRadians rotation) {
              draw::LayerTransform placement;
              if (!origin.is_none()) placement.origin = point(origin);
              if (!translation.is_none())
                placement.translation = point(translation);
              if (!scale.is_none()) placement.scale = pairOr(scale, true);
              if (!shear.is_none()) placement.shear = pairOr(shear, false);
-             placement.rotation = rotation;
+             placement.rotation = rotation.value;
              return placement;
            }),
            py::kw_only(), py::arg("origin") = py::none(),
            py::arg("translation") = py::none(), py::arg("scale") = py::none(),
-           py::arg("shear") = py::none(), py::arg("rotation") = 0.0f)
+           py::arg("shear") = py::none(),
+           py::arg("rotation") = AngleInRadians{})
       .def_property_readonly(
           "origin",
           [](const draw::LayerTransform& self) { return pair(self.origin); },
@@ -544,26 +554,28 @@ void bindLayer(py::module_& module) {
       .def(
           "transform",
           [](const LayerHandle& self, py::object scale, py::object shear,
-             std::optional<float> rotate, py::object translate,
+             std::optional<AngleInRadians> rotateRadians, py::object translate,
              py::object origin) {
             draw::LayerTransform placement;
             if (!scale.is_none()) placement.scale = pairOr(scale, true);
             if (!shear.is_none()) placement.shear = pairOr(shear, false);
-            if (rotate) placement.rotation = *rotate;
+            if (rotateRadians) placement.rotation = rotateRadians->value;
             if (!translate.is_none()) placement.translation = point(translate);
             if (!origin.is_none()) placement.origin = point(origin);
             self.get().transform(placement);
           },
           py::kw_only(), py::arg("scale") = py::none(),
-          py::arg("shear") = py::none(), py::arg("rotate") = py::none(),
+          py::arg("shear") = py::none(), py::arg("rotateRadians") = py::none(),
           py::arg("translate") = py::none(), py::arg("origin") = py::none(),
           "Places the layer on the stack, replacing the placement before: "
           "scale is one number or a pair along x and y, and unequal factors "
           "squash the layer; shear is a pair of angles along x and y, or one "
-          "along x; rotate is an angle, clockwise on screen; translate moves "
-          "the layer after it is turned and scaled; origin is the point the "
-          "rest hold still. Angles are radians; a word left out takes its "
-          "default, so transform() with none is resetMatrix().")
+          "along x; rotateRadians is the turn, clockwise on screen; translate "
+          "moves the layer after it is turned and scaled; origin is the point "
+          "the rest hold still. A bare number of an angle is radians, and "
+          "angle text such as '45deg' or a core.angle.Angle names its own "
+          "measure; a word left out takes its default, so transform() with "
+          "none is resetMatrix().")
       .def(
           "resetMatrix",
           [](const LayerHandle& self) { self.get().resetMatrix(); },

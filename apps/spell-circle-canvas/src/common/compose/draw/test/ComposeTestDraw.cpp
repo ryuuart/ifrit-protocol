@@ -252,7 +252,7 @@ TEST(DrawNode, AWorldSpaceMaterialSpansTheRootInsideEachPen) {
   };
   const auto describe = [&](float shift) {
     return box().children(
-        {box().absolute().left(0).top(10).width(pct(100)).height(40).fill(
+        {box().absolute().left(0).top(10).width(percent(100)).height(40).fill(
              material::skia::base(field)),
          penLeaf(20 + shift, 110, false), penLeaf(150 + shift, 40, true)});
   };
@@ -355,7 +355,7 @@ TEST(DrawNode, APenInAHeldRecordingFollowsTheRootWhenAnAncestorMoves) {
              .top(80)
              .width(120)
              .height(40)
-             .transformOrigin(pct(50), pct(50))
+             .transformOrigin(percent(50), percent(50))
              .rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}))
              .children({parent})});
   };

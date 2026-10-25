@@ -119,15 +119,16 @@ TEST(ComposeMaterial, AFocusMovesTheHighlightWithoutMovingTheFalloff) {
           {60, 60}, 60, stops, {.units = material::GradientUnits::Pixels}));
 }
 
-TEST(ComposeMaterial, AConicWarnsWhenTheWindowLeavesTheCircle) {
-  // Skia's sweep CLAMPS outside [startDegrees, endDegrees] rather than
-  // wrapping, so a window wider than the circle — 90 to 450 degrees, the
-  // obvious way to spell a hue wheel starting at red — paints part of the ring
-  // in the first stop's flat colour with no error. The factory warns instead.
+TEST(ComposeMaterial, AConicWarnsWhenTheWindowIsWiderThanATurn) {
+  // Skia's sweep CLAMPS outside its window rather than wrapping. A window of
+  // a turn or less is turned to start where Skia's sweep starts, so only a
+  // window wider than a turn paints part of the ring in the nearest stop's
+  // flat colour; the factory warns of that instead of saying nothing.
   //
-  // Control first (a legal window must stay silent), then the trap arm. The
-  // warning fires once per process, so this must be the only place that
-  // triggers it and the order within the test matters.
+  // Control first (a window of a turn or less must stay silent, wherever it
+  // starts), then the trap arm. The warning fires once per process, so this
+  // must be the only place that triggers it and the order within the test
+  // matters.
   const std::vector<material::ColorStop> stops{{0.0f, {1, 0, 0, 1}},
                                                {1.0f, {0, 0, 1, 1}}};
   ::testing::internal::CaptureStderr();
@@ -140,14 +141,14 @@ TEST(ComposeMaterial, AConicWarnsWhenTheWindowLeavesTheCircle) {
       {50, 50}, stops,
       {.units = material::GradientUnits::Pixels,
        .startDegrees = 90.0f,
-       .endDegrees = 270.0f});
+       .endDegrees = 450.0f});
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
-      << "a window inside the circle must not warn";
+      << "a window of one turn must not warn";
   ::testing::internal::CaptureStderr();
   (void)material::Paint::conicGradient(
       {50, 50}, stops,
       {.units = material::GradientUnits::Pixels,
-       .startDegrees = 90.0f,
+       .startDegrees = 0.0f,
        .endDegrees = 450.0f});
   const std::string log = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(log.find("material::Paint::conicGradient"), std::string::npos)

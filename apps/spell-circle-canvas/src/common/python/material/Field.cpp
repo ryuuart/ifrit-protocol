@@ -23,13 +23,14 @@ void bindMaterialField(py::module_& module) {
   fields.def(
       "halftoneRamp",
       [](float spacing, float minimumRadius, float maximumRadius,
-         py::handle value, float angleDegrees, float rampFrom, float rampTo) {
+         py::handle value, AngleInDegrees angleDegrees, float rampFrom,
+         float rampTo) {
         return material::field::halftoneRamp(
             spacing, minimumRadius, maximumRadius, materialColor(value),
-            angleDegrees, rampFrom, rampTo);
+            angleDegrees.value, rampFrom, rampTo);
       },
       py::arg("spacing"), py::arg("minimumRadius"), py::arg("maximumRadius"),
-      py::arg("color"), py::arg("angleDegrees") = 0.0f,
+      py::arg("color"), py::arg("angleDegrees") = AngleInDegrees{},
       py::arg("rampFrom") = 0.0f, py::arg("rampTo") = 1.0f);
 }
 

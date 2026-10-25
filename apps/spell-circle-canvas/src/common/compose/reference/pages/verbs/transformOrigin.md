@@ -18,9 +18,9 @@ in its plane, when unstated.
 ## Description
 
 **A percentage is of the node's own box; every other length is
-node-local pixels.** `pct(0)` is the left or the top edge and `pct(100)`
+node-local pixels.** `percent(0)` is the left or the top edge and `percent(100)`
 the right or the bottom, so a bar that grows rightward pins its left
-edge with `transformOrigin(pct(0), pct(50))`. A pivot that is not a
+edge with `transformOrigin(percent(0), percent(50))`. A pivot that is not a
 fraction of this node's box is written in pixels: a window zoomed about
 its own centre from inside a full-canvas overlay is
 `transformOrigin(Dimension(centreX), Dimension(centreY))`. An em, a

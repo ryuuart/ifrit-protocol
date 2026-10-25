@@ -10,6 +10,7 @@
 
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/FontStyle.h>
+#include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
@@ -77,10 +78,15 @@ class FontVerbs {
    *  `font()`, so the later of the two wins; no face is the context's
    *  default family. */
   Derived& fontFamily(sigil::weave::Face face);
-  /** THE TYPE SIZE — CSS `font-size`. Pixels when bare; `em` and `rem`
-   *  resolve against the parent's and the root's size. The `size` field
-   *  of `font()`. 16 px when nothing states one. */
-  Derived& fontSize(sigil::weave::Length size);
+  /** THE TYPE SIZE — CSS `font-size`, in any length a font holds (see
+   *  `fontLength`): pixels when bare, `em` and `rem` against the parent's
+   *  and the root's size, `pt`, and a `percent` of the parent's size, as
+   *  CSS reads one. The `size` field of `font()`. 16 px when nothing
+   *  states one.
+   *  @trap A length a font cannot hold — a viewport unit, a custom
+   *  property, a sum, auto — leaves the size in force standing and says
+   *  so once. */
+  Derived& fontSize(Dimension size);
   /** THE WEIGHT — CSS `font-weight`, as the face's `wght` axis: 400
    *  regular, 700 bold. 0 is the face's own weight, stated. The `weight`
    *  field of `font()`. */
@@ -93,10 +99,13 @@ class FontVerbs {
    *  @trap Italic is the family's italic face, else its `ital` axis, else
    *  an oblique of 14 degrees, which is said once. */
   Derived& fontStyle(FontStyle style);
-  /** THE TRACKING added after each cluster — CSS `letter-spacing`.
-   *  Pixels when bare; `em()` is a fraction of the size the type resolves
-   *  to. The `track` field of `font()`. */
-  Derived& letterSpacing(sigil::weave::Length tracking);
+  /** THE TRACKING added after each cluster — CSS `letter-spacing`, in any
+   *  length a font holds: pixels when bare; `em` is a fraction of the
+   *  size the type resolves to, and a `percent` is of that size too, as
+   *  CSS reads one. The `track` field of `font()`.
+   *  @trap A length a font cannot hold leaves the tracking in force
+   *  standing and says so once. */
+  Derived& letterSpacing(Dimension tracking);
   /** THE SHADOWS EACH GLYPH CASTS — CSS `text-shadow`, the first entry
    *  drawn nearest the glyph. They are the `underlays` field of `font()`,
    *  so the later statement replaces the list and a passage with none of

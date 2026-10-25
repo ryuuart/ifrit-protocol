@@ -82,7 +82,7 @@ TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
            .inset(10)
            .children(
                {layout(layouts::BaselineGrid{.rhythm = 24})
-                    .width(pct(100))
+                    .width(percent(100))
                     .children({text(u8"probe", whiteStyle(28)).key("p")})})}));
   host.frame();
   auto b = host.composer.bounds("p");

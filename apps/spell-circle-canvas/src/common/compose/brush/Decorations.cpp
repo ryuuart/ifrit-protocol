@@ -1,6 +1,6 @@
 /** @file
  * The concrete decorations that plug the Decoration seam: path formatting,
- * shadows, lattice slices, contour walks, washes and borders.
+ * lattice slices, contour walks, washes and borders.
  */
 
 #include <include/core/SkClipOp.h>
@@ -23,53 +23,18 @@
 
 #include <cmath>
 
-#include "Ink.h"
-#include "StrokeReach.h"
 #include "paint/FillLowering.h"
+#include "StrokeReach.h"
 #include "paint/HeldCoverage.h"
 
 namespace sigil::compose {
 
-float Shadow::bleed() const {
-  float extent = 0;
-  if (blur > 0) {
-    SkPaint paint;
-    paint.setMaskFilter(
-        SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
-    const SkRect unit = SkRect::MakeWH(1, 1);
-    SkRect storage;
-    // Skia's mask filter supplies the conservative extent of its kernel.
-    const SkRect bounds = paint.computeFastBounds(unit, &storage);
-    extent = std::max({-bounds.left(), -bounds.top(), bounds.right() - 1,
-                       bounds.bottom() - 1});
-  }
-  return std::max({std::abs(offset.x), std::abs(offset.y), maxBind}) + extent;
-}
-
-void Shadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
-  SkCanvas& canvas = *pen.canvas();
-  SkPaint p;
-  p.setAntiAlias(true);
-  if (!detail::layInk(p, resolveFill(ink, ctx))) return;
-  const SkVector at = {bindOffsetX ? bindOffsetX->value() : offset.x,
-                       bindOffsetY ? bindOffsetY->value() : offset.y};
-  // Cast from a silhouette of held parts, each part's blur is held in its
-  // own frame and placed where the part stands.
-  if (!knockout) {
-    const detail::CoverageInk cast{p, at};
-    if (detail::paintHeldCoverage(canvas, ctx, {&cast, 1},
-                                  {.sigma = blur > 0 ? blur * 0.5f : 0}, false))
-      return;
-  }
-  if (blur > 0)
-    p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
-  canvas.save();
-  if (knockout)
-    canvas.clipPath(geometry::path::toSk(ctx.outline), SkClipOp::kDifference,
-                    true);
-  canvas.translate(at.x(), at.y());
-  canvas.drawPath(geometry::path::toSk(ctx.outline), p);
-  canvas.restore();
+float PathFormat::bleed() const {
+  if (align == Align::Inner) return 0.0f;
+  // An Outer stroke is laid at twice its width and its inside half cut
+  // away, so its outer edge stands as far off as the doubled band's.
+  const float laid = align == Align::Outer ? width * 2 : width;
+  return detail::strokeReach(laid, join, cap);
 }
 
 bool PathFormat::staysOnOutline() const {
@@ -77,11 +42,7 @@ bool PathFormat::staysOnOutline() const {
   if (align == Align::Inner) return true;
   // A path effect and a stamped path lay their own geometry, whose extent
   // no number here states.
-  if (effect || (stampAdvance > 0 && !stampPath.empty())) return false;
-  // An Outer stroke is laid at twice its width and its inside half cut
-  // away, so its outer edge stands as far off as the doubled band's.
-  const float laid = align == Align::Outer ? width * 2 : width;
-  return detail::strokeReach(laid, join, cap) <= bleed();
+  return !effect && !(stampAdvance > 0 && !stampPath.empty());
 }
 
 void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
@@ -261,13 +222,14 @@ void Wash::paint(draw::Pen& pen, const PaintContext& ctx) const {
   canvas.drawPath(geometry::path::toSk(ctx.outline), p);
 }
 
-bool Border::staysOnOutline() const {
-  if (inset < 0) return false;
-  const float heaviest = std::max(width, cornerWidth);
+float Border::bleed() const {
   // An inward copy of the outline stands `inset` inside it everywhere, so
   // the rule's reach past the outline is its own reach less the inset.
-  return detail::strokeReach(heaviest, join, cap) - inset <= bleed();
+  return std::max(
+      0.0f, detail::strokeReach(std::max(width, cornerWidth), join, cap) - inset);
 }
+
+bool Border::staysOnOutline() const { return inset >= 0; }
 
 void Border::paint(draw::Pen& pen, const PaintContext& ctx) const {
   SkCanvas& canvas = *pen.canvas();

@@ -3,8 +3,9 @@
 /** @file
  * The three statements the cascade resolves itself rather than by laying
  * one partial over another: a family by NAME, an ITALIC that is a face
- * rather than a lean, and a first-line indent in a unit the node's own
- * font or its passage's measure decides.
+ * rather than a lean, a first-line indent in a unit the node's own
+ * font or its passage's measure decides, and a line height in a unit the
+ * node's own font decides.
  */
 
 #include <sigilweave/layout/ParagraphBlock.h>
@@ -75,6 +76,11 @@ class LonghandFold {
   [[nodiscard]] const std::optional<Dimension>& indent() const {
     return m_indent;
   }
+  /** The line height the strongest statement gave in a unit the cascade
+   *  resolves, or none where it gave a leading, a keyword or nothing. */
+  [[nodiscard]] const std::optional<Dimension>& lineHeight() const {
+    return m_lineHeight;
+  }
   /** The indent in force as a percentage of each passage's measure. */
   [[nodiscard]] std::optional<float>& indentPercent() {
     return m_indentPercent;
@@ -90,6 +96,7 @@ class LonghandFold {
   std::optional<bool> m_italic;
   std::optional<Dimension> m_indent;
   std::optional<float> m_indentPercent;
+  std::optional<Dimension> m_lineHeight;
 };
 
 }  // namespace sigil::compose::detail

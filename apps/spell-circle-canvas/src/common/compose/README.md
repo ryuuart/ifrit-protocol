@@ -241,7 +241,7 @@ draws `Cover` as the centred crop that covers the box and `Contain`
 letterboxed and centred in it, applied to its `imageRegion()` where one is
 stated. A `custom()` program has no intrinsic
 size, so give it dimensions or absolute insets. Bare numbers are pixels;
-`pct()` reads the parent's extent. Font-relative lengths use SigilWeave's
+`percent()` reads the parent's extent. Font-relative lengths use SigilWeave's
 units, while canvas-relative lengths read the viewport.
 
 Layout runs when drawing needs it. Read `Composer::bounds`,
@@ -250,8 +250,10 @@ operation that runs layout. Unknown keys return empty answers. The
 paragraph pointer is valid until the next layout. Bounds are layout boxes;
 hit testing also reads paint order, shapes and transforms. A keyed
 transparent container can receive hits over its whole box; disable its
-own hit region with `Element::hitTestable(false)` to keep its children
-interactive.
+own hit region with `Element::hitTestable(false)` to keep its keyed
+children interactive. Its keyless contents go with it, as CSS's
+`pointer-events: none` is inherited, so the point falls through them to
+what lies beneath.
 
 `intrinsicSize` measures a tree without a persistent composer. `snapshot`
 records one into an `SkPicture`; bindings are sampled and transitions do
@@ -337,6 +339,13 @@ custom property, `ColorTerm::var(name)`, reads it where the shadow is
 stated. It inherits as the font does. A shadow, glow or bevel among an
 ink material's effects dresses the node's outline instead, its glyphs
 under `Boundary::Glyphs`, in one colour.
+
+`boxShadow` is CSS's `box-shadow` on the node's own outline: a `Shadow`
+moved by its `offset`, grown by its `spread` and softened by its `blur`
+beneath the fill, or with `inset` a band hugging the inner edge over the
+fill and under the content; a list paints its first entry on top. The
+three shadows share CSS's words — `offset`, `blur`, `spread`, `color`,
+`inset` — on `Shadow`, `TextShadow` and `material::ShadowOptions`.
 
 [The cascade](reference/CASCADE.md) explains precedence, keywords and
 custom properties; [selectors](reference/SELECTORS.md) explains matching.
@@ -558,9 +567,12 @@ coordinates came from; a filter over it and a bake of it still take the
 box, the extent their pixels are exact to. Every mark is one or the
 other: the stock strokes, stamps, swept art, shadows, washes, hatches,
 reliefs and bevels, and the adaptors and composites over them, declare it
-wherever their bleed holds their whole reach from the outline, which a
-stroke meeting its corners mitred does not; `Slice`, `styles::Brackets`
-and `styles::TickRail` are laid against the box and keep it. A described
+wherever their bleed holds their whole reach from the outline, and a
+stroke's bleed holds its mitred corners and square caps at the
+renderer's miter limit; a `ContourWalk` declares it once its `bleedPx`
+states how far its bodies stand off the outline; `Slice`,
+`styles::Brackets` and `styles::TickRail` are laid against the box and
+keep it. A described
 tree may be
 painted by several composers at once, so a scheme keeps nothing it
 prepares in its own value: what a mark keeps between paints stands on the
@@ -573,7 +585,13 @@ reuse statements: a recording kept even for a leaf, a pixel bake, and a
 pixel bake of a subtree whose children animate. The one bake an author
 states without a cache statement is a live `filter()` over still content:
 the content is rasterized once with the effect left out, and the effect
-runs over that image every frame. Nothing else is baked to pixels. Bake
+runs over that image every frame. A composer told its draws are watched
+live (`Composer::setLive`, which a window's session says and a capture
+never does) holds one more: a node whose own transform moves from one draw
+to the next while nothing it paints moves inside it is painted once into
+pixels on the device at the scale it is shown at and composited under each
+new matrix, as a browser's compositor turns a layer, and is painted live
+again the draw it holds still. Nothing else is baked to pixels. Bake
 density controls the resolution of those bakes. Those
 controls are useful when a profile identifies work to change; they are not
 needed to start a scene. `Composer::setProfiling` and `Composer::profile`

@@ -17,6 +17,7 @@ sigil_test(compose_test
     test/ComposeSurfaceSceneEmissionTest.cpp
     test/ComposeSurfaceSceneTransmissionTest.cpp
   LIBRARIES SigilComposeTexture SigilComposeTesting SigilComposeBrush
+            SigilComposeDraw SigilComposeKit SigilComposeTypography
             SigilWeavePorts
             SigilGeometryDevice
   SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}

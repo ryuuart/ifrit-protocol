@@ -213,8 +213,8 @@ inline constexpr float kNominalSizePx = 96.0f;
                                        GlyphModifierFunction program,
                                        float reach = 48.0f,
                                        std::vector<float> parameters = {}) {
-  return TextEffect(std::move(key), std::move(parameters), std::move(program),
-                    reach);
+  return TextEffect::vouchedFor(std::move(key), std::move(parameters),
+                                std::move(program), reach);
 }
 
 /** A KEYFRAMED DEVIATION: Motion's one keyframe grammar over the

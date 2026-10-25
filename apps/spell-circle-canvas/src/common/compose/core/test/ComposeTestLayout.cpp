@@ -27,7 +27,7 @@ TEST(ComposeLayout, FlexRowPositionsAndFills) {
 }
 
 TEST(ComposeLayout, ACanvasRelativeLengthIsTheRootsBoxHoweverDeepItIsWritten) {
-  // pw and ph are the CANVAS, where pct is the parent: a half-canvas child
+  // vw and vh are the CANVAS, where percent is the parent: a half-canvas child
   // three boxes deep is half the canvas, not half of whatever box it sits
   // in, and it follows the canvas when the canvas changes size.
   Host host(400, 200);
@@ -35,9 +35,9 @@ TEST(ComposeLayout, ACanvasRelativeLengthIsTheRootsBoxHoweverDeepItIsWritten) {
     // flexShrink(0) on both: what is read back is what each unit RESOLVED to,
     // not how the flex line fitted it afterwards.
     return box().padding(50).children({box().width(100).height(100).children(
-        {box().key("canvas").width(50_pw).height(50_ph).flexShrink(0).fill(
+        {box().key("canvas").width(50_vw).height(50_vh).flexShrink(0).fill(
              red()),
-         box().key("parent").width(50_pct).height(50_pct).flexShrink(0).fill(
+         box().key("parent").width(50_percent).height(50_percent).flexShrink(0).fill(
              green())})});
   };
   host.composer.render(tree());
@@ -57,6 +57,35 @@ TEST(ComposeLayout, ACanvasRelativeLengthIsTheRootsBoxHoweverDeepItIsWritten) {
   ASSERT_TRUE(canvas.has_value());
   EXPECT_FLOAT_EQ(canvas->width(), 100.0f);
   EXPECT_FLOAT_EQ(canvas->height(), 200.0f);
+}
+
+TEST(ComposeLayout, VminAndVmaxAreTheCanvasSmallerAndLargerSide) {
+  // vmin is a percentage of the canvas's smaller side and vmax of its
+  // larger, so a square sized in vmin fits the canvas either way round.
+  Host host(400, 200);
+  const auto tree = [] {
+    return box().children(
+        {box().key("small").width(50_vmin).height(50_vmin).flexShrink(0),
+         box().key("large").width(50_vmax).height(10).flexShrink(0)});
+  };
+  host.composer.render(tree());
+  host.frame();
+  auto small = host.composer.bounds("small");
+  auto large = host.composer.bounds("large");
+  ASSERT_TRUE(small.has_value());
+  ASSERT_TRUE(large.has_value());
+  EXPECT_FLOAT_EQ(small->width(), 100.0f) << "half the smaller side, 200";
+  EXPECT_FLOAT_EQ(small->height(), 100.0f);
+  EXPECT_FLOAT_EQ(large->width(), 200.0f) << "half the larger side, 400";
+
+  host.composer.setSize({200, 400});
+  host.frame();
+  small = host.composer.bounds("small");
+  large = host.composer.bounds("large");
+  ASSERT_TRUE(small.has_value());
+  ASSERT_TRUE(large.has_value());
+  EXPECT_FLOAT_EQ(small->width(), 100.0f);
+  EXPECT_FLOAT_EQ(large->width(), 200.0f);
 }
 
 TEST(ComposeLayout, TextSizesItselfInFlex) {
@@ -163,7 +192,7 @@ TEST(ComposeTransform, ScaleXGrowsFromItsOrigin) {
                           .absolute()
                           .left(0)
                           .top(0)
-                          .transformOrigin(pct(0), pct(50))
+                          .transformOrigin(percent(0), percent(50))
                           .scaleX(fraction)
                           .fill(material::Color{1, 0, 0, 1})}));
   host.frame();
@@ -184,7 +213,7 @@ TEST(ComposeTransform, ScaleYIsIndependentOfScaleX) {
                           .absolute()
                           .left(0)
                           .top(0)
-                          .transformOrigin(pct(0), pct(0))
+                          .transformOrigin(percent(0), percent(0))
                           .scaleX(0.25f)
                           .scaleY(0.75f)
                           .fill(material::Color{0, 1, 0, 1})}));
@@ -214,16 +243,16 @@ TEST(ComposeTransform, AnOriginIsAPercentageOfTheBoxOrALengthInIt) {
   };
   // Unstated is the centre, and fifty percent says the same.
   EXPECT_EQ(shrunk(box()), SkIRect::MakeLTRB(90, 90, 110, 110));
-  EXPECT_EQ(shrunk(box().transformOrigin(pct(50), pct(50))),
+  EXPECT_EQ(shrunk(box().transformOrigin(percent(50), percent(50))),
             SkIRect::MakeLTRB(90, 90, 110, 110));
   // The right and bottom edges: the quarter stands in the far corner.
-  EXPECT_EQ(shrunk(box().transformOrigin(pct(100), pct(100))),
+  EXPECT_EQ(shrunk(box().transformOrigin(percent(100), percent(100))),
             SkIRect::MakeLTRB(120, 120, 140, 140));
   // The same corner in pixels.
   EXPECT_EQ(shrunk(box().transformOrigin(Dimension(80), Dimension(80))),
             SkIRect::MakeLTRB(120, 120, 140, 140));
   // A pivot outside the box: forty pixels left of it, level with its top.
-  EXPECT_EQ(shrunk(box().transformOrigin(Dimension(-40), pct(0))),
+  EXPECT_EQ(shrunk(box().transformOrigin(Dimension(-40), percent(0))),
             SkIRect::MakeLTRB(30, 60, 50, 80));
 }
 
@@ -249,7 +278,7 @@ TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
                           .children({box()
                                          .absolute()
                                          .rect(0, 0, 40, 40)
-                                         .transformOrigin(pct(0), pct(0))
+                                         .transformOrigin(percent(0), percent(0))
                                          .fill(red())
                                          .scaleX(3.0f)})}));
   host.frame();
@@ -434,17 +463,17 @@ TEST(ComposePlacement, RectAndAtTakeLengthsInAnyUnit) {
     return box().width(200).height(100).children(
         {box()
              .key("plate")
-             .left(pct(10))
+             .left(percent(10))
              .top(30)
-             .width(pct(25))
+             .width(percent(25))
              .height(40)
              .fill(red()),
-         box().key("pin").width(10).height(10).left(pct(50)).top(pct(20))});
+         box().key("pin").width(10).height(10).left(percent(50)).top(percent(20))});
   };
   auto terse = [] {
     return box().width(200).height(100).children(
-        {box().key("plate").rect(pct(10), 30, pct(25), 40).fill(red()),
-         box().key("pin").width(10).height(10).at(pct(50), pct(20))});
+        {box().key("plate").rect(percent(10), 30, percent(25), 40).fill(red()),
+         box().key("pin").width(10).height(10).at(percent(50), percent(20))});
   };
 
   host.composer.render(longhand());
@@ -572,7 +601,7 @@ TEST(ComposeLayout, PerEdgePaddingAndMargin) {
 TEST(ComposeLayout, DimLiteralsResolvePercent) {
   Host host;
   host.composer.render(box().children(
-      {box().width(50_pct).height(25_pct).fill(red()).key("half")}));
+      {box().width(50_percent).height(25_percent).fill(red()).key("half")}));
   host.frame();
   auto rect = host.composer.bounds("half");
   ASSERT_TRUE(rect.has_value());
@@ -606,6 +635,41 @@ TEST(ComposeQueries, HitTestRespectsPaintOrderAndKeys) {
   // falls through to "under".
   EXPECT_EQ(host.composer.hitTest({160, 160}).value_or(""), "under");
   EXPECT_FALSE(host.composer.hitTest({500, 500}).has_value());
+}
+
+TEST(ComposeQueries, AnOptedOutNodeTakesItsKeylessContentsWithIt) {
+  // `hitTestable(false)` is CSS's `pointer-events: none`, which inherits:
+  // a keyless dot inside an opted-out overlay answers neither its own key
+  // nor the overlay's, so the point reaches the target beneath, while a
+  // keyed child of the same overlay still answers for itself.
+  Host host;
+  host.composer.render(stack().children(
+      {box().key("target").inset(0).absolute().fill(red()),
+       box()
+           .key("probe")
+           .inset(0)
+           .absolute()
+           .hitTestable(false)
+           .children({box()
+                          .absolute()
+                          .left(40)
+                          .top(40)
+                          .width(20)
+                          .height(20)
+                          .fill(green()),
+                      box()
+                          .key("handle")
+                          .absolute()
+                          .left(120)
+                          .top(120)
+                          .width(20)
+                          .height(20)
+                          .fill(blue())})}));
+  host.frame();
+  EXPECT_EQ(host.composer.hitTest({50, 50}).value_or(""), "target")
+      << "a keyless dot inside an opted-out overlay answered for it";
+  EXPECT_EQ(host.composer.hitTest({130, 130}).value_or(""), "handle");
+  EXPECT_EQ(host.composer.hitTest({90, 90}).value_or(""), "target");
 }
 
 TEST(ComposeTransform, SkewLeansPaintAndHits) {
@@ -702,4 +766,66 @@ TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
   ASSERT_TRUE(hit.has_value());
   EXPECT_EQ(*hit, "card");
   EXPECT_FALSE(host.composer.hitTest({97, 64}).has_value());
+}
+
+TEST(ComposeLayout, APercentRadiusIsOfTheBoxAcrossAndDown) {
+  // CSS's border-radius: 50% of a 100 by 50 box rounds it into an
+  // ellipse, so the top edge is reached only at its middle and the
+  // corners are empty.
+  Host host;
+  host.composer.render(box().children(
+      {box().width(100).height(50).flexShrink(0).fill(red()).borderRadius(
+          50_percent)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 25), SK_ColorRED);     // the centre
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorRED);      // the top, at its middle
+  EXPECT_EQ(host.pixel(20, 3), SK_ColorBLACK);    // inside a 25 px circle,
+                                                  // outside the ellipse
+  EXPECT_EQ(host.pixel(2, 2), SK_ColorBLACK);     // the corner
+}
+
+TEST(ComposeLayout, AnEmRadiusFollowsTheFont) {
+  // One em at a 50 px type size rounds a 100 px square into a circle.
+  Host host;
+  host.composer.render(box().children({box()
+                                           .fontSize(50)
+                                           .width(100)
+                                           .height(100)
+                                           .flexShrink(0)
+                                           .fill(red())
+                                           .borderRadius(sigil::weave::em(1))}));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorRED);
+  EXPECT_EQ(host.pixel(8, 8), SK_ColorBLACK);
+}
+
+TEST(ComposeLayout, APercentTranslateIsOfTheNodesOwnBox) {
+  // CSS's translate: 50% of a 40 px node is 20 px, whatever its parent
+  // is, and a later number in pixels replaces it.
+  Host host;
+  host.composer.render(box().width(200).children(
+      {box().width(40).height(40).flexShrink(0).fill(red()).translateX(
+          50_percent)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 20), SK_ColorBLACK);  // where it stood
+  EXPECT_EQ(host.pixel(50, 20), SK_ColorRED);    // 20 px along
+
+  host.composer.render(box().width(200).children(
+      {box().width(40).height(40).flexShrink(0).fill(red()).translateY(
+          -50_percent)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 30), SK_ColorBLACK);  // 20 px up
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);
+
+  host.composer.render(box().width(200).children({box()
+                                                      .width(40)
+                                                      .height(40)
+                                                      .flexShrink(0)
+                                                      .fill(red())
+                                                      .translateX(50_percent)
+                                                      .translateX(0)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 20), SK_ColorRED);
+  EXPECT_EQ(host.pixel(50, 20), SK_ColorBLACK);
 }

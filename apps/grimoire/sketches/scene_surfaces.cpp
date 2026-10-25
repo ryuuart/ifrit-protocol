@@ -119,8 +119,8 @@ compose::StyleSheet screenType() {
 compose::Element screen(float gap, material::Color ground,
                         float padding = 16.0f) {
   return compose::box()
-      .width(compose::pct(100))
-      .height(compose::pct(100))
+      .width(compose::percent(100))
+      .height(compose::percent(100))
       .gap(gap)
       .padding(padding)
       .fill(ground)
@@ -137,15 +137,15 @@ compose::Element levels(float seconds, material::Color accent) {
         18.0f +
         62.0f * (0.5f + 0.5f * std::sin(seconds * 2.1f + (float)i * 0.55f));
     return compose::box().width(14.0f).children(
-        {compose::box().width(compose::pct(100)).height(92.0f - height),
-         compose::box().width(compose::pct(100)).height(height).fill(accent)});
+        {compose::box().width(compose::percent(100)).height(92.0f - height),
+         compose::box().width(compose::percent(100)).height(height).fill(accent)});
   };
   return screen(8.0f, sigil::material::hexColor(0x12171f))
       .children({compose::document::h1(u8"LEVELS"),
                  compose::box()
                      .row()
                      .gap(7.0f)
-                     .height(compose::pct(100))
+                     .height(compose::percent(100))
                      .children({compose::each(9, bar)})});
 }
 
@@ -158,7 +158,7 @@ compose::Element trace(float seconds, material::Color accent) {
         std::fmod(seconds * 0.45f + (float)i / (float)kCells, 1.0f);
     const float lit = 0.16f + 0.84f * std::pow(1.0f - at, 3.0f);
     return compose::box()
-        .width(compose::pct(100))
+        .width(compose::percent(100))
         .height(44.0f)
         .fill(material::Color{accent.r * lit, accent.g * lit, accent.b * lit,
                               1.0f});
@@ -178,7 +178,7 @@ compose::Element dial(float seconds, material::Color accent) {
   return screen(10.0f, sigil::material::hexColor(0x14121f))
       .children({compose::document::h1(u8"DIAL"),
                  compose::box()
-                     .width(compose::pct(100))
+                     .width(compose::percent(100))
                      .height(26.0f)
                      .fill(sigil::material::hexColor(0x242938))
                      .children({compose::box()
@@ -188,7 +188,7 @@ compose::Element dial(float seconds, material::Color accent) {
                                     .left(6.0f + reading * 150.0f)
                                     .top(0.0f)}),
                  compose::box()
-                     .width(compose::pct(100))
+                     .width(compose::percent(100))
                      .height(12.0f + 46.0f * reading)
                      .fill(material::Color{accent.r * 0.35f, accent.g * 0.35f,
                                            accent.b * 0.35f, 1.0f})});
@@ -204,8 +204,8 @@ compose::Element band(float seconds) {
                                                         (float)i * 0.34f),
                                  4.0f);
     return compose::box()
-        .width(compose::pct(100))
-        .height(compose::pct(100))
+        .width(compose::percent(100))
+        .height(compose::percent(100))
         .fill(material::Color{0.30f * lit, 0.95f * lit, 0.70f * lit, 1.0f});
   };
   return screen(6.0f, sigil::material::hexColor(0x0d121a), 12.0f)

@@ -89,9 +89,18 @@ void bindBrushEngine(py::module_& module) {
               py::arg("color"), py::arg("opacity") = 150.0f / 255.0f)
           .def("noFill", &brush::Engine::noFill)
           .def("noWash", &brush::Engine::noWash)
-          .def("fillBleed", &brush::Engine::fillBleed, py::arg("bleed"),
-               py::arg("direction") = brush::BleedDirection::Out,
-               py::arg("angle") = py::none())
+          .def(
+              "fillBleed",
+              [](brush::Engine& engine, float bleed,
+                 brush::BleedDirection direction,
+                 std::optional<AngleInRadians> angle) {
+                engine.fillBleed(bleed, direction,
+                                 angle ? std::optional<float>(angle->value)
+                                       : std::optional<float>());
+              },
+              py::arg("bleed"),
+              py::arg("direction") = brush::BleedDirection::Out,
+              py::arg("angle") = py::none())
           .def("fillTexture", &brush::Engine::fillTexture,
                py::arg("texture") = 0.4f, py::arg("border") = 0.4f,
                py::arg("scatter") = true)
@@ -101,9 +110,10 @@ void bindBrushEngine(py::module_& module) {
           .def(
               "hatch",
               [](brush::Engine& engine, BorrowedPen& pen, float spacing,
-                 float angle, float jitter, float gradient, bool continuous) {
-                engine.hatch(pen.get(), spacing, angle, jitter, gradient,
-                             continuous);
+                 AngleInPenMode angle, float jitter, float gradient,
+                 bool continuous) {
+                engine.hatch(pen.get(), spacing, angleOnPen(pen.get(), angle),
+                             jitter, gradient, continuous);
               },
               py::arg("pen"), py::arg("spacing"), py::arg("angle"),
               py::arg("jitter") = 0.0f, py::arg("gradient") = 0.0f,
@@ -170,8 +180,9 @@ void bindBrushEngine(py::module_& module) {
           .def(
               "flowLine",
               [](const brush::Engine& engine, BorrowedPen& pen,
-                 py::handle start, float length, float heading) {
-                engine.flowLine(pen.get(), point(start), length, heading);
+                 py::handle start, float length, AngleInPenMode heading) {
+                engine.flowLine(pen.get(), point(start), length,
+                                angleOnPen(pen.get(), heading));
               },
               py::arg("pen"), py::arg("start"), py::arg("length"),
               py::arg("direction"))
@@ -223,8 +234,11 @@ void bindBrushEngine(py::module_& module) {
           .def(
               "arc",
               [](const brush::Engine& engine, BorrowedPen& pen, float x,
-                 float y, float radius, float start, float stop) {
-                return engine.arc(pen.get(), x, y, radius, start, stop);
+                 float y, float radius, AngleInPenMode start,
+                 AngleInPenMode stop) {
+                return engine.arc(pen.get(), x, y, radius,
+                                  angleOnPen(pen.get(), start),
+                                  angleOnPen(pen.get(), stop));
               },
               py::arg("pen"), py::arg("x"), py::arg("y"), py::arg("radius"),
               py::arg("start"), py::arg("stop"))
@@ -255,17 +269,19 @@ void bindBrushEngine(py::module_& module) {
               py::arg("kind"), py::arg("at"))
           .def(
               "move",
-              [](brush::Engine& engine, BorrowedPen& pen, float angle,
+              [](brush::Engine& engine, BorrowedPen& pen, AngleInPenMode angle,
                  float length, float pressure) {
-                engine.move(pen.get(), angle, length, pressure);
+                engine.move(pen.get(), angleOnPen(pen.get(), angle), length,
+                            pressure);
               },
               py::arg("pen"), py::arg("angle"), py::arg("length"),
               py::arg("pressure") = 1.0f)
           .def(
               "endStroke",
-              [](brush::Engine& engine, BorrowedPen& pen, float angle,
+              [](brush::Engine& engine, BorrowedPen& pen, AngleInPenMode angle,
                  float pressure) {
-                return engine.endStroke(pen.get(), angle, pressure);
+                return engine.endStroke(pen.get(), angleOnPen(pen.get(), angle),
+                                        pressure);
               },
               py::arg("pen"), py::arg("angle"), py::arg("pressure") = 1.0f)
           .def("cancelStroke", &brush::Engine::cancelStroke)

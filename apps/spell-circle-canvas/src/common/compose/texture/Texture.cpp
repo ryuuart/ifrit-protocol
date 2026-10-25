@@ -492,20 +492,35 @@ void Textures::useDevice(core::hardware::GpuDevice& device,
 
 namespace {
 
+/** Whether @p node holds a program whose equality is its author's word:
+ *  a custom node, a keyed operator over a program, or a keyed text effect
+ *  over a body the library did not write. */
+bool holdsAuthorsWord(const detail::ElementNode& node) {
+  if (node.customData) return true;
+  if (node.operatorData)
+    for (const Operator& op : node.operatorData->operators)
+      if (op.equalityIsTheAuthorsWord()) return true;
+  if (node.textData)
+    for (const Track& track : node.textData->tracks)
+      if (track.effect.equalityIsTheAuthorsWord()) return true;
+  return false;
+}
+
 /** WHETHER A TREE THE DOOR HOLDS IS THE PICTURE ASKED FOR: the structural
  *  prune's comparison, node by node, with one difference. The prune judges
- *  one place across its describes, where a custom node's key is the
- *  author's word that the program behind it is the one it was; the door
- *  judges trees built apart, which share no place, so a key there says
- *  nothing about which program draws. A paint program is the same only as
- *  itself: one node, shared because the value holding it was handed over
- *  again. A description is never written while another value shares it,
- *  so one node is one picture whatever it holds. */
+ *  one place across its describes, where a key on a custom node, on an
+ *  operator over a program or on a text effect over a body is the author's
+ *  word that the program behind it is the one it was; the door judges trees
+ *  built apart, which share no place, so a key there says nothing about
+ *  which program draws. A program is the same only as itself: one node,
+ *  shared because the value holding it was handed over again. A
+ *  description is never written while another value shares it, so one
+ *  node is one picture whatever it holds. */
 bool samePicture(const detail::ElementNode& held,
                  const detail::ElementNode& asked) {
   if (&held == &asked) return true;
   if (!detail::propertiesEqual(held, asked)) return false;
-  if (held.customData) return false;
+  if (holdsAuthorsWord(held)) return false;
   if (held.children.size() != asked.children.size()) return false;
   for (size_t index = 0; index < held.children.size(); ++index)
     if (!samePicture(*held.children[index].node(),

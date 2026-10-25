@@ -4,11 +4,13 @@ from sigil import compose, data, draw, io, material, motion, skia, weave
 from sigil.sketch import kit
 
 compose.box().width({"pixels": 20})  # error: reportArgumentType
-compose.box().opacity("opaque")  # error: reportArgumentType
+compose.box().opacity({"opacity": 0.5})  # error: reportArgumentType
 compose.box().fill(object())  # error: reportArgumentType
 compose.box().padding(1, 2, 3, 4, 5)  # error: reportCallIssue
 compose.box().alignItems("sideways")  # error: reportArgumentType
 compose.box().justifyContent("spread")  # error: reportArgumentType
+compose.box().justifyContent("space_between")  # error: reportArgumentType
+material.radialGradient(["#fff", "#000"], extent="farthest_corner")  # error: reportArgumentType
 compose.box().overflow("scroll")  # error: reportArgumentType
 compose.memo(2, lambda value: str(value))  # error: reportArgumentType
 weave.Type(misspelled=12)  # error: reportCallIssue
@@ -32,3 +34,4 @@ def invalid(pen: draw.Pen) -> None:
 
 
 kit.well(padding_vertical=4)  # error: reportCallIssue
+compose.box().rotate(["45deg"])  # error: reportArgumentType

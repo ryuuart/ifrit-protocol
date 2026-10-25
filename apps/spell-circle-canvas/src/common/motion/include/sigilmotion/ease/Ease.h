@@ -13,6 +13,8 @@
 
 #include <cmath>
 #include <functional>
+#include <optional>
+#include <string_view>
 
 namespace sigil::motion {
 
@@ -296,3 +298,17 @@ using core::curve::cubicBezier;
 using core::curve::smoothstep;
 
 }  // namespace sigil::motion::ease
+
+namespace sigil::motion {
+
+/** A CSS TIMING FUNCTION READ FROM ITS TEXT, onto the curves above: the
+ *  keywords `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`,
+ *  `step-start` and `step-end`, `cubic-bezier(x1, y1, x2, y2)` and
+ *  `steps(count)` with an optional `jump-start`, `jump-end`, `start` or
+ *  `end`. Keywords are read in any letter case, as CSS reads them. Empty
+ *  for text it does not read — among it `steps()` with `jump-none` or
+ *  `jump-both`, which `ease::steps` does not draw, and CSS's `linear()`
+ *  stop list. */
+[[nodiscard]] std::optional<Easing> readEasing(std::string_view text);
+
+}  // namespace sigil::motion

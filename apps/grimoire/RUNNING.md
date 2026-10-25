@@ -516,6 +516,15 @@ keyboard holds the GPU in its lowest one, which reads as a slower rate
 in the same binary — so rows are compared only when both were taken
 under the same power, back to back.
 
+**The window is the size asked for where the display has room for it.**
+`window=` on each row is the window that presented, as `<W>x<H>@<ratio>`.
+A ratio the display does not have scales every size the window reads, so
+a window of 900 x 700 at ratio 2 on a display of one pixel a point needs
+1400 pixels of height; where the display has no room for the ask, the
+system sizes the window — clamped to the screen, or reaching past it —
+and the run says so on its error stream, naming the room the display has
+at that ratio.
+
 **Where the device's time went.** A scene3d sketch's row ends with `gpu=`: the
 device's own time for each stage of the frame, in milliseconds, each the
 mean over the measured stretch, as `frame:<ms>,<stage>:<ms>,…` — the

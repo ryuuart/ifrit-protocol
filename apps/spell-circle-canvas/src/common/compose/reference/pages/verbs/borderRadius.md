@@ -10,8 +10,11 @@ status: stable
 
 # borderRadius
 
-Round the node's corners, per corner, in pixels — CSS
-`border-radius`. Square when unstated.
+Round the node's corners, per corner — CSS `border-radius`. Square when
+unstated. Each radius is any length: pixels when bare, `1_em` against
+the font, and a `percent` of the node's own box, of its width across and
+its height down, so `borderRadius(50_percent)` draws a box as an
+ellipse.
 
 ## Description
 

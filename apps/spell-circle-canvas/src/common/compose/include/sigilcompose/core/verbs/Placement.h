@@ -38,7 +38,7 @@ class PlacementVerbs {
    *  edges stand. The lengths run in CSS's order: one is all four sides,
    *  two are vertical then horizontal, three are top, both sides,
    *  bottom, and four are top, right, bottom, left. A bare number is
-   *  pixels, `pct()` is of the parent, and `autoDimension()` leaves a
+   *  pixels, `percent()` is of the parent, and `autoDimension()` leaves a
    *  side unpinned, so a size or the opposite inset sizes the node
    *  instead of stretching it. */
   Derived& inset(Dimension all);

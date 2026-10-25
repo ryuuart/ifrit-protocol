@@ -82,6 +82,7 @@ void reportOperatorOrder(const Instance& inst) {
 void Composer::Impl::rebuildKeyIndex() {
   byKey.clear();
   bySlot.clear();
+  operatorClasses.clear();
   borrowInstances.clear();
   flowInstances.clear();
   pathMarkInstances.clear();
@@ -115,6 +116,10 @@ void Composer::Impl::rebuildKeyIndex() {
         if (!derive.spanFitKeys.empty() || !derive.borrowedPathKeys.empty())
           borrowInstances.push_back(&inst);
       }
+      if (node.operatorData)
+        for (const Operator& op : node.operatorData->operators)
+          for (const std::string& name : op.styleClassesRead())
+            operatorClasses.insert(name);
       if (node.arranges()) hasCustomLayout = true;
       if (node.adds()) {
         addingInstances.push_back(&inst);

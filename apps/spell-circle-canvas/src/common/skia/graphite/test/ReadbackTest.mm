@@ -1,7 +1,8 @@
 /** @file
  * Reading a Graphite target back on Metal: a cleared target read whole, a
  * read rescaled into a smaller pixmap that keeps its row padding, and a
- * read waiting on the GPU that leaves the context free for another thread.
+ * read waiting on the GPU that leaves the context free for another thread,
+ * and the device signal a read sleeps on until the device has run it.
  */
 
 #import <Metal/Metal.h>
@@ -12,6 +13,8 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
+#include <include/gpu/graphite/Context.h>
+#include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
@@ -22,11 +25,13 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <thread>
 
 #include <gtest/gtest.h>
 
+#include "../Waits.h"
 #include "GraphiteReadback.h"
 #include "MetalFixtures.h"
 
@@ -120,3 +125,55 @@ TEST(SigilSkiaGraphite, AReadbackWaitingOnTheGpuLeavesTheContextFree) {
   EXPECT_EQ(output.getColor(0, 0), SK_ColorBLUE);
   dev->destroyFence(fence);
 }
+
+// THE SIGNAL A READ SLEEPS ON is raised by the device when it reaches the
+// signal, and not before: held behind GPU work that waits on an event only
+// the host raises, it stays down past a deadline, and rises once the host
+// lets the work run. A signal nothing submits is never raised at all.
+TEST(SigilSkiaGraphite, ADeviceSignalRisesWhenTheDeviceReachesIt) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  using Clock = std::chrono::steady_clock;
+  {
+    sigil::skia::DeviceSignal idle(*ctx->recorder());
+    ASSERT_TRUE(idle);
+    EXPECT_FALSE(idle.wait(Clock::now() + std::chrono::milliseconds(20)));
+  }
+
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr);
+  const FenceHandle fence = dev->createFence();
+  ASSERT_TRUE(dev->isValid(fence));
+  void *event = dev->exportNative(fence).mtlSharedEvent;
+  ASSERT_NE(event, nullptr);
+  const FenceValue value = dev->completedValue(fence) + 1;
+
+  const auto surface = SkSurfaces::RenderTarget(ctx->recorder(), SkImageInfo::MakeN32Premul(4, 4));
+  ASSERT_NE(surface, nullptr);
+  sigil::skia::waitBeforeSampling(*ctx->recorder(), event, value);
+  surface->getCanvas()->clear(SK_ColorBLUE);
+  sigil::skia::DeviceSignal signal(*ctx->recorder());
+  ASSERT_TRUE(signal);
+  {
+    std::unique_ptr<skgpu::graphite::Recording> recording = ctx->recorder()->snap();
+    ASSERT_NE(recording, nullptr);
+    const auto lock = ctx->lockContext();
+    skgpu::graphite::InsertRecordingInfo insert;
+    insert.fRecording = recording.get();
+    sigil::skia::PendingWaits waits(ctx->recorder());
+    waits.attach(insert);
+    signal.attach(insert);
+    ASSERT_EQ(ctx->context()->insertRecording(insert), skgpu::graphite::InsertStatus::kSuccess);
+    ASSERT_TRUE(ctx->context()->submit(skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kNo)));
+  }
+  EXPECT_FALSE(signal.wait(Clock::now() + std::chrono::milliseconds(100)))
+      << "raised while the device still waits on the host";
+  ((__bridge id<MTLSharedEvent>)event).signaledValue = value;
+  EXPECT_TRUE(signal.wait(Clock::now() + std::chrono::seconds(5)));
+  {
+    const auto lock = ctx->lockContext();
+    ctx->context()->submit(skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kYes));
+  }
+  dev->destroyFence(fence);
+}
+

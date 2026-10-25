@@ -13,6 +13,7 @@
  */
 
 #include <include/core/SkImageInfo.h>
+#include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/callable/Callable.h>
@@ -238,21 +239,44 @@ struct ColorTerm : material::Color {
   }
 };
 
-/** Corner radii, clockwise from top-left. `{r}` rounds all four; the
- *  four-value form dresses each corner independently. For shapes whose
- *  corners aren't box corners (stars, polygons, custom outlines), use
+/** Corner radii, clockwise from top-left — CSS `border-radius`. `{r}`
+ *  rounds all four; the four-value form dresses each corner independently.
+ *  Each radius is any length: pixels when bare; `em`, `rem`, `lh`, `ch`, a
+ *  viewport unit or a custom property against the node's font, the canvas
+ *  and the properties in force; and a `percent` of the node's own box, as
+ *  CSS reads one — a percentage of the width across and of the height
+ *  down, so `50_percent` makes a box an ellipse. For shapes whose corners
+ *  aren't box corners (stars, polygons, custom outlines), use
  *  shapes::rounded() around the outline generator instead. */
 struct Corners {
-  float topLeft = 0.0f, topRight = 0.0f, bottomRight = 0.0f, bottomLeft = 0.0f;
+  Dimension topLeft = 0.0f, topRight = 0.0f, bottomRight = 0.0f,
+            bottomLeft = 0.0f;
 
   Corners() = default;
   Corners(float all)  // NOLINT: implicit by design (.borderRadius({8}))
       : topLeft(all), topRight(all), bottomRight(all), bottomLeft(all) {}
-  Corners(float tl, float tr, float br, float bl)
-      : topLeft(tl), topRight(tr), bottomRight(br), bottomLeft(bl) {}
+  Corners(Dimension all)  // NOLINT: implicit (.borderRadius(50_percent))
+      : topLeft(all), topRight(all), bottomRight(all), bottomLeft(all) {}
+  Corners(sigil::weave::Length all)  // NOLINT: implicit (.borderRadius(1_em))
+      : Corners(Dimension(all)) {}
+  Corners(Dimension tl, Dimension tr, Dimension br, Dimension bl)
+      : topLeft(std::move(tl)),
+        topRight(std::move(tr)),
+        bottomRight(std::move(br)),
+        bottomLeft(std::move(bl)) {}
 
+  /** Whether any corner is rounded at all: a radius of more than nothing
+   *  in any unit. */
   bool any() const {
-    return topLeft > 0 || topRight > 0 || bottomRight > 0 || bottomLeft > 0;
+    const auto rounds = [](const Dimension& radius) {
+      if (radius.unit == Dimension::Unit::Auto) return false;
+      if (radius.unit == Dimension::Unit::Var ||
+          radius.unit == Dimension::Unit::Calc)
+        return true;
+      return radius.value > 0;
+    };
+    return rounds(topLeft) || rounds(topRight) || rounds(bottomRight) ||
+           rounds(bottomLeft);
   }
   bool operator==(const Corners&) const = default;
 };

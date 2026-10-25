@@ -1,7 +1,8 @@
 /** @file
  * Where a persistent buffer stands: on the device of the host that first
- * begins it, staying there whatever host begins it next and re-formed
- * beside itself; on raster where its first host makes no surface; and
+ * begins it, re-formed beside itself while it stands where its host draws;
+ * following a device host from raster and from another thread's recorder,
+ * its marks kept; on raster where no host makes a surface; and
  * formed again on no frame that changes nothing; and a trail faded on
  * the device reaching its ground.
  */
@@ -15,6 +16,8 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
+#include <include/gpu/graphite/Context.h>
+#include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Surface.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcore/hardware/GpuDevice.h>
@@ -24,6 +27,8 @@
 #include <sigilskia/graphite/Readback.h>
 
 #include <cstdint>
+#include <memory>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -143,7 +148,7 @@ TEST(GraphicsBackendGpu, ABufferFormsOnTheDeviceOfTheHostThatFirstBeginsIt) {
   EXPECT_EQ(finerAt(88, 16), SK_ColorRED);
 }
 
-TEST(GraphicsBackendGpu, ABufferFirstBegunWithoutASurfaceStaysOnRaster) {
+TEST(GraphicsBackendGpu, ABufferFirstBegunWithoutASurfaceFollowsTheDeviceNext) {
   auto device = sigil::core::hardware::GpuDevice::createOwned();
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);
@@ -160,15 +165,56 @@ TEST(GraphicsBackendGpu, ABufferFirstBegunWithoutASurfaceStaysOnRaster) {
   ASSERT_TRUE(buffer.image());
   EXPECT_FALSE(buffer.image()->isTextureBacked());
 
-  // A device beginning it later draws on the raster it stands on.
+  // A device beginning it later forms it again on the device, with what
+  // was drawn on raster carried over.
   const SkRect right = SkRect::MakeXYWH(40, 4, 12, 12);
   frame(buffer, *deviceHost->getCanvas(), &right);
   EXPECT_EQ(buffer.extent(), kExtent);
-  EXPECT_FALSE(buffer.image()->isTextureBacked());
-  const auto marked = pixelsOf(buffer, nullptr);
+  EXPECT_TRUE(buffer.image()->isTextureBacked());
+  const auto marked = pixelsOf(buffer, context.get());
   ASSERT_FALSE(marked.empty());
   EXPECT_EQ(at(marked, 8, 8), SK_ColorRED);
   EXPECT_EQ(at(marked, 44, 8), SK_ColorRED);
+}
+
+TEST(GraphicsBackendGpu, ABufferDrawnOnAnotherThreadFollowsTheThreadDrawingItNext) {
+  // A device's recorder belongs to the thread that made it. A buffer drawn
+  // through one thread's recorder and begun next on another's is formed
+  // again through the second, on the same device, with its marks kept.
+  auto device = sigil::core::hardware::GpuDevice::createOwned();
+  if (!device) GTEST_SKIP() << "no GPU device";
+  auto context = GraphiteContext::create(*device);
+  if (!context) GTEST_SKIP() << "no Graphite context";
+  draw::Graphics buffer(float(kExtent.width()), float(kExtent.height()));
+  std::unique_ptr<skgpu::graphite::Recorder> elsewhere;
+  sk_sp<SkSurface> elsewhereHost;
+  const SkRect left = SkRect::MakeXYWH(4, 4, 12, 12);
+  std::thread([&] {
+    elsewhere = context->makeRecorder();
+    ASSERT_TRUE(elsewhere);
+    elsewhereHost = SkSurfaces::RenderTarget(
+        elsewhere.get(), SkImageInfo::MakeN32Premul(kExtent));
+    ASSERT_TRUE(elsewhereHost);
+    frame(buffer, *elsewhereHost->getCanvas(), &left);
+    (void)context->submit(*elsewhere, skgpu::graphite::SyncToCpu::kYes);
+  }).join();
+  ASSERT_TRUE(buffer.image());
+
+  auto deviceHost = SkSurfaces::RenderTarget(
+      context->recorder(), SkImageInfo::MakeN32Premul(kExtent));
+  ASSERT_TRUE(deviceHost);
+  const SkRect right = SkRect::MakeXYWH(40, 4, 12, 12);
+  frame(buffer, *deviceHost->getCanvas(), &right);
+  EXPECT_TRUE(buffer.image()->isTextureBacked());
+  const auto marked = pixelsOf(buffer, context.get());
+  ASSERT_FALSE(marked.empty());
+  EXPECT_EQ(at(marked, 8, 8), SK_ColorRED)
+      << "the mark drawn on the other thread was not carried over";
+  EXPECT_EQ(at(marked, 44, 8), SK_ColorRED);
+  // A buffer standing where its host draws is not formed again.
+  const uint32_t held = buffer.image()->uniqueID();
+  frame(buffer, *deviceHost->getCanvas(), nullptr);
+  EXPECT_EQ(buffer.image()->uniqueID(), held);
 }
 
 TEST(GraphicsBackendGpu, ADeviceThatCannotFormTheBufferLeavesItOnRaster) {

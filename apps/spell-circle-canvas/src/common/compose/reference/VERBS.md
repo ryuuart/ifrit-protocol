@@ -169,8 +169,8 @@ animating one never relayouts.
 
 | Verb | What it says |
 |---|---|
-| `translateX` | Move the plane across, in px. |
-| `translateY` | Move it down, in px. |
+| `translateX` | Move the plane across, in px, or by a length — a `percent` of the node's own width. |
+| `translateY` | Move it down, in px, or by a length — a `percent` of the node's own height. |
 | [`travel`](pages/verbs/travel.md) | Ride a curve instead of two lanes — a motion path, with auto-orientation. |
 | `rotate` | Turn the plane about the transform origin, in degrees. |
 | `scale` | Scale both axes about the transform origin. |
@@ -227,12 +227,12 @@ the code that built a child ran.
 |---|---|
 | [`font`](pages/verbs/font.md) | The type everything under this node is set in, as a PARTIAL over what it inherits. |
 | [`fontFamily`](pages/verbs/fontFamily.md) | The family list, CSS's, set in its first family the font context has — the face field of `font`. |
-| `fontSize` | The type size — one field of `font`. |
+| `fontSize` | The type size, in any length a font holds — a `percent` is of the parent's size — one field of `font`. |
 | `fontWeight` | The weight, as the face's `wght` axis — one field of `font`. |
 | [`fontStyle`](pages/verbs/fontStyle.md) | Upright, italic, or an oblique angle leaning right — the face and the slant of `font`. |
-| `letterSpacing` | The tracking after each cluster — one field of `font`. |
+| `letterSpacing` | The tracking after each cluster, in any length a font holds — one field of `font`. |
 | [`paragraph`](pages/verbs/paragraph.md) | The paragraph settings everything under it is set in, as a partial in the same way. |
-| `lineHeight` | The pitch of the lines — one field of `paragraph`. |
+| `lineHeight` | The pitch of the lines: a number is a multiple, a length an absolute pitch (`1.5_em`, `150_percent` of the type size) — one field of `paragraph`. |
 | `textAlign` | Where the lines sit across the measure — one field of `paragraph`. |
 | [`textIndent`](pages/verbs/textIndent.md) | The first line of every block indented, by any length — one field of `paragraph`. |
 | `writingMode` | Which way the lines run — one field of `paragraph`. |
@@ -304,7 +304,7 @@ compile.
 |---|---|
 | `key` | The author-owned identity: what the reconciler matches by and what geometry is borrowed by. |
 | `zIndex` | The paint order among siblings that share a box. |
-| `hitTestable` | Take the node's own box out of hit testing; its children are still tested. |
+| `hitTestable` | Take the node's own box and its keyless contents out of hit testing; its keyed descendants are still tested. |
 
 ## Children
 

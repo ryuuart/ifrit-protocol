@@ -234,6 +234,10 @@ Filter Filter::saturate(float amount) { return skia::colorAdjust(2, amount); }
 Filter Filter::hueRotate(float degrees) {
   return skia::colorAdjust(3, degrees * 3.14159265358979f / 180.0f);
 }
+Filter Filter::grayscale(float amount) { return skia::colorAdjust(4, amount); }
+Filter Filter::sepia(float amount) { return skia::colorAdjust(5, amount); }
+Filter Filter::invert(float amount) { return skia::colorAdjust(6, amount); }
+Filter Filter::opacity(float amount) { return skia::colorAdjust(7, amount); }
 
 Filter Filter::brightPass(float threshold, float knee) {
   return FilterAccess::wrap(Effect::brightPass(threshold, knee));

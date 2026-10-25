@@ -44,6 +44,8 @@ bool readThrough(GraphiteContext& context,
     std::atomic<bool> called{false};
   };
   const auto read = std::make_shared<Read>();
+  DeviceSignal signal(*recorder);
+  bool signalled = false;
   auto recording = recorder->snap();
   {
     // The context is held to insert, queue the read and submit, and not
@@ -70,17 +72,32 @@ bool readThrough(GraphiteContext& context,
           (*retained)->called.store(true, std::memory_order_release);
         },
         new std::shared_ptr<Read>(read));
+    // THE SIGNAL GOES LAST, on an insert of its own after the read is
+    // queued, so the device raises it once the copy the read made has
+    // run: the submit commits everything inserted before it together.
+    if (signal) {
+      std::unique_ptr<skgpu::graphite::Recording> marker = recorder->snap();
+      skgpu::graphite::InsertRecordingInfo insert;
+      insert.fRecording = marker.get();
+      signal.attach(insert);
+      signalled = marker && context.context()->insertRecording(insert) ==
+                                skgpu::graphite::InsertStatus::kSuccess;
+    }
     if (!context.context()->submit(
             skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kNo)))
       return false;
   }
-  // Completion is asked under the lock, a call at a time, and the wait
-  // between two asks holds nothing. The pause between asks starts short,
-  // so a read the GPU finishes at once returns at once, and doubles to a
-  // millisecond, so a long one wakes this thread rarely.
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  std::chrono::microseconds pause(50);
+  // THE WAIT IS THE DEVICE'S OWN where it raises a signal the host can
+  // wait on: this thread sleeps until the copy has run and holds nothing
+  // meanwhile. Completion is then asked under the lock, a call at a time,
+  // and the wait between two asks holds nothing; the pause between asks
+  // starts short, so a read the device has finished returns at once, and
+  // doubles to a millisecond, so a long one wakes this thread rarely
+  // where there is no signal to sleep on.
+  if (signalled) signal.wait(deadline);
+  std::chrono::microseconds pause(signalled ? 5 : 50);
   while (std::chrono::steady_clock::now() < deadline) {
     {
       const auto lock = context.lockContext();

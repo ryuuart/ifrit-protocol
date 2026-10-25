@@ -505,6 +505,21 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                           style.paint.blendMode != SkBlendMode::kSrcOver ||
                           node.kind == Kind::Custom || decorBlends ||
                           typeBlends;
+  // WHAT HOLDS STILL IN THE NODE'S OWN FRAME: every content term but an
+  // anchoring that follows the placement, nothing that reads what lies
+  // beneath, no space its children stand in, and every child the same with
+  // nothing of its own moving or fading — so the subtree's pixels, painted
+  // once in this node's frame, are the pixels it paints at any placement.
+  // A node's OWN transform and opacity are outside those pixels, which is
+  // what lets a live composer turn them (`Composer::setLive`).
+  {
+    bool still = !otherThanScalar && !scalarBesideAnchoring && !boundFill &&
+                 !patternPan && !marksFollowCoverage &&
+                 !inst.ownReadsBackdrop && !hosts;
+    for (const auto& child : inst.children)
+      still = still && child->stillInOwnFrame && !child->ownPaintMoves;
+    inst.stillInOwnFrame = still;
+  }
 
   // THE PROOF ITSELF is SigilCoreCache's: everything above resolves this
   // library's own lanes, materials, gates and text into the six

@@ -104,8 +104,11 @@ half-float RGBA, so the wrap preserves its range without a pixel conversion.
 
 Include `<sigilskia/graphite/Readback.h>` and call
 `sigil::skia::readbackPixels(*graphite, surface, pixmap)` on the context's
-recording thread. It submits pending draws, reads the whole surface into the
-caller's pixmap and holds the context lock through completion. The pixmap's
+recording thread. It submits pending draws and reads the whole surface into
+the caller's pixmap, holding the context lock to submit and to ask after
+completion but never across the wait; on Metal the device raises an event
+after the read, and the thread sleeps on it, so the call blocks for as long
+as the device takes and no longer. The pixmap's
 format and dimensions select the output; differing dimensions use nearest
 rescaling. Padding bytes are preserved. False means invalid output, failed
 submission or failed readback; no raster fallback is performed. Callback state

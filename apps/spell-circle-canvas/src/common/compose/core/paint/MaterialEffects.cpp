@@ -99,17 +99,25 @@ CoverageCast innerCast(float blur, float reach) {
 void innerShadow(SkCanvas& canvas, const PaintContext& context,
                  material::Color color, glm::vec2 offset, float blur,
                  float spread) {
+  paintInnerShadow(canvas, context, painted(color), offset, blur, spread);
+}
+
+}  // namespace
+
+void paintInnerShadow(SkCanvas& canvas, const PaintContext& context,
+                      const SkPaint& ink, glm::vec2 offset, float blur,
+                      float spread) {
   const float reach = innerReach(blur, spread, offset);
   // Held, the band is blurred once in the outline's own frame — each
   // part's, where the outline is composed from held parts — and cut to
   // where it stands, whatever the ink beside it does.
-  const CoverageInk ink{painted(color), {offset.x, offset.y}};
-  if (paintHeldCoverage(canvas, context, {&ink, 1}, innerCast(blur, reach),
+  const CoverageInk cast{ink, {offset.x, offset.y}};
+  if (paintHeldCoverage(canvas, context, {&cast, 1}, innerCast(blur, reach),
                         true))
     return;
   canvas.save();
   canvas.clipPath(shapeOf(context), true);
-  SkPaint paint = painted(color);
+  SkPaint paint = ink;
   paint.setStyle(SkPaint::kStroke_Style);
   paint.setStrokeWidth(reach);
   blurred(paint, blur);
@@ -117,8 +125,6 @@ void innerShadow(SkCanvas& canvas, const PaintContext& context,
   canvas.drawPath(geometry::path::toSk(context.outline), paint);
   canvas.restore();
 }
-
-}  // namespace
 
 namespace {
 
@@ -261,17 +267,40 @@ SkPath strokeBand(const SkPath& outline, const SkPath& shape,
 
 }  // namespace
 
+namespace {
+
+/** How far a keyline `strokeSide` lays under @p options reaches past the
+ *  outline: a band centred on an open contour reaches half its width, a
+ *  band outside a closed one its whole width, and either grows at a mitred
+ *  corner to the miter limit and at a square cap to the corner of its
+ *  square. A band inside a closed contour stays within it, but the outline
+ *  is not known here and an open one has no inside, so inside answers the
+ *  centred half. */
+float keylineReach(const StrokeOptions& options) {
+  const float width = std::max(options.width, 0.0f);
+  const float miter = options.join == geometry::path::Join::Miter
+                          ? std::max(options.miterLimit, 1.0f)
+                          : 1.0f;
+  const float cap =
+      options.cap == geometry::path::Cap::Square ? std::sqrt(2.0f) : 1.0f;
+  const float centred = width / 2 * std::max(miter, cap);
+  if (options.position == material::StrokePosition::Inside) return centred;
+  return std::max(centred, width * miter);
+}
+
+}  // namespace
+
 float CoverageMark::bleed() const {
   switch (effect.kind) {
     case Step::Shadow:
-      if (effect.shadow.inside) return 0;
+      if (effect.shadow.inset) return 0;
       return effect.shadow.blur * 1.5f + effect.shadow.spread +
              std::max(std::abs(effect.shadow.offset.x),
                       std::abs(effect.shadow.offset.y));
     case Step::Stroke:
-      return effect.stroke.position == material::StrokePosition::Inside
-                 ? 0
-                 : effect.stroke.width;
+      // Laid by `strokeSide` under its default joins: mitred at the limit.
+      return keylineReach({.width = effect.stroke.width,
+                           .position = effect.stroke.position});
     case Step::Bevel:
       return 0;
   }
@@ -283,7 +312,7 @@ void CoverageMark::paint(draw::Pen& pen, const PaintContext& context) const {
   switch (effect.kind) {
     case Step::Shadow: {
       const material::ShadowOptions& shadow = effect.shadow;
-      if (shadow.inside) {
+      if (shadow.inset) {
         innerShadow(canvas, context, effect.color, shadow.offset, shadow.blur,
                     shadow.spread);
         return;
@@ -370,18 +399,7 @@ void CoverageMark::paintBevelFace(draw::Pen& pen,
   pen.canvas()->drawPath(shapeOf(context), paint);
 }
 
-float MaterialStroke::bleed() const {
-  const float width = std::max(options.width, 0.0f);
-  const float miter = options.join == geometry::path::Join::Miter
-                          ? std::max(options.miterLimit, 1.0f)
-                          : 1.0f;
-  const float cap =
-      options.cap == geometry::path::Cap::Square ? std::sqrt(2.0f) : 1.0f;
-  // An open contour's band, centred on it, is the one a cap ends.
-  const float centred = width / 2 * std::max(miter, cap);
-  if (options.position == material::StrokePosition::Inside) return centred;
-  return std::max(centred, width * miter);
-}
+float MaterialStroke::bleed() const { return keylineReach(options); }
 
 bool MaterialStroke::isRunning() const {
   return surfaced ? surfaced->isRunning() : source.isRunning();
@@ -456,14 +474,14 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
 EffectMarks effectMarksOf(const material::Filter& effects) {
   EffectMarks marks;
   for (const material::CoverageEffect& step : effects.coverage()) {
-    const bool hardEcho = step.kind == Step::Shadow && !step.shadow.inside &&
+    const bool hardEcho = step.kind == Step::Shadow && !step.shadow.inset &&
                           step.shadow.blur <= 0 && step.shadow.spread <= 0;
     if (hardEcho) {
       marks.echoes.push_back(
           Echo{{step.shadow.offset.x, step.shadow.offset.y}, step.color});
       continue;
     }
-    const bool beneath = step.kind == Step::Shadow && !step.shadow.inside;
+    const bool beneath = step.kind == Step::Shadow && !step.shadow.inset;
     (beneath ? marks.beneath : marks.over)
         .push_back(Decoration(CoverageMark{step}));
   }

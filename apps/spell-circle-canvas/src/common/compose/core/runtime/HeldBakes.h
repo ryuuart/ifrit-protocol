@@ -156,6 +156,22 @@ struct HeldBakes {
   // a declaration, so a run that stops keeps the placement it was moving
   // with instead of taking one last shift as it settles.
   bool placementUnderMotion = false;
+  // …and does everything the subtree paints hold still IN ITS OWN FRAME?
+  // True where what moves its pixels is its placement alone: this node's
+  // own transform or one above it, and a root-anchored paint inside that
+  // follows the placement. Nothing below it moves, fades, ticks or reads
+  // what lies beneath. Such a node, its own transform moving, is the one a
+  // live composer holds as pixels while it moves. Written beside
+  // `transformLive`, by the same walk.
+  bool stillInOwnFrame = false;
+  // THE PIXELS HELD WHILE THE NODE'S OWN TRANSFORM MOVES, under a live
+  // composer: the subtree painted once in the node's own frame at
+  // `movingScale` device pixels a unit, covering `movingBounds`, and
+  // composited under each new matrix. Dropped the draw the node holds
+  // still, and by every change that stales its paint.
+  sk_sp<SkImage> movingImage;
+  float movingScale = 0.0f;
+  SkRect movingBounds = SkRect::MakeEmpty();
   // …and is the device rect it actually LANDS on holding still? These are
   // NOT the same predicate: a node with no animated property of its own
   // still moves every frame under a resizing window or a pinch zoom, and a

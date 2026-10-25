@@ -262,7 +262,9 @@ void drawEye(draw::Pen& pen, const Tint& tint) {
                               {.units = material::GradientUnits::Pixels}))
                .layer(material::conicGradient(
                           kPupil, fibres,
-                          {.units = material::GradientUnits::Pixels}),
+                          {.units = material::GradientUnits::Pixels,
+                           .startDegrees = 90,
+                           .endDegrees = 450}),
                       {.blend = material::BlendMode::SoftLight}));
   pen.circle(kPupil.x, kPupil.y, kIrisRadius * 2);
 

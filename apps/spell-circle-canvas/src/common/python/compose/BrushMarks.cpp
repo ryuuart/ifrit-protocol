@@ -43,10 +43,12 @@ void bindComposeBrushMarks(pybind11::module_& module) {
                      "width.")
       .def_readwrite("widthEnd", &Ribbon::widthEnd,
                      "The taper's width at the end.")
-      .def_readwrite("nibAngleDegrees", &Ribbon::nibAngleDegrees,
-                     "The nib's angle in degrees; zero or more makes the "
-                     "band calligraphic, widest where the outline runs "
-                     "across the nib. Negative is no nib.")
+      .def_property(
+          "nibAngleDegrees", angleGetter(&Ribbon::nibAngleDegrees),
+          angleSetter<AngleInDegrees>(&Ribbon::nibAngleDegrees),
+          "The nib's angle in degrees; zero or more makes the "
+          "band calligraphic, widest where the outline runs "
+          "across the nib. Negative is no nib.")
       .def_readwrite("nibContrast", &Ribbon::nibContrast,
                      "The fraction of the full width a nib keeps where the "
                      "outline runs along it.")
@@ -71,15 +73,15 @@ void bindComposeBrushMarks(pybind11::module_& module) {
   brushes.def(
       "ribbon",
       [](py::object width, py::object paint,
-         std::optional<float> nibAngleDegrees, float nibContrast,
+         std::optional<AngleInDegrees> nibAngle, float nibContrast,
          std::optional<float> widthEnd) {
         Ribbon made;
-        if (nibAngleDegrees || widthEnd) {
+        if (nibAngle || widthEnd) {
           // A nib or a taper reads the width as one number, and the law
           // stays empty so that they decide the band.
           made.widthStart = width.cast<float>();
           made.widthEnd = widthEnd.value_or(made.widthStart);
-          made.nibAngleDegrees = nibAngleDegrees.value_or(-1.0f);
+          made.nibAngleDegrees = nibAngle ? nibAngle->value : -1.0f;
           made.nibContrast = nibContrast;
         } else {
           made.width = width.cast<geometry::path::Profile>();

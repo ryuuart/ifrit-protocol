@@ -34,24 +34,23 @@
 #include <utility>
 #include <vector>
 
-#include "Ink.h"
+#include "paint/FillLowering.h"
 #include "StrokeReach.h"
 
 namespace sigil::compose {
 
-bool LayeredBrush::staysOnOutline() const {
+float LayeredBrush::bleed() const {
   // Each pass is stroked with the renderer's own join, a miter, and its
   // blur spreads from wherever the stroke stands.
-  const float held = bleed();
+  float reach = 0;
   for (const StrokeLayer& layer : layers) {
     const geometry::path::Cap cap = layer.roundCap ? geometry::path::Cap::Round
                                                    : geometry::path::Cap::Butt;
-    if (detail::strokeReach(layer.width, geometry::path::Join::Miter, cap) +
-            layer.blurSigma * 3.0f >
-        held)
-      return false;
+    reach = std::max(
+        reach, detail::strokeReach(layer.width, geometry::path::Join::Miter, cap) +
+                   layer.blurSigma * 3.0f);
   }
-  return true;
+  return reach;
 }
 
 void LayeredBrush::paint(draw::Pen& pen, const PaintContext& ctx) const {

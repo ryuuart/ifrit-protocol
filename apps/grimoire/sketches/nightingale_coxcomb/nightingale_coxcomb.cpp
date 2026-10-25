@@ -474,7 +474,7 @@ struct NightingaleCoxcomb {
             {.length = Dimension(368),
              .pair = kit::Line::Companion{.thickness = 1.0f, .gap = 3.0f}})
             .at({kAxis - 184, kRuleRow})
-            .transformOrigin(pct(0), pct(50))
+            .transformOrigin(percent(0), percent(50))
             .scaleX(ruled(1120)),
         numbered(first, "1.", "APRIL 1854 to MARCH 1855.",
                  first.spokes * 1000 - 150),
@@ -624,7 +624,7 @@ struct NightingaleCoxcomb {
              .inset(0)
              .styleClass("needle")
              .shape(spoke(0.0f, 0.0f, 1.0f))
-             .transformOrigin(pct(50), pct(50))
+             .transformOrigin(percent(50), percent(50))
              .rotate(sigil::motion::animate(
                  {.from = 0.0f,
                   .keyframes = {{.to = 0.0f, .duration = (at(start)) - (0ms)},

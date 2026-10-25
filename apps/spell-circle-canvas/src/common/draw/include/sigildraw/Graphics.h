@@ -14,16 +14,23 @@
 #include <include/core/SkSurface.h>
 #include <sigildraw/Pen.h>
 
+#include <thread>
+
 namespace sigil::draw {
 
 /** AN OFFSCREEN CANVAS AND THE PEN THAT DRAWS ON IT — p5's
  *  `createGraphics(w, h)`, spelled as the value it returns because it
  *  lives across frames. ITS PIXELS ARE THE HOST'S, formed at the host
- *  pen's own density through the host's canvas, so a buffer first begun
- *  under a device stands on it; a re-form is made beside the surface it
- *  replaces, so the buffer stays where it was formed, and keeps the
- *  picture by drawing the old surface into the new one. A host whose
- *  canvas makes no surface forms it on raster. ITS CLOCK IS THE
+ *  pen's own density through the host's canvas, so a buffer begun under
+ *  a device stands on it. A buffer FOLLOWS the device its host draws on:
+ *  begun by a host whose device cannot reach it — a buffer on raster, on
+ *  another device's context, or on a recorder of another thread — it is
+ *  formed again where that host draws, keeping its picture where the new
+ *  device can read it (from raster, or from another recorder of the same
+ *  context) and starting transparent where it cannot; otherwise a
+ *  re-form is made beside the surface it replaces. A host that records
+ *  onto no device leaves it where it stands, and a host whose canvas
+ *  makes no surface at all forms it on raster. ITS CLOCK IS THE
  *  HOST'S, read onto the buffer's pen by `begin`; its style is its own
  *  and holds between frames, as a pen's does. */
 class Graphics {
@@ -65,8 +72,20 @@ class Graphics {
 
   /** What has been drawn on it, as an image — what `pen.image` takes,
    *  and what a material takes as a shader's source. Null before the
-   *  first `begin`. */
+   *  first `begin`. Between frames it is the picture as the last frame
+   *  closed it, taken on the thread that drew it. */
   [[nodiscard]] sk_sp<SkImage> image() const;
+
+  /** WHETHER THE BUFFER STANDS WHERE @p host DRAWS: on the device the
+   *  host records onto, through a recorder of this thread, or anywhere
+   *  for a host that records onto no device. False before the first
+   *  `begin`. */
+  [[nodiscard]] bool standsWhere(Pen& host) const;
+  /** Forms the buffer again where @p host draws, at the extent it stands
+   *  at and with its picture kept, when it does not stand there; what a
+   *  consumer that reads the buffer under a host without drawing on it
+   *  calls first. */
+  void follow(Pen& host);
 
   [[nodiscard]] float width() const { return m_width; }
   [[nodiscard]] float height() const { return m_height; }
@@ -80,8 +99,17 @@ class Graphics {
 
  private:
   void form(Pen& host);
+  void form(Pen& host, SkISize extent);
 
   sk_sp<SkSurface> m_surface;
+  sk_sp<SkImage> m_snapshot;
+  /** The device the surface was formed on (null for raster) and the
+   *  thread whose recorder formed it. */
+  const void* m_device = nullptr;
+  std::thread::id m_thread;
+  /** The device that last refused to form the buffer, which leaves it on
+   *  raster rather than being asked again. */
+  const void* m_refusedBy = nullptr;
   SkISize m_extent = SkISize::MakeEmpty();
   float m_width;
   float m_height;

@@ -41,7 +41,7 @@ compose::Element meter(const Meter& bar) {
     // recording and only the transform moves.
     Element run = box().absolute().inset(bar.inset.value_or(0.0f));
     run.fill(barPaint);
-    run.transformOrigin(compose::pct(0), compose::pct(50)).scaleX(*bar.level);
+    run.transformOrigin(compose::percent(0), compose::percent(50)).scaleX(*bar.level);
     if (bar.corners > 0) run.borderRadius(Corners{bar.corners});
     rail.children({std::move(run)});
   } else if (filled > 0) {
@@ -50,7 +50,7 @@ compose::Element meter(const Meter& bar) {
     // and a fill that took its height from that would be a hairline on
     // half of them.
     Element run =
-        box().width(compose::pct(filled * 100)).height(compose::pct(100));
+        box().width(compose::percent(filled * 100)).height(compose::percent(100));
     run.fill(barPaint);
     run.alignSelf(Align::Stretch);
     if (bar.corners > 0) run.borderRadius(Corners{bar.corners});

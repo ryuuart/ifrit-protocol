@@ -7,7 +7,7 @@ from pathlib import Path
 
 from sigil import compose, media, skia, weave
 from sigil import compose as raw
-from sigil.compose import Align, Dimension, Fill, box, pct, stroke
+from sigil.compose import Align, Dimension, Fill, box, percent, stroke
 from sigil.motion import animatable
 from sigil.sketch import renderFile
 
@@ -26,13 +26,13 @@ class Compose(unittest.TestCase):
 
     def test_native_relative_dimensions_and_property_types(self):
         self.assertEqual(Dimension(weave.em(2)).unit, Dimension.Unit.Em)
-        self.assertEqual(Dimension("45%"), pct(45))
+        self.assertEqual(Dimension("45%"), percent(45))
         self.assertEqual(Dimension("auto").unit, Dimension.Unit.Auto)
         font = weave.Type(size=24, color="#aa2211", track=weave.em(0.1))
         self.assertEqual(font.size.value, 24)
         self.assertEqual(font.track.unit, weave.Length.Unit.Em)
         self.assertIsInstance(
-            (box().width(pct(50)).padding(weave.em(1)).alignItems(Align.End)).stroke(
+            (box().width(percent(50)).padding(weave.em(1)).alignItems(Align.End)).stroke(
                 stroke(2)
             ),
             raw.Element,
@@ -54,8 +54,8 @@ class Compose(unittest.TestCase):
         self.assertEqual(-Dimension(10), Dimension(-10))
         # A percentage is a term of the sum, kept for the property that
         # knows its containing extent.
-        self.assertEqual((pct(50) + compose.em(1)).unit, Dimension.Unit.Calc)
-        self.assertEqual(pct(100) + 12, Dimension("calc(100% + 12px)"))
+        self.assertEqual((percent(50) + compose.em(1)).unit, Dimension.Unit.Calc)
+        self.assertEqual(percent(100) + 12, Dimension("calc(100% + 12px)"))
         # What native arithmetic refuses — it warns and stands as auto —
         # raises here, at the call: arithmetic on auto, and a division by
         # zero.
@@ -63,8 +63,8 @@ class Compose(unittest.TestCase):
             compose.autoDimension() * 2
         with self.assertRaises(ValueError):
             compose.em(1) / 0
-        self.assertEqual(pct(50) + pct(25), pct(75))
-        self.assertEqual(pct(50) + 0, pct(50))
+        self.assertEqual(percent(50) + percent(25), percent(75))
+        self.assertEqual(percent(50) + 0, percent(50))
 
     def test_every_unit_is_spelled_here_and_read_from_text(self):
         # The font-relative units and the point answer a Dimension, so a
@@ -85,14 +85,14 @@ class Compose(unittest.TestCase):
             ("9pt", compose.pt(9)),
             ("1.5em", compose.em(1.5)),
             ("3ch", compose.ch(3)),
-            ("50%", pct(50)),
-            ("10pw", compose.pw(10)),
+            ("50%", percent(50)),
+            ("10vw", compose.vw(10)),
         ):
             self.assertEqual(Dimension(text), expected, text)
             self.assertEqual(compose.parseDimension(text), expected, text)
-        self.assertIsNone(compose.parseDimension("12vh"))
+        self.assertIsNone(compose.parseDimension("12pw"))
         with self.assertRaisesRegex(ValueError, "written as text"):
-            Dimension("12vh")
+            Dimension("12pw")
         # A leading plus is the number's sign, as it is in CSS; the words
         # for infinity and for no number are numbers a reader will take
         # and distances nothing can lay out, so they are not lengths.
@@ -217,7 +217,7 @@ class Edges:
 
     def test_at_and_rect_take_lengths_in_any_unit(self):
         self.render("""import builtins
-from sigil.compose import box, pct
+from sigil.compose import box, percent
 from sigil.sketch import sketch
 
 
@@ -227,8 +227,8 @@ class Placed:
         ctx.render(
             box().size(200, 100).children(
                 [
-                    box().key("pinned").size(10, 10).at(pct(50), 20),
-                    box().key("boxed").rect(pct(10), 30, pct(25), 40),
+                    box().key("pinned").size(10, 10).at(percent(50), 20),
+                    box().key("boxed").rect(percent(10), 30, percent(25), 40),
                     box().key("point").size(10, 10).at((5, 6)),
                 ]
             )
@@ -342,21 +342,21 @@ class Keywords:
 
     def test_an_origin_carries_its_unit_and_a_bare_number_is_refused(self):
         for element in (
-            box().transformOrigin(pct(0), "100%"),
+            box().transformOrigin(percent(0), "100%"),
             box().transformOrigin(Dimension(12), weave.em(1), Dimension(40)),
-            box().perspectiveOrigin("50%", pct(0)),
+            box().perspectiveOrigin("50%", percent(0)),
         ):
             self.assertIsInstance(element, raw.Element)
         # Half the box and half a pixel are both plausible readings of 0.5.
         for refused in (
             lambda: box().transformOrigin(0.5, 0.5),
-            lambda: box().transformOrigin(pct(50), pct(50), 12),
+            lambda: box().transformOrigin(percent(50), percent(50), 12),
             lambda: box().perspectiveOrigin(0, 0),
         ):
             with self.assertRaisesRegex(TypeError, "bare number"):
                 refused()
         pixels = self.render(
-            """from sigil.compose import Dimension, box, pct
+            """from sigil.compose import Dimension, box, percent
 from sigil.sketch import sketch
 
 
@@ -364,7 +364,7 @@ from sigil.sketch import sketch
 class Scene:
     def setup(self, ctx):
         bar = box().absolute().inset(0).fill("#ff0000").scaleX(0.25)
-        ctx.render(box().size(40, 20).children([bar.transformOrigin(pct(100), pct(50))]))
+        ctx.render(box().size(40, 20).children([bar.transformOrigin(percent(100), percent(50))]))
 """,
             at=0,
         )
@@ -419,7 +419,7 @@ class Scene:
                 .size(24, 16)
                 .row()
                 .alignItems("auto")
-                .justifyContent("space_between")
+                .justifyContent("space-between")
                 .children(children)
             )
         else:
@@ -428,7 +428,7 @@ class Scene:
                 .width(24)
                 .height(16)
                 .alignItems("auto")
-                .justifyContent("space_between")
+                .justifyContent("space-between")
                 .children(children)
             ).row()
         ctx.render(root)

@@ -2,6 +2,7 @@
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Texture.h>
+#include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
@@ -18,8 +19,12 @@ void bindMaterialPattern(py::module_& module) {
       .def("seed", &pattern::Tile::seed, py::arg("seed"), fluent)
       .def("scale", py::overload_cast<float>(&pattern::Tile::scale),
            py::arg("factor"), fluent)
-      .def("rotate", py::overload_cast<float>(&pattern::Tile::rotate),
-           py::arg("degrees"), fluent)
+      .def(
+          "rotate",
+          [](pattern::Tile& tile, AngleInDegrees degrees) -> pattern::Tile& {
+            return tile.rotate(degrees.value);
+          },
+          py::arg("degrees"), fluent)
       .def(
           "offset",
           [](pattern::Tile& tile, py::handle value) -> pattern::Tile& {

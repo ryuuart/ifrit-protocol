@@ -482,7 +482,7 @@ struct DepthData {
   /// children. 0 is no perspective: an orthographic projection.
   motion::Animatable<float> perspective = 0.0f;
   /// Where the viewer stands over the plane, read as PaintProps::originX is.
-  Dimension perspectiveOriginX = pct(50.0f), perspectiveOriginY = pct(50.0f);
+  Dimension perspectiveOriginX = percent(50.0f), perspectiveOriginY = percent(50.0f);
   /// The transform origin's depth, beside PaintProps::originX/originY.
   Dimension originZ = 0.0f;
   bool preserve3d = false;
@@ -577,6 +577,10 @@ struct CascadeData {
    *  each passage's measure. An indent in pixels is
    *  `block->firstLineIndent`; the two exclude each other. */
   std::optional<Dimension> textIndent;
+  /** lineHeight() in a unit the cascade resolves — against the font, the
+   *  canvas or a property where it is stated — into an absolute leading.
+   *  A pitch in pixels is `block->leading`; the two exclude each other. */
+  std::optional<Dimension> lineHeight;
   /** How image leaves under this node sample their source
    *  (Element::imageRendering), inherited as CSS's image-rendering is. */
   std::optional<SkSamplingOptions> sampling;
@@ -631,10 +635,10 @@ struct ElementNode {
   Shape shapeFn;  // custom silhouette; overrides corners. A comparable
                   // scheme prunes; a raw callable never compares equal, so
                   // its node re-patches on every describe.
-  // Element::hitTestable(false): the node and its own box are skipped by
-  // hitTest, though its CHILDREN are still tested. A keyed full-bleed
-  // layout shell with no fill otherwise swallows every hit in the frame,
-  // silently and totally.
+  // Element::hitTestable(false): the node, its own box and its keyless
+  // contents are skipped by hitTest, though its KEYED descendants are
+  // still tested. A keyed full-bleed layout shell with no fill otherwise
+  // swallows every hit in the frame, silently and totally.
   bool hitTestable = true;
   // Element::exit(): when the node is keyed and a later description leaves
   // it out, it stays in its place and plays every entrance in its subtree

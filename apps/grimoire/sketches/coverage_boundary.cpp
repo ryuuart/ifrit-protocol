@@ -104,7 +104,7 @@ material::Material halo() {
       .effects(material::Filter::shadow(kHalo, {.blur = kGlow, .spread = 1})
                    .then(material::Filter::shadow(
                        {0, 0, 0, 0.55f},
-                       {.blur = 5, .offset = {0, 2}, .inside = true})));
+                       {.blur = 5, .offset = {0, 2}, .inset = true})));
 }
 
 /** THE TWO CUT-OUTS THIS SHEET SHOWS, baked once and held together for

@@ -29,7 +29,7 @@ TEST(ComposeRootBox, ARootLeafsStatedWidthIsItsMeasure) {
 
 TEST(ComposeRootBox, ARootsPercentageIsOfTheCanvas) {
   Host host(120, 60);
-  host.composer.render(box().key("root").width(pct(50)).height(pct(25)));
+  host.composer.render(box().key("root").width(percent(50)).height(percent(25)));
   host.frame();
   const SkRect root = require(host.composer.bounds("root"));
   EXPECT_FLOAT_EQ(root.width(), 60);

@@ -46,7 +46,7 @@ Text line(Utf8 words, std::string role, float scale) {
 Element article(std::initializer_list<Children> children) {
   return flow("article", children)
       .role("article", {.leading = weave::Leading::multiple(1.45f)})
-      .width(pct(100))
+      .width(percent(100))
       .maxWidth(var(measure));
 }
 
@@ -114,7 +114,7 @@ Element figure(Element body, Utf8 note) {
   return result;
 }
 Element rule() {
-  return box().role("rule").height(1).width(pct(100)).fill(Fill::currentInk());
+  return box().role("rule").height(1).width(percent(100)).fill(Fill::currentInk());
 }
 
 }  // namespace sigil::compose::document

@@ -74,7 +74,7 @@ TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
   Host host;
   host.composer.render(box().children(
       {layout(layouts::BaselineGrid{.rhythm = 20})
-           .width(pct(100))
+           .width(percent(100))
            .flexGrow(1)
            .children({box().key("a").width(40).height(15).fill(red())})
            .children({box().key("b").width(40).height(27).fill(blue())})}));
@@ -91,7 +91,7 @@ TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
   // Font-metric independent.
   host.composer.render(box().children(
       {layout(layouts::BaselineGrid{.rhythm = 200})
-           .width(pct(100))
+           .width(percent(100))
            .flexGrow(1)
            .children({text(u8"Xylograph", styleAt(40)).key("t")})}));
   host.frame();

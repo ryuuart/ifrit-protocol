@@ -47,6 +47,10 @@ struct PaintWalk {
    *  same ground beneath the composer, so what lies under a node is what
    *  the composer painted there over that ground. */
   bool groundHeld = false;
+  /** Composer::setLive: every draw is a frame watched as it runs, so a
+   *  node turning with nothing in it changing is composited from pixels
+   *  held while it moves. */
+  bool live = false;
   /** WHAT HAS BEEN PAINTED SO FAR THIS DRAW, as one number: the target the
    *  draw was handed, then every node the walk reaches folded in the order
    *  it reaches it — the node, its opacity, the device matrix and clip it

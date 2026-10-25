@@ -106,7 +106,7 @@ StyleSheet sheet(const std::vector<Ink>& all) {
                  .fontFamily("Hoefler Text, Baskerville, serif")
                  .font({.language = "en-US"}),
              rule("paragraph")
-                 .width(pct(100))
+                 .width(percent(100))
                  .lineHeight(weave::Leading::multiple(1.32f))
                  .textIndent(1.6_em)
                  .textAlign(weave::TextAlignment::kJustify)

@@ -48,6 +48,27 @@ TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
   EXPECT_EQ(staticRuns, 1);
 }
 
+TEST(ComposeContent, ContentGivenBeforeItsSlotMountsIsShownOnceItMounts) {
+  // A setup may fill a slot and then return the tree that holds it: the
+  // content waits for the slot and is there at the first frame.
+  Host host;
+  host.composer.renderSlot(
+      "x", box().fill(Fill::color({0, 1, 0, 1})).width(80).height(50));
+  host.composer.render(box().children({slot("x").width(80).height(50)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 25), SK_ColorGREEN)
+      << "content given to a slot before its tree mounted was dropped";
+  // Given before a describe that brings a second slot, it waits again.
+  host.composer.renderSlot(
+      "y", box().fill(Fill::color({0, 0, 1, 1})).width(80).height(50));
+  host.frame();
+  host.composer.render(box().children(
+      {slot("x").width(80).height(50), slot("y").width(80).height(50)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 25), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(40, 75), SK_ColorBLUE);
+}
+
 TEST(ComposeContent, EverySpellingOfOneTextDrawsTheSamePixels) {
   // One text type: a `char` literal, a u8 literal, a std::string, a
   // std::u8string and a view of either are the SAME leaf, byte for byte, and

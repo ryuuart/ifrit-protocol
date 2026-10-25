@@ -93,7 +93,7 @@ void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
 
 void perturb(PaintBox& v) { v = PaintBox::Content; }
 
-void perturb(Corners& v) { v.topLeft += 1.0f; }
+void perturb(Corners& v) { v.topLeft = v.topLeft.value + 1.0f; }
 
 void perturb(Dimension& v) { v = Dimension(v.value + 1.0f); }
 
@@ -222,11 +222,14 @@ TEST(ComposeDeclarations, EveryPaintPropsFieldParticipatesInTheStyleCompare) {
   // The paint block is the half of the computed style with a hand-written
   // comparison, so it is walked field by field there as it is here.
   static const char* const kNames[] = {
-      "fill",       "opacity", "blendMode", "fillBox", "translateX",
-      "translateY", "rotate",  "scale",     "scaleX",  "scaleY",
-      "skewX",      "skewY",   "originX",   "originY", "zIndex"};
-  static const bool kParticipates[] = {true, true, true, true, true,
-                                       true, true, true, true, true,
+      "fill",          "opacity",          "blendMode",
+      "fillBox",       "translateX",       "translateY",
+      "translateXLength", "translateYLength", "rotate",
+      "scale",         "scaleX",           "scaleY",
+      "skewX",         "skewY",            "originX",
+      "originY",       "zIndex"};
+  static const bool kParticipates[] = {true, true, true, true, true, true,
+                                       true, true, true, true, true, true,
                                        true, true, true, true, true};
   walkFields<cd::PaintProps>(
       [](const cd::PaintProps& a, const cd::PaintProps& b) {
@@ -244,11 +247,14 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
   // The per-axis scales are the easiest ones to leave out, because the
   // uniform `scale` beside them makes a comparator look complete.
   static const char* const kNames[] = {
-      "fill",       "opacity", "blendMode", "fillBox", "translateX",
-      "translateY", "rotate",  "scale",     "scaleX",  "scaleY",
-      "skewX",      "skewY",   "originX",   "originY", "zIndex"};
-  static const bool kParticipates[] = {true, true, true, true, true,
-                                       true, true, true, true, true,
+      "fill",          "opacity",          "blendMode",
+      "fillBox",       "translateX",       "translateY",
+      "translateXLength", "translateYLength", "rotate",
+      "scale",         "scaleX",           "scaleY",
+      "skewX",         "skewY",            "originX",
+      "originY",       "zIndex"};
+  static const bool kParticipates[] = {true, true, true, true, true, true,
+                                       true, true, true, true, true, true,
                                        true, true, true, true, true};
   walkFields<cd::PaintProps>(
       [](const cd::PaintProps& a, const cd::PaintProps& b) {

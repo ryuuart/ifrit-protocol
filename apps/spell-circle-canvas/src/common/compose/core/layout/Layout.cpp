@@ -499,7 +499,7 @@ void Composer::Impl::applyCustomLayouts(Instance& inst,
       }
       StatedLength stated;
       if (declared.unit == Dimension::Unit::Auto) return stated;
-      if (declared.unit == Dimension::Unit::Pct) {
+      if (declared.unit == Dimension::Unit::Percent) {
         stated.kind = StatedLength::Kind::Fraction;
         stated.value = declared.value * 0.01f;
         return stated;
@@ -695,7 +695,7 @@ void Composer::Impl::applyCustomLayouts(Instance& inst,
       bool relative = false;
       float value = resolveLength(inst, declared, relative);
       YGUnit unit = declared.unit == Dimension::Unit::Auto  ? YGUnitUndefined
-                    : declared.unit == Dimension::Unit::Pct ? YGUnitPercent
+                    : declared.unit == Dimension::Unit::Percent ? YGUnitPercent
                                                             : YGUnitPoint;
       if (content) {
         if (unit == YGUnitPercent) {

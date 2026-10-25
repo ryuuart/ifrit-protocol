@@ -5,3 +5,8 @@
 # reads one.
 sigil_library(SigilMotionTime
   HEADERS Duration.h)
+
+# The CSS time reader, held to each unit, each case and each refusal.
+sigil_test(motion_test
+  SOURCES test/DurationTest.cpp
+  LIBRARIES SigilMotionTime)

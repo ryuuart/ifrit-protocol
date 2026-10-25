@@ -194,8 +194,10 @@ void bindGates(py::module_& composition, py::module_& gates) {
             self.where = std::move(where);
           },
           "The runs of the boundary a spans gate shows. Read as a copy.")
-      .def_readwrite("angleDegrees", &Gate::angleDegrees,
-                     "The direction an edge gate wipes in, in degrees.")
+      .def_property(
+          "angleDegrees", angleGetter(&Gate::angleDegrees),
+          angleSetter<AngleInDegrees>(&Gate::angleDegrees),
+          "The direction an edge gate wipes in, in degrees.")
       .def_property(
           "fraction", [](const Gate& self) { return self.fraction; },
           [](Gate& self, py::object fraction) {
@@ -244,8 +246,9 @@ void bindGates(py::module_& composition, py::module_& gates) {
             "nothing to content or children.");
   gates.def(
       "edge",
-      [](float angleDegrees, py::object fraction) {
-        return compose::by::edge(angleDegrees, motionAnimatable(fraction));
+      [](AngleInDegrees angleDegrees, py::object fraction) {
+        return compose::by::edge(angleDegrees.value,
+                                 motionAnimatable(fraction));
       },
       py::arg("angleDegrees"), py::arg("fraction"),
       "A straight edge at `angleDegrees` across the node's laid-out box, "

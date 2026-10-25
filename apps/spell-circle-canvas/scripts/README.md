@@ -466,15 +466,16 @@ rows. A baseline is therefore per machine
 AND per display mode, and the file records the window size and scale it
 was taken at so a mismatch is visible rather than silently compared.
 
-**The screen has to be unlocked.** The lane asks before the sweep and
-again after it, and refuses either way without touching the baseline. A
-window behind a lock screen is one nothing can see, and the system runs
-an invisible window's work several times slower once it has been that
-way for about half a minute: the first few rows of a sweep read their
-true rate, everything after them reads the slowed one, and no row says
-so. Every sketch measured alone inside that half minute reads what the
-baseline holds, which is what makes such a sweep look like a regression
-in the sketches rather than a measurement taken in the dark.
+**The display has to be awake.** The lane asks before the sweep and
+again after it, and refuses either way without touching the baseline.
+With the main display asleep there is nothing to refresh, and the system
+presents a window's frames at a fraction of the display's rate: a static
+page whose work stays far inside a frame reads well under its rate, and
+no row says so, which makes such a sweep look like a regression in the
+sketches rather than a measurement taken in the dark. A locked screen is
+not the question: behind the lock screen, with the display awake, the
+same page reads the band it reads unlocked, so a sweep may run while the
+machine is locked as long as its display stays on.
 
 **How a timing is taken.** Each benchmark runs `--repetitions` times
 (default 5), every repetition long enough to satisfy `--min-time`

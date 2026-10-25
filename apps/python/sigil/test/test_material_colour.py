@@ -178,7 +178,7 @@ class TheTreeWordsReadWhereAFillIsTaken(unittest.TestCase):
 
         self.assertEqual(stated("12px"), stated(compose.Dimension(12)))
         self.assertEqual(stated("1.5em"), stated(compose.em(1.5)))
-        self.assertEqual(stated("50%"), stated(compose.pct(50)))
+        self.assertEqual(stated("50%"), stated(compose.percent(50)))
         self.assertEqual(stated("#18252e"), stated(Color("#18252e")))
         self.assertEqual(stated("steelblue"), stated(Color("#4682b4")))
         self.assertNotEqual(stated("12px"), stated(Color("black")))

@@ -45,11 +45,23 @@ void bindBrushGeometry(py::module_& module) {
       .def(py::init<brush::PlotType>(),
            py::arg("type") = brush::PlotType::Curve)
       .def("type", &brush::Plot::type)
-      .def("addSegment", &brush::Plot::addSegment, py::arg("angle"),
-           py::arg("length"), py::arg("pressure") = 1.0f)
-      .def("endPlot", &brush::Plot::endPlot, py::arg("angle"),
-           py::arg("pressure") = 1.0f)
-      .def("rotate", &brush::Plot::rotate, py::arg("angle"))
+      .def(
+          "addSegment",
+          [](brush::Plot& plot, AngleInRadians angle, float length,
+             float pressure) { plot.addSegment(angle.value, length, pressure); },
+          py::arg("angle"), py::arg("length"), py::arg("pressure") = 1.0f)
+      .def(
+          "endPlot",
+          [](brush::Plot& plot, AngleInRadians angle, float pressure) {
+            plot.endPlot(angle.value, pressure);
+          },
+          py::arg("angle"), py::arg("pressure") = 1.0f)
+      .def(
+          "rotate",
+          [](brush::Plot& plot, AngleInRadians angle) {
+            plot.rotate(angle.value);
+          },
+          py::arg("angle"))
       .def("length", &brush::Plot::length)
       .def("angle", &brush::Plot::angle, py::arg("distance"))
       .def("pressure", &brush::Plot::pressure, py::arg("distance"))
@@ -93,10 +105,10 @@ void bindBrushGeometry(py::module_& module) {
       .def("plotted", &brush::Position::plotted)
       .def(
           "moveTo",
-          [](brush::Position& position, float heading, float length, float step,
-             py::handle field, float seconds) {
-            return position.moveTo(heading, length, step, direction(field),
-                                   seconds);
+          [](brush::Position& position, AngleInRadians heading, float length,
+             float step, py::handle field, float seconds) {
+            return position.moveTo(heading.value, length, step,
+                                   direction(field), seconds);
           },
           py::arg("direction"), py::arg("length"), py::arg("stepLength") = 1.0f,
           py::arg("field") = py::none(), py::arg("seconds") = 0.0f)

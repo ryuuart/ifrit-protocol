@@ -142,7 +142,7 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
     Dimension d = deref(raw);
     if (unresolvable(d)) d = autoDimension();
     switch (d.unit) {
-      case Dimension::Unit::Pct:
+      case Dimension::Unit::Percent:
         setPct(n, d.value);
         break;
       case Dimension::Unit::Auto:
@@ -164,7 +164,7 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
     Dimension d = deref(raw);
     if (unresolvable(d)) d = autoDimension();
     switch (d.unit) {
-      case Dimension::Unit::Pct:
+      case Dimension::Unit::Percent:
         setPct(n, edge, d.value);
         break;
       case Dimension::Unit::Auto:
@@ -185,7 +185,7 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   {
     Dimension gap = deref(l.gap);
     if (unresolvable(gap)) gap = autoDimension();
-    if (gap.unit == Dimension::Unit::Pct)
+    if (gap.unit == Dimension::Unit::Percent)
       YGNodeStyleSetGapPercent(n, YGGutterAll, gap.value);
     else
       YGNodeStyleSetGap(n, YGGutterAll,
@@ -260,7 +260,7 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
       Dimension d = deref(raw);
       if (unresolvable(d)) d = autoDimension();
       switch (d.unit) {
-        case Dimension::Unit::Pct:
+        case Dimension::Unit::Percent:
           YGNodeStyleSetPositionPercent(n, edge, d.value);
           break;
         case Dimension::Unit::Auto:

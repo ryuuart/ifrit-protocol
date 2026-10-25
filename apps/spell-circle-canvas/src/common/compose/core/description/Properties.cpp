@@ -296,9 +296,11 @@ void copyProperty(Property property, const ComputedStyle& from,
       return;
     case Property::TranslateX:
       paint.translateX = paintSource.translateX;
+      paint.translateXLength = paintSource.translateXLength;
       return;
     case Property::TranslateY:
       paint.translateY = paintSource.translateY;
+      paint.translateYLength = paintSource.translateYLength;
       return;
     case Property::Rotate:
       paint.rotate = paintSource.rotate;
@@ -355,7 +357,7 @@ bool computedStyleEqual(const ComputedStyle& a, const ComputedStyle& b) {
                 "too. A field left out makes a re-fold that MOVED it read "
                 "as one that moved nothing, and the picture recorded from "
                 "the old value replays.");
-  static_assert(kFieldCount<PaintProps> == 15,
+  static_assert(kFieldCount<PaintProps> == 17,
                 "PaintProps gained or lost a field — compare it below.");
   if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
       a.clipContent != b.clipContent)
@@ -367,6 +369,8 @@ bool computedStyleEqual(const ComputedStyle& a, const ComputedStyle& b) {
          pa.blendMode == pb.blendMode && pa.fillBox == pb.fillBox &&
          propertyEqual(pa.translateX, pb.translateX) &&
          propertyEqual(pa.translateY, pb.translateY) &&
+         pa.translateXLength == pb.translateXLength &&
+         pa.translateYLength == pb.translateYLength &&
          propertyEqual(pa.rotate, pb.rotate) &&
          propertyEqual(pa.scale, pb.scale) &&
          propertyEqual(pa.scaleX, pb.scaleX) &&
@@ -581,7 +585,7 @@ void shapeImageBox(const ElementNode& node, LayoutProps& layout) {
   const bool heightOpen = layout.height.unit == Dimension::Unit::Auto;
   if (!widthOpen && !heightOpen) return;
   const auto fallback = [](Dimension& field) {
-    if (field.unit == Dimension::Unit::Auto) field = pct(100);
+    if (field.unit == Dimension::Unit::Auto) field = percent(100);
   };
   if (layout.aspect <= 0.0f) layout.aspect = image.aspect;
   if (image.fit == material::Fit::Contain) {

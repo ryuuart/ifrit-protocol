@@ -705,7 +705,7 @@ TEST(ComposeEffects, APhosphorBloomKeepsWhatALeafPaintsOutsideItsBox) {
             .key("line")
             .textAttach(sigil::weave::selectors::word(0), box()
                                                               .left(0)
-                                                              .top(pct(100))
+                                                              .top(percent(100))
                                                               .marginTop(60)
                                                               .width(40)
                                                               .height(12)

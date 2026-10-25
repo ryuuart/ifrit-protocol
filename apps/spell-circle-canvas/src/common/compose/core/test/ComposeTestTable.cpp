@@ -20,7 +20,7 @@ TEST(ComposeTable, AColumnIsAsWideAsWhatIsInItAndSharesTheSurplus) {
   Table table{.width = 300};
   host.composer.render(box().children(
       {layout(table)
-           .width(pct(100))
+           .width(percent(100))
            .flexGrow(1)
            .children({box().key("a").width(30).height(20).gridCells(0, 0)})
            .children({box().key("b").width(60).height(20).gridCells(1, 0)})
@@ -278,7 +278,7 @@ TEST(ComposeTable, APercentageColumnTakesItsShareOfTheRoomTheTableHas) {
   // <COL WIDTH="30%"> in a <TABLE WIDTH=500>: 150 whatever is in it, and
   // the two columns the markup left alone divide the 350 that is left by
   // the auto rule, in proportion to what they hold.
-  const Table table{.width = 500, .declaredWidths = {pct(30), {}, {}}};
+  const Table table{.width = 500, .declaredWidths = {percent(30), {}, {}}};
   const Table::Grid grid =
       table.solve(given({500, 100}, {{40, 20}, {30, 20}, {90, 20}},
                         {claims(0, 0), claims(1, 0), claims(2, 0)}));
@@ -292,7 +292,7 @@ TEST(ComposeTable, APercentageColumnTakesItsShareOfTheRoomTheTableHas) {
   // outer width: 500 less a 2 px gap at four places and 1 px of padding
   // either side of three columns is 486, and 30 % of that is 145.8.
   const Table spaced{
-      .width = 500, .spacing = 2, .padding = 1, .declaredWidths = {pct(30)}};
+      .width = 500, .spacing = 2, .padding = 1, .declaredWidths = {percent(30)}};
   const Table::Grid inset =
       spaced.solve(given({500, 100}, {{40, 20}, {30, 20}, {90, 20}},
                          {claims(0, 0), claims(1, 0), claims(2, 0)}));
@@ -303,7 +303,7 @@ TEST(ComposeTable, TwoPercentagesShareTheTableAndTheRestTakesWhatIsLeft) {
   // A quarter and a half of a 400-wide table, with one auto column
   // beside them: the stated pair take 100 and 200 and stand out of the
   // division, and the last column has the remaining 100 to itself.
-  const Table table{.width = 400, .declaredWidths = {pct(25), pct(50), {}}};
+  const Table table{.width = 400, .declaredWidths = {percent(25), percent(50), {}}};
   const Table::Grid grid =
       table.solve(given({400, 100}, {{20, 20}, {20, 20}, {40, 20}},
                         {claims(0, 0), claims(1, 0), claims(2, 0)}));
@@ -319,7 +319,7 @@ TEST(ComposeTable, APercentageTheContentWillNotFitIsWidenedByTheContent) {
   // narrower than the narrowest thing in it, whatever the markup asked
   // for, so it resolves 80 — the rule a stated pixel width falls under —
   // and the column beside it takes the whole 420 that is left.
-  const Table table{.width = 500, .declaredWidths = {pct(10), {}}};
+  const Table table{.width = 500, .declaredWidths = {percent(10), {}}};
   const Table::Grid grid = table.solve(
       given({500, 100}, {{80, 20}, {60, 20}}, {claims(0, 0), claims(1, 0)}));
   ASSERT_EQ(grid.columnWidths.size(), 2u);

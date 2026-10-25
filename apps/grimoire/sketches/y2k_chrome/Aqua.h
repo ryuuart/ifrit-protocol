@@ -111,7 +111,7 @@ inline material::Material aquaGel(material::Color tint, float height,
     material::Color band = aquaTopBand(tint);
     band.a *= options.topBand;
     effects = effects.then(material::Filter::shadow(
-        band, {.blur = h * 0.12f, .offset = {0, h * 0.06f}, .inside = true}));
+        band, {.blur = h * 0.12f, .offset = {0, h * 0.06f}, .inset = true}));
   }
   effects = effects.then(
       material::Filter::bevel({.depth = 0.85f,

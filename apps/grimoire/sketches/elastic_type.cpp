@@ -349,7 +349,7 @@ const std::array<Lane, 3> kLanes{{
 
 /** A keyframe offset as a stylesheet writes it: whole percents where the
  *  table has them, one decimal where it does not. */
-std::string percent(double at) {
+std::string keyframePercent(double at) {
   const double value = at * 100.0;
   return std::abs(value - std::round(value)) < 0.05
              ? kit::formatted("%.0f%%", value)
@@ -420,7 +420,7 @@ Element lanePanel(const Lane& lane) {
                                         .gap = 5.0f,
                                         .tickLine =
                                             [](double at) {
-                                              return text(percent(at))
+                                              return text(keyframePercent(at))
                                                   .styleClass("offset");
                                             }})})
                     .inset(0)}),
@@ -463,10 +463,10 @@ Element relief(std::string_view word, const std::string& key,
                .top(0)
                .textAttach(sigil::weave::Selector{}, box()
                                                          .styleClass("floor")
-                                                         .left(pct(-6))
-                                                         .top(pct(70))
-                                                         .width(pct(112))
-                                                         .height(pct(36))),
+                                                         .left(percent(-6))
+                                                         .top(percent(70))
+                                                         .width(percent(112))
+                                                         .height(percent(36))),
            moving().key(key).absolute().left(0).top(0)});
 }
 
@@ -534,7 +534,7 @@ StyleSheet sheet() {
       rule(".x").ink(var("x")),
       rule(".y").ink(var("y")),
       rule(".frame")
-          .width(pct(100))
+          .width(percent(100))
           .height(kPlotHeight)
           .stroke(stroke(1, Fill::var("faint"))),
       // A number is knocked out of the hairline it names.

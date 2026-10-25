@@ -15,7 +15,7 @@ Benchmark's JSON reporter and takes the median real time of each
 benchmark. The `fps` lane presents each sketch in the real window through
 Grimoire's `--window-bench` and takes the presented frame rate. They
 measure different things — the frame-time gate cannot see the host's own
-overhead, and the window lane needs an unlocked screen and exclusive use
+overhead, and the window lane needs an awake display and exclusive use
 of the machine — so they stay two lanes rather than one command; what they share
 is the whole of what happens to a number after it is taken.
 
@@ -329,45 +329,35 @@ def parse_window_lines(text):
     return rows, skipped
 
 
-def screen_is_locked():
-    """Whether the login window is covering this machine's screen.
+def display_is_asleep():
+    """Whether the main display is asleep.
 
-    A window nothing can see is not a window this lane can measure: the
-    system leaves an application about half a minute of full speed after
-    its window stops being visible and then runs the work behind it
-    several times slower, so a sweep longer than that reads the slowed
-    rate for every sketch after the first few and nothing on the rows
-    says why. Read off the console session rather than off any window, so
-    the answer is the same before the binary starts and after it exits.
+    A window on a sleeping display is not a window this lane can measure:
+    with nothing to refresh, the system presents its frames at a fraction
+    of the display's rate, so a page whose work stays far inside a frame
+    reads well under its rate and nothing on the rows says why. A locked
+    screen is not the question: behind the lock screen, with the display
+    awake, a page reads the rate it reads unlocked. Asked of the window
+    server rather than of any window, so the answer is the same before
+    the binary starts and after it exits.
 
     None where the question cannot be asked — another platform, or a
-    machine whose session does not say — which is not an unlocked screen
-    and is not treated as one.
+    machine whose window server does not answer — which is not an awake
+    display and is not treated as one.
     """
     if sys.platform != "darwin":
         return None
     try:
-        session = subprocess.run(
-            "ioreg -n Root -d1 -a | plutil -convert json -o - -",
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        root = json.loads(session.stdout)
-    except (OSError, ValueError, subprocess.SubprocessError):
+        import ctypes
+        import ctypes.util
+
+        graphics = ctypes.CDLL(ctypes.util.find_library("CoreGraphics"))
+        graphics.CGMainDisplayID.restype = ctypes.c_uint32
+        graphics.CGDisplayIsAsleep.restype = ctypes.c_bool
+        graphics.CGDisplayIsAsleep.argtypes = [ctypes.c_uint32]
+        return bool(graphics.CGDisplayIsAsleep(graphics.CGMainDisplayID()))
+    except (OSError, AttributeError, TypeError):
         return None
-
-    def locked(node):
-        if isinstance(node, dict):
-            if "CGSSessionScreenIsLocked" in node:
-                return bool(node["CGSSessionScreenIsLocked"])
-            return any(locked(value) for value in node.values())
-        if isinstance(node, list):
-            return any(locked(value) for value in node)
-        return False
-
-    return locked(root)
 
 
 def run_window(binary, args):
@@ -404,13 +394,13 @@ def fps_lane(args) -> int:
     binary = str(tree.grimoire(args.config))
     baseline_path = str(tree.PROJECT_DIR / "bench" / f"app_fps_{args.config}.json")
 
-    if screen_is_locked():
+    if display_is_asleep():
         print(
-            "the screen is locked, and a rate presented behind a lock "
-            "screen is not this sketch's rate: the system runs an "
-            "invisible window's work several times slower after the first "
-            "half minute, which reads as every sketch but the first few "
-            "having become slow. Unlock the screen and run it again."
+            "the display is asleep, and a rate presented on a sleeping "
+            "display is not this sketch's rate: with nothing to refresh, the "
+            "system presents a window's frames at a fraction of the "
+            "display's rate, so even a page with almost no work reads well "
+            "under it. Wake the display and run it again."
         )
         return 1
 
@@ -420,14 +410,14 @@ def fps_lane(args) -> int:
     )
     output, error = run_window(binary, args)
     rows, skipped = parse_window_lines(output)
-    # ASKED AGAIN AFTERWARDS: a screen that locks partway through a sweep
-    # slows everything from that moment on, and the rows already taken say
-    # nothing about it.
-    if screen_is_locked():
+    # ASKED AGAIN AFTERWARDS: a display that sleeps partway through a
+    # sweep slows everything from that moment on, and the rows already
+    # taken say nothing about it.
+    if display_is_asleep():
         print(
-            "the screen locked while the sweep was running; every row "
-            "after that moment is the rate of a window nothing could see. "
-            "The baseline is untouched."
+            "the display went to sleep while the sweep was running; every "
+            "row after that moment is the rate of a window on a sleeping "
+            "display. The baseline is untouched."
         )
         return 1
     if error:

@@ -116,7 +116,10 @@ stand below every rule, a rule for a class stands over a rule for a role by its
 weight, rules of one weight fall to the nearer and later sheet and then to the
 later rule, and every rule loses to the node's own `font()` or `paragraph()`,
 so `styleClass("cell").font({.color = c})` is the cell class in this cell's
-colour. A class no rule in force names warns once and sets nothing. A run of a
+colour. A class no rule in force names, and no operator in the tree picks its
+nodes by (an operator says which classes it reads through
+`ReadsStyleClasses`, as `outline::Hull` does), warns once and sets
+nothing. A run of a
 `weave::rich()` value written with a name resolves the same way when the leaf
 is shaped, as a virtual child of the leaf whose class is the name, unless the
 value names a `weave::TypeSheet` of its own. `weave::rich()` started with no
@@ -156,9 +159,11 @@ against it. Where the root states no size, the size
 `Composer::setInherited` gave it decides, and 16 px where neither does; a
 rem in the root's own `fontSize` measures against that inherited size.
 The padding, the margin and the gap take a `Dimension`, and a bare number
-is still pixels. Beside the font's units are the CANVAS's: `50_pct` is half
-the parent's box, which is Yoga's own percent, while `50_pw` and `50_ph` are
-half the width and half the height of the canvas the composer renders into,
+is still pixels. Beside the font's units are the CANVAS's: `50_percent` is half
+the parent's box, which is Yoga's own percent, while `50_vw` and `50_vh` are
+half the width and half the height of the canvas the composer renders into —
+the viewport, as CSS names it, with `vmin` and `vmax` its smaller and larger
+side —
 however many boxes deep the node is written — resolved into pixels in the
 same pass that resolves an em, because a percentage of something that is not
 the containing block is not a thing Yoga can express.

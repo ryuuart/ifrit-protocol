@@ -51,6 +51,9 @@ void LonghandFold::state(const sigil::weave::Type* font,
       m_indent.reset();
       m_indentPercent.reset();
     }
+    if (block->keywords.find(sigil::weave::ParagraphField::Leading) ||
+        block->leading)
+      m_lineHeight.reset();
   }
   if (said == nullptr) return;
   // The verbs keep a family and a face, an italic and a lean, an indent in
@@ -66,6 +69,7 @@ void LonghandFold::state(const sigil::weave::Type* font,
     m_indent = said->textIndent;
     m_indentPercent.reset();
   }
+  if (said->lineHeight) m_lineHeight = said->lineHeight;
 }
 
 void LonghandFold::fontKeyword(bool fromParent) {
@@ -77,6 +81,7 @@ void LonghandFold::fontKeyword(bool fromParent) {
 
 void LonghandFold::paragraphKeyword(bool fromParent) {
   m_indent.reset();
+  m_lineHeight.reset();
   m_indentPercent = fromParent ? m_parentIndentPercent : std::nullopt;
 }
 

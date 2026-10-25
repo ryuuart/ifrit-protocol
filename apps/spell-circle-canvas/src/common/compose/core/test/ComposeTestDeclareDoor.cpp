@@ -275,7 +275,7 @@ void writeThroughWriter(cd::ElementNode& node, Property property, bool moved) {
       fields.skewY() = turn;
       return;
     case Property::TransformOrigin:
-      fields.transformOrigin().x = moved ? Dimension(4.0f) : pct(50.0f);
+      fields.transformOrigin().x = moved ? Dimension(4.0f) : percent(50.0f);
       return;
     case Property::RotateX:
       node.rotateX() = turn;
@@ -293,7 +293,7 @@ void writeThroughWriter(cd::ElementNode& node, Property property, bool moved) {
       node.perspective() = turn;
       return;
     case Property::PerspectiveOrigin:
-      node.perspectiveOrigin().x = moved ? Dimension(4.0f) : pct(50.0f);
+      node.perspectiveOrigin().x = moved ? Dimension(4.0f) : percent(50.0f);
       return;
     case Property::TransformOriginZ:
       if (moved)

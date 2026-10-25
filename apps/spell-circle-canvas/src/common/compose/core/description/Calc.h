@@ -16,7 +16,7 @@
 namespace sigil::compose::detail {
 
 /** A SUM OF LENGTHS IN SEVERAL UNITS: pixels (points already counted in
- *  them), a percentage, the four font units, the two canvas units, and
+ *  them), a percentage, the four font units, the four viewport units, and
  *  custom properties by id, each with its coefficient.
  *
  *  THE PERCENTAGE IS THE CONSUMER'S. Everything else resolves where the
@@ -27,13 +27,15 @@ namespace sigil::compose::detail {
  *  consumer adds it against its own extent. */
 struct CalcLength {
   float px = 0.0f;
-  float pct = 0.0f;
+  float percent = 0.0f;
   float em = 0.0f;
   float rem = 0.0f;
   float lh = 0.0f;
   float ch = 0.0f;
-  float pw = 0.0f;
-  float ph = 0.0f;
+  float vw = 0.0f;
+  float vh = 0.0f;
+  float vmin = 0.0f;
+  float vmax = 0.0f;
   /** Property id and coefficient, ordered by id, none twice. */
   std::vector<std::pair<uint32_t, float>> vars;
 

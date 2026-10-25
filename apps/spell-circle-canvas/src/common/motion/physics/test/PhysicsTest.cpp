@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <vector>
@@ -180,6 +181,40 @@ TEST(Physics, APinIsWhereTheCallerPutsItThisFrame) {
   EXPECT_EQ(points.position[0], (glm::vec2{60, 5}));
 }
 
+TEST(Physics, AFlockUnderTheDefaultWeightsKeepsItsBirdsApart) {
+  // The three steerings are distances, so the default weights are
+  // comparable: once the flock has settled, separation holds every pair
+  // apart by a share of the reach while cohesion holds the birds
+  // together. Weights in incomparable units let cohesion win and
+  // settled pairs nearly touching.
+  constexpr float kReach = 46.0f;
+  const Verlet stepper{.timeStep = 1s / 60.0, .iterations = 1};
+  const std::vector<Force> forces{boids({}, kReach), drag(0.4f)};
+  Points points;
+  for (int i = 0; i < 60; ++i) {
+    const float angle = (float)i * 2.39996f;
+    const float radius = 9.0f * std::sqrt((float)i + 0.5f);
+    points.add({std::cos(angle) * radius, std::sin(angle) * radius},
+               {std::cos(angle * 3.0f) * 60.0f, std::sin(angle * 3.0f) * 60.0f});
+  }
+  for (int frame = 0; frame < 360; ++frame) stepper.step(points, forces);
+  float nearest = std::numeric_limits<float>::max();
+  for (size_t i = 0; i < points.size(); ++i)
+    for (size_t j = i + 1; j < points.size(); ++j)
+      nearest = std::min(nearest,
+                         glm::length(points.position[i] - points.position[j]));
+  EXPECT_GT(nearest, 0.15f * kReach);
+  // Two birds alone settle where separation's push out of the reach,
+  // (reach - d) reach / d, weighed against cohesion's pull d, balances:
+  // at one and a half to one, 0.686 of the reach.
+  Points pair;
+  pair.add({0, 0});
+  pair.add({10, 0});
+  for (int frame = 0; frame < 1800; ++frame) stepper.step(pair, forces);
+  EXPECT_NEAR(glm::length(pair.position[1] - pair.position[0]),
+              0.686f * kReach, 0.03f * kReach);
+}
+
 TEST(Physics, AFlockKeepsEveryBirdAndStaysWhereItCanBeDrawn) {
   const Verlet stepper{.timeStep = 1s / 60.0, .damping = 0.5f, .iterations = 1};
   const std::vector<Force> forces{
@@ -208,10 +243,19 @@ TEST(Physics, AFlockKeepsEveryBirdAndStaysWhereItCanBeDrawn) {
     EXPECT_TRUE(std::isfinite(points.position[i].y));
     spreadAfter = std::max(spreadAfter, glm::length(points.position[i]));
   }
-  // Cohesion beat separation over that many frames, so the flock is
-  // together rather than scattered — which is the one thing the three
-  // weights are read for.
-  EXPECT_LT(spreadAfter, spreadBefore);
+  // Separation leads, so the crowded ring opens out — and cohesion holds
+  // it a flock rather than a scatter: every bird still has a neighbour
+  // within reach, and the whole stays within a few rings of where it
+  // began.
+  EXPECT_LT(spreadAfter, 4.0f * spreadBefore);
+  for (size_t i = 0; i < points.size(); ++i) {
+    float nearest = std::numeric_limits<float>::max();
+    for (size_t j = 0; j < points.size(); ++j)
+      if (j != i)
+        nearest = std::min(
+            nearest, glm::length(points.position[i] - points.position[j]));
+    EXPECT_LE(nearest, 60.0f) << "bird " << i << " lost its flock";
+  }
 
   // And no two of them are sitting on each other, which is what
   // separation is there to prevent.

@@ -71,7 +71,7 @@ SHEET = StyleSheet(
         rule(".specimen")
         .fontFamily("Hoefler Text, Baskerville, serif")
         .ink(var("paper")),
-        rule(".passage").fontSize(29).lineHeight(Leading.absolute(39)),
+        rule(".passage").fontSize(29).lineHeight("39px"),
         rule(".by-sheet .signal").fontStyle(FontStyle.Italic).ink(var("teal")),
         rule(".mark").borderRadius(12).fill(var("orange")),
         rule(".mark > *").absolute().inset(7).borderRadius(5).fill(var("ink")),

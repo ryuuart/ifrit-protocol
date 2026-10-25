@@ -300,7 +300,7 @@ struct ChannelBind {
             kBladeAt, kFloor - kBladeTall, kBladeAt + kBladeWide, kFloor)))
         .fill(compose::Fill::color(look.palette.figure))
         .borderRadius(4)
-        .transformOrigin(compose::pct(50), compose::pct(100))
+        .transformOrigin(compose::percent(50), compose::percent(100))
         .scaleY(rise());
   }
 
@@ -319,7 +319,10 @@ struct ChannelBind {
             .fill(material::conicGradient(
                 sigil::geometry::path::fromSk(
                     SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}),
-                hues(), {.units = material::GradientUnits::Pixels}))
+                hues(),
+                {.units = material::GradientUnits::Pixels,
+                 .startDegrees = 90,
+                 .endDegrees = 450}))
             .rotate(turn()));
     // The hub, which turns the disc into a ring, and the pointer the ring
     // is read against. Neither is bound: a pointer that moved with the
@@ -352,7 +355,7 @@ struct ChannelBind {
             .rect(sigil::geometry::path::fromSk(
                 SkRect::MakeLTRB(kPlumbAt, kPlumbTop, kPlumbAt + kPlumbWide,
                                  kPlumbTop + kPlumbLong)))
-            .transformOrigin(compose::pct(50), compose::pct(0))
+            .transformOrigin(compose::percent(50), compose::percent(0))
             .rotate(swing())
             .children(
                 {compose::box()

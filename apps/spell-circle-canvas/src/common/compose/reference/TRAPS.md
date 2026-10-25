@@ -40,7 +40,8 @@ point the author typed, not a geometry source.)
   painted or not.** A keyed full-bleed layout shell with no fill therefore
   swallows every hit in the frame, and the failure is total and silent.
   The opt-out is `Element::hitTestable(false)`, which excludes the node's
-  own box while still testing its children.
+  own box and its keyless contents while still testing its keyed
+  descendants.
 - **Skia's native lattice and atlas draws are not implemented on
   Graphite** in this Skia — they draw nothing. Worse, one recorded on a
   raster canvas still vanishes when the recording replays on Graphite, so

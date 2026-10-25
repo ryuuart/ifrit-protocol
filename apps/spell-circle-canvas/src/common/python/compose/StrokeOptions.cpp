@@ -6,6 +6,7 @@
 #include <sigilcompose/core/Text.h>
 #include <sigilcompose/core/verbs/Decoration.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/compose/Convert.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Registration.h>
 
@@ -53,7 +54,13 @@ void bindComposeStrokeOptions(py::module_& module) {
       "join its corners meet with, and how long a mitred corner may grow, "
       "in widths, before it is bevelled. The relief and the brushing it "
       "wears are its material's.";
-  options.def_readwrite("width", &compose::StrokeOptions::width)
+  options
+      .def_property(
+          "width",
+          [](const compose::StrokeOptions& self) { return self.width; },
+          [](compose::StrokeOptions& self, py::object value) {
+            self.width = pixels(value, "A stroke's width");
+          })
       .def_readwrite("position", &compose::StrokeOptions::position)
       .def_readwrite("cap", &compose::StrokeOptions::cap)
       .def_readwrite("join", &compose::StrokeOptions::join)

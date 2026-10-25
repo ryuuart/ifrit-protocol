@@ -115,7 +115,8 @@ void bindContext(py::module_& module) {
           py::arg("color"))
       .def(
           "captureAt",
-          [](const Context& ctx, double seconds) {
+          [](const Context& ctx, sigil::motion::Duration moment) {
+            const double seconds = moment.count();
             if (!std::isfinite(seconds) || seconds < 0)
               throw py::value_error(
                   "Capture time must be finite and nonnegative");
@@ -229,6 +230,22 @@ void bindContext(py::module_& module) {
           "drawn at, so the bake lands on the device's pixels. Paint it "
           "stretched over size. at is the moment of the bake on the baked "
           "scene's own clock.")
+      .def(
+          "texture",
+          [](const Context& ctx, const compose::Element& tree,
+             std::array<int, 2> size, material::Color background) {
+            if (size[0] <= 0 || size[1] <= 0)
+              throw py::value_error("A texture's size must be positive");
+            return ctx.state()->context().texture(
+                tree, {size[0], size[1]}, background);
+          },
+          py::arg("tree"), py::arg("size"),
+          py::arg("background") = material::Color{0, 0, 0, 0},
+          "The tree painted once at size pixels over background, or the "
+          "texture an equal tree, size and background were already painted "
+          "as this session: a map a material reads, painted the first time "
+          "it is asked for. A tree holding a paint program equals only "
+          "itself.")
       .def(
           "page",
           [](const Context& ctx, std::array<int, 2> size,

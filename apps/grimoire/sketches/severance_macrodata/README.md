@@ -146,7 +146,7 @@ than a bitmap mockup.
 
 The layout overflow method accepts the exported `Overflow.Clip` enum.
 Passing `"clip"` raises an argument-type error, while the neighboring
-`alignItems("center")` and `justifyContent("space_between")` categorical
+`alignItems("center")` and `justifyContent("space-between")` categorical
 forms work in a live-host probe. Consistent string convenience would
 reduce interruptions while authoring. This is an API request, not a
 rendering defect; a regression should compare both forms and reject an

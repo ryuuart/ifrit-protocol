@@ -10,6 +10,7 @@
 #include <pybind11/stl.h>
 #include <sigilcompose/core/Operator.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Operators.h>
 #include <sigilpython/compose/Registration.h>
@@ -112,8 +113,8 @@ void bindArrangement(py::module_& composition) {
       .def_property(
           "turnDegrees",
           [](const ArrangementChild& self) { return self.get().turnDegrees; },
-          [](const ArrangementChild& self, float degrees) {
-            self.get().turn(degrees);
+          [](const ArrangementChild& self, AngleInDegrees degrees) {
+            self.get().turn(degrees.value);
           })
       .def(
           "attribute",
@@ -144,8 +145,8 @@ void bindArrangement(py::module_& composition) {
           py::arg("centre"), "Centres the child's measured size on a point.")
       .def(
           "turn",
-          [](const ArrangementChild& self, float degrees) {
-            self.get().turn(degrees);
+          [](const ArrangementChild& self, AngleInDegrees degrees) {
+            self.get().turn(degrees.value);
           },
           py::arg("degrees"),
           "Turns the child this many degrees clockwise about its own "

@@ -232,16 +232,40 @@ struct Pivot {
   }
 };
 
+/** Whether a corner radius this node declares is measured against the
+ *  font in force or read from a custom property. */
+inline bool cornersFollowCascade(const Corners& corners) {
+  for (const Dimension* radius : {&corners.topLeft, &corners.topRight,
+                                  &corners.bottomRight, &corners.bottomLeft})
+    if (radius->relative() && radius->unit != Dimension::Unit::Vw &&
+        radius->unit != Dimension::Unit::Vh &&
+        radius->unit != Dimension::Unit::Vmin &&
+        radius->unit != Dimension::Unit::Vmax)
+      return true;
+  return false;
+}
+
+/** Whether a corner radius this node declares is measured against the
+ *  CANVAS, wholly or in part. */
+inline bool cornersFollowCanvas(const Corners& corners) {
+  return readsCanvas(corners.topLeft) || readsCanvas(corners.topRight) ||
+         readsCanvas(corners.bottomRight) || readsCanvas(corners.bottomLeft);
+}
+
 /** Whether an origin this node declares is measured against the font in
  *  force or read from a custom property, so a change in either moves the
  *  node's matrix under recordings that hold the one it had. */
 inline bool originsFollowCascade(StyledNode styled) {
+  if (cornersFollowCascade(styled.style.corners)) return true;
   const auto follows = [](const Dimension& d) {
-    return d.relative() && d.unit != Dimension::Unit::Pw &&
-           d.unit != Dimension::Unit::Ph;
+    return d.relative() && d.unit != Dimension::Unit::Vw &&
+           d.unit != Dimension::Unit::Vh && d.unit != Dimension::Unit::Vmin &&
+           d.unit != Dimension::Unit::Vmax;
   };
   if (follows(styled.style.paint.originX) ||
-      follows(styled.style.paint.originY))
+      follows(styled.style.paint.originY) ||
+      follows(styled.style.paint.translateXLength) ||
+      follows(styled.style.paint.translateYLength))
     return true;
   if (!styled.node.depthData) return false;
   const DepthData& depth = *styled.node.depthData;
@@ -252,9 +276,12 @@ inline bool originsFollowCascade(StyledNode styled) {
 /** Whether an origin this node declares is measured against the CANVAS,
  *  which only a canvas that changes size moves. */
 inline bool originsFollowCanvas(StyledNode styled) {
+  if (cornersFollowCanvas(styled.style.corners)) return true;
   const auto follows = [](const Dimension& d) { return readsCanvas(d); };
   if (follows(styled.style.paint.originX) ||
-      follows(styled.style.paint.originY))
+      follows(styled.style.paint.originY) ||
+      follows(styled.style.paint.translateXLength) ||
+      follows(styled.style.paint.translateYLength))
     return true;
   if (!styled.node.depthData) return false;
   const DepthData& depth = *styled.node.depthData;
@@ -262,15 +289,6 @@ inline bool originsFollowCanvas(StyledNode styled) {
          follows(depth.perspectiveOriginY);
 }
 
-inline SkRRect cornersRRect(const SkRect& bounds, const Corners& c) {
-  const SkVector radii[4] = {{c.topLeft, c.topLeft},
-                             {c.topRight, c.topRight},
-                             {c.bottomRight, c.bottomRight},
-                             {c.bottomLeft, c.bottomLeft}};
-  SkRRect rrect;
-  rrect.setRectRadii(bounds, radii);
-  return rrect;
-}
 
 // Yoga's measure and baseline callbacks for a text leaf, installed on its
 // YGNode when the leaf is reconciled.

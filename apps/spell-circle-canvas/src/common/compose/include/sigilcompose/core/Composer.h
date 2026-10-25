@@ -161,7 +161,10 @@ class Composer {
    *  of the tree is untouched — which is the point: two data domains
    *  changing at different rates do not invalidate each other.
    *
-   *  A name that matches no slot leaves the tree unchanged and warns once. */
+   *  A name that matches no slot in the mounted tree keeps the content
+   *  and mounts it when a described tree brings the slot, so a setup may
+   *  fill a slot before it returns the tree that holds it; a describe or
+   *  a draw while the slot is still missing warns once per name. */
   void renderSlot(std::string_view name, const Element& content);
 
   /** Content or layout changed since the last draw(). For a redraw gate
@@ -220,6 +223,27 @@ class Composer {
   void setGroundHeld(bool held);
   /** Whether the ground is held. */
   bool groundHeld() const;
+
+  /** WHETHER THE DRAWS ARE WATCHED LIVE: @p live says every draw is a
+   *  frame a person watches as it runs, as a window's are, and not a
+   *  capture whose pixels are compared. A node whose own transform moves
+   *  from one draw to the next while everything it paints holds still in
+   *  its own frame is then painted once into pixels held on the device at
+   *  the scale it is shown at, and each draw composites those pixels under
+   *  the node's new matrix, as a browser's compositor turns a layer: text,
+   *  shadows and materials inside it are not painted again for a motion
+   *  that only moves them. The pixels are formed again when what the node
+   *  paints changes, or when it is shown larger than they were formed for;
+   *  the first draw it holds still, it is painted live again and the pixels
+   *  go. A paint anchored to the root (`material::Paint::worldSpace`)
+   *  inside such a node turns with the node while it moves.
+   *
+   *  Off by default, which a capture leaves it: every node is painted live
+   *  under every matrix, so a still is the same pixels however the frames
+   *  before it moved. */
+  void setLive(bool live);
+  /** Whether the draws are watched live. */
+  bool live() const;
 
   /** Drops every per-node cache (auto pictures, Cache::Texture bakes,
    *  held live-material shaders) and marks the tree for a full repaint.
@@ -406,6 +430,9 @@ class Composer {
      *  subset. */
     size_t picturesRecorded = 0;
     size_t texturesBaked = 0;  ///< of those, bakes rather than recordings
+    /** Nodes composited last draw from the pixels held while their own
+     *  transform moves (`setLive`): each one a single image draw. */
+    size_t nodesHeldWhileMoving = 0;
     size_t nodesPainted = 0;   ///< instances painted live last draw()
     /** Backdrop filters run last draw(): a backdrop whose held pixels
      *  were copied back is not counted (`setGroundHeld`). */
@@ -465,6 +492,10 @@ class Composer {
      *  different — a Texture node is provably static, a Group node is
      *  provably NOT CHANGING RIGHT NOW, and the difference is one frame. */
     Group,
+    /** Blitted the pixels held while the node's own transform moves
+     *  (`setLive`): formed once and turned under every new matrix, and
+     *  painted live again the draw the node holds still. */
+    Moving,
   };
   /** One node's share of the last frame and how it produced its pixels.
    *  This is the per-node companion to Stats: Stats says the tree is

@@ -260,3 +260,90 @@ static void BM_Draw_HeldTexture_SubtreeScaling(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_HeldTexture_SubtreeScaling)
     ->Apply(sigil::compose::bench::nodeLadder);
+
+// ---- A lettered ring turning, painted live and held while it moves ---------
+//
+// Twenty-four words set round a ring that turns a little every draw, the
+// shape of an instrument's rete. Painted live, every glyph meets a new
+// matrix each draw and is rasterised again; under a live composer the ring
+// is painted once and its pixels turned. Arg 0 paints live, Arg 1 is the
+// live composer.
+
+namespace {
+
+Element letteredRing(const sigil::motion::Animatable<float>& turn) {
+  constexpr float kSide = 600;
+  Element ring = box()
+                     .absolute()
+                     .left(100)
+                     .top(100)
+                     .width(kSide)
+                     .height(kSide)
+                     .transformOrigin(percent(50), percent(50))
+                     .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
+                     .fill(Fill::color({0.55f, 0.45f, 0.25f, 1}))
+                     .borderRadius({kSide / 2});
+  std::vector<Element> words;
+  for (int index = 0; index < 24; ++index)
+    words.push_back(text("ALDEBARAN")
+                        .absolute()
+                        .left(kSide / 2 - 40)
+                        .top(10)
+                        .width(80)
+                        .transformOrigin(percent(50), Dimension(kSide / 2 - 10))
+                        .rotate((float)index * 15.0f));
+  ring.children(std::move(words));
+  return box().width(800).height(800).children({std::move(ring)});
+}
+
+template <typename Draw>
+void letteredRingArm(benchmark::State& state, Host& host, Draw&& draw) {
+  const bool live = state.range(0) == 1;
+  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
+  host.composer.setLive(live);
+  host.composer.render(letteredRing(turn));
+  draw();
+  float at = 0;
+  size_t held = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    turn = (at += 0.0005f);
+    draw();
+    held += host.composer.stats().nodesHeldWhileMoving;
+  }
+  state.counters["live"] = live ? 1 : 0;
+  state.counters["held_per_draw"] =
+      state.iterations() ? (double)held / (double)state.iterations() : 0;
+}
+
+}  // namespace
+
+static void BM_Draw_LetteredRing_Turning(benchmark::State& state) {
+  Host host(800, 800);
+  letteredRingArm(state, host, [&] { host.draw(); });
+}
+BENCHMARK(BM_Draw_LetteredRing_Turning)
+    ->Arg(0)
+    ->Arg(1)
+    ->Unit(benchmark::kMillisecond);
+
+#ifdef SIGIL_BENCH_GPU
+
+/** The same ring on Graphite, where a glyph under a new matrix is a new
+ *  strike rasterised on the processor and uploaded, and the held ring is
+ *  one image draw: each draw is waited for, so the number is what the draw
+ *  cost the device as well as the recorder. */
+static void BM_Draw_LetteredRing_Turning_Graphite(benchmark::State& state) {
+  sigil::compose::bench::GraphiteTarget target(state, 800, 800);
+  if (!target.ok()) return;
+  Host host(800, 800);
+  letteredRingArm(state, host, [&] {
+    host.composer.draw(target.canvas());
+    target.submitSynced();
+  });
+}
+BENCHMARK(BM_Draw_LetteredRing_Turning_Graphite)
+    ->Arg(0)
+    ->Arg(1)
+    ->Unit(benchmark::kMillisecond);
+
+#endif  // SIGIL_BENCH_GPU

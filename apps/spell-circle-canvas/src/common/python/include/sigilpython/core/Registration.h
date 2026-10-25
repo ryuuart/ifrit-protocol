@@ -16,6 +16,10 @@ namespace sigil::python {
 /** Registers the kernel values every binding is written in terms of on
  *  @p module. */
 void bindCore(pybind11::module_& module);
+/** Registers the angle that names its own measure, its four
+ *  constructors and its text reader on @p module, ahead of every
+ *  signature an angle slot is written in. */
+void bindCoreAngle(pybind11::module_& module);
 /** Registers which optional native libraries this build carries on @p
  *  module. */
 void bindOptionalLibraries(pybind11::module_& module);

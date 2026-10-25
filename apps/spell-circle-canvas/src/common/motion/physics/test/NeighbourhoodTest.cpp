@@ -231,11 +231,18 @@ TEST(Neighbourhood, AFlockSteersOnTheSameSumTheWalkOverEveryPairMakes) {
       ++neighbours;
       heading += walked.velocity[j];
       centre += walked.position[j];
-      away -= offset * (1.0f / distanceSquared);
+      const float distance = std::sqrt(distanceSquared);
+      away -= offset * ((reach - distance) * reach / distanceSquared);
     }
     if (neighbours == 0) continue;
     const float share = 1.0f / (float)neighbours;
-    const glm::vec2 alignment = heading * share - walked.velocity[i];
+    away *= share;
+    const glm::vec2 meanHeading = heading * share;
+    const float pace = std::max(glm::length(meanHeading),
+                                glm::length(walked.velocity[i]));
+    const glm::vec2 alignment =
+        pace > 0.0f ? (meanHeading - walked.velocity[i]) * (reach / pace)
+                    : glm::vec2{};
     const glm::vec2 cohesion = centre * share - walked.position[i];
     walked.force[i] +=
         (away * weights.separation + alignment * weights.alignment +

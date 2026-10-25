@@ -37,6 +37,71 @@ enum class GradientUnits : uint8_t { Box, Pixels };
 enum class RadialExtent : uint8_t {
   FarthestCorner,  ///< a radius of 1 reaches the box's corners
   ClosestSide,     ///< a radius of 1 reaches the middle of each side
+  ClosestCorner,   ///< from the box's centre, the same reach as FarthestCorner
+  FarthestSide,    ///< from the box's centre, the same reach as ClosestSide
+};
+
+/** WHAT A RADIAL GRADIENT'S ENDING SHAPE IS, as CSS's `circle` and
+ *  `ellipse` name it: an ellipse is stretched to the box's proportions, a
+ *  circle keeps its radius the same in both directions whatever the box
+ *  is. */
+enum class RadialShape : uint8_t { Ellipse, Circle };
+
+/** A SIDE OR A CORNER OF THE BOX, the way CSS's `to right` or `to top
+ *  left` names where a linear gradient runs. Toward a corner, the
+ *  gradient's middle runs through the two other corners, whatever the
+ *  box's proportions. */
+enum class Toward : uint8_t {
+  Top,
+  TopRight,
+  Right,
+  BottomRight,
+  Bottom,
+  BottomLeft,
+  Left,
+  TopLeft,
+};
+
+/** WHICH WAY A CSS-SHAPED LINEAR GRADIENT RUNS: an angle in degrees
+ *  clockwise from straight up, so 0 runs toward the top, 90 toward the
+ *  right and 180 — the default, as CSS's — toward the bottom; or toward a
+ *  side or a corner. The gradient spans the box along that direction, so
+ *  its first and last stop land on the box's corners (or sides) and not
+ *  short of them. */
+struct LinearDirection {
+  LinearDirection() = default;
+  // NOLINTBEGIN(google-explicit-constructor): each is a way to write it
+  LinearDirection(float angleDegrees) : angleDegrees(angleDegrees) {}
+  LinearDirection(Toward toward) : toward(toward) {}
+  // NOLINTEND(google-explicit-constructor)
+  /** Read where `toward` is unset. */
+  float angleDegrees = 180.0f;
+  std::optional<Toward> toward;
+  bool operator==(const LinearDirection&) const = default;
+};
+
+/** THE ENDING SHAPE OF A CSS-SHAPED RADIAL GRADIENT: what shape it is,
+ *  how far it reaches and where its centre stands. Unlike the
+ *  point-to-point radial, the extent is measured from the gradient's own
+ *  centre `at`, so a gradient moved toward a corner still reaches exactly
+ *  the side or the corner its extent names. */
+struct RadialEndingShape {
+  RadialShape shape = RadialShape::Ellipse;
+  /** How far the last stop reaches: to the nearest or the farthest side
+   *  or corner of the box from `at`. */
+  RadialExtent extent = RadialExtent::FarthestCorner;
+  /** The centre, as fractions of the box: (0.5, 0.5) is its middle. */
+  glm::vec2 at = {0.5f, 0.5f};
+  bool operator==(const RadialEndingShape&) const = default;
+};
+
+/** WHERE A CSS-SHAPED CONIC GRADIENT STARTS: the angle its first stop
+ *  sits at, in degrees clockwise from 12 o'clock, and its centre as
+ *  fractions of the box. */
+struct ConicStart {
+  float fromDegrees = 0.0f;
+  glm::vec2 at = {0.5f, 0.5f};
+  bool operator==(const ConicStart&) const = default;
 };
 
 /** WHAT A GRADIENT PAINTS PAST ITS ENDS. */
@@ -50,7 +115,10 @@ enum class Repeat : uint8_t {
 /** HOW A GRADIENT IS PLACED, the one options struct `linearGradient`,
  *  `radialGradient` and `conicGradient` share. Every field has the
  *  default the common case wants; a gradient reads only the fields that
- *  mean something to it. */
+ *  mean something to it. The CSS-shaped gradients, which take their
+ *  stops first, are always placed against the box: they read `repeat`
+ *  and the conic window, and their own direction, ending shape or start
+ *  stands in for `units`, `extent` and `focus`. */
 struct GradientOptions {
   /** What the points and radii are measured in. */
   GradientUnits units = GradientUnits::Box;
@@ -64,10 +132,9 @@ struct GradientOptions {
   std::optional<glm::vec2> focus;
   float focusRadius = 0.0f;
   /** Conic: the window the stops are spread over, in degrees clockwise
-   *  from 3 o'clock, so 12 o'clock is -90.
-   *  @trap Outside [0, 360] the window CLAMPS rather than wrapping, so
-   *  `{.startDegrees = 90, .endDegrees = 450}` paints a flat quarter;
-   *  rotate the stops instead. */
+   *  from 12 o'clock, as CSS's conic angles are, so 3 o'clock is 90.
+   *  @trap A window wider than one turn CLAMPS rather than wrapping: what
+   *  lies past the turn paints in the nearest stop's flat colour. */
   float startDegrees = 0.0f;
   float endDegrees = 360.0f;
 

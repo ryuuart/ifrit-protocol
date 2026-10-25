@@ -60,14 +60,14 @@ class TextIndentTest(unittest.TestCase):
 
     def test_any_length_is_an_indent(self):
         self.assertNotEqual(rule().textIndent(compose.em(2)), rule().textIndent(2))
-        self.assertNotEqual(rule().textIndent(compose.pct(10)), rule().textIndent(10))
+        self.assertNotEqual(rule().textIndent(compose.percent(10)), rule().textIndent(10))
         self.assertEqual(rule().textIndent("2em"), rule().textIndent(compose.em(2)))
 
     def test_the_later_of_pixels_and_another_unit_stands(self):
         self.assertEqual(rule().textIndent(compose.em(2)).textIndent(8), rule().textIndent(8))
         self.assertEqual(
-            rule().textIndent(8).textIndent(compose.pct(5)),
-            rule().textIndent(compose.pct(5)),
+            rule().textIndent(8).textIndent(compose.percent(5)),
+            rule().textIndent(compose.percent(5)),
         )
 
 

@@ -321,12 +321,12 @@ struct ShippingForecast {
                                          {1.00f, hexColor(0xC9A46A)}});
     return box()
         .overflow(Overflow::Clip)
-        .width(pct(100))
+        .width(percent(100))
         .children({
             text(line)
                 .styleClass("hero")
                 .key(key)
-                .width(pct(100))
+                .width(percent(100))
                 .ink(ramp)
                 .textFx({.effect = textFx::enter(textFx::rise(92 * 1.24f)),
                          .tween = {.duration = 560ms,
@@ -504,7 +504,9 @@ struct ShippingForecast {
                     {{0.0f, material::withAlpha(kAmber, 0)},
                      {0.86f, material::withAlpha(kAmber, 0)},
                      {1.0f, material::withAlpha(kAmber, 0.16f)}},
-                    {.units = material::GradientUnits::Pixels}))
+                    {.units = material::GradientUnits::Pixels,
+                     .startDegrees = 90,
+                     .endDegrees = 450}))
                 .children({
                     box()
                         .left(radius)
@@ -720,7 +722,7 @@ struct ShippingForecast {
         {
             document::paragraph(bulletin.passage(page["runs"]))
                 .key("forecast")
-                .width(pct(100))
+                .width(percent(100))
                 .span(figures, SpanStyle().ink(var("amber")))
                 .textFx(words(initials, textFx::enter(textFx::rise(16)), 460,
                               1.75f, 4.10f))
@@ -781,7 +783,7 @@ struct ShippingForecast {
         {
             document::paragraph(bulletin.passage(page["runs"]))
                 .key("synopsis")
-                .width(pct(100))
+                .width(percent(100))
                 .span(figures,
                       SpanStyle().font(
                           {.variations = {weave::FontVariation("GRAD", 800)}}))
@@ -816,7 +818,7 @@ struct ShippingForecast {
                              const bool occasional = force == 8;
                              Element bar =
                                  box()
-                                     .width(pct(100))
+                                     .width(percent(100))
                                      .height(6 + force * 2.6f)
                                      .fill(Fill::var(occasional ? "amber-ground"
                                                      : quoted   ? "amber"

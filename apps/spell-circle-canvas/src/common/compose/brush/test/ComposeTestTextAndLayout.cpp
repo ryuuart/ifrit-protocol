@@ -22,7 +22,7 @@ TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
 TEST(ComposeLayout, DimInsetsAcceptPercent) {
   Host host(200, 100);
   host.composer.render(
-      box().children({box().inset(pct(10)).fill(red()).key("panel")}));
+      box().children({box().inset(percent(10)).fill(red()).key("panel")}));
   host.frame();
   auto b = host.composer.bounds("panel");
   ASSERT_TRUE(b.has_value());

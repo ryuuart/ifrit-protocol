@@ -123,4 +123,20 @@ bool GraphiteContext::submit(skgpu::graphite::Recorder& recorder,
   return inserted;
 }
 
+#ifndef __APPLE__
+// No backend here offers an event a host can wait on, so every signal is
+// empty and a reader asks the context.
+struct DeviceSignal::State {};
+
+DeviceSignal::DeviceSignal(const skgpu::graphite::Recorder&) {}
+
+DeviceSignal::~DeviceSignal() = default;
+
+void DeviceSignal::attach(skgpu::graphite::InsertRecordingInfo&) {}
+
+bool DeviceSignal::wait(std::chrono::steady_clock::time_point) const {
+  return false;
+}
+#endif
+
 }  // namespace sigil::skia

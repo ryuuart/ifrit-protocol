@@ -93,7 +93,7 @@ bool Composer::Impl::shapeContains(Instance& inst, SkPoint local,
   const Corners& corners = inst.computed.corners;
   if (corners.any()) {
     SkPathBuilder b;
-    b.addRRect(cornersRRect(bounds, corners));
+    b.addRRect(cornersRRect(inst, bounds));
     return b.detach().contains(local.x(), local.y());
   }
   return true;
@@ -186,6 +186,11 @@ std::optional<std::string> Composer::Impl::hitInstance(
       inst.memoShell && !inst.memoShell->key.empty() ? inst.memoShell
                                                      : inst.description;
   const std::string* key = !shell->key.empty() ? &shell->key : inheritedKey;
+  // An opted-out node takes its keyless contents with it, as CSS's
+  // `pointer-events: none` is inherited: they answer no key of their own
+  // and none of this node's, so the point falls through to what lies
+  // beneath. A keyed descendant states its own identity and still answers.
+  const std::string* descendantKey = node.hitTestable ? key : nullptr;
 
   if (hosts) {
     // The children stand in the space this node hosts, and the nearest
@@ -195,7 +200,7 @@ std::optional<std::string> Composer::Impl::hitInstance(
     std::vector<size_t> order;
     depthOrder(inst, *depth, order);
     for (auto it = order.rbegin(); it != order.rend(); ++it)
-      if (auto hit = hitInstance(*inst.children[*it], {}, key, &below))
+      if (auto hit = hitInstance(*inst.children[*it], {}, descendantKey, &below))
         return hit;
   } else if (placed) {
     // Children topmost-first (reverse paint order); they may overflow the
@@ -203,7 +208,8 @@ std::optional<std::string> Composer::Impl::hitInstance(
     // not land on carries its flat children with it: nothing under it is
     // hittable either.
     for (auto it = inst.paintOrder.rbegin(); it != inst.paintOrder.rend(); ++it)
-      if (auto hit = hitInstance(*inst.children[*it], local, key, nullptr))
+      if (auto hit =
+              hitInstance(*inst.children[*it], local, descendantKey, nullptr))
         return hit;
   }
 

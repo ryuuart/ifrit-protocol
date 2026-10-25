@@ -208,7 +208,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
                        .height(6)
                        .fill(c)
                        .scaleX(bind)
-                       .transformOrigin(pct(0), pct(50))});
+                       .transformOrigin(percent(0), percent(50))});
   };
 
   Element panel =

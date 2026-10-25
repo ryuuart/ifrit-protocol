@@ -516,6 +516,18 @@ set_tests_properties(sketch_window_bench_sequence PROPERTIES
   # shows as a slow showing, so this runs with nothing else.
   RUN_SERIAL TRUE)
 
+# THE WINDOW IS THE SIZE ASKED FOR WHERE IT FITS: two windows every
+# display has room for come back at exactly the size and ratio asked, and
+# one no display holds is named as not fitting beside its row. A machine
+# where no window presents is skipped.
+add_test(NAME sketch_window_bench_size
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/window_bench_size.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --work ${CMAKE_BINARY_DIR}/sketch_window_bench_size)
+set_tests_properties(sketch_window_bench_size PROPERTIES
+  LABELS window SKIP_RETURN_CODE 77 TIMEOUT 300)
+
 # THE WINDOW'S INPUT DOOR, which only a window can answer: a `--shot` run
 # of a file of functions, presented while a client attached to the
 # window's endpoint presses the pointer on its canvas, until the file's
