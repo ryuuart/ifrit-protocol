@@ -129,56 +129,6 @@ on the device it has. A test should draw a layer, install a different
 device, and find the next composite still showing the marks; and a
 headless capture of a stack pixel-equal to the window's.
 
-## A filter's picture depends on the bleed of the marks inside it
-
-When a stroke's bleed grows to hold its mitre, ds2_bench's and
-eva_magi_defense's whole panel fringe moves, because a filter over the
-panel reads extents that grew with the bleed. A filter's output is meant
-not to depend on how far a cull or bake extent reaches. A test should
-find a filtered node giving the same pixels with a stroke bleed of one and
-of ten.
-
-## A number line height multiplies the face's line height, not the type size
-
-`lineHeight(1.4)` is `Leading::multiple`, which is 1.4 times the face's
-own line height, while CSS's unitless line-height is 1.4 times the font
-size; and `lh` resolves against the face's natural line height even where
-`lineHeight()` states a pitch, while CSS's `lh` is the computed
-line-height. A test should find `lineHeight(2)` on a 20 px passage
-giving a 40 px pitch, and `width(1_lh)` under `lineHeight(Dimension(30))`
-measuring 30 px.
-
-## ShadowOptions.blur means two things
-
-`Filter::dropShadow` hands `blur` to Skia as the Gaussian's standard
-deviation, `Filter::shadow`'s coverage mark blurs by half of it,
-`TextShadow.blur` is documented as the standard deviation and
-`compose::Shadow.blur` is CSS's radius, a Gaussian of half of it. One
-shared word is meant to mean one thing. A test should find the same
-`blur` through all four giving the same edge falloff width.
-
-## Rails refuse the outline under a mitre or a square cap
-
-`lines::Rails` answers `staysOnOutline()` false under a mitred join or a
-square cap instead of growing its bleed to hold them as the other strokes
-now do, so a shaped node carrying rails under those settings still pays a
-box-sized layer. A test should find a mitred rail's layer equal to the
-shape grown by its bleed.
-
-## A gradient stop position does not read a length
-
-A stop position reads a fraction or a percentage only; `"20px"` raises,
-because the box size is not known where stops are read, while CSS also
-takes a length. A test should find a stop at `"20px"` landing twenty
-pixels along the gradient line.
-
-## steps() refuses jump-none and jump-both
-
-`ease::steps` draws only jump-start and jump-end, so the easing reader
-refuses CSS's other two jump terms. A test should find `steps(3,
-jump-none)` holding zero at the start and one at the end over three
-levels, and `jump-both` four levels starting above zero.
-
 ## paint_shelf's swatch captions no longer state the window its code states
 
 The captions still read the sweep window from three o'clock while the
@@ -203,14 +153,6 @@ signal the device raises. A test should find a Vulkan readback of a
 surface whose device work waits on a host-raised semaphore returning only
 after the host raises it.
 
-## A transform-only binding re-lays out every frame
-
-In chaucer_astrolabe's live window the composer's layout lane reads about
-a third of a millisecond every frame while only a bound rotation changes;
-a transform-only binding is meant not to re-lay out. A test should find
-`Stats::layoutCalculations` zero on a draw where only a bound rotate
-moved.
-
 ## The triplet comment still explains shared TBB by a port that is gone
 
 `cmake/triplets/arm64-osx.cmake` explains its shared oneTBB rule by the
@@ -219,4 +161,37 @@ because shared is the one linkage oneTBB supports, and the comment
 should say so. Editing the triplet changes every port's ABI hash and
 forces a full dependency rebuild, so the reword lands with the next
 intentional triplet change.
+
+## A filtered extent still moves when a bleed crosses a grid line
+
+A layer effect filters an extent grown out to a 64-unit grid laid from
+the node's origin, so a bleed that grows within one cell leaves the
+picture alone, but a bleed that pushes the extent's edge across a grid
+line still moves it. A filter's output is meant not to depend on how far
+the marks inside it reach. A test should find a blurred node whose box
+edge stands five units short of a grid line giving the same pixels at a
+stroke bleed of one and of ten.
+
+## The moving hold's bake lays its texels from its own bounds
+
+The live window's hold of a turning subtree bakes from the subtree's own
+bounds' origin, while every other local bake now lays its texels on the
+node's grid, so a bleed that grows moves the held pixels under the
+resampled blit. A test should find a held, turning node giving the same
+blit at a stroke bleed of one and of four.
+
+## The volatility walk runs every frame under a timer alone
+
+While the engine runs only timers, the composer walks the whole tree for
+volatile values every frame, though a frame with no motion lane running
+needs only a scan of released scalars. A test should find the walk's
+time falling to the scan's on a timer-only frame of a still tree.
+
+## A drop shadow read from CSS text has no currentcolor
+
+`readFilter("drop-shadow(2px 2px 4px)")` refuses the text because the
+reader has no ink to paint the unnamed colour with, while CSS paints it
+in `currentcolor`. A test should find `.filter("drop-shadow(2px 2px
+4px)")` on an element painting the same as the shadow with the element's
+ink named.
 
