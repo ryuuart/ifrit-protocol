@@ -139,10 +139,10 @@ compose::Fill fill(py::handle value) {
   // CSS's two ways of naming a colour the tree resolves, as text.
   if (currentColorText(value)) return compose::Fill::currentInk();
   if (const std::optional<compose::VarRef> property = customPropertyText(value))
-    return compose::Fill::var(*property);
+    return compose::Fill(*property);
   if (py::isinstance<compose::Fill>(value)) return value.cast<compose::Fill>();
   if (py::isinstance<compose::VarRef>(value))
-    return compose::Fill::var(value.cast<compose::VarRef>());
+    return compose::Fill(value.cast<compose::VarRef>());
   if (py::isinstance<material::Paint>(value))
     return compose::Fill(material::skia::base(value.cast<material::Paint>()));
   if (py::isinstance<material::Material>(value))
@@ -157,12 +157,12 @@ compose::Fill fill(py::handle value) {
 
 compose::ColorTerm colorTerm(py::handle value) {
   if (py::isinstance<compose::VarRef>(value))
-    return compose::ColorTerm::var(value.cast<compose::VarRef>());
+    return compose::ColorTerm(value.cast<compose::VarRef>());
   const compose::Fill paint = fill(value);
   if (paint.kind != compose::Fill::Kind::Color)
     throw py::type_error(
         "A colour term is a colour, the ink in force (Fill.currentInk()) or "
-        "a custom property (Fill.var(name)), never a paint.");
+        "a custom property (var(name)), never a paint.");
   compose::ColorTerm term(paint.colorValue);
   term.ref = paint.ref;
   term.varId = paint.varId;
@@ -264,7 +264,8 @@ compose::Decoration decoration(py::handle value) {
 compose::Dimension originLength(py::handle value) {
   if (py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value))
     throw py::type_error(
-        "An origin is written with its unit: percent(50) or '50%' of the node's "
+        "An origin is written with its unit: percent(50) or '50%' of the "
+        "node's "
         "box, Dimension(12) for pixels, a Length or a custom property. A "
         "bare number is refused.");
   return dimension(value);

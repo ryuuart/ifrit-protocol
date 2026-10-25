@@ -14,7 +14,7 @@ exactly like a layout bug.
   the sheet with `Element::applyStyleSheet` on the tree the element LANDS
   in, on the element or any node above it: a class is matched where the
   element lands, not where it is written.
-- **A custom property nobody set resolves to nothing.** `Fill::var("acent")`
+- **A custom property nobody set resolves to nothing.** `fill(var("acent"))`
   paints nothing and a `var("guter")` length is zero, each warning once;
   a property set as a length and read as a colour, or the reverse, is the
   same miss. The nearest ancestor's `Element::var` is what a read finds,
@@ -29,7 +29,7 @@ exactly like a layout bug.
   component reads into its description — a spacing multiplied out, a
   colour taken from a struct — stays what it was where the code ran, so a
   component built outside a themed subtree and mounted inside it keeps the
-  outer number. A length written `var(...)` and a fill written `Fill::var`
+  outer number. A length written `var(...)` and a fill written `var(...)`
   resolve where the element ends up, which is why a theme's numbers are
   properties.
 - **An unknown key resolves to nothing, everywhere in the derive family.**

@@ -101,9 +101,8 @@ struct Packing {
   /** Whether a circle at @p at of @p radius would touch any but @p skip. */
   bool touches(glm::vec2 at, float radius, size_t skip) const {
     for (size_t other = 0; other < circles.size(); ++other)
-      if (other != skip &&
-          glm::length(at - circles[other].centre) <
-              radius + circles[other].radius + kGap)
+      if (other != skip && glm::length(at - circles[other].centre) <
+                               radius + circles[other].radius + kGap)
         return true;
     return false;
   }
@@ -161,9 +160,11 @@ struct PackingSheet {
   std::unique_ptr<Packing> starred;
 
   void setup(sketch::Scene2DContext& context) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(context, {.size = kCanvas, .captureAt = 5.0});
+    sketch::kit::stage(
+        context,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 5.0});
 
     constexpr float kInset = 12;
     boxed = std::make_unique<Packing>(

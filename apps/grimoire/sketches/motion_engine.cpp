@@ -108,9 +108,8 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> lanes,
              std::vector<double> arrivals = {}) {
   lanes.insert(lanes.begin(), sketch::kit::rules({.y = {0.0}}));
   if (!arrivals.empty())
-    lanes.insert(lanes.begin(),
-                 sketch::kit::rules(
-                     {.x = std::move(arrivals), .styleClass = "arrival"}));
+    lanes.insert(lanes.begin(), sketch::kit::rules({.x = std::move(arrivals),
+                                                    .styleClass = "arrival"}));
   return sketch::kit::plot(
              key,
              {.x = {.domain = {0, kSpan}}, .y = {.domain = {0, 1}}, .pad = 10},
@@ -121,7 +120,8 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> lanes,
 /** The sheet's classes past the registers and the chart's: a plot's
  *  second lane, the lane it is read against, and the arrival rule. */
 StyleSheet sheetClasses() {
-  const sketch::kit::Theme& look = sketch::kit::theme();
+  const sketch::kit::Theme& look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   return look.styleSheet() +
          StyleSheet{rule(".second").font({.color = kSecondInk}),
                     rule(".reference").font({.color = look.palette.ash}),
@@ -161,8 +161,8 @@ Lane flight(Change change) {
       const Retargeted after[2] = {{&second, {family, 0}, 0.0f},
                                    {&second, {family, 1}, 0.0f}};
       if (change == Change::Slot)
-        motion::retargetFixed<Family>(ticker, held, {&before, 1},
-                                      {after, 1}, transition);
+        motion::retargetFixed<Family>(ticker, held, {&before, 1}, {after, 1},
+                                      transition);
       else
         motion::retargetPositional<Family>(
             ticker, held, {&before, 1},
@@ -179,10 +179,12 @@ Lane flight(Change change) {
 
 struct MotionEngine {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // every run has already happened, on tickers of the sketch's own
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     // THE FOUR LANES, registered on one ticker and read every step.
     motion::Engine ticker;
@@ -236,9 +238,9 @@ struct MotionEngine {
     const float half = (kMeasure - 24) / 2, third = (kMeasure - 36) / 3;
     const auto interrupted = [&](const char* key, const Lane& bent,
                                  const char* styleClass = "") {
-      return figure(third, plot(key, {lane(plain, "reference"),
-                                      lane(bent, styleClass)},
-                                {kArrives}));
+      return figure(
+          third, plot(key, {lane(plain, "reference"), lane(bent, styleClass)},
+                      {kArrives}));
     };
 
     ctx.composer.render(
@@ -291,10 +293,9 @@ struct MotionEngine {
                                          "levels",
                                          kLevels),
                                      .figure = figure(
-                                         half,
-                                         plot("derive",
-                                              {lane(sourced, "reference"),
-                                               lane(quantized)})),
+                                         half, plot("derive",
+                                                    {lane(sourced, "reference"),
+                                                     lane(quantized)})),
                                      .note = "grey: the source phase"},
                                     {.title = "04 / UNTIL COMPLETION",
                                      .control = "animate · ramp 0 → 1, "
@@ -315,26 +316,26 @@ struct MotionEngine {
                           kFirst, kSecond, kArrives,
                           (long long)kTransition.count())},
                      sketch::kit::comparison(
-                         {.cases =
-                              {{.title = "FIXED SLOT",
-                                .control = "retargetFixed · one row",
-                                .figure = interrupted("slot", slot),
-                                .note = "Keeps the current value and bends "
-                                        "toward the new endpoint."},
-                               {.title = "SAME FAMILY",
-                                .control = "retargetPositional · 1 → 1",
-                                .figure = interrupted("family", family),
-                                .note = kit::formatted(
-                                    "Equal shape bends as a fixed slot "
-                                    "does · largest difference %.6f",
-                                    disagreement)},
-                               {.title = "CHANGED FAMILY",
-                                .control = "retargetPositional · 1 → 2",
-                                .figure = interrupted("reshaped", reshaped,
-                                                      "second"),
-                                .note = "Changing shape drops the running "
-                                        "motion; the new value arrives at "
-                                        "once."}},
+                         {.cases = {{.title = "FIXED SLOT",
+                                     .control = "retargetFixed · one row",
+                                     .figure = interrupted("slot", slot),
+                                     .note =
+                                         "Keeps the current value and bends "
+                                         "toward the new endpoint."},
+                                    {.title = "SAME FAMILY",
+                                     .control = "retargetPositional · 1 → 1",
+                                     .figure = interrupted("family", family),
+                                     .note = kit::formatted(
+                                         "Equal shape bends as a fixed slot "
+                                         "does · largest difference %.6f",
+                                         disagreement)},
+                                    {.title = "CHANGED FAMILY",
+                                     .control = "retargetPositional · 1 → 2",
+                                     .figure = interrupted("reshaped", reshaped,
+                                                           "second"),
+                                     .note = "Changing shape drops the running "
+                                             "motion; the new value arrives at "
+                                             "once."}},
                           .measure = kMeasure,
                           .gap = 18}))}))
             .applyStyleSheet(sheetClasses()));

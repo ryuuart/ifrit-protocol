@@ -107,7 +107,6 @@ sketch::kit::Theme sheetTheme() {
   look.spacing.marginBottom = 30;
   look.spacing.captionGap = 8;
   look.spacing.captionNoteGap = 3;
-  look.captionWhere = kit::Caption::Where::Above;
   return look;
 }
 
@@ -115,8 +114,9 @@ sketch::kit::Theme sheetTheme() {
 
 struct ChromeType {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(chrome::sheetTheme());
-    sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.4});
+    sketch::kit::stage(
+        ctx,
+        {.theme = chrome::sheetTheme(), .size = kSceneSize, .captureAt = 0.4});
     ctx.composer.render(describe());
   }
 
@@ -135,17 +135,19 @@ struct ChromeType {
                  .decorationOutline(Boundary::Glyphs)
                  .ink(
                      material::from(letterInk).effects(material::Filter::stroke(
-                         hexColor(0x162331), {.width = 0.65f})))}));
+                         hexColor(0x162331), {.width = 0.65f})))}),
+        sigil::compose::kit::Caption::Where::Above);
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(
         0, "GLYPH OUTLINE", "The same finish follows the letters.",
         box().padding(18).children({text(c::kWordmark, c::wordmark())
                                         .decorationOutline(Boundary::Glyphs)
-                                        .ink(finish)}));
+                                        .ink(finish)}),
+        sigil::compose::kit::Caption::Where::Above);
     // The pair's own name stands wider and larger than a cell's call, so
     // its label is this cell's own leaf — the register, this size over it
     // — and the two captions under it keep the register as it is.
-    const sketch::kit::Theme& look = sketch::kit::theme();
+    const sketch::kit::Theme& look = chrome::sheetTheme();
     kit::Caption voice{.where = kit::Caption::Where::Above, .gap = 10};
     voice.label = [&look](const Utf8& call) {
       return document::label(call).font(

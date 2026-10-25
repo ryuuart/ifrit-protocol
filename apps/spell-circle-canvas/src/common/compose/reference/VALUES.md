@@ -24,7 +24,7 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a material, or a reference the tree resolves at paint — the one value a component declares for a surface. | `Fill::color`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `toFill`, and implicitly from a `material::Material` | `Element::fill`, `Element::ink`, `Text::textStroke`, `PathFormat::strokeFill`, the kit's wells and sheets, every decoration's own paint |
+| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a material, or a reference the tree resolves at paint — the one value a component declares for a surface. | `Fill::color`, `Fill::none`, `Fill::currentInk`, `toFill`, and implicitly from a `material::Material` or a `VarRef` | `Element::fill`, `Element::ink`, `Text::textStroke`, `PathFormat::strokeFill`, the kit's wells and sheets, every decoration's own paint |
 | [`PaintBox`](pages/types/PaintBox.md) | The rectangle a paint's unit square is stretched over: the element's own box, its padding or content box, the subtree's, the canvas, or each glyph, cluster, word, line or sentence of a passage. | `PaintBox::Element`, `PaintBox::Canvas`, `PaintBox::Glyph`, … | `Element::fill`, `Element::ink`, `Rule::ink`, `SpanStyle::ink` |
 | `material::Material` | What a surface is painted with: a base, the layers over it and the effects around it. | `material::linearGradient`, `material::radialGradient`, `material::conicGradient`, `material::noise`, `material::shader`, `material::from(base).layer(…)`, SigilMaterial's own catalogue | `Element::fill`, `Element::ink`, `Text::textStroke`, `Fill`, a mask's coverage, a text pass, a ribbon's surface |
 | `material::Color` | The one colour class: four straight sRGB floats, uploaded as one float4. | SigilMaterial's colour vocabulary | Anywhere a colour is taken, and anywhere a `material::Material` is: a colour converts to one |
@@ -60,13 +60,14 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| `VarRef` | A custom property's NAME as a value, interned once, so two references to one name compare as an integer. | `compose::var`, and `varName` reads the name back | `Element::ink`, `Fill::var`, `Dimension`, `VarTable::set` |
+| `VarRef` | A custom property's NAME as a value, interned once, so two references to one name compare as an integer. | `compose::var`, and `varName` reads the name back | `Element::ink`, `Fill`, `ColorTerm`, `Dimension`, `VarTable::set` |
 | `VarValue` | What a property HOLDS: a colour, a length that resolves where it is read, or a paint laid over the box that reads it. | A `material::Color`, a `Dimension`, or a `Fill` holding a paint | `VarTable::set`, and `Element::var` through its three overloads |
 | `VarTable` | Every property in force at a node, nearest ancestor winning, as one comparable value. | `VarTable::set` per entry, or `VarTable::overlay` over another | `Element::varDefaults`, and `PaintContext` carries it to a program |
 
 A reference stands in for a value until the tree resolves it, so it is
-written where the value would be: `Element::ink(var("accent"))`, a
-`Fill::var`, or a `Dimension` given a reference instead of a number. In
+written where the value would be, in one spelling for every slot:
+`Element::ink(var("accent"))`, `fill(var("accent"))`, a `ColorTerm`, or a
+`Dimension` given a reference instead of a number. In
 Python the reference is `compose.var` and the table is the dictionary
 `Element.varDefaults` takes.
 
@@ -115,7 +116,7 @@ the annotation is `DurationLike`. Text no grammar reads raises.
 ## Where they live
 
 - `core/Paint.h` — `Fill`, with `Fill::color`, `Fill::none`,
-  `Fill::currentInk`, `Fill::var`, `Fill::material` and `Fill::needsFrame`; `Corners`; `PaintContext`, and the
+  `Fill::currentInk`, `Fill::material` and `Fill::needsFrame`; `Corners`; `PaintContext`, and the
   `KeyState` it carries; `PaintProgram`; and
   `resolveRef`, `toFill`, `resolveFill` and `frameOf`.
 - `core/PaintBox.h` — `PaintBox`, the rectangle a paint is stretched over.

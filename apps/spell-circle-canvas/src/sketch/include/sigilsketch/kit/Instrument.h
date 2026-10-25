@@ -22,7 +22,8 @@ struct Instrument {
 };
 
 /** A picture scaled from its authored coordinates, beside an ordinary flow
- *  of readings. The page and both column headings inherit the active theme. */
+ *  of readings. The page and both column headings are set in the theme the
+ *  page names. */
 [[nodiscard]] compose::Element instrument(const Instrument& specification,
                                           compose::Element picture,
                                           compose::Element readings);

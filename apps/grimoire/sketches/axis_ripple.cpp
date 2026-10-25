@@ -283,7 +283,7 @@ struct AxisRipple {
         .top(percent(100))
         .marginTop(kLevelDrop)
         .height(kLevelHeight)
-        .fill(Fill::var("bed"))
+        .fill(var("bed"))
         .children({box()
                        .cover()
                        // Deep at the foot and hot at the top, so a full bar
@@ -394,22 +394,21 @@ struct AxisRipple {
     lightRun.textAttach(weave::Selector{},
                         kit::line({.length = Dimension(96),
                                    .column = true,
-                                   .fill = Fill::var(verdictClass)})
+                                   .fill = var(verdictClass)})
                             .left(percent(100))
                             .top(0));
     const float drift = heavyWidth - lightWidth;
     Text heavyRun = proofRun(tag, heavy);
     if (drift >= 1.0f)
-      heavyRun.textAttach(
-          weave::Selector{},
-          box()
-              .left(Dimension(lightWidth))
-              .right(0)
-              .top(0)
-              .bottom(0)
-              .fill(Fill::var("refused-wash"))
-              .background(lines::presets::hatch(Fill::var("refused-hatch"),
-                                                5.0f, 1.0f, -55.0f)));
+      heavyRun.textAttach(weave::Selector{},
+                          box()
+                              .left(Dimension(lightWidth))
+                              .right(0)
+                              .top(0)
+                              .bottom(0)
+                              .fill(var("refused-wash"))
+                              .background(lines::presets::hatch(
+                                  var("refused-hatch"), 5.0f, 1.0f, -55.0f)));
     const auto row = [](float value, Element run) {
       return box()
           .row()
@@ -486,8 +485,8 @@ struct AxisRipple {
                        .children({document::h1("The axis ripple"),
                                   document::caption(
                                       "OpenType Font Variations · 2016")}),
-                   kit::line({.fill = Fill::var("faint")}), ripple(),
-                   proofPanels(), box().flexGrow(1),
+                   kit::line({.fill = var("faint")}), ripple(), proofPanels(),
+                   box().flexGrow(1),
                    document::footer(
                        "Grade changes the weight without changing the width. "
                        "The blue row keeps the same pen positions throughout "

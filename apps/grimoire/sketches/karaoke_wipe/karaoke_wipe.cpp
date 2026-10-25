@@ -316,7 +316,7 @@ StyleSheet look() {
           .letterSpacing(2)
           .font({.aliased = true, .antiAlias = false})
           .ink(var("sung"))
-          .textStroke(5.0f, Fill::var("key")),
+          .textStroke(5.0f, var("key")),
       // The ball's arc stands above the sung line; the ruler hangs below
       // it and reserves nothing, so the line to come keeps clear of it.
       rule(".line").marginTop(kHopHeight + 18.0f),
@@ -327,7 +327,7 @@ StyleSheet look() {
       rule(".tick").ink(var("faint")),
       rule(".tick.onset").ink(var("label")),
       rule(".playhead").ink(var("sung")),
-      rule(".count").fill(Fill::var("sung")),
+      rule(".count").fill(var("sung")),
   };
 }
 
@@ -516,7 +516,7 @@ Element screen(Element caption) {
       .fill(material::radialGradient(
           {kScreenWidth * 0.5f, kScreenHeight * 0.42f}, kScreenWidth * 0.62f,
           {kGlass, kStage}, {.units = material::GradientUnits::Pixels}))
-      .stroke(stroke(1.5f, Fill::var("bezel")))
+      .stroke(stroke(1.5f, var("bezel")))
       .children({kit::centred(std::move(caption)).cover(), tube()});
 }
 

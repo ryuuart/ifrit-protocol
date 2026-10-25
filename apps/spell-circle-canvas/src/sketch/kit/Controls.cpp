@@ -1,3 +1,4 @@
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
@@ -14,7 +15,9 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace sigil::sketch::kit {
@@ -66,11 +69,45 @@ std::string figureOf(const Control& control, float value) {
   return compose::kit::formatted("%.3g", value);
 }
 
-/** THE PROGRAM ONE ROW PAINTS WITH: the label, the control and the figure,
- *  and the pointer read against the rail. */
-compose::PaintProgram rowProgram(std::shared_ptr<Controls::Row> row,
-                                 const Theme& look, const ControlsView& how) {
-  return [row, look, how](draw::Pen& pen, const compose::PaintContext& context) {
+/** The colour the property @p name holds where @p context paints, or
+ *  clear where nothing set it. */
+material::Color colourIn(const compose::PaintContext& context,
+                         std::string_view name) {
+  if (context.vars == nullptr) return {0, 0, 0, 0};
+  const compose::VarValue* found = context.vars->find(compose::var(name));
+  if (found == nullptr) return {0, 0, 0, 0};
+  if (const auto* colour = std::get_if<material::Color>(found)) return *colour;
+  return {0, 0, 0, 0};
+}
+
+/** The pixels the length property @p name holds where @p context paints,
+ *  or nothing where nothing set it. */
+float lengthIn(const compose::PaintContext& context, std::string_view name) {
+  if (context.vars == nullptr) return 0;
+  const compose::VarValue* found = context.vars->find(compose::var(name));
+  if (found == nullptr) return 0;
+  if (const auto* length = std::get_if<compose::Dimension>(found);
+      length != nullptr && length->unit == compose::Dimension::Unit::Px)
+    return length->value;
+  return 0;
+}
+
+/** The face, the size and the tracking of the font in force where
+ *  @p context paints — the register the node's role or class resolved to,
+ *  as the pen takes it, with the colour left to the pen's fill. */
+weave::Type registerIn(const compose::PaintContext& context) {
+  return {.face = context.font.face,
+          .size = context.font.size,
+          .track = context.font.track};
+}
+
+/** THE PROGRAM ONE ROW'S RAIL PAINTS WITH: the label and the control, and
+ *  the pointer read against the rail. It stands in the `caption` role, so
+ *  the label is set in the register the sheet sets a caption in, and its
+ *  colours and distances are the sheet's properties. */
+compose::PaintProgram railProgram(std::shared_ptr<Controls::Row> row,
+                                  const ControlsView& how) {
+  return [row, how](draw::Pen& pen, const compose::PaintContext& context) {
     Controls::Row& state = *row;
     const Control& control = state.control;
     const float height = context.size.y;
@@ -78,7 +115,7 @@ compose::PaintProgram rowProgram(std::shared_ptr<Controls::Row> row,
     const float railLeft = how.labelWidth;
     const float railRight =
         std::max(railLeft + 1, context.size.x - how.figureWidth -
-                                   look.spacing.labelGap);
+                                   lengthIn(context, "spacing-label-gap"));
     const float railWidth = railRight - railLeft;
 
     // The pointer, in this row's own box.
@@ -94,8 +131,8 @@ compose::PaintProgram rowProgram(std::shared_ptr<Controls::Row> row,
         if (pressedNow && onRail) state.dragging = true;
         if (!pressed) state.dragging = false;
         if (state.dragging)
-          value = settled(control, control.minimum +
-                                       along * (control.maximum - control.minimum));
+          value = settled(control, control.minimum + along * (control.maximum -
+                                                              control.minimum));
         break;
       case Widget::Toggle:
         if (pressedNow && onRail) value = value > 0.5f ? 0.0f : 1.0f;
@@ -112,60 +149,72 @@ compose::PaintProgram rowProgram(std::shared_ptr<Controls::Row> row,
     state.wasPressed = pressed;
     if (value != state.value.value()) state.value = value;
 
+    const material::Color figure = colourIn(context, "palette-figure");
+    const material::Color cellGround = colourIn(context, "palette-cell-ground");
     pen.noStroke();
-    pen.fill(look.palette.ash);
-    pen.textFont(look.font(look.type.captionNote));
+    pen.fill(colourIn(context, "palette-ash"));
+    pen.textFont(registerIn(context));
     pen.textAlign(draw::LEFT, draw::CENTER);
     pen.text(control.label.empty() ? std::string_view(control.name)
                                    : bytesOf(control.label),
              0, middle);
 
-    const float bar = look.spacing.barHeight;
+    const float bar = lengthIn(context, "spacing-bar-height");
     switch (control.widget) {
       case Widget::Slider: {
         const float span = control.maximum - control.minimum;
         const float fraction =
             span != 0 ? std::clamp((value - control.minimum) / span, 0.0f, 1.0f)
                       : 0.0f;
-        pen.fill(look.palette.cellGround);
+        pen.fill(cellGround);
         pen.rect(railLeft, middle - bar * 0.5f, railWidth, bar);
-        pen.fill(look.palette.figure);
+        pen.fill(figure);
         pen.rect(railLeft, middle - bar * 0.5f, railWidth * fraction, bar);
         pen.circle(railLeft + railWidth * fraction, middle, height * 0.6f);
         break;
       }
       case Widget::Toggle: {
         const float side = height * 0.7f;
-        pen.fill(value > 0.5f ? look.palette.figure : look.palette.cellGround);
+        pen.fill(value > 0.5f ? figure : cellGround);
         pen.rect(railLeft, middle - side * 0.5f, side, side);
         break;
       }
       case Widget::Choice: {
-        const std::size_t count = std::max<std::size_t>(1, control.options.size());
+        const std::size_t count =
+            std::max<std::size_t>(1, control.options.size());
         const float gap = 2;
         const float segment =
             (railWidth - gap * (float)(count - 1)) / (float)count;
         for (std::size_t index = 0; index < control.options.size(); ++index) {
-          pen.fill(control.options[index].value == value
-                       ? look.palette.figure
-                       : look.palette.cellGround);
+          pen.fill(control.options[index].value == value ? figure : cellGround);
           pen.rect(railLeft + (segment + gap) * (float)index,
                    middle - bar * 0.5f, segment, bar);
         }
         break;
       }
     }
+  };
+}
 
-    pen.fill(look.palette.figure);
-    pen.textFont(look.font(look.type.captionLabel));
+/** THE PROGRAM ONE ROW'S FIGURE PAINTS WITH: the value the rail settled on
+ *  this frame, ranged at the row's far edge. It stands in the `readout`
+ *  class, so the figure is set in the register a measured figure is. */
+compose::PaintProgram figureProgram(std::shared_ptr<Controls::Row> row) {
+  return [row](draw::Pen& pen, const compose::PaintContext& context) {
+    const Controls::Row& state = *row;
+    pen.noStroke();
+    pen.fill(colourIn(context, "palette-figure"));
+    pen.textFont(registerIn(context));
     pen.textAlign(draw::RIGHT, draw::CENTER);
-    pen.text(figureOf(control, value), context.size.x, middle);
+    pen.text(figureOf(state.control, state.value.value()), context.size.x,
+             context.size.y * 0.5f);
   };
 }
 
 }  // namespace
 
-std::vector<Control> controlsOf(const material::sbsar::Description& description) {
+std::vector<Control> controlsOf(
+    const material::sbsar::Description& description) {
   using material::sbsar::InputType;
   using material::sbsar::Widget;
   std::vector<Control> rows;
@@ -173,10 +222,11 @@ std::vector<Control> controlsOf(const material::sbsar::Description& description)
     const bool integer = input.type == InputType::Integer;
     if (input.type != InputType::Float && !integer) continue;
     if (input.components() != 1) continue;
-    Control row{.name = input.name,
-                .label = compose::Utf8(input.label),
-                .group = input.group,
-                .value = input.defaultValue.empty() ? 0 : input.defaultValue[0]};
+    Control row{
+        .name = input.name,
+        .label = compose::Utf8(input.label),
+        .group = input.group,
+        .value = input.defaultValue.empty() ? 0 : input.defaultValue[0]};
     if (!input.minimum.empty() && !input.maximum.empty() &&
         input.minimum[0] != input.maximum[0]) {
       row.minimum = input.minimum[0];
@@ -192,8 +242,8 @@ std::vector<Control> controlsOf(const material::sbsar::Description& description)
                input.widget == Widget::Combobox) {
       row.widget = kit::Widget::Choice;
       for (const material::sbsar::Choice& choice : input.choices)
-        row.options.push_back(
-            {.value = (float)choice.value, .label = compose::Utf8(choice.label)});
+        row.options.push_back({.value = (float)choice.value,
+                               .label = compose::Utf8(choice.label)});
     }
     rows.push_back(std::move(row));
   }
@@ -267,32 +317,45 @@ std::vector<Control> Controls::parameters() const {
 }
 
 Element controls(const Controls& surface, const ControlsView& how) {
-  const Theme& look = theme();
+  const Theme& house = houseTheme();
   // The groups in the order the description first names them.
   std::vector<std::string> order;
   for (const std::shared_ptr<Controls::Row>& row : surface.m_rows)
-    if (std::find(order.begin(), order.end(), row->control.group) == order.end())
+    if (std::find(order.begin(), order.end(), row->control.group) ==
+        order.end())
       order.push_back(row->control.group);
   std::vector<Element> children;
   for (const std::string& group : order) {
-    if (!how.groups.empty() &&
-        std::find(how.groups.begin(), how.groups.end(), group) ==
-            how.groups.end())
+    if (!how.groups.empty() && std::find(how.groups.begin(), how.groups.end(),
+                                         group) == how.groups.end())
       continue;
     if (!group.empty())
       children.push_back(compose::document::h2(compose::Utf8(group))
-                             .role("h2", look.font(look.type.section,
-                                                   look.palette.ink)));
+                             .role("h2", house.font(house.type.section),
+                                   compose::var("palette-ink")));
     for (const std::shared_ptr<Controls::Row>& row : surface.m_rows) {
       if (row->control.group != group) continue;
-      children.push_back(compose::custom(rowProgram(row, look, how))
+      // The rail paints first, so the figure reads the value it settled
+      // on this frame.
+      children.push_back(compose::box()
                              .width(how.width)
                              .height(how.rowHeight)
-                             .cache(compose::Cache::None));
+                             .children({compose::custom(railProgram(row, how))
+                                            .absolute()
+                                            .inset(0)
+                                            .role("caption")
+                                            .cache(compose::Cache::None),
+                                        compose::custom(figureProgram(row))
+                                            .absolute()
+                                            .inset(0)
+                                            .styleClass("readout")
+                                            .cache(compose::Cache::None)}));
     }
   }
-  return compose::box().column().gap(look.spacing.rowGap).children(
-      std::move(children));
+  return compose::box()
+      .column()
+      .gap(compose::var("spacing-row-gap"))
+      .children(std::move(children));
 }
 
 }  // namespace sigil::sketch::kit

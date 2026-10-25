@@ -194,9 +194,8 @@ sk_sp<SkImage> bakeRail(sketch::Scene2DContext& ctx,
            .key("cloth")
            .backface(material::Backface::Visible)
            .fill(std::move(banner))}));
-  return ctx.bakeScene3D(
-      frame, {(int)kPanel, (int)kPanelH},
-      {.camera = view()});
+  return ctx.bakeScene3D(frame, {(int)kPanel, (int)kPanelH},
+                         {.camera = view()});
 }
 
 /** One panel: the baked cloth, then the across-vector at every station,
@@ -299,8 +298,7 @@ struct YarnMarquee {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1200, 820}});
+    sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = {1200, 820}});
     // Both rails are computed from the loop and nothing reads the clock.
     ctx.captureAt(0.05);
 

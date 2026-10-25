@@ -86,12 +86,12 @@ constexpr float kMagnification = 8;
  *  old-style serif, untracked — stated, because the page's running
  *  register is tracked and an inscription is not. */
 StyleSheet voices() {
-  return sketch::kit::theme().styleSheet() +
+  return sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+             .styleSheet() +
          StyleSheet{rule(".inscription")
-                        .font({.face = weave::ports::face({"Iowan Old Style",
-                                                           "Georgia",
-                                                           "Times New Roman",
-                                                           "serif"}),
+                        .font({.face = weave::ports::face(
+                                   {"Iowan Old Style", "Georgia",
+                                    "Times New Roman", "serif"}),
                                .size = kLabel,
                                .track = 0.0f})};
 }
@@ -100,7 +100,9 @@ StyleSheet voices() {
 Element run(const char* words, TextPath baseline, float size = kLabel) {
   return text(words)
       .styleClass("inscription")
-      .font({.size = size, .color = sketch::kit::theme().palette.figure})
+      .font({.size = size,
+             .color = sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                          .palette.figure})
       .textOnPath(std::move(baseline));
 }
 
@@ -110,12 +112,14 @@ Element plate(Shape guide, Element lettering) {
   const float down = (kPicture - kRing) / 2;
   const float across = (kCell - kRing) / 2;
   return sketch::kit::well({.width = kCell, .height = kPicture})
-      .children(
-          {box()
-               .inset(down, across)
-               .shape(guide)
-               .stroke(stroke(1.0f, Fill::color(sketch::kit::theme().palette.rule))),
-           std::move(lettering).inset(down, across)});
+      .children({box()
+                     .inset(down, across)
+                     .shape(guide)
+                     .stroke(stroke(
+                         1.0f, Fill::color(sketch::kit::featureTheme(
+                                               sketch::kit::Density::Spacious)
+                                               .palette.rule))),
+                 std::move(lettering).inset(down, across)});
 }
 
 sketch::kit::ComparisonCase cell(const char* title, const char* call,
@@ -153,11 +157,15 @@ Element letter(float size, bool exact, float at, float offset) {
 
 struct TextOnPath {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const material::Color figure = sketch::kit::theme().palette.figure;
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
+    const material::Color figure =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+            .palette.figure;
 
     // THE TWO SETTINGS DRAWN ONCE EACH and held against each other: the
     // difference names the pixel where they part most, and both are
@@ -182,9 +190,9 @@ struct TextOnPath {
            .height = kPicture,
            .content = sketch::kit::Well::Content{}},
           image(drawing.source(), material::Fit::Stretch)
-              .imageRegion(sigil::geometry::path::fromSk(SkRect::MakeXYWH(
-                  cropLeft, cropTop, (float)kCrop.width(),
-                  (float)kCrop.height())))
+              .imageRegion(sigil::geometry::path::fromSk(
+                  SkRect::MakeXYWH(cropLeft, cropTop, (float)kCrop.width(),
+                                   (float)kCrop.height())))
               .imageRendering(material::Sampling::Nearest)
               .width(kCrop.width() * kMagnification)
               .height(kCrop.height() * kMagnification));
@@ -219,28 +227,28 @@ struct TextOnPath {
                       .note = "at = 0.75 on a closed ring · what align pins "
                               "there"},
                      sketch::kit::comparison(
-                         {.cases =
-                              {ring("START", "at 0.75 · Align::Start",
-                                    "The run begins at the fraction.",
-                                    "BEGINS HERE AND RUNS ON",
-                                    {.at = 0.75f,
-                                     .align = TextPath::Align::Start}),
-                               ring("CENTRE", "at 0.75 · Align::Center",
-                                    "The run straddles it.",
-                                    "BEGINS HERE AND RUNS ON",
-                                    {.at = 0.75f,
-                                     .align = TextPath::Align::Center}),
-                               ring("END", "at 0.75 · Align::End",
-                                    "The run finishes at it.",
-                                    "BEGINS HERE AND RUNS ON",
-                                    {.at = 0.75f,
-                                     .align = TextPath::Align::End}),
-                               ring("WRAPPED", "at 1.6 · Align::Center",
-                                    "A closed path wraps the fraction: 1.6 "
-                                    "is 0.6.",
-                                    "ROUND AND ROUND",
-                                    {.at = 1.6f,
-                                     .align = TextPath::Align::Center})},
+                         {.cases = {ring("START", "at 0.75 · Align::Start",
+                                         "The run begins at the fraction.",
+                                         "BEGINS HERE AND RUNS ON",
+                                         {.at = 0.75f,
+                                          .align = TextPath::Align::Start}),
+                                    ring("CENTRE", "at 0.75 · Align::Center",
+                                         "The run straddles it.",
+                                         "BEGINS HERE AND RUNS ON",
+                                         {.at = 0.75f,
+                                          .align = TextPath::Align::Center}),
+                                    ring("END", "at 0.75 · Align::End",
+                                         "The run finishes at it.",
+                                         "BEGINS HERE AND RUNS ON",
+                                         {.at = 0.75f,
+                                          .align = TextPath::Align::End}),
+                                    ring(
+                                        "WRAPPED", "at 1.6 · Align::Center",
+                                        "A closed path wraps the fraction: 1.6 "
+                                        "is 0.6.",
+                                        "ROUND AND ROUND",
+                                        {.at = 1.6f,
+                                         .align = TextPath::Align::Center})},
                           .measure = 1020,
                           .gap = 20})),
                  sketch::kit::section(
@@ -269,8 +277,7 @@ struct TextOnPath {
                                     {.at = 0.25f,
                                      .align = TextPath::Align::Center,
                                      .autoFlip = true}),
-                               ring("ALONG THE RADIUS",
-                                    "orient = Radial",
+                               ring("ALONG THE RADIUS", "orient = Radial",
                                     "Each glyph stands like a spoke, the way "
                                     "a compass rose is lettered.",
                                     "NORTH · EAST · SOUTH · WEST · ",
@@ -315,8 +322,7 @@ struct TextOnPath {
                           .measure = 1020,
                           .gap = 20})),
                  sketch::kit::section(
-                     {.label = "04  EXACT TANGENT",
-                      .note = parted},
+                     {.label = "04  EXACT TANGENT", .note = parted},
                      sketch::kit::comparison(
                          {.cases =
                               {cell("SNAPPED", "64 px · exactTangent = false",

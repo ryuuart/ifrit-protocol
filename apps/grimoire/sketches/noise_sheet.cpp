@@ -70,9 +70,8 @@ compose::Element curvePanel() {
     pen.strokeWeight(3.0f);
     pen.beginShape();
     for (float x = 0; x <= pen.width; x += 1)
-      pen.vertex(x, pen.height *
-                        (0.1f + 0.8f * pen.noise(x / pen.width * 4.0f +
-                                                 clock * 0.15f)));
+      pen.vertex(x, pen.height * (0.1f + 0.8f * pen.noise(x / pen.width * 4.0f +
+                                                          clock * 0.15f)));
     pen.endShape();
   });
 }
@@ -100,16 +99,23 @@ compose::Element walkPanel() {
     pen.strokeWeight(1.0f);
     for (int step = 0; step < shown; ++step) {
       switch (ways.bits() & 3u) {
-        case 0: at.x += kWalkStep; break;
-        case 1: at.x -= kWalkStep; break;
-        case 2: at.y += kWalkStep; break;
-        default: at.y -= kWalkStep; break;
+        case 0:
+          at.x += kWalkStep;
+          break;
+        case 1:
+          at.x -= kWalkStep;
+          break;
+        case 2:
+          at.y += kWalkStep;
+          break;
+        default:
+          at.y -= kWalkStep;
+          break;
       }
       at = glm::clamp(at, glm::vec2{kWalkStep, kWalkStep},
                       glm::vec2{pen.width, pen.height} - kWalkStep);
-      const float near =
-          std::clamp(1.0f - glm::length(at - centre) / (pen.height * 0.5f),
-                     0.0f, 1.0f);
+      const float near = std::clamp(
+          1.0f - glm::length(at - centre) / (pen.height * 0.5f), 0.0f, 1.0f);
       pen.fill(90 + 140 * near, 80 + 132 * near, 70 + 103 * near);
       pen.circle(at.x, at.y, kWalkStep);
     }
@@ -120,9 +126,11 @@ compose::Element walkPanel() {
 
 struct NoiseSheet {
   void setup(sketch::Scene2DContext& context) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(context, {.size = kCanvas, .captureAt = 6.0});
+    sketch::kit::stage(
+        context,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 6.0});
 
     const sketch::kit::Cell panel{
         .plate = {.width = kPanelWidth, .height = kPanelHeight}};
@@ -135,7 +143,8 @@ struct NoiseSheet {
         sketch::kit::comparison(
             {.cases = {{.title = "A CURVE",
                         .control = "pen.noise(x) · Stream::unit()",
-                        .figure = sketch::kit::cell(panel, "", "", curvePanel()),
+                        .figure =
+                            sketch::kit::cell(panel, "", "", curvePanel()),
                         .note = "The noise curve drifts as one line; the "
                                 "random one jumps at every vertex and "
                                 "rerolls three times a second."},

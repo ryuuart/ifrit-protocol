@@ -117,8 +117,7 @@ constexpr glm::vec3 kEye{0.0f, 54.0f, 400.0f};
  *  colour, because a plate of this sketch should say what it is waiting
  *  for. */
 Element waiting() {
-  const sketch::kit::Provide presentation(sketch::kit::featureTheme());
-  const sketch::kit::Theme& look = sketch::kit::theme();
+  const sketch::kit::Theme& look = sketch::kit::featureTheme();
   return stack()
       .width((float)kCard.width())
       .height((float)kCard.height())
@@ -154,8 +153,10 @@ struct GuestBody {
   std::shared_ptr<TextureScene> card;
 
   void setup(sketch::Scene3DContext& ctx) {
-    sketch::kit::stage(
-        ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
+    sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+                             .size = kCanvas,
+                             .captureAt = kCaptureAt,
+                             .background = kGround});
     gm::camera::Camera lens;
     lens.eye = kEye;
     lens.target = {0.0f, 6.0f, 0.0f};

@@ -311,7 +311,7 @@ struct NightingaleCoxcomb {
         rule(".second label")
             .fontSize(0.6_rem)
             .letterSpacing(0)
-            .textStroke(4.0f, Fill::var("paper")),
+            .textStroke(4.0f, var("paper")),
         rule(".campaign").fontSize(0.8_rem).letterSpacing(1.9),
         rule(".verso")
             .fontFamily(engraved)
@@ -339,7 +339,7 @@ struct NightingaleCoxcomb {
         rule(".needle")
             .ink(var("brass"))
             .stroke(stroke(1.4f))
-            .background(shadow(Fill::var("brass-glow"), {0, 0}, 9)),
+            .background(shadow(var("brass-glow"), {0, 0}, 9)),
         rule(".leader").ink(var("ink")),
     };
   }
@@ -379,12 +379,10 @@ struct NightingaleCoxcomb {
                     {.units = material::GradientUnits::Pixels})),
             // The plate mark: the copper's impression, a shadowed edge
             // and a lit one beside it.
-            box()
-                .inset(kPlateMark)
-                .stroke(stroke(1.0f, Fill::var("plate-shadow"))),
+            box().inset(kPlateMark).stroke(stroke(1.0f, var("plate-shadow"))),
             box()
                 .inset(kPlateMark + 2)
-                .stroke(stroke(1.0f, Fill::var("plate-light"))),
+                .stroke(stroke(1.0f, var("plate-light"))),
             // The running head of the page behind, read through the sheet
             // and so reversed.
             text("ENGLAND AND HER SOLDIERS.")
@@ -804,7 +802,7 @@ struct NightingaleCoxcomb {
   Element describe() const {
     return stack()
         .applyStyleSheet(sheet())
-        .fill(Fill::var("paper"))
+        .fill(var("paper"))
         .children({
             paper(),
             titles(),

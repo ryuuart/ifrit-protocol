@@ -55,11 +55,10 @@ struct @NAME@ {
   std::shared_ptr<const sigil::media::Image> reference;
 
   Element describe(sketch::Scene2DContext& ctx) {
-    // THE LOOK IS THE THEME'S, carried down the tree: the root states
-    // the theme's registers as classes, and a leaf names the one it is
-    // set in rather than spelling a size and a colour of its own.
+    // THE LOOK IS THE THEME'S, carried down the tree: the stage states
+    // the theme's sheet at the root, and a leaf names the class it is set
+    // in rather than spelling a size and a colour of its own.
     return stack()
-        .styleSheet(sketch::kit::theme().styleSheet())
         .children({text(u8"@STEM@").styleClass("title").inset(56, 64, 0, 64),
                    text(u8"edit this file and save")
                        .styleClass("subtitle")
@@ -74,8 +73,10 @@ struct @NAME@ {
 
   void setup(sketch::Scene2DContext& ctx) {
     // The canvas this sketch wants, and the moment a still of it is
-    // worth taking. The ground is the theme's unless this says another.
-    sketch::kit::stage(ctx, {.size = {960, 600}, .captureAt = 0.4});
+    // worth taking, in the theme whose ground and sheet it stands on.
+    sketch::kit::stage(ctx, {.theme = sketch::kit::houseTheme(),
+                             .size = {960, 600},
+                             .captureAt = 0.4});
     // Drop a reference.png into assets/ and it appears here.
     reference =
         ctx.assets.hub().load<sigil::media::Image>("res://reference.png");

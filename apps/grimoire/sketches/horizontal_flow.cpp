@@ -81,18 +81,16 @@ sketch::kit::Theme sheetTheme() {
   paper.spacing.captionGap = 18;
   paper.spacing.captionNoteGap = 5;
   paper.spacing.wellPadding = 22;
-  paper.captionWhere = sigil::compose::kit::Caption::Where::Above;
   return paper;
 }
 
 Element shapePassage() {
-  Element medallion =
-      kit::at(kit::centred(), 139, 74, kShapeSize, kShapeSize)
-          .key("central-star")
-          .shape(shapes::star(10, 0.62f, 0.08f))
-          .fill(Fill::color(kGold))
-          .children({text(u8"FLOW").font(
-              sketch::kit::theme().font({.size = 14, .track = 1.2f}))});
+  Element medallion = kit::at(kit::centred(), 139, 74, kShapeSize, kShapeSize)
+                          .key("central-star")
+                          .shape(shapes::star(10, 0.62f, 0.08f))
+                          .fill(Fill::color(kGold))
+                          .children({text(u8"FLOW").font(
+                              sheetTheme().font({.size = 14, .track = 1.2f}))});
 
   Element passage =
       document::paragraph(
@@ -139,7 +137,8 @@ Element droppedPassage() {
 Element panel(float left, const char* title, const char* note, Element body) {
   return sketch::kit::well(
              {.width = Dimension(476), .height = Dimension(438)},
-             sketch::kit::caption(kMeasure, title, note, std::move(body)))
+             sketch::kit::caption(kMeasure, title, note, std::move(body),
+                                  sigil::compose::kit::Caption::Where::Above))
       .at({left, 126});
 }
 
@@ -147,10 +146,10 @@ Element panel(float left, const char* title, const char* note, Element body) {
 
 struct HorizontalFlow {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    const sketch::kit::Theme& sheet = sheetTheme();
     sketch::kit::stage(ctx,
-                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                       {.theme = sheetTheme(),
+                        .size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 0.05,
                         .background = sheet.palette.ground});
 

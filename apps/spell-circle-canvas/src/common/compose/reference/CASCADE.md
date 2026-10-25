@@ -112,7 +112,9 @@ Leading::multiple(1.35f)})`, and `rule(".card").padding(8)` as well.
 as CSS's class attribute lists them. The cascade pass matches the rules in
 force where the element LANDS, and the fields a matched rule sets inherit down
 the tree like any `font()` or `paragraph()`. The order is CSS's: role defaults
-stand below every rule, a rule for a class stands over a rule for a role by its
+stand below every rule — a role's default ink may be a property,
+`role("eyebrow", font, var("palette-ash"))`, standing where a colour in
+its defaults would — a rule for a class stands over a rule for a role by its
 weight, rules of one weight fall to the nearer and later sheet and then to the
 later rule, and every rule loses to the node's own `font()` or `paragraph()`,
 so `styleClass("cell").font({.color = c})` is the cell class in this cell's
@@ -130,7 +132,7 @@ discipline through the paragraph half of the sheet and `Text::paragraphStyles`.
 
 **A custom property is set on a node and read by anything under it.**
 `Element::var` sets one; `var(name)` reads it as a `Dimension`,
-`Fill::var(name)` as a fill, and `ink(var(name))` as the ink, the nearest
+`fill(var(name))` as a fill, and `ink(var(name))` as the ink, the nearest
 ancestor that set the name winning. A property holds a colour, a length or
 a PAINT — `var("porphyry", stone)` with any `material::Material`, lowered
 once where it is set — and a paint is read by a fill, an ink, a stroke and
@@ -144,6 +146,9 @@ concrete values, and a paint program reaches the rest through
 `PaintContext::vars`, the properties in force where it paints. The
 cascade is the one inheritance: the tree carries the font, the ink and
 the properties, and a look is a sheet applied on a subtree.
+`Composer::setStyleSheet` states one at the root of whatever the composer
+renders, as though the root applied it before any sheet of its own, so a
+host states a look once and every tree it renders stands under it.
 
 **Lengths measure against the font.** `Dimension` takes SigilWeave's
 `weave::Length` and its literals: `1_em` on a box property is the node's

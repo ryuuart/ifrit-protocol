@@ -113,9 +113,10 @@ struct GuestPicture {
   std::string drawnIn;
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
-    sketch::kit::stage(
-        ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
+    sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+                             .size = kCanvas,
+                             .captureAt = kCaptureAt,
+                             .background = kGround});
     guest = std::make_shared<sketch::Guest>(ctx, kPublication, kApplication);
     read();
     describe(ctx);
@@ -141,7 +142,6 @@ struct GuestPicture {
   }
 
   void describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     std::vector<compose::Element> body;
     body.push_back(picture());
     if (!showing) body.push_back(waiting(ctx.deterministic));
@@ -157,7 +157,7 @@ struct GuestPicture {
                                .padding = 0,
                                .corners = kCorner,
                                .keyline = compose::Fill::color(
-                                   sketch::kit::theme().palette.rule),
+                                   sketch::kit::featureTheme().palette.rule),
                                .placed = true},
                               compose::stack().children(std::move(body))))));
   }
@@ -208,8 +208,7 @@ struct GuestPicture {
                  .ink(look.palette.ash),
              compose::document::code(
                  compose::kit::formatted(
-                     "Grimoire --sketch feed_sky --publish %s",
-                     kPublication))
+                     "Grimoire --sketch feed_sky --publish %s", kPublication))
                  .font(look.font({.size = 13, .mono = true}))
                  .ink(look.palette.ash)});
   }

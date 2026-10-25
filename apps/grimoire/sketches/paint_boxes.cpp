@@ -60,19 +60,22 @@ sketch::kit::ComparisonCase specimen(const char* title, const char* control,
                                      float height, Element picture) {
   return {.title = title,
           .control = control,
-          .figure = sketch::kit::well(
-              {.width = width,
-               .height = height,
-               .content = sketch::kit::Well::Content{}},
-              std::move(picture)),
+          .figure = sketch::kit::well({.width = width,
+                                       .height = height,
+                                       .content = sketch::kit::Well::Content{}},
+                                      std::move(picture)),
           .note = note};
 }
 
 /** Three words under one box that states the ink. */
 Element subtree(PaintBox over) {
-  return box().row().gap(14).ink(ramp(), over).children(
-      {text(u8"ONE").font(display(42)), text(u8"TWO").font(display(42)),
-       text(u8"SIX").font(display(42))});
+  return box()
+      .row()
+      .gap(14)
+      .ink(ramp(), over)
+      .children({text(u8"ONE").font(display(42)),
+                 text(u8"TWO").font(display(42)),
+                 text(u8"SIX").font(display(42))});
 }
 
 /** Two lines of two words, inked with the ramp over @p unit. */
@@ -84,8 +87,8 @@ Element passage(PaintBox unit) {
  *  a card shows is decided by where it stands. */
 Element cards() {
   return box().row().gap(12).children({each(3, [](int) {
-    return box().width(96).height(96).borderRadius({10}).fill(
-        ramp(), PaintBox::Canvas);
+    return box().width(96).height(96).borderRadius({10}).fill(ramp(),
+                                                              PaintBox::Canvas);
   })});
 }
 
@@ -102,8 +105,9 @@ Element pair(bool rootAnchored) {
 
 struct PaintBoxes {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::studyTheme());
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.theme = sketch::kit::studyTheme(),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
     const float third = (kMeasure - 36) / 3, quarter = (kMeasure - 54) / 4;
 
     ctx.composer.render(sketch::kit::page(
@@ -118,38 +122,38 @@ struct PaintBoxes {
                  {.label = "INK OVER A BOX",
                   .note = "box().ink(ramp, PaintBox::…) over three words"},
                  sketch::kit::comparison(
-                     {.cases = {specimen("ELEMENT", "PaintBox::Element",
-                                         "Each word maps the ramp onto its "
-                                         "own metrics.",
-                                         third, 120, subtree(PaintBox::Element)),
-                                specimen("SUBTREE", "PaintBox::Subtree",
-                                         "One ramp across the row; each word "
-                                         "its own slice.",
-                                         third, 120, subtree(PaintBox::Subtree)),
-                                specimen("CANVAS", "PaintBox::Canvas",
-                                         "The field belongs to the canvas, "
-                                         "not to the row.",
-                                         third, 120,
-                                         subtree(PaintBox::Canvas))},
+                     {.cases =
+                          {specimen("ELEMENT", "PaintBox::Element",
+                                    "Each word maps the ramp onto its "
+                                    "own metrics.",
+                                    third, 120, subtree(PaintBox::Element)),
+                           specimen("SUBTREE", "PaintBox::Subtree",
+                                    "One ramp across the row; each word "
+                                    "its own slice.",
+                                    third, 120, subtree(PaintBox::Subtree)),
+                           specimen("CANVAS", "PaintBox::Canvas",
+                                    "The field belongs to the canvas, "
+                                    "not to the row.",
+                                    third, 120, subtree(PaintBox::Canvas))},
                       .measure = kMeasure,
                       .gap = 18})),
              sketch::kit::section(
                  {.label = "INK RESTARTED ON EACH UNIT",
                   .note = "text(…).ink(ramp, PaintBox::…) over one passage"},
                  sketch::kit::comparison(
-                     {.cases =
-                          {specimen("THE PASSAGE", "PaintBox::Element",
-                                    "Laid once across the whole of it.",
-                                    quarter, 130, passage(PaintBox::Element)),
-                           specimen("EACH GLYPH", "PaintBox::Glyph",
-                                    "Afresh on every letter.", quarter, 130,
-                                    passage(PaintBox::Glyph)),
-                           specimen("EACH WORD", "PaintBox::Word",
-                                    "Afresh on every word.", quarter, 130,
-                                    passage(PaintBox::Word)),
-                           specimen("EACH LINE", "PaintBox::Line",
-                                    "Afresh on every line.", quarter, 130,
-                                    passage(PaintBox::Line))},
+                     {.cases = {specimen("THE PASSAGE", "PaintBox::Element",
+                                         "Laid once across the whole of it.",
+                                         quarter, 130,
+                                         passage(PaintBox::Element)),
+                                specimen("EACH GLYPH", "PaintBox::Glyph",
+                                         "Afresh on every letter.", quarter,
+                                         130, passage(PaintBox::Glyph)),
+                                specimen("EACH WORD", "PaintBox::Word",
+                                         "Afresh on every word.", quarter, 130,
+                                         passage(PaintBox::Word)),
+                                specimen("EACH LINE", "PaintBox::Line",
+                                         "Afresh on every line.", quarter, 130,
+                                         passage(PaintBox::Line))},
                       .measure = kMeasure,
                       .gap = 18})),
              sketch::kit::section(
@@ -157,22 +161,23 @@ struct PaintBoxes {
                   .note = "A fill over the canvas box, and the material "
                           "anchored to the root, read the same field"},
                  sketch::kit::comparison(
-                     {.cases =
-                          {specimen("FILL · CANVAS BOX",
+                     {.cases = {specimen(
+                                    "FILL · CANVAS BOX",
                                     "fill(ramp, PaintBox::Canvas)",
                                     "Three cards, one paint: windows cut in "
                                     "a single gradient.",
                                     third, 130, cards()),
-                           specimen("MATERIAL · EACH NODE",
+                                specimen(
+                                    "MATERIAL · EACH NODE",
                                     "ramp.worldSpace(false)",
                                     "Each node repeats the whole ramp in its "
                                     "own box.",
                                     third, 130, pair(false)),
-                           specimen("MATERIAL · THE ROOT",
-                                    "ramp.worldSpace(true)",
-                                    "Both nodes sample one field anchored "
-                                    "to the page.",
-                                    third, 130, pair(true))},
+                                specimen("MATERIAL · THE ROOT",
+                                         "ramp.worldSpace(true)",
+                                         "Both nodes sample one field anchored "
+                                         "to the page.",
+                                         third, 130, pair(true))},
                       .measure = kMeasure,
                       .gap = 18}))})));
   }

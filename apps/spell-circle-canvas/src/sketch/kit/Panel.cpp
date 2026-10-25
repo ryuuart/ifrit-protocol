@@ -9,7 +9,11 @@
 #include <sigilsketch/kit/Panel.h>
 
 #include <algorithm>
+#include <optional>
+#include <string_view>
 #include <utility>
+
+#include "WellPlate.h"
 
 namespace sigil::sketch::kit {
 
@@ -19,11 +23,11 @@ using compose::Corners;
 using compose::Dimension;
 using compose::Element;
 using compose::Fill;
+using compose::var;
 
 compose::Element backdrop(const Backdrop& ground) {
-  const Theme& look = theme();
   Element surface = box().absolute().inset(0);
-  surface.fill(ground.ground.value_or(Fill::color(look.palette.ground)));
+  surface.fill(ground.ground.value_or(compose::var("palette-ground")));
   if (!ground.key.empty()) surface.key(ground.key);
   if (ground.grain > 0) {
     // The grain is a fill of its own laid over the ground rather than a
@@ -52,54 +56,66 @@ compose::Element backdrop(const Backdrop& ground) {
 }
 
 compose::Element panel(const Panel& region, compose::Element content) {
-  const Theme& look = theme();
   // The plate a panel stands on is not a specimen well: it is padded,
-  // rounded and ruled by the theme's own panel distances unless the
-  // caller states otherwise, and the well below puts the theme's ground
+  // rounded and ruled by the sheet's own panel distances unless the
+  // caller states otherwise, and the well below puts the sheet's ground
   // and its recess or relief into the same value.
   Well plate = region.body;
-  if (!plate.padding) plate.padding = look.spacing.panelPadding;
-  if (!plate.corners) plate.corners = look.spacing.panelCorners;
-  if (!plate.keyline) plate.keyline = Fill::color(look.palette.rule);
-  return well(plate, compose::kit::panel(
-                         {.eyebrow = region.eyebrow,
-                          .title = region.title,
-                          .note = region.note,
-                          .rule = region.ruled ? Fill::color(look.palette.rule)
-                                               : Fill{},
-                          .gap = look.spacing.captionGap,
-                          .titleGap = look.spacing.captionNoteGap},
-                         std::move(content)));
+  if (!plate.keyline) plate.keyline = compose::var("palette-rule");
+  return detail::plate(
+      plate,
+      compose::kit::panel(
+          {.eyebrow = region.eyebrow,
+           .title = region.title,
+           .note = region.note,
+           .rule = region.ruled ? compose::var("palette-rule") : Fill{},
+           .gap = var("spacing-caption-gap"),
+           .titleGap = var("spacing-caption-note-gap")},
+          std::move(content)),
+      var("spacing-panel-padding"), var("spacing-panel-corners"));
 }
 
+namespace {
+
+/** A radius the caller stated, rounding only where it is more than
+ *  nothing, or the sheet's property where the caller stated none. */
+void rounded(Element& surface, const std::optional<float>& stated,
+             std::string_view property) {
+  if (!stated)
+    surface.borderRadius(Corners{var(property)});
+  else if (*stated > 0)
+    surface.borderRadius(Corners{*stated});
+}
+
+}  // namespace
+
 compose::Element frame(const Frame& chrome, compose::Element screen) {
-  const Theme& look = theme();
   Element opening = compose::box().column().flexGrow(1);
-  opening.fill(chrome.screen.value_or(Fill::color(look.palette.ground)));
+  opening.fill(chrome.screen.value_or(compose::var("palette-ground")));
   opening.overflow(compose::Overflow::Clip).children({std::move(screen)});
-  if (const float round =
-          chrome.screenCorners.value_or(look.spacing.screenCorners);
-      round > 0)
-    opening.borderRadius(Corners{round});
-  const Fill rule = chrome.keyline.value_or(Fill::color(look.palette.rule));
+  rounded(opening, chrome.screenCorners, "spacing-screen-corners");
+  const Fill rule = chrome.keyline.value_or(compose::var("palette-rule"));
   if (rule.kind != Fill::Kind::None)
     opening.stroke(compose::stroke(1, rule, compose::PathFormat::Align::Inner));
 
-  const float bezel = chrome.bezel.value_or(look.spacing.bezel);
+  // The bezel is the shell's padding, so the screen is the flex child it
+  // insets and nothing is measured while the frame is built.
+  const Dimension bezel =
+      chrome.bezel ? Dimension(*chrome.bezel) : var("spacing-bezel");
   Element shell = compose::box().column().padding(bezel);
-  shell.fill(chrome.shell.value_or(Fill::color(look.palette.cellGround)));
+  shell.fill(chrome.shell.value_or(compose::var("palette-cell-ground")));
   if (chrome.width.unit != Dimension::Unit::Auto) shell.width(chrome.width);
   if (chrome.height.unit != Dimension::Unit::Auto) shell.height(chrome.height);
-  if (const float round = chrome.corners.value_or(look.spacing.panelCorners);
-      round > 0)
-    shell.borderRadius(Corners{round});
+  rounded(shell, chrome.corners, "spacing-panel-corners");
   shell.children({std::move(opening)});
-  if (!chrome.plate.empty())
-    shell.children(
-        {compose::document::eyebrow(chrome.plate)
-             .role("eyebrow", look.font(look.type.eyebrow, look.palette.ash))
-             .margin(bezel * 0.5f, 0, 0, 0)
-             .alignSelf(Align::Center)});
+  if (!chrome.plate.empty()) {
+    const Theme& house = houseTheme();
+    shell.children({compose::document::eyebrow(chrome.plate)
+                        .role("eyebrow", house.font(house.type.eyebrow),
+                              var("palette-ash"))
+                        .margin(bezel * 0.5f, 0, 0, 0)
+                        .alignSelf(Align::Center)});
+  }
   return shell;
 }
 

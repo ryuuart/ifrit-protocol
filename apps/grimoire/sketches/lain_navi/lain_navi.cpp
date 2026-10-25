@@ -95,20 +95,18 @@ StyleSheet copland() {
           .fontSize(14)
           .letterSpacing(0.6)
           .ink(var("ink")),
-      rule(".window")
-          .fill(Fill::var("pane"))
-          .stroke(stroke(1, Fill::var("edge"))),
+      rule(".window").fill(var("pane")).stroke(stroke(1, var("edge"))),
       rule(".chrome")
           .height(20)
           .paddingLeft(8)
           .paddingRight(6)
-          .fill(Fill::var("chrome"))
+          .fill(var("chrome"))
           .fontSize(12)
           .fontWeight(600)
           .letterSpacing(1.8)
           .ink(var("chromeInk")),
       rule(".button").width(10).height(10).marginLeft(4).stroke(
-          stroke(1, Fill::var("chromeInk"))),
+          stroke(1, var("chromeInk"))),
       rule(".listing, .prompt")
           .fontFamily("JetBrains Mono, Andale Mono, Menlo, monospace")
           .fontWeight(300)
@@ -354,7 +352,7 @@ struct LainNavi {
                       .width(30)
                       .height(30)
                       .fill(hexColor(0x9fb3c4, 0.12f))
-                      .stroke(stroke(1, Fill::var("edge"))),
+                      .stroke(stroke(1, var("edge"))),
                   text(std::string(name.string())).styleClass("label"),
               });
         })});
@@ -390,7 +388,7 @@ struct LainNavi {
                                          .width(8)
                                          .height(8)
                                          .shape(shapes::ellipse())
-                                         .fill(Fill::var("wired")),
+                                         .fill(var("wired")),
                                      text(std::string(node["name"].string()))
                                          .styleClass("label"),
                                  });
@@ -482,7 +480,7 @@ struct LainNavi {
             box()
                 .width(7)
                 .height(14)
-                .fill(Fill::var("phosphor"))
+                .fill(var("phosphor"))
                 .opacity(motion::bind(
                     clock, {.from = {0, 1.06f},
                             .envelope = motion::envelope::square(0.5f)})),
@@ -580,13 +578,11 @@ struct LainNavi {
                                 .fontSize(18),
                             text("CONNECTING TO THE WIRED").styleClass("label"),
                         }),
-                    box()
-                        .rect(10, 118, 400, 8)
-                        .stroke(stroke(1, Fill::var("edge"))),
+                    box().rect(10, 118, 400, 8).stroke(stroke(1, var("edge"))),
                 }),
             box()
                 .rect(10, 118, 400, 8)
-                .fill(Fill::var("wired"))
+                .fill(var("wired"))
                 .transformOrigin(percent(0), percent(50))
                 .scaleX(motion::bind(
                     clock, {.from = {kDialogOpens + 0.6f, kDialogCloses - 0.9f},

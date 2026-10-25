@@ -26,6 +26,7 @@ using sigil::sketch::kit::test::kTall;
 using sigil::sketch::kit::test::kWide;
 using sigil::sketch::kit::test::sameDrawing;
 using sigil::sketch::kit::test::subject;
+using sigil::sketch::kit::test::withProperties;
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
 
@@ -145,8 +146,8 @@ TEST(SketchKitPanel, TheBackdropIsTheThemesGround) {
 TEST(SketchKitPanel, AVignetteDarkensTheCornersAndNotTheMiddle) {
   kit::Theme paper = kit::houseTheme();
   paper.palette.ground = {0.6f, 0.6f, 0.6f, 1};
-  const kit::Provide bound(paper);
-  SkBitmap shaded = Drawn(kit::backdrop({.vignette = 0.9f})).pixels();
+  SkBitmap shaded =
+      Drawn(withProperties(kit::backdrop({.vignette = 0.9f}), paper)).pixels();
   const sigil::material::Color corner = shaded.getColor4f(1, 1);
   const sigil::material::Color middle = shaded.getColor4f(kWide / 2, kTall / 2);
   EXPECT_LT(corner.r, middle.r);

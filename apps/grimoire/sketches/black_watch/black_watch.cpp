@@ -346,9 +346,8 @@ struct BlackWatch {
                                             .inset = true})))),
                   document::lead(doc.phrase(words["registration"]))}),
              box().row().gap(13).width(440).styleClass("ticket").children(
-                 {kit::line({.thickness = 1,
-                             .column = true,
-                             .fill = Fill::var("rule")}),
+                 {kit::line(
+                      {.thickness = 1, .column = true, .fill = var("rule")}),
                   box().column().gap(4.5f).children({each(
                       words["ticket"].array(), [this](const data::Json& line) {
                         return document::caption(doc.phrase(line));
@@ -381,7 +380,7 @@ struct BlackWatch {
                         .width(12)
                         .height(10)
                         .shape(shapes::polygon(3, 180))
-                        .fill(Fill::var("proof"))
+                        .fill(var("proof"))
                         .transformOrigin(percent(50), percent(100))
                         .scale(sigil::motion::bind(
                             loom, {.from = {kWeaveEnd, kWeaveEnd + 0.035f},
@@ -456,7 +455,7 @@ struct BlackWatch {
                 // well's colour withdraws to the right.
                 box()
                     .cover()
-                    .fill(Fill::var("well"))
+                    .fill(var("well"))
                     .transformOrigin(percent(100), percent(50))
                     .scaleX(sigil::motion::bind(loom, {.from = {0, kBeamEnd},
                                                        .clampFrom = true,
@@ -472,7 +471,7 @@ struct BlackWatch {
                         .blendMode(material::BlendMode::Multiply)
                         .opacity(0.9f)
                         .cache(Cache::Texture),
-                    layer(Fill::var("yarn"))
+                    layer(var("yarn"))
                         .blendMode(material::BlendMode::Overlay)
                         .opacity(0.14f)
                         .cache(Cache::Texture),
@@ -496,7 +495,7 @@ struct BlackWatch {
           .top(0)
           .width(1)
           .height(percent(100))
-          .fill(Fill::var("proof"))
+          .fill(var("proof"))
           .opacity(sigil::motion::bind(
               loom, {.from = {kWeaveEnd, kProveEnd},
                      .envelope =
@@ -523,7 +522,7 @@ struct BlackWatch {
              .top(0)
              .width(percent(100))
              .height(2)
-             .fill(Fill::var("proof"))
+             .fill(var("proof"))
              .translateY(atFell(0))
              .opacity(weaving()),
          box()
@@ -542,7 +541,7 @@ struct BlackWatch {
                        .effects(sigil::material::Filter::shadow(
                            faded(colours.shadow, 0.6f),
                            {.blur = 3, .offset = {1, 3}})))
-             .stroke(stroke(0.8f, Fill::var("ink"), PathFormat::Align::Inner))
+             .stroke(stroke(0.8f, var("ink"), PathFormat::Align::Inner))
 
              .children({box()
                             .left(17)
@@ -720,7 +719,7 @@ struct BlackWatch {
                  .height(kCell)
                  .fill(blends[(size_t)(weftShade * 3 + warpShade)].material())
                  .stroke(stroke(1,
-                                Fill::var(std::string_view(
+                                var(std::string_view(
                                     warpShade == weftShade ? "rule" : "ink")),
                                 PathFormat::Align::Outer));
            })})});
@@ -774,7 +773,7 @@ struct BlackWatch {
                  .top(-3)
                  .width(5)
                  .height(22)
-                 .fill(Fill::var("proof"))
+                 .fill(var("proof"))
                  .opacity(sigil::motion::bind(
                      loom, {.from = {kTurns[turn].start, until},
                             .envelope = sigil::motion::envelope::trapezoid(
@@ -832,8 +831,8 @@ struct BlackWatch {
              {each(words["labels"].array(),
                    [&](const data::Json& label, size_t index) {
                      return labelled(
-                         swatch(cloths.front(), kGovernmentCrop,
-                                Fill::var("rule"), 1),
+                         swatch(cloths.front(), kGovernmentCrop, var("rule"),
+                                1),
                          document::caption(doc.phrase(label))
                              .styleClass("name")
                              .opacity(sigil::motion::bind(
@@ -841,10 +840,9 @@ struct BlackWatch {
                                                  0.66f + (float)index * 0.022f},
                                         .clampFrom = true})));
                    }),
-              labelled(
-                  swatch(argyllCloth, kArgyllCrop, Fill::var("proof"), 1.5f),
-                  document::caption(doc.phrase(words["honest"]))
-                      .styleClass("name honest"))}),
+              labelled(swatch(argyllCloth, kArgyllCrop, var("proof"), 1.5f),
+                       document::caption(doc.phrase(words["honest"]))
+                           .styleClass("name honest"))}),
          box()
              .row()
              .justifyContent(Justify::SpaceBetween)
@@ -892,7 +890,7 @@ struct BlackWatch {
                              .flexShrink(0)
                              .fill(cards.front().shades[(size_t)run.shade]);
                      if (run.shade == Y || run.shade == W)
-                       band.stroke(stroke(1.5f, Fill::var("proof"),
+                       band.stroke(stroke(1.5f, var("proof"),
                                           PathFormat::Align::Outer));
                      return band;
                    })})});
@@ -945,9 +943,9 @@ struct BlackWatch {
            check.judged()
                ? (check.pass ? "PASS" : "FAIL want " + check.expected)
                : "—"});
-      swatches.push_back(Fill::var(!check.judged() ? "rule"
-                                   : check.pass    ? "ink"
-                                                   : "proof"));
+      swatches.push_back(var(!check.judged() ? "rule"
+                             : check.pass    ? "ink"
+                                             : "proof"));
     }
     std::vector<std::span<const Utf8>> tableRows;
     for (const auto& row : rows) tableRows.emplace_back(row);
@@ -965,8 +963,8 @@ struct BlackWatch {
                                           {.width = 200},
                                           {.width = 56, .figure = true},
                                           {}},
-                              .gap = sketch::kit::theme().spacing.labelGap,
-                              .rowGap = sketch::kit::theme().spacing.rowGap,
+                              .gap = sigil::compose::var("spacing-label-gap"),
+                              .rowGap = sigil::compose::var("spacing-row-gap"),
                               .swatches = swatches})
                              .opacity(sigil::motion::bind(
                                  loom, {.from = {kWeaveEnd, kWeaveEnd + reveal},
@@ -986,10 +984,11 @@ struct BlackWatch {
     return box()
         .width(kCanvas.width())
         .height(kCanvas.height())
+        .applyStyleSheet(cardTheme(colours).properties())
         .applyStyleSheet(cardSheet(colours, kDraftCell))
         .padding(46, 64, 0, 64)
         .children({
-            layer(Fill::var("board")).cache(Cache::Texture),
+            layer(var("board")).cache(Cache::Texture),
             // The card lies under a window: light falls across it from the
             // upper left and the far corner sits in shade.
             box()
@@ -1006,7 +1005,7 @@ struct BlackWatch {
             box().column().gap(26).children({
                 box().column().children(
                     {masthead(),
-                     kit::line({.fill = Fill::var("rule")}).marginTop(18)}),
+                     kit::line({.fill = var("rule")}).marginTop(18)}),
                 box().row().gap(kGutter).children(
                     {box().column().flexShrink(0).children(
                          {settBar(), mountedCloth()}),
@@ -1034,7 +1033,7 @@ struct BlackWatch {
                                    .marginTop(2)}),
             }),
             box().flexGrow(),
-            kit::line({.fill = Fill::var("rule")}),
+            kit::line({.fill = var("rule")}),
             document::footer(doc.phrase(words["colophon"]))
                 .marginTop(6)
                 .marginBottom(26),
@@ -1061,7 +1060,6 @@ struct BlackWatch {
     ctx.engine.timer([this, &ticker = ctx.engine] {
       loom = phase(ticker.elapsed(), sigil::motion::Duration(kCycle));
     });
-    const sketch::kit::Provide look(cardTheme(colours));
     ctx.composer.render(describe());
   }
 };

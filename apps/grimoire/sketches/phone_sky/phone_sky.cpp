@@ -200,10 +200,12 @@ struct PhoneSky {
   Reading shown;
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide sheet(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
-        ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = kCaptureAt,
+         .background = kGround});
     ticker = &ctx.engine;
 
     pages = ctx.local(kPages);
@@ -341,8 +343,6 @@ struct PhoneSky {
   }
 
   void describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide sheet(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     std::vector<compose::Element> parts;
     parts.push_back(compose::pen("phone_sky.sky", [this](Pen& pen) {
                       bands(pen);
@@ -385,7 +385,8 @@ struct PhoneSky {
    *  this door is served by the door itself, so the whole of what a
    *  person needs is the address. */
   compose::Element invitation() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
+    const sketch::kit::Theme& look =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     return compose::text(
                compose::kit::formatted(
                    "open this machine on port %d in a phone's browser", kPort))

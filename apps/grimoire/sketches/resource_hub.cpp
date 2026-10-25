@@ -149,7 +149,8 @@ Element clouds(const std::shared_ptr<const Cloud>& cloud) {
       cloud ? cloud->points : std::vector<SkPoint>{};
   // A paint program runs after the describe scope has closed, so the ink
   // is read here and carried in by value.
-  const material::Color figure = sketch::kit::theme().palette.figure;
+  const material::Color figure =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious).palette.figure;
   return pen("hub.clouds", [points, figure](draw::Pen& pen) {
     pen.noStroke();
     pen.fill(figure);
@@ -160,20 +161,26 @@ Element clouds(const std::shared_ptr<const Cloud>& cloud) {
 /** What a request came back with: the image, or the absence of one. */
 Element answered(const std::shared_ptr<const media::Image>& result) {
   return result ? Element(image(result).width(150).height(100))
-                : Element(box().width(150).height(100).padding(10).fill(
-                      Fill::color({0.18f, 0.10f, 0.12f, 1})).children(
-                      {document::label("NO IMAGE")}));
+                : Element(box()
+                              .width(150)
+                              .height(100)
+                              .padding(10)
+                              .fill(Fill::color({0.18f, 0.10f, 0.12f, 1}))
+                              .children({document::label("NO IMAGE")}));
 }
 
 }  // namespace
 
 struct ResourceHub {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // every request has already been answered
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const sketch::kit::Theme& look = sketch::kit::theme();
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
+    const sketch::kit::Theme& look =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
 
     // RELOAD AFTER POLL — the first state on disk, read, then the second.
     const std::filesystem::path dir =
@@ -230,15 +237,18 @@ struct ResourceHub {
                                 .content = sketch::kit::Well::Content{}},
                                std::move(body));
     };
-    const auto snapshot = [&](const std::optional<std::string>& words,
-                              const std::shared_ptr<const Cloud>& cloud,
-                              const std::shared_ptr<const media::Image>& chart) {
-      return box().column().gap(14).children(
-          {row(80, text(words.value_or("No text")).width(third - 40)
-                       .font({.size = 18})),
-           row(110, clouds(cloud).width(180).height(100)),
-           row(110, (chart ? image(chart) : box()).width(150).height(100))});
-    };
+    const auto snapshot =
+        [&](const std::optional<std::string>& words,
+            const std::shared_ptr<const Cloud>& cloud,
+            const std::shared_ptr<const media::Image>& chart) {
+          return box().column().gap(14).children(
+              {row(80, text(words.value_or("No text"))
+                           .width(third - 40)
+                           .font({.size = 18})),
+               row(110, clouds(cloud).width(180).height(100)),
+               row(110,
+                   (chart ? image(chart) : box()).width(150).height(100))});
+        };
     const auto named = [&](float height, const char* role, const char* file,
                            const char* call) {
       return box().height(height).column().gap(8).padding(14, 0).children(
@@ -278,20 +288,18 @@ struct ResourceHub {
                      {.cases =
                           {{.title = "RESOURCE",
                             .control = "three ways to read a file",
-                            .figure = box().column().gap(14).width(third)
-                                          .children({named(80, "TEXT",
-                                                           "notes.txt",
-                                                           "hub.text(uri)"),
-                                                     named(110,
-                                                           "CALLER-DEFINED TYPE",
-                                                           "cloud.pts",
-                                                           "registerDecoder<"
-                                                           "Cloud>\nload<Cloud>"
-                                                           "(uri)"),
-                                                     named(110, "IMAGE",
-                                                           "chart.png",
-                                                           "hub.load<Image>"
-                                                           "(uri)")})},
+                            .figure =
+                                box().column().gap(14).width(third).children(
+                                    {named(80, "TEXT", "notes.txt",
+                                           "hub.text(uri)"),
+                                     named(110, "CALLER-DEFINED TYPE",
+                                           "cloud.pts",
+                                           "registerDecoder<"
+                                           "Cloud>\nload<Cloud>"
+                                           "(uri)"),
+                                     named(110, "IMAGE", "chart.png",
+                                           "hub.load<Image>"
+                                           "(uri)")})},
                            {.title = "HELD BEFORE THE WRITE",
                             .control = "first load",
                             .figure =

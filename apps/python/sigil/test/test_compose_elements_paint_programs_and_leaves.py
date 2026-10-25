@@ -149,12 +149,11 @@ class PaintProgramValues(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "at least two stops"):
             material.Paint.radialGradient((0, 0), 4, [])
 
-    def test_a_custom_property_fill_is_named_by_reference_or_by_name(self):
-        self.assertEqual(
-            native.Fill.var("accent"), native.Fill.var(native.var("accent"))
-        )
-        self.assertEqual(native.Fill.var(name="accent"), native.Fill.var("accent"))
-        self.assertNotEqual(native.Fill.var("accent"), native.Fill.var("ground"))
+    def test_a_custom_property_fill_is_the_bare_reference(self):
+        self.assertEqual(native.Fill(native.var("accent")), native.Fill("var(--accent)"))
+        self.assertEqual(native.Fill(native.var("accent")), native.Fill(native.var("accent")))
+        self.assertNotEqual(native.Fill(native.var("accent")), native.Fill(native.var("ground")))
+        self.assertFalse(hasattr(native.Fill, "var"))
 
     def test_the_image_leaf_takes_a_decoded_asset_or_a_picture(self):
         picture = media.fromRgba(bytes([255, 0, 0, 255]) * 16, 4, 4)

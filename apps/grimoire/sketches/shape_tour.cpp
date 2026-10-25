@@ -77,7 +77,6 @@ constexpr material::Color kLine{0.56f, 0.76f, 0.88f, 1};
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.captionWhere = kit::Caption::Where::Below;
   look.spacing.marginHorizontal = 30;
   look.spacing.marginTop = 22;
   look.spacing.captionNoteGap = 3;
@@ -105,8 +104,9 @@ Element cell(Outline outline, const char* call, const char* note,
       box()
           .width(kCell)
           .height(kBed)
-          .fill(Fill::color(sketch::kit::theme().palette.cellGround))
-          .children({figure(kLarge, 8), figure(kSmall, kLarge + 22)}));
+          .fill(Fill::color(sheetTheme().palette.cellGround))
+          .children({figure(kLarge, 8), figure(kSmall, kLarge + 22)}),
+      sigil::compose::kit::Caption::Where::Below);
 }
 
 /** ONE WIDE CELL: the traced path in a box far wider than its own
@@ -119,15 +119,16 @@ Element wideCell(const char* d, bool preserveAspect, const char* call,
       box()
           .width(kCell)
           .height(kBed)
-          .fill(Fill::color(sketch::kit::theme().palette.cellGround))
-          .children({kit::at(box()
-                                 .stroke(stroke(1.0f, Fill::color(kLine)))
-                                 .children({box()
-                                                .inset(0)
-                                                .shape(shapes::svg(
-                                                    d, preserveAspect))
-                                                .fill(Fill::color(kBody))}),
-                             8, kBed - 8 - 60, kCell - 16, 60)}));
+          .fill(Fill::color(sheetTheme().palette.cellGround))
+          .children(
+              {kit::at(box()
+                           .stroke(stroke(1.0f, Fill::color(kLine)))
+                           .children({box()
+                                          .inset(0)
+                                          .shape(shapes::svg(d, preserveAspect))
+                                          .fill(Fill::color(kBody))}),
+                       8, kBed - 8 - 60, kCell - 16, 60)}),
+      sigil::compose::kit::Caption::Where::Below);
 }
 
 Element row(std::vector<Element> cells) {
@@ -145,9 +146,9 @@ const char* kHeartD =
 
 struct ShapeShelf {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // A generator is a pure function of its parameters and the box.
-    sketch::kit::stage(ctx, {.size = {1120, 980}, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = {1120, 980}, .captureAt = 0.05});
 
     Element generators = kit::cells(
         {.cells =

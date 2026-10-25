@@ -184,11 +184,12 @@ struct ChannelBind {
   Shown shown;
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx,
-        {.size = kCanvas, .captureAt = kCaptureAt, .background = kBackdrop});
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = kCaptureAt,
+         .background = kBackdrop});
 
     io::Hub& hub = ctx.assets.hub();
     // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window listens on
@@ -249,8 +250,6 @@ struct ChannelBind {
   }
 
   void describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     ctx.composer.render(sketch::kit::page(
         {.title = "A number arrives. A property moves.",
          .subtitle = "Three OSC faders, three bound properties · input 0–127 "
@@ -263,7 +262,8 @@ struct ChannelBind {
   }
 
   compose::Element figure() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
+    const sketch::kit::Theme& look =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     const auto plate = [&](std::vector<compose::Element> parts) {
       parts.push_back(compose::box()
                           .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
@@ -310,20 +310,19 @@ struct ChannelBind {
    *  put its own rect between them and it. */
   std::vector<compose::Element> wheel(const sketch::kit::Theme& look) {
     std::vector<compose::Element> pieces;
-    pieces.push_back(
-        compose::box()
-            .rect(sigil::geometry::path::fromSk(
-                SkRect::MakeLTRB(kWheelAt, kWheelTop, kWheelAt + kWheelSide,
-                                 kWheelTop + kWheelSide)))
-            .borderRadius(kWheelSide * 0.5f)
-            .fill(material::conicGradient(
-                sigil::geometry::path::fromSk(
-                    SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}),
-                hues(),
-                {.units = material::GradientUnits::Pixels,
-                 .startDegrees = 90,
-                 .endDegrees = 450}))
-            .rotate(turn()));
+    pieces.push_back(compose::box()
+                         .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
+                             kWheelAt, kWheelTop, kWheelAt + kWheelSide,
+                             kWheelTop + kWheelSide)))
+                         .borderRadius(kWheelSide * 0.5f)
+                         .fill(material::conicGradient(
+                             sigil::geometry::path::fromSk(
+                                 SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}),
+                             hues(),
+                             {.units = material::GradientUnits::Pixels,
+                              .startDegrees = 90,
+                              .endDegrees = 450}))
+                         .rotate(turn()));
     // The hub, which turns the disc into a ring, and the pointer the ring
     // is read against. Neither is bound: a pointer that moved with the
     // wheel would name one colour forever.
@@ -391,10 +390,14 @@ struct ChannelBind {
                    {.name = "LAST INPUT", .value = reading(index)},
                    {.name = kDriven[index], .value = standing(index)}},
                {.measure = kFigureWidth,
-                .gap = sketch::kit::theme().spacing.rowGap,
-                .labelGap = sketch::kit::theme().spacing.labelGap,
-                .divider =
-                    compose::Fill::color(sketch::kit::theme().palette.rule)})});
+                .gap = sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                           .spacing.rowGap,
+                .labelGap =
+                    sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                        .spacing.labelGap,
+                .divider = compose::Fill::color(
+                    sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                        .palette.rule)})});
     return sketch::kit::comparison(
         {.cases = std::move(cases), .measure = 1100, .gap = 19});
   }

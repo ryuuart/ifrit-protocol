@@ -85,7 +85,7 @@ constexpr float kPicture = 218;
 constexpr float kMeasure = 1120;
 constexpr float kCaseGap = 16;
 
-constexpr int kMotes = 4200;      // points in the torus rows 01 and 02 start from
+constexpr int kMotes = 4200;  // points in the torus rows 01 and 02 start from
 constexpr float kFactor = 0.55f;  // the Mix weight
 constexpr float kFeather = 0.6f;  // the fraction of Select's extent that fades
 
@@ -199,8 +199,8 @@ Element figure(const std::string& key, std::vector<Splat> splats) {
   const float across = kCell / (float)splats.size();
   return sketch::kit::well(
       {.width = kCell, .height = kPicture},
-      box().row().cover().children(each(
-          splats, [&](const Splat& splat, size_t index) {
+      box().row().cover().children(
+          each(splats, [&](const Splat& splat, size_t index) {
             return custom(key + "." + std::to_string(index),
                           [splat](sigil::draw::Pen& pen,
                                   const PaintContext& paint) {
@@ -233,10 +233,12 @@ const material::Color kBlack{0, 0, 0, 1};
 
 struct PopOperators {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     const points::BillboardStyle torusStyle{.size = 2.4f,
                                             .sizeLane = "size",
@@ -258,8 +260,8 @@ struct PopOperators {
     // ROW 03: one chain per deformer, cooked whole and cooked masked.
     // A hard-rimmed disc rather than a soft dot, so a point's place reads.
     const points::BillboardStyle columnStyle{
-        .sprite = stamp(ctx, box().shape(shapes::circle()).fill(
-                                 Fill::color(kWhite))),
+        .sprite =
+            stamp(ctx, box().shape(shapes::circle()).fill(Fill::color(kWhite))),
         .size = 7,
         .sizeLane = "size",
         .tintLane = "tint",
@@ -348,9 +350,10 @@ struct PopOperators {
                                 "every edit."},
                        {.title = "STRETCH",
                         .control = "P.y × 2.4",
-                        .figure = onTorus(
-                            "stretch", torus().operation(pop::Math{
-                                           pop::Attribute::P, {1, 2.4f, 1, 1}})),
+                        .figure =
+                            onTorus("stretch",
+                                    torus().operation(pop::Math{
+                                        pop::Attribute::P, {1, 2.4f, 1, 1}})),
                         .note = "Multiply one component. The colour lane stays "
                                 "intact."},
                        {.title = "SHEAR + ROTATE",
@@ -361,17 +364,19 @@ struct PopOperators {
                                 glm::rotate(glm::mat4(1.0f), 0.5f,
                                             glm::vec3{0, 0, 1}) *
                                 glm::mat4{1, 0, 0, 0, 0.55f, 1, 0, 0, 0, 0, 1,
-                                          0, 0, 0, 0, 1})),
+                                          0, 0, 0,
+                                          0, 1})),
                         .note = "One matrix acts on position. Translation is "
                                 "excluded for directions."},
                        {.title = "RECOLOUR",
                         .control = "Lookup · height −24…24",
-                        .figure = onTorus(
-                            "lookup", torus().rampBy(pop::Attribute::P, 1,
-                                                     {{0.10f, 0.14f, 0.30f, 1},
-                                                      {0.30f, 0.85f, 0.72f, 1},
-                                                      {1.00f, 0.95f, 0.55f, 1}},
-                                                     -24, 24)),
+                        .figure =
+                            onTorus("lookup",
+                                    torus().rampBy(pop::Attribute::P, 1,
+                                                   {{0.10f, 0.14f, 0.30f, 1},
+                                                    {0.30f, 0.85f, 0.72f, 1},
+                                                    {1.00f, 0.95f, 0.55f, 1}},
+                                                   -24, 24)),
                         .note = "Only tint changes. Low, middle and high "
                                 "points find new colours."}},
                   .measure = kMeasure,
@@ -382,18 +387,19 @@ struct PopOperators {
                       {{.title = "FEATHER A MOVE",
                         .control = "Select core → move +58y",
                         .figure = onTorus(
-                            "masked",
-                            selected().masked("core").operation(pop::Math{
-                                pop::Attribute::P, {1, 1, 1, 1}, {0, 58, 0, 0}})),
+                            "masked", selected().masked("core").operation(
+                                          pop::Math{pop::Attribute::P,
+                                                    {1, 1, 1, 1},
+                                                    {0, 58, 0, 0}})),
                         .note = "A soft selection blends the displacement into "
                                 "untouched points."},
                        {.title = "DRAW TO AN ANCHOR",
                         .control = "Fill anchor → Mix 55%",
-                        .figure = onTorus("mix",
-                                          torus()
-                                              .fill("anchor", {0, 86, 0, 1})
-                                              .mix(pop::Attribute::P, "anchor",
-                                                   pop::Attribute::P, kFactor)),
+                        .figure = onTorus(
+                            "mix", torus()
+                                       .fill("anchor", {0, 86, 0, 1})
+                                       .mix(pop::Attribute::P, "anchor",
+                                            pop::Attribute::P, kFactor)),
                         .note = "Every position travels the same fraction "
                                 "toward a named value."},
                        {.title = "PUSH OUTWARD",
@@ -422,24 +428,23 @@ struct PopOperators {
                  {.cases =
                       {{.title = "SCATTER ORDER",
                         .control = "240 opaque sprites · no depth sort",
-                        .figure = figure("crown.scatter", {{crown().cloud(),
-                                                            kCrownView,
-                                                            crownStyle}}),
+                        .figure =
+                            figure("crown.scatter",
+                                   {{crown().cloud(), kCrownView, crownStyle}}),
                         .note = "Dark, distant sprites cover bright, near "
                                 "ones. The last mark wins."},
                        {.title = "DEPTH ORDER",
                         .control = "order({0, 0, 1}) · farthest first",
-                        .figure = figure(
-                            "crown.sorted",
-                            {{crown().order({0, 0, 1}).cloud(), kCrownView,
-                              crownStyle}}),
+                        .figure = figure("crown.sorted",
+                                         {{crown().order({0, 0, 1}).cloud(),
+                                           kCrownView, crownStyle}}),
                         .note = "Near sprites land last; overlap agrees with "
                                 "the depth the colour encodes."},
                        {.title = "A NOISED LOOP",
                         .control = "noise amplitude 20 · 0 passes",
-                        .figure = figure("loop.noised", {{kinked().cloud(),
-                                                          kLoopView,
-                                                          strandStyle}}),
+                        .figure = figure(
+                            "loop.noised",
+                            {{kinked().cloud(), kLoopView, strandStyle}}),
                         .note = "Consecutive points jump across the displaced "
                                 "loop."},
                        {.title = "RELAXED",

@@ -126,7 +126,7 @@ struct GlyphModifier {
    *
    *  Each of the three colour terms is a `ColorTerm`: a colour, or the
    *  ink in force (`ColorTerm::currentInk()`) or a custom property
-   *  (`ColorTerm::var`) read where the glyph is painted when the effect is
+   *  (`var(name)`) read where the glyph is painted when the effect is
    *  applied, so a keyframe table follows the sheet's palette. */
   ColorTerm colorMultiplier = {1, 1, 1, 1};
   /** A per-channel ADDITIVE term over every pass the glyph's style draws —

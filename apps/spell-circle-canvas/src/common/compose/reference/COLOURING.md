@@ -82,7 +82,7 @@ instinct behind the question — *there should be one thing I can pass
 anywhere* — is right. There is one such thing; it is `Fill`.
 
 **A reference is not a value.** `Fill::currentInk()` reads the ink in
-force where the node lands, and `Fill::var(name)` reads a custom property
+force where the node lands, and `var(name)` reads a custom property
 from the nearest ancestor that set it. A material carries a base, layers
 and effects — there is nowhere in it to put "ask the tree".
 
@@ -119,7 +119,7 @@ The narrowings that ARE modelled, with their reasons:
 - **A flat colour slot refuses `currentcolor` and `var(--name)`.** It
   resolves nothing from the tree, so the two words would have no colour
   to give it; it raises ValueError saying so, where a fill slot reads
-  them as `Fill.currentInk()` and `Fill.var(name)`.
+  them as `Fill.currentInk()` and `var(name)`.
 - **`Element::ink` takes a colour and not an animatable.** The ink
   inherits, so a bound ink would make the whole inheriting subtree
   volatile.

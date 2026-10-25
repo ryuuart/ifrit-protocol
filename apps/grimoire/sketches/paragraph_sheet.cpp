@@ -201,8 +201,8 @@ namespace s = sheet;
 
 struct ParagraphSheet {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(s::sheetTheme());
-    sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.4});
+    sketch::kit::stage(
+        ctx, {.theme = s::sheetTheme(), .size = kSceneSize, .captureAt = 0.4});
     ctx.composer.render(describe());
   }
 
@@ -352,14 +352,14 @@ struct ParagraphSheet {
     oneWord.singleWord = weave::JustificationOptions::SingleWord::kJustify;
     const auto alone = [&](const char* caption,
                            const weave::JustificationOptions& spec) {
-      return kit::cell(s::callVoice(s::kMeasure * 0.48f), caption, "",
-                       document::paragraph(u8"Alone.")
-                           .styleClass("body")
-                           .font({.size = 13.0f})
-                           .width(s::kMeasure * 0.48f)
-                           .paragraph({.alignment =
-                                           weave::TextAlignment::kJustify,
-                                       .justification = spec}))
+      return kit::cell(
+                 s::callVoice(s::kMeasure * 0.48f), caption, "",
+                 document::paragraph(u8"Alone.")
+                     .styleClass("body")
+                     .font({.size = 13.0f})
+                     .width(s::kMeasure * 0.48f)
+                     .paragraph({.alignment = weave::TextAlignment::kJustify,
+                                 .justification = spec}))
           .applyStyleSheet(s::callClasses())
           .width(s::kMeasure * 0.48f);
     };
@@ -415,10 +415,14 @@ struct ParagraphSheet {
       return kit::cell(
                  s::callVoice(kWidth), caption, "",
                  box().width(kWidth).height(kDepth).children(
-                     {box().absolute().inset(0, 0, kDepth - 1, 0).fill(
-                          Fill::color(s::kMark)),
-                      box().absolute().inset(kDepth - 1, 0, 0, 0).fill(
-                          Fill::color(s::kFaint)),
+                     {box()
+                          .absolute()
+                          .inset(0, 0, kDepth - 1, 0)
+                          .fill(Fill::color(s::kMark)),
+                      box()
+                          .absolute()
+                          .inset(kDepth - 1, 0, 0, 0)
+                          .fill(Fill::color(s::kFaint)),
                       frame(weave::Story(
                                 "One passage, one measure; only where its "
                                 "lines sit changes.",
@@ -439,8 +443,7 @@ struct ParagraphSheet {
         "then the spare depth left below or spent between them.",
         box().row().gap(14).children(
             {seated("ascent", "seat-ascent", Seat::kAscent, Spend::kStart),
-             seated("cap height", "seat-cap", Seat::kCapHeight,
-                    Spend::kStart),
+             seated("cap height", "seat-cap", Seat::kCapHeight, Spend::kStart),
              seated("leave the room", "seat-start", Seat::kAscent,
                     Spend::kStart),
              seated("spend the room", "seat-justify", Seat::kAscent,
@@ -485,7 +488,6 @@ struct ParagraphSheet {
   }
 
   Element describe() {
-    const sketch::kit::Provide look(s::sheetTheme());
     return sketch::kit::page(
                {.title = u8"How a paragraph holds together",
                 .subtitle =

@@ -167,8 +167,8 @@ is spelled once whichever side says it. A rule states:
 Marks APPEND, on a rule as on an element, so they do not stand over one
 another the way a property does: each matched rule's marks are laid
 under the element's own in every slot, the weaker rule's first. A class
-carries its keyline, `rule(".frame").stroke(stroke(1, Fill::var("line")))`,
-and paints exactly what `box().stroke(stroke(1, Fill::var("line")))`
+carries its keyline, `rule(".frame").stroke(stroke(1, var("line")))`,
+and paints exactly what `box().stroke(stroke(1, var("line")))`
 paints, its colour read where the element stands; a `stroke()` on the
 element is a second ring over the class's, as a second call on the
 element would be. A mark that borrows another node's outline

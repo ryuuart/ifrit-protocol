@@ -93,8 +93,8 @@ Element row(const char* name, std::vector<Element> specimens) {
 
 struct TextWrapSpecimen {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.2});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kSceneSize, .captureAt = 0.2});
     ctx.composer.render(describe());
   }
 
@@ -127,7 +127,6 @@ struct TextWrapSpecimen {
   }
 
   Element describe() {
-    const sketch::kit::Provide look(sheetTheme());
     return sketch::kit::page(
         {.title = u8"How the lines are set",
          .subtitle = u8"One passage, one measure: the breaker, then where a "

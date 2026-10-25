@@ -181,65 +181,69 @@ class TypeAtelier:
             spaceAfter=12,
         )
         article = Story(rich().add(ARTICLE)).paragraphs((opening,))
-        with kit.provide(kit.featureTheme(kit.Density.Spacious)):
-            kit.stage(ctx, size=SIZE, captureAt=0.05)
-            runs = part(
-                "01 / WHAT A RUN CAN CARRY",
-                (
-                    "A RUN THE SHEET NAMES",
-                    ".by-sheet .signal",
-                    by_sheet(),
-                    "The named run is a virtual child; one rule sets it in italic.",
+        kit.stage(
+            ctx,
+            theme=kit.featureTheme(kit.Density.Spacious),
+            size=SIZE,
+            captureAt=0.05,
+        )
+        runs = part(
+            "01 / WHAT A RUN CAN CARRY",
+            (
+                "A RUN THE SHEET NAMES",
+                ".by-sheet .signal",
+                by_sheet(),
+                "The named run is a virtual child; one rule sets it in italic.",
+            ),
+            (
+                "AN OBJECT IN THE LINE",
+                "24 × 24 px / baseline drop 4",
+                with_object(),
+                "The orange object reserves space and travels with the words.",
+            ),
+            (
+                "A RANGE A SELECTOR FINDS",
+                'selectors.style("signal")',
+                by_selector(),
+                "A span lays weight and a highlight over the range it selects.",
+            ),
+        )
+        journeys = part(
+            "02 / THE SAME ENGINE, TWO KINDS OF JOURNEY",
+            (
+                "A STORY BEGINS",
+                "17 px / 24 px / justified, hyphenated",
+                story(
+                    frame(article)
+                    .key("opening")
+                    .textThreadTo("continuation")
+                    .textThreadBalance()
                 ),
-                (
-                    "AN OBJECT IN THE LINE",
-                    "24 × 24 px / baseline drop 4",
-                    with_object(),
-                    "The orange object reserves space and travels with the words.",
-                ),
-                (
-                    "A RANGE A SELECTOR FINDS",
-                    'selectors.style("signal")',
-                    by_selector(),
-                    "A span lays weight and a highlight over the range it selects.",
-                ),
+                "The initial letter belongs to the story's first paragraph.",
+            ),
+            (
+                "AND CONTINUES HERE",
+                "threaded / balanced / hanging stops",
+                story(frame(article).key("continuation")),
+                "Both frames share one story; the breaker chooses their join.",
+            ),
+            (
+                "A DIFFERENT BASELINE",
+                "23 px italic / one curved run",
+                curved(),
+                "The words follow one contour with their native glyph advances.",
+            ),
+        )
+        # The page never moves, so the specimens bake once and replay.
+        ctx.render(
+            kit.page(
+                column(runs, journeys)
+                .gap(30)
+                .applyStyleSheet(SHEET)
+                .cache(Cache.Texture)
+                .key("atelier"),
+                title="Words, objects, and a place to go",
+                subtitle="A Python typography atelier / named runs, paragraph rules and geometry",
+                footer="Edit the words or the sheet. Runs, inline space and frame flow remain native.",
             )
-            journeys = part(
-                "02 / THE SAME ENGINE, TWO KINDS OF JOURNEY",
-                (
-                    "A STORY BEGINS",
-                    "17 px / 24 px / justified, hyphenated",
-                    story(
-                        frame(article)
-                        .key("opening")
-                        .textThreadTo("continuation")
-                        .textThreadBalance()
-                    ),
-                    "The initial letter belongs to the story's first paragraph.",
-                ),
-                (
-                    "AND CONTINUES HERE",
-                    "threaded / balanced / hanging stops",
-                    story(frame(article).key("continuation")),
-                    "Both frames share one story; the breaker chooses their join.",
-                ),
-                (
-                    "A DIFFERENT BASELINE",
-                    "23 px italic / one curved run",
-                    curved(),
-                    "The words follow one contour with their native glyph advances.",
-                ),
-            )
-            # The page never moves, so the specimens bake once and replay.
-            ctx.render(
-                kit.page(
-                    column(runs, journeys)
-                    .gap(30)
-                    .applyStyleSheet(SHEET)
-                    .cache(Cache.Texture)
-                    .key("atelier"),
-                    title="Words, objects, and a place to go",
-                    subtitle="A Python typography atelier / named runs, paragraph rules and geometry",
-                    footer="Edit the words or the sheet. Runs, inline space and frame flow remain native.",
-                )
-            )
+        )

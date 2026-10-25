@@ -102,8 +102,7 @@ void bindCompose(py::module_& module) {
           SIGIL_STAT(memoHits) SIGIL_STAT(patchedNodes) SIGIL_STAT(picturesLive)
               SIGIL_STAT(texturesLive) SIGIL_STAT(picturesRecorded)
                   SIGIL_STAT(texturesBaked) SIGIL_STAT(nodesHeldWhileMoving)
-                      SIGIL_STAT(nodesPainted)
-                      SIGIL_STAT(reconcileMilliseconds)
+                      SIGIL_STAT(nodesPainted) SIGIL_STAT(reconcileMilliseconds)
                           SIGIL_STAT(layoutMilliseconds)
                               SIGIL_STAT(volatileMilliseconds)
                                   SIGIL_STAT(paintMilliseconds);
@@ -395,9 +394,8 @@ void bindCompose(py::module_& module) {
       .value("Italic", FontStyle::Kind::Italic)
       .value("Oblique", FontStyle::Kind::Oblique);
   fontStyle
-      .def(py::init([](AngleInDegrees degrees) {
-             return FontStyle(degrees.value);
-           }),
+      .def(py::init(
+               [](AngleInDegrees degrees) { return FontStyle(degrees.value); }),
            py::arg("degrees"),
            "The oblique of `degrees`, positive leaning right.")
       .def_readonly_static("Normal", &FontStyle::Normal)
@@ -453,9 +451,8 @@ void bindCompose(py::module_& module) {
       .value("Coverage", Boundary::Coverage);
   py::class_<Corners>(composition, "Corners")
       .def(py::init<>())
-      .def(py::init([](py::object radius) {
-             return Corners(dimension(radius));
-           }),
+      .def(py::init(
+               [](py::object radius) { return Corners(dimension(radius)); }),
            py::arg("radius"))
       .def(py::init([](py::object topLeft, py::object topRight,
                        py::object bottomRight, py::object bottomLeft) {
@@ -466,7 +463,9 @@ void bindCompose(py::module_& module) {
            py::arg("bottomLeft"))
       .def_property(
           "topLeft", [](const Corners& self) { return self.topLeft; },
-          [](Corners& self, py::object value) { self.topLeft = dimension(value); })
+          [](Corners& self, py::object value) {
+            self.topLeft = dimension(value);
+          })
       .def_property(
           "topRight", [](const Corners& self) { return self.topRight; },
           [](Corners& self, py::object value) {
@@ -493,8 +492,6 @@ void bindCompose(py::module_& module) {
       .def_static(
           "color", [](py::object value) { return Fill::color(color(value)); },
           py::arg("value"))
-      .def_static("var", py::overload_cast<VarRef>(&Fill::var),
-                  py::arg("reference"))
       .def_readonly("colorValue", &Fill::colorValue)
       .def(py::self == py::self);
   py::class_<CellSpan>(composition, "CellSpan")
@@ -640,7 +637,7 @@ void bindCompose(py::module_& module) {
       "One shadow each glyph casts, CSS's text-shadow: offset pixels from "
       "its glyph, blurred by CSS's blur radius of blur pixels (a Gaussian of "
       "half of it), and painted in "
-      "color — a colour, a custom property (Fill.var(name)) read where the "
+      "color — a colour, a custom property (var(name)) read where the "
       "shadow is stated, or by default the ink in force.";
   textShadow
       .def_property(

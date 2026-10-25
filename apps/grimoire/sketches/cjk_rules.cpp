@@ -52,7 +52,7 @@ Element column(const char8_t* copy, float depth) {
 }
 
 Element paired(Element before, Element after, float depth) {
-  const auto& look = sketch::kit::theme();
+  const auto& look = sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   const auto sample = [&](const char* label, Element body) {
     return box().column().gap(16).width(132).children(
         {document::caption(label),
@@ -80,9 +80,11 @@ Element tracking(bool tightened) {
 
 struct CjkRules {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx, {.size = {1100, 810}, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = {1100, 810},
+         .captureAt = 0.05});
     weave::KinsokuTable house = weave::kit::kinsoku::japanese();
     house.notLineStart += u"組";
     ctx.composer.render(sketch::kit::page(

@@ -43,7 +43,7 @@ Utf8 joined(const Utf8& head, const std::string& tail) {
 }  // namespace
 
 Element verdict(const measure::CheckTable& table, const Verdict& how) {
-  const Theme& look = theme();
+  using compose::var;
   std::vector<std::vector<Utf8>> cells;
   std::vector<Kind> kinds;
   std::vector<Fill> swatches;
@@ -64,9 +64,9 @@ Element verdict(const measure::CheckTable& table, const Verdict& how) {
     cells.push_back({Utf8(row.label), Utf8(row.actual),
                      row.pass ? how.passed : joined(how.failed, row.expected)});
     kinds.push_back(row.pass ? Kind::Held : Kind::Failed);
-    swatches.push_back(how.swatches ? Fill::color(row.pass ? look.palette.pass
-                                                           : look.palette.fail)
-                                    : Fill{});
+    swatches.push_back(
+        how.swatches ? compose::var(row.pass ? "palette-pass" : "palette-fail")
+                     : Fill{});
   }
   if (how.summary) {
     const int failures = table.failures();
@@ -84,25 +84,27 @@ Element verdict(const measure::CheckTable& table, const Verdict& how) {
   std::vector<std::span<const Utf8>> rows(cells.begin(), cells.end());
   compose::kit::Table specification{
       .columns = std::move(columns),
-      .gap = look.spacing.labelGap,
-      .rowGap = look.spacing.rowGap,
-      .divider = how.ruled ? Fill::color(look.palette.rule) : Fill{},
+      .gap = var("spacing-label-gap"),
+      .rowGap = var("spacing-row-gap"),
+      .divider = how.ruled ? compose::var("palette-rule") : Fill{},
       .swatches = swatches,
-      .swatchSide = look.spacing.swatchSide};
-  specification.headLine = [look](const Utf8& words) {
+      .swatchSide = var("spacing-swatch-side")};
+  // The role defaults are the house registers; the sheet in force styles
+  // the roles and the classes, and the palette's properties ink them.
+  const Theme& house = houseTheme();
+  specification.headLine = [&house](const Utf8& words) {
     return compose::document::h2(words).role(
-        "h2", look.font(look.type.section, look.palette.ink));
+        "h2", house.font(house.type.section), var("palette-ink"));
   };
   // The label and the value keep their column's register; the verdict
   // cell and a heading name the class the sheet colours them by.
-  specification.cellLine = [look, kinds](const Utf8& words,
-                                         const compose::kit::Table& shape,
-                                         std::size_t column,
-                                         std::size_t row) -> Element {
+  specification.cellLine =
+      [&house, kinds](const Utf8& words, const compose::kit::Table& shape,
+                      std::size_t column, std::size_t row) -> Element {
     const Kind kind = row < kinds.size() ? kinds[row] : Kind::Reading;
     if (kind == Kind::Heading)
       return compose::document::h2(words)
-          .role("h2", look.font(look.type.section, look.palette.ink))
+          .role("h2", house.font(house.type.section), var("palette-ink"))
           .styleClass("checkHeading");
     const bool figure =
         !shape.columns.empty() &&
@@ -112,13 +114,13 @@ Element verdict(const measure::CheckTable& table, const Verdict& how) {
     if (verdictCell && kind != Kind::Reading)
       classes += std::string(classes.empty() ? "" : " ") +
                  (kind == Kind::Held ? "checkPass" : "checkFail");
-    Element line =
-        figure ? Element(compose::document::paragraph(words).role(
-                     "paragraph",
-                     look.font(look.type.captionLabel, look.palette.figure)))
-               : Element(compose::document::caption(words).role(
-                     "caption",
-                     look.font(look.type.captionNote, look.palette.ash)));
+    Element line = figure
+                       ? Element(compose::document::paragraph(words).role(
+                             "paragraph", house.font(house.type.captionLabel),
+                             var("palette-figure")))
+                       : Element(compose::document::caption(words).role(
+                             "caption", house.font(house.type.captionNote),
+                             var("palette-ash")));
     if (!classes.empty()) line.styleClass(classes);
     return line;
   };

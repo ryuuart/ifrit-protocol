@@ -85,7 +85,7 @@ Element mapping(const Mapping& properties) {
       box()
           .width(kWidth)
           .height(kHeight)
-          .fill(Fill::color(sketch::kit::theme().palette.cellGround))
+          .fill(Fill::color(sketch::kit::featureTheme().palette.cellGround))
           .children({kit::at(
               sketch::kit::plot(properties.title, frame, std::move(layers)), 24,
               16, kWidth - 48, kHeight - 44)});
@@ -95,7 +95,6 @@ Element mapping(const Mapping& properties) {
 
 struct DataScales {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::featureTheme());
     using enum data::Transform;
     const std::array<Mapping, 11> examples{{
         {"Linear",
@@ -134,7 +133,9 @@ struct DataScales {
          "Categories own positions, without width.",
          {.transform = Point, .steps = 5, .outerPadding = 0.5}},
     }};
-    sketch::kit::stage(ctx, {.size = {1100, 980}, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+                             .size = {1100, 980},
+                             .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = u8"DATA INTO MOTION AND MARKS",
          .subtitle = u8"One mapping value · eleven transforms · reusable "

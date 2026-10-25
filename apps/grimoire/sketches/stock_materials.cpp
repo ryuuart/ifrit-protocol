@@ -67,7 +67,6 @@ constexpr material::Color kEdge{1, 1, 1, 0.22f};
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.captionWhere = kit::Caption::Where::Below;
   look.spacing.marginHorizontal = 30;
   look.spacing.marginTop = 26;
   look.spacing.marginBottom = 20;
@@ -78,13 +77,13 @@ sketch::kit::Theme sheetTheme() {
 /** The one voice: the recipe's name under the swatch, the call that made
  *  it under that, both ranged left at the cell's width. */
 Element swatch(Utf8 name, const char* call, material::Material paint) {
-  return sketch::kit::caption(
-      kCell, std::move(name), call,
-      box()
-          .width(kCell)
-          .height(kSwatch)
-          .fill(std::move(paint))
-          .foreground(stroke(1.0f, Fill::color(kEdge))));
+  return sketch::kit::caption(kCell, std::move(name), call,
+                              box()
+                                  .width(kCell)
+                                  .height(kSwatch)
+                                  .fill(std::move(paint))
+                                  .foreground(stroke(1.0f, Fill::color(kEdge))),
+                              sigil::compose::kit::Caption::Where::Below);
 }
 
 /** A material's own recipe names the cell — nothing here retypes it. */
@@ -110,11 +109,11 @@ Element row(std::vector<Element> cells) {
 
 struct StockMaterialsSheet {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // Nothing on the sheet moves: every generator is evaluated from its
     // parameters and the box, and the two that read the clock are pinned
     // by the moment their call names.
-    sketch::kit::stage(ctx, {.size = {1150, 1000}, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = {1150, 1000}, .captureAt = 0.05});
 
     const std::vector<material::ColorStop> ramp = {
         {0.0f, {0.95f, 0.35f, 0.25f, 1}},

@@ -11,12 +11,12 @@ modes is a file about `Border`'s four modes and not about furniture.
 What it is not is a place a look is decided. `Theme` is a **seam** — a
 plain comparable struct — and `houseTheme()` is one **stock value** over
 it. A sketch's own theme is indistinguishable from the house one at every
-call site, and every component here behaves correctly with no theme bound
-at all.
+call site, and a sketch that names no theme on its stage is set in the
+house one.
 
 `studyTheme()` is a second stock value for comparative studies. It gives the
 page a larger heading, brighter notes and wider margins while keeping the
-house ground and specimen components. Bind it with `Provide`, or copy it and
+house ground and specimen components. Name it on the stage, or copy it and
 change only the choices specific to a specimen, such as caption placement.
 The stock themes hold their resolved faces across calls.
 
@@ -30,13 +30,15 @@ slate grounds, ivory headings, pale gold readings, interface labels and
 terminal controls. `Density::Compact` keeps 24 px side margins and a 22 px
 title for fixed specimen grids; `Density::Spacious` uses 40 px side margins
 and a 30 px title for pages of comparisons and explanations. The figures
-keep their authored dimensions in either density. Bind the value where the
-tree is described, including each update that rebuilds it. Reference studies
-choose their own theme.
+keep their authored dimensions in either density. The stage names the
+theme once, and every tree the sketch renders afterwards — an update that
+rebuilds it included — stands under it. Reference studies choose their own
+theme.
 
 ```cpp
-const sketch::kit::Provide look(
-    sketch::kit::featureTheme(sketch::kit::Density::Spacious));
+sketch::kit::stage(
+    ctx, {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+          .size = {1100, 640}});
 ctx.composer.render(sketch::kit::page(
     {.title = "Corner shapes", .subtitle = "One outline, three corner treatments"},
     sketch::kit::section({.label = "THE OUTLINE"}, figures)));
@@ -64,14 +66,15 @@ struct BorderWeave {
 
 `Theme` holds three values and one choice: a `Palette` of six colours, a
 `TypeScale` of eight `Register`s and two faces, a `Spacing` of the
-distances a sheet is set by, and where a cell's caption lines stand.
+distances a sheet is set by, and where the caption lines of its `voice()`
+stand.
 
-It arrives at a component through **`sigil::core::environment`**, the
-reconciler's inherited value, bound by `sketch::kit::Provide` for the
-spacing, the palette and the faces a component reads; its registers
-reach the tree as a sheet of rules, `Theme::styleSheet()`, which `page()`
-applies on its root and a sketch without a page applies on its own with
-`applyStyleSheet()`:
+It arrives at a component through **the cascade**, as one sheet,
+`Theme::styleSheet()`: rules for the document roles its registers style,
+and the spacing and the palette as custom properties on the node it is
+applied on. `stage()` applies it at the root of whatever the sketch
+renders, through `Composer::setStyleSheet`; a tree outside a sketch
+applies it on its own root with `applyStyleSheet()`:
 
 ```cpp
 sketch::kit::Theme sheetTheme() {
@@ -81,14 +84,16 @@ sketch::kit::Theme sheetTheme() {
   return paper;
 }
 
-const sketch::kit::Provide look(sheetTheme());   // the theme, for this scope
-ctx.composer.render(sketch::kit::page({…}, content));  // its root applies the sheet
+sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = {900, 640}});
+ctx.composer.render(sketch::kit::page({…}, content));  // under the sheet
 ```
 
-Spacing and surface choices are read while a component is described.
-`sketch::kit::theme()` answers the bound theme, or `houseTheme()` when
-none is bound. Typography resolves later from the retained tree: a
-heading built before its parent still receives that parent's role rules.
+A component never reads a look while it is described: a distance is a
+length written `compose::var("spacing-…")`, a colour a fill written
+`compose::var("palette-…")`, and a paint program reads the properties in
+force through `PaintContext::vars`. Everything resolves later from the
+retained tree, so a component built before its parent still lands in
+that parent's look.
 
 A `Register` says how one line is set: its size, its tracking, which of
 the theme's two faces it takes — and, for the line neither of those is,
@@ -123,7 +128,7 @@ label and the caption as classes too:
 #include <sigilcompose/kit/Document.h>
 
 const compose::StyleSheet look =
-    sketch::kit::theme().styleSheet() +
+    sketch::kit::featureTheme().styleSheet() +
     compose::StyleSheet{compose::rule("h1").font({.size = 30}),
                         compose::rule("caption").font({.size = 12})};
 
@@ -151,7 +156,8 @@ The sheet also sets the theme's numbers and colours as custom properties
 on the node it is applied on (its `:root`), so a component reads one where
 it uses it and the cascade carries it down: a length written
 `compose::var("spacing-cell-gap")` lays out at the theme's `Spacing::cellGap`,
-and `compose::Fill::var("palette-figure")` fills in its `Palette::figure`.
+and a fill written `compose::var("palette-figure")` fills in its
+`Palette::figure`.
 The names follow one scheme: the register, then the field in full words,
 hyphenated — `spacing-margin-horizontal`, `spacing-content-gap`,
 `spacing-chip-padding-horizontal`, `palette-cell-ground` — one for every
@@ -179,30 +185,26 @@ paper.type.sans = sketch::kit::houseFace(sketch::kit::Voice::Book);
 paper.type.mono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 ```
 
-**It costs the prune nothing.** The theme is read during describe and
-lands in the reading node's own description, so the reconciler's
-structural comparison is already an exact dependency tracker: a node
-whose description came out identical prunes whether or not it read a
-theme. That is why `Theme` and everything in it compares **exactly** —
-never perceptually, never epsilon'd — and why the mono face is resolved
-once and held rather than resolved per call: a face is compared by
-pointer, and two resolutions of one family never compare equal.
+**It costs the prune nothing.** A component's description holds the
+property's NAME, never its value, so a description under one theme is
+the description under another: the reconciler's structural comparison
+prunes it either way, and the cascade pass alone resolves the numbers and
+the colours where the node lands. `Theme` and everything in it still
+compares **exactly** — never perceptually, never epsilon'd — and the mono
+face is resolved once and held rather than per call, because a face is
+compared by pointer and two resolutions of one family never compare
+equal.
 
-**Bind the theme where the tree is DESCRIBED, not where setup runs.** A
-sketch that describes again — from `update()`, when its data changes —
-describes outside setup's scope, and a theme bound only there would not
-be in it. Put the `Provide` at the top of whatever function builds the
-tree, and another in `setup` if `stage()` is to take its ground from the
-same theme. The registers need no binding: the sheet is a value on the
-tree and goes wherever the tree goes.
+**The stage names the theme once.** The sheet stands on the composer, at
+the root of every tree the sketch renders, so a sketch that describes
+again — from `update()`, when its data changes — needs no second
+statement of it. A subtree in another look applies that theme's sheet on
+its own root, which shadows the stage's for that subtree alone.
 
-**One caveat.** A `custom()` paint program is a callable the kernel
-invokes later, and it runs with no scope. Capture the colours such a
-lambda needs by value at the call site, where the scope still stands. A
-memo's deferred describe is different: it captures the environment
-standing where the memo was described, restores it around its own call,
-and describes again when what it captured changes — so a memo reads its
-theme after the `Provide` that bound it has ended.
+**A paint program reads the properties in force.** A `custom()` program
+runs when the kernel paints, so it reads the palette and the spacing
+through `PaintContext::vars`, and text it sets in a register through the
+font in force on its node, whose role or class names the register.
 
 ## The components
 
@@ -237,8 +239,8 @@ painting an Element directly.
 | `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer in document roles `h1`, `lead` and `footer`, its margins, its ground and its hairline |
 | `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on; with a `recess`, the hole punched in one; with a `relief`, the piece standing proud of one. THE SURFACE IS THE WELL: the spec is written onto the element handed in, which is what a drawing sized to its plate wants |
 | `well({…, .content = Well::Content{}}, picture)` | THE WELL THAT HOLDS: the plate is a surface of its own and the picture stands inside it at its own measure, ranged as `content` says and centred where it says nothing else — the specimen smaller than the plate it is shown on |
-| `caption(measure, label, note, body)` | one captioned specimen in the theme's voice — the label has document role `label`, the note has role `caption`; `measure` is the cell's own width, the one distance a caption cannot inherit |
-| `cell(Cell, label, note, picture)` | the same specimen with the sheet's plate and measure stated ONCE: `Cell::plate` is the well the picture is HELD by — as a box holds a child, or ranged where `Well::content` says — and `Cell::measure` unset is the plate's own width |
+| `caption(measure, label, note, body, where)` | one captioned specimen in the theme's voice — the label has document role `label`, the note has role `caption`, spaced by `spacing-caption-gap` and `spacing-caption-note-gap`; `measure` is the cell's own width, the one distance a caption cannot inherit; `where` stands the two lines over the body, under it, or one each side (the default) |
+| `cell(Cell, label, note, picture)` | the same specimen with the sheet's plate, measure and placement stated ONCE: `Cell::plate` is the well the picture is HELD by — as a box holds a child, or ranged where `Well::content` says — `Cell::measure` unset is the plate's own width, and `Cell::where` is where the caption's lines stand |
 | `comparison(Comparison)` | equal columns with shared title, control, figure and note tracks; wrapping in one column moves every figure together, and notes begin below the tallest figure |
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `panelGrid(PanelGrid)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is — on one row where `columns` is 0, wrapped every N above that, with a short last row keeping its share; `PanelGrid::measure` is the width the shares are cut from, for the grid whose parent sizes itself from its content and has none to divide |
@@ -293,11 +295,10 @@ written. Shared presentation components instead use document roles with
 theme registers as fallback partials. Authored role rules can therefore
 change their typography, while an explicit ink or shader supplied by a
 caller changes paint without freezing the font.
-`page()` applies `Theme::styleSheet()` on its root, so those lines and
-every cell under the page are in the theme's voice whether or not the
-sketch around it bound a theme, and a rule of a sheet the sketch applies
-nearer to a leaf stands over the root's of the same weight; a sketch that
-renders no page applies the sheet on its own root. A cell whose call must stand otherwise
+The stage applies `Theme::styleSheet()` at the root, so a page's lines and
+every cell under it are in the theme's voice, and a rule of a sheet the
+sketch applies nearer to a leaf stands over the root's of the same weight;
+a tree outside a sketch applies the sheet on its own root. A cell whose call must stand otherwise
 hands `Caption::label` its own leaf, and the cells under it keep the
 register. A register always states its face: one set in the theme's sans,
 which the house theme leaves as the font context's default family, says
@@ -702,7 +703,7 @@ caption gaps, so a region and the cell beside it breathe alike.
 
 | | |
 | --- | --- |
-| `console(Console)` | N feeds of one monospaced voice on one bordered plate, over `compose::kit::console` |
+| `console(Console)` | N feeds of one monospaced voice on one bordered plate, over `compose::kit::plate` and `compose::feed` |
 | `ticker(Ticker)` | a strip crawling past a window, over `compose::kit::marquee` |
 | `timeline(Timeline)` | a rail marked off with ticks and the words that name them |
 
@@ -712,7 +713,10 @@ sketch::kit::console({.feeds = {&checks}, .levels = {{"fail", kAlarm}}})
 ```
 
 A console does not place itself: a component that decides where it goes
-cannot be reused.
+cannot be reused. Its rows are text leaves that inherit the sheet's
+`.console` rule — the face a call is set in, at the caption-label size, in
+the ink — and a row naming one of the console's levels carries that name
+as its class, which a rule the console applies on itself colours.
 
 A timeline's `ink` is the whole mark's — a tick and the word under it are
 one mark and take one colour. A mark that states its own `ink` keeps its
@@ -842,7 +846,11 @@ general: any list of `sketch::kit::Control` rows is a surface. The widget
 comes from the description's hint, the range and step from its author, or
 from `Controls::range` where the description states none. A row answers
 the pointer the host already feeds the composer, read in a paint program
-as `PaintContext::pointer`; nothing here adds an input path.
+as `PaintContext::pointer`; nothing here adds an input path. A row paints
+its label in the font in force on a node in the `caption` role and its
+figure on one in the `readout` class, and its colours and distances from
+the sheet's properties through `PaintContext::vars`, so the surface takes
+the look of the sheet it stands under.
 
 ## What is NOT here, and where it is
 

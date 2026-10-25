@@ -456,7 +456,7 @@ TEST(ComposeText, AnInkPaintTheSlotCannotStoreLeavesTheOneItHas) {
     return inked;
   };
   EXPECT_GT(rampedPixels(Fill::currentInk()), 100);
-  EXPECT_GT(rampedPixels(Fill::var("accent")), 100);
+  EXPECT_GT(rampedPixels(var("accent")), 100);
   // …and the glyphs go back to the style's own white when it is cleared.
   EXPECT_EQ(rampedPixels(Fill::none()), 0);
 }

@@ -39,8 +39,8 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
-#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -102,13 +102,13 @@ std::vector<SkPath> heptagram() {
   const glm::vec2 centre{kCell * 0.5f, kCell * 0.5f};
   SkPoint vertices[kPoints];
   for (int vertex = 0; vertex < kPoints; ++vertex)
-    vertices[vertex] = path::toSk(arrange::onRing(
-        (size_t)vertex, kPoints,
-        {.center = centre,
-         .radii = {radius, radius},
-         .fromDegrees = -90,
-         .sweepDegrees = 360,
-         .turn = arrange::Turn::Closed}));
+    vertices[vertex] =
+        path::toSk(arrange::onRing((size_t)vertex, kPoints,
+                                   {.center = centre,
+                                    .radii = {radius, radius},
+                                    .fromDegrees = -90,
+                                    .sweepDegrees = 360,
+                                    .turn = arrange::Turn::Closed}));
   std::vector<SkPath> strands;
   for (int vertex = 0; vertex < kPoints; ++vertex)
     strands.push_back(SkPathBuilder()
@@ -125,13 +125,13 @@ std::vector<SkPath> rings() {
   const glm::vec2 centre{kCell * 0.5f, kCell * 0.52f};
   std::vector<SkPath> strands;
   for (int ring = 0; ring < 3; ++ring) {
-    const glm::vec2 at = arrange::onRing(
-        (size_t)ring, 3,
-        {.center = centre,
-         .radii = {radius * 0.62f, radius * 0.62f},
-         .fromDegrees = -90,
-         .sweepDegrees = 360,
-         .turn = arrange::Turn::Closed});
+    const glm::vec2 at =
+        arrange::onRing((size_t)ring, 3,
+                        {.center = centre,
+                         .radii = {radius * 0.62f, radius * 0.62f},
+                         .fromDegrees = -90,
+                         .sweepDegrees = 360,
+                         .turn = arrange::Turn::Closed});
     strands.push_back(SkPathBuilder().addCircle(at.x, at.y, radius).detach());
   }
   return strands;
@@ -161,10 +161,10 @@ void paintWeave(SkCanvas& canvas, const std::vector<SkPath>& strands,
     const size_t over =
         rule.decide(knot) == path::Order::Over ? knot.a : knot.b;
     canvas.save();
-    canvas.clipPath(path::crossingPatch(strands[knot.a], kReach,
-                                        strands[knot.b], kReach, knot.at,
-                                        kPatchRadius),
-                    true);
+    canvas.clipPath(
+        path::crossingPatch(strands[knot.a], kReach, strands[knot.b], kReach,
+                            knot.at, kPatchRadius),
+        true);
     strand(over);
     canvas.restore();
     if ((int)knot.index == pinnedIndex) {
@@ -194,7 +194,7 @@ sketch::kit::ComparisonCase cell(const char* title, std::string key,
                        })
                     .width(kCell)
                     .height(kCell)
-                    .fill(Fill::color(sketch::kit::theme().palette.cellGround)),
+                    .fill(Fill::color(sheetTheme().palette.cellGround)),
       .note = note};
 }
 
@@ -202,39 +202,39 @@ sketch::kit::ComparisonCase cell(const char* title, std::string key,
  *  and @p rule deciding every knot the weave finds on it. */
 sketch::kit::ComparisonCase woven(const char* title, path::CrossingRule rule,
                                   const char* call, const char* note) {
-  return {.title = title,
-          .control = call,
-          .figure =
-              box()
-                  .width(kCell)
-                  .height(kCell)
-                  .fill(Fill::color(sketch::kit::theme().palette.cellGround))
-                  .justifyContent(Justify::Center)
-                  .alignItems(Align::Center)
-                  .children({box()
-                                 .width(kPlaque)
-                                 .height(kPlaque)
-                                 .shape(shapes::chamfered(18))
-                                 .stroke(Decoration(brush::weave(
-                                     kit::braid(
-                                         kStrands, kAmplitude, kWavelength,
-                                         Decoration(brush::layers(
-                                             {Decoration(brush::solid(
-                                                  6.0f, Fill::color(kCasing))),
-                                              Decoration(brush::solid(
-                                                  3.5f,
-                                                  Fill::color(kCore)))}))),
-                                     std::move(rule))))}),
-          .note = note};
+  return {
+      .title = title,
+      .control = call,
+      .figure =
+          box()
+              .width(kCell)
+              .height(kCell)
+              .fill(Fill::color(sheetTheme().palette.cellGround))
+              .justifyContent(Justify::Center)
+              .alignItems(Align::Center)
+              .children(
+                  {box()
+                       .width(kPlaque)
+                       .height(kPlaque)
+                       .shape(shapes::chamfered(18))
+                       .stroke(Decoration(brush::weave(
+                           kit::braid(kStrands, kAmplitude, kWavelength,
+                                      Decoration(brush::layers(
+                                          {Decoration(brush::solid(
+                                               6.0f, Fill::color(kCasing))),
+                                           Decoration(brush::solid(
+                                               3.5f, Fill::color(kCore)))}))),
+                           std::move(rule))))}),
+      .note = note};
 }
 
 }  // namespace
 
 struct CrossingRuleSheet {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
 
     const auto sevenCycle = [] {
       std::vector<std::pair<int, int>> dominance;
@@ -326,13 +326,13 @@ struct CrossingRuleSheet {
                                  "sequence(Over, Over, Under)",
                                  "The same sequence value as above, read "
                                  "along the plaque's knots."),
-                           woven("STRAND DOMINANCE",
-                                 path::crossing::pairs(
-                                     {{0, 1}, {1, 2}, {2, 0}}),
-                                 "pairs(0→1, 1→2, 2→0)",
-                                 "Each strand over the next, all the way "
-                                 "round: the cycle a draw order cannot "
-                                 "spell."),
+                           woven(
+                               "STRAND DOMINANCE",
+                               path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}}),
+                               "pairs(0→1, 1→2, 2→0)",
+                               "Each strand over the next, all the way "
+                               "round: the cycle a draw order cannot "
+                               "spell."),
                            woven("PIN ONE CROSSING",
                                  path::crossing::alternate().except(
                                      0, path::Order::Under),

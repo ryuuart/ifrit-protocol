@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <pybind11/embed.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Python.h>
 #include <sigilweave/kit/LineTables.h>
@@ -237,52 +236,46 @@ weak = weakref.ref(owner)
 
 TEST(PythonBindings, CallbackBoundariesUnwindOnlyTheirNativeScopes) {
   (void)native();
-  namespace environment = sigil::core::environment;
+  /** A native scope standing open until whoever retained it closes it. */
   struct Scope {
-    explicit Scope(int value)
-        : native(std::make_unique<environment::Provide<int>>(value)) {}
-    std::unique_ptr<environment::Provide<int>> native;
+    bool open = true;
   };
   const auto retain = [](const std::shared_ptr<Scope>& scope) {
     sigil::python::retainScope(scope, [](void* value) noexcept {
-      static_cast<Scope*>(value)->native.reset();
+      static_cast<Scope*>(value)->open = false;
     });
   };
-  const auto before = environment::capture();
-  auto outer = std::make_shared<Scope>(11);
+  auto outer = std::make_shared<Scope>();
   retain(outer);
   std::shared_ptr<Scope> inner;
   try {
     const sigil::python::CallbackBoundary boundary;
-    inner = std::make_shared<Scope>(23);
+    inner = std::make_shared<Scope>();
     retain(inner);
-    ASSERT_EQ(*environment::inherited<int>(), 23);
+    ASSERT_TRUE(sigil::python::isCurrentScope(inner.get()));
     throw std::runtime_error("intentional callback failure");
   } catch (const std::runtime_error&) {
   }
-  EXPECT_FALSE(inner->native);
-  EXPECT_TRUE(outer->native);
-  EXPECT_EQ(*environment::inherited<int>(), 11);
+  EXPECT_FALSE(inner->open);
+  EXPECT_TRUE(outer->open);
   EXPECT_TRUE(sigil::python::isCurrentScope(outer.get()));
   sigil::python::closeScope(outer.get());
-  EXPECT_FALSE(outer->native);
-  EXPECT_EQ(environment::capture(), before);
+  EXPECT_FALSE(outer->open);
 
   // A callback may close an older scope before opening a new one. Its
   // checkpoint identifies creation order rather than the resulting depth.
-  auto previous = std::make_shared<Scope>(31);
+  auto previous = std::make_shared<Scope>();
   retain(previous);
   std::shared_ptr<Scope> replacement;
   {
     const sigil::python::CallbackBoundary boundary;
     sigil::python::closeScope(previous.get());
-    replacement = std::make_shared<Scope>(47);
+    replacement = std::make_shared<Scope>();
     retain(replacement);
-    EXPECT_EQ(*environment::inherited<int>(), 47);
+    EXPECT_TRUE(sigil::python::isCurrentScope(replacement.get()));
   }
-  EXPECT_FALSE(previous->native);
-  EXPECT_FALSE(replacement->native);
-  EXPECT_EQ(environment::capture(), before);
+  EXPECT_FALSE(previous->open);
+  EXPECT_FALSE(replacement->open);
 }
 
 }  // namespace

@@ -92,6 +92,14 @@ struct Fill {
   enum class Ref : uint8_t { None, CurrentInk, Var };
 
   Fill() = default;
+  /** THE COLOUR THE CUSTOM PROPERTY @p reference NAMES, as the nearest
+   *  ancestor's `Element::var` set it, read where the fill is painted —
+   *  `fill(var("accent"))`, the one spelling of a reference in every slot
+   *  a fill goes. A name nobody set, or one holding a length, resolves to
+   *  no fill and says so once. */
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  Fill(VarRef reference)
+      : kind(Kind::Color), ref(Ref::Var), varId(reference.id) {}
   /** A material, as the paint that wears it. */
   template <class Recipe>
     requires(std::convertible_to<Recipe, material::Material> &&
@@ -125,16 +133,6 @@ struct Fill {
     f.ref = Ref::CurrentInk;
     return f;
   }
-  /** The colour the custom property @p reference names, as the nearest
-   *  ancestor's `Element::var` set it. A name nobody set, or one holding a
-   *  length, resolves to no fill and says so once. */
-  static Fill var(VarRef reference) {
-    Fill f = color({0, 0, 0, 0});
-    f.ref = Ref::Var;
-    f.varId = reference.id;
-    return f;
-  }
-  static Fill var(std::string_view name) { return var(compose::var(name)); }
 
   Kind kind = Kind::None;
   material::Color colorValue = {0, 0, 0, 0};
@@ -196,22 +194,19 @@ struct ColorTerm : material::Color {
   // NOLINTNEXTLINE(google-explicit-constructor)
   constexpr ColorTerm(const C& value) : material::Color(value) {}
 
+  /** THE COLOUR THE CUSTOM PROPERTY @p reference NAMES where the term is
+   *  applied — `var("accent")`, spelled as it is in every other slot. */
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  ColorTerm(VarRef reference) : material::Color(0, 0, 0, 0) {
+    ref = Fill::Ref::Var;
+    varId = reference.id;
+  }
+
   /** THE INK IN FORCE where the term is applied — CSS's currentColor. */
   static ColorTerm currentInk() {
     ColorTerm term(0, 0, 0, 1);
     term.ref = Fill::Ref::CurrentInk;
     return term;
-  }
-  /** The colour the custom property @p reference names where the term is
-   *  applied. */
-  static ColorTerm var(VarRef reference) {
-    ColorTerm term(0, 0, 0, 0);
-    term.ref = Fill::Ref::Var;
-    term.varId = reference.id;
-    return term;
-  }
-  static ColorTerm var(std::string_view name) {
-    return var(compose::var(name));
   }
 
   Fill::Ref ref = Fill::Ref::None;

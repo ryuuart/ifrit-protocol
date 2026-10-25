@@ -145,10 +145,12 @@ sketch::kit::ComparisonCase readout(const char* caseTitle, const char* call,
 
 struct SlangPortable {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     const auto compiled =
         slang::compileModule(kModule, "vsCover", "fsCover", kLit);
@@ -257,7 +259,10 @@ struct SlangPortable {
                                      "The source names its uniforms, sampled "
                                      "slot and two stages.",
                                      std::string(kModule).substr(1),
-                                     sketch::kit::theme().palette.ink, 614)},
+                                     sketch::kit::featureTheme(
+                                         sketch::kit::Density::Spacious)
+                                         .palette.ink,
+                                     614)},
                                  .measure = 500,
                                  .gap = 20}),
                             box().column().gap(24).children(

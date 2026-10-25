@@ -52,8 +52,9 @@ constexpr SkSize kCanvas = {1100, 900};
 constexpr float kCell = 328;
 constexpr float kPicture = 210;
 
-constexpr float kFocus = 44;       // the focus's hot spot displacement, px
-constexpr float kWindowFrom = 135;  // the sweep window that does not fill a turn
+constexpr float kFocus = 44;  // the focus's hot spot displacement, px
+constexpr float kWindowFrom =
+    135;  // the sweep window that does not fill a turn
 constexpr float kWindowTo = 405;
 
 glm::vec2 middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
@@ -96,10 +97,12 @@ sketch::kit::ComparisonCase swatch(const char* caseTitle, const char* call,
 
 struct PaintShelf {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     // The caller-owned raster: drawn once here and published. A running
     // sketch would draw into it and commit() again; the node's picture
@@ -120,11 +123,9 @@ struct PaintShelf {
       pixels->commit();
     }
 
-
     ctx.composer.render(sketch::kit::page(
         {.title = "Paints a plain gradient cannot spell",
-         .subtitle =
-             "A focus, an angular window and a raster source",
+         .subtitle = "A focus, an angular window and a raster source",
          .footer = "The examples keep the colour stops fixed while changing "
                    "the coordinate or source contract."},
         box().column().gap(26).children(
@@ -176,27 +177,27 @@ struct PaintShelf {
                      {sketch::kit::section(
                           {.label = "AN ANGULAR WINDOW", .note = ""},
                           sketch::kit::comparison(
-                              {.cases =
-                                   {swatch("FULL TURN",
-                                           "Paint::sweep(centre, wheel)",
-                                           "The colour ramp completes a "
-                                           "full turn.",
-                                           sigil::material::conicGradient(
-                                               middle(), wheel(),
-                                               {.units = material::
-                                                    GradientUnits::Pixels,
-                                                .startDegrees = 90,
-                                                .endDegrees = 450})),
-                                    swatch("CLAMPED WINDOW",
-                                           "sweep(centre, wheel, 45, 315)",
-                                           "Angles outside 45°–315° clamp "
-                                           "to the nearest stop.",
-                                           sigil::material::conicGradient(
-                                               middle(), wheel(),
-                                               {.units = material::
-                                                    GradientUnits::Pixels,
-                                                .startDegrees = kWindowFrom,
-                                                .endDegrees = kWindowTo}))},
+                              {.cases = {swatch("FULL TURN",
+                                                "Paint::sweep(centre, wheel)",
+                                                "The colour ramp completes a "
+                                                "full turn.",
+                                                sigil::material::conicGradient(
+                                                    middle(), wheel(),
+                                                    {.units = material::
+                                                         GradientUnits::Pixels,
+                                                     .startDegrees = 90,
+                                                     .endDegrees = 450})),
+                                         swatch(
+                                             "CLAMPED WINDOW",
+                                             "sweep(centre, wheel, 45, 315)",
+                                             "Angles outside 45°–315° clamp "
+                                             "to the nearest stop.",
+                                             sigil::material::conicGradient(
+                                                 middle(), wheel(),
+                                                 {.units = material::
+                                                      GradientUnits::Pixels,
+                                                  .startDegrees = kWindowFrom,
+                                                  .endDegrees = kWindowTo}))},
                                .measure = 674,
                                .gap = 18})),
                       sketch::kit::section(

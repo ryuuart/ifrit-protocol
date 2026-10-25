@@ -92,10 +92,18 @@ std::vector<Square> spiral() {
     const int turn = (index - 1) % 4;
     glm::vec2 corner;
     switch (turn) {
-      case 0: corner = {high.x, low.y}; break;
-      case 1: corner = {low.x, high.y}; break;
-      case 2: corner = {low.x - side, low.y}; break;
-      default: corner = {low.x, low.y - side}; break;
+      case 0:
+        corner = {high.x, low.y};
+        break;
+      case 1:
+        corner = {low.x, high.y};
+        break;
+      case 2:
+        corner = {low.x - side, low.y};
+        break;
+      default:
+        corner = {low.x, low.y - side};
+        break;
     }
     squares.push_back({corner, side, turn});
     low = glm::min(low, corner);
@@ -161,9 +169,11 @@ compose::Element squareSpiral() {
 
 struct Fibonacci {
   void setup(sketch::Scene2DContext& context) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(context, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        context,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     const sketch::kit::Cell panel{
         .plate = {.width = kPanelWidth, .height = kPanelHeight}};

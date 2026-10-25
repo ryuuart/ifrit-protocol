@@ -1,7 +1,6 @@
 """Sketch declarations and file rendering through the native sketch sessions."""
 
 import sys as _sys
-from contextlib import nullcontext as _nullcontext
 from functools import wraps as _wraps
 from math import isfinite as _isfinite
 from numbers import Real as _Real
@@ -213,8 +212,9 @@ def sketch(
 
     ``size``, ``background`` and ``captureAt`` declare the canvas, what is
     behind it and the moment a still is taken at. ``theme``, a kit theme, is
-    provided around setup, update, describe and draw, and stages the canvas
-    with the theme's ground where no background is given.
+    staged: its sheet stands at the root of every tree the sketch renders,
+    so every component in it reads the theme where it lands, and the canvas
+    takes the theme's ground where no background is given.
     """
     if not isinstance(size, (tuple, list)) or len(size) != 2:
         raise TypeError("size must contain a width and a height")
@@ -224,18 +224,11 @@ def sketch(
     if theme is None and background is None:
         background = "#121720"
 
-    def provided():
-        if theme is None:
-            return _nullcontext()
-        from .kit import provide
-
-        return provide(theme)
-
     def declare(ctx):
         if theme is not None:
             from .kit import stage
 
-            properties = dict(size=(width, height), captureAt=moment)
+            properties = dict(size=(width, height), captureAt=moment, theme=theme)
             if background is not None:
                 properties["background"] = background
             stage(ctx, **properties)
@@ -268,9 +261,9 @@ def sketch(
         if describe is not None:
             _check_describe(describe)
         if describe is not None and _describes_frame(describe):
-            _scene3d(cls, setup, update, draw, describe, declare, provided)
+            _scene3d(cls, setup, update, draw, describe, declare)
         else:
-            _scene2d(cls, setup, update, draw, describe, declare, provided)
+            _scene2d(cls, setup, update, draw, describe, declare)
         cls.__sigil_decorated__ = True
         module.__sigil_sketch__ = cls
         return cls
@@ -278,7 +271,7 @@ def sketch(
     return decorate
 
 
-def _scene3d(cls, setup, update, draw, describe, declare, provided):
+def _scene3d(cls, setup, update, draw, describe, declare):
     if update is not None or draw is not None:
         raise TypeError(
             "a scene3d sketch is a function of the scene time: describe "
@@ -289,17 +282,15 @@ def _scene3d(cls, setup, update, draw, describe, declare, provided):
     described = _caller(describe, 1)
 
     def configure(self, ctx):
-        with provided():
-            declare(ctx)
-            if initialize is not None and initialize(self, ctx) is not None:
-                raise TypeError(
-                    "a scene3d sketch's setup returns nothing; describe "
-                    "returns its frame"
-                )
+        declare(ctx)
+        if initialize is not None and initialize(self, ctx) is not None:
+            raise TypeError(
+                "a scene3d sketch's setup returns nothing; describe "
+                "returns its frame"
+            )
 
     def frame(self, seconds):
-        with provided():
-            return described(self, seconds)
+        return described(self, seconds)
 
     if setup is not None:
         configure = _wraps(setup)(configure)
@@ -311,7 +302,7 @@ def _scene3d(cls, setup, update, draw, describe, declare, provided):
     cls.__sigil_redescribes__ = False
 
 
-def _scene2d(cls, setup, update, draw, describe, declare, provided):
+def _scene2d(cls, setup, update, draw, describe, declare):
     if setup is None and draw is None and describe is None:
         raise TypeError(
             "a sketch class needs setup(self, ctx), describe(self, seconds) "
@@ -343,29 +334,26 @@ def _scene2d(cls, setup, update, draw, describe, declare, provided):
 
     def configure(self, ctx):
         vars(self)["__sigil_context__"] = ctx
-        with provided():
-            declare(ctx)
-            if painted is not None:
-                from ..compose import graphics
+        declare(ctx)
+        if painted is not None:
+            from ..compose import graphics
 
-                def program(pen):
-                    with provided():
-                        painted(self, pen, ctx)
+            def program(pen):
+                painted(self, pen, ctx)
 
-                ctx.render(graphics("sketch.draw", program).absolute().inset(0))
-            if initialize is not None:
-                returned = initialize(self, ctx)
-                if returned is not None:
-                    render(ctx, returned)
-            if described is not None:
-                render(ctx, described(self, ctx.elapsed))
+            ctx.render(graphics("sketch.draw", program).absolute().inset(0))
+        if initialize is not None:
+            returned = initialize(self, ctx)
+            if returned is not None:
+                render(ctx, returned)
+        if described is not None:
+            render(ctx, described(self, ctx.elapsed))
 
     def advance(self, elapsed, ctx):
-        with provided():
-            if advanced is not None:
-                advanced(self, elapsed, ctx)
-            if described is not None:
-                render(ctx, described(self, elapsed))
+        if advanced is not None:
+            advanced(self, elapsed, ctx)
+        if described is not None:
+            render(ctx, described(self, elapsed))
 
     if setup is not None:
         configure = _wraps(setup)(configure)

@@ -868,19 +868,15 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, and `theme`"
+bound = "`houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, and `Theme.properties`"
 python = [
   "sketch.kit.houseFace",
   "sketch.kit.houseTheme",
   "sketch.kit.studyTheme",
   "sketch.kit.featureTheme",
   "sketch.kit.Density",
-  "sketch.kit.theme",
+  "sketch.kit.Theme.properties",
 ]
-
-[[section.surface.item]]
-bound = "a checked `Provide`"
-python = ["sketch.kit.Provide"]
 
 [[section.surface.item]]
 bound = "`stage`, `page`, `well`, `caption`, `cell`, `cells`, `panelGrid` and `comparison`"
@@ -1772,8 +1768,8 @@ bound = "curves as `motion.Curve`"
 python = ["motion.Curve"]
 
 [[section.surface.item]]
-bound = "the inherited environment through memo and `sketch.kit.Provide`"
-python = ["compose.memo", "sketch.kit.Provide"]
+bound = "a theme as a sheet the stage sets at the root"
+python = ["sketch.kit.stage"]
 
 [[section.surface.item]]
 bound = "`core.optionalLibraries`"

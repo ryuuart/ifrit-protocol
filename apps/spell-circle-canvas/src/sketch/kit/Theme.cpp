@@ -30,55 +30,85 @@ compose::StyleSheet Theme::styleSheet() const {
     return weave::Type{.color = colour};
   };
   return compose::StyleSheet{
-      // A ROLE RULE CARRIES ITS WHOLE LOOK, colour included, as a CSS rule
-      // does: the palette's ink for the lines that NAME something — the
-      // page's title, the call over a cell — and its ash for the lines that
-      // qualify one. A label and a caption are also classes a sheet names.
-      rule("h1").font(font(type.title, palette.ink)),
-      rule("lead").font(font(type.subtitle, palette.ash)),
-      rule("footer").font(font(type.footer, palette.ash)),
-      rule("label, .label").font(font(type.captionLabel, palette.ink)),
-      rule("caption, .caption").font(font(type.captionNote, palette.ash)),
-      // The two registers a sheet sets INSIDE its content name no colour,
-      // so each is painted in the ink in force wherever it is read — which
-      // is what a section standing on a panel of its own asks for.
-      rule("eyebrow").font(font(type.eyebrow)),
-      rule("h2").font(font(type.section)),
-      rule(".control").font(font(type.control, palette.ash)),
-      // A MEASURED FIGURE is the one thing on the sheet that is neither
-      // type nor furniture, so it is the class a CALL is set in — the
-      // digits of one width — in the palette's figure colour, wherever it
-      // stands: a readout's value, a figure column's cells, a reading over
-      // a picture.
-      rule(".readout").font(font(type.captionLabel, palette.figure)),
-      // THE PARTS A CHART DRAWS. The furniture is quiet — the axis line and
-      // its ticks in the ash a remark is set in, the rules across the field in
-      // the hairline colour — and the reading is the figure colour, which is
-      // the one thing on the sheet a reader's eye is meant to find: a curve, a
-      // datum's own mark, the band it is drawn as, and the band's fill under a
-      // curve dimmed so the curve still reads over it. Only `tick` and `label`
-      // carry type, because only they set words; the rest name a colour alone
-      // and a recording paints in it as the ink in force.
-      rule(".plotAxis").font(ink(palette.ash)),
-      rule(".plotTick").font(font(type.captionLabel, palette.ash)),
-      rule(".plotRule").font(ink(palette.rule)),
-      rule(".plotTrace").font(ink(palette.figure)),
-      rule(".plotArea")
-          .font(ink(sigil::material::withAlpha(palette.figure, 0.25f))),
-      rule(".plotMark").font(ink(palette.figure)),
-      rule(".plotBar").font(ink(palette.figure)),
-      rule(".plotLabel").font(font(type.captionLabel, palette.ink)),
-      // A VERDICT is the one judgement on the sheet: the colour says
-      // whether the check held, and the heading over a run of checks is
-      // set as a section in the ink.
-      rule(".checkPass").font(ink(palette.pass)),
-      rule(".checkFail").font(ink(palette.fail)),
-      rule(".checkHeading").font(font(type.section, palette.ink)),
+             // A ROLE RULE CARRIES ITS WHOLE LOOK, colour included, as a CSS
+             // rule
+             // does: the palette's ink for the lines that NAME something — the
+             // page's title, the call over a cell — and its ash for the lines
+             // that
+             // qualify one. A label and a caption are also classes a sheet
+             // names.
+             // A PAGE'S RUNNING TEXT, which every leaf under a page that states
+             // no style of its own is set in: the remark register in the ink.
+             rule("page").font(font(type.captionNote, palette.ink)),
+             rule("h1").font(font(type.title, palette.ink)),
+             rule("lead").font(font(type.subtitle, palette.ash)),
+             rule("footer").font(font(type.footer, palette.ash)),
+             rule("label, .label").font(font(type.captionLabel, palette.ink)),
+             rule("caption, .caption")
+                 .font(font(type.captionNote, palette.ash)),
+             // The two registers a sheet sets INSIDE its content name no
+             // colour,
+             // so each is painted in the ink in force wherever it is read —
+             // which
+             // is what a section standing on a panel of its own asks for.
+             rule("eyebrow").font(font(type.eyebrow)),
+             rule("h2").font(font(type.section)),
+             rule(".control").font(font(type.control, palette.ash)),
+             // A CONSOLE'S ROWS: the face a call is set in at the caption-label
+             // size, untracked, in the ink.
+             rule(".console")
+                 .font(font({.size = type.captionLabel.size, .mono = true},
+                            palette.ink)),
+             // A MEASURED FIGURE is the one thing on the sheet that is neither
+             // type nor furniture, so it is the class a CALL is set in — the
+             // digits of one width — in the palette's figure colour, wherever
+             // it
+             // stands: a readout's value, a figure column's cells, a reading
+             // over
+             // a picture.
+             rule(".readout").font(font(type.captionLabel, palette.figure)),
+             // THE PARTS A CHART DRAWS. The furniture is quiet — the axis line
+             // and
+             // its ticks in the ash a remark is set in, the rules across the
+             // field in
+             // the hairline colour — and the reading is the figure colour,
+             // which is
+             // the one thing on the sheet a reader's eye is meant to find: a
+             // curve, a
+             // datum's own mark, the band it is drawn as, and the band's fill
+             // under a
+             // curve dimmed so the curve still reads over it. Only `tick` and
+             // `label`
+             // carry type, because only they set words; the rest name a colour
+             // alone
+             // and a recording paints in it as the ink in force.
+             rule(".plotAxis").font(ink(palette.ash)),
+             rule(".plotTick").font(font(type.captionLabel, palette.ash)),
+             rule(".plotRule").font(ink(palette.rule)),
+             rule(".plotTrace").font(ink(palette.figure)),
+             rule(".plotArea")
+                 .font(ink(sigil::material::withAlpha(palette.figure, 0.25f))),
+             rule(".plotMark").font(ink(palette.figure)),
+             rule(".plotBar").font(ink(palette.figure)),
+             rule(".plotLabel").font(font(type.captionLabel, palette.ink)),
+             // A VERDICT is the one judgement on the sheet: the colour says
+             // whether the check held, and the heading over a run of checks is
+             // set as a section in the ink.
+             rule(".checkPass").font(ink(palette.pass)),
+             rule(".checkFail").font(ink(palette.fail)),
+             rule(".checkHeading").font(font(type.section, palette.ink)),
+         } +
+         properties();
+}
+
+compose::StyleSheet Theme::properties() const {
+  using compose::rule;
+  return compose::StyleSheet{
       // THE LOOK'S NUMBERS AND COLOURS AS CUSTOM PROPERTIES on the node the
       // sheet stands on, so a component reads one where it uses it — a
       // length written `var("spacing-row-gap")`, a fill written
-      // `Fill::var("palette-figure")` — and the cascade carries it down.
-      // A value a component scales is its own property, computed here.
+      // `var("palette-figure")` — and the cascade carries it down. A value
+      // a component scales is its own property, computed here.
       rule(":root")
           .var("spacing-margin-horizontal", spacing.marginHorizontal)
           .var("spacing-margin-top", spacing.marginTop)
@@ -115,8 +145,6 @@ compose::StyleSheet Theme::styleSheet() const {
           .var("palette-fail", palette.fail),
   };
 }
-
-Provide::Provide(Theme look) : m_look(std::move(look)) {}
 
 weave::TextStyle Theme::style(const Register& line,
                               material::Color color) const {
@@ -248,11 +276,6 @@ const Theme& featureTheme(Density density) {
   static const Theme compact = make(specimenTheme());
   static const Theme spacious = make(studyTheme());
   return density == Density::Spacious ? spacious : compact;
-}
-
-const Theme& theme() {
-  const Theme* bound = sigil::core::environment::inherited<Theme>();
-  return bound != nullptr ? *bound : houseTheme();
 }
 
 }  // namespace sigil::sketch::kit

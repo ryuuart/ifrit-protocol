@@ -13,6 +13,7 @@
 #include <sigilcompose/core/Layout.h>  // Cache
 #include <sigilcompose/core/Operator.h>
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilcompose/core/Var.h>
 #include <sigilmotion/values/Tween.h>
 
 #include <chrono>
@@ -66,6 +67,12 @@ class StructureVerbs {
    *  inherit. A later call replaces the role and its defaults together. */
   Derived& role(std::string name, sigil::weave::Type font,
                 sigil::weave::ParagraphBlock paragraph = {});
+  /** A SEMANTIC ROLE WHOSE DEFAULT INK IS A CUSTOM PROPERTY: @p font as
+   *  above, and the glyphs in whatever @p ink holds where the node lands.
+   *  It stands where a colour in @p font would, under every rule that
+   *  matches the node, so a rule naming a colour still wins; it is how a
+   *  component colours a role by the palette of the sheet in force. */
+  Derived& role(std::string name, sigil::weave::Type font, VarRef ink);
   /** A semantic role whose default is a paragraph partial alone. */
   Derived& role(std::string name, sigil::weave::ParagraphBlock paragraph);
   /** A semantic role with no default fields, styled by the sheets in force. */

@@ -117,8 +117,8 @@ sk_sp<SkImage> indexChart() {
   bitmap.allocN32Pixels(kChart, kChart);
   for (int row = 0; row < kChart; ++row)
     for (int column = 0; column < kChart; ++column)
-      *bitmap.getAddr32(column, row) = SkPreMultiplyColor(
-          SkColorSetARGB(255, row * kChart + column, 0, 0));
+      *bitmap.getAddr32(column, row) =
+          SkPreMultiplyColor(SkColorSetARGB(255, row * kChart + column, 0, 0));
   bitmap.setImmutable();
   return bitmap.asImage();
 }
@@ -138,8 +138,8 @@ struct Tables {
       [] {
         std::vector<SkColor> ramp;
         for (int entry = 0; entry < 16; ++entry)
-          ramp.push_back(SkColorSetARGB(255, 17 * entry, 17 * entry,
-                                        17 * entry));
+          ramp.push_back(
+              SkColorSetARGB(255, 17 * entry, 17 * entry, 17 * entry));
         return table(ramp);
       }(),
       table({0xff100005, 0xff2a0410, 0xff450a16, 0xff62111a, 0xff7f1a1c,
@@ -230,19 +230,19 @@ material::Texture placedRamp() {
 
 material::Material stone() {
   return material_children::stone({.hi = {0.62f, 0.63f, 0.66f, 1},
-                            .lo = {0.34f, 0.35f, 0.39f, 1},
-                            .bedAngle = 18,
-                            .bedLength = 44,
-                            .speckle = 0.4f,
-                            .speckleAlpha = 0.3f});
+                                   .lo = {0.34f, 0.35f, 0.39f, 1},
+                                   .bedAngle = 18,
+                                   .bedLength = 44,
+                                   .speckle = 0.4f,
+                                   .speckleAlpha = 0.3f});
 }
 
 material::Material brass() {
   return material_children::latten({.from = {18, 18},
-                             .to = {kCell - 18, kPicture - 18},
-                             .level = 0.55f,
-                             .sheen = 0.45f,
-                             .patina = 0.12f});
+                                    .to = {kCell - 18, kPicture - 18},
+                                    .level = 0.55f,
+                                    .sheen = 0.45f,
+                                    .patina = 0.12f});
 }
 
 sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
@@ -276,10 +276,12 @@ struct MaterialChildren {
     tables.effect = material::shader(
         ctx.assets.hub(), ctx.local("palette.sksl"), PaletteParameters{},
         {.textures = {{"uIndex", {}}, {"uPalette", {}}}});
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // the live panel is on the fire table here
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 1.0});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 1.0});
     ctx.composer.render(describe());
   }
 
@@ -295,8 +297,6 @@ struct MaterialChildren {
   Element describe() const {
     // The theme is bound where the tree is DESCRIBED: this sketch
     // describes again whenever the live panel changes table.
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     const material::Material mixed =
         material::over(stone(), brass(), material::maskMap(placedRamp()));
     const material::Material twice = material::over(

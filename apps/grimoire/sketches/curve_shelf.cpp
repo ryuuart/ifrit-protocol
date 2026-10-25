@@ -55,7 +55,6 @@ constexpr float kWeight = 1.5f;  // every curve drawn at one width
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.captionWhere = kit::Caption::Where::Below;
   look.spacing.captionGap = 8;
   look.spacing.captionNoteGap = 3;
   return look;
@@ -66,18 +65,17 @@ sketch::kit::Theme sheetTheme() {
 sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
                                  const char* note, Shape curve,
                                  float inset = 12) {
-  return {
-      .title = caseTitle,
-      .control = call,
-      .figure = sketch::kit::cell(
-          {.plate = {.width = kCell, .height = kPicture}}, "", "",
-          box()
-              .absolute()
-              .inset(inset)
-              .shape(std::move(curve))
-              .stroke(stroke(
-                  kWeight, Fill::color(sketch::kit::theme().palette.figure)))),
-      .note = note};
+  return {.title = caseTitle,
+          .control = call,
+          .figure = sketch::kit::cell(
+              {.plate = {.width = kCell, .height = kPicture}}, "", "",
+              box()
+                  .absolute()
+                  .inset(inset)
+                  .shape(std::move(curve))
+                  .stroke(stroke(kWeight,
+                                 Fill::color(sheetTheme().palette.figure)))),
+          .note = note};
 }
 
 }  // namespace
@@ -85,8 +83,8 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
 struct CurveShelf {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "A small atlas of curves",

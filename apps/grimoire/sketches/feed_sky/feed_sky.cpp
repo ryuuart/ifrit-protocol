@@ -202,7 +202,11 @@ struct FeedSky {
   double now = 0;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = kCaptureAt});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = kCaptureAt});
     ctx.engine.timer(
         [this, seconds = 0.0](sigil::motion::Duration stepDuration) mutable {
           seconds += stepDuration.count();
@@ -282,20 +286,18 @@ struct FeedSky {
   }
 
   void describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide sheet(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     std::vector<Element> panels =
         each(doors, [this](const Door& door) { return doorPanel(door); });
     panels.push_back(filePanel());
     panels.push_back(rawPanel());
-    ctx.composer.render(sketch::kit::page(
-        {.title = words.phrase(words["title"]),
-         .subtitle = words.phrase(words["subtitle"]),
-         .footer = words.phrase(words["footer"])},
-        sketch::kit::panelGrid({.cells = std::move(panels),
-                                .columns = 2,
-                                .gap = kPanelGap,
-                                .rowGap = 36})));
+    ctx.composer.render(
+        sketch::kit::page({.title = words.phrase(words["title"]),
+                           .subtitle = words.phrase(words["subtitle"]),
+                           .footer = words.phrase(words["footer"])},
+                          sketch::kit::panelGrid({.cells = std::move(panels),
+                                                  .columns = 2,
+                                                  .gap = kPanelGap,
+                                                  .rowGap = 36})));
   }
 
   /** ONE PANEL: its name, its picture, what the way in is, and what it
@@ -341,7 +343,8 @@ struct FeedSky {
   }
 
   Element rawPanel() const {
-    const sketch::kit::Theme& look = sketch::kit::theme();
+    const sketch::kit::Theme& look =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     // A paint program runs after the describe scope has closed, where the
     // theme in force is no longer this page's, so the strip's colours are
     // read here and carried in by value.
@@ -360,10 +363,10 @@ struct FeedSky {
                               ? std::string(entry["address"].string())
                               : pulseShown.localAddress},
                 {.name = "revision",
-                 .value = kit::formatted(
-                     "%llu  ·  dropped %llu",
-                     (unsigned long long)pulseShown.revision,
-                     (unsigned long long)pulseShown.dropped)},
+                 .value =
+                     kit::formatted("%llu  ·  dropped %llu",
+                                    (unsigned long long)pulseShown.revision,
+                                    (unsigned long long)pulseShown.dropped)},
                 {.name = "newest", .value = bytes()}},
             {.measure = kShownWidth}));
   }

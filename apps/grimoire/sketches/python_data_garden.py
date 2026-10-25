@@ -42,9 +42,8 @@ class DataGarden:
         )
         self.bar = Scale(domain=(0, 80), range=(0, 130))
         self.look = kit.featureTheme(kit.Density.Spacious)
-        with kit.provide(self.look):
-            kit.stage(ctx, size=(1000, 780), captureAt=0)
-            ctx.render(self.redraw())
+        kit.stage(ctx, theme=self.look, size=(1000, 780), captureAt=0)
+        ctx.render(self.redraw())
 
     def redraw(self):
         summary = (

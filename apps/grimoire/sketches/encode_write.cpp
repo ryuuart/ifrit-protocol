@@ -90,10 +90,12 @@ sketch::kit::ComparisonCase encoded(const char* title, const char* control,
 
 struct EncodeWrite {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // every encode has already been taken
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     const sk_sp<SkImage> art = source();
 

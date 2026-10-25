@@ -4,8 +4,8 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/substance/Substance.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -29,21 +29,41 @@ sbsar::Description leaves() {
   sbsar::Description described;
   described.graph = "Leaves";
   described.inputs = {
-      {.name = "Season", .label = "Season", .group = "Look",
-       .type = sbsar::InputType::Float, .widget = sbsar::Widget::Slider,
-       .defaultValue = {0.5f}, .minimum = {0}, .maximum = {2}, .step = 0},
-      {.name = "Density", .label = "Density", .group = "Look",
-       .type = sbsar::InputType::Integer, .widget = sbsar::Widget::Slider,
-       .defaultValue = {4}, .minimum = {1}, .maximum = {9}},
-      {.name = "Shadow", .label = "Shadow", .group = "Light",
-       .type = sbsar::InputType::Integer, .widget = sbsar::Widget::Toggle,
+      {.name = "Season",
+       .label = "Season",
+       .group = "Look",
+       .type = sbsar::InputType::Float,
+       .widget = sbsar::Widget::Slider,
+       .defaultValue = {0.5f},
+       .minimum = {0},
+       .maximum = {2},
+       .step = 0},
+      {.name = "Density",
+       .label = "Density",
+       .group = "Look",
+       .type = sbsar::InputType::Integer,
+       .widget = sbsar::Widget::Slider,
+       .defaultValue = {4},
+       .minimum = {1},
+       .maximum = {9}},
+      {.name = "Shadow",
+       .label = "Shadow",
+       .group = "Light",
+       .type = sbsar::InputType::Integer,
+       .widget = sbsar::Widget::Toggle,
        .defaultValue = {0}},
-      {.name = "LeafType", .label = "Leaf", .group = "Look",
-       .type = sbsar::InputType::Integer, .widget = sbsar::Widget::Combobox,
+      {.name = "LeafType",
+       .label = "Leaf",
+       .group = "Look",
+       .type = sbsar::InputType::Integer,
+       .widget = sbsar::Widget::Combobox,
        .defaultValue = {1},
        .choices = {{0, "Oak"}, {1, "Maple"}, {2, "Birch"}}},
-      {.name = "Tint", .label = "Tint", .group = "Look",
-       .type = sbsar::InputType::Float3, .widget = sbsar::Widget::Color,
+      {.name = "Tint",
+       .label = "Tint",
+       .group = "Look",
+       .type = sbsar::InputType::Float3,
+       .widget = sbsar::Widget::Color,
        .defaultValue = {1, 1, 1}},
   };
   return described;
@@ -55,7 +75,11 @@ struct Surface {
   compose::Composer composer{engine, sigil::sketch::test::fonts()};
   sk_sp<SkSurface> pixels =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWide, kTall));
+  /** Under the house theme's sheet, as a sketch under a stage that names
+   *  no theme stands: a row's label and figure take their registers from
+   *  its rules and their colours and distances from its properties. */
   explicit Surface(compose::Element tree) {
+    composer.setStyleSheet(kit::houseTheme().styleSheet());
     composer.setSize({(float)kWide, (float)kTall});
     composer.render(std::move(tree));
     draw();
@@ -136,8 +160,7 @@ TEST(SketchKitControls, OnlyTheNamedGroupsAreDrawn) {
     int lowest = -1;
     for (int y = 0; y < kTall; ++y)
       for (int x = 0; x < kWide; ++x)
-        if (bitmap.getColor4f(x, y).fR > 0.05f)
-          lowest = y;
+        if (bitmap.getColor4f(x, y).fR > 0.05f) lowest = y;
     return lowest;
   };
   EXPECT_GT(lowestInk(every), lowestInk(light));
@@ -154,8 +177,9 @@ TEST(SketchKitControls, AMaterialFollowsTheSurfaceItIsBoundTo) {
   using sigil::material::Target;
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<GrainParameters>("sketch.kit.test.grain")
-          .body(Target::SkSL,
-                "half4 main(float2 p) { return half4(amount, scale, 0, 1); }\n"));
+          .body(
+              Target::SkSL,
+              "half4 main(float2 p) { return half4(amount, scale, 0, 1); }\n"));
   sigil::material::Material grain(recipe, GrainParameters{});
   kit::Controls surface(grain);
   ASSERT_EQ(surface.parameters().size(), 2u);

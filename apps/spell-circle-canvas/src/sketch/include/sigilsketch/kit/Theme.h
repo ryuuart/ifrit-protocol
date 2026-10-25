@@ -4,9 +4,9 @@
  * @ingroup sketch-kit
  *
  * The look a sheet is set in, as one comparable value: the colours, the
- * registers its lines are set in, and the distances between things. It is bound
- * for a scope and read where a component is described, so a component four
- * levels down obeys it without being handed it.
+ * registers its lines are set in, and the distances between things. It
+ * reaches the tree as a sheet of rules and custom properties applied on a
+ * subtree, so a component four levels down obeys it without being handed it.
  */
 
 #include <include/core/SkColor.h>
@@ -14,7 +14,6 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/TextStyle.h>
 #include <sigilweave/style/Type.h>
@@ -23,11 +22,12 @@
  *  a specimen is built out of — headings, passages, panels, rows, cells,
  *  charts, legends, meters, tickers, scrollbars and consoles.
  *
- *  The theme is one comparable value bound for a scope and read where a
- *  component is described, so a piece four levels down obeys it without
- *  being handed it. Every piece here therefore takes CONTENT and carries
- *  no colour of its own, and a study changes its whole look by changing
- *  the theme above it.
+ *  The theme is one comparable value whose sheet — `Theme::styleSheet()`,
+ *  rules for the document roles and custom properties for the spacing and
+ *  the palette — is applied on a subtree, so a piece four levels down
+ *  obeys it without being handed it. Every piece here therefore takes
+ *  CONTENT and carries no colour of its own, and a study changes its
+ *  whole look by changing the theme its page names.
  *
  *  These are the shapes a reference study keeps reaching for. Nothing
  *  here decides how a study looks, and a sketch that wants something
@@ -37,10 +37,9 @@ namespace sigil::sketch::kit {
 /** THE COLOURS A SHEET IS SET IN.
  *
  *  A comparable VALUE, and the comparison is exact: two palettes are
- *  equal when everything described under them describes the same, which
- *  is what lets the reconciler's structural prune stand in for a
- *  dependency tracker. Nothing here is perceptual and nothing is
- *  epsilon'd. */
+ *  equal when their sheets set the same properties, which is what lets
+ *  the reconciler's structural prune keep a subtree under an unchanged
+ *  sheet. Nothing here is perceptual and nothing is epsilon'd. */
 struct Palette {
   /** Behind the whole sheet. */
   material::Color ground{0.07f, 0.07f, 0.085f, 1};
@@ -184,9 +183,9 @@ struct Spacing {
 /** THE LOOK, as one value.
  *
  *  A SEAM, not a privilege: a sketch's own `Theme` is indistinguishable
- *  from the house one at every call site, and every component here has
- *  correct behaviour with none bound at all — it falls back to
- *  `houseTheme()`, which is a value among peers rather than the value.
+ *  from the house one at every call site. A page names one, and falls
+ *  back to `houseTheme()` where it names none, which is a value among
+ *  peers rather than the value.
  *  Nothing in this library decides a look; it decides only the
  *  arrangement, and the house sheet is what most of this repository's
  *  sheets already happen to be set in. */
@@ -194,7 +193,10 @@ struct Theme {
   Palette palette;
   TypeScale type;
   Spacing spacing;
-  /** Where a cell's caption lines stand relative to its body. */
+  /** Where the caption lines of the voice `voice()` answers stand
+   *  relative to its body. It is structure rather than a value a sheet can
+   *  carry, so `kit::cell` and `kit::caption` take their own placement and
+   *  read none from here. */
   compose::kit::Caption::Where captionWhere =
       compose::kit::Caption::Where::Split;
   bool operator==(const Theme&) const = default;
@@ -237,8 +239,19 @@ struct Theme {
    *
    *  AND THE THREE A VERDICT NAMES: `.checkPass` and `.checkFail` for a
    *  verdict in the palette's `pass` and `fail`, and `.checkHeading` for
-   *  the title over a run of checks in its ink. */
+   *  the title over a run of checks in its ink.
+   *
+   *  AND TWO A COMPONENT STANDS IN: the `page` role, a page's running
+   *  text in the remark register and the ink, and `.console`, a
+   *  console's rows in the face a call is set in at the caption-label
+   *  size. The sheet ends with `properties()`. */
   [[nodiscard]] compose::StyleSheet styleSheet() const;
+  /** THE SPACING AND THE PALETTE ALONE, as custom properties on the
+   *  node the sheet is applied on — `spacing-<field>` and
+   *  `palette-<field>`, the field in full words, hyphenated — with none of
+   *  the role rules: what a component reads under a sheet whose type is
+   *  the sketch's own. `styleSheet()` ends with this. */
+  [[nodiscard]] compose::StyleSheet properties() const;
   /** @p line in @p color, set in whichever of the two faces it names. */
   [[nodiscard]] weave::TextStyle style(const Register& line,
                                        material::Color color) const;
@@ -303,7 +316,8 @@ enum class Voice {
  *  first call and held, so every sheet under it shares one face and
  *  every memo keyed on a style below it keeps hitting.
  *
- *  A sketch that wants another look builds its own `Theme` and binds it;
+ *  A sketch that wants another look builds its own `Theme` and names it
+ *  on its page;
  *  a sketch that wants this one with two colours moved copies this and
  *  writes the two. */
 [[nodiscard]] const Theme& houseTheme();
@@ -324,39 +338,5 @@ enum class Density { Compact, Spacious };
 /** A feature sheet in slate, ivory and pale gold, with interface headings
  *  and terminal settings. Both densities retain their resolved faces. */
 [[nodiscard]] const Theme& featureTheme(Density density = Density::Compact);
-
-/** THE THEME IN SCOPE, or the house one where nothing bound a theme —
- *  which is what makes every component here correct on its own. */
-[[nodiscard]] const Theme& theme();
-
-/** BIND A THEME for everything described while this object lives, the
- *  way a provider does — the reconciler's own inherited value, so a
- *  sketch needs one include and one word. The registers reach the tree
- *  as rules through `styleSheet()`, which `page()` applies on its root; a
- *  sketch without a page applies it on its own root. A document label
- *  under either takes the theme's `label` rule.
- *
- *      sketch::kit::Provide look(sheetTheme());
- *      ctx.composer.render(sketch::kit::page({...}, content));
- *
- *  A sketch whose classes go past the registers joins rules of its own to
- *  `styleSheet()` with `+` and applies the result on its root or on the
- *  panel those classes belong to. RAII and LIFO. BIND IT WHERE THE
- *  TREE IS DESCRIBED: a sketch
- *  that describes again when its data changes does so outside the scope
- *  its setup opened, and a theme bound only there is not in scope for the
- *  second description. A callable the KERNEL invokes later — a `custom()`
- *  paint program, a memo's deferred describe — runs outside this scope,
- *  so such a lambda captures the colours it needs by value here, where
- *  the scope still stands. */
-class Provide {
- public:
-  explicit Provide(Theme look);
-  Provide(const Provide&) = delete;
-  Provide& operator=(const Provide&) = delete;
-
- private:
-  sigil::core::environment::Provide<Theme> m_look;
-};
 
 }  // namespace sigil::sketch::kit

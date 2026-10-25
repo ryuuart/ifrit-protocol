@@ -1005,9 +1005,9 @@ signature when the class is decorated. A drawing with two arguments
 receives the same checked session context as setup.
 
 `size`, `background` and `captureAt`, the scene time a still is taken
-at, declare the canvas. `theme=`, a kit theme, is provided around setup,
-update, describe and draw, and stages the canvas with the theme's ground
-where no background is given:
+at, declare the canvas. `theme=`, a kit theme, is staged: its sheet stands
+at the root of every tree the sketch renders, and the canvas takes the
+theme's ground where no background is given:
 
 ```python
 from sigil.sketch import kit, sketch
@@ -1080,7 +1080,7 @@ not opaque), each channel rounded to the nearest eight-bit step.
 
 Where a fill is taken — `fill`, `ink`, a stroke's paint, a text shadow —
 the text `currentcolor` is the ink in force and `var(--name)` the custom
-property, as `compose.Fill.currentInk()` and `compose.Fill.var(name)`
+property, as `compose.Fill.currentInk()` and `compose.var(name)`
 spell them. A flat colour slot resolves nothing from the tree and raises
 on both. `Element.var(name, text)` holds a length where the length
 grammar reads the text (`"12px"`, `"1.5em"`, `"50%"`) and a colour where
@@ -1453,7 +1453,7 @@ the sketch carries is a family too once its hub has loaded it, as the
 fonts passage under Typography shows.
 `textShadow(TextShadow(offset=(2, 2), blur=4, color=…))`, or a list of them,
 casts a shadow from each glyph, CSS's `text-shadow`, which fades, tints and
-deforms with its glyph; its `color` is a colour, `Fill.var(name)` read where
+deforms with its glyph; its `color` is a colour, `var(name)` read where
 the shadow is stated, or by default the ink in force.
 `boxShadow(offset=(0, 4), blur=12, spread=0, color="#0006", inset=False)` is
 CSS's `box-shadow` on the node's outline, beneath the fill or, inset, over it
@@ -1602,16 +1602,15 @@ look.palette.ink = "#30372f"
 look.type.title.size = 28
 
 # Inside setup(self, ctx), where the decorator states no theme:
-with kit.provide(look):
-    kit.stage(ctx, size=(640, 360), captureAt=0)
-    picture = kit.well(width=240, height=160).children(text("A specimen"))
-    content = kit.caption(picture, label="Native type", note="One shared theme")
-    page = kit.page(content, title="A specimen sheet", footer="Sigil")
-ctx.render(page)
+kit.stage(ctx, theme=look, size=(640, 360), captureAt=0)
+picture = kit.well(width=240, height=160).children(text("A specimen"))
+content = kit.caption(picture, label="Native type", note="One shared theme")
+ctx.render(kit.page(content, title="A specimen sheet", footer="Sigil"))
 ```
 
-`@sketch(theme=look)` says the same in one place: the decorator provides
-the theme around every hook and stages the canvas over it.
+`@sketch(theme=look)` says the same in one place: the decorator stages the
+canvas with the theme, so its sheet stands at the root of every tree the
+sketch renders.
 
 `stage`, `page`, `well`, `caption`, `cell`, `cells` and `panelGrid` call
 SigilSketchKit. The neutral `sigil.compose.kit` supplies native wells,
@@ -1639,17 +1638,18 @@ functions; and a Python function of the frame, the key and the index is a
 layer too. `python_kit_pieces` sets nine of them on one sheet.
 
 `houseTheme()` supplies the default stock theme; `studyTheme()` supplies
-the stock theme for typographic studies. Both factories and `theme()` return
-owned native values. Their embedded palette, type and spacing fields are
-editable parts of the value.
-`with kit.provide(look):` installs a snapshot in the native inherited
-scope; nested scopes restore the enclosing theme. Close a provider in
-reverse nesting order on its owning thread. Callback boundaries close a
-provider accidentally left open. Bind around every function that
-**describes** the tree, including a later update. A memo restores the
-environment it captured when its builder runs after the authoring scope
-has ended; an ordinary drawing callback should capture the needed colors
-as values.
+the stock theme for typographic studies. Both factories return owned native
+values. Their embedded palette, type and spacing fields are editable parts
+of the value.
+A theme reaches the tree as a sheet: `look.styleSheet()` holds the rules
+its registers style the document roles with, and `look.properties()` its
+spacing and palette as custom properties (`spacing-row-gap`,
+`palette-figure`). The stage sets the sheet at the root, so every component
+reads the theme where it lands, a later update included; a subtree in
+another look applies that theme's sheet, or its properties alone, on its own
+root, and a tree outside a sketch does the same. A component reads a
+property where it uses it, so a drawing callback reads a colour as
+`var("palette-figure")` in a fill rather than capturing a value.
 
 Optional nested records, such as `Well.content`, `recess` and `relief`,
 return owned copies. Edit the copy and reassign it to change its parent.
@@ -1985,7 +1985,7 @@ or set as `compose.Track(effect=...)`. `scramble` churns each glyph through a
 charset before it lands; `tween` walks `textFx.GlyphModifier` stops, a bare
 stop taking an equal share of the path and a `GlyphModifierKeyframe` naming
 its own share and curve, and each of a stop's three colour terms is a colour,
-the ink in force (`Fill.currentInk()`) or a custom property (`Fill.var(name)`)
+the ink in force (`Fill.currentInk()`) or a custom property (`var(name)`)
 read where the glyph is painted, so a table follows the sheet; `tint` reveals
 colour stops toward the colour the leaf is set in; `hold` paints nothing
 before a unit's beat opens; `sequence` plays phases written

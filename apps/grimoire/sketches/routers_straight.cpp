@@ -92,7 +92,9 @@ Element plate(const std::string& tag, Operator route) {
 PathFormat wireMark() {
   return PathFormat{
       .width = 1.6f,
-      .strokeFill = Fill::color(sketch::kit::theme().palette.figure)};
+      .strokeFill =
+          Fill::color(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                          .palette.figure)};
 }
 
 sketch::kit::ComparisonCase cell(const char* title, const char* call,
@@ -108,10 +110,12 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 
 struct RoutersStraight {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     const auto wire = [](const std::string& tag, Router router) {
       return Operator(connect::Between{.from = tag + "-a",

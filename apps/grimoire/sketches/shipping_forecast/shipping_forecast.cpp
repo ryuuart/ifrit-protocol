@@ -376,11 +376,11 @@ struct ShippingForecast {
                      {1.0f, material::withAlpha(kSea, 0)}},
                     {.extent = material::RadialExtent::ClosestSide})),
                 kit::ring(sigil::geometry::path::fromSk(kEye), kRingRadius + 21,
-                          stroke(1, Fill::var("keyline"))),
+                          stroke(1, var("keyline"))),
                 kit::ring(sigil::geometry::path::fromSk(kEye), kInnerRadius,
-                          stroke(1, Fill::var("keyline"))),
+                          stroke(1, var("keyline"))),
                 kit::ring(sigil::geometry::path::fromSk(kEye), kPorthole,
-                          stroke(1, Fill::var("keyline-deep"))),
+                          stroke(1, var("keyline-deep"))),
             }),
         pressureChart().opacity(beat(0.40f, 1.60f)),
         readingHand(),
@@ -390,7 +390,7 @@ struct ShippingForecast {
             .key("reading-slice")
             .shape(sigil::geometry::shapes::sector(
                 readingBearing - 90 - 7, 14, kInnerRadius / (kRingRadius + 21)))
-            .fill(Fill::var("amber-wash"))
+            .fill(var("amber-wash"))
             .opacity(beat(reached, reached + 0.6f)),
         each(areas,
              [&](const Area& area, size_t index) {
@@ -403,7 +403,7 @@ struct ShippingForecast {
                    .rotate(area.bearing)
                    .centerAt(sigil::geometry::path::fromSk(
                        compass(area.bearing, kRingRadius + (read ? 32 : 28))))
-                   .fill(Fill::var(read ? "amber" : "slate-dim"))
+                   .fill(var(read ? "amber" : "slate-dim"))
                    .opacity(beat(at - 0.08f, at + 0.30f));
              }),
         each(bulletin["cardinals"].array(),
@@ -557,7 +557,7 @@ struct ShippingForecast {
           .rotate(tilt)
           .shape(sigil::geometry::shapes::circle())
           .fill(Fill::none())
-          .stroke(stroke(1, Fill::var(bold ? "isobar-bold" : "isobar")));
+          .stroke(stroke(1, var(bold ? "isobar-bold" : "isobar")));
     };
     const auto figure = [](SkPoint at, const data::Json& words) {
       return text(words)
@@ -639,8 +639,8 @@ struct ShippingForecast {
         .gap(12)
         .padding(10, 13)
         .borderRadius({3})
-        .fill(Fill::var("amber-ground"))
-        .stroke(stroke(1, Fill::var("amber-edge")))
+        .fill(var("amber-ground"))
+        .stroke(stroke(1, var("amber-edge")))
         .ink(var("amber"))
         .opacity(beat(0.10f, 0.70f))
         .children({
@@ -803,43 +803,42 @@ struct ShippingForecast {
    *  bulletin says it may not blow at all. */
   [[nodiscard]] Element beaufort() {
     const data::Json& page = bulletin["beaufort"];
-    return panel(
-               page["eyebrow"], 3.20f,
-               {
-                   box()
-                       .row()
-                       .gap(6)
-                       .height(56)
-                       .alignItems(Align::End)
-                       .children(each(
-                           std::views::iota(0, 13),
-                           [](int force) {
-                             const bool quoted = force >= 5 && force <= 8;
-                             const bool occasional = force == 8;
-                             Element bar =
-                                 box()
-                                     .width(percent(100))
-                                     .height(6 + force * 2.6f)
-                                     .fill(Fill::var(occasional ? "amber-ground"
-                                                     : quoted   ? "amber"
-                                                                : "bar"));
-                             if (occasional)
-                               bar.stroke(stroke(1, Fill::var("amber")));
-                             return box()
-                                 .flexGrow(1)
-                                 .column()
-                                 .gap(6)
-                                 .alignItems(Align::Center)
-                                 .key("force" + std::to_string(force))
-                                 .ink(var(quoted ? "amber" : "slate-dim"))
-                                 .children({
-                                     bar,
-                                     text(std::to_string(force))
-                                         .styleClass("force"),
-                                 });
-                           })),
-                   document::caption(page["names"]).styleClass("bands"),
-               })
+    return panel(page["eyebrow"], 3.20f,
+                 {
+                     box()
+                         .row()
+                         .gap(6)
+                         .height(56)
+                         .alignItems(Align::End)
+                         .children(each(
+                             std::views::iota(0, 13),
+                             [](int force) {
+                               const bool quoted = force >= 5 && force <= 8;
+                               const bool occasional = force == 8;
+                               Element bar =
+                                   box()
+                                       .width(percent(100))
+                                       .height(6 + force * 2.6f)
+                                       .fill(var(occasional ? "amber-ground"
+                                                 : quoted   ? "amber"
+                                                            : "bar"));
+                               if (occasional)
+                                 bar.stroke(stroke(1, var("amber")));
+                               return box()
+                                   .flexGrow(1)
+                                   .column()
+                                   .gap(6)
+                                   .alignItems(Align::Center)
+                                   .key("force" + std::to_string(force))
+                                   .ink(var(quoted ? "amber" : "slate-dim"))
+                                   .children({
+                                       bar,
+                                       text(std::to_string(force))
+                                           .styleClass("force"),
+                                   });
+                             })),
+                     document::caption(page["names"]).styleClass("bands"),
+                 })
         .opacity(beat(3.20f, 3.80f));
   }
 
@@ -856,7 +855,7 @@ struct ShippingForecast {
                rows,
                {.columns = {{page["eyebrow"], 316}, {{}, 64}, {{}, 156}},
                 .rowGap = 7,
-                .divider = Fill::var("keyline"),
+                .divider = var("keyline"),
                 .headRuled = true,
                 .headLine =
                     [](const Utf8& words) { return document::eyebrow(words); },
@@ -928,7 +927,7 @@ struct ShippingForecast {
                 .opacity(envelope())
                 .children({
                     masthead(),
-                    kit::line({.fill = Fill::var("keyline")}),
+                    kit::line({.fill = var("keyline")}),
                     box().row().gap(48).flexGrow(1).children({
                         box()
                             .width(556)

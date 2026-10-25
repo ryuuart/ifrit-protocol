@@ -191,16 +191,19 @@ using instrument::uiFace;
 /** THE PANEL REGISTERS AS CLASSES, each a size over the mono face and
  *  the 0.2 px tracking every panel's root states: a footnote, a census
  *  column head, a census cell, a swatch or bench label, and a production
- *  line. Bound where a panel is described — in setup for the panels
- *  built once, and in the loop for the census panel described again
- *  every frame. */
+ *  line — over the house theme's properties, which the meters and the
+ *  swatch strip read. Applied where a panel is described — in setup for
+ *  the panels built once, and in the loop for the census panel described
+ *  again every frame — because each panel is a guest tree of its own. */
 inline sigil::compose::StyleSheet registers() {
-  sigil::compose::StyleSheet classes{
-      sigil::compose::rule(".note").font({.size = 9.0f}),
-      sigil::compose::rule(".colhead").font({.size = 7.5f, .track = 0.9f}),
-      sigil::compose::rule(".cell").font({.size = 9.5f, .track = 0.4f}),
-      sigil::compose::rule("label, .label").font({.size = 7.0f}),
-      sigil::compose::rule(".line").font({.size = 9.0f})};
+  sigil::compose::StyleSheet classes =
+      sketch::kit::houseTheme().properties() +
+      sigil::compose::StyleSheet{
+          sigil::compose::rule(".note").font({.size = 9.0f}),
+          sigil::compose::rule(".colhead").font({.size = 7.5f, .track = 0.9f}),
+          sigil::compose::rule(".cell").font({.size = 9.5f, .track = 0.4f}),
+          sigil::compose::rule("label, .label").font({.size = 7.0f}),
+          sigil::compose::rule(".line").font({.size = 9.0f})};
   return classes;
 }
 

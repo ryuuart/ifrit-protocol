@@ -71,8 +71,7 @@ void cruise(physics::Points& birds, float, const physics::Force& force) {
   for (size_t index = 0; index < birds.size(); ++index) {
     const glm::vec2 velocity = birds.velocity[index];
     const float speed = glm::length(velocity);
-    if (speed > 0.0f)
-      birds.force[index] += velocity * (force.strength / speed);
+    if (speed > 0.0f) birds.force[index] += velocity * (force.strength / speed);
   }
 }
 
@@ -80,15 +79,14 @@ void cruise(physics::Points& birds, float, const physics::Force& force) {
 struct Flock {
   physics::Points birds;
   std::vector<physics::Force> forces;
-  physics::Verlet stepper{
-      .timeStep = std::chrono::duration<double>(1.0 / kStepRate)};
+  physics::Verlet stepper{.timeStep =
+                              std::chrono::duration<double>(1.0 / kStepRate)};
 
   explicit Flock(physics::Flocking weights) {
-    forces = {physics::boids(weights, kReach, kSteering),
-              {.kind = physics::ForceKind::Body,
-               .strength = kCruise,
-               .body = cruise},
-              physics::drag(kDrag)};
+    forces = {
+        physics::boids(weights, kReach, kSteering),
+        {.kind = physics::ForceKind::Body, .strength = kCruise, .body = cruise},
+        physics::drag(kDrag)};
     // The same seed in every panel, so the panels differ only in weights.
     chance::Stream rolls = chance::Stream::xorshift(0xC2A16u);
     for (int bird = 0; bird < kBirds; ++bird) {
@@ -117,8 +115,7 @@ struct Flock {
 
 /** THE PANEL: a kept canvas washed by a translucent ground each frame,
  *  every bird a small dart along its heading. */
-compose::Element flight(const std::string& key, const Flock& flock,
-                        float hue) {
+compose::Element flight(const std::string& key, const Flock& flock, float hue) {
   return compose::graphics(key, [&flock, hue](Pen& pen) {
     if (pen.frameCount == 1) pen.background(8, 9, 14);
     pen.background(8, 9, 14, 14);
@@ -144,9 +141,11 @@ struct Flocking {
   std::array<std::unique_ptr<Flock>, 3> flocks;
 
   void setup(sketch::Scene2DContext& context) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(context, {.size = kCanvas, .captureAt = 6.0});
+    sketch::kit::stage(
+        context,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 6.0});
 
     flocks = {std::make_unique<Flock>(physics::Flocking{
                   .separation = 3.0f, .alignment = 0.4f, .cohesion = 0.2f}),

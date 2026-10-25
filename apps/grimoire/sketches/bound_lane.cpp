@@ -232,9 +232,11 @@ struct BoundLane {
   sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx, {.size = {1280, 1030}, .captureAt = 6.0});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = {1280, 1030},
+         .captureAt = 6.0});
 
     // `seconds` is the SCHEDULE the shake is phased off. It ramps forever
     // rather than wrapping, so `frequency` reads as plain Hz and the noise
@@ -351,10 +353,16 @@ struct BoundLane {
                             {.name = "Frequency", .value = "3 Hz"},
                             {.name = "Plotted window", .value = "2 seconds"}},
                         {.measure = 282,
-                         .gap = sketch::kit::theme().spacing.rowGap,
-                         .labelGap = sketch::kit::theme().spacing.labelGap,
+                         .gap = sketch::kit::featureTheme(
+                                    sketch::kit::Density::Spacious)
+                                    .spacing.rowGap,
+                         .labelGap = sketch::kit::featureTheme(
+                                         sketch::kit::Density::Spacious)
+                                         .spacing.labelGap,
                          .divider =
-                             Fill::color(sketch::kit::theme().palette.rule)}),
+                             Fill::color(sketch::kit::featureTheme(
+                                             sketch::kit::Density::Spacious)
+                                             .palette.rule)}),
                     document::caption(
                         "The red rails bound the displacement. Noise is "
                         "added in the property's own units; clamp runs last.")
@@ -413,7 +421,8 @@ struct BoundLane {
                  std::move(locusRow),
                  document::h2("03 / FOLLOW A PATH · ONE PHASE, FIVE READINGS"),
                  std::move(tracks)}))
-            .applyStyleSheet(sheetClasses(sketch::kit::theme())));
+            .applyStyleSheet(sheetClasses(
+                sketch::kit::featureTheme(sketch::kit::Density::Spacious))));
   }
 };
 

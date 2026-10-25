@@ -261,8 +261,6 @@ struct ShapeworksLab {
   }
 
   Element describe() {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // OUTLINE — a chain of path operators wearing a material. Both were
     // cooked in setup and both are static, so the panel states a bake:
     // an outline recipe and a normal map are the description's cost, not
@@ -341,8 +339,11 @@ struct ShapeworksLab {
             .cache(Cache::None);
 
     return stack()
-        .applyStyleSheet(sketch::kit::theme().styleSheet())
-        .ink(sketch::kit::theme().palette.ink)
+        .applyStyleSheet(
+            sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                .styleSheet())
+        .ink(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                 .palette.ink)
         .children(
             {std::move(outlineLab), std::move(materialLab), std::move(flight),
              document::h1("Geometry wearing a material")
@@ -380,12 +381,13 @@ struct ShapeworksLab {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx,
-                       {.size = {1280, 990},
-                        .captureAt = 2.6,
-                        .background = sketch::kit::theme().palette.ground});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = {1280, 990},
+         .captureAt = 2.6,
+         .background = sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                           .palette.ground});
 
     studio = shapeworks_lab::studioEnvironment();
 

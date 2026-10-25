@@ -41,7 +41,7 @@ that its pixels match the original.
 | Draw · Generative | 9 | 7 | 2 |
 | Draw · Observable reproductions | 1 | 1 | 0 |
 | Draw · Procedural | 4 | 4 | 1 |
-| Kit · API | 52 | 11 | 0 |
+| Kit · API | 52 | 12 | 0 |
 | Kit · Depth | 1 | 1 | 0 |
 | Compose · Typography | 1 | 1 | 1 |
 | Specimen | 11 | 5 | 0 |
@@ -65,7 +65,7 @@ that its pixels match the original.
 | Study · Effects | 1 | 0 | 1 |
 | Study · Lighting | 2 | 0 | 0 |
 | Study · Materials | 7 | 0 | 0 |
-| **All** | **174** | **53** | **6** |
+| **All** | **174** | **54** | **6** |
 
 Every sketch in Draw, Draw · Observable reproductions, Draw · Procedural, Kit ·
 Depth, Compose · Typography and Study · Paint is bound.
@@ -92,7 +92,6 @@ One surface alone stands between each of these sketches and a translation:
 - `compose::LayeredBrush` stroke layers: `lain_navi`.
 - `compose::instancing::place` placers: `loot grid`.
 - `compose::onEdges` and `compose::inset` adaptors: `y2k chrome`.
-- `core::environment::Provide` / `inheritedOr` values: `cascade`.
 - `geometry::mesh::curve::Spline3` and frames: `glow_trail`.
 - `geometry::path::PolarFrame` and `path::Grid`: `frame_grid`.
 - `geometry::path::operations` chain and outline effects: `path_booleans`.
@@ -182,7 +181,7 @@ Python environment.
 | Decorations | `Decoration` over `PathFormat` (stroke fill, alignment, dashes, caps, joins, stamps, trims and animated phases) or `Shadow`, whose fields are CSS's `offset`, `blur`, `spread`, `color` and `inset`; `Element.boxShadow`, CSS's `box-shadow` by keyword, one `Shadow` or a list with the first on top; `stroke`, `shadow`, and a material's effects through `Element.fill`; `relief`, a material over the rounded relief of the outline it decorates, with its `shoulder` and `depth`; overlay, background, foreground and stroke layers; span passes over `spans` selections; `Element.decorationOutline` and `Boundary`; `compose.brush.ribbon`: a band swept along the outline `stroke()` gives it, as wide as a width law says, a calligraphic nib at `nibAngleDegrees` with its `nibContrast`, or a taper from the start's width to `widthEnd`, painted with a colour, a fill or a material; `Ribbon.band` hands back the region it fills | `Slice`, `ContourWalk`, `Wash`, `Border` and the `decorations::` borders and washes; `onEdges` and `inset`; the `brush::` solids, weaves, scatters, patterns, corner art and art; `Brush` shaped layer stacks and `brush::restyle`; `LayeredBrush`; `lines::Line`, `Rails`, `Hatch` and `RadialHatch`; the `styles::` bevel pair, brackets and tick rails, each inked with a material; `PathFormat::effect`; shadow offsets driven by motion outputs; decoration schemes written in Python |
 | Compose kit | `compose.kit` records `Sheet`, `Panel`, `Board`, `Well`, `WellContent`, `Caption`, `Cells`, `PanelGrid`, `Line` and `Ladder` with every native field, their factories, `centred`, `at`, `disc`, `dot`, `ring` and `figure`, with caption, sheet and panel lines as Python callables; `compose.layouts` `Grid` with tracks, areas and dense flow, `Radial`, `Diagonal`, `BaselineGrid`, `Jittered` and `AlongPath`; the connecting operators `compose.connect.Between` and `ByLane` with their router, gap, wire and bleed; `reading` and `readout` over `Reading` and `Rows`; `compose.kit.table` and `compose.kit.bars`; `compose.kit.textPaint`, `compose.kit.TextPaint` and `compose.kit.TextField` | typesetting (`ruby`, `kenten`, `bullets`, `textColumns`, `rules`, `nestedRun`); `annotate` with `Beside` and `Anchored`; `trackMeter` and `restGhost`; `marquee`; legibility (`scrim`, `haloed`, `shaded`, `emboldened` and `drawHaloed`); `plate`, `console` and `tinted`; `routers::`; `instancing::place::`; the stroke and brush presets; sprites and pixel type; the named default leaves |
 | Document kit | Every `compose::document` component and property: `article`, `section`, `list`, `quote`, `heading` and `h1` to `h6`, `paragraph` over a string or rich text, `lead`, `caption`, `label`, `eyebrow`, `footer`, `code`, `item`, `figure` and `rule`; `measure`, `gap`, `listGap` and `quoteInset`; roles resolved through inherited stylesheets | Nothing |
-| Specimen kit | `sketch.kit` `Palette`, `Register`, `TypeScale`, `Spacing` and a comparable `Theme` with `font`, `style`, `styleSheet` and `voice`; `houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, and `theme`; a checked `Provide`; `stage`, `page`, `well`, `caption`, `cell`, `cells`, `panelGrid` and `comparison`; `verdict` with `Verdict`, `VerdictRows` and `Column`, and the control surface `controls` with `Controls`, `ControlsView`, `Control`, `Option`, `Widget` and `controlsOf`; `sketch.kit.Theme.sans` and `sketch.kit.Theme.mono`; `sketch.kit.specimenTheme`; `sketch.Scene3DContext`; `sketch.kit.Instrument`; `sectionHeader` and `section` with `SectionHeader`; `sketch.kit.titleCard`; `sketch.kit.legend`, `sketch.kit.swatchStrip` and `sketch.kit.chip`; `sketch.kit.meter` and `sketch.kit.gauge`; `sketch.kit.plot`; `sketch.kit.scrollbar`; `sketch.kit.backdrop`, `sketch.kit.panel` and `sketch.kit.frame`; `sketch.kit.console`; `sketch.kit.ticker` and `sketch.kit.timeline`; `sketch.kit.Channel`; `sketch.kit.connectionReadout` and `sketch.kit.ConnectionReadout` | `passage`; `Document` |
+| Specimen kit | `sketch.kit` `Palette`, `Register`, `TypeScale`, `Spacing` and a comparable `Theme` with `font`, `style`, `styleSheet` and `voice`; `houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, and `Theme.properties`; `stage`, `page`, `well`, `caption`, `cell`, `cells`, `panelGrid` and `comparison`; `verdict` with `Verdict`, `VerdictRows` and `Column`, and the control surface `controls` with `Controls`, `ControlsView`, `Control`, `Option`, `Widget` and `controlsOf`; `sketch.kit.Theme.sans` and `sketch.kit.Theme.mono`; `sketch.kit.specimenTheme`; `sketch.Scene3DContext`; `sketch.kit.Instrument`; `sectionHeader` and `section` with `SectionHeader`; `sketch.kit.titleCard`; `sketch.kit.legend`, `sketch.kit.swatchStrip` and `sketch.kit.chip`; `sketch.kit.meter` and `sketch.kit.gauge`; `sketch.kit.plot`; `sketch.kit.scrollbar`; `sketch.kit.backdrop`, `sketch.kit.panel` and `sketch.kit.frame`; `sketch.kit.console`; `sketch.kit.ticker` and `sketch.kit.timeline`; `sketch.kit.Channel`; `sketch.kit.connectionReadout` and `sketch.kit.ConnectionReadout` | `passage`; `Document` |
 
 <!-- prose: composition -->
 <!-- /prose -->
@@ -225,7 +224,7 @@ address each of their own pieces, which is what mono ruby and kenten want.
 | Brush formats | `draw.brush.format`: `encodeBrush`, `decodeBrush`, `assembleBrush`, and Photoshop and Procreate brush decoding | `loadBrush`; a brush decoder registered with a hub |
 | Skia values | `skia` points, rectangles, sizes, colors, matrices, paths and path builders, `pathOp`, paint setters, blend, tile, filter and sampling modes, `Vertices`, `Image` with RGBA read-back, `Picture`, `RuntimeEffect.MakeForShader` and `Typeface` with its family name; a bundled font file loaded as a `skia.Typeface` through `Hub.load(skia.Typeface, uri)`, the face the hub keeps for that resource, cached and read again on an edit like any asset, on a session's hub or on an owned one after `weave.registerDecoders`; a typeface's `variationAxes`, each a `weave.VariationAxis` with its tag and range | Paint shaders, color and image filters, mask filters, path effects and blenders; `SkShaders` and gradients; `SkRRect`, `SkM44` and most of `SkMatrix`; `SkPathBuilder::arcTo`; path queries beyond `contains`, `getBounds` and `isEmpty`, SVG path strings, `Simplify`, `skpathutils::FillPathWithPaint` and `SkContourMeasure`; `SkTypeface` style read-back; `SkFont` and `SkTextBlob`; bitmaps, pixmaps and image info; the SigilSkia library itself: `draw::drawLattice`, `draw::drawSpriteAtlas`, the float and half-float pixel helpers and the Graphite bring-up |
 | Media | `media.decode(media.Image, …)` answering the decoded `Image` — still or animated, `frameAt(elapsed)` its `Frame` at a time, `of`, `size`, `duration`, `repetitions`, `isRunning` and `frames` — `encode` to PNG, JPEG, WebP and EXR, `fromRgba`, `load` and `save`, and `difference` answering a `PixelDifference`; `registerDecoders`, which puts the image and video decoders on an owned hub; hub and session image loading; a `Video` a hub opens, read by `frameAt(elapsed)` and asked `hasFrame`; the decode pool `Playback` several share; the movie `Encoder` appending pictures and frames and finishing as bytes | `Timing` and `PixelSource`, the one seam pixels cross; `probe` and `Metadata`; `Channels` and `ChannelPick`; pixmap and channel encoding with 16-bit and float pixels; `coverageMask` and `distanceField`; `formatForPath` and `extensionFor`; `embeddedImages`; reporting which codecs are available |
-| Core | `core.chance` sources and streams, with copies; curves as `motion.Curve`; the inherited environment through memo and `sketch.kit.Provide`; `core.optionalLibraries` | `Stream::sample`, `reseed` and `seed`; the distributions, `shuffle` and `Reservoir`; `noise::Field` and the noise kinds; the `noise::` mixers and lattice words; `hash::fnv1a` and `combine`; interval normal forms |
+| Core | `core.chance` sources and streams, with copies; curves as `motion.Curve`; a theme as a sheet the stage sets at the root; `core.optionalLibraries` | `Stream::sample`, `reseed` and `seed`; the distributions, `shuffle` and `Reservoir`; `noise::Field` and the noise kinds; the `noise::` mixers and lattice words; `hash::fnv1a` and `combine`; interval normal forms |
 
 <!-- prose: drawing -->
 <!-- /prose -->
@@ -386,7 +385,7 @@ model, arithmetic and data become Python code and are not listed.
 | `blur_falloff` | Image-filter and map-driven blur effects; bound uniform; unit ramps; sequence tile; kit dots; section headers | `material::pattern` stock tiles; `material::skia::filter` over an already-built image filter |
 | `border_weave` | Silhouette-following border modes; double and weighted borders; shape generators; section headers | `compose::Border` and `compose::decorations::border` rules; `geometry::shapes` corner operators |
 | `bullets_dropcap` | Initial letters; nested opening styles; flow around a shaped ornament; hanging list kit; font fallback; wells | `compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`) |
-| `cascade` | Inherited type, ink transitions, classes and custom properties; lexical environment values; pen and graphics leaves; readout kit | `core::environment::Provide` / `inheritedOr` values |
+| `cascade` | Inherited type, ink transitions, classes and custom properties; the nearest property winning; pen and graphics leaves; readout kit | — |
 | `channel_bind` | OSC connection on the hub; kit channels writing outputs; binding chains; recording replay; readout kit | — |
 | `cjk_rules` | Vertical Japanese blocks; stock and house kinsoku; hanging punctuation table; mojikumi bracket spacing; tsume | — |
 | `composer_queries` | Slots re-rendered per frame and per change; hit test and bounds queries; wires keyed by the pair they join; profile cache states of the live composer; star and blob silhouettes; readout rows | `compose::routers` stock routers |
@@ -609,7 +608,7 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
-| `cde_motif` | Inherited colour sets; Motif bevels, inset adaptor; pixel styles, sprites; program tile; edge mask; scrollbar; aliased type; checks | `sketch::kit::Document` content reader; `compose::onEdges` and `compose::inset` adaptors; `compose::Pattern` tiled fills; `compose::styles` tick rails over the lattice sources `material::pattern::scanlines` and `stipple`; `compose::kit::Bevel` and `kit::bevels` presets; `compose::kit` pixel sprites (`Sprite`, `PixelInk`); `core::environment::Provide` / `inheritedOr` values |
+| `cde_motif` | Inherited colour sets; Motif bevels, inset adaptor; pixel styles, sprites; program tile; edge mask; scrollbar; aliased type; checks | `sketch::kit::Document` content reader; `compose::onEdges` and `compose::inset` adaptors; `compose::Pattern` tiled fills; `compose::styles` tick rails over the lattice sources `material::pattern::scanlines` and `stipple`; `compose::kit::Bevel` and `kit::bevels` presets; `compose::kit` pixel sprites (`Sprite`, `PixelInk`) |
 | `spacejam_1996` | Table layout scheme; element snapshots; runtime shaders; element tile; view effect; custom decoration; stock shapes; fixed ticker; checks | `compose::PaintProgram` canvas decorations; `compose::Pattern` tiled fills; `compose::layouts::Table` layout scheme |
 | `twoadvanced_equipment` | Cached HTTPS bitmaps; availability probe; bound envelope motion; kit scrollbar; per-edge strokes; pinned frame layout | A declared `available(why)` probe; `compose::onEdges` and `compose::inset` adaptors |
 | `twoadvanced_v4` | HTTPS bitmaps; grid areas; SkSL and SDF materials; pixel styles; bevel, gloss, scrollbar kits; instancing; world bake; chamfers; masks | A declared `available(why)` probe; `compose::onEdges` and `compose::inset` adaptors; `compose::styles` tick rails over the lattice sources `material::pattern::scanlines` and `stipple`; `compose::instancing::place` placers; `compose::kit::Bevel` and `kit::bevels` presets; `weave::ports::face` with a width style; `geometry::shapes` corner operators; `material::sdf` shapes and styles; `material::Paint::offset` bound to motion values |
@@ -732,8 +731,8 @@ The suites cover:
 - `test_compose.py`, `test_motion.py`, `test_kit.py`, `test_runtime.py` and
   `test_callbacks.py` cover memo equality, copying, failure recovery and cycle
   release; shared outputs, binding chains, transitions in seconds, derivation
-  and fixed steps; scoped `Provide` across threads and exceptions and memo
-  theme capture; grid tracks and caption parts; setup and draw argument
+  and fixed steps; a theme staged at the root and a nearer sheet on a
+  subtree; grid tracks and caption parts; setup and draw argument
   prefixes; composer queries and session services that reject closed sessions
   and foreign threads.
 - `test_authoring.py`, `test_document.py`, `test_weave.py`, `test_data.py` and

@@ -218,14 +218,13 @@ TEST(ComposeTextShadow, AShadowNamingACustomPropertyFollowsTheSheet) {
                  .styleClass(classes)
                  .font({.face = sigil::test::instrument::sans(), .size = 48})
                  .ink(material::Color{1, 1, 1, 1})
-                 .children(
-                     {text(u8"I")
-                          .key("t")
-                          .absolute()
-                          .left(30.0f)
-                          .top(30.0f)
-                          .textShadow({.offset = {12, 0},
-                                       .color = ColorTerm::var("accent")})})});
+                 .children({text(u8"I")
+                                .key("t")
+                                .absolute()
+                                .left(30.0f)
+                                .top(30.0f)
+                                .textShadow({.offset = {12, 0},
+                                             .color = var("accent")})})});
   };
   const auto count = [](Host& host, SkColor colour) {
     return countColor(host, SkIRect::MakeWH(200, 140), colour);

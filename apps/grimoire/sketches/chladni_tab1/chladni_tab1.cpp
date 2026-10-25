@@ -299,7 +299,7 @@ struct ChladniTab1 {
                            .delay = std::chrono::duration<double, std::milli>(
                                kFrameAt * 1000 + (float)line * 90),
                            .ease = sigil::motion::ease::outQuint})),
-                      stroke(weight, Fill::var("ink-line")));
+                      stroke(weight, var("ink-line")));
         }));
   }
 
@@ -419,7 +419,7 @@ struct ChladniTab1 {
                              .delay = std::chrono::duration<double, std::milli>(
                                  kRimAt * 1000 + (float)index * 26),
                              .ease = sigil::motion::ease::outQuad})),
-                        stroke(1.5f, Fill::var("ink-line"))),
+                        stroke(1.5f, var("ink-line"))),
             drawing(index),
             kit::disc(sigil::geometry::path::fromSk(middle()),
                       radius + kSandMargin)

@@ -484,7 +484,8 @@ struct DepthData {
   /// children. 0 is no perspective: an orthographic projection.
   motion::Animatable<float> perspective = 0.0f;
   /// Where the viewer stands over the plane, read as PaintProps::originX is.
-  Dimension perspectiveOriginX = percent(50.0f), perspectiveOriginY = percent(50.0f);
+  Dimension perspectiveOriginX = percent(50.0f),
+            perspectiveOriginY = percent(50.0f);
   /// The transform origin's depth, beside PaintProps::originX/originY.
   Dimension originZ = 0.0f;
   bool preserve3d = false;
@@ -545,6 +546,9 @@ struct RoleDefaults {
   std::string name;
   sigil::weave::Type font;
   sigil::weave::ParagraphBlock block;
+  /** The custom property the role's glyphs are inked in, standing where
+   *  a colour in `font` would. */
+  std::optional<VarRef> ink;
   bool operator==(const RoleDefaults&) const = default;
 };
 
@@ -807,8 +811,8 @@ void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope);
 void warnNoSuchClass(std::string_view name, bool anySheetInScope);
 
 /** The once-per-name diagnostic behind a custom property read where no
- *  ancestor set it, or set to the other kind of value: `Fill::var` and
- *  `ink(var(...))` want a colour, a `Dimension` wants a length. */
+ *  ancestor set it, or set to the other kind of value: a fill or an ink
+ *  written `var(...)` wants a colour, a `Dimension` wants a length. */
 void warnNoSuchVar(VarRef reference, bool wantColour);
 
 /** The once-per-property diagnostic behind `inherit`, `initial` or

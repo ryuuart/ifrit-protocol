@@ -100,10 +100,13 @@ struct WarichuPlaceholder {
   Note latin, japanese;
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx, {.size = {1100, 825}, .captureAt = 0.05});
-    const auto& sheet = sketch::kit::theme();
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = {1100, 825},
+         .captureAt = 0.05});
+    const auto& sheet =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     latin.measure(ctx, kNote,
                   {.face = sketch::kit::houseFace(sketch::kit::Voice::Book),
                    .size = 13,
@@ -168,10 +171,15 @@ struct WarichuPlaceholder {
                          {.name = "Cut word",
                           .value = kit::formatted("%u", latin.split.cutWord)}},
                      {.measure = 284,
-                      .gap = sketch::kit::theme().spacing.rowGap,
-                      .labelGap = sketch::kit::theme().spacing.labelGap,
-                      .divider =
-                          Fill::color(sketch::kit::theme().palette.rule)}),
+                      .gap = sketch::kit::featureTheme(
+                                 sketch::kit::Density::Spacious)
+                                 .spacing.rowGap,
+                      .labelGap = sketch::kit::featureTheme(
+                                      sketch::kit::Density::Spacious)
+                                      .spacing.labelGap,
+                      .divider = Fill::color(sketch::kit::featureTheme(
+                                                 sketch::kit::Density::Spacious)
+                                                 .palette.rule)}),
                  document::caption(
                      "Measured at 13 px. The note keeps its own size; the "
                      "base is 23 px.")

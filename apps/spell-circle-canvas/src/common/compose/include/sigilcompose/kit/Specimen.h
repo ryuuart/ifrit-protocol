@@ -160,11 +160,12 @@ struct Caption {
    *  whose name is a legend. */
   enum class Where : uint8_t { Split, Above, Below };
   Where where = Where::Split;
-  /** Between a caption line and the body, px. */
-  float gap = 6.0f;
+  /** Between a caption line and the body: a length, so a sheet's
+   *  property can state it — `var("spacing-caption-gap")`. */
+  Dimension gap = 6.0f;
   /** Between the label and the note where the two stand together
-   *  (`Above`, `Below`), px. */
-  float noteGap = 4.0f;
+   *  (`Above`, `Below`). */
+  Dimension noteGap = 4.0f;
   /** The label's measure, px. 0 lets the label take the cell's width; a
    *  measure wraps it there, so a long call written out over a narrow
    *  specimen does not widen the cell. A label is usually short enough
@@ -238,9 +239,9 @@ struct Caption {
     Element scrim =
         box()
             .absolute()
-            .left(Dimension(caption.gap))
-            .top(Dimension(caption.gap))
-            .padding(Dimension(caption.gap * 0.5f), Dimension(caption.gap))
+            .left(caption.gap)
+            .top(caption.gap)
+            .padding(caption.gap * 0.5f, caption.gap)
             .children({caption.readingLine
                            ? caption.readingLine(caption.reading, caption)
                            : figure(caption.reading)});
@@ -270,7 +271,7 @@ struct Caption {
   // column's gap, because a caption's two distances differ and a line that
   // is absent must leave no space behind it.
   int placed = 0;
-  const auto place = [&](Element part, float before) {
+  const auto place = [&](Element part, Dimension before) {
     if (placed > 0) part.margin(before, 0, 0, 0);
     column.children({std::move(part)});
     ++placed;
@@ -371,9 +372,10 @@ struct Cells {
   std::vector<Element> cells;
   /** false (default) lays the cells out as a ROW; true stacks them. */
   bool column = false;
-  /** Between neighbours, px — and between a cell and the divider beside
-   *  it, so a ruled run breathes on both sides of the rule. */
-  float gap = 20.0f;
+  /** Between neighbours — and between a cell and the divider beside it,
+   *  so a ruled run breathes on both sides of the rule. A length, so a
+   *  sheet's property can state it. */
+  Dimension gap = 20.0f;
   /** Fill::none() (default) means no rules. */
   Fill divider;
   float dividerWidth = 1.0f;
@@ -457,16 +459,18 @@ struct Sheet {
   Utf8 title;
   Utf8 subtitle;
   Utf8 footer;
-  /** The page margins, px: the two sides, the top and the bottom. */
-  float marginHorizontal = 30.0f;
-  float marginTop = 16.0f;
-  float marginBottom = 14.0f;
-  /** Between the title and its subtitle, px. */
-  float subtitleGap = 6.0f;
+  /** The page margins: the two sides, the top and the bottom. Lengths, so
+   *  a sheet's properties can state them. */
+  Dimension marginHorizontal = 30.0f;
+  Dimension marginTop = 16.0f;
+  Dimension marginBottom = 14.0f;
+  /** Between the title and its subtitle: a length, so a sheet's property
+   *  can state it. */
+  Dimension subtitleGap = 6.0f;
   /** Between the header and the content, and between the content and the
-   *  footer, px. A rule stands in the middle of that distance rather than
+   *  footer. A rule stands in the middle of that distance rather than
    *  adding to it, so ruling a page moves nothing on it. */
-  float contentGap = 18.0f;
+  Dimension contentGap = 18.0f;
   /** The page's own ground. Fill::none() (default) paints nothing, for a
    *  canvas the host already cleared. */
   Fill ground;
@@ -496,9 +500,13 @@ struct Sheet {
 
   const bool ruled = page.rule.kind != Fill::Kind::None;
   // A rule bisects the content gap: the same distance from the header to
-  // the content with or without one.
-  const float half = std::max(
-      0.0f, (page.contentGap - (ruled ? page.ruleWidth : 0.0f)) * 0.5f);
+  // the content with or without one. A gap stated in pixels is clamped at
+  // nothing; one written as a property or a sum is the sum as written.
+  const Dimension rest =
+      page.contentGap - Dimension(ruled ? page.ruleWidth : 0.0f);
+  const Dimension half = rest.unit == Dimension::Unit::Px
+                             ? Dimension(std::max(0.0f, rest.value * 0.5f))
+                             : rest * 0.5f;
   const auto rule = [&](const char* which) {
     return named(box()
                      .height(Dimension(page.ruleWidth))

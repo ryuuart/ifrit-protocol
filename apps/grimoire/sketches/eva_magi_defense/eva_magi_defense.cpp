@@ -409,7 +409,6 @@ struct EvaMagiDefense {
     }
     std::vector<std::span<const Utf8>> tableRows;
     for (const auto& row : rows) tableRows.emplace_back(row);
-    sketch::kit::Provide bound(look);
     return kit::at(0, 300, eva::kW, 150.0f + 30.0f * (float)rows.size())
         .fill(Fill::color({1, 0, 1, 0.93f}))
         .column()

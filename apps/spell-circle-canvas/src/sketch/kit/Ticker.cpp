@@ -1,7 +1,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Marquee.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilsketch/kit/Ticker.h>
 
 #include <algorithm>
@@ -19,8 +19,9 @@ using compose::Fill;
 using compose::Text;
 
 compose::Element ticker(Ticker strip) {
-  const Theme& look = theme();
-  const float gap = strip.gap.value_or(look.spacing.labelGap);
+  // A number rather than the sheet's property: the caller wraps the phase
+  // over the content's width and this gap, so it has to know the gap.
+  const float gap = strip.gap.value_or(10.0f);
   Element window = compose::kit::marquee(strip.content,
                                          {.phase = std::move(strip.phase),
                                           .gap = gap,
@@ -31,12 +32,15 @@ compose::Element ticker(Ticker strip) {
 }
 
 compose::Element timeline(const Timeline& scale) {
-  const Theme& look = theme();
-  const float thickness = scale.height.value_or(look.spacing.barHeight);
+  using compose::var;
+  const Theme& house = houseTheme();
+  const Dimension thickness =
+      scale.height ? Dimension(*scale.height) : var("spacing-bar-height");
   const compose::Fill railPaint =
-      scale.rail.value_or(Fill::color(look.palette.rule));
-  const Fill inkFill = scale.ink.value_or(Fill::color(look.palette.ash));
-  const float reachOf = scale.tick.value_or(look.spacing.tickReach);
+      scale.rail.value_or(compose::var("palette-rule"));
+  const Fill inkFill = scale.ink.value_or(compose::var("palette-ash"));
+  const Dimension reachOf =
+      scale.tick ? Dimension(*scale.tick) : var("spacing-tick-reach");
 
   // The rail carries the marks, so a mark's position is a percentage of
   // the rail's own resolved width and the scale needs no measurement.
@@ -44,7 +48,7 @@ compose::Element timeline(const Timeline& scale) {
   rail.fill(railPaint);
   if (scale.width.unit != Dimension::Unit::Auto) rail.width(scale.width);
   for (const Timeline::Mark& mark : scale.marks) {
-    const float reach = mark.major ? reachOf : reachOf * 0.5f;
+    const Dimension reach = mark.major ? reachOf : reachOf * 0.5f;
     Element tick =
         box()
             .absolute()
@@ -65,14 +69,17 @@ compose::Element timeline(const Timeline& scale) {
   // inside it, so it overhangs equally on both sides whatever it says —
   // which needs no measurement, and is what puts a word at 0 half outside
   // the rail, as a scale's end labels are.
-  Element words = box().height(look.type.eyebrow.size * 1.6f);
+  // The line the words stand on is one and six tenths of the eyebrow's
+  // size: the box takes the eyebrow role, so its em is the size the sheet
+  // sets an eyebrow in, and the words inside it inherit nothing else.
+  Element words = box().role("eyebrow").height(Dimension(weave::em(1.6f)));
   bool any = false;
   for (const Timeline::Mark& mark : scale.marks) {
     if (!mark.major || mark.label.empty()) continue;
     any = true;
-    Text label =
-        compose::document::eyebrow(mark.label)
-            .role("eyebrow", look.font(look.type.eyebrow, look.palette.ash));
+    Text label = compose::document::eyebrow(mark.label)
+                     .role("eyebrow", house.font(house.type.eyebrow),
+                           var("palette-ash"));
     if (mark.ink)
       detail::documentInk(label, *mark.ink);
     else if (scale.ink)

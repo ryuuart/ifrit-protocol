@@ -97,7 +97,7 @@ struct Shadow {
 std::optional<std::vector<Shadow>> readShadow(std::string_view text);
 
 /** A blurred copy of the node's outline cast at @p offset in @p color — a
- *  material converts, and `Fill::currentInk()` or `Fill::var(name)` follow
+ *  material converts, and `Fill::currentInk()` or `var(name)` follow
  *  the node's cascade — attach it as the FIRST background so everything
  *  else paints over it. The advanced spelling beneath `.boxShadow(…)`. */
 inline Shadow shadow(Fill color, glm::vec2 offset, float blur) {

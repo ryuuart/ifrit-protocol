@@ -117,12 +117,9 @@ StyleSheet cardSheet(const CardColours& colours, float draftCell) {
           .ink(var("ash")),
       // The keylines a class carries: a bar's or a sample's rule, a
       // draft's inked edge, and the rule a panel is framed inside.
-      rule(".keyline")
-          .stroke(stroke(1, Fill::var("rule"), PathFormat::Align::Outer)),
-      rule(".draft").stroke(
-          stroke(1, Fill::var("ink"), PathFormat::Align::Outer)),
-      rule(".frame").stroke(
-          stroke(1, Fill::var("rule"), PathFormat::Align::Inner)),
+      rule(".keyline").stroke(stroke(1, var("rule"), PathFormat::Align::Outer)),
+      rule(".draft").stroke(stroke(1, var("ink"), PathFormat::Align::Outer)),
+      rule(".frame").stroke(stroke(1, var("rule"), PathFormat::Align::Inner)),
       rule("h1")
           .fontFamily(grotesque)
           .fontWeight(700)
@@ -152,7 +149,7 @@ StyleSheet cardSheet(const CardColours& colours, float draftCell) {
           .fontSize(0.85_rem)
           .letterSpacing(0.047_em)
           .ink(var("ink")),
-      rule(".lifted").fill(Fill::var("ink")),
+      rule(".lifted").fill(var("ink")),
       rule(".cell").width(draftCell).height(draftCell),
       // Quoted prose hangs its quotation marks and hyphens past the measure,
       // so the column's edge is squared on the letters rather than on the

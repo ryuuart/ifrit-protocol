@@ -537,7 +537,7 @@ flat pass multiplies its colour, a shader pass takes an equivalent modulation,
 so a gradient keeps its ramp and wears the tint over it); `colorAdd` and
 `colorScreen` brighten over every pass the same way — the flash and the glow of
 the tint section above. Each of the three is a `ColorTerm`: a colour as
-written, or `ColorTerm::currentInk()` or `ColorTerm::var(name)`, read where
+written, or `ColorTerm::currentInk()` or `var(name)`, read where
 the glyph is painted when the effect is applied — a keyframe table naming
 them follows the sheet's ink and palette, and a class restating either
 recolours the letters with no second table; `scaleX`, `scaleY`, `skewXDegrees` and `skewYDegrees` place the

@@ -689,7 +689,7 @@ TEST(ComposeMaterial, AFillHoldsAMaterialAndComparesByItsRecipe) {
   EXPECT_FALSE(Fill{pixels()}.needsFrame());
   // The references are what only the cascade can mean.
   EXPECT_TRUE(Fill::currentInk().references());
-  EXPECT_TRUE(Fill::var("accent").references());
+  EXPECT_TRUE(Fill(var("accent")).references());
   EXPECT_FALSE(green().references());
 }
 

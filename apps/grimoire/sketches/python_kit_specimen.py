@@ -120,8 +120,8 @@ def jittered():
 
 
 def captured_palette(properties):
-    look = kit.theme()
-    colors = (look.palette.ink, look.palette.figure, look.palette.rule)
+    words, look = properties
+    colors = (raw.var("palette-ink"), raw.var("palette-figure"), raw.var("palette-rule"))
     swatches = (
         row()
         .gap(10)
@@ -138,12 +138,13 @@ def captured_palette(properties):
             .gap(18)
             .children(
                 swatches,
-                document.caption(properties[0]).fontSize(11).ink(look.palette.ink),
+                document.caption(words).fontSize(11).ink(raw.var("palette-ink")),
             )
         )
         .width(WIDTH)
         .height(HEIGHT)
-        .fill(look.palette.cellGround)
+        .fill(raw.var("palette-cell-ground"))
+        .applyStyleSheet(look.properties())
     )
 
 
@@ -160,59 +161,59 @@ def specimen(picture, index, label, note):
 class OrderSpecimen:
     def setup(self, ctx: Scene2DContext) -> None:
         look = kit.featureTheme(kit.Density.Spacious)
-        with kit.provide(look):
-            kit.stage(ctx, size=(1200, 760), captureAt=1.1)
-            inset = look.copy()
-            inset.palette.ink = "#e9efda"
-            inset.palette.figure = "#dab26a"
-            inset.palette.rule = "#84a493"
-            inset.palette.cellGround = "#254a48"
-            with kit.provide(inset):
-                palette = memo(("A theme held beyond its scope",), captured_palette)
-            first = kit.cells(
-                specimen(
-                    radial(),
-                    1,
-                    "Radial",
-                    "Twelve labels share one native circular layout.",
-                ),
-                specimen(
-                    diagonal(),
-                    2,
-                    "Diagonal",
-                    "Measured rows follow a single oblique axis.",
-                ),
-                specimen(
-                    along_path(),
-                    3,
-                    "AlongPath",
-                    "Equal arc-length steps along a cubic contour.",
-                ),
-            )
-            second = kit.cells(
-                specimen(
-                    baseline(),
-                    4,
-                    "BaselineGrid",
-                    "Different type sizes land on the same rhythm.",
-                ),
-                specimen(
-                    jittered(),
-                    5,
-                    "Jittered",
-                    "A seeded field keeps every specimen inside its cell.",
-                ),
-                specimen(
-                    palette,
-                    6,
-                    "Memo + Provide",
-                    "A deferred component restores its native environment.",
-                ),
-            )
-            sheet = kit.page(
-                kit.cells(first, second, column=True, gap=30),
-                title="Six ways to place a thought",
-                subtitle="Native arrangement · inherited theme · ordinary Python",
-                footer="Six native arrangements / one inherited feature sheet",
-            )
+        kit.stage(ctx, theme=look, size=(1200, 760), captureAt=1.1)
+        inset = look.copy()
+        inset.palette.ink = "#e9efda"
+        inset.palette.figure = "#dab26a"
+        inset.palette.rule = "#84a493"
+        inset.palette.cellGround = "#254a48"
+        # The inset's look is part of the memo's key, and its properties a
+        # nearer sheet on the palette's own subtree.
+        palette = memo(("A theme held beyond its scope", inset), captured_palette)
+        first = kit.cells(
+            specimen(
+                radial(),
+                1,
+                "Radial",
+                "Twelve labels share one native circular layout.",
+            ),
+            specimen(
+                diagonal(),
+                2,
+                "Diagonal",
+                "Measured rows follow a single oblique axis.",
+            ),
+            specimen(
+                along_path(),
+                3,
+                "AlongPath",
+                "Equal arc-length steps along a cubic contour.",
+            ),
+        )
+        second = kit.cells(
+            specimen(
+                baseline(),
+                4,
+                "BaselineGrid",
+                "Different type sizes land on the same rhythm.",
+            ),
+            specimen(
+                jittered(),
+                5,
+                "Jittered",
+                "A seeded field keeps every specimen inside its cell.",
+            ),
+            specimen(
+                palette,
+                6,
+                "Memo + Provide",
+                "A deferred component restores its native environment.",
+            ),
+        )
+        sheet = kit.page(
+            kit.cells(first, second, column=True, gap=30),
+            title="Six ways to place a thought",
+            subtitle="Native arrangement · inherited theme · ordinary Python",
+            footer="Six native arrangements / one inherited feature sheet",
+        )
         ctx.render(sheet)

@@ -71,8 +71,8 @@ class Scene:
         self.assertTrue(textFx.waveLoop().displaces())
         stop = textFx.GlyphModifier(colorMultiplier=compose.Fill.currentInk())
         self.assertEqual(stop.colorMultiplier, compose.Fill.currentInk())
-        stop.colorAdd = compose.Fill.var("flash")
-        self.assertEqual(stop.colorAdd, compose.Fill.var("flash"))
+        stop.colorAdd = compose.var("flash")
+        self.assertEqual(stop.colorAdd, compose.Fill(compose.var("flash")))
         with self.assertRaises(TypeError):
             stop.colorScreen = compose.Fill.none()
         table = textFx.tween(

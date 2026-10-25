@@ -204,7 +204,9 @@ struct TileMap {
   void setup(sketch::Scene2DContext& ctx) {
     for (auto& value : flash) value = sigil::motion::animatable(value.value());
 
-    sketch::kit::stage(ctx, {.size = {kCanvasW, kCanvasH}, .captureAt = 6.0});
+    sketch::kit::stage(ctx, {.theme = sheetTheme(),
+                             .size = {kCanvasW, kCanvasH},
+                             .captureAt = 6.0});
     revisions.fill(0);
     edits.fill(Edit{});
     editedAt.fill(-1000.0);
@@ -259,7 +261,6 @@ struct TileMap {
   }
 
   Element describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // The counts are a function of the description and belong on a
     // plate; the milliseconds are a function of the run and do not, so
     // a capture is told where they are read instead.
@@ -326,10 +327,9 @@ struct TileMap {
                           {"Memo hits",
                            kit::formatted("%zu", worked.memoHits)}},
                       {.measure = 250,
-                       .gap = sketch::kit::theme().spacing.rowGap,
-                       .labelGap = sketch::kit::theme().spacing.labelGap,
-                       .divider =
-                           Fill::color(sketch::kit::theme().palette.rule)}),
+                       .gap = sheetTheme().spacing.rowGap,
+                       .labelGap = sheetTheme().spacing.labelGap,
+                       .divider = Fill::color(sheetTheme().palette.rule)}),
                   sigil::compose::kit::readout(
                       std::vector<sigil::compose::kit::Reading>{
                           {"Patched instances",
@@ -337,17 +337,16 @@ struct TileMap {
                           {"Recordings held",
                            kit::formatted("%zu", worked.picturesLive)}},
                       {.measure = 250,
-                       .gap = sketch::kit::theme().spacing.rowGap,
-                       .labelGap = sketch::kit::theme().spacing.labelGap,
-                       .divider =
-                           Fill::color(sketch::kit::theme().palette.rule)}),
+                       .gap = sheetTheme().spacing.rowGap,
+                       .labelGap = sheetTheme().spacing.labelGap,
+                       .divider = Fill::color(sheetTheme().palette.rule)}),
                   sigil::compose::kit::readout(
                       std::vector<sigil::compose::kit::Reading>{
                           {"Painted live",
                            kit::formatted("%zu", worked.nodesPainted)}},
                       {.measure = 250,
-                       .gap = sketch::kit::theme().spacing.rowGap,
-                       .labelGap = sketch::kit::theme().spacing.labelGap})})}));
+                       .gap = sheetTheme().spacing.rowGap,
+                       .labelGap = sheetTheme().spacing.labelGap})})}));
   }
 
   /** THE DATA PATH, and only when the data changes: one cell of one

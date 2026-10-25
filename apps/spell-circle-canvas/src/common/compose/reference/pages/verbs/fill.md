@@ -84,7 +84,7 @@ A live material re-resolves per frame instead.
 **A fill may be written as a REFERENCE the tree answers.**
 `Fill::currentInk()` is the ink in force where the node is painted —
 CSS's `currentColor`, the same colour the text under that node is set in
-— and `Fill::var(name)` is a custom property. Both are resolved at paint
+— and `var(name)` is a custom property. Both are resolved at paint
 against the node's own context, so one component reads differently under
 two panels with no argument passed down.
 

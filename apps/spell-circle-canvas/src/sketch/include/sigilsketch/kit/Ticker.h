@@ -33,7 +33,8 @@ struct Ticker {
    *  whoever owns it. Binding it is paint-only: the strip's recording
    *  replays and nothing re-records. */
   motion::Animatable<float> phase;
-  /** Between the two copies; unset is the theme's label gap. */
+  /** Between the two copies; unset is 10 px. A number, because the
+   *  caller wraps the phase over the content and this gap. */
   std::optional<float> gap;
   compose::Dimension width;
   compose::Dimension height;

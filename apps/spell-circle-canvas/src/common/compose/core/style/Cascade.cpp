@@ -25,6 +25,7 @@
 #include "FaceChoice.h"
 #include "LonghandFold.h"
 #include "SelectorMatch.h"
+#include "SheetBody.h"
 #include "paint/FillLowering.h"
 #include "runtime/ComposeRuntime.h"
 
@@ -86,10 +87,21 @@ void Composer::Impl::runCascade() {
   remMoved = false;
   hasNames.begin(++cascadePass);
   indexRoot(*root);
-  const SheetChain none;
+  // The composer's own sheet stands first in the chain, scoped at the
+  // root, so the root is its `:root` and every sheet the tree applies
+  // stands after it.
+  SheetChain chain;
+  if (rootSheet) {
+    chain.push_back(ScopedSheet{&*rootSheet, root.get()});
+    if (const SheetBody* body = SheetAccess::body(*rootSheet);
+        body != nullptr && body->usesHas) {
+      hasNames.add(*body);
+      summariseForHas(*root, hasNames);
+    }
+  }
   const InkInForce noInkPaint;
   resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
-                 rootSampling, none, noInkPaint, rootFont.color);
+                 rootSampling, chain, noInkPaint, rootFont.color);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -205,6 +217,7 @@ void Composer::Impl::resolveCascade(
       sigil::weave::merge(ownFont, cascade->role->font);
       sigil::weave::merge(ownBlock, cascade->role->block);
       longhands.state(&cascade->role->font, &cascade->role->block, nullptr);
+      if (cascade->role->ink) inkVar = cascade->role->ink;
     }
     // A class is unknown only where no rule of the sheets in force names
     // it, whether that rule matched this node or not, and no operator in

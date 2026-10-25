@@ -49,17 +49,16 @@ def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
 class HelloCompose:
     def setup(self, ctx: Scene2DContext) -> None:
         look = kit.featureTheme(kit.Density.Spacious)
-        with kit.provide(look):
-            kit.stage(ctx, size=(900, 360), captureAt=1.1)
-            ctx.render(
-                kit.page(
-                    (
-                        row(
-                            card(*data, delay=i * 0.1) for i, data in enumerate(CARDS)
-                        ).gap(18)
-                    ),
-                    title=TITLE,
-                    subtitle="One description. Layout, type, paint and motion stay native.",
-                    footer="Edit TITLE, CARDS or card(), then save.",
-                )
+        kit.stage(ctx, theme=look, size=(900, 360), captureAt=1.1)
+        ctx.render(
+            kit.page(
+                (
+                    row(
+                        card(*data, delay=i * 0.1) for i, data in enumerate(CARDS)
+                    ).gap(18)
+                ),
+                title=TITLE,
+                subtitle="One description. Layout, type, paint and motion stay native.",
+                footer="Edit TITLE, CARDS or card(), then save.",
             )
+        )

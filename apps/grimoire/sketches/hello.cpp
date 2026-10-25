@@ -64,7 +64,6 @@ struct HelloSketch {
   double nextScoreAt = 1.0;
 
   Element describe() {
-    const sketch::kit::Provide look(sheetTheme());
     return sketch::kit::page(
         {.title = "Hello, Grimoire.",
          .subtitle = "Start with a shape. Give it a rhythm. Make it your own.",
@@ -107,7 +106,7 @@ struct HelloSketch {
                            .fill(Fill::color(hexColor(0x253b40)))
                            .overflow(Overflow::Clip),
                        text("Draw every frame with the pen.")
-                           .ink(sketch::kit::theme().palette.ash)}),
+                           .ink(sheetTheme().palette.ash)}),
                   box().column().width(240).gap(12).children(
                       {text("A value that changes.").font({.size = 20}),
                        kit::centred()
@@ -115,19 +114,18 @@ struct HelloSketch {
                            .gap(8)
                            .height(174)
                            .borderRadius({18})
-                           .fill(Fill::color(
-                               sketch::kit::theme().palette.cellGround))
+                           .fill(Fill::color(sheetTheme().palette.cellGround))
                            .children({text(std::to_string(score))
                                           .font({.size = 64})
                                           .key("score"),
                                       document::eyebrow("and counting")}),
                        text("Update only when data changes.")
-                           .ink(sketch::kit::theme().palette.ash)})})}));
+                           .ink(sheetTheme().palette.ash)})})}));
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1000, 700}, .captureAt = 1.0});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = {1000, 700}, .captureAt = 1.0});
     ctx.composer.render(describe());
 
     // One output animates a retained card and feeds the immediate wave.

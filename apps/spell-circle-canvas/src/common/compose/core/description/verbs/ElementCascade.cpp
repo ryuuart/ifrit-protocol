@@ -78,7 +78,8 @@ template <class Derived>
 Derived& CascadeVerbs<Derived>::lineHeight(Dimension length) {
   switch (length.unit) {
     case Dimension::Unit::Px:
-      return paragraph({.leading = sigil::weave::Leading::absolute(length.value)});
+      return paragraph(
+          {.leading = sigil::weave::Leading::absolute(length.value)});
     case Dimension::Unit::Pt:
       return paragraph({.leading = sigil::weave::Leading::absolute(
                             sigil::weave::pt(length.value).absolutePx())});
@@ -284,6 +285,17 @@ Derived& StructureVerbs<Derived>::role(std::string name,
 
 template <class Derived>
 Derived& StructureVerbs<Derived>::role(std::string name,
+                                       sigil::weave::Type font, VarRef ink) {
+  // The property stands in for the colour, so a colour the font names
+  // would only be overwritten by it.
+  font.color.reset();
+  declarations()->cascadeData.ensure().role = detail::RoleDefaults{
+      std::move(name), std::move(font), sigil::weave::ParagraphBlock{}, ink};
+  return self();
+}
+
+template <class Derived>
+Derived& StructureVerbs<Derived>::role(std::string name,
                                        sigil::weave::ParagraphBlock paragraph) {
   return role(std::move(name), sigil::weave::Type{}, std::move(paragraph));
 }
@@ -303,6 +315,8 @@ Derived& StructureVerbs<Derived>::role(std::string name) {
   template Node& StructureVerbs<Node>::applyStyleSheet(StyleSheet);          \
   template Node& StructureVerbs<Node>::role(std::string, sigil::weave::Type, \
                                             sigil::weave::ParagraphBlock);   \
+  template Node& StructureVerbs<Node>::role(std::string, sigil::weave::Type, \
+                                            VarRef);                         \
   template Node& StructureVerbs<Node>::role(std::string,                     \
                                             sigil::weave::ParagraphBlock);   \
   template Node& StructureVerbs<Node>::role(std::string);

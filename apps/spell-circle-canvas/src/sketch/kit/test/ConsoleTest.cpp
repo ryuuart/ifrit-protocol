@@ -47,7 +47,11 @@ TEST(SketchKitConsole, DrawsTheHandSpelledPlate) {
                  .fill = Fill::color(house.palette.cellGround),
                  .border = border,
                  .divider = border}});
-  EXPECT_TRUE(sameDrawing(std::move(byHand), kit::console({.feeds = {&rows}})));
+  // The console's voice is the `.console` rule of the sheet it stands
+  // under; the plate spelled by hand carries whole styles and reads none.
+  EXPECT_TRUE(sameDrawing(std::move(byHand.applyStyleSheet(house.styleSheet())),
+                          std::move(kit::console({.feeds = {&rows}})
+                                        .applyStyleSheet(house.styleSheet()))));
 }
 
 }  // namespace

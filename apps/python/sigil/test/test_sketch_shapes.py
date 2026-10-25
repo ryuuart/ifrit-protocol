@@ -7,6 +7,8 @@ import builtins
 import tempfile
 import textwrap
 import unittest
+
+from sigil import media
 from pathlib import Path
 
 from sigil import world
@@ -111,7 +113,7 @@ class SketchShapes(DecoratedModule, unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "world.Frame"):
             self.decorate(Body)().setup(Context())
 
-    def test_the_decorators_theme_is_provided_and_stages_the_canvas(self):
+    def test_the_decorators_theme_is_staged_at_the_root(self):
         look = kit.featureTheme(kit.Density.Spacious)
         palette = look.palette
         palette.ground = "#336699"
@@ -132,17 +134,18 @@ class SketchShapes(DecoratedModule, unittest.TestCase):
                             theme=builtins._sigil_shapes_theme)
                     class Themed:
                         def setup(self, ctx):
-                            builtins._sigil_shapes_seen.append(
-                                (tuple(kit.theme().palette.ground), ctx.size))
+                            builtins._sigil_shapes_seen.append(ctx.size)
                             return kit.page(kit.well(), title="Themed")
                 """)
             )
             renderFile(entry, output)
             self.assertTrue(output.exists())
-        (ground, size), *_ = builtins._sigil_shapes_seen
+            corner = media.load(output).frameAt(0).image.rgba()[0:4]
+        size, *_ = builtins._sigil_shapes_seen
         self.assertEqual(size, (48, 36))
-        self.assertAlmostEqual(ground[0], 0x33 / 255, places=3)
-        self.assertAlmostEqual(ground[2], 0x99 / 255, places=3)
+        # The page's ground is the staged theme's, read where the page lands.
+        self.assertAlmostEqual(corner[0] / 255, 0x33 / 255, places=1)
+        self.assertAlmostEqual(corner[2] / 255, 0x99 / 255, places=1)
 
 
 if __name__ == "__main__":

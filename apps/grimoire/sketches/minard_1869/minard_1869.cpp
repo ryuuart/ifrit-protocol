@@ -226,7 +226,7 @@ StyleSheet engraving() {
 Element engravedLine(glm::vec2 from, glm::vec2 to, float weight,
                      const char* ink = "hairline") {
   return pathFigure(path::toPath(path::Polyline{.points = {from, to}}), weight)
-      .stroke(stroke(weight, Fill::var(ink)));
+      .stroke(stroke(weight, var(ink)));
 }
 
 /** The paper's edge, torn rather than cut: a rectangle whose sides wander
@@ -348,11 +348,11 @@ struct Minard1869 {
     std::vector<Element> ink;
     // The printed frame: a heavy rule outside a fine one.
     ink.push_back(
-        kit::at(box().foreground(decorations::border(2.6f, Fill::var("ink"))),
-                40, 40, kWidth - 80, kHeight - 80));
+        kit::at(box().foreground(decorations::border(2.6f, var("ink"))), 40, 40,
+                kWidth - 80, kHeight - 80));
     ink.push_back(
-        kit::at(box().foreground(decorations::border(0.8f, Fill::var("ink"))),
-                50, 50, kWidth - 100, kHeight - 100));
+        kit::at(box().foreground(decorations::border(0.8f, var("ink"))), 50, 50,
+                kWidth - 100, kHeight - 100));
 
     std::vector<Element> legend;
     rows(context, "legend.csv", [&](const auto& table) {
@@ -395,7 +395,7 @@ struct Minard1869 {
         if (row + 1 < name.size() && name[row + 1] == name[row]) continue;
         const glm::vec2 mouth = course.points.back();
         ink.push_back(pathFigure(path::smoothThrough(course), 1)
-                          .stroke(stroke(1.2f, Fill::var("hairline"))));
+                          .stroke(stroke(1.2f, var("hairline"))));
         ink.push_back(
             text(name[row]).role("river").left(mouth.x - 70).top(mouth.y + 4));
         course.points.clear();
@@ -491,8 +491,7 @@ struct Minard1869 {
       widths.push_back({zone.course.along[index], zoneWidth(zone.men[index])});
       widest = std::max(widest, zoneWidth(zone.men[index]));
     }
-    brush::Ribbon ribbon{.fill =
-                             Fill::var(zone.retreat() ? "retreat" : "advance")};
+    brush::Ribbon ribbon{.fill = var(zone.retreat() ? "retreat" : "advance")};
     ribbon.width = path::Profile(
         widths, {.between = path::Between::Step, .inPixels = true});
     ribbon.join = path::Join::Miter;
@@ -557,7 +556,7 @@ struct Minard1869 {
     });
     marks.push_back(
         pathFigure(cold.outline(), 2)
-            .stroke(spans::upTo(coldDrawn), stroke(2.4f, Fill::var("ink"))));
+            .stroke(spans::upTo(coldDrawn), stroke(2.4f, var("ink"))));
     return box().inset(0).children(std::move(marks));
   }
 
@@ -576,8 +575,7 @@ struct Minard1869 {
         .inset(0)
         .opacity(after(kBerezina, kBerezina + 3))
         .children({
-            pathFigure(path::toPath(ring), 2)
-                .stroke(stroke(1.2f, Fill::var("ink"))),
+            pathFigure(path::toPath(ring), 2).stroke(stroke(1.2f, var("ink"))),
             engravedLine(crossing + glm::vec2{56, 22},
                          note + glm::vec2{-12, 26}, 0.9f, "ink"),
             box().column().left(note.x).top(note.y).gap(2).children({

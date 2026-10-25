@@ -280,12 +280,12 @@ TEST(ComposeTextFxColor, ATableNamingTheInkInForceFollowsTheSheetsInk) {
 
 TEST(ComposeTextFxColor, ATableNamingACustomPropertyFollowsTheSheetsPalette) {
   Host host(200, 100);
-  host.composer.render(termPage("green", ColorTerm::var("x")));
+  host.composer.render(termPage("green", var("x")));
   host.frame();
   EXPECT_GT(pixelsOf(host, SK_ColorGREEN), 50)
       << "the letters were not multiplied toward the property's green";
   // A class restating the property recolours the letters with it.
-  host.composer.render(termPage("magenta", ColorTerm::var("x")));
+  host.composer.render(termPage("magenta", var("x")));
   host.frame();
   EXPECT_GT(pixelsOf(host, SK_ColorMAGENTA), 50);
   EXPECT_EQ(pixelsOf(host, SK_ColorGREEN), 0);

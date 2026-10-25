@@ -12,7 +12,6 @@ compose::Element instrument(const Instrument& specification,
                             compose::Element picture,
                             compose::Element readings) {
   using namespace compose;
-  const Theme& look = theme();
   const float scale =
       specification.pictureSize.width() > 0
           ? specification.pictureWidth / specification.pictureSize.width()
@@ -34,17 +33,16 @@ compose::Element instrument(const Instrument& specification,
           .children({sectionHeader({.label = specification.pictureLabel}),
                      well({.width = Dimension(specification.pictureWidth),
                            .height = Dimension(height),
-                           .corners = look.spacing.panelCorners,
-                           .keyline = Fill::color(look.palette.rule),
+                           .keyline = compose::var("palette-rule"),
                            .placed = true},
-                          stack().children({std::move(picture)}))});
+                          stack().children({std::move(picture)}))
+                         .borderRadius(Corners{var("spacing-panel-corners")})});
   if (!specification.note.empty())
     preview.children({document::caption(specification.note)});
   Element detail = box().column().flexBasis(0).flexGrow().gap(14).children(
       {sectionHeader({.label = specification.readingsLabel}),
-       well(
-           {.padding = 18, .clip = false, .corners = look.spacing.panelCorners},
-           std::move(readings))});
+       well({.padding = 18, .clip = false}, std::move(readings))
+           .borderRadius(Corners{var("spacing-panel-corners")})});
   return page(specification.page,
               box()
                   .row()

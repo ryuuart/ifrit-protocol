@@ -276,7 +276,6 @@ TEST(SketchKitCells, AnExplicitGroundWinsOverTheThemes) {
 // The runs
 
 TEST(SketchKitCells, ComparisonAlignsFiguresAfterWrappedTitlesAndControls) {
-  const kit::Provide look(kit::studyTheme());
   Drawn drawn(
       kit::comparison(
           {.cases = {{.title = "THE REFERENCE WITH A LONGER TWO LINE TITLE",
@@ -290,7 +289,7 @@ TEST(SketchKitCells, ComparisonAlignsFiguresAfterWrappedTitlesAndControls) {
                       .note = "Its authored height is retained."}},
            .measure = 400,
            .gap = 20})
-          .applyStyleSheet(kit::theme().styleSheet()));
+          .applyStyleSheet(kit::studyTheme().styleSheet()));
   const auto reference = drawn.composer.bounds("reference");
   const auto result = drawn.composer.bounds("result");
   ASSERT_TRUE(reference);
@@ -305,7 +304,6 @@ TEST(SketchKitCells, ComparisonAlignsFiguresAfterWrappedTitlesAndControls) {
 }
 
 TEST(SketchKitCells, ComparisonInAPagePreservesFiguresAndWrapsNotes) {
-  const kit::Provide look(kit::studyTheme());
   sigil::motion::Engine engine;
   compose::Composer composer(engine, fonts());
   composer.setSize({900, 1050});
@@ -348,7 +346,8 @@ TEST(SketchKitCells, ComparisonInAPagePreservesFiguresAndWrapsNotes) {
                          .gap(20)
                          .children({std::move(comparison),
                                     compose::box().width(100).height(80)}),
-                     compose::box().key("following").width(700).height(90)})));
+                     compose::box().key("following").width(700).height(90)}))
+          .applyStyleSheet(kit::studyTheme().styleSheet()));
   const sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(900, 1050));
   composer.draw(*surface->getCanvas());

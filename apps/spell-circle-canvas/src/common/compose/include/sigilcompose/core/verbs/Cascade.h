@@ -92,16 +92,16 @@ class CascadeVerbs {
    *  @trap It is read only where `textAlign` justifies. */
   Derived& textJustify(TextJustify method);
   /** A CUSTOM PROPERTY set on this node and inherited by everything
-   *  under it, read back through `var(name)`, `Fill::var` or
-   *  `ink(var(name))`. The nearest ancestor that set a name wins. */
+   *  under it, read back through `var(name)` in a length, a fill, a
+   *  stroke or `ink(var(name))`. The nearest ancestor that set a name wins. */
   Derived& var(std::string_view name, material::Color colour);
   /** The same, holding a LENGTH rather than a colour. A property is one
    *  or the other, and reading one as the other leaves the target
    *  standing and says so once. */
   Derived& var(std::string_view name, Dimension length);
   /** The same, holding a PAINT — a gradient, a quarried stone, a layered
-   *  look — which `Fill::var(name)` fills with, `ink(var(name))` inks
-   *  with and a stroke in `Fill::var(name)` strokes with, laid over the
+   *  look — which `fill(var(name))` fills with, `ink(var(name))` inks
+   *  with and a stroke in `var(name)` strokes with, laid over the
    *  box of the node that reads it. A flat material is the colour form
    *  above. Its effects and its surface are not part of a paint, as they
    *  are not part of a `Fill`.

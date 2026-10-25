@@ -125,7 +125,6 @@ struct NineSlice {
   }
 
   Element describe() {
-    const sketch::kit::Provide look(sheetTheme());
     const float breathW = kPanelW + 66 * stretch;
     const float breathH = kPanelH + 26 * stretch;
 
@@ -208,7 +207,8 @@ struct NineSlice {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.size = kSceneSize,
+    sketch::kit::stage(ctx, {.theme = sheetTheme(),
+                             .size = kSceneSize,
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
     oak = generate(oakPalette());

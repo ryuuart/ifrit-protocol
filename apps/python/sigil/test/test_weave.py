@@ -452,8 +452,8 @@ class Scene:
     def test_a_shadow_is_coloured_by_a_colour_term(self):
         shadow = compose.TextShadow(offset=(4, 0), blur=2)
         self.assertEqual(shadow.color, compose.Fill.currentInk())
-        shadow.color = compose.Fill.var("accent")
-        self.assertEqual(shadow.color, compose.Fill.var("accent"))
+        shadow.color = compose.var("accent")
+        self.assertEqual(shadow.color, compose.Fill(compose.var("accent")))
         shadow.color = "#ff0000"
         self.assertEqual(shadow.color, compose.Fill.color("#ff0000"))
         with self.assertRaises(TypeError):

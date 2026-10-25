@@ -10,22 +10,30 @@
 namespace sigil::sketch::kit {
 
 void stage(Scene2DContext& ctx, const Stage& surface) {
+  const Theme& look = surface.theme ? *surface.theme : houseTheme();
   CanvasSpecification declared;
   declared.size = surface.size;
   declared.background = material::skia::toSkColor(
-      surface.background.value_or(theme().palette.ground));
+      surface.background.value_or(look.palette.ground));
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;
   ctx.canvas(declared);
+  // The look stands at the root of whatever the sketch renders, so a
+  // component anywhere in it reads the theme where it lands. A stage that
+  // names none states the house properties and no role rules, which a
+  // study setting its own type would otherwise have to undo.
+  ctx.composer.setStyleSheet(surface.theme ? look.styleSheet()
+                                           : look.properties());
 }
 
 void stage(Scene3DContext& ctx, const Stage& surface) {
   if (ctx.specification == nullptr) return;
+  const Theme& look = surface.theme ? *surface.theme : houseTheme();
   CanvasSpecification declared;
   declared.size = surface.size;
   declared.background = material::skia::toSkColor(
-      surface.background.value_or(theme().palette.ground));
+      surface.background.value_or(look.palette.ground));
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;
@@ -33,41 +41,36 @@ void stage(Scene3DContext& ctx, const Stage& surface) {
 }
 
 compose::Element page(const Page& sheet, compose::Element content) {
-  const Theme& look = theme();
-  // The page root carries the theme's document rules. Its heading, lead,
-  // footer and specimen captions resolve their roles through this sheet;
-  // a nearer sheet can change the fields it names for one panel.
+  using compose::var;
+  // Every distance and colour is the sheet's in force where the page
+  // lands, read as a property; its heading, lead, footer and specimen
+  // captions resolve their roles through the same sheet, and a nearer
+  // sheet can change the fields it names for one panel.
   const compose::kit::Sheet specification{
       .title = sheet.title,
       .subtitle = sheet.subtitle,
       .footer = sheet.footer,
-      .marginHorizontal = look.spacing.marginHorizontal,
-      .marginTop = look.spacing.marginTop,
-      .marginBottom = look.spacing.marginBottom,
-      .subtitleGap = look.spacing.subtitleGap,
-      .contentGap = look.spacing.contentGap,
-      .ground =
-          sheet.ground.value_or(compose::Fill::color(look.palette.ground)),
-      .rule = sheet.ruled ? compose::Fill::color(look.palette.rule)
-                          : compose::Fill{},
+      .marginHorizontal = var("spacing-margin-horizontal"),
+      .marginTop = var("spacing-margin-top"),
+      .marginBottom = var("spacing-margin-bottom"),
+      .subtitleGap = var("spacing-subtitle-gap"),
+      .contentGap = var("spacing-content-gap"),
+      .ground = sheet.ground.value_or(var("palette-ground")),
+      .rule =
+          sheet.ruled ? compose::Fill(var("palette-rule")) : compose::Fill{},
       .key = sheet.key};
   // A page is the whole surface: the sheet does not size itself, so this
   // is where the canvas is handed to it.
   //
-  // AND IT IS THE ROOT OF THE CASCADE. The sheet's running text is the
-  // remark register — the one line on a specimen sheet set in sentences
-  // rather than as a label — so a leaf under a page that states no style
-  // of its own is set in that, in the theme's ink. A leaf handed a whole
-  // `weave::TextStyle` inherits nothing and is untouched.
-  const Register& running = look.type.captionNote;
-  compose::Element surface =
-      compose::kit::sheet(specification, std::move(content))
-          .absolute()
-          .inset(0)
-          .applyStyleSheet(look.styleSheet())
-          .font(look.font(running))
-          .ink(look.palette.ink);
-  return surface;
+  // ITS RUNNING TEXT IS THE `page` ROLE'S: the remark register — the one
+  // line on a specimen sheet set in sentences rather than as a label — in
+  // the theme's ink, so a leaf under a page that states no style of its
+  // own is set in that. A leaf handed a whole `weave::TextStyle` inherits
+  // nothing and is untouched.
+  return compose::kit::sheet(specification, std::move(content))
+      .absolute()
+      .inset(0)
+      .role("page");
 }
 
 }  // namespace sigil::sketch::kit

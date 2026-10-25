@@ -50,7 +50,9 @@ Element opening(std::optional<kit::NestedStyle> nested) {
           .initialLetter(
               {.lines = 3,
                .margin = 8,
-               .style = serif(kBodySize, sketch::kit::theme().palette.figure)});
+               .style = serif(kBodySize, sketch::kit::featureTheme(
+                                             sketch::kit::Density::Spacious)
+                                             .palette.figure)});
   if (nested)
     body.span(kit::nestedRun(*nested), SpanStyle().font(nested->style));
   return sketch::kit::well({.width = 328, .height = 218, .padding = 20})
@@ -58,7 +60,7 @@ Element opening(std::optional<kit::NestedStyle> nested) {
 }
 
 Element ornament() {
-  const auto& look = sketch::kit::theme();
+  const auto& look = sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   Element star =
       kit::at(box()
                   .key("opening-star")
@@ -81,7 +83,7 @@ Element ornament() {
 }
 
 Element hangingList() {
-  const auto& look = sketch::kit::theme();
+  const auto& look = sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   const std::vector<std::u8string> items = {
       u8"The marker holds its own margin.",
       u8"Wrapped lines return to the text edge, leaving the marker clear while "
@@ -105,11 +107,16 @@ Element hangingList() {
 
 struct BulletsDropCap {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx, {.size = {1100, 790}, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = {1100, 790},
+         .captureAt = 0.05});
     const weave::Type openingVoice =
-        serif(kBodySize, sketch::kit::theme().palette.figure, 0.35f);
+        serif(kBodySize,
+              sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                  .palette.figure,
+              0.35f);
     ctx.composer.render(sketch::kit::page(
         {.title = "A way into the paragraph",
          .subtitle = "One passage at 14 px · three opening treatments, then "

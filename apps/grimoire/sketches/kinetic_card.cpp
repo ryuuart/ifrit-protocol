@@ -176,7 +176,9 @@ struct KineticCard {
   motion::Animatable<float> phase = motion::animatable(0.0f);
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = kPeriod * 0.5});
+    sketch::kit::stage(ctx, {.theme = sheetTheme(),
+                             .size = kSceneSize,
+                             .captureAt = kPeriod * 0.5});
     // MID-CASCADE. The master maps onto each track's OWN span, so one
     // fraction of the period is the same fraction of every schedule
     // however many letters a word has. At half way the head of every word
@@ -222,7 +224,6 @@ struct KineticCard {
   }
 
   Element describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     const Composer& composer = ctx.composer;
 
     static const Row kRows[13] = {
@@ -271,24 +272,34 @@ struct KineticCard {
          // travelling wave comes from the glyph's own index inside the
          // effect.
          "WAVE LOOP", textFx::waveLoop(0.10f, 0.5f)},
-        {"mix", "textFx::mix(scatter, tint)",
+        {"mix",
+         "textFx::mix(scatter, tint)",
          "both at the same local time: the offset adds, the colour "
          "multiplies",
          "MIX",
          textFx::mix(textFx::enter(textFx::scatter(40, 24)),
                      textFx::tint({.from = kPale, .to = kAccent})),
          {.color = kAccent}},
-        {"last", "stagger(110, {.from = Last})",
+        {"last",
+         "stagger(110, {.from = Last})",
          "the final glyph starts first; the cascade runs backward",
-         "BACKWARD", textFx::enter(textFx::scatter(40, 24)), {},
+         "BACKWARD",
+         textFx::enter(textFx::scatter(40, 24)),
+         {},
          cascadeFrom(motion::StaggerFrom::Last)},
-        {"edges", "stagger(110, {.from = Edges})",
+        {"edges",
+         "stagger(110, {.from = Edges})",
          "both ends start together and meet in the middle",
-         "EDGES", textFx::enter(textFx::scatter(40, 24)), {},
+         "EDGES",
+         textFx::enter(textFx::scatter(40, 24)),
+         {},
          cascadeFrom(motion::StaggerFrom::Edges)},
-        {"eased", "stagger(110, {.ease = t²})",
+        {"eased",
+         "stagger(110, {.ease = t²})",
          "the delays crowd early and spread late; each motion is unchanged",
-         "EASED", textFx::enter(textFx::scatter(40, 24)), {},
+         "EASED",
+         textFx::enter(textFx::scatter(40, 24)),
+         {},
          cascadeFrom(motion::StaggerFrom::First,
                      [](float progress) { return progress * progress; })},
     };
@@ -333,9 +344,9 @@ struct KineticCard {
                            "positions chosen by paragraph layout.")
                            .width(440)})}),
              document::h2("04 / MIX, THEN CHANGE WHO STARTS"),
-             sketch::kit::comparison(
-                 {.cases = std::move(rescheduled), .measure = 1068,
-                  .gap = 22})}));
+             sketch::kit::comparison({.cases = std::move(rescheduled),
+                                      .measure = 1068,
+                                      .gap = 22})}));
 
     Element root = stack()
                        .applyStyleSheet(sheetClasses())

@@ -143,10 +143,12 @@ constexpr Run kRuns[] = {
 
 struct LiveSettling {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // the swell has already been run, on its own composer
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     // THE SWELL, on a composer of its own: every whole pixel from the
     // narrow measure to the wide one and back, drawn each time, because
@@ -201,8 +203,12 @@ struct LiveSettling {
                        {.name = "Degraded",
                         .value = kit::formatted("%d", report.degraded)}},
                    {.nameMeasure = 92,
-                    .gap = sketch::kit::theme().spacing.rowGap,
-                    .labelGap = sketch::kit::theme().spacing.labelGap})
+                    .gap = sketch::kit::featureTheme(
+                               sketch::kit::Density::Spacious)
+                               .spacing.rowGap,
+                    .labelGap = sketch::kit::featureTheme(
+                                    sketch::kit::Density::Spacious)
+                                    .spacing.labelGap})
                    .width(kCell)});
     }
     ctx.composer.render(sketch::kit::page(

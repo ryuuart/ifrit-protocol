@@ -126,7 +126,7 @@ sketch::kit::Theme sheetTheme() {
  *  the baseline rhythm has something to correct. */
 std::vector<Element> cards() {
   static constexpr float kSizes[3] = {12, 16, 20};
-  const sketch::kit::Theme& look = sketch::kit::theme();
+  const sketch::kit::Theme& look = sheetTheme();
   return each(12, [&look](int i) {
     return text((i < 9 ? "0" : "") + std::to_string(i + 1) + " Aa",
                 look.mono(kSizes[i % 3], look.palette.figure))
@@ -140,7 +140,7 @@ std::vector<Element> cards() {
 Element rhythmLines() {
   return kit::ladder({.count = 13,
                       .pitch = kRhythm,
-                      .fill = Fill::color(sketch::kit::theme().palette.rule)})
+                      .fill = Fill::color(sheetTheme().palette.rule)})
       .absolute()
       .left(kInset)
       .top(kInset)
@@ -161,7 +161,8 @@ struct GridLayouts {
   void setup(sketch::Scene2DContext& ctx) {
     // Only the programme moves, a step at a time; the still is taken in
     // its opening configuration.
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
     show(ctx, kOpening);
   }
 
@@ -174,7 +175,6 @@ struct GridLayouts {
 
   void show(sketch::Scene2DContext& ctx, int configuration) {
     shown = configuration;
-    const sketch::kit::Provide look(sheetTheme());
     const Configuration& running = kProgramme[configuration];
     ctx.composer.render(sketch::kit::page(
         {.title = "Four ways to place twelve cards",
@@ -224,10 +224,9 @@ struct GridLayouts {
                      {.name = "Diagonal / baseline change",
                       .value = "position only"}},
                  {.measure = 501,
-                  .gap = sketch::kit::theme().spacing.rowGap,
-                  .labelGap = sketch::kit::theme().spacing.labelGap,
-                  .divider =
-                      Fill::color(sketch::kit::theme().palette.rule)})})));
+                  .gap = sheetTheme().spacing.rowGap,
+                  .labelGap = sheetTheme().spacing.labelGap,
+                  .divider = Fill::color(sheetTheme().palette.rule)})})));
   }
 };
 

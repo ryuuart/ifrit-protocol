@@ -206,7 +206,7 @@ Element field(const Field& bed) {
                      .shape(bed.region)
                      .overflow(Overflow::Clip)
                      .styleClass("fillet")
-                     .fill(Fill::var("mortar"));
+                     .fill(var("mortar"));
   for (const auto& [course, stone] : bed.courses)
     laid.children({box().cover().shape(course).fill(stone)});
   return laid;
@@ -254,7 +254,7 @@ Element roundel(std::string key, SkPoint at, float radius, Shape outline,
                       .inset(piece.inset)
                       .shape(piece.outline)
                       .fill(std::move(piece.stone))
-                      .stroke(stroke(0.8f, Fill::var("mortar")))});
+                      .stroke(stroke(0.8f, var("mortar")))});
   return set;
 }
 
@@ -354,7 +354,7 @@ struct Cosmati {
             .letterSpacing(0.34_em),
         rule(".ring").fontSize(0.74_rem).letterSpacing(0.12_em),
         rule(".fillet").stroke(
-            stroke(kFillet, Fill::var("fillet"), PathFormat::Align::Inner)),
+            stroke(kFillet, var("fillet"), PathFormat::Align::Inner)),
     };
   }
 
@@ -756,7 +756,7 @@ struct Cosmati {
   Element settingOut(float size) const {
     const float scale = size / kSide;
     const auto struck = [&](Element line) {
-      return line.stroke(stroke(0.75f, Fill::var("rule")));
+      return line.stroke(stroke(0.75f, var("rule")));
     };
     const auto circle = [&](SkPoint at, float radius) {
       return struck(box()
@@ -799,7 +799,7 @@ struct Cosmati {
                        .width(26)
                        .height(15)
                        .fill(cut(*quarry, 34, 60.0f + (float)order++))
-                       .foreground(stroke(1.0f, Fill::var("ash"))),
+                       .foreground(stroke(1.0f, var("ash"))),
            .opacity =
                sigil::motion::animate({.from = 0.0f,
                                        .to = 1.0f,

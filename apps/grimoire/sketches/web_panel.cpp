@@ -247,8 +247,8 @@ struct WebPanelSketch {
   static bool available(std::string* why) { return scry::available(why); }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 1.0});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 1.0});
 
     // The settles go before the views they latched.
     m_pages.clear();
@@ -331,7 +331,6 @@ struct WebPanelSketch {
   }
 
   void describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     m_shownPanel = m_pages[0]->painted();
     const bool arrived =
         std::all_of(m_pages.begin(), m_pages.end(),
@@ -340,8 +339,7 @@ struct WebPanelSketch {
         std::any_of(m_pages.begin(), m_pages.end(),
                     [](const auto& settling) { return settling->broken(); });
     const auto answered = [&](size_t at, const std::string& answer) {
-      return m_pages[at]->arrived() ? answer
-                                    : std::string("awaiting the page");
+      return m_pages[at]->arrived() ? answer : std::string("awaiting the page");
     };
     ctx.composer.render(sketch::kit::page(
         {.title = "A page as a leaf",
@@ -357,34 +355,41 @@ struct WebPanelSketch {
                  {.label = "BOTH DIRECTIONS",
                   .note = "web(view) draws the page's newest frame; the "
                           "page's background is transparent"},
-                 box().row().gap(28).alignItems(Align::Start).children(
-                     {box()
-                          .width(kPageWidth)
-                          .height(kPageHeight)
-                          .borderRadius({16})
-                          .overflow(Overflow::Clip)
-                          .background(
-                              shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
-                          .children({m_shownPanel
-                                         ? web(m_views[0])
-                                               .width(kPageWidth)
-                                               .height(kPageHeight)
-                                         : box()
-                                               .width(kPageWidth)
-                                               .height(kPageHeight)}),
-                      box().column().gap(14).children(
-                          {remark(u8"HTML → canvas",
-                                  u8"The engine publishes each repaint as a "
-                                  u8"frame; the leaf draws the newest one "
-                                  u8"into the bounds the layout gave it."),
-                           remark(u8"canvas → HTML",
-                                  u8"A slot the page names by URL, filled by "
-                                  u8"drawing into the canvas the engine hands "
-                                  u8"back."),
-                           remark(u8"one renderer",
-                                  u8"A process boots exactly one engine, so "
-                                  u8"it is held beside the sketch rather than "
-                                  u8"inside it.")})})),
+                 box()
+                     .row()
+                     .gap(28)
+                     .alignItems(Align::Start)
+                     .children(
+                         {box()
+                              .width(kPageWidth)
+                              .height(kPageHeight)
+                              .borderRadius({16})
+                              .overflow(Overflow::Clip)
+                              .background(shadow(hexColor(0x000000, 0.55f),
+                                                 {0, 10}, 26))
+                              .children({m_shownPanel
+                                             ? web(m_views[0])
+                                                   .width(kPageWidth)
+                                                   .height(kPageHeight)
+                                             : box()
+                                                   .width(kPageWidth)
+                                                   .height(kPageHeight)}),
+                          box().column().gap(14).children(
+                              {remark(
+                                   u8"HTML → canvas",
+                                   u8"The engine publishes each repaint as a "
+                                   u8"frame; the leaf draws the newest one "
+                                   u8"into the bounds the layout gave it."),
+                               remark(
+                                   u8"canvas → HTML",
+                                   u8"A slot the page names by URL, filled by "
+                                   u8"drawing into the canvas the engine hands "
+                                   u8"back."),
+                               remark(
+                                   u8"one renderer",
+                                   u8"A process boots exactly one engine, so "
+                                   u8"it is held beside the sketch rather than "
+                                   u8"inside it.")})})),
              sketch::kit::section(
                  {.label = "ONE DOCUMENT, DRIVEN FOUR WAYS",
                   .note = "each view loads the same HTML; one call changes "
@@ -402,8 +407,8 @@ struct WebPanelSketch {
                            cell("scrolled", 3, "SCROLL",
                                 kit::formatted("scroll(0, -%d)", kScrollBy),
                                 "Only the viewport moves · " +
-                                    answered(3, kit::formatted(
-                                                    "scrollY %d", kScrollBy))),
+                                    answered(3, kit::formatted("scrollY %d",
+                                                               kScrollBy))),
                            cell("pressed", 4, "PRESS", "mouseMove / Down / Up",
                                 "The page's own handler marks the button · " +
                                     answered(4, "class hit"))},
@@ -425,9 +430,9 @@ struct WebPanelSketch {
                                    std::string note) const {
     const SkRect where = SkRect::MakeWH((float)kViewWidth, (float)kViewHeight);
     scry::WebView::Frame still = m_pages[at]->still();
-    const std::string key = still.image ? name + " · still " +
-                                              std::to_string(m_declared)
-                                        : name + " · arriving";
+    const std::string key =
+        still.image ? name + " · still " + std::to_string(m_declared)
+                    : name + " · arriving";
     // The view's own latest only once a repaint carries the loaded
     // document: the blank a view paints the moment it exists is the
     // engine's page, not this one's.
@@ -455,7 +460,7 @@ struct WebPanelSketch {
    *  sweep never reaches it, having asked the registry first; the app
    *  opens whatever is selected, so it is drawn rather than left blank. */
   static Element missing(const std::string& why) {
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    const sketch::kit::Theme& sheet = sheetTheme();
     return box()
         .inset(0)
         .fill(Fill::color(sheet.palette.ground))

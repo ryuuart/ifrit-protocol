@@ -172,7 +172,7 @@ inline Element explodedCell(float size, TimberBank& bank,
         .shape(shapes::circle())
         .stroke(spans::upTo(beat(0.1f)),
                 PathFormat{.width = 0.9f,
-                           .strokeFill = Fill::var("accent"),
+                           .strokeFill = sigil::compose::var("accent"),
                            .dashIntervals = {3.0f, 3.0f}});
   })});
   for (const Piece& piece : cellLeaves(
@@ -183,7 +183,7 @@ inline Element explodedCell(float size, TimberBank& bank,
     art.children({exploded(piece, jigumiExplode)});
   art.children({each(incentres, [&](vec2 incentre) {
     return kit::dot(sigil::geometry::path::fromSk(point(incentre)), 2.2f,
-                    Fill::var("centre"))
+                    sigil::compose::var("centre"))
         .opacity(beat(0.3f));
   })});
   // The two jig angles a locking piece is cut at, arced at the corner it
@@ -194,7 +194,7 @@ inline Element explodedCell(float size, TimberBank& bank,
              .shape(shapes::arc(start, 22.5f))
              .stroke(spans::upTo(beat(0.2f)),
                      PathFormat{.width = 1.0f,
-                                .strokeFill = Fill::var("accent")})});
+                                .strokeFill = sigil::compose::var("accent")})});
   return art;
 }
 
@@ -220,18 +220,19 @@ inline Element jigs(const data::Json& angles, float radius, float height) {
             .column()
             .gap(10)
             .alignItems(Align::Start)
-            .children({box().width(reach).height(radius).children(
-                           {box()
-                                .absolute()
-                                .left(-radius)
-                                .top(0)
-                                .width(radius * 2)
-                                .height(radius * 2)
-                                .shape(shapes::sector(-90.0f, degrees, 0.0f))
-                                .fill(Fill::var("wedge"))
-                                .stroke(stroke(0.9f, Fill::var("accent"),
-                                               PathFormat::Align::Inner))}),
-                       document::label(kit::formatted("%g°", degrees))});
+            .children(
+                {box().width(reach).height(radius).children(
+                     {box()
+                          .absolute()
+                          .left(-radius)
+                          .top(0)
+                          .width(radius * 2)
+                          .height(radius * 2)
+                          .shape(shapes::sector(-90.0f, degrees, 0.0f))
+                          .fill(sigil::compose::var("wedge"))
+                          .stroke(stroke(0.9f, sigil::compose::var("accent"),
+                                         PathFormat::Align::Inner))}),
+                 document::label(kit::formatted("%g°", degrees))});
       })});
 }
 
@@ -270,11 +271,11 @@ inline Element shopDrawing(const sketch::kit::Document& doc, TimberBank& bank,
                            const motion::Animatable<float>& seconds) {
   const float left = kFrameOuter.left(), width = kFrameOuter.width();
   return kit::at(0, kRoom, kWidth, kBandHeight)
-      .fill(Fill::var("ground"))
+      .fill(sigil::compose::var("ground"))
       .applyStyleSheet(drawingSheet())
       .children({
           // the drawing's own ground: a hairline ruled off the room above it
-          kit::at(0, 0, kWidth, 1).fill(Fill::var("rule")),
+          kit::at(0, 0, kWidth, 1).fill(sigil::compose::var("rule")),
           box()
               .absolute()
               .left(left)
@@ -316,7 +317,7 @@ inline Element shopDrawing(const sketch::kit::Document& doc, TimberBank& bank,
               .column()
               .gap(10)
               .children({
-                  box().height(1).fill(Fill::var("rule")),
+                  box().height(1).fill(sigil::compose::var("rule")),
                   box()
                       .row()
                       .justifyContent(Justify::SpaceBetween)

@@ -110,7 +110,8 @@ struct Tiers {
 /** A card stating its tier, its calls and its load, and nothing about
  *  lines. */
 Element card(const Service& service) {
-  const sketch::kit::Theme& sheet = sketch::kit::theme();
+  const sketch::kit::Theme& sheet =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   return box()
       .key(service.name)
       .width(kCardWidth)
@@ -127,7 +128,10 @@ Element card(const Service& service) {
 }
 
 Decoration wire() {
-  return stroke(1.6f, Fill::color(sketch::kit::theme().palette.figure));
+  return stroke(
+      1.6f,
+      Fill::color(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                      .palette.figure));
 }
 
 /** The panel: the five cards under the operators given. */
@@ -149,20 +153,22 @@ Element district() {
       .width(212)
       .height(200)
       .borderRadius({8})
-      .foreground(stroke(1.0f, Fill::color(sketch::kit::theme().palette.rule)))
-      .operators({layouts::Radial{.radiusFraction = 0.6f},
-                  Operator(connect::ByLane{
-                               .lane = "calls", .gap = 2, .wire = wire()})
-                      .zIndex(-1)})
-      .children({each(std::vector<Service>(kServices.begin() + 1,
-                                           kServices.end()),
-                      card)});
+      .foreground(stroke(1.0f, Fill::color(sketch::kit::featureTheme(
+                                               sketch::kit::Density::Spacious)
+                                               .palette.rule)))
+      .operators(
+          {layouts::Radial{.radiusFraction = 0.6f},
+           Operator(connect::ByLane{.lane = "calls", .gap = 2, .wire = wire()})
+               .zIndex(-1)})
+      .children({each(
+          std::vector<Service>(kServices.begin() + 1, kServices.end()), card)});
 }
 
 /** A wire per call, as wide as the load, labelled midway. The program
  *  captures its ink while the feature theme is in scope. */
 ScopeProgram drawTraffic() {
-  const material::Color ink = sketch::kit::theme().palette.figure;
+  const material::Color ink =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious).palette.figure;
   return [ink](sigil::draw::Pen& pen, const Scope& scope) {
     pen.noFill();
     for (const Scope::Node* node : scope.having("calls")) {
@@ -183,8 +189,7 @@ ScopeProgram drawTraffic() {
         const glm::vec2 across = to - from;
         const float length = std::max(1.0f, glm::length(across));
         const glm::vec2 middle = (from + to) * 0.5f;
-        pen.text(std::to_string((int)load),
-                 middle.x + across.y / length * 12,
+        pen.text(std::to_string((int)load), middle.x + across.y / length * 12,
                  middle.y - across.x / length * 12);
         pen.noFill();
       }
@@ -195,7 +200,8 @@ ScopeProgram drawTraffic() {
 /** THE SAME FACTS, ANOTHER READING: the load as a bar under each card,
  *  as long as the card where the load is the heaviest. */
 ScopeProgram drawLoadBars() {
-  const material::Color ink = sketch::kit::theme().palette.figure;
+  const material::Color ink =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious).palette.figure;
   const float heaviest = heaviestLoad();
   return [ink, heaviest](sigil::draw::Pen& pen, const Scope& scope) {
     pen.noStroke();
@@ -221,10 +227,12 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 
 struct ServiceMap {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "Wired by a fact",
          .subtitle = "Five cards state their tier, their calls and their "
@@ -244,14 +252,13 @@ struct ServiceMap {
                                 "One wire per call each card states, routed "
                                 "orthogonally, behind the cards.",
                                 panel({Tiers{},
-                                       Operator(connect::ByLane{
-                                                    .lane = "calls",
-                                                    .router =
-                                                        routers::orthogonal(
-                                                            routers::Bend::MidX,
-                                                            8),
-                                                    .gap = 4,
-                                                    .wire = wire()})
+                                       Operator(
+                                           connect::ByLane{
+                                               .lane = "calls",
+                                               .router = routers::orthogonal(
+                                                   routers::Bend::MidX, 8),
+                                               .gap = 4,
+                                               .wire = wire()})
                                            .zIndex(-1)})),
                            cell("STATED BY HAND",
                                 "Tiers{}, Between{\"gateway\", \"store\"}",
@@ -261,8 +268,8 @@ struct ServiceMap {
                                        Operator(connect::Between{
                                                     .from = "gateway",
                                                     .to = "store",
-                                                    .router =
-                                                        routers::arc(-0.35f),
+                                                    .router = routers::arc(
+                                                        -0.35f),
                                                     .gap = 4,
                                                     .wire = wire()})
                                            .zIndex(-1)})),
@@ -279,7 +286,8 @@ struct ServiceMap {
                                              .operators(
                                                  {Operator(
                                                       connect::Between{
-                                                          .from = "gateway",
+                                                          .from =
+                                                              "gateway",
                                                           .to = "district",
                                                           .router = routers::
                                                               orthogonal(

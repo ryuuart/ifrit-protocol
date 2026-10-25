@@ -1,15 +1,12 @@
 
 
 #include <pybind11/operators.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilpython/compose/Kit.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
 
-#include <memory>
-#include <stdexcept>
-#include <thread>
+#include <utility>
 
 #include "Registration.h"
 
@@ -21,57 +18,6 @@ using sigil::python::kit::contentType;
 using sigil::python::kit::field;
 using sigil::python::kit::record;
 using sigil::python::kit::wellFields;
-
-/** The active stack owns providers until they close on their original thread.
- *  A Python reference can move between threads without moving native scope. */
-class ThemeProvider : public std::enable_shared_from_this<ThemeProvider> {
- public:
-  explicit ThemeProvider(sketchKit::Theme theme) : m_theme(std::move(theme)) {}
-
-  std::shared_ptr<ThemeProvider> enter() {
-    if (m_used)
-      throw std::runtime_error("A theme provider can only be entered once");
-    m_used = true;
-    m_thread = std::this_thread::get_id();
-    m_scope = std::make_unique<sketchKit::Provide>(m_theme);
-    const auto snapshot = core::environment::capture();
-    m_depth = snapshot.size();
-    m_identity = snapshot.back().value.get();
-    m_restoreIdentity = core::environment::restoreIdentity();
-    sigil::python::retainScope(shared_from_this(), [](void* scope) noexcept {
-      static_cast<ThemeProvider*>(scope)->reset();
-    });
-    return shared_from_this();
-  }
-
-  void close() {
-    if (!m_scope) return;
-    if (m_thread != std::this_thread::get_id())
-      throw std::runtime_error(
-          "A theme provider must close on its owning thread");
-    if (core::environment::restoreIdentity() != m_restoreIdentity)
-      throw std::runtime_error(
-          "A theme provider must close in its owning environment");
-    const auto snapshot = core::environment::capture();
-    if (!sigil::python::isCurrentScope(this) || snapshot.size() != m_depth ||
-        snapshot.back().value.get() != m_identity)
-      throw std::runtime_error(
-          "Theme providers must close in reverse nesting order");
-    sigil::python::closeScope(this);
-  }
-
-  void reset() noexcept { m_scope.reset(); }
-  bool active() const { return m_scope != nullptr; }
-
- private:
-  sketchKit::Theme m_theme;
-  bool m_used = false;
-  std::thread::id m_thread;
-  std::unique_ptr<sketchKit::Provide> m_scope;
-  std::size_t m_depth = 0;
-  const void* m_identity = nullptr;
-  std::uint64_t m_restoreIdentity = 0;
-};
 
 void bindTheme(py::module_& module) {
   auto palette = record<sketchKit::Palette>(module, "Palette");
@@ -149,6 +95,9 @@ void bindTheme(py::module_& module) {
           },
           py::arg("line"), py::arg("ink"))
       .def("styleSheet", &sketchKit::Theme::styleSheet)
+      .def("properties", &sketchKit::Theme::properties,
+           "The spacing and the palette alone, as custom properties on the "
+           "node the sheet is applied on, with none of the role rules.")
       .def(
           "sans",
           [](const sketchKit::Theme& value, float size, py::handle color,
@@ -193,21 +142,6 @@ void bindTheme(py::module_& module) {
         return sketchKit::featureTheme(density);
       },
       py::arg("density") = sketchKit::Density::Compact);
-  module.def("theme", [] { return sketchKit::theme(); });
-  py::class_<ThemeProvider, std::shared_ptr<ThemeProvider>>(module, "Provide")
-      .def(py::init<sketchKit::Theme>(), py::arg("theme"))
-      .def("__enter__", &ThemeProvider::enter)
-      .def(
-          "__exit__",
-          // Answers nothing, so the scope never suppresses what was raised
-          // inside it: a function may return from within `with`, and its
-          // type is the value it returns.
-          [](ThemeProvider& scope, py::object, py::object, py::object) {
-            scope.close();
-          },
-          py::arg("exc_type"), py::arg("exc_value"), py::arg("traceback"))
-      .def("close", &ThemeProvider::close)
-      .def_property_readonly("active", &ThemeProvider::active);
 }
 
 void bindSpecimens(py::module_& module) {
@@ -231,6 +165,7 @@ void bindSpecimens(py::module_& module) {
   field(well, "recess", &sketchKit::Well::recess);
   field(well, "relief", &sketchKit::Well::relief);
   auto stage = record<sketchKit::Stage>(module, "Stage");
+  field(stage, "theme", &sketchKit::Stage::theme);
   field(stage, "size", &sketchKit::Stage::size);
   field(stage, "captureAt", &sketchKit::Stage::captureAt);
   field(stage, "background", &sketchKit::Stage::background);
@@ -246,6 +181,7 @@ void bindSpecimens(py::module_& module) {
   auto cell = record<sketchKit::Cell>(module, "Cell");
   field(cell, "plate", &sketchKit::Cell::plate);
   field(cell, "measure", &sketchKit::Cell::measure);
+  field(cell, "where", &sketchKit::Cell::where);
   auto comparisonCase =
       record<sketchKit::ComparisonCase>(module, "ComparisonCase");
   field(comparisonCase, "title", &sketchKit::ComparisonCase::title);
@@ -283,10 +219,11 @@ void bindSpecimens(py::module_& module) {
   module.def(
       "caption",
       [](float measure, std::string label, std::string note,
-         compose::Element body) {
-        return sketchKit::caption(measure, label, note, std::move(body));
+         compose::Element body, compose::kit::Caption::Where where) {
+        return sketchKit::caption(measure, label, note, std::move(body), where);
       },
-      py::arg("measure"), py::arg("label"), py::arg("note"), py::arg("body"));
+      py::arg("measure"), py::arg("label"), py::arg("note"), py::arg("body"),
+      py::arg("where") = compose::kit::Caption::Where::Split);
   module.def(
       "cell",
       [](const sketchKit::Cell& plate, std::string label, std::string note,

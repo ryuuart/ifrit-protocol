@@ -10,10 +10,8 @@
 #include "Motif.h"
 
 struct CdeMotifSketch {
-  using Set = cde::ColorSet;
-
-  /** The one 2x2 tile every insensitive label on the desktop is painted
-   *  through, cut once and bound over the whole description. */
+  /** The palette in force as its eight colour sets, which the desktop's
+   *  root applies as a sheet. */
   cde::Theme theme;
   /** THE DESKTOP'S WORDS: every window title, menu, label, listing and
    *  button stands in `data/content.json` beside this sketch and is read in
@@ -88,9 +86,8 @@ struct CdeMotifSketch {
    *  inset(5, …), which is that helper's exact use case ("the
    *  same bevel again, five pixels in"). */
   Element windowFrame(Element content) {
-    const Set s = cde::ambient();
     return box()
-        .fill(s.bg)
+        .fill(var("background"))
         .overlay(cde::bevel(2, false, false))
         .overlay(inset(5, cde::bevel(1, true, false)))
         .padding(6)
@@ -103,20 +100,19 @@ struct CdeMotifSketch {
    *  centred in the derived foreground — white on both #B24D7A and
    *  #EDA870, because both sets fall under the 70% threshold. */
   Element titleBar(const Utf8& t, bool active) {
-    const Set s = cde::ambient();
     auto furniture = [&](Element glyph) {
       return kit::centred()
           .width(20)
           .height(19)
-          .fill(s.bg)
+          .fill(var("background"))
           .overlay(cde::bevel(1, false, false))
 
           .children({std::move(glyph)});
     };
-    Element menuGlyph = box().width(12).height(4).fill(s.fg);
-    Element minGlyph = box().width(5).height(5).fill(s.fg);
+    Element menuGlyph = box().width(12).height(4).fill(var("foreground"));
+    Element minGlyph = box().width(5).height(5).fill(var("foreground"));
     Element maxGlyph = box().width(11).height(11).overlay(cde::bevelFg(1));
-    return cde::surface(s)
+    return cde::surface()
         .height(23)
         .overlay(cde::bevel(1, false, false))
         .row()
@@ -134,8 +130,7 @@ struct CdeMotifSketch {
   /** The 31 px menu bar [MEAS], in colour set 6, with Motif's mnemonic
    *  underline on exactly one character of every label. */
   Element menuBar(const std::vector<std::string>& items, int rightFrom) {
-    const Set s = cde::ambient();
-    Element bar = cde::surface(s)
+    Element bar = cde::surface()
                       .height(31)
                       .overlay(cde::bevel(1, false, false))
                       .row()
@@ -144,7 +139,7 @@ struct CdeMotifSketch {
     for (int i = 0; i < (int)items.size(); ++i) {
       if (i == rightFrom) bar.children({box().flexGrow(1)});
       bar.children({box().padding(4, 8).children(
-          {cde::mnemonicLabel(items[(size_t)i], s.fg, 0)})});
+          {cde::mnemonicLabel(items[(size_t)i], 0)})});
     }
     return bar;
   }
@@ -152,11 +147,11 @@ struct CdeMotifSketch {
   // -------------------------------------------------------------------------
   // The File Manager. Frame and title in set 1, menu bar and client area
   // in set 5, the path field in set 4 and the scrollbar in set 3 — four
-  // scopes opened around four subtrees, and no widget below them told
-  // which it is in.
+  // classes named on four subtrees, and no widget below them told which
+  // it is in.
 
   Element fileManager() {
-    // THE WINDOW'S COLOUR SETS, and the scope each one covers. The frame
+    // THE WINDOW'S COLOUR SETS, and the subtree each one covers. The frame
     // and the title bar are set 1; the menu bar and the client area are
     // ONE set together, which is what the reference shows — a CDE window
     // is chrome plus a body, not three bands of three colours. Only the
@@ -164,107 +159,99 @@ struct CdeMotifSketch {
     // only one that ever takes the LITE branch), and the scrollbar is
     // set 3 because a scrollbar is dtwm's, not the application's.
     const data::Json& page = doc["fileManager"];
-    environment::Provide<cde::ColorSet> chrome(theme[1]);
-    Element title = titleBar(page["title"], true);
 
-    Element window;
-    {
-      environment::Provide<cde::ColorSet> body(theme[5]);
-      const Set& c5 = cde::ambient();
+    // The document names the folders the reference pane holds. They flow
+    // and wrap, the way an XmContainer lays icons out, rather than
+    // sitting in a hand-counted grid.
+    Element grid = box().row().flexWrap().gap(4).padding(8).children(
+        {each(page["folders"].array(), [](const data::Json& name) {
+          return box()
+              .width(70)
+              .alignItems(Align::Center)
+              .gap(2)
+              .children({cde::art(cde::icoFolder(), 2.0f), cde::label(name)});
+        })});
 
-      // The document names the folders the reference pane holds. They flow
-      // and wrap, the way an XmContainer lays icons out, rather than
-      // sitting in a hand-counted grid.
-      Element grid = box().row().flexWrap().gap(4).padding(8).children(
-          {each(page["folders"].array(), [](const data::Json& name) {
-            return box()
-                .width(70)
-                .alignItems(Align::Center)
-                .gap(2)
-                .children({cde::art(cde::icoFolder(), 2.0f), cde::label(name)});
-          })});
+    // The scrollbar: a sunken trough with a raised slider, and a
+    // STEPPER at each end — CDE puts an arrow box top and bottom, and
+    // without them the trough reads as a plain groove. The slider's
+    // length is the ONE number here measured off the screenshot rather
+    // than read off what the pane holds: the reference shows a file
+    // view whose icon count nothing in this sketch stands for.
+    auto stepper = [](bool up) {
+      return kit::centred()
+          .width(15)
+          .height(15)
+          .flexShrink(0)
+          .fill(var("background"))
+          .overlay(cde::bevel(2, false, false))
 
-      // The scrollbar: a sunken trough with a raised slider, and a
-      // STEPPER at each end — CDE puts an arrow box top and bottom, and
-      // without them the trough reads as a plain groove. The slider's
-      // length is the ONE number here measured off the screenshot rather
-      // than read off what the pane holds: the reference shows a file
-      // view whose icon count nothing in this sketch stands for.
-      Element scrollbar;
-      {
-        environment::Provide<cde::ColorSet> bar(theme[3]);
-        const Set& c3 = cde::ambient();
-        auto stepper = [&](bool up) {
-          return kit::centred()
-              .width(15)
-              .height(15)
-              .flexShrink(0)
-              .fill(c3.bg)
-              .overlay(cde::bevel(2, false, false))
+          .children({box()
+                         .width(9)
+                         .height(7)
+                         .shape(shapes::polygon(3, up ? 0.0f : 180.0f))
+                         .fill(var("foreground"))});
+    };
+    Element scrollbar = sketch::kit::scrollbar(
+                            {.leading = stepper(true),
+                             .trailing = stepper(false),
+                             .thumb = box()
+                                          .fill(var("background"))
+                                          .overlay(cde::bevel(2, false, false)),
+                             .thumbLength = Dimension(150),
+                             .track = Fill::none()})
+                            .styleClass("colour-set-3")
+                            .width(19)
+                            .padding(2)
+                            .gap(2)
+                            .fill(var("background"))
+                            .overlay(cde::bevel(2, true, false));
 
-              .children({box()
-                             .width(9)
-                             .height(7)
-                             .shape(shapes::polygon(3, up ? 0.0f : 180.0f))
-                             .fill(c3.fg)});
-        };
-        scrollbar = sketch::kit::scrollbar({.leading = stepper(true),
-                                            .trailing = stepper(false),
-                                            .thumb = box().fill(c3.bg).overlay(
-                                                cde::bevel(2, false, false)),
-                                            .thumbLength = Dimension(150),
-                                            .track = Fill::none()})
-                        .width(19)
-                        .padding(2)
-                        .gap(2)
-                        .fill(c3.bg)
-                        .overlay(cde::bevel(2, true, false));
-      }
+    Element pathRow =
+        box()
+            .row()
+            .alignItems(Align::Center)
+            .padding(6, 8)
+            .gap(8)
+            .children({cde::label(page["path"]),
+                       cde::textField(page["location"], 420, true, caret)
+                           .styleClass("colour-set-4")});
 
-      Element pathRow = box()
-                            .row()
-                            .alignItems(Align::Center)
-                            .padding(6, 8)
-                            .gap(8)
-                            .children({cde::label(page["path"])});
-      {
-        environment::Provide<cde::ColorSet> field(theme[4]);
-        pathRow.children({cde::textField(page["location"], 420, true, caret)});
-      }
+    Element client =
+        cde::surface()
+            .styleClass("colour-set-5")
+            .flexGrow(1)
+            .column()
+            .children({std::move(pathRow)})
+            // The icon pane is an XmScrolledWindow: XmSHADOW_IN at
+            // T = 2, which is why a CDE file view reads as a well and
+            // not as a sheet of colour.
+            .children({box()
+                           .flexGrow(1)
+                           .margin(0, 6)
+                           .row()
+                           .overlay(cde::bevel(2, true, false))
+                           .padding(2)
+                           .children({box()
+                                          .flexGrow(1)
+                                          .overflow(Overflow::Clip)
+                                          .children({std::move(grid)}),
+                                      std::move(scrollbar)}),
+                       box().height(2).margin(3, 2).overlay(
+                           cde::bevel(2, true, true)),
+                       box()
+                           .height(22)
+                           .row()
+                           .alignItems(Align::Center)
+                           .padding(2, 8)
+                           .children({cde::label(page["status"])})});
 
-      Element client =
-          cde::surface(c5)
-              .flexGrow(1)
-              .column()
-              .children({std::move(pathRow)})
-              // The icon pane is an XmScrolledWindow: XmSHADOW_IN at
-              // T = 2, which is why a CDE file view reads as a well and
-              // not as a sheet of colour.
-              .children({box()
-                             .flexGrow(1)
-                             .margin(0, 6)
-                             .row()
-                             .overlay(cde::bevel(2, true, false))
-                             .padding(2)
-                             .children({box()
-                                            .flexGrow(1)
-                                            .overflow(Overflow::Clip)
-                                            .children({std::move(grid)}),
-                                        std::move(scrollbar)}),
-                         box().height(2).margin(3, 2).overlay(
-                             cde::bevel(2, true, true)),
-                         box()
-                             .height(22)
-                             .row()
-                             .alignItems(Align::Center)
-                             .padding(2, 8)
-                             .children({cde::label(page["status"])})});
-
-      window = box().flexGrow(1).column().children(
-          {std::move(title), menuBar(cde::wordList(page["menu"]), 3),
-           std::move(client)});
-    }
-    return windowFrame(std::move(window));
+    return windowFrame(box().flexGrow(1).column().children(
+                           {titleBar(page["title"], true),
+                            menuBar(cde::wordList(page["menu"]), 3)
+                                .styleClass("colour-set-5"),
+                            std::move(client)}))
+        .styleClass("colour-set-1");
   }
 
   // -------------------------------------------------------------------------
@@ -273,69 +260,62 @@ struct CdeMotifSketch {
 
   Element colorDialog() {
     const data::Json& page = doc["colorDialog"];
-    const Set& c1 = theme[1];
-    const Set& c2 = theme[2];  // dtsession's primary set — unstyled widgets
-    const Set& c6 = theme[6];  // list panes
-    environment::Provide<cde::ColorSet> dialog(c2);
-
-    Element list;
-    {
-      environment::Provide<cde::ColorSet> listColors(c6);
-      list = cde::surface(c6)
-                 .overlay(cde::bevel(2, true, false))
-                 .padding(2)
-                 .flexGrow(1)
-                 .column();
-      for (int i = 0; i < (int)cde::kPalettes.size(); ++i) {
-        const bool current = i == paletteIndex;
-        Element rowBox =
-            box()
-                .row()
-                .alignItems(Align::Center)
-                .height(20)
-                .padding(0, 6)
-                .children({cde::label(cde::kPalettes[(size_t)i]->name)});
-        if (current) rowBox.fill(c6.sel);
-        list.children({std::move(rowBox)});
-      }
-      list.children({each(page["shipped"].array(), [](const data::Json& n) {
-        return box()
-            .row()
-            .alignItems(Align::Center)
-            .height(20)
-            .padding(0, 6)
-            .children({cde::label(n)});
-      })});
+    // The frame and title are set 1, the body is dtsession's primary set,
+    // 2, which every unstyled widget wears, and the list pane is set 6.
+    Element list = cde::surface()
+                       .styleClass("colour-set-6")
+                       .overlay(cde::bevel(2, true, false))
+                       .padding(2)
+                       .flexGrow(1)
+                       .column();
+    for (int i = 0; i < (int)cde::kPalettes.size(); ++i) {
+      const bool current = i == paletteIndex;
+      Element rowBox =
+          box()
+              .row()
+              .alignItems(Align::Center)
+              .height(20)
+              .padding(0, 6)
+              .children({cde::label(cde::kPalettes[(size_t)i]->name)});
+      if (current) rowBox.fill(var("select"));
+      list.children({std::move(rowBox)});
     }
+    list.children({each(page["shipped"].array(), [](const data::Json& n) {
+      return box()
+          .row()
+          .alignItems(Align::Center)
+          .height(20)
+          .padding(0, 6)
+          .children({cde::label(n)});
+    })});
 
     // XmScrollBar: a sunken trough in the workspace set with a raised
     // slider, 15 px of trough plus 2 px of shadow either side [MEAS].
-    auto scrollBar = [&](const Set& t, float sliderFrac) {
-      environment::Provide<cde::ColorSet> scrollColors(t);
-      return sketch::kit::scrollbar({.thumb = box().fill(t.bg).overlay(
-                                         cde::bevel(2, false, false)),
-                                     .thumbLength = percent(sliderFrac),
-                                     .track = Fill::none()})
-          .width(19)
-          .fill(t.bg)
-          .overlay(cde::bevel(2, true, false))
-          .padding(2);
-    };
+    Element scrollBar = sketch::kit::scrollbar(
+                            {.thumb = box()
+                                          .fill(var("background"))
+                                          .overlay(cde::bevel(2, false, false)),
+                             .thumbLength = percent(34),
+                             .track = Fill::none()})
+                            .styleClass("colour-set-3")
+                            .width(19)
+                            .fill(var("background"))
+                            .overlay(cde::bevel(2, true, false))
+                            .padding(2);
 
     Element listPane = box().row().width(170).children(
-        {std::move(list), scrollBar(theme[3], 34)});
+        {std::move(list), std::move(scrollBar)});
 
     // The eight colour-set swatches, 4 x 2. This IS the palette file.
     Element swatches = box().column().gap(6);
     for (int r = 0; r < 2; ++r) {
       Element rr = box().row().gap(6);
       for (int c = 0; c < 4; ++c) {
-        const int idx = r * 4 + c + 1;
-        environment::Provide<cde::ColorSet> swatchColors(theme[idx]);
         rr.children({box()
+                         .styleClass(cde::colourSet(r * 4 + c + 1))
                          .width(50)
                          .height(42)
-                         .fill(theme[idx].bg)
+                         .fill(var("background"))
                          .overlay(cde::bevel(2, false, false))});
       }
       swatches.children({std::move(rr)});
@@ -354,28 +334,31 @@ struct CdeMotifSketch {
                  cde::pushButton(page["buttons"][3].string())});
 
     Element body =
-        cde::surface(c2).flexGrow(1).column().padding(10).gap(10).children(
-            {box().row().gap(12).flexGrow(1).children(
-                 {box().gap(4).children(
-                      {cde::label(page["palettes"]), std::move(listPane)}),
-                  box().gap(4).children({cde::label(page["sets"]),
-                                         std::move(swatches), box().height(6),
-                                         cde::label(page["count"]),
-                                         cde::label(page["depth"])})}),
-             box().height(2).overlay(cde::bevel(2, false, true)),
-             std::move(buttons)});
+        cde::surface()
+            .styleClass("colour-set-2")
+            .flexGrow(1)
+            .column()
+            .padding(10)
+            .gap(10)
+            .children({box().row().gap(12).flexGrow(1).children(
+                           {box().gap(4).children({cde::label(page["palettes"]),
+                                                   std::move(listPane)}),
+                            box().gap(4).children(
+                                {cde::label(page["sets"]), std::move(swatches),
+                                 box().height(6), cde::label(page["count"]),
+                                 cde::label(page["depth"])})}),
+                       box().height(2).overlay(cde::bevel(2, false, true)),
+                       std::move(buttons)});
 
-    environment::Provide<cde::ColorSet> chrome(c1);
     return windowFrame(box().flexGrow(1).column().children(
-        {titleBar(page["title"], false), std::move(body)}));
+                           {titleBar(page["title"], false), std::move(body)}))
+        .styleClass("colour-set-1");
   }
 
   // -------------------------------------------------------------------------
   // A torn-off menu, posted over the desktop. Set 6, shadowThickness 2.
 
   Element postedMenu() {
-    const Set& s = theme[6];
-    environment::Provide<cde::ColorSet> menuColors(s);
     auto item = [&](std::string_view t, bool cascade, bool insensitive) {
       Element row = box()
                         .row()
@@ -384,9 +367,12 @@ struct CdeMotifSketch {
                         .padding(0, 14)
                         .children({cde::label(t), box().flexGrow(1)});
       if (cascade)
-        row.children({box().width(9).height(9).fill(s.bg).overlay(
-            cde::bevel(2, false, false))});
-      if (insensitive) row.foreground(decorations::wash(cde::stipple()));
+        row.children({box()
+                          .width(9)
+                          .height(9)
+                          .fill(var("background"))
+                          .overlay(cde::bevel(2, false, false))});
+      if (insensitive) row.foreground(cde::stipple());
       return row;
     };
     // XmSHADOW_ETCHED_IN at T = 2 — a two-pass etched shadow, and the only
@@ -400,7 +386,8 @@ struct CdeMotifSketch {
 
     // One line per entry the document names: a separator where it says so,
     // and an item that cascades or is insensitive where it says that.
-    return cde::surface(s)
+    return cde::surface()
+        .styleClass("colour-set-6")
         .overlay(cde::bevel(2, false, false))
         .padding(2)
         .width(214)
@@ -420,8 +407,6 @@ struct CdeMotifSketch {
   // grey ramp that crosses both thresholds.
 
   Element derivationStrip() {
-    const Set& s = theme[2];
-    environment::Provide<cde::ColorSet> stripColors(s);
     const int v = std::clamp((int)std::lround(sweep.value() * 255.0f), 0, 255);
     const cde::Rgb bgv =
         cde::from8((uint32_t)v << 16u | (uint32_t)v << 8u | (uint32_t)v);
@@ -452,14 +437,16 @@ struct CdeMotifSketch {
     for (const measure::Check& c : derivation().rows)
       proof.children(
           {cde::label(measure::line(c, {.labelWidth = 22, .valueWidth = 9}),
-                      10.0f, c.pass ? s.fg : s.bs)});
+                      10.0f)
+               .ink(var(c.pass ? "foreground" : "bevel-shadow"))});
 
-    return cde::surface(s)
+    return cde::surface()
+        .styleClass("colour-set-2")
         .overlay(cde::bevel(2, false, false))
         .padding(2)
         .column()
-        .children({box().padding(6, 8).children({cde::mnemonicLabel(
-                       doc["derivation"].string(), s.fg, 0)}),
+        .children({box().padding(6, 8).children(
+                       {cde::mnemonicLabel(doc["derivation"].string(), 0)}),
                    box()
                        .row()
                        .gap(18)
@@ -487,13 +474,20 @@ struct CdeMotifSketch {
    *  the bottom-shadow ground rather than thirty-one boxes a flexbox has
    *  to lay out — the phase puts the light rows on the odd ones. */
   Element handle() {
-    const Set s = cde::ambient();
     return kit::centred()
         .width(18)
 
-        .children({box().width(18).height(31).fill(s.bs).overlay(
-            decorations::wash(sigil::material::pattern::scanlines(
-                {.color = s.ts, .period = 2, .on = 1, .phase = 1})))});
+        .children(
+            {box()
+                 .width(18)
+                 .height(31)
+                 .fill(var("bevel-shadow"))
+                 .overlay(cde::WashInForce{
+                     [](material::Color light) {
+                       return pattern::scanlines(
+                           {.color = light, .period = 2, .on = 1, .phase = 1});
+                     },
+                     var("bevel-light")})});
   }
 
   Element panelSeparator() {
@@ -511,12 +505,14 @@ struct CdeMotifSketch {
    *  are what a 1993 pixmap arrow is made of. An inscribed triangle would
    *  draw a smaller shape with a smoothed hypotenuse. */
   Element control(Element icon, float w, bool subpanelArrow) {
-    const Set s = cde::ambient();
     Element chev = kit::centred().height(10);
     if (subpanelArrow) {
       Element up = box().column().alignItems(Align::Center);
       for (int i = 0; i < 4; ++i)
-        up.children({box().width((float)(1 + i * 2)).height(1).fill(s.fg)});
+        up.children({box()
+                         .width((float)(1 + i * 2))
+                         .height(1)
+                         .fill(var("foreground"))});
       chev.children({std::move(up)});
     }
     return kit::centred()
@@ -531,13 +527,16 @@ struct CdeMotifSketch {
    *  step is declared with bind().quantize(61) rather than left to
    *  emerge from the frame rate. */
   Element clockIcon() {
-    const Set s = cde::ambient();
     Element face = stack().width(48).height(48);
     face.children(
-        {box().inset(0).borderRadius({24}).fill(s.bg).foreground(
-             PathFormat{.width = 2,
-                        .strokeFill = Fill::color(cde::C(cde::kIconGray[6])),
-                        .align = PathFormat::Align::Inner}),
+        {box()
+             .inset(0)
+             .borderRadius({24})
+             .fill(var("background"))
+             .foreground(PathFormat{
+                 .width = 2,
+                 .strokeFill = Fill::color(cde::C(cde::kIconGray[6])),
+                 .align = PathFormat::Align::Inner}),
          box().inset(4).borderRadius({20}).fill(cde::C(cde::kIconGray[0]))});
     // Twelve ticks, entered at twelve o'clock and swept the whole way
     // round. `arrange::onRing` is the ring arithmetic's origin; a sketch
@@ -589,28 +588,30 @@ struct CdeMotifSketch {
 
   /** FpCM, the date control — a calendar page. */
   Element dateIcon() {
-    const Set s = cde::ambient();
-    return stack().width(48).height(48).ink(s.fg).children(
-        {box()
-             .inset(2, 3)
-             .fill(cde::C(cde::kIconColor[1]))
-             .overlay(cde::bevel(2, false, false)),
-         kit::centred()
-             .left(5)
-             .top(4)
-             .width(38)
-             .height(13)
-             .fill(s.sel)
+    return stack()
+        .width(48)
+        .height(48)
+        .ink(var("foreground"))
+        .children({box()
+                       .inset(2, 3)
+                       .fill(cde::C(cde::kIconColor[1]))
+                       .overlay(cde::bevel(2, false, false)),
+                   kit::centred()
+                       .left(5)
+                       .top(4)
+                       .width(38)
+                       .height(13)
+                       .fill(var("select"))
 
-             .children({cde::label(doc["date"]["month"], 11.0f)}),
-         kit::centred()
-             .left(5)
-             .top(18)
-             .width(38)
-             .height(24)
+                       .children({cde::label(doc["date"]["month"], 11.0f)}),
+                   kit::centred()
+                       .left(5)
+                       .top(18)
+                       .width(38)
+                       .height(24)
 
-             .children({cde::label(doc["date"]["day"], 19.0f,
-                                   cde::C(cde::kIconColor[0]))})});
+                       .children({cde::label(doc["date"]["day"], 19.0f,
+                                             cde::C(cde::kIconColor[0]))})});
   }
 
   /** The SWITCH: dtwm.fp.src gives it NUMBER_OF_ROWS 2, plus Lock, the
@@ -625,9 +626,8 @@ struct CdeMotifSketch {
       Element rr = box().row().gap(3);
       for (int c = 0; c < 2; ++c) {
         const int i = r * 2 + c;
-        const Set& ws = theme[kSets[i]];
-        environment::Provide<cde::ColorSet> workspaceColors(ws);
-        rr.children({cde::surface(ws)
+        rr.children({cde::surface()
+                         .styleClass(cde::colourSet(kSets[i]))
                          .width(129)
                          .height(22)
                          .overlay(cde::bevel(2, false, false))
@@ -665,11 +665,9 @@ struct CdeMotifSketch {
   }
 
   Element frontPanel() {
-    const Set& s = theme[2];  // dtsession: the primary colour set
     // The panel's chrome — its bevels, the handle's texture, the date
-    // page's month band — reads the ambient set, so the set is bound here,
-    // at the scope that owns the panel.
-    environment::Provide<cde::ColorSet> panel(s);
+    // page's month band — reads the set in force, so the panel names
+    // dtsession's primary colour set, 2, at the node that owns it.
 
     Element rowEl = box().row().alignItems(Align::Center).height(74);
     rowEl.children({handle(),
@@ -701,12 +699,13 @@ struct CdeMotifSketch {
     // A raised T = 2 shell containing a raised T = 2 box, 2 px apart
     // [MEAS: ts/ts/bg/bg/ts/ts going in from the top edge].
     return box()
-        .fill(s.bg)
+        .styleClass("colour-set-2")
+        .fill(var("background"))
         .overlay(cde::bevel(2, false, false))
         .padding(4)
         .children({box()
                        .flexGrow(1)
-                       .fill(s.bg)
+                       .fill(var("background"))
                        .overlay(cde::bevel(2, false, false))
                        .padding(2)
                        .children({std::move(rowEl)})});
@@ -719,10 +718,9 @@ struct CdeMotifSketch {
    *  node's decorations, which is exactly what a bevelled panel needs
    *  and what trim()/scaleY could not have given. */
   Element helpSubpanel() {
-    const Set& s = theme[2];
-    environment::Provide<cde::ColorSet> panelColors(s);
     Element col =
-        cde::surface(s)
+        cde::surface()
+            .styleClass("colour-set-2")
             .overlay(cde::bevel(2, false, false))
             .padding(4)
             .column()
@@ -744,20 +742,19 @@ struct CdeMotifSketch {
    *  with the theme along with everything else. */
   Element iconifiedWindow(std::string_view title,
                           const std::vector<std::string>& pixmap) {
-    const Set& s = theme[2];
-    environment::Provide<cde::ColorSet> iconColors(s);
     return box()
+        .styleClass("colour-set-2")
         .column()
         .alignItems(Align::Center)
         .gap(2)
         .children({kit::centred()
                        .width(64)
                        .height(64)
-                       .fill(s.bg)
+                       .fill(var("background"))
                        .overlay(cde::bevel(2, false, false))
 
                        .children({cde::art(pixmap, 2.0f)}),
-                   cde::surface(s)
+                   cde::surface()
                        .overlay(cde::bevel(1, false, false))
                        .padding(1, 4)
                        .children({cde::label(title)})});
@@ -768,7 +765,11 @@ struct CdeMotifSketch {
     // CDE has no type hierarchy, so every label under here is set in this
     // and says only its words. The colour is not part of it — a colour
     // set's foreground is the ink of whatever wears the set.
-    Element root = stack().width(1152).height(900).font(cde::uiType());
+    Element root = stack()
+                       .width(1152)
+                       .height(900)
+                       .font(cde::uiType())
+                       .applyStyleSheet(theme.styleSheet());
 
     // 1. The root window: PinStripe, tiled, in colour set 3's shadows.
     //    ONE 28 x 52 pixmap that dtwm tiles — not instanced, not
@@ -871,10 +872,10 @@ struct CdeMotifSketch {
       paletteIndex =
           ((int)std::floor(elapsed / 3.0)) % (int)cde::kPalettes.size();
       theme.load(*cde::kPalettes[(size_t)paletteIndex]);
-      // A palette change is a re-describe, which is what the inherited
-      // channel makes it: the reconciler patches the nodes whose properties
-      // moved and leaves the rest, where a bound colour would have made
-      // every node on the desktop volatile for ever to save this.
+      // A palette change is a re-describe with the new palette's sheet on
+      // the root: the reconciler repaints the nodes whose properties moved
+      // and leaves the rest, where a bound colour would have made every
+      // node on the desktop volatile for ever to save this.
       ctx.composer.render(describe(ctx));
     }
 

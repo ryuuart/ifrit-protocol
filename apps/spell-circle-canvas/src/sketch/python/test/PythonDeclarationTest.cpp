@@ -97,32 +97,23 @@ TEST(SketchPython, ADescribedTreeIsRenderedAgainAtEveryStep) {
   EXPECT_EQ(late.getColor(32, 24), SK_ColorGREEN);
 }
 
-TEST(SketchPython,
-     TheDecoratorsThemeStagesTheCanvasAndIsProvidedAroundEachStep) {
+TEST(SketchPython, TheDecoratorsThemeStagesTheCanvasAndItsSheet) {
   PythonSource source("sigil_python_decorator_theme");
   // The theme's ground is the canvas's background where none is stated,
-  // and the theme is the one in scope in setup, describe and update.
+  // and its sheet stands at the root of every tree the sketch renders, so
+  // a well the describe returns takes the theme's cell ground.
   source.write("entry.py",
-               "import builtins\n"
-               "from sigil.compose import Element, box\n"
+               "from sigil.compose import Element\n"
                "from sigil.sketch import kit, sketch\n"
                "LOOK = kit.featureTheme(kit.Density.Spacious)\n"
                "palette = LOOK.palette\n"
                "palette.ground = '#336699'\n"
+               "palette.cellGround = '#00ff00'\n"
                "LOOK.palette = palette\n"
-               "builtins._sigil_theme_seen = []\n"
-               "def seen(where):\n"
-               "    ground = tuple(kit.theme().palette.ground)\n"
-               "    builtins._sigil_theme_seen.append((where, ground))\n"
                "@sketch(size=(96, 72), captureAt=0.25, theme=LOOK)\n"
                "class Study:\n"
-               "    def setup(self, ctx):\n"
-               "        seen('setup')\n"
-               "    def update(self, elapsed):\n"
-               "        seen('update')\n"
                "    def describe(self, seconds) -> Element:\n"
-               "        seen('describe')\n"
-               "        return box().width(10).height(10)\n");
+               "        return kit.well(width=96, height=72)\n");
   const sketch::Kind kind = sketch::python::load(source.entry());
   auto session = kind->open(fonts(), assets(), true, "themed");
   const SkBitmap pixels = drawnFrame(*session, 96, 72, 1.0 / 60.0);
@@ -133,22 +124,8 @@ TEST(SketchPython,
   EXPECT_NEAR(ground.r, 0x33 / 255.0f, 1e-3f);
   EXPECT_NEAR(ground.g, 0x66 / 255.0f, 1e-3f);
   EXPECT_NEAR(ground.b, 0x99 / 255.0f, 1e-3f);
-  const pybind11::gil_scoped_acquire lock;
-  pybind11::module_ builtins = pybind11::module_::import("builtins");
-  const pybind11::list seen = builtins.attr("_sigil_theme_seen");
-  std::vector<std::string> places;
-  for (pybind11::handle entry : seen) {
-    const auto where = entry[pybind11::int_(0)].cast<std::string>();
-    const pybind11::tuple colour = entry[pybind11::int_(1)];
-    places.push_back(where);
-    ASSERT_GE(colour.size(), 3u);
-    EXPECT_NEAR(colour[0].cast<float>(), 0x33 / 255.0f, 1e-3f) << where;
-    EXPECT_NEAR(colour[2].cast<float>(), 0x99 / 255.0f, 1e-3f) << where;
-  }
-  builtins.attr("__dict__").attr("pop")("_sigil_theme_seen");
-  for (const char* where : {"setup", "update", "describe"})
-    EXPECT_NE(std::find(places.begin(), places.end(), where), places.end())
-        << where << " ran without the decorator's theme";
+  EXPECT_EQ(pixels.getColor(48, 36), SK_ColorGREEN)
+      << "the well reads the staged theme's cell ground";
 }
 
 TEST(SketchPython, TheDecoratorStatesTheCaptureMomentAsCaptureAt) {

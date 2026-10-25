@@ -19,18 +19,19 @@ using compose::Fill;
 namespace document = compose::document;
 
 compose::Element meter(const Meter& bar) {
-  const Theme& look = theme();
+  using compose::var;
+  const Theme& house = houseTheme();
   const float filled = std::clamp(bar.fraction, 0.0f, 1.0f);
   const compose::Fill trackPaint =
-      bar.track.value_or(Fill::color(look.palette.cellGround));
+      bar.track.value_or(compose::var("palette-cell-ground"));
   const compose::Fill barPaint =
-      bar.bar.value_or(Fill::color(look.palette.figure));
+      bar.bar.value_or(compose::var("palette-figure"));
 
   Element rail = box();
   rail.fill(trackPaint);
   rail.overflow(compose::Overflow::Clip);
   if (bar.width.unit != Dimension::Unit::Auto) rail.width(bar.width);
-  rail.height(bar.height.value_or(Dimension(look.spacing.barHeight)));
+  rail.height(bar.height.value_or(var("spacing-bar-height")));
   if (bar.corners > 0) rail.borderRadius(Corners{bar.corners});
   if (bar.keyline)
     rail.stroke(compose::stroke(bar.keylineWidth, *bar.keyline,
@@ -41,7 +42,8 @@ compose::Element meter(const Meter& bar) {
     // recording and only the transform moves.
     Element run = box().absolute().inset(bar.inset.value_or(0.0f));
     run.fill(barPaint);
-    run.transformOrigin(compose::percent(0), compose::percent(50)).scaleX(*bar.level);
+    run.transformOrigin(compose::percent(0), compose::percent(50))
+        .scaleX(*bar.level);
     if (bar.corners > 0) run.borderRadius(Corners{bar.corners});
     rail.children({std::move(run)});
   } else if (filled > 0) {
@@ -49,8 +51,9 @@ compose::Element meter(const Meter& bar) {
     // a rail is laid out in whichever direction its caller's tree runs,
     // and a fill that took its height from that would be a hairline on
     // half of them.
-    Element run =
-        box().width(compose::percent(filled * 100)).height(compose::percent(100));
+    Element run = box()
+                      .width(compose::percent(filled * 100))
+                      .height(compose::percent(100));
     run.fill(barPaint);
     run.alignSelf(Align::Stretch);
     if (bar.corners > 0) run.borderRadius(Corners{bar.corners});
@@ -64,21 +67,22 @@ compose::Element meter(const Meter& bar) {
   Element head = box().row().alignItems(Align::Baseline);
   if (!bar.label.empty())
     head.children({document::caption(bar.label).role(
-        "caption", look.font(look.type.captionNote, look.palette.ash))});
+        "caption", house.font(house.type.captionNote), var("palette-ash"))});
   head.children({box().flexGrow(1)});
   if (!bar.reading.empty())
     head.children({document::paragraph(bar.reading)
-                       .role("paragraph", look.font(look.type.captionLabel,
-                                                    look.palette.figure))
+                       .role("paragraph", house.font(house.type.captionLabel),
+                             var("palette-figure"))
                        .styleClass("readout")});
   column.children({std::move(head)});
   column.children(
-      {std::move(rail.margin(look.spacing.captionNoteGap, 0, 0, 0))});
+      {std::move(rail.margin(var("spacing-caption-note-gap"), 0, 0, 0))});
   return column;
 }
 
 compose::Element gauge(const Gauge& dial) {
-  const Theme& look = theme();
+  using compose::var;
+  const Theme& house = houseTheme();
   const float swept = std::clamp(dial.fraction, 0.0f, 1.0f);
   const float diameter = std::max(dial.diameter, 1.0f);
   // `Sector`'s inner ratio is a fraction of the RADIUS, so a ring of
@@ -93,22 +97,22 @@ compose::Element gauge(const Gauge& dial) {
   };
 
   Element face = box().width(diameter).height(diameter);
-  face.children({ring(dial.sweepDegrees, dial.track.value_or(Fill::color(
-                                             look.palette.cellGround)))});
+  face.children({ring(dial.sweepDegrees, dial.track.value_or(compose::var(
+                                             "palette-cell-ground")))});
   if (swept > 0)
     face.children({ring(dial.sweepDegrees * swept,
-                        dial.bar.value_or(Fill::color(look.palette.figure)))});
+                        dial.bar.value_or(compose::var("palette-figure")))});
   if (!dial.reading.empty())
-    face.children(
-        {box()
-             .absolute()
-             .inset(0)
-             .alignItems(Align::Center)
-             .justifyContent(compose::Justify::Center)
-             .children({document::paragraph(dial.reading)
-                            .role("paragraph", look.font(look.type.captionLabel,
-                                                         look.palette.figure))
-                            .styleClass("readout")})});
+    face.children({box()
+                       .absolute()
+                       .inset(0)
+                       .alignItems(Align::Center)
+                       .justifyContent(compose::Justify::Center)
+                       .children({document::paragraph(dial.reading)
+                                      .role("paragraph",
+                                            house.font(house.type.captionLabel),
+                                            var("palette-figure"))
+                                      .styleClass("readout")})});
   return face;
 }
 

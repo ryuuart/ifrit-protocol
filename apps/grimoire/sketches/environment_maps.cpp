@@ -75,9 +75,9 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {1100, 1350};
-constexpr float kDoor = 240;     // a door cell's width
+constexpr float kDoor = 240;      // a door cell's width
 constexpr float kDoorTall = 180;  // …and its picture's height
-constexpr float kDial = 328;     // a dial cell's width
+constexpr float kDial = 328;      // a dial cell's width
 constexpr float kDialTall = 236;  // …and its picture's height
 
 constexpr int kFaceSide = 128;  // each cube face's resolution
@@ -103,13 +103,17 @@ Element face(material::Color tint, float bar) {
   const float side = (float)kFaceSide;
   const material::Color shade{tint.r * 0.45f, tint.g * 0.45f, tint.b * 0.45f,
                               1};
-  return box().width(side).height(side).fill(Fill::color(tint)).children(
-      {kit::at(box().fill(Fill::color({1, 1, 1, 0.85f})), 0, side * bar, side,
-               side * 0.10f),
-       kit::at(box()
-                   .shape(shapes::circle())
-                   .stroke(stroke(side * 0.08f, Fill::color(shade))),
-               side * 0.26f, side * 0.26f, side * 0.48f, side * 0.48f)});
+  return box()
+      .width(side)
+      .height(side)
+      .fill(Fill::color(tint))
+      .children(
+          {kit::at(box().fill(Fill::color({1, 1, 1, 0.85f})), 0, side * bar,
+                   side, side * 0.10f),
+           kit::at(box()
+                       .shape(shapes::circle())
+                       .stroke(stroke(side * 0.08f, Fill::color(shade))),
+                   side * 0.26f, side * 0.26f, side * 0.48f, side * 0.48f)});
 }
 
 /** The six faces in the order every graphics API names them: +x, -x, +y,
@@ -160,16 +164,16 @@ sketch::kit::ComparisonCase door(const char* title, const char* call,
                                  const char* note,
                                  const material::EnvironmentMap& panorama,
                                  sk_sp<SkImage> baked) {
-  return {.title = title,
-          .control = call,
-          .figure = box().column().gap(8).children(
-              {image(panorama.texture(0).source(), material::Fit::Stretch)
-                   .width(kDoor)
-                   .height(kDoor / 2),
-               sketch::kit::well(
-                   {.width = kDoor, .height = kDoorTall},
-                   image(std::move(baked), material::Fit::Stretch))}),
-          .note = note};
+  return {
+      .title = title,
+      .control = call,
+      .figure = box().column().gap(8).children(
+          {image(panorama.texture(0).source(), material::Fit::Stretch)
+               .width(kDoor)
+               .height(kDoor / 2),
+           sketch::kit::well({.width = kDoor, .height = kDoorTall},
+                             image(std::move(baked), material::Fit::Stretch))}),
+      .note = note};
 }
 
 /** A dial cell: the bake IS the well's surface. */
@@ -194,22 +198,19 @@ struct EnvironmentMaps {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // every bake has already been taken
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
 
-    const material::EnvironmentMap studio =
-        shapeworks_lab::studioEnvironment();
-    const material::EnvironmentMap sunset =
-        shapeworks_lab::sunsetEnvironment();
+    const material::EnvironmentMap studio = shapeworks_lab::studioEnvironment();
+    const material::EnvironmentMap sunset = shapeworks_lab::sunsetEnvironment();
 
     // The six faces are drawn ONCE each and read twice — as faces, and
     // laid into the 6:1 row the cube-map layout is named by.
     const std::array<Element, 6> trees = faceTrees();
     material::EnvironmentMap::Faces six;
     for (size_t index = 0; index < trees.size(); ++index)
-      six[index] =
-          ctx.texture(trees[index], {kFaceSide, kFaceSide}).source();
+      six[index] = ctx.texture(trees[index], {kFaceSide, kFaceSide}).source();
     const material::EnvironmentMap resampled =
         material::EnvironmentMap::fromFaces(six);
     const material::EnvironmentMap unpacked =
@@ -222,8 +223,7 @@ struct EnvironmentMaps {
 
     /** One frame: the subject under @p panorama and @p dials, seen
      *  through a camera at @p exposure, at the size of the cell it fills. */
-    const auto bake = [&](const material::EnvironmentMap& panorama,
-                          SkSize cell,
+    const auto bake = [&](const material::EnvironmentMap& panorama, SkSize cell,
                           world::EnvironmentOptions dials = {},
                           float exposure = 1.0f) {
       world::Frame frame(
@@ -231,9 +231,8 @@ struct EnvironmentMaps {
               {world::camera(lens(), {.exposure = exposure}), subject()})
               .key("set"));
       frame.environment(panorama, std::move(dials));
-      return ctx.bakeScene3D(
-          frame, {(int)cell.width(), (int)cell.height()},
-          {.camera = lens(), .background = kCellGround});
+      return ctx.bakeScene3D(frame, {(int)cell.width(), (int)cell.height()},
+                             {.camera = lens(), .background = kCellGround});
     };
     const SkSize doorCell{kDoor, kDoorTall};
     const SkSize dialCell{kDial, kDialTall};

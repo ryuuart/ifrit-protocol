@@ -1,5 +1,3 @@
-#include <sigildraw/Pen.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
@@ -8,6 +6,8 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Theme.h>
@@ -37,7 +37,6 @@ auto outlineDrawnBy(Draw draw) {
     return geometry::path::fromSk(draw(SkSize{box.x, box.y}));
   };
 }
-
 
 /** WHERE A MARK STANDS on @p ranged — the middle of the band a transform
  *  with bands gives @p value, the value's own position where there is no
@@ -220,23 +219,25 @@ Layer axis(const Ruler& how) {
   return [how](const Plot& frame, std::string_view key, std::size_t index) {
     const double other = standsAt(how, frame);
     const std::vector<double> ticks = tickValues(how, frame);
-    const float reach = how.reach.value_or(theme().spacing.tickReach);
+    const float reach = how.reach.value_or(5.0f);
     const bool polar = frame.polar.has_value();
     std::vector<Element> parts;
 
     if (how.line)
       parts.push_back(recorded(
           named(key, "axis", index), "plotAxis",
-          [how, frame, other, polar](sigil::draw::Pen& drawingPen, const PaintContext& pc) {
+          [how, frame, other, polar](sigil::draw::Pen& drawingPen,
+                                     const PaintContext& pc) {
             SkCanvas& canvas = *drawingPen.canvas();
             SkPaint pen = strokePen(pc, how.width);
             if (polar && how.of == Axis::X) {
               // The rim: the whole sweep at the radius `other` stands at.
-              const float r =
-                  (float)frame.radiusFraction(other) * frame.radius(SkSize{pc.size.x, pc.size.y});
+              const float r = (float)frame.radiusFraction(other) *
+                              frame.radius(SkSize{pc.size.x, pc.size.y});
               const data::Interval sweep = frame.polar->sweep;
-              canvas.drawArc(ring(frame.centre(SkSize{pc.size.x, pc.size.y}), r), (float)sweep.low,
-                             (float)sweep.extent(), false, pen);
+              canvas.drawArc(
+                  ring(frame.centre(SkSize{pc.size.x, pc.size.y}), r),
+                  (float)sweep.low, (float)sweep.extent(), false, pen);
               return;
             }
             if (polar) {
@@ -257,9 +258,11 @@ Layer axis(const Ruler& how) {
             // only its position comes from the other scale's mapping, so a
             // category axis is as long as the field whatever its domain is.
             const data::Scale across =
-                frame.scale(how.of == Axis::X ? Axis::X : Axis::Y, SkSize{pc.size.x, pc.size.y});
+                frame.scale(how.of == Axis::X ? Axis::X : Axis::Y,
+                            SkSize{pc.size.x, pc.size.y});
             const data::Scale along =
-                frame.scale(how.of == Axis::X ? Axis::Y : Axis::X, SkSize{pc.size.x, pc.size.y});
+                frame.scale(how.of == Axis::X ? Axis::Y : Axis::X,
+                            SkSize{pc.size.x, pc.size.y});
             const float fixed = (float)along.apply(other);
             const float from = (float)across.range.low;
             const float to = (float)across.range.high;
@@ -272,7 +275,8 @@ Layer axis(const Ruler& how) {
     if (reach > 0 && !ticks.empty())
       parts.push_back(recorded(
           named(key, "tick", index), "plotTick",
-          [how, frame, other, ticks, reach, polar](sigil::draw::Pen& drawingPen, const PaintContext& pc) {
+          [how, frame, other, ticks, reach, polar](sigil::draw::Pen& drawingPen,
+                                                   const PaintContext& pc) {
             SkCanvas& canvas = *drawingPen.canvas();
             SkPaint pen = strokePen(pc, how.width);
             if (polar) {
@@ -301,9 +305,10 @@ Layer axis(const Ruler& how) {
             // A tick reaches OUTWARD from the field: down off an x axis,
             // left off a y one.
             for (double tick : ticks) {
-              const SkPoint point = how.of == Axis::X
-                                        ? frame.at(tick, other, SkSize{pc.size.x, pc.size.y})
-                                        : frame.at(other, tick, SkSize{pc.size.x, pc.size.y});
+              const SkPoint point =
+                  how.of == Axis::X
+                      ? frame.at(tick, other, SkSize{pc.size.x, pc.size.y})
+                      : frame.at(other, tick, SkSize{pc.size.x, pc.size.y});
               if (how.of == Axis::X)
                 canvas.drawLine(point, {point.fX, point.fY + reach}, pen);
               else
@@ -476,7 +481,8 @@ Layer trace(std::span<const double> series, const Trace& how) {
                 std::string(detail::classOf(how.styleClass, "plotTrace")))
             .cover()
             .shape(compose::keyedShape(
-                std::tuple{name, frame, held}, outlineDrawnBy([held, frame](SkSize box) {
+                std::tuple{name, frame, held},
+                outlineDrawnBy([held, frame](SkSize box) {
                   SkPathBuilder path;
                   if (held.empty()) return SkPath();
                   const data::Interval domain = frame.x.domain;
@@ -547,7 +553,8 @@ Layer area(sigil::core::Callable<double(double)> f, const Area& how) {
           SkPaint pen;
           pen.setAntiAlias(true);
           pen.setColor4f(material::skia::toSkColor(pc.ink));
-          SkPathBuilder path = walked(frame, f, how.samples, SkSize{pc.size.x, pc.size.y});
+          SkPathBuilder path =
+              walked(frame, f, how.samples, SkSize{pc.size.x, pc.size.y});
           // Closed back along the base, so the band between the
           // curve and that value is what is filled.
           const int steps = std::max(how.samples, 1);

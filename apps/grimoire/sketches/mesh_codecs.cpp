@@ -149,8 +149,8 @@ std::string lanes(const mesh::Cloud& cloud) {
 /** A file's text in a well, set in a monospaced face. */
 Element listing(const std::string& text) {
   return sketch::kit::well({.width = kCell, .height = 254, .padding = 16})
-      .children({sigil::compose::text(text, mono(11, kFigure))
-                     .width(kCell - 32)});
+      .children(
+          {sigil::compose::text(text, mono(11, kFigure)).width(kCell - 32)});
 }
 
 /** The grid the `.geo` row writes: a lattice spanned z then x so its
@@ -185,10 +185,12 @@ struct MeshCodecs {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     // THE SOURCE. Rows 01 and 02 are this mesh, or its points, after a
     // trip through a file.
@@ -234,7 +236,8 @@ struct MeshCodecs {
     const std::string cloudPly = codec::encode::ply(motes);
     const auto cloudBack =
         codec::decode::model(cloudPly.data(), cloudPly.size(), "motes.ply");
-    const mesh::Cloud read = cloudBack ? cloudBack->mergedCloud() : mesh::Cloud{};
+    const mesh::Cloud read =
+        cloudBack ? cloudBack->mergedCloud() : mesh::Cloud{};
     // Bounds over every part, then the one transform that centres a model
     // and scales its longest extent to a stated size.
     glm::vec3 low{0}, high{0};
@@ -242,8 +245,8 @@ struct MeshCodecs {
     mesh::Mesh fitted = fromAscii ? fromAscii->merged() : mesh::Mesh{};
     if (fromAscii) fitted.transform(fromAscii->fitTransform(120.0f));
     const auto headerEnd = cloudPly.find("end_header");
-    const std::string header = cloudPly.substr(
-        0, headerEnd == std::string::npos ? 0 : headerEnd + 10);
+    const std::string header =
+        cloudPly.substr(0, headerEnd == std::string::npos ? 0 : headerEnd + 10);
 
     // 03 — A GROUP. asCloud(): positions, "normal" from N, "tint" from Cd,
     // and every group under its own name.
@@ -269,25 +272,24 @@ struct MeshCodecs {
         box().column().gap(26).children(
             {document::h2("01 / A MESH · PLY, ASCII AND BINARY"),
              sketch::kit::comparison(
-                 {.cases = {{.title = "GENERATED TORUS",
-                             .control = "R 62 · r 23 · 48 × 24",
-                             .figure = meshFigure(source),
-                             .note = kit::formatted("%zu vertices · %zu "
-                                                    "triangles",
-                                                    source.vertexCount(),
-                                                    source.triangleCount())},
-                            {.title = "ASCII ROUND TRIP",
-                             .control = "encode::ply(mesh)",
-                             .figure = meshFigure(fromAscii
-                                                      ? fromAscii->merged()
-                                                      : mesh::Mesh{}),
-                             .note = returned(fromAscii, ascii.size())},
-                            {.title = "BINARY ROUND TRIP",
-                             .control = "binary = true",
-                             .figure = meshFigure(fromBinary
-                                                      ? fromBinary->merged()
-                                                      : mesh::Mesh{}),
-                             .note = returned(fromBinary, binary.size())}},
+                 {.cases =
+                      {{.title = "GENERATED TORUS",
+                        .control = "R 62 · r 23 · 48 × 24",
+                        .figure = meshFigure(source),
+                        .note = kit::formatted("%zu vertices · %zu "
+                                               "triangles",
+                                               source.vertexCount(),
+                                               source.triangleCount())},
+                       {.title = "ASCII ROUND TRIP",
+                        .control = "encode::ply(mesh)",
+                        .figure = meshFigure(fromAscii ? fromAscii->merged()
+                                                       : mesh::Mesh{}),
+                        .note = returned(fromAscii, ascii.size())},
+                       {.title = "BINARY ROUND TRIP",
+                        .control = "binary = true",
+                        .figure = meshFigure(fromBinary ? fromBinary->merged()
+                                                        : mesh::Mesh{}),
+                        .note = returned(fromBinary, binary.size())}},
                   .measure = kMeasure,
                   .gap = 24}),
              document::h2("02 / A CLOUD · LANES AS NAMED PROPERTIES"),
@@ -323,23 +325,24 @@ struct MeshCodecs {
                  {.cases =
                       {{.title = "THE GROUP RETURNS AS A LANE",
                         .control = "pop::on(part.asCloud())",
-                        .figure = splat(
-                            "group",
-                            pop::on(seed).operation(ringLarger).cloud(),
-                            kGridView, 6),
+                        .figure =
+                            splat("group",
+                                  pop::on(seed).operation(ringLarger).cloud(),
+                                  kGridView, 6),
                         .note = "Cd from the file; the ring group, scaled up "
                                 "by a Math masked with it."},
                        {.title = "A MASK ON ARRIVAL",
                         .control = "twist(70).masked(\"ring\")",
-                        .figure = splat("mask",
-                                        pop::on(seed)
-                                            .twist(70, {0, 1, 0}, -1, 1)
-                                            .masked("ring")
-                                            .peak(30)
-                                            .masked("ring")
-                                            .operation(ringLarger)
-                                            .cloud(),
-                                        kGridView, 6),
+                        .figure =
+                            splat("mask",
+                                  pop::on(seed)
+                                      .twist(70, {0, 1, 0}, -1, 1)
+                                      .masked("ring")
+                                      .peak(30)
+                                      .masked("ring")
+                                      .operation(ringLarger)
+                                      .cloud(),
+                                  kGridView, 6),
                         .note = "Only the group the file named turns and "
                                 "lifts."},
                        {.title = "WHAT CAME BACK",

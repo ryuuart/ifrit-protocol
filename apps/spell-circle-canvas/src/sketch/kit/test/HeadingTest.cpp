@@ -25,6 +25,7 @@ using sigil::sketch::kit::test::kTall;
 using sigil::sketch::kit::test::kWide;
 using sigil::sketch::kit::test::sameDrawing;
 using sigil::sketch::kit::test::subject;
+using sigil::sketch::kit::test::withProperties;
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
 
@@ -142,7 +143,11 @@ TEST(SketchKitHeading, ALineSetsItsOwnInk) {
 TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
   kit::Theme paper = kit::houseTheme();
   paper.type.title.face = paper.type.mono;
-  const kit::Provide look(paper);
+  const auto sheeted = [&](Element tree) {
+    return compose::box()
+        .applyStyleSheet(paper.styleSheet())
+        .children({std::move(tree)});
+  };
   Element byHand =
       compose::box()
           .column()
@@ -153,18 +158,22 @@ TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
                                        .size = paper.type.title.size,
                                        .color = paper.palette.ink,
                                        .track = paper.type.title.track}))});
-  EXPECT_TRUE(sameDrawing(std::move(byHand),
-                          kit::titleCard({.title = {u8"THE STROKE ATLAS"}})));
+  EXPECT_TRUE(
+      sameDrawing(sheeted(std::move(byHand)),
+                  sheeted(kit::titleCard({.title = {u8"THE STROKE ATLAS"}}))));
 }
 
 /** A FAMILY THE SHEET SETS REACHES THE CARD'S LINES: stated once on the
- *  root, it is the family the title is set in under a theme whose own face
- *  is another, and a rule's weight resolves in it. */
+ *  root, where no rule names the title's face, it is the family the title
+ *  is set in, in the ink of the theme whose properties stand above it, and
+ *  a rule's weight resolves in it. */
 TEST(SketchKitHeading, AFamilyTheSheetSetsReachesTheCardsLines) {
   const kit::Theme& feature = kit::featureTheme();
-  const kit::Provide look(feature);
+  const kit::Theme& house = kit::houseTheme();
   const auto underGeorgia = [&](Element tree) {
-    return compose::box().fontFamily("Georgia").children({std::move(tree)});
+    return withProperties(
+        compose::box().fontFamily("Georgia").children({std::move(tree)}),
+        feature);
   };
   const auto title = [&](int weight) {
     return underGeorgia(
@@ -172,22 +181,24 @@ TEST(SketchKitHeading, AFamilyTheSheetSetsReachesTheCardsLines) {
             .column()
             .alignItems(compose::Align::Start)
             .children({compose::text(u8"T")
-                           .font({.size = feature.type.title.size,
+                           .font({.size = house.type.title.size,
                                   .color = feature.palette.ink,
-                                  .track = feature.type.title.track})
+                                  .track = house.type.title.track})
                            .fontWeight(weight)}));
   };
   const Element card = kit::titleCard({.title = {u8"T"}});
   EXPECT_TRUE(sameDrawing(underGeorgia(card), title(400)));
-  EXPECT_TRUE(sameDrawing(compose::box()
-                              .applyStyleSheet(compose::StyleSheet{
-                                  compose::rule("h1").fontWeight(700)})
-                              .fontFamily("Georgia")
-                              .children({card}),
-                          title(700)));
+  EXPECT_TRUE(
+      sameDrawing(withProperties(compose::box()
+                                     .applyStyleSheet(compose::StyleSheet{
+                                         compose::rule("h1").fontWeight(700)})
+                                     .fontFamily("Georgia")
+                                     .children({card}),
+                                 feature),
+                  title(700)));
   // What gives the case its power: the card with no family above it is
   // another picture, so Georgia is what reached the title.
-  EXPECT_FALSE(sameDrawing(card, underGeorgia(card)));
+  EXPECT_FALSE(sameDrawing(withProperties(card, feature), underGeorgia(card)));
 }
 
 /** The rule follows the label; the supporting note stays below the heading. */
@@ -204,7 +215,6 @@ TEST(SketchKitHeading, ASectionKeepsItsFigureAfterAWrappedHeading) {
   const auto described = [](float gap) {
     kit::Theme sheet = kit::featureTheme();
     sheet.spacing.sectionGap = gap;
-    const kit::Provide look(sheet);
     return kit::section(
                {.label = "THE OBSERVATION",
                 .note = "A supporting note wraps within the available measure "

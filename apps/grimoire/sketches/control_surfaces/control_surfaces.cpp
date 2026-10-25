@@ -124,8 +124,8 @@ constexpr float kWindSpan = 34.0f;  // the reading the drawn fader reads as full
 // MIDI: eight cells, four across, and the light written back.
 constexpr size_t kCells = 8;
 constexpr size_t kColumns = 4;
-constexpr int kFirstNote = 36;      // the note the first pad sends
-constexpr int kLightChannel = 1;    // the channel the lights go back on
+constexpr int kFirstNote = 36;       // the note the first pad sends
+constexpr int kLightChannel = 1;     // the channel the lights go back on
 constexpr int kLightVelocity = 127;  // full: the colour every pad agrees on
 constexpr float kStrike = 0.05f;     // how fast a struck pad reaches its glow
 constexpr float kRelease = 0.32f;    // how long a released pad takes to go out
@@ -228,10 +228,12 @@ struct ControlSurfaces {
   Reading shown;
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide sheet(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
-        ctx, {.size = kPage, .captureAt = kCaptureAt, .background = kGround});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kPage,
+         .captureAt = kCaptureAt,
+         .background = kGround});
     ticker = &ctx.engine;
 
     io::Hub& hub = ctx.assets.hub();
@@ -272,8 +274,8 @@ struct ControlSurfaces {
     pads.on("NoteOff",
             [this](const data::Message& message) { release(message.payload); });
     lighting = data::connect(hub, kLightingDesk);
-    lighting.on("Dmx",
-                [this](const data::Message& message) { wash(message.payload); });
+    lighting.on(
+        "Dmx", [this](const data::Message& message) { wash(message.payload); });
 
     // THE WAYS BACK ARE A WINDOW'S ALONE: a plate that opened a port
     // would depend on what happened to be plugged in or listening.
@@ -465,29 +467,28 @@ struct ControlSurfaces {
                      ? compose::kit::formatted(
                            "%4d", (int)newest["channels"][at].number())
                      : std::string("   -");
-    Reading now{.desk = desk.state(),
-                .pads = pads.state(),
-                .lighting = lighting.state(),
-                .gusts = gusts,
-                .replies = replies,
-                .strikes = strikes,
-                .lights = lightsSent,
-                .lit = std::move(lit),
-                .universe = newest.null() ? -1
-                                          : (int)newest["universe"].number(),
-                .dimmers = std::move(dimmers),
-                .answered = answered};
+    Reading now{
+        .desk = desk.state(),
+        .pads = pads.state(),
+        .lighting = lighting.state(),
+        .gusts = gusts,
+        .replies = replies,
+        .strikes = strikes,
+        .lights = lightsSent,
+        .lit = std::move(lit),
+        .universe = newest.null() ? -1 : (int)newest["universe"].number(),
+        .dimmers = std::move(dimmers),
+        .answered = answered};
     if (now == shown) return false;
     shown = std::move(now);
     return true;
   }
 
   void describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide sheet(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // A paint program runs after the describe scope has closed, so the
     // theme's colours are read here and carried in by value.
-    const sketch::kit::Theme& look = sketch::kit::theme();
+    const sketch::kit::Theme& look =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     const material::Color rule = look.palette.rule;
     const material::Color figure = look.palette.figure;
     const material::Color ash = look.palette.ash;
@@ -496,7 +497,7 @@ struct ControlSurfaces {
             .width(kCanvas.width())
             .height(kCanvas.height())
             .children({compose::pen("control_surfaces.sky", [this, rule, figure,
-                                                              ash](Pen& pen) {
+                                                             ash](Pen& pen) {
                          sky(pen);
                          grid(pen, rule);
                          faders(pen, rule, figure, ash);
@@ -550,8 +551,8 @@ struct ControlSurfaces {
     const float rows = (float)(kCells / kColumns);
     const float across = kTile * kColumns + kTileGap * (kColumns - 1);
     const float left = (pen.width - across) * 0.5f;
-    const float top = (pen.height - (kTall * rows + kTileGap * (rows - 1))) *
-                      0.5f;
+    const float top =
+        (pen.height - (kTall * rows + kTileGap * (rows - 1))) * 0.5f;
     pen.noStroke();
     for (size_t index = 0; index != kCells; ++index) {
       const float x = left + (float)(index % kColumns) * (kTile + kTileGap);
@@ -623,8 +624,9 @@ struct ControlSurfaces {
     for (size_t at = 0; at != kShownChannels; ++at) {
       const float x = left + (float)at * (kWidth + kColumnGap);
       const int number = (int)at + 1;
-      const bool patched = (number >= kFirstPatch && number < kFirstPatch + 3) ||
-                           number == kStrobeChannel;
+      const bool patched =
+          (number >= kFirstPatch && number < kFirstPatch + 3) ||
+          number == kStrobeChannel;
       pen.fill(rule);
       pen.rect(x, base - kHeight, kWidth, kHeight, kWidth * 0.5f);
       const float reach =
@@ -646,13 +648,12 @@ struct ControlSurfaces {
     return compose::box().column().gap(18).children(
         {compose::document::eyebrow("OSC · REPLY TO THE SENDER"),
          sketch::kit::connectionReadout(
-             desk,
-             {.door = kDesk,
-              .rows = rows,
-              .readings = {{.name = u8"gusts",
-                            .value = std::to_string(shown.gusts)},
-                           {.name = u8"replies",
-                            .value = std::to_string(shown.replies)}}}),
+             desk, {.door = kDesk,
+                    .rows = rows,
+                    .readings = {{.name = u8"gusts",
+                                  .value = std::to_string(shown.gusts)},
+                                 {.name = u8"replies",
+                                  .value = std::to_string(shown.replies)}}}),
          compose::document::eyebrow("MIDI · LIGHTS BACK TO THE PADS"),
          sketch::kit::connectionReadout(
              pads,

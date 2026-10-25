@@ -516,7 +516,7 @@ StyleSheet sheet() {
       // having left it wherever the outline shows.
       rule("specimen.rest")
           .ink(material::Color{0, 0, 0, 0})
-          .textStroke(1.1f, Fill::var("rest")),
+          .textStroke(1.1f, var("rest")),
       rule("specimen.slab").ink(var("slab")).translateX(2.5f).translateY(4),
       // The pool is an ellipse because the unit square it is laid over is
       // as wide as the word and far shallower than it.
@@ -536,13 +536,13 @@ StyleSheet sheet() {
       rule(".frame")
           .width(percent(100))
           .height(kPlotHeight)
-          .stroke(stroke(1, Fill::var("faint"))),
+          .stroke(stroke(1, var("faint"))),
       // A number is knocked out of the hairline it names.
       rule(".reading")
           .fontSize(9.5f)
           .letterSpacing(0.4f)
           .padding(0, 4)
-          .fill(Fill::var("paper")),
+          .fill(var("paper")),
       rule(".stop")
           .width(5.2f)
           .height(5.2f)
@@ -557,7 +557,7 @@ StyleSheet sheet() {
           .width(9)
           .height(9)
           .borderRadius(Corners{4.5f})
-          .fill(Fill::var("paper"))
+          .fill(var("paper"))
           .stroke(stroke(1.5f)),
   };
 }

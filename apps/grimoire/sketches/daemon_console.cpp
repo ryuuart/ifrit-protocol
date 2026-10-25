@@ -660,10 +660,6 @@ struct DaemonConsole {
   Element describe() {
     namespace dc = daemon_console;
     namespace feed = sigil::compose::feed;
-    // Bound where the tree is DESCRIBED: this sketch describes again on
-    // every appended row, outside whatever scope setup opened.
-    const sketch::kit::Provide dress(look);
-
     // Panel chrome: one-pass SDF (fill + border + glow), cached between
     // layouts. The style reserves its glow's reach INSIDE the box, so the
     // drawn border sits sdf::pad() in from the node edge — the content

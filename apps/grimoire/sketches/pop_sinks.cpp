@@ -101,10 +101,9 @@ Element atlasSheet(float cell) {
        {shapes::annulus(0.62f), {1.0f, 0.6f, 0.3f, 1}},
        {shapes::polygon(4), {0.6f, 1.0f, 0.6f, 1}},
        {shapes::star(4, 0.35f), {1.0f, 0.8f, 0.3f, 1}}}};
-  return stack().width(cell * 2).height(cell * 2).children(each(
-      motifs,
-      [cell](const std::pair<Shape, material::Color>& motif,
-             std::size_t index) {
+  return stack().width(cell * 2).height(cell * 2).children(
+      each(motifs, [cell](const std::pair<Shape, material::Color>& motif,
+                          std::size_t index) {
         return kit::at((float)(index % 2) * cell, (float)(index / 2) * cell,
                        cell, cell)
             .padding(cell * 0.12f)
@@ -148,11 +147,12 @@ Element splatFigure(const char* key, mesh::Cloud cloud,
                     points::BillboardStyle style) {
   return sketch::kit::well(
              {.width = 274, .height = 200},
-             custom(key, [cloud = std::move(cloud), style = std::move(style)](
-                             sigil::draw::Pen& pen, const PaintContext& paint) {
-               points::drawBillboards(*pen.canvas(), cloud, kSplatView,
-                                      paint.size, style);
-             }))
+             custom(key,
+                    [cloud = std::move(cloud), style = std::move(style)](
+                        sigil::draw::Pen& pen, const PaintContext& paint) {
+                      points::drawBillboards(*pen.canvas(), cloud, kSplatView,
+                                             paint.size, style);
+                    }))
       .cache(Cache::Texture);
 }
 
@@ -183,12 +183,12 @@ struct PopSinks {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
-        ctx, {.size = kCanvas,
-              .captureAt = 1.0,
-              .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 1.0,
+         .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
 
     const material::Texture atlas = ctx.texture(atlasSheet(128), {256, 256});
     const std::vector<glm::vec3> ring = ringPoints();
@@ -197,8 +197,10 @@ struct PopSinks {
     const mesh::Cloud torus = motes().cloud();
     const media::Picture ringStamp =
         ctx.texture(box().width(64).height(64).padding(7).children(
-                        {box().flexGrow().shape(shapes::annulus(0.72f)).fill(
-                            Fill::color(kWhite))}),
+                        {box()
+                             .flexGrow()
+                             .shape(shapes::annulus(0.72f))
+                             .fill(Fill::color(kWhite))}),
                     {64, 64})
             .frameAt()
             .image;
@@ -250,19 +252,18 @@ struct PopSinks {
             .stamps(mesh::quad(11, 11));
     // Each point's colour and its index carried onto the triangles its
     // stamp forms: one run of triangles per piece.
-    const mesh::Mesh pieces =
-        pop::on(ring)
-            .count(kPieces)
-            .spread(30)
-            .vary(0.45f)
-            .lookAt(kEye)
-            .rampBy({{0.98f, 0.42f, 0.30f, 1},
-                     {0.98f, 0.85f, 0.35f, 1},
-                     {0.35f, 0.88f, 0.62f, 1},
-                     {0.40f, 0.55f, 0.98f, 1}})
-            .promote(pop::Attribute::Color)
-            .promote("Id")
-            .stamps(mesh::quad(34, 34));
+    const mesh::Mesh pieces = pop::on(ring)
+                                  .count(kPieces)
+                                  .spread(30)
+                                  .vary(0.45f)
+                                  .lookAt(kEye)
+                                  .rampBy({{0.98f, 0.42f, 0.30f, 1},
+                                           {0.98f, 0.85f, 0.35f, 1},
+                                           {0.35f, 0.88f, 0.62f, 1},
+                                           {0.40f, 0.55f, 0.98f, 1}})
+                                  .promote(pop::Attribute::Color)
+                                  .promote("Id")
+                                  .stamps(mesh::quad(34, 34));
     std::set<int> runs;
     if (const std::vector<glm::vec4>* ids = pieces.primitiveIf("Id"))
       for (const glm::vec4& id : *ids) runs.insert((int)id.x);
@@ -291,37 +292,35 @@ struct PopSinks {
                  {.cases =
                       {{.title = "SOFT LIGHT",
                         .control = "soft dot · additive · size 2",
-                        .figure = splatFigure("soft", torus,
-                                              styled({.size = 2.0f})),
+                        .figure =
+                            splatFigure("soft", torus, styled({.size = 2.0f})),
                         .note = "Overlapping light builds a glow. Point lanes "
                                 "supply size and tint."},
                        {.title = "HOLLOW RINGS",
                         .control = "ring stamp · opaque · size 7",
-                        .figure = splatFigure(
-                            "rings", torus,
-                            styled({.sprite = ringStamp,
-                                    .size = 7,
-                                    .additive = false})),
+                        .figure = splatFigure("rings", torus,
+                                              styled({.sprite = ringStamp,
+                                                      .size = 7,
+                                                      .additive = false})),
                         .note = "A crisp rim shows the projected size of each "
                                 "mark."},
                        {.title = "CONSTANT PIXELS",
                         .control = "perspective = false · size 4",
-                        .figure = splatFigure(
-                            "pixels", torus,
-                            styled({.size = 4,
-                                    .additive = false,
-                                    .perspective = false})),
+                        .figure = splatFigure("pixels", torus,
+                                              styled({.size = 4,
+                                                      .additive = false,
+                                                      .perspective = false})),
                         .note = "Near and far share a pixel size; depth order "
                                 "still separates them."},
                        {.title = "A SHEET OF SPRITES",
                         .control = "atlas(2, 2) → textureLane \"Tex\"",
-                        .figure = splatFigure(
-                            "sheet", motes().atlas(2, 2).cloud(),
-                            {.sprite = atlas.frameAt().image,
-                             .size = 5,
-                             .sizeLane = "size",
-                             .textureLane = "Tex",
-                             .additive = false}),
+                        .figure =
+                            splatFigure("sheet", motes().atlas(2, 2).cloud(),
+                                        {.sprite = atlas.frameAt().image,
+                                         .size = 5,
+                                         .sizeLane = "size",
+                                         .textureLane = "Tex",
+                                         .additive = false}),
                         .note = "Each point draws the cell its lane names, "
                                 "untinted."}},
                   .measure = kMeasure,
@@ -331,12 +330,12 @@ struct PopSinks {
                  {.cases =
                       {{.title = "SWEEP A CIRCLE",
                         .control = "220 points → noise → circle",
-                        .figure = figure(
-                            ctx, kSweepFigure,
-                            {world::mesh(tube)
-                                 .key("tube")
-                                 .transform(camera::place({}, 24, -10))
-                                 .fill(steel({0.62f, 0.7f, 0.82f, 1}))}),
+                        .figure =
+                            figure(ctx, kSweepFigure,
+                                   {world::mesh(tube)
+                                        .key("tube")
+                                        .transform(camera::place({}, 24, -10))
+                                        .fill(steel({0.62f, 0.7f, 0.82f, 1}))}),
                         .note = kit::formatted(
                             "A displaced rail makes a wobbly tube. %zu "
                             "triangles.",
@@ -344,7 +343,8 @@ struct PopSinks {
                        {.title = "SWEEP AN OUTLINE",
                         .control = "noise → smooth → star section",
                         .figure = figure(
-                            ctx, kSweepFigure,
+                            ctx,
+                            kSweepFigure,
                             {world::mesh(crown)
                                  .key("crown")
                                  .transform(crowned)
@@ -358,13 +358,13 @@ struct PopSinks {
                                 "formed body is a source again."},
                        {.title = "OPEN A WINDOW",
                         .control = "half-window → line section",
-                        .figure = figure(
-                            ctx, kSweepFigure,
-                            {world::mesh(ribbon)
-                                 .key("ribbon")
-                                 .transform(camera::place({}, 0, 14))
-                                 .backface(material::Backface::Visible)
-                                 .fill(steel({0.4f, 0.85f, 0.6f, 1}))}),
+                        .figure =
+                            figure(ctx, kSweepFigure,
+                                   {world::mesh(ribbon)
+                                        .key("ribbon")
+                                        .transform(camera::place({}, 0, 14))
+                                        .backface(material::Backface::Visible)
+                                        .fill(steel({0.4f, 0.85f, 0.6f, 1}))}),
                         .note = "An open section on a partial rail is a "
                                 "ribbon, drawn on both sides."}},
                   .measure = kMeasure,
@@ -374,26 +374,26 @@ struct PopSinks {
                  {.cases =
                       {{.title = "STAMP AN ATLAS",
                         .control = "900 points → spread → atlas(2, 2)",
-                        .figure = figure(
-                            ctx, kStampFigure,
-                            {world::mesh(plates)
-                                 .key("plates")
-                                 .transform(camera::place({}, -16))
-                                 .backface(material::Backface::Visible)
-                                 .fill(motifs)}),
+                        .figure =
+                            figure(ctx, kStampFigure,
+                                   {world::mesh(plates)
+                                        .key("plates")
+                                        .transform(camera::place({}, -16))
+                                        .backface(material::Backface::Visible)
+                                        .fill(motifs)}),
                         .note = "Four texture motifs, varied in size and "
                                 "turned toward the camera."},
                        {.title = "CARRY A LANE ONTO THE PIECES",
                         .control = "promote(Color) · promote(\"Id\")",
-                        .figure = figure(
-                            ctx, kStampFigure,
-                            {world::mesh(pieces)
-                                 .key("pieces")
-                                 .transform(camera::place({}, -16))
-                                 .backface(material::Backface::Visible)
-                                 .primitiveColor("Color")
-                                 .fill(material::surface::unlit(
-                                     {.baseColor = {1, 1, 1, 1}}))}),
+                        .figure =
+                            figure(ctx, kStampFigure,
+                                   {world::mesh(pieces)
+                                        .key("pieces")
+                                        .transform(camera::place({}, -16))
+                                        .backface(material::Backface::Visible)
+                                        .primitiveColor("Color")
+                                        .fill(material::surface::unlit(
+                                            {.baseColor = {1, 1, 1, 1}}))}),
                         .note = kit::formatted(
                             "%zu triangles in %zu runs: every triangle of a "
                             "stamp carries its point's colour and Id.",

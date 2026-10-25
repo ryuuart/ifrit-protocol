@@ -20,7 +20,7 @@ SPEED = 1.2
 @sketch(size=(640, 420), captureAt=1.0, theme=kit.featureTheme(kit.Density.Spacious))
 class Hello:
     def draw(self, pen: Pen) -> None:
-        look = kit.theme()
+        look = kit.featureTheme(kit.Density.Spacious)
         t = pen.millis() / 1000
         pen.background(look.palette.ground)
         pen.noStroke()

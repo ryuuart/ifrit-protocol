@@ -82,9 +82,9 @@ struct GifFrames {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // every frame is on the sheet; nothing moves
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
 
     io::Hub& hub = ctx.assets.hub();
     const std::optional<io::ResourceInfo> bytes =
@@ -198,7 +198,7 @@ struct GifFrames {
    *  probe keeps a sweep away from this; the app opens whatever is
    *  selected, so it is drawn rather than left blank. */
   static Element missing() {
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    const sketch::kit::Theme& sheet = sheetTheme();
     return box()
         .cover()
         .fill(Fill::color(sheet.palette.ground))

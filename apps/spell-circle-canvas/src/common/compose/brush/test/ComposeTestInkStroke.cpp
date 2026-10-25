@@ -63,7 +63,7 @@ TEST(ComposeInkStroke, ABorderWrittenAsTheInkOrAPropertyTakesIt) {
                             .padding(20)
                             .var("rule", SkColor4f{0, 1, 0, 1})
                             .children({box().width(100).height(100).stroke(
-                                decorations::border(10, Fill::var("rule")))}));
+                                decorations::border(10, var("rule")))}));
   named.frame();
   EXPECT_EQ(named.pixel(22, 70), SkColorSetARGB(255, 0, 255, 0));
 }

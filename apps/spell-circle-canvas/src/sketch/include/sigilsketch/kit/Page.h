@@ -31,14 +31,23 @@ struct Scene3DContext;
 
 namespace sigil::sketch::kit {
 
-/** WHAT A SKETCH DECLARES ABOUT ITS SURFACE, in one value: how big, when
- *  a still of it is worth taking, and — where it wants something other
- *  than the theme's ground — what is behind it.
+/** WHAT A SKETCH DECLARES ABOUT ITS SURFACE, in one value: the theme it
+ *  is set in, how big, when a still of it is worth taking, and — where it
+ *  wants something other than the theme's ground — what is behind it.
  *
  *  It is `CanvasSpecification` with the ground made optional, because the
  * ground is the one field of a canvas that is part of the LOOK, and a sheet set
  * under a theme has already said what it is. */
 struct Stage {
+  /** THE LOOK THE SKETCH IS SET IN. The stage applies its
+   *  `Theme::styleSheet()` at the root of whatever the sketch renders —
+   *  its role rules and its spacing and palette as custom properties —
+   *  and clears the canvas to its ground, so every component the sketch
+   *  describes reads that theme where it lands. Unset is the house
+   *  theme's ground and its `Theme::properties()` alone: a study that
+   *  sets its own type keeps it, and a component it uses still reads the
+   *  house distances and colours. */
+  std::optional<Theme> theme;
   SkSize size{900, 640};
   /** The scene time a still should be taken at. Negative states no
    *  preference and a sweep falls back to its own derived frame. */
@@ -54,17 +63,21 @@ struct Stage {
   bool plateOnly = false;
 };
 
-/** DECLARE THE CANVAS, THE GROUND AND THE MOMENT in one call, over the
- *  theme in scope.
+/** DECLARE THE CANVAS, THE LOOK, THE GROUND AND THE MOMENT in one call:
+ *  the theme the stage names stands at the root of everything the sketch
+ *  renders, through `Composer::setStyleSheet`.
  *
- *      sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
+ *      sketch::kit::stage(ctx, {.theme = sheetTheme(),
+ *                               .size = {1100, 424}, .captureAt = 0.05});
  *
  *  It writes the whole `CanvasSpecification`, defaults included, so what a host
  *  reads back afterwards is exactly what this says. */
 void stage(Scene2DContext& ctx, const Stage& surface);
 
 /** THE SAME DECLARATION FOR A SCENE3D SKETCH, which says the same three things
- *  through three calls of its own.
+ *  through three calls of its own. A scene3d sketch has no one composer
+ *  root, so the theme names the ground alone here; a page the sketch
+ *  paints into a texture applies the theme's sheet on its own root.
  *
  *      sketch::kit::stage(ctx, {.size = {640, 440}, .captureAt = 1.3,
  *                               .background = {0.03f, 0.035f, 0.05f, 1}});
@@ -76,8 +89,9 @@ void stage(Scene2DContext& ctx, const Stage& surface);
 void stage(Scene3DContext& ctx, const Stage& surface);
 
 /** THE PROSE A SHEET CARRIES. Only the prose: every face, size, colour,
- *  margin and rule the page is set in is the theme's, which is the whole
- *  of what this component adds over `compose::kit::sheet`. */
+ *  margin and rule the page is set in is the sheet's in force where the
+ *  page lands — the theme the stage names — which is the whole of what
+ *  this component adds over `compose::kit::sheet`. */
 struct Page {
   compose::Utf8 title;
   compose::Utf8 subtitle;
@@ -98,10 +112,12 @@ struct Page {
 
 /** THE SHEET, over the whole canvas, in the theme's voice: the title, the
  *  subtitle and the footer in document roles `h1`, `lead` and `footer`
- *  — the theme's registers, resolved where these lines land — the page margins
- * and the content gap the theme's distances, the ground and the hairline the
- * theme's colours.
+ *  — the theme's registers, resolved where these lines land — the page
+ *  margins and the content gap the sheet's `spacing-margin-…` and
+ *  `spacing-content-gap`, the ground and the hairline its `palette-ground`
+ *  and `palette-rule`, and the running text the `page` role's rule.
  *
+ *      sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = {900, 640}});
  *      ctx.composer.render(sketch::kit::page(
  *          {.title = "THE RULE AND THE STRANDS",
  *           .subtitle = "dials · the width and the inset",

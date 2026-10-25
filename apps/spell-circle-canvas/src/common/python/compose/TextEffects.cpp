@@ -145,14 +145,13 @@ void bindDisplaced(py::module_& effects) {
       "its way and at opacity, and on a variable axis.";
   displaced.def_readwrite("dx", &Displaced::dx)
       .def_readwrite("dy", &Displaced::dy)
-      .def_property(
-          "rotateDegrees", angleGetter(&Displaced::rotateDegrees),
-          angleSetter<AngleInDegrees>(&Displaced::rotateDegrees))
+      .def_property("rotateDegrees", angleGetter(&Displaced::rotateDegrees),
+                    angleSetter<AngleInDegrees>(&Displaced::rotateDegrees))
       .def_readwrite("scale", &Displaced::scale)
       .def_readwrite("scatterPx", &Displaced::scatterPx)
-      .def_property(
-          "scatterLeanDegrees", angleGetter(&Displaced::scatterLeanDegrees),
-          angleSetter<AngleInDegrees>(&Displaced::scatterLeanDegrees))
+      .def_property("scatterLeanDegrees",
+                    angleGetter(&Displaced::scatterLeanDegrees),
+                    angleSetter<AngleInDegrees>(&Displaced::scatterLeanDegrees))
       .def_readwrite("fadeOver", &Displaced::fadeOver)
       .def_readwrite("opacity", &Displaced::opacity)
       .def_readwrite("axis", &Displaced::axis)
@@ -217,7 +216,7 @@ void bindGlyphModifier(py::module_& effects) {
       "turned rotateDegrees degrees, at alpha, its colour multiplied by "
       "colorMultiplier, added to by colorAdd and screened by colorScreen — "
       "each a colour, the ink in force (Fill.currentInk()) or a custom "
-      "property (Fill.var(name)) read where the glyph is painted — "
+      "property (var(name)) read where the glyph is painted — "
       "stretched by scaleX and scaleY, sheared by skewXDegrees and "
       "skewYDegrees, "
       "drawn at a variable axis coordinate, or as another code point of "
@@ -233,21 +232,18 @@ void bindGlyphModifier(py::module_& effects) {
   modifier.def_readwrite("dx", &GlyphModifier::dx)
       .def_readwrite("dy", &GlyphModifier::dy)
       .def_readwrite("scale", &GlyphModifier::scale)
-      .def_property(
-          "rotateDegrees", angleGetter(&GlyphModifier::rotateDegrees),
-          angleSetter<AngleInDegrees>(&GlyphModifier::rotateDegrees))
+      .def_property("rotateDegrees", angleGetter(&GlyphModifier::rotateDegrees),
+                    angleSetter<AngleInDegrees>(&GlyphModifier::rotateDegrees))
       .def_readwrite("alpha", &GlyphModifier::alpha);
   colorLane("colorMultiplier", &GlyphModifier::colorMultiplier);
   colorLane("colorAdd", &GlyphModifier::colorAdd);
   colorLane("colorScreen", &GlyphModifier::colorScreen);
   modifier.def_readwrite("scaleX", &GlyphModifier::scaleX)
       .def_readwrite("scaleY", &GlyphModifier::scaleY)
-      .def_property(
-          "skewXDegrees", angleGetter(&GlyphModifier::skewXDegrees),
-          angleSetter<AngleInDegrees>(&GlyphModifier::skewXDegrees))
-      .def_property(
-          "skewYDegrees", angleGetter(&GlyphModifier::skewYDegrees),
-          angleSetter<AngleInDegrees>(&GlyphModifier::skewYDegrees))
+      .def_property("skewXDegrees", angleGetter(&GlyphModifier::skewXDegrees),
+                    angleSetter<AngleInDegrees>(&GlyphModifier::skewXDegrees))
+      .def_property("skewYDegrees", angleGetter(&GlyphModifier::skewYDegrees),
+                    angleSetter<AngleInDegrees>(&GlyphModifier::skewYDegrees))
       .def_readwrite("axis", &GlyphModifier::axis)
       .def_property(
           "codepoint",

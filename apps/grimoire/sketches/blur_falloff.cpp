@@ -132,9 +132,9 @@ struct BlurFalloff {
       sigil::motion::animatable(0.0f);  // panel 4's bound maxSigma
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // the top of panel 4's breath: 1 / (2 kRackHz)
-    sketch::kit::stage(ctx, {.size = {1100, 960}, .captureAt = 2.78});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = {1100, 960}, .captureAt = 2.78});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Where does the blur fall?",

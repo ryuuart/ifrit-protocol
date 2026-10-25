@@ -80,10 +80,10 @@ class TextEffects:
         # The stops name the page's custom property and the ink in force,
         # so restating either on the page recolours the flash.
         flare = textFx.tween(
-            from_=GlyphModifier(alpha=0, colorScreen=compose.Fill.var("flash")),
+            from_=GlyphModifier(alpha=0, colorScreen=compose.var("flash")),
             keyframes=[
                 GlyphModifierKeyframe(
-                    GlyphModifier(colorScreen=compose.Fill.var("flash"), dy=-6),
+                    GlyphModifier(colorScreen=compose.var("flash"), dy=-6),
                     duration=0.3,
                 ),
                 GlyphModifierKeyframe(GlyphModifier(), duration=0.7),

@@ -551,34 +551,6 @@ class Measure:
         self.assertFalse(hasattr(raw.Element, "echo"))
         self.assertFalse(hasattr(raw.Element, "layerStyle"))
 
-    def test_abandoned_constructor_theme_closes_before_setup(self):
-        self.render(
-            """import builtins
-from sigil.compose import box
-from sigil.sketch import sketch, kit
-
-
-@sketch(size=(8, 8))
-class Scene:
-    def __init__(self):
-        self.initial = kit.theme().type.title.size
-        custom = kit.houseTheme()
-        custom.type.title.size = 99
-        self.abandoned = kit.provide(custom)
-        self.abandoned.__enter__()
-
-    def setup(self, ctx):
-        builtins._sigil_compose_contract.append(
-            (self.initial, kit.theme().type.title.size)
-        )
-        ctx.render((box().width(8).height(8)))
-""",
-            at=0,
-        )
-        before, after = builtins._sigil_compose_contract[0]
-        self.assertEqual(before, after)
-        self.assertNotEqual(after, 99)
-
     def test_memo_equal_models_prune_and_changed_models_rebuild(self):
         self.render("""from dataclasses import dataclass
 import builtins

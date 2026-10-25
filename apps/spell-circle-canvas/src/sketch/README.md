@@ -521,15 +521,16 @@ Feature demonstrations can use SigilSketchKit's headings, sections and wells:
 ```cpp
 #include <sigilsketch/kit/Kit.h>
 
-const sketch::kit::Provide look(sketch::kit::featureTheme());
-sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
+sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+                         .size = {1100, 424},
+                         .captureAt = 0.05});
 ctx.composer.render(sketch::kit::page(
     {.title = "Crossing rules", .subtitle = "Three constructions"},
     sketch::kit::section({.label = "COMPARISON"},
                         sketch::kit::cells({.cells = {a, b, c}}))));
 ```
 
-Bind the theme wherever a callback describes another tree.
+The stage's theme stands at the root of every tree the sketch renders.
 `sketch::kit::Density::Compact` preserves fixed specimen measures;
 `sketch::kit::Density::Spacious` gives explanations more room.
 Reference studies keep their subject's own typography and geometry.

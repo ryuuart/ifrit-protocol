@@ -134,11 +134,12 @@ struct VideoCompose {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
-                             .captureAt = 4.25,
-                             .background = material::Color{0, 0, 0, 1}});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = SkSize::Make(kWidth, kHeight),
+         .captureAt = 4.25,
+         .background = material::Color{0, 0, 0, 1}});
 
     std::shared_ptr<media::Playback> playback;
     if (!ctx.deterministic)
@@ -175,9 +176,8 @@ struct VideoCompose {
         leaf.blendMode(material::BlendMode::PlusLighter);
       // Half a pixel of bleed on the far edges, so two neighbouring
       // leaves never leave a seam between them.
-      const auto at =
-          arrange::cellRect(arrange::cellAt((size_t)cell, kColumns), module,
-                            {.origin = {0, kPanelHeight}});
+      const auto at = arrange::cellRect(arrange::cellAt((size_t)cell, kColumns),
+                                        module, {.origin = {0, kPanelHeight}});
       return leaf.rect(at.left(), at.top(), at.width() + 0.5f,
                        at.height() + 0.5f);
     };
@@ -208,14 +208,20 @@ struct VideoCompose {
                  {.title = {"One hundred video leaves"},
                   .subtitle = {"Shared playback · layered panel · additive "
                                "effects · native alpha"}}))
-             .applyStyleSheet(sketch::kit::theme().styleSheet())
+             .applyStyleSheet(
+                 sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                     .styleSheet())
              .at({42, 42}),
          // The cover the scene waits behind until every source has
          // a frame.
-         kit::centred(document::label("BUFFERING / 005 SOURCES")
-                          .font(sketch::kit::theme().font(
-                              sketch::kit::theme().type.captionLabel))
-                          .ink(sketch::kit::theme().palette.ink))
+         kit::centred(
+             document::label("BUFFERING / 005 SOURCES")
+                 .font(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                           .font(sketch::kit::featureTheme(
+                                     sketch::kit::Density::Spacious)
+                                     .type.captionLabel))
+                 .ink(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                          .palette.ink))
              .cover()
              .fill(Fill::color({0, 0, 0, 1}))
              .opacity(loading)}));

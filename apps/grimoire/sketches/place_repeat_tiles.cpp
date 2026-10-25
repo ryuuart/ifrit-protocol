@@ -93,13 +93,17 @@ struct PlaceRepeatTiles {
   sk_sp<SkPicture> strip;
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     atlas = std::make_shared<instancing::CellSheet>();
-    atlas->cell(motif(sketch::kit::theme().palette.figure), kMotif);
+    atlas->cell(motif(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                          .palette.figure),
+                kMotif);
 
     plain = std::make_shared<instancing::Pool>();
     instancing::place::repeat(*plain, kCopies, {60, 108}, {kStep, 0});
@@ -127,7 +131,9 @@ struct PlaceRepeatTiles {
                           {0, 0}, {(float)kTile.width(), 0},
                           {{0.09f, 0.10f, 0.12f, 1}, {0.30f, 0.32f, 0.36f, 1}},
                           {.units = material::GradientUnits::Pixels}));
-    const material::Color figure = sketch::kit::theme().palette.figure;
+    const material::Color figure =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+            .palette.figure;
     run.children({each(kTiles * 3, [&](int i) {
       return motif(i % 3 == 0 ? kWarm : figure);
     })});

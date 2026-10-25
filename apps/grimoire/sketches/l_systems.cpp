@@ -64,9 +64,9 @@ struct Grammar {
       std::string next;
       next.reserve(current.size() * 6);
       for (const char letter : current) {
-        const auto rule =
-            std::find_if(rules.begin(), rules.end(),
-                         [letter](const auto& entry) { return entry.first == letter; });
+        const auto rule = std::find_if(
+            rules.begin(), rules.end(),
+            [letter](const auto& entry) { return entry.first == letter; });
         if (rule != rules.end())
           next += rule->second;
         else
@@ -105,8 +105,8 @@ Drawing walk(const std::string& word, float turn, std::string_view leafLetters,
   for (size_t index = 0; index < std::min(length, word.size()); ++index) {
     const char letter = word[index];
     if (letter == 'F') {
-      const glm::vec2 next =
-          turtle.at + glm::vec2{std::cos(turtle.heading), std::sin(turtle.heading)};
+      const glm::vec2 next = turtle.at + glm::vec2{std::cos(turtle.heading),
+                                                   std::sin(turtle.heading)};
       drawing.segments.push_back({turtle.at, next, index});
       drawing.low = glm::min(drawing.low, next);
       drawing.high = glm::max(drawing.high, next);
@@ -149,9 +149,11 @@ struct LSystems {
   Drawing curveWhole;
 
   void setup(sketch::Scene2DContext& context) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(context, {.size = kCanvas, .captureAt = 7.48});
+    sketch::kit::stage(
+        context,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 7.48});
 
     curve = Grammar{.axiom = "A",
                     .rules = {{'A', "-BF+AFA+FB-"}, {'B', "+AF-BFB-FA+"}},
@@ -174,7 +176,8 @@ struct LSystems {
             {.cases = {{.title = "A SPACE-FILLING CURVE",
                         .control = "A → −BF+AFA+FB− · B → +AF−BFB−FA+ · 5 "
                                    "generations · 90°",
-                        .figure = sketch::kit::cell(panel, "", "", curvePanel()),
+                        .figure =
+                            sketch::kit::cell(panel, "", "", curvePanel()),
                         .note = "Read along the word as the clock runs; a "
                                 "leaf stands wherever the turtle meets A "
                                 "or B."},

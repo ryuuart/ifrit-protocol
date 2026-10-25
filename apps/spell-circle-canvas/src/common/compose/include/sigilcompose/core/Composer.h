@@ -131,6 +131,14 @@ class Composer {
    *  painted into a texture from the node that shows it. Every field of
    *  @p font counts; one it leaves unset takes the initial value. */
   void setInherited(const sigil::weave::Type& font, material::Color ink);
+  /** THE SHEET IN FORCE AT THE ROOT of whatever this composer renders:
+   *  applied as though the root node applied it before any sheet of its
+   *  own, so the root is its `:root`, its custom properties reach the
+   *  whole tree, and a sheet the tree applies stands after it and wins a
+   *  tie. A host states a look once here rather than threading it
+   *  through every description; it stands across renders until another
+   *  call replaces it, and an empty sheet clears it. */
+  void setStyleSheet(StyleSheet sheet);
 
   /** Output view transform (color management): applied to the composer's
    *  whole output as the final stage — one saveLayer while set, zero cost
@@ -437,7 +445,7 @@ class Composer {
      *  transform or opacity moves (`setLive`): each one a single image
      *  draw. */
     size_t nodesHeldWhileMoving = 0;
-    size_t nodesPainted = 0;   ///< instances painted live last draw()
+    size_t nodesPainted = 0;  ///< instances painted live last draw()
     /** Backdrop filters run last draw(): a backdrop whose held pixels
      *  were copied back is not counted (`setGroundHeld`). */
     size_t backdropsFiltered = 0;

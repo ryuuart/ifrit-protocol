@@ -160,8 +160,7 @@ def ruler(
 class Deck:
     def setup(self, ctx: Scene2DContext) -> None:
         self.look = kit.featureTheme(kit.Density.Spacious)
-        with kit.provide(self.look):
-            kit.stage(ctx, size=(WIDTH, HEIGHT), captureAt=CAPTURE_AT)
+        kit.stage(ctx, theme=self.look, size=(WIDTH, HEIGHT), captureAt=CAPTURE_AT)
         hub = ctx.assets.hub()
         # A CAPTURE OPENS NO SOCKET: every later ask for a door's URI
         # answers the recording replayed there instead.
@@ -273,15 +272,14 @@ class Deck:
 
     def redraw(self, ctx: Scene2DContext) -> None:
         door, cue = self.newest()
-        with kit.provide(self.look):
-            ctx.render(
-                kit.page(
-                    self.content(ctx, cue, door),
-                    title="The cue deck.",
-                    subtitle="A show's cues from a TouchDesigner patch, as JSON, OSC or a FlatBuffer over UDP",
-                    footer="JSON udp 27025 · OSC 27026 · FlatBuffer udp 27027 · sender.py · touchdesigner/scripts/cue_deck.py",
-                )
+        ctx.render(
+            kit.page(
+                self.content(ctx, cue, door),
+                title="The cue deck.",
+                subtitle="A show's cues from a TouchDesigner patch, as JSON, OSC or a FlatBuffer over UDP",
+                footer="JSON udp 27025 · OSC 27026 · FlatBuffer udp 27027 · sender.py · touchdesigner/scripts/cue_deck.py",
             )
+        )
 
     def content(self, ctx: Scene2DContext, cue: data.Json, door: str) -> Element:
         color = hex_of(cue["color"])

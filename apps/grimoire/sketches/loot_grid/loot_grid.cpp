@@ -63,7 +63,8 @@ struct LootGrid {
   sigil::weave::Face displayFace;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.size = kSceneSize,
+    sketch::kit::stage(ctx, {.theme = sheetTheme(),
+                             .size = kSceneSize,
                              .captureAt = 5.1,
                              .background = sigil::material::Color{0, 0, 0, 1}});
     displayFace = weave::ports::face({"Papyrus", "Baskerville", "Hoefler Text",
@@ -574,7 +575,6 @@ struct LootGrid {
   Element describe() {
     namespace lt = loot;
     const sketch::kit::Theme look = sheetTheme();
-    const sketch::kit::Provide bound(look);
     const std::string goldText = kit::formatted("%d", gold);
 
     // THE ROOT OF THE CASCADE: ash is the ink every line that names no

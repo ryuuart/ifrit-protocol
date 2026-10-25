@@ -795,8 +795,6 @@ struct PassiveTree {
     sketch::kit::Theme look = sketch::kit::houseTheme();
     look.palette.ink = skill_tree::kBone;
     look.palette.ash = skill_tree::kAsh;
-    look.type.title = {.size = 24, .track = 3};
-    look.type.subtitle = {.size = 12, .track = 1.0f};
     look.spacing.subtitleGap = 6;
     return look;
   }
@@ -812,13 +810,18 @@ struct PassiveTree {
     const std::string found = kit::formatted("%d matched", matched);
 
     {
-      // Bound only round the card, since everything else on this HUD is
-      // set in the tree's own registers rather than in a sheet's.
-      const sketch::kit::Provide look(mastheadTheme());
+      // The masthead's palette and spacing stand round the card alone, and
+      // its two lines' sizes are rules over the card's own: everything else
+      // on this HUD is set in the tree's own registers, and the card's
+      // face stays the tree's.
       root.children(
           {sketch::kit::titleCard({.title = {"EMBERWOOD REACH"},
                                    .subtitle = {"passive cluster — real orbit "
                                                 "geometry, four frame states"}})
+               .applyStyleSheet(
+                   mastheadTheme().properties() +
+                   StyleSheet{rule("h1").font({.size = 24, .track = 3}),
+                              rule("lead").font({.size = 12, .track = 1.0f})})
                .top(30)
                .left(38)
                .zIndex(8)});

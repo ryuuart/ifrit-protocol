@@ -252,11 +252,6 @@ native = "`material::EnvironmentMap` and kit environments"
 library = "Material"
 python = ["material.EnvironmentMap"]
 
-[requirement.environment-values]
-native = "`core::environment::Provide` / `inheritedOr` values"
-library = "Core"
-python = ["core.environment.Provide", "core.environment.inheritedOr"]
-
 [requirement.face-topology]
 native = "`geometry::mesh` face topology queries"
 library = "Geometry"

@@ -60,13 +60,12 @@ version of its top.
 | `Fill{material}`, or a `material::Material` where a fill is taken | C++ | the material, implicitly |
 | `Fill::none()` | C++ | the value that paints nothing |
 | `Fill::currentInk()` | C++ | the ink in force where the mark lands |
-| `Fill::var(reference)` | C++ | the colour a custom property holds |
-| `Fill::var(name)` | C++ | the same, interning the name through `compose::var` — C++ only, since Python's `Fill.var` takes the reference alone |
+| `var("gutter")`, or any `VarRef` where a fill is taken | C++ | the colour a custom property holds, implicitly |
 | `material::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as the `material::Color` a `Fill::color` takes |
 | `compose::toFill(material)` | C++ | the static collapse of a material — a flat one is its colour, a static one is itself, and one that needs a frame is nothing |
 | `"#1f2933"`, `"steelblue"`, `"oklch(0.7 0.1 240)"` | Python | any CSS colour text, implicitly |
 | `"currentcolor"` | Python | `Fill.currentInk()`, written as CSS writes it |
-| `"var(--gutter)"` | Python | `Fill.var(compose.var("gutter"))`, written as CSS writes it |
+| `"var(--gutter)"` | Python | `compose.var("gutter")`, written as CSS writes it |
 | `(0.12, 0.16, 0.20)` | Python | a 3-tuple of unit floats, implicitly |
 | `(0.12, 0.16, 0.20, 0.5)` | Python | a 4-tuple, the fourth being alpha |
 | `[0.12, 0.16, 0.20]` | Python | a list of unit floats, implicitly |
@@ -74,7 +73,6 @@ version of its top.
 | `material.Color.fromHex(0x1f2933)` | Python | the packed integer, which Python spells as a colour rather than as a fill |
 | `compose.var("gutter")` | Python | a custom-property reference, implicitly — the colour the nearest ancestor set under that name |
 | `compose.Fill.color(...)`, `compose.Fill.currentInk()` | Python | the named constructors, each under its own name |
-| `compose.Fill.var(compose.var("gutter"))` | Python | the reference form, which is the only one Python's `Fill.var` takes |
 | `material.Paint.linearGradient(...)`, a `material.Material` | Python | a paint or a material, implicitly |
 | `None` | Python | `Fill::none()` |
 

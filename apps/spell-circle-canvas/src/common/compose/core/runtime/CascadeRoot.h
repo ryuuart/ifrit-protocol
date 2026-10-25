@@ -8,6 +8,7 @@
  */
 
 #include <include/core/SkSamplingOptions.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/style/Type.h>
 
@@ -42,6 +43,10 @@ struct CascadeRoot {
   // under nothing is set in the layout's own answer.
   sigil::weave::ParagraphBlock rootBlock;
   std::optional<SkSamplingOptions> rootSampling;
+  // The sheet in force at the root of whatever is rendered —
+  // Composer::setStyleSheet — applied as though the root node applied it
+  // before its own.
+  std::optional<StyleSheet> rootSheet;
   // Whether the resolved fonts, inks and properties on the instances may
   // be stale: set by every reconcile that changed anything and by
   // setInherited, and left set by a pass that found an ink transition

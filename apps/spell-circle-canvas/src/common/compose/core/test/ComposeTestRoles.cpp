@@ -180,11 +180,8 @@ TEST(ComposeRoles, FallbackVariablesYieldToInheritedAndDirectZeroValues) {
         .role("panel", {.size = 1.5_em})
         .varDefaults(defaults)
         .padding(var("gutter"))
-        .children({box()
-                       .width(10)
-                       .height(10)
-                       .fill(Fill::var("accent"))
-                       .key("content")});
+        .children(
+            {box().width(10).height(10).fill(var("accent")).key("content")});
   };
   Host host;
   host.composer.render(box().font({.size = 20}).children({component()}));
@@ -226,4 +223,84 @@ TEST(ComposeRoles, ChangingRoleAndVariableDefaultsInvalidatesTheNode) {
   EXPECT_FLOAT_EQ(first.width(), 12);
   EXPECT_FLOAT_EQ(second.left(), 10);
   EXPECT_FLOAT_EQ(second.width(), 24);
+}
+
+namespace {
+
+/** A swatch whose own fill is the ink in force, in a role whose default
+ *  ink is the property `accent`. */
+Element inkedSwatch() {
+  return box()
+      .role("swatch", {}, var("accent"))
+      .width(20)
+      .height(20)
+      .fill(Fill::currentInk());
+}
+
+}  // namespace
+
+/** A ROLE'S DEFAULT INK MAY BE A PROPERTY, and it stands where a colour in
+ *  the role's defaults would: the property inks the role where no rule
+ *  names a colour, a rule naming one wins, and the node's own ink wins
+ *  over both. */
+TEST(ComposeRoles, ARoleDefaultInkIsAPropertyUnderEveryRule) {
+  const SkColor4f amber{1, 0, 0, 1};
+  Host host;
+  host.composer.render(box().var("accent", amber).children({inkedSwatch()}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 10), SkColorSetARGB(255, 255, 0, 0));
+
+  host.composer.render(box()
+                           .var("accent", amber)
+                           .applyStyleSheet(StyleSheet{rule("swatch").font(
+                               {.color = SkColor4f{0, 0, 1, 1}})})
+                           .children({inkedSwatch()}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 10), SkColorSetARGB(255, 0, 0, 255))
+      << "a rule naming a colour stands over the role's property";
+
+  host.composer.render(
+      box()
+          .var("accent", amber)
+          .children({inkedSwatch().ink(SkColor4f{0, 1, 0, 1})}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 10), SkColorSetARGB(255, 0, 255, 0))
+      << "the node's own ink stands over both";
+}
+
+/** THE COMPOSER'S SHEET STANDS AT THE ROOT of whatever is rendered: its
+ *  `:root` is the tree's root, so its properties reach every node; a
+ *  sheet the tree applies on its root stands after it and wins a tie; and
+ *  an empty sheet clears it. */
+TEST(ComposeRoles, TheComposersSheetStandsAtTheRoot) {
+  Host host;
+  host.composer.setStyleSheet(
+      StyleSheet{rule(":root")
+                     .var("accent", SkColor4f{1, 0, 0, 1})
+                     .var("gutter", Dimension(30))});
+  const auto tree = [] {
+    return box().children({box()
+                               .key("content")
+                               .margin(var("gutter"), 0, 0, 0)
+                               .width(20)
+                               .height(20)
+                               .fill(var("accent"))});
+  };
+  host.composer.render(tree());
+  host.frame();
+  EXPECT_FLOAT_EQ(contentRect(host).top(), 30);
+  EXPECT_EQ(host.pixel(10, 40), SkColorSetARGB(255, 255, 0, 0));
+
+  host.composer.render(tree().applyStyleSheet(
+      StyleSheet{rule(":root").var("accent", SkColor4f{0, 0, 1, 1})}));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 40), SkColorSetARGB(255, 0, 0, 255))
+      << "the tree's own sheet stands after the composer's";
+  EXPECT_FLOAT_EQ(contentRect(host).top(), 30)
+      << "and what it does not name stays the composer's";
+
+  host.composer.setStyleSheet({});
+  host.composer.render(tree());
+  host.frame();
+  EXPECT_FLOAT_EQ(contentRect(host).top(), 0) << "an empty sheet clears it";
 }

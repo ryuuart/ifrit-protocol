@@ -182,10 +182,12 @@ struct FeedEvents {
   Reading shown;
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide sheet(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
-        ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = kCaptureAt,
+         .background = kGround});
     ticker = &ctx.engine;
 
     io::Hub& hub = ctx.assets.hub();
@@ -293,12 +295,12 @@ struct FeedEvents {
   }
 
   void describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide sheet(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // A paint program runs after the describe scope has closed, where
     // the theme in force is no longer this page's, so the one colour a
     // wave is drawn in is read here and carried in by value.
-    const material::Color crest = sketch::kit::theme().palette.figure;
+    const material::Color crest =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+            .palette.figure;
     compose::Element picture =
         compose::stack()
             .width(kCanvas.width())

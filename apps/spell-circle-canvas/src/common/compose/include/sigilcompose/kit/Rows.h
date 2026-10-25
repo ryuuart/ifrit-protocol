@@ -138,10 +138,10 @@ struct Table {
   /** In order across. A row with more words than there are columns sets
    *  the surplus in the last column's class at its own width. */
   std::vector<Column> columns;
-  /** Between columns, px. */
-  float gap = 10.0f;
-  /** Between rows, px. */
-  float rowGap = 5.0f;
+  /** Between columns: a length, so a sheet's property can state it. */
+  Dimension gap = 10.0f;
+  /** Between rows. */
+  Dimension rowGap = 5.0f;
   /** A line between neighbouring rows. Fill::none() (default) rules
    *  none. */
   Fill divider;
@@ -154,7 +154,7 @@ struct Table {
    *  same leading space. A row past the end of this run, or one whose
    *  patch is none, leaves that space empty. */
   std::span<const Fill> swatches;
-  float swatchSide = 10.0f;
+  Dimension swatchSide = 10.0f;
   float swatchCorners = 0.0f;
   /** ONE KEY PER ROW, in row order, so a query can read a row back and a
    *  reveal can address the table one row at a time. An empty name keys

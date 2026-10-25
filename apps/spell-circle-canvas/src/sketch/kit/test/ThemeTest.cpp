@@ -79,27 +79,31 @@ TEST(SketchKitTheme, ComparesExactly) {
   EXPECT_NE(quiet, two);
 }
 
-TEST(SketchKitTheme, NothingBoundIsTheHouseTheme) {
-  EXPECT_EQ(kit::theme(), kit::houseTheme());
-}
-
-TEST(SketchKitTheme, AScopeBindsAndAnInnerScopeShadows) {
+/** A sheet applied on a subtree shadows the one above it for that
+ *  subtree alone: a component reads the nearer sheet's properties, and a
+ *  sibling outside the subtree keeps the outer sheet's. */
+TEST(SketchKitTheme, ANearerSheetShadowsTheOneAbove) {
   kit::Theme paper = kit::houseTheme();
-  paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
-  {
-    const kit::Provide bound(paper);
-    EXPECT_EQ(kit::theme().palette.ground, paper.palette.ground);
-
-    kit::Theme darker = paper;
-    darker.palette.ground = {0, 0, 0, 1};
-    {
-      const kit::Provide inner(darker);
-      EXPECT_EQ(kit::theme().palette.ground,
-                (sigil::material::Color{0, 0, 0, 1}));
-    }
-    EXPECT_EQ(kit::theme().palette.ground, paper.palette.ground);
-  }
-  EXPECT_EQ(kit::theme(), kit::houseTheme());
+  paper.palette.cellGround = {0.945f, 0.937f, 0.918f, 1};
+  kit::Theme darker = paper;
+  darker.palette.cellGround = {0, 0, 0.3f, 1};
+  const auto plate = [] {
+    return kit::well(
+        {.width = compose::Dimension(60), .height = compose::Dimension(40)});
+  };
+  const auto filled = [](sigil::material::Color colour) {
+    return compose::box().width(60).height(40).fill(Fill::color(colour));
+  };
+  EXPECT_TRUE(sameDrawing(
+      compose::box()
+          .row()
+          .applyStyleSheet(paper.styleSheet())
+          .children({plate(), compose::box()
+                                  .applyStyleSheet(darker.styleSheet())
+                                  .children({plate()})}),
+      compose::box().row().children(
+          {filled(paper.palette.cellGround),
+           compose::box().children({filled(darker.palette.cellGround)})})));
 }
 
 TEST(SketchKitTheme, ARegisterAsAFontIsItsFaceSizeAndTrackAndNoColour) {
@@ -133,9 +137,10 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
   const kit::Theme& house = kit::houseTheme();
   {
     const compose::StyleSheet sheet = house.styleSheet();
-    // The eight registers, `readout`, the eight a chart's parts are
-    // dressed in, the three a verdict names, and the root's properties.
-    EXPECT_EQ(sheet.size(), 21u);
+    // A page's running text, the eight registers, `readout`, a console's
+    // rows, the eight a chart's parts are dressed in, the three a verdict
+    // names, and the root's properties.
+    EXPECT_EQ(sheet.size(), 23u);
     ASSERT_NE(ruleFor(sheet, "eyebrow"), nullptr);
     EXPECT_EQ(ruleFor(sheet, "eyebrow")->type(), house.font(house.type.eyebrow))
         << "a register a sheet sets inside its content names no colour";
@@ -164,9 +169,9 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
     compose::StyleSheet own =
         house.styleSheet() +
         compose::StyleSheet{compose::rule(".value").font({.size = 13.0f})};
-    EXPECT_EQ(own.size(), 22u) << "the registers and the sketch's own";
+    EXPECT_EQ(own.size(), 24u) << "the registers and the sketch's own";
     EXPECT_NE(ruleFor(own, ".value"), nullptr);
-    EXPECT_EQ(house.styleSheet().size(), 21u) << "a copy, not the theme's";
+    EXPECT_EQ(house.styleSheet().size(), 23u) << "a copy, not the theme's";
   }
 }
 
@@ -220,9 +225,9 @@ TEST(SketchKitTheme, AFillReadsThePaletteOfTheSheetInForce) {
         .applyStyleSheet(look.styleSheet())
         .children({compose::box().width(60).height(40).fill(std::move(fill))});
   };
-  EXPECT_TRUE(sameDrawing(filled(Fill::var("palette-figure")),
+  EXPECT_TRUE(sameDrawing(filled(compose::var("palette-figure")),
                           filled(Fill::color(look.palette.figure))));
-  EXPECT_TRUE(sameDrawing(filled(Fill::var("palette-cell-ground")),
+  EXPECT_TRUE(sameDrawing(filled(compose::var("palette-cell-ground")),
                           filled(Fill::color(look.palette.cellGround))));
 }
 

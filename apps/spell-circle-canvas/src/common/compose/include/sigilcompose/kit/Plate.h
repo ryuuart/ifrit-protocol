@@ -76,8 +76,9 @@ struct Plate {
   /** false (default) lays the columns out as a ROW; true stacks them
    *  vertically. Dividers follow the axis either way. */
   bool column = false;
-  float paddingHorizontal = 10.0f, paddingVertical = 8.0f;
-  float gap = 12.0f;
+  /** Lengths, so a sheet's properties can state them. */
+  Dimension paddingHorizontal = 10.0f, paddingVertical = 8.0f;
+  Dimension gap = 12.0f;
   /** The plate's own ground and its keyline. */
   Fill fill, border;
   float borderWidth = 1.0f;

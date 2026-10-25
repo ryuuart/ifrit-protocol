@@ -87,7 +87,7 @@ def paint(pen: Pen) -> None:
 
 
 def title_part(words: str, props: marks.Sheet) -> Text:
-    return text(words, size=props.marginHorizontal)
+    return text(words, size=props.marginHorizontal.value)
 
 
 @sketch(size=(720, 420), captureAt=1)
@@ -100,18 +100,18 @@ class TypedSketch:
         look.type.title.size = 34
         progress = animatable(1)
         native: Element = raw.box().width(24).fill("#abcdef")
-        with kit.provide(look):
-            body = (
-                row()
-                .opacity(bind(progress))
-                .children(
-                    (memo(self.model, component).key("reading")),
-                    native,
-                    (graphics("mark", paint).width(24).height(24)),
-                )
+        kit.stage(ctx, theme=look, size=(640, 360))
+        body = (
+            row()
+            .opacity(bind(progress))
+            .children(
+                (memo(self.model, component).key("reading")),
+                native,
+                (graphics("mark", paint).width(24).height(24)),
             )
-            panel = kit.well(body, width=620, height=220, corners=12)
-            ctx.render(kit.page(panel, title="Typed Python"))
+        )
+        panel = kit.well(body, width=620, height=220, corners=12)
+        ctx.render(kit.page(panel, title="Typed Python"))
 
     def update(self, elapsed: float, ctx: Scene2DContext) -> None:
         if elapsed > 2:
@@ -183,10 +183,11 @@ def banded(leaf: Band) -> Element:
 
 
 def themed_page() -> Element:
-    """A page returned from inside a theme's scope: the scope suppresses
-    nothing, so every path through the function returns an element."""
-    with kit.provide(kit.houseTheme()):
-        return kit.page(text("Inside the scope"), title="A themed page")
+    """A page standing under a theme's sheet applied on its own root, as a
+    tree outside a sketch states its look."""
+    return kit.page(text("Under a sheet"), title="A themed page").applyStyleSheet(
+        kit.houseTheme().styleSheet()
+    )
 
 
 assert_type(themed_page(), Element)

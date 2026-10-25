@@ -161,8 +161,8 @@ needs = "Retained 3D transforms, preserve3d and hidden backfaces; bound rotation
 requires = []
 
 [sketch.cascade]
-needs = "Inherited type, ink transitions, classes and custom properties; lexical environment values; pen and graphics leaves; readout kit"
-requires = ["compose-readout", "environment-values"]
+needs = "Inherited type, ink transitions, classes and custom properties; the nearest property winning; pen and graphics leaves; readout kit"
+requires = ["compose-readout"]
 
 [sketch.cde_motif]
 needs = "Inherited colour sets; Motif bevels, inset adaptor; pixel styles, sprites; program tile; edge mask; scrollbar; aliased type; checks"
@@ -175,7 +175,6 @@ requires = [
   "pixel-styles",
   "bevels",
   "pixel-sprites",
-  "environment-values",
   "silhouettes",
   "check-table",
 ]

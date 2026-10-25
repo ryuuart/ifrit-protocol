@@ -108,10 +108,12 @@ sketch::kit::ComparisonCase example(const char* title, const char* control,
 
 struct FrameInputs {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
     // Each body is a recipe's rather than a whole program, so it is read as
     // text from the file beside this one and handed to its recipe.
     const auto body = [&](const char* name) {

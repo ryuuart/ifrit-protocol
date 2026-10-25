@@ -159,9 +159,11 @@ struct MeshGenerators {
 
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
-        ctx, {.size = SkSize::Make(kCanvas.width(), 690),
-              .captureAt = 1.0,
-              .background = material::Color{0.04f, 0.04f, 0.062f, 1}});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = SkSize::Make(kCanvas.width(), 690),
+         .captureAt = 1.0,
+         .background = material::Color{0.04f, 0.04f, 0.062f, 1}});
 
     // The bodies are built once. A generator's cost belongs to the
     // description, not to the frame: nothing below changes per frame, so
@@ -246,19 +248,20 @@ struct MeshGenerators {
              .backface(material::Backface::Visible)
              .fill(material::surface::unlit(
                  {.baseColor = {0.86f, 0.87f, 0.92f, 1}}))}));
-    picture = ctx.bakeScene3D(
-        bodies, {(int)kCanvas.width(), (int)kCanvas.height()},
-        {.camera = lens()});
+    picture =
+        ctx.bakeScene3D(bodies, {(int)kCanvas.width(), (int)kCanvas.height()},
+                        {.camera = lens()});
 
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     ctx.composer.render(
         box()
             .inset(0)
-            .applyStyleSheet(sketch::kit::theme().styleSheet())
-            .ink(sketch::kit::theme().palette.ink)
+            .applyStyleSheet(
+                sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                    .styleSheet())
+            .ink(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                     .palette.ink)
             .children(
                 {document::h1("Six ways to make a mesh")
                      .font({.size = 32})

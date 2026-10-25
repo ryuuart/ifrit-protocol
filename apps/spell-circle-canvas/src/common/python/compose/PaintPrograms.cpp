@@ -507,14 +507,6 @@ void bindComposePaintPrograms(py::module_& module) {
                               : options.cast<weave::ParagraphLayoutOptions>());
       },
       py::arg("paragraph"), py::arg("options") = py::none());
-
-  extend<compose::Fill>(module, "compose.Fill")
-      .def_static(
-          "var",
-          [](const std::string& name) {
-            return compose::Fill::var(std::string_view{name});
-          },
-          py::arg("name"));
 }
 
 }  // namespace sigil::python

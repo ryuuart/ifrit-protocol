@@ -65,9 +65,11 @@ Element plate(Element paragraph, float height) {
 
 struct RichSlotReserve {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx, {.size = {1100, 800}, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = {1100, 800},
+         .captureAt = 0.05});
     const auto depth = [&](weave::ReservedBand band) {
       return kit::formatted(
           "Measured block depth: %.1f px",

@@ -13,6 +13,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -23,15 +24,16 @@
 namespace sigil::sketch::kit {
 
 /** THE FIXED SURFACE A SPECIMEN IS SHOWN IN, sized by the caller and
- *  grounded by the theme. */
+ *  grounded by the sheet in force. */
 struct Well {
   compose::Dimension width;
   compose::Dimension height;
-  /** Unset is the theme's cell ground. Set it to `Fill::none()` for a
-   *  well that paints nothing, and to a material for a well grounded in
-   *  something generated per pixel. */
+  /** Unset is the sheet's cell ground, `palette-cell-ground`. Set it to
+   *  `Fill::none()` for a well that paints nothing, and to a material for
+   *  a well grounded in something generated per pixel. A relief or a
+   *  recess carries on a ground stated as a colour or a material. */
   std::optional<compose::Fill> ground;
-  /** Across; unset is the theme's well padding. */
+  /** Across; unset is the sheet's well padding, `spacing-well-padding`. */
   std::optional<float> padding;
   /** Down, where a plate is set tighter or looser than it is wide; unset
    *  is whatever `padding` resolves to. */
@@ -39,7 +41,7 @@ struct Well {
   bool clip = true;
   /** Rounds the well; unset is the square corner a specimen sheet uses.
    *  A component that grounds a PLATE rather than a specimen — a panel —
-   *  reads an unset radius as the theme's own. */
+   *  reads an unset radius as the sheet's panel corners. */
   std::optional<float> corners;
   /** ONE HAIRLINE ROUND THE WELL, over its ground — what turns a patch of
    *  ground into a PLATE. Unset draws none; unset is not the theme's rule,
@@ -105,7 +107,7 @@ struct Well {
 };
 
 /** @p surface, sized, grounded, padded and clipped as @p specification and the
- *  theme say.
+ *  sheet in force say.
  *
  *      sketch::kit::well({.width = kCell, .height = kPicture})
  *          .children({subject()})
@@ -127,8 +129,10 @@ struct Well {
 
 /** ONE CAPTIONED SPECIMEN: @p body with @p label over it and @p note
  *  under it, with document roles `label` and `caption` — the theme's
- *  registers, resolved where the two lines land —
- *  and spaced by the theme's caption gaps.
+ *  registers, resolved where the two lines land — and spaced by the
+ *  sheet's caption gaps, `spacing-caption-gap` and
+ *  `spacing-caption-note-gap`. @p where stands the two lines over the
+ *  body, under it, or one each side (the default).
  *
  *      sketch::kit::caption(
  *          kCell, "Border::Mode::Bracket",
@@ -140,9 +144,10 @@ struct Well {
  *  about the specimen rather than about the look; 0 lets the remark take
  *  whatever width the cell resolves to. An empty label or an empty note
  *  is simply absent, and spends no gap. */
-[[nodiscard]] compose::Element caption(float measure, compose::Utf8 label,
-                                       compose::Utf8 note,
-                                       compose::Element body);
+[[nodiscard]] compose::Element caption(
+    float measure, compose::Utf8 label, compose::Utf8 note,
+    compose::Element body,
+    compose::kit::Caption::Where where = compose::kit::Caption::Where::Split);
 
 /** THE CELL A SHEET IS MADE OF, stated ONCE: the plate every specimen on
  *  it stands on, and the measure its caption is set to.
@@ -168,11 +173,14 @@ struct Cell {
    *  the plate's own width, which is the cell's width wherever the plate
    *  is stated in pixels. */
   std::optional<float> measure;
+  /** Where the caption's lines stand: the label over the picture and the
+   *  note under it (default), both over it, or both under it. */
+  compose::kit::Caption::Where where = compose::kit::Caption::Where::Split;
 };
 
 /** ONE CAPTIONED SPECIMEN on @p sheet's plate: @p picture held by that
- *  plate, with @p label over it and @p note under it in the theme's
- *  voice. */
+ *  plate, with @p label and @p note standing where the cell says, in the
+ *  sheet's voice. */
 [[nodiscard]] compose::Element cell(const Cell& sheet, compose::Utf8 label,
                                     compose::Utf8 note,
                                     compose::Element picture);
@@ -196,23 +204,23 @@ struct Comparison {
   /** The available width in pixels, including the gaps between cases.
    *  Stated so text can wrap before the shared tracks are measured. */
   float measure = 0;
-  /** Between cases; unset is the theme's cell gap. */
+  /** Between cases; unset is 20 px. */
   std::optional<float> gap;
-  /** Between semantic tracks; unset is the theme's comparison gap. */
+  /** Between semantic tracks; unset is 8 px. */
   std::optional<float> trackGap;
 };
 
 [[nodiscard]] compose::Element comparison(Comparison specification);
 
-/** A RUN OF CELLS along one axis, at the theme's gutter. */
+/** A RUN OF CELLS along one axis, at the sheet's gutter. */
 struct Run {
   /** In order along the axis. */
   std::vector<compose::Element> cells;
   /** false (default) lays the cells out as a ROW; true stacks them. */
   bool column = false;
-  /** Unset is the theme's cell gap. */
+  /** Unset is the sheet's cell gap, `spacing-cell-gap`. */
   std::optional<float> gap;
-  /** A hairline between neighbours, in the theme's rule colour. */
+  /** A hairline between neighbours, in the sheet's `palette-rule`. */
   bool ruled = false;
   /** How the cells range across the axis. */
   compose::Align align = compose::Align::Start;
@@ -235,7 +243,7 @@ struct PanelGrid {
    *  every cell takes a share of the width and nothing wraps, which is
    *  the two- or three-panel band a page is divided into. */
   int columns = 3;
-  /** Across; unset is the theme's cell gap. */
+  /** Across; unset is 20 px. */
   std::optional<float> gap;
   /** Down; unset is whatever `gap` resolves to, so a grid is square in
    *  its air unless it is told not to be. Nothing to a single row. */

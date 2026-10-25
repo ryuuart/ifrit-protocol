@@ -14,6 +14,7 @@ import sigil.weave
 Column = sigil.compose.kit.Column
 
 class _StageProperties(typing.TypedDict, total=False):
+    theme: Theme | None
     size: _t.SizeLike
     captureAt: float
     background: _t.ColorLike | None
@@ -46,6 +47,7 @@ class _WellProperties(typing.TypedDict, total=False):
 class _CellProperties(typing.TypedDict, total=False):
     plate: Well
     measure: float | None
+    where: sigil.compose.kit.CaptionWhere
 
 class _RunProperties(typing.TypedDict, total=False):
     cells: collections.abc.Sequence[_t.NodeLike]
@@ -252,7 +254,6 @@ def houseFace(
     *,
     italic: bool = ...,
 ) -> sigil.weave.Face: ...
-def provide(look: Theme) -> Provide: ...
 def stage(
     ctx: sigil.sketch.Scene2DContext | sigil.sketch.Scene3DContext,
     props: Stage | None = ...,
@@ -274,6 +275,7 @@ def caption(
     label: str = ...,
     note: str = ...,
     measure: float = ...,
+    where: sigil.compose.kit.CaptionWhere = ...,
 ) -> sigil.compose.Element: ...
 def cell(
     picture: _t.NodeLike,

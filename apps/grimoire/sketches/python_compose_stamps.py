@@ -28,8 +28,7 @@ def card(label: str, accent: str) -> Element:
 class ComposeStamps:
     def setup(self, ctx: Scene2DContext) -> None:
         self.look = kit.featureTheme()
-        with kit.provide(self.look):
-            kit.stage(ctx, size=(740, 370), captureAt=0)
+        kit.stage(ctx, theme=self.look, size=(740, 370), captureAt=0)
         self.cards = [
             card(label, accent).applyStyleSheet(self.look.styleSheet())
             for label, accent in (

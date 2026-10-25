@@ -3,15 +3,15 @@
 // wherever the code that built it ran; what it names it keeps. Each case
 // asserts one thing the headers promise.
 
-#include <sigilmaterial/paint/Bases.h>
-#include <sigilmaterial/paint/Paint.h>
-#include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/paint/Paint.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Length.h>
@@ -117,16 +117,16 @@ TEST(ComposeCascade, ATotalStyleTakesTheInkStatedOnItselfWhicheverItsKind) {
   EXPECT_TRUE(drawsWhite(box().padding(10).children({leaf()})));
   EXPECT_FALSE(drawsWhite(
       box().padding(10).children({leaf().ink(SkColor4f{0, 0, 0, 0})})));
-  EXPECT_FALSE(drawsWhite(box().padding(10).children(
-      {leaf().ink(material::skia::base(
+  EXPECT_FALSE(
+      drawsWhite(box().padding(10).children({leaf().ink(material::skia::base(
           material::Paint::solid(material::Color{0, 0, 0, 0})))})));
   EXPECT_TRUE(drawsWhite(
       box().padding(10).ink(SkColor4f{0, 0, 0, 0}).children({leaf()})));
   EXPECT_FALSE(drawsWhite(box()
-                             .padding(10)
-                             .ink(material::skia::base(material::Paint::solid(
-                                 material::Color{0, 0, 0, 0})))
-                             .children({leaf()})));
+                              .padding(10)
+                              .ink(material::skia::base(material::Paint::solid(
+                                  material::Color{0, 0, 0, 0})))
+                              .children({leaf()})));
   // The stated colour moves the paragraph it is set in.
   Host host;
   const auto page = [&](SkColor4f ink) {
@@ -168,7 +168,7 @@ TEST(ComposeCascade, ACustomPropertyIsReadByAnyDescendantThatNamesIt) {
           .children({box()
                          .padding(var("gutter"))
                          .children({box().key("in").width(20).height(20).fill(
-                             Fill::var("accent"))})}));
+                             var("accent"))})}));
   host.frame();
   const SkRect in = require(host.composer.bounds("in"));
   EXPECT_FLOAT_EQ(in.left(), 40.0f);
@@ -184,7 +184,7 @@ TEST(ComposeCascade, ANearerAncestorsPropertyWinsOverAFartherOnes) {
           .children({box()
                          .var("accent", SkColor4f{0, 1, 0, 1})
                          .children({box().width(40).height(40).fill(
-                             Fill::var("accent"))})}));
+                             var("accent"))})}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SkColorSetARGB(255, 0, 255, 0));
 }
@@ -388,11 +388,8 @@ TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {
   // target, so the first tick after it already moves the colour.
   Host host;
   const auto page = [](SkColor4f ink) {
-    return box()
-        .key("p")
-        .ink(ink)
-        .transition(200ms)
-        .children({box().width(60).height(60).fill(Fill::currentInk())});
+    return box().key("p").ink(ink).transition(200ms).children(
+        {box().width(60).height(60).fill(Fill::currentInk())});
   };
   host.composer.render(page({1, 0, 0, 1}));
   host.frame();
@@ -449,16 +446,11 @@ TEST(ComposeCascade, AnInheritedInkEasesUnderTheNodesOwnTransition) {
   // landed.
   Host host;
   const auto page = [](SkColor4f ink) {
-    return box()
-        .ink(ink)
-        .transition(100ms)
-        .children({box().row().children({
-            box().width(60).height(60).fill(Fill::currentInk()),
-            box()
-                .transition(400ms)
-                .children({box().width(60).height(60).fill(
-                    Fill::currentInk())}),
-        })});
+    return box().ink(ink).transition(100ms).children({box().row().children({
+        box().width(60).height(60).fill(Fill::currentInk()),
+        box().transition(400ms).children(
+            {box().width(60).height(60).fill(Fill::currentInk())}),
+    })});
   };
   host.composer.render(page({1, 0, 0, 1}));
   host.frame();
@@ -500,12 +492,13 @@ TEST(ComposeCascade, AnInkReadFromACustomPropertyEasesWhenThePropertyMoves) {
   // it did.
   Host host;
   const auto page = [](material::Color accent) {
-    return box().var("accent", accent).children(
-        {box()
-             .ink(var("accent"))
-             .transition(200ms)
-             .children({box().width(60).height(60).fill(
-                 Fill::currentInk())})});
+    return box()
+        .var("accent", accent)
+        .children({box()
+                       .ink(var("accent"))
+                       .transition(200ms)
+                       .children({box().width(60).height(60).fill(
+                           Fill::currentInk())})});
   };
   host.composer.render(page({1, 0, 0, 1}));
   host.frame();
@@ -720,8 +713,8 @@ namespace {
 
 /** A red-to-blue ramp across the unit square, left to right. */
 material::Material redToBlue() {
-  return material::linearGradient(
-      {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  return material::linearGradient({0, 0}, {1, 0},
+                                  {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
 }
 
 /** Two 40x40 boxes filled with the ink in force, side by side inside a
@@ -830,4 +823,3 @@ TEST(ComposeCascade, APaintHoldingOneColourAndAPlainColourBothInkAWholeStyle) {
   plain.frame();
   EXPECT_GT(redInk(plain), 40);
 }
-

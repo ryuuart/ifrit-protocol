@@ -190,8 +190,7 @@ Element bandLabels(float stripW) {
 
 struct MatteLuma {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1100, 1180}});
+    sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = {1100, 1180}});
     // Every gate is a constant: the sheet is complete on the first frame.
     ctx.captureAt(0.05);
 

@@ -67,7 +67,6 @@ struct SurfaceComponents {
   int sizeStep = -1;
 
   Element describe(float height) {
-    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     const Fill slate = Fill::color({0.10f, 0.13f, 0.18f, 1});
     const Fill ramp = sigil::material::linearGradient(
         {0, 0}, {1, 1},
@@ -95,8 +94,9 @@ struct SurfaceComponents {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
-    sketch::kit::stage(ctx, {.size = {1020, 620}, .captureAt = 2.5});
+    sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+                             .size = {1020, 620},
+                             .captureAt = 2.5});
     ctx.composer.render(describe(80));
   }
 

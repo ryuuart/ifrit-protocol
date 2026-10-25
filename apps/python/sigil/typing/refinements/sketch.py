@@ -14,10 +14,3 @@ def register(table: Table) -> None:
     table.erased("_sigil.sketch.kit.Theme", "font style", "_t.ColorLike")
     for member in ("sans", "mono"):
         table.parameters(f"_sigil.sketch.kit.Theme.{member}", color="_t.ColorLike")
-    table.erased(
-        "_sigil.sketch.kit.Provide",
-        "__exit__",
-        "type[BaseException] | None",
-        "BaseException | None",
-        "types.TracebackType | None",
-    )

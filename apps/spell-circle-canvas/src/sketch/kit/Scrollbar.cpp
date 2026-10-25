@@ -22,7 +22,6 @@ Thumb Scrolled::thumb() const {
 }
 
 compose::Element scrollbar(Scrollbar bar) {
-  const Theme& look = theme();
   const bool down = bar.column;
 
   Element shell = box();
@@ -33,7 +32,7 @@ compose::Element scrollbar(Scrollbar bar) {
   if (bar.leading) shell.children({std::move(*bar.leading)});
 
   Element rail = box().flexGrow(1);
-  rail.fill(bar.track.value_or(Fill::color(look.palette.cellGround)));
+  rail.fill(bar.track.value_or(compose::var("palette-cell-ground")));
 
   const Thumb reading = bar.scrolled.thumb();
   Dimension length = bar.thumbLength;
@@ -41,7 +40,7 @@ compose::Element scrollbar(Scrollbar bar) {
     length = Dimension(reading.length);
   if (length.unit != Dimension::Unit::Auto) {
     Element slider = bar.thumb ? std::move(*bar.thumb)
-                               : box().fill(Fill::color(look.palette.figure));
+                               : box().fill(compose::var("palette-figure"));
     // The bar owns the whole of the thumb's geometry: its length, its
     // place along the track, and how far it stands in from the two long
     // edges. What the caller handed over is the chrome.

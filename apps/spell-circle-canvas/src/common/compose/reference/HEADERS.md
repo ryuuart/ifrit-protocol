@@ -36,7 +36,7 @@ sound model; nothing below them changes kernel semantics.
   its canvas. A colour from a source palette's hex integer is
   SigilMaterial's `material::hexColor`. A `Fill` may be written as a
   REFERENCE the tree resolves at paint — `Fill::currentInk`, the ink in
-  force, and `Fill::var`, a custom property — through `resolveRef`, which
+  force, and `var(name)`, a custom property — through `resolveRef`, which
   every consumer holding a `PaintContext` runs a fill through; the
   context carries the node's `PaintContext::ink`, `PaintContext::font`
   and `PaintContext::vars` for it. `PaintContext::destination` carries the

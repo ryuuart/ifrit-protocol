@@ -7,15 +7,16 @@
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -39,6 +40,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace data = sigil::data;
@@ -46,7 +48,6 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace measure = sigil::measure;
 namespace test = sigil::compose::test;
-namespace environment = sigil::core::environment;
 namespace motion = sigil::motion;
 namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
@@ -285,23 +286,24 @@ constexpr std::array<uint32_t, 8> kIconColor = {0x000000, 0xFFFFFF, 0xFF0000,
                                                 0x00FFFF, 0xFF00FF};
 
 // ===========================================================================
-// 3. THE DERIVED THEME — 8 colour sets x 5 colours, as VALUES, reached
-//    through the inherited-value channel.
+// 3. THE DERIVED THEME — 8 colour sets x 5 colours, as custom properties.
 //
 //    A CDE widget is drawn in whatever set the window around it was
-//    assigned, and no widget picks its own. That is an ambient value, so
-//    it is one: `core::environment::Provide<ColorSet>` opens the scope a piece
-//    of chrome is drawn in, and every bevel, label, stipple and icon under it
-//    reads the same set without being handed it. Threading a set by argument
-//    through six levels is how a window ends up drawn in three of them by
-//    accident, and one window in three sets is the one mistake a study of this
-//    derivation cannot afford.
+//    assigned, and no widget picks its own. So a set is a CLASS: the
+//    theme's sheet gives `colour-set-N` one rule that sets the set's five
+//    colours as custom properties, a window names the class its subtree
+//    wears, and every bevel, label, stipple and icon under it reads the
+//    same five where it paints without being handed them. Threading a set
+//    by argument through six levels is how a window ends up drawn in three
+//    of them by accident, and one window in three sets is the one mistake a
+//    study of this derivation cannot afford.
 //
-//    Values, not bound Outputs. A bound colour is declared volatility,
-//    and volatility is per NODE and binary: "this bevel changes every
-//    three seconds" would be priced exactly as "this bevel repaints at
-//    60 Hz", across a desktop's worth of bevels, to save the re-describe
-//    on the one frame in a hundred and eighty where the palette moves.
+//    The top and bottom shadows are the kit's `bevel-light` and
+//    `bevel-shadow`. A palette change is a new sheet on the desktop's root:
+//    the reconciler repaints the nodes whose properties moved and keeps the
+//    rest, where a bound colour would make every bevel on the desktop
+//    volatile for ever to save the one frame in a hundred and eighty where
+//    the palette moves.
 // ===========================================================================
 
 struct ColorSet {
@@ -314,32 +316,81 @@ struct ColorSet {
   }
 };
 
+/** The class a subtree wearing colour set @p set names, one to eight. */
+inline std::string colourSet(int set) {
+  return "colour-set-" + std::to_string(set);
+}
+
 struct Theme {
   std::array<ColorSet, 8> s;
   void load(const Palette& p) {
     for (int i = 0; i < 8; ++i) s[(size_t)i] = ColorSet::of(p.set[(size_t)i]);
   }
   const ColorSet& operator[](int i) const { return s[(size_t)(i - 1)]; }
-  ColorSet& operator[](int i) { return s[(size_t)(i - 1)]; }
   bool operator==(const Theme&) const = default;
+
+  /** The eight sets as eight rules, which the desktop's root applies. */
+  StyleSheet styleSheet() const {
+    StyleSheet sheet;
+    for (int i = 1; i <= 8; ++i)
+      sheet = sheet + StyleSheet{rule("." + colourSet(i))
+                                     .var("background", (*this)[i].bg)
+                                     .var("foreground", (*this)[i].fg)
+                                     .var("bevel-light", (*this)[i].ts)
+                                     .var("bevel-shadow", (*this)[i].bs)
+                                     .var("select", (*this)[i].sel)};
+    return sheet;
+  }
 };
 
-/** The set this piece of chrome is being drawn in. Handed nothing; reads
- *  the scope it was composed inside. */
-inline ColorSet ambient() { return environment::inheritedOr(ColorSet{}); }
+/** The colour the property @p name holds where @p context paints: how a
+ *  mark whose colours sit inside a value the cascade cannot see into — a
+ *  bevel's inner ring, a material's tile — reads the set in force. */
+inline material::Color inForce(const PaintContext& context, VarRef name) {
+  if (context.vars != nullptr)
+    if (const VarValue* value = context.vars->find(name))
+      if (const auto* colour = std::get_if<material::Color>(value))
+        return *colour;
+  return {};
+}
 
-/** A SURFACE WEARING @p s: grounded in the set's background and INKED in
- *  its foreground, which is what every plane in a CDE session is. The ink
- *  is the half a widget used to have to hand to each of its labels — the
- *  set is one decision about a surface and everything on it, so it is
- *  stated where the surface is. */
-inline Element surface(const ColorSet& s) { return box().fill(s.bg).ink(s.fg); }
+/** A SURFACE WEARING THE SET IN FORCE: grounded in its background and
+ *  INKED in its foreground, which is what every plane in a CDE session is.
+ *  The ink is the half a widget used to have to hand to each of its labels
+ *  — the set is one decision about a surface and everything on it, so it
+ *  is stated where the surface is. */
+inline Element surface() {
+  return box().fill(var("background")).ink(var("foreground"));
+}
 
 // ===========================================================================
 // 4. THE BEVEL — lib/Xm/Draw.c, DrawSimpleShadow().
 // ===========================================================================
 
-/** The bevel of the AMBIENT colour set — top shadow over bottom shadow.
+/** XmeDrawShadows IN THE SET IN FORCE: @p shape's rings, inner as well as
+ *  outer, in the colours the properties `light` and `shadow` hold where it
+ *  paints. An etched groove's inner ring is the same pair the other way
+ *  up, so both rings read the set. */
+struct BevelInForce {
+  kit::Bevel shape;
+  VarRef light = var("bevel-light");
+  VarRef shadow = var("bevel-shadow");
+  bool operator==(const BevelInForce&) const = default;
+  float reach() const { return shape.reach(); }
+  bool staysOnOutline() const { return shape.staysOnOutline(); }
+  void paint(sigil::draw::Pen& pen, const PaintContext& context) const {
+    kit::Bevel bevel = shape;
+    bevel.light = inForce(context, light);
+    bevel.shadow = inForce(context, shadow);
+    if (bevel.inner) {
+      bevel.inner->light = bevel.light;
+      bevel.inner->shadow = bevel.shadow;
+    }
+    bevel.paint(pen, context);
+  }
+};
+
+/** The bevel of the colour set in force — top shadow over bottom shadow.
  *  Handed nothing: a bevel is drawn in the set of the window it is in.
  *
  *  XmeDrawShadows IS the kit's Motif token set. `sunken` is XmSHADOW_IN
@@ -355,16 +406,14 @@ inline Element surface(const ColorSet& s) { return box().fill(s.bg).ink(s.fg); }
  *  Antialiasing is OFF and the marks land on whole pixels, which is the
  *  token set's own doing: every coordinate a 1993 toolkit computed was an
  *  integer and AA can only soften it. */
-inline kit::Bevel bevel(float T, bool sunken, bool etched) {
-  const ColorSet s = ambient();
-  return etched ? kit::bevels::motifEtched(s.ts, s.bs, T, sunken)
-                : kit::bevels::motif(s.ts, s.bs, T, sunken);
+inline BevelInForce bevel(float T, bool sunken, bool etched) {
+  return {etched ? kit::bevels::motifEtched({}, {}, T, sunken)
+                 : kit::bevels::motif({}, {}, T, sunken)};
 }
 /** A bevel drawn in the FOREGROUND on both faces — the flat outline Motif
  *  puts inside a maximise box, which is a shadow with one colour. */
-inline kit::Bevel bevelFg(float T) {
-  const material::Color fg = ambient().fg;
-  return kit::bevels::motif(fg, fg, T);
+inline BevelInForce bevelFg(float T) {
+  return {kit::bevels::motif({}, {}, T), var("foreground"), var("foreground")};
 }
 
 /** XmeDrawHighlight: a square ring of `highlightThickness` inside the
@@ -377,22 +426,39 @@ inline kit::Bevel bevelFg(float T) {
  *  an axis-aligned 2 px ring reads as a blur rather than as a line. */
 inline PathFormat highlight(float T) {
   return PathFormat{.width = T,
-                    .strokeFill = Fill::color(ambient().fg),
+                    .strokeFill = var("foreground"),
                     .align = PathFormat::Align::Inner,
                     .antiAlias = false};
 }
 
+/** A WASH IN THE SET IN FORCE: the material @p tile makes of the colour
+ *  the property `colour` holds where it paints. A material holds its
+ *  colours inside its tile, where no property reaches, so the tile is
+ *  made at paint from the colour the set put there. */
+struct WashInForce {
+  material::Material (*tile)(material::Color);
+  VarRef colour;
+  bool operator==(const WashInForce&) const = default;
+  bool staysOnOutline() const { return true; }
+  void paint(sigil::draw::Pen& pen, const PaintContext& context) const {
+    decorations::wash(tile(inForce(context, colour))).paint(pen, context);
+  }
+};
+
 /** Motif's insensitive treatment: the label is painted through a 50%
  *  checkerboard, `stipple(x, y) = (x + y) & 1`. Reproduced the other way
  *  round — the background painted over the complementary half — which is
- *  the identical result and lets the colour stay bound.
+ *  the identical result and lets the colour be the set's.
  *
  *  patterns::checker(1, on, off) is this pattern and is not usable here:
  *  a Pattern BAKES its colours into the tile, so a themed stipple would
  *  need one Pattern per palette per colour. The kit's stipple is a mask
  *  the colour is laid THROUGH, which is one lattice for all of them. */
-inline material::Material stipple() {
-  return material::pattern::stipple({.color = ambient().bg});
+inline WashInForce stipple() {
+  return {[](material::Color colour) {
+            return pattern::stipple({.color = colour});
+          },
+          var("background")};
 }
 
 // ===========================================================================
@@ -478,48 +544,39 @@ inline std::vector<std::string> wordList(const data::Json& node) {
 inline Element label(const Utf8& t) { return text(t).flexShrink(0); }
 
 /** The same at another size, and in a colour of its own where the run is
- *  not in the set's: a calendar page's month over its day, the one figure a
- *  proof row fails on. */
+ *  not in the set's: a calendar page's day under its month. */
 inline Element label(const Utf8& t, float size,
                      std::optional<material::Color> c = std::nullopt) {
   return text(t).font({.size = size, .color = c}).flexShrink(0);
 }
 
-/** One run with Motif's mnemonic underline on exactly one character. Two
- *  spans and a `Decoration{Kind::kUnderline}` at thickness 1, which is what
- *  Motif's underline is; `skipInk` off, because Motif's does not break for
- *  a descender.
- *
- *  THE UNDERLINED CHARACTER IS TOLD ITS COLOUR: a decoration carries one of
- *  its own rather than taking the ink the glyphs are painted in, so that
- *  span is a whole style and inherits nothing. The two either side do. */
-inline Element mnemonicLabel(std::string_view t, material::Color c,
-                             int mnemonic) {
+/** One run with Motif's mnemonic underline on exactly one character: a
+ *  `Decoration{Kind::kUnderline}` at thickness 1, which is what Motif's
+ *  underline is; `skipInk` off, because Motif's does not break for a
+ *  descender. The underline names no colour, so it is drawn in the ink the
+ *  character is set in, which is the set's foreground. */
+inline Element mnemonicLabel(std::string_view t, int mnemonic) {
   if (mnemonic < 0 || mnemonic >= (int)t.size()) return label(t);
-  sigil::weave::Type coloured = uiType();
-  coloured.color = c;
-  sigil::weave::TextStyle under = weave::textStyle(coloured);
-  sigil::weave::Decoration d;
-  d.kind = sigil::weave::Decoration::Kind::kUnderline;
-  d.skipInk = false;
-  d.thickness = 1;
-  d.color = material::skia::toSkColor(c).toSkColor();
-  under.paint.addDecoration(d);
-  return text(weave::rich()
-                  .add(t.substr(0, (size_t)mnemonic))
-                  .add(t.substr((size_t)mnemonic, 1), under)
-                  .add(t.substr((size_t)mnemonic + 1)))
+  sigil::weave::Decoration underline;
+  underline.skipInk = false;
+  underline.thickness = 1;
+  return text(
+             weave::rich()
+                 .add(t.substr(0, (size_t)mnemonic))
+                 .add(t.substr((size_t)mnemonic, 1),
+                      sigil::weave::Type{.decorations = std::vector{underline}})
+                 .add(t.substr((size_t)mnemonic + 1)))
       .flexShrink(0);
 }
 
 // ===========================================================================
-// 7. WIDGETS.  Not one takes a colour set as an argument: each reads
-//    `ambient()` — the set the window it was composed inside opened with
-//    `environment::Provide<ColorSet>` — so a bevel, a label, a stipple and an
-//    icon four levels down are all in the same set without anyone
-//    passing it down. A window that wants two puts the second scope
-//    around the subtree that wears it, which is how the File Manager
-//    below has set 1 on its frame and set 5 on its body.
+// 7. WIDGETS.  Not one takes a colour set as an argument: each reads the
+//    set in force — the properties the class its window names puts on the
+//    subtree — so a bevel, a label, a stipple and an icon four levels down
+//    are all in the same set without anyone passing it down. A window that
+//    wants two names the second class on the subtree that wears it, which
+//    is how the File Manager below has set 1 on its frame and set 5 on its
+//    body.
 // ===========================================================================
 
 /** XmPushButton. Armed is XmSHADOW_IN *and* the background swapped to the
@@ -527,10 +584,9 @@ inline Element mnemonicLabel(std::string_view t, material::Color c,
  *  ordinary use besides a list selection. */
 inline Element pushButton(std::string_view t, bool armed = false,
                           bool defaulted = false, bool insensitive = false) {
-  const ColorSet s = ambient();
   Element inner = kit::centred()
-                      .fill(armed ? s.sel : s.bg)
-                      .ink(s.fg)
+                      .fill(var(armed ? "select" : "background"))
+                      .ink(var("foreground"))
                       .overlay(bevel(2, armed, false))
                       .padding(2)
 
@@ -539,7 +595,7 @@ inline Element pushButton(std::string_view t, bool armed = false,
                                      .padding(2, 6)
 
                                      .children({label(t)})});
-  if (insensitive) inner.foreground(decorations::wash(stipple()));
+  if (insensitive) inner.foreground(stipple());
   Element ring = box().padding(2).children({std::move(inner)});
   if (defaulted) ring.overlay(bevel(1, true, false));
   return ring;
@@ -551,7 +607,6 @@ inline Element pushButton(std::string_view t, bool armed = false,
 inline Element textField(
     const Utf8& t, float w, bool caret = false,
     std::optional<motion::Animatable<float>> caretOut = std::nullopt) {
-  const ColorSet s = ambient();
   Element inner = box()
                       .row()
                       .alignItems(Align::Center)
@@ -559,9 +614,12 @@ inline Element textField(
                       .padding(0, 3)
                       .children({label(t)});
   if (caret && caretOut)
-    inner.children({box().width(1).height(13).fill(s.fg).opacity(
-        motion::bind(*caretOut, {.quantize = 2}))});
-  Element field = surface(s)
+    inner.children({box()
+                        .width(1)
+                        .height(13)
+                        .fill(var("foreground"))
+                        .opacity(motion::bind(*caretOut, {.quantize = 2}))});
+  Element field = surface()
                       .overlay(bevel(2, true, false))
                       .padding(2)
                       .height(24)
@@ -598,20 +656,36 @@ inline Element textField(
  *  and the eight fixed icon colours. */
 constexpr std::string_view kIconChars = " BTSLF12345678kwrguycm";
 
-/** The palette those characters name, resolved against the ambient colour
- *  set — so the same grid is a different sprite under a different theme,
- *  which is the whole reason CDE icons re-colour and Win95 icons do not. */
-inline kit::Sprite iconArt(const std::vector<std::string>& rows) {
-  const ColorSet s = ambient();
-  std::vector<material::Color> colours{{0, 0, 0, 0}, s.bg,  s.ts,
-                                       s.bs,         s.sel, s.fg};
+/** The properties of the set in force the five symbolic characters name,
+ *  in palette order after the blank. */
+constexpr std::array<std::string_view, 5> kIconProperties = {
+    "background", "bevel-light", "bevel-shadow", "select", "foreground"};
+
+/** An icon grid as one box per mark: a symbolic character filled from the
+ *  set in force — so the same grid is a different picture under a different
+ *  theme, which is the whole reason CDE icons re-colour and Win95 icons do
+ *  not — and the rest in their fixed colours. */
+inline Element art(const std::vector<std::string>& rows, float cell) {
+  std::vector<material::Color> colours(1 + kIconProperties.size(),
+                                       {0, 0, 0, 1});
+  colours.front() = {0, 0, 0, 0};
   for (uint32_t gray : kIconGray) colours.push_back(C(gray));
   for (uint32_t colour : kIconColor) colours.push_back(C(colour));
-  return kit::pixelMap(rows, {kIconChars, colours}).value_or(kit::Sprite{});
-}
-
-inline Element art(const std::vector<std::string>& rows, float cell) {
-  return kit::pixelSprite(iconArt(rows), {.cell = cell});
+  const kit::Sprite sprite =
+      kit::pixelMap(rows, {kIconChars, colours}).value_or(kit::Sprite{});
+  Element icon = stack()
+                     .width((float)sprite.grid.x * cell)
+                     .height((float)sprite.grid.y * cell);
+  for (const kit::SpriteRun& run : sprite.runs)
+    icon.children({box()
+                       .left(run.x * cell)
+                       .top(run.y * cell)
+                       .width(run.w * cell)
+                       .height(run.h * cell)
+                       .fill(run.index >= 1 && run.index <= 5
+                                 ? var(kIconProperties[(size_t)run.index - 1])
+                                 : Fill::color(sprite.colourOf(run.index)))});
+  return icon;
 }
 
 // The icon set. 24 x 24 grids at cell 2 => the 48 x 48 that Fpclock.l.pm's

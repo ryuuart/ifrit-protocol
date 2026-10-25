@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-SKETCH = """from sigil.compose import box, column, memo, text
+SKETCH = """from sigil.compose import box, column, memo, text, var
 from sigil.compose import kit as marks
 from sigil.motion import animatable, bind
 from sigil.sketch import kit
@@ -17,15 +17,14 @@ from sigil.sketch import sketch
 
 
 def content(words):
-    look = kit.theme()
     return kit.well(
         (
             column()
             .gap(16)
             .children(
                 [
-                    text(words[0], size=22, color=look.palette.ink),
-                    marks.line(length=160, thickness=24, fill=look.palette.figure),
+                    text(words[0], size=22).ink(var("palette-ink")),
+                    marks.line(length=160, thickness=24, fill=var("palette-figure")),
                 ]
             )
         ),
@@ -43,8 +42,9 @@ class InstalledSketch:
         look.palette.ink = "#e8eef2"
         look.palette.figure = "#8bd0bd"
         alpha = animatable(1)
-        with kit.provide(look):
-            tree = memo(("Installed Sigil",), content)
+        tree = memo(("Installed Sigil",), content).applyStyleSheet(
+            look.properties()
+        )
         ctx.render(
             (
                 box()

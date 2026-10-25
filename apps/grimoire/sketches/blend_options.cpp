@@ -158,7 +158,7 @@ sketch::kit::ComparisonCase band(const char* caseTitle, std::string key,
 }
 
 Element explained(sketch::kit::ComparisonCase one) {
-  const auto& look = sketch::kit::theme();
+  const auto& look = sheetTheme();
   return box()
       .row()
       .alignItems(Align::Start)
@@ -282,10 +282,10 @@ void spineTurned(SkCanvas& canvas) {
 
 struct BlendOptions {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.
-    sketch::kit::stage(ctx, {.size = {1200, 1390}, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = {1200, 1390}, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Between two outlines",

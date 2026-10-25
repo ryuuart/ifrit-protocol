@@ -168,12 +168,12 @@ class TheTreeWordsReadWhereAFillIsTaken(unittest.TestCase):
     def test_currentcolor_and_var_are_the_ink_and_the_property(self):
         self.assertEqual(compose.Fill("currentcolor"), compose.Fill.currentInk())
         self.assertEqual(compose.Fill("CurrentColor"), compose.Fill.currentInk())
-        self.assertEqual(compose.Fill("var(--accent)"), compose.Fill.var("accent"))
-        self.assertEqual(compose.Fill("var(accent)"), compose.Fill.var("accent"))
+        self.assertEqual(compose.Fill("var(--accent)"), compose.Fill(compose.var("accent")))
+        self.assertEqual(compose.Fill("var(accent)"), compose.Fill(compose.var("accent")))
         def rule():
             return compose.rule(".card")
 
-        self.assertEqual(rule().fill("var(--accent)"), rule().fill(compose.Fill.var("accent")))
+        self.assertEqual(rule().fill("var(--accent)"), rule().fill(compose.var("accent")))
         self.assertEqual(rule().fill("currentcolor"), rule().fill(compose.Fill.currentInk()))
         self.assertEqual(rule().ink("var(--accent)"), rule().ink(compose.var("accent")))
         self.assertNotEqual(rule().ink("var(--accent)"), rule().ink("#000"))

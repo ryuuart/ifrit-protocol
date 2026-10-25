@@ -3,7 +3,6 @@
 import builtins
 import copy
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 
@@ -26,7 +25,6 @@ class Kit(unittest.TestCase):
             self.assertTrue(output.is_file())
 
     def test_theme_is_a_native_value_and_reads_are_owned_snapshots(self):
-        ambient = kit.theme()
         for factory, native in (
             (kit.houseTheme, raw.kit.houseTheme),
             (kit.studyTheme, raw.kit.studyTheme),
@@ -42,13 +40,10 @@ class Kit(unittest.TestCase):
                 fresh = factory()
                 fresh.spacing.cellGap += 1
                 self.assertEqual(factory(), original)
-                with kit.provide(custom):
-                    self.assertEqual(kit.theme(), raw.kit.theme())
-                    self.assertEqual(kit.theme(), custom)
-                    snapshot = kit.theme()
-                    snapshot.spacing.cellGap += 1
-                    self.assertEqual(kit.theme(), custom)
-                self.assertEqual(kit.theme(), ambient)
+                sheet = custom.styleSheet()
+                self.assertEqual(len(sheet), len(original.styleSheet()))
+                self.assertEqual(len(custom.properties()), 1)
+                self.assertNotEqual(custom.properties(), original.properties())
 
     def test_theme_answers_the_copy_protocol_a_memo_model_is_snapshotted_with(self):
         original = kit.houseTheme()
@@ -70,50 +65,6 @@ class Kit(unittest.TestCase):
         styled = look.style(line=look.type.title, ink="#ffffff")
         self.assertIsInstance(styled, weave.TextStyle)
 
-    def test_nested_providers_restore_the_original_theme_on_exception(self):
-        original = kit.theme()
-        outer = original.copy()
-        outer.palette.ink = "#abcdef"
-        inner = original.copy()
-        inner.palette.ink = "#fedcba"
-        with kit.provide(outer):
-            with self.assertRaisesRegex(ValueError, "intentional"), kit.provide(inner):
-                self.assertEqual(kit.theme(), inner)
-                raise ValueError("intentional")
-            self.assertEqual(kit.theme(), outer)
-        self.assertEqual(kit.theme(), original)
-
-    def test_provider_enter_close_and_thread_guards_preserve_native_scope(self):
-        original = kit.theme()
-        first = kit.provide(original)
-        second = kit.provide(original)
-        self.assertFalse(first.active)
-        first.__enter__()
-        second.__enter__()
-        with self.assertRaisesRegex(RuntimeError, "reverse nesting"):
-            first.close()
-        second.close()
-        errors = []
-
-        def wrong_thread():
-            try:
-                first.close()
-            except RuntimeError as error:
-                errors.append(str(error))
-
-        worker = threading.Thread(target=wrong_thread)
-        worker.start()
-        worker.join()
-        self.assertEqual(len(errors), 1)
-        self.assertIn("owning thread", errors[0])
-        self.assertTrue(first.active)
-        first.close()
-        first.close()
-        self.assertFalse(first.active)
-        with self.assertRaisesRegex(RuntimeError, "only be entered once"):
-            first.__enter__()
-        self.assertEqual(kit.theme(), original)
-
     def test_optional_nested_values_survive_parent_replacement(self):
         well = kit.Well(content=kit.WellContent(across="end"))
         held = well.content
@@ -123,19 +74,6 @@ class Kit(unittest.TestCase):
         self.assertIsNone(well.content)
         well.content = held
         self.assertEqual(well.content.across, held.across)
-
-    def test_abandoned_provider_on_a_finished_thread_is_closed(self):
-        held = []
-
-        def worker():
-            provider = kit.provide(kit.houseTheme())
-            provider.__enter__()
-            held.append(provider)
-
-        thread = threading.Thread(target=worker)
-        thread.start()
-        thread.join()
-        self.assertFalse(held[0].active)
 
     def test_native_and_convenience_furniture_return_the_same_element_type(self):
         plate = kit.Well(width=120, height=80, content=kit.WellContent())
@@ -269,12 +207,15 @@ class GridSheet:
         voice = neutral.Caption(label=label, note=lambda words: text(words))
         neutral.cell(box(), voice, label="Owned", note="Prefix")
         voice.noteGap = 900
-        self.assertEqual(props[0].noteGap, 4)
+        self.assertEqual(props[0].noteGap.value, 4)
         props[0].noteGap = 18
-        self.assertEqual(voice.noteGap, 900)
+        self.assertEqual(voice.noteGap.value, 900)
 
-    def test_stage_uses_the_native_context_and_scoped_theme(self):
-        self.render("""from sigil.compose import text
+    def test_stage_uses_the_native_context_and_sets_its_theme_at_the_root(self):
+        builtins._sigil_kit_stage = []
+        self.addCleanup(lambda: builtins.__dict__.pop("_sigil_kit_stage", None))
+        self.render("""import builtins
+from sigil.compose import text
 from sigil.sketch import kit, sketch
 
 
@@ -283,99 +224,30 @@ class Sheet:
     def setup(self, ctx):
         look = kit.houseTheme()
         look.palette.ground = "#123456"
-        with kit.provide(look):
-            kit.stage(ctx, size=(160, 100), captureAt=0, oversample=1)
-            assert ctx.width == 160 and ctx.height == 100
-            ctx.render(kit.page(text("Stage"), title="Native page"))
+        kit.stage(ctx, theme=look, size=(160, 100), captureAt=0, oversample=1)
+        assert ctx.width == 160 and ctx.height == 100
+        ctx.render(kit.page(text("Stage"), title="Native page"))
+        builtins._sigil_kit_stage.append((ctx.width, ctx.height))
 """)
+        self.assertEqual(builtins._sigil_kit_stage, [(160, 100)])
 
-    def test_callback_boundary_closes_an_abandoned_theme_provider(self):
-        original = kit.theme()
-        self.addCleanup(lambda: builtins.__dict__.pop("_sigil_kit_scope", None))
-        self.render("""import builtins
-from sigil.compose import box
+    def test_a_nearer_sheet_states_a_subtree_look(self):
+        self.render("""from sigil.compose import box
 from sigil.sketch import kit, sketch
 
 
-@sketch(size=(32, 32), captureAt=0)
-class LeakedScope:
+@sketch(size=(64, 64), captureAt=0, theme=kit.houseTheme())
+class Nested:
     def setup(self, ctx):
-        look = kit.houseTheme()
-        look.palette.ink = "#ff0000"
-        builtins._sigil_kit_scope = kit.provide(look)
-        builtins._sigil_kit_scope.__enter__()
-        ctx.render((box().width(20).height(20)))
-""")
-        self.assertFalse(builtins._sigil_kit_scope.active)
-        self.assertEqual(kit.theme(), original)
-
-    def test_memo_restores_the_native_theme_after_the_author_scope_has_closed(self):
-        original = kit.theme()
-        builtins._sigil_kit_memo = []
-        self.addCleanup(lambda: builtins.__dict__.pop("_sigil_kit_memo", None))
-        self.render("""import builtins
-from sigil.compose import box, memo
-from sigil.sketch import kit, sketch
-
-
-def describe(properties):
-    builtins._sigil_kit_memo.append(kit.theme().type.title.size)
-    return box().width(20).height(20).fill("#abcdef")
-
-
-@sketch(size=(32, 32), captureAt=0)
-class Deferred:
-    def setup(self, ctx):
-        look = kit.houseTheme()
-        look.type.title.size = 37
-        with kit.provide(look):
-            tree = memo(("held",), describe)
-        assert kit.theme().type.title.size != 37
-        ctx.render(tree)
-""")
-        self.assertEqual(builtins._sigil_kit_memo, [37])
-        self.assertEqual(kit.theme(), original)
-
-    def test_memo_cannot_close_a_provider_from_its_restored_environment(self):
-        original = kit.theme()
-        builtins._sigil_kit_scope_close = []
-        self.addCleanup(lambda: builtins.__dict__.pop("_sigil_kit_scope_close", None))
-        self.render("""import builtins
-from sigil.compose import box, memo
-from sigil.sketch import kit, sketch
-
-
-@sketch(size=(8, 8), captureAt=0)
-class DeferredClose:
-    def setup(self, ctx):
-        original = kit.theme()
-        look = kit.houseTheme()
-        look.type.title.size = 99
-        results = builtins._sigil_kit_scope_close
-        with kit.provide(look) as provider:
-
-            def describe(model):
-                try:
-                    provider.close()
-                except RuntimeError as error:
-                    results.append(str(error))
-                else:
-                    results.append(None)
-                return box().width(8).height(8)
-
-            ctx.render(memo(0, describe))
-            results.append(provider.active)
-            results.append(kit.theme() == look)
-        results.append(kit.theme() == original)
-""")
-        rejection, still_active, still_scoped, restored = (
-            builtins._sigil_kit_scope_close
+        inset = kit.houseTheme()
+        inset.palette.cellGround = "#254a48"
+        ctx.render(
+            box().children(
+                kit.well(width=20, height=20),
+                kit.well(width=20, height=20).applyStyleSheet(inset.properties()),
+            )
         )
-        self.assertIsInstance(rejection, str)
-        self.assertTrue(still_active)
-        self.assertTrue(still_scoped)
-        self.assertTrue(restored)
-        self.assertEqual(kit.theme(), original)
+""")
 
     def test_decorator_adapts_setup_and_draw_argument_prefixes(self):
         self.addCleanup(lambda: builtins.__dict__.pop("_sigil_prefix_calls", None))

@@ -35,9 +35,9 @@ bool bluish(SkColor c) { return SkColorGetB(c) > 200 && SkColorGetR(c) < 60; }
 
 TEST(ComposeCascadePaints, APropertyHoldingAMaterialFillsAsTheMaterialDoes) {
   Host byProperty(kSide, kSide), byValue(kSide, kSide);
-  byProperty.composer.render(square(
-      box().applyStyleSheet({rule(":root").var("stone", leftToRight())}),
-      box().fill(Fill::var("stone"))));
+  byProperty.composer.render(
+      square(box().applyStyleSheet({rule(":root").var("stone", leftToRight())}),
+             box().fill(var("stone"))));
   byValue.composer.render(square(box(), box().fill(leftToRight())));
   byProperty.frame();
   byValue.frame();
@@ -49,9 +49,8 @@ TEST(ComposeCascadePaints, APropertyHoldingAMaterialFillsAsTheMaterialDoes) {
 TEST(ComposeCascadePaints, APropertyHoldingAMaterialInksAndStrokes) {
   // The ink: a paint the leaf's box is laid under, as ink(material) lays it.
   Host byProperty(kSide, kSide), byValue(kSide, kSide);
-  byProperty.composer.render(square(
-      box().var("stone", leftToRight()),
-      box().ink(var("stone")).stroke(stroke(6))));
+  byProperty.composer.render(square(box().var("stone", leftToRight()),
+                                    box().ink(var("stone")).stroke(stroke(6))));
   byValue.composer.render(
       square(box(), box().ink(leftToRight()).stroke(stroke(6))));
   byProperty.frame();
@@ -62,7 +61,7 @@ TEST(ComposeCascadePaints, APropertyHoldingAMaterialInksAndStrokes) {
   // A stroke's own paint read from the property.
   Host byStroke(kSide, kSide);
   byStroke.composer.render(square(box().var("stone", leftToRight()),
-                                  box().stroke(stroke(6, Fill::var("stone")))));
+                                  box().stroke(stroke(6, var("stone")))));
   byStroke.frame();
   EXPECT_TRUE(identicalPixels(byStroke, byValue, kSide, kSide));
 }
@@ -73,18 +72,24 @@ TEST(ComposeCascadePaints, AFlatMaterialInAPropertyIsItsColour) {
   Host host(kSide, kSide);
   // A colour property eases under a transition and is read as the ink's
   // colour, so a flat material is held as one.
-  host.composer.render(
-      square(box().applyStyleSheet(sheet), box().ink(var("flat")).fill(Fill::currentInk())));
+  host.composer.render(square(box().applyStyleSheet(sheet),
+                              box().ink(var("flat")).fill(Fill::currentInk())));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
 }
 
 TEST(ComposeCascadePaints, APaintReadAsALengthLeavesTheTargetStanding) {
   Host host(kSide, kSide);
-  host.composer.render(box().var("stone", leftToRight()).children(
-      {box().key("sized").width(var("stone")).height(40),
-       box().var("colour", kRed).children(
-           {box().key("coloured").width(var("colour")).height(40)})}));
+  host.composer.render(
+      box()
+          .var("stone", leftToRight())
+          .children({box().key("sized").width(var("stone")).height(40),
+                     box()
+                         .var("colour", kRed)
+                         .children({box()
+                                        .key("coloured")
+                                        .width(var("colour"))
+                                        .height(40)})}));
   host.frame();
   // As a colour property read as a length does.
   EXPECT_EQ(require(host.composer.bounds("sized")).width(),
@@ -104,10 +109,11 @@ TEST(ComposeCascadePaints, AShadowFollowsTheInkInForceAndAProperty) {
   byProperty.composer.render(
       square(box().var("accent", kRed),
              box()
-                 .background(shadow(Fill::var("accent"), {12, 12}, 0))
+                 .background(shadow(var("accent"), {12, 12}, 0))
                  .fill(Fill::color(kBlue))));
   byValue.composer.render(square(
-      box(), box().background(shadow(kRed, {12, 12}, 0)).fill(Fill::color(kBlue))));
+      box(),
+      box().background(shadow(kRed, {12, 12}, 0)).fill(Fill::color(kBlue))));
   byInk.frame();
   byProperty.frame();
   byValue.frame();
@@ -118,8 +124,8 @@ TEST(ComposeCascadePaints, AShadowFollowsTheInkInForceAndAProperty) {
   Host unnamed(kSide, kSide);
   Shadow plain;
   plain.offset = {12, 12};
-  unnamed.composer.render(square(box().ink(kRed),
-                                 box().background(plain).fill(Fill::color(kBlue))));
+  unnamed.composer.render(square(
+      box().ink(kRed), box().background(plain).fill(Fill::color(kBlue))));
   unnamed.frame();
   EXPECT_TRUE(identicalPixels(unnamed, byValue, kSide, kSide));
 }

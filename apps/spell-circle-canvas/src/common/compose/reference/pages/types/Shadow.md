@@ -54,7 +54,7 @@ the decoration entry point the seam calls.
 The colour is a `Fill`, as every other mark's ink is: `compose::shadow` takes a
 colour — a braced literal names the type, `material::Color{0, 0, 0, 0.5f}`
 — or a material, which converts, and `Fill::currentInk()` and
-`Fill::var(name)` follow the node's cascade where the shadow is painted.
+`var(name)` follow the node's cascade where the shadow is painted.
 Unstated, it is the ink in force, as CSS's `box-shadow` colour is. A
 shadow cast by a node's own fill is
 also the material's effect `material::Filter::shadow`, which rides the

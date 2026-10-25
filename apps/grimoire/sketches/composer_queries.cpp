@@ -117,20 +117,29 @@ constexpr int kProfiled = (int)std::size(kAsked);
 /** The words a cache request and a profiled state are printed as. */
 const char* cacheName(Cache asked) {
   switch (asked) {
-    case Cache::Auto: return "Auto";
-    case Cache::Picture: return "Picture";
-    case Cache::Texture: return "Texture";
-    case Cache::Group: return "Group";
-    case Cache::None: return "None";
+    case Cache::Auto:
+      return "Auto";
+    case Cache::Picture:
+      return "Picture";
+    case Cache::Texture:
+      return "Texture";
+    case Cache::Group:
+      return "Group";
+    case Cache::None:
+      return "None";
   }
   return "";
 }
 const char* stateName(Composer::CacheState state) {
   switch (state) {
-    case Composer::CacheState::Live: return "Live";
-    case Composer::CacheState::Picture: return "Picture";
-    case Composer::CacheState::Texture: return "Texture";
-    case Composer::CacheState::Group: return "Group";
+    case Composer::CacheState::Live:
+      return "Live";
+    case Composer::CacheState::Picture:
+      return "Picture";
+    case Composer::CacheState::Texture:
+      return "Texture";
+    case Composer::CacheState::Group:
+      return "Group";
   }
   return "";
 }
@@ -151,9 +160,9 @@ constexpr float kWireGap = 6.0f;
  *  it crosses the field at an angle that never repeats over the run. */
 SkPoint walk(double seconds) {
   const float width = kCanvas.width(), height = kCanvas.height();
-  return {width * 0.5f + width * 0.36f * (float)std::sin(seconds * 0.9),
-          height * 0.46f +
-              height * 0.30f * (float)std::sin(seconds * 0.53 + 1.0)};
+  return {
+      width * 0.5f + width * 0.36f * (float)std::sin(seconds * 0.9),
+      height * 0.46f + height * 0.30f * (float)std::sin(seconds * 0.53 + 1.0)};
 }
 
 /** THE TARGETS STAND ON THE PROBE'S OWN PATH, one per station. A hit
@@ -178,7 +187,6 @@ struct ComposerQueries {
    *  keyed wires threading them, plus the two slots the churn happens
    *  in. Described once. */
   Element describe() const {
-    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     // ONE TARGET PER STATION, standing where the probe will be at that
     // station: a hit test only says something when there is something
     // under the point, so every crossing is placed rather than hoped for.
@@ -202,8 +210,8 @@ struct ComposerQueries {
     const auto stations = std::views::iota(0, kTargets);
 
     return stack()
-        .fill(Fill::color(sketch::kit::theme().palette.ground))
-        .applyStyleSheet(sketch::kit::theme().styleSheet())
+        .fill(Fill::color(sketch::kit::featureTheme().palette.ground))
+        .applyStyleSheet(sketch::kit::featureTheme().styleSheet())
         // The wires are operators of the scene: each is routed from where
         // its own two targets settled, and keyed by the pair it joins, so
         // the answer slot can ask for one by name. They let the pointer
@@ -296,12 +304,12 @@ struct ComposerQueries {
              std::vector<sigil::compose::kit::Reading>{
                  {.name = "hitTest(probe)",
                   .value = hitLabel,
-                  .ink = sketch::kit::theme().palette.ink},
+                  .ink = sketch::kit::featureTheme().palette.ink},
                  {.name = "bounds(\"" + hitLabel + "\")", .value = rect},
                  {.name = "wires at \"" + hitLabel + "\"", .value = routes}},
              {.nameMeasure = 196,
-              .gap = sketch::kit::theme().spacing.rowGap,
-              .labelGap = sketch::kit::theme().spacing.labelGap})
+              .gap = sketch::kit::featureTheme().spacing.rowGap,
+              .labelGap = sketch::kit::featureTheme().spacing.labelGap})
              .absolute()
              .left(20)
              .bottom(14)
@@ -317,11 +325,11 @@ struct ComposerQueries {
       readings.push_back({.name = targetKey(i) + " · " + cacheName(kAsked[i]),
                           .value = states[(size_t)i]});
     return stack().inset(0).hitTestable(false).children(
-        {sigil::compose::kit::readout(std::move(readings),
-                                      {.nameMeasure = 170,
-                                       .gap = sketch::kit::theme().spacing.rowGap,
-                                       .labelGap =
-                                           sketch::kit::theme().spacing.labelGap})
+        {sigil::compose::kit::readout(
+             std::move(readings),
+             {.nameMeasure = 170,
+              .gap = sketch::kit::featureTheme().spacing.rowGap,
+              .labelGap = sketch::kit::featureTheme().spacing.labelGap})
              .absolute()
              .right(20)
              .bottom(14)
@@ -329,10 +337,10 @@ struct ComposerQueries {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::featureTheme());
     sketch::kit::stage(
         ctx,
-        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+        {.theme = sketch::kit::featureTheme(),
+         .size = SkSize::Make(kCanvas.width(), kCanvas.height()),
          .captureAt = stationTime(4),
          .background = material::Color{0, 0, 0, 1}});  // standing on target-4
     hitLabel = "—";
@@ -353,7 +361,6 @@ struct ComposerQueries {
     // outside the scope setup opened has no theme bound: the look must be
     // in scope wherever the tree is built, not only where it is first
     // built.
-    const sketch::kit::Provide look(sketch::kit::featureTheme());
     Composer& composer = ctx.composer;
     probe = walk(elapsed);
     // Per frame: the marker moved, so its content is different.

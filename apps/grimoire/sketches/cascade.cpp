@@ -1,8 +1,9 @@
 /** @file
  * A composed card carries type, ink, classes and custom properties down
  * its tree. Local declarations override only their named fields. A second
- * comparison separates that structural channel from a lexical environment;
- * two drawing surfaces then show inherited ink with fresh and retained pixels.
+ * comparison follows one custom property through nested boxes, shadowed
+ * nearer in and defaulted where nothing sets it; two drawing surfaces then
+ * show inherited ink with fresh and retained pixels.
  */
 // TAGS: Typography/Styles, Runtime/Composition
 
@@ -12,7 +13,6 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Rows.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Kit.h>
@@ -28,7 +28,6 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
-namespace environment = sigil::core::environment;
 using namespace sigil::compose;
 using namespace sigil::weave::literals;
 using namespace std::chrono_literals;
@@ -49,7 +48,7 @@ Element property(const char* label) {
       .row()
       .gap(12)
       .alignItems(Align::Center)
-      .children({box().width(24).height(24).fill(Fill::var("accent")),
+      .children({box().width(24).height(24).fill(var("accent")),
                  text(label).ink(var("accent"))});
 }
 
@@ -121,15 +120,9 @@ Element editorialCard(bool cooled) {
 Element adoption() {
   Element builtFirst = box().column().gap(12).children(
       {text("Built before its parent"), text("Adopted into this tree")});
-  Element fixed = [] {
-    sketch::kit::Theme local =
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-    local.palette.figure = kWarm;
-    const sketch::kit::Provide look(local);
-    return box().width(38).height(38).fill(
-        Fill::color(sketch::kit::theme().palette.figure));
-  }();
+  Element figure = box().width(38).height(38).fill(var("palette-figure"));
   return sketch::kit::well({.width = 501, .height = 152, .padding = 24})
+      .var("palette-figure", kWarm)
       .font({.size = 15, .track = 0})
       .ink(kTeal)
       .column()
@@ -139,30 +132,25 @@ Element adoption() {
                      .row()
                      .gap(14)
                      .alignItems(Align::Center)
-                     .children({std::move(fixed),
-                                text("The theme color was already read.")
+                     .children({std::move(figure),
+                                text("The figure color is read where it lands.")
                                     .font({.size = 13})})});
 }
 
-struct Accent {
-  material::Color color{0.42f, 0.45f, 0.52f, 1};
-  bool operator==(const Accent&) const = default;
-};
-
+/** A swatch four boxes deep in the accent in force, and its own grey where
+ *  no ancestor sets one. */
 Element chip(int depth = 3) {
   if (depth > 0) return box().padding(1).children({chip(depth - 1)});
-  return box().width(36).height(22).fill(
-      Fill::color(environment::inheritedOr(Accent{}).color));
+  VarTable fallback;
+  fallback.set(var("accent"), material::Color{0.42f, 0.45f, 0.52f, 1});
+  return box()
+      .width(36)
+      .height(22)
+      .varDefaults(std::move(fallback))
+      .fill(var("accent"));
 }
 
-Element lexical() {
-  Element none = chip();
-  const environment::Provide<Accent> outer(Accent{kTeal});
-  Element bound = chip();
-  Element shadowed = [&] {
-    const environment::Provide<Accent> inner(Accent{kWarm});
-    return chip();
-  }();
+Element nesting() {
   const auto row = [](Element swatch, const char* label) {
     return box()
         .row()
@@ -175,11 +163,12 @@ Element lexical() {
       .column()
       .gap(10)
       .ink(kPale)
-      .children(
-          {row(std::move(none), "No binding: the component's default"),
-           row(std::move(bound), "An outer Provide reaches through four boxes"),
-           row(std::move(shadowed),
-               "An inner Provide shadows the outer value")});
+      .children({row(chip(), "No binding: the component's default"),
+                 row(chip(), "An outer property reaches through four boxes")
+                     .var("accent", kTeal),
+                 row(chip().var("accent", kWarm),
+                     "An inner property shadows the outer value")
+                     .var("accent", kTeal)});
 }
 
 Element penCell() {
@@ -219,9 +208,11 @@ struct Cascade {
   bool cooled = false;
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx, {.size = {1100, 1150}, .captureAt = kCapture});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = {1100, 1150},
+         .captureAt = kCapture});
     trail = trailCell();
     ctx.composer.render(sheet());
   }
@@ -229,12 +220,12 @@ struct Cascade {
   void update(double elapsed, sketch::Scene2DContext& ctx) {
     if (cooled || elapsed < kSwitchAt) return;
     cooled = true;
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     ctx.composer.render(sheet());
   }
 
   Element sheet() const {
+    const sketch::kit::Theme& look =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     Element reading =
         sketch::kit::well({.width = 332, .height = 328, .padding = 22})
             .column()
@@ -249,10 +240,9 @@ struct Cascade {
                                {.name = "Gutter property", .value = "12 px"},
                                {.name = "Relative type", .value = "21 px"}},
                            {.measure = 288,
-                            .gap = sketch::kit::theme().spacing.rowGap,
-                            .labelGap = sketch::kit::theme().spacing.labelGap,
-                            .divider = Fill::color(
-                                sketch::kit::theme().palette.rule)}),
+                            .gap = look.spacing.rowGap,
+                            .labelGap = look.spacing.labelGap,
+                            .divider = sigil::compose::var("palette-rule")}),
                        document::caption(
                            "Watch the number, outline and filled square ease "
                            "together. Their color comes from one ancestor.")
@@ -262,8 +252,7 @@ struct Cascade {
          .subtitle = "One card, one parent voice · local declarations change "
                      "only the fields they name",
          .footer = "Type, ink, classes and properties resolve through the "
-                   "mounted tree. Provide and theme reads belong to the code's "
-                   "lexical scope."},
+                   "mounted tree, wherever the code that built a node ran."},
         box().column().gap(28).children(
             {sketch::kit::cells(
                  {.cells = {editorialCard(cooled), std::move(reading)},
@@ -273,15 +262,14 @@ struct Cascade {
                       {{.title = "THE TREE CARRIES THE INK",
                         .control = "Build first, adopt later",
                         .figure = adoption(),
-                        .note = "The words take their new parent's ink. The "
-                                "explicit swatch keeps the color chosen during "
-                                "construction."},
-                       {.title = "CODE READS THE ENVIRONMENT",
-                        .control = "environment::Provide<Accent>",
-                        .figure = lexical(),
-                        .note =
-                            "Nested bindings affect the component where it is "
-                            "composed, independently of later adoption."}},
+                        .note = "The words take their new parent's ink, and "
+                                "the swatch the figure color its new parent "
+                                "sets."},
+                       {.title = "THE NEAREST PROPERTY WINS",
+                        .control = "Element::var",
+                        .figure = nesting(),
+                        .note = "A property set above reaches every box under "
+                                "it; one set nearer shadows it."}},
                   .measure = 1020,
                   .gap = 18}),
              sketch::kit::comparison(
@@ -305,4 +293,4 @@ struct Cascade {
 SIGIL_SKETCH(
     Cascade, "Kit · API",
     "an editorial card demonstrating inherited type, classes, properties and "
-    "animated ink, with lexical scope and fresh versus retained drawing")
+    "animated ink, with nested properties and fresh versus retained drawing")

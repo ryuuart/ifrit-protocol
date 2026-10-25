@@ -105,7 +105,7 @@ Element panel(const char* caption, Element content) {
   return kit::centred(std::move(content))
       .flexGrow(1)
       .borderRadius({10})
-      .fill(Fill::color(sketch::kit::theme().palette.cellGround))
+      .fill(Fill::color(sketch::kit::featureTheme().palette.cellGround))
       .perspective(kViewDistance)
       .children({document::caption(caption)
                      .font({.size = 14, .color = kAsh})
@@ -124,14 +124,14 @@ struct CardFlip {
                             sway = motion::animatable(0.0f);
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sketch::kit::featureTheme());
     // MID-TURN. At 2.2 s the card is past its quarter turn and the back
     // has just taken over, the cube shows three faces at an oblique, and
     // the plate is near the end of its sway.
-    sketch::kit::stage(ctx,
-                       {.size = kCanvas,
-                        .captureAt = 2.2,
-                        .background = sketch::kit::theme().palette.ground});
+    sketch::kit::stage(
+        ctx, {.theme = sketch::kit::featureTheme(),
+              .size = kCanvas,
+              .captureAt = 2.2,
+              .background = sketch::kit::featureTheme().palette.ground});
     flip = 0;
     spinX = 0;
     spinY = 0;
@@ -162,9 +162,10 @@ struct CardFlip {
           .rotateY(turn)
           .backface(material::Backface::Hidden)
           .font({.color = kPaper, .track = 1})
-          .children(
-              {document::h2(title).font({.size = 30}),
-               document::paragraph(line).font({.size = 14}).width(percent(100))});
+          .children({document::h2(title).font({.size = 30}),
+                     document::paragraph(line)
+                         .font({.size = 14})
+                         .width(percent(100))});
     };
     return box()
         .width(w)
@@ -216,16 +217,17 @@ struct CardFlip {
         .padding(22)
         .column()
         .gap(10)
-        .transformOrigin(percent(50), percent(100))  // hinged along its bottom edge
+        .transformOrigin(percent(50),
+                         percent(100))  // hinged along its bottom edge
         .rotateX(kTilt)
         .rotateY(motion::bind(sway, {.from = {-1, 1}, .to = {-14.0f, 14.0f}}))
-        .children(
-            {document::h2("TILTED PLATE").font({.size = 18, .track = 3}),
-             document::paragraph(passage).font({.size = 14}).width(percent(100))});
+        .children({document::h2("TILTED PLATE").font({.size = 18, .track = 3}),
+                   document::paragraph(passage)
+                       .font({.size = 14})
+                       .width(percent(100))});
   }
 
   Element describe() const {
-    const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     return sketch::kit::page(
         {.title = "A node is a plane",
          .subtitle = "Backfaces, depth ordering and projected typography",

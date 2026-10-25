@@ -88,8 +88,7 @@ struct PixFontDotSprite {
   std::shared_ptr<const sigil::media::Image> dot;
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = kCanvas});
+    sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = kCanvas});
     // The readout is live, so the sheet is complete only once the number
     // has run far enough to have moved every column of it.
     ctx.captureAt(1.28);
@@ -130,12 +129,12 @@ struct PixFontDotSprite {
           .row()
           .gap(10)
           .alignItems(Align::Center)
-          .children({text(kit::formatted("%2.0f", size))
-                         .font({.face = sketch::kit::theme().type.mono,
-                                .size = 12,
-                                .track = 0})
-                         .ink(sketch::kit::theme().palette.ash),
-                     kit::masked(sweep[i], {.colour = kOn, .scale = 2})});
+          .children(
+              {text(kit::formatted("%2.0f", size))
+                   .font(
+                       {.face = sheetTheme().type.mono, .size = 12, .track = 0})
+                   .ink(sheetTheme().palette.ash),
+               kit::masked(sweep[i], {.colour = kOn, .scale = 2})});
     };
     return example("CHOOSE THE BAKE SIZE", "9 / 12 / 16 px · shown at 2×",
                    "one run, three bake sizes, one present scale · at the "

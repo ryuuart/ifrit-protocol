@@ -124,10 +124,10 @@ Element panel(Element construction) {
 
 struct CrtBloom {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // Nothing on the sheet reads the clock: both halos are static and the
     // tube is a function of the box, so the plate is the first moment.
-    sketch::kit::stage(ctx, {.size = {1000, 740}, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = {1000, 740}, .captureAt = 0.05});
 
     // LEFT — one node. The effect owns the whole construction.
     Element primitive =

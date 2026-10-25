@@ -1,5 +1,6 @@
-"""Native specimen pages and their inherited theme."""
+"""Native specimen pages and the theme their stage sets."""
 
+from _sigil.compose.kit import CaptionWhere as _CaptionWhere
 from _sigil.sketch import kit as _native
 from _sigil.weave import FaceSlant as _FaceSlant
 
@@ -30,13 +31,10 @@ def houseFace(voice, weight=400, slant=None, *, italic=False):
     return _native.houseFace(voice, weight, slant)
 
 
-def provide(look):
-    """Bind a native theme inside ``with provide(look):`` on this thread."""
-    return Provide(look)
-
-
 def stage(ctx, props=None, **properties):
-    """Declare the native stage; an omitted background reads the scoped theme."""
+    """Declare the native stage: the canvas, the moment, and the theme whose
+    sheet stands at the root of everything the sketch renders; an omitted
+    background is that theme's ground."""
     return _native.stage(ctx, _specification(Stage, props, properties))
 
 
@@ -61,8 +59,10 @@ def well(surface=None, props=None, **properties):
     return _native.well(plate) if surface is None else _native.well(plate, surface)
 
 
-def caption(body, *, label="", note="", measure=0):
-    return _native.caption(measure, label, note, body)
+def caption(body, *, label="", note="", measure=0, where=_CaptionWhere.Split):
+    """Caption a body with a label and a note standing where ``where`` says,
+    spaced by the sheet's caption gaps."""
+    return _native.caption(measure, label, note, body, where)
 
 
 def cell(picture, props=None, *, label="", note="", **properties):

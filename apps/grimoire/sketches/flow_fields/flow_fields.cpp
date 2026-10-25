@@ -110,7 +110,8 @@ compose::Element gridSamples() {
           for (float y = kStep * 0.5f; y < pen.height; y += kStep) {
             const float angle = headingAt(x, y);
             pen.vertex(x, y);
-            pen.vertex(x + std::cos(angle) * kStep, y + std::sin(angle) * kStep);
+            pen.vertex(x + std::cos(angle) * kStep,
+                       y + std::sin(angle) * kStep);
           }
         pen.endShape();
       },
@@ -185,15 +186,15 @@ struct FlowFields {
   std::vector<uint8_t> width;
   std::vector<Mark> pending;
   chance::Stream rolls = chance::Stream::xorshift(0x7F4A7C15u);
-  const std::array<physics::Force, 3> forces{
-      physics::wind(kCurrent, 80.0f), physics::gravity({70.0f, 0.0f}),
-      physics::drag(1.0f)};
+  const std::array<physics::Force, 3> forces{physics::wind(kCurrent, 80.0f),
+                                             physics::gravity({70.0f, 0.0f}),
+                                             physics::drag(1.0f)};
   const physics::Verlet stepper{
       .timeStep = std::chrono::duration<double>(1.0 / kStepRate)};
 
   void setup(sketch::Scene2DContext& context) {
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(context, {.size = kCanvas, .captureAt = 5.2});
+    sketch::kit::stage(
+        context, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 5.2});
 
     ink = material::shader(context.assets.hub(), context.local("flow.sksl"),
                            {.textures = {{"uField", {}}}})
@@ -211,8 +212,7 @@ struct FlowFields {
                            "blind between its points."},
                   {.title = "RANDOM SAMPLES",
                    .control = "chance::Stream · five thousand in one draw",
-                   .figure =
-                       sketch::kit::cell(kPanel, "", "", randomSamples()),
+                   .figure = sketch::kit::cell(kPanel, "", "", randomSamples()),
                    .note = "Seeded places, so the feathering is the field's "
                            "and the picture rerolls only with the seed."}},
         .measure = 1160,
@@ -241,7 +241,8 @@ struct FlowFields {
                    "reads, handed to the force unchanged."},
         compose::box().column().gap(34).children(
             {sketch::kit::section(
-                 {.label = "SAMPLED", .note = "The heading drawn where it is read"},
+                 {.label = "SAMPLED",
+                  .note = "The heading drawn where it is read"},
                  sketch::kit::comparison(sampled)),
              sketch::kit::section(
                  {.label = "FOLLOWED",
@@ -313,8 +314,8 @@ struct FlowFields {
         for (const bool wet : {true, false}) {
           for (uint8_t hair = 0; hair < 2; ++hair) {
             const float weight = hair == 0 ? 0.6f : 1.2f;
-            pen.stroke(material::withAlpha(kPigments[which],
-                                           wet ? 0.05f : 0.42f));
+            pen.stroke(
+                material::withAlpha(kPigments[which], wet ? 0.05f : 0.42f));
             pen.strokeWeight(wet ? weight * 4.6f : weight);
             pen.beginShape(LINES);
             for (const Mark& mark : pending)
@@ -356,8 +357,7 @@ struct FlowFields {
         pigment.push_back((uint8_t)(ribbon % kPigments.size()));
         width.push_back((uint8_t)(hair % 2));
       }
-    for (int ribbon = 0; ribbon < kRibbons; ++ribbon)
-      placeRibbon(ribbon, true);
+    for (int ribbon = 0; ribbon < kRibbons; ++ribbon) placeRibbon(ribbon, true);
   }
 
   /** ONE FIXED STEP: the forces move every particle, the movement is
@@ -368,16 +368,15 @@ struct FlowFields {
     stepper.step(particles, forces);
     for (size_t index = 0; index < particles.size(); ++index)
       if (rolls.unit() > 0.055f)
-        pending.push_back({particles.previous[index],
-                           particles.position[index], pigment[index],
-                           width[index]});
+        pending.push_back({particles.previous[index], particles.position[index],
+                           pigment[index], width[index]});
     for (int ribbon = 0; ribbon < kRibbons; ++ribbon) {
       bool gone = true;
       for (int hair = 0; hair < kBristles && gone; ++hair) {
         const glm::vec2 at =
             particles.position[(size_t)(ribbon * kBristles + hair)];
-        gone = at.x > kPanelWidth + 20.0f || at.x < -60.0f ||
-               at.y < -40.0f || at.y > kPanelHeight + 40.0f;
+        gone = at.x > kPanelWidth + 20.0f || at.x < -60.0f || at.y < -40.0f ||
+               at.y > kPanelHeight + 40.0f;
       }
       if (gone) placeRibbon(ribbon, false);
     }

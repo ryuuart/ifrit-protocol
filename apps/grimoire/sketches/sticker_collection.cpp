@@ -137,12 +137,12 @@ struct StickerCollection {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx,
-                       {.size = SkSize::Make(kWidth, kHeight),
-                        .captureAt = 2.35,
-                        .background = material::Color{0.97f, 0.97f, 0.95f, 1}});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = SkSize::Make(kWidth, kHeight),
+         .captureAt = 2.35,
+         .background = material::Color{0.97f, 0.97f, 0.95f, 1}});
 
     io::Hub& hub = ctx.assets.hub();
     const Shelf shelf{
@@ -190,7 +190,9 @@ struct StickerCollection {
              sketch::kit::titleCard(
                  {.title = {"Moving pictures, transparent edges"},
                   .subtitle = {"GIF · WebP · AVIF sequences · alpha WebM"}}))
-             .applyStyleSheet(sketch::kit::theme().styleSheet())
+             .applyStyleSheet(
+                 sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                     .styleSheet())
              .at({40, 38})}));
   }
 };

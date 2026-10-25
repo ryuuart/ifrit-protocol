@@ -13,7 +13,6 @@
  * and the rules of the sheets in force where it lands style those roles.
  */
 
-#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
@@ -21,6 +20,7 @@
 #include <sigilcompose/kit/Part.h>
 #include <sigilcompose/kit/Specimen.h>
 
+#include <glm/vec2.hpp>
 #include <optional>
 
 namespace sigil::compose::kit {
@@ -91,10 +91,11 @@ struct Panel {
   /** The hairline under the head. Fill::none() (default) rules none. */
   Fill rule;
   float ruleWidth = 1.0f;
-  /** Between the head and the content, px. A rule bisects it. */
-  float gap = 12.0f;
-  /** Between the eyebrow and the title, px. */
-  float titleGap = 4.0f;
+  /** Between the head and the content. A rule bisects it. A length, so a
+   *  sheet's property can state it. */
+  Dimension gap = 12.0f;
+  /** Between the eyebrow and the title. */
+  Dimension titleGap = 4.0f;
   /** THE PANEL'S OWN CELL — its size, ground, padding, corners and
    *  keyline. Unset leaves the head and the content bare, for a caller
    *  that grounds the region itself. */

@@ -27,8 +27,8 @@ TEST(ComposeRuleMarks, AClassStrokePaintsWhatTheElementsOwnStrokePaints) {
   Host byClass(kSide, kSide), byElement(kSide, kSide);
   byClass.composer.render(
       framed(box().styleClass("frame"),
-             StyleSheet{rule(".frame").stroke(stroke(4, Fill::var("line")))}));
-  byElement.composer.render(framed(box().stroke(stroke(4, Fill::var("line")))));
+             StyleSheet{rule(".frame").stroke(stroke(4, var("line")))}));
+  byElement.composer.render(framed(box().stroke(stroke(4, var("line")))));
   byClass.frame();
   byElement.frame();
   EXPECT_GT(redInk(byClass), 100) << "the class's keyline painted nothing";
@@ -41,9 +41,9 @@ TEST(ComposeRuleMarks,
   Host byClass(kSide, kSide), byElement(kSide, kSide);
   byClass.composer.render(
       framed(box().styleClass("frame").stroke(stroke(2, Fill::color(blue))),
-             StyleSheet{rule(".frame").stroke(stroke(8, Fill::var("line")))}));
+             StyleSheet{rule(".frame").stroke(stroke(8, var("line")))}));
   byElement.composer.render(framed(box()
-                                       .stroke(stroke(8, Fill::var("line")))
+                                       .stroke(stroke(8, var("line")))
                                        .stroke(stroke(2, Fill::color(blue)))));
   byClass.frame();
   byElement.frame();
@@ -62,9 +62,9 @@ TEST(ComposeRuleMarks, TwoMatchedRulesStrokeWeakerFirst) {
   byClasses.composer.render(
       framed(box().styleClass("frame hot"),
              StyleSheet{rule(".frame.hot").stroke(stroke(2, Fill::color(blue))),
-                        rule(".frame").stroke(stroke(8, Fill::var("line")))}));
+                        rule(".frame").stroke(stroke(8, var("line")))}));
   byElement.composer.render(framed(box()
-                                       .stroke(stroke(8, Fill::var("line")))
+                                       .stroke(stroke(8, var("line")))
                                        .stroke(stroke(2, Fill::color(blue)))));
   byClasses.frame();
   byElement.frame();
@@ -73,7 +73,7 @@ TEST(ComposeRuleMarks, TwoMatchedRulesStrokeWeakerFirst) {
 
 TEST(ComposeRuleMarks, AClassThatStopsMatchingTakesItsKeylineWithIt) {
   Host host(kSide, kSide);
-  const StyleSheet sheet{rule(".frame").stroke(stroke(4, Fill::var("line")))};
+  const StyleSheet sheet{rule(".frame").stroke(stroke(4, var("line")))};
   host.composer.render(framed(box().styleClass("frame"), sheet));
   host.frame();
   EXPECT_GT(redInk(host), 100);

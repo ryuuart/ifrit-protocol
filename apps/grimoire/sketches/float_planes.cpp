@@ -149,9 +149,9 @@ struct FloatPlanes {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
 
     const auto bytes = writeExr();
     if (bytes.empty()) {
@@ -175,9 +175,9 @@ struct FloatPlanes {
     if (green < 0) return {};
     material::Material stone = material::surface::program(
         {.baseColor = {0.62f, 0.60f, 0.56f, 1}, .roughness = 1.0f});
-    stone.slot(
-        material::surface::kRoughnessSlot,
-        material::Texture(planes.image(media::ChannelPick{green, green, green, -1})));
+    stone.slot(material::surface::kRoughnessSlot,
+               material::Texture(
+                   planes.image(media::ChannelPick{green, green, green, -1})));
     const material::Texture* placed =
         material::surface::map(stone, material::surface::kRoughnessSlot);
     return placed ? placed->frameAt({}).image : media::Picture{};
@@ -196,8 +196,8 @@ struct FloatPlanes {
           {.title = planes.names[channel] + " PLANE",
            .control =
                kit::formatted("channel %zu · peak %.2f", channel, (double)peak),
-           .figure = plane(
-               planes.image(media::ChannelPick{(int)channel, (int)channel, (int)channel, -1})),
+           .figure = plane(planes.image(media::ChannelPick{
+               (int)channel, (int)channel, (int)channel, -1})),
            .note = planes.names[channel] == "R"
                        ? "Radiance exceeds the display range."
                    : planes.names[channel] == "G"
@@ -291,7 +291,7 @@ struct FloatPlanes {
   }
 
   static Element missing(const std::string& why) {
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    const sketch::kit::Theme& sheet = sheetTheme();
     return box()
         .cover()
         .fill(Fill::color(sheet.palette.ground))

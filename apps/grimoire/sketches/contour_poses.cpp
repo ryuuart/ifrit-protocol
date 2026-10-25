@@ -171,17 +171,16 @@ sketch::kit::ComparisonCase rail(const char* title, const char* call,
 sketch::kit::ComparisonCase band(const char* title, const char* call,
                                  const char* note, path::Profile law,
                                  path::Formation formation) {
-  return cell(title, call, note,
-              [law = std::move(law), formation](Pen& pen) {
-                const SkPath spine = hexagon();
-                const SkPath region = path::bandRegion(spine, law, formation);
-                filled(pen, kBand);
-                pen.shape(region);
-                inked(pen, kWarm, 1.3f);
-                pen.shape(region);
-                inked(pen, kCool, 1.4f);
-                pen.shape(spine);
-              });
+  return cell(title, call, note, [law = std::move(law), formation](Pen& pen) {
+    const SkPath spine = hexagon();
+    const SkPath region = path::bandRegion(spine, law, formation);
+    filled(pen, kBand);
+    pen.shape(region);
+    inked(pen, kWarm, 1.3f);
+    pen.shape(region);
+    inked(pen, kCool, 1.4f);
+    pen.shape(spine);
+  });
 }
 
 }  // namespace
@@ -189,8 +188,8 @@ sketch::kit::ComparisonCase band(const char* title, const char* call,
 struct ContourPoses {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
 
     const SkPath figure = subject();
     const std::vector<path::Contour> contours =
@@ -256,8 +255,8 @@ struct ContourPoses {
                                        ++station) {
                                     const float distance = arrange::along(
                                         0.0f, total, (size_t)station,
-                                                       (size_t)kStations,
-                                                       arrange::Turn::Closed);
+                                        (size_t)kStations,
+                                        arrange::Turn::Closed);
                                     const path::Pose pose =
                                         path::poseAlong(run, distance);
                                     const glm::vec2 from =
@@ -301,9 +300,9 @@ struct ContourPoses {
                                     const SkPoint outAt{out.x, out.y};
                                     const SkPoint inAt{in.x, in.y};
                                     (station ? parked.lineTo(outAt)
-                                       : parked.moveTo(outAt));
+                                             : parked.moveTo(outAt));
                                     (station ? round.lineTo(inAt)
-                                       : round.moveTo(inAt));
+                                             : round.moveTo(inAt));
                                     filled(pen, kWarm);
                                     pen.circle(out.x, out.y, 7.2f);
                                     filled(pen, kCool);
@@ -348,8 +347,8 @@ struct ContourPoses {
                                     pen.line(from.x, from.y, pose.position.x,
                                              pose.position.y);
                                     inked(pen, kWarm, 1.6f);
-                                    pen.line(pose.position.x, pose.position.y, to.x,
-                                             to.y);
+                                    pen.line(pose.position.x, pose.position.y,
+                                             to.x, to.y);
                                     inked(pen, kFigure, 1.4f);
                                     pen.circle(pose.position.x, pose.position.y,
                                                6.4f);

@@ -69,7 +69,7 @@ assert_type(compose.Fill(None), compose.Fill)
 assert compose.Fill(None) == compose.Fill.none()
 # CSS's two words for a colour the tree resolves are fills, as text.
 assert compose.Fill("currentcolor") == compose.Fill.currentInk()
-assert compose.Fill("var(--accent)") == compose.Fill.var(accent)
+assert compose.Fill("var(--accent)") == compose.Fill(accent)
 # A fill compares as its paint does, so the same paint written twice is
 # one fill.
 assert compose.Fill(solid) == compose.Fill(material.Paint.solid("#b34a2f"))

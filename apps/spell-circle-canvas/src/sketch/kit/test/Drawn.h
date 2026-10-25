@@ -18,7 +18,10 @@
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Selector.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilmotion/clock/Engine.h>
+#include <sigilsketch/kit/Theme.h>
 
 #include <cstring>
 #include <utility>
@@ -33,6 +36,20 @@ namespace sigil::sketch::kit::test {
 inline constexpr int kWide = 420;
 inline constexpr int kTall = 300;
 
+/** @p look's custom properties alone — the spacing and the palette a
+ *  component reads where it lands — with none of its role rules, so a
+ *  component's own fallback registers are what is drawn. */
+inline compose::StyleSheet propertiesOf(const kit::Theme& look) {
+  return look.properties();
+}
+
+/** @p tree with @p look's custom properties set on it, standing over the
+ *  house properties every drawing here is made under. */
+inline compose::Element withProperties(
+    compose::Element tree, const kit::Theme& look = kit::houseTheme()) {
+  return std::move(tree.applyStyleSheet(propertiesOf(look)));
+}
+
 /** A composer over a raster surface, so a tree can be compared to another
  *  tree by the pixels the two produce. */
 struct Drawn {
@@ -41,7 +58,11 @@ struct Drawn {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWide, kTall));
 
+  /** Under the house theme's properties, as a sketch under a stage that
+   *  names no theme stands; a tree that applies another theme's sheet
+   *  shadows them. */
   explicit Drawn(compose::Element tree) {
+    composer.setStyleSheet(propertiesOf(kit::houseTheme()));
     composer.setSize({(float)kWide, (float)kTall});
     composer.render(std::move(tree));
     surface->getCanvas()->clear(SK_ColorBLACK);
@@ -70,10 +91,8 @@ inline bool sameDrawing(compose::Element left, compose::Element right) {
 /** A subject with nothing of the theme in it, so a difference between two
  *  drawings is a difference in what the kit put around it. */
 inline compose::Element subject() {
-  return compose::box()
-      .width(60)
-      .height(40)
-      .fill(compose::Fill::color({0.9f, 0.3f, 0.4f, 1}));
+  return compose::box().width(60).height(40).fill(
+      compose::Fill::color({0.9f, 0.3f, 0.4f, 1}));
 }
 
 }  // namespace sigil::sketch::kit::test

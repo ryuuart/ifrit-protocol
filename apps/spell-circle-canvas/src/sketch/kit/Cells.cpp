@@ -13,31 +13,61 @@
 #include <utility>
 #include <vector>
 
+#include "WellPlate.h"
+
 namespace sigil::sketch::kit {
 
-compose::Element well(const Well& specification, compose::Element surface) {
-  const Theme& look = theme();
-  // The theme supplies the ground and the padding; the plate, its corners
-  // and its keyline are the primitive's, and the two looks below are this
-  // library's own.
-  const compose::Fill bed = specification.ground.value_or(
-      compose::Fill::color(look.palette.cellGround));
+namespace {
+
+/** The air a comparison and a panel grid stand in where the caller states
+ *  none. A grid's tracks are measured in pixels by its own layout, so
+ *  these are numbers rather than the sheet's properties. */
+constexpr float kComparisonGap = 20.0f;
+constexpr float kComparisonTrackGap = 8.0f;
+constexpr float kPanelGridGap = 20.0f;
+
+}  // namespace
+
+namespace detail {
+
+compose::Element plate(const Well& specification, compose::Element surface,
+                       compose::Dimension padding,
+                       std::optional<compose::Dimension> corners) {
+  // The sheet in force supplies the ground and the padding a well leaves
+  // unset, as properties; the plate, its corners and its keyline are the
+  // primitive's, and the two looks below are this library's own.
+  const compose::Fill bed =
+      specification.ground.value_or(compose::var("palette-cell-ground"));
   std::optional<compose::kit::Well::Content> held;
   if (specification.content)
     held = compose::kit::Well::Content{.across = specification.content->across,
                                        .down = specification.content->down};
+  // A padding the caller stated is written by the primitive as before; an
+  // unset one is the property, written onto the plate the primitive
+  // answers, which is the plate whichever reading the well takes.
+  const bool statedPadding = specification.padding.has_value();
   compose::Element plate = compose::kit::well(
       {.width = specification.width,
        .height = specification.height,
        .ground = bed,
-       .padding = specification.padding.value_or(look.spacing.wellPadding),
-       .paddingVertical = specification.paddingVertical,
+       .padding = specification.padding.value_or(0.0f),
+       .paddingVertical =
+           statedPadding ? specification.paddingVertical : std::nullopt,
        .clip = specification.clip,
        .corners = specification.corners.value_or(0.0f),
        .keyline = specification.keyline,
        .keylineWidth = specification.keylineWidth,
        .content = held},
       std::move(surface));
+  if (!statedPadding) {
+    if (specification.paddingVertical)
+      plate.padding(compose::Dimension(*specification.paddingVertical),
+                    padding);
+    else
+      plate.padding(padding);
+  }
+  if (!specification.corners && corners)
+    plate.borderRadius(compose::Corners{*corners});
   // THE RELIEF AND THE RECESS ARE THE GROUND'S EFFECTS: the plate is
   // filled again with its ground carrying a bevel, an inner shadow or both,
   // in that order. A ground written as a reference to the ink in force has
@@ -77,18 +107,30 @@ compose::Element well(const Well& specification, compose::Element surface) {
   return plate;
 }
 
+}  // namespace detail
+
+compose::Element well(const Well& specification, compose::Element surface) {
+  return detail::plate(specification, std::move(surface),
+                       compose::var("spacing-well-padding"), std::nullopt);
+}
+
 compose::Element well(const Well& specification) {
   return well(specification,
               specification.placed ? compose::stack() : compose::box());
 }
 
 compose::Element caption(float measure, compose::Utf8 label, compose::Utf8 note,
-                         compose::Element body) {
-  // The two lines the cell writes are set in the theme's registers,
-  // carried on those lines by the voice; `body` keeps the sheets in force
-  // where the cell lands.
-  return compose::kit::cell(theme().voice(measure), std::move(label),
-                            std::move(note), std::move(body));
+                         compose::Element body,
+                         compose::kit::Caption::Where where) {
+  // The two lines the cell writes have document roles the sheet in force
+  // styles, and the air around them is the sheet's caption gaps, read
+  // where the cell lands; `body` keeps the sheets in force there too.
+  return compose::kit::cell(
+      {.where = where,
+       .gap = compose::var("spacing-caption-gap"),
+       .noteGap = compose::var("spacing-caption-note-gap"),
+       .noteMeasure = measure},
+      std::move(label), std::move(note), std::move(body));
 }
 
 compose::Element cell(const Cell& sheet, compose::Utf8 label,
@@ -104,14 +146,14 @@ compose::Element cell(const Cell& sheet, compose::Utf8 label,
   compose::Element plate =
       sheet.plate.content ? well(sheet.plate, std::move(picture))
                           : well(sheet.plate).children({std::move(picture)});
-  return caption(measure, std::move(label), std::move(note), std::move(plate));
+  return caption(measure, std::move(label), std::move(note), std::move(plate),
+                 sheet.where);
 }
 
 compose::Element comparison(Comparison specification) {
   using namespace compose;
-  const Theme& look = theme();
   if (specification.cases.empty()) return box();
-  const float gap = specification.gap.value_or(look.spacing.cellGap);
+  const float gap = specification.gap.value_or(kComparisonGap);
   const float columnWidth = std::max(
       0.0f,
       (specification.measure - gap * float(specification.cases.size() - 1)) /
@@ -139,13 +181,12 @@ compose::Element comparison(Comparison specification) {
     }
     if (controls) {
       if (!one.control.empty())
-        children.push_back(
-            document::code(std::move(one.control))
-                .role("code", look.font(look.type.control, look.palette.ash))
-                .styleClass("control")
-                .width(columnWidth)
-                .flexShrink(0)
-                .gridCells(int(column), row));
+        children.push_back(document::code(std::move(one.control))
+                               .role("code")
+                               .styleClass("control")
+                               .width(columnWidth)
+                               .flexShrink(0)
+                               .gridCells(int(column), row));
       ++row;
     }
     children.push_back(box()
@@ -169,7 +210,7 @@ compose::Element comparison(Comparison specification) {
                         int(specification.cases.size()), layouts::fr()),
                     .rows = layouts::repeatTrack(tracks, layouts::content()),
                     .gap = {gap, specification.trackGap.value_or(
-                                     look.spacing.comparisonGap)},
+                                     kComparisonTrackGap)},
                     .down = Align::Start})
       .row()
       .width(specification.measure)
@@ -182,9 +223,9 @@ compose::Element cells(Run run) {
   return compose::kit::cells(
       {.cells = std::move(run.cells),
        .column = run.column,
-       .gap = run.gap.value_or(theme().spacing.cellGap),
-       .divider = run.ruled ? compose::Fill::color(theme().palette.rule)
-                            : compose::Fill{},
+       .gap = run.gap ? compose::Dimension(*run.gap)
+                      : compose::var("spacing-cell-gap"),
+       .divider = run.ruled ? compose::var("palette-rule") : compose::Fill{},
        .align = run.align});
 }
 
@@ -192,10 +233,9 @@ compose::Element panelGrid(PanelGrid grid) {
   return compose::kit::panelGrid(
       {.cells = std::move(grid.cells),
        .columns = grid.columns,
-       .gap = grid.gap.value_or(theme().spacing.cellGap),
+       .gap = grid.gap.value_or(kPanelGridGap),
        .rowGap = grid.rowGap,
-       .divider = grid.ruled ? compose::Fill::color(theme().palette.rule)
-                             : compose::Fill{},
+       .divider = grid.ruled ? compose::var("palette-rule") : compose::Fill{},
        .align = grid.align,
        .measure = grid.measure});
 }

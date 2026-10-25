@@ -46,27 +46,6 @@ from sigil.sketch import renderFile
 
 
 class Motion(unittest.TestCase):
-    def test_native_curve_callbacks_close_abandoned_theme_providers(self):
-        from sigil.draw import brush
-        from sigil.sketch import kit
-
-        original = kit.theme()
-        opened = []
-
-        def easing(progress):
-            provider = kit.provide(original)
-            provider.__enter__()
-            opened.append(provider)
-            return progress
-
-        curve = Tween(ease=easing).ease
-        self.assertEqual(curve(0.5), 0.5)
-        self.assertFalse(opened[-1].active)
-        pressure = brush.Pressure(curve=easing, variation=None)
-        self.assertEqual(pressure.at(0.5), 0.5)
-        self.assertFalse(opened[-1].active)
-        self.assertEqual(kit.theme(), original)
-
     def render(self, source, at=0, width=64):
         with tempfile.TemporaryDirectory(prefix="sigil_motion_") as folder:
             entry, output = Path(folder) / "scene.py", Path(folder) / "scene.png"

@@ -71,7 +71,6 @@ constexpr int kCells = 6;             // the lattice cell, in samples
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.captionWhere = kit::Caption::Where::Below;
   look.spacing.captionGap = 8;
   look.spacing.captionNoteGap = 3;
   return look;
@@ -86,7 +85,7 @@ using Field = std::function<float(int, int)>;
 Element field(const char* key, Field sample) {
   // A pen program runs after the describe scope has closed, so the
   // field's ink is read here and carried in by value.
-  const material::Color ink = sketch::kit::theme().palette.figure;
+  const material::Color ink = sheetTheme().palette.figure;
   return pen(key, [sample = std::move(sample), ink](draw::Pen& pen) {
     pen.noStroke();
     pen.noSmooth();
@@ -116,8 +115,8 @@ const sketch::kit::Cell kSpecimen{
 struct NoiseShelf {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the shelf is complete at once
-    const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
 
     const int columns = (int)(kCell / kBlock);
 

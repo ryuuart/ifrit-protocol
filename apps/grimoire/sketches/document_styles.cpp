@@ -116,9 +116,11 @@ Element panel(bool editorial) {
 
 struct DocumentStyles {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide look(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    sketch::kit::stage(ctx, {.size = {1100, 1010}, .captureAt = 0.05});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = {1100, 1010},
+         .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "One document, two voices",
          .subtitle = "The same article uses headings, paragraphs, a quotation "

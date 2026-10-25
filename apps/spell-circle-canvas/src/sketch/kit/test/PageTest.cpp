@@ -6,11 +6,12 @@
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilcore/reconcile/Environment.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/scene3d/Scene3D.h>
 
+#include <cstring>
+#include <optional>
 #include <utility>
 
 #include "Drawn.h"
@@ -56,11 +57,8 @@ TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
 
   kit::Theme paper = kit::houseTheme();
   paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
-  {
-    const kit::Provide bound(paper);
-    kit::stage(ctx, {.size = {100, 100}});
-    EXPECT_EQ(specification.background, paper.palette.ground);
-  }
+  kit::stage(ctx, {.theme = paper, .size = {100, 100}});
+  EXPECT_EQ(specification.background, paper.palette.ground);
   kit::stage(ctx, {.size = {100, 100},
                    .background = sigil::material::Color{1, 0, 0, 1}});
   EXPECT_EQ(specification.background, (sigil::material::Color{1, 0, 0, 1}));
@@ -123,37 +121,80 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
   Element byKit = kit::page({.title = "THE RULE AND THE STRANDS",
                              .subtitle = "dials · the width and the inset",
                              .footer = "a crossing is discovered"},
-                            subject());
+                            subject())
+                      .applyStyleSheet(house.styleSheet());
   EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
 }
 
-/** The page's own lines are set in the theme's registers with NO theme
- *  bound around the call: the page states the theme's sheet on its root,
- *  so a sketch that bound no theme still gets the house voice. */
-TEST(SketchKitPage, SetsItsLinesWithNoSheetBound) {
-  const kit::Theme& house = kit::houseTheme();
-  Element unbound = kit::page({.title = "TITLE", .footer = "FOOT"}, subject());
-  Element bound;
-  {
-    const kit::Provide look(house);
-    bound = kit::page({.title = "TITLE", .footer = "FOOT"}, subject());
-  }
-  EXPECT_TRUE(sameDrawing(std::move(unbound), std::move(bound)));
-}
-
-/** A bound theme reaches the page four levels down without being handed
- *  to it — and moves what it draws. */
-TEST(SketchKitPage, ReadsTheThemeInScope) {
-  Element house = kit::page({.title = "TITLE"}, subject());
+/** A STAGE NAMING A THEME SETS ITS WHOLE SHEET at the root of what the
+ *  sketch renders, so a page under it is the page under that sheet; a
+ *  stage naming none sets the house properties alone, and its role rules
+ *  stay the sketch's own to state. */
+TEST(SketchKitStage, TheStageSetsItsThemeAtTheRoot) {
   kit::Theme paper = kit::houseTheme();
   paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
-  paper.palette.ink = {0.114f, 0.106f, 0.098f, 1};
-  Element other;
-  {
-    const kit::Provide bound(paper);
-    other = kit::page({.title = "TITLE"}, subject());
-  }
-  EXPECT_FALSE(sameDrawing(std::move(house), std::move(other)));
+  const auto staged = [](std::optional<kit::Theme> look) {
+    sigil::motion::Engine engine;
+    compose::Composer composer(engine, fonts());
+    sigil::sketch::CanvasSpecification specification;
+    sigil::sketch::Scene2DContext ctx(composer, engine, assets(), {0, 0},
+                                      &specification, &fonts());
+    kit::stage(
+        ctx, {.theme = std::move(look), .size = {(float)kWide, (float)kTall}});
+    composer.setSize({(float)kWide, (float)kTall});
+    composer.render(kit::page({.title = "TITLE", .footer = "FOOT"}, subject()));
+    const sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWide, kTall));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    composer.draw(*surface->getCanvas());
+    SkBitmap pixels;
+    pixels.allocPixels(SkImageInfo::MakeN32Premul(kWide, kTall));
+    EXPECT_TRUE(surface->readPixels(pixels.pixmap(), 0, 0));
+    return pixels;
+  };
+  const auto same = [](const SkBitmap& one, const SkBitmap& other) {
+    for (int y = 0; y < kTall; ++y)
+      if (std::memcmp(one.getAddr32(0, y), other.getAddr32(0, y),
+                      (size_t)kWide * 4) != 0)
+        return false;
+    return true;
+  };
+  const auto drawn = [](const kit::Theme* look) {
+    Element page = kit::page({.title = "TITLE", .footer = "FOOT"}, subject());
+    if (look != nullptr) page.applyStyleSheet(look->styleSheet());
+    return Drawn(std::move(page)).pixels();
+  };
+  EXPECT_TRUE(same(staged(kit::houseTheme()), drawn(&kit::houseTheme())));
+  EXPECT_TRUE(same(staged(paper), drawn(&paper)));
+  EXPECT_TRUE(same(staged(std::nullopt), drawn(nullptr)))
+      << "no theme named is the house properties and no role rules";
+  EXPECT_FALSE(same(staged(std::nullopt), staged(kit::houseTheme())));
+}
+
+/** The theme a page names reaches a component four levels down without
+ *  being handed to it — and moves what it draws. */
+TEST(SketchKitPage, AComponentUnderThePageReadsItsTheme) {
+  kit::Theme paper = kit::houseTheme();
+  paper.palette.cellGround = {0.945f, 0.937f, 0.918f, 1};
+  paper.spacing.cellGap = 44;
+  const auto content = [] {
+    return compose::box().children({compose::box().children(
+        {kit::cells({.cells = {kit::well({.width = compose::Dimension(60),
+                                          .height = compose::Dimension(40)}),
+                               subject().key("second")}})})});
+  };
+  const auto under = [&](const kit::Theme& look) {
+    return kit::page({.title = "TITLE"}, content())
+        .applyStyleSheet(look.styleSheet());
+  };
+  Drawn house(under(kit::houseTheme()));
+  Drawn other(under(paper));
+  const auto before = house.composer.bounds("second");
+  const auto after = other.composer.bounds("second");
+  ASSERT_TRUE(before && after);
+  EXPECT_FLOAT_EQ(after->left() - before->left(),
+                  paper.spacing.cellGap - kit::houseTheme().spacing.cellGap);
+  EXPECT_FALSE(sameDrawing(under(kit::houseTheme()), under(paper)));
 }
 
 TEST(SketchKitPage, UnruledRulesNeither) {

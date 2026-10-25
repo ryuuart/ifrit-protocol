@@ -89,11 +89,14 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 
 struct BorderWeave {
   void setup(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
-    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 0.05});
+    const sketch::kit::Theme& sheet =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
 
     const Border bracket{.width = kWidth,
                          .fill = Fill::color(sheet.palette.figure),

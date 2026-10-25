@@ -37,7 +37,7 @@ is handed and ``captureAt(seconds)`` names.
 import inspect
 import sys
 import threading
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from math import isfinite
 from numbers import Real
 from types import ModuleType
@@ -147,8 +147,9 @@ def captureAt(seconds: float) -> None:
 
 
 def theme(look: Any, /) -> None:
-    """Declare a kit theme: provided around every hook, and staging the
-    canvas with the theme's ground where no background is declared."""
+    """Declare a kit theme: staged, so its sheet stands at the root of every
+    tree the sketch renders and the canvas takes the theme's ground where no
+    background is declared."""
     _record("theme", look)
 
 
@@ -364,16 +365,6 @@ def sketchOf(module: ModuleType) -> type:
     drawn = _defined(module, "draw") is not None
     counts = "draw" if drawn else ("describe" if describe is not None else "update")
 
-    def themed(self):
-        """The theme declared after the file loaded, provided around a hook;
-        one declared at its top level the decorator provides."""
-        current = _declarations(module).get("theme")
-        if current is None or current is loaded.get("theme"):
-            return nullcontext()
-        from .kit import provide
-
-        return provide(current)
-
     def __init__(self):
         self._sigilReadings = _Readings(module, hooks, canvas)
         self._sigilReadings.write()
@@ -385,8 +376,7 @@ def sketchOf(module: ModuleType) -> type:
         self._sigilContext = ctx
         readings = self._sigilReadings
         readings.time(getattr(ctx, "elapsed", 0.0), _size(ctx))
-        with themed(self):
-            returned = hooks("setup", ctx)
+        returned = hooks("setup", ctx)
         current = _declarations(module)
         if current != loaded:
             _declare(ctx, current)
@@ -398,7 +388,7 @@ def sketchOf(module: ModuleType) -> type:
         return returned
 
     def draw(self, pen, ctx):
-        with themed(self), _hook():
+        with _hook():
             self._sigilReadings.fromPen(pen)
             hooks("draw", pen, ctx)
 
@@ -408,7 +398,7 @@ def sketchOf(module: ModuleType) -> type:
             readings.step(elapsed, _size(ctx))
         else:
             readings.time(elapsed, _size(ctx))
-        with themed(self), _hook():
+        with _hook():
             if not drawn:
                 readings.fromContext(ctx)
             hooks("update", elapsed, ctx)
@@ -419,7 +409,7 @@ def sketchOf(module: ModuleType) -> type:
             readings.step(seconds)
         else:
             readings.time(seconds)
-        with themed(self), _hook():
+        with _hook():
             if not drawn and self._sigilContext is not None:
                 readings.fromContext(self._sigilContext)
             return hooks("describe", seconds)
@@ -468,15 +458,14 @@ def _declare(ctx, declared):
     """Apply what setup declared to the canvas the decorator declared."""
     look = declared.get("theme")
     if look is not None:
-        from .kit import provide, stage
+        from .kit import stage
 
         properties = {
             key: declared[key]
             for key in ("size", "captureAt", "background")
             if key in declared
         }
-        with provide(look):
-            stage(ctx, **properties)
+        stage(ctx, theme=look, **properties)
         return
     if "size" in declared:
         ctx.canvas(*declared["size"])

@@ -160,8 +160,6 @@ struct EmberDecode {
   float wordsTotalMilliseconds = 1;
 
   Element describe(sketch::Scene2DContext& ctx) {
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     const sigil::weave::Face face =
         weave::ports::face({"Helvetica Neue", "Arial", "Inter"}, 700);
     // The letters are set WHITE: the pass reads the layer's coverage and
@@ -195,8 +193,10 @@ struct EmberDecode {
             .gap(20)
             // The faint remark is the sheet's own voice: every line is set in
             // it unless it says otherwise.
-            .font(sketch::kit::theme().font(
-                sketch::kit::theme().type.captionNote))
+            .font(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                      .font(sketch::kit::featureTheme(
+                                sketch::kit::Density::Spacious)
+                                .type.captionNote))
             .children({
                 text(u8"EMBER DECODE")
                     .font(burnt(78, 5.0f))
@@ -251,14 +251,14 @@ struct EmberDecode {
         ctx.assets.hub(), ctx.local("burn.sksl"),
         BurnParameters{kInk, kEmber, {kSweep, kSpeckle, kPatch}},
         {.key = "ember.burn"});
-    const sketch::kit::Provide presentation(
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
-        ctx, {.size = SkSize::Make(kW, kH),
-              .captureAt = 2.4,
-              .background = sketch::kit::theme()
-                                .palette.ground});  // mid-decode: resolved,
-                                                    // burning and unlit at once
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = SkSize::Make(kW, kH),
+         .captureAt = 2.4,
+         .background = sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                           .palette.ground});  // mid-decode: resolved,
+                                               // burning and unlit at once
     ctx.composer.render(describe(ctx));
   }
 

@@ -75,10 +75,8 @@ constexpr material::Color kDim = hexColor(0xb4a894);
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.captionWhere = kit::Caption::Where::Below;
   look.spacing.captionGap = 7;
   look.spacing.captionNoteGap = 7;
-  look.spacing.cellGap = kGap;
   return look;
 }
 
@@ -107,7 +105,8 @@ Element card(const Swatch& swatch) {
                  .borderRadius({10})
                  .overflow(Overflow::Clip)
                  .foreground(
-                     stroke(1.0f, Fill::color(hexColor(0xffffff, 0.16f)))))
+                     stroke(1.0f, Fill::color(hexColor(0xffffff, 0.16f)))),
+             sigil::compose::kit::Caption::Where::Below)
       .width(kCard);
 }
 
@@ -177,7 +176,6 @@ struct SubstanceSwatchesSketch {
     // The cook runs apart from this thread; a plate shows what landed.
     sbsar::settle(leaves);
 
-    const sketch::kit::Provide look(sheetTheme());
     std::vector<Swatch> swatches;
     for (const sbsar::OutputRequest& output : every) {
       sigil::media::PixelSource cooked = sbsar::output(leaves, output.usage);
@@ -217,22 +215,23 @@ struct SubstanceSwatchesSketch {
             .left(kMargin)
             .top(kHeaderHeight)
             .width(kGridWidth)
-            .children({sketch::kit::panelGrid(
-                {.cells = each(swatches, card), .columns = kPerRow})});
+            .children({sketch::kit::panelGrid({.cells = each(swatches, card),
+                                               .columns = kPerRow,
+                                               .gap = kGap})});
 
     // No page stands here, so the root states the theme's registers.
     ctx.composer.render(
         stack()
-            .applyStyleSheet(sketch::kit::theme().styleSheet())
-            .children({sketch::kit::backdrop(
-                           {.ground = Fill::color(
-                                sketch::kit::theme().palette.ground)}),
-                       sketch::kit::titleCard(
-                           {.title = {u8"A procedural archive, cooked"},
-                            .subtitle = {caption}})
-                           .left(kMargin)
-                           .top(34),
-                       std::move(grid)}));
+            .applyStyleSheet(sheetTheme().styleSheet())
+            .children(
+                {sketch::kit::backdrop(
+                     {.ground = Fill::color(sheetTheme().palette.ground)}),
+                 sketch::kit::titleCard(
+                     {.title = {u8"A procedural archive, cooked"},
+                      .subtitle = {caption}})
+                     .left(kMargin)
+                     .top(34),
+                 std::move(grid)}));
   }
 };
 

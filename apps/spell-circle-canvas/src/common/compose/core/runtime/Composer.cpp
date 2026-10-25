@@ -218,6 +218,17 @@ void Composer::setInherited(const sigil::weave::Type& font,
   impl.changesUnknown = true;
 }
 
+void Composer::setStyleSheet(StyleSheet sheet) {
+  Impl& impl = *m_impl;
+  std::optional<StyleSheet> held;
+  if (!sheet.empty()) held = std::move(sheet);
+  if (held == impl.rootSheet) return;
+  impl.rootSheet = std::move(held);
+  impl.cascadeDirty = true;
+  impl.contentDirty = true;
+  impl.changesUnknown = true;
+}
+
 bool Composer::dirty() const {
   return m_impl->contentDirty || m_impl->needsLayout;
 }

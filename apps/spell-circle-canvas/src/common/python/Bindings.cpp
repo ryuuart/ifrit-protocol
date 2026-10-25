@@ -1,4 +1,3 @@
-#include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Color.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
@@ -51,7 +50,7 @@ material::Color colorFromText(std::string_view text) {
         quoted +
         " names a custom property, and a flat colour resolves nothing from "
         "the tree. Write it where a fill is taken, or spell "
-        "compose.Fill.var(name).");
+        "compose.var(name).");
   throw py::value_error(
       quoted +
       " is no CSS colour. A colour is written as hex (#rgb, #rgba, #rrggbb "
@@ -133,10 +132,6 @@ struct NativeScope {
   void (*close)(void*) noexcept;
 };
 struct NativeScopes {
-  NativeScopes() {
-    // Thread-local native environment storage outlives its scope owners.
-    (void)core::environment::capture();
-  }
   std::vector<NativeScope> values;
   std::uint64_t sequence = 0;
   void closeLast() {
