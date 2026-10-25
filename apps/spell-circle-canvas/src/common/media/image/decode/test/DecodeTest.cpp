@@ -229,10 +229,9 @@ TEST(ImageDecode, ARefusalSaysWhy) {
             "the bytes are no image format this build reads");
   EXPECT_EQ(probeImage(garbage).error().message,
             "the bytes are no image format this build reads");
-  EXPECT_EQ(decodeDocument(std::type_identity<Channels>{}, {}, {})
-                .error()
-                .message,
-            "an image needs bytes and has none");
+  EXPECT_EQ(
+      decodeDocument(std::type_identity<Channels>{}, {}, {}).error().message,
+      "an image needs bytes and has none");
 }
 
 // The six faces of a cube map, each its own colour in the +x -x +y -y

@@ -205,9 +205,8 @@ std::optional<Color> namedColor(std::string_view name) {
   // Every name is ASCII, so only ASCII capitals are lowered: a byte past
   // ASCII names no colour in any case.
   std::ranges::transform(name, lowered.begin(), [](char character) {
-    return character >= 'A' && character <= 'Z'
-               ? (char)(character - 'A' + 'a')
-               : character;
+    return character >= 'A' && character <= 'Z' ? (char)(character - 'A' + 'a')
+                                                : character;
   });
   const auto& map = namedColorMap();
   const auto found = map.find(std::string_view(lowered.data(), name.size()));

@@ -144,8 +144,7 @@ TEST_P(QueryEngines, ATableRoundTripsWithItsTypesAndItsMissingCells) {
   auto db = Database::memory(GetParam());
   ASSERT_TRUE(db);
   ASSERT_TRUE(db->insert("t", sample()));
-  const auto back =
-      db->query("SELECT * FROM t ORDER BY n");
+  const auto back = db->query("SELECT * FROM t ORDER BY n");
   ASSERT_TRUE(back);
   ASSERT_EQ(back->size(), 3u);
   ASSERT_TRUE(back->has("n") && back->has("s") && back->has("f") &&
@@ -213,8 +212,7 @@ TEST(Query, ASqliteFileOpensByItsExtensionAndFromItsBytes) {
   EXPECT_EQ(rows->size(), 3u);
 
   const sigil::io::Bytes bytes = readAll(file);
-  auto fromBytes =
-      Database::fromBytes(bytes, file.string());
+  auto fromBytes = Database::fromBytes(bytes, file.string());
   ASSERT_TRUE(fromBytes);
   EXPECT_TRUE(fromBytes->file().empty());
   EXPECT_EQ(
@@ -223,9 +221,8 @@ TEST(Query, ASqliteFileOpensByItsExtensionAndFromItsBytes) {
 
   const auto unnamed = Database::open(scratch("nothing.txt"));
   ASSERT_FALSE(unnamed);
-  EXPECT_EQ(unnamed.error().message,
-            "not a database file by its extension: " +
-                scratch("nothing.txt").string());
+  EXPECT_EQ(unnamed.error().message, "not a database file by its extension: " +
+                                         scratch("nothing.txt").string());
   EXPECT_FALSE(engineOf("x.csv"));
   EXPECT_EQ(engineOf("x.duckdb"), Engine::Duck);
   std::filesystem::remove(file);
@@ -239,9 +236,8 @@ TEST(Query, DuckReadsACsvFileStraightFromAQuery) {
   }
   auto db = Database::memory(Engine::Duck);
   ASSERT_TRUE(db);
-  const auto rows =
-      db->query("SELECT city, population FROM read_csv('" + csv.string() +
-                    "') WHERE coastal ORDER BY city");
+  const auto rows = db->query("SELECT city, population FROM read_csv('" +
+                              csv.string() + "') WHERE coastal ORDER BY city");
   ASSERT_TRUE(rows);
   ASSERT_EQ(rows->size(), 1u);
   EXPECT_EQ(rows->column<std::string>("city")[0], "Antwerp");

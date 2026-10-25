@@ -66,9 +66,8 @@ std::expected<Image, core::Error> decodeDocument(
       if (image) return image;
       refused = std::move(image.error());
     } else {
-      refused = {"the bytes begin as a KTX texture and do not read as one",
-                 {},
-                 {}};
+      refused = {
+          "the bytes begin as a KTX texture and do not read as one", {}, {}};
     }
   }
 #ifdef SIGILMEDIA_HAS_SVG

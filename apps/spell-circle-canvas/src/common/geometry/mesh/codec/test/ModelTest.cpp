@@ -112,8 +112,7 @@ TEST(Model, AMaterialSlotRidesThePrimitiveClass) {
     "primitives",[[["type","Polygon"],["vertex",[0,1,2],"closed",true]],
                   [["type","Polygon"],["vertex",[3,4,5],"closed",true]]]
   ])";
-  const auto model =
-      codec::decode::model(geo, std::strlen(geo), "slots.geo");
+  const auto model = codec::decode::model(geo, std::strlen(geo), "slots.geo");
   ASSERT_TRUE(model);
   const std::vector<glm::vec4>* lane =
       model->parts.front().mesh.primitiveIf("Material");
@@ -130,8 +129,7 @@ TEST(Model, AMaterialSlotRidesThePrimitiveClass) {
         std::filesystem::path("../../build/assets/models/Avocado.glb")})
     if (std::filesystem::exists(candidate)) found = candidate;
   if (found.empty()) return;  // the .geo half already stands
-  const auto avocado =
-      codec::decode::model(found);
+  const auto avocado = codec::decode::model(found);
   ASSERT_TRUE(avocado);
   EXPECT_EQ(avocado->materialSlotCount(), 1);
   EXPECT_EQ(avocado->parts.front().materialIndex, 0);
@@ -178,11 +176,10 @@ TEST(Model, ARefusalNamesTheFormatTheBytesWereReadAs) {
                 .error()
                 .message,
             "the bytes do not read as a PLY file");
-  EXPECT_EQ(codec::decode::model(text, std::strlen(text), "download")
-                .error()
-                .message,
-            "the bytes are no model format this library reads, and the name "
-            "carries no extension that names one");
+  EXPECT_EQ(
+      codec::decode::model(text, std::strlen(text), "download").error().message,
+      "the bytes are no model format this library reads, and the name "
+      "carries no extension that names one");
   EXPECT_EQ(codec::decode::model(nullptr, 0, "empty.obj").error().message,
             "a model needs bytes and has none");
 }

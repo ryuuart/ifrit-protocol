@@ -366,8 +366,8 @@ void fadingRingArm(benchmark::State& state, Host& host, Draw&& draw) {
   const bool live = state.range(0) == 1;
   sigil::motion::Animatable<float> fade = sigil::motion::animatable(0.5f);
   host.composer.setLive(live);
-  host.composer.render(box().width(800).height(800).children(
-      {fadingRing(fade)}));
+  host.composer.render(
+      box().width(800).height(800).children({fadingRing(fade)}));
   draw();
   float at = 0;
   size_t held = 0;

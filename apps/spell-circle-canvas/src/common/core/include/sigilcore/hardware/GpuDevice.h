@@ -17,15 +17,14 @@
  *  knows nothing about what draws — no Skia, no Diligent, no Qt — which
  *  is what lets two drawing APIs stand on one device. */
 
-#include <sigilcore/report/Error.h>
-
 #include <sigilcore/hardware/Fence.h>
 #include <sigilcore/hardware/Handle.h>
+#include <sigilcore/report/Error.h>
 
-#include <expected>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <string>
 

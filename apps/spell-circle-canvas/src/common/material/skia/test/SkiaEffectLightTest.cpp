@@ -329,7 +329,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 #if defined(__APPLE__)
 TEST(MaterialGpu, HaloDeepeningPreservesFiniteSignedFloatChannelsAndCoverage) {
-  auto device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  auto device =
+      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto graphite = sigil::skia::GraphiteContext::create(*device);
   if (!graphite) GTEST_SKIP() << "no Graphite context";

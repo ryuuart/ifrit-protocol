@@ -113,9 +113,8 @@ std::string tableStyleName(const SkTypeface& typeface) {
 
 bool sameStyleName(std::string_view left, std::string_view right) {
   const auto letters = [](std::string_view name) {
-    return name | std::views::filter([](char character) {
-             return character != ' ';
-           });
+    return name |
+           std::views::filter([](char character) { return character != ' '; });
   };
   return std::ranges::equal(
       letters(left), letters(right),

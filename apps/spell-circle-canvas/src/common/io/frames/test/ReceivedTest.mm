@@ -57,12 +57,11 @@ TEST(ReceivedFrame, ARecorderThatCannotSampleTheArrivalIsHandedItsHostCopy) {
   ASSERT_NE(binding, nullptr);
 
   std::string error;
-  static const std::unique_ptr<sigil::geometry::device::Device> vulkan =
-      [&error] {
-        auto created = sigil::geometry::device::Device::create({});
-        if (!created) error = created.error().message;
-        return std::move(created).value_or(nullptr);
-      }();
+  static const std::unique_ptr<sigil::geometry::device::Device> vulkan = [&error] {
+    auto created = sigil::geometry::device::Device::create({});
+    if (!created) error = created.error().message;
+    return std::move(created).value_or(nullptr);
+  }();
   if (!vulkan || !vulkan->gpu()) GTEST_SKIP() << "no Vulkan device: " << error;
   // A Vulkan Graphite made over the device: the recorder that cannot
   // sample a Metal plane, whatever context the device paints with.

@@ -193,8 +193,7 @@ struct MaterialAtlas {
     const material::Atlas grid = material::Atlas::grid(sheet, kCols, kRows);
     const auto packed =
         material::Atlas::fromTexturePacker(sheet, kTexturePackerJson);
-    const auto tagged =
-        material::Atlas::fromAseprite(sheet, kAsepriteJson);
+    const auto tagged = material::Atlas::fromAseprite(sheet, kAsepriteJson);
 
     // What a cell whose JSON did not parse draws.
     const std::function<void(SkCanvas&)> nothing;

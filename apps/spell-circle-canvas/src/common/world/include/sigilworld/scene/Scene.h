@@ -15,8 +15,8 @@
 #include <sigilworld/advanced/Stats.h>
 #include <sigilworld/frame/Frame.h>
 
-#include <expected>
 #include <cstdint>
+#include <expected>
 #include <glm/mat4x4.hpp>
 #include <memory>
 #include <optional>

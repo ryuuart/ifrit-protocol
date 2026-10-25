@@ -49,7 +49,6 @@ namespace sigil::weave::fonts {
 /** Whether @p left and @p right name one style, ASCII case and spaces
  *  aside: a font says "Demi Bold" where a writer types "DemiBold", and
  *  neither CSS nor the naming table holds a style name to one spelling. */
-[[nodiscard]] bool sameStyleName(std::string_view left,
-                                 std::string_view right);
+[[nodiscard]] bool sameStyleName(std::string_view left, std::string_view right);
 
 }  // namespace sigil::weave::fonts

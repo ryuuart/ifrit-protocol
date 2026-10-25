@@ -226,9 +226,10 @@ TEST(ComposeFontFamily, AStyleNamedBesideTheFamilyIsTheFaceItsFontNamesSo) {
   ASSERT_TRUE(styleOf("Avenir", "Book") && styleOf("Avenir", "Roman"));
   const auto book =
       render(box().fontFamily("Avenir", "Book").children({words()}));
-  EXPECT_EQ(book, render(box()
-                             .font({.face = styleOf("Avenir", "Book")})
-                             .children({words()})));
+  EXPECT_EQ(
+      book,
+      render(
+          box().font({.face = styleOf("Avenir", "Book")}).children({words()})));
   EXPECT_NE(book,
             render(box().fontFamily("Avenir", "Roman").children({words()})));
   // The name is compared with case and spaces aside, and an empty one is
@@ -252,8 +253,9 @@ TEST(ComposeFontFamily, AWeightOrAStyleAfterANamedStyleOverridesItsTraits) {
                        .fontWeight(800)
                        .children({words()})),
             heavy);
-  EXPECT_EQ(render(box().fontFamily("Avenir", "Book").children(
-                {words().fontWeight(800)})),
+  EXPECT_EQ(render(box()
+                       .fontFamily("Avenir", "Book")
+                       .children({words().fontWeight(800)})),
             heavy);
   // Before it on the node, the weight gives way to the face named.
   EXPECT_EQ(render(box()
@@ -262,8 +264,9 @@ TEST(ComposeFontFamily, AWeightOrAStyleAfterANamedStyleOverridesItsTraits) {
                        .children({words()})),
             render(box().fontFamily("Avenir", "Book").children({words()})));
   // An italic below it finds the family's italic.
-  EXPECT_NE(render(box().fontFamily("Avenir", "Book").children(
-                {words().fontStyle(FontStyle::Italic)})),
+  EXPECT_NE(render(box()
+                       .fontFamily("Avenir", "Book")
+                       .children({words().fontStyle(FontStyle::Italic)})),
             render(box().fontFamily("Avenir", "Book").children({words()})));
 }
 

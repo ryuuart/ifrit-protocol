@@ -30,15 +30,13 @@ TEST(ComposeShadowText, TheSpecificationsBoxShadowsReadAsTheirFields) {
   ASSERT_TRUE(read);
   const Fill shade = Fill::color(*readColor("rgba(0,0,0,0.4)"));
   EXPECT_EQ(*read,
-            (std::vector<Shadow>{{.offset = {64, 64},
-                                  .blur = 12,
-                                  .spread = 40,
-                                  .color = shade},
-                                 {.offset = {12, 12},
-                                  .blur = 0,
-                                  .spread = 8,
-                                  .color = shade,
-                                  .inset = true}}));
+            (std::vector<Shadow>{
+                {.offset = {64, 64}, .blur = 12, .spread = 40, .color = shade},
+                {.offset = {12, 12},
+                 .blur = 0,
+                 .spread = 8,
+                 .color = shade,
+                 .inset = true}}));
 }
 
 TEST(ComposeShadowText, TheColourAndInsetStandBeforeOrAfterTheLengths) {
@@ -65,8 +63,8 @@ TEST(ComposeShadowText, TheSpecificationsTextShadowsReadAsTheirFields) {
       readTextShadow("3px 3px red, yellow -3px 3px 2px, 3px -3px");
   ASSERT_TRUE(read);
   ASSERT_EQ(read->size(), 3u);
-  EXPECT_EQ((*read)[0],
-            (TextShadow{.offset = {3, 3}, .color = ColorTerm(*readColor("red"))}));
+  EXPECT_EQ((*read)[0], (TextShadow{.offset = {3, 3},
+                                    .color = ColorTerm(*readColor("red"))}));
   EXPECT_EQ((*read)[1], (TextShadow{.offset = {-3, 3},
                                     .blur = 2,
                                     .color = ColorTerm(*readColor("yellow"))}));

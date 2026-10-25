@@ -37,8 +37,8 @@ std::shared_ptr<const io::Bytes> bytesAt(io::Hub& hub, std::string_view uri,
 std::optional<Database> storeAt(io::Hub& hub, std::string_view uri,
                                 std::string* why) {
   const std::filesystem::path path = io::resolve(hub, uri);
-  std::expected<Database, core::Error> store = [&]()
-      -> std::expected<Database, core::Error> {
+  std::expected<Database, core::Error> store =
+      [&]() -> std::expected<Database, core::Error> {
     if (!path.empty() && std::filesystem::exists(path))
       return Database::open(path, Access::ReadOnly);
     const std::shared_ptr<const io::Bytes> bytes = hub.read(uri);

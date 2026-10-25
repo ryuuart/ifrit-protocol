@@ -17,14 +17,14 @@
  * `append` SigilMediaVideoEncode.
  */
 
-#include <sigilcore/report/Error.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
+#include <sigilcore/report/Error.h>
 
-#include <expected>
 #include <cstddef>
+#include <expected>
 #include <vector>
 
 #include "sigilmedia/advanced/Skia.h"

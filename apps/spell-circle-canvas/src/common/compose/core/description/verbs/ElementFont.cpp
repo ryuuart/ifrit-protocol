@@ -169,8 +169,7 @@ Derived& FontVerbs<Derived>::fontFamily(std::string family) {
 template <class Derived>
 Derived& FontVerbs<Derived>::fontFamily(std::string family,
                                         std::string styleName) {
-  if (family.empty() || styleName.empty())
-    return fontFamily(std::move(family));
+  if (family.empty() || styleName.empty()) return fontFamily(std::move(family));
   fontFamily(std::move(family));
   // The named face carries its own weight and style, so a weight, a lean
   // or an italic written before it in this statement gives way to it; one

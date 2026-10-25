@@ -6,9 +6,8 @@
  * with — never both, and never neither — as the standard expected answer.
  */
 
-#include <sigilprotocol/protocol_values.h>
-
 #include <sigilcore/report/Error.h>
+#include <sigilprotocol/protocol_values.h>
 
 #include <expected>
 #include <functional>
@@ -31,8 +30,7 @@ class Answer : public std::expected<Result, values::Error> {
   using Expected = std::expected<Result, values::Error>;
 
   Answer(Result result) : Expected(std::move(result)) {}
-  Answer(values::Error error)
-      : Expected(std::unexpect, std::move(error)) {}
+  Answer(values::Error error) : Expected(std::unexpect, std::move(error)) {}
   Answer(Expected answered) : Expected(std::move(answered)) {}
 
   /** The result, where this holds it; const on a const answer. */

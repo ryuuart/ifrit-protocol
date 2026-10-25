@@ -202,8 +202,8 @@ std::expected<std::shared_ptr<Program>, core::Error> ProgramCache::program(
         }
         if (first) {
           const std::string what =
-              "the " + std::string(name(target)) + " body never reads " + unread +
-              " — whatever is written to those fields has no effect";
+              "the " + std::string(name(target)) + " body never reads " +
+              unread + " — whatever is written to those fields has no effect";
           std::println(stderr, "[sigil::material] recipe \"{}\": {}",
                        recipe->name(), what);
         }
@@ -228,7 +228,6 @@ std::expected<std::shared_ptr<Program>, core::Error> ProgramCache::program(
     return std::unexpected(
         core::Error{said.empty() ? "no program was compiled" : said});
   return made;
-
 }
 
 bool ProgramCache::prepare(std::shared_ptr<const Recipe> recipe, Target target,

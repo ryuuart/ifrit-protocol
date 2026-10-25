@@ -133,9 +133,10 @@ Element spinningLetters(
   style.shaping.fontSize = 36.0f;
   auto block = box().column().gap(10).padding(16);
   for (int line = 0; line < kSpinningLines; ++line)
-    block.children({text(u8"SPINNING LETTERS TURN IN", style)
-                        .textFx({.effect = textFx::enter(textFx::spinIn(70, 14)),
-                                 .progress = progress[(size_t)line]})});
+    block.children(
+        {text(u8"SPINNING LETTERS TURN IN", style)
+             .textFx({.effect = textFx::enter(textFx::spinIn(70, 14)),
+                      .progress = progress[(size_t)line]})});
   return block;
 }
 

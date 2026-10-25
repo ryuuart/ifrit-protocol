@@ -7,9 +7,10 @@
  */
 
 #include <sigilcore/report/Error.h>
-#include <expected>
+
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <string>
 #include <vector>

@@ -248,10 +248,10 @@ class PageAcrossQueues : public testing::Test {
     if (!device) GTEST_SKIP() << "the device was created but not adopted";
     std::string error;
     metal = [&error] {
-        auto made = hardware::GpuDevice::createOwned();
-        if (!made) error = made.error().message;
-        return std::move(made).value_or(nullptr);
-      }();
+      auto made = hardware::GpuDevice::createOwned();
+      if (!made) error = made.error().message;
+      return std::move(made).value_or(nullptr);
+    }();
     if (!metal || metal->backend() != hardware::Backend::Metal)
       GTEST_SKIP() << "no Metal device: " << error;
     painter = skia::GraphiteContext::create(*metal);

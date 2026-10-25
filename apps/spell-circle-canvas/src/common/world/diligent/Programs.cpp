@@ -140,8 +140,8 @@ const Compiled& scaffold(bool lit, uint32_t lights) {
 
 const Compiled& shadowScaffold(bool coverage) {
   const auto build = [](const char* entry) {
-    auto built = material::slang::compileModule(
-        shaderSource("Surface.slang"), "vsMain", entry, /*lit=*/false);
+    auto built = material::slang::compileModule(shaderSource("Surface.slang"),
+                                                "vsMain", entry, /*lit=*/false);
     if (!built) {
       material::reportOnce(
           std::string("world.diligent.shadow.") + entry,
@@ -174,9 +174,9 @@ const Compiled& backdropProgram() {
   static const Compiled built = [] {
     // The LIT build, always: the sky's uniforms are the lit scaffold's,
     // and a build with no lighting in it does not declare them.
-    auto program = material::slang::compileModule(
-        shaderSource("Surface.slang"), "vsBackdrop", "fsBackdrop",
-        /*lit=*/true);
+    auto program = material::slang::compileModule(shaderSource("Surface.slang"),
+                                                  "vsBackdrop", "fsBackdrop",
+                                                  /*lit=*/true);
     if (!program) {
       material::reportOnce(
           "world.diligent.backdrop",
@@ -197,10 +197,10 @@ const PostPrograms& postPrograms() {
       if (compiled)
         *into = std::move(*compiled);
       else
-        material::reportOnce(std::string("world.diligent.post.") + entry,
-                             std::string("the post stage ") + entry +
-                                 " did not compile: " +
-                                 compiled.error().message);
+        material::reportOnce(
+            std::string("world.diligent.post.") + entry,
+            std::string("the post stage ") + entry +
+                " did not compile: " + compiled.error().message);
     };
     one("fsCopy", &built.copy);
     one("fsBlur", &built.blur);

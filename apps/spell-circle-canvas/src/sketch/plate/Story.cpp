@@ -274,7 +274,8 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
     std::println(stderr, "story outro encode failed: {}", encoder.error());
     return 1;
   }
-  const std::vector<std::byte> mp4 = encoder.finish().value_or(std::vector<std::byte>{});
+  const std::vector<std::byte> mp4 =
+      encoder.finish().value_or(std::vector<std::byte>{});
   if (mp4.empty()) {
     std::println(stderr, "story finalization failed: {}", encoder.error());
     return 1;

@@ -37,23 +37,21 @@ namespace sigil::media {
 /** @p bytes decoded as an image: the Skia codecs first unless a layer is
  *  named (layers are OpenImageIO's), then KTX, SVG and OpenImageIO; or
  *  the error that says why none of them read the bytes. */
-std::expected<Image, core::Error> decodeDocument(std::type_identity<Image>,
-                                    std::span<const std::byte> bytes,
-                                    const ImageOptions& options,
-                                    const std::filesystem::path& nameHint);
+std::expected<Image, core::Error> decodeDocument(
+    std::type_identity<Image>, std::span<const std::byte> bytes,
+    const ImageOptions& options, const std::filesystem::path& nameHint);
 
 /** @p bytes decoded as every channel they carry, or the error that says
  *  why no decoder read them. */
 std::expected<Channels, core::Error> decodeDocument(
-    std::type_identity<Channels>,
-                                       std::span<const std::byte> bytes,
-                                       const std::filesystem::path& nameHint);
+    std::type_identity<Channels>, std::span<const std::byte> bytes,
+    const std::filesystem::path& nameHint);
 
 /** What @p bytes say about themselves as an image, without a pixel
  *  decode, along the same route; or the error that says why no route
  *  read them. */
-std::expected<Metadata, core::Error> probeDocument(std::type_identity<Image>,
-                                      std::span<const std::byte> bytes,
-                                      const std::filesystem::path& nameHint);
+std::expected<Metadata, core::Error> probeDocument(
+    std::type_identity<Image>, std::span<const std::byte> bytes,
+    const std::filesystem::path& nameHint);
 
 }  // namespace sigil::media

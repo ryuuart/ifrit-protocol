@@ -34,16 +34,13 @@ std::expected<Plan, core::Error> build(const Frame& frame) {
 
   std::vector<size_t> order;
   plan.m_error = detail::order(passes, order);
-  if (!plan.m_error.empty())
-    return std::unexpected(core::Error{plan.m_error});
+  if (!plan.m_error.empty()) return std::unexpected(core::Error{plan.m_error});
 
   plan.m_error = detail::claims(passes, order);
-  if (!plan.m_error.empty())
-    return std::unexpected(core::Error{plan.m_error});
+  if (!plan.m_error.empty()) return std::unexpected(core::Error{plan.m_error});
 
   plan.m_error = detail::realise(passes, order, plan.m_steps);
-  if (!plan.m_error.empty())
-    return std::unexpected(core::Error{plan.m_error});
+  if (!plan.m_error.empty()) return std::unexpected(core::Error{plan.m_error});
 
   detail::lives(plan.m_steps, frame, plan.m_resources, plan.m_present,
                 plan.m_kept);

@@ -103,8 +103,10 @@ ColorStops fixedUp(std::vector<WrittenStop> stops) {
     const float count = (float)(next - index + 1);
     for (size_t run = index; run < next; ++run) {
       const float share = (float)(run - index + 1) / count;
-      stops[run].offset = before.offset + (after.offset - before.offset) * share;
-      stops[run].pixels = before.pixels + (after.pixels - before.pixels) * share;
+      stops[run].offset =
+          before.offset + (after.offset - before.offset) * share;
+      stops[run].pixels =
+          before.pixels + (after.pixels - before.pixels) * share;
       stops[run].placed = true;
     }
     index = next;
@@ -132,10 +134,12 @@ std::optional<Toward> towardOf(const std::vector<std::string_view>& words) {
     *side = true;
   }
   if ((top && bottom) || (left && right)) return std::nullopt;
-  if (top) return left ? Toward::TopLeft : right ? Toward::TopRight : Toward::Top;
+  if (top)
+    return left ? Toward::TopLeft : right ? Toward::TopRight : Toward::Top;
   if (bottom)
-    return left ? Toward::BottomLeft
-                : right ? Toward::BottomRight : Toward::Bottom;
+    return left    ? Toward::BottomLeft
+           : right ? Toward::BottomRight
+                   : Toward::Bottom;
   return left ? Toward::Left : Toward::Right;
 }
 
@@ -156,7 +160,8 @@ std::optional<float> coordinateOf(std::string_view word, bool horizontal) {
  *  word is that side or that coordinate with the other centred, and two
  *  keywords may come in either order. A length needs the box's size,
  *  which a gradient read on its own does not know. */
-std::optional<glm::vec2> positionOf(const std::vector<std::string_view>& words) {
+std::optional<glm::vec2> positionOf(
+    const std::vector<std::string_view>& words) {
   const auto vertical = [](std::string_view word) {
     return css::isWord(word, "top") || css::isWord(word, "bottom");
   };
@@ -192,7 +197,8 @@ std::optional<RadialEndingShape> radialPreludeOf(
   size_t index = 0;
   for (; index < words.size() && !css::isWord(words[index], "at"); ++index) {
     const std::string_view word = words[index];
-    if (!namedShape && (css::isWord(word, "circle") || css::isWord(word, "ellipse"))) {
+    if (!namedShape &&
+        (css::isWord(word, "circle") || css::isWord(word, "ellipse"))) {
       shape.shape = css::isWord(word, "circle") ? RadialShape::Circle
                                                 : RadialShape::Ellipse;
       namedShape = true;

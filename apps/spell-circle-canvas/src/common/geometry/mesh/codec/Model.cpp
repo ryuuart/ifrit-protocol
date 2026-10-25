@@ -156,12 +156,12 @@ std::expected<Model, core::Error> model(const void* bytes, size_t size,
   const auto* data = static_cast<const std::byte*>(bytes);
   // An importer refuses without saying why, so the refusal names the
   // format the bytes were read as.
-  const auto readAs = [](std::optional<Model> imported,
-                         std::string_view format)
-      -> std::expected<Model, core::Error> {
+  const auto readAs =
+      [](std::optional<Model> imported,
+         std::string_view format) -> std::expected<Model, core::Error> {
     if (!imported)
-      return std::unexpected(core::Error{"the bytes do not read as " +
-                                         std::string(format)});
+      return std::unexpected(
+          core::Error{"the bytes do not read as " + std::string(format)});
     return std::move(*imported);
   };
   const std::string ext = lowerExtension(pathHint);
@@ -173,7 +173,8 @@ std::expected<Model, core::Error> model(const void* bytes, size_t size,
   if (ext == "ply") return readAs(importPly(data, size), "a PLY file");
   if (ext == "abc") return alembic(bytes, size);
   if (ext == "geo")
-    return readAs(importHoudiniGeo(asText(bytes, size)), "a Houdini geometry file");
+    return readAs(importHoudiniGeo(asText(bytes, size)),
+                  "a Houdini geometry file");
 
   // No useful extension: sniff, and the table above is the list to cover —
   // a format the dispatcher names by extension but cannot recognise by

@@ -301,9 +301,12 @@ TEST(ComposeTextShadow, EveryShadowReadsItsBlurAsCssRadius) {
   // shadow, each CSS's blur radius, a Gaussian of half of it.
   constexpr float kBlur = 16;
   const material::Color white{1, 1, 1, 1};
-  const std::vector<SkColor> boxShadow = shadowOf(box().children(
-      {square().fill(Fill::color(white)).boxShadow(
-          {.offset = {kThrow, 0}, .blur = kBlur, .color = Fill::color(white)})}));
+  const std::vector<SkColor> boxShadow =
+      shadowOf(box().children({square()
+                                   .fill(Fill::color(white))
+                                   .boxShadow({.offset = {kThrow, 0},
+                                               .blur = kBlur,
+                                               .color = Fill::color(white)})}));
   const std::vector<SkColor> dropShadow = shadowOf(box().children(
       {square()
            .fill(Fill::color(white))
@@ -322,8 +325,8 @@ TEST(ComposeTextShadow, EveryShadowReadsItsBlurAsCssRadius) {
          "softnesses";
   const std::vector<SkColor> textShadow = shadowOf(box().children(
       {word().textShadow({.offset = {kThrow, 0}, .blur = kBlur})}));
-  const std::vector<SkColor> wordDropShadow = shadowOf(box().children(
-      {word().filter(material::Filter::dropShadow(
+  const std::vector<SkColor> wordDropShadow =
+      shadowOf(box().children({word().filter(material::Filter::dropShadow(
           white, {.blur = kBlur, .offset = {kThrow, 0}}))}));
   EXPECT_LE(largestDifference(textShadow, wordDropShadow), 10)
       << "a text shadow and a drop shadow of one blur are two softnesses";

@@ -222,8 +222,7 @@ class VulkanDevice {
         reinterpret_cast<VulkanHandles::GetInstanceProcAddr>(getInstanceProcAddr);
     auto adopted = GpuDevice::adopt(native);
     if (!adopted)
-      return refuse(why, ("the device was not adopted: " +
-                          adopted.error().message).c_str());
+      return refuse(why, ("the device was not adopted: " + adopted.error().message).c_str());
     gpu = std::move(*adopted);
     return true;
   }

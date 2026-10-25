@@ -65,8 +65,9 @@ class Program {
 /** A per-target compiler: answers the program for a recipe and variant,
  *  or the error that says why it did not compile. Registered once per
  *  target by the backend that can run it. */
-using Compiler = std::function<std::expected<std::shared_ptr<Program>, core::Error>(
-    std::shared_ptr<const Recipe> recipe, Variant variant)>;
+using Compiler =
+    std::function<std::expected<std::shared_ptr<Program>, core::Error>(
+        std::shared_ptr<const Recipe> recipe, Variant variant)>;
 
 /** One program a loading phase wants resident before the first frame. */
 struct WarmupRequest {

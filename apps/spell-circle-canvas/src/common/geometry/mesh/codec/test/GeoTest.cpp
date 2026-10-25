@@ -89,8 +89,7 @@ TEST(ReadGeo, PolygonsUnweldWithTheirVertexAndPrimitiveClasses) {
       [["name","front"],["selection",["unordered",["i8",[1,0]]]]]
     ]
   ])";
-  const auto model =
-      codec::decode::model(geo, std::strlen(geo), "scene.geo");
+  const auto model = codec::decode::model(geo, std::strlen(geo), "scene.geo");
   ASSERT_TRUE(model);
   ASSERT_EQ(model->parts.size(), 1u);
   const codec::decode::Part& part = model->parts.front();

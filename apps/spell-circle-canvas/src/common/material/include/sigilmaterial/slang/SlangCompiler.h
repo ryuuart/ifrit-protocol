@@ -16,9 +16,9 @@
 #include <sigilmaterial/advanced/Recipe.h>
 
 #include <boost/container/map.hpp>
-#include <expected>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <functional>
 #include <glm/mat4x4.hpp>

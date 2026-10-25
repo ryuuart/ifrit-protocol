@@ -70,7 +70,8 @@ bool WindowPainter::initialize(QRhi* rhi) {
       native.backend = core::hardware::Backend::Metal;
       native.mtlDevice = handles->dev;
       native.mtlCommandQueue = handles->cmdQueue;
-      m_windowDevice = core::hardware::GpuDevice::adopt(native).value_or(nullptr);
+      m_windowDevice =
+          core::hardware::GpuDevice::adopt(native).value_or(nullptr);
       if (!m_windowDevice ||
           !shared->paintWith(m_windowDevice.get(), m_graphiteContext.get()))
         m_windowDevice.reset();

@@ -36,9 +36,9 @@ TEST(CssText, AValueIsCutAtItsTopLevelCommasAndBlankSpace) {
   ASSERT_TRUE(parts);
   EXPECT_EQ(*parts, (std::vector<std::string_view>{"a", "rgb(1, 2, 3)", "b"}));
   EXPECT_FALSE(css::commaParts("rgb(1, 2"));
-  EXPECT_EQ(css::components("0 4px rgb(0 0 0 / 30%)  inset"),
-            (std::vector<std::string_view>{"0", "4px", "rgb(0 0 0 / 30%)",
-                                           "inset"}));
+  EXPECT_EQ(
+      css::components("0 4px rgb(0 0 0 / 30%)  inset"),
+      (std::vector<std::string_view>{"0", "4px", "rgb(0 0 0 / 30%)", "inset"}));
   EXPECT_EQ(css::components("blur(4px)sepia(1)"),
             (std::vector<std::string_view>{"blur(4px)", "sepia(1)"}));
   const auto written = css::function(" Sepia( 50% ) ");
@@ -82,25 +82,22 @@ TEST(GradientText, AnUnplacedStopIsSpreadAsCssFixesItUp) {
             linearGradient(ColorStops({{0.0f, kRed}, {0.4f, kBlue}}), 45.0f));
   // A run between two placed stops is spread evenly, and a stop placed
   // before one ahead of it is moved up to it.
-  EXPECT_EQ(read("linear-gradient(red, yellow, green 60%, blue 20%)"),
-            linearGradient(ColorStops({{0.0f, kRed},
-                                       {0.3f, kYellow},
-                                       {0.6f, kGreen},
-                                       {0.6f, kBlue}})));
+  EXPECT_EQ(
+      read("linear-gradient(red, yellow, green 60%, blue 20%)"),
+      linearGradient(ColorStops(
+          {{0.0f, kRed}, {0.3f, kYellow}, {0.6f, kGreen}, {0.6f, kBlue}})));
   // Two positions are the colour twice.
   EXPECT_EQ(read("linear-gradient(red 0 50%, blue 50% 100%)"),
-            linearGradient(ColorStops({{0.0f, kRed},
-                                       {0.5f, kRed},
-                                       {0.5f, kBlue},
-                                       {1.0f, kBlue}})));
+            linearGradient(ColorStops(
+                {{0.0f, kRed}, {0.5f, kRed}, {0.5f, kBlue}, {1.0f, kBlue}})));
   // A length along the line is the stop's pixels.
   EXPECT_EQ(read("radial-gradient(farthest-side at left bottom, red, "
                  "yellow 50px, green)"),
-            radialGradient(ColorStops({{0.0f, kRed},
-                                       {0.0f, *readColor("yellow"), 50.0f},
-                                       {1.0f, kGreen}}),
-                           {.extent = RadialExtent::FarthestSide,
-                            .at = {0.0f, 1.0f}}));
+            radialGradient(
+                ColorStops({{0.0f, kRed},
+                            {0.0f, *readColor("yellow"), 50.0f},
+                            {1.0f, kGreen}}),
+                {.extent = RadialExtent::FarthestSide, .at = {0.0f, 1.0f}}));
 }
 
 TEST(GradientText, TheSpecificationsRadialFormsReadTheirShape) {
@@ -145,9 +142,9 @@ TEST(GradientText, TheSpecificationsConicFormsReadOneGradient) {
 TEST(GradientText, ARepeatingGradientRepeatsItsStops) {
   GradientOptions repeating;
   repeating.repeat = Repeat::Repeat;
-  EXPECT_EQ(read("repeating-linear-gradient(red, blue 20%)"),
-            linearGradient(ColorStops({{0.0f, kRed}, {0.2f, kBlue}}), {},
-                           repeating));
+  EXPECT_EQ(
+      read("repeating-linear-gradient(red, blue 20%)"),
+      linearGradient(ColorStops({{0.0f, kRed}, {0.2f, kBlue}}), {}, repeating));
   EXPECT_EQ(read("repeating-conic-gradient(red 0 15deg, blue 15deg 30deg)"),
             conicGradient(ColorStops({{0.0f, kRed},
                                       {15.0f / 360.0f, kRed},
@@ -165,8 +162,8 @@ TEST(GradientText, TextTheGradientsCannotHoldReadsAsNothing) {
         "radial-gradient(40px, red, blue)",
         "radial-gradient(circle at 20px 20px, red, blue)",
         "conic-gradient(red 10px, blue)", "linear-gradient(red, blue",
-        "linear-gradient(red, nonsense)", "sideways-gradient(red, blue)",
-        "red", ""}) {
+        "linear-gradient(red, nonsense)", "sideways-gradient(red, blue)", "red",
+        ""}) {
     SCOPED_TRACE(text);
     EXPECT_FALSE(readGradient(text));
   }
@@ -196,16 +193,16 @@ TEST(FilterText, ADropShadowReadsItsOffsetBlurAndColour) {
   // Filter Effects: drop-shadow(16px 16px 20px blue).
   EXPECT_EQ(readFilter("drop-shadow(16px 16px 20px blue)"),
             Filter::dropShadow(kBlue, {.blur = 20.0f, .offset = {16, 16}}));
-  EXPECT_EQ(readFilter("drop-shadow(rgb(0 0 0 / 50%) -2px 3px)"),
-            Filter::dropShadow(*readColor("rgb(0 0 0 / 50%)"),
-                               {.offset = {-2, 3}}));
+  EXPECT_EQ(
+      readFilter("drop-shadow(rgb(0 0 0 / 50%) -2px 3px)"),
+      Filter::dropShadow(*readColor("rgb(0 0 0 / 50%)"), {.offset = {-2, 3}}));
 }
 
 TEST(FilterText, TextNoFilterHoldsReadsAsNothing) {
   for (const char* text :
        {"blur(-1px)", "blur(1em)", "sepia(-50%)", "hue-rotate(90)",
-        "drop-shadow(2px 2px)", "drop-shadow(2px blue 2px)",
-        "url(#shadow)", "blur(4px), sepia(1)", "wobble(2)", ""}) {
+        "drop-shadow(2px 2px)", "drop-shadow(2px blue 2px)", "url(#shadow)",
+        "blur(4px), sepia(1)", "wobble(2)", ""}) {
     SCOPED_TRACE(text);
     EXPECT_FALSE(readFilter(text));
   }

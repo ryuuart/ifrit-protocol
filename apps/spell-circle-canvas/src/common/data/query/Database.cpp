@@ -49,8 +49,7 @@ std::expected<Database, core::Error> Database::open(
   // existing regular file before either engine is asked to interpret it.
   std::error_code error;
   if (!std::filesystem::is_regular_file(file, error))
-    return refusal("database file is absent or inaccessible: " +
-                   file.string());
+    return refusal("database file is absent or inaccessible: " + file.string());
   std::string why;
   std::unique_ptr<Impl> impl = *engine == Engine::Sqlite
                                    ? detail::openSqlite(file, access, &why)
@@ -73,9 +72,8 @@ std::expected<Database, core::Error> Database::fromBytes(
 std::expected<Database, core::Error> Database::memory(Engine engine) {
   std::string why;
   std::unique_ptr<Impl> impl =
-      engine == Engine::Sqlite
-          ? detail::openSqlite({}, Access::ReadWrite, &why)
-          : detail::openDuck({}, Access::ReadWrite, &why);
+      engine == Engine::Sqlite ? detail::openSqlite({}, Access::ReadWrite, &why)
+                               : detail::openDuck({}, Access::ReadWrite, &why);
   if (!impl) return refusal(std::move(why));
   return Database(std::move(impl));
 }

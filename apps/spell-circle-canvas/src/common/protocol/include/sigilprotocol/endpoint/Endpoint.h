@@ -14,8 +14,8 @@
 #include <sigilcore/report/Error.h>
 #include <sigilprotocol/dispatch/Dispatcher.h>
 
-#include <expected>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <memory>
 #include <string>

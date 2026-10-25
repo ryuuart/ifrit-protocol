@@ -291,8 +291,8 @@ std::expected<Tool, core::Error> decodeBrush(std::span<const std::byte> all,
                                              std::string_view hint) {
   if (all.empty())
     return std::unexpected(core::Error{"a brush needs bytes and has none"});
-  const auto procreate =
-      [](std::span<const std::byte> archive) -> std::expected<Tool, core::Error> {
+  const auto procreate = [](std::span<const std::byte> archive)
+      -> std::expected<Tool, core::Error> {
     if (std::optional<Tool> imported = decodeProcreateBrush(archive))
       return std::move(*imported);
     return std::unexpected(core::Error{

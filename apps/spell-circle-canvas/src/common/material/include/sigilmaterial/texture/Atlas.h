@@ -14,8 +14,8 @@
 #include <sigilmedia/core/PixelSource.h>
 
 #include <boost/container/map.hpp>
-#include <glm/vec2.hpp>
 #include <expected>
+#include <glm/vec2.hpp>
 #include <initializer_list>
 #include <optional>
 #include <span>

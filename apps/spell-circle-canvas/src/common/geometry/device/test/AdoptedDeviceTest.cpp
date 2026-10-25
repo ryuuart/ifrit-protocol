@@ -62,10 +62,10 @@ TEST(AdoptedDevice, AdoptsItsOwnHandlesAgain) {
   // VkDevice Diligent made.
   std::string error;
   auto adopted = [&error, &native = owned->native()] {
-        auto made = GpuDevice::adopt(native);
-        if (!made) error = made.error().message;
-        return std::move(made).value_or(nullptr);
-      }();
+    auto made = GpuDevice::adopt(native);
+    if (!made) error = made.error().message;
+    return std::move(made).value_or(nullptr);
+  }();
   ASSERT_NE(adopted, nullptr) << error;
   EXPECT_EQ(adopted->native().vulkan.device, owned->native().vulkan.device);
   TextureDescription desc = smallTexture();
@@ -191,10 +191,10 @@ TEST(AdoptedDevice, ATextureMetalMadeIsNamedHereOverTheSameMemory) {
   if (!device) GTEST_SKIP() << "the device was created but not adopted";
   std::string error;
   const std::unique_ptr<GpuDevice> metal = [&error] {
-        auto made = GpuDevice::createOwned();
-        if (!made) error = made.error().message;
-        return std::move(made).value_or(nullptr);
-      }();
+    auto made = GpuDevice::createOwned();
+    if (!made) error = made.error().message;
+    return std::move(made).value_or(nullptr);
+  }();
   if (!metal || metal->backend() != Backend::Metal)
     GTEST_SKIP() << "no Metal device: " << error;
 
@@ -248,10 +248,10 @@ TEST(AdoptedDevice, AQueueOnMetalOrdersThisDevicesQueue) {
   if (!device) GTEST_SKIP() << "the device was created but not adopted";
   std::string error;
   const std::unique_ptr<GpuDevice> metal = [&error] {
-        auto made = GpuDevice::createOwned();
-        if (!made) error = made.error().message;
-        return std::move(made).value_or(nullptr);
-      }();
+    auto made = GpuDevice::createOwned();
+    if (!made) error = made.error().message;
+    return std::move(made).value_or(nullptr);
+  }();
   if (!metal || metal->backend() != Backend::Metal)
     GTEST_SKIP() << "no Metal device: " << error;
 

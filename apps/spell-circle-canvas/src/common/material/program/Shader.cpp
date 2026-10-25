@@ -223,7 +223,8 @@ std::shared_ptr<const Recipe> shaderFileDefinition(
         !ProgramCache::shared().hasCompiler(*target))
       return;
     const auto compiled = ProgramCache::shared().program(file.current, *target);
-    const std::string error = compiled ? std::string() : compiled.error().message;
+    const std::string error =
+        compiled ? std::string() : compiled.error().message;
     if (compiled) {
       file.verdict = ReadFile::Verdict::Compiled;
       file.compiled = file.current;

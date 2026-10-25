@@ -153,20 +153,18 @@ bool recipeSnapshotsDistinguishCompilers() {
                 "half4 main(float2 p) { return content.eval(p); }"));
   const Filter builtin = Filter::of(Material(recipe));
   if (!skia::imageFilter(builtin)) return false;
-  registerCompiler(Target::SkSL,
-                   [](std::shared_ptr<const Recipe> source, Variant variant)
-                       -> std::expected<std::shared_ptr<Program>,
-                                        sigil::core::Error> {
-                     auto [effect, message] =
-                         SkRuntimeEffect::MakeForShader(SkString(
-                             "uniform shader content; half4 main(float2 p) { "
-                             "return content.eval(p) * 0.5; }"));
-                     if (!effect)
-                       return std::unexpected(
-                           sigil::core::Error{message.c_str()});
-                     return std::make_shared<skia::SkiaProgram>(
-                         std::move(source), variant, std::move(effect));
-                   });
+  registerCompiler(
+      Target::SkSL,
+      [](std::shared_ptr<const Recipe> source, Variant variant)
+          -> std::expected<std::shared_ptr<Program>, sigil::core::Error> {
+        auto [effect, message] = SkRuntimeEffect::MakeForShader(
+            SkString("uniform shader content; half4 main(float2 p) { "
+                     "return content.eval(p) * 0.5; }"));
+        if (!effect)
+          return std::unexpected(sigil::core::Error{message.c_str()});
+        return std::make_shared<skia::SkiaProgram>(std::move(source), variant,
+                                                   std::move(effect));
+      });
   ProgramCache::shared().clear();
   const Filter custom = Filter::of(Material(recipe));
   return skia::imageFilter(custom) && !(builtin == custom);
@@ -181,11 +179,11 @@ TEST(SkiaEffect, RecipeSnapshotsDistinguishCompiledPrograms) {
 bool passProgramsAreReused() {
   if (ProgramCache::shared().hasCompiler(Target::SkSL)) return false;
   std::vector<std::shared_ptr<const Recipe>> compiled;
-  registerCompiler(Target::SkSL, [&](std::shared_ptr<const Recipe> recipe,
-                                     Variant variant) {
-    compiled.push_back(recipe);
-    return compileForSkia(std::move(recipe), variant);
-  });
+  registerCompiler(Target::SkSL,
+                   [&](std::shared_ptr<const Recipe> recipe, Variant variant) {
+                     compiled.push_back(recipe);
+                     return compileForSkia(std::move(recipe), variant);
+                   });
   struct Parameters {
     float level = 1;
   };

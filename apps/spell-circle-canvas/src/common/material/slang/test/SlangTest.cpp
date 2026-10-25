@@ -205,12 +205,12 @@ TEST(MaterialSlang, ADiagnosticSaysNothingAboutWhatWasCompiledBefore) {
   std::string first;
   std::string second;
   EXPECT_FALSE(compileInto("this is not Slang", "vsTest", "fsTest",
-                             /*lit=*/false, &built, &first));
-  EXPECT_TRUE(compileInto(kModule, "vsTest", "fsTest", /*lit=*/false, &built,
-                            &second))
+                           /*lit=*/false, &built, &first));
+  EXPECT_TRUE(
+      compileInto(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &second))
       << second;
   EXPECT_FALSE(compileInto("this is not Slang", "vsTest", "fsTest",
-                             /*lit=*/false, &built, &second));
+                           /*lit=*/false, &built, &second));
   EXPECT_EQ(first, second);
   for (size_t at = first.find("SigilProgram"); at != std::string::npos;
        at = first.find("SigilProgram", at + 1)) {

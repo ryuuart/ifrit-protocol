@@ -205,8 +205,8 @@ TEST(ProgramCache, CompileFailureIsNullAndRetriedAfterClear) {
   int calls = 0;
   cache.registerCompiler(
       Target::Slang,
-      [&](const std::shared_ptr<const Recipe>&,
-          Variant) -> std::expected<std::shared_ptr<Program>, sigil::core::Error> {
+      [&](const std::shared_ptr<const Recipe>&, Variant)
+          -> std::expected<std::shared_ptr<Program>, sigil::core::Error> {
         ++calls;
         return std::unexpected(sigil::core::Error{"nope"});
       });
@@ -223,15 +223,15 @@ TEST(ProgramCache, CompileFailureIsNullAndRetriedAfterClear) {
 TEST(ProgramCache, ReflectionExceptionLeavesTheKeyRetryable) {
   ProgramCache cache;
   int calls = 0;
-  cache.registerCompiler(
-      Target::Slang,
-      [&](std::shared_ptr<const Recipe> recipe, Variant variant) -> std::shared_ptr<Program> {
-        if (++calls == 1)
-          return std::make_shared<ThrowingReflectionProgram>(std::move(recipe),
-                                                             variant);
-        return std::make_shared<Program>(std::move(recipe), Target::Slang,
-                                         variant);
-      });
+  cache.registerCompiler(Target::Slang,
+                         [&](std::shared_ptr<const Recipe> recipe,
+                             Variant variant) -> std::shared_ptr<Program> {
+                           if (++calls == 1)
+                             return std::make_shared<ThrowingReflectionProgram>(
+                                 std::move(recipe), variant);
+                           return std::make_shared<Program>(
+                               std::move(recipe), Target::Slang, variant);
+                         });
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("reflection-retry").body(Target::Slang, "x"));
   EXPECT_THROW((void)cache.program(recipe, Target::Slang), std::runtime_error);
@@ -251,18 +251,18 @@ TEST(ProgramCache, ReflectionFailureSettlesOverlappingRequests) {
   auto started = reflectionStarted.get_future();
   std::promise<void> releaseReflection;
   const auto release = releaseReflection.get_future().share();
-  cache.registerCompiler(
-      Target::Slang,
-      [&](std::shared_ptr<const Recipe> recipe, Variant variant) -> std::shared_ptr<Program> {
-        if (calls.fetch_add(1) == 0)
-          return std::make_shared<ThrowingReflectionProgram>(
-              std::move(recipe), variant, [&] {
-                reflectionStarted.set_value();
-                release.wait();
-              });
-        return std::make_shared<Program>(std::move(recipe), Target::Slang,
-                                         variant);
-      });
+  cache.registerCompiler(Target::Slang,
+                         [&](std::shared_ptr<const Recipe> recipe,
+                             Variant variant) -> std::shared_ptr<Program> {
+                           if (calls.fetch_add(1) == 0)
+                             return std::make_shared<ThrowingReflectionProgram>(
+                                 std::move(recipe), variant, [&] {
+                                   reflectionStarted.set_value();
+                                   release.wait();
+                                 });
+                           return std::make_shared<Program>(
+                               std::move(recipe), Target::Slang, variant);
+                         });
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("reflection-overlap").body(Target::Slang, "x"));
   const auto request = [&] {
@@ -301,8 +301,7 @@ TEST(ProgramCache, ReflectionFailureSettlesOverlappingRequests) {
 TEST(ProgramCache, UnreadParametersFieldIsNamedOnce) {
   ProgramCache cache;
   cache.registerCompiler(
-      Target::Slang,
-      [](const std::shared_ptr<const Recipe>& r, Variant v) {
+      Target::Slang, [](const std::shared_ptr<const Recipe>& r, Variant v) {
         return std::shared_ptr<Program>(
             std::make_shared<DroppingProgram>(r, v, "uScale"));
       });

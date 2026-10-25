@@ -254,7 +254,8 @@ Difference difference(const Pixels& actual, const Pixels& expected) {
 
 TEST(GraphicsHeightGpu,
      EachBackendRepeatsItsHeightKeepsAnUploadAndDerivesUnitNormals) {
-  auto device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  auto device =
+      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context";

@@ -381,8 +381,7 @@ TEST(ProtocolWiring, AConstAnswerHandsItsResultOutReadOnly) {
   Answer<std::string> answer(std::string("held"));
   const Answer<std::string>& reader = answer;
   static_assert(std::is_same_v<decltype(answer.result()), std::string&>);
-  static_assert(
-      std::is_same_v<decltype(reader.result()), const std::string&>);
+  static_assert(std::is_same_v<decltype(reader.result()), const std::string&>);
   answer.result() += " and changed";
   ASSERT_TRUE(reader);
   EXPECT_EQ(reader.result(), "held and changed");

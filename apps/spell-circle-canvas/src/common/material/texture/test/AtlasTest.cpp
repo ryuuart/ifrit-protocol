@@ -71,8 +71,7 @@ TEST(Atlas, ReadsTexturePackerAndDerivesSequences) {
   const char* array = R"({"frames": [
     {"filename": "a.png", "frame": {"x": 0, "y": 0, "w": 4, "h": 4}},
     {"filename": "b.png", "frame": {"x": 4, "y": 0, "w": 4, "h": 4}}]})";
-  const auto fromArray =
-      Atlas::fromTexturePacker(Texture(), array);
+  const auto fromArray = Atlas::fromTexturePacker(Texture(), array);
   ASSERT_TRUE(fromArray);
   EXPECT_EQ(fromArray->regions()[1].name, "b");
 }

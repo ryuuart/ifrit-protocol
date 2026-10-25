@@ -34,7 +34,7 @@ TextureDescription smallTexture() {
 
 /** Name a device, or skip: a machine with no GPU has nothing to say about
  *  any claim below, and reporting that is not the same as failing it. */
-#define DEVICE_OR_SKIP(name)                                  \
+#define DEVICE_OR_SKIP(name)                                                    \
   std::unique_ptr<GpuDevice> name = GpuDevice::createOwned().value_or(nullptr); \
   if (!name) GTEST_SKIP() << "no GPU device on this machine"
 
@@ -56,8 +56,7 @@ TEST(HardwareDevice, AdoptRefusesAnIncompleteNativeDevice) {
   vulkan.backend = Backend::Vulkan;
   const auto refused = GpuDevice::adopt(vulkan);
   ASSERT_FALSE(refused);
-  EXPECT_FALSE(refused.error().message.empty())
-      << "a refusal must say what was missing";
+  EXPECT_FALSE(refused.error().message.empty()) << "a refusal must say what was missing";
 
   NativeDevice half;
   half.backend = Backend::Metal;

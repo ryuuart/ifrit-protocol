@@ -7,8 +7,8 @@
  * submissions in one stream.
  */
 
-#include <sigilcore/report/Error.h>
 #include <sigilcore/hardware/Handle.h>
+#include <sigilcore/report/Error.h>
 
 #include <expected>
 #include <filesystem>

@@ -375,9 +375,8 @@ float Rails::bleed() const {
     const float offsetReach = rail.join == geometry::path::Join::Miter
                                   ? detail::kDefaultMiterLimit * offset
                                   : offset;
-    worst = std::max(worst, offsetReach + detail::strokeReach(rail.width,
-                                                              rail.join,
-                                                              rail.cap));
+    worst = std::max(worst, offsetReach + detail::strokeReach(
+                                              rail.width, rail.join, rail.cap));
   }
   return worst + waveAmplitude;
 }

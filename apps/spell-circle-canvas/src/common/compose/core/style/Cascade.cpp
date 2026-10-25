@@ -6,11 +6,11 @@
  * and what changed applied to the instance.
  */
 
+#include <include/core/SkFontStyle.h>
+#include <include/core/SkTypeface.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
-#include <include/core/SkFontStyle.h>
-#include <include/core/SkTypeface.h>
 #include <sigilweave/advanced/Skia.h>
 #include <sigilweave/style/Type.h>
 
