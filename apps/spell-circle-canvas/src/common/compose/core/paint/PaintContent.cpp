@@ -302,10 +302,12 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // The layer's frame names what the layer holds, which may reach past
   // the box: a filter that crops to its reach crops to that.
   material::FrameData layerFrame = frameOf(paintCtx);
+  // The extent the filter reads stands on the node's filter grid, so a
+  // mark whose bleed grows within a cell moves none of its picture.
+  const SkRect filtered = layerFx ? onFilterGrid(recordBounds(inst)) : SkRect();
   if (layerFx) {
-    const SkRect painted = recordBounds(inst);
-    layerFrame.paintedMin = {painted.left(), painted.top()};
-    layerFrame.paintedMax = {painted.right(), painted.bottom()};
+    layerFrame.paintedMin = {filtered.left(), filtered.top()};
+    layerFrame.paintedMax = {filtered.right(), filtered.bottom()};
   }
   const sk_sp<SkImageFilter> layerFilter =
       layerFx ? material::skia::resolvedImageFilter(*layerFx, &layerFrame)
@@ -316,10 +318,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     effectPaint.setImageFilter(layerFilter);
     // BOUNDED: with nullptr bounds the layer allocates at the CLIP size, so
     // a small icon's drop shadow on a root-level canvas would filter the
-    // whole canvas. recordBounds is what the subtree actually paints; Skia
-    // expands it for the filter's own reach.
-    const SkRect content = recordBounds(inst);
-    canvas.saveLayer(&content, &effectPaint);
+    // whole canvas. recordBounds is what the subtree actually paints, on
+    // the filter grid; Skia expands it for the filter's own reach.
+    canvas.saveLayer(&filtered, &effectPaint);
   }
 
   // ---- the masking family, part 2: the PLANE gates ------------------------

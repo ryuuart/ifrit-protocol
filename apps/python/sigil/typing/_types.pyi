@@ -135,8 +135,10 @@ FillLike: TypeAlias = (
 )
 """WHAT A SURFACE IS PAINTED WITH: a colour, a Fill, a paint of any
 tier, a recipe instance, a custom-property reference, and None for no
-fill at all. The CSS text `currentcolor` is the ink in force and
-`var(--name)` the custom property. A paint that needs a frame is resolved where it paints; a
+fill at all. The CSS text `currentcolor` is the ink in force,
+`var(--name)` the custom property, and a CSS gradient function —
+`"linear-gradient(45deg, red, blue 40%)"`, `radial-gradient()`,
+`conic-gradient()` or a `repeating-` one — that gradient. A paint that needs a frame is resolved where it paints; a
 slot measured without one reads it as the ink in force."""
 MotionFillLike: TypeAlias = (
     FillLike

@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdio>
 #include <mutex>
+#include <print>
 
 namespace sigil::material {
 namespace {
@@ -22,12 +23,12 @@ namespace {
 void reportUnorderedStops() {
   static std::once_flag once;
   std::call_once(once, [] {
-    std::fprintf(stderr,
+    std::println(stderr,
                  "[sigil::material] a Ramp's stops are not in position "
                  "order; the read takes the first and last stops as the "
                  "ends and walks the rest in the order given, so the "
                  "colours it answers are not the ramp that was meant. "
-                 "Sort the stops by position. (said once)\n");
+                 "Sort the stops by position. (said once)");
   });
 }
 

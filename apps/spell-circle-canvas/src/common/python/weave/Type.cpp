@@ -230,12 +230,14 @@ void bindWeave(py::module_& module) {
       .value("Face", Leading::Kind::kFace)
       .value("Multiple", Leading::Kind::kMultiple)
       .value("Absolute", Leading::Kind::kAbsolute)
-      .value("Grid", Leading::Kind::kGrid);
+      .value("Grid", Leading::Kind::kGrid)
+      .value("SizeMultiple", Leading::Kind::kSizeMultiple);
   leading.def(py::init<>())
       .def_static("face", &Leading::face)
       .def_static("multiple", &Leading::multiple, py::arg("factor"))
       .def_static("absolute", &Leading::absolute, py::arg("pixels"))
       .def_static("grid", &Leading::grid, py::arg("step"))
+      .def_static("sizeMultiple", &Leading::sizeMultiple, py::arg("factor"))
       .def_readwrite("kind", &Leading::kind)
       .def_readwrite("value", &Leading::value)
       .def(py::self == py::self);

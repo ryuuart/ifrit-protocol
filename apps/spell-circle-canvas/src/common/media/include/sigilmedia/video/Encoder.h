@@ -6,6 +6,8 @@
  * a movie. Where the bytes go is a hub's.
  */
 
+#include <sigilcore/report/Error.h>
+#include <expected>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -57,24 +59,25 @@ class Encoder {
   Encoder(Encoder&&) noexcept;
   Encoder& operator=(Encoder&&) noexcept;
 
-  /** Encodes one frame. False when the pixels cannot be read or
-   *  converted, when the codec refuses them, or when the encoder has
-   *  finished or never opened; `error()` says which. A frame standing on
-   *  a device is read back first. */
-  bool append(const Frame& frame);
+  /** Encodes one frame; the error says why when the pixels cannot be
+   *  read or converted, when the codec refuses them, or when the encoder
+   *  has finished or never opened, and `error()` keeps saying it. A frame
+   *  standing on a device is read back first. */
+  std::expected<void, core::Error> append(const Frame& frame);
   /** The same for an image's first frame. */
-  bool append(const Image& image);
+  std::expected<void, core::Error> append(const Image& image);
   /** The same for a picture in hand. */
-  bool append(const Picture& picture);
+  std::expected<void, core::Error> append(const Picture& picture);
 
-  /** Flushes the codec and muxer and answers the container's bytes.
-   *  Empty when nothing was appended, because a movie is at least one
-   *  frame. Finishing is terminal on either outcome: a second `finish()`
-   *  and every later `append()` are refused and leave `frameCount()`
-   *  where it stood. */
-  std::vector<std::byte> finish();
+  /** Flushes the codec and muxer and answers the container's bytes; the
+   *  error says why when there are none — nothing was appended, because a
+   *  movie is at least one frame, or the muxer refused. Finishing is
+   *  terminal on either outcome: a second `finish()` and every later
+   *  `append()` are refused and leave `frameCount()` where it stood. */
+  std::expected<std::vector<std::byte>, core::Error> finish();
 
-  /** Why the last refusal happened; empty while nothing was refused. */
+  /** Why the last refusal happened, as the refusing verb's error said;
+   *  empty while nothing was refused. */
   const std::string& error() const;
   /** How many frames have been accepted. */
   int64_t frameCount() const;
@@ -85,6 +88,9 @@ class Encoder {
   explicit operator bool() const;
 
  private:
+  /** The picture encoded, false with the reason kept in `error()`. */
+  bool appendPicture(const Picture& picture);
+
   struct Impl;
   std::unique_ptr<Impl> m_impl;
 };

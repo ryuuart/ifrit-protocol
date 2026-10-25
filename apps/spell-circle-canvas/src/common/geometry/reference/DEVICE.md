@@ -6,7 +6,8 @@ what a mesh and a map become on it, the device executors that stand
 beside their CPU ones, and the Vulkan loader. `README.md` beside the
 library is the front page.
 
-`device::Device::create(config, &error)` brings the one GPU device up:
+`device::Device::create(config)` brings the one GPU device up, or answers
+the `core::Error` that says why it could not:
 Diligent creates a Vulkan device and its immediate context, and
 SigilCore's hardware device adopts the Vulkan device, queue and loader
 entry points it made. A texture named on `gpu()` is then an image both
@@ -25,10 +26,9 @@ at all.
 using namespace sigil;
 
 geometry::device::DeviceConfig config;
-std::string error;
-std::unique_ptr<geometry::device::Device> device =
-    geometry::device::Device::create(config, &error);
-if (!device) return;  // no Vulkan runtime, for instance; `error` says why
+auto created = geometry::device::Device::create(config);
+if (!created) return;  // no Vulkan runtime, for instance; `created.error()` says why
+std::unique_ptr<geometry::device::Device> device = std::move(*created);
 
 core::hardware::GpuDevice& gpu = *device->gpu();
 core::hardware::TextureDescription desc;

@@ -11,8 +11,11 @@
  * hub, so this library knows no resource library.
  */
 
+#include <sigilcore/report/Error.h>
+
 #include <concepts>
 #include <cstddef>
+#include <expected>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -28,8 +31,14 @@ namespace sigil::weave::ports {
  *  the face outlives them. No face when they are not a font. */
 Face faceFromBytes(std::span<const std::byte> bytes);
 
+/** What a hub lists under a font resource whose bytes hold no face. */
+inline core::Error unreadFace() {
+  return {"the bytes are no font face this build reads", {}, {}};
+}
+
 /** Puts the `Face` decoder on @p hub, after which `hub.load<Face>(uri)`
- *  answers the face a font resource holds. A host calls this once,
+ *  answers the face a font resource holds, and a resource that holds none
+ *  is listed among the hub's problems. A host calls this once,
  *  wherever it builds its hub.
  *  @trap A font file that changes on disk is read again as a NEW face:
  *  styles holding the old one keep it, since faces compare by identity,
@@ -38,9 +47,11 @@ Face faceFromBytes(std::span<const std::byte> bytes);
 template <typename Hub>
 void registerDecoders(Hub& hub) {
   registerDecoder<Face>(
-      hub, [](const auto& bytes, std::string_view) -> std::optional<Face> {
+      hub,
+      [](const auto& bytes,
+         std::string_view) -> std::expected<Face, core::Error> {
         Face face = faceFromBytes(bytes.span());
-        if (!face) return std::nullopt;
+        if (!face) return std::unexpected(unreadFace());
         return face;
       });
 }
@@ -60,9 +71,9 @@ void registerDecoders(Hub& hub, Arrived arrived) {
       hub,
       [arrived = std::move(arrived)](
           const auto& bytes,
-          std::string_view path) mutable -> std::optional<Face> {
+          std::string_view path) mutable -> std::expected<Face, core::Error> {
         Face face = faceFromBytes(bytes.span());
-        if (!face) return std::nullopt;
+        if (!face) return std::unexpected(unreadFace());
         arrived(face, path);
         return face;
       });

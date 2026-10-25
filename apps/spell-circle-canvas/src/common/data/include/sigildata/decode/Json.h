@@ -13,11 +13,13 @@
  * here exposes it, so a consumer compiles against the standard library.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigildata/table/Table.h>
 
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <optional>
 #include <span>
 #include <string>
@@ -138,10 +140,11 @@ inline std::string_view meaningName(std::type_identity<Json>) {
 }
 
 /** THE RECTANGLE INSIDE @p document — a list of records, a record of
- *  lists, or a list of lists — or nothing when it holds no rectangle. A
+ *  lists, or a list of lists — or the error that says why it holds no
+ *  rectangle. A
  *  column's type is the one every present value in it shares.
  *  @trap A cell holding a list or a record of its own has no place in a
  *  rectangle and is MISSING; read that document as a `Json` instead. */
-std::optional<Table> tableFromJson(const Json& document);
+std::expected<Table, core::Error> tableFromJson(const Json& document);
 
 }  // namespace sigil::data

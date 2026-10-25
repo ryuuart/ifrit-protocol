@@ -14,6 +14,7 @@
 
 #include <QtCore/QStandardPaths>
 #include <cstdio>
+#include <print>
 #include <system_error>
 #include <utility>
 
@@ -87,16 +88,18 @@ Inspection::Inspection(uint16_t port, sketch::CatalogSources catalog,
   m_state->endpoint = std::make_unique<protocol::Endpoint>(
       m_state->hub, *m_state->dispatcher, policy);
   if (m_state->endpoint->listening())
-    std::fprintf(stderr, "[grimoire] protocol at %s\n",
-                 m_state->endpoint->address().c_str());
+    std::println(stderr, "[grimoire] protocol at {}",
+                 m_state->endpoint->address());
   else
-    std::fprintf(stderr, "[grimoire] %s\n", m_state->endpoint->error().c_str());
+    std::println(stderr, "[grimoire] {}", m_state->endpoint->error());
 }
 
 Inspection::~Inspection() = default;
 
 void Inspection::advance() { sigil::io::advance(m_state->hub); }
 
-bool Inspection::listening() const { return m_state->endpoint->listening(); }
+bool Inspection::listening() const {
+  return m_state->endpoint->listening().has_value();
+}
 
 protocol::Dispatcher& Inspection::dispatcher() { return *m_state->dispatcher; }

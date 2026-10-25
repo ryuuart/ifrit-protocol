@@ -68,6 +68,7 @@ sigil_doc_probes(io
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
           ${SIGIL_IO_REFERENCE}
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../media/include/sigilmedia
+           ${CMAKE_CURRENT_SOURCE_DIR}/../core/include/sigilcore/report
   PRELUDES "<sigilmedia/core/Image.h>"
            "<sigilmedia/core/PixelSource.h>"
            "<sigilmedia/advanced/Skia.h>"

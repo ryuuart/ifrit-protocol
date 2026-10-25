@@ -36,6 +36,17 @@ TEST(HardwareHandle, TheNullHandleNamesNothing) {
   EXPECT_EQ(table.release(TextureHandle{}), 0);
 }
 
+TEST(HardwareHandle, AConstTableAnswersAValueItCannotChange) {
+  HandleTable<int, TextureHandle> table;
+  const TextureHandle handle = table.allocate(7);
+  const HandleTable<int, TextureHandle>& reader = table;
+  static_assert(std::is_same_v<decltype(table.find(handle)), int*>);
+  static_assert(std::is_same_v<decltype(reader.find(handle)), const int*>);
+  *table.find(handle) = 8;
+  EXPECT_EQ(*reader.find(handle), 8);
+  EXPECT_EQ(reader.find(TextureHandle{}), nullptr);
+}
+
 TEST(HardwareHandle, AReusedSlotRejectsTheHandleThatUsedToNameIt) {
   HandleTable<int, TextureHandle> table;
   const TextureHandle first = table.allocate(1);

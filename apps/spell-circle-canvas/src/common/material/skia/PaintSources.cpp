@@ -123,7 +123,17 @@ struct BoxPlacement {
   SkVector direction = {0, 0};
   SkVector radii = {0, 0};
   float extent = 0;
+  /** Along a corner: the corner's signs, right and down positive, which
+   *  the program turns into the direction the box's proportions give. */
+  SkVector corner = {0, 0};
+  /** Stops written as lengths, placed by the program over a child whose
+   *  stops stand evenly spaced; empty where every stop is a fraction. */
+  std::vector<ColorStop> placedStops;
+  Repeat repeat = Repeat::Pad;
 };
+
+/** The most stops the box read places by length. */
+constexpr size_t kMostPlacedStops = 16;
 
 /** A BOX-UNIT GRADIENT that the unit-square ramp cannot draw — a repeat, a
  *  focus, a conic, a CSS-shaped gradient: the gradient laid out away from
@@ -148,8 +158,57 @@ Paint boxGradient(Paint unitGradient, const BoxPlacement& placement) {
                                              placement.direction.y()});
   box.set("uRadii",
           std::array<float, 2>{placement.radii.x(), placement.radii.y()});
+  if (!placement.placedStops.empty()) {
+    box.set("uCorner",
+            std::array<float, 2>{placement.corner.x(), placement.corner.y()});
+    std::vector<float> fractions(kMostPlacedStops, 0.0f);
+    std::vector<float> pixels(kMostPlacedStops, 0.0f);
+    const size_t count =
+        std::min(placement.placedStops.size(), kMostPlacedStops);
+    for (size_t index = 0; index < count; ++index) {
+      fractions[index] = placement.placedStops[index].offset;
+      pixels[index] = placement.placedStops[index].pixels;
+    }
+    box.set("uStopCount", (float)count);
+    box.set("uStopFraction", std::move(fractions));
+    box.set("uStopPixels", std::move(pixels));
+    box.set("uRepeat", placement.repeat == Repeat::Repeat   ? 1.0f
+                       : placement.repeat == Repeat::Mirror ? 2.0f
+                                                            : 0.0f);
+  }
   box.slot("uGradient", std::move(unitGradient));
   return box;
+}
+
+/** Whether any of @p stops is written as a length along the line. */
+bool hasLengths(const ColorStops& stops) {
+  return std::ranges::any_of(stops.stops(), [](const ColorStop& stop) {
+    return stop.pixels != 0.0f;
+  });
+}
+
+/** The colours of @p stops spaced evenly — the child a box read places
+ *  stops written as lengths over. The run past the ends is the box read's
+ *  to place, so the child only pads, or paints nothing past its ends. */
+std::pair<ColorStops, GradientOptions> evenlySpacedChild(
+    const ColorStops& stops, const GradientOptions& options) {
+  std::vector<Color> colors;
+  const size_t count = std::min(stops.size(), kMostPlacedStops);
+  colors.reserve(count);
+  for (size_t index = 0; index < count; ++index)
+    colors.push_back(stops.stops()[index].color);
+  if (stops.size() > kMostPlacedStops) {
+    static std::atomic_bool warnedTooManyStops{false};
+    if (!warnedTooManyStops.exchange(true, std::memory_order_relaxed))
+      SkDebugf(
+          "[material] a gradient with stops written as lengths places its "
+          "first %zu stops; the rest are left out. (warned once)\n",
+          kMostPlacedStops);
+  }
+  GradientOptions child;
+  child.units = GradientUnits::Pixels;
+  child.repeat = options.repeat == Repeat::None ? Repeat::None : Repeat::Pad;
+  return {ColorStops(colors), child};
 }
 
 Paint boxGradient(Paint unitGradient, SkPoint center, bool conic) {
@@ -334,6 +393,32 @@ namespace sigil::material::skia::detail {
 
 Paint cssLinearGradient(ColorStops stops, LinearDirection direction,
                         const GradientOptions& options) {
+  if (hasLengths(stops)) {
+    // A stop written as a length is placed where the line's length is
+    // known, along the line the angle or the side or the corner gives.
+    BoxPlacement placement{.mode = BoxPlacement::Along, .center = {0.5f, 0.5f}};
+    float degrees = direction.angleDegrees;
+    if (direction.toward) {
+      switch (*direction.toward) {
+        case Toward::Top: degrees = 0; break;
+        case Toward::Right: degrees = 90; break;
+        case Toward::Bottom: degrees = 180; break;
+        case Toward::Left: degrees = 270; break;
+        case Toward::TopRight: placement.corner = {1, -1}; break;
+        case Toward::BottomRight: placement.corner = {1, 1}; break;
+        case Toward::BottomLeft: placement.corner = {-1, 1}; break;
+        case Toward::TopLeft: placement.corner = {-1, -1}; break;
+      }
+    }
+    const float radians = degrees * 3.14159265358979f / 180.0f;
+    placement.direction = {std::sin(radians), -std::cos(radians)};
+    placement.placedStops = stops.stops();
+    placement.repeat = options.repeat;
+    auto [evenly, child] = evenlySpacedChild(stops, options);
+    return boxGradient(
+        Paint::linearGradient({0, 0}, {1, 0}, std::move(evenly), child),
+        placement);
+  }
   if (direction.toward) {
     const auto [start, end] = towardPoints(*direction.toward);
     return boxGradient(Paint::linearGradient(start, end, std::move(stops),
@@ -353,13 +438,25 @@ Paint cssLinearGradient(ColorStops stops, LinearDirection direction,
 
 Paint cssRadialGradient(ColorStops stops, RadialEndingShape shape,
                         const GradientOptions& options) {
-  Paint child = Paint::radialGradient({0, 0}, 1, std::move(stops),
-                                      childOptions(options));
+  // A stop written as a length is placed by the box read, along the ray
+  // whose length it knows, over a child whose stops stand evenly spaced.
+  std::vector<ColorStop> placedStops;
+  Paint child;
+  if (hasLengths(stops)) {
+    placedStops = stops.stops();
+    auto [evenly, evenlyOptions] = evenlySpacedChild(stops, options);
+    child = Paint::radialGradient({0, 0}, 1, std::move(evenly), evenlyOptions);
+  } else {
+    child = Paint::radialGradient({0, 0}, 1, std::move(stops),
+                                  childOptions(options));
+  }
   const SkPoint center{shape.at.x, shape.at.y};
   if (shape.shape == RadialShape::Circle)
     return boxGradient(std::move(child), {.mode = BoxPlacement::Circle,
                                           .center = center,
-                                          .extent = (float)shape.extent});
+                                          .extent = (float)shape.extent,
+                                          .placedStops = std::move(placedStops),
+                                          .repeat = options.repeat});
   // An ellipse is the box's own proportions, so its extents are fractions
   // of the unit square measured from its centre; through a corner it
   // keeps the matching side's proportions, which puts it the square root
@@ -382,7 +479,9 @@ Paint cssRadialGradient(ColorStops stops, RadialEndingShape shape,
   }
   return boxGradient(std::move(child), {.mode = BoxPlacement::Ellipse,
                                         .center = center,
-                                        .radii = {radii.x, radii.y}});
+                                        .radii = {radii.x, radii.y},
+                                        .placedStops = std::move(placedStops),
+                                        .repeat = options.repeat});
 }
 
 Paint cssConicGradient(ColorStops stops, ConicStart start,

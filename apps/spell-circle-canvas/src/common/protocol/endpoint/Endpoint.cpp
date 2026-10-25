@@ -254,7 +254,11 @@ Endpoint::~Endpoint() {
   }
 }
 
-bool Endpoint::listening() const { return !m_socket->address.empty(); }
+std::expected<void, core::Error> Endpoint::listening() const {
+  if (m_socket->address.empty())
+    return std::unexpected(core::Error{m_socket->error});
+  return {};
+}
 
 const std::string& Endpoint::error() const { return m_socket->error; }
 

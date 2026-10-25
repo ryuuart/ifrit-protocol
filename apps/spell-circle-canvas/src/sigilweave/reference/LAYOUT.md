@@ -356,7 +356,10 @@ setting is the width of its columns.
 
 `Leading::face` takes the first span's own line height, which is what a
 text that says nothing has always used. `Leading::multiple` scales that.
-`Leading::absolute` states it outright in pixels. `Leading::grid` states
+`Leading::sizeMultiple` scales the first span's type size instead, as
+CSS's unitless `line-height` does, so `sizeMultiple(2)` at 20 px is a
+40 px pitch whatever the face reports. `Leading::absolute` states it
+outright in pixels. `Leading::grid` states
 a rhythm rather than a pitch: the block's own height rounds UP to a
 multiple of it, so blocks set on the same grid share one rhythm however
 differently their faces are cut.

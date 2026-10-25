@@ -702,18 +702,16 @@ void bindData(py::module_& root) {
       .def_static(
           "memory",
           [](data::Engine engine) {
-            std::string why;
-            auto database = data::Database::memory(engine, &why);
-            if (!database) throw std::runtime_error(why);
+            auto database = data::Database::memory(engine);
+            if (!database) throw std::runtime_error(database.error().message);
             return ownedDatabase(std::move(*database));
           },
           py::arg("engine") = data::Engine::Sqlite)
       .def_static(
           "open",
           [](const std::filesystem::path& path) {
-            std::string why;
-            auto database = data::Database::open(path, &why);
-            if (!database) throw std::runtime_error(why);
+            auto database = data::Database::open(path);
+            if (!database) throw std::runtime_error(database.error().message);
             return ownedDatabase(std::move(*database));
           },
           py::arg("path"))
@@ -722,9 +720,8 @@ void bindData(py::module_& root) {
           [](py::bytes bytes, std::string hint) {
             const auto text = bytes.cast<std::string>();
             const io::Bytes source(std::as_bytes(std::span(text)));
-            std::string why;
-            auto database = data::Database::fromBytes(source, hint, &why);
-            if (!database) throw std::runtime_error(why);
+            auto database = data::Database::fromBytes(source, hint);
+            if (!database) throw std::runtime_error(database.error().message);
             return dataDatabase(
                 std::make_shared<data::Database>(std::move(*database)));
           },
@@ -735,35 +732,32 @@ void bindData(py::module_& root) {
       .def(
           "execute",
           [](const DatabaseView& view, std::string_view sql) {
-            std::string why;
-            if (!view.writable().execute(sql, &why))
-              throw std::runtime_error(why);
+            if (auto run = view.writable().execute(sql); !run)
+              throw std::runtime_error(run.error().message);
           },
           py::arg("sql"))
       .def(
           "insert",
           [](const DatabaseView& view, std::string_view name,
              const data::Table& rows) {
-            std::string why;
-            if (!view.writable().insert(name, rows, &why))
-              throw std::runtime_error(why);
+            if (auto written = view.writable().insert(name, rows); !written)
+              throw std::runtime_error(written.error().message);
           },
           py::arg("name"), py::arg("rows"))
       .def(
           "query",
           [](const DatabaseView& view, std::string_view sql) {
-            std::string why;
             // A view that refuses writes refuses them through every
             // method, so a writing statement is named before it is run
             // and raises what execute() and insert() raise.
             if (!view.writer) {
-              const auto writes = view.owner->writes(sql, &why);
-              if (!writes) throw std::runtime_error(why);
+              const auto writes = view.owner->writes(sql);
+              if (!writes) throw std::runtime_error(writes.error().message);
               if (*writes)
                 throw std::runtime_error("This database view is read-only.");
             }
-            auto table = view.owner->query(sql, &why);
-            if (!table) throw std::runtime_error(why);
+            auto table = view.owner->query(sql);
+            if (!table) throw std::runtime_error(table.error().message);
             return std::move(*table);
           },
           py::arg("sql"));

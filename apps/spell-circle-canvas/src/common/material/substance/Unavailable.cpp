@@ -18,8 +18,10 @@ std::string engineVersion() { return {}; }
 
 struct Archive::Decoded {};
 
-std::optional<Archive> Archive::decode(std::span<const std::byte>) {
-  return std::nullopt;
+std::expected<Archive, core::Error> Archive::decode(
+    std::span<const std::byte>) {
+  return std::unexpected(core::Error{
+      "this build carries no Substance engine, so it reads no archive"});
 }
 size_t Archive::graphCount() const { return 0; }
 const Description& Archive::graph(size_t) const {

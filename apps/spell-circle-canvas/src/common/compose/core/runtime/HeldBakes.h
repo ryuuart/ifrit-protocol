@@ -164,14 +164,26 @@ struct HeldBakes {
   // live composer holds as pixels while it moves. Written beside
   // `transformLive`, by the same walk.
   bool stillInOwnFrame = false;
-  // THE PIXELS HELD WHILE THE NODE'S OWN TRANSFORM MOVES, under a live
-  // composer: the subtree painted once in the node's own frame at
-  // `movingScale` device pixels a unit, covering `movingBounds`, and
-  // composited under each new matrix. Dropped the draw the node holds
-  // still, and by every change that stales its paint.
+  // THE PIXELS HELD WHILE THE NODE'S OWN TRANSFORM OR OPACITY MOVES, under
+  // a live composer. Where the node moves, the subtree painted once in the
+  // node's own frame at `movingScale` device pixels a unit, covering
+  // `movingBounds`, and composited under each new matrix. Where only its
+  // opacity moves, the subtree painted IN PLACE, on the device grid at
+  // `movingDeviceRect` under `movingMatrix` and `movingClip`, and
+  // composited there at each new opacity: the pixels a layer opened for
+  // the fade would hold. Dropped the draw the node holds still, and by
+  // every change that stales its paint.
   sk_sp<SkImage> movingImage;
   float movingScale = 0.0f;
   SkRect movingBounds = SkRect::MakeEmpty();
+  bool movingInPlace = false;
+  SkIRect movingDeviceRect = SkIRect::MakeEmpty();
+  SkMatrix movingMatrix = SkMatrix::I();
+  SkIRect movingClip = SkIRect::MakeEmpty();
+  // The opacity the node composited at in the last draw, and whether it
+  // has drawn at all: a moved opacity is one the held pixels can carry.
+  float lastOpacity = 1.0f;
+  bool opacitySeen = false;
   // …and is the device rect it actually LANDS on holding still? These are
   // NOT the same predicate: a node with no animated property of its own
   // still moves every frame under a resizing window or a pinch zoom, and a

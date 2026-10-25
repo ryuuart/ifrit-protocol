@@ -87,12 +87,34 @@ TEST(Ease, StepsHoldThenJump) {
   EXPECT_EQ(late(0.2f), 0.0f);
   EXPECT_EQ(late(0.3f), 0.25f);
   EXPECT_EQ(late(1.0f), 1.0f);
-  const Easing early = ease::steps(4, true);
+  const Easing early = ease::steps(4, ease::StepPosition::JumpStart);
+  EXPECT_EQ(early(0.0f), 0.25f);
   EXPECT_EQ(early(0.1f), 0.25f);
   EXPECT_EQ(early(0.8f), 1.0f);
   // Held inside the unit range, so a caller past either end reads an end.
   EXPECT_EQ(late(1.5f), 1.0f);
   EXPECT_EQ(late(-0.5f), 0.0f);
+}
+
+TEST(Ease, AStaircaseThatJumpsAtNeitherEndHoldsBothEnds) {
+  // Three steps that jump at neither end: zero over the first, one half
+  // over the second, one over the last.
+  const Easing none = ease::steps(3, ease::StepPosition::JumpNone);
+  EXPECT_EQ(none(0.0f), 0.0f);
+  EXPECT_EQ(none(0.2f), 0.0f);
+  EXPECT_EQ(none(0.5f), 0.5f);
+  EXPECT_EQ(none(0.8f), 1.0f);
+  EXPECT_EQ(none(1.0f), 1.0f);
+}
+
+TEST(Ease, AStaircaseThatJumpsAtBothEndsHasALevelMore) {
+  // Three steps that jump at both ends: four levels, the first above zero.
+  const Easing both = ease::steps(3, ease::StepPosition::JumpBoth);
+  EXPECT_EQ(both(0.0f), 0.25f);
+  EXPECT_EQ(both(0.2f), 0.25f);
+  EXPECT_EQ(both(0.5f), 0.5f);
+  EXPECT_EQ(both(0.8f), 0.75f);
+  EXPECT_EQ(both(1.0f), 1.0f);
 }
 
 TEST(Ease, ACurveComparesByItsShapeAndItsSettings) {
@@ -102,7 +124,8 @@ TEST(Ease, ACurveComparesByItsShapeAndItsSettings) {
   EXPECT_TRUE(easeEqual(ease::inQuad, ease::inQuad));
   EXPECT_FALSE(easeEqual(ease::inQuad, ease::outQuad));
   EXPECT_TRUE(easeEqual(ease::steps(3), ease::steps(3)));
-  EXPECT_FALSE(easeEqual(ease::steps(3), ease::steps(3, true)));
+  EXPECT_FALSE(easeEqual(ease::steps(3),
+                         ease::steps(3, ease::StepPosition::JumpStart)));
   EXPECT_TRUE(easeEqual(ease::out(2.5f), ease::out(2.5f)));
   EXPECT_FALSE(easeEqual(ease::out(2.5f), ease::in(2.5f)));
   EXPECT_TRUE(easeEqual(ease::inOutBounce(), ease::inOutBounce()));
@@ -125,11 +148,16 @@ TEST(Ease, CssTimingFunctionTextReadsOntoTheCurves) {
   EXPECT_TRUE(same(readEasing("linear"), ease::linear));
   EXPECT_TRUE(same(readEasing("cubic-bezier(.2, .8, .2, 1)"),
                    ease::cubicBezier(0.2f, 0.8f, 0.2f, 1)));
-  EXPECT_TRUE(same(readEasing("steps(4, jump-start)"), ease::steps(4, true)));
+  EXPECT_TRUE(same(readEasing("steps(4, jump-start)"),
+                   ease::steps(4, ease::StepPosition::JumpStart)));
+  EXPECT_TRUE(same(readEasing("steps(3, Jump-None)"),
+                   ease::steps(3, ease::StepPosition::JumpNone)));
+  EXPECT_TRUE(same(readEasing("steps(3, jump-both)"),
+                   ease::steps(3, ease::StepPosition::JumpBoth)));
   EXPECT_TRUE(same(readEasing("steps(4)"), ease::steps(4)));
   EXPECT_TRUE(same(readEasing("step-end"), ease::steps(1)));
   // What the curves cannot draw, and what is not CSS, reads as nothing.
-  EXPECT_FALSE(readEasing("steps(4, jump-none)"));
+  EXPECT_FALSE(readEasing("steps(1, jump-none)"));
   EXPECT_FALSE(readEasing("cubic-bezier(1.5, 0, 0, 1)"));
   EXPECT_FALSE(readEasing("ease_in"));
   EXPECT_FALSE(readEasing("steps(0)"));

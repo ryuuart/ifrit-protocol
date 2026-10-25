@@ -52,6 +52,7 @@ sigil_doc_probes(media
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/DistanceField.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Image.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../io/include/sigilio
+           ${CMAKE_CURRENT_SOURCE_DIR}/../core/include/sigilcore/report
   PRELUDES "<sigilio/hub/Hub.h>"
            "<sigilio/advanced/Decoding.h>"
   EXCLUDE "unofficial::skia::skia=a CMake target name, not a C++ name"

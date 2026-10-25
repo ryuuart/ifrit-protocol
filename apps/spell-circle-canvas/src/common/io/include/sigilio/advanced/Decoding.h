@@ -11,7 +11,11 @@
 
 #include <sigilcore/callable/Callable.h>
 
+#include <sigilcore/report/Error.h>
+
+#include <concepts>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -49,23 +53,75 @@ inline std::optional<ResourceInfo> probeResource(
 }
 
 namespace detail {
-/** What a decoder for T is called with: the bytes, the resource's name
- *  as a hint, and — for a Configurable T — the options the load asked
- *  for. Every parameter after the bytes is offered, never demanded. */
+/** What a decoder for T is called with and answers: the bytes, the
+ *  resource's name as a hint, and — for a Configurable T — the options
+ *  the load asked for; the T, or the error that says why the bytes are
+ *  not one. Every parameter after the bytes is offered, never demanded. */
 template <typename T>
 struct DecoderCall {
-  using type = std::optional<T>(const Bytes&, std::string_view hint);
+  using type = std::expected<T, core::Error>(const Bytes&,
+                                             std::string_view hint);
 };
 /** The same for a T loaded with options, which are offered third. */
 template <Configurable T>
 struct DecoderCall<T> {
-  using type = std::optional<T>(const Bytes&, std::string_view hint,
-                                const LoadOptions<T>& options);
+  using type = std::expected<T, core::Error>(const Bytes&,
+                                             std::string_view hint,
+                                             const LoadOptions<T>& options);
 };
 
-/** Re-decodes bytes into a type-erased value; null on failure. */
-using Redecode = std::function<std::shared_ptr<const void>(
-    const Bytes&, const std::filesystem::path&)>;
+/** What a decoder for T may answer: the T or the error that says why
+ *  not, which is the shape every library's decoder takes; a
+ *  `std::optional<T>`, which refuses without saying why; or the T
+ *  itself, for a decoder that cannot refuse. */
+template <typename Answer, typename T>
+concept DecodedAnswer =
+    DecoderAnswer<Answer, T> || std::convertible_to<Answer, T>;
+
+/** @p Decode IS A DECODER FOR T: called with a prefix of what
+ *  DecoderCall offers, it answers a DecodedAnswer. */
+template <typename Decode, typename T>
+concept DecodesInto =
+    requires(Decode& decode, const Bytes& bytes, std::string_view hint) {
+      requires !Configurable<T>;
+      { core::callPrefix(decode, bytes, hint) } -> DecodedAnswer<T>;
+    } || requires(Decode& decode, const Bytes& bytes, std::string_view hint) {
+      requires Configurable<T>;
+      requires requires(const LoadOptions<T>& options) {
+        { core::callPrefix(decode, bytes, hint, options) } -> DecodedAnswer<T>;
+      };
+    };
+
+/** The error a decoder that answered no T and said nothing more is
+ *  listed under: that the bytes do not read as T's meaning. */
+template <Named T>
+core::Error undecoded() {
+  return {"the bytes do not read as " +
+              std::string(meaningName(std::type_identity<T>{})),
+          {},
+          {}};
+}
+
+/** A decoder's answer as the hub holds it: the T shared and its type
+ *  erased, or the error the hub lists under the URI. */
+template <Named T, typename Answer>
+Decoded erase(Answer&& answer) {
+  using Plain = std::remove_cvref_t<Answer>;
+  if constexpr (std::same_as<Plain, std::expected<T, core::Error>>) {
+    if (!answer) return std::unexpected(std::forward<Answer>(answer).error());
+    return std::make_shared<const T>(*std::forward<Answer>(answer));
+  } else if constexpr (std::same_as<Plain, std::optional<T>>) {
+    if (!answer) return std::unexpected(undecoded<T>());
+    return std::make_shared<const T>(*std::forward<Answer>(answer));
+  } else {
+    return std::make_shared<const T>(T(std::forward<Answer>(answer)));
+  }
+}
+
+/** Re-decodes bytes into a type-erased value, or the error that says why
+ *  it could not. */
+using Redecode =
+    std::function<Decoded(const Bytes&, const std::filesystem::path&)>;
 /** A registered decoder with a load's options bound into it. */
 using Configure = std::function<Redecode(std::shared_ptr<const void>)>;
 
@@ -82,8 +138,13 @@ std::shared_ptr<const Bytes> probeRead(const Hub& hub, std::string_view uri,
 }  // namespace detail
 
 /** Registers on @p hub how a T is decoded from bytes, so load<T>() can
- *  answer. `hint` is the resource's local path when it has one, and is
- *  OFFERED: a decoder reading the bytes alone takes
+ *  answer. The decoder answers `std::expected<T, core::Error>`: the T,
+ *  or the error that says why the bytes are not one, which a load lists
+ *  among `problems()` under the URI it was asked for by — and a load
+ *  that later succeeds takes back. A decoder answering `std::optional<T>`
+ *  is taken too, and its refusal is listed as bytes that do not read as
+ *  T's meaning. `hint` is the resource's local path when it has one, and
+ *  is OFFERED: a decoder reading the bytes alone takes
  *  `[](const Bytes& bytes) {…}`. For a Configurable T the options a load
  *  asked for are offered third, T's defaults when it named none. A hub
  *  registers nothing itself: the library that owns T calls this, as
@@ -92,21 +153,19 @@ std::shared_ptr<const Bytes> probeRead(const Hub& hub, std::string_view uri,
  *  `load<T>` compiled into another image of the program finds it.
  *  @trap Replacing a decoder leaves a view already decoded holding its
  *  value and the decoder that made it, which poll() re-runs. */
-template <Named T>
-void registerDecoder(
-    Hub& hub,
-    core::Callable<typename detail::DecoderCall<T>::type> decode) {
+template <Named T, typename Decode>
+  requires detail::DecodesInto<Decode, T>
+void registerDecoder(Hub& hub, Decode decode) {
   if constexpr (Configurable<T>) {
     using Options = LoadOptions<T>;
     const auto configure =
         [decode](std::shared_ptr<const void> options) -> detail::Redecode {
       return [decode, options = std::move(options)](
-                 const Bytes& bytes, const std::filesystem::path& path)
-                 -> std::shared_ptr<const void> {
-        auto value = decode(bytes, path.native(),
-                            *static_cast<const Options*>(options.get()));
-        if (!value) return nullptr;
-        return std::make_shared<const T>(std::move(*value));
+                 const Bytes& bytes,
+                 const std::filesystem::path& path) mutable -> detail::Decoded {
+        return detail::erase<T>(core::callPrefix(
+            decode, bytes, std::string_view(path.native()),
+            *static_cast<const Options*>(options.get())));
       };
     };
     detail::setDecoder(hub, detail::meaningOf<T>(),
@@ -115,33 +174,27 @@ void registerDecoder(
   } else {
     detail::setDecoder(
         hub, detail::meaningOf<T>(),
-        [decode = std::move(decode)](const Bytes& bytes,
-                                     const std::filesystem::path& path)
-            -> std::shared_ptr<const void> {
-          auto value = decode(bytes, path.native());
-          if (!value) return nullptr;
-          return std::make_shared<const T>(std::move(*value));
+        [decode = std::move(decode)](
+            const Bytes& bytes,
+            const std::filesystem::path& path) mutable -> detail::Decoded {
+          return detail::erase<T>(
+              core::callPrefix(decode, bytes, std::string_view(path.native())));
         },
         {});
   }
 }
 
 /** The same, from any object satisfying the Decoder concept — which
- *  reads the hint or the bytes alone, as the callable form does. */
+ *  reads the hint or the bytes alone, as the callable form does, and
+ *  answers as the callable form does. */
 template <Named T, Decoder<T> D>
 void registerDecoder(Hub& hub, D decoder) {
   registerDecoder<T>(hub, [decoder = std::move(decoder)](
                               const Bytes& bytes, std::string_view hint) {
-    return core::callPrefix(
-        [&decoder](const Bytes& resourceBytes, std::string_view resourceHint) {
-          if constexpr (requires {
-                          decoder.decode(resourceBytes, resourceHint);
-                        })
-            return decoder.decode(resourceBytes, resourceHint);
-          else
-            return decoder.decode(resourceBytes);
-        },
-        bytes, hint);
+    if constexpr (requires { decoder.decode(bytes, hint); })
+      return decoder.decode(bytes, hint);
+    else
+      return decoder.decode(bytes);
   });
 }
 

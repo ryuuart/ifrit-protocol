@@ -143,7 +143,22 @@ or a corner, the ends landing on the box's corners at any proportions.
 `radialGradient` takes a `RadialEndingShape` — `RadialShape::Ellipse` or
 `RadialShape::Circle`, the `RadialExtent` its last stop reaches measured
 from its own centre, and the centre `at` — and `conicGradient` a
-`ConicStart`, its `fromDegrees` measured clockwise from 12 o'clock.
+`ConicStart`, its `fromDegrees` measured clockwise from 12 o'clock. A
+`ColorStop`'s `pixels` is CSS's stop written as a length: the linear and
+radial gradients place it that far along their line where they paint, so
+a stop at 20 px stands twenty pixels in on any box.
+`readGradient(text)` reads CSS's own text onto the same three —
+`readGradient("linear-gradient(45deg, red, blue 40%)")`,
+`"radial-gradient(circle closest-side at 30% 40%, …)"`,
+`"conic-gradient(from 90deg, …)"` and the `repeating-` forms — placing
+unwritten stops by CSS's colour stop fixup, and answers nothing for text
+none of them can hold. `readFilter(text)` reads CSS's `filter` text the
+same way, its functions chained in the order written:
+`readFilter("blur(4px) sepia(50%) drop-shadow(0 2px 4px #0008)")`. The
+pieces both cut the text into — commas and blank space outside brackets,
+a function's name and body, numbers, percentages, `px` and `pt` lengths
+and angles — are `<sigilmaterial/color/CssText.h>`, under `material::css`,
+for any other reader of a CSS value.
 The point-to-point forms beneath them, `linearGradient(start, end,
 stops)` and its siblings, place their points in box units by default:
 `{0, 0}` is one corner and `{1, 1}` the opposite. `GradientOptions`
@@ -204,7 +219,9 @@ The texture feature also provides:
   derived from the same panorama; calculations preserve floating-point
   radiance above one.
 - `Atlas` for grid sheets, TexturePacker and Aseprite metadata, named regions
-  and frame sequences.
+  and frame sequences. `Atlas::fromTexturePacker` and `Atlas::fromAseprite`
+  answer `std::expected<Atlas, core::Error>`, the error saying whether the
+  description was not JSON or held no frames.
 
 These values describe images and sampling. The backend operations under
 `sigilmaterial/skia/` convert them into Skia images and shaders.

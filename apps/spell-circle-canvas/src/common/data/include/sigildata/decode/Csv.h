@@ -11,8 +11,10 @@
  * pair, so a file written on any of the three machines reads the same.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigildata/table/Table.h>
 
+#include <expected>
 #include <optional>
 #include <string_view>
 
@@ -36,16 +38,16 @@ struct CsvOptions {
   bool operator==(const CsvOptions&) const = default;
 };
 
-/** THE TABLE IN @p text, or nothing when it holds no field at all. A
+/** THE TABLE IN @p text, or the error that says why it holds none. A
  *  column's type is the one every non-empty cell in it shares, an empty
  *  cell is a missing cell, and a row shorter than the header is padded
  *  with missing cells while one longer is cut to the header's shape.
  *  @trap A header line with no rows under it IS a table, its columns
  *  every one of them empty; only text with nothing in it but space
  *  answers nothing, so a caller can tell "no rows" from "no data". */
-std::optional<Table> decodeCsv(std::string_view text,
-                               const CsvOptions& options = {},
-                               std::string_view name = {});
+std::expected<Table, core::Error> decodeCsv(std::string_view text,
+                                            const CsvOptions& options = {},
+                                            std::string_view name = {});
 
 /** THE INSTANT @p text names, or nothing when it names none: a date,
  *  `2019-03-08`, or a date and a time joined by `T` or a space,

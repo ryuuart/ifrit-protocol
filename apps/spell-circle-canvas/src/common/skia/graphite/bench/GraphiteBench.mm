@@ -28,7 +28,7 @@ using namespace sigil::core::hardware;
 namespace {
 
 GpuDevice *device() {
-  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned();
+  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned().value_or(nullptr);
   return d.get();
 }
 

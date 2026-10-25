@@ -177,23 +177,9 @@ std::vector<detail::Block> resolveBlocks(
       }
       faceHeight = std::max(faceHeight, faceAscent + faceDescent);
     }
-    float pitch = faceHeight;
-    float gridStep = 0;
-    switch (style.leading.kind) {
-      case Leading::Kind::kFace:
-        break;
-      case Leading::Kind::kMultiple:
-        pitch = faceHeight * style.leading.value;
-        break;
-      case Leading::Kind::kAbsolute:
-        pitch = style.leading.value;
-        break;
-      case Leading::Kind::kGrid:
-        gridStep = style.leading.value;
-        pitch = gridStep > 0 ? std::ceil(faceHeight / gridStep) * gridStep
-                             : faceHeight;
-        break;
-    }
+    const float pitch = style.leading.pitchFor(faceHeight, strut.size);
+    const float gridStep =
+        style.leading.kind == Leading::Kind::kGrid ? style.leading.value : 0;
     // The reserved band is a layout input: it opens the pitch before
     // anything is broken, and `before` carries the baseline down inside the
     // band so the type stays where a reader expects it.

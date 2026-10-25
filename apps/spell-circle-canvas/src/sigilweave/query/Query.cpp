@@ -10,6 +10,7 @@
 #include <unicode/ustring.h>
 
 #include <algorithm>
+#include <ranges>
 
 #include "sigilweave/unicode/Unicode.h"
 
@@ -117,11 +118,10 @@ std::optional<std::vector<CharRange>> findRegexMatches(
 std::vector<CharRange> wordRanges(Paragraph& paragraph,
                                   FontContext& fontContext) {
   paragraph.ensureShaped(fontContext);
-  std::vector<CharRange> ranges;
-  ranges.reserve(paragraph.words().size());
-  for (const Word& word : paragraph.words())
-    ranges.push_back({word.textBegin, word.textEnd});
-  return ranges;
+  return paragraph.words() | std::views::transform([](const Word& word) {
+           return CharRange{word.textBegin, word.textEnd};
+         }) |
+         std::ranges::to<std::vector<CharRange>>();
 }
 
 void MarkerSet::setRanges(std::string name, std::vector<CharRange> ranges) {

@@ -124,6 +124,7 @@
 #include <future>
 #include <memory>
 #include <optional>
+#include <print>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -203,9 +204,8 @@ int main(int argc, char* argv[]) {
     std::error_code error;
     std::filesystem::create_directories(args.stateDirectory, error);
     if (error) {
-      std::fprintf(stderr, "--state: cannot use %s: %s\n",
-                   args.stateDirectory.string().c_str(),
-                   error.message().c_str());
+      std::println(stderr, "--state: cannot use {}: {}",
+                   args.stateDirectory.string(), error.message());
       return 2;
     }
     const std::filesystem::path root =
@@ -229,8 +229,8 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("machine"), QSysInfo::currentCpuArchitecture()},
         {QStringLiteral("pointer_bits"), (int)(sizeof(void*) * 8)},
     };
-    std::printf("%s\n",
-                QJsonDocument(info).toJson(QJsonDocument::Compact).constData());
+    std::println(
+        "{}", QJsonDocument(info).toJson(QJsonDocument::Compact).constData());
     return 0;
   }
 
@@ -246,8 +246,8 @@ int main(int argc, char* argv[]) {
   if (!args.workspace.empty()) {
     std::error_code error;
     if (!std::filesystem::is_directory(args.workspace, error)) {
-      std::fprintf(stderr, "workspace directory is unavailable: %s\n",
-                   args.workspace.string().c_str());
+      std::println(stderr, "workspace directory is unavailable: {}",
+                   args.workspace.string());
       return 2;
     }
     args.workspace = std::filesystem::weakly_canonical(args.workspace);
@@ -259,8 +259,8 @@ int main(int argc, char* argv[]) {
   if (!args.sketchFile.empty()) {
     std::error_code error;
     if (!std::filesystem::is_regular_file(args.sketchFile, error)) {
-      std::fprintf(stderr, "sketch file is unavailable: %s\n",
-                   args.sketchFile.string().c_str());
+      std::println(stderr, "sketch file is unavailable: {}",
+                   args.sketchFile.string());
       return 2;
     }
     args.sketchFile = std::filesystem::weakly_canonical(args.sketchFile);
@@ -269,8 +269,8 @@ int main(int argc, char* argv[]) {
       if (args.workspace.empty()) {
         workspaceSources.push_back(args.sketchFile);
       } else {
-        std::fprintf(stderr, "sketch is not an entry in this workspace: %s\n",
-                     args.sketchFile.string().c_str());
+        std::println(stderr, "sketch is not an entry in this workspace: {}",
+                     args.sketchFile.string());
         return 2;
       }
     }
@@ -323,7 +323,7 @@ int main(int argc, char* argv[]) {
                                             environment, problem);
     }
     if (!problem.isEmpty()) {
-      std::fprintf(stderr, "%s\n", problem.toUtf8().constData());
+      std::println(stderr, "{}", problem.toUtf8().constData());
       if (!windowRun) return 1;
       SketchActions::startupError = problem;
       args.workspace.clear();
@@ -338,17 +338,16 @@ int main(int argc, char* argv[]) {
   }
   if (!args.pythonExecutable.empty()) {
     if (args.pythonAbi != pythonAbi) {
-      std::fprintf(stderr,
-                   "--python-abi mismatch: executable declares \"%s\", "
-                   "Grimoire requires \"%.*s\"\n",
-                   args.pythonAbi.c_str(), (int)pythonAbi.size(),
-                   pythonAbi.data());
+      std::println(stderr,
+                   "--python-abi mismatch: executable declares \"{}\", "
+                   "Grimoire requires \"{}\"",
+                   args.pythonAbi, pythonAbi);
       return 2;
     }
     try {
       sketch::python::configureInterpreter(args.pythonExecutable);
     } catch (const std::exception& error) {
-      std::fprintf(stderr, "--python-executable: %s\n", error.what());
+      std::println(stderr, "--python-executable: {}", error.what());
       return 2;
     }
   }
@@ -369,9 +368,9 @@ int main(int argc, char* argv[]) {
        !args.compareOptions.first.empty() ||
        !args.storyOptions.outputPath.empty() ||
        !args.capture.outputPath.empty())) {
-    std::fprintf(stderr,
+    std::println(stderr,
                  "--publish: what is offered is a live window's frames, "
-                 "and this run opens no window\n");
+                 "and this run opens no window");
     return 2;
   }
 
@@ -389,10 +388,10 @@ int main(int argc, char* argv[]) {
        !args.capture.outputPath.empty() ||
        (args.headless && (!args.inspectPort || args.headlessDirectoryNamed ||
                           !args.selected.empty() || !args.kind.empty())))) {
-    std::fprintf(stderr,
+    std::println(stderr,
                  "--repl: evaluates text inside a session a client drives — "
                  "the window's, or the one `--headless --inspect` serves — "
-                 "and this run holds none\n");
+                 "and this run holds none");
     return 2;
   }
 
@@ -400,10 +399,10 @@ int main(int argc, char* argv[]) {
                            !args.compareOptions.first.empty() ||
                            !args.storyOptions.outputPath.empty() ||
                            !args.capture.outputPath.empty())) {
-    std::fprintf(stderr,
+    std::println(stderr,
                  "--inspect: this run ends once its output is written, and "
                  "a client has nothing to drive; `--headless --inspect` "
-                 "serves a host with no window\n");
+                 "serves a host with no window");
     return 2;
   }
 
@@ -415,11 +414,11 @@ int main(int argc, char* argv[]) {
 
   const int chosen = args.selected.empty() ? -1 : sketch::find(args.selected);
   if (!args.selected.empty() && chosen < 0) {
-    std::fprintf(stderr, "no sketch matches \"%s\"; known sketches:\n",
-                 args.selected.c_str());
+    std::println(stderr,
+                 "no sketch matches \"{}\"; known sketches:", args.selected);
     const auto& entries = sketch::registry();
     for (int i = 0; i < (int)entries.size(); ++i)
-      std::fprintf(stderr, "  %2d  %-24s %s\n", i, entries[i].name,
+      std::println(stderr, "  {:2}  {:<24} {}", i, entries[i].name,
                    entries[i].category);
     return 1;
   }
@@ -430,7 +429,7 @@ int main(int argc, char* argv[]) {
   for (const std::string& further : args.alsoSelected) {
     const int index = sketch::find(further);
     if (index < 0) {
-      std::fprintf(stderr, "no sketch matches \"%s\"\n", further.c_str());
+      std::println(stderr, "no sketch matches \"{}\"", further);
       return 1;
     }
     named.push_back(index);
@@ -453,12 +452,11 @@ int main(int argc, char* argv[]) {
     const bool toTerminal = isatty(fileno(stdout)) != 0;
     for (const sketch::RegistryRow& row : sketch::registryRows(args.kind)) {
       if (row.available) {
-        std::printf("%s\n", row.name.c_str());
+        std::println("{}", row.name);
         continue;
       }
-      std::printf("%s%s\tunavailable: %s%s\n", toTerminal ? "\x1b[2m" : "",
-                  row.name.c_str(), row.reason.c_str(),
-                  toTerminal ? "\x1b[0m" : "");
+      std::println("{}{}\tunavailable: {}{}", toTerminal ? "\x1b[2m" : "",
+                   row.name, row.reason, toTerminal ? "\x1b[0m" : "");
     }
     releaseDevice();
     return 0;
@@ -482,7 +480,7 @@ int main(int argc, char* argv[]) {
     SketchCatalog::workspaceRoot = args.workspace;
     const SketchCatalog rows;
     for (const QVariant& row : rows.sketches())
-      std::printf("%s\n", grimoire::catalogRowJson(row.toMap()).constData());
+      std::println("{}", grimoire::catalogRowJson(row.toMap()).constData());
     releaseDevice();
     return 0;
   }
@@ -557,17 +555,17 @@ int main(int argc, char* argv[]) {
 
   if (!args.capture.outputPath.empty()) {
     if (args.sketchFile.empty() || !std::filesystem::exists(args.sketchFile)) {
-      std::fprintf(stderr,
+      std::println(stderr,
                    "usage: Grimoire <sketch.cpp|sketch.py> [--frame <out.png>] "
                    "[--at <sec>] [--scale <n>]\n"
                    "         [--frames <count>] [--fps <n>] [--gpu] "
-                   "[--deterministic | --no-deterministic]\n");
+                   "[--deterministic | --no-deterministic]");
       return 2;
     }
     if (args.sketchFile.extension() != ".py" &&
         !std::filesystem::exists(options.flagsFile)) {
-      std::fprintf(stderr, "missing %s (rebuild Grimoire)\n",
-                   options.flagsFile.string().c_str());
+      std::println(stderr, "missing {} (rebuild Grimoire)",
+                   options.flagsFile.string());
       return 2;
     }
     options.sketchPath = std::filesystem::absolute(args.sketchFile);
@@ -604,17 +602,16 @@ int main(int argc, char* argv[]) {
       if (!awaitFirstBuild(host)) result = 1;
 #ifdef __APPLE__
       if (!result && args.gpu && !host.needsDevice()) {
-        std::string error;
-        canvasDevice = sigil::core::hardware::GpuDevice::createOwned(&error);
+        auto made = sigil::core::hardware::GpuDevice::createOwned();
+        if (made) canvasDevice = std::move(*made);
         if (!canvasDevice) {
-          std::fprintf(stderr, "capture: no canvas GPU device (%s)\n",
-                       error.c_str());
+          std::println(stderr, "capture: no canvas GPU device ({})",
+                       made.error().message);
           result = 1;
         } else {
           canvasGraphite = sigil::skia::GraphiteContext::create(*canvasDevice);
           if (!canvasGraphite) {
-            std::fprintf(stderr,
-                         "capture: the device has no Graphite context\n");
+            std::println(stderr, "capture: the device has no Graphite context");
             result = 1;
           }
         }
@@ -651,9 +648,9 @@ int main(int argc, char* argv[]) {
     setenv("QT_SCALE_FACTOR", factor, 1);
   }
   if (args.noGpu || !useDevice())
-    std::fprintf(stderr,
+    std::println(stderr,
                  "[grimoire] no device: every scene3d sketch is listed "
-                 "unavailable\n");
+                 "unavailable");
   SharedWebEngineScope sharedWebEngine;
   // The build directories of runs that were killed are the process's to
   // clear, not the first sketch's: swept while the window is coming up,
@@ -771,9 +768,9 @@ int main(int argc, char* argv[]) {
   std::optional<WindowEvaluation> evaluation;
   if (args.repl && inspection.listening()) {
     evaluation.emplace(inspection.dispatcher(), inspectionStateRoot());
-    std::fprintf(stderr,
+    std::println(stderr,
                  "[grimoire] --repl: session.evaluate runs any code a client "
-                 "on this machine sends inside the running sketch\n");
+                 "on this machine sends inside the running sketch");
   }
 
   finishMaterialWarmup(materialWarmup);
@@ -812,7 +809,7 @@ int main(int argc, char* argv[]) {
 
   if (args.windowBench.seconds > 0.0) {
     if (!window || !view) {
-      std::fprintf(stderr, "--window-bench: no window to present in\n");
+      std::println(stderr, "--window-bench: no window to present in");
       return 1;
     }
     window->resize(args.windowBench.width, args.windowBench.height);
@@ -825,11 +822,11 @@ int main(int argc, char* argv[]) {
       const QSize room = screen->availableGeometry().size();
       if (args.windowBench.width > room.width() ||
           args.windowBench.height > room.height())
-        std::fprintf(stderr,
-                     "[grimoire] --window-bench: a window %dx%d at ratio %g "
-                     "does not fit the display, which has room for %dx%d at "
+        std::println(stderr,
+                     "[grimoire] --window-bench: a window {}x{} at ratio {:g} "
+                     "does not fit the display, which has room for {}x{} at "
                      "that ratio; the system sizes it and the rows report "
-                     "the window it gave\n",
+                     "the window it gave",
                      args.windowBench.width, args.windowBench.height,
                      window->devicePixelRatio(), room.width(), room.height());
     }
@@ -843,7 +840,7 @@ int main(int argc, char* argv[]) {
 
   if (!args.shotPath.empty()) {
     if (!window || !view) {
-      std::fprintf(stderr, "--shot: no window to grab\n");
+      std::println(stderr, "--shot: no window to grab");
       return 1;
     }
     // Synchronize the live host before each forced frame. A file may still

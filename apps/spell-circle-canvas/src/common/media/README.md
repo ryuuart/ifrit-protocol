@@ -58,7 +58,7 @@ std::vector<std::byte> png = sigil::media::encode(*baked, sigil::media::Format::
 hub.save("res://out/plate.png", baked);                     // the name's extension picks the format
 sigil::media::Encoder movie({.width = 1080, .height = 1920}); // MP4, 30 frames a second
 movie.append(frame);
-std::vector<std::byte> mp4 = movie.finish();
+auto mp4 = movie.finish();                                  // the bytes, or the error that says why none
 
 // COMPARE
 sigil::media::PixelDifference apart = sigil::media::difference(*render, *baseline);
@@ -105,6 +105,14 @@ Bytes already in hand decode without a hub through the same decoders:
 What a document says about itself is `sigil::media::Metadata`, read as
 `sigil::io::probe<sigil::media::Metadata>(hub, uri)` or
 `sigil::media::probe(bytes)`.
+
+The decoders under both doors answer `std::expected<T, sigil::core::Error>`:
+`sigil::media::decodeDocument` and `sigil::media::probeDocument` give the
+document, or the error that says why no decoder this build carries read
+the bytes — a layer the image does not carry, a KTX texture that does not
+read, a container no stream opens. A hub lists that error under the URI
+among its problems while its `load` answers null; `decode<T>` and `probe`
+stay the forgiving doors and answer null.
 
 A video opened with a pool never makes the thread that draws wait:
 

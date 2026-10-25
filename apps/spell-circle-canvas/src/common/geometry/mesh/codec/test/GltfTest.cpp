@@ -267,7 +267,7 @@ TEST(ReadGltf, APrimitiveCarriesTheWholeMaterialItNames) {
         std::filesystem::path("../../build") / glb})
     if (std::filesystem::exists(candidate)) found = candidate;
   if (found.empty()) GTEST_SKIP() << "Avocado.glb not fetched";
-  const std::optional<codec::decode::Model> model = codec::decode::model(found);
+  const auto model = codec::decode::model(found);
   ASSERT_TRUE(model);
   ASSERT_FALSE(model->parts.empty());
   const codec::decode::Part& part = model->parts.front();

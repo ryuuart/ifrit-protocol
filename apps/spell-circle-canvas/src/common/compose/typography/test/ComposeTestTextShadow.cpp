@@ -40,7 +40,7 @@ TEST(ComposeTextShadow, AGlowFadesWithItsGlyph) {
   const auto render = [](Host& host, float alpha) {
     host.composer.render(
         shadowedPage(text(u8"I")
-                         .textShadow({.blur = 6, .color = kGreen})
+                         .textShadow({.blur = 12, .color = kGreen})
                          .textFx({.effect = fixed("fade", {.alpha = alpha})})));
     host.frame();
   };
@@ -240,4 +240,91 @@ TEST(ComposeTextShadow, AShadowNamingACustomPropertyFollowsTheSheet) {
   EXPECT_GT(count(host, SK_ColorBLUE), 20);
   EXPECT_EQ(count(host, SK_ColorGREEN), 0)
       << "the echo kept the property's old colour";
+}
+
+namespace {
+
+constexpr int kShadowWidth = 420, kShadowHeight = 200;
+/** How far every shadow below falls from what casts it: far enough that
+ *  the right part of the canvas holds the shadow alone. */
+constexpr float kThrow = 220;
+/** Where the right part, which holds the shadow alone, begins. */
+constexpr int kShadowAlone = 190;
+
+/** The right part of @p host's canvas, which holds a shadow alone. */
+std::vector<SkColor> shadowAlone(Host& host) {
+  std::vector<SkColor> pixels;
+  for (int y = 0; y < kShadowHeight; ++y)
+    for (int x = kShadowAlone; x < kShadowWidth; ++x)
+      pixels.push_back(host.pixel(x, y));
+  return pixels;
+}
+
+std::vector<SkColor> shadowOf(Element page) {
+  Host host(kShadowWidth, kShadowHeight);
+  host.composer.render(std::move(page));
+  host.frame();
+  return shadowAlone(host);
+}
+
+/** The largest difference in any channel between two pictures. */
+int largestDifference(const std::vector<SkColor>& first,
+                      const std::vector<SkColor>& second) {
+  int largest = 0;
+  for (size_t i = 0; i < first.size() && i < second.size(); ++i)
+    largest = std::max(
+        {largest,
+         std::abs((int)SkColorGetR(first[i]) - (int)SkColorGetR(second[i])),
+         std::abs((int)SkColorGetG(first[i]) - (int)SkColorGetG(second[i])),
+         std::abs((int)SkColorGetB(first[i]) - (int)SkColorGetB(second[i]))});
+  return largest;
+}
+
+Element square() {
+  return box().absolute().left(30).top(50).width(90).height(90);
+}
+
+Element word() {
+  return text(u8"HI")
+      .font({.face = sigil::test::instrument::sans(), .size = 90})
+      .ink(material::Color{1, 1, 1, 1})
+      .absolute()
+      .left(30)
+      .top(40);
+}
+
+}  // namespace
+
+TEST(ComposeTextShadow, EveryShadowReadsItsBlurAsCssRadius) {
+  // One blur is one softness whichever shadow states it: a box shadow, a
+  // drop shadow over the layer, a material's coverage shadow and a text
+  // shadow, each CSS's blur radius, a Gaussian of half of it.
+  constexpr float kBlur = 16;
+  const material::Color white{1, 1, 1, 1};
+  const std::vector<SkColor> boxShadow = shadowOf(box().children(
+      {square().fill(Fill::color(white)).boxShadow(
+          {.offset = {kThrow, 0}, .blur = kBlur, .color = Fill::color(white)})}));
+  const std::vector<SkColor> dropShadow = shadowOf(box().children(
+      {square()
+           .fill(Fill::color(white))
+           .filter(material::Filter::dropShadow(
+               white, {.blur = kBlur, .offset = {kThrow, 0}}))}));
+  const std::vector<SkColor> coverageShadow = shadowOf(box().children(
+      {square().fill(material::from(white).effects(material::Filter::shadow(
+          white, {.blur = kBlur, .offset = {kThrow, 0}})))}));
+  // A mask blur and an image filter's blur approximate one Gaussian by
+  // different kernels, a few levels apart; a radius read as a standard
+  // deviation would be twice as soft, tens of levels apart.
+  EXPECT_LE(largestDifference(boxShadow, dropShadow), 10)
+      << "a box shadow and a drop shadow of one blur are two softnesses";
+  EXPECT_LE(largestDifference(boxShadow, coverageShadow), 10)
+      << "a box shadow and a material's coverage shadow of one blur are two "
+         "softnesses";
+  const std::vector<SkColor> textShadow = shadowOf(box().children(
+      {word().textShadow({.offset = {kThrow, 0}, .blur = kBlur})}));
+  const std::vector<SkColor> wordDropShadow = shadowOf(box().children(
+      {word().filter(material::Filter::dropShadow(
+          white, {.blur = kBlur, .offset = {kThrow, 0}}))}));
+  EXPECT_LE(largestDifference(textShadow, wordDropShadow), 10)
+      << "a text shadow and a drop shadow of one blur are two softnesses";
 }

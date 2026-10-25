@@ -9,11 +9,13 @@
  * loose images into a sheet.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/core/PixelSource.h>
 
 #include <boost/container/map.hpp>
 #include <glm/vec2.hpp>
+#include <expected>
 #include <initializer_list>
 #include <optional>
 #include <span>
@@ -52,14 +54,14 @@ class Atlas {
   static Atlas grid(Texture sheet, int cols, int rows);
   /** Regions from TexturePacker's JSON (hash or array form). A sequence
    *  is derived per name stem: `walk_01`, `walk_02` become "walk" in
-   *  numeric order. Nullopt when the text is not that JSON. */
-  static std::optional<Atlas> fromTexturePacker(Texture sheet,
-                                                std::string_view json);
+   *  numeric order. The error says why when the text is not that JSON. */
+  static std::expected<Atlas, core::Error> fromTexturePacker(
+      Texture sheet, std::string_view json);
   /** Regions from Aseprite's JSON export (hash or array form), with a
    *  sequence per frame tag and, when there are no tags, one sequence
-   *  "all". Nullopt when the text is not that JSON. */
-  static std::optional<Atlas> fromAseprite(Texture sheet,
-                                           std::string_view json);
+   *  "all". The error says why when the text is not that JSON. */
+  static std::expected<Atlas, core::Error> fromAseprite(Texture sheet,
+                                                        std::string_view json);
   /** Packs @p images, each read once, into one sheet with @p padding
    *  pixels between them, the sheet a power of two no larger than
    *  @p maxSide on a side. An image that does not fit is left out of the

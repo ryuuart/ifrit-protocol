@@ -143,6 +143,20 @@ style so, with case and spaces aside, and None where none does. A name
 reaches faces a weight cannot: Avenir's Book and Roman are both an
 upright 400, and only their names tell them apart.
 
+A tree names the style the same way, beside the family, and the face is
+found when the cascade runs, through the session's font context, so a
+family the sketch's hub loaded answers by its own style names too:
+
+```pycon
+>>> from sigil import compose
+>>> title = compose.text("A card", size=30).fontFamily("Avenir", style="Heavy")
+```
+
+The named face keeps its own weight and style; a `fontWeight` or a
+`fontStyle` written after it, or below it in the tree, overrides that
+trait as CSS would, the other one standing, and the family is asked again
+at the weight or style written.
+
 ## Take a still
 
 ```pycon
@@ -207,8 +221,7 @@ a second layer, squash it, and let it meet the rings in a screen blend:
 
 ```pycon
 >>> field = stack.layer("field")
->>> avenir = weave.fonts.find("Avenir", "Heavy")
->>> words = compose.text("666 666 666", size=120, color="#7fd1c7").fontFamily(avenir)
+>>> words = compose.text("666 666 666", size=120, color="#7fd1c7").fontFamily("Avenir", style="Heavy")
 >>> field.bake(compose.box(words).alignItems("center").justifyContent("center"))
 >>> field.transform(scale=(0.85, 1.0), origin=(480, 320))
 >>> field.blend("screen"); field.opacity = 0.8

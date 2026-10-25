@@ -17,9 +17,12 @@
  *  knows nothing about what draws — no Skia, no Diligent, no Qt — which
  *  is what lets two drawing APIs stand on one device. */
 
+#include <sigilcore/report/Error.h>
+
 #include <sigilcore/hardware/Fence.h>
 #include <sigilcore/hardware/Handle.h>
 
+#include <expected>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -204,8 +207,8 @@ struct NativeFence {
 class GpuDevice {
  public:
   /** A device this library owns, on the platform's own API: the system
-   *  default Metal device and a fresh queue on it. Null off Apple, with
-   *  the reason in @p error when one is given.
+   *  default Metal device and a fresh queue on it; off Apple, or with no
+   *  Metal device, the error that says so.
    *
    *  THERE IS NO OWNED VULKAN DEVICE. Whoever owns the Vulkan API in a
    *  process creates it — a renderer that cannot attach to a device
@@ -213,16 +216,16 @@ class GpuDevice {
    *  it made. Two instances in one process would mean two loaders, two
    *  queues and a copy between them, which is what adopting exists to
    *  avoid. */
-  static std::unique_ptr<GpuDevice> createOwned(std::string* error = nullptr);
+  static std::expected<std::unique_ptr<GpuDevice>, Error> createOwned();
   /** A device over objects the host owns and keeps alive; the device
    *  never frees them. A Vulkan set needs instance, physical device,
    *  device and queue, a device created with timeline semaphores
    *  enabled, and the host's own `getInstanceProcAddr` — dispatching
    *  through a second copy of the same loader is what makes two APIs
-   *  stop being one device. Null when a required handle is missing, with
-   *  the reason in @p error when one is given. */
-  static std::unique_ptr<GpuDevice> adopt(const NativeDevice& native,
-                                          std::string* error = nullptr);
+   *  stop being one device. The error says which required handle is
+   *  missing. */
+  static std::expected<std::unique_ptr<GpuDevice>, Error> adopt(
+      const NativeDevice& native);
 
   /** Releases every texture and fence the device still names, once the
    *  queue has gone idle — the device going away is the last frame, and

@@ -67,7 +67,13 @@ that has something to say and no caller to say it to calls
 `sigil::core::report` with its own name and the message; the line is
 written once, as `[library] message`, to the standard error, unless a host
 has installed a `sigil::core::Reporter` with `sigil::core::installReporter`,
-which then hears every library's warnings in its place.
+which then hears every library's warnings in its place. Beside it stands
+the one error a door that can refuse answers: `sigil::core::Error`, a
+message written for a person, the line of a text it is about and a code
+the refusing library numbers its refusals by, each of the last two unset
+until stated. Every library's refusing door answers
+`std::expected<T, core::Error>`; a library whose own error carries more
+converts to this one.
 
 Namespace `sigil::core`, with `sigil::core::hardware` for the device
 catalog. One target per directory:
@@ -81,7 +87,7 @@ catalog. One target per directory:
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
 | `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
-| `SigilCoreReport` | `report/` | the reporting door: `report`, the installed `Reporter`, and the one line format |
+| `SigilCoreReport` | `report/` | the reporting door: `report`, the installed `Reporter`, and the one line format; the `Error` a refusing door answers |
 
 `SigilCoreComparable`, `SigilCoreCompute` and `SigilCoreCallable` are
 header-only, so they are INTERFACE targets and produce no archive;
@@ -100,8 +106,8 @@ spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,
 `<sigilcore/cache/X.h>`; `<sigilcore/cache/Cache.h>` includes its own
 directory's headers. The hardware feature's are
 `<sigilcore/hardware/GpuDevice.h>`, `<sigilcore/hardware/Handle.h>` and
-`<sigilcore/hardware/Fence.h>`, and the reporting door's is
-`<sigilcore/report/Report.h>`.
+`<sigilcore/hardware/Fence.h>`, and the reporting door's are
+`<sigilcore/report/Report.h>` and `<sigilcore/report/Error.h>`.
 
 ## The chapters
 
@@ -199,7 +205,7 @@ what a label promises. What is only true of SigilCore:
 | `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |
 | `reconcile/test/` | `Reconciler`, `Environment`, `Phases`, `Reads` | the reconciler over a fake host, the inherited-value channel and restored scope identities, the phase runner and the read ordering |
 | `cache/test/` | `CacheProof`, `Volatility`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |
-| `report/test/` | `CoreReport` | the one line format, the standard error when no reporter is installed, and an installed reporter hearing a warning in its place |
+| `report/test/` | `CoreReport`, `CoreError` | the one line format, the standard error when no reporter is installed, and an installed reporter hearing a warning in its place; the error's line and code unset until stated, compared as a value and carried as the refusing side of an expected answer |
 | `hardware/test/` | `HardwareHandle`, `MipChain` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows |
 | `hardware/test/DeviceTest.mm` | `HardwareDevice` (`gpu`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, an imported event waited on and left its maker's, and the levels a texture is built with |
 | `hardware/test/VulkanOverMetalTest.mm` | `HardwareVulkanOverMetal` (`gpu`) | a Vulkan device over Metal, brought up from the loader and adopted — the Metal device it names, a texture made here reached on Metal, a Metal texture named by an image over its own memory and refused in a format no texture here has, a Metal event holding the queue until Metal raises it, a fence made here holding a Metal queue, and the device going away only once a queued wait has run |

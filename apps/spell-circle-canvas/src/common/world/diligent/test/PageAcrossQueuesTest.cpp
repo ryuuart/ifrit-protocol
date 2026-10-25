@@ -60,6 +60,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <print>
 #include <string>
 #include <utility>
 
@@ -246,7 +247,11 @@ class PageAcrossQueues : public testing::Test {
     device = on.device->gpu();
     if (!device) GTEST_SKIP() << "the device was created but not adopted";
     std::string error;
-    metal = hardware::GpuDevice::createOwned(&error);
+    metal = [&error] {
+        auto made = hardware::GpuDevice::createOwned();
+        if (!made) error = made.error().message;
+        return std::move(made).value_or(nullptr);
+      }();
     if (!metal || metal->backend() != hardware::Backend::Metal)
       GTEST_SKIP() << "no Metal device: " << error;
     painter = skia::GraphiteContext::create(*metal);
@@ -326,9 +331,9 @@ void expectTheUploadedFrame(const Photographed& worn,
   const int worst = diligent::worstChannel(worn.pixels, reference.pixels);
   const int apart = diligent::pixelsApart(
       worn.pixels, reference.pixels, SkIRect::MakeWH(kExtent.x, kExtent.y), 2);
-  std::printf(
-      "[ page     ] worst channel %d, pixels more than two levels "
-      "apart %d of %d\n",
+  std::println(
+      "[ page     ] worst channel {}, pixels more than two levels "
+      "apart {} of {}",
       worst, apart, kExtent.x * kExtent.y);
   EXPECT_LE(worst, kEdgeLevels);
   EXPECT_LE(apart, kPixelsPastTwoLevels);
@@ -471,9 +476,9 @@ TEST_F(PageAcrossQueues, APageWornSmallerThanItIsReadsTheChainFilledFromIt) {
   const int worst = diligent::worstChannel(worn.pixels, reference.pixels);
   const int unfiltered =
       diligent::worstChannel(aliased.pixels, reference.pixels);
-  std::printf(
+  std::println(
       "[ chain    ] worst channel against the uploaded page: filled chain "
-      "%d, painted level alone %d\n",
+      "{}, painted level alone {}",
       worst, unfiltered);
   EXPECT_LE(worst, 4);
   EXPECT_GT(unfiltered, 24);
@@ -500,9 +505,9 @@ TEST_F(PageAcrossQueues, AMetalTextureImportedIntoTheDeviceIsWornAsItStands) {
     metal->destroy(made);
     GTEST_SKIP() << "this driver does not import a Metal texture";
   }
-  std::printf(
-      "[ probe    ] Metal-made texture hazard tracking %lu "
-      "(1 untracked, 2 tracked)\n",
+  std::println(
+      "[ probe    ] Metal-made texture hazard tracking {} "
+      "(1 untracked, 2 tracked)",
       hazardTrackingOf(texture));
 
   // THE CHAIN IS PRESENT ON BOTH SIDES, level for level. Graphite paints
@@ -542,11 +547,11 @@ TEST_F(PageAcrossQueues, AMetalTextureImportedIntoTheDeviceIsWornAsItStands) {
 // draw keeps what the pass before it drew. The scenes are the device
 // test's own; here they are drawn through the surface's plain canvas.
 TEST_F(PageAcrossQueues, PaintingOrderHoldsOnMetalWithNoFence) {
-  std::printf("[ probe    ] destination reads: Metal %s",
-              destinationReadOf(*painter));
+  std::print("[ probe    ] destination reads: Metal {}",
+             destinationReadOf(*painter));
   if (skia::GraphiteContext* own = diligent::vulkanGraphite(*on.device))
-    std::printf(", the device's Vulkan %s", destinationReadOf(*own));
-  std::printf("\n");
+    std::print(", the device's Vulkan {}", destinationReadOf(*own));
+  std::println("");
 
   const auto onBoth = [&](const SkImageInfo& info, const auto& describe,
                           SkBitmap* cpu, SkBitmap* device) {
@@ -596,9 +601,9 @@ TEST_F(PageAcrossQueues, PaintingOrderHoldsOnMetalWithNoFence) {
   for (int y = 0; y < 100; ++y)
     for (int x = 0; x < 100; ++x)
       if (cpu.getColor(x, y) != gpu.getColor(x, y)) ++differing;
-  std::printf(
-      "[ probe    ] painting order: %d of 10000 pixels differ from "
-      "the CPU's\n",
+  std::println(
+      "[ probe    ] painting order: {} of 10000 pixels differ from "
+      "the CPU's",
       differing);
   EXPECT_EQ(differing, 0);
 
@@ -658,8 +663,8 @@ TEST_F(PageAcrossQueues, PaintingOrderHoldsOnMetalWithNoFence) {
       worst = std::max(worst, gap(want, gpu.getColor(x, y)));
     }
   }
-  std::printf("[ probe    ] resumed pass: %d flat pixels judged, worst %d\n",
-              judged, worst);
+  std::println("[ probe    ] resumed pass: {} flat pixels judged, worst {}",
+               judged, worst);
   EXPECT_GT(judged, 300000);
   EXPECT_LE(worst, 4);
 }

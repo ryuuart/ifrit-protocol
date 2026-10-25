@@ -11,7 +11,9 @@
 
 #include <sigilcore/compute/Curve.h>
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string_view>
@@ -270,22 +272,47 @@ using core::curve::outBounce;
           {power}};
 }
 
-/** A STAIRCASE of @p count equal jumps. The first jump lands at the end
- *  of the first step, so the curve holds 0 until then; with
- *  @p jumpAtStart it lands at the start instead and the curve reaches 1
- *  one step early. The position is held inside [0, 1] first, so the
- *  curve never steps past either end. A count under one is one step. */
-[[nodiscard]] inline Curve steps(int count, bool jumpAtStart = false) {
+/** WHERE A STAIRCASE'S JUMPS FALL, as CSS's `<step-position>` names them:
+ *  at the end of each step, at its start, at neither end of the run, or at
+ *  both. */
+enum class StepPosition : uint8_t {
+  JumpEnd,    ///< the first jump at the end of the first step; holds 0 first
+  JumpStart,  ///< the first jump at the start; reaches 1 one step early
+  JumpNone,   ///< holds 0 over the first step and 1 over the last
+  JumpBoth,   ///< a jump at each end, so the run has one level more
+};
+
+/** A STAIRCASE of @p count equal steps. Under `JumpEnd` the first jump
+ *  lands at the end of the first step, so the curve holds 0 until then;
+ *  under `JumpStart` it lands at the start and the curve reaches 1 one
+ *  step early; under `JumpNone` the run holds 0 over its first step and 1
+ *  over its last, @p count levels in all; under `JumpBoth` it jumps at
+ *  both ends, @p count + 1 levels from one above 0 to 1. The position is
+ *  held inside [0, 1] first, so the curve never steps past either end. A
+ *  count under one is one step, and `JumpNone` takes at least two. */
+[[nodiscard]] inline Curve steps(int count,
+                                 StepPosition position = StepPosition::JumpEnd) {
+  const int least = position == StepPosition::JumpNone ? 2 : 1;
   return {[](float progress, const float* parameters) {
             const float stepCount = parameters[0];
             const float held =
                 progress < 0.0f ? 0.0f : (progress > 1.0f ? 1.0f : progress);
-            const float step = parameters[1] != 0.0f
-                                   ? std::ceil(held * stepCount)
-                                   : std::floor(held * stepCount);
-            return step / stepCount;
+            const int jumps = (int)parameters[1];
+            float step = std::floor(held * stepCount);
+            // CSS's step function: the jump at the start lifts every level
+            // by one, and the level at the very end is the last step's.
+            if (jumps == (int)StepPosition::JumpStart ||
+                jumps == (int)StepPosition::JumpBoth)
+              step += 1.0f;
+            if (held >= 1.0f && jumps != (int)StepPosition::JumpBoth &&
+                jumps != (int)StepPosition::JumpStart)
+              step = stepCount;
+            float levels = stepCount;
+            if (jumps == (int)StepPosition::JumpNone) levels = stepCount - 1.0f;
+            if (jumps == (int)StepPosition::JumpBoth) levels = stepCount + 1.0f;
+            return std::min(step, levels) / levels;
           },
-          {count < 1 ? 1.0f : (float)count, jumpAtStart ? 1.0f : 0.0f}};
+          {(float)std::max(count, least), (float)(int)position}};
 }
 
 /** THE CSS CURVE, spelled as it was written: the cubic Bézier through
@@ -304,11 +331,11 @@ namespace sigil::motion {
 /** A CSS TIMING FUNCTION READ FROM ITS TEXT, onto the curves above: the
  *  keywords `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`,
  *  `step-start` and `step-end`, `cubic-bezier(x1, y1, x2, y2)` and
- *  `steps(count)` with an optional `jump-start`, `jump-end`, `start` or
- *  `end`. Keywords are read in any letter case, as CSS reads them. Empty
- *  for text it does not read — among it `steps()` with `jump-none` or
- *  `jump-both`, which `ease::steps` does not draw, and CSS's `linear()`
- *  stop list. */
+ *  `steps(count)` with an optional `jump-start`, `jump-end`, `jump-none`,
+ *  `jump-both`, `start` or `end`. Keywords are read in any letter case, as
+ *  CSS reads them. Empty for text it does not read — among it a
+ *  `jump-none` staircase of fewer than two steps, which CSS refuses, and
+ *  CSS's `linear()` stop list. */
 [[nodiscard]] std::optional<Easing> readEasing(std::string_view text);
 
 }  // namespace sigil::motion

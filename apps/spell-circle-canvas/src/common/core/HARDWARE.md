@@ -29,10 +29,13 @@ than holding the API's objects:
 #include <sigilcore/hardware/GpuDevice.h>
 using namespace sigil::core::hardware;
 
-// The platform's own device and a fresh queue — or adopt a host's:
-std::unique_ptr<GpuDevice> device = GpuDevice::createOwned();
+// The platform's own device and a fresh queue — or adopt a host's. Both
+// answer the device or the sigil::core::Error that says why there is none:
+std::expected<std::unique_ptr<GpuDevice>, sigil::core::Error> made =
+    GpuDevice::createOwned();
 // NativeDevice native{Backend::Metal, mtlDevice, mtlCommandQueue};
-// device = GpuDevice::adopt(native);      // never frees them
+// made = GpuDevice::adopt(native);        // never frees them
+std::unique_ptr<GpuDevice> device = std::move(made).value_or(nullptr);
 
 TextureDescription desc;
 desc.width = 1920;

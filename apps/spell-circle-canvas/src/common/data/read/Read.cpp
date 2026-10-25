@@ -37,11 +37,30 @@ std::shared_ptr<const io::Bytes> bytesAt(io::Hub& hub, std::string_view uri,
 std::optional<Database> storeAt(io::Hub& hub, std::string_view uri,
                                 std::string* why) {
   const std::filesystem::path path = io::resolve(hub, uri);
-  if (!path.empty() && std::filesystem::exists(path))
-    return Database::open(path, Access::ReadOnly, why);
-  const std::shared_ptr<const io::Bytes> bytes = bytesAt(hub, uri, why);
-  if (!bytes) return std::nullopt;
-  return Database::fromBytes(*bytes, uri, why);
+  std::expected<Database, core::Error> store = [&]()
+      -> std::expected<Database, core::Error> {
+    if (!path.empty() && std::filesystem::exists(path))
+      return Database::open(path, Access::ReadOnly);
+    const std::shared_ptr<const io::Bytes> bytes = hub.read(uri);
+    if (!bytes)
+      return std::unexpected(
+          core::Error{"nothing could be read at " + std::string(uri)});
+    return Database::fromBytes(*bytes, uri);
+  }();
+  if (!store) {
+    say(why, std::move(store.error().message));
+    return std::nullopt;
+  }
+  return std::move(*store);
+}
+
+/** The rows @p answer holds, or none with its error said into @p why. */
+Table rowsOf(std::expected<Table, core::Error> answer, std::string* why) {
+  if (!answer) {
+    say(why, std::move(answer.error().message));
+    return {};
+  }
+  return std::move(*answer);
 }
 
 }  // namespace
@@ -49,9 +68,10 @@ std::optional<Database> storeAt(io::Hub& hub, std::string_view uri,
 Json json(io::Hub& hub, std::string_view uri, const ReadOptions& options) {
   const std::shared_ptr<const io::Bytes> bytes = bytesAt(hub, uri, options.why);
   if (!bytes) return {};
-  std::optional<Json> document = JsonDecoder{}.decode(*bytes, uri);
+  std::expected<Json, core::Error> document = JsonDecoder{}.decode(*bytes, uri);
   if (!document) {
-    say(options.why, std::string(uri) + " holds no JSON document");
+    say(options.why, std::string(uri) + " holds no JSON document: " +
+                         document.error().message);
     return {};
   }
   return std::move(*document);
@@ -60,9 +80,10 @@ Json json(io::Hub& hub, std::string_view uri, const ReadOptions& options) {
 Table csv(io::Hub& hub, std::string_view uri, const ReadOptions& options) {
   const std::shared_ptr<const io::Bytes> bytes = bytesAt(hub, uri, options.why);
   if (!bytes) return {};
-  std::optional<Table> sheet = TableDecoder{}.decode(*bytes, uri);
+  std::expected<Table, core::Error> sheet = TableDecoder{}.decode(*bytes, uri);
   if (!sheet) {
-    say(options.why, std::string(uri) + " holds no table");
+    say(options.why,
+        std::string(uri) + " holds no table: " + sheet.error().message);
     return {};
   }
   return std::move(*sheet);
@@ -76,17 +97,22 @@ Table table(io::Hub& hub, std::string_view uri, const TableOptions& options) {
     }
     const std::optional<Database> store = storeAt(hub, uri, options.why);
     if (!store) return {};
-    std::optional<Table> answer = store->query(options.query, options.why);
-    return answer ? std::move(*answer) : Table{};
+    return rowsOf(store->query(options.query), options.why);
   }
   Table rows = csv(hub, uri, {.why = options.why});
   if (options.query.empty() || rows.columns().empty()) return rows;
   // A query over rows already read runs where SQL over a file of rows
   // runs best: a DuckDB store in memory, the rows written in as `source`.
-  std::optional<Database> scratch = Database::memory(Engine::Duck, options.why);
-  if (!scratch || !scratch->insert("source", rows, options.why)) return {};
-  std::optional<Table> answer = scratch->query(options.query, options.why);
-  return answer ? std::move(*answer) : Table{};
+  std::expected<Database, core::Error> scratch = Database::memory(Engine::Duck);
+  if (!scratch) {
+    say(options.why, std::move(scratch.error().message));
+    return {};
+  }
+  if (auto written = scratch->insert("source", rows); !written) {
+    say(options.why, std::move(written.error().message));
+    return {};
+  }
+  return rowsOf(scratch->query(options.query), options.why);
 }
 
 void registerDecoders(io::Hub& hub) {

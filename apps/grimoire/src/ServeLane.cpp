@@ -17,6 +17,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdio>
+#include <print>
 #include <thread>
 
 #include "Arguments.h"
@@ -45,9 +46,9 @@ int runServe(const Arguments& args, const std::filesystem::path& flagsFile,
   finishMaterialWarmup(materialWarmup);
   const std::filesystem::path stateRoot = inspectionStateRoot();
   if (stateRoot.empty()) {
-    std::fprintf(stderr,
+    std::println(stderr,
                  "--inspect: no state root to write the address under; "
-                 "name one with --state\n");
+                 "name one with --state");
     return 1;
   }
   SharedWebEngineScope sharedWebEngine;
@@ -72,15 +73,15 @@ int runServe(const Arguments& args, const std::filesystem::path& flagsFile,
     policy.port = args.inspectPort.value_or(0);
     protocol::Endpoint endpoint(hub, dispatcher, policy);
     if (!endpoint.listening()) {
-      std::fprintf(stderr, "[grimoire] %s\n", endpoint.error().c_str());
+      std::println(stderr, "[grimoire] {}", endpoint.error());
       result = 1;
     } else {
-      std::printf("protocol at %s\n", endpoint.address().c_str());
+      std::println("protocol at {}", endpoint.address());
       if (args.repl)
-        std::fprintf(stderr,
+        std::println(stderr,
                      "[grimoire] --repl: session.evaluate runs any code a "
                      "client on this machine sends inside the running "
-                     "sketch\n");
+                     "sketch");
       std::fflush(stdout);
       std::signal(SIGINT, endServing);
       std::signal(SIGTERM, endServing);

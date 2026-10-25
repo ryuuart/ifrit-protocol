@@ -21,7 +21,7 @@ sigil_library(SigilIOHub
           ../advanced/Time.h
           ../advanced/Transport.h
           ../testing/Testing.h
-  PUBLIC SigilIOSource SigilCoreCallable
+  PUBLIC SigilIOSource SigilCoreCallable SigilCoreReport
   PRIVATE SigilCoreSchedule CURL::libcurl Boost::container)
 
 # The test builds its own PNG fixtures through the image encoder,

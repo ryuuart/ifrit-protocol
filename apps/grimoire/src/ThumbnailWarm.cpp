@@ -15,6 +15,7 @@
 #include <QtCore/QStandardPaths>
 #include <QtCore/QString>
 #include <cstdio>
+#include <print>
 #include <vector>
 
 #include "SketchCatalog.h"
@@ -47,7 +48,7 @@ int runThumbnails(int only, const std::string& kind,
     const sketch::Entry& entry = entries[index];
     std::string why;
     if (!entry.available(&why)) {
-      std::printf("thumbnail %-24s [skipped: %s]\n", entry.name, why.c_str());
+      std::println("thumbnail {:<24} [skipped: {}]", entry.name, why);
       ++skipped;
       continue;
     }
@@ -69,42 +70,41 @@ int runThumbnails(int only, const std::string& kind,
     sketch::noteSketch(entry.name);
     switch (sketch::renderThumbnail(entry, fonts, store, run)) {
       case sketch::ThumbnailOutcome::Wrote:
-        std::printf("thumbnail %-24s wrote %s\n", entry.name,
-                    run.outputPath.string().c_str());
+        std::println("thumbnail {:<24} wrote {}", entry.name,
+                     run.outputPath.string());
         ++rendered;
         break;
       case sketch::ThumbnailOutcome::Heavy:
         sketch::noteThumbnail(directory, entry.name, key, "declared a plate");
-        std::printf("thumbnail %-24s [noted: declared a plate]\n", entry.name);
+        std::println("thumbnail {:<24} [noted: declared a plate]", entry.name);
         ++noted;
         break;
       case sketch::ThumbnailOutcome::Unavailable: {
         std::string reason;
         (void)sketch::thumbnailAvailable(entry, &reason);
         sketch::noteThumbnail(directory, entry.name, key, reason);
-        std::printf("thumbnail %-24s [noted: %s]\n", entry.name,
-                    reason.c_str());
+        std::println("thumbnail {:<24} [noted: {}]", entry.name, reason);
         ++noted;
         break;
       }
       case sketch::ThumbnailOutcome::OverBudget:
         sketch::noteThumbnail(directory, entry.name, key,
                               "still ran past its budget");
-        std::printf("thumbnail %-24s [noted: ran past its budget]\n",
-                    entry.name);
+        std::println("thumbnail {:<24} [noted: ran past its budget]",
+                     entry.name);
         ++noted;
         break;
       case sketch::ThumbnailOutcome::Stopped:
       case sketch::ThumbnailOutcome::Failed:
-        std::fprintf(stderr, "thumbnail %-24s FAILED to render\n", entry.name);
+        std::println(stderr, "thumbnail {:<24} FAILED to render", entry.name);
         failed.push_back(entry.name);
         break;
     }
   }
-  std::printf("thumbnails: %d rendered, %zu noted, %zu skipped, %zu failed\n",
-              rendered, noted, skipped, failed.size());
+  std::println("thumbnails: {} rendered, {} noted, {} skipped, {} failed",
+               rendered, noted, skipped, failed.size());
   for (const std::string& name : failed)
-    std::fprintf(stderr, "  failed: %s\n", name.c_str());
+    std::println(stderr, "  failed: {}", name);
   std::fflush(stdout);
   return failed.empty() ? 0 : 1;
 }

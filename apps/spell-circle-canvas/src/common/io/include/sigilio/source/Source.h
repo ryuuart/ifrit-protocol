@@ -13,8 +13,11 @@
  * Standard library only, header only.
  */
 
+#include <sigilcore/report/Error.h>
+
 #include <concepts>
 #include <cstddef>
+#include <expected>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -114,18 +117,29 @@ concept ResolvingByteSource =
       { resolve(source, uri) } -> std::convertible_to<std::filesystem::path>;
     };
 
-/** Turns bytes into a T, or nothing when the bytes are not one. `hint`
- *  is the resource's name, a path or a URI, and is OFFERED rather than
- *  demanded: a decoder that reads the bytes alone spells
+namespace detail {
+/** What a decoder of T answers: the T or the error that says why not,
+ *  or the T or nothing. */
+template <typename Answer, typename T>
+concept DecoderAnswer =
+    std::same_as<std::remove_cvref_t<Answer>, std::expected<T, core::Error>> ||
+    std::same_as<std::remove_cvref_t<Answer>, std::optional<T>>;
+}  // namespace detail
+
+/** Turns bytes into a T, or the error that says why the bytes are not
+ *  one: `decode` answers `std::expected<T, core::Error>`, or
+ *  `std::optional<T>` for a decoder that refuses without saying why.
+ *  `hint` is the resource's name, a path or a URI, and is OFFERED rather
+ *  than demanded: a decoder that reads the bytes alone spells
  *  `decode(bytes)` and is as good a decoder as one taking both.
  *  @trap A decoder must never REQUIRE the hint — bytes arriving from
  *  memory carry no name. */
 template <typename D, typename T>
 concept Decoder =
     requires(const D& decoder, const Bytes& bytes, std::string_view hint) {
-      { decoder.decode(bytes, hint) } -> std::same_as<std::optional<T>>;
+      { decoder.decode(bytes, hint) } -> detail::DecoderAnswer<T>;
     } || requires(const D& decoder, const Bytes& bytes) {
-      { decoder.decode(bytes) } -> std::same_as<std::optional<T>>;
+      { decoder.decode(bytes) } -> detail::DecoderAnswer<T>;
     };
 
 /** WHAT A KIND OF MEANING IS PROBED WITH: a free function found by

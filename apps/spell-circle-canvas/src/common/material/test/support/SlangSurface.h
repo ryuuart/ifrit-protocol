@@ -39,8 +39,14 @@ float4 fsSurface(VSOut input) : SV_Target {
   return surface(input.uv);
 }
 )SLANG";
-  return slang::compileModule(source, "vsSurface", "fsSurface",
-                              /*lit=*/false, built, error);
+  auto compiled =
+      slang::compileModule(source, "vsSurface", "fsSurface", /*lit=*/false);
+  if (!compiled) {
+    if (error) *error = std::move(compiled.error().message);
+    return false;
+  }
+  *built = std::move(*compiled);
+  return true;
 }
 
 }  // namespace sigil::material::test

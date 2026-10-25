@@ -68,31 +68,34 @@ void report(std::string* error, const char* message) {
 
 }  // namespace
 
-std::unique_ptr<GpuDevice> GpuDevice::createOwned(std::string* error) {
+std::expected<std::unique_ptr<GpuDevice>, Error> GpuDevice::createOwned() {
+  std::string error;
   std::unique_ptr<DeviceBackend> impl;
 #ifdef __APPLE__
   NativeDevice native;
   native.backend = Backend::Metal;
   impl = createMetalBackend(native, /*owned=*/true);
-  if (!impl) report(error, "no Metal device");
+  if (!impl) report(&error, "no Metal device");
 #else
-  report(error,
+  report(&error,
          "this platform has no device of its own to make; adopt the one the "
          "renderer created");
 #endif
-  if (!impl) return nullptr;
+  if (!impl) return std::unexpected(Error{std::move(error)});
   return std::unique_ptr<GpuDevice>(new GpuDevice(std::move(impl)));
 }
 
-std::unique_ptr<GpuDevice> GpuDevice::adopt(const NativeDevice& native,
-                                            std::string* error) {
+std::expected<std::unique_ptr<GpuDevice>, Error> GpuDevice::adopt(
+    const NativeDevice& native) {
+  std::string reason;
+  std::string* error = &reason;
   std::unique_ptr<DeviceBackend> impl;
   switch (native.backend) {
     case Backend::Metal: {
 #ifdef __APPLE__
       if (!native.mtlDevice || !native.mtlCommandQueue) {
         report(error, "a Metal device and command queue are both required");
-        return nullptr;
+        return std::unexpected(Error{std::move(reason)});
       }
       impl = createMetalBackend(native, /*owned=*/false);
       if (!impl) report(error, "no Metal device");
@@ -105,7 +108,7 @@ std::unique_ptr<GpuDevice> GpuDevice::adopt(const NativeDevice& native,
       impl = createVulkanBackend(native, error);
       break;
   }
-  if (!impl) return nullptr;
+  if (!impl) return std::unexpected(Error{std::move(reason)});
   return std::unique_ptr<GpuDevice>(new GpuDevice(std::move(impl)));
 }
 

@@ -49,9 +49,12 @@ struct LocalGroupBake {
 };
 
 std::optional<LocalGroupBake> localGroupBakePlan(PaintPass& pass) {
-  const SkRect bounds = pass.localBounds();
   const PaintPass::BakeRung rung = pass.localBakeRung(pass.totalM);
   const float scale = std::max(0.1f, rung.scale * pass.node.bakeScale);
+  // On the texel grid from the node's own origin, so the texels stand
+  // where every other bake of the content puts them, however far its
+  // bounds reach.
+  const SkRect bounds = onTexelGrid(pass.localBounds(), scale);
   const SkISize dimensions = PaintPass::localBakeSize(bounds, scale);
   if (dimensions.isEmpty()) return std::nullopt;
   const SkImageInfo info = pass.impl.bakeInfo(dimensions);

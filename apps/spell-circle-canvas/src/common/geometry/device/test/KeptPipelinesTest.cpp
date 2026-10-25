@@ -108,10 +108,10 @@ TEST(Device, ADeviceOverATornPipelineSetComesUpOnAnEmptyCache) {
   geometry::device::DeviceConfig config;
   config.pipelineStore = store.path;
   {
-    std::string error;
-    const auto device = geometry::device::Device::create(config, &error);
-    if (!device) GTEST_SKIP() << "no device of its own here: " << error;
-    EXPECT_NE(device->pipelineStateCache(), nullptr);
+    const auto device = geometry::device::Device::create(config);
+    if (!device)
+      GTEST_SKIP() << "no device of its own here: " << device.error().message;
+    EXPECT_NE((*device)->pipelineStateCache(), nullptr);
   }
   EXPECT_FALSE(geometry::device::readKeptPipelines(file).empty())
       << "the device kept no framed set when it went";

@@ -4,7 +4,13 @@
 
 #include <sigilmaterial/color/Color.h>
 
-#include <cctype>
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <flat_map>
+#include <ranges>
+#include <string_view>
+#include <vector>
 
 namespace sigil::material {
 
@@ -170,19 +176,43 @@ constexpr NamedColor kNamedColors[] = {
 static_assert(std::size(kNamedColors) == 148,
               "CSS names 148 colours; the table holds every one of them.");
 
-bool sameWord(std::string_view text, std::string_view word) {
-  if (text.size() != word.size()) return false;
-  for (size_t index = 0; index < text.size(); ++index)
-    if (std::tolower((unsigned char)text[index]) != word[index]) return false;
-  return true;
+static_assert(std::ranges::is_sorted(kNamedColors, {}, &NamedColor::name),
+              "The table is in byte order, which its map is built on.");
+
+/** The longest name in the table: a longer word names no colour. */
+constexpr size_t kLongestName = std::ranges::max(
+    kNamedColors |
+    std::views::transform([](const auto& named) { return named.name.size(); }));
+
+/** The table as a map from name to colour, built once: every colour
+ *  written by name is a lookup, and there are far more of those than
+ *  builds. */
+const std::flat_map<std::string_view, uint32_t>& namedColorMap() {
+  static const std::flat_map<std::string_view, uint32_t> map(
+      std::sorted_unique,
+      kNamedColors | std::views::transform(&NamedColor::name) |
+          std::ranges::to<std::vector<std::string_view>>(),
+      kNamedColors | std::views::transform(&NamedColor::rrggbb) |
+          std::ranges::to<std::vector<uint32_t>>());
+  return map;
 }
 
 }  // namespace
 
 std::optional<Color> namedColor(std::string_view name) {
-  for (const NamedColor& named : kNamedColors)
-    if (sameWord(name, named.name)) return hexColor(named.rrggbb);
-  return std::nullopt;
+  if (name.size() > kLongestName) return std::nullopt;
+  std::array<char, kLongestName> lowered;
+  // Every name is ASCII, so only ASCII capitals are lowered: a byte past
+  // ASCII names no colour in any case.
+  std::ranges::transform(name, lowered.begin(), [](char character) {
+    return character >= 'A' && character <= 'Z'
+               ? (char)(character - 'A' + 'a')
+               : character;
+  });
+  const auto& map = namedColorMap();
+  const auto found = map.find(std::string_view(lowered.data(), name.size()));
+  if (found == map.end()) return std::nullopt;
+  return hexColor(found->second);
 }
 
 }  // namespace sigil::material

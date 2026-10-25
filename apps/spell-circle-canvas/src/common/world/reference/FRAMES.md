@@ -120,6 +120,12 @@ The rules, in full:
   machine;
 - a cycle is an error naming the passes on it, and no plan is produced.
 
+`graph::build(frame)` answers `std::expected<graph::Plan, core::Error>`:
+the plan, or the error naming the passes that stopped it.
+`Scene::render(frame)` answers the same way — nothing, or the error that
+stopped the frame's passes from running — and `Scene::error()` keeps
+that error for a reader that asks after the frame.
+
 ## View: what one frame extracted
 
 `View` is handed to every pass that runs over a frame. The bodies arrive

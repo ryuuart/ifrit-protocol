@@ -15,6 +15,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
+#include <sigilpython/material/Convert.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
 
@@ -146,6 +147,11 @@ compose::Fill fill(py::handle value) {
     return compose::Fill(material::skia::base(value.cast<material::Paint>()));
   if (py::isinstance<material::Material>(value))
     return value.cast<material::Material>();
+  // CSS's gradient functions, written as text, are a gradient fill.
+  if (py::isinstance<py::str>(value)) {
+    const auto text = value.cast<std::string>();
+    if (isGradientText(text)) return compose::Fill(gradientFromText(text));
+  }
   return compose::Fill::color(color(value));
 }
 

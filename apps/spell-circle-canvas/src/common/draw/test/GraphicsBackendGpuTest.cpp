@@ -91,7 +91,7 @@ SkColor at(const std::vector<uint32_t>& pixels, int x, int y) {
 }  // namespace
 
 TEST(GraphicsBackendGpu, ABufferFormsOnTheDeviceOfTheHostThatFirstBeginsIt) {
-  auto device = sigil::core::hardware::GpuDevice::createOwned();
+  auto device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context";
@@ -149,7 +149,7 @@ TEST(GraphicsBackendGpu, ABufferFormsOnTheDeviceOfTheHostThatFirstBeginsIt) {
 }
 
 TEST(GraphicsBackendGpu, ABufferFirstBegunWithoutASurfaceFollowsTheDeviceNext) {
-  auto device = sigil::core::hardware::GpuDevice::createOwned();
+  auto device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context";
@@ -181,7 +181,7 @@ TEST(GraphicsBackendGpu, ABufferDrawnOnAnotherThreadFollowsTheThreadDrawingItNex
   // A device's recorder belongs to the thread that made it. A buffer drawn
   // through one thread's recorder and begun next on another's is formed
   // again through the second, on the same device, with its marks kept.
-  auto device = sigil::core::hardware::GpuDevice::createOwned();
+  auto device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context";
@@ -218,7 +218,7 @@ TEST(GraphicsBackendGpu, ABufferDrawnOnAnotherThreadFollowsTheThreadDrawingItNex
 }
 
 TEST(GraphicsBackendGpu, ADeviceThatCannotFormTheBufferLeavesItOnRaster) {
-  auto device = sigil::core::hardware::GpuDevice::createOwned();
+  auto device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context";
@@ -247,7 +247,7 @@ TEST(GraphicsBackendGpu, ATranslucentGroundFadesATrailToTheGroundOnTheDevice) {
   // A device blends in eight bits and rounds, so a plain fade stops a few
   // steps short of the ground; the pen's fade moves at least a step a
   // frame there as on raster.
-  auto device = sigil::core::hardware::GpuDevice::createOwned();
+  auto device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context";

@@ -9,6 +9,7 @@
 #include <flatbuffers/reflection.h>
 #include <flatbuffers/util.h>
 #include <gtest/gtest.h>
+#include <sigilprotocol/definition/Answer.h>
 #include <sigilprotocol/definition/Definition.h>
 
 #include <cctype>
@@ -18,6 +19,7 @@
 #include <optional>
 #include <set>
 #include <span>
+#include <type_traits>
 #include <string>
 
 namespace {
@@ -133,3 +135,22 @@ TEST(ProtocolDefinition, TheMarksTheParserCannotKnowSurvive) {
 }
 
 }  // namespace
+
+TEST(ProtocolAnswer, IsTheStandardExpectedAnswerOverTheProtocolError) {
+  using sigil::protocol::Answer;
+  static_assert(std::is_base_of_v<std::expected<int, sigil::protocol::values::Error>,
+                                  Answer<int>>);
+  const Answer<int> held = 4;
+  ASSERT_TRUE(held);
+  EXPECT_EQ(held.result(), 4);
+  EXPECT_EQ(held.value_or(0), 4);
+
+  const Answer<int> refused =
+      sigil::protocol::refusal(sigil::protocol::ErrorCode_failed,
+                               sigil::core::Error{"no such sketch", 3, {}});
+  ASSERT_FALSE(refused);
+  EXPECT_EQ(refused.error().message, "line 3: no such sketch");
+  const sigil::core::Error error = sigil::protocol::coreError(refused.error());
+  EXPECT_EQ(error.message, "line 3: no such sketch");
+  EXPECT_EQ(error.code, static_cast<int>(sigil::protocol::ErrorCode_failed));
+}

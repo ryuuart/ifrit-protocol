@@ -147,8 +147,11 @@ Encoding encodingOf(const air::OutputDesc& output) {
   }
 }
 
-std::optional<Archive> Archive::decode(std::span<const std::byte> bytes) {
-  if (bytes.empty()) return std::nullopt;
+std::expected<Archive, core::Error> Archive::decode(
+    std::span<const std::byte> bytes) {
+  if (bytes.empty())
+    return std::unexpected(
+        core::Error{"a Substance archive needs bytes and has none"});
   auto decoded = std::make_shared<Decoded>();
   // Every uncompressed format, so a cook can ask for 16 bits or floats
   // per output; no pyramids, because a texture samples its own.
@@ -157,7 +160,9 @@ std::optional<Archive> Archive::decode(std::span<const std::byte> bytes) {
   options.mMipmap = air::Mipmap_ForceNone;
   decoded->package = std::make_unique<air::PackageDesc>(
       bytes.data(), bytes.size(), options);
-  if (!decoded->package->isValid()) return std::nullopt;
+  if (!decoded->package->isValid())
+    return std::unexpected(
+        core::Error{"the bytes are no Substance archive the engine reads"});
   for (const air::GraphDesc& graph : decoded->package->getGraphs()) {
     // AN INSTANCE IS WHERE THE TYPED INPUT DESCRIPTIONS ARE REACHED, so
     // one is made here, read, and let go: the description is built once

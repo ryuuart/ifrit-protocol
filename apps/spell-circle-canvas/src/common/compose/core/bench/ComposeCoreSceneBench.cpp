@@ -16,6 +16,7 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -326,6 +327,72 @@ BENCHMARK(BM_Draw_LetteredRing_Turning)
     ->Arg(1)
     ->Unit(benchmark::kMillisecond);
 
+// ---- A lettered panel fading, painted live and held while it fades --------
+//
+// The ring standing still while its opacity moves a little every draw.
+// Painted live, a fade opens a layer over the panel and paints every glyph
+// into it each draw; under a live composer the panel is painted once in
+// place and composited at each new opacity. Arg 0 paints live, Arg 1 is
+// the live composer.
+
+namespace {
+
+Element fadingRing(const sigil::motion::Animatable<float>& fade) {
+  constexpr float kSide = 600;
+  Element ring = box()
+                     .absolute()
+                     .left(100)
+                     .top(100)
+                     .width(kSide)
+                     .height(kSide)
+                     .opacity(fade)
+                     .fill(Fill::color({0.55f, 0.45f, 0.25f, 1}))
+                     .borderRadius({kSide / 2});
+  std::vector<Element> words;
+  for (int index = 0; index < 24; ++index)
+    words.push_back(text("ALDEBARAN")
+                        .absolute()
+                        .left(kSide / 2 - 40)
+                        .top(10)
+                        .width(80)
+                        .transformOrigin(percent(50), Dimension(kSide / 2 - 10))
+                        .rotate((float)index * 15.0f));
+  ring.children(std::move(words));
+  return ring;
+}
+
+template <typename Draw>
+void fadingRingArm(benchmark::State& state, Host& host, Draw&& draw) {
+  const bool live = state.range(0) == 1;
+  sigil::motion::Animatable<float> fade = sigil::motion::animatable(0.5f);
+  host.composer.setLive(live);
+  host.composer.render(box().width(800).height(800).children(
+      {fadingRing(fade)}));
+  draw();
+  float at = 0;
+  size_t held = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    at += 0.0005f;
+    fade = 0.25f + 0.5f * std::fmod(at, 1.0f);
+    draw();
+    held += host.composer.stats().nodesHeldWhileMoving;
+  }
+  state.counters["live"] = live ? 1 : 0;
+  state.counters["held_per_draw"] =
+      state.iterations() ? (double)held / (double)state.iterations() : 0;
+}
+
+}  // namespace
+
+static void BM_Draw_LetteredRing_Fading(benchmark::State& state) {
+  Host host(800, 800);
+  fadingRingArm(state, host, [&] { host.draw(); });
+}
+BENCHMARK(BM_Draw_LetteredRing_Fading)
+    ->Arg(0)
+    ->Arg(1)
+    ->Unit(benchmark::kMillisecond);
+
 #ifdef SIGIL_BENCH_GPU
 
 /** The same ring on Graphite, where a glyph under a new matrix is a new
@@ -342,6 +409,21 @@ static void BM_Draw_LetteredRing_Turning_Graphite(benchmark::State& state) {
   });
 }
 BENCHMARK(BM_Draw_LetteredRing_Turning_Graphite)
+    ->Arg(0)
+    ->Arg(1)
+    ->Unit(benchmark::kMillisecond);
+
+/** The fading ring on Graphite: each draw is waited for. */
+static void BM_Draw_LetteredRing_Fading_Graphite(benchmark::State& state) {
+  sigil::compose::bench::GraphiteTarget target(state, 800, 800);
+  if (!target.ok()) return;
+  Host host(800, 800);
+  fadingRingArm(state, host, [&] {
+    host.composer.draw(target.canvas());
+    target.submitSynced();
+  });
+}
+BENCHMARK(BM_Draw_LetteredRing_Fading_Graphite)
     ->Arg(0)
     ->Arg(1)
     ->Unit(benchmark::kMillisecond);

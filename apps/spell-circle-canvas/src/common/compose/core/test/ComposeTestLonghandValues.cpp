@@ -63,6 +63,12 @@ sk_sp<SkTypeface> faceOf(const char* family,
   return fonts().familyTypeface(family, sigil::weave::fromSk(style));
 }
 
+/** The face of a family its font names a style so, as the font context
+ *  finds it. */
+sk_sp<SkTypeface> styleOf(const char* family, const char* styleName) {
+  return sigil::weave::toSk(fonts().familyTypeface(family, styleName));
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -213,6 +219,79 @@ TEST(ComposeFontFamily, AFaceKeywordInAStrongerLayerStandsOverAFamily) {
   EXPECT_EQ(render(box().fontFamily("Impact").applyStyleSheet(sheet).children(
                 {words().styleClass("t").font(inheritedFace)})),
             render(box().fontFamily("Impact").children({words()})));
+}
+
+TEST(ComposeFontFamily, AStyleNamedBesideTheFamilyIsTheFaceItsFontNamesSo) {
+  // Book and Roman are both an upright 400: only their names part them.
+  ASSERT_TRUE(styleOf("Avenir", "Book") && styleOf("Avenir", "Roman"));
+  const auto book =
+      render(box().fontFamily("Avenir", "Book").children({words()}));
+  EXPECT_EQ(book, render(box()
+                             .font({.face = styleOf("Avenir", "Book")})
+                             .children({words()})));
+  EXPECT_NE(book,
+            render(box().fontFamily("Avenir", "Roman").children({words()})));
+  // The name is compared with case and spaces aside, and an empty one is
+  // the family alone.
+  EXPECT_EQ(book,
+            render(box().fontFamily("Avenir", " b ook").children({words()})));
+  EXPECT_EQ(render(box().fontFamily("Avenir", "").children({words()})),
+            render(box().fontFamily("Avenir").children({words()})));
+}
+
+TEST(ComposeFontFamily, AWeightOrAStyleAfterANamedStyleOverridesItsTraits) {
+  ASSERT_TRUE(styleOf("Avenir", "Book") && styleOf("Avenir", "Heavy"));
+  const auto heavy =
+      render(box().fontFamily("Avenir").fontWeight(800).children({words()}));
+  ASSERT_NE(heavy,
+            render(box().fontFamily("Avenir", "Book").children({words()})));
+  // After it on the node, and below it in the tree, a weight is CSS's
+  // matching from the family again.
+  EXPECT_EQ(render(box()
+                       .fontFamily("Avenir", "Book")
+                       .fontWeight(800)
+                       .children({words()})),
+            heavy);
+  EXPECT_EQ(render(box().fontFamily("Avenir", "Book").children(
+                {words().fontWeight(800)})),
+            heavy);
+  // Before it on the node, the weight gives way to the face named.
+  EXPECT_EQ(render(box()
+                       .fontWeight(800)
+                       .fontFamily("Avenir", "Book")
+                       .children({words()})),
+            render(box().fontFamily("Avenir", "Book").children({words()})));
+  // An italic below it finds the family's italic.
+  EXPECT_NE(render(box().fontFamily("Avenir", "Book").children(
+                {words().fontStyle(FontStyle::Italic)})),
+            render(box().fontFamily("Avenir", "Book").children({words()})));
+}
+
+TEST(ComposeFontFamily, ARuleAndASpanNameAStyleAsTheElementDoes) {
+  ASSERT_TRUE(styleOf("Avenir", "Heavy"));
+  const auto named =
+      render(box().fontFamily("Avenir", "Heavy").children({words()}));
+  const StyleSheet sheet{
+      sigil::compose::rule(".t").fontFamily("Avenir", "Heavy")};
+  EXPECT_EQ(
+      named,
+      render(box().applyStyleSheet(sheet).children({words().styleClass("t")})));
+  EXPECT_EQ(named,
+            render(box().children({words().span(
+                allOfTheWords(), SpanStyle().fontFamily("Avenir", "Heavy"))})));
+}
+
+TEST(ComposeFontFamily, AStyleNoFamilyHasIsSaidOnceAndTheFamilyStands) {
+  constexpr const char* kNoStyle = "No Style Goes By This 7c2a";
+  ::testing::internal::CaptureStderr();
+  const auto missing =
+      render(box().fontFamily("Avenir", kNoStyle).children({words()}));
+  (void)render(box().fontFamily("Avenir", kNoStyle).children({words()}));
+  const std::string said = ::testing::internal::GetCapturedStderr();
+  EXPECT_EQ(missing, render(box().fontFamily("Avenir").children({words()})));
+  const size_t first = said.find(kNoStyle);
+  ASSERT_NE(first, std::string::npos) << said;
+  EXPECT_EQ(said.find(kNoStyle, first + 1), std::string::npos) << said;
 }
 
 TEST(ComposeFontStatements, TheLaterOfAFamilyAndAFaceStands) {

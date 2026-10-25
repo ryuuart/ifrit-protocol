@@ -40,7 +40,7 @@ Scene::Scene(Scene&&) noexcept = default;
 Scene& Scene::operator=(Scene&&) noexcept = default;
 Scene::~Scene() = default;
 
-void Scene::render(const Frame& frame) {
+std::expected<void, core::Error> Scene::render(const Frame& frame) {
   Impl& impl = *m_impl;
   impl.stats.reset();
   impl.error.clear();
@@ -56,6 +56,8 @@ void Scene::render(const Frame& frame) {
       [&impl] { impl.rescanMoved(); });
   impl.stats.resources = (int64_t)impl.store.size();
   ++impl.frameIndex;
+  if (!impl.error.empty()) return std::unexpected(core::Error{impl.error});
+  return {};
 }
 
 std::optional<geometry::mesh::camera::Camera> Scene::camera() const {

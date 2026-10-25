@@ -584,3 +584,78 @@ TEST(ComposeMotion, AFillWrittenAsFlatColourMaterialsSweepsBetweenThem) {
   host.frame(0.3);
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
 }
+
+namespace {
+
+/** A dial turned by @p turn, in the shapes a turning part of a scene
+ *  takes: a bare box, then a clipped disc about its own centre holding
+ *  type and boxes, then the same disc among type on a page that states
+ *  its font and a style sheet. */
+Element turnedDial(int shape, const motion::Animatable<float>& turn) {
+  Element dial = box()
+                     .absolute()
+                     .left(40)
+                     .top(40)
+                     .width(160)
+                     .height(160)
+                     .fill(red())
+                     .rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}));
+  if (shape == 0) return box().width(300).height(300).children({std::move(dial)});
+  dial.shape(geometry::shapes::circle())
+      .overflow(Overflow::Clip)
+      .transformOrigin(percent(50), percent(50))
+      .children({text(u8"ANIMA", whiteStyle(18)).absolute().left(20).top(30),
+                 box().absolute().left(70).top(0).width(20).height(160).fill(
+                     green())});
+  if (shape == 1) return box().width(300).height(300).children({std::move(dial)});
+  return box()
+      .width(300)
+      .height(300)
+      .font({.size = 15})
+      .children({text(u8"The rete turns over the plate.", whiteStyle(14))
+                     .left(10)
+                     .width(280),
+                 std::move(dial),
+                 text(u8"A caption under it.", whiteStyle(12))
+                     .absolute()
+                     .left(10)
+                     .top(260)
+                     .width(200)});
+}
+
+}  // namespace
+
+TEST(ComposeTransitions, ABoundRotationLaysNothingOut) {
+  // A rotation moves where a laid-out box is drawn, never its box, so a
+  // frame on which only a bound rotation moved runs no layout; what such
+  // a frame does pay for is the volatility walk, in its own lane.
+  // The last case turns the dial from a timer on the composer's engine,
+  // which keeps the engine running every frame, as a sketch's clock does.
+  for (int shape = 0; shape < 4; ++shape) {
+    Host host(300, 300);
+    motion::Animatable<float> turn = motion::animatable(0.0f);
+    host.composer.render(turnedDial(std::min(shape, 2), turn));
+    std::optional<motion::Timer> clock;
+    float turned = 0;
+    if (shape == 3)
+      clock = host.engine.timer([&] {
+        turned += 0.01f;
+        turn = turned;
+      });
+    host.frame();
+    host.frame(1.0 / 60.0);
+    for (int frame = 1; frame <= 4; ++frame) {
+      if (shape < 3) turn = (float)frame * 0.01f;
+      host.frame(1.0 / 60.0);
+      EXPECT_EQ(host.composer.stats().layoutCalculations, 0u)
+          << "dial " << shape << ", frame " << frame
+          << ": only a bound rotation moved, and the tree was laid out";
+      // A running engine walks the tree's volatility every frame, and that
+      // walk is reported in its own lane rather than in the layout's.
+      if (shape == 3)
+        EXPECT_GT(host.composer.stats().volatileMilliseconds, 0.0)
+            << "frame " << frame
+            << ": the engine ran and no volatility walk was reported";
+    }
+  }
+}

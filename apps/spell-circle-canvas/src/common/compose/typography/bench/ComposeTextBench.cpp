@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "BenchSupport.h"
 
@@ -112,6 +113,63 @@ static void BM_Draw_KineticText(benchmark::State& state) {
   state.counters["lines"] = (double)lines;
 }
 BENCHMARK(BM_Draw_KineticText)->Arg(14)->Arg(56)->Unit(benchmark::kMicrosecond);
+
+// ---- Letters spinning in, under a composer live and not -------------------
+//
+// Eight lines of capitals tumbling in under `textFx::spinIn`, each line an
+// eighth of a cascade behind the one above, the cascades looping. Every
+// glyph turned to a new step of its angle ladder is a new mask to rasterise
+// and upload, and no two lines turn a letter to the same angle: the arm
+// prices what turning letters cost a frame. Arg 0 is a composer that is
+// not live, Arg 1 a live one.
+
+namespace {
+
+constexpr int kSpinningLines = 8;
+
+Element spinningLetters(
+    const std::vector<sigil::motion::Animatable<float>>& progress) {
+  sigil::weave::TextStyle style;
+  style.shaping.fontSize = 36.0f;
+  auto block = box().column().gap(10).padding(16);
+  for (int line = 0; line < kSpinningLines; ++line)
+    block.children({text(u8"SPINNING LETTERS TURN IN", style)
+                        .textFx({.effect = textFx::enter(textFx::spinIn(70, 14)),
+                                 .progress = progress[(size_t)line]})});
+  return block;
+}
+
+template <typename Draw>
+void spinningLettersArm(benchmark::State& state, Host& host, Draw&& draw) {
+  const bool live = state.range(0) == 1;
+  std::vector<sigil::motion::Animatable<float>> progress;
+  for (int line = 0; line < kSpinningLines; ++line)
+    progress.push_back(sigil::motion::animatable(0.0f));
+  host.composer.setLive(live);
+  host.composer.render(spinningLetters(progress));
+  draw();
+  float at = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    at += 1.0f / 120.0f;
+    // The cascades loop forever, each line an eighth behind the last.
+    for (int line = 0; line < kSpinningLines; ++line)
+      progress[(size_t)line] =
+          std::fmod(at + (float)line / (float)kSpinningLines, 1.0f);
+    draw();
+  }
+  state.counters["live"] = live ? 1 : 0;
+}
+
+}  // namespace
+
+static void BM_Draw_SpinningLetters(benchmark::State& state) {
+  Host host(800, 600);
+  spinningLettersArm(state, host, [&] { host.draw(); });
+}
+BENCHMARK(BM_Draw_SpinningLetters)
+    ->Arg(0)
+    ->Arg(1)
+    ->Unit(benchmark::kMillisecond);
 
 /** The same looping reveal set DOWN COLUMNS, beating over `weave::Unit::Line` —
  *  which in a vertical passage is a column. Read against
@@ -356,6 +414,24 @@ static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
   state.counters["lines"] = (double)lines;
 }
 BENCHMARK(BM_Draw_KineticText_Graphite)->Arg(14)->Arg(56);
+
+/** The spinning letters on Graphite, where a glyph at a new angle is a new
+ *  mask rasterised on the processor and uploaded to the glyph atlas: each
+ *  draw is waited for, so the number is what the draw cost the device as
+ *  well as the recorder. */
+static void BM_Draw_SpinningLetters_Graphite(benchmark::State& state) {
+  GraphiteTarget target(state, 800, 600);
+  if (!target.ok()) return;
+  Host host(800, 600);
+  spinningLettersArm(state, host, [&] {
+    host.composer.draw(target.canvas());
+    target.submitSynced();
+  });
+}
+BENCHMARK(BM_Draw_SpinningLetters_Graphite)
+    ->Arg(0)
+    ->Arg(1)
+    ->Unit(benchmark::kMillisecond);
 
 /** The zoomed page on Graphite, where a glyph is rasterised into the atlas
  *  at the size it is drawn: each frame is waited for, so the number is

@@ -18,6 +18,10 @@ std::vector<Problem> Hub::problems() const {
 
 void Hub::reportProblem(Problem problem) {
   const std::lock_guard lock(m_mutex);
+  fileProblem(std::move(problem));
+}
+
+void Hub::fileProblem(Problem problem) {
   const auto said =
       std::find_if(m_problems.begin(), m_problems.end(),
                    [&](const Problem& held) { return held.uri == problem.uri; });

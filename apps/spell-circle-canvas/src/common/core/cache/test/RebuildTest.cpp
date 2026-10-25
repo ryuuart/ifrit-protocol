@@ -9,6 +9,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 
 using namespace sigil::core;
 
@@ -46,6 +47,16 @@ TEST(CachedValue, TheBuilderRunsAgainOnlyWhenTheKeyChanges) {
   EXPECT_EQ(cached.ensure({10}, [] { return 999; }), 100);
   EXPECT_EQ(cached.ensure({20}, [] { return 200; }), 200);
   EXPECT_EQ(cached.value(), 200);
+}
+
+TEST(CachedValue, AConstValueAnswersWhatItHoldsReadOnly) {
+  CachedValue<int, int> cached;
+  cached.ensure({1}, [] { return 3; });
+  const CachedValue<int, int>& reader = cached;
+  static_assert(std::is_same_v<decltype(cached.value()), int&>);
+  static_assert(std::is_same_v<decltype(reader.value()), const int&>);
+  cached.value() = 4;
+  EXPECT_EQ(reader.value(), 4);
 }
 
 TEST(CachedValue, KeylessEnsureBuildsOnce) {

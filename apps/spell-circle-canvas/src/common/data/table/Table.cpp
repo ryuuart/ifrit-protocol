@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <ranges>
 
 namespace sigil::data {
 
@@ -53,11 +54,10 @@ Column Column::take(std::span<const size_t> rows) const {
   std::visit(
       [&](const auto& cells) {
         using T = typename std::remove_cvref_t<decltype(cells)>::value_type;
-        std::vector<T> kept;
-        kept.reserve(rows.size());
-        for (size_t row : rows)
-          kept.push_back(row < cells.size() ? cells[row] : T{});
-        picked.m_cells = std::move(kept);
+        picked.m_cells = rows | std::views::transform([&](size_t row) {
+                           return row < cells.size() ? cells[row] : T{};
+                         }) |
+                         std::ranges::to<std::vector<T>>();
       },
       m_cells);
   // Only what the SOURCE said was absent is carried over; a number that

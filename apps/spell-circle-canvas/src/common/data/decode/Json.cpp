@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <ranges>
 #include <system_error>
 
 #include "UniqueName.h"
@@ -162,10 +163,11 @@ std::optional<Table> fromColumns(
   Table table;
   for (const auto& [name, values] : fields) {
     if (values.kind() != Json::Kind::Array) continue;
-    std::vector<const Json*> cells;
-    cells.reserve(values.size());
-    for (const Json& cell : values.array())
-      cells.push_back(cell.null() ? nullptr : &cell);
+    const auto cells = values.array() |
+                       std::views::transform([](const Json& cell) {
+                         return cell.null() ? nullptr : &cell;
+                       }) |
+                       std::ranges::to<std::vector<const Json*>>();
     table.add(columnOf(unusedName(table, name), cells));
   }
   if (table.columns().empty()) return std::nullopt;
@@ -323,11 +325,12 @@ const Json& Json::operator[](size_t index) const {
   return index < list.size() ? list[index] : nothing();
 }
 
-std::optional<Json> wire::readJson(std::string_view text) {
+std::expected<Json, core::Error> wire::readJson(std::string_view text) {
   simdjson::dom::parser parser;
   simdjson::dom::element document;
-  if (parser.parse(simdjson::padded_string(text)).get(document))
-    return std::nullopt;
+  if (const auto refused = parser.parse(simdjson::padded_string(text)).get(document))
+    return std::unexpected(core::Error{
+        std::string("the text is not JSON: ") + simdjson::error_message(refused)});
   return converted(document);
 }
 
@@ -337,11 +340,13 @@ std::string wire::writeJson(const Json& value) {
   return text;
 }
 
-std::optional<Json> wire::readJsonLines(std::string_view text) {
+std::expected<Json, core::Error> wire::readJsonLines(std::string_view text) {
   // One parser for every line, so its buffers are grown once.
   simdjson::dom::parser parser;
   Json::Array values;
+  int lineNumber = 0;
   while (!text.empty()) {
+    ++lineNumber;
     const size_t end = text.find('\n');
     std::string_view line = text.substr(0, end);
     text = end == std::string_view::npos ? std::string_view{}
@@ -353,8 +358,13 @@ std::optional<Json> wire::readJsonLines(std::string_view text) {
       line.remove_prefix(1);
     if (line.empty()) continue;
     simdjson::dom::element document;
-    if (parser.parse(simdjson::padded_string(line)).get(document))
-      return std::nullopt;
+    if (const auto refused =
+            parser.parse(simdjson::padded_string(line)).get(document))
+      return std::unexpected(core::Error{
+          std::string("the line is not JSON: ") +
+              simdjson::error_message(refused),
+          lineNumber,
+          {}});
     values.push_back(converted(document));
   }
   return Json(std::move(values));
@@ -370,15 +380,31 @@ std::string wire::writeJsonLines(const Json& value) {
   return text;
 }
 
-std::optional<Table> tableFromJson(const Json& document) {
+std::expected<Table, core::Error> tableFromJson(const Json& document) {
+  // Each shape's reader refuses only a rectangle with no column in it.
+  const auto rectangle = [](std::optional<Table> table)
+      -> std::expected<Table, core::Error> {
+    if (!table)
+      return std::unexpected(
+          core::Error{"the document's rectangle holds no column"});
+    return std::move(*table);
+  };
   if (document.kind() == Json::Kind::Object)
-    return fromColumns(document.object());
-  if (document.kind() != Json::Kind::Array) return std::nullopt;
+    return rectangle(fromColumns(document.object()));
+  if (document.kind() != Json::Kind::Array)
+    return std::unexpected(core::Error{
+        "the document is neither a list nor a record, so it holds no "
+        "rectangle"});
   const std::span<const Json> rows = document.array();
-  if (rows.empty()) return std::nullopt;
-  if (rows.front().kind() == Json::Kind::Object) return fromRecords(rows);
-  if (rows.front().kind() == Json::Kind::Array) return fromLists(rows);
-  return std::nullopt;
+  if (rows.empty())
+    return std::unexpected(core::Error{"the document is an empty list"});
+  if (rows.front().kind() == Json::Kind::Object)
+    return rectangle(fromRecords(rows));
+  if (rows.front().kind() == Json::Kind::Array)
+    return rectangle(fromLists(rows));
+  return std::unexpected(core::Error{
+      "the document's first row is neither a list nor a record, so it holds "
+      "no rectangle"});
 }
 
 }  // namespace sigil::data

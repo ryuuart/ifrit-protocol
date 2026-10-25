@@ -17,6 +17,7 @@
 #include <fstream>
 #include <map>
 #include <optional>
+#include <print>
 #include <span>
 #include <string>
 #include <vector>
@@ -293,9 +294,9 @@ std::string comparisonLine(const PlateComparison& plate) {
 
 int printComparison(const Comparison& comparison) {
   if (!comparison.refusal.empty())
-    std::fprintf(stderr, "%s\n", comparison.refusal.c_str());
+    std::println(stderr, "{}", comparison.refusal);
   for (const PlateComparison& plate : comparison.plates)
-    std::printf("%s\n", comparisonLine(plate).c_str());
+    std::println("{}", comparisonLine(plate));
   std::fflush(stdout);
   return comparison.status();
 }

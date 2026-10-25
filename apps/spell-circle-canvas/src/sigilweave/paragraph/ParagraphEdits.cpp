@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
+#include <ranges>
 #include <utility>
 #include <vector>
 
@@ -223,11 +224,10 @@ namespace {
 // set every frame) needs no reconcile at all.
 std::vector<std::pair<uint32_t, uint32_t>> spanBoundaries(
     const std::vector<StyleSpan>& spans) {
-  std::vector<std::pair<uint32_t, uint32_t>> boundaries;
-  boundaries.reserve(spans.size());
-  for (const StyleSpan& span : spans)
-    boundaries.emplace_back(span.start, span.end);
-  return boundaries;
+  return spans | std::views::transform([](const StyleSpan& span) {
+           return std::pair<uint32_t, uint32_t>(span.start, span.end);
+         }) |
+         std::ranges::to<std::vector<std::pair<uint32_t, uint32_t>>>();
 }
 
 bool sameSpanBoundaries(

@@ -435,11 +435,13 @@ void walkAlembic(const Abc::IObject& parent, const glm::mat4& world,
 
 }  // namespace
 
-std::optional<Model> alembic(const void* bytes, size_t size,
-                             const AlembicOptions& options) {
-  if (!bytes || size == 0) return std::nullopt;
+std::expected<Model, core::Error> alembic(const void* bytes, size_t size,
+                                          const AlembicOptions& options) {
+  if (!bytes || size == 0)
+    return std::unexpected(
+        core::Error{"an Alembic archive needs bytes and has none"});
   // The library can still throw on malformed input despite the quiet
-  // policy below — one net turns every failure into nullopt.
+  // policy below — one net turns every failure into a refusal.
   try {
     // The buffer and the stream must outlive the archive; all three
     // stay stack-local IN THIS ORDER, so unwinding destroys the archive
@@ -454,16 +456,24 @@ std::optional<Model> alembic(const void* bytes, size_t size,
     std::vector<std::istream*> streams = {&stream};
     Alembic::Abc::IArchive archive = factory.getArchive(streams, core);
     // HDF5-cored archives need the backend we deliberately don't
-    // build — they land here as kUnknown/invalid, honest nullopt.
-    if (!archive.valid()) return std::nullopt;
+    // build — they land here as kUnknown/invalid, an honest refusal.
+    if (!archive.valid())
+      return std::unexpected(core::Error{
+          "the bytes are no Ogawa-cored Alembic archive; an HDF5-cored one "
+          "is not read"});
     const Abc::ISampleSelector at(options.time,
                                   Abc::ISampleSelector::kNearIndex);
     Model out;
     walkAlembic(archive.getTop(), glm::mat4(1.0f), at, out);
-    if (out.parts.empty()) return std::nullopt;
+    if (out.parts.empty())
+      return std::unexpected(
+          core::Error{"the Alembic archive holds no mesh and no points"});
     return out;
+  } catch (const std::exception& refused) {
+    return std::unexpected(core::Error{
+        std::string("the Alembic archive does not read: ") + refused.what()});
   } catch (...) {
-    return std::nullopt;
+    return std::unexpected(core::Error{"the Alembic archive does not read"});
   }
 }
 

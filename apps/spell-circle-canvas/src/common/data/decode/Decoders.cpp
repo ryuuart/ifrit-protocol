@@ -47,28 +47,29 @@ bool looksLikeOsc(std::string_view hint) {
 
 }  // namespace
 
-std::optional<Table> TableDecoder::decode(const io::Bytes& bytes,
-                                          std::string_view hint) const {
+std::expected<Table, core::Error> TableDecoder::decode(
+    const io::Bytes& bytes, std::string_view hint) const {
   const std::string_view text = withoutMark(bytes.asText());
-  if (looksLikeJsonLines(hint)) {
-    const std::optional<Json> lines = wire::readJsonLines(text);
-    if (!lines) return std::nullopt;
-    return tableFromJson(*lines);
-  }
-  if (looksLikeJson(text, hint)) {
-    const std::optional<Json> document = wire::readJson(text);
-    if (!document) return std::nullopt;
-    return tableFromJson(*document);
-  }
+  if (looksLikeJsonLines(hint))
+    return wire::readJsonLines(text).and_then(
+        [](const Json& lines) { return tableFromJson(lines); });
+  if (looksLikeJson(text, hint))
+    return wire::readJson(text).and_then(
+        [](const Json& document) { return tableFromJson(document); });
   return decodeCsv(text, csv, hint);
 }
 
-std::optional<Json> JsonDecoder::decode(const io::Bytes& bytes,
-                                        std::string_view hint) const {
+std::expected<Json, core::Error> JsonDecoder::decode(
+    const io::Bytes& bytes, std::string_view hint) const {
   // A packet is bytes and a document is text, and no reading of the
   // first byte tells the two apart, so the name is the whole of what
   // there is to go on.
-  if (looksLikeOsc(hint)) return wire::readOsc(bytes);
+  if (looksLikeOsc(hint)) {
+    std::optional<Json> packet = wire::readOsc(bytes);
+    if (!packet)
+      return std::unexpected(core::Error{"the bytes are no OSC packet"});
+    return std::move(*packet);
+  }
   if (looksLikeJsonLines(hint))
     return wire::readJsonLines(withoutMark(bytes.asText()));
   return wire::readJson(withoutMark(bytes.asText()));

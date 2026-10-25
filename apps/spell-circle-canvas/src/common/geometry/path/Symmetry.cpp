@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <ranges>
 
 namespace sigil::geometry::path {
 
@@ -136,10 +137,10 @@ Symmetry wallpaper(Wallpaper group, glm::vec2 cellU, glm::vec2 cellV,
 }
 
 std::vector<Transform> copies(const Symmetry& symmetry) {
-  std::vector<Transform> transforms;
-  for (const SkMatrix& matrix : matricesOf(symmetry))
-    transforms.push_back(fromSk(matrix));
-  return transforms;
+  return matricesOf(symmetry) |
+         std::views::transform(
+             [](const SkMatrix& matrix) { return fromSk(matrix); }) |
+         std::ranges::to<std::vector<Transform>>();
 }
 
 Outline copies(const Symmetry& symmetry, const Outline& outline) {

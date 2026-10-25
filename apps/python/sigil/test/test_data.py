@@ -122,7 +122,10 @@ class Data(unittest.TestCase):
         )
         rectangular = data.tableFromJson([{"x": 1, "y": "a"}, {"x": 2}])
         self.assertEqual(rectangular.column("y").values(), ["a", None])
-        self.assertIsNone(data.tableFromJson(4))
+        with self.assertRaisesRegex(RuntimeError, "holds no rectangle"):
+            data.tableFromJson(4)
+        with self.assertRaisesRegex(RuntimeError, "holds no field"):
+            data.decodeCsv("  \n")
         self.assertEqual(
             data.decodeCsv("a;b\n1;2", data.CsvOptions(delimiter=";")).cell("b", 0), 2
         )

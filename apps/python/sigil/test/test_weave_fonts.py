@@ -202,6 +202,55 @@ class StyleByName(unittest.TestCase):
         self.assertEqual(by_name, by_style)
         self.assertNotEqual(by_name, upright)
 
+    def test_a_style_named_beside_the_family_is_set_when_the_cascade_runs(self):
+        named = georgia_bold_italic_name()
+        window = live.open(size=(320, 64), headless=True)
+        with tempfile.TemporaryDirectory() as folder:
+
+            def still(words, name):
+                window.show(words.fontSize(36).ink("#ffffff"))
+                for _ in range(2):
+                    window.pump()
+                path = window.still(Path(folder) / name)
+                return media.load(path).frameAt(0).image.rgba()
+
+            try:
+                by_name = still(
+                    compose.text("Waveform").fontFamily("Georgia", style=named),
+                    "named.png",
+                )
+                held = still(
+                    compose.text("Waveform").fontFamily(
+                        weave.fonts.find("Georgia", named)
+                    ),
+                    "held.png",
+                )
+                # A weight written after the named style overrides its
+                # traits, and the family is asked again at it.
+                overridden = still(
+                    compose.text("Waveform")
+                    .fontFamily("Georgia", style=named)
+                    .fontWeight(400),
+                    "overridden.png",
+                )
+                italic = still(
+                    compose.text("Waveform")
+                    .fontFamily("Georgia")
+                    .fontStyle(compose.FontStyle.Italic),
+                    "italic.png",
+                )
+            finally:
+                window.close()
+        self.assertEqual(by_name, held)
+        self.assertNotEqual(by_name, overridden)
+        self.assertEqual(overridden, italic)
+
+    def test_fontFamily_takes_the_style_by_keyword_alone(self):
+        words = compose.text("Waveform")
+        self.assertIs(words.fontFamily("Georgia", style="Bold"), words)
+        with self.assertRaises(TypeError):
+            compose.text("Waveform").fontFamily("Georgia", "Bold")
+
 
 if __name__ == "__main__":
     unittest.main()

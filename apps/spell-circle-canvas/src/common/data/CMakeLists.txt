@@ -62,6 +62,7 @@ sigil_doc_probes(data
           "Root::BinarySchema=what a generated root supplies to the template parameter, not a type declared here"
           "flatbuffers::String=the buffer library's own name, declared in its headers and not in this library's"
           "flatbuffers::Vector=the buffer library's own name, declared in its headers and not in this library's"
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include/sigilcore/report
   PRELUDES "<sigilio/advanced/Time.h>"
   FLOORS 50,18,40,0,0
   LIBRARIES SigilData)

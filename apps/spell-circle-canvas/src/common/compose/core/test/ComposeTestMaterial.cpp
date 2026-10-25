@@ -971,3 +971,36 @@ TEST(ComposeMaterial, AFillRefusesATextUnitOnASurfaceWithNoPaintToPlace) {
     EXPECT_TRUE(identicalPixels(glyph, element, 120, 60));
   }).join();
 }
+
+TEST(ComposeMaterial, AGradientStopWrittenAsALengthStandsThatFarAlongTheLine) {
+  // A stop at 20 px lands twenty pixels along the gradient line whatever
+  // the box's size, as CSS places one: a hard edge from red to blue there,
+  // toward the right on a 200 px box and on a 120 px one, and out from
+  // the middle of a circle.
+  const material::Color redInk{1, 0, 0, 1}, blueInk{0, 0, 1, 1};
+  const std::vector<material::ColorStop> stops = {
+      {.offset = 0, .color = redInk},
+      {.offset = 0, .color = redInk, .pixels = 20},
+      {.offset = 0, .color = blueInk, .pixels = 20},
+      {.offset = 1, .color = blueInk}};
+  for (const float width : {200.0f, 120.0f}) {
+    Host host(200, 100);
+    host.composer.render(box().width(200).height(100).children(
+        {box().width(width).height(60).fill(
+            material::linearGradient(stops, material::Toward::Right))}));
+    host.frame();
+    EXPECT_GT(SkColorGetR(host.pixel(18, 30)), 200)
+        << "two pixels short of the stop on a " << width << " px box";
+    EXPECT_GT(SkColorGetB(host.pixel(22, 30)), 200)
+        << "two pixels past the stop on a " << width << " px box";
+  }
+  Host host(200, 200);
+  host.composer.render(box().width(200).height(200).children(
+      {box().width(200).height(200).fill(material::radialGradient(
+          stops, {.shape = material::RadialShape::Circle}))}));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(100 + 17, 100)), 200)
+      << "short of the stop along the ray";
+  EXPECT_GT(SkColorGetB(host.pixel(100 + 23, 100)), 200)
+      << "past the stop along the ray";
+}

@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <print>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -36,7 +37,7 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                       QObject& view, const WindowBench& options,
                       std::vector<int> selection) {
   if (selection.empty()) {
-    std::fprintf(stderr, "--window-bench: nothing selected\n");
+    std::println(stderr, "--window-bench: nothing selected");
     return false;
   }
   sketch::BenchCadence::Times times;
@@ -168,13 +169,12 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
           // rate: it is stood down with what it did, rather than
           // printed as a rate of nearly zero.
           if (host && !host->errorLog().empty()) {
-            std::printf("WINDOW %s FAILED resource or runtime error\n",
-                        key.c_str());
-            std::fprintf(stderr, "%s\n", host->errorLog().c_str());
+            std::println("WINDOW {} FAILED resource or runtime error", key);
+            std::println(stderr, "{}", host->errorLog());
             ++run->stoodDown;
           } else if (frames < 2) {
-            std::printf("WINDOW %s SKIPPED presented %llu frames in %.1fs\n",
-                        key.c_str(), frames, stretch);
+            std::println("WINDOW {} SKIPPED presented {} frames in {:.1f}s",
+                         key, frames, stretch);
             ++run->stoodDown;
           } else {
             // THE DEVICE'S SHARE, stage by stage, where the session has
@@ -186,15 +186,13 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
               session->timeDevice(false);
             }
             if (!device.empty()) device = " gpu=" + device;
-            std::printf(
-                "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
-                "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
-                "headroom=%.1f open=%.2fs warmMax=%.1fms power=%s "
-                "gpuBusy=%d%%%s\n",
-                key.c_str(), window.width(), window.height(),
-                window.devicePixelRatio(), (int)canvas.width(),
-                (int)canvas.height(), (int)runtime.size(), runtime.data(), fps,
-                work,
+            std::println(
+                "WINDOW {} window={}x{}@{:g} canvas={}x{} kind={} fps={:.1f} "
+                "work={:.2f}ms p99={:.2f}ms draw={:.2f}ms submit={:.2f}ms "
+                "headroom={:.1f} open={:.2f}s warmMax={:.1f}ms power={} "
+                "gpuBusy={}%{}",
+                key, window.width(), window.height(), window.devicePixelRatio(),
+                (int)canvas.width(), (int)canvas.height(), runtime, fps, work,
                 sigil::measure::Milliseconds(
                     host->frameTimes().work().quantile(0.99))
                     .count(),
@@ -202,21 +200,21 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                 metrics.value(QStringLiteral("submitMilliseconds")).toDouble(),
                 host->frameTimes().headroomFps(),
                 run->opened >= 0.0 ? run->opened - run->asked : -1.0,
-                run->slowestWarmMilliseconds, powerSource().c_str(),
-                gpuBusyPercent(), device.c_str());
+                run->slowestWarmMilliseconds, powerSource(), gpuBusyPercent(),
+                device);
           }
         } else {
           // Step::Skip — the window never presented this entry's session.
           // A window the system no longer exposes is asked for no frames
           // at all, which is the machine's state and not the sketch's, so
           // the line says which of the two it was.
-          std::printf("WINDOW %s SKIPPED no frame presented in %.1fs%s\n",
-                      key.c_str(), run->cadence.elapsed(now),
-                      window.isExposed()
-                          ? ""
-                          : " (the window is not exposed: the display "
-                            "asleep, the window minimised or on another "
-                            "space)");
+          std::println("WINDOW {} SKIPPED no frame presented in {:.1f}s{}", key,
+                       run->cadence.elapsed(now),
+                       window.isExposed()
+                           ? ""
+                           : " (the window is not exposed: the display "
+                             "asleep, the window minimised or on another "
+                             "space)");
           ++run->stoodDown;
         }
         std::fflush(stdout);
@@ -258,7 +256,7 @@ std::vector<int> windowBenchSelection(const std::vector<int>& named,
   for (int index : wanted) {
     std::string why;
     if (!entries[index].available(&why)) {
-      std::printf("WINDOW %s SKIPPED %s\n", entries[index].key, why.c_str());
+      std::println("WINDOW {} SKIPPED {}", entries[index].key, why);
       continue;
     }
     presented.push_back(index);

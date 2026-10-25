@@ -57,6 +57,7 @@
 #include <exception>
 #include <future>
 #include <mutex>
+#include <print>
 #include <string>
 #include <utility>
 
@@ -176,7 +177,7 @@ void GrimoireRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   m_frameCount = 0;
   m_metricsDirty = true;
   m_submitMsAverage = 0.0;
-  std::fprintf(stderr, "[grimoire] renderer: %s\n",
+  std::println(stderr, "[grimoire] renderer: {}",
                g_backend.load() == 1 ? "Graphite GPU" : "CPU raster fallback");
   // A REPLACEMENT QRhi IS A REPLACEMENT DEVICE: the server stands on the
   // device its textures come from, so the old one goes with the context
@@ -471,10 +472,11 @@ void GrimoireRenderer::paintFrame(SkCanvas& canvas, sketch::Host& host) {
         m_sceneSeconds += host.prepareCapture(
             GrimoireView::heldAt - m_sceneSeconds, 60.0, m_deviceRatio);
       } catch (const std::exception& error) {
-        std::fprintf(stderr, "[grimoire] the held moment: %s\n", error.what());
+        std::println(stderr, "[grimoire] the held moment: {}", error.what());
       }
       m_sceneSeconds = GrimoireView::heldAt;
-      std::printf("[grimoire] the canvas is held at t=%.9gs\n", m_sceneSeconds);
+      std::println("[grimoire] the canvas is held at t={:.9g}s",
+                   m_sceneSeconds);
       std::fflush(stdout);
     }
     host.frame(canvas, 0.0);
@@ -736,8 +738,8 @@ void GrimoireRenderer::startPublishing() {
                                              GrimoireView::publishName);
 #endif
   if (m_publisher) {
-    std::fprintf(stderr, "[grimoire] publishing as \"%s\"\n",
-                 GrimoireView::publishName.c_str());
+    std::println(stderr, "[grimoire] publishing as \"{}\"",
+                 GrimoireView::publishName);
     return;
   }
   QString reason = QStringLiteral(
@@ -757,7 +759,7 @@ void GrimoireRenderer::refusePublishing(QString reason) {
   GrimoireView* view = m_view;
   if (!view) return;
   m_publishing = false;
-  std::fprintf(stderr, "[grimoire] publish: %s\n", reason.toUtf8().constData());
+  std::println(stderr, "[grimoire] publish: {}", reason.toUtf8().constData());
   const auto request = m_publicationRequest;
   QMetaObject::invokeMethod(
       view,
@@ -778,7 +780,7 @@ void GrimoireRenderer::stopPublishing() {
   m_publishedCanvas.reset();
   m_publishedSize = QSize();
   if (!m_publisher) return;
-  std::fprintf(stderr, "[grimoire] publishing stopped\n");
+  std::println(stderr, "[grimoire] publishing stopped");
   m_publisher = {};
   m_metricsDirty = true;
 }
@@ -914,9 +916,9 @@ void GrimoireRenderer::render(QRhiCommandBuffer* commandBuffer) {
     // so the next selection reopens, and update() is re-requested so the
     // window keeps asking for frames instead of going dark. A genuine QRhi
     // replacement is a different event, handled in initialize().
-    std::fprintf(stderr,
+    std::println(stderr,
                  "[grimoire] Graphite frame failed for the current sketch; "
-                 "dropping its session and keeping the context\n");
+                 "dropping its session and keeping the context");
     std::unique_ptr<sketch::Host> dropped;
     {
       QMutexLocker lock(&GrimoireView::hostMutex);

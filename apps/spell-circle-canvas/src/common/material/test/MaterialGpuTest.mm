@@ -103,7 +103,7 @@ ErrorSink& sink() {
  *  context is built — the options are read once, at creation. */
 sigil::skia::GraphiteContext* graphite() {
   static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned();
+      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   static std::unique_ptr<sigil::skia::GraphiteContext> context = [] {
     sigil::skia::GraphiteContext::reportShaderErrorsTo(&sink());
     return device ? sigil::skia::GraphiteContext::create(*device)

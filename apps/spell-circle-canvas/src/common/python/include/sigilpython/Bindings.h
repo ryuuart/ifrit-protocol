@@ -12,6 +12,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/typing.h>
 #include <sigilcore/compute/Angle.h>
+#include <sigilcore/report/Error.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilpython/skia/Values.h>
@@ -21,9 +22,11 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
+#include <expected>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -606,6 +609,34 @@ struct type_caster<sigil::python::AngleInPenMode>
     // answered, the number it was written as is what it would say.
     return PyFloat_FromDouble(input.written ? input.written->value
                                             : input.number);
+  }
+};
+
+/** AN ANSWER THAT MAY BE A REFUSAL, IN PYTHON, IS ITS VALUE OR A RAISE: a
+ *  door answering `std::expected<Value, core::Error>` returns the value as
+ *  Python reads that value, and a refusal raises `RuntimeError` carrying
+ *  the error's message, with the line it names when it names one — never
+ *  None, so a caller that forgot to check cannot carry nothing onward. */
+template <typename Value>
+struct type_caster<std::expected<Value, sigil::core::Error>> {
+  using ValueCaster = make_caster<Value>;
+  static constexpr auto name = ValueCaster::name;
+
+  bool load(handle, bool) { return false; }
+
+  template <typename Answer>
+  static handle cast(Answer&& answer, return_value_policy policy,
+                     handle parent) {
+    if (!answer) {
+      const sigil::core::Error& error = answer.error();
+      throw std::runtime_error(
+          error.line ? "line " + std::to_string(*error.line) + ": " +
+                           error.message
+                     : error.message);
+    }
+    if constexpr (!std::is_lvalue_reference_v<Answer>)
+      policy = return_value_policy_override<Value>::policy(policy);
+    return ValueCaster::cast(*std::forward<Answer>(answer), policy, parent);
   }
 };
 

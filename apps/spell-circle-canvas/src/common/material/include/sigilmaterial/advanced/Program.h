@@ -8,9 +8,11 @@
  * variant, through the compilers renderers register per target.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Target.h>
 
+#include <expected>
 #include <functional>
 #include <memory>
 #include <span>
@@ -60,11 +62,11 @@ class Program {
   Variant m_variant;
 };
 
-/** A per-target compiler: hands back the program for a recipe and
- *  variant, or null with @p error filled. Registered once per target by
- *  the backend that can run it. */
-using Compiler = std::function<std::shared_ptr<Program>(
-    std::shared_ptr<const Recipe> recipe, Variant variant, std::string& error)>;
+/** A per-target compiler: answers the program for a recipe and variant,
+ *  or the error that says why it did not compile. Registered once per
+ *  target by the backend that can run it. */
+using Compiler = std::function<std::expected<std::shared_ptr<Program>, core::Error>(
+    std::shared_ptr<const Recipe> recipe, Variant variant)>;
 
 /** One program a loading phase wants resident before the first frame. */
 struct WarmupRequest {
@@ -102,16 +104,13 @@ class ProgramCache {
   bool hasCompiler(Target target) const;
 
   /** The program for @p recipe on @p target in @p variant, compiled on
-   *  first use. */
-  std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
-                                   Target target, Variant variant = {});
-  /** The same, with what stopped it written to @p error when there is no
-   *  program: the compiler's message, or why no compiler was asked. A
-   *  caller that shows a failure to a person reads it here rather than
-   *  from the diagnostic stream, which says it once. */
-  std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
-                                   Target target, Variant variant,
-                                   std::string& error);
+   *  first use; or the error that stopped it — the compiler's message, or
+   *  why no compiler was asked. A caller that shows a failure to a person
+   *  reads it here rather than from the diagnostic stream, which says it
+   *  once. */
+  std::expected<std::shared_ptr<Program>, core::Error> program(
+      std::shared_ptr<const Recipe> recipe, Target target,
+      Variant variant = {});
 
   /** WHETHER THE PROGRAM CAN BE HAD WITHOUT WAITING: true when it is
    *  held, or when asking for it would not compile — no compiler, no body,
@@ -149,8 +148,8 @@ class ProgramCache {
 /** `ProgramCache::shared().registerCompiler(...)`. */
 void registerCompiler(Target target, Compiler compiler);
 /** `ProgramCache::shared().program(...)`. */
-std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
-                                 Target target, Variant variant = {});
+std::expected<std::shared_ptr<Program>, core::Error> program(
+    std::shared_ptr<const Recipe> recipe, Target target, Variant variant = {});
 /** Compiles the distinct recipes instantiated by @p materials into the
  *  shared cache; `ProgramCache::warmup` takes the requests themselves. */
 WarmupResult warmup(std::span<const Material> materials, Target target,

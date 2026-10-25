@@ -95,6 +95,13 @@ it and an editor offers each name once, under the module an author imports
 it from. A bound class reports that module too: `material.Color` reads as
 `sigil.material.Color` in a repr and in `pydoc`.
 
+A door that can refuse — a decoder, a reader of a file, a store that will
+not open — returns its value or raises `RuntimeError` carrying the native
+error's message, prefixed `line N:` when the error names a line; it never
+answers `None` for a refusal. The forgiving one-line readers keep their own
+shape: `data.json`, `data.csv` and `data.table` answer an empty value, and
+a hub's `load` answers `None` while `problems()` lists why.
+
 Compose shades nothing. A material that states a `surface(...)` paints its
 colours on a page, flat, as a material without one does; light belongs to a
 World scene, which lights a page through its surface maps. `material.Light`
@@ -715,8 +722,7 @@ Stack((1200, 800), layers=[])
 ...     for radius in (120, 180, 240): pen.circle(600, 400, 2 * radius)
 ...
 >>> field = stack.layer("field")
->>> avenir = weave.fonts.find("Avenir", "Heavy")
->>> words = compose.text("666 666 666", size=150, color="#7fd1c7").fontFamily(avenir)
+>>> words = compose.text("666 666 666", size=150, color="#7fd1c7").fontFamily("Avenir", style="Heavy")
 >>> field.bake(compose.box(words).alignItems("center").justifyContent("center"), (1200, 800))
 >>> field.transform(scale=(0.85, 1.0), origin=(600, 400))
 >>> field.blend("screen"); field.opacity = 0.8
@@ -792,7 +798,9 @@ drawing made by that pen.
 The same calls in a sketch's `setup` rebuild the stack, which is how a
 session at the prompt becomes a sketch; `draw` puts it down with
 `pen.stack(stack)`, or `stack.composite(pen, x, y)` with its corner
-placed:
+placed. The catalogue's `python_layer_stack` sketch is this ring study
+whole — rings, baked words squashed by a placement, a hatching masked by
+the words and an erasing disc that circles — and the shortest form is:
 
 ```python
 from sigil import draw
@@ -1052,7 +1060,7 @@ percentage text such as `"50%"`:
 | `Color.hsl(140, 45, 38)`, `Color.hwb(140, 20, 30)` | hue in degrees or as angle text such as `"0.4turn"`, the rest on 0..100 |
 | `Color.oklch(0.72, 0.11, 240)`, `Color.oklab(0.72, -0.05, -0.1)` | lightness on 0..1 |
 | `Color.lch(70, 40, 240)`, `Color.lab(70, -10, -38)` | CSS's CIELAB, under the D50 white |
-| `Color.hex("#18252e")`, `Color.hex(0x18252E, alpha=0.5)` | hex text or a packed integer |
+| `Color.fromHex("#18252e")`, `Color.fromHex(0x18252E, alpha=0.5)` | hex text or a packed integer |
 | `Color.named("rebeccapurple")` | a CSS name |
 | `Color.mix("#18252e", "steelblue", 0.3, space="oklab")` | CSS `color-mix()` |
 
@@ -1066,8 +1074,9 @@ The colour class is one sRGB float4. A colour outside what sRGB can show
 — `color(display-p3 …)`, a wide `oklch()` — keeps its OKLCH lightness and
 hue and gives up chroma until it fits, which is CSS's own gamut mapping.
 A colour reads back as CSS: `repr` is `Color('#18252e')` where every
-channel is an eight-bit step and `Color.srgb(…)` otherwise, and `css()`
-and `str()` give the text.
+channel is an eight-bit step and `Color.srgb(…)` otherwise, `css()`
+and `str()` give the text, and `hex()` gives `#rrggbb` (`#rrggbbaa` when
+not opaque), each channel rounded to the nearest eight-bit step.
 
 Where a fill is taken — `fill`, `ink`, a stroke's paint, a text shadow —
 the text `currentcolor` is the ink in force and `var(--name)` the custom
@@ -1242,7 +1251,8 @@ when replaying recordings. Sketches leave that call to their host.
 at the end of a `with` block. `hub.replay(uri, path)` plays that file back at
 the feed URI — before or after the URI is opened — so the same authoring code
 reads the same input again. `RecordingWriter` and `readRecording` expose the
-recording format for generated fixtures, and a test that stands in for a
+recording format for generated fixtures (`readRecording` raises
+`RuntimeError` saying why a file is no recording), and a test that stands in for a
 transport puts messages on a feed through `io.testing.inletOf(feed)`, whose
 `deliver` a reader of the feed does not have.
 Use a recording or explicit sample data when `ctx.deterministic` is true.
@@ -1434,7 +1444,11 @@ Font selection follows the host's native font context. `fontFamily` takes
 CSS's family list as one string, on an element, a rule and a `SpanStyle`
 alike: `.fontFamily("Inter, Helvetica Neue, sans-serif")` sets the run in
 the first family installed, and the generic names `serif`, `sans-serif`,
-`monospace` and `system-ui` are the platform's own families. A font file
+`monospace` and `system-ui` are the platform's own families.
+`.fontFamily("Avenir", style="Book")` names one of the family's styles by
+the font's own name for it; the face it names keeps its own weight and
+style until a `fontWeight` or `fontStyle` after it, or below it, overrides
+that trait, the other one standing, as CSS would. A font file
 the sketch carries is a family too once its hub has loaded it, as the
 fonts passage under Typography shows.
 `textShadow(TextShadow(offset=(2, 2), blur=4, color=…))`, or a list of them,
@@ -1515,7 +1529,7 @@ into. What a percentage is of is the slot's, as in CSS:
 | --- | --- |
 | `width`, `padding`, `inset` and the other box lengths | `"50%"` of the parent |
 | `fontSize`, `letterSpacing` | px, pt, em, rem, lh, ch, and `"150%"` of the type size (`"1.5em"`) |
-| `lineHeight` | a number (a multiple, `1.4`), a length (`"24px"`, `"1.5em"`, `"150%"` of the type size), `"normal"`, or a `weave.Leading` |
+| `lineHeight` | a number (a multiple of the type size, `1.4`, as CSS's unitless line-height), a length (`"24px"`, `"1.5em"`, `"150%"` of the type size), `"normal"`, or a `weave.Leading` |
 | `borderRadius`, `compose.Corners` | any length; `"50%"` of the node's own box, across and down |
 | `translateX`, `translateY` | a number or a motion value, or a length; `"50%"` of the node's own box |
 | an opacity, a filter's amount, a gradient stop | a number, or `"50%"` for one half |
@@ -1705,12 +1719,24 @@ The gradients are CSS's, the stops first: `material.linearGradient(["#fff",
 shape="circle", extent="closest-side", at=("25%", "50%"))` measures its extent
 from its own centre; `material.conicGradient(stops, from_=90, at="center")`
 sweeps clockwise from 12 o'clock. A stop is a colour, or CSS's `("#f00",
-"40%")` with the position a fraction or a percentage, beside the
+"40%")` with the position a fraction, a percentage or a length along the
+gradient line (`"20px"`, for the linear and radial gradients), beside the
 offset-first `(0.4, "#f00")`; `Paint.linearGradient(start, end, stops)` and
 its siblings are the point-to-point spelling. `material.Filter` has all ten of
 CSS's filter functions — `blur`, `brightness`, `contrast`, `dropShadow`,
 `grayscale`, `hueRotate`, `invert`, `opacity`, `saturate` and `sepia` — an
 amount a number or percentage text (`"150%"`) and a blur a length (`"4px"`).
+CSS's own text stands beside these typed doors: a fill reads a gradient
+function, `fill("linear-gradient(45deg, red, blue 40%)")`,
+`"radial-gradient(circle closest-side at 30% 40%, red, blue)"`,
+`"conic-gradient(from 90deg, red, blue)"` and the `repeating-` forms; every
+filter slot reads CSS's filter text, `filter("blur(4px) sepia(50%)
+drop-shadow(0 2px 4px #0008)")` and `material.Filter("…")`; and
+`boxShadow("0 4px 12px 2px rgba(0 0 0 / .3) inset")` and `textShadow("3px
+3px red, yellow -3px 3px 2px")` read CSS's shadow lists. Text none of them
+reads raises `ValueError` naming it: a length against the font or the
+viewport, a colour hint or an interpolation space in a gradient, and a
+drop shadow with no colour have nothing here to hold them.
 CSS's keywords are spelled as CSS spells them, `justifyContent("space-between")`,
 and an easing may be CSS timing-function text: `"ease"`, `"ease-in-out"`,
 `"linear"`, `"cubic-bezier(.2, .8, .2, 1)"` or `"steps(4, jump-start)"`.
@@ -2035,8 +2061,8 @@ True
 None
 >>> window = live.open(size=(640, 200))
 >>> specimen = window.show(compose.column(
-...     compose.text("Avenir Book").fontFamily(book).fontSize(48),
-...     compose.text("Avenir Roman").fontFamily(roman).fontSize(48),
+...     compose.text("Avenir Book").fontFamily("Avenir", style="Book").fontSize(48),
+...     compose.text("Avenir Roman").fontFamily("Avenir", style="Roman").fontSize(48),
 ... ))
 >>> window.still("avenir.png", density=2)
 'avenir.png'
@@ -2050,8 +2076,11 @@ case and spaces aside, so "book oblique" finds "Book Oblique"; either
 answers None where no style goes by the name. The font's own name is the
 way to a face CSS cannot pick: Book and Roman are both an upright 400, so
 `find` at a `FaceStyle` reaches only one of them, and the name reaches
-either. `.fontFamily(face)` sets a text in the face
-found, and so does `pen.textFont(face)` in a drawing.
+either. `.fontFamily("Avenir", style="Book")` names the family and the
+style together, found when the cascade runs through the session's font
+context, so a family the sketch's hub loaded answers by its own style
+names; `.fontFamily(face)` sets a text in a face already found, and so does
+`pen.textFont(face)` in a drawing.
 
 At `sigil repl sketch.py` the same lines run inside the sketch Grimoire
 is drawing: `weave` is already in scope, and a face found there goes into

@@ -12,9 +12,11 @@
  */
 
 #include <sigilcore/callable/Callable.h>
+#include <sigilcore/report/Error.h>
 
 #include <chrono>
 #include <cstddef>
+#include <expected>
 #include <filesystem>
 #include <functional>
 #include <initializer_list>
@@ -61,6 +63,10 @@ struct Meaning {
   std::string_view name;
   std::string_view type;
 };
+
+/** WHAT ONE DECODE ANSWERS, its type erased: the value shared, or the
+ *  error a load lists under the URI it was asked for by. */
+using Decoded = std::expected<std::shared_ptr<const void>, core::Error>;
 
 /** The meaning of @p T, as registerDecoder<T> and load<T> both ask by. */
 template <Named T>
@@ -267,10 +273,10 @@ class Hub {
   std::shared_ptr<const Bytes> probeFetch(std::string_view uri,
                                           ResourceInfo& info) const;
 
-  /** Re-decodes bytes into a type-erased value; null on failure. The
-   *  decode a view was made with rides along with the view, so poll()
-   *  can re-run exactly it. */
-  using Redecode = std::function<std::shared_ptr<const void>(
+  /** Re-decodes bytes into a type-erased value, or the error that says
+   *  why it could not. The decode a view was made with rides along with
+   *  the view, so poll() can re-run exactly it. */
+  using Redecode = std::function<detail::Decoded(
       const Bytes&, const std::filesystem::path&)>;
 
   /** THE TABLES THIS HUB KEEPS — the entry cache, the decoder
@@ -302,7 +308,13 @@ class Hub {
     std::vector<std::pair<std::string, std::shared_ptr<const void>>> views;
   };
 
-  std::optional<Reloaded> reload(const Reload& pending) const;
+  std::expected<Reloaded, core::Error> reload(
+      const Reload& pending, std::shared_ptr<const Bytes> bytes,
+      std::filesystem::path path) const;
+
+  /** Lists @p problem under its URI, replacing what was said of it
+   *  before; the caller holds the lock. */
+  void fileProblem(Problem problem);
 
   /** The one decode path every typed accessor shares: the view named
    *  `meaning` in the entry at `key`, decoded with `decode` from cached

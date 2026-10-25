@@ -38,6 +38,7 @@
 #include <chrono>
 #include <cstdio>
 #include <mutex>
+#include <print>
 #include <string>
 #include <thread>
 #include <vector>
@@ -307,10 +308,10 @@ int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
     }
   }
   if (g_useGpu && !bench::gpuDevice()) {
-    std::fprintf(stderr, "no GPU backend on this platform\n");
+    std::println(stderr, "no GPU backend on this platform");
     return 1;
   }
-  std::printf("engine mode: %s\n", g_useGpu ? "GPU" : "CPU");
+  std::println("engine mode: {}", g_useGpu ? "GPU" : "CPU");
 #ifdef __APPLE__
   // The GPU-mode arms exist only in a GPU run, so a CPU run (the one the
   // ledger takes) reports nothing for them rather than a skipped zero.

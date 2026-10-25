@@ -47,12 +47,16 @@ HOSTED = (
 GROWN = (
     "bakeDensity",
     "draw",
+    "groundHeld",
+    "live",
     "profile",
     "profiling",
     "scheduleSpan",
     "setBakeDensity",
+    "setGroundHeld",
     "setInherited",
     "setKey",
+    "setLive",
     "setPointer",
     "setProfiling",
     "setSize",
@@ -172,6 +176,18 @@ class Owned(unittest.TestCase):
         composer.setBakeDensity(devicePixelsPerUnit=2.0)
         self.assertEqual(composer.bakeDensity(), 2.0)
 
+        self.assertFalse(composer.live())
+        composer.setLive(True)
+        self.assertTrue(composer.live())
+        composer.setLive(live=False)
+        self.assertFalse(composer.live())
+
+        self.assertFalse(composer.groundHeld())
+        composer.setGroundHeld(True)
+        self.assertTrue(composer.groundHeld())
+        composer.setGroundHeld(held=False)
+        self.assertFalse(composer.groundHeld())
+
     def test_the_viewport_is_a_size_however_it_is_spelled(self):
         composer = Composer()
         composer.setSize((80, 48))
@@ -189,8 +205,13 @@ class Owned(unittest.TestCase):
             composer.setInherited("serif", "#112233")
         composer.setView(material.Filter())
         composer.setView(view=material.Filter.blur(2.0))
-        with self.assertRaises(TypeError):
+        # A view is any filter, CSS's filter text among them; text no
+        # filter grammar reads is refused by name.
+        composer.setView("blur(2px)")
+        with self.assertRaisesRegex(ValueError, "'blur' is no CSS filter"):
             composer.setView("blur")
+        with self.assertRaises(TypeError):
+            composer.setView(2.0)
 
     def test_the_pointer_and_the_keys_are_fed_by_name(self):
         composer = Composer()
@@ -327,6 +348,31 @@ class Frames(Session):
         self.assertGreater(self.results["painted"], 0)
         self.assertEqual(pixel(picture, 4, 4), (255, 0, 0, 255))
         self.assertEqual(pixel(picture, 40, 28), (0, 0, 0, 255))
+
+    def test_a_live_composer_holds_a_turning_node_and_says_so(self):
+        self.render("""
+            pen.background('#000000')
+            turn = motion.animatable(0.0)
+            probe = Composer()
+            probe.setSize((48, 32))
+            probe.setLive(True)
+            wheel = (
+                box().key('wheel').absolute().left(8).top(4).width(24).height(24)
+                .rotate(motion.bind(turn, to=(0.0, 360.0)))
+                .children([box().width(12).height(6).fill('#ff0000')])
+            )
+            probe.render(box().width(48).height(32).children([wheel]))
+            probe.draw(pen.canvas())
+            turn.set(0.05)
+            probe.draw(pen.canvas())
+            results['held'] = probe.stats().nodesHeldWhileMoving
+            probe.setLive(False)
+            turn.set(0.10)
+            probe.draw(pen.canvas())
+            results['unwatched'] = probe.stats().nodesHeldWhileMoving
+        """)
+        self.assertEqual(self.results["held"], 1)
+        self.assertEqual(self.results["unwatched"], 0)
 
     def test_the_inherited_ink_is_what_an_unstyled_leaf_is_set_in(self):
         def reds(picture):

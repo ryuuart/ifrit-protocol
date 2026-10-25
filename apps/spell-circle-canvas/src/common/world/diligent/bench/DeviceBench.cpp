@@ -100,7 +100,8 @@ void BM_ProgramFromRecipeBody(benchmark::State& state) {
     const measure::Stopwatch watch;
     std::shared_ptr<material::Program> program =
         material::program(freshRecipe(), material::Target::Slang,
-                          material::Variant{diligent::kVariantLit});
+                          material::Variant{diligent::kVariantLit})
+            .value_or(nullptr);
     const double ms = measure::Milliseconds(watch.elapsed()).count();
     benchmark::DoNotOptimize(program);
     return ms;
@@ -109,7 +110,8 @@ void BM_ProgramFromRecipeBody(benchmark::State& state) {
   for ([[maybe_unused]] auto iteration : state) {
     std::shared_ptr<material::Program> program =
         material::program(freshRecipe(), material::Target::Slang,
-                          material::Variant{diligent::kVariantLit});
+                          material::Variant{diligent::kVariantLit})
+            .value_or(nullptr);
     benchmark::DoNotOptimize(program);
   }
 }
@@ -121,7 +123,9 @@ BENCHMARK(BM_ProgramFromRecipeBody)->Unit(benchmark::kMillisecond);
 void BM_FrameOnDevice(benchmark::State& state) {
   const device::DeviceConfig config;
   std::string error;
-  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  auto created = device::Device::create(config);
+  if (!created) error = created.error().message;
+  std::unique_ptr<device::Device> gpu = std::move(created).value_or(nullptr);
   if (!gpu) {
     state.SkipWithError(error);
     return;
@@ -174,7 +178,9 @@ BENCHMARK(BM_FrameOnDevice)->Unit(benchmark::kMillisecond);
 void BM_WideBloomOnDevice(benchmark::State& state) {
   const device::DeviceConfig config;
   std::string error;
-  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  auto created = device::Device::create(config);
+  if (!created) error = created.error().message;
+  std::unique_ptr<device::Device> gpu = std::move(created).value_or(nullptr);
   if (!gpu) {
     state.SkipWithError(error);
     return;
@@ -233,7 +239,9 @@ BENCHMARK(BM_WideBloomOnDevice)
 void BM_ShadowShareOnDevice(benchmark::State& state) {
   const device::DeviceConfig config;
   std::string error;
-  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  auto created = device::Device::create(config);
+  if (!created) error = created.error().message;
+  std::unique_ptr<device::Device> gpu = std::move(created).value_or(nullptr);
   if (!gpu) {
     state.SkipWithError(error);
     return;
@@ -344,7 +352,9 @@ BENCHMARK(BM_ShadowShareOnDevice)
 void BM_UnshadowedCardOnDevice(benchmark::State& state) {
   const device::DeviceConfig config;
   std::string error;
-  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  auto created = device::Device::create(config);
+  if (!created) error = created.error().message;
+  std::unique_ptr<device::Device> gpu = std::move(created).value_or(nullptr);
   if (!gpu) {
     state.SkipWithError(error);
     return;
@@ -428,7 +438,9 @@ BENCHMARK(BM_UnshadowedCardOnDevice)
 void BM_ShadowStageOnDevice(benchmark::State& state) {
   const device::DeviceConfig config;
   std::string error;
-  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  auto created = device::Device::create(config);
+  if (!created) error = created.error().message;
+  std::unique_ptr<device::Device> gpu = std::move(created).value_or(nullptr);
   if (!gpu) {
     state.SkipWithError(error);
     return;
@@ -584,7 +596,9 @@ struct InPlacePainter : TextureProducerOperations {
 void BM_TintStageOnDevice(benchmark::State& state) {
   const device::DeviceConfig config;
   std::string error;
-  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  auto created = device::Device::create(config);
+  if (!created) error = created.error().message;
+  std::unique_ptr<device::Device> gpu = std::move(created).value_or(nullptr);
   if (!gpu) {
     state.SkipWithError(error);
     return;
@@ -732,7 +746,9 @@ BENCHMARK(BM_TintStageOnDevice)
 void BM_ChainOnDevice(benchmark::State& state) {
   const device::DeviceConfig config;
   std::string error;
-  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  auto created = device::Device::create(config);
+  if (!created) error = created.error().message;
+  std::unique_ptr<device::Device> gpu = std::move(created).value_or(nullptr);
   if (!gpu) {
     state.SkipWithError(error);
     return;

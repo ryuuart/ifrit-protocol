@@ -142,6 +142,9 @@ std::vector<Feed> feeds(const Hub& hub) { return HubAccess::feeds(hub); }
 void reportProblem(Hub& hub, Problem problem) {
   HubAccess::reportProblem(hub, std::move(problem));
 }
+void reportProblem(Hub& hub, std::string_view uri, const core::Error& error) {
+  HubAccess::reportProblem(hub, {std::string(uri), error.message, error.line});
+}
 void clearProblem(Hub& hub, std::string_view uri) {
   HubAccess::clearProblem(hub, uri);
 }

@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdio>
 #include <exception>
+#include <print>
 #include <string>
 #include <utility>
 
@@ -44,7 +45,7 @@ void handOver(const char* method, Deliver deliver) {
     try {
       deliver(*session);
     } catch (const std::exception& error) {
-      std::fprintf(stderr, "[grimoire] %s: %s\n", method, error.what());
+      std::println(stderr, "[grimoire] {}: {}", method, error.what());
     }
   });
 }

@@ -4,6 +4,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilmaterial/color/CssText.h>
 #include <sigilmaterial/color/Ramp.h>
 #include <sigilmaterial/core/Gradient.h>
 #include <sigilmaterial/core/Material.h>
@@ -14,6 +15,7 @@
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
+#include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
@@ -22,6 +24,7 @@
 #include <cmath>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -36,10 +39,77 @@ bool isNumber(py::handle value) {
          !py::isinstance<py::bool_>(value);
 }
 
+/** A stop at @p position along the gradient line in @p ink: a fraction, a
+ *  percentage of the line, or a length in px along it, as CSS writes a
+ *  stop's position. */
+material::ColorStop placedStop(py::handle position, material::Color ink) {
+  std::optional<compose::Dimension> written;
+  if (py::isinstance<py::str>(position))
+    written = compose::parseDimension(position.cast<std::string>());
+  else if (py::isinstance<compose::Dimension>(position) ||
+           py::isinstance<weave::Length>(position))
+    written = dimension(position);
+  if (written) {
+    const compose::Dimension& length = *written;
+    if (length.unit == compose::Dimension::Unit::Px)
+      return {.offset = 0, .color = ink, .pixels = length.value};
+    if (length.unit == compose::Dimension::Unit::Pt)
+      return {.offset = 0,
+              .color = ink,
+              .pixels = weave::pt(length.value).absolutePx()};
+  }
+  return {.offset = fraction(position, "A gradient stop's position"),
+          .color = ink};
+}
+
+}  // namespace
+
+bool isGradientText(std::string_view text) {
+  const std::optional<material::css::Function> written =
+      material::css::function(text);
+  if (!written) return false;
+  constexpr std::string_view kGradient = "-gradient";
+  const std::string_view name = written->name;
+  return name.size() > kGradient.size() &&
+         material::css::isWord(name.substr(name.size() - kGradient.size()),
+                               kGradient);
+}
+
+material::Material gradientFromText(std::string_view text) {
+  if (const std::optional<material::Material> read =
+          material::readGradient(text))
+    return *read;
+  throw py::value_error(
+      "'" + std::string(text) +
+      "' is no CSS gradient this reads. A gradient is linear-gradient(), "
+      "radial-gradient() or conic-gradient(), or a repeating- one: an angle "
+      "or 'to' a side, a shape and extent keyword with 'at' a position in "
+      "percentages or keywords, or 'from' an angle, then two or more stops, "
+      "each a CSS colour with up to two positions in percentages, px or pt "
+      "(or angles around a conic). A colour hint, an interpolation space, a "
+      "size or position written as a length, and a length against the font "
+      "or the viewport are not read.");
+}
+
+material::Filter filterFromText(std::string_view text) {
+  if (const std::optional<material::Filter> read = material::readFilter(text))
+    return *read;
+  throw py::value_error(
+      "'" + std::string(text) +
+      "' is no CSS filter this reads. A filter is CSS's functions one after "
+      "another: blur(4px), brightness(), contrast(), saturate(), "
+      "grayscale(), sepia(), invert() and opacity() of a number or a "
+      "percentage, hue-rotate(90deg), and drop-shadow(2px 4px 6px colour) "
+      "with its colour named; or 'none'. A negative amount, url(), and a "
+      "length against the font or the viewport are not read.");
+}
+
+namespace {
+
 /** A gradient's stops as Python writes them: a `Ramp`, a list of
  *  `ColorStop`s, pairs in CSS's order `(colour, position)` — the position
- *  a fraction or percentage text — or in the offset-first order
- *  `(offset, colour)`, or plain colours spaced evenly. A pair is read by
+ *  a fraction, percentage text or a length along the line — or in the
+ *  offset-first order `(offset, colour)`, or plain colours spaced evenly. A pair is read by
  *  which of its two entries is the number. */
 material::ColorStops colorStops(py::handle values) {
   if (py::isinstance<material::Ramp>(values))
@@ -57,8 +127,7 @@ material::ColorStops colorStops(py::handle values) {
         if (isNumber(pair[0]))
           stops.push_back({py::cast<float>(pair[0]), color(pair[1])});
         else
-          stops.push_back({fraction(pair[1], "A gradient stop's position"),
-                           color(pair[0])});
+          stops.push_back(placedStop(pair[1], color(pair[0])));
         continue;
       }
     }
@@ -325,6 +394,11 @@ void bindMaterialPaintEffect(py::module_& module) {
 
   py::class_<material::Filter>(nativePaint, "Filter")
       .def(py::init<>())
+      .def(py::init([](const std::string& text) { return filterFromText(text); }),
+           py::arg("css"),
+           "A filter from CSS's filter text: 'blur(4px) sepia(50%) "
+           "drop-shadow(0 2px 4px #0008)', the functions chained in the "
+           "order written. Any filter slot reads the text too.")
       .def_static(
           "of",
           [](const material::Material& program,
@@ -518,6 +592,17 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def("isRunning", &material::Filter::isRunning)
       .def("usesWorldSpace", &material::Filter::usesWorldSpace)
       .def(py::self == py::self);
+  // Every filter slot reads CSS's filter text. It is converted here rather
+  // than by a plain implicit conversion, which would turn the reader's
+  // ValueError naming the text into a TypeError that does not.
+  py::detail::get_type_info(typeid(material::Filter))
+      ->implicit_conversions.emplace_back(
+          [](PyObject* object, PyTypeObject*) -> PyObject* {
+            if (!PyUnicode_Check(object)) return nullptr;
+            const material::Filter read = filterFromText(
+                py::reinterpret_borrow<py::str>(object).cast<std::string>());
+            return py::cast(read).release().ptr();
+          });
 
   py::enum_<material::GradientUnits>(nativePaint, "GradientUnits")
       .value("Box", material::GradientUnits::Box)
@@ -696,7 +781,7 @@ void bindMaterialPaintEffect(py::module_& module) {
       "text such as '0.25turn'), or toward a side or a corner such as "
       "'right' or 'top left'. Its ends land on the box's corners, as CSS's "
       "do. Stops are colours, or (colour, position) pairs with the position "
-      "a fraction or a percentage.");
+      "a fraction, a percentage or a length along the line ('20px').");
   nativePaint.def(
       "radialGradient",
       [](py::handle stops, py::handle shape, py::handle extent,

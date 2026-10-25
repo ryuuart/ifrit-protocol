@@ -131,6 +131,7 @@ sigil_library(SigilComposeCore
     paint/SurfaceMapFill.cpp
     paint/MaterialEffects.cpp
     paint/Shadow.cpp
+    paint/ShadowText.cpp
     paint/MaterialEffects.h
     paint/PaintContent.cpp
     paint/FillInForce.cpp
@@ -224,7 +225,7 @@ sigil_test(compose_test
           test/ComposeTestMatching.cpp test/ComposeTestHas.cpp
           test/ComposeTestTypedLeaves.cpp test/ComposeTestRuleScope.cpp
           test/ComposeTestLonghandValues.cpp test/ComposeTestTextIndent.cpp
-          test/ComposeTestMovingHold.cpp
+          test/ComposeTestMovingHold.cpp test/ComposeTestShadowText.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilMaterialField SigilWeavePorts
             yoga::yogacore

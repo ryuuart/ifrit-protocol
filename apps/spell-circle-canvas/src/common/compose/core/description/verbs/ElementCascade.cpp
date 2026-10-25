@@ -71,7 +71,7 @@ Derived& CascadeVerbs<Derived>::lineHeight(sigil::weave::Leading leading) {
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::lineHeight(float multiple) {
-  return paragraph({.leading = sigil::weave::Leading::multiple(multiple)});
+  return paragraph({.leading = sigil::weave::Leading::sizeMultiple(multiple)});
 }
 
 template <class Derived>

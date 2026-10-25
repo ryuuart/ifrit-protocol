@@ -697,8 +697,9 @@ void expectDevicePrecision(sigil::core::hardware::GpuDevice& device,
 TEST(ComposeTexture,
      HalfFloatMetalKeepsHdrProfilesAndRefusesF32WithoutStateLoss) {
   std::string error;
-  const auto device = sigil::core::hardware::GpuDevice::createOwned(&error);
-  if (!device) GTEST_SKIP() << error;
+  auto made = sigil::core::hardware::GpuDevice::createOwned();
+  if (!made) GTEST_SKIP() << made.error().message;
+  const auto device = std::move(*made);
   const auto context = sigil::skia::GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context on this device";
   expectDevicePrecision(*device, *context);
@@ -829,9 +830,9 @@ TEST(ComposeTexture, ASceneOnADeviceHandsAForeignRecorderAHostCopy) {
   if (!device->gpu() || !device->graphite())
     GTEST_SKIP() << "no adopted Graphite context on this Vulkan device";
   std::string error;
-  const std::unique_ptr<core::hardware::GpuDevice> other =
-      core::hardware::GpuDevice::createOwned(&error);
-  if (!other) GTEST_SKIP() << error;
+  auto made = core::hardware::GpuDevice::createOwned();
+  if (!made) GTEST_SKIP() << made.error().message;
+  const std::unique_ptr<core::hardware::GpuDevice> other = std::move(*made);
   const std::unique_ptr<skia::GraphiteContext> foreign =
       skia::GraphiteContext::create(*other);
   if (!foreign) GTEST_SKIP() << "no second Graphite context on this machine";
@@ -876,9 +877,9 @@ TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   namespace skia = sigil::skia;
   namespace core = sigil::core;
   std::string error;
-  const std::unique_ptr<core::hardware::GpuDevice> device =
-      core::hardware::GpuDevice::createOwned(&error);
-  if (!device) GTEST_SKIP() << error;
+  auto made = core::hardware::GpuDevice::createOwned();
+  if (!made) GTEST_SKIP() << made.error().message;
+  const std::unique_ptr<core::hardware::GpuDevice> device = std::move(*made);
   const std::unique_ptr<skia::GraphiteContext> context =
       skia::GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context on this device";

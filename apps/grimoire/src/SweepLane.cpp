@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <exception>
 #include <optional>
+#include <print>
 
 #include "Arguments.h"
 #include "Inspection.h"
@@ -82,7 +83,7 @@ int runSweep(const Arguments& args, int chosen,
   try {
     result = sketch::sweep(options, fonts(), assets());
   } catch (const std::exception& error) {
-    std::fprintf(stderr, "sketch sweep failed: %s\n", error.what());
+    std::println(stderr, "sketch sweep failed: {}", error.what());
   }
   inspection.reset();
   sharedWebEngine.shutdown();

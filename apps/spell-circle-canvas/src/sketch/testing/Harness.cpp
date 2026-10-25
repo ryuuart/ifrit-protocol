@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include <cstdio>
+#include <print>
 #include <string>
 #include <system_error>
 
@@ -62,8 +63,8 @@ class ReadoutFirst final : public ::testing::TestEventListener {
     if (result.failed() && g_running && g_readout && !g_printed) {
       g_printed = true;
       const std::string account = g_readout(*g_running);
-      std::printf("[ HARNESS  ] what the host says, before the failure:\n%s",
-                  account.c_str());
+      std::print("[ HARNESS  ] what the host says, before the failure:\n{}",
+                 account);
       std::fflush(stdout);
     }
     m_printer->OnTestPartResult(result);
@@ -151,8 +152,8 @@ void Harness::TearDown() {
   m_host.reset();
   std::error_code error;
   if (HasFailure()) {
-    std::printf("[ HARNESS  ] state directory kept: %s\n",
-                m_stateDirectory.string().c_str());
+    std::println("[ HARNESS  ] state directory kept: {}",
+                 m_stateDirectory.string());
     return;
   }
   std::filesystem::remove_all(m_stateDirectory, error);

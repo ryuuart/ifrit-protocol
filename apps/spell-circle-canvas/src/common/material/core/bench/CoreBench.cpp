@@ -32,7 +32,7 @@ struct P16 {
 };
 
 std::shared_ptr<Program> nullCompiler(std::shared_ptr<const Recipe> r,
-                                      Variant v, std::string&) {
+                                      Variant v) {
   return std::make_shared<Program>(std::move(r), Target::Slang, v);
 }
 

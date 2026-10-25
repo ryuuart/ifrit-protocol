@@ -26,6 +26,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <optional>
 #include <span>
 #include <string>
@@ -69,32 +70,32 @@ std::string_view meaningName(std::type_identity<FlatBuffer<Root>>) {
   return name;
 }
 
-/** @p bytes as a FlatBuffer of Root, verified before any of it is read.
- *  Nothing when they are not one — a truncated buffer, another schema —
- *  and @p why says so where it is asked for. */
+/** @p bytes as a FlatBuffer of Root, verified before any of it is read,
+ *  or the error that says they are not one — a truncated buffer, another
+ *  schema. */
 template <class Root>
-std::optional<FlatBuffer<Root>> flatBufferFromBytes(
-    std::span<const uint8_t> bytes, std::string* why = nullptr) {
+std::expected<FlatBuffer<Root>, core::Error> flatBufferFromBytes(
+    std::span<const uint8_t> bytes) {
   flatbuffers::Verifier verifier(bytes.data(), bytes.size());
-  if (!verifier.VerifyBuffer<Root>(nullptr)) {
-    if (why) *why = "the bytes do not verify as the schema's root";
-    return std::nullopt;
-  }
+  if (!verifier.VerifyBuffer<Root>(nullptr))
+    return std::unexpected(
+        core::Error{"the bytes do not verify as the schema's root"});
   return FlatBuffer<Root>(std::vector<uint8_t>(bytes.begin(), bytes.end()));
 }
 
 /** @p json, the schema's own JSON form, converted through the schema the
- *  generated Root carries and verified as one. Nothing when the text
- *  does not fit the schema, and @p why carries the reader's own message
- *  — the line, the column and the field — where it is asked for. */
+ *  generated Root carries and verified as one; or the error carrying the
+ *  reader's own message — the line, the column and the field — when the
+ *  text does not fit the schema. */
 template <CarriesSchema Root>
-std::optional<FlatBuffer<Root>> flatBufferFromJson(std::string_view json,
-                                                   std::string* why = nullptr) {
+std::expected<FlatBuffer<Root>, core::Error> flatBufferFromJson(
+    std::string_view json) {
+  std::string why;
   const std::optional<std::vector<std::byte>> buffer =
-      schema<Root>().binary(json, why);
-  if (!buffer) return std::nullopt;
+      schema<Root>().binary(json, &why);
+  if (!buffer) return std::unexpected(core::Error{std::move(why)});
   return flatBufferFromBytes<Root>(
-      {reinterpret_cast<const uint8_t*>(buffer->data()), buffer->size()}, why);
+      {reinterpret_cast<const uint8_t*>(buffer->data()), buffer->size()});
 }
 
 /** Whether @p text is the JSON form rather than a buffer: read from the
@@ -116,9 +117,9 @@ inline bool flatBufferLooksLikeJson(std::string_view text,
 template <class Root>
 struct FlatBufferDecoder {
   /** Reads @p bytes as a buffer or as the schema's JSON form, @p hint
-   *  naming the resource. */
-  std::optional<FlatBuffer<Root>> decode(const io::Bytes& bytes,
-                                         std::string_view hint) const {
+   *  naming the resource, or says why they are neither. */
+  std::expected<FlatBuffer<Root>, core::Error> decode(
+      const io::Bytes& bytes, std::string_view hint) const {
     if constexpr (CarriesSchema<Root>) {
       if (flatBufferLooksLikeJson(bytes.asText(), hint))
         return flatBufferFromJson<Root>(bytes.asText());

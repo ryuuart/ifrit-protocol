@@ -29,6 +29,7 @@
 #include <exception>
 #include <fstream>
 #include <memory>
+#include <print>
 #include <set>
 #include <system_error>
 #include <vector>
@@ -283,7 +284,7 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   pruneThumbnails(run.outputPath.parent_path(), run.stem, run.outputPath);
   return ThumbnailOutcome::Wrote;
 } catch (const std::exception& error) {
-  std::fprintf(stderr, "[thumbnail] %s: %s\n", entry.key, error.what());
+  std::println(stderr, "[thumbnail] {}: {}", entry.key, error.what());
   return ThumbnailOutcome::Failed;
 }
 

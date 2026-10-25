@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <functional>
 
+#include "PaintInternal.h"
 #include "PaintProfile.h"
 #include "runtime/ComposeRuntime.h"
 
@@ -172,6 +173,10 @@ struct PaintPass {
         localPaintBounds = inst.heldBakeBounds;
       } else {
         localPaintBounds = impl.bakeBounds(inst);
+        // A bake that holds a layer effect is the extent the effect
+        // filters, on the same grid its layer stands on.
+        if (layerEffectOf(node))
+          localPaintBounds = onFilterGrid(localPaintBounds);
         inst.heldBakeBounds = localPaintBounds;
         inst.bakeBoundsHeld = true;
       }

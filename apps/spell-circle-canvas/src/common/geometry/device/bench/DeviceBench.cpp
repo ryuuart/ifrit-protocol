@@ -47,7 +47,9 @@ Device* sharedDevice(std::string* why) {
   static std::string error;
   static std::unique_ptr<Device> device = [] {
     const DeviceConfig config;
-    return Device::create(config, &error);
+    auto created = Device::create(config);
+    if (!created) error = created.error().message;
+    return std::move(created).value_or(nullptr);
   }();
   if (why) *why = error;
   return device.get();

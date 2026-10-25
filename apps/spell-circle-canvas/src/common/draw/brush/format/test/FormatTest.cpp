@@ -99,7 +99,7 @@ TEST(BrushFormat, ADirectoryOfThreeFilesLoadsThroughAnyByteSource) {
   table.put("res://ink.sigilbrush/shape.png", tipPng(24));
   table.put("res://ink.sigilbrush/grain.png", tipPng(16));
 
-  const std::optional<brush::Tool> read =
+  const auto read =
       format::loadBrush(table, "res://ink.sigilbrush");
   ASSERT_TRUE(read);
   EXPECT_EQ(read->tip, brush::Tip::Image);
@@ -146,7 +146,7 @@ TEST(BrushFormat, ADirectoryLoadsThroughAHubAndItsRegisteredDecoder) {
                         std::as_bytes(std::span(description))));
   ASSERT_TRUE(hub.write("res://brushes/ink.sigilbrush/shape.png", shape));
 
-  const std::optional<brush::Tool> read =
+  const auto read =
       format::loadBrush(hub, "res://brushes/ink.sigilbrush");
   ASSERT_TRUE(read);
   ASSERT_TRUE(read->shape);
@@ -290,7 +290,7 @@ TEST(BrushFormat, APackedArchiveCarriesTheSameThreeParts) {
   zip.add("shape.png", tipPng(20));
   const std::vector<std::byte> archive = zip.finish();
 
-  const std::optional<brush::Tool> read =
+  const auto read =
       format::decodeBrush(archive, "ink.sigilbrush");
   ASSERT_TRUE(read);
   EXPECT_FLOAT_EQ(read->width, 33.0f);
@@ -317,7 +317,7 @@ TEST(BrushFormat, AProcreateArchiveGivesUpItsShapeAndItsGrain) {
   EXPECT_FLOAT_EQ(read->shape->spacing, brush::Shape{}.spacing);
 
   // The same bytes through the one decoder every form goes through.
-  const std::optional<brush::Tool> sniffed =
+  const auto sniffed =
       format::decodeBrush(archive, "swash.brush");
   ASSERT_TRUE(sniffed);
   EXPECT_TRUE(sniffed->shape);
@@ -435,7 +435,7 @@ TEST(BrushFormat, APhotoshopLibraryGivesUpEverySampledTip) {
   EXPECT_FALSE(brushes[0].grain);
 
   // And the one decoder answers with the first of them.
-  const std::optional<brush::Tool> sniffed =
+  const auto sniffed =
       format::decodeBrush(abr, "library.abr");
   ASSERT_TRUE(sniffed);
   ASSERT_TRUE(sniffed->shape);
@@ -456,11 +456,23 @@ TEST(BrushFormat, TheSubversionDecidesHowMuchPrecedesTheBitmap) {
 TEST(BrushFormat, BytesThatAreNoBrushAnswerNothing) {
   EXPECT_FALSE(format::decodeBrush({}, "empty"));
   EXPECT_FALSE(format::decodeBrush(textBytes("not a brush"), "x.abr"));
+  EXPECT_EQ(format::decodeBrush({}, "empty").error().message,
+            "a brush needs bytes and has none");
+  EXPECT_EQ(format::decodeBrush(textBytes("not a brush"), "x.abr")
+                .error()
+                .message,
+            "the bytes are no native brush, Photoshop brush library or "
+            "Procreate brush");
+  EXPECT_EQ(format::assembleBrush({}, {}, {}).error().message,
+            "a brush needs a description, a shape or a grain, and none "
+            "arrived");
   EXPECT_FALSE(format::isPhotoshopBrushes(textBytes("PK\3\4")));
   EXPECT_TRUE(format::decodePhotoshopBrushes(textBytes("nope")).empty());
 
   Table empty;
   EXPECT_FALSE(format::loadBrush(empty, "res://missing.sigilbrush"));
+  EXPECT_EQ(format::loadBrush(empty, "res://missing.sigilbrush").error().message,
+            "no brush could be read at res://missing.sigilbrush");
 }
 
 /** Every value of a tool that the description can hold, written and read
@@ -516,7 +528,7 @@ TEST(BrushFormat, EveryFieldOfATheDescriptionCanHoldSurvivesTheRoundTrip) {
 
   const std::string description = format::encodeBrush(authored);
   const std::vector<std::byte> artwork = tipPng(8);
-  const std::optional<brush::Tool> read =
+  const auto read =
       format::assembleBrush(textBytes(description), artwork, artwork);
   ASSERT_TRUE(read);
 
@@ -592,7 +604,7 @@ TEST(BrushFormat, AnEnvelopeWithoutItsOptionalPartsReadsBackWithoutThem) {
   authored.markerTip = false;
 
   const std::string description = format::encodeBrush(authored);
-  const std::optional<brush::Tool> read =
+  const auto read =
       format::assembleBrush(textBytes(description), {}, {});
   ASSERT_TRUE(read);
   EXPECT_FALSE(read->pressure.gaussian);
@@ -603,11 +615,17 @@ TEST(BrushFormat, AnEnvelopeWithoutItsOptionalPartsReadsBackWithoutThem) {
 
 /** Whatever a decoded tool is, it is a tool: what every hostile case
  *  below asserts about the answer it gets. */
-void expectWellFormed(const std::optional<brush::Tool>& tool) {
-  if (!tool) return;
-  EXPECT_GT(tool->width, 0.0f);
-  if (tool->shape) EXPECT_TRUE(tool->shape->image);
-  if (tool->grain) EXPECT_TRUE(tool->grain->image);
+void expectWellFormed(const brush::Tool& tool) {
+  EXPECT_GT(tool.width, 0.0f);
+  if (tool.shape) EXPECT_TRUE(tool.shape->image);
+  if (tool.grain) EXPECT_TRUE(tool.grain->image);
+}
+
+/** The same for an answer that may hold no tool, which is well formed by
+ *  holding none. */
+template <class Answer>
+void expectWellFormed(const Answer& answer) {
+  if (answer) expectWellFormed(*answer);
 }
 
 TEST(BrushFormat, APhotoshopLibraryTruncatedAnywhereAnswersShort) {
@@ -713,7 +731,7 @@ TEST(BrushFormat, AMalformedDescriptionLeavesTheToolAsItWas) {
   for (std::string_view text :
        {"", "{", "{\"width\":", "[]", "{\"width\": \"wide\"}",
         "{\"tip\": 4, \"shape\": 7}", "null", "{\"bristles\": \"many\"}"}) {
-    const std::optional<brush::Tool> read =
+    const auto read =
         format::assembleBrush(textBytes(text), artwork, {});
     ASSERT_TRUE(read) << text;
     expectWellFormed(read);

@@ -77,10 +77,13 @@ struct DataSources {
     if (const std::shared_ptr<const data::Database> store =
             ctx.assets.hub().load<sigil::data::Database>(
                 ctx.local("data/cities.sqlite"))) {
-      fromSqlite = store->query(
+      auto answer = store->query(
           "SELECT country, SUM(population) AS population FROM cities "
-          "GROUP BY country ORDER BY population DESC",
-          &sqliteNote);
+          "GROUP BY country ORDER BY population DESC");
+      if (answer)
+        fromSqlite = std::move(*answer);
+      else
+        sqliteNote = answer.error().message;
     } else {
       sqliteNote = "the store did not open";
     }
@@ -88,12 +91,15 @@ struct DataSources {
     // for as long as this frame is described.
     const std::filesystem::path path =
         sigil::io::resolve(ctx.assets.hub(), ctx.local("data/cities.csv"));
-    if (std::optional<data::Database> scratch =
-            data::Database::memory(data::Engine::Duck, &duckNote)) {
-      fromDuck = scratch->query(
-          "SELECT city, population FROM read_csv('" + path.string() +
-              "') WHERE coastal ORDER BY population DESC LIMIT 6",
-          &duckNote);
+    auto scratch = data::Database::memory(data::Engine::Duck);
+    if (!scratch) {
+      duckNote = scratch.error().message;
+    } else if (auto answer = scratch->query(
+                   "SELECT city, population FROM read_csv('" + path.string() +
+                   "') WHERE coastal ORDER BY population DESC LIMIT 6")) {
+      fromDuck = std::move(*answer);
+    } else {
+      duckNote = answer.error().message;
     }
     ctx.composer.render(describe());
   }

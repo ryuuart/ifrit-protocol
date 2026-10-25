@@ -197,8 +197,9 @@ TEST(ComposeRepaint, APageRepaintedInRegionsIsThePageDrawnWhole) {
 
 TEST(ComposeRepaint, APageRepaintedInRegionsOnTheDeviceIsThePageDrawnWhole) {
   std::string error;
-  const auto device = sigil::core::hardware::GpuDevice::createOwned(&error);
-  if (!device) GTEST_SKIP() << error;
+  auto made = sigil::core::hardware::GpuDevice::createOwned();
+  if (!made) GTEST_SKIP() << made.error().message;
+  const auto device = std::move(*made);
   const auto context = sigil::skia::GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context on this device";
   const auto kept = SurfaceScene::make({200, 180}, fonts());

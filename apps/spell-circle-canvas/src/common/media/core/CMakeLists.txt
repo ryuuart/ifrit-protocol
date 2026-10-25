@@ -13,7 +13,7 @@ sigil_library(SigilMediaCore
   HEADERS ColorSpace.h Decode.h Format.h Frame.h Image.h Metadata.h Picture.h PixelSource.h
           ../advanced/Device.h ../advanced/Formats.h ../advanced/Skia.h
           ../advanced/Source.h
-  PUBLIC unofficial::skia::skia glm::glm)
+  PUBLIC unofficial::skia::skia glm::glm SigilCoreReport)
 
 sigil_test(media_test
   SOURCES test/ImageTest.cpp test/PixelSourceTest.cpp

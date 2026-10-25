@@ -22,6 +22,7 @@
 #include <glm/vec2.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace sigil::compose {
@@ -34,8 +35,9 @@ namespace sigil::compose {
 struct TextShadow {
   /** How far the shadow falls from its glyph, in local pixels. */
   glm::vec2 offset = {0, 0};
-  /** The Gaussian's standard deviation in local pixels; 0 is a hard copy
-   *  of the glyph. A blurred shadow with no offset is a glow. */
+  /** CSS's blur radius in local pixels, as every shadow reads it: a
+   *  Gaussian whose standard deviation is half of it; 0 is a hard copy of
+   *  the glyph. A blurred shadow with no offset is a glow. */
   float blur = 0;
   /** What the shadow is painted in: a colour, a custom property read
    *  where the shadow is stated, or — unless stated — the ink in force,
@@ -43,6 +45,17 @@ struct TextShadow {
   ColorTerm color = ColorTerm::currentInk();
   bool operator==(const TextShadow&) const = default;
 };
+
+/** CSS'S `text-shadow` READ FROM ITS TEXT: a comma-separated list, each
+ *  shadow two or three lengths — the offset and a blur radius — with a
+ *  colour before or after them, the first drawn nearest the glyph —
+ *  `readTextShadow("1px 1px 2px black, 0 0 4px blue")`. A length is in
+ *  `px` or `pt`, or a bare zero; the colour is any CSS colour
+ *  `readColor` reads, or `currentcolor`, the ink in force, which is also
+ *  what an unnamed colour is. `none` is the empty list. Nothing where any
+ *  shadow does not read, a blur radius is negative, or a length is in a
+ *  unit measured against the font or the viewport. */
+std::optional<std::vector<TextShadow>> readTextShadow(std::string_view text);
 
 /** THE FONT AND THE INK, which flow down the tree from the node that
  *  states them to every passage under it. `font()` is the shorthand over
@@ -72,6 +85,21 @@ class FontVerbs {
    *  @trap A list naming no family the context has leaves the inherited
    *  face standing and says so once, naming the whole list. */
   Derived& fontFamily(std::string family);
+  /** THE FAMILY AND ONE OF ITS STYLES BY THE FONT'S OWN NAME for it —
+   *  `fontFamily("Avenir", "Book")` — for the faces a weight and a style
+   *  cannot tell apart: Avenir's Book and Roman are both an upright 400.
+   *  The name is found when the cascade runs, through the composer's font
+   *  context, so a family the context adopted answers by its own names, and
+   *  it is compared with ASCII case and spaces aside. The face found is
+   *  written into the font as `fontFamily(face)` writes a held one, its own
+   *  weight and style standing; a `fontWeight` or a `fontStyle` written
+   *  after it, or below it in the tree, overrides that trait as CSS would,
+   *  the named face's other one standing, and the family chooses its face
+   *  at them. One written before it on the same node gives way to it. An
+   *  empty name is `fontFamily(family)`.
+   *  @trap A name no family of the list has is said once, naming both, and
+   *  the family is set at the weight and style in force. */
+  Derived& fontFamily(std::string family, std::string styleName);
   /** THE FAMILY AS ONE FACE THE AUTHOR HOLDS — a face a hub loaded from a
    *  font file, or one a style already carries: the run is set in exactly
    *  @p face, with no list and no lookup by name. It is the `face` field of

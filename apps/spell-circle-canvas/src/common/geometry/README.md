@@ -477,7 +477,10 @@ on — and `mesh/codec` uses
 tinyobjloader for OBJ, Alembic for `.abc` and the header-only cgltf for
 glTF, and simdjson for the JSON a `.geo` is; STL and PLY are parsed by
 hand. None of those reaches
-another feature, and none of them reaches a public header.
+another feature, and none of them reaches a public header. The codec's
+readers, `mesh::codec::decode::model` and `mesh::codec::decode::alembic`,
+answer `std::expected<Model, core::Error>`: the model, or the error naming
+the format the bytes were read as and that they did not read as it.
 
 `device` is the exception to all of that, and the one feature that
 brings a renderer's dependencies with it: Diligent Engine, SigilCore's

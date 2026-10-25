@@ -306,7 +306,8 @@ frame.environment(studio, {.shown = 0.6f})
                            .opacity = 0.88f}))
      .readback(world::readback("trail").then(observe));
 
-scene.render(frame);
+if (const auto refused = scene.render(frame); !refused)  // the error, naming what was wrong
+  report(refused.error().message);
 world::draw(scene, canvas);  // what the passes wrote — advanced/Skia.h
 ```
 

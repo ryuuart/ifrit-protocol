@@ -14,7 +14,9 @@
 
 #include <glm/vec2.hpp>
 #include <optional>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace sigil::draw {
 class Pen;
@@ -82,6 +84,17 @@ struct Shadow {
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
+
+/** CSS'S `box-shadow` READ FROM ITS TEXT: a comma-separated list, each
+ *  shadow two to four lengths — the offset, a blur radius and a spread —
+ *  with a colour and `inset` before or after them, the first on top —
+ *  `readShadow("0 4px 12px 2px rgba(0 0 0 / .3) inset")`. A length is in
+ *  `px` or `pt`, or a bare zero; the colour is any CSS colour `readColor`
+ *  reads, or `currentcolor`, the ink in force, which is also what an
+ *  unnamed colour is. `none` is the empty list. Nothing where any shadow
+ *  does not read, a blur radius is negative, or a length is in a unit
+ *  measured against the font or the viewport. */
+std::optional<std::vector<Shadow>> readShadow(std::string_view text);
 
 /** A blurred copy of the node's outline cast at @p offset in @p color — a
  *  material converts, and `Fill::currentInk()` or `Fill::var(name)` follow

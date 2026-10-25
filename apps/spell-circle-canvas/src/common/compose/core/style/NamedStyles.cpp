@@ -60,7 +60,7 @@ void Composer::Impl::namedStylesOf(
     if (partial)
       chooseRangeFace(fonts, *partial, leafStyle(leaf), familyInForce,
                       italicInForce, longhands.familyNamed(),
-                      longhands.italic());
+                      longhands.italic(), longhands.styleNamed());
     return partial;
   };
   if (!text.rich.hasStyles())

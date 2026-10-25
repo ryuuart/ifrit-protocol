@@ -113,15 +113,17 @@ material::Lobes statedLobes(const material::Material& material) {
 
 const Compiled& scaffold(bool lit, uint32_t lights) {
   const auto build = [](bool shaded, uint32_t reaching) {
-    Compiled built;
-    std::string error;
     const std::string source =
         lightDefinitions(reaching) + std::string(shaderSource("Surface.slang"));
-    if (!material::slang::compileModule(source, "vsMain", "fsFlat", shaded,
-                                        &built, &error))
-      material::reportOnce("world.diligent.scaffold",
-                           "the surface scaffold did not compile: " + error);
-    return built;
+    auto built =
+        material::slang::compileModule(source, "vsMain", "fsFlat", shaded);
+    if (!built) {
+      material::reportOnce(
+          "world.diligent.scaffold",
+          "the surface scaffold did not compile: " + built.error().message);
+      return Compiled{};
+    }
+    return std::move(*built);
   };
   static const Compiled plain = build(false, 0u);
   if (!lit) return plain;
@@ -138,13 +140,15 @@ const Compiled& scaffold(bool lit, uint32_t lights) {
 
 const Compiled& shadowScaffold(bool coverage) {
   const auto build = [](const char* entry) {
-    Compiled built;
-    std::string error;
-    if (!material::slang::compileModule(shaderSource("Surface.slang"), "vsMain",
-                                        entry, /*lit=*/false, &built, &error))
-      material::reportOnce(std::string("world.diligent.shadow.") + entry,
-                           "the shadow stage did not compile: " + error);
-    return built;
+    auto built = material::slang::compileModule(
+        shaderSource("Surface.slang"), "vsMain", entry, /*lit=*/false);
+    if (!built) {
+      material::reportOnce(
+          std::string("world.diligent.shadow.") + entry,
+          "the shadow stage did not compile: " + built.error().message);
+      return Compiled{};
+    }
+    return std::move(*built);
   };
   static const Compiled depthOnly = build("fsShadow");
   static const Compiled covered = build("fsShadowFlat");
@@ -153,30 +157,33 @@ const Compiled& shadowScaffold(bool coverage) {
 
 const Compiled& tintScaffold() {
   static const Compiled built = [] {
-    Compiled program;
-    std::string error;
-    if (!material::slang::compileModule(shaderSource("Surface.slang"), "vsMain",
-                                        "fsShadowTint", /*lit=*/false, &program,
-                                        &error))
+    auto program = material::slang::compileModule(
+        shaderSource("Surface.slang"), "vsMain", "fsShadowTint", /*lit=*/false);
+    if (!program) {
       material::reportOnce("world.diligent.shadow.tint",
-                           "the shadow stage's tint did not compile: " + error);
-    return program;
+                           "the shadow stage's tint did not compile: " +
+                               program.error().message);
+      return Compiled{};
+    }
+    return std::move(*program);
   }();
   return built;
 }
 
 const Compiled& backdropProgram() {
   static const Compiled built = [] {
-    Compiled program;
-    std::string error;
     // The LIT build, always: the sky's uniforms are the lit scaffold's,
     // and a build with no lighting in it does not declare them.
-    if (!material::slang::compileModule(shaderSource("Surface.slang"),
-                                        "vsBackdrop", "fsBackdrop",
-                                        /*lit=*/true, &program, &error))
-      material::reportOnce("world.diligent.backdrop",
-                           "the sky pass did not compile: " + error);
-    return program;
+    auto program = material::slang::compileModule(
+        shaderSource("Surface.slang"), "vsBackdrop", "fsBackdrop",
+        /*lit=*/true);
+    if (!program) {
+      material::reportOnce(
+          "world.diligent.backdrop",
+          "the sky pass did not compile: " + program.error().message);
+      return Compiled{};
+    }
+    return std::move(*program);
   }();
   return built;
 }
@@ -185,13 +192,15 @@ const PostPrograms& postPrograms() {
   static const PostPrograms programs = [] {
     PostPrograms built;
     const auto one = [](const char* entry, Compiled* into) {
-      std::string error;
-      if (!material::slang::compileModule(shaderSource("Post.slang"),
-                                          "vsFullscreen", entry, /*lit=*/false,
-                                          into, &error))
+      auto compiled = material::slang::compileModule(
+          shaderSource("Post.slang"), "vsFullscreen", entry, /*lit=*/false);
+      if (compiled)
+        *into = std::move(*compiled);
+      else
         material::reportOnce(std::string("world.diligent.post.") + entry,
                              std::string("the post stage ") + entry +
-                                 " did not compile: " + error);
+                                 " did not compile: " +
+                                 compiled.error().message);
     };
     one("fsCopy", &built.copy);
     one("fsBlur", &built.blur);
@@ -251,8 +260,8 @@ void installSlangCompiler() {
     material::registerCompiler(
         material::Target::Slang,
         [](std::shared_ptr<const material::Recipe> recipe,
-           material::Variant variant,
-           std::string& error) -> std::shared_ptr<material::Program> {
+           material::Variant variant)
+            -> std::expected<std::shared_ptr<material::Program>, core::Error> {
           // The scaffold first, so its uniforms and its VSOut stand
           // before the recipe's text; the recipe's declarations and body
           // next; the fragment entry that calls the body last, because
@@ -268,13 +277,12 @@ void installSlangCompiler() {
           source += shaderSource("MaterialEntry.slang");
           // The shadow stage's build asks the body only where it covers,
           // and is never lit.
-          Compiled built;
-          if (!material::slang::compileModule(
-                  source, "vsMain", shadow ? "fsMaterialShadow" : "fsMaterial",
-                  lit, &built, &error))
-            return nullptr;
+          auto built = material::slang::compileModule(
+              source, "vsMain", shadow ? "fsMaterialShadow" : "fsMaterial",
+              lit);
+          if (!built) return std::unexpected(std::move(built.error()));
           return std::make_shared<material::slang::SlangProgram>(
-              std::move(recipe), variant, std::move(built));
+              std::move(recipe), variant, std::move(*built));
         });
   });
 }

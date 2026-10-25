@@ -315,7 +315,7 @@ struct Minard1869 {
         pathFigure(deckle(14))
             .fill(material::grained(kPaper, 0.10f, 0.06f))
             .filter(material::Filter::dropShadow(
-                hexColor(0x000000, 0.55f), {.blur = 14, .offset = {0, 6}})),
+                hexColor(0x000000, 0.55f), {.blur = 28, .offset = {0, 6}})),
         // Age: a slow mottle and a browning toward the edges, both laid
         // into the paper by multiplying.
         kit::at(box()

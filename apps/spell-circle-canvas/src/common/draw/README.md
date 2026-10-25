@@ -541,7 +541,11 @@ their tests live under `brush/format/`.
   their own tools can link `SigilDraw` alone.
 * **Formats consume bytes.** `SigilDrawBrushFormat` uses SigilIOSource
   and hands artwork to SigilMedia. SigilIO owns access, caching and
-  reload; the brush format feature opens no files.
+  reload; the brush format feature opens no files. Its doors that can
+  refuse — `brush::format::decodeBrush`, `brush::format::assembleBrush`,
+  `brush::format::loadBrush` and the hub's `brush::format::BrushDecoder` —
+  answer `std::expected<brush::Tool, core::Error>`, the error saying which
+  form the bytes looked like and why it did not read.
 * **Public storage exposes Boost.** `Retained.h`, `brush/Engine.h` and
   `brush/Catalogue.h` use Boost tables or hash folding. Their originating
   targets propagate the header-only Boost dependencies to consumers.

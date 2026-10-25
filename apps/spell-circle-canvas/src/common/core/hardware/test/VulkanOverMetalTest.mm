@@ -220,9 +220,11 @@ class VulkanDevice {
     native.vulkan.apiVersion = VK_API_VERSION_1_2;
     native.vulkan.getInstanceProcAddr =
         reinterpret_cast<VulkanHandles::GetInstanceProcAddr>(getInstanceProcAddr);
-    std::string error;
-    gpu = GpuDevice::adopt(native, &error);
-    if (!gpu) return refuse(why, ("the device was not adopted: " + error).c_str());
+    auto adopted = GpuDevice::adopt(native);
+    if (!adopted)
+      return refuse(why, ("the device was not adopted: " +
+                          adopted.error().message).c_str());
+    gpu = std::move(*adopted);
     return true;
   }
 

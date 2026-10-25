@@ -232,11 +232,14 @@ class Composer {
    *  the scale it is shown at, and each draw composites those pixels under
    *  the node's new matrix, as a browser's compositor turns a layer: text,
    *  shadows and materials inside it are not painted again for a motion
-   *  that only moves them. The pixels are formed again when what the node
-   *  paints changes, or when it is shown larger than they were formed for;
-   *  the first draw it holds still, it is painted live again and the pixels
-   *  go. A paint anchored to the root (`material::Paint::worldSpace`)
-   *  inside such a node turns with the node while it moves.
+   *  that only moves them. A node whose opacity alone moves is painted
+   *  once in place, the pixels a layer opened for the fade would hold, and
+   *  each draw composites them at the new opacity with no layer opened.
+   *  The pixels are formed again when what the node paints changes, or
+   *  when it is shown larger than they were formed for; the first draw it
+   *  holds still, it is painted live again and the pixels go. A paint
+   *  anchored to the root (`material::Paint::worldSpace`) inside such a
+   *  node turns with the node while it moves.
    *
    *  Off by default, which a capture leaves it: every node is painted live
    *  under every matrix, so a still is the same pixels however the frames
@@ -431,7 +434,8 @@ class Composer {
     size_t picturesRecorded = 0;
     size_t texturesBaked = 0;  ///< of those, bakes rather than recordings
     /** Nodes composited last draw from the pixels held while their own
-     *  transform moves (`setLive`): each one a single image draw. */
+     *  transform or opacity moves (`setLive`): each one a single image
+     *  draw. */
     size_t nodesHeldWhileMoving = 0;
     size_t nodesPainted = 0;   ///< instances painted live last draw()
     /** Backdrop filters run last draw(): a backdrop whose held pixels
@@ -466,7 +470,7 @@ class Composer {
    *      composer.setProfiling(true);
    *      composer.draw(canvas);
    *      for (const auto &row : composer.profile())   // worst first
-   *        printf("%7.2f ms  %s\n", row.selfMilliseconds, row.label.c_str());
+   *        std::println("{:7.2f} ms  {}", row.selfMilliseconds, row.label);
    *
    *  `selfMilliseconds` EXCLUDES children, so the number lands on the node that
    *  actually costs rather than on its ancestors.
@@ -492,9 +496,10 @@ class Composer {
      *  different — a Texture node is provably static, a Group node is
      *  provably NOT CHANGING RIGHT NOW, and the difference is one frame. */
     Group,
-    /** Blitted the pixels held while the node's own transform moves
-     *  (`setLive`): formed once and turned under every new matrix, and
-     *  painted live again the draw the node holds still. */
+    /** Blitted the pixels held while the node's own transform or opacity
+     *  moves (`setLive`): formed once, turned under every new matrix and
+     *  faded at every new opacity, and painted live again the draw the
+     *  node holds still. */
     Moving,
   };
   /** One node's share of the last frame and how it produced its pixels.

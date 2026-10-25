@@ -516,7 +516,7 @@ struct NoParameters {
  *  child material — and a stack built without one carries the plain
  *  three-slot recipe, which never asks what the case below asks. */
 std::shared_ptr<Program> slangStandIn(std::shared_ptr<const Recipe> recipe,
-                                      Variant variant, std::string&) {
+                                      Variant variant) {
   return std::make_shared<Program>(std::move(recipe), Target::Slang, variant);
 }
 

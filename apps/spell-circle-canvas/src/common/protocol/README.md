@@ -130,7 +130,10 @@ policy and its sessions open — which it supplies as a
 `sigil::protocol::Program`. `sigil::protocol::clock::ClockAgent` is
 one such interface: a command answered at once returns a
 `sigil::protocol::Answer` — the result, or an `Error` made by
-`sigil::protocol::refusal` — and one marked asynchronous is handed a
+`sigil::protocol::refusal`; an `Answer` is a
+`std::expected<Result, values::Error>`, so it reads as every other
+library's refusing door does, and `sigil::protocol::coreError` gives its
+error as the `sigil::core::Error` those doors answer — and one marked asynchronous is handed a
 `sigil::protocol::Reply` and answers through it, once. The libraries
 under a domain never know the protocol; their values are tested on
 their own, and an agent is a thin reading of them.
@@ -198,7 +201,9 @@ It holds loopback alone, so another machine cannot reach it however it
 asks; where the policy states peers beyond it, it holds every interface
 and admits loopback and those peers, and every other is refused before
 it becomes a client. A stated peer is a bare IP address: one that is
-anything else opens nothing, and the endpoint's error names it. The
+anything else opens nothing, and the endpoint's error names it:
+`Endpoint::listening` answers nothing where a port is held and the
+`sigil::core::Error` that says why none is otherwise. The
 state root is the dispatcher's program's, and without one the endpoint
 listens nowhere. Before the constructor returns — so before the first
 frame — it writes the address a client dials,
@@ -347,8 +352,8 @@ commands run in process: a still at two seconds at double density is
 
 ## Headers
 
-- `definition/Answer.h` — `Answer`, `Reply`, `refusal`: what a command
-  answers.
+- `definition/Answer.h` — `Answer`, `Reply`, `refusal`, `coreError`: what
+  a command answers.
 - `definition/Mount.h` — `Respond`, `Handler`, `Mounts`, `Emit`,
   `readParameters`, `answerText`, `answerNow`, `answerLater`,
   `emitEvent`: the host's side of a command.

@@ -31,6 +31,11 @@ An edited file is read again and the family answers with the new face the
 next time it is asked for. A face already held is stated directly with
 `fontFamily(face)`, which is the face itself and no lookup at all.
 
+A family's style is named the way its font names it with
+`fontFamily(family, styleName)`: `fontFamily("Avenir", "Book")` sets the
+run in Avenir's Book, which a weight cannot reach, because Book and Roman
+are both an upright 400.
+
 ## Description
 
 **It is the face field of [`font`](font.md), spelled as a name.** A
@@ -72,6 +77,19 @@ names nothing inherits at the root.
 `inherit` or `initial` — is a statement about this same field, so one in
 a stronger layer stands over a family a weaker one named.
 
+**A style named beside the family is the face the font names so.** The
+name is compared with ASCII case and spaces aside, and found when the
+cascade runs, through the composer's font context, so a family the context
+adopted answers by the names its own files give their styles. The face
+found is written into the font as `fontFamily(face)` writes one, its own
+weight and style standing, and the family stays in force by name: a
+`fontWeight` or a `fontStyle` written after it on the node, or anywhere
+below it, overrides that trait as CSS would, the named face's other one
+standing, and finds the family's face at them — Bold Italic with a weight
+of 400 after it is the family's italic at 400 — while one written before
+it on the same node gives way to the named face. A name no family of the list has is said once, naming both,
+and the family is set at the weight and style in force.
+
 **A list naming no family the context has leaves the inherited face
 standing** and says so once, naming the whole list. Nothing else stands
 in for it.
@@ -85,5 +103,5 @@ family named above finds that family's face at it.
 ## See also
 
 [`font`](font.md), [`fontStyle`](fontStyle.md), `weave::FontContext`,
-`weave::FontContext::adopt`,
+`weave::FontContext::adopt`, `weave::FontContext::familyTypeface`,
 `weave::ports::genericFamilies`.

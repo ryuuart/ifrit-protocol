@@ -638,7 +638,8 @@ void bindCompose(py::module_& module) {
                                            "A text shadow has no field named ");
   textShadow.doc() =
       "One shadow each glyph casts, CSS's text-shadow: offset pixels from "
-      "its glyph, blurred by a Gaussian of blur pixels, and painted in "
+      "its glyph, blurred by CSS's blur radius of blur pixels (a Gaussian of "
+      "half of it), and painted in "
       "color — a colour, a custom property (Fill.var(name)) read where the "
       "shadow is stated, or by default the ink in force.";
   textShadow

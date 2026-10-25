@@ -257,9 +257,12 @@ void Composer::Impl::settleForDraw() {
   scanReleasedScalars();
   const bool active = engine.isRunning();
   if (volatileDirty || active || engineWasRunning) {
+    const sigil::measure::Stopwatch walk;
     releasedScalars.clear();  // the walk re-registers what stays released
     rootVolatile = computeVolatile(*root).volatileAbove;
     volatileDirty = false;
+    volatileAccumulatedMilliseconds +=
+        sigil::measure::Milliseconds(walk.elapsed()).count();
   }
   engineWasRunning = active;
 }
@@ -360,12 +363,16 @@ void Composer::draw(SkCanvas& canvas) {
 
   if (!impl.settledForDraw) impl.settleForDraw();
   impl.settledForDraw = false;
-  impl.stats.layoutMilliseconds =
+  // The settle lays out and walks the tree's volatility; the walk is its
+  // own lane, so the layout lane is the settle less the walk.
+  const double settled =
       sigil::measure::Milliseconds(laps.mark("layout")).count();
+  impl.stats.volatileMilliseconds = impl.volatileAccumulatedMilliseconds;
+  impl.volatileAccumulatedMilliseconds = 0;
+  impl.stats.layoutMilliseconds =
+      std::max(0.0, settled - impl.stats.volatileMilliseconds);
   impl.stats.layoutCalculations = impl.layoutCalculations;
   impl.layoutCalculations = 0;
-  impl.stats.volatileMilliseconds =
-      sigil::measure::Milliseconds(laps.mark("volatile")).count();
 
   // Output view transform: the composer's whole output renders into one
   // layer and composites through the view filter (an OCIO display/view baked

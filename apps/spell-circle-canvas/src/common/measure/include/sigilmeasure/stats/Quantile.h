@@ -15,6 +15,7 @@
 #include <ranges>
 #include <span>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace sigil::measure {
@@ -73,11 +74,11 @@ template <class Range, class Projection>
   using Value = std::remove_cvref_t<std::invoke_result_t<
       Projection&, std::ranges::range_reference_t<Range>>>;
   using Reading = measure::ReadingOf<Value>;
-  std::vector<Reading> sorted;
-  if constexpr (std::ranges::sized_range<Range>)
-    sorted.reserve(std::ranges::size(values));
-  for (auto&& value : values)
-    sorted.push_back(Reading(std::invoke(projection, value)));
+  auto sorted = std::forward<Range>(values) |
+                std::views::transform([&](auto&& value) {
+                  return Reading(std::invoke(projection, value));
+                }) |
+                std::ranges::to<std::vector<Reading>>();
   std::sort(sorted.begin(), sorted.end());
   return sorted;
 }

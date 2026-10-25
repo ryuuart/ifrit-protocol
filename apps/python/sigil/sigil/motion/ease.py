@@ -2,6 +2,7 @@
 # typing/additions, not this file.
 
 from _sigil.motion.ease import (
+    StepPosition,
     cubicBezier,
     in_,
     inBack,
@@ -42,6 +43,7 @@ from _sigil.motion.ease import (
 )
 
 __all__ = [
+    "StepPosition",
     "cubicBezier",
     "inBack",
     "inBounce",

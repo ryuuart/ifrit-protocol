@@ -15,6 +15,7 @@
 #include <sigildata/table/Table.h>
 #include <sigilio/source/Source.h>
 
+#include <expected>
 #include <optional>
 #include <string_view>
 
@@ -32,9 +33,10 @@ struct TableDecoder {
    *  alike; setting one pins every resource this decoder reads. */
   CsvOptions csv;
 
-  /** Reads @p bytes as a table, @p hint naming the resource. */
-  std::optional<Table> decode(const io::Bytes& bytes,
-                              std::string_view hint) const;
+  /** Reads @p bytes as a table, @p hint naming the resource, or says
+   *  why they hold none. */
+  std::expected<Table, core::Error> decode(const io::Bytes& bytes,
+                                           std::string_view hint) const;
 };
 
 /** BYTES AS A JSON DOCUMENT — the nested record a rectangle cannot
@@ -45,9 +47,10 @@ struct TableDecoder {
  *  `.jsonl` or `.ndjson` is JSON lines, read as the array of its lines'
  *  values, and everything else is JSON text. */
 struct JsonDecoder {
-  /** Reads @p bytes as a document, @p hint naming the resource. */
-  std::optional<Json> decode(const io::Bytes& bytes,
-                             std::string_view hint) const;
+  /** Reads @p bytes as a document, @p hint naming the resource, or says
+   *  why they are none. */
+  std::expected<Json, core::Error> decode(const io::Bytes& bytes,
+                                          std::string_view hint) const;
 };
 
 }  // namespace sigil::data

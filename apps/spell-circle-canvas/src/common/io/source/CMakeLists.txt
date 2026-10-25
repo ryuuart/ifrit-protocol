@@ -5,7 +5,7 @@
 # one file with files inside it answered as any other source answers; and
 # the two places only the platform can name: where the running binary
 # stands and where a process may leave throwaway files. Standard library
-# plus the one platform call that answers an executable's own path and
+# and the core error a decoder refuses with, plus the one platform call that answers an executable's own path and
 # the zip reader behind the archive source, both PRIVATE, so a decoder or
 # an encoder can depend on this without inheriting the hub, libcurl, or
 # any codec.
@@ -13,6 +13,7 @@ find_package(minizip-ng CONFIG REQUIRED)
 sigil_library(SigilIOSource
   SOURCES Archive.cpp Places.cpp
   HEADERS Archive.h Places.h Sink.h Source.h State.h
+  PUBLIC SigilCoreReport
   PRIVATE MINIZIP::minizip-ng)
 
 # The concepts checked against a fixture source and a fixture decoder,

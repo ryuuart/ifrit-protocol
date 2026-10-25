@@ -165,7 +165,8 @@ which is how a file read again after an edit takes over its family; and
 `ports::registerDecoders(hub, arrived)` hands every face the hub reads to
 `arrived(face, path)`, which is where a host adopts it — a sketch session
 does so for every font its hub loads, so a sketch's two lines are a load
-and a family name.
+and a family name. A resource whose bytes hold no face is listed among
+the hub's problems: the decoder answers `std::expected<Face, core::Error>`.
 
 `weave::fonts` reads the type there is as values: `fonts::families()`
 the family names, `fonts::family(name)` a family's styles — weight and
@@ -190,13 +191,18 @@ A style name is compared with ASCII case and spaces aside, so
 `"demibold italic"` finds "Demi Bold Italic". Handed a font context, the
 lookup reads the family `fonts::family(name, context)` lists: a family the
 context adopted answers alone, so a style it lacks is no face rather
-than an installed one.
+than an installed one. That lookup is the context's own,
+`FontContext::familyTypeface(family, styleName)`, which keeps what it
+found as it keeps a family at a style, so a compose cascade naming a style
+beside its family asks it once.
 
-The font context and the catalogue ask the same two questions of a face,
-and both answer them with one pair: `fonts::familyName(typeface)`, the
-family a Skia typeface states, and `fonts::sameFamily(left, right)`,
-whether two names are one family with ASCII case aside, as CSS compares
-them.
+The font context and the catalogue ask the same questions of a face, and
+both answer them with one set: `fonts::familyName(typeface)`, the family a
+Skia typeface states, and `fonts::sameFamily(left, right)`, whether two
+names are one family with ASCII case aside, as CSS compares them;
+`fonts::styleName(typeface)`, the font's own name for the style, and
+`fonts::sameStyleName(left, right)`, the comparison with case and spaces
+aside.
 
 ### Text as an outline
 

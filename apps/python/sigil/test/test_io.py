@@ -167,7 +167,8 @@ class IO(unittest.TestCase):
             self.assertTrue(writer.append(io.Message(arrivedAt=0.5, payload=b"half")))
             arrivals = io.readRecording(path)
             self.assertEqual([a.payload for a in arrivals], [b"zero", b"half"])
-            self.assertIsNone(io.readRecording(Path(directory) / "absent"))
+            with self.assertRaisesRegex(RuntimeError, "no recording could be read"):
+                io.readRecording(Path(directory) / "absent")
             hub = io.Hub()
             replaying = hub.replay("recording://scene", path)
             feed = hub.listen("recording://scene")

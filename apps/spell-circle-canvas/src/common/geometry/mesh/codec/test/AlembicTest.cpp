@@ -170,11 +170,13 @@ TEST(ReadAlembic, AMeshAndACloudArriveWithTheirLanes) {
   EXPECT_FLOAT_EQ(id->second[0], 0.0f);
   EXPECT_FLOAT_EQ(id->second[1], 1.0f);
 
-  // Malformed input returns an empty optional rather than throwing or
-  // aborting: the Alembic library signals errors by exception, and those
-  // must not escape into a caller that is merely opening an untrusted file.
+  // Malformed input is refused rather than thrown or aborted on: the
+  // Alembic library signals errors by exception, and those must not escape
+  // into a caller that is merely opening an untrusted file.
   const char garbage[] = "not an alembic archive at all";
   EXPECT_FALSE(codec::decode::alembic(garbage, sizeof(garbage)).has_value());
+  EXPECT_FALSE(
+      codec::decode::alembic(garbage, sizeof(garbage)).error().message.empty());
   EXPECT_FALSE(
       codec::decode::alembic(bytes.data(), bytes.size() / 2).has_value());
 }

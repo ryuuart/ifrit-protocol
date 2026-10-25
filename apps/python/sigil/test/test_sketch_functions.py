@@ -89,6 +89,34 @@ class SketchFunctions(unittest.TestCase):
         self.assertEqual(body.__module__, module.__name__)
         self.assertTrue(callable(body.draw))
 
+    def test_the_star_import_brings_the_declarations_and_the_readings_alone(self):
+        from sigil.sketch import globals as functionFile
+
+        declarations = {"size", "background", "captureAt", "theme"}
+        self.assertEqual(
+            set(functionFile.__all__), declarations | set(functionFile.READINGS)
+        )
+        namespace = {}
+        exec("from sigil.sketch.globals import *", namespace)
+        brought = {name for name in namespace if name != "__builtins__"}
+        self.assertEqual(brought, set(functionFile.__all__))
+
+    def test_seconds_is_the_scene_time_describe_is_handed(self):
+        body, module = self.load("""
+            from sigil.compose import box
+            from sigil.sketch.globals import *
+
+            seen = []
+
+            def describe(at):
+                seen.append((at, seconds))
+                return box()
+        """)
+        sketch = body()
+        for moment in (0.0, 0.5, 2.25):
+            sketch.describe(moment)
+        self.assertEqual(module.seen, [(0.0, 0.0), (0.5, 0.5), (2.25, 2.25)])
+
     def test_size_declares_the_canvas_at_the_top_of_the_file(self):
         source = self.write("""
             from sigil.compose import box

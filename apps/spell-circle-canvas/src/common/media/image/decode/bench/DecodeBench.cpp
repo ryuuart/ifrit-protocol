@@ -117,7 +117,7 @@ void BM_ProbeImage(benchmark::State& state) {
   state.SetLabel(format == kPng ? "png" : "jpeg");
   const std::vector<std::byte> bytes = encode(testCard(1024), format);
   for ([[maybe_unused]] auto iteration : state) {
-    std::optional<Metadata> probe =
+    auto probe =
         probeDocument(std::type_identity<Image>{}, bytes, {});
     benchmark::DoNotOptimize(probe);
   }

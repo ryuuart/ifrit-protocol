@@ -90,8 +90,9 @@ std::optional<Easing> readEasing(std::string_view written) {
   if (text == "ease-out") return Easing(ease::cubicBezier(0, 0, 0.58f, 1));
   if (text == "ease-in-out")
     return Easing(ease::cubicBezier(0.42f, 0, 0.58f, 1));
-  if (text == "step-start") return Easing(ease::steps(1, true));
-  if (text == "step-end") return Easing(ease::steps(1, false));
+  if (text == "step-start")
+    return Easing(ease::steps(1, ease::StepPosition::JumpStart));
+  if (text == "step-end") return Easing(ease::steps(1));
   if (const auto arguments = argumentsOf(text, "cubic-bezier")) {
     if (arguments->size() != 4) return std::nullopt;
     float control[4];
@@ -116,15 +117,22 @@ std::optional<Easing> readEasing(std::string_view written) {
     if (error != std::errc() || stop != written.data() + written.size() ||
         count < 1)
       return std::nullopt;
-    bool jumpAtStart = false;
+    ease::StepPosition position = ease::StepPosition::JumpEnd;
     if (arguments->size() == 2) {
-      const std::string& position = (*arguments)[1];
-      if (position == "jump-start" || position == "start")
-        jumpAtStart = true;
-      else if (position != "jump-end" && position != "end")
+      const std::string& term = (*arguments)[1];
+      if (term == "jump-start" || term == "start")
+        position = ease::StepPosition::JumpStart;
+      else if (term == "jump-none")
+        position = ease::StepPosition::JumpNone;
+      else if (term == "jump-both")
+        position = ease::StepPosition::JumpBoth;
+      else if (term != "jump-end" && term != "end")
         return std::nullopt;
     }
-    return Easing(ease::steps(count, jumpAtStart));
+    // A staircase that jumps at neither end needs two steps to have both.
+    if (position == ease::StepPosition::JumpNone && count < 2)
+      return std::nullopt;
+    return Easing(ease::steps(count, position));
   }
   return std::nullopt;
 }

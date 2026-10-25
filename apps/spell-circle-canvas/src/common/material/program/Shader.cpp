@@ -25,6 +25,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <ranges>
 #include <regex>
 #include <string>
 #include <tuple>
@@ -55,11 +56,8 @@ std::string derivedName(std::string_view source, Target target) {
 }
 
 std::vector<std::string> textureNames(const ShaderOptions& options) {
-  std::vector<std::string> textures;
-  textures.reserve(options.textures.size());
-  for (const ShaderTexture& texture : options.textures)
-    textures.push_back(texture.name);
-  return textures;
+  return options.textures | std::views::transform(&ShaderTexture::name) |
+         std::ranges::to<std::vector<std::string>>();
 }
 
 /** The layout is keyed by its fields rather than its address: a
@@ -224,8 +222,9 @@ std::shared_ptr<const Recipe> shaderFileDefinition(
     if (!file.current || file.verdict != ReadFile::Verdict::Unjudged ||
         !ProgramCache::shared().hasCompiler(*target))
       return;
-    std::string error;
-    if (ProgramCache::shared().program(file.current, *target, {}, error)) {
+    const auto compiled = ProgramCache::shared().program(file.current, *target);
+    const std::string error = compiled ? std::string() : compiled.error().message;
+    if (compiled) {
       file.verdict = ReadFile::Verdict::Compiled;
       file.compiled = file.current;
       file.problem.reset();

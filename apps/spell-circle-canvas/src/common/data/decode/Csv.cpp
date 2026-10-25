@@ -317,14 +317,18 @@ std::optional<Instant> decodeInstant(std::string_view text) {
   return Instant{seconds};
 }
 
-std::optional<Table> decodeCsv(std::string_view text, const CsvOptions& options,
-                               std::string_view name) {
+std::expected<Table, core::Error> decodeCsv(std::string_view text,
+                                            const CsvOptions& options,
+                                            std::string_view name) {
+  const auto noField = [] {
+    return std::unexpected(core::Error{"the text holds no field"});
+  };
   // A byte order mark is a claim about the encoding, not a field.
   if (text.starts_with("\xEF\xBB\xBF")) text.remove_prefix(3);
   // Nothing but space is no table at all, however many blank lines it
   // is written across.
   if (text.find_first_not_of(" \t\r\n") == std::string_view::npos)
-    return std::nullopt;
+    return noField();
 
   char delimiter = options.delimiter;
   if (delimiter == '\0') {
@@ -338,7 +342,7 @@ std::optional<Table> decodeCsv(std::string_view text, const CsvOptions& options,
 
   std::vector<std::vector<std::string>> rows =
       rowsOf(text, delimiter, options.comment);
-  if (rows.empty()) return std::nullopt;
+  if (rows.empty()) return noField();
 
   std::vector<std::string> names;
   if (options.header) {
@@ -354,7 +358,8 @@ std::optional<Table> decodeCsv(std::string_view text, const CsvOptions& options,
       widest = std::max(widest, row.size());
     for (size_t i = 0; i < widest; ++i) names.push_back(std::to_string(i + 1));
   }
-  if (names.empty()) return std::nullopt;
+  if (names.empty())
+    return std::unexpected(core::Error{"the header names no column", 1, {}});
 
   Table table;
   for (size_t i = 0; i < names.size(); ++i)

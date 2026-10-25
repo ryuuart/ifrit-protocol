@@ -32,6 +32,10 @@ struct DrawStatistics {
   // draw() publishes it as stats.reconcileMilliseconds and zeroes the
   // accumulator.
   double reconcileAccumulatedMilliseconds = 0;
+  // The volatility walk's time since the previous draw(), taken inside the
+  // settle that precedes the paint; draw() publishes it as
+  // stats.volatileMilliseconds, apart from the layout it settles beside.
+  double volatileAccumulatedMilliseconds = 0;
   /** Whole-tree Yoga calculations since the previous draw(). */
   size_t layoutCalculations = 0;
 };

@@ -131,7 +131,7 @@ std::vector<std::byte> makeClip(int width, int height, int frames) {
         SkColorSetARGB(255, 24 + phase % 208, 24 + (phase * 3) % 208, 24 + (phase * 7) % 208));
     if (!append(encoder, pixels.pixmap())) return {};
   }
-  return encoder.finish();
+  return encoder.finish().value_or(std::vector<std::byte>{});
 }
 
 /** The fixture clips, encoded once: five source resolutions, each long

@@ -422,9 +422,9 @@ const UniformSlot* Compiled::uniform(std::string_view name) const {
   return it == uniforms.end() ? nullptr : &it->second;
 }
 
-bool compileModule(std::string_view source, std::string_view vertexEntry,
-                   std::string_view fragmentEntry, bool lit, Compiled* out,
-                   std::string* error) {
+std::expected<Compiled, core::Error> compileModule(
+    std::string_view source, std::string_view vertexEntry,
+    std::string_view fragmentEntry, bool lit) {
   // The compiler is not re-entrant across sessions it shares a global
   // session with, and a program cache is asked from whichever thread
   // resolves a material first.
@@ -437,14 +437,11 @@ bool compileModule(std::string_view source, std::string_view vertexEntry,
   // it compiles to are the same words.
   static boost::unordered_flat_map<std::string, Compiled> compiled;
   std::string key = compileKey(source, vertexEntry, fragmentEntry, lit);
-  if (const auto found = compiled.find(key); found != compiled.end()) {
-    *out = found->second;
-    return true;
-  }
+  if (const auto found = compiled.find(key); found != compiled.end())
+    return found->second;
   if (Compiled kept; readStored(key, &kept)) {
-    *out = kept;
-    compiled.emplace(std::move(key), std::move(kept));
-    return true;
+    compiled.emplace(std::move(key), kept);
+    return kept;
   }
 
   // A NAME NO OTHER MODULE HAS. A session remembers a module by its
@@ -456,14 +453,15 @@ bool compileModule(std::string_view source, std::string_view vertexEntry,
   static uint64_t serial = 0;
   const std::string name = std::string(programStem) + std::to_string(++serial);
   std::string diagnostic;
-  if (compileNamed(name, source, vertexEntry, fragmentEntry, lit, out,
+  Compiled out;
+  if (compileNamed(name, source, vertexEntry, fragmentEntry, lit, &out,
                    &diagnostic)) {
-    writeStored(key, *out);
-    compiled.emplace(std::move(key), *out);
-    return true;
+    writeStored(key, out);
+    compiled.emplace(std::move(key), out);
+    return out;
   }
-  if (error) *error = withoutSerial(std::move(diagnostic), name);
-  return false;
+  return std::unexpected(
+      core::Error{withoutSerial(std::move(diagnostic), name)});
 }
 
 void useProgramStore(std::filesystem::path directory) {

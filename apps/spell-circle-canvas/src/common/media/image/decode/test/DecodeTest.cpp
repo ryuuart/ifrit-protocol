@@ -44,8 +44,8 @@ std::shared_ptr<const Image> decodeImage(
   return sigil::media::decode<Image>(bytes, options, name);
 }
 
-std::optional<Metadata> probeImage(std::span<const std::byte> bytes,
-                                   const std::filesystem::path& name = {}) {
+std::expected<Metadata, sigil::core::Error> probeImage(
+    std::span<const std::byte> bytes, const std::filesystem::path& name = {}) {
   return probeDocument(std::type_identity<Image>{}, bytes, name);
 }
 
@@ -216,6 +216,23 @@ TEST(ImageDecode, RejectsUnsupportedBytes) {
   EXPECT_FALSE(decodeImage(garbage));
   EXPECT_FALSE(probeImage(garbage));
   EXPECT_FALSE(decodeImage({}));
+}
+
+TEST(ImageDecode, ARefusalSaysWhy) {
+  const char kGarbage[] = "definitely not an image";
+  const std::span<const std::byte> garbage(
+      reinterpret_cast<const std::byte*>(kGarbage), sizeof(kGarbage));
+  const auto refused =
+      decodeDocument(std::type_identity<Image>{}, garbage, {}, {});
+  ASSERT_FALSE(refused);
+  EXPECT_EQ(refused.error().message,
+            "the bytes are no image format this build reads");
+  EXPECT_EQ(probeImage(garbage).error().message,
+            "the bytes are no image format this build reads");
+  EXPECT_EQ(decodeDocument(std::type_identity<Channels>{}, {}, {})
+                .error()
+                .message,
+            "an image needs bytes and has none");
 }
 
 // The six faces of a cube map, each its own colour in the +x -x +y -y

@@ -35,7 +35,7 @@ TextureDescription smallTexture() {
 /** Name a device, or skip: a machine with no GPU has nothing to say about
  *  any claim below, and reporting that is not the same as failing it. */
 #define DEVICE_OR_SKIP(name)                                  \
-  std::unique_ptr<GpuDevice> name = GpuDevice::createOwned(); \
+  std::unique_ptr<GpuDevice> name = GpuDevice::createOwned().value_or(nullptr); \
   if (!name) GTEST_SKIP() << "no GPU device on this machine"
 
 TEST(HardwareDevice, AnOwnedDeviceComesUpWithItsOwnCommandQueue) {
@@ -54,14 +54,15 @@ TEST(HardwareDevice, AdoptRefusesAnIncompleteNativeDevice) {
   // caller's mistake to hear about rather than a device to half-build.
   NativeDevice vulkan;
   vulkan.backend = Backend::Vulkan;
-  std::string error;
-  EXPECT_EQ(GpuDevice::adopt(vulkan, &error), nullptr);
-  EXPECT_FALSE(error.empty()) << "a refusal must say what was missing";
+  const auto refused = GpuDevice::adopt(vulkan);
+  ASSERT_FALSE(refused);
+  EXPECT_FALSE(refused.error().message.empty())
+      << "a refusal must say what was missing";
 
   NativeDevice half;
   half.backend = Backend::Metal;
   half.mtlDevice = present->native().mtlDevice;
-  EXPECT_EQ(GpuDevice::adopt(half), nullptr) << "a queue is a handle too";
+  EXPECT_EQ(GpuDevice::adopt(half).value_or(nullptr), nullptr) << "a queue is a handle too";
 }
 
 TEST(HardwareDevice, ADestroyedHandleIsStaleAtOnce) {

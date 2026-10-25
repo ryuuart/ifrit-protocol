@@ -99,11 +99,12 @@ struct Rails {
                             : dashPhase;
   }
 
+  /** How far the farthest rail reaches off the route: its offset and half
+   *  its width, a mitred rail's offset and stroke each grown to the miter
+   *  limit, a square end its half width's diagonal, and the wave. */
   float bleed() const;
-  /** Whether every rail stands within `bleed()` of the outline it is
-   *  handed (OutlineDecoration): when no rail meets its corners mitred or
-   *  ends square, both of which reach past the half width — a mitred join
-   *  past the offset as well, since the offset is built with it. */
+  /** Every rail stands within `bleed()` of the outline it is handed
+   *  (OutlineDecoration), mitred and square-ended rails included. */
   bool staysOnOutline() const;
 
   /** Total centre-to-centre span of the set — the number a caller needs to

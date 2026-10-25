@@ -20,6 +20,20 @@ using namespace sigil::material::slang;
 
 namespace {
 
+/** The compile written into @p out, its error into @p error: the shape the
+ *  cases below read a program through. */
+bool compileInto(std::string_view source, std::string_view vertexEntry,
+                 std::string_view fragmentEntry, bool lit, Compiled* out,
+                 std::string* error) {
+  auto compiled = compileModule(source, vertexEntry, fragmentEntry, lit);
+  if (!compiled) {
+    *error = compiled.error().message;
+    return false;
+  }
+  *out = std::move(*compiled);
+  return true;
+}
+
 /** A whole module: one uniform buffer, one sampled slot, and the two
  *  stages that read them. */
 constexpr const char* kModule = R"SLANG(
@@ -51,7 +65,7 @@ TEST(MaterialSlang, AModuleCompilesToTwoStagesAndALayout) {
   Compiled built;
   std::string error;
   ASSERT_TRUE(
-      compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
+      compileInto(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
   EXPECT_FALSE(built.empty());
   EXPECT_FALSE(built.fragment.empty());
@@ -89,7 +103,7 @@ TEST(MaterialSlang, AUniformNoBodyReadsIsNotInTheLayout) {
   Compiled built;
   std::string error;
   ASSERT_TRUE(
-      compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
+      compileInto(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
   // Nothing declared it, so nothing can be written for it — and writing
   // to a name the program does not carry is a no-op rather than a fault.
@@ -103,7 +117,7 @@ TEST(MaterialSlang, ADrawsBytesLandAtTheReportedOffsets) {
   Compiled built;
   std::string error;
   ASSERT_TRUE(
-      compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
+      compileInto(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
 
   Uniforms values(built);
@@ -133,7 +147,7 @@ TEST(MaterialSlang, AMatrixIsWrittenRowByRow) {
   Compiled built;
   std::string error;
   ASSERT_TRUE(
-      compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
+      compileInto(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
   glm::mat4 m(1.0f);
   m[3][0] = 5.0f;  // the translation in x, column-major as glm holds it
@@ -171,17 +185,15 @@ float4 fsTest(VSOut input) : SV_Target {
   Compiled built;
   std::string error;
   EXPECT_TRUE(
-      compileModule(source, "vsTest", "fsTest", /*lit=*/false, &built, &error))
+      compileInto(source, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
 }
 
 TEST(MaterialSlang, ABodyThatDoesNotCompileSaysWhy) {
-  Compiled built;
-  std::string error;
-  EXPECT_FALSE(compileModule("this is not Slang", "vsTest", "fsTest",
-                             /*lit=*/false, &built, &error));
-  EXPECT_FALSE(error.empty());
-  EXPECT_TRUE(built.empty());
+  const auto refused =
+      compileModule("this is not Slang", "vsTest", "fsTest", /*lit=*/false);
+  ASSERT_FALSE(refused);
+  EXPECT_FALSE(refused.error().message.empty());
 }
 
 TEST(MaterialSlang, ADiagnosticSaysNothingAboutWhatWasCompiledBefore) {
@@ -192,12 +204,12 @@ TEST(MaterialSlang, ADiagnosticSaysNothingAboutWhatWasCompiledBefore) {
   Compiled built;
   std::string first;
   std::string second;
-  EXPECT_FALSE(compileModule("this is not Slang", "vsTest", "fsTest",
+  EXPECT_FALSE(compileInto("this is not Slang", "vsTest", "fsTest",
                              /*lit=*/false, &built, &first));
-  EXPECT_TRUE(compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built,
+  EXPECT_TRUE(compileInto(kModule, "vsTest", "fsTest", /*lit=*/false, &built,
                             &second))
       << second;
-  EXPECT_FALSE(compileModule("this is not Slang", "vsTest", "fsTest",
+  EXPECT_FALSE(compileInto("this is not Slang", "vsTest", "fsTest",
                              /*lit=*/false, &built, &second));
   EXPECT_EQ(first, second);
   for (size_t at = first.find("SigilProgram"); at != std::string::npos;
@@ -210,11 +222,11 @@ TEST(MaterialSlang, ADiagnosticSaysNothingAboutWhatWasCompiledBefore) {
 }
 
 TEST(MaterialSlang, AMissingEntryPointIsNamed) {
-  Compiled built;
-  std::string error;
-  EXPECT_FALSE(compileModule(kModule, "vsTest", "fsNoSuchStage",
-                             /*lit=*/false, &built, &error));
-  EXPECT_NE(error.find("fsNoSuchStage"), std::string::npos) << error;
+  const auto refused =
+      compileModule(kModule, "vsTest", "fsNoSuchStage", /*lit=*/false);
+  ASSERT_FALSE(refused);
+  EXPECT_NE(refused.error().message.find("fsNoSuchStage"), std::string::npos)
+      << refused.error().message;
 }
 
 // ---------------------------------------------------------------------------
@@ -267,7 +279,7 @@ TEST(MaterialSlang, ARecipesSlangBodyCompilesAsASurface) {
   std::string error;
   const std::string source = recipe.source(Target::Slang) + kSurfaceScaffold;
   ASSERT_TRUE(
-      compileModule(source, "vsTest", "fsTest", /*lit=*/false, &built, &error))
+      compileInto(source, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
   // Every parameter the body reads is in the layout, and a body that reads
   // the frame's resolution has it there too.
@@ -297,11 +309,11 @@ TEST(MaterialSlang, AStoreKeepsOneProgramPerTextItCompiled) {
   Compiled again;
   Compiled b;
   std::string error;
-  ASSERT_TRUE(compileModule(first, "vsTest", "fsTest", false, &a, &error))
+  ASSERT_TRUE(compileInto(first, "vsTest", "fsTest", false, &a, &error))
       << error;
-  ASSERT_TRUE(compileModule(first, "vsTest", "fsTest", false, &again, &error))
+  ASSERT_TRUE(compileInto(first, "vsTest", "fsTest", false, &again, &error))
       << error;
-  ASSERT_TRUE(compileModule(second, "vsTest", "fsTest", false, &b, &error))
+  ASSERT_TRUE(compileInto(second, "vsTest", "fsTest", false, &b, &error))
       << error;
   useProgramStore({});
   EXPECT_EQ(again.vertex, a.vertex);

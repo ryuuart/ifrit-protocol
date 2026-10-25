@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <print>
 
 namespace {
 struct CaptureViewport {
@@ -17,8 +18,8 @@ struct CaptureViewport {
             [](sigil::draw::Pen& pen, const PaintContext&) {
               const SkRect clip = pen.canvas()->getLocalClipBounds();
               if (!clip.contains(SkRect::MakeXYWH(1, 1, 638, 398))) {
-                std::fprintf(stderr,
-                             "capture warm-up clipped the declared viewport\n");
+                std::println(stderr,
+                             "capture warm-up clipped the declared viewport");
                 std::exit(1);
               }
               pen.background(0, 255, 0);

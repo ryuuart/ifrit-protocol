@@ -7,13 +7,16 @@
  * beside its code.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigildata/decode/Json.h>
 
 #include <cstddef>
+#include <expected>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace sigil::data::wire {
@@ -28,16 +31,23 @@ inline double clamped(double value, double low, double high) {
   return value > high ? high : value;
 }
 
-/** The document in @p text, or nothing when it is not JSON. */
-std::optional<Json> readJson(std::string_view text);
+/** The document in @p text, or the parser's word on why it is not JSON. */
+std::expected<Json, core::Error> readJson(std::string_view text);
 
 /** @p value as compact JSON text, which readJson reads back as the same
  *  value; a number that is not finite is written null. */
 std::string writeJson(const Json& value);
 
 /** @p text as JSON lines: one document to a line, read into an array in
- *  line order, a blank line skipped. Nothing when any line is not JSON. */
-std::optional<Json> readJsonLines(std::string_view text);
+ *  line order, a blank line skipped; the error names the first line that
+ *  is not JSON. */
+std::expected<Json, core::Error> readJsonLines(std::string_view text);
+
+/** What a reader that answers nothing beyond the value is handed. */
+inline std::optional<Json> held(std::expected<Json, core::Error> answer) {
+  if (!answer) return std::nullopt;
+  return std::move(*answer);
+}
 
 /** Each member of the array @p value as compact JSON on a line of its
  *  own; nothing for a value that is not an array. */

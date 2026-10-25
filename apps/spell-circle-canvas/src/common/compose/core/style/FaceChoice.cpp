@@ -52,6 +52,17 @@ sk_sp<SkTypeface> firstInstalledFamily(sigil::weave::FontContext& fonts,
   return nullptr;
 }
 
+void warnNoSuchStyle(const std::string& list, const std::string& styleName) {
+  static thread_local boost::unordered_flat_set<std::string> warned;
+  if (!warned.insert(list + '\n' + styleName).second) return;
+  SkDebugf(
+      "[compose] fontFamily(\"%s\", \"%s\") names a style no family of the "
+      "list has — the family is set at the weight and style in force "
+      "instead. A family's styles are the names weave::fonts::family() "
+      "lists. (warned once)\n",
+      list.c_str(), styleName.c_str());
+}
+
 void warnNoItalic(const SkTypeface& face) {
   SkString name;
   face.getFamilyName(&name);
@@ -168,11 +179,52 @@ void chooseFace(sigil::weave::FontContext& fonts, sigil::weave::Type& font,
   }
 }
 
+sk_sp<SkTypeface> namedStyleFace(sigil::weave::FontContext& fonts,
+                                 const std::string& family,
+                                 const std::string& styleName) {
+  for (const std::string& name : familiesOf(family))
+    if (sk_sp<SkTypeface> found =
+            sigil::weave::toSk(fonts.familyTypeface(name, styleName)))
+      return found;
+  warnNoSuchStyle(family, styleName);
+  return nullptr;
+}
+
 void chooseRangeFace(sigil::weave::FontContext& fonts,
                      sigil::weave::Type& partial,
                      const sigil::weave::TextStyle& base,
                      const std::string* familyInForce, bool italicInForce,
-                     const std::string* family, std::optional<bool> italic) {
+                     const std::string* family, std::optional<bool> italic,
+                     const std::string* styleName) {
+  if (family != nullptr && styleName != nullptr)
+    if (sk_sp<SkTypeface> named = namedStyleFace(fonts, *family, *styleName)) {
+      // A weight or a style the range states beside the name overrides that
+      // trait of the named face alone; the family then chooses at them.
+      const bool weightOverridden = partial.weight.has_value();
+      const bool styleOverridden =
+          partial.slant.has_value() || italic.has_value();
+      const bool namedItalic =
+          named->fontStyle().slant() != SkFontStyle::kUpright_Slant;
+      sigil::weave::Type chosen = partial;
+      chosen.face = sigil::weave::fromSk(std::move(named));
+      if (!weightOverridden) chosen.weight = 0.0f;
+      if (!weightOverridden && !styleOverridden) {
+        // The named face carries its own weight and style: the range
+        // states none of its own over them, and an italic axis or a lean
+        // set above is set back.
+        chosen.slant = 0.0f;
+        if (axisOf(base, "ital").value_or(0.0f) != 0.0f)
+          setAxis(chosen, "ital", 0.0f, /*onlyIfPresent=*/false);
+      } else {
+        chooseFace(fonts, chosen, family,
+                   styleOverridden ? italic.value_or(false) : namedItalic);
+      }
+      partial.face = chosen.face;
+      partial.weight = chosen.weight;
+      partial.slant = chosen.slant;
+      partial.variations = chosen.variations;
+      return;
+    }
   const bool italicNow = italic.value_or(italicInForce);
   // A face the partial states stands over the leaf's family; a family it
   // names stands over both.

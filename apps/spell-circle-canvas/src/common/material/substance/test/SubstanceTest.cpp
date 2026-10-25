@@ -139,7 +139,7 @@ TEST(Substance, AGpuCookReachesATextureWithNoCopyBack) {
   if (!sbsar::available(sbsar::Engine::Metal))
     GTEST_SKIP() << "the Substance Metal engine does not start here";
   const std::unique_ptr<core::hardware::GpuDevice> gpu =
-      core::hardware::GpuDevice::createOwned();
+      core::hardware::GpuDevice::createOwned().value_or(nullptr);
   const std::unique_ptr<sigil::skia::GraphiteContext> graphite =
       gpu ? sigil::skia::GraphiteContext::create(*gpu) : nullptr;
   if (!graphite) GTEST_SKIP() << "no Metal device for Graphite";
@@ -430,6 +430,8 @@ TEST(Substance, RefusesWhatIsNotAnArchive) {
   if (!sbsar::available()) GTEST_SKIP() << "no Substance SDK";
   const char junk[] = "this is not an archive";
   EXPECT_FALSE(sbsar::Archive::decode(std::as_bytes(std::span(junk))));
+  EXPECT_EQ(sbsar::Archive::decode(std::as_bytes(std::span(junk))).error().message,
+            "the bytes are no Substance archive the engine reads");
   io::Hub hub;
   const Material missing = material::substance(hub, "/nonexistent/x.sbsar");
   ASSERT_NE(nullptr, missing.color());

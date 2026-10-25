@@ -15,6 +15,8 @@
 #include <sigilmaterial/core/Material.h>
 
 #include <glm/vec2.hpp>
+#include <optional>
+#include <string_view>
 
 namespace sigil::material {
 
@@ -52,5 +54,26 @@ Material radialGradient(ColorStops stops, RadialEndingShape shape = {},
 Material conicGradient(ColorStops stops, ConicStart start = {},
                        GradientOptions options = {});
 /** @} */
+
+/** A GRADIENT FROM ITS CSS TEXT, onto the CSS-shaped gradients above:
+ *  `linear-gradient()`, `radial-gradient()` and `conic-gradient()` and
+ *  their `repeating-` forms, case-insensitively —
+ *  `readGradient("linear-gradient(45deg, red, blue 40%)")`.
+ *
+ *  - a linear gradient's angle in any of CSS's angle units, or `to` a side
+ *    or a corner, toward the bottom where neither is written;
+ *  - a radial gradient's `circle` or `ellipse` and its extent keyword, in
+ *    either order, and a conic gradient's `from <angle>`, each with
+ *    `at <position>` written in percentages and keywords;
+ *  - stops of any CSS colour `readColor` reads, each with none, one or
+ *    two positions — a percentage, or along a linear or radial line a
+ *    length in `px` or `pt`, or around a conic an angle — placed by CSS's
+ *    colour stop fixup where unwritten.
+ *
+ *  Nothing where the text is none of these, or writes what the gradients
+ *  here cannot hold: a colour hint, an interpolation space, a radial size
+ *  or a position written as a length, or a length in a unit measured
+ *  against the font or the viewport. */
+std::optional<Material> readGradient(std::string_view text);
 
 }  // namespace sigil::material

@@ -103,13 +103,12 @@ class HandleTable {
     return handle;
   }
 
-  /** The value behind a live handle; null for a stale or null one. */
-  T* find(H handle) {
-    Slot* slot = live(handle);
+  /** The value behind a live handle; null for a stale or null one. A
+   *  const table answers a pointer to const. */
+  template <typename Self>
+  auto find(this Self&& self, H handle) -> decltype(&self.m_slots[0].value) {
+    auto* slot = self.live(handle);
     return slot ? &slot->value : nullptr;
-  }
-  const T* find(H handle) const {
-    return const_cast<HandleTable*>(this)->find(handle);
   }
 
   /** True while @p handle names a live value. */
@@ -158,9 +157,10 @@ class HandleTable {
     bool live = false;
   };
 
-  Slot* live(H handle) {
-    if (!handle || handle.index >= m_slots.size()) return nullptr;
-    Slot& slot = m_slots[handle.index];
+  template <typename Self>
+  auto live(this Self&& self, H handle) -> decltype(&self.m_slots[0]) {
+    if (!handle || handle.index >= self.m_slots.size()) return nullptr;
+    auto& slot = self.m_slots[handle.index];
     if (!slot.live || slot.generation != handle.generation) return nullptr;
     return &slot;
   }

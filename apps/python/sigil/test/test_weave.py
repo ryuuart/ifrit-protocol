@@ -438,7 +438,7 @@ class Scene:
         track = textFx.entrance(held, compose.Track(progress=0))
         ctx.render(box().width(160).height(120).padding(30).children(
             text("I").font(Type(size=64, color="#ffffff"))
-            .textShadow(TextShadow(blur=6, color="#00ff00")).textFx(track)))
+            .textShadow(TextShadow(blur=12, color="#00ff00")).textFx(track)))
 """)
         width, row = 160, 70
         stem = next(x for x in range(width) if pixels[(row * width + x) * 4] > 10)

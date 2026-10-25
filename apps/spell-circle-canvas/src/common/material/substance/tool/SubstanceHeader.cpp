@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <print>
 #include <set>
 #include <span>
 #include <sstream>
@@ -217,7 +218,7 @@ std::string header(const std::string& stem, const std::string& path,
 
 int main(int argc, char** argv) {
   if (argc != 4 || std::string(argv[2]) != "-o") {
-    std::fprintf(stderr, "usage: %s <archive.sbsar> -o <header>\n", argv[0]);
+    std::println(stderr, "usage: {} <archive.sbsar> -o <header>", argv[0]);
     return 2;
   }
   const std::filesystem::path archivePath = argv[1];
@@ -225,11 +226,11 @@ int main(int argc, char** argv) {
   std::ifstream in(archivePath, std::ios::binary);
   const std::vector<char> bytes((std::istreambuf_iterator<char>(in)),
                                 std::istreambuf_iterator<char>());
-  const std::optional<sbsar::Archive> archive = sbsar::Archive::decode(
+  const auto archive = sbsar::Archive::decode(
       std::as_bytes(std::span<const char>(bytes.data(), bytes.size())));
   if (!archive || archive->graphCount() == 0) {
-    std::fprintf(stderr, "%s: %s is not a Substance archive\n", argv[0],
-                 archivePath.string().c_str());
+    std::println(stderr, "{}: {} is not a Substance archive", argv[0],
+                 archivePath.string());
     return 1;
   }
   const std::string text =

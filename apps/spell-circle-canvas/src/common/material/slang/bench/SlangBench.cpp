@@ -36,20 +36,16 @@ float4 fsTest(VSOut input) : SV_Target {
 /** The one program every arm below writes into. */
 const Compiled& program() {
   static const Compiled built = [] {
-    Compiled out;
-    std::string error;
-    compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &out, &error);
-    return out;
+    return compileModule(kModule, "vsTest", "fsTest", /*lit=*/false)
+        .value_or(Compiled{});
   }();
   return built;
 }
 
 void BM_Compile(benchmark::State& state) {
   for (auto _ : state) {
-    Compiled out;
-    std::string error;
-    benchmark::DoNotOptimize(compileModule(kModule, "vsTest", "fsTest",
-                                           /*lit=*/false, &out, &error));
+    benchmark::DoNotOptimize(
+        compileModule(kModule, "vsTest", "fsTest", /*lit=*/false));
   }
 }
 BENCHMARK(BM_Compile);

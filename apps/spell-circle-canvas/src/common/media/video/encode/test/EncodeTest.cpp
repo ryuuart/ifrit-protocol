@@ -69,11 +69,11 @@ TEST(VideoEncode, Mp4RoundTripsFramesAndTiming) {
     ASSERT_TRUE(append(encoder, bitmap.pixmap())) << encoder.error();
   }
   EXPECT_EQ(encoder.frameCount(), 4);
-  const std::vector<std::byte> mp4 = encoder.finish();
+  const std::vector<std::byte> mp4 = encoder.finish().value_or(std::vector<std::byte>{});
   ASSERT_FALSE(mp4.empty()) << encoder.error();
   EXPECT_GT(mp4.size(), 100u);
 
-  const std::optional<media::Metadata> probe =
+  const auto probe =
       probeDocument(std::type_identity<media::Video>{}, mp4, "roundtrip.mp4");
   ASSERT_TRUE(probe);
   EXPECT_EQ(probe->width, kWidth);
@@ -113,7 +113,7 @@ TEST(VideoEncode, CpuDecodeReadsBackTheColourItWasGiven) {
   bitmap.eraseColor(given);
   ASSERT_TRUE(append(encoder, bitmap.pixmap())) << encoder.error();
   ASSERT_TRUE(append(encoder, bitmap.pixmap())) << encoder.error();
-  const std::vector<std::byte> mp4 = encoder.finish();
+  const std::vector<std::byte> mp4 = encoder.finish().value_or(std::vector<std::byte>{});
   ASSERT_FALSE(mp4.empty()) << encoder.error();
 
   const auto video = openVideo(mp4, "colour.mp4");
@@ -140,7 +140,7 @@ TEST(VideoEncode, FinishingIsTerminal) {
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   bitmap.eraseColor(SK_ColorGREEN);
   ASSERT_TRUE(append(encoder, bitmap.pixmap())) << encoder.error();
-  ASSERT_FALSE(encoder.finish().empty()) << encoder.error();
+  ASSERT_FALSE(encoder.finish().value_or(std::vector<std::byte>{}).empty()) << encoder.error();
   EXPECT_EQ(encoder.frameCount(), 1);
 
   // The muxed bytes are already handed out, so neither another frame nor
@@ -148,7 +148,7 @@ TEST(VideoEncode, FinishingIsTerminal) {
   EXPECT_FALSE(append(encoder, bitmap.pixmap()));
   EXPECT_FALSE(encoder.error().empty());
   EXPECT_EQ(encoder.frameCount(), 1);
-  EXPECT_TRUE(encoder.finish().empty());
+  EXPECT_TRUE(encoder.finish().value_or(std::vector<std::byte>{}).empty());
   EXPECT_FALSE(encoder.error().empty());
 }
 
@@ -159,7 +159,7 @@ TEST(VideoEncode, RefusesToFinishWithNoFrames) {
        .bitRate = 1'000'000,
        .hardware = media::HardwarePreference::Disabled});
   ASSERT_TRUE(encoder) << encoder.error();
-  EXPECT_TRUE(encoder.finish().empty());
+  EXPECT_TRUE(encoder.finish().value_or(std::vector<std::byte>{}).empty());
   EXPECT_FALSE(encoder.error().empty());
   EXPECT_EQ(encoder.frameCount(), 0);
 
@@ -179,7 +179,7 @@ TEST(VideoEncode, RejectsOddDimensions) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(64, 64));
   EXPECT_FALSE(append(encoder, bitmap.pixmap()));
-  EXPECT_TRUE(encoder.finish().empty());
+  EXPECT_TRUE(encoder.finish().value_or(std::vector<std::byte>{}).empty());
 }
 
 TEST(VideoEncode, WritesMp4Only) {
@@ -191,4 +191,16 @@ TEST(VideoEncode, RecognizesContainerExtensions) {
   EXPECT_EQ(media::formatForPath("clip.MP4"), media::Format::Mp4);
   EXPECT_EQ(media::extensionFor(media::Format::Mp4), std::string(".mp4"));
   EXPECT_NE(media::formatForPath("clip.png"), media::Format::Mp4);
+}
+
+TEST(VideoEncode, ARefusingVerbAnswersTheErrorItRecords) {
+  media::Encoder encoder({.width = 32, .height = 32});
+  ASSERT_TRUE(encoder) << encoder.error();
+  const auto refused = encoder.finish();
+  ASSERT_FALSE(refused);
+  EXPECT_EQ(refused.error().message, "a video needs at least one frame");
+  EXPECT_EQ(encoder.error(), refused.error().message);
+  const auto late = encoder.append(media::Image{});
+  ASSERT_FALSE(late);
+  EXPECT_EQ(late.error().message, encoder.error());
 }

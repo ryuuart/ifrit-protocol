@@ -727,7 +727,7 @@ TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
   const std::vector<char> encoded = bytesOf(options.outputPath);
   ASSERT_FALSE(encoded.empty());
   const std::span<const std::byte> bytes = std::as_bytes(std::span(encoded));
-  const std::optional<sigil::media::Metadata> probe = probeDocument(
+  const auto probe = probeDocument(
       std::type_identity<sigil::media::Video>{}, bytes, options.outputPath);
   ASSERT_TRUE(probe);
   EXPECT_EQ(probe->width, 360);

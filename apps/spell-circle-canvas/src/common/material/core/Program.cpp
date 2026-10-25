@@ -17,6 +17,8 @@
 #include <exception>
 #include <future>
 #include <mutex>
+#include <print>
+#include <ranges>
 #include <thread>
 #include <vector>
 
@@ -60,7 +62,7 @@ void reportOnce(const std::string& key, const std::string& message) {
   static boost::unordered_flat_set<std::string> seen;
   std::lock_guard lock(mutex);
   if (!seen.insert(key).second) return;
-  std::fprintf(stderr, "[sigil::material] %s\n", message.c_str());
+  std::println(stderr, "[sigil::material] {}", message);
 }
 
 ProgramCache& ProgramCache::shared() {
@@ -87,138 +89,146 @@ bool ProgramCache::hasCompiler(Target target) const {
   return m_impl->compilers.contains(target);
 }
 
-std::shared_ptr<Program> ProgramCache::program(
+std::expected<std::shared_ptr<Program>, core::Error> ProgramCache::program(
     std::shared_ptr<const Recipe> recipe, Target target, Variant variant) {
-  std::string error;
-  return program(std::move(recipe), target, variant, error);
-}
-
-std::shared_ptr<Program> ProgramCache::program(
-    std::shared_ptr<const Recipe> recipe, Target target, Variant variant,
-    std::string& said) {
-  if (!recipe) {
-    said = "no recipe";
-    return nullptr;
-  }
-  const Impl::Key key{recipe.get(), target, variant};
-  std::shared_future<std::shared_ptr<Program>> waiting;
-  std::shared_ptr<std::promise<std::shared_ptr<Program>>> promise;
-  size_t generation = 0;
-  {
-    std::lock_guard lock(m_impl->mutex);
-    auto it = m_impl->programs.find(key);
-    if (it != m_impl->programs.end()) return it->second;
-    auto flight = m_impl->inFlight.find(key);
-    if (flight != m_impl->inFlight.end()) {
-      waiting = flight->second.result;
-    } else {
-      promise = std::make_shared<std::promise<std::shared_ptr<Program>>>();
-      waiting = promise->get_future().share();
-      generation = m_impl->generation;
-      m_impl->inFlight.emplace(key, Impl::InFlight{waiting, promise.get()});
+  // What stopped the program, said by whichever step refused it.
+  std::string said;
+  const std::shared_ptr<Program> made = [&]() -> std::shared_ptr<Program> {
+    if (!recipe) {
+      said = "no recipe";
+      return nullptr;
     }
-  }
-  if (!promise) {
-    std::shared_ptr<Program> joined = waiting.get();
-    if (!joined) said = "the compile this ask joined failed";
-    return joined;
-  }
+    const Impl::Key key{recipe.get(), target, variant};
+    std::shared_future<std::shared_ptr<Program>> waiting;
+    std::shared_ptr<std::promise<std::shared_ptr<Program>>> promise;
+    size_t generation = 0;
+    {
+      std::lock_guard lock(m_impl->mutex);
+      auto it = m_impl->programs.find(key);
+      if (it != m_impl->programs.end()) return it->second;
+      auto flight = m_impl->inFlight.find(key);
+      if (flight != m_impl->inFlight.end()) {
+        waiting = flight->second.result;
+      } else {
+        promise = std::make_shared<std::promise<std::shared_ptr<Program>>>();
+        waiting = promise->get_future().share();
+        generation = m_impl->generation;
+        m_impl->inFlight.emplace(key, Impl::InFlight{waiting, promise.get()});
+      }
+    }
+    if (!promise) {
+      std::shared_ptr<Program> joined = waiting.get();
+      if (!joined) said = "the compile this ask joined failed";
+      return joined;
+    }
 
-  try {
-    const auto finish = [&](std::shared_ptr<Program> built) {
-      std::shared_ptr<Program> result = built;
+    try {
+      const auto finish = [&](std::shared_ptr<Program> built) {
+        std::shared_ptr<Program> result = built;
+        {
+          std::lock_guard lock(m_impl->mutex);
+          const auto flight = m_impl->inFlight.find(key);
+          if (flight != m_impl->inFlight.end() &&
+              flight->second.owner == promise.get())
+            m_impl->inFlight.erase(flight);
+          if (built && generation == m_impl->generation) {
+            auto [it, inserted] =
+                m_impl->programs.try_emplace(key, std::move(built));
+            result = it->second;
+          }
+        }
+        promise->set_value(result);
+        return result;
+      };
+      // A failure is reported once per (recipe, target) — the variant does
+      // not change whether a body exists or compiles, and a renderer asking
+      // for several variants would otherwise say the same thing several times.
+      const auto report = [&](const std::string& what) {
+        said = what;
+        std::lock_guard lock(m_impl->mutex);
+        if (!m_impl->reported.insert({recipe.get(), target}).second) return;
+        std::println(stderr, "[sigil::material] recipe \"{}\": {}",
+                     recipe->name(), what);
+      };
+      Compiler compiler;
       {
         std::lock_guard lock(m_impl->mutex);
+        auto it = m_impl->compilers.find(target);
+        if (it != m_impl->compilers.end()) compiler = it->second;
+      }
+      if (!compiler) {
+        report("no compiler is registered for " + std::string(name(target)));
+        return finish(nullptr);
+      }
+      if (!recipe->has(target)) {
+        report("no " + std::string(name(target)) + " body");
+        return finish(nullptr);
+      }
+      std::string error;
+      std::shared_ptr<Program> built;
+      try {
+        auto answer = compiler(recipe, variant);
+        if (!answer)
+          error = std::move(answer.error().message);
+        else if (!*answer)
+          error = "the compiler answered no program";
+        else
+          built = std::move(*answer);
+      } catch (const std::exception& exception) {
+        error = exception.what();
+      } catch (...) {
+        error = "the compiler raised an unknown exception";
+      }
+      if (!built) {
+        report(std::string(name(target)) + " failed to compile: " + error);
+        said = error;
+        return finish(nullptr);
+      }
+      // A field the compiled body never reads: whatever the material writes
+      // there has no effect on the picture, which reads at a call site as a
+      // dial that does nothing. Named once per (recipe, target), like every
+      // other thing this cache has to say about a definition.
+      std::string unread;
+      for (const Field& f : recipe->parameters().fields) {
+        if (built->keeps(f.name)) continue;
+        if (!unread.empty()) unread += ", ";
+        unread += f.name;
+      }
+      if (!unread.empty()) {
+        bool first = false;
+        {
+          std::lock_guard lock(m_impl->mutex);
+          first = m_impl->unread.insert({recipe.get(), target}).second;
+        }
+        if (first) {
+          const std::string what =
+              "the " + std::string(name(target)) + " body never reads " + unread +
+              " — whatever is written to those fields has no effect";
+          std::println(stderr, "[sigil::material] recipe \"{}\": {}",
+                       recipe->name(), what);
+        }
+      }
+      return finish(std::move(built));
+    } catch (...) {
+      const auto failure = std::current_exception();
+      {
+        const std::lock_guard lock(m_impl->mutex);
         const auto flight = m_impl->inFlight.find(key);
         if (flight != m_impl->inFlight.end() &&
             flight->second.owner == promise.get())
           m_impl->inFlight.erase(flight);
-        if (built && generation == m_impl->generation) {
-          auto [it, inserted] =
-              m_impl->programs.try_emplace(key, std::move(built));
-          result = it->second;
-        }
       }
-      promise->set_value(result);
-      return result;
-    };
-    // A failure is reported once per (recipe, target) — the variant does
-    // not change whether a body exists or compiles, and a renderer asking
-    // for several variants would otherwise say the same thing several times.
-    const auto report = [&](const std::string& what) {
-      said = what;
-      std::lock_guard lock(m_impl->mutex);
-      if (!m_impl->reported.insert({recipe.get(), target}).second) return;
-      std::fprintf(stderr, "[sigil::material] recipe \"%s\": %s\n",
-                   recipe->name().c_str(), what.c_str());
-    };
-    Compiler compiler;
-    {
-      std::lock_guard lock(m_impl->mutex);
-      auto it = m_impl->compilers.find(target);
-      if (it != m_impl->compilers.end()) compiler = it->second;
+      // Reflection and cache publication can throw after compilation.
+      // Every joined request receives that failure; a later ask can retry.
+      promise->set_exception(failure);
+      throw;
     }
-    if (!compiler) {
-      report("no compiler is registered for " + std::string(name(target)));
-      return finish(nullptr);
-    }
-    if (!recipe->has(target)) {
-      report("no " + std::string(name(target)) + " body");
-      return finish(nullptr);
-    }
-    std::string error;
-    std::shared_ptr<Program> built;
-    try {
-      built = compiler(recipe, variant, error);
-    } catch (const std::exception& exception) {
-      error = exception.what();
-    } catch (...) {
-      error = "the compiler raised an unknown exception";
-    }
-    if (!built) {
-      report(std::string(name(target)) + " failed to compile: " + error);
-      said = error;
-      return finish(nullptr);
-    }
-    // A field the compiled body never reads: whatever the material writes
-    // there has no effect on the picture, which reads at a call site as a
-    // dial that does nothing. Named once per (recipe, target), like every
-    // other thing this cache has to say about a definition.
-    std::string unread;
-    for (const Field& f : recipe->parameters().fields) {
-      if (built->keeps(f.name)) continue;
-      if (!unread.empty()) unread += ", ";
-      unread += f.name;
-    }
-    if (!unread.empty()) {
-      bool first = false;
-      {
-        std::lock_guard lock(m_impl->mutex);
-        first = m_impl->unread.insert({recipe.get(), target}).second;
-      }
-      if (first) {
-        const std::string what =
-            "the " + std::string(name(target)) + " body never reads " + unread +
-            " — whatever is written to those fields has no effect";
-        std::fprintf(stderr, "[sigil::material] recipe \"%s\": %s\n",
-                     recipe->name().c_str(), what.c_str());
-      }
-    }
-    return finish(std::move(built));
-  } catch (...) {
-    const auto failure = std::current_exception();
-    {
-      const std::lock_guard lock(m_impl->mutex);
-      const auto flight = m_impl->inFlight.find(key);
-      if (flight != m_impl->inFlight.end() &&
-          flight->second.owner == promise.get())
-        m_impl->inFlight.erase(flight);
-    }
-    // Reflection and cache publication can throw after compilation.
-    // Every joined request receives that failure; a later ask can retry.
-    promise->set_exception(failure);
-    throw;
-  }
+  }();
+  if (!made)
+    return std::unexpected(
+        core::Error{said.empty() ? "no program was compiled" : said});
+  return made;
+
 }
 
 bool ProgramCache::prepare(std::shared_ptr<const Recipe> recipe, Target target,
@@ -324,17 +334,18 @@ void registerCompiler(Target target, Compiler compiler) {
   ProgramCache::shared().registerCompiler(target, std::move(compiler));
 }
 
-std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
-                                 Target target, Variant variant) {
+std::expected<std::shared_ptr<Program>, core::Error> program(
+    std::shared_ptr<const Recipe> recipe, Target target, Variant variant) {
   return ProgramCache::shared().program(std::move(recipe), target, variant);
 }
 
 WarmupResult warmup(std::span<const Material> materials, Target target,
                     Variant variant) {
-  std::vector<WarmupRequest> requests;
-  requests.reserve(materials.size());
-  for (const Material& material : materials)
-    requests.push_back({material.recipePointer(), target, variant});
+  const auto requests =
+      materials | std::views::transform([&](const Material& material) {
+        return WarmupRequest{material.recipePointer(), target, variant};
+      }) |
+      std::ranges::to<std::vector<WarmupRequest>>();
   return ProgramCache::shared().warmup(requests);
 }
 

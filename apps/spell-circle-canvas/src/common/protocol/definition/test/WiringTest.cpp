@@ -24,6 +24,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -374,6 +375,17 @@ TEST(ProtocolWiring, AClientHearsAnEventAsItsTable) {
   EXPECT_EQ(protocol::ErrorCode_unreadable, refusals[0].code);
   EXPECT_EQ(0u, refusals[0].message.find("client: registry.changed: "))
       << refusals[0].message;
+}
+
+TEST(ProtocolWiring, AConstAnswerHandsItsResultOutReadOnly) {
+  Answer<std::string> answer(std::string("held"));
+  const Answer<std::string>& reader = answer;
+  static_assert(std::is_same_v<decltype(answer.result()), std::string&>);
+  static_assert(
+      std::is_same_v<decltype(reader.result()), const std::string&>);
+  answer.result() += " and changed";
+  ASSERT_TRUE(reader);
+  EXPECT_EQ(reader.result(), "held and changed");
 }
 
 }  // namespace

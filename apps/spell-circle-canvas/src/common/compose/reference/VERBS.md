@@ -226,13 +226,13 @@ the code that built a child ran.
 | Verb | What it says |
 |---|---|
 | [`font`](pages/verbs/font.md) | The type everything under this node is set in, as a PARTIAL over what it inherits. |
-| [`fontFamily`](pages/verbs/fontFamily.md) | The family list, CSS's, set in its first family the font context has — the face field of `font`. |
+| [`fontFamily`](pages/verbs/fontFamily.md) | The family list, CSS's, set in its first family the font context has — the face field of `font` — or one of its styles by the font's own name for it. |
 | `fontSize` | The type size, in any length a font holds — a `percent` is of the parent's size — one field of `font`. |
 | `fontWeight` | The weight, as the face's `wght` axis — one field of `font`. |
 | [`fontStyle`](pages/verbs/fontStyle.md) | Upright, italic, or an oblique angle leaning right — the face and the slant of `font`. |
 | `letterSpacing` | The tracking after each cluster, in any length a font holds — one field of `font`. |
 | [`paragraph`](pages/verbs/paragraph.md) | The paragraph settings everything under it is set in, as a partial in the same way. |
-| `lineHeight` | The pitch of the lines: a number is a multiple, a length an absolute pitch (`1.5_em`, `150_percent` of the type size) — one field of `paragraph`. |
+| `lineHeight` | The pitch of the lines: a number is a multiple of the type size, a length an absolute pitch (`1.5_em`, `150_percent` of the type size) — one field of `paragraph`. |
 | `textAlign` | Where the lines sit across the measure — one field of `paragraph`. |
 | [`textIndent`](pages/verbs/textIndent.md) | The first line of every block indented, by any length — one field of `paragraph`. |
 | `writingMode` | Which way the lines run — one field of `paragraph`. |

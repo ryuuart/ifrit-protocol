@@ -26,6 +26,7 @@
 #include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
 #include <algorithm>
 #include <cstdint>
+#include <ranges>
 #include <vector>
 
 #include "Resources.h"
@@ -332,9 +333,11 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map,
 dg::ITexture* TextureResidency::environment(
     const material::EnvironmentMap& map) {
   if (!map.valid()) return nullptr;
-  std::vector<sk_sp<SkImage>> levels;
-  for (const material::Texture& level : map.chain())
-    levels.push_back(level.frameAt().image);
+  const auto levels = map.chain() |
+                      std::views::transform([](const material::Texture& level) {
+                        return level.frameAt().image;
+                      }) |
+                      std::ranges::to<std::vector<sk_sp<SkImage>>>();
   return panorama(levels);
 }
 

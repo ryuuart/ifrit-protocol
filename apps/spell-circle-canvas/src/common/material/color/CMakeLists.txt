@@ -14,7 +14,7 @@
 sigil_library(SigilMaterialColor
   SOURCES Color.cpp Dither.cpp Extract.cpp Harmony.cpp Mix.cpp Names.cpp
           Ramp.cpp Spaces.cpp Text.cpp
-  HEADERS Color.h Dither.h Extract.h Harmony.h Mix.h Ramp.h
+  HEADERS Color.h CssText.h Dither.h Extract.h Harmony.h Mix.h Ramp.h
   PUBLIC SigilCoreCompute
   PRIVATE SigilCoreReport)
 

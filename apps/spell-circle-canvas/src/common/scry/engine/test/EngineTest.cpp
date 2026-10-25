@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
+#include <print>
 #include <string>
 #include <thread>
 #include <vector>
@@ -47,7 +48,7 @@ WebEngine& cpuEngine() {
       std::lock_guard<std::mutex> lock(g_logMutex);
       g_logMessages.push_back(message);
       if (level != LogLevel::Info)
-        std::fprintf(stderr, "[SigilScry] %s\n", message.c_str());
+        std::println(stderr, "[SigilScry] {}", message);
     };
     return WebEngine::create(config);
   }();
@@ -55,7 +56,7 @@ WebEngine& cpuEngine() {
   // dereference when the boot failed: stop the process saying so, rather
   // than record an expectation and fault on the next line.
   if (!engine) {
-    std::fprintf(stderr, "the CPU-mode engine did not boot\n");
+    std::println(stderr, "the CPU-mode engine did not boot");
     std::abort();
   }
   return *engine;

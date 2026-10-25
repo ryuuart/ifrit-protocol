@@ -16,6 +16,8 @@
 #include <boost/container/flat_map.hpp>
 #include <cctype>
 #include <cstdlib>
+#include <expected>
+#include <string>
 #include <vector>
 
 #define STB_RECT_PACK_IMPLEMENTATION
@@ -162,6 +164,19 @@ bool readFrames(simdjson::dom::element doc, std::vector<AtlasRegion>* out) {
   return false;
 }
 
+/** What a sheet's description refuses with when it is not JSON. */
+core::Error notJson(simdjson::error_code refused) {
+  return {std::string("the sheet's description is not JSON: ") +
+              simdjson::error_message(refused),
+          {},
+          {}};
+}
+
+/** What it refuses with when it is JSON with no frames in it. */
+core::Error noFrames() {
+  return {"the sheet's description has no \"frames\" object or list", {}, {}};
+}
+
 /** Sequences from the regions' names: frames sharing a stem, ordered by
  *  their trailing number. A name with no number is a sequence of one. */
 void sequencesFromNames(Atlas* atlas) {
@@ -185,24 +200,27 @@ void sequencesFromNames(Atlas* atlas) {
 
 }  // namespace
 
-std::optional<Atlas> Atlas::fromTexturePacker(Texture sheet,
-                                              std::string_view json) {
+std::expected<Atlas, core::Error> Atlas::fromTexturePacker(
+    Texture sheet, std::string_view json) {
   simdjson::dom::parser parser;
   simdjson::dom::element doc;
-  if (parser.parse(simdjson::padded_string(json)).get(doc)) return std::nullopt;
+  if (const auto refused = parser.parse(simdjson::padded_string(json)).get(doc))
+    return std::unexpected(notJson(refused));
   std::vector<AtlasRegion> regions;
-  if (!readFrames(doc, &regions)) return std::nullopt;
+  if (!readFrames(doc, &regions)) return std::unexpected(noFrames());
   Atlas atlas(std::move(sheet), std::move(regions));
   sequencesFromNames(&atlas);
   return atlas;
 }
 
-std::optional<Atlas> Atlas::fromAseprite(Texture sheet, std::string_view json) {
+std::expected<Atlas, core::Error> Atlas::fromAseprite(Texture sheet,
+                                                      std::string_view json) {
   simdjson::dom::parser parser;
   simdjson::dom::element doc;
-  if (parser.parse(simdjson::padded_string(json)).get(doc)) return std::nullopt;
+  if (const auto refused = parser.parse(simdjson::padded_string(json)).get(doc))
+    return std::unexpected(notJson(refused));
   std::vector<AtlasRegion> regions;
-  if (!readFrames(doc, &regions)) return std::nullopt;
+  if (!readFrames(doc, &regions)) return std::unexpected(noFrames());
   const size_t count = regions.size();
   Atlas atlas(std::move(sheet), std::move(regions));
   simdjson::dom::array tags;

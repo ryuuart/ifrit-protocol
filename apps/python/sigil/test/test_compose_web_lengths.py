@@ -59,8 +59,10 @@ class FontLengthTest(unittest.TestCase):
 
 
 class LineHeightTest(unittest.TestCase):
-    def test_a_number_is_a_multiple(self):
-        self.assertEqual(rule().lineHeight(1.4), rule().lineHeight(weave.Leading.multiple(1.4)))
+    def test_a_number_is_a_multiple_of_the_type_size(self):
+        self.assertEqual(
+            rule().lineHeight(1.4), rule().lineHeight(weave.Leading.sizeMultiple(1.4))
+        )
 
     def test_pixels_are_an_absolute_pitch(self):
         absolute = rule().lineHeight(weave.Leading.absolute(24))

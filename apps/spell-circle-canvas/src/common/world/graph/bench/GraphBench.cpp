@@ -45,7 +45,7 @@ void OrderChain(benchmark::State& state) {
   const int passes = (int)state.range(0);
   const Frame frame = chained(passes);
   for ([[maybe_unused]] auto iteration : state) {
-    graph::Plan plan = graph::build(frame);
+    auto plan = graph::build(frame);
     benchmark::DoNotOptimize(plan);
   }
   state.SetItemsProcessed(state.iterations() * passes);
@@ -56,7 +56,7 @@ void OrderFan(benchmark::State& state) {
   const int passes = (int)state.range(0);
   const Frame frame = fanned(passes);
   for ([[maybe_unused]] auto iteration : state) {
-    graph::Plan plan = graph::build(frame);
+    auto plan = graph::build(frame);
     benchmark::DoNotOptimize(plan);
   }
   state.SetItemsProcessed(state.iterations() * passes);

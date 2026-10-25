@@ -141,7 +141,7 @@ Feed Hub::listen(std::string_view uri, ListenOptions options) {
     if (auto recorded = readRecording(recording))
       made->replay(std::move(*recorded));
     else
-      refuse("not a feed recording: " + recording.string());
+      refuse(std::move(recorded.error().message));
     return Feed(std::move(made));
   }
 

@@ -15,6 +15,7 @@ find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilMaterialSkia
   SOURCES Bases.cpp Bevel.cpp Bloom.cpp Draw.cpp Effect.cpp EffectBloom.cpp EffectBlurs.cpp
           EffectDoors.cpp EffectLight.cpp EffectPrograms.cpp Filter.cpp
+          FilterText.cpp GradientText.cpp
           Paint.cpp PaintBlend.cpp PaintBuild.cpp
           PaintDetail.cpp PaintResolve.cpp PaintSources.cpp
           PaintUniforms.cpp Painted.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp Texture.cpp
@@ -40,6 +41,7 @@ sigil_test(material_test
           test/SkiaEffectGlassTest.cpp
           test/SkiaRampTest.cpp test/PaletteTest.cpp
           test/SkiaSurfaceMapTest.cpp test/SkiaPlaybackTest.cpp
+          test/SkiaCssTextTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}"
   LIBRARIES SigilMaterialSkia SigilMaterialProgram)

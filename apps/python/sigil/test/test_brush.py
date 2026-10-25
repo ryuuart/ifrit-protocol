@@ -122,7 +122,8 @@ class Brush(unittest.TestCase):
         self.assertAlmostEqual(restored.width, source.width)
         self.assertAlmostEqual(restored.opacity, source.opacity)
         self.assertAlmostEqual(restored.pressure.middle, source.pressure.middle)
-        self.assertIsNone(brush.format.decodeBrush(b"not a brush"))
+        with self.assertRaisesRegex(RuntimeError, "no native brush"):
+            brush.format.decodeBrush(b"not a brush")
 
     def test_render_uses_native_deposition_and_invalidates_custom_tip_pen(self):
         self.addCleanup(lambda: builtins.__dict__.pop("_brush_pen", None))

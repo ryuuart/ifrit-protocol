@@ -50,8 +50,8 @@ TEST(WorldGraph, AReaderRunsAfterTheWriterWhateverOrderTheyWereDeclaredIn) {
           .pass(postPass("grade").reads("colour").writes("final"))
           .pass(geometryPass("main").writes("colour"));
   const std::vector<std::string> expected = {"main", "grade"};
-  EXPECT_EQ(namesOf(graph::build(forward)), expected);
-  EXPECT_EQ(namesOf(graph::build(backward)), expected);
+  EXPECT_EQ(namesOf(graph::build(forward).value()), expected);
+  EXPECT_EQ(namesOf(graph::build(backward).value()), expected);
 }
 
 TEST(WorldGraph, PassesThatDependOnNothingKeepTheirDeclaredOrder) {
@@ -60,7 +60,7 @@ TEST(WorldGraph, PassesThatDependOnNothingKeepTheirDeclaredOrder) {
                           .pass(geometryPass("a").writes("a"))
                           .pass(geometryPass("c").writes("c"));
   const std::vector<std::string> expected = {"b", "a", "c"};
-  EXPECT_EQ(namesOf(graph::build(frame)), expected);
+  EXPECT_EQ(namesOf(graph::build(frame).value()), expected);
 }
 
 TEST(WorldGraph, AWriteRunsAfterTheWriteBeforeItAndAfterThatVersionsReaders) {
@@ -69,7 +69,7 @@ TEST(WorldGraph, AWriteRunsAfterTheWriteBeforeItAndAfterThatVersionsReaders) {
                           .pass(postPass("read").reads("colour").writes("copy"))
                           .pass(postPass("again").writes("colour"));
   const std::vector<std::string> expected = {"first", "read", "again"};
-  EXPECT_EQ(namesOf(graph::build(frame)), expected);
+  EXPECT_EQ(namesOf(graph::build(frame).value()), expected);
 }
 
 TEST(WorldGraph, AReaderDeclaredFirstStillRunsBeforeTheSecondWrite) {
@@ -83,7 +83,7 @@ TEST(WorldGraph, AReaderDeclaredFirstStillRunsBeforeTheSecondWrite) {
           .pass(geometryPass("first").writes("colour"))
           .pass(postPass("again").writes("colour"))
           .pass(geometryPass("mist").writes("mist"));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan) << plan.error();
   const std::vector<std::string> names = namesOf(plan);
   const auto at = [&](const std::string& name) {
@@ -103,12 +103,11 @@ TEST(WorldGraph, ASecondGeometryPassOverAWrittenTargetIsAnErrorNamingBoth) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(geometryPass("motes").reads("motes").writes("colour"));
-  const graph::Plan plan = graph::build(frame);
-  EXPECT_FALSE((bool)plan);
-  EXPECT_TRUE(plan.steps().empty());
-  EXPECT_NE(plan.error().find("main"), std::string::npos);
-  EXPECT_NE(plan.error().find("motes"), std::string::npos);
-  EXPECT_NE(plan.error().find("colour"), std::string::npos);
+  const auto plan = graph::build(frame);
+  ASSERT_FALSE(plan);
+  EXPECT_NE(plan.error().message.find("main"), std::string::npos);
+  EXPECT_NE(plan.error().message.find("motes"), std::string::npos);
+  EXPECT_NE(plan.error().message.find("colour"), std::string::npos);
   EXPECT_EQ(plan.error(), graph::build(frame).error());
 }
 
@@ -120,7 +119,7 @@ TEST(WorldGraph, APostPassMayWriteWhatAGeometryPassWrote) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("grade").reads("colour").writes("colour"));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan) << plan.error();
   const std::vector<std::string> expected = {"main", "grade"};
   EXPECT_EQ(namesOf(plan), expected);
@@ -134,7 +133,7 @@ TEST(WorldGraph, AGeometryPassCarryingABodyMayWriteWhatWasWritten) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(geometryPass("hand").writes("colour").body([] {}));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan) << plan.error();
   const std::vector<std::string> expected = {"main", "hand"};
   EXPECT_EQ(namesOf(plan), expected);
@@ -144,11 +143,10 @@ TEST(WorldGraph, ACycleIsAnErrorNamingThePassesOnIt) {
   const Frame frame = framed()
                           .pass(postPass("ping").reads("b").writes("a"))
                           .pass(postPass("pong").reads("a").writes("b"));
-  const graph::Plan plan = graph::build(frame);
-  EXPECT_FALSE((bool)plan);
-  EXPECT_TRUE(plan.steps().empty());
-  EXPECT_NE(plan.error().find("ping"), std::string::npos);
-  EXPECT_NE(plan.error().find("pong"), std::string::npos);
+  const auto plan = graph::build(frame);
+  ASSERT_FALSE(plan);
+  EXPECT_NE(plan.error().message.find("ping"), std::string::npos);
+  EXPECT_NE(plan.error().message.find("pong"), std::string::npos);
   // The report is the same every run, so a failing build says one thing.
   EXPECT_EQ(plan.error(), graph::build(frame).error());
 }
@@ -159,7 +157,7 @@ TEST(WorldGraph, APreviousReadBreaksTheCycleItWouldOtherwiseMake) {
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("trail").reads("colour").previous("trail").writes(
               "trail"));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan);
   const std::vector<std::string> expected = {"main", "trail"};
   EXPECT_EQ(namesOf(plan), expected);
@@ -178,7 +176,7 @@ TEST(WorldGraph, TwoResourcesWhoseLivesDoNotOverlapShareOneSurface) {
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("half").reads("colour").writes("half"))
           .pass(postPass("quarter").reads("half").writes("quarter"));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan);
   EXPECT_EQ(plan.resources().size(), 3u);
   // Nothing can be reused here: colour is still live while half is
@@ -193,7 +191,7 @@ TEST(WorldGraph, TwoResourcesWhoseLivesDoNotOverlapShareOneSurface) {
           .pass(postPass("half").reads("colour").writes("half"))
           .pass(postPass("quarter").reads("half").writes("quarter"))
           .pass(postPass("eighth").reads("quarter").writes("eighth"));
-  const graph::Plan reuse = graph::build(longer);
+  const graph::Plan reuse = graph::build(longer).value();
   ASSERT_TRUE((bool)reuse);
   EXPECT_EQ(reuse.resources().size(), 4u);
   // One step longer and colour is free again by the time quarter is
@@ -211,7 +209,7 @@ TEST(WorldGraph, AResourceReadBackIsNeverAliased) {
           .pass(postPass("quarter").reads("half").writes("quarter"))
           .pass(postPass("eighth").reads("quarter").writes("eighth"))
           .readback(readback("colour"));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan);
   const graph::Resource* colour = plan.resource("colour");
   ASSERT_NE(colour, nullptr);
@@ -225,7 +223,7 @@ TEST(WorldGraph, EveryWriteFollowedByAReadIsAStatedHazard) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("grade").reads("colour").writes("final"));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan);
   ASSERT_EQ(plan.barriers().size(), 1u);
   const graph::Barrier& barrier = plan.barriers().front();
@@ -241,7 +239,7 @@ TEST(WorldGraph, TwoReadsOfOneResourceAreNoHazard) {
                           .pass(geometryPass("main").writes("colour"))
                           .pass(postPass("a").reads("colour").writes("a"))
                           .pass(postPass("b").reads("colour").writes("b"));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan);
   int onColour = 0;
   for (const graph::Barrier& barrier : plan.barriers())
@@ -309,7 +307,7 @@ TEST_P(DerivedRealisation, IsWhatTheOrderingDerivesFromTheDeclaration) {
   // The plan names the passes of the frame it was built from, so the
   // frame outlives it here.
   const Frame frame = GetParam().declare();
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan) << plan.error();
   const PassWork* step = stepNamed(plan, GetParam().step);
   ASSERT_NE(step, nullptr);
@@ -325,7 +323,7 @@ TEST(WorldGraph, AMaskedPassReadsTheCoverageThePassAheadOfItWrites) {
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("bloom").reads("colour").writes("lit").only(
               Collection{.include = {"glow"}}));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan);
   const PassWork* bloom = stepNamed(plan, "bloom");
   const PassWork* main = stepNamed(plan, "main");
@@ -347,7 +345,7 @@ TEST(WorldGraph, TwoMaskedPassesEachReadTheirOwnCoverage) {
               Collection{.include = {"glow"}}))
           .pass(postPass("blur").reads("lit").writes("final").only(
               Collection{.include = {"soft"}}));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan) << plan.error();
   const PassWork* main = stepNamed(plan, "main");
   const PassWork* bloom = stepNamed(plan, "bloom");
@@ -378,7 +376,7 @@ TEST(WorldGraph, TwoMasksOfTheSameSelectionShareOneCoverage) {
               Collection{.include = {"glow"}}))
           .pass(postPass("blur").reads("lit").writes("final").only(
               Collection{.include = {"glow"}}));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan) << plan.error();
   const PassWork* main = stepNamed(plan, "main");
   const PassWork* bloom = stepNamed(plan, "bloom");
@@ -394,9 +392,9 @@ TEST(WorldGraph, AMaskWithNothingPaintingBodiesAheadOfItIsAnError) {
   const Frame frame =
       framed().pass(postPass("bloom").reads("colour").writes("lit").only(
           Collection{.include = {"glow"}}));
-  const graph::Plan plan = graph::build(frame);
-  EXPECT_FALSE((bool)plan);
-  EXPECT_NE(plan.error().find("bloom"), std::string::npos);
+  const auto plan = graph::build(frame);
+  ASSERT_FALSE(plan);
+  EXPECT_NE(plan.error().message.find("bloom"), std::string::npos);
 }
 
 TEST(WorldGraph, AComputePassWritesPointsAndEverythingElseWritesPixels) {
@@ -406,7 +404,7 @@ TEST(WorldGraph, AComputePassWritesPointsAndEverythingElseWritesPixels) {
           .pass(computePass("cook").writes("motes").chain(
               geometry::mesh::pop::on(path).count(8)))
           .pass(geometryPass("beads").reads("motes").writes("colour"));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan);
   const std::vector<std::string> expected = {"cook", "beads"};
   EXPECT_EQ(namesOf(plan), expected);
@@ -420,7 +418,7 @@ TEST(WorldGraph, AComputePassWritesPointsAndEverythingElseWritesPixels) {
 }
 
 TEST(WorldGraph, AFrameWithNoPassesHasNoPlanAndNoError) {
-  const graph::Plan plan = graph::build(Frame());
+  const graph::Plan plan = graph::build(Frame()).value();
   EXPECT_TRUE((bool)plan);
   EXPECT_TRUE(plan.steps().empty());
   EXPECT_TRUE(plan.present().empty());
@@ -444,7 +442,7 @@ TEST(WorldGraph, ATexturePassRunsBeforeEveryPassThatDrawsBodies) {
                           .pass(geometryPass("main").writes("colour"))
                           .pass(texturePass("page", TextureProducer(Painting{}))
                                     .writes("page.maps"));
-  const graph::Plan plan = graph::build(frame);
+  const graph::Plan plan = graph::build(frame).value();
   ASSERT_TRUE((bool)plan);
   const std::vector<std::string> expected = {"page", "main"};
   EXPECT_EQ(namesOf(plan), expected);

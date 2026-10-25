@@ -9,6 +9,9 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
+#include <include/core/SkFontStyle.h>
+#include <include/core/SkTypeface.h>
+#include <sigilweave/advanced/Skia.h>
 #include <sigilweave/style/Type.h>
 
 #include <cstddef>
@@ -348,11 +351,32 @@ void Composer::Impl::resolveCascade(
     // context, which is why it is done here and not by the verb — and so
     // does a face stated under an italic. The face is the family's at the
     // weight and style in force, as CSS matches one per element.
+    // A STYLE NAMED BESIDE THE FAMILY is the face the font names so,
+    // written into the font as a held face is, its own weight and style
+    // standing. A weight or a style stated after it, or in a stronger
+    // layer, overrides that trait alone, and the family chooses its face
+    // at the traits so overridden and the named face's others.
+    bool chosenByName = false;
+    if (const std::string* styleName = longhands.styleNamed())
+      if (sk_sp<SkTypeface> named =
+              namedStyleFace(fonts, *longhands.familyNamed(), *styleName)) {
+        if (!longhands.styleOverridesNamedStyle()) {
+          longhands.faceChosenByStyleName(named->fontStyle().slant() !=
+                                          SkFontStyle::kUpright_Slant);
+          if (font.slant && *font.slant != 0.0f) font.slant = 0.0f;
+        }
+        if (!longhands.weightOverridesNamedStyle() && font.weight)
+          font.weight = 0.0f;
+        font.face = sigil::weave::fromSk(std::move(named));
+        chosenByName = !longhands.styleOverridesNamedStyle() &&
+                       !longhands.weightOverridesNamedStyle();
+      }
     const bool italic = longhands.italic();
     const std::string* family = longhands.familyInForce();
-    if (longhands.familyNamed() != nullptr || italic != parentItalic ||
-        (longhands.faceStated() && italic) ||
-        (family != nullptr && font.weight != parentFont.weight))
+    if (!chosenByName &&
+        (longhands.familyNamed() != nullptr || italic != parentItalic ||
+         (longhands.faceStated() && italic) ||
+         (family != nullptr && font.weight != parentFont.weight)))
       chooseFace(fonts, font, family, italic);
     if (ownFont.color) statesOwnInk = true;
     if (inkVar) {
@@ -513,19 +537,26 @@ void Composer::Impl::resolveCascade(
     inst.family.clear();
   }
   if (shapeChanged) {
-    inst.lineHeight = lineHeightAt(font);
+    inst.faceLineHeight = lineHeightAt(font);
     inst.zeroAdvance = zeroAdvanceAt(font);
   }
+  // A LINE HEIGHT IN A RELATIVE UNIT becomes an absolute pitch here,
+  // against this node's own font, and is inherited as the pitch; an `lh`
+  // in it is the parent's line height, as CSS reads one there.
+  const float lineHeightBefore = inst.lineHeight;
+  inst.lineHeight = parentLineHeight;
+  if (longhands.lineHeight())
+    resolveLineHeight(inst, *longhands.lineHeight(), block);
+  // THE LINE HEIGHT IN FORCE, which every other `lh` on this node reads.
+  inst.lineHeight = block.leading.value_or(sigil::weave::Leading{})
+                        .pitchFor(inst.faceLineHeight, fontSizePx(font));
+  const bool lineHeightMoved = !first && inst.lineHeight != lineHeightBefore;
   // AN INDENT IN A RELATIVE UNIT BECOMES PIXELS HERE, against this node's
   // own font, line and properties, and is inherited as the pixels, as
   // CSS computes it; a percentage of the measure waits for the measure.
   std::optional<float>& indentPercent = longhands.indentPercent();
   if (longhands.indent())
     resolveTextIndent(inst, *longhands.indent(), block, indentPercent);
-  // A LINE HEIGHT IN A RELATIVE UNIT becomes an absolute pitch here,
-  // against this node's own font, and is inherited as the pitch.
-  if (longhands.lineHeight())
-    resolveLineHeight(inst, *longhands.lineHeight(), block);
   const bool indentPercentMoved = indentPercent != inst.indentPercent;
   inst.indentPercent = indentPercent;
   inst.block = block;
@@ -537,7 +568,8 @@ void Composer::Impl::resolveCascade(
                            indentPercentMoved);
   // A length measured in the font, or read from a property, is rewritten
   // into the flex style when what it measures against moved.
-  if ((shapeChanged || varsChanged || remMoved) && inst.relativeLengths) {
+  if ((shapeChanged || varsChanged || remMoved || lineHeightMoved) &&
+      inst.relativeLengths) {
     applyLayoutProps(inst);
     needsLayout = true;
   }
@@ -545,7 +577,7 @@ void Composer::Impl::resolveCascade(
   // in the font or on a property moves the node's matrix when either
   // moves, under recordings that hold the matrix it had. One on the canvas
   // is moved by a resize alone, which the layout pass answers for.
-  if (!first && (shapeChanged || varsChanged || remMoved) &&
+  if (!first && (shapeChanged || varsChanged || remMoved || lineHeightMoved) &&
       originsFollowCascade(inst.styled())) {
     inst.markPaintDirtyUp();
     contentDirty = true;

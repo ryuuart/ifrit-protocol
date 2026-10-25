@@ -61,7 +61,11 @@ TEST(AdoptedDevice, AdoptsItsOwnHandlesAgain) {
   // object that also frees none of them: both name textures on the one
   // VkDevice Diligent made.
   std::string error;
-  auto adopted = GpuDevice::adopt(owned->native(), &error);
+  auto adopted = [&error, &native = owned->native()] {
+        auto made = GpuDevice::adopt(native);
+        if (!made) error = made.error().message;
+        return std::move(made).value_or(nullptr);
+      }();
   ASSERT_NE(adopted, nullptr) << error;
   EXPECT_EQ(adopted->native().vulkan.device, owned->native().vulkan.device);
   TextureDescription desc = smallTexture();
@@ -186,7 +190,11 @@ TEST(AdoptedDevice, ATextureMetalMadeIsNamedHereOverTheSameMemory) {
   GpuDevice* device = on->gpu();
   if (!device) GTEST_SKIP() << "the device was created but not adopted";
   std::string error;
-  const std::unique_ptr<GpuDevice> metal = GpuDevice::createOwned(&error);
+  const std::unique_ptr<GpuDevice> metal = [&error] {
+        auto made = GpuDevice::createOwned();
+        if (!made) error = made.error().message;
+        return std::move(made).value_or(nullptr);
+      }();
   if (!metal || metal->backend() != Backend::Metal)
     GTEST_SKIP() << "no Metal device: " << error;
 
@@ -239,7 +247,11 @@ TEST(AdoptedDevice, AQueueOnMetalOrdersThisDevicesQueue) {
   GpuDevice* device = on->gpu();
   if (!device) GTEST_SKIP() << "the device was created but not adopted";
   std::string error;
-  const std::unique_ptr<GpuDevice> metal = GpuDevice::createOwned(&error);
+  const std::unique_ptr<GpuDevice> metal = [&error] {
+        auto made = GpuDevice::createOwned();
+        if (!made) error = made.error().message;
+        return std::move(made).value_or(nullptr);
+      }();
   if (!metal || metal->backend() != Backend::Metal)
     GTEST_SKIP() << "no Metal device: " << error;
 

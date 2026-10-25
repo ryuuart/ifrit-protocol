@@ -1,7 +1,7 @@
 /** @file
  * The colour feature under load: the OKLab round trip per colour, the
- * ramp read in each space it can be walked in, and the table chosen from
- * a picture's worth of pixels.
+ * ramp read in each space it can be walked in, the table chosen from a
+ * picture's worth of pixels, and a CSS colour name looked up.
  */
 
 #include <benchmark/benchmark.h>
@@ -10,6 +10,8 @@
 #include <sigilmaterial/color/Extract.h>
 #include <sigilmaterial/color/Ramp.h>
 
+#include <array>
+#include <string_view>
 #include <vector>
 
 using namespace sigil::material;
@@ -78,5 +80,19 @@ void PaletteExtraction(benchmark::State& state) {
     benchmark::DoNotOptimize(palette(pixels, options));
 }
 BENCHMARK(PaletteExtraction)->Arg(4)->Arg(16);
+
+/** One CSS colour name looked up, as every colour written by name is read.
+ *  The arms are the first name of the table, one from its middle, its
+ *  last, a name written in capitals and a word that names no colour, so a
+ *  lookup whose cost depends on where a name stands shows it. */
+void NamedColorLookup(benchmark::State& state) {
+  static constexpr std::array<std::string_view, 5> kNames = {
+      "aliceblue", "mediumseagreen", "yellowgreen", "MediumSeaGreen",
+      "notacolour"};
+  const std::string_view name = kNames[(size_t)state.range(0)];
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(namedColor(name));
+}
+BENCHMARK(NamedColorLookup)->DenseRange(0, 4);
 
 }  // namespace

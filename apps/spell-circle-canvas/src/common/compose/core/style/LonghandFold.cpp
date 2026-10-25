@@ -30,10 +30,12 @@ void LonghandFold::state(const sigil::weave::Type* font,
       m_family = takesParent(*keyword) ? m_parentFamily : nullptr;
       m_familyNamed = false;
       m_faceStated = false;
+      m_styleName = nullptr;
     } else if (font->face) {
       m_family = nullptr;
       m_familyNamed = false;
       m_faceStated = true;
+      m_styleName = nullptr;
     }
     if (const auto keyword =
             font->keywords.find(sigil::weave::TypeField::Slant))
@@ -55,7 +57,21 @@ void LonghandFold::state(const sigil::weave::Type* font,
         block->leading)
       m_lineHeight.reset();
   }
-  if (said == nullptr) return;
+  if (said != nullptr) stateCascade(*said);
+  // A weight or a style stated in a layer stronger than a named style's,
+  // or after it in the same one — the verb naming the style drops those
+  // written before it — overrides that trait of the named face.
+  if (font != nullptr) {
+    if (font->weight || font->keywords.find(sigil::weave::TypeField::Weight))
+      m_weightOverridden = true;
+    if (font->slant || font->keywords.find(sigil::weave::TypeField::Slant))
+      m_styleOverridden = true;
+  }
+  if (said != nullptr && said->italic) m_styleOverridden = true;
+}
+
+void LonghandFold::stateCascade(const CascadeData& stated) {
+  const CascadeData* said = &stated;
   // The verbs keep a family and a face, an italic and a lean, an indent in
   // pixels and one in another unit, from standing in one layer together,
   // so what the cascade half says is that layer's last word.
@@ -63,6 +79,9 @@ void LonghandFold::state(const sigil::weave::Type* font,
     m_family = &*said->fontFamily;
     m_familyNamed = true;
     m_faceStated = false;
+    m_styleName = said->fontStyleName ? &*said->fontStyleName : nullptr;
+    m_weightOverridden = false;
+    m_styleOverridden = false;
   }
   if (said->italic) m_italic = said->italic;
   if (said->textIndent) {
@@ -76,6 +95,7 @@ void LonghandFold::fontKeyword(bool fromParent) {
   m_family = fromParent ? m_parentFamily : nullptr;
   m_familyNamed = false;
   m_faceStated = false;
+  m_styleName = nullptr;
   m_italic = fromParent && m_parentItalic;
 }
 

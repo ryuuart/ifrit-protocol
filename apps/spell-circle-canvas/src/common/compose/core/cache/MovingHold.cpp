@@ -1,7 +1,9 @@
 /** @file
- * The pixels a live composer holds while a node's own transform moves: the
- * subtree painted once in the node's own frame, on the device the draw is
- * on, at the scale it is shown at, and composited under each new matrix.
+ * The pixels a live composer holds while a node's own transform or opacity
+ * moves: the subtree painted once, on the device the draw is on — in the
+ * node's own frame at the scale it is shown at where the node moves, in
+ * place on the device grid where only its opacity does — and composited
+ * under each new matrix at each new opacity.
  */
 
 #include <include/core/SkCanvas.h>
@@ -37,12 +39,61 @@ float formingScale(float shown) {
   return std::exp2(std::ceil(std::log2(bounded) * kSteps) / kSteps);
 }
 
+/** The node fading where it stands: its subtree painted once on the
+ *  device grid, under the matrix and clip the draw has, exactly as a layer
+ *  opened for the fade would hold it, and composited there at each draw's
+ *  opacity. Formed again when the node's paint, matrix, clip or rect
+ *  changes. */
+bool paintHeldInPlace(PaintPass& pass) {
+  Composer::Impl& impl = pass.impl;
+  Instance& inst = pass.inst;
+  const SkIRect device = pass.deviceRect();
+  if (device.isEmpty()) return false;
+  const SkIRect clip = pass.deviceClip();
+  const bool stale = !inst.movingImage || !inst.movingInPlace ||
+                     inst.paintDirty || inst.movingDeviceRect != device ||
+                     inst.movingMatrix != pass.totalM ||
+                     inst.movingClip != clip;
+  if (stale) {
+    inst.movingImage.reset();
+    sk_sp<SkImage> formed = pass.takeDeviceBake(device, [&](SkCanvas& layer) {
+      // no leaf blend: the pixels isolate, as a layer's do
+      const BakeLayerScope bakeLayer(&impl, layer);
+      impl.paintContent(inst, layer, impl.hostScale);
+    });
+    if (!formed) return false;
+    inst.movingImage = std::move(formed);
+    inst.movingInPlace = true;
+    inst.movingDeviceRect = device;
+    inst.movingMatrix = pass.totalM;
+    inst.movingClip = clip;
+    // What the node recorded before it faded holds none of what changed
+    // since: it is recorded afresh the draw its opacity holds still.
+    inst.picture.reset();
+    inst.paintDirty = false;
+    impl.stats.picturesRecorded++;
+    impl.stats.texturesBaked++;
+  }
+  if (pass.profile.row != SIZE_MAX)
+    impl.profileRows[pass.profile.row].cacheState =
+        Composer::CacheState::Moving;
+  ++impl.stats.nodesHeldWhileMoving;
+  SkPaint composite;
+  composite.setAlphaf(pass.opacity);
+  pass.deviceBlit(inst.movingImage, device, &composite);
+  return true;
+}
+
 }  // namespace
 
 bool paintHeldWhileMoving(PaintPass& pass) {
   Composer::Impl& impl = pass.impl;
   Instance& inst = pass.inst;
   SkCanvas& canvas = pass.canvas;
+  // A NODE THAT ONLY FADES stands where it stood, so its pixels are held on
+  // the device grid and composite exactly as the layer the fade would open.
+  if (pass.matrixStable && !inst.transformLive && !inst.transformLiveAbove)
+    return paintHeldInPlace(pass);
   const SkRect& bounds = pass.localBounds();
   // THE LARGEST SCALE THE MOTION HAS SHOWN THE NODE AT: pixels formed for
   // a smaller one would be sampled up, so a node shown larger forms them
@@ -50,12 +101,12 @@ bool paintHeldWhileMoving(PaintPass& pass) {
   const float shown = maxScaleOf(pass.totalM, bounds);
   if (!(shown > 0.0f) || !std::isfinite(shown)) return false;
   const float needed = formingScale(shown);
-  const bool stale = !inst.movingImage || inst.paintDirty ||
-                     inst.movingBounds != bounds || inst.movingScale < needed;
+  const bool held = inst.movingImage && !inst.movingInPlace;
+  const bool stale = !held || inst.paintDirty || inst.movingBounds != bounds ||
+                     inst.movingScale < needed;
   if (stale) {
-    const float scale = std::max(needed, inst.movingImage && !inst.paintDirty
-                                             ? inst.movingScale
-                                             : 0.0f);
+    const float scale =
+        std::max(needed, held && !inst.paintDirty ? inst.movingScale : 0.0f);
     inst.movingImage.reset();
     const SkISize dimensions = PaintPass::localBakeSize(bounds, scale);
     if (dimensions.isEmpty()) return false;
@@ -75,6 +126,7 @@ bool paintHeldWhileMoving(PaintPass& pass) {
     impl.contentScaleRead = outerRead;
     inst.movingImage = layer->makeImageSnapshot();
     if (!inst.movingImage) return false;
+    inst.movingInPlace = false;
     inst.movingScale = scale;
     inst.movingBounds = bounds;
     // What the node recorded before it moved holds none of what changed
@@ -95,10 +147,10 @@ bool paintHeldWhileMoving(PaintPass& pass) {
       bounds.left(), bounds.top(),
       (float)inst.movingImage->width() / inst.movingScale,
       (float)inst.movingImage->height() / inst.movingScale);
-  // A leaf's opacity rides its fill rather than a layer, and the pixels
-  // were formed without it: it rides the one draw they are composited by.
+  // The pixels were formed without the node's opacity, and no layer is
+  // open for it: it rides the one draw they are composited by.
   SkPaint composite;
-  composite.setAlphaf(pass.leafOpacity);
+  composite.setAlphaf(pass.opacity);
   canvas.drawImageRect(inst.movingImage, destination,
                        SkSamplingOptions(SkFilterMode::kLinear), &composite);
   return true;

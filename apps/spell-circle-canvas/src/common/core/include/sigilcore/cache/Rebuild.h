@@ -104,8 +104,10 @@ class CachedValue {
   /** Forces the next `ensure()` to rebuild whatever its keys say. */
   void invalidate() { m_guard.invalidate(); }
 
-  [[nodiscard]] Value& value() { return m_value; }
-  [[nodiscard]] const Value& value() const { return m_value; }
+  template <typename Self>
+  [[nodiscard]] auto& value(this Self&& self) {
+    return self.m_value;
+  }
 
  private:
   Value m_value{};

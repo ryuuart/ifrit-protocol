@@ -89,7 +89,7 @@ TEST(ReadGeo, PolygonsUnweldWithTheirVertexAndPrimitiveClasses) {
       [["name","front"],["selection",["unordered",["i8",[1,0]]]]]
     ]
   ])";
-  const std::optional<codec::decode::Model> model =
+  const auto model =
       codec::decode::model(geo, std::strlen(geo), "scene.geo");
   ASSERT_TRUE(model);
   ASSERT_EQ(model->parts.size(), 1u);
@@ -187,7 +187,7 @@ TEST(ReadGeo, APointArchiveComesBackACloudRatherThanAFacelessMesh) {
     ],
     "primitives",[]
   ])";
-  const std::optional<codec::decode::Model> model =
+  const auto model =
       codec::decode::model(geo, std::strlen(geo), "particles.geo");
   ASSERT_TRUE(model);
   const codec::decode::Part& part = model->parts.front();

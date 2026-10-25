@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <print>
 #include <string>
 #include <thread>
 #include <vector>
@@ -51,7 +52,7 @@ bool awaitFirstBuild(sketch::Host& host) {
     std::this_thread::sleep_for(50ms);
   }
   if (!host.live()) {
-    std::fprintf(stderr, "sketch did not open:\n%s\n", host.errorLog().c_str());
+    std::println(stderr, "sketch did not open:\n{}", host.errorLog());
     return false;
   }
   return true;
@@ -80,7 +81,7 @@ int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
     graphite = sketch::deviceGraphite();
 #endif
     if (!graphite) {
-      std::fprintf(stderr, "capture: the device has no Graphite context\n");
+      std::println(stderr, "capture: the device has no Graphite context");
       return 1;
     }
     capture.host = &host;
@@ -97,9 +98,8 @@ int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
            return capture.canvas.get();
          }});
   }
-  std::printf("backend: %s, runtime: %.*s\n",
-              gpu ? "Graphite GPU" : "CPU raster", (int)host.kind().size(),
-              host.kind().data());
+  std::println("backend: {}, runtime: {}", gpu ? "Graphite GPU" : "CPU raster",
+               host.kind());
   const double declared = host.captureSeconds();
   double at;
   try {
@@ -107,7 +107,7 @@ int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
         options.at >= 0.0 ? std::optional<double>{options.at} : std::nullopt,
         options.fps, options.scale);
   } catch (const std::exception& error) {
-    std::fprintf(stderr, "capture: %s\n", error.what());
+    std::println(stderr, "capture: {}", error.what());
     return 1;
   }
   // THE SWEEP'S PHOTOGRAPH, so a file written at a moment is the plate of
@@ -122,25 +122,25 @@ int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
                                  ? numberedPath(options.outputPath, index + 1)
                                  : options.outputPath;
     if (!host.writePhotograph(path, options.scale)) {
-      std::fprintf(stderr, "failed to write %s\n", path.c_str());
+      std::println(stderr, "failed to write {}", path);
       return 1;
     }
     if (options.frames > 1)
-      std::printf("frame %d: t=%.9gs %s\n", index + 1, shown, path.c_str());
+      std::println("frame {}: t={:.9g}s {}", index + 1, shown, path);
     if (index + 1 < options.frames) {
       try {
         shown += host.prepareCapture(dt, options.fps, options.scale);
       } catch (const std::exception& error) {
-        std::fprintf(stderr, "capture: %s\n", error.what());
+        std::println(stderr, "capture: {}", error.what());
         return 1;
       }
     }
   }
-  std::printf(
-      "wrote %s (%d frame%s at %.3gx, t=%.3gs %s, build %d, work %.2f ms "
-      "avg)\n",
-      options.outputPath.c_str(), options.frames,
-      options.frames == 1 ? "" : "s", options.scale, at,
+  std::println(
+      "wrote {} ({} frame{} at {:.3g}x, t={:.3g}s {}, build {}, work {:.2f} ms "
+      "avg)",
+      options.outputPath, options.frames, options.frames == 1 ? "" : "s",
+      options.scale, at,
       options.at >= 0.0 ? "asked for"
                         : (declared >= 0.0 ? "declared" : "by default"),
       host.generation(),

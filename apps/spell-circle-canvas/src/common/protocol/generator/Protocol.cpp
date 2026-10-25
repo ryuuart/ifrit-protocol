@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <optional>
+#include <print>
 #include <span>
 #include <string>
 #include <vector>
@@ -50,7 +51,7 @@ struct Ask {
 /** What stopped the generator, named on the way out so a definition
  *  that breaks a rule breaks the build. */
 void refuse(const std::string& why) {
-  std::fprintf(stderr, "sigil_protocol: %s\n", why.c_str());
+  std::println(stderr, "sigil_protocol: {}", why);
 }
 
 std::vector<std::string> splitOnCommas(const std::string& text) {

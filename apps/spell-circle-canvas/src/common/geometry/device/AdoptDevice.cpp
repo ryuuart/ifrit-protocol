@@ -83,7 +83,12 @@ std::unique_ptr<core::hardware::GpuDevice> adoptVulkanDevice(
         reinterpret_cast<core::hardware::VulkanHandles::GetInstanceProcAddr>(
             vkGetInstanceProcAddr);
 
-  return core::hardware::GpuDevice::adopt(native, error);
+  auto adopted = core::hardware::GpuDevice::adopt(native);
+  if (!adopted) {
+    if (error) *error = std::move(adopted.error().message);
+    return nullptr;
+  }
+  return std::move(*adopted);
 }
 
 }  // namespace sigil::geometry::device

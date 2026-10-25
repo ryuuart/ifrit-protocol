@@ -225,6 +225,7 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
     const detail::CascadeData& said = *stated.cascadeData;
     if (said.font) restyle.partial = *said.font;
     restyle.fontFamily = said.fontFamily;
+    restyle.fontStyleName = said.fontStyleName;
     restyle.italic = said.italic;
     restyle.inkVar = said.inkVar;
     // Surface channels belong to the authored ink even when its base is

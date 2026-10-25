@@ -67,12 +67,10 @@ class Cells {
   [[nodiscard]] const T& outside() const { return m_outside; }
   void setOutside(T value) { m_outside = std::move(value); }
 
-  /** THE CELL AT (x, y), which must be inside. */
-  [[nodiscard]] const T& at(int x, int y) const {
-    return m_front[(size_t)y * (size_t)m_width + (size_t)x];
-  }
-  T& at(int x, int y) {
-    return m_front[(size_t)y * (size_t)m_width + (size_t)x];
+  /** THE CELL AT (x, y), which must be inside; const on a const grid. */
+  template <typename Self>
+  [[nodiscard]] auto& at(this Self&& self, int x, int y) {
+    return self.m_front[(size_t)y * (size_t)self.m_width + (size_t)x];
   }
 
   /** THE CELL AT (x, y) THROUGH THE EDGE RULE, which a rule reading its
@@ -96,8 +94,10 @@ class Cells {
 
   /** The cells in row-major order, for a caller that walks them all —
    *  filling them, painting them, measuring them. */
-  [[nodiscard]] std::span<const T> values() const { return m_front; }
-  [[nodiscard]] std::span<T> values() { return m_front; }
+  template <typename Self>
+  [[nodiscard]] auto values(this Self&& self) {
+    return std::span(self.m_front);
+  }
 
   void fill(const T& value) {
     std::fill(m_front.begin(), m_front.end(), value);

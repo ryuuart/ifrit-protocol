@@ -33,6 +33,7 @@ Paragraph::Strut strutOfShaping(FontContext& fontContext,
   strut.height = lineHeightOf(metrics);
   strut.capHeight = metrics.fCapHeight;
   strut.xHeight = metrics.fXHeight;
+  strut.size = shaping.fontSize;
   return strut;
 }
 

@@ -10,7 +10,7 @@ sigil_library(SigilWeavePorts
   SOURCES SystemFontManager.cpp GenericFamilyManager.cpp
           GenericFamilyManager.h Resource.cpp Catalogue.cpp
   HEADERS SystemFontManager.h Resource.h Catalogue.h
-  PUBLIC SigilWeaveStyle SigilWeaveFonts unofficial::skia::skia
+  PUBLIC SigilWeaveStyle SigilWeaveFonts SigilCoreReport unofficial::skia::skia
   PRIVATE Boost::unordered)
 
 # The one binary in the tree whose subject IS the machine's font list, so

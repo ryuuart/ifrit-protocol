@@ -8,9 +8,9 @@
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 
-#include <boost/container/flat_map.hpp>
 #include <cctype>
 #include <cstring>
+#include <flat_map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -145,7 +145,7 @@ std::shared_ptr<const Recipe> composed(
     }
   };
   static std::mutex mutex;
-  static boost::container::flat_map<Key, std::shared_ptr<const Recipe>> built;
+  static std::flat_map<Key, std::shared_ptr<const Recipe>> built;
   Key key{parent, children};
   const std::lock_guard lock(mutex);
   const auto found = built.find(key);

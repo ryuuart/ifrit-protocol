@@ -2,13 +2,22 @@
 // in it. uMode 0 reads the child in the unit square; 1 reads it in px
 // around uCenter, so a conic's angles stay true on a box that is not
 // square; 2 reads a linear child running from 0 to 1 along x at the
-// fraction of the way across the box along uDirection (a px direction),
-// the gradient line long enough that its ends land on the box's corners;
-// 3 reads a radial child of radius 1 with the unit square stretched by
-// uRadii around uCenter (an ellipse); 4 reads it with px divided by the
-// circle's radius, the distance from uCenter to the box's nearest or
-// farthest side or corner as uExtent names (0 farthest corner, 1 closest
-// side, 2 closest corner, 3 farthest side).
+// fraction of the way across the box along uDirection (a px direction, or
+// where uCorner is set the direction toward that corner whose middle runs
+// through the two other corners), the gradient line long enough that its
+// ends land on the box's corners; 3 reads a radial child of radius 1 with
+// the unit square stretched by uRadii around uCenter (an ellipse); 4 reads
+// it with px divided by the circle's radius, the distance from uCenter to
+// the box's nearest or farthest side or corner as uExtent names (0
+// farthest corner, 1 closest side, 2 closest corner, 3 farthest side).
+//
+// Where uStopCount is set, the child's stops stand evenly spaced and the
+// gradient's own stops are placed here, where the length of the gradient
+// line is known: stop i stands at uStopFraction[i] of the line plus
+// uStopPixels[i] px along it, never before the stop ahead of it, as CSS
+// places a stop written as a length. The place along the line is read
+// onto the child's even spacing, wrapped first where uRepeat repeats (1)
+// or mirrors (2) the run between the first stop and the last.
 uniform shader uGradient;
 uniform float2 uResolution;
 uniform float2 uCenter;
@@ -16,6 +25,45 @@ uniform float uMode;
 uniform float2 uDirection;
 uniform float2 uRadii;
 uniform float uExtent;
+uniform float2 uCorner;
+uniform float uStopCount;
+uniform float uStopFraction[16];
+uniform float uStopPixels[16];
+uniform float uRepeat;
+
+// Where @p along (a fraction of a line @p lineLength px long) falls on the
+// child's evenly spaced stops.
+float evenlyPlaced(float along, float lineLength) {
+  float first = uStopFraction[0] + uStopPixels[0] / lineLength;
+  float last = first;
+  for (int index = 1; index < 16; ++index) {
+    if (float(index) >= uStopCount) break;
+    last = max(last, uStopFraction[index] + uStopPixels[index] / lineLength);
+  }
+  float period = last - first;
+  if (uRepeat > 0.5 && period > 0.0) {
+    float into = along - first;
+    if (uRepeat < 1.5) {
+      along = first + mod(into, period);
+    } else {
+      float folded = mod(into, 2.0 * period);
+      along = first + (folded <= period ? folded : 2.0 * period - folded);
+    }
+  }
+  if (along < first) return -1.0;
+  float spacing = 1.0 / max(uStopCount - 1.0, 1.0);
+  float before = first;
+  for (int index = 1; index < 16; ++index) {
+    if (float(index) >= uStopCount) break;
+    float next =
+        max(before, uStopFraction[index] + uStopPixels[index] / lineLength);
+    if (along < next) {
+      return (float(index - 1) + (along - before) / (next - before)) * spacing;
+    }
+    before = next;
+  }
+  return along > last ? 2.0 : 1.0;
+}
 
 half4 main(float2 xy) {
   float2 box = max(uResolution, float2(1.0, 1.0));
@@ -26,12 +74,25 @@ half4 main(float2 xy) {
     return uGradient.eval(xy - uCenter * box);
   }
   if (uMode < 2.5) {
-    float span = abs(box.x * uDirection.x) + abs(box.y * uDirection.y);
-    float along = dot(xy - uCenter * box, uDirection) / max(span, 1e-6) + 0.5;
+    float2 direction = uDirection;
+    if (uCorner.x != 0.0 || uCorner.y != 0.0) {
+      direction = normalize(float2(uCorner.x * box.y, uCorner.y * box.x));
+    }
+    float span = abs(box.x * direction.x) + abs(box.y * direction.y);
+    float along = dot(xy - uCenter * box, direction) / max(span, 1e-6) + 0.5;
+    if (uStopCount > 0.5) {
+      along = evenlyPlaced(along, max(span, 1e-6));
+    }
     return uGradient.eval(float2(along, 0.0));
   }
   if (uMode < 3.5) {
-    return uGradient.eval((xy / box - uCenter) / max(uRadii, float2(1e-6)));
+    float2 reached = (xy / box - uCenter) / max(uRadii, float2(1e-6));
+    if (uStopCount > 0.5) {
+      // CSS measures an ellipse's ray along its horizontal radius.
+      float ray = max(uRadii.x * box.x, 1e-6);
+      return uGradient.eval(float2(evenlyPlaced(length(reached), ray), 0.0));
+    }
+    return uGradient.eval(reached);
   }
   float2 center = uCenter * box;
   float2 near = min(center, box - center);
@@ -44,5 +105,10 @@ half4 main(float2 xy) {
   } else if (uExtent > 0.5) {
     radius = min(near.x, near.y);
   }
-  return uGradient.eval((xy - center) / max(radius, 1e-6));
+  float2 reached = (xy - center) / max(radius, 1e-6);
+  if (uStopCount > 0.5) {
+    return uGradient.eval(
+        float2(evenlyPlaced(length(reached), max(radius, 1e-6)), 0.0));
+  }
+  return uGradient.eval(reached);
 }

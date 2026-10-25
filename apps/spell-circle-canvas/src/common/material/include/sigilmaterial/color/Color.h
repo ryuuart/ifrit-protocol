@@ -474,6 +474,12 @@ inline float deltaE(const Color& first, const Color& second) {
 struct ColorStop {
   float offset = 0.0f;
   Color color;
+  /** A length along the gradient line in px, added to `offset` — CSS's
+   *  stop written as a length, `20px` or `calc(50% + 20px)`. Read by the
+   *  CSS-shaped linear and radial gradients, which know the length of
+   *  their line where they paint; a ramp, a conic and a point-to-point
+   *  gradient read `offset` alone. */
+  float pixels = 0.0f;
   bool operator==(const ColorStop&) const = default;
 };
 

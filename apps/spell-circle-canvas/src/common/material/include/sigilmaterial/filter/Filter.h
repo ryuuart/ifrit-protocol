@@ -25,6 +25,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -36,7 +37,8 @@ struct FilterAccess;
 
 /** Where a shadow falls and how soft it is. */
 struct ShadowOptions {
-  /** The Gaussian's standard deviation in local pixels; 0 is a hard edge. */
+  /** CSS's blur radius in local pixels, as every shadow reads it: a
+   *  Gaussian whose standard deviation is half of it; 0 is a hard edge. */
   float blur = 0;
   /** How far the shadow is displaced from the layer, in local pixels. */
   glm::vec2 offset = {0, 0};
@@ -417,5 +419,24 @@ class Filter {
   Node& edit();
   std::shared_ptr<const Node> m_node;
 };
+
+/** A FILTER FROM ITS CSS TEXT, as CSS's `filter` writes one: CSS's ten
+ *  filter functions one after another, chained in that order, names
+ *  read case-insensitively — `readFilter("blur(4px) sepia(50%)")`. `none`
+ *  is the filter that passes the layer through.
+ *
+ *  - `blur(<length>)`, the Gaussian's standard deviation in `px` or `pt`;
+ *  - `brightness()`, `contrast()`, `saturate()`, `grayscale()`, `sepia()`,
+ *    `invert()` and `opacity()`, each a number or a percentage, 1 where
+ *    the brackets are empty;
+ *  - `hue-rotate(<angle>)` in any of CSS's angle units;
+ *  - `drop-shadow(<colour> <length>{2,3})`, the offset and a blur radius,
+ *    the colour before or after them.
+ *
+ *  Nothing where any function is none of these, an amount is negative, a
+ *  length is in a unit measured against the font or the viewport, or a
+ *  drop shadow states no colour: CSS's unstated colour is the ink in
+ *  force, which a filter read on its own does not know. */
+std::optional<Filter> readFilter(std::string_view text);
 
 }  // namespace sigil::material

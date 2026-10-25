@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
+#include <print>
 #include <string>
 
 namespace {
@@ -33,7 +34,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       }
     } else if (arg == "--inspect" || arg.starts_with("--inspect=")) {
       if (args.inspectPort) {
-        std::fprintf(stderr, "--inspect can be supplied only once\n");
+        std::println(stderr, "--inspect can be supplied only once");
         return std::nullopt;
       }
       args.inspectPort = 0;
@@ -42,7 +43,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
         char* end = nullptr;
         const unsigned long value = std::strtoul(port.c_str(), &end, 10);
         if (port.empty() || *end != '\0' || value > 65535) {
-          std::fprintf(stderr, "--inspect=PORT takes a port from 0 to 65535\n");
+          std::println(stderr, "--inspect=PORT takes a port from 0 to 65535");
           return std::nullopt;
         }
         args.inspectPort = (uint16_t)value;
@@ -56,7 +57,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     } else if (arg == "--workspace") {
       if (i + 1 >= argc || argv[i + 1][0] == '\0' || argv[i + 1][0] == '-' ||
           !args.workspace.empty()) {
-        std::fprintf(stderr, "--workspace requires one directory\n");
+        std::println(stderr, "--workspace requires one directory");
         return std::nullopt;
       }
       args.workspace = argv[++i];
@@ -66,19 +67,18 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.pythonInfo = true;
     } else if (arg == "--python-executable" || arg == "--python-abi") {
       if (i + 1 >= argc || argv[i + 1][0] == '\0' || argv[i + 1][0] == '-') {
-        std::fprintf(stderr, "%s requires a value\n", arg.c_str());
+        std::println(stderr, "{} requires a value", arg);
         return std::nullopt;
       }
       if (arg == "--python-executable") {
         if (!args.pythonExecutable.empty()) {
-          std::fprintf(stderr,
-                       "--python-executable can be supplied only once\n");
+          std::println(stderr, "--python-executable can be supplied only once");
           return std::nullopt;
         }
         args.pythonExecutable = argv[++i];
       } else {
         if (!args.pythonAbi.empty()) {
-          std::fprintf(stderr, "--python-abi can be supplied only once\n");
+          std::println(stderr, "--python-abi can be supplied only once");
           return std::nullopt;
         }
         args.pythonAbi = argv[++i];
@@ -94,7 +94,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       const std::string size = argv[++i];
       const size_t by = size.find('x');
       if (by == std::string::npos) {
-        std::fprintf(stderr, "--video-size wants WIDTHxHEIGHT\n");
+        std::println(stderr, "--video-size wants WIDTHxHEIGHT");
         return std::nullopt;
       }
       args.storyOptions.width = std::max(2, std::stoi(size.substr(0, by)));
@@ -137,7 +137,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     } else if (arg == "--state") {
       if (i + 1 >= argc || argv[i + 1][0] == '\0' || argv[i + 1][0] == '-' ||
           !args.stateDirectory.empty()) {
-        std::fprintf(stderr, "--state requires one directory\n");
+        std::println(stderr, "--state requires one directory");
         return std::nullopt;
       }
       args.stateDirectory = argv[++i];
@@ -164,7 +164,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       const std::string size = argv[++i];
       const size_t by = size.find('x');
       if (by == std::string::npos) {
-        std::fprintf(stderr, "--window-size wants WIDTHxHEIGHT\n");
+        std::println(stderr, "--window-size wants WIDTHxHEIGHT");
         return std::nullopt;
       }
       args.windowBench.width = std::max(1, std::stoi(size.substr(0, by)));
@@ -176,13 +176,13 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     } else if (arg == "--at" && i + 1 < argc) {
       args.capture.at = std::stod(argv[++i]);
       if (!std::isfinite(args.capture.at) || args.capture.at < 0) {
-        std::fprintf(stderr, "--at requires a finite nonnegative time\n");
+        std::println(stderr, "--at requires a finite nonnegative time");
         return std::nullopt;
       }
     } else if (arg == "--scale" && i + 1 < argc) {
       args.capture.scale = std::stof(argv[++i]);
       if (!std::isfinite(args.capture.scale) || args.capture.scale <= 0) {
-        std::fprintf(stderr, "--scale requires a finite positive value\n");
+        std::println(stderr, "--scale requires a finite positive value");
         return std::nullopt;
       }
       args.sweepOptions.density = args.capture.scale;
@@ -193,7 +193,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       if (!std::isfinite(args.capture.fps) || args.capture.fps <= 0 ||
           !std::isfinite(1.0 / args.capture.fps) ||
           args.capture.fps > std::numeric_limits<int>::max()) {
-        std::fprintf(stderr, "--fps requires a finite positive frame rate\n");
+        std::println(stderr, "--fps requires a finite positive frame rate");
         return std::nullopt;
       }
       args.storyOptions.framesPerSecond =
@@ -205,12 +205,12 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     } else if (args.sketchFile.empty() && isSketchPath(arg)) {
       args.sketchFile = arg;
     } else {
-      std::fprintf(stderr, "unknown argument \"%s\"\n", arg.c_str());
+      std::println(stderr, "unknown argument \"{}\"", arg);
       return std::nullopt;
     }
   }
   if (args.pythonInfo && argc != 2) {
-    std::fprintf(stderr, "--python-info must be used on its own\n");
+    std::println(stderr, "--python-info must be used on its own");
     return std::nullopt;
   }
   // THE MONTAGE ENCODES THE COMPILED-IN REGISTRY, and a file opened by
@@ -219,10 +219,10 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
   // combination is refused here, before any device or session opens.
   if (!args.storyOptions.outputPath.empty() &&
       (!args.sketchFile.empty() || !args.workspace.empty())) {
-    std::fprintf(stderr,
+    std::println(stderr,
                  "--video encodes compiled-in sketches named with --sketch, "
                  "and a sketch file or --workspace is not one; photograph a "
-                 "file with --frame and --frames instead\n");
+                 "file with --frame and --frames instead");
     return std::nullopt;
   }
   // SEVERAL NAMED SKETCHES ARE A SEQUENCE ONLY THE WINDOW'S LANE PRESENTS,
@@ -230,15 +230,15 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
   // sketch, and a second name it would pass over is refused rather than
   // dropped.
   if (!args.alsoSelected.empty() && args.windowBench.seconds <= 0.0) {
-    std::fprintf(stderr,
+    std::println(stderr,
                  "--sketch names one sketch, except under --window-bench, "
-                 "which presents each named sketch in the order named\n");
+                 "which presents each named sketch in the order named");
     return std::nullopt;
   }
   if (args.pythonExecutable.empty() != args.pythonAbi.empty()) {
-    std::fprintf(
+    std::println(
         stderr,
-        "--python-executable and --python-abi must be supplied together\n");
+        "--python-executable and --python-abi must be supplied together");
     return std::nullopt;
   }
   return args;

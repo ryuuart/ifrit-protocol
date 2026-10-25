@@ -272,6 +272,7 @@ class Paragraph {
     float height = 0;  ///< default single-spaced line height, px
     float capHeight = 0;  ///< distance from baseline to cap top, px
     float xHeight = 0;    ///< distance from baseline to x-height, px
+    float size = 0;       ///< the type size the strut is measured at, px
   };
   /** Returns positive ascent and default line height from the first span. */
   [[nodiscard]] Strut strut(FontContext& fontContext) const;

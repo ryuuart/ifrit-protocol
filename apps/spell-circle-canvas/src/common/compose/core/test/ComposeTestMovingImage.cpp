@@ -43,7 +43,7 @@ std::shared_ptr<const sigil::media::Video> redClip(
        .bitRate = 500'000,
        .hardware = sigil::media::HardwarePreference::Disabled});
   if (!encoder || !append(encoder, pixels.pixmap())) return nullptr;
-  const std::vector<std::byte> bytes = encoder.finish();
+  const std::vector<std::byte> bytes = encoder.finish().value_or(std::vector<std::byte>{});
   if (bytes.empty()) return nullptr;
   return sigil::media::decode<sigil::media::Video>(
       bytes,

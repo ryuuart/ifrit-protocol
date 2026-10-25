@@ -10,6 +10,7 @@
 #include <sigilio/advanced/Places.h>
 
 #include <cmath>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -30,7 +31,7 @@ using sigil::test::ScratchDir;
 namespace {
 
 TEST(DataDecode, ACommaFileBecomesTypedColumns) {
-  const std::optional<Table> table = decodeCsv(
+  const auto table = decodeCsv(
       "month,deaths,winter,when\n"
       "Jan,2761,yes,1855-01-01\n"
       "Feb,2120,TRUE,1855-02-01\n");
@@ -46,7 +47,7 @@ TEST(DataDecode, ACommaFileBecomesTypedColumns) {
 }
 
 TEST(DataDecode, AQuotedFieldHoldsTheDelimiterNewlinesAndQuotes) {
-  const std::optional<Table> table = decodeCsv(
+  const auto table = decodeCsv(
       "name,note\n"
       "\"Smolensk, Russia\",\"he said \"\"go\"\"\"\n"
       "\"two\nlines\",plain\n");
@@ -58,7 +59,7 @@ TEST(DataDecode, AQuotedFieldHoldsTheDelimiterNewlinesAndQuotes) {
 }
 
 TEST(DataDecode, SpaceAroundAnUnquotedFieldIsLayoutAndAQuotedFieldsIsItsOwn) {
-  const std::optional<Table> table = decodeCsv(
+  const auto table = decodeCsv(
       "a, b\n"
       "1, 2\n"
       "3,\"  4  \"\n");
@@ -70,7 +71,7 @@ TEST(DataDecode, SpaceAroundAnUnquotedFieldIsLayoutAndAQuotedFieldsIsItsOwn) {
 }
 
 TEST(DataDecode, AnEmptyCellIsMissingAndInANumberColumnIsNotANumber) {
-  const std::optional<Table> table = decodeCsv(
+  const auto table = decodeCsv(
       "city,men\n"
       "Kowno,\n"
       "Wilna,24000\n"
@@ -83,7 +84,7 @@ TEST(DataDecode, AnEmptyCellIsMissingAndInANumberColumnIsNotANumber) {
 }
 
 TEST(DataDecode, AShortRowIsMissingAtItsEndAndALongOneLosesItsExtras) {
-  const std::optional<Table> table = decodeCsv(
+  const auto table = decodeCsv(
       "a,b,c\n"
       "1,2\n"
       "3,4,5,6\n");
@@ -102,7 +103,7 @@ TEST(DataDecode, NoFieldAtAllIsNoTableAndAHeaderAloneIsAnEmptyOne) {
 
   // A header with no rows under it is a different thing: the columns it
   // names, every one of them empty.
-  const std::optional<Table> headerOnly = decodeCsv("month,deaths\n");
+  const auto headerOnly = decodeCsv("month,deaths\n");
   ASSERT_TRUE(headerOnly);
   EXPECT_EQ(0u, headerOnly->size());
   ASSERT_EQ(2u, headerOnly->columns().size());
@@ -111,7 +112,7 @@ TEST(DataDecode, NoFieldAtAllIsNoTableAndAHeaderAloneIsAnEmptyOne) {
 }
 
 TEST(DataDecode, AByteOrderMarkIsNotPartOfTheFirstName) {
-  const std::optional<Table> table = decodeCsv(
+  const auto table = decodeCsv(
       "\xEF\xBB\xBF"
       "month,deaths\nJan,2761\n");
   ASSERT_TRUE(table);
@@ -121,7 +122,7 @@ TEST(DataDecode, AByteOrderMarkIsNotPartOfTheFirstName) {
 
 TEST(DataDecode, ALineEndsAtEitherEndingOrAtThePair) {
   for (const std::string ending : {"\n", "\r\n", "\r"}) {
-    const std::optional<Table> table =
+    const auto table =
         decodeCsv("a,b" + ending + "1,2" + ending + "3,4");
     ASSERT_TRUE(table);
     EXPECT_EQ(2u, table->size());
@@ -133,7 +134,7 @@ TEST(DataDecode, ALineEndsAtEitherEndingOrAtThePair) {
 
 TEST(DataDecode, AQuoteThatIsNeverClosedRunsToTheEndOfTheText) {
   // A truncated download is still worth the rows above the cut.
-  const std::optional<Table> table = decodeCsv(
+  const auto table = decodeCsv(
       "a,note\n"
       "1,ok\n"
       "2,\"cut off here\n");
@@ -144,7 +145,7 @@ TEST(DataDecode, AQuoteThatIsNeverClosedRunsToTheEndOfTheText) {
 }
 
 TEST(DataDecode, AHeaderThatWritesANameTwiceKeepsBothColumns) {
-  const std::optional<Table> table = decodeCsv(
+  const auto table = decodeCsv(
       "men,horses,men\n"
       "422000,1200,96000\n");
   ASSERT_TRUE(table);
@@ -156,7 +157,7 @@ TEST(DataDecode, AHeaderThatWritesANameTwiceKeepsBothColumns) {
   EXPECT_DOUBLE_EQ(96000.0, table->column<double>("men_2")[0]);
 
   // And the counting goes on past a suffix the file itself used.
-  const std::optional<Table> taken = decodeCsv("a,a,a_2\n1,2,3\n");
+  const auto taken = decodeCsv("a,a,a_2\n1,2,3\n");
   ASSERT_TRUE(taken);
   ASSERT_EQ(3u, taken->columns().size());
   EXPECT_EQ("a_2", taken->columns()[1].name());
@@ -165,7 +166,7 @@ TEST(DataDecode, AHeaderThatWritesANameTwiceKeepsBothColumns) {
 }
 
 TEST(DataDecode, ANumberMayCarryEitherSignAndNanAndInfAreNumbers) {
-  const std::optional<Table> signs = decodeCsv("v\n+5\n-3\n\"+1,000\"\n");
+  const auto signs = decodeCsv("v\n+5\n-3\n\"+1,000\"\n");
   ASSERT_TRUE(signs);
   EXPECT_EQ(ColumnType::Number, signs->column("v")->type());
   EXPECT_DOUBLE_EQ(5.0, signs->column<double>("v")[0]);
@@ -173,7 +174,7 @@ TEST(DataDecode, ANumberMayCarryEitherSignAndNanAndInfAreNumbers) {
   EXPECT_DOUBLE_EQ(1000.0, signs->column<double>("v")[2]);
 
   // A cell that says it is not a number is a number column's gap.
-  const std::optional<Table> written = decodeCsv("v\nNaN\n-inf\n1\n");
+  const auto written = decodeCsv("v\nNaN\n-inf\n1\n");
   ASSERT_TRUE(written);
   EXPECT_EQ(ColumnType::Number, written->column("v")->type());
   EXPECT_TRUE(written->column("v")->missing(0));
@@ -184,7 +185,7 @@ TEST(DataDecode, ANumberMayCarryEitherSignAndNanAndInfAreNumbers) {
 TEST(DataDecode, ANumberPastWhatADoubleHoldsIsText) {
   // Rounding it to infinity would be a different number, so the column
   // is text and the digits survive.
-  const std::optional<Table> table = decodeCsv("v\n1e400\n2\n");
+  const auto table = decodeCsv("v\n1e400\n2\n");
   ASSERT_TRUE(table);
   EXPECT_EQ(ColumnType::Text, table->column("v")->type());
   EXPECT_EQ("1e400", table->column<std::string>("v")[0]);
@@ -192,7 +193,7 @@ TEST(DataDecode, ANumberPastWhatADoubleHoldsIsText) {
 
 TEST(DataDecode, BytesThatAreNotUtf8ReachATextCellAsTheyWereWritten) {
   const std::string raw = "name\n\xFF\xFE latin1\n";
-  const std::optional<Table> table = decodeCsv(raw);
+  const auto table = decodeCsv(raw);
   ASSERT_TRUE(table);
   EXPECT_EQ(ColumnType::Text, table->column("name")->type());
   EXPECT_EQ("\xFF\xFE latin1", table->column<std::string>("name")[0]);
@@ -201,21 +202,21 @@ TEST(DataDecode, BytesThatAreNotUtf8ReachATextCellAsTheyWereWritten) {
 TEST(DataDecode, ATabFileIsReadAsOneWhenItsNameSaysSoOrItsFirstLineDoes) {
   const std::string text =
       "name\tgloss, with a comma\tmag\nBei\tthe north\t2.4\n";
-  const std::optional<Table> named = decodeCsv(text, {}, "res://star.tsv");
+  const auto named = decodeCsv(text, {}, "res://star.tsv");
   ASSERT_TRUE(named);
   EXPECT_EQ(3u, named->columns().size());
   EXPECT_EQ("the north", named->column<std::string>("gloss, with a comma")[0]);
 
   // With no name to go on, the tab wins because it cuts the line into
   // more fields than the comma inside one of them does.
-  const std::optional<Table> sniffed = decodeCsv(text);
+  const auto sniffed = decodeCsv(text);
   ASSERT_TRUE(sniffed);
   EXPECT_EQ(3u, sniffed->columns().size());
   EXPECT_DOUBLE_EQ(2.4, sniffed->column<double>("mag")[0]);
 }
 
 TEST(DataDecode, WithoutAHeaderTheColumnsAreNamedByTheirPosition) {
-  const std::optional<Table> table =
+  const auto table =
       decodeCsv("1,2\n3,4\n", CsvOptions{.header = false});
   ASSERT_TRUE(table);
   EXPECT_EQ(2u, table->size());
@@ -224,7 +225,7 @@ TEST(DataDecode, WithoutAHeaderTheColumnsAreNamedByTheirPosition) {
 }
 
 TEST(DataDecode, ACommentLineIsNotData) {
-  const std::optional<Table> table = decodeCsv(
+  const auto table = decodeCsv(
       "# generated once and frozen\n"
       "a,b\n"
       "1,2\n"
@@ -237,14 +238,14 @@ TEST(DataDecode, ACommentLineIsNotData) {
 }
 
 TEST(DataDecode, ThousandsSeparatorsAreReadAndADecimalCommaIsNot) {
-  const std::optional<Table> grouped =
+  const auto grouped =
       decodeCsv("men\n\"422,000\"\n\"1,234,567\"\n");
   ASSERT_TRUE(grouped);
   EXPECT_EQ(ColumnType::Number, grouped->column("men")->type());
   EXPECT_DOUBLE_EQ(422000.0, grouped->column<double>("men")[0]);
   EXPECT_DOUBLE_EQ(1234567.0, grouped->column<double>("men")[1]);
 
-  const std::optional<Table> ambiguous = decodeCsv("v\n\"1,5\"\n");
+  const auto ambiguous = decodeCsv("v\n\"1,5\"\n");
   ASSERT_TRUE(ambiguous);
   EXPECT_EQ(ColumnType::Text, ambiguous->column("v")->type());
 }
@@ -269,7 +270,7 @@ TEST(DataDecode, AListOfRecordsIsOneRowEach) {
       R"([{"id": 1, "name": "root", "open": true},
           {"id": 2, "name": "leaf", "open": false, "note": "late"}])", Dialect::Json);
   ASSERT_TRUE(document);
-  const std::optional<Table> table = tableFromJson(*document);
+  const auto table = tableFromJson(*document);
   ASSERT_TRUE(table);
   EXPECT_EQ(2u, table->size());
   ASSERT_EQ(4u, table->columns().size());
@@ -285,7 +286,7 @@ TEST(DataDecode, ARecordOfListsIsOneColumnEach) {
   const std::optional<Json> document =
       decode(R"({"x": [1, 2, 3], "label": ["a", "b", "c"]})", Dialect::Json);
   ASSERT_TRUE(document);
-  const std::optional<Table> table = tableFromJson(*document);
+  const auto table = tableFromJson(*document);
   ASSERT_TRUE(table);
   EXPECT_EQ(3u, table->size());
   EXPECT_DOUBLE_EQ(3.0, table->column<double>("x")[2]);
@@ -295,7 +296,7 @@ TEST(DataDecode, ARecordOfListsIsOneColumnEach) {
 TEST(DataDecode, AListOfListsIsNamedByPosition) {
   const std::optional<Json> document = decode(R"([[1, "a"], [2, "b"]])", Dialect::Json);
   ASSERT_TRUE(document);
-  const std::optional<Table> table = tableFromJson(*document);
+  const auto table = tableFromJson(*document);
   ASSERT_TRUE(table);
   EXPECT_EQ(2u, table->size());
   EXPECT_DOUBLE_EQ(2.0, table->column<double>("1")[1]);
@@ -306,7 +307,7 @@ TEST(DataDecode, ACellHoldingAListOfItsOwnHasNoPlaceInARectangle) {
   const std::optional<Json> document =
       decode(R"([{"id": 1, "links": [2, 3]}, {"id": 2, "links": []}])", Dialect::Json);
   ASSERT_TRUE(document);
-  const std::optional<Table> table = tableFromJson(*document);
+  const auto table = tableFromJson(*document);
   ASSERT_TRUE(table);
   EXPECT_TRUE(table->column("links")->missing(0));
   EXPECT_TRUE(table->column("links")->missing(1));
@@ -354,6 +355,29 @@ TEST(DataDecode, ALoneValueIsADocumentAndHoldsNoRectangle) {
   EXPECT_FALSE(tableFromJson(*nothing));
 }
 
+TEST(DataDecode, ARefusalSaysWhy) {
+  EXPECT_EQ(decodeCsv(" \n").error().message, "the text holds no field");
+  const std::optional<Json> number = decode("42", Dialect::Json);
+  ASSERT_TRUE(number);
+  EXPECT_EQ(tableFromJson(*number).error().message,
+            "the document is neither a list nor a record, so it holds no "
+            "rectangle");
+  const std::optional<Json> empty = decode("[]", Dialect::Json);
+  ASSERT_TRUE(empty);
+  EXPECT_EQ(tableFromJson(*empty).error().message,
+            "the document is an empty list");
+}
+
+TEST(DataDecode, TheTableDecoderNamesTheLineOfJsonLinesThatIsNotJson) {
+  const TableDecoder decoder;
+  const std::string text = "{\"a\": 1}\n\n{\"a\": \n";
+  const auto refused = decoder.decode(
+      sigil::io::Bytes(std::as_bytes(std::span(text))), "res://rows.jsonl");
+  ASSERT_FALSE(refused);
+  EXPECT_EQ(refused.error().line, 3);
+  EXPECT_TRUE(refused.error().message.starts_with("the line is not JSON"));
+}
+
 TEST(DataDecode, ARecordThatWritesAKeyTwiceKeepsBothMembers) {
   // Dropping one would be an edit to somebody else's document, so both
   // stand and a lookup answers the first.
@@ -368,7 +392,7 @@ TEST(DataDecode, ARecordThatWritesAKeyTwiceKeepsBothMembers) {
   const std::optional<Json> columns =
       decode(R"({"v": [1, 2], "v": [3, 4]})", Dialect::Json);
   ASSERT_TRUE(columns);
-  const std::optional<Table> table = tableFromJson(*columns);
+  const auto table = tableFromJson(*columns);
   ASSERT_TRUE(table);
   ASSERT_EQ(2u, table->columns().size());
   EXPECT_DOUBLE_EQ(1.0, table->column<double>("v")[0]);

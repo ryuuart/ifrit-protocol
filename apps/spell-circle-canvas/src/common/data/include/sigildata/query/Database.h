@@ -13,6 +13,7 @@
 #include <sigildata/table/Table.h>
 #include <sigilio/source/Source.h>
 
+#include <expected>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -49,26 +50,24 @@ class Database {
   Database& operator=(Database&&) noexcept;
   ~Database();
 
-  /** Opens @p file by its extension for reading and writing. Absent,
-   *  unreadable or of neither engine's kind: nullopt, and `why` says
-   *  which. */
-  [[nodiscard]] static std::optional<Database> open(
-      const std::filesystem::path& file, std::string* why = nullptr);
+  /** Opens @p file by its extension for reading and writing; the error
+   *  says which when it is absent, unreadable or of neither engine's
+   *  kind. */
+  [[nodiscard]] static std::expected<Database, core::Error> open(
+      const std::filesystem::path& file);
   /** Opens @p file by its extension with @p access. A store opened
    *  `ReadOnly` is a connection the engine itself refuses writes through,
    *  so the file behind it is safe from every holder of the value. */
-  [[nodiscard]] static std::optional<Database> open(
-      const std::filesystem::path& file, Access access,
-      std::string* why = nullptr);
+  [[nodiscard]] static std::expected<Database, core::Error> open(
+      const std::filesystem::path& file, Access access);
   /** Opens the bytes of a SQLite file held in memory — the form a
    *  resource hub hands a decoder — as a read-only store. DuckDB opens
-   *  files only, so bytes of a `.duckdb` answer nullopt. */
-  [[nodiscard]] static std::optional<Database> fromBytes(
-      const io::Bytes& bytes, std::string_view hint,
-      std::string* why = nullptr);
+   *  files only, so bytes of a `.duckdb` are refused. */
+  [[nodiscard]] static std::expected<Database, core::Error> fromBytes(
+      const io::Bytes& bytes, std::string_view hint);
   /** An empty store of @p engine, in memory. */
-  [[nodiscard]] static std::optional<Database> memory(
-      Engine engine, std::string* why = nullptr);
+  [[nodiscard]] static std::expected<Database, core::Error> memory(
+      Engine engine);
 
   /** Which engine opened this store. */
   [[nodiscard]] Engine engine() const;
@@ -77,28 +76,28 @@ class Database {
   /** The access this store was opened with. */
   [[nodiscard]] Access access() const;
 
-  /** Runs @p sql and answers its rows as a table; nullopt and `why` on
-   *  an error. A column's type is what its cells hold: an integer or a
-   *  real is a number, text is text, a boolean is a flag, a date or a
-   *  timestamp is an instant, and a NULL is a missing cell. */
-  [[nodiscard]] std::optional<Table> query(std::string_view sql,
-                                           std::string* why = nullptr) const;
+  /** Runs @p sql and answers its rows as a table, or the engine's error.
+   *  A column's type is what its cells hold: an integer or a real is a
+   *  number, text is text, a boolean is a flag, a date or a timestamp is
+   *  an instant, and a NULL is a missing cell. */
+  [[nodiscard]] std::expected<Table, core::Error> query(
+      std::string_view sql) const;
   /** WHETHER RUNNING @p sql WOULD WRITE — every statement in the text
-   *  and not only the first. A statement the engine cannot parse
-   *  answers nullopt and `why` names the error.
+   *  and not only the first. A statement the engine cannot parse answers
+   *  the engine's error.
    *  @trap A transaction's own verbs and a reading statement that calls
    *  a writing function answer false, so this is the message a caller
    *  shows and `Access::ReadOnly` is what stops the write. */
-  [[nodiscard]] std::optional<bool> writes(std::string_view sql,
-                                           std::string* why = nullptr) const;
-  /** Runs @p sql for its effect. */
-  bool execute(std::string_view sql, std::string* why = nullptr);
+  [[nodiscard]] std::expected<bool, core::Error> writes(
+      std::string_view sql) const;
+  /** Runs @p sql for its effect, or answers the engine's error. */
+  std::expected<void, core::Error> execute(std::string_view sql);
   /** Creates @p name from @p rows' columns — a number is a DOUBLE, text
    *  is TEXT, a flag is a BOOLEAN, an instant is a TIMESTAMP — and writes
    *  every row, a missing cell as NULL. A table of that name already
    *  there is replaced. */
-  bool insert(std::string_view name, const Table& rows,
-              std::string* why = nullptr);
+  std::expected<void, core::Error> insert(std::string_view name,
+                                          const Table& rows);
 
   struct Impl;
 
@@ -122,9 +121,9 @@ inline std::string_view meaningName(std::type_identity<Database>) {
  *  from them, and a `.duckdb` from bytes alone is refused. */
 struct DatabaseDecoder {
   /** Opens @p bytes as a store, @p hint naming the resource so the
-   *  extension can choose the engine. */
-  std::optional<Database> decode(const io::Bytes& bytes,
-                                 std::string_view hint) const;
+   *  extension can choose the engine, or says why they open as none. */
+  std::expected<Database, core::Error> decode(const io::Bytes& bytes,
+                                              std::string_view hint) const;
 };
 
 /** The engine a file's extension names, or nullopt. */

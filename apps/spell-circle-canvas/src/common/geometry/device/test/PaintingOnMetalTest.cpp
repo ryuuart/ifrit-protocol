@@ -89,7 +89,11 @@ TEST(Device, OnAppleTheDevicesQueueWaitsForThePaintingSubmittedBeforeIt) {
   if (!gpu || !graphite) GTEST_SKIP() << "2D on the 3D device is unavailable";
   std::string error;
   const std::unique_ptr<core::hardware::GpuDevice> gate =
-      core::hardware::GpuDevice::createOwned(&error);
+      [&error] {
+        auto made = core::hardware::GpuDevice::createOwned();
+        if (!made) error = made.error().message;
+        return std::move(made).value_or(nullptr);
+      }();
   if (!gate) GTEST_SKIP() << error;
   const core::hardware::FenceHandle shut = gate->createFence();
   ASSERT_TRUE(gate->isValid(shut));
@@ -135,7 +139,11 @@ TEST(Device, OnAppleTheNextPaintingWaitsForTheDevicesQueue) {
   if (!gpu || !graphite) GTEST_SKIP() << "2D on the 3D device is unavailable";
   std::string error;
   const std::unique_ptr<core::hardware::GpuDevice> gate =
-      core::hardware::GpuDevice::createOwned(&error);
+      [&error] {
+        auto made = core::hardware::GpuDevice::createOwned();
+        if (!made) error = made.error().message;
+        return std::move(made).value_or(nullptr);
+      }();
   if (!gate) GTEST_SKIP() << error;
   const core::hardware::FenceHandle shut = gate->createFence();
   const core::hardware::FenceHandle brought =
@@ -194,7 +202,11 @@ TEST(Device, OnAppleAHostsOwnMetalQueuePaintsInPlaceOfTheDevicesOwn) {
   if (!gpu || !own) GTEST_SKIP() << "2D on the 3D device is unavailable";
   std::string error;
   const std::unique_ptr<core::hardware::GpuDevice> window =
-      core::hardware::GpuDevice::createOwned(&error);
+      [&error] {
+        auto made = core::hardware::GpuDevice::createOwned();
+        if (!made) error = made.error().message;
+        return std::move(made).value_or(nullptr);
+      }();
   if (!window) GTEST_SKIP() << error;
   if (window->native().mtlDevice != gpu->native().mtlDevice)
     GTEST_SKIP() << "the system's Metal device is not the driver's";
@@ -202,7 +214,11 @@ TEST(Device, OnAppleAHostsOwnMetalQueuePaintsInPlaceOfTheDevicesOwn) {
       skia::GraphiteContext::create(*window);
   ASSERT_NE(windowGraphite, nullptr);
   const std::unique_ptr<core::hardware::GpuDevice> gate =
-      core::hardware::GpuDevice::createOwned(&error);
+      [&error] {
+        auto made = core::hardware::GpuDevice::createOwned();
+        if (!made) error = made.error().message;
+        return std::move(made).value_or(nullptr);
+      }();
   ASSERT_NE(gate, nullptr) << error;
   const core::hardware::FenceHandle shut = gate->createFence();
 

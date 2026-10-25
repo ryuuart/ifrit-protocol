@@ -49,6 +49,15 @@ class TheGradientDoorsAreCssShaped(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "position"):
             material.linearGradient([("#ff0000", "half"), ("#0000ff", 1)])
 
+    def test_a_stop_reads_a_length_along_the_line(self):
+        at_twenty = material.linearGradient([("#ff0000", "20px"), ("#0000ff", 1)])
+        self.assertEqual(
+            at_twenty, material.linearGradient([("#ff0000", "15pt"), ("#0000ff", 1)])
+        )
+        self.assertNotEqual(
+            at_twenty, material.linearGradient([("#ff0000", 0.2), ("#0000ff", 1)])
+        )
+
     def test_a_radial_gradient_names_its_shape_extent_and_centre(self):
         quarter = material.radialGradient(
             STOPS, shape="circle", extent="closest-side", at=("25%", "50%")
@@ -160,6 +169,12 @@ class CssKeywordsAndTimingFunctions(unittest.TestCase):
         )
         steps = motion.Keyframe(1.0, ease="steps(4, jump-start)").ease
         self.assertEqual(steps(0.1), 0.25)
+        none = motion.Keyframe(1.0, ease="steps(3, jump-none)").ease
+        self.assertEqual((none(0.1), none(0.5), none(0.9)), (0.0, 0.5, 1.0))
+        both = motion.Keyframe(1.0, ease="steps(3, jump-both)").ease
+        self.assertEqual((both(0.0), both(0.5), both(1.0)), (0.25, 0.5, 1.0))
+        native = motion.ease.steps(3, motion.ease.StepPosition.JumpNone)
+        self.assertEqual((native(0.1), native(0.5), native(0.9)), (0.0, 0.5, 1.0))
         self.assertAlmostEqual(motion.Keyframe(1.0, ease="linear").ease(0.3), 0.3)
         with self.assertRaisesRegex(ValueError, "timing function"):
             motion.Keyframe(1.0, ease="ease_in")

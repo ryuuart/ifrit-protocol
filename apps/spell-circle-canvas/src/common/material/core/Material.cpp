@@ -618,7 +618,7 @@ Material::Resolved Material::resolve(Target target, const FrameData& frame,
     }
   }
 
-  const auto compiled = program(m_recipe, target, variant);
+  const auto compiled = program(m_recipe, target, variant).value_or(nullptr);
   const size_t spare = 1 - state.latest;
   const size_t index =
       !state.uploads[spare].bytes || state.uploads[spare].bytes.use_count() == 1

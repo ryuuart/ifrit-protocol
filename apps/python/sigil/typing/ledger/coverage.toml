@@ -175,6 +175,16 @@ python = [
 ]
 
 [[section.surface.item]]
+native = "`setLive` and `setGroundHeld`"
+bound_text = "`setLive` and `setGroundHeld`, which a host states for the draws it watches and the ground it holds"
+python = [
+  "compose.Composer.setLive",
+  "compose.Composer.live",
+  "compose.Composer.setGroundHeld",
+  "compose.Composer.groundHeld",
+]
+
+[[section.surface.item]]
 native = "a standalone `compose::Composer` over an engine, driven through `setSize`, `draw`, `setPointer` and `setKey`"
 bound_text = "a standalone `compose.Composer` over an optional `motion.Engine`, driven through `setSize`, `draw`, `setPointer` and `setKey`"
 python = [
@@ -1939,7 +1949,7 @@ bound = "`hexColor`"
 python = ["material.hexColor"]
 
 [[section.surface.item]]
-bound = "colours written as CSS: `Color` read from any CSS Color 4 text, the constructors named after CSS's functions (`rgb`, `srgb`, `hsl`, `hwb`, `lab`, `lch`, `oklab`, `oklch`), `hex`, `named`, `mix` as `color-mix()`, and a colour read back as CSS text"
+bound = "colours written as CSS: `Color` read from any CSS Color 4 text, the constructors named after CSS's functions (`rgb`, `srgb`, `hsl`, `hwb`, `lab`, `lch`, `oklab`, `oklch`), `fromHex`, `named`, `mix` as `color-mix()`, and a colour read back as CSS text and as hex"
 python = [
   "material.Color.rgb",
   "material.Color.srgb",
@@ -1949,10 +1959,11 @@ python = [
   "material.Color.lch",
   "material.Color.oklab",
   "material.Color.oklch",
-  "material.Color.hex",
+  "material.Color.fromHex",
   "material.Color.named",
   "material.Color.mix",
   "material.Color.css",
+  "material.Color.hex",
 ]
 
 [[section.surface.item]]

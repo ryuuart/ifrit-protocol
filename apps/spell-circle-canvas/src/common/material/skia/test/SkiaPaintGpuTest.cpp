@@ -175,7 +175,7 @@ Paint heldDevicePaint(const std::shared_ptr<DeviceSourceBinding>& binding,
 class SkiaPaintGpu : public testing::Test {
  protected:
   void SetUp() override {
-    device = sigil::core::hardware::GpuDevice::createOwned();
+    device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
     if (!device) GTEST_SKIP() << "no GPU device";
     first = sigil::skia::GraphiteContext::create(*device);
     second = sigil::skia::GraphiteContext::create(*device);

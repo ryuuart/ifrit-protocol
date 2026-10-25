@@ -61,7 +61,7 @@ std::vector<std::byte> solidVideo(SkColor color) {
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   bitmap.eraseColor(color);
   if (!append(encoder, bitmap.pixmap())) return {};
-  return encoder.finish();
+  return encoder.finish().value_or(std::vector<std::byte>{});
 }
 
 TEST(RequireCached, AnswersFromTheCacheAndNamesTheFirstMissingUrl) {

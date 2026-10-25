@@ -32,12 +32,11 @@ bool drawsGreen(const sk_sp<SkShader>& shader) {
   return shader && test::render(shader).getColor(1, 1) == SK_ColorGREEN;
 }
 
-std::shared_ptr<Program> compileForSkia(std::shared_ptr<const Recipe> recipe,
-                                        Variant variant, std::string& error) {
+std::expected<std::shared_ptr<Program>, sigil::core::Error> compileForSkia(
+    std::shared_ptr<const Recipe> recipe, Variant variant) {
   auto [effect, message] =
       SkRuntimeEffect::MakeForShader(SkString(recipe->source(Target::SkSL)));
-  error = message.c_str();
-  if (!effect) return nullptr;
+  if (!effect) return std::unexpected(sigil::core::Error{message.c_str()});
   return std::make_shared<skia::SkiaProgram>(std::move(recipe), variant,
                                              std::move(effect));
 }
@@ -122,10 +121,9 @@ bool customCompilerWins(bool useBuiltinFirst) {
     return false;
   int compiled = 0;
   registerCompiler(Target::SkSL,
-                   [&](std::shared_ptr<const Recipe> recipe, Variant variant,
-                       std::string& error) -> std::shared_ptr<Program> {
+                   [&](std::shared_ptr<const Recipe> recipe, Variant variant) {
                      ++compiled;
-                     return compileForSkia(std::move(recipe), variant, error);
+                     return compileForSkia(std::move(recipe), variant);
                    });
   const std::array materials{green("custom-warmup")};
   const WarmupResult warm = skia::warmup(materials);
@@ -156,14 +154,16 @@ bool recipeSnapshotsDistinguishCompilers() {
   const Filter builtin = Filter::of(Material(recipe));
   if (!skia::imageFilter(builtin)) return false;
   registerCompiler(Target::SkSL,
-                   [](std::shared_ptr<const Recipe> source, Variant variant,
-                      std::string& error) -> std::shared_ptr<Program> {
+                   [](std::shared_ptr<const Recipe> source, Variant variant)
+                       -> std::expected<std::shared_ptr<Program>,
+                                        sigil::core::Error> {
                      auto [effect, message] =
                          SkRuntimeEffect::MakeForShader(SkString(
                              "uniform shader content; half4 main(float2 p) { "
                              "return content.eval(p) * 0.5; }"));
-                     error = message.c_str();
-                     if (!effect) return nullptr;
+                     if (!effect)
+                       return std::unexpected(
+                           sigil::core::Error{message.c_str()});
                      return std::make_shared<skia::SkiaProgram>(
                          std::move(source), variant, std::move(effect));
                    });
@@ -182,9 +182,9 @@ bool passProgramsAreReused() {
   if (ProgramCache::shared().hasCompiler(Target::SkSL)) return false;
   std::vector<std::shared_ptr<const Recipe>> compiled;
   registerCompiler(Target::SkSL, [&](std::shared_ptr<const Recipe> recipe,
-                                     Variant variant, std::string& error) {
+                                     Variant variant) {
     compiled.push_back(recipe);
-    return compileForSkia(std::move(recipe), variant, error);
+    return compileForSkia(std::move(recipe), variant);
   });
   struct Parameters {
     float level = 1;

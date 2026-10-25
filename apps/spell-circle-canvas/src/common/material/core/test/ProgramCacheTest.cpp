@@ -30,11 +30,19 @@ using namespace sigil::material;
 
 namespace {
 
+/** The program @p cache answers, or null where it refused: the shape the
+ *  cases below compare programs in. */
+std::shared_ptr<Program> pointerOf(ProgramCache& cache,
+                                   std::shared_ptr<const Recipe> recipe,
+                                   Target target, Variant variant = {}) {
+  return cache.program(std::move(recipe), target, variant).value_or(nullptr);
+}
+
 /** A compiler that records the recipe it was handed and returns a plain
  *  Program, so the cache's keying can be observed without a renderer. */
 int gCompiles = 0;
 std::shared_ptr<Program> countingCompiler(std::shared_ptr<const Recipe> r,
-                                          Variant v, std::string&) {
+                                          Variant v) {
   ++gCompiles;
   return std::make_shared<Program>(std::move(r), Target::Slang, v);
 }
@@ -76,22 +84,22 @@ TEST(ProgramCache, OneProgramPerRecipeTargetAndVariant) {
   auto b = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("a").body(Target::Slang, "x"));
   gCompiles = 0;
-  auto p1 = cache.program(a, Target::Slang);
-  auto p2 = cache.program(a, Target::Slang);
+  auto p1 = pointerOf(cache, a, Target::Slang);
+  auto p2 = pointerOf(cache, a, Target::Slang);
   EXPECT_EQ(p1, p2);
   EXPECT_EQ(gCompiles, 1);
-  auto p3 = cache.program(a, Target::Slang, Variant{}.with(1));
+  auto p3 = pointerOf(cache, a, Target::Slang, Variant{}.with(1));
   EXPECT_NE(p1, p3);
   EXPECT_EQ(p3->variant(), Variant{1});
   EXPECT_EQ(gCompiles, 2);
   // An equal definition is a different identity, so a different program.
-  auto p4 = cache.program(b, Target::Slang);
+  auto p4 = pointerOf(cache, b, Target::Slang);
   EXPECT_NE(p1, p4);
   EXPECT_EQ(gCompiles, 3);
   EXPECT_EQ(cache.size(), 3u);
   cache.clear();
   EXPECT_EQ(cache.size(), 0u);
-  EXPECT_EQ(cache.program(a, Target::Slang)->recipe().name(), "a");
+  EXPECT_EQ(pointerOf(cache, a, Target::Slang)->recipe().name(), "a");
   EXPECT_EQ(gCompiles, 4);
 }
 
@@ -103,8 +111,8 @@ TEST(ProgramCache, ListsTheProgramsItHoldsForATarget) {
       Recipe::of<TwoParameters>("a").body(Target::Slang, "x"));
   auto b = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("b").body(Target::Slang, "y"));
-  auto first = cache.program(a, Target::Slang);
-  auto second = cache.program(b, Target::Slang);
+  auto first = pointerOf(cache, a, Target::Slang);
+  auto second = pointerOf(cache, b, Target::Slang);
   auto listed = cache.programs(Target::Slang);
   ASSERT_EQ(listed.size(), 2u);
   EXPECT_TRUE(std::ranges::find(listed, first) != listed.end());
@@ -127,7 +135,7 @@ TEST(ProgramCache, ConcurrentRequestsShareOneInFlightCompile) {
   const std::shared_future<void> release = everyAskIsIn.get_future().share();
   cache.registerCompiler(
       Target::Slang,
-      [&](std::shared_ptr<const Recipe> recipe, Variant variant, std::string&) {
+      [&](std::shared_ptr<const Recipe> recipe, Variant variant) {
         ++compiles;
         release.wait();
         return std::shared_ptr<Program>(std::make_shared<Program>(
@@ -141,7 +149,7 @@ TEST(ProgramCache, ConcurrentRequestsShareOneInFlightCompile) {
   for (int i = 0; i < kAsks; ++i)
     asks.push_back(std::async(std::launch::async, [&] {
       if (arrived.fetch_add(1) + 1 == kAsks) everyAskIsIn.set_value();
-      return cache.program(recipe, Target::Slang);
+      return pointerOf(cache, recipe, Target::Slang);
     }));
   const std::shared_ptr<Program> first = asks.front().get();
   ASSERT_NE(first, nullptr);
@@ -154,7 +162,7 @@ TEST(ProgramCache, WarmupFoldsDuplicateKeysAndPopulatesTheCache) {
   std::atomic_int compiles = 0;
   cache.registerCompiler(
       Target::Slang,
-      [&](std::shared_ptr<const Recipe> recipe, Variant variant, std::string&) {
+      [&](std::shared_ptr<const Recipe> recipe, Variant variant) {
         ++compiles;
         return std::shared_ptr<Program>(std::make_shared<Program>(
             std::move(recipe), Target::Slang, variant));
@@ -180,16 +188,16 @@ TEST(ProgramCache, MissingBodyAndMissingCompilerReturnNull) {
   ProgramCache cache;
   auto r = twoRecipe();
   // No compiler for SkSL in this fresh cache.
-  EXPECT_EQ(cache.program(r, Target::SkSL), nullptr);
+  EXPECT_EQ(pointerOf(cache, r, Target::SkSL), nullptr);
   cache.registerCompiler(Target::Slang, countingCompiler);
   gCompiles = 0;
   // A compiler, but no Slang body: reported, null, and the compiler never
   // runs.
-  EXPECT_EQ(cache.program(r, Target::Slang), nullptr);
-  EXPECT_EQ(cache.program(r, Target::Slang), nullptr);
+  EXPECT_EQ(pointerOf(cache, r, Target::Slang), nullptr);
+  EXPECT_EQ(pointerOf(cache, r, Target::Slang), nullptr);
   EXPECT_EQ(gCompiles, 0);
   EXPECT_EQ(cache.size(), 0u);
-  EXPECT_EQ(cache.program(nullptr, Target::Slang), nullptr);
+  EXPECT_EQ(pointerOf(cache, nullptr, Target::Slang), nullptr);
 }
 
 TEST(ProgramCache, CompileFailureIsNullAndRetriedAfterClear) {
@@ -197,15 +205,19 @@ TEST(ProgramCache, CompileFailureIsNullAndRetriedAfterClear) {
   int calls = 0;
   cache.registerCompiler(
       Target::Slang,
-      [&](const std::shared_ptr<const Recipe>&, Variant, std::string& e) {
+      [&](const std::shared_ptr<const Recipe>&,
+          Variant) -> std::expected<std::shared_ptr<Program>, sigil::core::Error> {
         ++calls;
-        e = "nope";
-        return std::shared_ptr<Program>{};
+        return std::unexpected(sigil::core::Error{"nope"});
       });
   auto r = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("bad").body(Target::Slang, "x"));
-  EXPECT_EQ(cache.program(r, Target::Slang), nullptr);
+  EXPECT_EQ(pointerOf(cache, r, Target::Slang), nullptr);
   EXPECT_EQ(calls, 1);
+  cache.clear();
+  const auto refused = cache.program(r, Target::Slang);
+  ASSERT_FALSE(refused);
+  EXPECT_EQ(refused.error().message, "nope");
 }
 
 TEST(ProgramCache, ReflectionExceptionLeavesTheKeyRetryable) {
@@ -213,8 +225,7 @@ TEST(ProgramCache, ReflectionExceptionLeavesTheKeyRetryable) {
   int calls = 0;
   cache.registerCompiler(
       Target::Slang,
-      [&](std::shared_ptr<const Recipe> recipe, Variant variant,
-          std::string&) -> std::shared_ptr<Program> {
+      [&](std::shared_ptr<const Recipe> recipe, Variant variant) -> std::shared_ptr<Program> {
         if (++calls == 1)
           return std::make_shared<ThrowingReflectionProgram>(std::move(recipe),
                                                              variant);
@@ -223,11 +234,11 @@ TEST(ProgramCache, ReflectionExceptionLeavesTheKeyRetryable) {
       });
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("reflection-retry").body(Target::Slang, "x"));
-  EXPECT_THROW(cache.program(recipe, Target::Slang), std::runtime_error);
+  EXPECT_THROW((void)cache.program(recipe, Target::Slang), std::runtime_error);
   EXPECT_EQ(cache.size(), 0u);
-  const auto repaired = cache.program(recipe, Target::Slang);
+  const auto repaired = pointerOf(cache, recipe, Target::Slang);
   ASSERT_TRUE(repaired);
-  EXPECT_EQ(cache.program(recipe, Target::Slang), repaired);
+  EXPECT_EQ(pointerOf(cache, recipe, Target::Slang), repaired);
   EXPECT_EQ(calls, 2);
   EXPECT_EQ(cache.size(), 1u);
 }
@@ -242,8 +253,7 @@ TEST(ProgramCache, ReflectionFailureSettlesOverlappingRequests) {
   const auto release = releaseReflection.get_future().share();
   cache.registerCompiler(
       Target::Slang,
-      [&](std::shared_ptr<const Recipe> recipe, Variant variant,
-          std::string&) -> std::shared_ptr<Program> {
+      [&](std::shared_ptr<const Recipe> recipe, Variant variant) -> std::shared_ptr<Program> {
         if (calls.fetch_add(1) == 0)
           return std::make_shared<ThrowingReflectionProgram>(
               std::move(recipe), variant, [&] {
@@ -257,7 +267,7 @@ TEST(ProgramCache, ReflectionFailureSettlesOverlappingRequests) {
       Recipe::of<TwoParameters>("reflection-overlap").body(Target::Slang, "x"));
   const auto request = [&] {
     try {
-      const auto compiled = cache.program(recipe, Target::Slang);
+      const auto compiled = pointerOf(cache, recipe, Target::Slang);
       return compiled && compiled->recipe().name() == recipe->name() ? 0 : 2;
     } catch (const std::runtime_error& error) {
       return std::string_view(error.what()) == "uniform reflection failed" ? 1
@@ -281,9 +291,9 @@ TEST(ProgramCache, ReflectionFailureSettlesOverlappingRequests) {
   // A caller joins the failed flight or starts the successful retry.
   // Neither path may retain an abandoned promise or lose the exception.
   for (auto& request : requests) EXPECT_LE(request.get(), 1);
-  const auto compiled = cache.program(recipe, Target::Slang);
+  const auto compiled = pointerOf(cache, recipe, Target::Slang);
   ASSERT_TRUE(compiled);
-  EXPECT_EQ(cache.program(recipe, Target::Slang), compiled);
+  EXPECT_EQ(pointerOf(cache, recipe, Target::Slang), compiled);
   EXPECT_EQ(calls.load(), 2u);
   EXPECT_EQ(cache.size(), 1u);
 }
@@ -292,29 +302,29 @@ TEST(ProgramCache, UnreadParametersFieldIsNamedOnce) {
   ProgramCache cache;
   cache.registerCompiler(
       Target::Slang,
-      [](const std::shared_ptr<const Recipe>& r, Variant v, std::string&) {
+      [](const std::shared_ptr<const Recipe>& r, Variant v) {
         return std::shared_ptr<Program>(
             std::make_shared<DroppingProgram>(r, v, "uScale"));
       });
   auto r = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("dead").body(Target::Slang, "x"));
   const std::string said = captureStandardError(
-      [&] { EXPECT_NE(cache.program(r, Target::Slang), nullptr); });
+      [&] { EXPECT_NE(pointerOf(cache, r, Target::Slang), nullptr); });
   EXPECT_NE(said.find("\"dead\""), std::string::npos) << said;
   EXPECT_NE(said.find("uScale"), std::string::npos) << said;
   // The field the body DOES read is not named.
   EXPECT_EQ(said.find("uColor"), std::string::npos) << said;
   // Once per (recipe, target), whatever the variant.
   const std::string again = captureStandardError([&] {
-    cache.program(r, Target::Slang);
-    cache.program(r, Target::Slang, Variant{}.with(1));
+    pointerOf(cache, r, Target::Slang);
+    pointerOf(cache, r, Target::Slang, Variant{}.with(1));
   });
   EXPECT_EQ(again, "") << again;
   // A program that keeps every field says nothing.
   ProgramCache clean;
   clean.registerCompiler(Target::Slang, countingCompiler);
   const std::string quiet =
-      captureStandardError([&] { clean.program(r, Target::Slang); });
+      captureStandardError([&] { pointerOf(clean, r, Target::Slang); });
   EXPECT_EQ(quiet, "") << quiet;
 }
 

@@ -314,14 +314,14 @@ TEST(DataOsc, TheNameAResourceCarriesSaysWhetherItsBytesAreOscOrJson) {
   const Bytes packet{bytesOf(deskWire)};
   const Bytes document = bytesOfText(R"({"root": {"depth": 4}})");
 
-  const std::optional<Json> fromDesk =
+  const auto fromDesk =
       decoder.decode(packet, "osc://desk:9000");
   ASSERT_TRUE(fromDesk);
   EXPECT_EQ("/sky/wind", (*fromDesk)["address"].string());
 
   // The same decoder and the same type: a name that is a file still
   // reads text, exactly as it did before a desk had a name of its own.
-  const std::optional<Json> fromFile =
+  const auto fromFile =
       decoder.decode(document, "res://data.json");
   ASSERT_TRUE(fromFile);
   EXPECT_DOUBLE_EQ(4.0, (*fromFile)["root"]["depth"].number());

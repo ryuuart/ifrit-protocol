@@ -64,12 +64,12 @@ const std::shared_ptr<const Json> tree =
 // memory, and a query that answers the same Table a CSV decodes to. A
 // Table already decoded is written in, so a CSV can be joined and
 // aggregated in SQL; DuckDB reads a CSV straight from a query as well.
-std::optional<Database> store = Database::open(hub.path("res://data/cities.sqlite"));
-const std::optional<Table> coastal =
+std::expected<Database, sigil::core::Error> store = Database::open(hub.path("res://data/cities.sqlite"));
+const std::expected<Table, sigil::core::Error> coastal =
     store->query("SELECT city, population FROM cities WHERE coastal ORDER BY population DESC");
-std::optional<Database> scratch = Database::memory(Engine::Duck);
+auto scratch = Database::memory(Engine::Duck);       // or the error that says why not
 scratch->insert("deaths", *deaths);
-const std::optional<Table> byMonth =
+const auto byMonth =
     scratch->query("SELECT month, SUM(count) AS count FROM deaths GROUP BY month ORDER BY month");
 // Through the hub, cached and reloaded like anything else — a file on
 // disk is opened in place, so both engines answer.
@@ -269,6 +269,19 @@ in is read the way a table's is: from its name where it has one, and
 otherwise from its first byte that is not a space. `flatBufferFromBytes()` and
 `flatBufferFromJson()` are the same two readings for a caller holding bytes of
 its own, with the parser's own message where they refuse.
+
+**A reader that can refuse says why.** `decodeCsv()`, `tableFromJson()`,
+`flatBufferFromBytes()`, `flatBufferFromJson()` and the decoders a hub
+reads through — `TableDecoder`, `JsonDecoder`, `DatabaseDecoder` and
+`FlatBufferDecoder` — answer `std::expected<T, sigil::core::Error>`, so a
+hub lists the reason among its problems and a JSON-lines refusal names its
+line. The one-line readers over a hub, `json()`, `csv()` and `table()`,
+keep their forgiving shape: an empty value, with the reason in `why`. The
+store's own doors answer the same way: `Database::open`,
+`Database::fromBytes` and `Database::memory` give the store or the
+engine's error, `Database::query` the table, `Database::writes` whether a
+statement would write, and `Database::execute` and `Database::insert`
+nothing or the error.
 
 **A buffer whose root only a schema names reads as its JSON form.**
 Where the generated header is out of reach — a tool handed a `.bfbs`, a

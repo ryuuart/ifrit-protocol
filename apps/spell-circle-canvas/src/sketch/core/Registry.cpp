@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <ranges>
 
 namespace sigil::sketch {
 
@@ -100,10 +101,10 @@ RegistryRow registryRow(const Entry& entry) {
 
 std::vector<RegistryRow> registryRows(std::string_view runtime) {
   const std::vector<Entry>& entries = registry();
-  std::vector<RegistryRow> rows;
-  for (int index : selection(-1, runtime))
-    rows.push_back(registryRow(entries[index]));
-  return rows;
+  return selection(-1, runtime) | std::views::transform([&](int index) {
+           return registryRow(entries[index]);
+         }) |
+         std::ranges::to<std::vector<RegistryRow>>();
 }
 
 int find(std::string_view query) {

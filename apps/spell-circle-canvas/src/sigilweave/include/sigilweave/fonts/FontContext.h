@@ -89,6 +89,18 @@ class FontContext {
    *  another family standing in for it; an empty name is null too. */
   [[nodiscard]] Face familyTypeface(std::string_view family,
                                     FaceStyle style = {});
+  /** THE FACE OF @p family WHOSE FONT NAMES ITS STYLE @p styleName —
+   *  "Book", "Roman", "Demi Bold Italic" — compared with ASCII case and
+   *  spaces aside, and kept as the face a style finds is. A family this
+   *  context adopted answers from its adopted faces alone, each named as
+   *  its naming table names it; any other from its font manager's faces,
+   *  each named as the manager names it. Two faces a weight and a slant
+   *  cannot tell apart — Avenir's Book and Roman, both an upright 400 —
+   *  are told apart by their names.
+   *  @trap Null where the family has no style of that name, never the
+   *  nearest style standing in for it. */
+  [[nodiscard]] Face familyTypeface(std::string_view family,
+                                    std::string_view styleName);
 
   /** MAKES @p face KNOWN UNDER ITS OWN FAMILY NAME: from here on
    *  `familyTypeface` asks this context's adopted faces before its font

@@ -123,15 +123,16 @@ refused, because the canvas is already drawing.
 ## The names that are simply there
 
 `from sigil.sketch.globals import *` brings in the declarations and the
-readings. Before every hook, the host writes the readings into the
-sketch's own module, so `draw` reads `seconds` and `mousePressed` reads
-`mouseX` as plain names:
+readings, and nothing else. The module is named for what it holds: the
+names a sketch module's globals are given. Before every hook, the host
+writes the readings into the sketch's own module, so `draw` reads
+`seconds` and `mousePressed` reads `mouseX` as plain names:
 
 | Name | What it holds |
 | --- | --- |
 | `width`, `height` | the canvas size |
 | `frameCount` | frames drawn since the sketch began |
-| `seconds` | scene seconds since the sketch began |
+| `seconds` | scene seconds since the sketch began, the time `describe(seconds)` is handed |
 | `deltaTime` | milliseconds the last frame took |
 | `mouseX`, `mouseY` | where the pointer stands |
 | `mouseIsPressed` | whether its button is down |
@@ -149,7 +150,10 @@ same balls in the same places.
 button is down; `mouseReleased()`, `mouseMoved()`, `mouseDragged()`,
 `keyPressed()` and `keyReleased()` are called the same way, from what
 changed since the frame before. The pointer and the keys are read from
-the pen `draw` is handed, so a sketch has to draw to hear them.
+the pen `draw` is handed. A file with no `draw` hears them all the same:
+before its `update` or `describe` runs they are read from the context's
+`pointer` and `keys`, and a file that defines only input hooks and a
+`describe` is stepped for them.
 
 ## The page: HTML's half
 

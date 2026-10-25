@@ -40,9 +40,10 @@ class CascadeVerbs {
    *  names for the fields CSS has. */
   Derived& paragraph(sigil::weave::ParagraphBlock partial);
   /** THE PITCH OF THE LINES — CSS `line-height` as a NUMBER: @p multiple
-   *  times the face's own line height, `Leading::multiple`, inherited as
-   *  the multiple. The `leading` field of `paragraph()`. The face's own
-   *  when nothing states one. */
+   *  times the type size, `Leading::sizeMultiple`, inherited as the
+   *  multiple so a passage set at another size below takes the same
+   *  multiple of its own size. The `leading` field of `paragraph()`. The
+   *  face's own when nothing states one. */
   Derived& lineHeight(float multiple);
   /** THE PITCH OF THE LINES AS A LENGTH — CSS `line-height: 24px`, `1.5em`
    *  or `150%`: pixels and `pt` as they stand, `em`, `rem`, `lh`, `ch`, a

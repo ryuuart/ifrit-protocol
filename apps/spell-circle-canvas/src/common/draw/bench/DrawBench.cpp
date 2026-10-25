@@ -305,7 +305,7 @@ BENCHMARK(StackComposite)
  *  and waited for, so a frame's time is the device's work as well as the
  *  recording. Skipped where the machine has no device of its own. */
 void StackCompositeDevice(benchmark::State& state) {
-  static auto device = sigil::core::hardware::GpuDevice::createOwned();
+  static auto device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   static auto context = device
                             ? sigil::skia::GraphiteContext::create(*device)
                             : std::unique_ptr<sigil::skia::GraphiteContext>();

@@ -17,11 +17,13 @@
  * `append` SigilMediaVideoEncode.
  */
 
+#include <sigilcore/report/Error.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
 
+#include <expected>
 #include <cstddef>
 #include <vector>
 
@@ -106,6 +108,7 @@ std::vector<std::byte> encode(const SkPixmap& pixels, Format format,
 
 /** Encodes @p pixels as one movie frame, read where they stand for the
  *  length of the call. */
-bool append(Encoder& encoder, const SkPixmap& pixels);
+std::expected<void, core::Error> append(Encoder& encoder,
+                                        const SkPixmap& pixels);
 
 }  // namespace sigil::media

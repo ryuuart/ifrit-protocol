@@ -380,18 +380,54 @@ TEST(ComposeLengths, ARelativeLineHeightIsInheritedAsThePitchItCameTo) {
                   require(host.composer.bounds("stated")).height());
 }
 
-TEST(ComposeLengths, ANumberLineHeightIsAMultiple) {
+TEST(ComposeLengths, ANumberLineHeightIsAMultipleOfTheTypeSize) {
+  // CSS's unitless line-height: twice a 20 px type size is a 40 px pitch,
+  // whatever line height the face itself reports, and a passage set at
+  // another size below inherits the number, not the pitch.
+  Host host(400, 400);
+  const auto line = [](const char* key) {
+    return text(u8"A").key(key).flexShrink(0);
+  };
+  host.composer.render(
+      box()
+          .font({.face = sigil::test::instrument::sans(), .size = 20})
+          .column()
+          .children(
+              {line("number").lineHeight(2.0f),
+               line("forty").lineHeight(sigil::weave::Leading::absolute(40)),
+               box().lineHeight(2.0f).flexShrink(0).children(
+                   {line("smaller").fontSize(10)}),
+               line("twenty").fontSize(10).lineHeight(
+                   sigil::weave::Leading::absolute(20))}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("number")).height(),
+                  require(host.composer.bounds("forty")).height());
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("smaller")).height(),
+                  require(host.composer.bounds("twenty")).height());
+}
+
+TEST(ComposeLengths, AnLhIsTheLineHeightInForce) {
+  // CSS's lh is the computed line-height: under a stated pitch of 30 px,
+  // one lh is 30 px, and under a number it is that multiple of the type
+  // size.
   Host host(400, 400);
   host.composer.render(
       box()
           .font({.face = sigil::test::instrument::sans(), .size = 20})
           .column()
-          .children({text(u8"A").key("number").lineHeight(2.0f).flexShrink(0),
-                     text(u8"A")
-                         .key("leading")
-                         .lineHeight(sigil::weave::Leading::multiple(2))
+          .children({box()
+                         .key("stated")
+                         .lineHeight(Dimension(30))
+                         .width(1_lh)
+                         .height(10)
+                         .flexShrink(0),
+                     box()
+                         .key("number")
+                         .lineHeight(1.5f)
+                         .width(2_lh)
+                         .height(10)
                          .flexShrink(0)}));
   host.frame();
-  EXPECT_FLOAT_EQ(require(host.composer.bounds("number")).height(),
-                  require(host.composer.bounds("leading")).height());
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("stated")).width(), 30.0f);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("number")).width(), 60.0f);
 }

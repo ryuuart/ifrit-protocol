@@ -8,6 +8,7 @@
 #include <sigilsketch/plate/Story.h>
 
 #include <cstdio>
+#include <print>
 
 #include "Arguments.h"
 #include "Startup.h"
@@ -27,11 +28,11 @@ int runVideo(const Arguments& args, int chosen,
   // scene3d sketch is drawn on a device and nowhere else.
   if (selectionNeedsDevice(chosen, args.kind)) {
     if (!args.gpu) {
-      std::fprintf(
+      std::println(
           stderr,
           "--video: this selection holds a scene3d sketch, which is lit on "
           "the device; pass --gpu or narrow the selection with "
-          "--kind\n");
+          "--kind");
       return 2;
     }
     if (!useDevice()) return 1;

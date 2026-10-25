@@ -110,8 +110,8 @@ it to decode.
 
 sigil::media::Encoder movie({.width = 1080, .height = 1920, .framesPerSecond = 30});
 for (const sigil::media::Frame& frame : frames) movie.append(frame);
-const std::vector<std::byte> mp4 = movie.finish();
-hub.write("res://out/story.mp4", mp4);
+if (const auto mp4 = movie.finish())                 // the bytes, or the error
+  hub.write("res://out/story.mp4", *mp4);
 ```
 
 MP4 output is H.264. The encoder prefers the platform hardware encoder
@@ -126,10 +126,12 @@ samples, and an encoder that refused its options converts to false with
 
 `finish()` flushes the delayed codec frames, writes the MP4 trailer and
 hands back the container's bytes; the encoder never opens an output
-path. A movie is at least one frame, so finishing with none answers
-nothing, and finishing is terminal on either outcome: a second
-`finish()` and every later `append()` are refused with the reason in
-`error()`.
+path. Each verb that can refuse answers `std::expected` with a
+`sigil::core::Error` — `append()` nothing or the error, `finish()` the
+bytes or the error — and `error()` keeps the last one for a reader that
+asks later. A movie is at least one frame, so finishing with none is
+refused, and finishing is terminal on either outcome: a second
+`finish()` and every later `append()` are refused.
 
 ## Caching and ownership
 

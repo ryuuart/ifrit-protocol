@@ -150,10 +150,11 @@ struct SlangPortable {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    slang::Compiled built;
-    std::string error;
-    const bool ok = slang::compileModule(kModule, "vsCover", "fsCover", kLit,
-                                         &built, &error);
+    const auto compiled =
+        slang::compileModule(kModule, "vsCover", "fsCover", kLit);
+    const bool ok = compiled.has_value();
+    const slang::Compiled built = compiled.value_or(slang::Compiled{});
+    const std::string error = ok ? std::string() : compiled.error().message;
 
     // THE LAYOUT, as the compiler reported it. Nothing here computes an
     // offset; every number is read back.
@@ -212,12 +213,12 @@ struct SlangPortable {
           slang_portable::timberRecipe().get(),
           slang_portable::lattenRecipe().get(),
           slang_portable::boardRecipe().get()}) {
-      slang::Compiled surface;
-      std::string why;
       const std::string source =
           recipe->source(material::Target::Slang) + kScaffold;
-      const bool made = slang::compileModule(source, "vsCover", "fsCover", kLit,
-                                             &surface, &why);
+      const auto compiled =
+          slang::compileModule(source, "vsCover", "fsCover", kLit);
+      const bool made = compiled.has_value();
+      const slang::Compiled surface = compiled.value_or(slang::Compiled{});
       surfaces += kit::formatted(
           "%-9s %11zu %9zu  %s\n", recipe->name().c_str(), surface.uniformBytes,
           surface.uniforms.size(), made ? "compiled" : "FAILED");
@@ -226,9 +227,9 @@ struct SlangPortable {
     // THE TWO WAYS A COMPILE SAYS NO, asked the same way: what came back
     // is the compiler's own diagnostic and nothing of ours.
     const auto whyNot = [](const char* source, const char* fragment) {
-      slang::Compiled refused;
-      std::string why;
-      slang::compileModule(source, "vsCover", fragment, kLit, &refused, &why);
+      const auto refused =
+          slang::compileModule(source, "vsCover", fragment, kLit);
+      const std::string why = refused ? std::string() : refused.error().message;
       return why.empty() ? std::string("(no message)") : why;
     };
     const std::string missingWhy = whyNot(kModule, "fsNoSuchStage");

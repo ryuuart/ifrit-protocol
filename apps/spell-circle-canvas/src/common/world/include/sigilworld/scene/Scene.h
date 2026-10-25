@@ -8,12 +8,14 @@
  * what those phases extracted.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigilworld/advanced/Light.h>
 #include <sigilworld/advanced/Node.h>
 #include <sigilworld/advanced/Plan.h>
 #include <sigilworld/advanced/Stats.h>
 #include <sigilworld/frame/Frame.h>
 
+#include <expected>
 #include <cstdint>
 #include <glm/mat4x4.hpp>
 #include <memory>
@@ -53,8 +55,10 @@ class Scene {
    *  already been performed when this returns, and the draw presents what
    *  they wrote; a frame with no passes is its scene, extracted and not
    *  drawn.
+   *  Answers the error that stopped the frame's passes from running —
+   *  the one `error()` keeps — or nothing when nothing did.
    *  @trap Execution reads the extracted state and never the tree. */
-  void render(const Frame& frame);
+  std::expected<void, core::Error> render(const Frame& frame);
 
   /** The lens of the camera the last frame looked through, carried by its
    *  node's placement: the one the frame named, or the only one the tree

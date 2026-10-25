@@ -366,7 +366,7 @@ TEST_F(IOFeed, ARecordingReadsBackTheBytesAndTimesItWasWrittenWith) {
     EXPECT_TRUE(writer.append(Message(shared("second"), {}, seconds(1.5), 8)));
   }
 
-  const std::optional<std::vector<Message>> read = readRecording(path);
+  const auto read = readRecording(path);
   ASSERT_TRUE(read.has_value());
   ASSERT_EQ(read->size(), 2u);
   EXPECT_EQ((*read)[0].payload->asText(), "first");
@@ -389,7 +389,7 @@ TEST_F(IOFeed, ARecordingCutShortKeepsTheWholeFramesBeforeTheCut) {
   }
   fs::resize_file(path, fs::file_size(path) - 6);
 
-  const std::optional<std::vector<Message>> read = readRecording(path);
+  const auto read = readRecording(path);
   ASSERT_TRUE(read.has_value());
   ASSERT_EQ(read->size(), 1u);
   EXPECT_EQ((*read)[0].payload->asText(), "whole");
@@ -454,7 +454,7 @@ TEST_F(IOFeed, RecordingALiveFeedWritesWhatArrives) {
   }  // the handle is gone, so the recording is: the file stands as it is
   inlet.deliver(message("three"));
 
-  const std::optional<std::vector<Message>> read = readRecording(path);
+  const auto read = readRecording(path);
   ASSERT_TRUE(read.has_value());
   ASSERT_EQ(read->size(), 2u);
   EXPECT_EQ((*read)[0].payload->asText(), "one");
@@ -478,12 +478,12 @@ TEST_F(IOFeed, ARecordingStopsWhenToldAndWhenAnotherTakesItsPlace) {
   EXPECT_TRUE(second.stopped());
   inlet.deliver(message("three"));
 
-  const std::optional<std::vector<Message>> one =
+  const auto one =
       readRecording(dir.path / "first.feed");
   ASSERT_TRUE(one.has_value());
   ASSERT_EQ(one->size(), 1u);
   EXPECT_EQ((*one)[0].payload->asText(), "one");
-  const std::optional<std::vector<Message>> two =
+  const auto two =
       readRecording(dir.path / "second.feed");
   ASSERT_TRUE(two.has_value());
   ASSERT_EQ(two->size(), 1u);

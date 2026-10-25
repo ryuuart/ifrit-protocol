@@ -11,8 +11,10 @@
  * process.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigilprotocol/dispatch/Dispatcher.h>
 
+#include <expected>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -72,11 +74,12 @@ class Endpoint {
   Endpoint(const Endpoint&) = delete;
   Endpoint& operator=(const Endpoint&) = delete;
 
-  /** Whether a port is held. */
-  bool listening() const;
+  /** Whether a port is held: nothing where one is, and otherwise the
+   *  error that says why none is, in words that open with `endpoint:`. */
+  std::expected<void, core::Error> listening() const;
 
-  /** Why no port is held, in words that open with `endpoint:`; empty
-   *  where one is. */
+  /** Why no port is held, as `listening()` says it; empty where one
+   *  is. */
   const std::string& error() const;
 
   /** THE ADDRESS A CLIENT ON THIS MACHINE DIALS,

@@ -118,7 +118,7 @@ std::optional<Json> throughSchema(std::span<const std::byte> bytes,
     form = schema.text(bytes);
   }
   if (!form) return std::nullopt;
-  return wire::readJson(*form);
+  return wire::held(wire::readJson(*form));
 }
 
 }  // namespace
@@ -127,7 +127,7 @@ std::optional<Json> decode(std::span<const std::byte> bytes, Dialect dialect,
                            const Schema& schema) {
   switch (dialect) {
     case Dialect::Json:
-      return wire::readJson(textOf(bytes));
+      return wire::held(wire::readJson(textOf(bytes)));
     case Dialect::Osc:
       return wire::readOsc(bytes);
     case Dialect::Midi:
@@ -137,12 +137,12 @@ std::optional<Json> decode(std::span<const std::byte> bytes, Dialect dialect,
     case Dialect::FlatBuffer:
       return throughSchema(bytes, schema);
     case Dialect::Csv: {
-      const std::optional<Table> table = decodeCsv(textOf(bytes));
+      const auto table = decodeCsv(textOf(bytes));
       if (!table) return std::nullopt;
       return rowsOf(*table);
     }
     case Dialect::JsonLines:
-      return wire::readJsonLines(textOf(bytes));
+      return wire::held(wire::readJsonLines(textOf(bytes)));
   }
   return std::nullopt;
 }

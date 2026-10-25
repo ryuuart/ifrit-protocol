@@ -209,12 +209,11 @@ struct MeshCodecs {
     // 01 — A MESH.
     const std::string ascii = codec::encode::ply(source);
     const std::string binary = codec::encode::ply(source, {.binary = true});
-    const std::optional<codec::decode::Model> fromAscii =
+    const auto fromAscii =
         codec::decode::model(ascii.data(), ascii.size(), "torus.ply");
-    const std::optional<codec::decode::Model> fromBinary =
+    const auto fromBinary =
         codec::decode::model(binary.data(), binary.size(), "torus.ply");
-    const auto returned = [](const std::optional<codec::decode::Model>& model,
-                             size_t bytes) {
+    const auto returned = [](const auto& model, size_t bytes) {
       return kit::formatted("%zu vertices · %zu triangles · %.1f KiB",
                             model ? model->vertexCount() : 0,
                             model ? model->triangleCount() : 0,
@@ -233,7 +232,7 @@ struct MeshCodecs {
       size[index] = 0.7f + 0.6f * up;
     }
     const std::string cloudPly = codec::encode::ply(motes);
-    const std::optional<codec::decode::Model> cloudBack =
+    const auto cloudBack =
         codec::decode::model(cloudPly.data(), cloudPly.size(), "motes.ply");
     const mesh::Cloud read = cloudBack ? cloudBack->mergedCloud() : mesh::Cloud{};
     // Bounds over every part, then the one transform that centres a model
@@ -249,7 +248,7 @@ struct MeshCodecs {
     // 03 — A GROUP. asCloud(): positions, "normal" from N, "tint" from Cd,
     // and every group under its own name.
     const std::string geo = codec::encode::geo(grid());
-    const std::optional<codec::decode::Model> geoBack =
+    const auto geoBack =
         codec::decode::model(geo.data(), geo.size(), "grid.geo");
     const mesh::Cloud seed = geoBack && !geoBack->parts.empty()
                                  ? geoBack->parts.front().asCloud()

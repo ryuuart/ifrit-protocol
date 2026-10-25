@@ -9,9 +9,9 @@
 #include <include/core/SkTypes.h>  // SkDebugf — the library's one channel
 #include <sigilweave/fonts/FontContext.h>
 
-#include <boost/container/flat_map.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
+#include <flat_map>
 #include <tuple>
 
 #include "AxisGate.h"
@@ -104,7 +104,7 @@ SkGlyphID substituteGlyph(sigil::weave::FontContext& fonts,
     bool alike[2] = {false, false};  ///< indexed by the axis: level, upright
   };
   using Key = std::tuple<uint32_t, SkGlyphID, uint32_t>;
-  static thread_local boost::container::flat_map<Key, Verdict> table;
+  static thread_local std::flat_map<Key, Verdict> table;
   auto [entry, fresh] = table.try_emplace(
       Key{face->uniqueID(), original, (uint32_t)codepoint}, Verdict{});
   Verdict& verdict = entry->second;

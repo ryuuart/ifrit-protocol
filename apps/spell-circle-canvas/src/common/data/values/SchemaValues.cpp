@@ -57,6 +57,7 @@
 
 #include <cstdio>
 #include <fstream>
+#include <print>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -78,7 +79,7 @@ struct Ask {
 /** What stopped the generator, named on the way out so a schema that
  *  grows something this cannot express breaks the build. */
 void refuse(const std::string& why) {
-  std::fprintf(stderr, "sigil_schema_values: %s\n", why.c_str());
+  std::println(stderr, "sigil_schema_values: {}", why);
 }
 
 /** The arguments, or nothing where they are not a whole ask. */

@@ -36,7 +36,7 @@ namespace {
  *  that should have been memoised can be told from one that ran again. */
 int gCompiles = 0;
 std::shared_ptr<Program> countingCompiler(std::shared_ptr<const Recipe> r,
-                                          Variant v, std::string&) {
+                                          Variant v) {
   ++gCompiles;
   return std::make_shared<Program>(std::move(r), Target::Slang, v);
 }

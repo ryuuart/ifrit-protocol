@@ -46,10 +46,11 @@ assert_type(material.Color.rgb(110, 153, 187), material.Color)
 assert_type(material.Color.srgb(0.43, 0.6, 0.73, alpha=0.5), material.Color)
 assert_type(material.Color.hsl(210, "40%", 60), material.Color)
 assert_type(material.Color.oklch(0.7, 0.1, 240), material.Color)
-assert_type(material.Color.hex(0x6E99BB), material.Color)
+assert_type(material.Color.fromHex(0x6E99BB), material.Color)
 assert_type(material.Color.mix("#6e99bb", (0.1, 0.2, 0.3), 0.25, space="oklch"), material.Color)
 assert material.Color.rgb(110, 153, 187) == material.Color("rgb(110 153 187)")
 assert_type(material.Color("#6e99bb").css(), str)
+assert_type(material.Color("#6e99bb").hex(), str)
 
 # ---------------------------------------------------------------------------
 # FillLike — a colour, a paint, a material or a reference, at compose.Fill.

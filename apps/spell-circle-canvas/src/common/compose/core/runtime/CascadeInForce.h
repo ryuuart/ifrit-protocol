@@ -84,8 +84,13 @@ struct CascadeInForce {
   // The maps of a lit fill or ink that reads the unit it is painted into,
   // prepared per unit while the material and the unit stand.
   mutable std::shared_ptr<UnitSurfaces> unitSurfaces;
-  // The face's own line height at `font`, px — what an `lh` length under
-  // this node resolves against.
+  // The face's own line height at `font`, px, measured when the shaping in
+  // force moves.
+  float faceLineHeight = 0.0f;
+  // THE LINE HEIGHT IN FORCE, px: the pitch the leading in force sets at
+  // `font` — the face's own unless a line height is stated — and what an
+  // `lh` length on this node resolves against, as CSS's computed
+  // line-height is.
   float lineHeight = 0.0f;
   // The advance of "0" at `font`, px — what a `ch` length on this node
   // resolves against. Beside the line height because both are answers of

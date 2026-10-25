@@ -302,7 +302,22 @@ Encoder& Encoder::operator=(Encoder&&) noexcept = default;
 
 Encoder::operator bool() const { return m_impl && m_impl->opened; }
 
-bool Encoder::append(const Picture& held) {
+namespace {
+
+/** What a verb answers for a refusal its encoder recorded. */
+std::expected<void, core::Error> accepted(bool appended,
+                                          const std::string& error) {
+  if (!appended) return std::unexpected(core::Error{error});
+  return {};
+}
+
+}  // namespace
+
+std::expected<void, core::Error> Encoder::append(const Picture& held) {
+  return accepted(appendPicture(held), m_impl->lastError);
+}
+
+bool Encoder::appendPicture(const Picture& held) {
   // An encoder that never opened keeps the reason it did not.
   if (!m_impl->opened) return false;
   const sk_sp<SkImage> image = toSk(held);
@@ -318,25 +333,33 @@ bool Encoder::append(const Picture& held) {
   return m_impl->append(pixmap);
 }
 
-bool Encoder::append(const Frame& frame) {
+std::expected<void, core::Error> Encoder::append(const Frame& frame) {
   const sk_sp<SkImage> picture = deviceImage(frame, nullptr);
-  if (!picture) return m_impl->fail("the frame holds no picture");
+  if (!picture)
+    return accepted(m_impl->fail("the frame holds no picture"),
+                    m_impl->lastError);
   return append(fromSk(picture));
 }
 
-bool Encoder::append(const Image& image) {
-  if (image.frames().empty()) return m_impl->fail("the image holds no frame");
+std::expected<void, core::Error> Encoder::append(const Image& image) {
+  if (image.frames().empty())
+    return accepted(m_impl->fail("the image holds no frame"),
+                    m_impl->lastError);
   return append(image.frames().front());
 }
 
-bool append(Encoder& encoder, const SkPixmap& pixels) {
+std::expected<void, core::Error> append(Encoder& encoder,
+                                        const SkPixmap& pixels) {
   // Wrapped where the pixels stand, which outlive the call.
   return encoder.append(fromSk(SkImages::RasterFromPixmap(pixels, nullptr, nullptr)));
 }
 
-std::vector<std::byte> Encoder::finish() {
-  if (!m_impl->opened) return {};
-  return m_impl->finish();
+std::expected<std::vector<std::byte>, core::Error> Encoder::finish() {
+  if (!m_impl->opened) return std::unexpected(core::Error{m_impl->lastError});
+  std::vector<std::byte> container = m_impl->finish();
+  if (container.empty())
+    return std::unexpected(core::Error{m_impl->lastError});
+  return container;
 }
 
 const std::string& Encoder::error() const { return m_impl->lastError; }

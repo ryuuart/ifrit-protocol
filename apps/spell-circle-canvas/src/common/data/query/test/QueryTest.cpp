@@ -51,9 +51,9 @@ TEST_P(QueryEngines, OpeningAnAbsentStoreDoesNotCreateIt) {
       scratch(GetParam() == Engine::Sqlite ? "sigil-absent-store.sqlite"
                                            : "sigil-absent-store.duckdb");
   std::filesystem::remove(file);
-  std::string why;
-  EXPECT_FALSE(Database::open(file, &why));
-  EXPECT_FALSE(why.empty());
+  const auto absent = Database::open(file);
+  ASSERT_FALSE(absent);
+  EXPECT_FALSE(absent.error().message.empty());
   EXPECT_FALSE(std::filesystem::exists(file));
 }
 
@@ -62,23 +62,21 @@ TEST_P(QueryEngines, AnExistingStoreCanStillBeWritten) {
       scratch(GetParam() == Engine::Sqlite ? "sigil-writable-store.sqlite"
                                            : "sigil-writable-store.duckdb");
   std::filesystem::remove(file);
-  std::string why;
   {
-    auto memory = Database::memory(GetParam(), &why);
-    ASSERT_TRUE(memory) << why;
+    auto memory = Database::memory(GetParam());
+    ASSERT_TRUE(memory);
     const std::string create = GetParam() == Engine::Sqlite
                                    ? "VACUUM INTO '" + file.string() + "'"
                                    : "ATTACH '" + file.string() + "' AS store";
-    ASSERT_TRUE(memory->execute(create, &why)) << why;
+    ASSERT_TRUE(memory->execute(create));
   }
   {
-    auto opened = Database::open(file, &why);
-    ASSERT_TRUE(opened) << why;
-    ASSERT_TRUE(opened->insert("records", sample(), &why)) << why;
-    ASSERT_TRUE(opened->execute("DELETE FROM records WHERE n = 1", &why))
-        << why;
-    const auto rows = opened->query("SELECT n FROM records ORDER BY n", &why);
-    ASSERT_TRUE(rows) << why;
+    auto opened = Database::open(file);
+    ASSERT_TRUE(opened);
+    ASSERT_TRUE(opened->insert("records", sample()));
+    ASSERT_TRUE(opened->execute("DELETE FROM records WHERE n = 1"));
+    const auto rows = opened->query("SELECT n FROM records ORDER BY n");
+    ASSERT_TRUE(rows);
     ASSERT_EQ(rows->size(), 2u);
     EXPECT_EQ(rows->column<double>("n")[0], 2);
   }
@@ -90,67 +88,65 @@ TEST_P(QueryEngines, AStoreOpenedForReadingRefusesEveryWrite) {
       scratch(GetParam() == Engine::Sqlite ? "sigil-reading-store.sqlite"
                                            : "sigil-reading-store.duckdb");
   std::filesystem::remove(file);
-  std::string why;
   {
-    auto memory = Database::memory(GetParam(), &why);
-    ASSERT_TRUE(memory) << why;
+    auto memory = Database::memory(GetParam());
+    ASSERT_TRUE(memory);
     const std::string create = GetParam() == Engine::Sqlite
                                    ? "VACUUM INTO '" + file.string() + "'"
                                    : "ATTACH '" + file.string() + "' AS store";
-    ASSERT_TRUE(memory->execute(create, &why)) << why;
+    ASSERT_TRUE(memory->execute(create));
   }
   {
-    auto writable = Database::open(file, &why);
-    ASSERT_TRUE(writable) << why;
-    ASSERT_TRUE(writable->insert("records", sample(), &why)) << why;
+    auto writable = Database::open(file);
+    ASSERT_TRUE(writable);
+    ASSERT_TRUE(writable->insert("records", sample()));
   }
   {
-    auto reading = Database::open(file, Access::ReadOnly, &why);
-    ASSERT_TRUE(reading) << why;
+    auto reading = Database::open(file, Access::ReadOnly);
+    ASSERT_TRUE(reading);
     EXPECT_EQ(reading->access(), Access::ReadOnly);
-    EXPECT_FALSE(reading->execute("DELETE FROM records", &why));
-    EXPECT_FALSE(reading->insert("records", sample(), &why));
-    const auto rows = reading->query("SELECT n FROM records", &why);
-    ASSERT_TRUE(rows) << why;
+    EXPECT_FALSE(reading->execute("DELETE FROM records"));
+    EXPECT_FALSE(reading->insert("records", sample()));
+    const auto rows = reading->query("SELECT n FROM records");
+    ASSERT_TRUE(rows);
     EXPECT_EQ(rows->size(), 3u);
   }
   {
-    auto writable = Database::open(file, &why);
-    ASSERT_TRUE(writable) << why;
+    auto writable = Database::open(file);
+    ASSERT_TRUE(writable);
     EXPECT_EQ(writable->access(), Access::ReadWrite);
-    const auto rows = writable->query("SELECT n FROM records", &why);
-    ASSERT_TRUE(rows) << why;
+    const auto rows = writable->query("SELECT n FROM records");
+    ASSERT_TRUE(rows);
     EXPECT_EQ(rows->size(), 3u) << "nothing the reading store ran reached disk";
   }
   std::filesystem::remove(file);
 }
 
 TEST_P(QueryEngines, WritingStatementsAreNamedBeforeTheyRun) {
-  std::string why;
-  std::optional<Database> db = Database::memory(GetParam(), &why);
-  ASSERT_TRUE(db) << why;
-  ASSERT_TRUE(db->insert("records", sample(), &why)) << why;
+  auto db = Database::memory(GetParam());
+  ASSERT_TRUE(db);
+  ASSERT_TRUE(db->insert("records", sample()));
   EXPECT_EQ(db->writes("SELECT 1"), false);
   EXPECT_EQ(db->writes("SELECT n FROM records"), false);
   EXPECT_EQ(db->writes("DELETE FROM records"), true);
   EXPECT_EQ(db->writes("SELECT 1; DELETE FROM records"), true)
       << "a writing statement is refused wherever it stands";
   EXPECT_EQ(db->writes("DROP TABLE records"), true);
-  EXPECT_FALSE(db->writes("SELEKT", &why));
-  EXPECT_FALSE(why.empty());
-  const auto rows = db->query("SELECT n FROM records", &why);
-  ASSERT_TRUE(rows) << why;
+  const auto unparsed = db->writes("SELEKT");
+  ASSERT_FALSE(unparsed);
+  EXPECT_FALSE(unparsed.error().message.empty());
+  const auto rows = db->query("SELECT n FROM records");
+  ASSERT_TRUE(rows);
   EXPECT_EQ(rows->size(), 3u) << "asking what a statement does does not run it";
 }
 
 TEST_P(QueryEngines, ATableRoundTripsWithItsTypesAndItsMissingCells) {
-  std::string why;
-  std::optional<Database> db = Database::memory(GetParam(), &why);
-  ASSERT_TRUE(db) << why;
-  ASSERT_TRUE(db->insert("t", sample(), &why)) << why;
-  const std::optional<Table> back =
-      db->query("SELECT * FROM t ORDER BY n", &why);
-  ASSERT_TRUE(back) << why;
+  auto db = Database::memory(GetParam());
+  ASSERT_TRUE(db);
+  ASSERT_TRUE(db->insert("t", sample()));
+  const auto back =
+      db->query("SELECT * FROM t ORDER BY n");
+  ASSERT_TRUE(back);
   ASSERT_EQ(back->size(), 3u);
   ASSERT_TRUE(back->has("n") && back->has("s") && back->has("f") &&
               back->has("when") && back->has("gap"));
@@ -169,10 +165,10 @@ TEST_P(QueryEngines, ATableRoundTripsWithItsTypesAndItsMissingCells) {
 }
 
 TEST_P(QueryEngines, AnAggregateAnswersATable) {
-  std::optional<Database> db = Database::memory(GetParam());
+  auto db = Database::memory(GetParam());
   ASSERT_TRUE(db);
   ASSERT_TRUE(db->insert("t", sample()));
-  const std::optional<Table> sum =
+  const auto sum =
       db->query("SELECT f, SUM(n) AS total FROM t GROUP BY f ORDER BY f");
   ASSERT_TRUE(sum);
   ASSERT_EQ(sum->size(), 2u);
@@ -182,12 +178,14 @@ TEST_P(QueryEngines, AnAggregateAnswersATable) {
 }
 
 TEST_P(QueryEngines, AnErrorIsNamedRatherThanThrown) {
-  std::optional<Database> db = Database::memory(GetParam());
+  auto db = Database::memory(GetParam());
   ASSERT_TRUE(db);
-  std::string why;
-  EXPECT_FALSE(db->query("SELECT nothing FROM nowhere", &why));
-  EXPECT_FALSE(why.empty());
-  EXPECT_FALSE(db->execute("NOT SQL", &why));
+  const auto unanswered = db->query("SELECT nothing FROM nowhere");
+  ASSERT_FALSE(unanswered);
+  EXPECT_FALSE(unanswered.error().message.empty());
+  const auto unrun = db->execute("NOT SQL");
+  ASSERT_FALSE(unrun);
+  EXPECT_FALSE(unrun.error().message.empty());
 }
 
 INSTANTIATE_TEST_SUITE_P(Engines, QueryEngines,
@@ -201,33 +199,33 @@ TEST(Query, ASqliteFileOpensByItsExtensionAndFromItsBytes) {
   const std::filesystem::path file = scratch("sigil-query-test.sqlite");
   std::filesystem::remove(file);
   {
-    std::optional<Database> memory = Database::memory(Engine::Sqlite);
+    auto memory = Database::memory(Engine::Sqlite);
     ASSERT_TRUE(memory);
     ASSERT_TRUE(memory->insert("t", sample()));
-    std::string why;
-    ASSERT_TRUE(memory->execute("VACUUM INTO '" + file.string() + "'", &why))
-        << why;
+    ASSERT_TRUE(memory->execute("VACUUM INTO '" + file.string() + "'"));
   }
-  std::string why;
-  std::optional<Database> opened = Database::open(file, &why);
-  ASSERT_TRUE(opened) << why;
+  auto opened = Database::open(file);
+  ASSERT_TRUE(opened);
   EXPECT_EQ(opened->engine(), Engine::Sqlite);
   EXPECT_EQ(opened->file(), file);
-  const std::optional<Table> rows = opened->query("SELECT n FROM t ORDER BY n");
+  const auto rows = opened->query("SELECT n FROM t ORDER BY n");
   ASSERT_TRUE(rows);
   EXPECT_EQ(rows->size(), 3u);
 
   const sigil::io::Bytes bytes = readAll(file);
-  std::optional<Database> fromBytes =
-      Database::fromBytes(bytes, file.string(), &why);
-  ASSERT_TRUE(fromBytes) << why;
+  auto fromBytes =
+      Database::fromBytes(bytes, file.string());
+  ASSERT_TRUE(fromBytes);
   EXPECT_TRUE(fromBytes->file().empty());
   EXPECT_EQ(
       fromBytes->query("SELECT COUNT(*) AS c FROM t")->column<double>("c")[0],
       3);
 
-  EXPECT_FALSE(Database::open(scratch("nothing.txt"), &why));
-  EXPECT_FALSE(why.empty());
+  const auto unnamed = Database::open(scratch("nothing.txt"));
+  ASSERT_FALSE(unnamed);
+  EXPECT_EQ(unnamed.error().message,
+            "not a database file by its extension: " +
+                scratch("nothing.txt").string());
   EXPECT_FALSE(engineOf("x.csv"));
   EXPECT_EQ(engineOf("x.duckdb"), Engine::Duck);
   std::filesystem::remove(file);
@@ -239,14 +237,12 @@ TEST(Query, DuckReadsACsvFileStraightFromAQuery) {
     std::ofstream out(csv);
     out << "city,population,coastal\nAntwerp,530000,true\nGhent,265000,false\n";
   }
-  std::optional<Database> db = Database::memory(Engine::Duck);
+  auto db = Database::memory(Engine::Duck);
   ASSERT_TRUE(db);
-  std::string why;
-  const std::optional<Table> rows =
+  const auto rows =
       db->query("SELECT city, population FROM read_csv('" + csv.string() +
-                    "') WHERE coastal ORDER BY city",
-                &why);
-  ASSERT_TRUE(rows) << why;
+                    "') WHERE coastal ORDER BY city");
+  ASSERT_TRUE(rows);
   ASSERT_EQ(rows->size(), 1u);
   EXPECT_EQ(rows->column<std::string>("city")[0], "Antwerp");
   EXPECT_DOUBLE_EQ(rows->column<double>("population")[0], 530000);
@@ -257,18 +253,18 @@ TEST(Query, TheDecoderOpensAFileInPlaceAndBytesAsSqlite) {
   const std::filesystem::path file = scratch("sigil-query-decoder.sqlite");
   std::filesystem::remove(file);
   {
-    std::optional<Database> memory = Database::memory(Engine::Sqlite);
+    auto memory = Database::memory(Engine::Sqlite);
     ASSERT_TRUE(memory->insert("t", sample()));
     ASSERT_TRUE(memory->execute("VACUUM INTO '" + file.string() + "'"));
   }
   const sigil::io::Bytes bytes = readAll(file);
   const DatabaseDecoder decoder;
-  std::optional<Database> inPlace = decoder.decode(bytes, file.string());
+  auto inPlace = decoder.decode(bytes, file.string());
   ASSERT_TRUE(inPlace);
   EXPECT_EQ(inPlace->file(), file) << "a file on disk is opened where it is";
   EXPECT_EQ(inPlace->access(), Access::ReadOnly)
       << "a cached resource is read by every holder and written by none";
-  std::optional<Database> fromBytes = decoder.decode(bytes, "");
+  auto fromBytes = decoder.decode(bytes, "");
   ASSERT_TRUE(fromBytes);
   EXPECT_TRUE(fromBytes->file().empty()) << "bytes alone: a SQLite store";
   EXPECT_EQ(fromBytes->access(), Access::ReadOnly);

@@ -113,7 +113,7 @@ TEST(VideoDecode, PreservesAndPremultipliesWebMAlpha) {
   const std::vector<std::byte> bytes = assetBytes("bear-vp8a.webm");
   ASSERT_FALSE(bytes.empty());
 
-  const std::optional<media::Metadata> probe = probeDocument(
+  const auto probe = probeDocument(
       std::type_identity<media::Video>{}, bytes, "bear-vp8a.webm");
   ASSERT_TRUE(probe);
   EXPECT_TRUE(probe->hasAlpha);

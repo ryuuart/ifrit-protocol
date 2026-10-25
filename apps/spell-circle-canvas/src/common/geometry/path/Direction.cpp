@@ -10,7 +10,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
-#include <numeric>
+#include <ranges>
 #include <vector>
 
 #include "sigilgeometry/path/Segments.h"
@@ -79,10 +79,8 @@ SkPath direction(const SkPath& path, const DirectionOptions& options) {
   std::vector<SegmentContour> contours = segments(path);
   if (contours.empty()) return path;
 
-  std::vector<Polyline> rings;
-  rings.reserve(contours.size());
-  for (const SegmentContour& contour : contours)
-    rings.push_back(ringOf(contour));
+  const std::vector<Polyline> rings = contours | std::views::transform(ringOf) |
+                                      std::ranges::to<std::vector<Polyline>>();
   const std::vector<Nesting> where = nesting(rings);
 
   for (size_t i = 0; i < contours.size(); ++i) {
@@ -98,16 +96,15 @@ SkPath direction(const SkPath& path, const DirectionOptions& options) {
   }
 
   if (options.orderContours) {
-    std::vector<size_t> order(contours.size());
-    std::iota(order.begin(), order.end(), (size_t)0);
+    std::vector<size_t> order = std::views::iota(size_t{0}, contours.size()) |
+                                std::ranges::to<std::vector<size_t>>();
     std::ranges::stable_sort(order, [&](size_t a, size_t b) {
       return where[a].depth < where[b].depth;
     });
-    std::vector<SegmentContour> sorted;
-    sorted.reserve(contours.size());
-    for (const size_t index : order)
-      sorted.push_back(std::move(contours[index]));
-    contours = std::move(sorted);
+    contours = order | std::views::transform([&](size_t index) {
+                 return std::move(contours[index]);
+               }) |
+               std::ranges::to<std::vector<SegmentContour>>();
   }
   return toPath(contours, path.getFillType());
 }

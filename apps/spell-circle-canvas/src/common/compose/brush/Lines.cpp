@@ -366,18 +366,23 @@ float Line::trimFor(Marker marker) const {
 
 float Rails::bleed() const {
   float worst = 0.0f;
-  for (const Rail& r : rails)
-    worst = std::max(worst, std::abs(r.across) + r.width * 0.5f);
+  for (const Rail& rail : rails) {
+    // A mitred rail mitres its offset as well as its stroke: the offset's
+    // corner reaches up to the miter limit times the offset, and the
+    // stroke laid on it reaches its own mitre past that. A square end
+    // reaches the half width's diagonal past the end of the run.
+    const float offset = std::abs(rail.across);
+    const float offsetReach = rail.join == geometry::path::Join::Miter
+                                  ? detail::kDefaultMiterLimit * offset
+                                  : offset;
+    worst = std::max(worst, offsetReach + detail::strokeReach(rail.width,
+                                                              rail.join,
+                                                              rail.cap));
+  }
   return worst + waveAmplitude;
 }
 
-bool Rails::staysOnOutline() const {
-  for (const Rail& rail : rails)
-    if (rail.join == geometry::path::Join::Miter ||
-        rail.cap == geometry::path::Cap::Square)
-      return false;
-  return true;
-}
+bool Rails::staysOnOutline() const { return true; }
 
 float Rails::span() const {
   if (rails.empty()) return 0.0f;

@@ -60,26 +60,27 @@ HardwareUse Video::hardware() const {
           .decoding = m_decoder->decodedNative};
 }
 
-std::optional<Video> decodeDocument(std::type_identity<Video>,
-                                    std::span<const std::byte> bytes,
-                                    const VideoOptions& options,
-                                    const std::filesystem::path& nameHint) {
-  if (bytes.empty()) return std::nullopt;
+std::expected<Video, core::Error> decodeDocument(
+    std::type_identity<Video>, std::span<const std::byte> bytes,
+    const VideoOptions& options, const std::filesystem::path& nameHint) {
+  if (bytes.empty())
+    return std::unexpected(core::Error{"a video needs bytes and has none"});
   auto decoder = std::make_shared<Video::Decoder>(bytes.data(), bytes.size(),
                                                   options, nameHint);
-  if (!decoder->open()) return std::nullopt;
+  if (!decoder->open())
+    return std::unexpected(core::Error{
+        "the bytes do not open as a video: no container and stream this "
+        "build reads, under the hardware preference asked for"});
   return Video(std::move(decoder), options);
 }
 
-std::optional<Metadata> probeDocument(std::type_identity<Video>,
-                                      std::span<const std::byte> bytes,
-                                      const std::filesystem::path& nameHint) {
+std::expected<Metadata, core::Error> probeDocument(
+    std::type_identity<Video>, std::span<const std::byte> bytes,
+    const std::filesystem::path& nameHint) {
   VideoOptions options;
   options.hardware = HardwarePreference::Disabled;
-  std::optional<Video> video =
-      decodeDocument(std::type_identity<Video>{}, bytes, options, nameHint);
-  if (!video) return std::nullopt;
-  return video->metadata();
+  return decodeDocument(std::type_identity<Video>{}, bytes, options, nameHint)
+      .transform([](const Video& video) { return video.metadata(); });
 }
 
 }  // namespace sigil::media

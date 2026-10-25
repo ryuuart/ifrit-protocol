@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <exception>
 #include <memory>
+#include <print>
 #include <string>
 #include <vector>
 
@@ -106,13 +107,13 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
   if (options.width <= 0 || options.height <= 0 || (options.width & 1) != 0 ||
       (options.height & 1) != 0 || options.framesPerSecond <= 0 ||
       options.framesPerSketch <= 0 || options.bitRate <= 0) {
-    std::fprintf(stderr,
+    std::println(stderr,
                  "story dimensions must be positive and even; frame rate, "
-                 "frames and bit rate must be positive\n");
+                 "frames and bit rate must be positive");
     return 2;
   }
   if (media::formatForPath(options.outputPath) != media::Format::Mp4) {
-    std::fprintf(stderr, "story output must end in .mp4\n");
+    std::println(stderr, "story output must end in .mp4");
     return 2;
   }
 
@@ -122,25 +123,24 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
                           .bitRate = options.bitRate,
                           .hardware = options.hardware});
   if (!encoder) {
-    std::fprintf(stderr, "no H.264 encoder accepted the story options: %s\n",
-                 encoder.error().c_str());
+    std::println(stderr, "no H.264 encoder accepted the story options: {}",
+                 encoder.error());
     return 1;
   }
   sk_sp<SkSurface> output = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(options.width, options.height));
   if (!output) {
-    std::fprintf(stderr, "could not allocate the story surface\n");
+    std::println(stderr, "could not allocate the story surface");
     return 1;
   }
   const sk_sp<SkTypeface> face = fonts.defaultTypeface();
   if (!face) {
-    std::fprintf(stderr, "story could not resolve a display typeface\n");
+    std::println(stderr, "story could not resolve a display typeface");
     return 1;
   }
   if (!appendTitle(encoder, *output, face, options.introFrames,
                    options.title)) {
-    std::fprintf(stderr, "story intro encode failed: %s\n",
-                 encoder.error().c_str());
+    std::println(stderr, "story intro encode failed: {}", encoder.error());
     return 1;
   }
 
@@ -154,8 +154,7 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
     if (entries[index].available(&why)) {
       available.push_back(index);
     } else {
-      std::printf("story %-24s [skipped: %s]\n", entries[index].name,
-                  why.c_str());
+      std::println("story {:<24} [skipped: {}]", entries[index].name, why);
       ++skipped;
     }
   }
@@ -167,20 +166,20 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
     try {
       const Kind kind = entry.kind();
       if (!kind) {
-        std::printf("story %-24s [skipped: no runtime]\n", entry.name);
+        std::println("story {:<24} [skipped: no runtime]", entry.name);
         ++skipped;
         continue;
       }
       std::unique_ptr<Session> session =
           kind->open(fonts, assets, true, entry.key);
       if (!session) {
-        std::printf("story %-24s [skipped: did not open]\n", entry.name);
+        std::println("story {:<24} [skipped: did not open]", entry.name);
         ++skipped;
         continue;
       }
       const SkSize declared = session->canvas().size;
       if (declared.width() <= 0 || declared.height() <= 0) {
-        std::printf("story %-24s [skipped: empty canvas]\n", entry.name);
+        std::println("story {:<24} [skipped: empty canvas]", entry.name);
         ++skipped;
         continue;
       }
@@ -194,14 +193,14 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
       sk_sp<SkSurface> source = SkSurfaces::Raster(
           SkImageInfo::MakeN32Premul(sourceWidth, sourceHeight));
       if (!source) {
-        std::fprintf(stderr, "story could not allocate %s source surface\n",
+        std::println(stderr, "story could not allocate {} source surface",
                      entry.name);
         return 1;
       }
       const sk_sp<SkImage> labels =
           makeLabelLayer(entry, face, options.width, options.height);
       if (!labels) {
-        std::fprintf(stderr, "story could not allocate %s label layer\n",
+        std::println(stderr, "story could not allocate {} label layer",
                      entry.name);
         return 1;
       }
@@ -215,7 +214,7 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
       const sk_sp<SkSurface> scratch =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
       if (!scratch) {
-        std::fprintf(stderr, "story could not allocate its pre-roll surface\n");
+        std::println(stderr, "story could not allocate its pre-roll surface");
         return 1;
       }
       const auto step = [&](SkCanvas& canvas, float scale, double dt,
@@ -251,45 +250,42 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
                  options.height);
         const sk_sp<SkImage> encodedFrame = output->makeImageSnapshot();
         if (!encodedFrame || !encoder.append(encodedFrame)) {
-          std::fprintf(stderr, "story frame encode failed at %s: %s\n",
-                       entry.name, encoder.error().c_str());
+          std::println(stderr, "story frame encode failed at {}: {}",
+                       entry.name, encoder.error());
           return 1;
         }
       }
       ++rendered;
-      std::printf("story %-24s %d/%zu\n", entry.name, rendered,
-                  available.size());
+      std::println("story {:<24} {}/{}", entry.name, rendered,
+                   available.size());
       std::fflush(stdout);
     } catch (const std::exception& exception) {
-      std::printf("story %-24s [skipped: %s]\n", entry.name, exception.what());
+      std::println("story {:<24} [skipped: {}]", entry.name, exception.what());
       ++skipped;
     }
   }
 
   if (rendered == 0) {
-    std::fprintf(stderr, "story selection contained no renderable sketches\n");
+    std::println(stderr, "story selection contained no renderable sketches");
     return 1;
   }
   if (!appendTitle(encoder, *output, face, options.outroFrames,
                    "EVERY SKETCH")) {
-    std::fprintf(stderr, "story outro encode failed: %s\n",
-                 encoder.error().c_str());
+    std::println(stderr, "story outro encode failed: {}", encoder.error());
     return 1;
   }
-  const std::vector<std::byte> mp4 = encoder.finish();
+  const std::vector<std::byte> mp4 = encoder.finish().value_or(std::vector<std::byte>{});
   if (mp4.empty()) {
-    std::fprintf(stderr, "story finalization failed: %s\n",
-                 encoder.error().c_str());
+    std::println(stderr, "story finalization failed: {}", encoder.error());
     return 1;
   }
   if (!io::writeBytes(options.outputPath, mp4.data(), mp4.size())) {
-    std::fprintf(stderr, "could not write story to %s\n",
-                 options.outputPath.c_str());
+    std::println(stderr, "could not write story to {}", options.outputPath);
     return 1;
   }
-  std::printf("wrote %s: %d sketches, %d skipped, %lld frames, %s\n",
-              options.outputPath.c_str(), rendered, skipped,
-              (long long)encoder.frameCount(), encoder.codec().c_str());
+  std::println("wrote {}: {} sketches, {} skipped, {} frames, {}",
+               options.outputPath, rendered, skipped, encoder.frameCount(),
+               encoder.codec());
   return 0;
 }
 

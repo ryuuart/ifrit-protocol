@@ -320,6 +320,21 @@ void bindSettings(py::class_<ComposerHandle>& composer) {
       .def("bakeDensity",
            [](const ComposerHandle& self) { return self.get().bakeDensity(); })
       .def(
+          "setLive",
+          [](const ComposerHandle& self, bool live) {
+            self.get().setLive(live);
+          },
+          py::arg("live"))
+      .def("live", [](const ComposerHandle& self) { return self.get().live(); })
+      .def(
+          "setGroundHeld",
+          [](const ComposerHandle& self, bool held) {
+            self.get().setGroundHeld(held);
+          },
+          py::arg("held"))
+      .def("groundHeld",
+           [](const ComposerHandle& self) { return self.get().groundHeld(); })
+      .def(
           "setPointer",
           [](const ComposerHandle& self, py::handle canvasPoint, bool pressed) {
             const SkPoint at = canvasPosition(canvasPoint);

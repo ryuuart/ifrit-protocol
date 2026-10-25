@@ -288,6 +288,21 @@ TEST(Color, ACssColourReadsToTheColourItsDigitsSay) {
   EXPECT_FALSE(namedColor("transparent"));
 }
 
+// A name is read whatever its case and wherever it stands in CSS's list;
+// a word that is only part of a name, or longer than any, names none.
+TEST(Color, ANameIsReadWhateverItsCaseAndPlace) {
+  EXPECT_EQ(namedColor("aliceblue"), hexColor(0xf0f8ff));
+  EXPECT_EQ(namedColor("yellowgreen"), hexColor(0x9acd32));
+  EXPECT_EQ(namedColor("YellowGreen"), hexColor(0x9acd32));
+  EXPECT_EQ(namedColor("lightgoldenrodyellow"), hexColor(0xfafad2));
+  EXPECT_EQ(namedColor("aqua"), hexColor(0x00ffff));
+  EXPECT_EQ(namedColor("aquamarine"), hexColor(0x7fffd4));
+  EXPECT_FALSE(namedColor("aqu"));
+  EXPECT_FALSE(namedColor("lightgoldenrodyellows"));
+  EXPECT_FALSE(namedColor(""));
+  EXPECT_FALSE(namedColor("steel blue"));
+}
+
 // Text no CSS colour grammar reads is nothing to the strict reading, and
 // opaque black to the forgiving one, which says so once per text.
 TEST(Color, TextNoGrammarReadsIsNothingAndSaidOnce) {

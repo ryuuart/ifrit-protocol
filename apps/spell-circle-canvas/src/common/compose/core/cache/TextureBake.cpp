@@ -277,7 +277,10 @@ bool paintTextureBake(PaintPass& pass) {
   // Bake the full PAINT bounds, not just the box — decoration bleed and
   // overflowing children truncate otherwise (same rule as the picture
   // cull).
-  const SkRect bake = localBounds;
+  // …laid on the texel grid from the node's own origin, so the texels
+  // stand where every other bake of the content puts them, however far
+  // its bounds reach.
+  const SkRect bake = onTexelGrid(localBounds, scale);
   const SkISize dimensions = PaintPass::localBakeSize(bake, scale);
   const int pw = dimensions.width();
   const int ph = dimensions.height();

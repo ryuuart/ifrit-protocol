@@ -161,8 +161,9 @@ Filter Filter::glass(GlassOptions options) {
 }
 
 Filter Filter::dropShadow(Color color, ShadowOptions options) {
-  return FilterAccess::wrap(Effect::dropShadow(color, options.offset.x,
-                                               options.offset.y, options.blur));
+  // The blur is CSS's radius, the Gaussian's standard deviation doubled.
+  return FilterAccess::wrap(Effect::dropShadow(
+      color, options.offset.x, options.offset.y, options.blur * 0.5f));
 }
 
 Filter Filter::glow(Color color, float sigma) {

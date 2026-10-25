@@ -37,6 +37,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <print>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -92,9 +93,9 @@ class PipelineRecord final
     if (!fromPrecompile && !key && m_unkeyedSeen.insert(uniqueHash).second)
       ++m_unkeyedBy[m_drawing];
     if (namesEveryPipeline())
-      std::fprintf(stderr, "[grimoire] pipeline %s %08x%s: %s\n",
+      std::println(stderr, "[grimoire] pipeline {} {:08x}{}: {}",
                    fromPrecompile ? "ahead" : "for a draw", uniqueHash,
-                   key ? "" : " (no key)", label.c_str());
+                   key ? "" : " (no key)", label);
     if (!key || !m_seen.insert(uniqueHash).second) return;
     m_recorded.push_back({uniqueHash, {std::move(key), label}});
   }
@@ -167,10 +168,10 @@ class PipelineRecord final
 
   void report(size_t replayed, size_t written) const {
     const std::lock_guard<std::mutex> held(m_lock);
-    std::fprintf(stderr,
-                 "[grimoire] pipelines: %zu built for a draw, %zu built "
-                 "ahead of one, %zu found standing (%zu of them stood up "
-                 "ahead), %zu replayed, %zu of %zu keys written down\n",
+    std::println(stderr,
+                 "[grimoire] pipelines: {} built for a draw, {} built "
+                 "ahead of one, {} found standing ({} of them stood up "
+                 "ahead), {} replayed, {} of {} keys written down",
                  m_builtForADraw, m_builtAhead, m_found, m_foundStanding,
                  replayed, written, m_recorded.size());
   }
@@ -262,7 +263,8 @@ void gatherPrograms(const material::Material& from,
                     std::vector<sk_sp<SkRuntimeEffect>>& into,
                     std::unordered_set<const SkRuntimeEffect*>& seen) {
   const std::shared_ptr<material::Program> compiled =
-      material::program(from.recipePointer(), material::Target::SkSL);
+      material::program(from.recipePointer(), material::Target::SkSL)
+          .value_or(nullptr);
   if (const auto* skia =
           compiled ? compiled->as<material::skia::SkiaProgram>() : nullptr) {
     const sk_sp<SkRuntimeEffect>& effect = skia->effect();
@@ -386,8 +388,8 @@ size_t writeDownUndeclaredEffects(const std::filesystem::path& storeDirectory) {
     ++added;
   }
   if ((added || renamed) && !pipelines::writeEffects(file, effects)) {
-    std::fprintf(stderr, "[grimoire] pipelines: could not write %s\n",
-                 file.c_str());
+    std::println(stderr, "[grimoire] pipelines: could not write {}",
+                 file.string());
     return 0;
   }
   return added;
@@ -515,10 +517,10 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory,
     if (effect) g_declaredSources.insert(effect->source());
   const size_t limit = sigil::skia::GraphiteContext::runtimeEffectLimit();
   if (namesEveryPipeline())
-    std::fprintf(stderr,
-                 "[grimoire] pipelines: %zu stock effects and %zu written "
-                 "down offered, %zu declared of the %zu the backend can "
-                 "name\n",
+    std::println(stderr,
+                 "[grimoire] pipelines: {} stock effects and {} written "
+                 "down offered, {} declared of the {} the backend can "
+                 "name",
                  stock, recorded.size(), taken, limit);
   if (taken < declarable.size()) {
     // WHICH SKETCHES THE LIMIT COSTS: the ones whose effects were written
@@ -529,12 +531,12 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory,
     std::string named;
     for (const std::string& sketch : unkeyed)
       named += (named.empty() ? "" : ", ") + sketch;
-    std::fprintf(stderr,
-                 "[grimoire] pipelines: %zu of %zu programs declared, %zu "
+    std::println(stderr,
+                 "[grimoire] pipelines: {} of {} programs declared, {} "
                  "of them stock; the rest keep names no recorded key can "
-                 "carry, so these sketches build them on every launch: %s\n",
+                 "carry, so these sketches build them on every launch: {}",
                  taken, declarable.size(), stock,
-                 named.empty() ? "none named" : named.c_str());
+                 named.empty() ? "none named" : named);
   }
   sigil::skia::GraphiteContext::reportPipelinesTo(recorder());
   g_open = true;
@@ -565,9 +567,9 @@ void warmStockPipelines(
   // no longer reads the last run's keys. The effect stages are what can
   // be known without having read a sketch.
   const size_t stages = buildStagesAhead(*precompile, g_stages);
-  std::fprintf(stderr,
-               "[grimoire] pipelines: no recorded set for this build, %zu "
-               "effect stages stood up instead\n",
+  std::println(stderr,
+               "[grimoire] pipelines: no recorded set for this build, {} "
+               "effect stages stood up instead",
                stages);
 }
 
@@ -606,8 +608,7 @@ void warmSketchPipelines(
     // than built as something else.
     const std::string description = precompile->getPipelineLabel(one.key);
     if (namesEveryPipeline())
-      std::fprintf(stderr, "[grimoire] pipeline replaying: %s\n",
-                   description.c_str());
+      std::println(stderr, "[grimoire] pipeline replaying: {}", description);
     if (description != one.description) {
       ++stale;
       continue;
@@ -620,11 +621,11 @@ void warmSketchPipelines(
   // to see: a set silently dropped whole reads as a warm-up that helps
   // and costs nothing while being neither.
   if (!recorded.empty())
-    std::fprintf(stderr,
-                 "[grimoire] pipelines: %zu of %zu recorded programs stood "
-                 "up before %s opened, %zu no longer described what they "
-                 "described\n",
-                 replayed, recorded.size(), sketch.c_str(), stale);
+    std::println(stderr,
+                 "[grimoire] pipelines: {} of {} recorded programs stood "
+                 "up before {} opened, {} no longer described what they "
+                 "described",
+                 replayed, recorded.size(), sketch, stale);
 }
 
 void pipelinesDrawnFor(std::string sketch) {
@@ -635,10 +636,10 @@ void pipelinesFirstFrameDrawn() {
   const std::optional<std::pair<std::string, size_t>> counted =
       recorder()->firstFrameDrawn();
   if (!counted) return;
-  std::fprintf(stderr,
-               "[grimoire] pipelines: the first frame of %s built %zu "
-               "programs for its draws\n",
-               counted->first.c_str(), counted->second);
+  std::println(stderr,
+               "[grimoire] pipelines: the first frame of {} built {} "
+               "programs for its draws",
+               counted->first, counted->second);
 }
 
 void finishPipelineWarmup() {
@@ -651,9 +652,9 @@ void finishPipelineWarmup() {
   if (g_setName.empty()) return;
   const size_t effects = writeDownUndeclaredEffects(g_storeDirectory);
   if (effects)
-    std::fprintf(stderr,
-                 "[grimoire] pipelines: %zu runtime effects no declaration "
-                 "named written down for the next launch to declare\n",
+    std::println(stderr,
+                 "[grimoire] pipelines: {} runtime effects no declaration "
+                 "named written down for the next launch to declare",
                  effects);
   size_t written = 0;
   for (const std::string& sketch : recorder()->sketchesDrawn()) {
@@ -670,14 +671,14 @@ void finishPipelineWarmup() {
     if (pipelines::writeKeySet(file, keys))
       written += keys.size();
     else
-      std::fprintf(stderr, "[grimoire] pipelines: could not write %s\n",
-                   file.c_str());
+      std::println(stderr, "[grimoire] pipelines: could not write {}",
+                   file.string());
   }
   recorder()->report(g_replayed, written);
   for (const auto& [sketch, count] : recorder()->unkeyedSketches())
     if (!sketch.empty() && count > 0)
-      std::fprintf(stderr,
-                   "[grimoire] pipelines: %s drew %zu programs no key can "
-                   "carry, over effects no declaration named\n",
-                   sketch.c_str(), count);
+      std::println(stderr,
+                   "[grimoire] pipelines: {} drew {} programs no key can "
+                   "carry, over effects no declaration named",
+                   sketch, count);
 }

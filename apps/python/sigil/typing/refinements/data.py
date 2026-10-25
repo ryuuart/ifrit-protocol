@@ -39,7 +39,7 @@ def register(table: Table) -> None:
     )
     table.returns("_sigil.data.Json", "toPython", "_t.JsonValue")
     table.erased("_sigil.data", "tableFromJson", "_t.JsonInput")
-    table.returns("_sigil.data", "tableFromJson", "Table | None")
+    table.returns("_sigil.data", "tableFromJson", "Table")
     table.erased("_sigil.data.Table", "add derive", "ColumnType | None")
     table.parameters(
         "_sigil.data.Table.add", values="collections.abc.Iterable[_t.CellInput]"

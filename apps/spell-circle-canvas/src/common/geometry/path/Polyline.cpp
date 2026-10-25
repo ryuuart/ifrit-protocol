@@ -18,6 +18,7 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <limits>
+#include <ranges>
 
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Numeric.h"
@@ -298,10 +299,11 @@ Sampled resample(const Polyline& contour, int count) {
 }
 
 std::vector<Sampled> resample(const SkPath& path, int count, float tolerance) {
-  std::vector<Sampled> out;
-  for (const Polyline& contour : flatten(path, tolerance))
-    out.push_back(resample(contour, count));
-  return out;
+  return flatten(path, tolerance) |
+         std::views::transform([count](const Polyline& contour) {
+           return resample(contour, count);
+         }) |
+         std::ranges::to<std::vector<Sampled>>();
 }
 
 Alignment bestAlignment(const Sampled& a, const Sampled& b) {

@@ -176,7 +176,7 @@ def register(table: Table) -> None:
             "_sigil.material.Color." + constructor,
             **{name: channel for name in names},
         )
-    table.parameters("_sigil.material.Color.hex", value="str | typing.SupportsInt")
+    table.parameters("_sigil.material.Color.fromHex", value="str | typing.SupportsInt")
     table.parameters(
         "_sigil.material.Color.mix", first="_t.ColorLike", second="_t.ColorLike"
     )

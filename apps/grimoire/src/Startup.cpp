@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <print>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -54,9 +55,9 @@ sigil::material::WarmupResult warmStockMaterials() {
 void finishMaterialWarmup(std::future<sigil::material::WarmupResult>& loading) {
   const sigil::material::WarmupResult result = loading.get();
   if (result.ready != result.unique)
-    std::fprintf(stderr,
-                 "[grimoire] material warm-up prepared %zu of %zu "
-                 "programs\n",
+    std::println(stderr,
+                 "[grimoire] material warm-up prepared {} of {} "
+                 "programs",
                  result.ready, result.unique);
 }
 
@@ -107,17 +108,17 @@ std::unique_ptr<sigil::geometry::device::Device> g_device;
  * on with every scene3d sketch listed unavailable. */
 bool useDevice() {
   if (g_device) return true;
-  std::string error;
   // The pipelines the device builds are kept beside the rest of what a
   // run records, so the next launch reads them back instead of building
   // each one again while a scene3d sketch opens.
   sigil::geometry::device::DeviceConfig config;
   config.pipelineStore = pipelines::storeDirectory();
-  auto candidate = sigil::geometry::device::Device::create(config, &error);
-  if (!candidate) {
-    std::fprintf(stderr, "no device runtime (%s)\n", error.c_str());
+  auto made = sigil::geometry::device::Device::create(config);
+  if (!made) {
+    std::println(stderr, "no device runtime ({})", made.error().message);
     return false;
   }
+  auto candidate = std::move(*made);
   const auto frameRuntime = sigil::world::diligent::runtime(*candidate);
   g_device = std::move(candidate);
   sketch::useRuntime(frameRuntime);
@@ -140,8 +141,7 @@ void releaseDevice() {
 }
 #else
 bool useDevice() {
-  std::fprintf(stderr,
-               "no device runtime (this binary was built without one)\n");
+  std::println(stderr, "no device runtime (this binary was built without one)");
   return false;
 }
 

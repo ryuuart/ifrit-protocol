@@ -72,6 +72,8 @@ struct SpanRestyle {
   /** The family and the italic the span states, which choose the range's
    *  face as they choose a node's; either one reshapes. */
   std::optional<std::string> fontFamily;
+  /** The font's own name for the style the span names beside its family. */
+  std::optional<std::string> fontStyleName;
   std::optional<bool> italic;
   /** The ink read from a custom property in force at the leaf. */
   std::optional<VarRef> inkVar;
@@ -552,6 +554,10 @@ struct CascadeData {
    *  font context. It and a face in `font` exclude each other — whichever
    *  was written last stands. */
   std::optional<std::string> fontFamily;
+  /** fontFamily(family, styleName): the font's own name for the style the
+   *  cascade finds in the family, which chooses the face where a weight
+   *  and a slant cannot. Present only beside `fontFamily`. */
+  std::optional<std::string> fontStyleName;
   /** The style stated: italic, or not — upright, or an oblique whose lean
    *  is `font->slant`. Absent where no style was stated. */
   std::optional<bool> italic;

@@ -125,8 +125,10 @@ Derived& FontVerbs<Derived>::font(sigil::weave::Type partial) {
   sigil::weave::merge(*cascade.font, partial);
   // A face written here stands over a family named before it, and a lean
   // is a style of its own, which is no italic.
-  if (partial.face || partial.keywords.find(sigil::weave::TypeField::Face))
+  if (partial.face || partial.keywords.find(sigil::weave::TypeField::Face)) {
     cascade.fontFamily.reset();
+    cascade.fontStyleName.reset();
+  }
   if (partial.slant)
     cascade.italic = false;
   else if (partial.keywords.find(sigil::weave::TypeField::Slant))
@@ -160,6 +162,29 @@ Derived& FontVerbs<Derived>::fontFamily(std::string family) {
     if (cascade.font->empty()) cascade.font.reset();
   }
   cascade.fontFamily = std::move(family);
+  cascade.fontStyleName.reset();
+  return self();
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::fontFamily(std::string family,
+                                        std::string styleName) {
+  if (family.empty() || styleName.empty())
+    return fontFamily(std::move(family));
+  fontFamily(std::move(family));
+  // The named face carries its own weight and style, so a weight, a lean
+  // or an italic written before it in this statement gives way to it; one
+  // written after it overrides the face's traits instead.
+  detail::CascadeData& cascade = declarations()->font();
+  if (cascade.font) {
+    cascade.font->weight.reset();
+    cascade.font->slant.reset();
+    cascade.font->keywords.clear(sigil::weave::TypeField::Weight);
+    cascade.font->keywords.clear(sigil::weave::TypeField::Slant);
+    if (cascade.font->empty()) cascade.font.reset();
+  }
+  cascade.italic.reset();
+  cascade.fontStyleName = std::move(styleName);
   return self();
 }
 
@@ -248,7 +273,9 @@ Derived& FontVerbs<Derived>::textShadow(std::vector<TextShadow> shadows) {
                           nullptr);
     if (colour.ref == Fill::Ref::Var)
       pass.material = detail::shadowPropertyMarker(VarRef{colour.varId});
-    if (shadow->blur > 0) pass.paint.setMaskFilter(shadowBlurOf(shadow->blur));
+    // The blur is CSS's radius, the Gaussian's standard deviation doubled.
+    if (shadow->blur > 0)
+      pass.paint.setMaskFilter(shadowBlurOf(shadow->blur * 0.5f));
     pass.offset = shadow->offset;
     passes.push_back(std::move(pass));
   }

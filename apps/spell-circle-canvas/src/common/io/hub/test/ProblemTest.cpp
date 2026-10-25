@@ -2,8 +2,10 @@
  * The hub's problems: a reader says what it could not make of a URI, the
  * hub lists it once per URI with the newest word standing, and the word
  * is taken back by its reader, by a host clearing the list, or by a load
- * of the URI that succeeds. A text read that found nothing is watched as
- * a typed ask is, so the poll that sees the file appear says so.
+ * of the URI that succeeds. A decoder that refuses says why, and the hub
+ * lists that under the URI, for a load and for a poll's re-decode alike.
+ * A text read that found nothing is watched as a typed ask is, so the poll
+ * that sees the file appear says so.
  */
 
 #include <gtest/gtest.h>
@@ -12,6 +14,9 @@
 #include <sigilio/advanced/Problems.h>
 #include <sigilio/hub/Hub.h>
 
+#include <chrono>
+#include <expected>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -68,4 +73,79 @@ TEST_F(IOHub, AFileATextReadFoundMissingIsAChangeWhenItAppears) {
   EXPECT_TRUE(sigil::io::poll(hub));
   EXPECT_FALSE(sigil::io::poll(hub));
   EXPECT_TRUE(hub.text("res://later.sksl"));
+}
+
+namespace {
+
+/** A verse decoder that says why it refuses: an empty file, on its first
+ *  line. */
+std::expected<Verse, sigil::core::Error> decodeVerse(
+    const sigil::io::Bytes& bytes) {
+  if (bytes.asText().empty())
+    return std::unexpected(sigil::core::Error{"the verse is empty", 1, {}});
+  return Verse{std::string(bytes.asText())};
+}
+
+}  // namespace
+
+TEST_F(IOHub, ALoadADecoderRefusesListsWhyUnderItsUri) {
+  sigil::io::registerDecoder<Verse>(hub, decodeVerse);
+  dir.write("verse.txt", "");
+  EXPECT_EQ(hub.load<Verse>("res://verse.txt"), nullptr);
+  ASSERT_EQ(hub.problems().size(), 1u);
+  EXPECT_EQ(hub.problems()[0],
+            (sigil::io::Problem{"res://verse.txt", "the verse is empty", 1}));
+  EXPECT_EQ(hub.problems()[0].error(),
+            (sigil::core::Error{"the verse is empty", 1, {}}));
+}
+
+TEST_F(IOHub, ADecoderThatRefusesWithoutAWordIsListedAsNotReadingAsItsMeaning) {
+  sigil::io::registerDecoder<Verse>(hub, [](const sigil::io::Bytes& bytes) {
+    if (bytes.asText().empty()) return std::optional<Verse>();
+    return std::optional<Verse>(Verse{std::string(bytes.asText())});
+  });
+  dir.write("verse.txt", "");
+  EXPECT_EQ(hub.load<Verse>("res://verse.txt"), nullptr);
+  ASSERT_EQ(hub.problems().size(), 1u);
+  EXPECT_EQ(hub.problems()[0].message, "the bytes do not read as test.Verse");
+  EXPECT_FALSE(hub.problems()[0].line);
+}
+
+TEST_F(IOHub, AMissingFileIsNoProblem) {
+  sigil::io::registerDecoder<Verse>(hub, decodeVerse);
+  EXPECT_EQ(hub.load<Verse>("res://absent.txt"), nullptr);
+  EXPECT_TRUE(hub.problems().empty());
+}
+
+TEST_F(IOHub, AChangeTheDecoderRefusesKeepsTheViewAndListsWhyUntilFixed) {
+  sigil::io::registerDecoder<Verse>(hub, decodeVerse);
+  dir.write("verse.txt", "a line");
+  const auto first = hub.load<Verse>("res://verse.txt");
+  ASSERT_NE(first, nullptr);
+
+  dir.write("verse.txt", "");
+  sigil::io::test::touchForward(dir.path / "verse.txt");
+  EXPECT_TRUE(sigil::io::poll(hub));
+  EXPECT_EQ(hub.load<Verse>("res://verse.txt")->text, "a line");
+  ASSERT_EQ(hub.problems().size(), 1u);
+  EXPECT_EQ(hub.problems()[0].message, "the verse is empty");
+  // Said once for the change: the next poll finds nothing new.
+  EXPECT_FALSE(sigil::io::poll(hub));
+
+  dir.write("verse.txt", "a mended line");
+  std::filesystem::last_write_time(
+      dir.path / "verse.txt",
+      std::filesystem::file_time_type::clock::now() + std::chrono::seconds(4));
+  EXPECT_TRUE(sigil::io::poll(hub));
+  EXPECT_EQ(hub.load<Verse>("res://verse.txt")->text, "a mended line");
+  EXPECT_TRUE(hub.problems().empty());
+}
+
+TEST_F(IOHub, AnImageThatDoesNotDecodeIsListedWithTheImageLibrarysWord) {
+  dir.write("broken.png", "definitely not an image");
+  EXPECT_EQ(hub.load<sigil::media::Image>("res://broken.png"), nullptr);
+  ASSERT_EQ(hub.problems().size(), 1u);
+  EXPECT_EQ(hub.problems()[0].uri, "res://broken.png");
+  EXPECT_EQ(hub.problems()[0].message,
+            "the bytes are no image format this build reads");
 }

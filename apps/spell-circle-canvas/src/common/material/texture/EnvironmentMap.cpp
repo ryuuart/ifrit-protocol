@@ -15,8 +15,8 @@
 #include <sigilmedia/advanced/Device.h>
 
 #include <algorithm>
-#include <boost/container/flat_map.hpp>
 #include <cmath>
+#include <flat_map>
 #include <functional>
 #include <mutex>
 
@@ -35,8 +35,10 @@ struct Grid {
   std::vector<float> px;
 
   bool empty() const { return w <= 0 || h <= 0; }
-  const float* at(int x, int y) const { return &px[((size_t)y * w + x) * 4]; }
-  float* at(int x, int y) { return &px[((size_t)y * w + x) * 4]; }
+  template <typename Self>
+  auto* at(this Self&& self, int x, int y) {
+    return &self.px[((size_t)y * self.w + x) * 4];
+  }
 
   /** Bilinear, wrapping in u and clamping in v — the sampling an
    * equirectangular panorama has: azimuth is periodic, the poles are not. */
@@ -302,8 +304,8 @@ struct EnvironmentMap::State {
   sk_sp<SkImage> base;
 
   mutable std::mutex lock;
-  mutable boost::container::flat_map<int, sk_sp<SkImage>> blurs;
-  mutable boost::container::flat_map<int, std::vector<Texture>> chains;
+  mutable std::flat_map<int, sk_sp<SkImage>> blurs;
+  mutable std::flat_map<int, std::vector<Texture>> chains;
   mutable Texture cosine;
   mutable Color mean{0, 0, 0, 0};
   mutable bool meanDone = false;

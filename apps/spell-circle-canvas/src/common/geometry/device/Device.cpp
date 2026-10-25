@@ -134,9 +134,11 @@ Device::~Device() {
   if (m_impl->context) m_impl->context->Flush();
 }
 
-std::unique_ptr<Device> Device::create(const DeviceConfig& config,
-                                       std::string* error) {
+std::expected<std::unique_ptr<Device>, core::Error> Device::create(
+    const DeviceConfig& config) {
   using namespace dg;
+  std::string reason;
+  std::string* error = &reason;
   // THE FLOAT MODEL, CHOSEN PER SHADER BEFORE THE DRIVER READS IT. This
   // driver can relax floating point: a square root becomes an
   // approximation and a divide becomes a reciprocal and a multiply, both
@@ -158,7 +160,7 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
   IEngineFactoryVk* factory = GetEngineFactoryVk();
   if (!factory) {
     if (error) *error = "Diligent Vulkan factory unavailable";
-    return nullptr;
+    return std::unexpected(core::Error{std::move(reason)});
   }
   EngineVkCreateInfo engineCI;
   if (config.validation) engineCI.SetValidationLevel(VALIDATION_LEVEL_1);
@@ -202,7 +204,7 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
       *error =
           "Vulkan device creation failed (is MoltenVK installed? "
           "brew install molten-vk vulkan-loader)";
-    return nullptr;
+    return std::unexpected(core::Error{std::move(reason)});
   }
 
   std::unique_ptr<Device> device(new Device());
@@ -274,8 +276,10 @@ void Device::paintOnTheDevice(std::string* error) {
     return;
   }
   std::string reason;
+  auto made = core::hardware::GpuDevice::createOwned();
+  if (!made) reason = std::move(made.error().message);
   std::unique_ptr<core::hardware::GpuDevice> painter =
-      core::hardware::GpuDevice::createOwned(&reason);
+      std::move(made).value_or(nullptr);
   if (!painter || painter->native().mtlDevice != under) {
     *error = painter ? "the system's Metal device is not the one the Vulkan "
                        "driver runs over"

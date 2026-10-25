@@ -11,9 +11,11 @@
  * them are decoded by SigilMedia.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigildraw/brush/Tool.h>
 #include <sigilio/source/Source.h>
 
+#include <expected>
 #include <optional>
 #include <span>
 #include <string>
@@ -38,9 +40,9 @@ inline constexpr std::string_view kGrainName = "grain.png";
 /** A brush built from its three parts, any of which may be absent: the
  *  JSON description, the shape artwork and the grain texture. A missing
  *  description leaves every number at the library's default, so a bare
- *  pair of images is already a brush. Null when nothing readable
- *  arrived. */
-[[nodiscard]] std::optional<Tool> assembleBrush(
+ *  pair of images is already a brush. The error says so when none of
+ *  the three arrived. */
+[[nodiscard]] std::expected<Tool, core::Error> assembleBrush(
     std::span<const std::byte> description, std::span<const std::byte> shape,
     std::span<const std::byte> grain);
 
@@ -49,9 +51,10 @@ inline constexpr std::string_view kGrainName = "grain.png";
  *  brush) or a Procreate `.brush`. The bytes decide; `hint` is the
  *  resource's name, and the one thing it settles is which reader an
  *  archive is offered to first, since a native pack and a Procreate
- *  brush are both zips. Null when the bytes are none of those. */
-[[nodiscard]] std::optional<Tool> decodeBrush(std::span<const std::byte> bytes,
-                                              std::string_view hint = {});
+ *  brush are both zips. The error says which form the bytes looked like
+ *  and why it did not read, or that they look like none of them. */
+[[nodiscard]] std::expected<Tool, core::Error> decodeBrush(
+    std::span<const std::byte> bytes, std::string_view hint = {});
 
 /** The description a native brush directory holds, written from
  *  @p tool: every value of it that is a number, a flag or a word, so a
@@ -64,8 +67,8 @@ inline constexpr std::string_view kGrainName = "grain.png";
  *  decoder answers for every form, because a hub registers one decoder
  *  per type and a brush is one type however it was authored. */
 struct BrushDecoder {
-  [[nodiscard]] std::optional<Tool> decode(const io::Bytes& bytes,
-                                           std::string_view hint) const {
+  [[nodiscard]] std::expected<Tool, core::Error> decode(
+      const io::Bytes& bytes, std::string_view hint) const {
     return decodeBrush(bytes, hint);
   }
 };
@@ -75,13 +78,20 @@ struct BrushDecoder {
  *  the artwork stays an image a painting program can edit in place; a
  *  directory has no bytes of its own, which is why loading one goes
  *  through a source rather than through a decoder. Anything that is one
- *  file is fetched whole and handed to `decodeBrush`. */
+ *  file is fetched whole and handed to `decodeBrush`. The error is the
+ *  one file's refusal when there is one and it is no directory, and
+ *  otherwise says nothing could be read at @p uri. */
 template <io::ByteSource S>
-[[nodiscard]] std::optional<Tool> loadBrush(S& source, std::string_view uri) {
+[[nodiscard]] std::expected<Tool, core::Error> loadBrush(S& source,
+                                                         std::string_view uri) {
   // One file first: a brush that is one resource costs one fetch, and a
   // directory has no bytes of its own, so it falls through to its parts.
-  if (const std::shared_ptr<const io::Bytes> packed = source.read(uri))
-    if (std::optional<Tool> tool = decodeBrush(*packed, uri)) return tool;
+  std::optional<core::Error> refused;
+  if (const std::shared_ptr<const io::Bytes> packed = source.read(uri)) {
+    std::expected<Tool, core::Error> tool = decodeBrush(*packed, uri);
+    if (tool) return tool;
+    refused = std::move(tool.error());
+  }
 
   std::string base(uri);
   while (!base.empty() && base.back() == '/') base.pop_back();
@@ -98,7 +108,9 @@ template <io::ByteSource S>
                          shape ? shape->span() : kNothing,
                          grain ? grain->span() : kNothing);
   }
-  return std::nullopt;
+  if (refused) return std::unexpected(std::move(*refused));
+  return std::unexpected(
+      core::Error{"no brush could be read at " + std::string(uri)});
 }
 
 }  // namespace sigil::draw::brush::format

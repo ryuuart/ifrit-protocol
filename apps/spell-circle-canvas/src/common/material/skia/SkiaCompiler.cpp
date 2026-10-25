@@ -155,8 +155,8 @@ std::string reservedName(const std::string& source) {
   return {};
 }
 
-std::shared_ptr<Program> compile(std::shared_ptr<const Recipe> recipe,
-                                 Variant variant, std::string& error) {
+std::expected<std::shared_ptr<Program>, core::Error> compile(
+    std::shared_ptr<const Recipe> recipe, Variant variant) {
   // A file-backed text pass is validated before the executor knows its
   // unit count. Validate one unit through the same specialization the
   // executor uses; its own declarations distinguish a specialized pass.
@@ -167,16 +167,16 @@ std::shared_ptr<Program> compile(std::shared_ptr<const Recipe> recipe,
   const auto compiled = needsUnits ? detail::passRecipeFor(recipe, 1) : recipe;
   const std::string source = compiled->source(Target::SkSL);
   if (const std::string reserved = reservedName(source); !reserved.empty()) {
-    error = "the body declares `" + reserved +
-            "`, which is the name Graphite gives one of the parameters it "
-            "inlines the body under, so the shader compiles here and not on "
-            "the device: rename it";
-    return nullptr;
+    return std::unexpected(core::Error{
+        "the body declares `" + reserved +
+        "`, which is the name Graphite gives one of the parameters it "
+        "inlines the body under, so the shader compiles here and not on "
+        "the device: rename it"});
   }
   auto [effect, message] =
       SkRuntimeEffect::MakeForShader(SkString(source.c_str()));
   if (!effect) {
-    error = message.c_str();
+    std::string error = message.c_str();
     if (needsUnits) {
       const std::string original = recipe->source(Target::SkSL);
       const auto& body = *recipe->body(Target::SkSL);
@@ -199,7 +199,7 @@ std::shared_ptr<Program> compile(std::shared_ptr<const Recipe> recipe,
                       std::to_string(std::max(1, std::stoi(digits) - added)));
       }
     }
-    return nullptr;
+    return std::unexpected(core::Error{std::move(error)});
   }
   return std::make_shared<SkiaProgram>(std::move(recipe), variant,
                                        std::move(effect));

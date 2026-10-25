@@ -10,6 +10,8 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <numbers>
+#include <span>
+#include <type_traits>
 #include <vector>
 
 #include "sigilgeometry/advanced/Skia.h"
@@ -232,6 +234,20 @@ TEST(Symmetry, AWallpaperGroupIsAStockValue) {
 
 // ---------------------------------------------------------------------------
 // The cell sheet
+
+TEST(Cells, AConstSheetAnswersCellsItCannotChange) {
+  Cells<int> sheet(3, 2, 5);
+  const Cells<int>& reader = sheet;
+  static_assert(std::is_same_v<decltype(sheet.at(0, 0)), int&>);
+  static_assert(std::is_same_v<decltype(reader.at(0, 0)), const int&>);
+  static_assert(std::is_same_v<decltype(sheet.values()), std::span<int>>);
+  static_assert(
+      std::is_same_v<decltype(reader.values()), std::span<const int>>);
+  sheet.at(2, 1) = 9;
+  EXPECT_EQ(reader.at(2, 1), 9);
+  EXPECT_EQ(reader.values()[5], 9);
+  EXPECT_EQ(reader.at(0, 0), 5);
+}
 
 TEST(Cells, ARuleReadsTheSheetAsItWasAndNotAsItIsBecoming) {
   // A rule that copies its left neighbour. On one buffer the values would

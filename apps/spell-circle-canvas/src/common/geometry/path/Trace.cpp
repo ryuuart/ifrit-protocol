@@ -8,6 +8,7 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <numbers>
+#include <ranges>
 
 namespace sigil::geometry::path {
 namespace {
@@ -111,11 +112,10 @@ Polyline streamline(const VectorField& field, glm::vec2 seed,
 std::vector<Polyline> streamlines(const VectorField& field,
                                   std::span<const glm::vec2> seeds,
                                   const TraceOptions& options) {
-  std::vector<Polyline> lines;
-  lines.reserve(seeds.size());
-  for (const glm::vec2 seed : seeds)
-    lines.push_back(streamline(field, seed, options));
-  return lines;
+  return seeds | std::views::transform([&](const glm::vec2 seed) {
+           return streamline(field, seed, options);
+         }) |
+         std::ranges::to<std::vector<Polyline>>();
 }
 
 }  // namespace sigil::geometry::path

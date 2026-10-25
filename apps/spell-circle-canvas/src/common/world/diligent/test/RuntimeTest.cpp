@@ -103,7 +103,8 @@ TEST(SurfaceProgram, APipelineComesOffARecipeBody) {
   world::diligent::installSlangCompiler();
   const std::shared_ptr<material::Program> program =
       material::program(slangPaintRecipe(), material::Target::Slang,
-                        material::Variant{world::diligent::kVariantLit});
+                        material::Variant{world::diligent::kVariantLit})
+          .value_or(nullptr);
   ASSERT_NE(program, nullptr);
   const auto* slang = program->as<material::slang::SlangProgram>();
   ASSERT_NE(slang, nullptr);
@@ -116,7 +117,8 @@ TEST(SurfaceProgram, APipelineComesOffARecipeBody) {
   // The lit build carries the shading the unlit one does not.
   EXPECT_NE(slang->compiled().uniform("uLightCount"), nullptr);
   const std::shared_ptr<material::Program> unlit =
-      material::program(slangPaintRecipe(), material::Target::Slang);
+      material::program(slangPaintRecipe(), material::Target::Slang)
+          .value_or(nullptr);
   ASSERT_NE(unlit, nullptr);
   EXPECT_EQ(unlit->as<material::slang::SlangProgram>()->compiled().uniform(
                 "uLightCount"),

@@ -17,10 +17,13 @@
  *  @{ */
 /** @} */
 
+#include <sigilcore/report/Error.h>
+
 #include <glm/vec2.hpp>
 
 #include <chrono>
 #include <cstddef>
+#include <expected>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -146,23 +149,21 @@ class Video {
   std::shared_ptr<Playback::Impl> m_pool;
   size_t m_slot = 0;
 
-  friend std::optional<Video> decodeDocument(std::type_identity<Video>,
-                                             std::span<const std::byte>,
-                                             const VideoOptions&,
-                                             const std::filesystem::path&);
+  friend std::expected<Video, core::Error> decodeDocument(
+      std::type_identity<Video>, std::span<const std::byte>,
+      const VideoOptions&, const std::filesystem::path&);
 };
 
 /** @p bytes opened as a video, under @p options: the container and its
- *  best stream prepared, nothing decoded. Nothing when the container or
- *  codec cannot be opened under the hardware preference. */
-std::optional<Video> decodeDocument(std::type_identity<Video>,
-                                    std::span<const std::byte> bytes,
-                                    const VideoOptions& options,
-                                    const std::filesystem::path& nameHint);
+ *  best stream prepared, nothing decoded. The error says why when the
+ *  container or codec cannot be opened under the hardware preference. */
+std::expected<Video, core::Error> decodeDocument(
+    std::type_identity<Video>, std::span<const std::byte> bytes,
+    const VideoOptions& options, const std::filesystem::path& nameHint);
 
 /** What @p bytes say about themselves as a video, without keeping a
- *  decoder. */
-std::optional<Metadata> probeDocument(std::type_identity<Video>,
+ *  decoder; or the error that says why they do not open as one. */
+std::expected<Metadata, core::Error> probeDocument(std::type_identity<Video>,
                                       std::span<const std::byte> bytes,
                                       const std::filesystem::path& nameHint);
 

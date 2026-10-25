@@ -9,9 +9,11 @@
  * Nothing here cooks; `CookScheduler` does.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigilmaterial/substance/Substance.h>
 
 #include <cstddef>
+#include <expected>
 #include <memory>
 #include <optional>
 #include <span>
@@ -27,9 +29,10 @@ namespace sigil::material::sbsar {
 class Archive {
  public:
   Archive() = default;
-  /** @p bytes decoded as an archive; nothing when they are not one or
-   *  the SDK is not available. */
-  static std::optional<Archive> decode(std::span<const std::byte> bytes);
+  /** @p bytes decoded as an archive; the error says why when they are not
+   *  one or the SDK is not available. */
+  static std::expected<Archive, core::Error> decode(
+      std::span<const std::byte> bytes);
 
   /** How many graphs the archive holds. */
   size_t graphCount() const;

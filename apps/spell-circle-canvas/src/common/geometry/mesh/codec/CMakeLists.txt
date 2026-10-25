@@ -21,7 +21,7 @@ sigil_library(SigilGeometryMeshCodec
   HEADERS Decode.h Encode.h Model.h Surface.h
   INCLUDE_PRIVATE ${CGLTF_INCLUDE_DIR}
   PUBLIC SigilGeometryMesh SigilGeometryMeshPop Boost::container
-         SigilMaterialCore
+         SigilMaterialCore SigilCoreReport
   PRIVATE SigilIOSource tinyobjloader::tinyobjloader Alembic::Alembic
           Boost::unordered simdjson::simdjson)
 

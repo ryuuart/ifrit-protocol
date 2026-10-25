@@ -64,7 +64,7 @@ using sigil::test::fonts;
  *  without a device. */
 inline sigil::skia::GraphiteContext* graphite() {
   static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned();
+      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   static std::unique_ptr<sigil::skia::GraphiteContext> context =
       device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
   return context.get();

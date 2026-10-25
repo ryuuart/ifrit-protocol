@@ -71,7 +71,7 @@ The four reasoning records:
 | `material.Color("#1f2933")` | Python | one CSS colour, a colour or a unit-float sequence, never loose channels |
 | `material.Color.rgb(31, 41, 51)`, `material.Color.srgb(0.12, 0.16, 0.20)` | Python | channels on 0..255 as CSS `rgb()`, or unit floats as `color(srgb …)` |
 | `material.Color.hsl(...)`, `.hwb(...)`, `.oklab(...)`, `.oklch(...)`, `.lab(...)`, `.lch(...)` | Python | the CSS functions, with their ranges; a fraction may be `"50%"` |
-| `material.Color.hex("#1f2933")`, `material.Color.named("peru")`, `material.Color.mix(a, b, 0.3, space="oklab")` | Python | hex text or integer, a name, and `color-mix()` |
+| `material.Color.fromHex("#1f2933")`, `material.Color.named("peru")`, `material.Color.mix(a, b, 0.3, space="oklab")` | Python | hex text or integer, a name, and `color-mix()` |
 | `material.hexColor(0x1f2933)`, `material.hsv(...)` | Python | the packed integer and the palette wheel |
 
 In Python the whole of that column is the union `ColorLike`, and every

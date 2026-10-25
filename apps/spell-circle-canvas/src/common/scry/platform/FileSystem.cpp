@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <print>
 #include <string_view>
 #include <utility>
 
@@ -42,7 +43,7 @@ std::string PrefixFileSystem::resolve(const ultralight::String& path) const {
 
 bool PrefixFileSystem::FileExists(const ultralight::String& path) {
 #ifdef SIGILSCRY_TRACE_FS
-  std::fprintf(stderr, "[fs] FileExists(%s)\n", toUtf8(path).c_str());
+  std::println(stderr, "[fs] FileExists({})", toUtf8(path));
 #endif
   if (isImageSourcePath(toUtf8(path))) return true;
   std::error_code ec;
@@ -92,7 +93,7 @@ ultralight::String PrefixFileSystem::GetFileCharset(const ultralight::String&) {
 ultralight::RefPtr<ultralight::Buffer> PrefixFileSystem::OpenFile(
     const ultralight::String& path) {
 #ifdef SIGILSCRY_TRACE_FS
-  std::fprintf(stderr, "[fs] OpenFile(%s)\n", toUtf8(path).c_str());
+  std::println(stderr, "[fs] OpenFile({})", toUtf8(path));
 #endif
   if (std::string p = toUtf8(path); isImageSourcePath(p)) {
     std::string name = std::filesystem::path(p).stem().string();

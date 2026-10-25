@@ -31,6 +31,7 @@ sigil_library(SigilCoreHardware
   SOURCES DeviceBackend.h GpuDevice.cpp GpuDeviceVulkan.cpp
           ${SIGIL_CORE_HARDWARE_NATIVE_SOURCES}
   HEADERS Fence.h GpuDevice.h Handle.h
+  PUBLIC SigilCoreReport
   PRIVATE Vulkan::Headers ${CMAKE_DL_LIBS})
 if(APPLE)
   target_link_libraries(SigilCoreHardware PRIVATE ${METAL_FRAMEWORK}

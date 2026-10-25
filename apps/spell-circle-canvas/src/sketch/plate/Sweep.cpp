@@ -35,9 +35,12 @@
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <format>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <print>
+#include <string>
 #include <vector>
 
 namespace sigil::sketch {
@@ -91,7 +94,7 @@ float plateDensity(const Session& session) {
 int sweep(const SweepOptions& options, weave::FontContext& fonts,
           Assets& assets) {
   if (!std::isfinite(options.density) || options.density < 0) {
-    std::fprintf(stderr, "plate density must be zero or finite and positive\n");
+    std::println(stderr, "plate density must be zero or finite and positive");
     return 1;
   }
   // THE DEVICE'S OWN CONTEXT, and never one of this sweep's making: a
@@ -108,32 +111,32 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       // caller telling "this machine has no device" from "this is a
       // defect" reads one answer for both: a device whose Graphite
       // adoption failed has no 2D device runtime either.
-      std::fprintf(stderr,
+      std::println(stderr,
                    "no device runtime (the device carries no Graphite "
-                   "context)\n");
+                   "context)");
       return 1;
     }
-    std::printf("backend: Graphite GPU (work ms = CPU + synced GPU)\n");
+    std::println("backend: Graphite GPU (work ms = CPU + synced GPU)");
     // The profiler is blind here, and it must say so. Under Graphite,
     // per-node self time measures op-RECORDING, not GPU execution, which
     // is asynchronous — so a node that records a handful of cheap ops
     // and then costs the GPU a fortune reads as nearly free. Every
     // per-node cost, and every caching decision derived from one,
     // therefore describes the raster machine rather than this one.
-    std::printf(
+    std::println(
         "NOTE: per-node profile times are RECORDING time on GPU, "
-        "not GPU execution — trust the work-ms column.\n");
+        "not GPU execution — trust the work-ms column.");
     // Graphite does have a per-recording GPU-time API, and only some
     // backends implement it. The mask is printed rather than assumed so
     // that a Skia update enabling it here is visible immediately.
     const skgpu::GpuStatsFlags caps = graphite->context()->supportedGpuStats();
-    std::printf(
-        "GPU per-recording elapsed-time stats: %s "
-        "(supportedGpuStats mask 0x%x)\n",
+    std::println(
+        "GPU per-recording elapsed-time stats: {} "
+        "(supportedGpuStats mask 0x{:x})",
         (caps & skgpu::GpuStatsFlags::kElapsedTime)
             ? "SUPPORTED — a GPU-time lane is now wireable"
             : "unsupported on this backend",
-        (unsigned)caps);
+        static_cast<unsigned>(caps));
   }
 
   std::filesystem::create_directories(options.outputDirectory);
@@ -146,8 +149,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
   // presents nothing, so it has no frame rate to report at all — a
   // present interval is a property of a swap chain and a vsync, neither
   // of which exists here.
-  std::printf("%-22s %10s %8s %8s %9s  %s\n", "sketch", "canvas", "frame ms",
-              "p99 ms", "headroom", "lanes");
+  std::println("{:<22} {:>10} {:>8} {:>8} {:>9}  {}", "sketch", "canvas",
+               "frame ms", "p99 ms", "headroom", "lanes");
 
   const std::vector<int> chosen = selection(options.only, options.kind);
   const std::vector<Entry>& entries = registry();
@@ -168,13 +171,13 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // this machine's install rather than about the drawing code.
     std::string why;
     if (!entry.available(&why)) {
-      std::printf("%-22s %10s  [skipped: %s]\n", entry.name, "-", why.c_str());
+      std::println("{:<22} {:>10}  [skipped: {}]", entry.name, "-", why);
       ++skipped;
       continue;
     }
     const Kind kind = entry.kind();
     if (!kind) {
-      std::fprintf(stderr, "sketch %s has no kind\n", entry.name);
+      std::println(stderr, "sketch {} has no kind", entry.name);
       return 1;
     }
     // EVERY headless run writes a plate, and a plate is a picture that
@@ -200,8 +203,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       if (problems.empty()) return;
       ++failed;
       for (const io::Problem& problem : problems)
-        std::fprintf(stderr, "sketch %s resource error: %s: %s\n", entry.key,
-                     problem.uri.c_str(), problem.message.c_str());
+        std::println(stderr, "sketch {} resource error: {}: {}", entry.key,
+                     problem.uri, problem.message);
     };
     std::unique_ptr<Session> session;
     {
@@ -230,7 +233,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     const PlateExtent extent = plateExtent(size.width(), size.height(), scale);
     if (frameExtent.width <= 0 || frameExtent.height <= 0 ||
         extent.width <= 0 || extent.height <= 0) {
-      std::fprintf(stderr, "could not form a plate at this density for %s\n",
+      std::println(stderr, "could not form a plate at this density for {}",
                    entry.name);
       return 1;
     }
@@ -380,8 +383,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       session.reset();
       session = kind->open(fonts, assets, true, entry.key);
       if (session->canvas().size != size) {
-        std::fprintf(stderr,
-                     "sketch %s declared a different canvas on reopen\n",
+        std::println(stderr, "sketch {} declared a different canvas on reopen",
                      entry.name);
         return 1;
       }
@@ -402,22 +404,21 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       for (int f = stepped; f < kCaptureFrame; ++f) advanceOne();
     }
 
-    char canvasLabel[24];
-    std::snprintf(canvasLabel, sizeof canvasLabel, "%dx%d", (int)size.width(),
-                  (int)size.height());
-    char nameLabel[48];
-    std::snprintf(nameLabel, sizeof nameLabel, "%s%s", entry.name,
-                  shortened ? " *" : "");
+    const std::string canvasLabel =
+        std::format("{}x{}", static_cast<int>(size.width()),
+                    static_cast<int>(size.height()));
+    const std::string nameLabel =
+        std::format("{}{}", entry.name, shortened ? " *" : "");
     if (options.ledger) {
-      std::printf("%-22s %10s  [ledger]\n", nameLabel, canvasLabel);
+      std::println("{:<22} {:>10}  [ledger]", nameLabel, canvasLabel);
     } else {
-      std::printf("%-22s %10s %8.2f %8.2f %9.0f ", nameLabel, canvasLabel,
-                  measure::Milliseconds(sample.frame).count(),
-                  measure::Milliseconds(sample.frameTail).count(),
-                  sample.headroomFps);
+      std::print("{:<22} {:>10} {:8.2f} {:8.2f} {:9.0f} ", nameLabel,
+                 canvasLabel, measure::Milliseconds(sample.frame).count(),
+                 measure::Milliseconds(sample.frameTail).count(),
+                 sample.headroomFps);
       for (const LaneCost& lane : lanes)
-        std::printf(" %s %.2f", lane.name, lane.ms);
-      std::printf("\n");
+        std::print(" {} {:.2f}", lane.name, lane.ms);
+      std::println("");
     }
 
     const SkImageInfo plateInfo =
@@ -434,7 +435,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       sk_sp<SkSurface> plate =
           SkSurfaces::RenderTarget(graphite->recorder(), plateInfo);
       if (!plate) {
-        std::fprintf(stderr, "could not allocate a device plate for %s\n",
+        std::println(stderr, "could not allocate a device plate for {}",
                      entry.name);
         return 1;
       }
@@ -443,7 +444,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       orderedPlate.scale(scale, scale);
       session->still(orderedPlate);
       if (!skia::readbackPixels(*graphite, *plate, bitmap.pixmap())) {
-        std::fprintf(stderr, "could not read back the device plate for %s\n",
+        std::println(stderr, "could not read back the device plate for {}",
                      entry.name);
         return 1;
       }
@@ -466,19 +467,18 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
 
   if (options.betweenSketches) options.betweenSketches();
   if (anyShortened)
-    std::printf(
-        "\n* short run: too expensive for the full %d-frame warmup, so "
+    std::println(
+        "\n* short run: too expensive for the full {}-frame warmup, so "
         "the average still\n  carries some of the entrance. Run it alone "
-        "with --sketch for the settled number.\n",
+        "with --sketch for the settled number.",
         kProbeFrames + kMaxWarmFrames);
   if (!options.gpu) {
     const size_t written = chosen.size() - skipped;
-    std::printf("wrote %zu plate%s to %s\n", written, written == 1 ? "" : "s",
-                options.outputDirectory.c_str());
+    std::println("wrote {} plate{} to {}", written, written == 1 ? "" : "s",
+                 options.outputDirectory);
   }
   if (failed)
-    std::fprintf(stderr, "%zu sketches rendered with resource errors\n",
-                 failed);
+    std::println(stderr, "{} sketches rendered with resource errors", failed);
   return failed ? 1 : 0;
 }
 

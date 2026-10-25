@@ -52,14 +52,17 @@ bool RecordingWriter::append(const Message& message) {
 
 bool RecordingWriter::good() const { return m_stream.good(); }
 
-std::optional<std::vector<Message>> readRecording(
+std::expected<std::vector<Message>, core::Error> readRecording(
     const std::filesystem::path& path) {
   const std::optional<Bytes> file = readBytes(path);
-  if (!file) return std::nullopt;
+  if (!file)
+    return std::unexpected(
+        core::Error{"no recording could be read at " + path.string()});
   const std::span<const std::byte> bytes = file->span();
   if (bytes.size() < kHeader.size() ||
       std::memcmp(bytes.data(), kHeader.data(), kHeader.size()) != 0)
-    return std::nullopt;
+    return std::unexpected(core::Error{
+        path.string() + " does not open with a feed recording's header"});
 
   std::vector<Message> messages;
   size_t offset = kHeader.size();

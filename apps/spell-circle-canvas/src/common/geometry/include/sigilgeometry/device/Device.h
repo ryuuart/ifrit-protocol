@@ -7,8 +7,10 @@
  * submissions in one stream.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigilcore/hardware/Handle.h>
 
+#include <expected>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -80,12 +82,12 @@ struct DeviceConfig {
  */
 class Device {
  public:
-  /** Null with the reason in @p error when no Vulkan device could be
-   *  created — no Vulkan runtime on the machine, most often. A failure
-   *  to ADOPT the device is not a failure to create it: the device
-   *  comes back with `gpu()` and `graphite()` null. */
-  static std::unique_ptr<Device> create(const DeviceConfig& config,
-                                        std::string* error);
+  /** The error that says why when no Vulkan device could be created —
+   *  no Vulkan runtime on the machine, most often. A failure to ADOPT
+   *  the device is not a failure to create it: the device comes back
+   *  with `gpu()` and `graphite()` null. */
+  static std::expected<std::unique_ptr<Device>, core::Error> create(
+      const DeviceConfig& config);
   ~Device();
   Device(const Device&) = delete;
   Device& operator=(const Device&) = delete;

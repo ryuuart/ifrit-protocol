@@ -11,6 +11,7 @@
 #include <include/core/SkString.h>
 
 #include <algorithm>
+#include <cctype>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -196,6 +197,54 @@ Face FontContext::familyTypeface(std::string_view family, FaceStyle faceStyle) {
     // the name is terminated in a copy of its own.
     const std::string name(family);
     found = m_impl->fontManager->matchFamilyStyle(name.c_str(), style);
+  }
+  return m_impl->familyTypefaces.emplace(std::move(key), std::move(found))
+      .first->second;
+}
+
+Face FontContext::familyTypeface(std::string_view family,
+                                 std::string_view styleName) {
+  if (family.empty()) return nullptr;
+  // The name, then the style's name with its case and spaces aside, after
+  // the separator a style's numbers follow and a marker no number begins
+  // with, so a held answer is asked again exactly when an adoption touches
+  // its family, and two spellings of one name share an entry.
+  std::string key(family);
+  key.append("\n:");
+  for (const char character : styleName)
+    if (character != ' ')
+      key.push_back(static_cast<char>(
+          std::tolower(static_cast<unsigned char>(character))));
+  const auto held = m_impl->familyTypefaces.find(key);
+  if (held != m_impl->familyTypefaces.end()) return held->second;
+  sk_sp<SkTypeface> found;
+  bool adoptsFamily = false;
+  for (const AdoptedFace& adopted : m_impl->adoptedFaces) {
+    const sk_sp<SkTypeface> typeface = toSk(adopted.face);
+    if (!typeface || !fonts::sameFamily(fonts::familyName(*typeface), family))
+      continue;
+    adoptsFamily = true;
+    if (fonts::sameStyleName(fonts::styleName(*typeface), styleName)) {
+      found = typeface;
+      break;
+    }
+  }
+  if (!adoptsFamily && m_impl->fontManager) {
+    const std::string name(family);
+    const sk_sp<SkFontStyleSet> set =
+        m_impl->fontManager->matchFamily(name.c_str());
+    for (int index = 0; set && index < set->count(); ++index) {
+      SkFontStyle fontStyle;
+      SkString stated;
+      set->getStyle(index, &fontStyle, &stated);
+      const std::string named = stated.isEmpty()
+                                    ? fonts::composedStyleName(fontStyle)
+                                    : std::string(stated.c_str());
+      if (fonts::sameStyleName(named, styleName)) {
+        found = set->createTypeface(index);
+        break;
+      }
+    }
   }
   return m_impl->familyTypefaces.emplace(std::move(key), std::move(found))
       .first->second;

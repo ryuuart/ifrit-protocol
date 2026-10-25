@@ -1,8 +1,9 @@
-// A live composer holds a node as pixels while its own transform moves
-// and nothing it paints moves inside it: the pixels are formed once,
-// composited under each new matrix, formed again when what the node paints
-// changes, and gone the draw it holds still. A composer that is not live
-// paints the same node live under every matrix.
+// A live composer holds a node as pixels while its own transform or
+// opacity moves and nothing it paints moves inside it: the pixels are
+// formed once, composited under each new matrix at each new opacity,
+// formed again when what the node paints changes, and gone the draw it
+// holds still. A composer that is not live paints the same node live under
+// every matrix and every opacity.
 
 #include <string>
 
@@ -37,6 +38,33 @@ Element turningWheel(const Animatable<float>& turn, Fill spokeFill = red()) {
                          .fill(spokeFill));
   spokes.push_back(text("ROTA").absolute().left(30).top(50));
   wheel.children(std::move(spokes));
+  return box().width(200).height(200).children({std::move(wheel)});
+}
+
+/** The same wheel standing still and fading: its opacity bound to
+ *  @p fade, its transform fixed. */
+Element fadingWheel(const Animatable<float>& fade) {
+  Element wheel = box()
+                      .absolute()
+                      .left(40)
+                      .top(40)
+                      .width(120)
+                      .height(120)
+                      .key("wheel")
+                      .opacity(fade);
+  std::vector<Element> marks;
+  for (int index = 0; index < 6; ++index)
+    marks.push_back(box()
+                        .absolute()
+                        .left(55)
+                        .top(0)
+                        .width(10)
+                        .height(60)
+                        .transformOrigin(percent(50), percent(100))
+                        .rotate((float)index * 60.0f)
+                        .fill(red()));
+  marks.push_back(text("ROTA").absolute().left(30).top(50));
+  wheel.children(std::move(marks));
   return box().width(200).height(200).children({std::move(wheel)});
 }
 
@@ -154,5 +182,74 @@ TEST(ComposeMovingHold, ANodeWhoseInsideMovesIsNotHeldButItsStillPartIs) {
     host.frame();
     EXPECT_NE(stateOf(host.composer, "outer"), Composer::CacheState::Moving);
     EXPECT_EQ(stateOf(host.composer, "inner"), Composer::CacheState::Moving);
+  }
+}
+
+TEST(ComposeMovingHold, ALiveComposerFadesAStillSubtreeFromPixelsHeldInPlace) {
+  Animatable<float> fade = sigil::motion::animatable(0.5f);
+  Host host;
+  host.composer.setLive(true);
+  host.composer.setProfiling(true);
+  host.composer.render(fadingWheel(fade));
+  host.frame();
+  // The first draw has no opacity to compare with: painted live.
+  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+  fade = 0.6f;
+  host.frame();
+  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
+  EXPECT_EQ(stateOf(host.composer), Composer::CacheState::Moving);
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+  // Fading on: the same pixels, composited at the new opacity, and the
+  // pixels a layer opened for the fade composites at that opacity.
+  fade = 0.7f;
+  host.frame();
+  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
+  EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
+  Animatable<float> faded = sigil::motion::animatable(0.7f);
+  Host reference;
+  reference.composer.render(fadingWheel(faded));
+  reference.frame();
+  EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
+  // Held still: painted live again, and the held pixels go.
+  host.frame();
+  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+  EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
+  EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
+}
+
+TEST(ComposeMovingHold, AComposerNotLivePaintsAFadingSubtreeLive) {
+  Animatable<float> fade = sigil::motion::animatable(0.2f);
+  Host host;
+  host.composer.setProfiling(true);
+  host.composer.render(fadingWheel(fade));
+  for (int step = 0; step < 4; ++step) {
+    fade = 0.2f + 0.1f * (float)step;
+    host.frame();
+    EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+    EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
+  }
+}
+
+TEST(ComposeMovingHold, ALoneFillFadesLiveWithNoLayerToSpare) {
+  // A lone fill carries its own opacity and opens no layer, so there is
+  // nothing for held pixels to save: it is painted live at every opacity.
+  Animatable<float> fade = sigil::motion::animatable(0.6f);
+  Host host;
+  host.composer.setLive(true);
+  host.composer.render(
+      box().width(200).height(200).children({box()
+                                                 .absolute()
+                                                 .left(40)
+                                                 .top(40)
+                                                 .width(120)
+                                                 .height(120)
+                                                 .key("wheel")
+                                                 .opacity(fade)
+                                                 .fill(red())}));
+  for (int step = 0; step < 4; ++step) {
+    fade = 0.6f + 0.1f * (float)step;
+    host.frame();
+    EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+    EXPECT_GT(redInk(host), 0);
   }
 }

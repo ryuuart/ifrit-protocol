@@ -346,6 +346,10 @@ beneath the fill, or with `inset` a band hugging the inner edge over the
 fill and under the content; a list paints its first entry on top. The
 three shadows share CSS's words — `offset`, `blur`, `spread`, `color`,
 `inset` — on `Shadow`, `TextShadow` and `material::ShadowOptions`.
+`readShadow(text)` and `readTextShadow(text)` read CSS's own lists —
+`readShadow("0 4px 12px 2px rgba(0 0 0 / .3) inset")`,
+`readTextShadow("3px 3px red, yellow -3px 3px 2px")` — onto those values,
+the first on top, and answer nothing for text no shadow holds.
 
 [The cascade](reference/CASCADE.md) explains precedence, keywords and
 custom properties; [selectors](reference/SELECTORS.md) explains matching.
@@ -587,11 +591,14 @@ states without a cache statement is a live `filter()` over still content:
 the content is rasterized once with the effect left out, and the effect
 runs over that image every frame. A composer told its draws are watched
 live (`Composer::setLive`, which a window's session says and a capture
-never does) holds one more: a node whose own transform moves from one draw
+never does) holds more: a node whose own transform moves from one draw
 to the next while nothing it paints moves inside it is painted once into
 pixels on the device at the scale it is shown at and composited under each
-new matrix, as a browser's compositor turns a layer, and is painted live
-again the draw it holds still. Nothing else is baked to pixels. Bake
+new matrix, as a browser's compositor turns a layer; a node whose opacity
+alone moves is painted once in place, the pixels the layer a fade opens
+would hold, and composited at each new opacity with no layer opened. Each
+is painted live again the draw it holds still. Nothing else is baked to
+pixels. Bake
 density controls the resolution of those bakes. Those
 controls are useful when a profile identifies work to change; they are not
 needed to start a scene. `Composer::setProfiling` and `Composer::profile`

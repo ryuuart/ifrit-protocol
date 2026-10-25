@@ -194,9 +194,11 @@ field unread is reported the same way.
 **One program cache.** `ProgramCache::shared()` holds every compiled
 program in the process, keyed by (recipe identity, target, variant). A
 backend registers its compiler with `registerCompiler(Target, Compiler)`
-and the cache compiles on first use; `program(recipe, target, variant, error)`
-is the same ask with what stopped it written to `error`, which is how the
-file shader judges a text and puts the compiler's message on the hub. Every Skia lowering entry prepares
+and the cache compiles on first use. A compiler answers
+`std::expected<std::shared_ptr<Program>, core::Error>`, and so does
+`program(recipe, target, variant)`: the program, or what stopped it — the
+compiler's message, or why no compiler was asked — which is how the file
+shader judges a text and puts the compiler's message on the hub. Every Skia lowering entry prepares
 the built-in SkSL compiler automatically, including `skia::builder`,
 `skia::shader`, `skia::fill`, recipe-backed paints and recipe-backed effects.
 An explicitly registered SkSL compiler takes precedence for subsequent
@@ -382,9 +384,10 @@ samplers however many slots its operands DECLARE.
 
 ## The Slang backend
 
-`slang::compileModule(source, vertexEntry, fragmentEntry, lit, &out,
-&error)` compiles a whole module — imports, both entry points and all —
-and hands back a `slang::Compiled`: the two stages' SPIR-V words, the
+`slang::compileModule(source, vertexEntry, fragmentEntry, lit)` compiles a
+whole module — imports, both entry points and all — and answers
+`std::expected<slang::Compiled, core::Error>`, the error carrying the
+compiler's diagnostics. A `slang::Compiled` holds the two stages' SPIR-V words, the
 sampled slots in their declared order, and a `slang::UniformSlot` per
 uniform saying where its bytes go. NOTHING GUESSES A LAYOUT: every offset
 is the one the compiler reported for the program it just built, so a body

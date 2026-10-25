@@ -127,14 +127,22 @@ class ChannelsGoThroughNamedConstructors(unittest.TestCase):
                 self.assertTrue(near(built, Color(css), 1e-5))
 
     def test_hex_and_named(self):
-        self.assertEqual(Color.hex("#6e99bb"), Color("#6e99bb"))
-        self.assertEqual(Color.hex("6e99bb"), Color("#6e99bb"))
-        self.assertEqual(Color.hex(0x6E99BB, alpha=0.5), material.hexColor(0x6E99BB, 0.5))
+        self.assertEqual(Color.fromHex("#6e99bb"), Color("#6e99bb"))
+        self.assertEqual(Color.fromHex("6e99bb"), Color("#6e99bb"))
+        self.assertEqual(Color.fromHex(0x6E99BB, alpha=0.5), material.hexColor(0x6E99BB, 0.5))
         self.assertEqual(Color.named("RebeccaPurple"), Color("#663399"))
         with self.assertRaises(ValueError):
-            Color.hex("rgb(1 2 3)")
+            Color.fromHex("rgb(1 2 3)")
         with self.assertRaises(ValueError):
             Color.named("transparent")
+
+    def test_hex_writes_the_nearest_eight_bit_hex(self):
+        self.assertEqual(Color("#6e99bb").hex(), "#6e99bb")
+        self.assertEqual(Color("#6e99bb80").hex(), "#6e99bb80")
+        self.assertEqual(Color.fromHex(0x18252E).hex(), "#18252e")
+        self.assertEqual(Color.srgb(0.5, 0.25, 1).hex(), "#8040ff")
+        self.assertEqual(Color.srgb(1.5, -0.2, 0.0, alpha=0.5).hex(), "#ff000080")
+        self.assertEqual(Color.fromHex(Color("steelblue").hex()), Color("steelblue"))
 
 
 class TextNoGrammarReadsIsRefusedByName(unittest.TestCase):

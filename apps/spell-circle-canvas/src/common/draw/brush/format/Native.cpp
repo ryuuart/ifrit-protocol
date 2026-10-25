@@ -261,11 +261,12 @@ void readDescription(std::span<const std::byte> description, Tool& tool) {
 
 }  // namespace
 
-std::optional<Tool> assembleBrush(std::span<const std::byte> description,
-                                  std::span<const std::byte> shape,
-                                  std::span<const std::byte> grain) {
+std::expected<Tool, core::Error> assembleBrush(
+    std::span<const std::byte> description, std::span<const std::byte> shape,
+    std::span<const std::byte> grain) {
   if (description.empty() && shape.empty() && grain.empty())
-    return std::nullopt;
+    return std::unexpected(core::Error{
+        "a brush needs a description, a shape or a grain, and none arrived"});
 
   Tool tool = importedTool();
 
@@ -286,16 +287,25 @@ std::optional<Tool> assembleBrush(std::span<const std::byte> description,
   return tool;
 }
 
-std::optional<Tool> decodeBrush(std::span<const std::byte> all,
-                                std::string_view hint) {
-  if (all.empty()) return std::nullopt;
+std::expected<Tool, core::Error> decodeBrush(std::span<const std::byte> all,
+                                             std::string_view hint) {
+  if (all.empty())
+    return std::unexpected(core::Error{"a brush needs bytes and has none"});
+  const auto procreate =
+      [](std::span<const std::byte> archive) -> std::expected<Tool, core::Error> {
+    if (std::optional<Tool> imported = decodeProcreateBrush(archive))
+      return std::move(*imported);
+    return std::unexpected(core::Error{
+        "the archive holds no native brush description or shape, and does "
+        "not read as a Procreate brush"});
+  };
 
   if (io::ArchiveSource::isArchive(all)) {
     // Both packs are zips, so a name that says which one it is decides
     // which reader looks first; either way the other is tried after.
     if (hint.ends_with(".brush"))
       if (std::optional<Tool> imported = decodeProcreateBrush(all))
-        return imported;
+        return std::move(*imported);
     const io::ArchiveSource archive(all);
     std::span<const std::byte> description;
     std::span<const std::byte> shape;
@@ -311,12 +321,15 @@ std::optional<Tool> decodeBrush(std::span<const std::byte> all,
     }
     if (!description.empty() || !shape.empty())
       return assembleBrush(description, shape, grain);
-    return decodeProcreateBrush(all);
+    return procreate(all);
   }
 
   if (isPhotoshopBrushes(all)) {
     std::vector<Tool> brushes = decodePhotoshopBrushes(all);
-    if (brushes.empty()) return std::nullopt;
+    if (brushes.empty())
+      return std::unexpected(core::Error{
+          "the Photoshop brush library holds no sampled brush this library "
+          "reads"});
     return std::move(brushes.front());
   }
 
@@ -324,7 +337,9 @@ std::optional<Tool> decodeBrush(std::span<const std::byte> all,
   // definition is its numbers.
   if (all.front() == std::byte{'{'}) return assembleBrush(all, {}, {});
 
-  return std::nullopt;
+  return std::unexpected(core::Error{
+      "the bytes are no native brush, Photoshop brush library or Procreate "
+      "brush"});
 }
 
 std::string encodeBrush(const Tool& tool) {

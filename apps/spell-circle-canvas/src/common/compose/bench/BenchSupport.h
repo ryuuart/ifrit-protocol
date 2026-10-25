@@ -98,7 +98,7 @@ inline Fill cellFill(int id, int changed = -1, int phase = 0) {
  *  none. */
 inline sigil::core::hardware::GpuDevice* gpuDevice() {
   static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned();
+      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
   return device.get();
 }
 

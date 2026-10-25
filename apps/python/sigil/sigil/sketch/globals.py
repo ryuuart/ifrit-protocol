@@ -28,6 +28,10 @@ time, ``deltaTime`` in milliseconds as the pen spells it, ``mouseX``,
 The pointer and the keyboard are read from the pen a ``draw`` is handed, and
 in a sketch without ``draw`` from the context's ``pointer`` and ``keys``
 before ``update`` or ``describe`` runs, so its input hooks run there.
+
+The module is named for what it holds: the names a sketch module's globals
+are given. ``seconds`` is the scene time, the number ``describe(seconds)``
+is handed and ``captureAt(seconds)`` names.
 """
 
 import inspect

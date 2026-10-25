@@ -44,7 +44,7 @@ TEST(Atlas, ReadsTexturePackerAndDerivesSequences) {
     "walk_01.png": {"frame": {"x": 0, "y": 0, "w": 10, "h": 10}, "rotated": true},
     "idle.png": {"frame": {"x": 20, "y": 0, "w": 5, "h": 5}}
   }, "meta": {"app": "TexturePacker"}})";
-  const std::optional<Atlas> atlas =
+  const auto atlas =
       Atlas::fromTexturePacker(Texture(solid(SK_ColorRED, 32, 16)), json);
   ASSERT_TRUE(atlas);
   ASSERT_EQ(atlas->regions().size(), 3u);
@@ -62,11 +62,16 @@ TEST(Atlas, ReadsTexturePackerAndDerivesSequences) {
   EXPECT_EQ(atlas->sequence("idle")->size(), 1u);
   EXPECT_FALSE(Atlas::fromTexturePacker(Texture(), "not json"));
   EXPECT_FALSE(Atlas::fromTexturePacker(Texture(), R"({"meta": {}})"));
+  EXPECT_TRUE(Atlas::fromTexturePacker(Texture(), "not json")
+                  .error()
+                  .message.starts_with("the sheet's description is not JSON"));
+  EXPECT_EQ(Atlas::fromAseprite(Texture(), R"({"meta": {}})").error().message,
+            "the sheet's description has no \"frames\" object or list");
   // The array form reads the same.
   const char* array = R"({"frames": [
     {"filename": "a.png", "frame": {"x": 0, "y": 0, "w": 4, "h": 4}},
     {"filename": "b.png", "frame": {"x": 4, "y": 0, "w": 4, "h": 4}}]})";
-  const std::optional<Atlas> fromArray =
+  const auto fromArray =
       Atlas::fromTexturePacker(Texture(), array);
   ASSERT_TRUE(fromArray);
   EXPECT_EQ(fromArray->regions()[1].name, "b");
@@ -80,7 +85,7 @@ TEST(Atlas, AsepritesTagsBecomeTheSequences) {
   ], "meta": {"app": "Aseprite", "frameTags": [
     {"name": "run", "from": 0, "to": 1, "direction": "forward"},
     {"name": "jump", "from": 2, "to": 2, "direction": "forward"}]}})";
-  const std::optional<Atlas> atlas =
+  const auto atlas =
       Atlas::fromAseprite(Texture(solid(SK_ColorRED, 24, 8)), json);
   ASSERT_TRUE(atlas);
   ASSERT_EQ(atlas->regions().size(), 3u);
@@ -92,7 +97,7 @@ TEST(Atlas, AsepritesTagsBecomeTheSequences) {
   // No tags: one sequence through every frame.
   const char* untagged = R"({"frames": [
     {"filename": "x", "frame": {"x": 0, "y": 0, "w": 8, "h": 8}}], "meta": {}})";
-  const std::optional<Atlas> all = Atlas::fromAseprite(Texture(), untagged);
+  const auto all = Atlas::fromAseprite(Texture(), untagged);
   ASSERT_TRUE(all);
   EXPECT_EQ(all->sequence("all")->size(), 1u);
 }
@@ -109,7 +114,7 @@ TEST(Atlas, ATagNamingNoFrameOfTheSheetIsNotASequence) {
   ], "meta": {"app": "Aseprite", "frameTags": [
     {"name": "gone", "from": 7, "to": 9, "direction": "forward"},
     {"name": "negative", "from": -4, "to": -1, "direction": "forward"}]}})";
-  const std::optional<Atlas> atlas =
+  const auto atlas =
       Atlas::fromAseprite(Texture(solid(SK_ColorRED, 16, 8)), json);
   ASSERT_TRUE(atlas);
   EXPECT_EQ(atlas->sequence("gone"), nullptr);
@@ -124,7 +129,7 @@ TEST(Atlas, ATagNamingNoFrameOfTheSheetIsNotASequence) {
     {"filename": "hero 1.aseprite", "frame": {"x": 8, "y": 0, "w": 8, "h": 8}}
   ], "meta": {"app": "Aseprite", "frameTags": [
     {"name": "run", "from": -1, "to": 5, "direction": "forward"}]}})";
-  const std::optional<Atlas> clamped =
+  const auto clamped =
       Atlas::fromAseprite(Texture(solid(SK_ColorRED, 16, 8)), overhang);
   ASSERT_TRUE(clamped);
   ASSERT_NE(clamped->sequence("run"), nullptr);

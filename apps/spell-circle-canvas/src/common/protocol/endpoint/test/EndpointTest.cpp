@@ -339,7 +339,10 @@ TEST_F(ProtocolEndpoint, APeerThatLeavesIsDetached) {
 TEST_F(ProtocolEndpoint, WithoutAStateRootItHoldsNoPort) {
   protocol::Dispatcher rootless;
   const protocol::Endpoint endpoint(hostHub, rootless);
-  EXPECT_FALSE(endpoint.listening());
+  const auto refused = endpoint.listening();
+  ASSERT_FALSE(refused);
+  EXPECT_EQ(refused.error().message, endpoint.error());
+  EXPECT_TRUE(refused.error().message.starts_with("endpoint:"));
   EXPECT_TRUE(endpoint.error().starts_with("endpoint: ")) << endpoint.error();
   EXPECT_TRUE(endpoint.address().empty());
 }

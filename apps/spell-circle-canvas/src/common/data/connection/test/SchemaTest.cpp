@@ -201,7 +201,7 @@ TEST(DataSchema, SendWritesTheBufferTheSchemaMakesOfTheMessage) {
   ASSERT_EQ(sent->size(), 1u);
   // What went out is a buffer, not the text: it verifies as the root
   // and reads in place.
-  const std::optional<FlatBuffer<flatbuffer_test::Sheet>> verified =
+  const auto verified =
       flatBufferFromBytes<flatbuffer_test::Sheet>(
           {reinterpret_cast<const uint8_t*>(sent->front().data()),
            sent->front().size()});

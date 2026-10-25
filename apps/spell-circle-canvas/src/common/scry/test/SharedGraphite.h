@@ -19,7 +19,7 @@ namespace sigil::scry::test {
  *  every case in the binary. */
 inline core::hardware::GpuDevice* sharedDevice() {
   static std::unique_ptr<core::hardware::GpuDevice> device =
-      core::hardware::GpuDevice::createOwned();
+      core::hardware::GpuDevice::createOwned().value_or(nullptr);
   return device.get();
 }
 

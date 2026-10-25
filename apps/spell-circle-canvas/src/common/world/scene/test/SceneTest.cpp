@@ -971,3 +971,12 @@ TEST_F(WorldScene, TheEnvironmentIsReadOnceAFrameFromTheFrame) {
   scene.render(describe());
   EXPECT_FLOAT_EQ(seen.intensity, 2.0f);
 }
+
+TEST_F(WorldScene, ARenderThatCannotRunItsPassesAnswersWhy) {
+  Frame frame = framed(pair());
+  frame.pass(geometryPass("main").writes("colour"));
+  const auto refused = scene.render(frame);
+  ASSERT_FALSE(refused);
+  EXPECT_FALSE(refused.error().message.empty());
+  EXPECT_EQ(refused.error().message, scene.error());
+}

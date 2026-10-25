@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <ranges>
 #include <string_view>
 #include <utility>
 
@@ -232,13 +233,11 @@ std::vector<std::byte> wire::writeArtNet(const Json& message) {
   // whatever else it says: a packet this codec has no reading for is
   // written back the way it arrived.
   const Json& verbatim = message["bytes"];
-  if (verbatim.kind() == Json::Kind::Array) {
-    std::vector<std::byte> packet;
-    packet.reserve(verbatim.size());
-    for (const Json& one : verbatim.array())
-      packet.push_back(levelByte(one.number()));
-    return packet;
-  }
+  if (verbatim.kind() == Json::Kind::Array)
+    return verbatim.array() | std::views::transform([](const Json& one) {
+             return levelByte(one.number());
+           }) |
+           std::ranges::to<std::vector<std::byte>>();
 
   // A value with neither a kind this knows nor bytes of its own has no
   // spelling on the wire: an empty datagram is no dimmer at all.

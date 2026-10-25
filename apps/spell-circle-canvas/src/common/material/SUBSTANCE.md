@@ -135,7 +135,9 @@ everywhere writes the keyed form.
 
 - `substance/advanced/Archive.h` — `Archive`, decoded once
   through the hub (`registerDecoder`, `load`) with every graph described
-  once and shared by every cook of it; `engineVersion`.
+  once and shared by every cook of it; `engineVersion`. `Archive::decode`
+  answers `std::expected<Archive, core::Error>`, so a hub lists why bytes
+  are no archive.
 - `substance/advanced/Cook.h` — `CookScheduler`, one graph
   instance and its renderer: `set`, `setText` and `setImage` by raw
   identifier (`$outputsize` in log2, `$randomseed`, `$normalformat`),

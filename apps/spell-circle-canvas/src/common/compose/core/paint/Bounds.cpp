@@ -557,6 +557,27 @@ SkRect Composer::Impl::unionBounds(Instance& inst, const SkM44* space,
  *  every layer effect in the subtree given the reach its own filter
  *  answers, so a bake stands clear of the skirt a blur, a glow or a shadow
  *  puts outside the content it filters. */
+SkRect onFilterGrid(const SkRect& local) {
+  if (local.isEmpty() || !local.isFinite()) return local;
+  const auto out = [](double edge, bool up) {
+    const double cells = edge / kFilterGrid;
+    return (float)((up ? std::ceil(cells) : std::floor(cells)) * kFilterGrid);
+  };
+  return SkRect::MakeLTRB(out(local.left(), false), out(local.top(), false),
+                          out(local.right(), true), out(local.bottom(), true));
+}
+
+SkRect onTexelGrid(const SkRect& local, float scale) {
+  if (local.isEmpty() || !local.isFinite() || !(scale > 0.0f)) return local;
+  const double texel = 1.0 / (double)scale;
+  const auto out = [texel](double edge, bool up) {
+    const double texels = edge / texel;
+    return (float)((up ? std::ceil(texels) : std::floor(texels)) * texel);
+  };
+  return SkRect::MakeLTRB(out(local.left(), false), out(local.top(), false),
+                          out(local.right(), true), out(local.bottom(), true));
+}
+
 SkRect Composer::Impl::bakeBounds(Instance& inst) {
   const bool outer = std::exchange(boundsByBox, true);
   const SkRect bounds = recordBounds(inst, nullptr, true);

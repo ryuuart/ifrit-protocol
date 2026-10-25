@@ -54,14 +54,13 @@ TEST(DataRead, AFileReadsWholeInOneLine) {
 TEST(DataRead, AStoreIsReadThroughAQuery) {
   const ScratchDir scratch("data_read_store");
   {
-    std::string why;
-    std::optional<Database> store = Database::memory(Engine::Sqlite, &why);
-    ASSERT_TRUE(store) << why;
-    ASSERT_TRUE(store->execute(
+    auto store = Database::memory(Engine::Sqlite);
+    ASSERT_TRUE(store) << store.error().message;
+    const auto run = store->execute(
         "CREATE TABLE cities (city TEXT, population REAL);"
         "INSERT INTO cities VALUES ('Lisbon', 545), ('Madrid', 3223);"
-        "VACUUM INTO '" + (scratch.path / "cities.sqlite").string() + "'",
-        &why)) << why;
+        "VACUUM INTO '" + (scratch.path / "cities.sqlite").string() + "'");
+    ASSERT_TRUE(run) << run.error().message;
   }
   sigil::io::Hub hub;
   sigil::io::mount(hub, "res://", scratch.path);

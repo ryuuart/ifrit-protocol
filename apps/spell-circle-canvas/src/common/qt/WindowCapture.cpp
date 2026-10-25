@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <algorithm>
 #include <cstdio>
+#include <print>
 #include <utility>
 
 namespace sigil::qt {
@@ -36,12 +37,12 @@ void captureWindow(QQuickWindow& window, QString output,
         timer->stop();
         const QImage picture = window.grabWindow();
         if (picture.isNull() || !picture.save(output, "PNG")) {
-          std::fprintf(stderr, "--shot: grab failed\n");
+          std::println(stderr, "--shot: grab failed");
           QCoreApplication::exit(1);
           return;
         }
-        std::printf("wrote %s (%dx%d)\n", output.toLocal8Bit().constData(),
-                    picture.width(), picture.height());
+        std::println("wrote {} ({}x{})", output.toLocal8Bit().constData(),
+                     picture.width(), picture.height());
         QCoreApplication::quit();
       });
   timer->start();

@@ -243,11 +243,12 @@ bool Scene::Impl::phaseGraph() {
     error = "the frame declares passes and no extent to run them at";
     return false;
   }
-  plan = graph::build(frame);
-  if (!plan) {
-    error = plan.error();
+  auto built = graph::build(frame);
+  if (!built) {
+    error = std::move(built.error().message);
     return false;
   }
+  plan = std::move(*built);
 
   targets.extent(frame.extent());
 

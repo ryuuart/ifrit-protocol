@@ -65,6 +65,25 @@ class LonghandFold {
   /** The family in force by name — named here or above — or null where
    *  the face in force was stated as a face, or none was named. */
   [[nodiscard]] const std::string* familyInForce() const { return m_family; }
+  /** The font's own name for the style the strongest family statement of
+   *  this node gave beside the family — `fontFamily("Avenir", "Book")` —
+   *  or null where it gave none. */
+  [[nodiscard]] const std::string* styleNamed() const {
+    return m_familyNamed ? m_styleName : nullptr;
+  }
+  /** Whether a weight stated after the named style, or in a stronger
+   *  layer, overrides the named face's own weight, as CSS's would. */
+  [[nodiscard]] bool weightOverridesNamedStyle() const {
+    return m_weightOverridden;
+  }
+  /** Whether a style — an italic, upright or a lean — stated after the
+   *  named style, or in a stronger layer, overrides the named face's own. */
+  [[nodiscard]] bool styleOverridesNamedStyle() const {
+    return m_styleOverridden;
+  }
+  /** The named style was found: the style in force is the found face's
+   *  own, italic or not. */
+  void faceChosenByStyleName(bool italic) { m_italic = italic; }
   /** Whether a layer of this node stated a face after any family. */
   [[nodiscard]] bool faceStated() const { return m_faceStated; }
   /** Whether the style in force is italic. */
@@ -87,11 +106,18 @@ class LonghandFold {
   }
 
  private:
+  /** The cascade half of one layer: a family by name, an italic, an
+   *  indent and a line height in another unit. */
+  void stateCascade(const CascadeData& said);
+
   const std::string* m_parentFamily;
   bool m_parentItalic;
   std::optional<float> m_parentIndentPercent;
   const std::string* m_family;
   bool m_familyNamed = false;
+  const std::string* m_styleName = nullptr;
+  bool m_weightOverridden = false;
+  bool m_styleOverridden = false;
   bool m_faceStated = false;
   std::optional<bool> m_italic;
   std::optional<Dimension> m_indent;

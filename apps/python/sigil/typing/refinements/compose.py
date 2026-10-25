@@ -92,17 +92,19 @@ def children(self, *children: _t.NodeLike) -> Element: ...
     )
     table.erased(node, "shape", "_t.ShapeLike")
     table.erased(node, "background foreground overlay stroke", "_t.DecorationLike")
-    # CSS's box-shadow: one shadow's fields as keywords, or one Shadow or a
-    # list of them with the first on top.
+    # CSS's box-shadow: one shadow's fields as keywords, its CSS text, or
+    # one Shadow or a list of them with the first on top.
     table.erased(
         node,
         "boxShadow",
-        "Shadow | collections.abc.Iterable[Shadow] | None",
+        "str | Shadow | collections.abc.Iterable[Shadow] | None",
         PIXEL_OFFSET + " | None",
         "_t.FloatLike | str | None",
         "_t.FloatLike | str | None",
         "_t.FillLike | None",
     )
+    # A filter, or CSS's filter text, which every filter slot reads.
+    table.erased(node, "filter backdropFilter", "_sigil.material.skia.Filter | str")
     table.erased(node, "transition", "_sigil.motion.Tween | _t.DurationLike")
 
 
@@ -114,9 +116,12 @@ def registerFont(table: _Returning, node: str) -> None:
     # A style, or an angle, which is the oblique of that lean.
     table.erased(node, "fontStyle", "FontStyle | _t.AngleLike")
     table.erased(node, "ink", "_t.ElementInkLike")
-    # One shadow, or any iterable of them, the first drawn nearest the glyph.
+    # CSS's text-shadow text, one shadow, or any iterable of them, the first
+    # drawn nearest the glyph.
     table.erased(
-        node, "textShadow", "TextShadow | collections.abc.Iterable[TextShadow]"
+        node,
+        "textShadow",
+        "str | TextShadow | collections.abc.Iterable[TextShadow]",
     )
 
 

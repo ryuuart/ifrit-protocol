@@ -12,6 +12,7 @@
 #include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
 
+#include <algorithm>
 #include <cctype>
 #include <charconv>
 #include <cmath>
@@ -79,6 +80,24 @@ std::optional<std::string> hexText(const material::Color& color) {
     constexpr char kDigits[] = "0123456789abcdef";
     text += kDigits[*step / 16];
     text += kDigits[*step % 16];
+  }
+  return text;
+}
+
+/** `#rrggbb`, or `#rrggbbaa` where @p color is not opaque, each channel
+ *  held inside 0..1 and rounded to the nearest eight-bit step. */
+std::string nearestHexText(const material::Color& color) {
+  const float channels[4] = {color.r, color.g, color.b, color.a};
+  constexpr char kDigits[] = "0123456789abcdef";
+  std::string text = "#";
+  for (int index = 0; index < 4; ++index) {
+    const float held = std::isnan(channels[index])
+                           ? 0.0f
+                           : std::clamp(channels[index], 0.0f, 1.0f);
+    const int step = (int)std::lround(held * 255.0f);
+    if (index == 3 && step == 255) break;
+    text += kDigits[step / 16];
+    text += kDigits[step % 16];
   }
   return text;
 }
@@ -222,7 +241,7 @@ void bindColor(py::module_& root) {
           "CSS oklch(): lightness on 0..1, the chroma and the hue in "
           "degrees or as angle text, brought inside sRGB by reducing chroma.")
       .def_static(
-          "hex",
+          "fromHex",
           [](py::handle value, std::optional<float> opacity) {
             Color read;
             if (py::isinstance<py::str>(value)) {
@@ -280,6 +299,11 @@ void bindColor(py::module_& root) {
            "The colour as CSS text: its hex where every channel is an "
            "eight-bit step, otherwise color(srgb ...), which carries any "
            "float.")
+      .def("hex", &nearestHexText,
+           "The colour as hex text, '#rrggbb', or '#rrggbbaa' where it is "
+           "not opaque: each channel held inside 0..1 and rounded to the "
+           "nearest eight-bit step, so a colour css() writes as "
+           "color(srgb ...) comes back as the hex nearest it.")
       .def("__str__", &cssText)
       .def("__repr__", &reprText)
       .def_readwrite("r", &Color::r)
@@ -362,11 +386,12 @@ void bindMaterial(py::module_& root) {
       .def_readwrite("high", &RampBracket::high)
       .def_readwrite("fraction", &RampBracket::fraction);
   py::class_<ColorStop>(module, "ColorStop")
-      .def(py::init([](float offset, py::handle value) {
-             return ColorStop{offset, materialColor(value)};
+      .def(py::init([](float offset, py::handle value, float pixels) {
+             return ColorStop{offset, materialColor(value), pixels};
            }),
-           py::arg("offset"), py::arg("color"))
+           py::arg("offset"), py::arg("color"), py::arg("pixels") = 0.0f)
       .def_readwrite("offset", &ColorStop::offset)
+      .def_readwrite("pixels", &ColorStop::pixels)
       .def_property(
           "color", [](const ColorStop& stop) { return stop.color; },
           [](ColorStop& stop, py::handle value) {

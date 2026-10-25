@@ -15,6 +15,7 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <utility>
 
@@ -537,9 +538,10 @@ SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
   for (const Contour& contour : contoursOf(path)) {
     const float len = contour.length();
     const bool closed = contour.closed();
-    std::vector<float> corners;
-    for (const Contour::Corner& c : contour.corners(angleDegrees))
-      corners.push_back(c.distance);
+    std::vector<float> corners =
+        contour.corners(angleDegrees) |
+        std::views::transform(&Contour::Corner::distance) |
+        std::ranges::to<std::vector<float>>();
     if (!closed) {
       corners.insert(corners.begin(), 0.0f);
       corners.push_back(len);

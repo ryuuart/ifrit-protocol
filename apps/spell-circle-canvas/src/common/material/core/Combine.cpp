@@ -9,7 +9,7 @@
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilshaders/MaterialCore.h>
 
-#include <boost/container/flat_map.hpp>
+#include <flat_map>
 #include <mutex>
 #include <span>
 #include <string>
@@ -336,7 +336,7 @@ std::shared_ptr<const Recipe> composed(
     }
   };
   static std::mutex mutex;
-  static boost::container::flat_map<Key, std::shared_ptr<const Recipe>> built;
+  static std::flat_map<Key, std::shared_ptr<const Recipe>> built;
   const Key key{blend, base, top, mask};
   const std::lock_guard lock(mutex);
   auto it = built.find(key);

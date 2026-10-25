@@ -148,18 +148,32 @@ glm::mat4 Model::fitTransform(float size) const {
          glm::translate(glm::mat4(1.0f), -center);
 }
 
-std::optional<Model> model(const void* bytes, size_t size,
-                           std::string_view pathHint, const Resolver& resolve) {
-  if (!bytes || size == 0) return std::nullopt;
+std::expected<Model, core::Error> model(const void* bytes, size_t size,
+                                        std::string_view pathHint,
+                                        const Resolver& resolve) {
+  if (!bytes || size == 0)
+    return std::unexpected(core::Error{"a model needs bytes and has none"});
   const auto* data = static_cast<const std::byte*>(bytes);
+  // An importer refuses without saying why, so the refusal names the
+  // format the bytes were read as.
+  const auto readAs = [](std::optional<Model> imported,
+                         std::string_view format)
+      -> std::expected<Model, core::Error> {
+    if (!imported)
+      return std::unexpected(core::Error{"the bytes do not read as " +
+                                         std::string(format)});
+    return std::move(*imported);
+  };
   const std::string ext = lowerExtension(pathHint);
-  if (ext == "obj") return importObj(asText(bytes, size), resolve);
+  if (ext == "obj")
+    return readAs(importObj(asText(bytes, size), resolve), "an OBJ file");
   if (ext == "gltf" || ext == "glb")
-    return importGltf(bytes, size, pathHint, resolve);
-  if (ext == "stl") return importStl(data, size);
-  if (ext == "ply") return importPly(data, size);
+    return readAs(importGltf(bytes, size, pathHint, resolve), "glTF");
+  if (ext == "stl") return readAs(importStl(data, size), "an STL file");
+  if (ext == "ply") return readAs(importPly(data, size), "a PLY file");
   if (ext == "abc") return alembic(bytes, size);
-  if (ext == "geo") return importHoudiniGeo(asText(bytes, size));
+  if (ext == "geo")
+    return readAs(importHoudiniGeo(asText(bytes, size)), "a Houdini geometry file");
 
   // No useful extension: sniff, and the table above is the list to cover —
   // a format the dispatcher names by extension but cannot recognise by
@@ -169,24 +183,29 @@ std::optional<Model> model(const void* bytes, size_t size,
   // line; binary STL is identified by its size arithmetic. OBJ is the one
   // that is not here, having no signature to be known by.
   if (size >= 4 && std::memcmp(bytes, "glTF", 4) == 0)
-    return importGltf(bytes, size, pathHint, resolve);
+    return readAs(importGltf(bytes, size, pathHint, resolve), "glTF");
   if (size >= 5 && std::memcmp(bytes, "Ogawa", 5) == 0)
     return alembic(bytes, size);
   const std::string_view text = asText(bytes, size);
   const size_t start = text.find_first_not_of(" \t\r\n");
   if (start != std::string_view::npos && text[start] == '{')
-    return importGltf(bytes, size, pathHint, resolve);
-  if (looksLikeHoudiniGeo(text)) return importHoudiniGeo(text);
-  if (looksLikePly(text)) return importPly(data, size);
+    return readAs(importGltf(bytes, size, pathHint, resolve), "glTF");
+  if (looksLikeHoudiniGeo(text))
+    return readAs(importHoudiniGeo(text), "a Houdini geometry file");
+  if (looksLikePly(text)) return readAs(importPly(data, size), "a PLY file");
   if (looksLikeBinaryStl(data, size) || looksLikeAsciiStl(text))
-    return importStl(data, size);
-  return std::nullopt;
+    return readAs(importStl(data, size), "an STL file");
+  return std::unexpected(core::Error{
+      "the bytes are no model format this library reads, and the name "
+      "carries no extension that names one"});
 }
 
-std::optional<Model> model(const std::filesystem::path& file) {
+std::expected<Model, core::Error> model(const std::filesystem::path& file) {
   // Resource ACCESS is SigilIO's; what the bytes MEAN is this library's.
   const std::optional<io::Bytes> read = io::readBytes(file);
-  if (!read) return std::nullopt;
+  if (!read)
+    return std::unexpected(
+        core::Error{"no model could be read at " + file.string()});
   const std::span<const std::byte> bytes = read->span();
   const std::filesystem::path dir = file.parent_path();
   const Resolver siblings =

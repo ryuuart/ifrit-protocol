@@ -151,3 +151,22 @@ TEST(AdoptedFace, PurgingTheCachesKeepsEveryAdoption) {
   context.purgeAllCaches();
   EXPECT_EQ(context.familyTypeface(face.familyName()), face);
 }
+
+TEST(AdoptedFace, AnAdoptedFaceAnswersTheNameItsFontGivesItsStyle) {
+  FontContext context(ports::systemFontManager());
+  const Face face = ports::faceFromBytes(test::instrumentBytes("Sans.ttf"));
+  ASSERT_TRUE(face);
+  const std::string family = face.familyName();
+  // Asked before the face is adopted, the family has no style at all; the
+  // adoption asks again.
+  EXPECT_FALSE(context.familyTypeface(family, "Regular"));
+  context.adopt(face, "res://Sans.ttf");
+  EXPECT_EQ(context.familyTypeface(family, "Regular"), face);
+  EXPECT_EQ(context.familyTypeface(family, " re gular "), face);
+  // Kept: two asks are one face, so its id is a stable cache identity.
+  EXPECT_EQ(context.familyTypeface(family, "REGULAR").identity(),
+            context.familyTypeface(family, "Regular").identity());
+  // A style the adopted family lacks is no face, never its nearest.
+  EXPECT_FALSE(context.familyTypeface(family, "Bold"));
+  EXPECT_FALSE(context.familyTypeface("", "Regular"));
+}

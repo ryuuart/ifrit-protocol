@@ -9,8 +9,10 @@
  * here names a backend.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigilworld/frame/Frame.h>
 
+#include <expected>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -97,14 +99,14 @@ class Plan {
   /** The resources whose images must be kept for the frame after. */
   [[nodiscard]] std::span<const std::string> kept() const { return m_kept; }
 
-  /** What stopped the plan being built, naming the passes. Empty when
-   *  it was built. */
+  /** What stopped the plan being built, naming the passes — the error
+   *  `build` answered. Empty when it was built. */
   [[nodiscard]] const std::string& error() const { return m_error; }
   /** Whether the plan was built at all. */
   explicit operator bool() const { return m_error.empty(); }
 
  private:
-  friend Plan build(const Frame& frame);
+  friend std::expected<Plan, core::Error> build(const Frame& frame);
 
   std::vector<PassWork> m_steps;
   std::vector<Barrier> m_barriers;
@@ -115,7 +117,9 @@ class Plan {
   int m_surfaces = 0;
 };
 
-/** Read @p frame's declarations into a plan. */
-Plan build(const Frame& frame);
+/** Read @p frame's declarations into a plan, or the error naming the
+ *  passes that stopped it — a cycle, a read nothing writes, a claim two
+ *  passes make. */
+std::expected<Plan, core::Error> build(const Frame& frame);
 
 }  // namespace sigil::world::graph

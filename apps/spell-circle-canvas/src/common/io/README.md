@@ -158,6 +158,7 @@ sigil::io::Lease reading = sigil::io::onAdvance(hub, [&](auto time) { drain(); }
 if (sigil::io::poll(hub)) redraw();                   // once per frame, or on a file-watch event
 sigil::io::mount(hub, "plugin://", pluginDirectory);  // a mount made after the hub
 sigil::io::reportProblem(hub, {uri, message, line});  // a reader says what it could not make of a URI
+sigil::io::reportProblem(hub, uri, error);            // …or files the core::Error it refused with
 sigil::io::clearProblems(hub);                        // a host, before its program asks again
 auto sksl = sigil::io::select(hub, "shader://**/*.sksl");   // sorted URI snapshot
 sigil::io::preload(hub, "shader://");                 // a directory selector reads everything under it
@@ -248,6 +249,17 @@ SigilMedia's registration is a template over whatever hub it is handed,
 and its prober and its options are declared against the standard
 library alone, which is why it costs SigilMedia nothing to be askable and
 this library nothing to ask.
+
+A decoder answers `std::expected<T, sigil::core::Error>`: the T, or the
+error that says why the bytes are not one. `load<T>()` stays the forgiving
+door — null for a resource it could not make into a T — and lists the
+decoder's error among `problems()` under the URI, with the line it names,
+as `sigil::io::Problem::error()` reads back; a resource that is simply not
+there is no problem. A poll that finds a file changed and its decoder
+refusing keeps the views it had, lists the refusal once for that change,
+and takes it back when a later change decodes. A decoder answering
+`std::optional<T>` is taken too, and its refusal is listed as bytes that do
+not read as T's meaning. `readRecording()` answers the same shape.
 
 ## One file with files inside it
 

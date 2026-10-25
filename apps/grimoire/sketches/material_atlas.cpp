@@ -191,9 +191,9 @@ struct MaterialAtlas {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const material::Atlas grid = material::Atlas::grid(sheet, kCols, kRows);
-    const std::optional<material::Atlas> packed =
+    const auto packed =
         material::Atlas::fromTexturePacker(sheet, kTexturePackerJson);
-    const std::optional<material::Atlas> tagged =
+    const auto tagged =
         material::Atlas::fromAseprite(sheet, kAsepriteJson);
 
     // What a cell whose JSON did not parse draws.

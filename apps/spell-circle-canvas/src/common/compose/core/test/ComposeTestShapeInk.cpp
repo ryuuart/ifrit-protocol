@@ -431,6 +431,14 @@ std::vector<MarkCase> markCases() {
   add("rails",
       lines::rails({{.across = -3, .width = 2}, {.across = 3, .width = 2}}),
       true);
+  add("mitred rails",
+      lines::rails({{.across = -3, .width = 2, .join = geometry::path::Join::Miter},
+                    {.across = 3, .width = 2, .join = geometry::path::Join::Miter}}),
+      true);
+  add("square-ended rails",
+      lines::rails({{.across = -3, .width = 2, .cap = geometry::path::Cap::Square},
+                    {.across = 3, .width = 2, .cap = geometry::path::Cap::Square}}),
+      true);
   add("a hatch", lines::Hatch{}, true);
   add("a radial hatch", lines::RadialHatch{}, true);
   add("a layered brush", LayeredBrush{{StrokeLayer{.width = 2}}}, true);
@@ -517,6 +525,16 @@ TEST(ComposePaintBounds, AFadedShapeHoldsTheMitredTipsItsMarksLay) {
   mitredLine.width = 6;
   mitredLine.join = geometry::path::Join::Miter;
   marks.emplace_back("a mitred line", mitredLine);
+  marks.emplace_back(
+      "mitred rails",
+      lines::rails({{.across = -4,
+                     .width = 3,
+                     .fill = Fill::color({1, 1, 1, 1}),
+                     .join = geometry::path::Join::Miter},
+                    {.across = 4,
+                     .width = 3,
+                     .fill = Fill::color({1, 1, 1, 1}),
+                     .join = geometry::path::Join::Miter}}));
   const auto lostWhenFaded = [](const std::function<Element(float)>& page) {
     const std::vector<SkColor> whole = drawnOnce(page(1));
     const std::vector<SkColor> faded = drawnOnce(page(0.5f));

@@ -43,7 +43,7 @@ TEST(VideoDevice, VideoToolboxFrameWrapsAsGraphiteYuvaImage) {
   ASSERT_TRUE(append(encoder, pixels.pixmap()));
   pixels.eraseColor(SK_ColorCYAN);
   ASSERT_TRUE(append(encoder, pixels.pixmap()));
-  const std::vector<std::byte> encoded = encoder.finish();
+  const std::vector<std::byte> encoded = encoder.finish().value_or(std::vector<std::byte>{});
   ASSERT_FALSE(encoded.empty()) << encoder.error();
 
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
@@ -112,7 +112,7 @@ TEST(VideoDevice, ARecorderThatCannotSampleTheFrameIsHandedItsHostCopy) {
   pixels.eraseColor(SK_ColorMAGENTA);
   ASSERT_TRUE(append(encoder, pixels.pixmap()));
   ASSERT_TRUE(append(encoder, pixels.pixmap()));
-  const std::vector<std::byte> encoded = encoder.finish();
+  const std::vector<std::byte> encoded = encoder.finish().value_or(std::vector<std::byte>{});
   ASSERT_FALSE(encoded.empty()) << encoder.error();
 
   const auto clip = media::decode<media::Video>(
@@ -126,7 +126,11 @@ TEST(VideoDevice, ARecorderThatCannotSampleTheFrameIsHandedItsHostCopy) {
   // planes the decoder holds.
   std::string error;
   static const std::unique_ptr<sigil::geometry::device::Device> vulkan =
-      sigil::geometry::device::Device::create({}, &error);
+      [&error] {
+        auto created = sigil::geometry::device::Device::create({});
+        if (!created) error = created.error().message;
+        return std::move(created).value_or(nullptr);
+      }();
   if (!vulkan || !vulkan->gpu()) GTEST_SKIP() << "no Vulkan device: " << error;
   // A Vulkan Graphite made over the device: the recorder that cannot
   // sample a Metal plane, whatever context the device paints with.

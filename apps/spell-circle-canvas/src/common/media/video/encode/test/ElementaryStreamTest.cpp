@@ -154,7 +154,7 @@ std::vector<std::byte> rampMp4() {
     bitmap.eraseColor(SkColorSetRGB(level, level, level));
     if (!append(encoder, bitmap.pixmap())) return {};
   }
-  return encoder.finish();
+  return encoder.finish().value_or(std::vector<std::byte>{});
 }
 
 }  // namespace

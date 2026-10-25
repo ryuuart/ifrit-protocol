@@ -54,6 +54,7 @@ sigil_library(SigilProtocol
 sigil_doc_probes(protocol
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md ${SIGIL_PROTOCOL_REFERENCE}
   INCLUDES ${SIGIL_PROTOCOL_GENERATED}/sigilprotocol
+           ${CMAKE_CURRENT_SOURCE_DIR}/../core/include/sigilcore/report
            ${PROJECT_SOURCE_DIR}/src/common/data/include/sigildata
   DEPENDS ${SIGIL_PROTOCOL_HEADERS}
   LIBRARIES SigilProtocol)

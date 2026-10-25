@@ -40,7 +40,9 @@ inline OnDevice onDevice() {
   static std::string error;
   static Device* const made = [] {
     const DeviceConfig config;
-    Device* device = Device::create(config, &error).release();
+    auto created = Device::create(config);
+    if (!created) error = created.error().message;
+    Device* device = std::move(created).value_or(nullptr).release();
     if (device) std::atexit([] { made->finishPipelines(); });
     return device;
   }();

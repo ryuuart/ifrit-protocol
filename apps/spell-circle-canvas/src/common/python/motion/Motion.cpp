@@ -403,8 +403,8 @@ motion::Easing motionEase(py::handle value) {
         "' is not a timing function: an easing is written as CSS writes "
         "one — 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out', "
         "'step-start', 'step-end', 'cubic-bezier(x1, y1, x2, y2)' or "
-        "'steps(count, jump-start | jump-end)' — or is a native curve or a "
-        "callable.");
+        "'steps(count, jump-start | jump-end | jump-none | jump-both)' — "
+        "or is a native curve or a callable.");
   }
   if (!PyCallable_Check(value.ptr()))
     throw py::type_error(
@@ -563,8 +563,17 @@ void bindMotion(py::module_& root) {
   ease.def("in_", &motion::ease::in, py::arg("power") = 1.68f);
   ease.def("out", &motion::ease::out, py::arg("power") = 1.68f);
   ease.def("inOut", &motion::ease::inOut, py::arg("power") = 1.68f);
+  py::enum_<motion::ease::StepPosition>(
+      ease, "StepPosition",
+      "Where a staircase's jumps fall, as CSS's step positions name them: "
+      "at the end of each step, at its start, at neither end of the run, "
+      "or at both.")
+      .value("JumpEnd", motion::ease::StepPosition::JumpEnd)
+      .value("JumpStart", motion::ease::StepPosition::JumpStart)
+      .value("JumpNone", motion::ease::StepPosition::JumpNone)
+      .value("JumpBoth", motion::ease::StepPosition::JumpBoth);
   ease.def("steps", &motion::ease::steps, py::arg("count"),
-           py::arg("jumpAtStart") = false);
+           py::arg("position") = motion::ease::StepPosition::JumpEnd);
   ease.def("cubicBezier", &motion::ease::cubicBezier, py::arg("x1"),
            py::arg("y1"), py::arg("x2"), py::arg("y2"));
 

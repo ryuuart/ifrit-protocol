@@ -71,10 +71,11 @@ class PresentedPicture : public testing::Test {
   void SetUp() override {
     on = diligent::onDevice();
     if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-    std::string error;
-    metal = core::hardware::GpuDevice::createOwned(&error);
-    if (!metal || metal->backend() != core::hardware::Backend::Metal)
-      GTEST_SKIP() << "no Metal device: " << error;
+    auto made = core::hardware::GpuDevice::createOwned();
+    if (!made) GTEST_SKIP() << "no Metal device: " << made.error().message;
+    metal = std::move(*made);
+    if (metal->backend() != core::hardware::Backend::Metal)
+      GTEST_SKIP() << "no Metal device";
     window = skia::GraphiteContext::create(*metal);
     if (!window) GTEST_SKIP() << "no Graphite on the Metal device";
   }

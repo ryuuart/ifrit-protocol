@@ -64,11 +64,6 @@ struct Family {
   bool operator==(const Family&) const = default;
 };
 
-/** CSS's name for @p weight, rounded to the nearest hundred: "Thin",
- *  "Extra Light", "Light", "Normal", "Medium", "Semi Bold", "Bold",
- *  "Extra Bold", "Black". */
-[[nodiscard]] std::string_view weightName(int weight);
-
 /** The family names the platform's font manager has, in its order. */
 [[nodiscard]] std::vector<std::string> families();
 /** The family names @p context answers: the families it adopted first,
@@ -97,10 +92,11 @@ struct Family {
  *  that name. Where two faces share the name, the first the family lists
  *  answers. */
 [[nodiscard]] Face find(std::string_view family, std::string_view styleName);
-/** The face of @p family that @p context answers under @p styleName: of
+/** The face of @p family that @p context answers under @p styleName — of
  *  its adopted faces where it adopted any of that family, as
- *  `family(name, context)` lists them, else of its font manager's. */
+ *  `family(name, context)` lists them, else of its font manager's — which
+ *  is the face `familyTypeface(family, styleName)` answers. */
 [[nodiscard]] Face find(std::string_view family, std::string_view styleName,
-                        const FontContext& context);
+                        FontContext& context);
 
 }  // namespace sigil::weave::fonts

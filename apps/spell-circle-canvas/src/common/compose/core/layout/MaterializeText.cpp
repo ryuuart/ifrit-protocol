@@ -287,7 +287,8 @@ sigil::weave::TextStyle Composer::Impl::styleOfSpan(
   chooseRangeFace(fonts, partial, base,
                   inherits && !inst.family.empty() ? &inst.family : nullptr,
                   inherits && inst.italic,
-                  span.fontFamily ? &*span.fontFamily : nullptr, span.italic);
+                  span.fontFamily ? &*span.fontFamily : nullptr, span.italic,
+                  span.fontStyleName ? &*span.fontStyleName : nullptr);
   if (span.inkVar) {
     const VarValue* value = inst.vars ? inst.vars->find(*span.inkVar) : nullptr;
     const material::Color* colour =

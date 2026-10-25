@@ -95,6 +95,26 @@ inline const std::vector<Echo>& echoesOf(const ElementNode& n) {
   return n.fxData ? n.fxData->echoes : kNoEchoes;
 }
 
+/** THE EXTENT A LAYER EFFECT FILTERS, @p local grown out onto a grid of
+ *  `kFilterGrid` units laid from the node's own origin. A filter reads the
+ *  extent it is given — a wide blur is taken over a reduced copy laid
+ *  about that extent's middle, and its faint far edge ends where the reach
+ *  of the extent ends — so an extent that followed the marks' bleeds would
+ *  move the picture with them. On the grid, every extent whose edges fall
+ *  in the same cells is one extent, and its middle stands on a step of
+ *  half a cell, which is where every reduction by a power of two up to
+ *  half a cell lays the same texels. */
+inline constexpr float kFilterGrid = 64.0f;
+SkRect onFilterGrid(const SkRect& local);
+
+/** A LOCAL BAKE'S RECT, @p local grown out onto the texel grid a bake at
+ *  @p scale texels a unit lays from the node's own origin. A bake blitted
+ *  under a turn or a filter is resampled from its texels, so a bake whose
+ *  texels followed its bounds would move every pixel of its picture when
+ *  a mark's bleed grew; on the grid, every bake of the same content holds
+ *  the same texels wherever its bounds reach. */
+SkRect onTexelGrid(const SkRect& local, float scale);
+
 /** The group scalars of a subtree — every live float the memoized lane
  *  compares — appended to @p out; @p root marks the walk's own node. */
 void collectGroupScalars(const Instance& inst, bool root,

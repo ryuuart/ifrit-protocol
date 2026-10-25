@@ -12,6 +12,9 @@
  * Neither a message's revision nor its sender is written down.
  */
 
+#include <sigilcore/report/Error.h>
+
+#include <expected>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -41,10 +44,10 @@ class RecordingWriter {
 };
 
 /** Every message @p path holds, in the order it lists them and numbered
- *  from 1. Nothing when the file cannot be read or does not open with
- *  the format's header. A last frame cut short is dropped and the whole
- *  frames before it are kept. */
-std::optional<std::vector<Message>> readRecording(
+ *  from 1; or the error that says the file cannot be read or does not
+ *  open with the format's header. A last frame cut short is dropped and
+ *  the whole frames before it are kept. */
+std::expected<std::vector<Message>, core::Error> readRecording(
     const std::filesystem::path& path);
 
 }  // namespace sigil::io

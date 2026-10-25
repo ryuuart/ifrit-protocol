@@ -31,6 +31,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <ranges>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
@@ -572,10 +573,11 @@ void Host::startCompile() {
     objects.push_back(object);
     stale.push_back({source, object});
   }
-  std::vector<std::string> compiles;
-  compiles.reserve(stale.size());
-  for (const Unit& unit : stale)
-    compiles.push_back(compileLine(m_options, unit.source, unit.object));
+  const auto compiles =
+      stale | std::views::transform([&](const Unit& unit) {
+        return compileLine(m_options, unit.source, unit.object);
+      }) |
+      std::ranges::to<std::vector<std::string>>();
   std::string link = linkLine(m_options, objects, out);
 
   m_compile = std::async(

@@ -38,7 +38,7 @@ std::shared_ptr<const Recipe> seededRecipe(const char* name = "seeded") {
  *  material is installed; one built without it carries the plain
  *  three-slot recipe, which asks the composition cache nothing. */
 std::shared_ptr<Program> slangStandIn(std::shared_ptr<const Recipe> recipe,
-                                      Variant variant, std::string&) {
+                                      Variant variant) {
   return std::make_shared<Program>(std::move(recipe), Target::Slang, variant);
 }
 

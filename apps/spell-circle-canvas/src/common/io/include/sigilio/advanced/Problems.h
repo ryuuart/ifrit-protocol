@@ -20,6 +20,10 @@ class Hub;
  *  succeeds. */
 void reportProblem(Hub& hub, Problem problem);
 
+/** The same for the error a reader of @p uri refused with: its message
+ *  and its line, listed under @p uri. */
+void reportProblem(Hub& hub, std::string_view uri, const core::Error& error);
+
 /** Takes back what was said about @p uri on @p hub; nothing when nothing
  *  was. */
 void clearProblem(Hub& hub, std::string_view uri);

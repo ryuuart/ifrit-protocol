@@ -9,6 +9,7 @@
 #include <sigilcore/schedule/ConcurrentIo.h>
 
 #include <boost/container/flat_set.hpp>
+#include <expected>
 #include <optional>
 #include <system_error>
 #include <utility>
@@ -211,10 +212,13 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
     path = fetched.path;
     mtime = fetched.mtime;
   }
-  auto value = decode(*bytes, path);
+  detail::Decoded value = decode(*bytes, path);
   if (!value) {
     const std::lock_guard lock(m_mutex);
     rememberMiss(mtime);
+    // The decoder's word on why is what a host shows for the URI.
+    fileProblem({std::string(uri), std::move(value.error().message),
+                 value.error().line});
     return nullptr;
   }
 
@@ -237,7 +241,7 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
   // The encoded bytes are not kept unless fetch() asked for them, so
   // a decode-only workload never holds them alive beside the value.
   Caches::View& view = entry->second.views[std::string(meaning)];
-  view.value = std::move(value);
+  view.value = std::move(*value);
   view.decode = decode;
   return view.value;
 }
@@ -315,24 +319,23 @@ std::shared_ptr<const Bytes> Hub::probeFetch(std::string_view uri,
   return std::move(fetched.bytes);
 }
 
-/** Re-reads one entry's file and re-decodes every populated view from
- *  that one read, holding no lock: a decoder may take as long as it
+/** Re-decodes every populated view of one entry from @p bytes, the one
+ *  read of its file, holding no lock: a decoder may take as long as it
  *  likes, and may even ask this hub for another resource, without
  *  stalling anyone else's cache hit. Nothing is committed until every
  *  decode has succeeded, so a half-written file cannot leave the views
- *  disagreeing with each other. Null when the read or any decode
- *  fails. */
-std::optional<Hub::Reloaded> Hub::reload(const Reload& pending) const {
-  const std::filesystem::path path = localPath(*this, pending.uri);
-  auto bytes = readFile(path);
-  if (!bytes) return std::nullopt;
+ *  disagreeing with each other; the first decode that refuses answers
+ *  its error. */
+std::expected<Hub::Reloaded, core::Error> Hub::reload(
+    const Reload& pending, std::shared_ptr<const Bytes> bytes,
+    std::filesystem::path path) const {
   Reloaded reloaded;
   for (const auto& [meaning, decode] : pending.decodes) {
-    auto value = decode(*bytes, path);
-    if (!value) return std::nullopt;
-    reloaded.views.emplace_back(meaning, std::move(value));
+    detail::Decoded value = decode(*bytes, path);
+    if (!value) return std::unexpected(std::move(value.error()));
+    reloaded.views.emplace_back(meaning, std::move(*value));
   }
-  reloaded.path = path;
+  reloaded.path = std::move(path);
   reloaded.mtime = pending.mtime;
   if (pending.holdsBytes) reloaded.bytes = std::move(bytes);
   return reloaded;
@@ -363,7 +366,11 @@ bool Hub::poll() {
   struct Outcome {
     const Reload* reload;
     bool vanished = false;
-    std::optional<Reloaded> reloaded;
+    /** The views decoded from the changed file, or the error the first
+     *  refusing decode answered; empty for a file that vanished. */
+    std::optional<std::expected<Reloaded, core::Error>> reloaded;
+    /** The stamp the changed file carries. */
+    std::filesystem::file_time_type mtime;
   };
   std::vector<Outcome> outcomes;
   for (const Reload& reload : pending) {
@@ -377,8 +384,10 @@ bool Hub::poll() {
     if (mtime == reload.mtime) continue;
     Reload changed = reload;
     changed.mtime = mtime;
-    if (auto reloaded = this->reload(changed))
-      outcomes.push_back({&reload, false, std::move(reloaded)});
+    auto bytes = readFile(path);
+    if (!bytes) continue;
+    outcomes.push_back(
+        {&reload, false, this->reload(changed, std::move(bytes), path), mtime});
   }
   // An ask that found nothing is answered by the next ask, not here: a
   // file that appeared or changed under one is reported, and forgotten.
@@ -413,7 +422,20 @@ bool Hub::poll() {
       continue;
     }
     Caches::Entry& entry = found->second;
-    Reloaded& reloaded = *outcome.reloaded;
+    if (!*outcome.reloaded) {
+      // The views stand as they were and the file's stamp is taken, so
+      // the refusal is listed once, for this change, and the next change
+      // is decoded afresh.
+      fileProblem({entry.uri, std::move(outcome.reloaded->error().message),
+                   outcome.reloaded->error().line});
+      entry.mtime = outcome.mtime;
+      changed = true;
+      continue;
+    }
+    std::erase_if(m_problems, [&](const Problem& problem) {
+      return problem.uri == entry.uri;
+    });
+    Reloaded& reloaded = **outcome.reloaded;
     for (auto& [meaning, value] : reloaded.views) {
       const auto view = entry.views.find(meaning);
       if (view != entry.views.end()) view->second.value = std::move(value);

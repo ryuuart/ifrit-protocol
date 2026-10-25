@@ -54,7 +54,7 @@ std::vector<std::byte> sheetBytes() {
 
 TEST(DataFlatBuffer, ABufferIsReadInPlaceOnceVerified) {
   const std::vector<uint8_t> bytes = sheet();
-  const std::optional<FlatBuffer<flatbuffer_test::Sheet>> flat =
+  const auto flat =
       flatBufferFromBytes<flatbuffer_test::Sheet>(bytes);
   ASSERT_TRUE(flat);
   ASSERT_EQ(2u, (*flat)->readings()->size());
@@ -62,14 +62,15 @@ TEST(DataFlatBuffer, ABufferIsReadInPlaceOnceVerified) {
   EXPECT_FLOAT_EQ(2.5f, (*flat)->readings()->Get(0)->value());
   EXPECT_EQ(bytes.size(), flat->bytes().size());
   // A buffer cut short is refused before any of it is read.
-  std::string why;
-  EXPECT_FALSE(flatBufferFromBytes<flatbuffer_test::Sheet>(
-      std::span<const uint8_t>(bytes).first(bytes.size() / 2), &why));
-  EXPECT_FALSE(why.empty());
+  const auto refused = flatBufferFromBytes<flatbuffer_test::Sheet>(
+      std::span<const uint8_t>(bytes).first(bytes.size() / 2));
+  ASSERT_FALSE(refused);
+  EXPECT_EQ(refused.error().message,
+            "the bytes do not verify as the schema's root");
 }
 
 TEST(DataFlatBuffer, TheJsonFormConvertsThroughTheSchemaTheRootCarries) {
-  const std::optional<FlatBuffer<flatbuffer_test::Sheet>> flat =
+  const auto flat =
       flatBufferFromJson<flatbuffer_test::Sheet>(
           R"({"readings": [{"name": "a", "value": 2.5}]})");
   ASSERT_TRUE(flat);
@@ -77,10 +78,10 @@ TEST(DataFlatBuffer, TheJsonFormConvertsThroughTheSchemaTheRootCarries) {
   EXPECT_FLOAT_EQ(2.5f, (*flat)->readings()->Get(0)->value());
   // A value that is not the schema's is refused, with the parser's own
   // message naming what it found.
-  std::string why;
-  EXPECT_FALSE(flatBufferFromJson<flatbuffer_test::Sheet>(
-      R"({"readings": [{"name": "a", "value": "tall"}]})", &why));
-  EXPECT_NE(std::string::npos, why.find("tall"));
+  const auto refused = flatBufferFromJson<flatbuffer_test::Sheet>(
+      R"({"readings": [{"name": "a", "value": "tall"}]})");
+  ASSERT_FALSE(refused);
+  EXPECT_NE(std::string::npos, refused.error().message.find("tall"));
 }
 
 TEST(DataFlatBuffer, ASchemaIsMadeOutOfABinarySchemasOwnBytes) {

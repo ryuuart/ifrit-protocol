@@ -114,9 +114,23 @@ weave::Length fontLength(py::handle value, const char* verb) {
 template <class Node>
 void bindFontVerbs(py::class_<Node>& element) {
   element.def("font", &Node::font, py::arg("type"), fluent)
-      .def("fontFamily",
-           static_cast<Node& (Node::*)(std::string)>(&Node::fontFamily),
-           py::arg("family"), fluent)
+      .def(
+          "fontFamily",
+          [](Node& self, std::string family,
+             std::optional<std::string> style) -> Node& {
+            if (style) return self.fontFamily(std::move(family), *style);
+            return self.fontFamily(std::move(family));
+          },
+          py::arg("family"), py::kw_only(), py::arg("style") = py::none(),
+          fluent,
+          "CSS's font-family, as its list of names: the run is set in the "
+          "first family the font context has, at the weight and style in "
+          "force. style names one of the family's styles by the font's own "
+          "name for it, such as 'Book' or 'Demi Bold Italic', as "
+          "weave.fonts.family(name).styles lists them; the face it names "
+          "keeps its own weight and style until a fontWeight or fontStyle "
+          "after it, or below it, overrides that trait, the other one "
+          "standing.")
       .def("fontFamily",
            static_cast<Node& (Node::*)(weave::Face)>(&Node::fontFamily),
            py::arg("family"), fluent)
@@ -172,8 +186,21 @@ void bindFontVerbs(py::class_<Node>& element) {
       .def(
           "textShadow",
           [](Node& self, py::object shadows) -> Node& {
-            // One shadow, or any iterable of them, the first drawn nearest
-            // the glyph.
+            // CSS's text-shadow text, one shadow, or any iterable of them,
+            // the first drawn nearest the glyph.
+            if (py::isinstance<py::str>(shadows)) {
+              const auto text = shadows.cast<std::string>();
+              if (std::optional<std::vector<compose::TextShadow>> read =
+                      compose::readTextShadow(text))
+                return self.textShadow(std::move(*read));
+              throw py::value_error(
+                  "'" + text +
+                  "' is no CSS text-shadow this reads. A text shadow is a "
+                  "comma-separated list, each two or three lengths in px or "
+                  "pt — the offset and a blur radius — with a CSS colour or "
+                  "currentcolor before or after them; or 'none'. A length "
+                  "against the font or the viewport is not read.");
+            }
             if (py::isinstance<compose::TextShadow>(shadows))
               return self.textShadow(shadows.cast<compose::TextShadow>());
             std::vector<compose::TextShadow> list;
@@ -182,8 +209,9 @@ void bindFontVerbs(py::class_<Node>& element) {
             return self.textShadow(std::move(list));
           },
           py::arg("shadows"), fluent,
-          "The shadows each glyph casts, CSS's text-shadow: a TextShadow or "
-          "a list of them, the first drawn nearest the glyph.")
+          "The shadows each glyph casts, CSS's text-shadow: its text, such "
+          "as '1px 1px 2px black, 0 0 4px blue', a TextShadow or a list of "
+          "them, the first drawn nearest the glyph.")
       .def(
           "ink",
           [](Node& self, py::object value, compose::PaintBox box) -> Node& {
@@ -389,9 +417,9 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
       .def(
           "lineHeight",
           [](Node& self, py::object value) -> Node& {
-            // CSS's four forms: a number is a multiple, a length is an
-            // absolute pitch, "normal" is the face's own; a Leading says
-            // any of those and the baseline grid besides.
+            // CSS's four forms: a number is a multiple of the type size, a
+            // length is an absolute pitch, "normal" is the face's own; a
+            // Leading says any of those and the baseline grid besides.
             if (py::isinstance<weave::Leading>(value))
               return self.lineHeight(value.cast<weave::Leading>());
             if (isWord(value, "normal"))
@@ -403,7 +431,8 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
             const compose::Dimension length = dimension(value);
             if (length.unit == compose::Dimension::Unit::Auto)
               throw py::value_error(
-                  "lineHeight() takes a number (a multiple), a length "
+                  "lineHeight() takes a number (a multiple of the type "
+                  "size), a length "
                   "('24px', '1.5em', '150%'), 'normal' or a Leading; auto is "
                   "no pitch.");
             return self.lineHeight(length);
@@ -684,6 +713,20 @@ void bindNodeVerbs(py::class_<Node>& element) {
             throw py::type_error(
                 "boxShadow() takes a Shadow or a list of them, or one "
                 "shadow's fields as keywords, not both.");
+          if (py::isinstance<py::str>(shadows)) {
+            const auto text = shadows.cast<std::string>();
+            if (std::optional<std::vector<compose::Shadow>> read =
+                    compose::readShadow(text))
+              return self.boxShadow(std::move(*read));
+            throw py::value_error(
+                "'" + text +
+                "' is no CSS box-shadow this reads. A box shadow is a "
+                "comma-separated list, each two to four lengths in px or pt "
+                "— the offset, a blur radius and a spread — with a CSS "
+                "colour or currentcolor and 'inset' before or after them; or "
+                "'none'. A length against the font or the viewport is not "
+                "read.");
+          }
           if (py::isinstance<compose::Shadow>(shadows))
             return self.boxShadow(shadows.cast<compose::Shadow>());
           return self.boxShadow(shadows.cast<std::vector<compose::Shadow>>());
@@ -706,7 +749,9 @@ void bindNodeVerbs(py::class_<Node>& element) {
       "grown by spread and softened by a blur radius of blur pixels, in "
       "color (the ink in force when unstated) — beneath the fill, or with "
       "inset a band hugging the inner edge over it. Takes the fields as "
-      "keywords, or one Shadow, or a list of them with the first on top.");
+      "keywords, CSS's box-shadow text such as '0 4px 12px 2px "
+      "rgba(0 0 0 / .3) inset', one Shadow, or a list of them with the "
+      "first on top.");
 }
 
 template void bindDeclarationVerbs(py::class_<Element>&);

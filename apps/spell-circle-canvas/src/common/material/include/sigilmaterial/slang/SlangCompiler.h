@@ -11,10 +11,12 @@
  * carries the `Portable` and `Shading` modules by name.
  */
 
+#include <sigilcore/report/Error.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/advanced/Recipe.h>
 
 #include <boost/container/map.hpp>
+#include <expected>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -76,10 +78,10 @@ struct Compiled {
 /** Compiles @p source — a whole module, imports and entry points and all
  *  — taking @p vertexEntry and @p fragmentEntry from it. @p lit defines
  *  `SIGIL_LIT`, which is the one axis a renderer's scaffold specialises
- *  on. False with the compiler's diagnostics in @p error. */
-bool compileModule(std::string_view source, std::string_view vertexEntry,
-                   std::string_view fragmentEntry, bool lit, Compiled* out,
-                   std::string* error);
+ *  on. The error carries the compiler's diagnostics. */
+std::expected<Compiled, core::Error> compileModule(
+    std::string_view source, std::string_view vertexEntry,
+    std::string_view fragmentEntry, bool lit);
 
 /** WHERE COMPILED PROGRAMS ARE KEPT BETWEEN RUNS: a directory a host
  *  owns, read before a compile and written after one, so a program a

@@ -44,7 +44,7 @@ std::atomic<bool>& stood() {
 OwnPainter& standUp() {
   static OwnPainter* painter = [] {
     auto* made = new OwnPainter;
-    made->device = core::hardware::GpuDevice::createOwned();
+    made->device = core::hardware::GpuDevice::createOwned().value_or(nullptr);
     if (made->device)
       made->graphite = skia::GraphiteContext::create(*made->device);
     made->thread = std::this_thread::get_id();

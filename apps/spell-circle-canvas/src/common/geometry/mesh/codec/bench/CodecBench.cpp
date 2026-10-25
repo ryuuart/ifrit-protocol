@@ -133,7 +133,8 @@ void countTriangles(benchmark::State& state, const codec::decode::Model& model,
 
 void BM_ImportObj(benchmark::State& state) {
   const std::string obj = gridObj((int)state.range(0));
-  std::optional<codec::decode::Model> model;
+  std::expected<codec::decode::Model, sigil::core::Error> model =
+      std::unexpected(sigil::core::Error{});
   for ([[maybe_unused]] auto iteration : state) {
     model = codec::decode::model(obj.data(), obj.size(), "grid.obj");
     benchmark::DoNotOptimize(model);
@@ -152,7 +153,8 @@ BENCHMARK(BM_ImportObj)
 
 void BM_ImportGlb(benchmark::State& state) {
   const std::vector<std::byte> glb = gridGlb((int)state.range(0));
-  std::optional<codec::decode::Model> model;
+  std::expected<codec::decode::Model, sigil::core::Error> model =
+      std::unexpected(sigil::core::Error{});
   for ([[maybe_unused]] auto iteration : state) {
     model = codec::decode::model(glb.data(), glb.size(), "grid.glb");
     benchmark::DoNotOptimize(model);

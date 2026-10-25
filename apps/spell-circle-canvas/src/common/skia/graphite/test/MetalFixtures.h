@@ -63,7 +63,7 @@ inline core::hardware::GpuDevice *adoptedDevice() {
     native.backend = core::hardware::Backend::Metal;
     native.mtlDevice = (__bridge void *)device();
     native.mtlCommandQueue = (__bridge void *)queue();
-    return core::hardware::GpuDevice::adopt(native);
+    return core::hardware::GpuDevice::adopt(native).value_or(nullptr);
   }();
   return d.get();
 }

@@ -33,6 +33,18 @@ namespace sigil::compose::detail {
 void chooseFace(sigil::weave::FontContext& fonts, sigil::weave::Type& font,
                 const std::string* family, bool italic);
 
+/** THE FACE OF @p family WHOSE FONT NAMES ITS STYLE @p styleName, found
+ *  through the context — its adopted faces answering before its font
+ *  manager — as `fontFamily(family, styleName)` names one. @p family is a
+ *  CSS family list, and the face is the named style of the first of its
+ *  families that has one.
+ *  @trap Null where no family of the list has a style of that name, which
+ *  is said once naming both; the family then chooses at the style in
+ *  force, as it would with no name. */
+sk_sp<SkTypeface> namedStyleFace(sigil::weave::FontContext& fonts,
+                                 const std::string& family,
+                                 const std::string& styleName);
+
 /** THE FACE A RANGE'S PARTIAL CHOOSES — a span's, or a run a sheet names —
  *  written into @p partial's face, slant and variations over @p base, the
  *  style the range is set in, as `chooseFace` chooses a node's: where the
@@ -40,11 +52,14 @@ void chooseFace(sigil::weave::FontContext& fonts, sigil::weave::Type& font,
  *  @p italicInForce, where it states a face under an italic, or where it
  *  states a weight under @p familyInForce, the leaf's family by name. The
  *  weight asked for is the partial's, else the one @p base is set at.
- *  Leaves @p partial alone otherwise. */
+ *  A @p styleName beside @p family chooses the face its font names so,
+ *  upright of any lean, where the family has one. Leaves @p partial alone
+ *  otherwise. */
 void chooseRangeFace(sigil::weave::FontContext& fonts,
                      sigil::weave::Type& partial,
                      const sigil::weave::TextStyle& base,
                      const std::string* familyInForce, bool italicInForce,
-                     const std::string* family, std::optional<bool> italic);
+                     const std::string* family, std::optional<bool> italic,
+                     const std::string* styleName = nullptr);
 
 }  // namespace sigil::compose::detail

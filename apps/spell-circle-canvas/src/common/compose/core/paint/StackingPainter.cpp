@@ -490,16 +490,6 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   const bool needsLayer =
       (opacity < 1.0f || style.paint.blendMode != SkBlendMode::kSrcOver) &&
       !leafDirectBlend && !deferBlendToBlit;
-  if (needsLayer) {
-    SkPaint layerPaint;
-    layerPaint.setAlphaf(opacity);
-    layerPaint.setBlendMode(style.paint.blendMode);
-    // BOUNDED like the effect layer: nullptr would allocate a clip-sized
-    // (often full-canvas) layer for every fading container, so an entrance
-    // opacity ramp would cost a fullscreen composite per animated group.
-    const SkRect content = recordBounds(inst);
-    canvas.saveLayer(&content, &layerPaint);
-  }
   const SkBlendMode leafBlend =
       leafDirectBlend ? style.paint.blendMode : SkBlendMode::kSrcOver;
   const float leafOpacity = leafDirectBlend ? opacity : 1.0f;
@@ -568,22 +558,45 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       foldBeneath(drawSerial);
   }
 
+  // …and whether the opacity it composites at has moved since the last
+  // draw. The first sighting counts as still, as the matrix's does.
+  const bool opacityMoved =
+      opacityLive && inst.opacitySeen && opacity != inst.lastOpacity;
+  inst.lastOpacity = opacity;
+  inst.opacitySeen = true;
+
   // THE PIXELS HELD WHILE THE NODE MOVES, under a live composer: a node
-  // whose own transform has moved since the last draw, with everything it
-  // paints holding still in its own frame, is composited from its subtree
-  // painted once at the scale it is shown at, as a compositor turns a
-  // layer. Only where the node is painted every draw — never inside a
-  // recording or a bake, which hold it already — and never where the
-  // author named a tier of their own. The draw it holds still it paints
-  // as below, live or recorded, and the held pixels go.
+  // whose own transform or opacity has moved since the last draw, with
+  // everything it paints holding still in its own frame, is composited
+  // from its subtree painted once, as a compositor turns or fades a layer.
+  // The node's opacity rides that one composite, so a fade opens no layer
+  // and paints nothing again while it runs; a node a layer would not open
+  // for — a lone fill carries its own opacity — is left to paint live.
+  // Only where the node is painted every draw — never inside a recording
+  // or a bake, which hold it already — and never where the author named a
+  // tier of their own. The draw it holds still it paints as below, live or
+  // recorded, and the held pixels go. Taken before the layer below is
+  // opened, because a held node needs none.
   const bool heldWhileMoving =
       live && bakesPixels() && !coverageTrace && !paintingUnseen &&
-      recording.depth == 0 && bakeDepth == 0 && inst.transformLive &&
-      inst.stillInOwnFrame && !matrixStable && !totalM.hasPerspective() &&
-      !spaceHost && !pass.placedByPlane &&
+      recording.depth == 0 && bakeDepth == 0 && inst.stillInOwnFrame &&
+      ((inst.transformLive && !matrixStable) ||
+       (opacityMoved && !leafDirectBlend)) &&
+      !totalM.hasPerspective() && !spaceHost && !pass.placedByPlane &&
       (node.cacheMode == Cache::Auto || node.cacheMode == Cache::Picture);
   if (!heldWhileMoving) inst.movingImage.reset();
   if (heldWhileMoving && paintHeldWhileMoving(pass)) return;
+
+  if (needsLayer) {
+    SkPaint layerPaint;
+    layerPaint.setAlphaf(opacity);
+    layerPaint.setBlendMode(style.paint.blendMode);
+    // BOUNDED like the effect layer: nullptr would allocate a clip-sized
+    // (often full-canvas) layer for every fading container, so an entrance
+    // opacity ramp would cost a fullscreen composite per animated group.
+    const SkRect content = recordBounds(inst);
+    canvas.saveLayer(&content, &layerPaint);
+  }
 
   if (paintGroupBake(pass)) return;
 

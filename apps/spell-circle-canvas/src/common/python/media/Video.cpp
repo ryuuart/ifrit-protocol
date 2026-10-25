@@ -61,18 +61,21 @@ void bindMediaVideo(py::module_& module) {
       .def(
           "append",
           [](media::Encoder& encoder, const SkImage& picture) {
-            return encoder.append(media::fromSk(sk_ref_sp(&picture)));
+            return encoder.append(media::fromSk(sk_ref_sp(&picture)))
+                .has_value();
           },
           py::arg("picture"))
       .def(
           "append",
           [](media::Encoder& encoder, const media::Frame& frame) {
-            return encoder.append(frame);
+            return encoder.append(frame).has_value();
           },
           py::arg("frame"))
       .def("finish",
            [](media::Encoder& encoder) {
-             const std::vector<std::byte> bytes = encoder.finish();
+             auto finished = encoder.finish();
+             if (!finished) throw std::runtime_error(finished.error().message);
+             const std::vector<std::byte>& bytes = *finished;
              return py::bytes(reinterpret_cast<const char*>(bytes.data()),
                               bytes.size());
            })

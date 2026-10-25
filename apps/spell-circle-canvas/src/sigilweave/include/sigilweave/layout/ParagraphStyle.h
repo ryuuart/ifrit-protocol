@@ -8,6 +8,7 @@
  * together, and the registry that names a set of them.
  */
 
+#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -25,9 +26,10 @@ namespace sigil::weave {
 
 /** How far apart a block's lines stand — its PITCH, which in a vertical
  * setting is the width of its columns. `face` is the first span's own
- * line height, `multiple` scales that, `absolute` states it in px, and
- * `grid` states a rhythm instead: the block's own height rounds UP to a
- * multiple of it.
+ * line height, `multiple` scales that, `sizeMultiple` scales the first
+ * span's type size as CSS's unitless `line-height` does, `absolute` states
+ * it in px, and `grid` states a rhythm instead: the block's own height
+ * rounds UP to a multiple of it.
  */
 struct Leading {
   /** How `value` is read. Each has a factory below that names it. */
@@ -35,7 +37,8 @@ struct Leading {
     kFace,      ///< the first span's own line height; `value` unused
     kMultiple,  ///< `value` times the face's own line height
     kAbsolute,  ///< `value` px, whatever the face reports
-    kGrid      ///< round the block's height up to a multiple of `value` px
+    kGrid,      ///< round the block's height up to a multiple of `value` px
+    kSizeMultiple  ///< `value` times the type size
   };
   Kind kind = Kind::kFace;  ///< how `value` is read
   float value = 0;  ///< the factor, the px pitch, or the px grid step
@@ -52,6 +55,30 @@ struct Leading {
   }
   /** The face's own height rounded up to a multiple of `px`. */
   [[nodiscard]] static Leading grid(float px) { return {Kind::kGrid, px}; }
+  /** `factor` times the type size, whatever the face reports — CSS's
+   *  unitless `line-height`, so `sizeMultiple(2)` at 20 px is a 40 px
+   *  pitch. */
+  [[nodiscard]] static Leading sizeMultiple(float factor) {
+    return {Kind::kSizeMultiple, factor};
+  }
+
+  /** The pitch this leading sets for a face whose own line height is
+   *  @p faceHeight px at a type size of @p typeSize px. */
+  [[nodiscard]] float pitchFor(float faceHeight, float typeSize) const {
+    switch (kind) {
+      case Kind::kFace:
+        return faceHeight;
+      case Kind::kMultiple:
+        return faceHeight * value;
+      case Kind::kAbsolute:
+        return value;
+      case Kind::kGrid:
+        return value > 0 ? std::ceil(faceHeight / value) * value : faceHeight;
+      case Kind::kSizeMultiple:
+        return typeSize * value;
+    }
+    return faceHeight;
+  }
 
   bool operator==(const Leading&) const = default;
 };

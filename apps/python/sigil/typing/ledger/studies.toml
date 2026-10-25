@@ -40,6 +40,9 @@ combines = "Immutable readings reported at a cadence and drawn through memo into
 [study.python_kit_specimen]
 combines = "Native layout schemes, page furniture and a memo that restores its scoped theme"
 
+[study.python_layer_stack]
+combines = "One draw.Stack built in setup: rings drawn with a layer's pen, words baked from a compose tree and squashed by a placement under a screen blend, a hatching masked by the words and a disc whose remove blend erases what lies beneath it as its placement circles"
+
 [study.python_liquid_glass]
 combines = "Runtime shader refraction, child slots, moving uniforms and Bezier filaments"
 ports = "p5_refractive_metaballs"

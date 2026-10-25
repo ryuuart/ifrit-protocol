@@ -35,7 +35,10 @@
  * concern, exactly as with SigilIO.
  */
 
+#include <sigilcore/report/Error.h>
+
 #include <cstddef>
+#include <expected>
 #include <filesystem>
 #include <optional>
 #include <string_view>
@@ -53,24 +56,24 @@ struct AlembicOptions {
  *  becomes a Part (xforms baked, like glTF), every IPoints a faceless
  *  Part — an honest point cloud like PLY's; arbGeomParams land as
  *  named lanes. Alembic archives are self-contained (no resolver, no
- *  textures). Nearest-sample only, no interpolation. nullopt on
- *  malformed bytes or HDF5-cored archives. */
-std::optional<Model> alembic(const void* bytes, size_t size,
-                             const AlembicOptions& options = {});
+ *  textures). Nearest-sample only, no interpolation. The error says
+ *  why on malformed bytes or an HDF5-cored archive. */
+std::expected<Model, core::Error> alembic(const void* bytes, size_t size,
+                                          const AlembicOptions& options = {});
 
 /** Import from memory. @p pathHint names the source ("duck.glb",
  *  a path, a URL path) — its extension picks the format; without a
  *  useful extension the bytes are sniffed (GLB magic, glTF JSON, Ogawa
  *  magic, a .geo's or a PLY's opening line, binary STL's size
  *  arithmetic), so everything the extension table names except OBJ, which
- *  has no signature. Returns nullopt on unknown format or malformed
- *  content. */
-std::optional<Model> model(const void* bytes, size_t size,
-                           std::string_view pathHint,
-                           const Resolver& resolve = {});
+ *  has no signature. The error names the format the bytes were read as
+ *  when they do not read as it, or says no format knows them. */
+std::expected<Model, core::Error> model(const void* bytes, size_t size,
+                                        std::string_view pathHint,
+                                        const Resolver& resolve = {});
 
 /** Import a local file; external references resolve against its
  *  directory (the .gltf + .bin + textures layout just works). */
-std::optional<Model> model(const std::filesystem::path& file);
+std::expected<Model, core::Error> model(const std::filesystem::path& file);
 
 }  // namespace sigil::geometry::mesh::codec::decode

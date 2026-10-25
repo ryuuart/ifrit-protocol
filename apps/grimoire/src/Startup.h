@@ -16,6 +16,7 @@
 
 #include <filesystem>
 #include <future>
+#include <print>
 #include <span>
 #include <string>
 
@@ -40,8 +41,8 @@ class SharedWebEngineScope {
  public:
   SharedWebEngineScope() {
     if (!sigil::sketch::scry::configureSharedEngine({}))
-      std::fprintf(stderr,
-                   "[grimoire] shared web engine was already configured\n");
+      std::println(stderr,
+                   "[grimoire] shared web engine was already configured");
   }
   ~SharedWebEngineScope() { sigil::sketch::scry::shutdownSharedEngine(); }
 
