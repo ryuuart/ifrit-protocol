@@ -196,32 +196,6 @@ in `currentcolor`. A test should find `.filter("drop-shadow(2px 2px
 ink named.
 
 
-## A bevel's inner ring ignores the tones in force
-
-`Bevel::tonesInForce` reads `bevel-light` and `bevel-shadow` for the
-outer ring only, so a token whose inner ring restates the outer pair,
-`bevels::inherited(bevels::motifEtched(a, b))`, paints its groove in the
-fallback tones under any ancestor that set the pair. A test should find
-`inherited(motifEtched(a, b))` under `bevel-light` c and `bevel-shadow`
-d painting no pixel of a or b.
-
-## A sprite palette cannot name a custom property
-
-`kit::Sprite`, `pixelMap` and `pixelSprite` hold a palette of
-`material::Color` only, so an entry cannot be a reference and a themed
-sprite needs a describe-time colour or a hand-built box per mark, while
-`pixelSprite`'s own text promises a palette taken from a theme re-colours
-on a theme change. A test should find `pixelSprite` with an entry
-`var("x")` under `.var("x", red)` filling that run red without a
-re-describe.
-
-## A wash takes only a concrete material
-
-`decorations::wash` takes a `material::Material`, so a stipple or
-scanlines in the colour a property holds has no spelling and a sketch
-builds the tile at paint by hand. A test should find a wash of a stipple
-in `var("x")` under `.var("x", c)` painting c through the mask.
-
 ## A pen's guest tree drops custom properties
 
 `paintRetained` and `pen.element` seed a guest tree with the font and ink
@@ -244,3 +218,11 @@ its relief or recess a clear colour to carry on, while the effects are
 meant to carry on the colour the property resolves to. A test should find
 an unset-ground well with a relief drawing the same as one whose ground
 states `palette-cell-ground`.
+## The Substance test can crash while exiting
+
+`Substance.SetsAnInputItHasAndRefusesOneItDoesNot` passes and then the
+process can fault on exit under a parallel run, while a case that passed
+is meant to exit cleanly. A test should find the suite exiting zero on
+every repetition of `ctest -R '^Substance\.' -j8 --repeat
+until-fail:20`.
+
