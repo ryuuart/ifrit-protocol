@@ -196,38 +196,6 @@ in `currentcolor`. A test should find `.filter("drop-shadow(2px 2px
 ink named.
 
 
-## A recess's shade written as a reference paints its stand-in
-
-The kit's plate builds a recess's inner shadow from the shade's colour
-value, so a shade written as `var(...)` or as the ink in force paints its
-clear stand-in, while the shadow is meant to carry the colour the
-reference resolves to. A test should find a recess whose shade is
-`var("x")` drawing the same as one stating x's colour.
-
-## A pen's guest inherits only the font, the ink and the custom properties
-
-`paintRetained` seeds a guest root with those three, while the cascade
-also carries the paragraph block, the sheet in force and image sampling,
-and everything inherited is meant to cross the guest boundary. A test
-should find a guest under a pen standing under a centred paragraph
-centring its text, and a class rule from the host's sheet styling a guest
-leaf.
-
-## timeline reads spacing-tick-reach with no fallback
-
-Under no sheet a timeline's ticks have zero reach, while the stock
-distance is meant to stand in as it does for `axis`. A test should find a
-timeline under no sheet drawing the same as one under the stock sheet.
-
-## A ticker's caller cannot know the sheet's crawl gap it left unset
-
-The gap is read at layout from the properties in force, but the caller
-still wraps the phase over the content plus the gap it does not know, so
-an unset gap under a sheet that states another distance loops with a
-seam. The marquee is meant to own the wrap. A test should find an
-unset-gap ticker under a sheet with another `spacing-ticker-gap` looping
-without a seam.
-
 ## A face adopted by hand through a session's context outlives the session
 
 `ctx.fonts.adopt(face, origin)` adopts into the context the host shares
@@ -244,3 +212,19 @@ cannot tell which session asked, and the family lives until the older
 session closes. A test should find a face loaded by one of two concurrent
 sessions over one hub leaving when that session closes, whatever the
 other did.
+## The percentage indent in force does not reach a guest
+
+A guest inherits the paragraph block in pixels, but an indent stated as a
+percentage of the measure is not carried across the guest boundary,
+while everything inherited is meant to cross. A test should find a guest
+under a pen standing under a paragraph with a percentage indent drawing
+the same as the guest stating that indent itself.
+
+## vertigo_titles renders to more than one hash
+
+The sketch's device plate has answered three different hashes across
+sweeps of one tree, with the differences inside the hollow letters, a
+text leaf whose ink is a clear material under stroke and underlay
+effects; a plate is meant to be the same bytes on every render of one
+tree. A test should find twenty renders of the sketch at its capture
+moment hashing alike, or name the effect whose output varies.
