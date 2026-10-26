@@ -24,12 +24,13 @@
 #include <sigilmaterial/substance/advanced/Archive.h>
 #include <sigilmaterial/substance/advanced/Cook.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -47,12 +48,11 @@ std::string sample(const char* name) {
 
 /** The samples ship with the SDK; without either there is nothing to
  *  cook and the case says why instead of failing. */
-#define SKIP_WITHOUT_SAMPLE(name)                                        \
-  do {                                                                   \
-    if (!sbsar::available()) GTEST_SKIP() << "no Substance SDK";         \
-    if (!std::filesystem::exists(sample(name)))                          \
-      GTEST_SKIP() << "Substance SDK sample " << sample(name)            \
-                   << " not found";                                      \
+#define SKIP_WITHOUT_SAMPLE(name)                                              \
+  do {                                                                         \
+    if (!sbsar::available()) GTEST_SKIP() << "no Substance SDK";               \
+    if (!std::filesystem::exists(sample(name)))                                \
+      GTEST_SKIP() << "Substance SDK sample " << sample(name) << " not found"; \
   } while (0)
 
 /** The frame as an image in host memory, whichever engine cooked it: a
@@ -144,9 +144,8 @@ TEST(Substance, AGpuCookReachesATextureWithNoCopyBack) {
       gpu ? sigil::skia::GraphiteContext::create(*gpu) : nullptr;
   if (!graphite) GTEST_SKIP() << "no Metal device for Graphite";
   io::Hub hub;
-  sbsar::CookScheduler cook(
-      sbsar::load(hub, sample("Autumn_Leaves.sbsar")), 0,
-      {.resolution = 64, .engine = sbsar::Engine::Metal});
+  sbsar::CookScheduler cook(sbsar::load(hub, sample("Autumn_Leaves.sbsar")), 0,
+                            {.resolution = 64, .engine = sbsar::Engine::Metal});
   ASSERT_EQ(sbsar::Engine::Metal, cook.engine());
   ASSERT_TRUE(cook.cookNow());
   const uint64_t readBefore = sbsar::deviceReadbacks();
@@ -177,8 +176,8 @@ TEST(Substance, AGpuCookReachesATextureWithNoCopyBack) {
   drawnAt.recorder = recorder;
   const sk_sp<SkShader> shader = material::skia::shader(texture, drawnAt);
   ASSERT_TRUE(shader);
-  const sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
-      recorder, SkImageInfo::MakeN32Premul(64, 64));
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::RenderTarget(recorder, SkImageInfo::MakeN32Premul(64, 64));
   ASSERT_TRUE(surface);
   SkPaint paint;
   paint.setShader(shader);
@@ -189,6 +188,31 @@ TEST(Substance, AGpuCookReachesATextureWithNoCopyBack) {
   // A caller with no recorder is the one that reads it back.
   EXPECT_TRUE(frameOf(normal));
   EXPECT_EQ(readBefore + 1, sbsar::deviceReadbacks());
+}
+
+TEST(Substance, AProcessExitsCleanlyWhileTheGpuEngineCooks) {
+  SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
+  if (!sbsar::available(sbsar::Engine::Metal))
+    GTEST_SKIP() << "the Substance Metal engine does not start here";
+  // The exiting process is a fresh run of this binary, so the engine
+  // starts inside it rather than across a fork.
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
+  // A cook still in flight and the engine's own threads still running
+  // when the process ends: the engine stops before anything it reads is
+  // torn down, and the process exits with the status it asked for.
+  EXPECT_EXIT(
+      {
+        io::Hub hub;
+        sbsar::CookScheduler cook(
+            sbsar::load(hub, sample("Autumn_Leaves.sbsar")), 0,
+            {.resolution = 1024, .engine = sbsar::Engine::Metal});
+        cook.cookNow();
+        const float hue[] = {0.5f};
+        cook.set("Hue_Shift", hue);
+        cook.cook();
+        std::exit(0);
+      },
+      testing::ExitedWithCode(0), "");
 }
 
 TEST(Substance, WithoutTheSdkEveryEntranceAnswersEmpty) {
@@ -256,8 +280,7 @@ TEST(Substance, TagsEachOutputWithTheColourSpaceItDeclares) {
   EXPECT_EQ(sbsar::Encoding::Srgb, base->encoding);
   EXPECT_EQ(sbsar::Encoding::Raw, normal->encoding);
 
-  const Material material =
-      material::substance(hub, uri, {.resolution = 64});
+  const Material material = material::substance(hub, uri, {.resolution = 64});
   const sk_sp<SkImage> colour = frameOf(baseOf(material));
   const sk_sp<SkImage> normals = frameOf(sbsar::output(material, "normal"));
   ASSERT_TRUE(colour && normals);
@@ -366,17 +389,13 @@ TEST(Substance, TheGeneratedStructFormWritesItsFields) {
   io::Hub hub;
   const std::string uri = sample("Autumn_Leaves.sbsar");
   const Material plain = material::substance(hub, uri, {.resolution = 64});
-  const Material shifted =
-      material::substance(hub, uri, LeavesInputs{.hueShift = 0.5f},
-                          {.resolution = 64});
-  EXPECT_GT(differing(frameOf(baseOf(plain)),
-                      frameOf(baseOf(shifted))),
-            3);
+  const Material shifted = material::substance(
+      hub, uri, LeavesInputs{.hueShift = 0.5f}, {.resolution = 64});
+  EXPECT_GT(differing(frameOf(baseOf(plain)), frameOf(baseOf(shifted))), 3);
   // The keyed form states the same thing.
   const Material keyed = material::substance(
       hub, uri, {.inputs = {{"Hue_Shift", 0.5f}}, .resolution = 64});
-  EXPECT_EQ(0, differing(frameOf(baseOf(keyed)),
-                         frameOf(baseOf(shifted))));
+  EXPECT_EQ(0, differing(frameOf(baseOf(keyed)), frameOf(baseOf(shifted))));
 }
 
 TEST(Substance, APresetBesideTheArchiveIsAppliedByLabel) {
@@ -386,9 +405,7 @@ TEST(Substance, APresetBesideTheArchiveIsAppliedByLabel) {
   const Material authored = material::substance(hub, uri, {.resolution = 64});
   const Material green =
       material::substance(hub, uri, {.preset = "Green", .resolution = 64});
-  EXPECT_GT(differing(frameOf(baseOf(authored)),
-                      frameOf(baseOf(green))),
-            3);
+  EXPECT_GT(differing(frameOf(baseOf(authored)), frameOf(baseOf(green))), 3);
   sbsar::CookScheduler cook(sbsar::load(hub, uri), 0);
   EXPECT_FALSE(cook.applyPreset("Green")) << "not embedded in the archive";
 }
@@ -430,8 +447,9 @@ TEST(Substance, RefusesWhatIsNotAnArchive) {
   if (!sbsar::available()) GTEST_SKIP() << "no Substance SDK";
   const char junk[] = "this is not an archive";
   EXPECT_FALSE(sbsar::Archive::decode(std::as_bytes(std::span(junk))));
-  EXPECT_EQ(sbsar::Archive::decode(std::as_bytes(std::span(junk))).error().message,
-            "the bytes are no Substance archive the engine reads");
+  EXPECT_EQ(
+      sbsar::Archive::decode(std::as_bytes(std::span(junk))).error().message,
+      "the bytes are no Substance archive the engine reads");
   io::Hub hub;
   const Material missing = material::substance(hub, "/nonexistent/x.sbsar");
   ASSERT_NE(nullptr, missing.color());
@@ -457,7 +475,8 @@ TEST(Substance, GraphsComposeThroughImageInputs) {
                             0, {.resolution = 128});
   std::vector<std::string> imageInputs;
   for (const sbsar::Input& input : post.description().inputs)
-    if (input.type == sbsar::InputType::Image) imageInputs.push_back(input.name);
+    if (input.type == sbsar::InputType::Image)
+      imageInputs.push_back(input.name);
   ASSERT_GE(imageInputs.size(), 2u) << "the filter takes two images";
   ASSERT_TRUE(post.cookNow());
   const media::PixelSource lit = post.output(post.cooked().front());

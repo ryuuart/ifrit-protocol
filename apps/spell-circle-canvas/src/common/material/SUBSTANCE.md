@@ -152,7 +152,9 @@ everywhere writes the keyed form.
 The Metal engine cooks for one renderer at a time in a process, so every
 GPU cook pushes its graph through one shared renderer and each result is
 routed back to its own cook; `wait()` on a GPU cook waits for every GPU
-cook in flight. A grey output (a roughness, an opacity) is spread to four
+cook in flight. That renderer stops as the process exits, cancelling what
+is in flight, before the engine's own statics are torn down; a GPU cook
+pushed after that cooks nothing. A grey output (a roughness, an opacity) is spread to four
 channels on the device as it lands, since a one-channel texture is sampled
 as red alone. The Vulkan engine is not wired: the World's device renderer
 reads a Metal texture back rather than share it.

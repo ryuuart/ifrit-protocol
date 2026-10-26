@@ -7,16 +7,16 @@
  * is where bound values are followed.
  */
 
-#include <sigilmaterial/substance/advanced/Cook.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilmaterial/advanced/Program.h>
-#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/substance/advanced/Cook.h>
 #include <sigilmedia/advanced/Device.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <atomic>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <map>
@@ -129,9 +129,8 @@ struct CookScheduler::State {
   Engine runsOn = Engine::Cpu;
   std::unique_ptr<air::GraphInstance> instance;
   Callbacks callbacks;
-  /** The renderer this graph is pushed through: its own on the CPU, the
-   *  process's one on the GPU. */
-  air::Renderer* renderer = nullptr;
+  /** The renderer this graph is pushed through on the CPU; a GPU cook
+   *  pushes through the process's one, `shared`, instead. */
   std::unique_ptr<air::Renderer> ownRenderer;
 #ifdef SIGIL_SUBSTANCE_METAL_ENGINE
   SharedDeviceRenderer* shared = nullptr;
@@ -277,19 +276,40 @@ struct SharedDeviceRenderer {
   };
 
   Dispatch dispatch;
+  /** Null once the process is ending: a cook pushed after that cooks
+   *  nothing. Guarded by `running`. */
   std::unique_ptr<air::Renderer> renderer;
   /** Guards `cooks`, and is held while a result is handed to its cook,
    *  so a cook leaving waits for a hand-over in flight. */
   std::mutex enrolled;
   std::map<const air::GraphInstance*, CookScheduler::State*> cooks;
-  /** The renderer's push, run, pending and flush are not safe to call
-   *  from two threads at once. */
+  /** Guards `renderer`: its push, run, pending and flush are not safe to
+   *  call from two threads at once. */
   std::mutex running;
 };
 
+SharedDeviceRenderer* sharedDeviceRenderer();
+
+/** Stops the engine as the process ends: nothing is handed to a cook any
+ *  more, work in flight is cancelled, and the renderer is released, which
+ *  releases the engine's context on its own render thread and ends that
+ *  thread. */
+void stopSharedDeviceRenderer() {
+  SharedDeviceRenderer* shared = sharedDeviceRenderer();
+  if (!shared) return;
+  {
+    std::lock_guard lock(shared->enrolled);
+    shared->cooks.clear();
+  }
+  std::lock_guard lock(shared->running);
+  shared->renderer.reset();
+}
+
 SharedDeviceRenderer* sharedDeviceRenderer() {
-  // Kept for the process: the cooks of every material share it, and the
-  // engine's own thread runs until the process ends.
+  // Made once and shared by the cooks of every material. Its memory is
+  // kept for the process, so a cook that outlives the renderer still
+  // finds the routing and the locks; the renderer itself is stopped as
+  // the process ends.
   static SharedDeviceRenderer* const shared = []() -> SharedDeviceRenderer* {
     const detail::MetalEngine* metal = detail::metalEngine();
     if (!metal) return nullptr;
@@ -300,13 +320,15 @@ SharedDeviceRenderer* sharedDeviceRenderer() {
     // its device when it starts.
     made->renderer->setRenderCallbacks(&made->dispatch);
     if (!made->renderer->switchEngineLibrary(metal->library)) return nullptr;
+    // The engine's threads run for as long as its renderer lives, and
+    // they read the engine library's statics, which exit destroys. Exit
+    // handlers run in the reverse of the order they were registered, and
+    // the library's statics were registered when it was opened, before
+    // this one, so the engine stops before any of them is destroyed.
+    std::atexit(stopSharedDeviceRenderer);
     return made;
   }();
   return shared;
-}
-
-air::Renderer* sharedRendererOf(SharedDeviceRenderer& shared) {
-  return shared.renderer.get();
 }
 
 void enroll(SharedDeviceRenderer& shared, const air::GraphInstance& graph,
@@ -343,33 +365,34 @@ air::UInt CookScheduler::State::pushAndRun(air::UInt options) {
 #ifdef SIGIL_SUBSTANCE_METAL_ENGINE
   if (shared) {
     std::lock_guard lock(shared->running);
-    renderer->push(*instance);
-    return renderer->run(options, reinterpret_cast<size_t>(this));
+    if (!shared->renderer) return 0;
+    shared->renderer->push(*instance);
+    return shared->renderer->run(options, reinterpret_cast<size_t>(this));
   }
 #endif
-  renderer->push(*instance);
-  return renderer->run(options);
+  ownRenderer->push(*instance);
+  return ownRenderer->run(options);
 }
 
 bool CookScheduler::State::isPendingRun(air::UInt run) const {
 #ifdef SIGIL_SUBSTANCE_METAL_ENGINE
   if (shared) {
     std::lock_guard lock(shared->running);
-    return renderer->isPending(run);
+    return shared->renderer && shared->renderer->isPending(run);
   }
 #endif
-  return renderer->isPending(run);
+  return ownRenderer->isPending(run);
 }
 
 void CookScheduler::State::flushRuns() const {
 #ifdef SIGIL_SUBSTANCE_METAL_ENGINE
   if (shared) {
     std::lock_guard lock(shared->running);
-    renderer->flush();
+    if (shared->renderer) shared->renderer->flush();
     return;
   }
 #endif
-  renderer->flush();
+  ownRenderer->flush();
 }
 
 namespace {
@@ -419,7 +442,6 @@ CookScheduler::CookScheduler(std::shared_ptr<const Archive> archive,
   if (state->runsOn == Engine::Metal) {
     state->shared = sharedDeviceRenderer();
     if (state->shared) {
-      state->renderer = sharedRendererOf(*state->shared);
       enroll(*state->shared, *state->instance, *state);
     } else {
       reportOnce("substance:engine:switch",
@@ -429,10 +451,12 @@ CookScheduler::CookScheduler(std::shared_ptr<const Archive> archive,
     }
   }
 #endif
-  if (!state->renderer) {
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+  if (!state->shared)
+#endif
+  {
     state->ownRenderer = std::make_unique<air::Renderer>();
     state->ownRenderer->setRenderCallbacks(&state->callbacks);
-    state->renderer = state->ownRenderer.get();
   }
   const bool onDevice = state->runsOn != Engine::Cpu;
 
@@ -453,10 +477,9 @@ CookScheduler::CookScheduler(std::shared_ptr<const Archive> archive,
     output.mEnabled = cooked->enabled;
     output.mUserData = index;
     if (cooked->enabled) {
-      if (const unsigned format =
-              formatFor(output.mDesc, cooked->usage,
-                        request ? request->format : Format::Automatic,
-                        onDevice)) {
+      if (const unsigned format = formatFor(
+              output.mDesc, cooked->usage,
+              request ? request->format : Format::Automatic, onDevice)) {
         air::OutputFormat override;
         override.format = format;
         override.mipmapLevelsCount = air::OutputFormat::MipmapNone;
@@ -501,7 +524,8 @@ bool CookScheduler::set(std::string_view identifier,
   return m_state->write(identifier, values);
 }
 
-bool CookScheduler::setText(std::string_view identifier, std::string_view text) {
+bool CookScheduler::setText(std::string_view identifier,
+                            std::string_view text) {
   if (!m_state) return false;
   std::lock_guard lock(m_state->engine);
   air::InputInstanceBase* found = m_state->input(identifier);
@@ -680,10 +704,9 @@ bool CookScheduler::applyPreset(std::string_view label, PresetMode mode) {
   const auto apply = [&](const air::Presets& presets) {
     for (const air::Preset& preset : presets)
       if (toString(preset.mLabel) == label)
-        return preset.apply(*m_state->instance,
-                            mode == PresetMode::Reset
-                                ? air::Preset::Apply_Reset
-                                : air::Preset::Apply_Merge);
+        return preset.apply(*m_state->instance, mode == PresetMode::Reset
+                                                    ? air::Preset::Apply_Reset
+                                                    : air::Preset::Apply_Merge);
     return false;
   };
   return apply(m_state->instance->mDesc.mPresets) ||
@@ -716,13 +739,9 @@ void CookScheduler::wait() const {
   m_state->flushRuns();
 }
 
-bool CookScheduler::isPending() const {
-  return m_state && m_state->pending();
-}
+bool CookScheduler::isPending() const { return m_state && m_state->pending(); }
 
-bool CookScheduler::isRunning() const {
-  return m_state && m_state->running();
-}
+bool CookScheduler::isRunning() const { return m_state && m_state->running(); }
 
 uint64_t CookScheduler::revision() const {
   return m_state ? m_state->revision.load() : 0;
