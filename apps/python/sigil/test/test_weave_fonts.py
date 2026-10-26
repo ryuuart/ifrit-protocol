@@ -1,14 +1,17 @@
 """A font file is a resource, and its family is a family: loaded once
 through a session's hub, it is set by name with `fontFamily`, it is the
 face Skia draws and the face Weave's font context answers, and it stands
-in `weave.fonts` beside the installed families, marked bundled.
+in `weave.fonts` beside the installed families, marked bundled, for as
+long as the session that loaded it stands.
 
 The catalogue's installed half asks this machine's own families, and
 finds a face under the font's own name for its style, which is what a
 prompt reads a family's styles by and sets text in."""
 
+import importlib.util
 import json
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -125,6 +128,81 @@ class Catalogue(unittest.TestCase):
         fonts.adopt(face, "res://Georgia.ttf")
         self.assertEqual(fonts.adoptedFaces()[0].origin, "res://Georgia.ttf")
         self.assertEqual(fonts.familyTypeface("Georgia"), face)
+
+
+WINDOW_SKETCH = """
+import json
+from sigil import compose, weave
+from sigil.sketch import sketch
+
+REPORT = {report!r}
+FAMILY = {family!r}
+
+
+@sketch(size=(64, 32), background="#000000")
+class {name}:
+    def setup(self, ctx):
+        family = FAMILY
+        if not family:
+            family = ctx.assets.hub().load(weave.Face, "res://Face.ttf").familyName()
+        listed = weave.fonts.family(family, ctx.fonts)
+        with open(REPORT, "w") as report:
+            json.dump(
+                {{
+                    "family": family,
+                    "found": ctx.fonts.familyTypeface(family) is not None,
+                    "bundled": listed is not None and listed.bundled,
+                }},
+                report,
+            )
+        ctx.render(compose.box())
+"""
+
+
+def window_sketch(folder, name, family=""):
+    """A ``@sketch`` class in a module of its own, and the file it reports
+    to: with no ``family`` it loads the bundled face and reports that face's
+    family, and with one it loads nothing and reports whether its session's
+    font context answers that family."""
+    report = Path(folder) / f"{name}.json"
+    path = Path(folder) / f"window_fonts_{name.lower()}.py"
+    path.write_text(WINDOW_SKETCH.format(report=str(report), family=family, name=name))
+    specification = importlib.util.spec_from_file_location(path.stem, path)
+    module = importlib.util.module_from_spec(specification)
+    sys.modules[path.stem] = module
+    specification.loader.exec_module(module)
+    return module.__sigil_sketch__, report
+
+
+class WindowAdoptions(unittest.TestCase):
+    """The windows of one interpreter share one font context, and a family
+    a window's sketch loaded leaves it when that window closes."""
+
+    def test_a_closed_windows_family_is_not_found_by_the_window_after_it(self):
+        with tempfile.TemporaryDirectory() as folder:
+            shutil.copy(INSTRUMENTS / "Sans.ttf", Path(folder) / "Face.ttf")
+            loader, loaded = window_sketch(folder, "Loader")
+            first = live.open(size=(64, 32), headless=True, assets=folder)
+            try:
+                first.show(loader)
+                first.pump()
+            finally:
+                first.close()
+            while_open = json.loads(loaded.read_text())
+            probe, probed = window_sketch(folder, "Probe", while_open["family"])
+            second = live.open(size=(64, 32), headless=True, assets=folder)
+            try:
+                second.show(probe)
+                second.pump()
+            finally:
+                second.close()
+            after_close = json.loads(probed.read_text())
+        self.assertTrue(while_open["found"])
+        self.assertTrue(while_open["bundled"])
+        self.assertFalse(
+            after_close["found"], "a closed window's family answered the next window"
+        )
+        self.assertFalse(after_close["bundled"])
 
 
 def georgia_bold_italic_name():

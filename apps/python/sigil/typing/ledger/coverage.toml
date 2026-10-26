@@ -1166,6 +1166,10 @@ native = "Python subclasses of `FlowGeometry`, `FlowShape` and `Hyphenator`"
 native = "`FontContext` over a supplied font manager with a fallback resolver"
 
 [[section.surface.item]]
+native = "`FontContext::holdAdoption`, an adoption held by shares, whose face leaves the context when the last share ends"
+python = ["weave.FontContext.holdAdoption"]
+
+[[section.surface.item]]
 native = "`ports::face` family chains and width styles"
 python = ["weave.ports.face"]
 

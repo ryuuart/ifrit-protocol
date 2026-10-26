@@ -17,6 +17,7 @@
 #include <sigilio/source/Sink.h>
 #include <sigilio/advanced/Decoding.h>
 #include <sigilio/advanced/Places.h>
+#include <sigilio/advanced/Residency.h>
 
 #include <array>
 #include <atomic>
@@ -96,6 +97,28 @@ TEST_F(IOHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
   EXPECT_NE(recounted, counted);
   EXPECT_EQ(recounted->words, 2u);
   EXPECT_EQ(hub.text("res://live.txt"), "four five");
+}
+
+TEST_F(IOHub, ADiscardedMeaningDecodesAgainFromTheBytesTheHubKeeps) {
+  dir.write("kept.txt", "one two three");
+  registerDecoder<WordCount>(hub, WordCounter{});
+  ASSERT_EQ(hub.text("res://kept.txt"), "one two three");
+  const auto counted = hub.load<WordCount>("res://kept.txt");
+  ASSERT_NE(counted, nullptr);
+  // Written over with no poll, so the bytes the hub keeps are the ones
+  // it read, and a decode from them counts three words again.
+  dir.write("kept.txt", "four five");
+  EXPECT_EQ(discardDecoded(hub, meaningName(std::type_identity<WordCount>{})),
+            1u);
+  const auto recounted = hub.load<WordCount>("res://kept.txt");
+  ASSERT_NE(recounted, nullptr);
+  EXPECT_NE(recounted, counted) << "the discarded view answered again";
+  EXPECT_EQ(recounted->words, 3u);
+  // The value handed out before stays its holder's.
+  EXPECT_EQ(counted->words, 3u);
+  EXPECT_EQ(hub.text("res://kept.txt"), "one two three");
+  // A meaning nothing decoded discards nothing.
+  EXPECT_EQ(discardDecoded(hub, "test.Undecoded"), 0u);
 }
 
 TEST_F(IOHub, ConcurrentColdLoadsPublishOneCachedView) {

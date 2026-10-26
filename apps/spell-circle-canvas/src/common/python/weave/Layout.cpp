@@ -222,9 +222,10 @@ void bindWeaveLayout(py::module_& root) {
             f.get().adopt(std::move(face), std::move(origin));
           },
           py::arg("face"), py::arg("origin") = "",
-          "Makes the face known under its own family name; a later face "
-          "from the same origin replaces it. A sketch session's hub does "
-          "this for every font it loads.")
+          "Makes the face known under its own family name for as long as "
+          "this context stands; a later face from the same origin replaces "
+          "it. A sketch session adopts every font its hub loads the same "
+          "way, until the session closes.")
       .def(
           "adoptedFaces", [](Fonts& f) { return f.get().adoptedFaces(); },
           "Every face this context adopted, in the order first adopted.")

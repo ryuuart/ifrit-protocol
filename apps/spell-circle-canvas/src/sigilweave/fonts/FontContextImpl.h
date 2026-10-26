@@ -16,6 +16,7 @@
 #include <boost/unordered/unordered_node_map.hpp>
 #include <concepts>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -263,6 +264,17 @@ struct FontContext::Impl {
   // before the manager by family name; a handful per context, so a walk
   // is the whole index.
   std::vector<AdoptedFace> adoptedFaces;
+  // Who keeps each adopted face, at the face's own place in adoptedFaces:
+  // the shares holdAdoption() answered that still stand, and whether
+  // adopt() keeps it for the context's life. A face neither keeps leaves.
+  struct AdoptionKeepers {
+    int shares = 0;
+    bool kept = false;
+  };
+  std::vector<AdoptionKeepers> adoptionKeepers;
+  // What a share asks before it releases: it lives exactly as long as the
+  // context, so a share outliving the context reaches nothing.
+  std::shared_ptr<const bool> living = std::make_shared<const bool>(true);
 
   // Reused scratch object (the context is single-threaded by contract).
   hb_buffer_t* shapingBuffer = nullptr;

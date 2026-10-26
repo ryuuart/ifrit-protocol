@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -112,9 +113,51 @@ class FontContext {
    *  same origin REPLACES the earlier face, which is how a font file read
    *  again after an edit takes over its family. A face already adopted is
    *  adopted once, and no face is no adoption.
+   *  A face this adopts stands for as long as the context does;
+   *  `holdAdoption` adopts one for as long as a holder wants it.
    *  @trap An adopted family stands in front of an installed family of the
    *  same name, and `purgeAllCaches` keeps every adoption. */
   void adopt(Face face, std::string origin = {});
+
+  /** ONE HOLDER'S SHARE IN AN ADOPTION, which `holdAdoption` answers.
+   *  While any share in a face stands, the face answers under its family
+   *  as every adopted face does; when the last share ends, the face leaves
+   *  the context, and `familyTypeface`, `adoptedFaces` and the catalogue
+   *  handed the context answer as if it had never been adopted — unless
+   *  `adopt` keeps it as well. Moved, a share keeps holding; empty, moved
+   *  from or released, it holds nothing.
+   *  @trap A share ends on the thread its context belongs to, and one that
+   *  outlives its context ends with nothing to release. */
+  class AdoptionHold {
+   public:
+    AdoptionHold() = default;
+    AdoptionHold(AdoptionHold&& other) noexcept;
+    AdoptionHold& operator=(AdoptionHold&& other) noexcept;
+    AdoptionHold(const AdoptionHold&) = delete;
+    AdoptionHold& operator=(const AdoptionHold&) = delete;
+    ~AdoptionHold();
+
+    /** Whether this share still holds an adoption. */
+    [[nodiscard]] bool holds() const;
+    /** Ends this share now, as its end would. */
+    void release();
+
+   private:
+    friend class FontContext;
+    FontContext* m_context = nullptr;
+    std::weak_ptr<const void> m_living;
+    Face m_face;
+    std::string m_origin;
+  };
+
+  /** ADOPTS @p face AS `adopt` DOES, AND ANSWERS A SHARE IN THE ADOPTION:
+   *  the face stands while any share in it stands, so two holders that
+   *  read one font file — two sessions over one hub — share one face, and
+   *  the last to let go takes it out of the context. A face from an origin
+   *  already adopted replaces the face that origin held, as `adopt` does,
+   *  and every share in the origin is then a share in the new face. No
+   *  face is an empty share. */
+  [[nodiscard]] AdoptionHold holdAdoption(Face face, std::string origin = {});
 
   /** Every face this context has adopted, in the order first adopted, a
    *  replaced face standing where the face it replaced stood. */
@@ -203,6 +246,14 @@ class FontContext {
                                                      uint32_t, bool, bool);
   /// Reads the per-face zero advance this context measures once and keeps.
   friend float zeroAdvanceOf(const TextStyle&, FontContext&);
+  /** Adopts @p face from @p origin and answers where it stands among the
+   *  adopted faces — the place of the face it replaced, or of the same
+   *  face adopted before — or no place for no face. */
+  [[nodiscard]] std::optional<size_t> adoptFace(Face face, std::string origin);
+  /** Ends one share in the adoption from @p origin — or, where @p origin
+   *  is empty, in @p face's adoption — and takes the face out when no share
+   *  and no `adopt` keeps it. */
+  void releaseAdoption(const Face& face, const std::string& origin);
   struct Impl;
   std::unique_ptr<Impl> m_impl;
 };

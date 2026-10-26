@@ -2,7 +2,9 @@
  * A font file a session's hub loads is a family the session's font
  * context knows: a run named in that family is set in the face the hub
  * holds, exactly as a run handed the face itself, and a file edited on
- * disk is the family's new face once the hub reads it again.
+ * disk is the family's new face once the hub reads it again. The family
+ * stands for as long as a session that loaded the file does, and leaves
+ * the context when the last of them closes.
  */
 
 #include <gtest/gtest.h>
@@ -15,6 +17,7 @@
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/ports/Catalogue.h>
 #include <sigilweave/ports/Resource.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -29,6 +32,7 @@
 #include <iterator>
 #include <memory>
 #include <span>
+#include <string_view>
 #include <string>
 #include <utility>
 #include <vector>
@@ -123,6 +127,23 @@ Element byFamily(const std::string& family) {
   return text(u8"Waveform").fontSize(36).ink({1, 1, 1, 1}).fontFamily(family);
 }
 
+/** A body that loads nothing, sets one word in @p family, and notes
+ *  whether its session's font context knew the family as it set up. */
+struct Unloaded final : Scene2DBody {
+  std::string family;
+  bool knewFamily = true;
+  void setup(Scene2DContext& ctx) override {
+    ctx.canvas(220, 64);
+    knewFamily = static_cast<bool>(ctx.fonts->familyTypeface(family));
+    ctx.composer.render(box()
+                            .width(220)
+                            .height(64)
+                            .fill(Fill::color(sigil::material::Color{0, 0, 0, 1}))
+                            .children({byFamily(family)}));
+  }
+  void update(double, Scene2DContext&) override {}
+};
+
 Element byFace(const weave::Face& face) {
   return text(u8"Waveform").fontSize(36).ink({1, 1, 1, 1}).font({.face = face});
 }
@@ -143,9 +164,6 @@ TEST(BundledFace, AFamilyAHubLoadedIsSetInTheFaceTheHubHolds) {
 
   const SkBitmap named = plateOf(
       assets, fonts, [&family](weave::Face) { return byFamily(family); });
-  const auto held = assets.hub().load<weave::Face>(kUri);
-  ASSERT_TRUE(held && *held);
-  EXPECT_EQ(fonts.familyTypeface(family), *held);
   const SkBitmap faced =
       plateOf(assets, fonts, [](weave::Face face) { return byFace(face); });
   EXPECT_TRUE(sigil::sketch::test::samePicture(named, faced))
@@ -160,6 +178,58 @@ TEST(BundledFace, AFamilyAHubLoadedIsSetInTheFaceTheHubHolds) {
   });
   EXPECT_FALSE(sigil::sketch::test::samePicture(named, unnamed))
       << "the bundled family drew as the default family does";
+}
+
+TEST(BundledFace, AFamilyLeavesTheContextWhenTheLastSessionThatLoadedItCloses) {
+  sigil::test::ScratchDir root("sketch_bundled_face_close");
+  writeFile(root.path / "Face.ttf",
+            fileBytes(fs::path(SIGIL_TEST_INSTRUMENT_DIR) / "Sans.ttf"));
+  Assets assets(root.path);
+  weave::FontContext fonts(weave::ports::systemFontManager());
+  const auto opened = [&assets, &fonts](std::string_view key) {
+    auto body = std::make_unique<Lettering>();
+    body->word = [](weave::Face face) { return byFace(face); };
+    return openScene2D(std::move(body), fonts, assets, true, key);
+  };
+  std::unique_ptr<Session> first = opened("first");
+  const auto loaded = assets.hub().load<weave::Face>(kUri);
+  ASSERT_TRUE(loaded && *loaded);
+  const std::string family = loaded->familyName();
+  ASSERT_TRUE(fonts.familyTypeface(family));
+  // A second session loads the same file: one face, held by both.
+  std::unique_ptr<Session> second = opened("second");
+  ASSERT_EQ(fonts.adoptedFaces().size(), 1u);
+  const weave::Face shared = fonts.adoptedFaces().front().face;
+  EXPECT_EQ(fonts.familyTypeface(family), shared);
+  first.reset();
+  EXPECT_EQ(fonts.familyTypeface(family), shared)
+      << "the first session's close took the face the second still holds";
+  EXPECT_EQ(weave::fonts::find(family, "Regular", fonts), shared);
+  second.reset();
+  EXPECT_FALSE(fonts.familyTypeface(family))
+      << "the family outlived every session that loaded it";
+  EXPECT_FALSE(weave::fonts::find(family, "Regular", fonts));
+  EXPECT_FALSE(weave::fonts::family(family, fonts).has_value());
+  EXPECT_TRUE(fonts.adoptedFaces().empty());
+
+  // A session that follows and loads nothing does not find the family the
+  // closed ones loaded, so its word is not set in the bundled face.
+  const SkBitmap named = plateOf(
+      assets, fonts, [&family](weave::Face) { return byFamily(family); });
+  ASSERT_FALSE(fonts.familyTypeface(family));
+  auto body = std::make_unique<Unloaded>();
+  body->family = family;
+  Unloaded& following = *body;
+  const std::unique_ptr<Session> after =
+      openScene2D(std::move(body), fonts, assets, true, "following");
+  EXPECT_FALSE(following.knewFamily);
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(220, 64));
+  after->frame(*surface->getCanvas(), 0.0);
+  const SkBitmap unnamed = sigil::sketch::test::plateOf(*surface);
+  EXPECT_FALSE(sigil::sketch::test::samePicture(unnamed, named))
+      << "the following session set the word in the bundled face";
+  EXPECT_FALSE(fonts.familyTypeface(family));
 }
 
 TEST(BundledFace, AnEditedFileIsTheFamilysNewFace) {

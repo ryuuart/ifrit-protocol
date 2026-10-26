@@ -138,7 +138,7 @@ resources never does, is declared apart, as free functions over the hub:
 * `advanced/Lease.h` — `Lease`: the handle a callback stands on the advance by
 * `advanced/Places.h` — `mount`, `resolve`, `select`, `poll`: a late mount, the file a URI stands for, the files a selector names, and hot reload
 * `advanced/Problems.h` — `reportProblem`, `clearProblem`, `clearProblems`: how a library that reads through the hub says what it could not make of a URI, and how a host clears the list before its program asks again
-* `advanced/Residency.h` — `ResourceLease`, `retain`, `preload`, `discardUnretained`: what the hub keeps in memory and reads ahead
+* `advanced/Residency.h` — `ResourceLease`, `retain`, `preload`, `discardUnretained`, `discardDecoded`: what the hub keeps in memory and reads ahead, and the views one meaning decoded, let go so the next ask decodes again
 * `advanced/Decoding.h` — `ResourceInfo`, `registerDecoder`, `probe`: how a library teaches `load<T>()`, under the name T's meaning declares, and what a resource is without decoding it
 * `advanced/Feeds.h` — `feeds`: every feed the hub has open
 * `advanced/Network.h` — `NetworkCache`, `setNetworkCacheDirectory`, `setNetworkPolicy`, `setNetworkTransport`: the disk cache by URL, and a standing hub's network settings

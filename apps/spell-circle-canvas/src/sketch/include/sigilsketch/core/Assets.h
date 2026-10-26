@@ -33,20 +33,21 @@ namespace sigil::sketch {
  *  `hub().load<data::Table>("res://cities.csv")`, and a shader file read
  *  through it by `material::shader(hub(), "res://aurora.sksl", Params{})`.
  *  A font file is one too: `hub().load<weave::Face>(uri)` answers the
- *  face it holds, and every session opened over these assets knows that
- *  face by its family from then on, so `fontFamily("Muthur Study")`
- *  finds it as it finds an installed family.
+ *  face it holds, and the session that loaded it knows that face by its
+ *  family until it closes, so `fontFamily("Muthur Study")` finds it as it
+ *  finds an installed family.
  *  A URI is spelled whole; a bare name is a path from where the process
  *  started, never a resource. A file a load found missing or unreadable
  *  is watched, and `poll()` says when it appears. */
 class Assets {
  public:
-  /** WHILE IT STANDS, every face the hub reads is adopted by one font
-   *  context under its family, with the URI it was read from: the faces
-   *  read before it was made at once, and each face read after it — a
-   *  file edited on disk included, whose new face replaces the old — as
-   *  the hub reads it. Moved, it keeps holding; ended, later faces no
-   *  longer reach that context, and the ones it adopted stay adopted. */
+  /** WHILE IT STANDS, every face the hub reads on the thread it was made
+   *  on is adopted by one font context under its family, with the URI it
+   *  was read from, and held there: each face as the hub reads it, a file
+   *  edited on disk included, whose new face replaces the old. Ended, it
+   *  lets go of every face it holds, and a face no standing adoption over
+   *  the context still holds leaves it, so the family answers no more.
+   *  Moved, it keeps holding. */
   class FaceAdoption {
    public:
     FaceAdoption(FaceAdoption&& other) noexcept;
@@ -58,9 +59,10 @@ class Assets {
    private:
     friend class Assets;
     struct Faces;
-    FaceAdoption(std::shared_ptr<Faces> faces, weave::FontContext* fonts);
+    struct Holder;
+    FaceAdoption(std::shared_ptr<Faces> faces, std::shared_ptr<Holder> holder);
     std::shared_ptr<Faces> m_faces;
-    weave::FontContext* m_fonts = nullptr;
+    std::shared_ptr<Holder> m_holder;
   };
 
   /** @p root mounts at `res://`; @p sketches, the directory the sketch
@@ -77,12 +79,17 @@ class Assets {
    *  the sketches at `sketch://`. */
   sigil::io::Hub& hub() { return m_hub; }
 
-  /** MAKES EVERY FONT THIS HUB LOADS KNOWN TO @p fonts BY ITS FAMILY for
-   *  as long as the answer stands — what a session does when it opens, so
-   *  a sketch that loads a font file names its family anywhere after.
-   *  @trap A face read on another thread than the one this was asked on
-   *  reaches @p fonts at the next ask, since a font context belongs to
-   *  one thread. */
+  /** MAKES EVERY FONT THIS HUB LOADS FROM HERE ON KNOWN TO @p fonts BY
+   *  ITS FAMILY for as long as the answer stands — what a session does when
+   *  it opens, so a sketch that loads a font file names its family anywhere
+   *  after, and the family leaves @p fonts when the session closes. Every
+   *  face the hub decoded before is let go of, so a file the new session
+   *  loads is read again and arrives for it: two sessions that load one
+   *  file share one face, and a session that loads none finds no family
+   *  another session loaded, once that one has closed.
+   *  @trap A face is adopted by the contexts adopting on the thread that
+   *  decoded it — the thread that asked the hub for it or polled it — since
+   *  a font context belongs to one thread. */
   [[nodiscard]] FaceAdoption adoptFacesInto(weave::FontContext& fonts);
 
   /** Re-checks everything: true when a loaded resource changed on disk
@@ -94,8 +101,8 @@ class Assets {
  private:
   std::filesystem::path m_root;
   std::filesystem::path m_sketches;
-  /** The faces the hub has read and the contexts adopting them, shared
-   *  with the hub's face decoder. */
+  /** The contexts adopting the faces the hub reads, shared with the hub's
+   *  face decoder. */
   std::shared_ptr<FaceAdoption::Faces> m_faces;
   sigil::io::Hub m_hub;
 };

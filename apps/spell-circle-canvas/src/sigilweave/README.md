@@ -161,11 +161,26 @@ Face machine = fonts.familyTypeface("Muthur Study");  // the adopted face
 A family of several adopted faces answers a style with its nearest by
 CSS's matching; a later face from the same origin replaces the earlier,
 which is how a file read again after an edit takes over its family; and
-`FontContext::adoptedFaces` lists them. On a resource hub,
+`FontContext::adoptedFaces` lists them. A face `adopt` adopts stands for
+the context's life. One a holder wants only for a while is adopted with
+`FontContext::holdAdoption`, which answers a share in it, a
+`FontContext::AdoptionHold`: the face stands while any share in it does,
+so two holders that read one file — two sessions over one hub — share one
+face, and when the last share ends the face leaves the context, and
+`familyTypeface`, `adoptedFaces` and the catalogue below answer as if it
+had never been adopted:
+
+```cpp
+FontContext::AdoptionHold share =
+    fonts.holdAdoption(ports::faceFromBytes(bytes), "res://MachineType.ttf");
+share.release();  // or its end: "Muthur Study" names nothing again
+```
+
+On a resource hub,
 `ports::registerDecoders(hub, arrived)` hands every face the hub reads to
 `arrived(face, path)`, which is where a host adopts it — a sketch session
-does so for every font its hub loads, so a sketch's two lines are a load
-and a family name. A resource whose bytes hold no face is listed among
+holds a share in every font its hub loads for as long as it stands, so a
+sketch's two lines are a load and a family name. A resource whose bytes hold no face is listed among
 the hub's problems: the decoder answers `std::expected<Face, core::Error>`.
 
 `weave::fonts` reads the type there is as values: `fonts::families()`
@@ -713,7 +728,9 @@ What each feature's `test/` holds:
   varied clone, and the pair a shaper sets by measuring outlines.
   `AdoptedFaceTest.cpp` adopts the committed instrument faces and finds
   their family by name, its nearest face for a style, and a face from the
-  same origin replacing it.
+  same origin replacing it; and holds one with two shares, the family
+  found by name and by style name while either stands and by neither once
+  both have ended, while a face `adopt` keeps outlives its shares.
   `FamilyNameTest.cpp` reads an instrument face's family name and holds
   the family comparison to CSS's: case aside, spaces kept.
   `VerticalFeaturesTest.cpp` beside it asks which vertical OpenType

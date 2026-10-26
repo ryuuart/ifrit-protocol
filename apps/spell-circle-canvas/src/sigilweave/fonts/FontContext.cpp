@@ -12,6 +12,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -250,9 +253,27 @@ Face FontContext::familyTypeface(std::string_view family,
       .first->second;
 }
 
-void FontContext::adopt(Face face, std::string origin) {
+namespace {
+
+/** Drops every held answer for a family among @p touched: each was chosen
+ *  before an adoption changed what the family holds, so it is asked
+ *  again, while every other family keeps the face it answered with. */
+template <typename Answers>
+void forgetFamilies(Answers& answers, const std::vector<std::string>& touched) {
+  boost::unordered::erase_if(answers, [&touched](const auto& entry) {
+    const std::string_view name =
+        std::string_view(entry.first).substr(0, entry.first.find('\n'));
+    return std::ranges::any_of(touched, [name](const std::string& family) {
+      return fonts::sameFamily(name, family);
+    });
+  });
+}
+
+}  // namespace
+
+std::optional<size_t> FontContext::adoptFace(Face face, std::string origin) {
   const sk_sp<SkTypeface> typeface = toSk(face);
-  if (!typeface) return;
+  if (!typeface) return std::nullopt;
   std::vector<AdoptedFace>& adopted = m_impl->adoptedFaces;
   // The families whose answers this adoption can change: the new face's,
   // and that of the face it replaces.
@@ -261,28 +282,99 @@ void FontContext::adopt(Face face, std::string origin) {
     return !origin.empty() && entry.origin == origin;
   };
   const auto replaced = std::ranges::find_if(adopted, sameOrigin);
+  size_t place = 0;
   if (replaced != adopted.end()) {
-    if (replaced->face == face) return;
+    place = static_cast<size_t>(replaced - adopted.begin());
+    if (replaced->face == face) return place;
     if (const sk_sp<SkTypeface> old = toSk(replaced->face))
       touched.push_back(fonts::familyName(*old));
     replaced->face = std::move(face);
   } else {
-    if (std::ranges::any_of(adopted, [&face](const AdoptedFace& entry) {
-          return entry.face == face;
-        }))
-      return;
+    const auto same = std::ranges::find_if(
+        adopted, [&face](const AdoptedFace& entry) { return entry.face == face; });
+    if (same != adopted.end())
+      return static_cast<size_t>(same - adopted.begin());
+    place = adopted.size();
     adopted.push_back({std::move(face), std::move(origin)});
+    m_impl->adoptionKeepers.emplace_back();
   }
-  // A held answer for a touched family was chosen without this face, so it
-  // is asked again; every other family keeps the face it answered with.
-  boost::unordered::erase_if(
-      m_impl->familyTypefaces, [&touched](const auto& entry) {
-        const std::string_view name =
-            std::string_view(entry.first).substr(0, entry.first.find('\n'));
-        return std::ranges::any_of(touched, [name](const std::string& family) {
-          return fonts::sameFamily(name, family);
-        });
+  forgetFamilies(m_impl->familyTypefaces, touched);
+  return place;
+}
+
+void FontContext::adopt(Face face, std::string origin) {
+  if (const std::optional<size_t> place =
+          adoptFace(std::move(face), std::move(origin)))
+    m_impl->adoptionKeepers[*place].kept = true;
+}
+
+FontContext::AdoptionHold FontContext::holdAdoption(Face face,
+                                                    std::string origin) {
+  const std::optional<size_t> place = adoptFace(face, std::move(origin));
+  if (!place) return {};
+  ++m_impl->adoptionKeepers[*place].shares;
+  AdoptionHold hold;
+  hold.m_context = this;
+  hold.m_living = m_impl->living;
+  // A share names the adoption the way it is found again: by its origin,
+  // which a later face from the same file keeps, or by the face itself
+  // where it came with none.
+  hold.m_origin = m_impl->adoptedFaces[*place].origin;
+  hold.m_face = std::move(face);
+  return hold;
+}
+
+void FontContext::releaseAdoption(const Face& face, const std::string& origin) {
+  std::vector<AdoptedFace>& adopted = m_impl->adoptedFaces;
+  const auto held =
+      std::ranges::find_if(adopted, [&face, &origin](const AdoptedFace& entry) {
+        return origin.empty() ? entry.origin.empty() && entry.face == face
+                              : entry.origin == origin;
       });
+  if (held == adopted.end()) return;
+  const auto place = static_cast<size_t>(held - adopted.begin());
+  Impl::AdoptionKeepers& keepers = m_impl->adoptionKeepers[place];
+  if (keepers.shares > 0) --keepers.shares;
+  if (keepers.shares > 0 || keepers.kept) return;
+  std::vector<std::string> touched;
+  if (const sk_sp<SkTypeface> leaving = toSk(held->face))
+    touched.push_back(fonts::familyName(*leaving));
+  adopted.erase(held);
+  m_impl->adoptionKeepers.erase(m_impl->adoptionKeepers.begin() +
+                                static_cast<std::ptrdiff_t>(place));
+  forgetFamilies(m_impl->familyTypefaces, touched);
+}
+
+FontContext::AdoptionHold::AdoptionHold(AdoptionHold&& other) noexcept
+    : m_context(std::exchange(other.m_context, nullptr)),
+      m_living(std::move(other.m_living)),
+      m_face(std::move(other.m_face)),
+      m_origin(std::move(other.m_origin)) {}
+
+FontContext::AdoptionHold& FontContext::AdoptionHold::operator=(
+    AdoptionHold&& other) noexcept {
+  if (this == &other) return *this;
+  release();
+  m_context = std::exchange(other.m_context, nullptr);
+  m_living = std::move(other.m_living);
+  m_face = std::move(other.m_face);
+  m_origin = std::move(other.m_origin);
+  return *this;
+}
+
+FontContext::AdoptionHold::~AdoptionHold() { release(); }
+
+bool FontContext::AdoptionHold::holds() const {
+  return m_context != nullptr && !m_living.expired();
+}
+
+void FontContext::AdoptionHold::release() {
+  FontContext* const context = std::exchange(m_context, nullptr);
+  if (context && !m_living.expired())
+    context->releaseAdoption(m_face, m_origin);
+  m_living.reset();
+  m_face = Face{};
+  m_origin.clear();
 }
 
 std::vector<AdoptedFace> FontContext::adoptedFaces() const {

@@ -158,8 +158,9 @@ void bindContext(py::module_& module) {
       .def_property_readonly(
           "assets", [](const Context& ctx) { return AssetsView(ctx.state()); })
       // The session's own font context, lent: every font the session's hub
-      // loads is adopted there under its family, so `weave.fonts` handed it
-      // lists the bundled families beside the installed ones.
+      // loads is adopted there under its family until the session closes,
+      // so `weave.fonts` handed it lists the bundled families beside the
+      // installed ones.
       .def_property_readonly(
           "fonts",
           [](const Context& ctx) {

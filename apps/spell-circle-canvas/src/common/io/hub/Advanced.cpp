@@ -4,7 +4,11 @@
  * grants, so the hub's page names none of them.
  */
 
+#include <mutex>
+#include <string_view>
 #include <utility>
+
+#include "Caches.h"
 
 #include "sigilio/advanced/Decoding.h"
 #include "sigilio/advanced/Feeds.h"
@@ -49,6 +53,17 @@ struct detail::HubAccess {
     return hub.retain(selectors);
   }
   static size_t discardUnretained(Hub& hub) { return hub.discardUnretained(); }
+  static size_t discardDecoded(Hub& hub, std::string_view meaning) {
+    const std::lock_guard lock(hub.m_mutex);
+    size_t discarded = 0;
+    for (auto& [key, entry] : hub.m_caches->entries) {
+      const auto view = entry.views.find(meaning);
+      if (view == entry.views.end()) continue;
+      entry.views.erase(view);
+      ++discarded;
+    }
+    return discarded;
+  }
   static void advance(Hub& hub) { hub.advance(); }
   static void advance(Hub& hub, std::chrono::duration<double> time) {
     hub.advance(time);
@@ -128,6 +143,9 @@ ResourceLease retain(Hub& hub,
                                              selectors.size()));
 }
 size_t discardUnretained(Hub& hub) { return HubAccess::discardUnretained(hub); }
+size_t discardDecoded(Hub& hub, std::string_view meaning) {
+  return HubAccess::discardDecoded(hub, meaning);
+}
 
 void advance(Hub& hub) { HubAccess::advance(hub); }
 void advance(Hub& hub, std::chrono::duration<double> time) {

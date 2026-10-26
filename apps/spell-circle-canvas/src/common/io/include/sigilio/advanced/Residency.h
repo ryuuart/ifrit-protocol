@@ -3,8 +3,8 @@
 /** @file
  * @ingroup io-hub
  * WHAT A HUB KEEPS IN MEMORY: leases that hold a set of resources
- * resident, reading them ahead of the first ask, and letting go of
- * everything no lease holds.
+ * resident, reading them ahead of the first ask, letting go of
+ * everything no lease holds, and letting go of what one meaning decoded.
  */
 
 #include <cstddef>
@@ -96,5 +96,13 @@ ResourceLease retain(Hub& hub,
  *  already returned in shared_ptrs stay alive for their holders. Returns
  *  the number of cache entries discarded. */
 size_t discardUnretained(Hub& hub);
+
+/** Drops every view @p hub decoded as the meaning named @p meaning — the
+ *  name `meaningName()` gives the type — from every entry, keeping the
+ *  bytes an entry holds: the next typed ask of any URI as that
+ *  meaning decodes again, through the decoder registered then, and hands
+ *  its decoder's answer to whoever the decoder tells. Values already
+ *  returned stay alive for their holders. Returns how many views went. */
+size_t discardDecoded(Hub& hub, std::string_view meaning);
 
 }  // namespace sigil::io

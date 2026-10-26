@@ -2028,11 +2028,14 @@ file, and the session's font context adopts the face under the family the
 file names, so every later `fontFamily("Muthur Study")` — and Weave's own
 `ctx.fonts.familyTypeface("Muthur Study")` — answers that held face. A file
 edited on disk is read again, its new face takes the family over, and the
-declaration that re-runs is set in it. Load the files a sketch names; a
-host shares one font context among the sessions it opens, so a family
-another sketch loaded may answer too, but only by the order they ran. Where
-the face is already in hand, `.fontFamily(face)` states it directly, with
-no lookup by name.
+declaration that re-runs is set in it. The family belongs to the session
+that loaded it: a host shares one font context among the sessions it opens
+— the windows of one interpreter, the sketches Grimoire switches between —
+and a family answers there only while a session that loaded its file
+stands, so closing a window or leaving a sketch takes its families with it,
+and two sessions that load one file share one face. Load the files a
+sketch names. Where the face is already in hand, `.fontFamily(face)` states
+it directly, with no lookup by name.
 
 #### Exploring type
 
@@ -2114,8 +2117,9 @@ answers the same face as a typeface. A face goes into a style as
 face per resource, so a C++ sketch asking `hub.load<weave::Face>` for the
 same URI gets the same face. A font context of a program's own,
 `weave.FontContext()`, adopts a face by hand with
-`fonts.adopt(face, origin)`, and an owned hub knows no font until
-`weave.registerDecoders(hub)` puts the decoder on it.
+`fonts.adopt(face, origin)`, which stands for as long as that context
+does, and an owned hub knows no font until `weave.registerDecoders(hub)`
+puts the decoder on it.
 
 ## Data values and native resources
 

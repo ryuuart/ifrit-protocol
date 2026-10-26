@@ -1,11 +1,13 @@
 /** @file
  * A face a font file holds, adopted by a font context under its own
  * family: asked for by name as an installed family is, its nearest face
- * found for a style, and replaced when its file is read again.
+ * found for a style, replaced when its file is read again, and held by
+ * shares that take it out of the context when the last of them ends.
  */
 
 #include <gtest/gtest.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/ports/Catalogue.h>
 #include <sigilweave/ports/Resource.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -15,7 +17,9 @@
 #include <cstdint>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "support/Faces.h"
@@ -169,4 +173,64 @@ TEST(AdoptedFace, AnAdoptedFaceAnswersTheNameItsFontGivesItsStyle) {
   // A style the adopted family lacks is no face, never its nearest.
   EXPECT_FALSE(context.familyTypeface(family, "Bold"));
   EXPECT_FALSE(context.familyTypeface("", "Regular"));
+}
+
+TEST(AdoptedFace, AReleasedShareLeavesTheFaceWhileASecondShareKeepsIt) {
+  FontContext context(ports::systemFontManager());
+  const Face face = ports::faceFromBytes(test::instrumentBytes("Sans.ttf"));
+  ASSERT_TRUE(face);
+  const std::string family = face.familyName();
+  FontContext::AdoptionHold first =
+      context.holdAdoption(face, "res://Sans.ttf");
+  // A second holder reads the same file again, which is a new face from the
+  // same origin: one adoption, held twice.
+  const Face again = ports::faceFromBytes(test::instrumentBytes("Sans.ttf"));
+  ASSERT_TRUE(again);
+  FontContext::AdoptionHold second =
+      context.holdAdoption(again, "res://Sans.ttf");
+  ASSERT_TRUE(first.holds() && second.holds());
+  ASSERT_EQ(context.adoptedFaces().size(), 1u);
+  // Asked by style name and by style, so both answers are held when the
+  // shares end.
+  EXPECT_EQ(fonts::find(family, "Regular", context), again);
+  EXPECT_EQ(fonts::find(family, FaceStyle{.weight = 400}, context), again);
+
+  first.release();
+  EXPECT_FALSE(first.holds());
+  EXPECT_EQ(fonts::find(family, "Regular", context), again)
+      << "the second share no longer keeps the face its holder read";
+  EXPECT_EQ(context.familyTypeface(family), again);
+  {
+    // Moved, a share keeps holding, and the share moved from holds nothing.
+    const FontContext::AdoptionHold moved = std::move(second);
+    EXPECT_FALSE(second.holds());
+    EXPECT_TRUE(moved.holds());
+    EXPECT_EQ(context.familyTypeface(family), again);
+  }
+  EXPECT_FALSE(fonts::find(family, "Regular", context))
+      << "the face outlived the last share in it";
+  EXPECT_FALSE(fonts::find(family, FaceStyle{.weight = 400}, context));
+  EXPECT_FALSE(context.familyTypeface(family));
+  EXPECT_FALSE(fonts::family(family, context).has_value());
+  EXPECT_TRUE(context.adoptedFaces().empty());
+}
+
+TEST(AdoptedFace, AFaceAdoptKeepsOutlivesEveryShare) {
+  auto context = std::make_unique<FontContext>(ports::systemFontManager());
+  const Face face = ports::faceFromBytes(test::instrumentBytes("Sans.ttf"));
+  ASSERT_TRUE(face);
+  FontContext::AdoptionHold share =
+      context->holdAdoption(face, "res://Sans.ttf");
+  context->adopt(face, "res://Sans.ttf");
+  share.release();
+  EXPECT_EQ(context->familyTypeface(face.familyName()), face);
+  // No face is an empty share; a share outliving its context ends with
+  // nothing to reach.
+  EXPECT_FALSE(context->holdAdoption(Face{}, "res://None.ttf").holds());
+  FontContext::AdoptionHold outliving =
+      context->holdAdoption(face, "res://Sans.ttf");
+  ASSERT_TRUE(outliving.holds());
+  context.reset();
+  EXPECT_FALSE(outliving.holds());
+  outliving.release();
 }

@@ -218,11 +218,17 @@ both runtimes take when they open), so `fontFamily`, Weave's
 `FontContext::familyTypeface` and the face's Skia typeface are one held
 face. A file edited on disk is read again by the poll, its new face
 replaces the old under the family, and the declaration that re-runs sets
-the family in it. The adoption belongs to the font context, which a host
-shares among the sessions it opens, so a family a sketch did not load
-itself may still answer where another sketch loaded it first; a sketch
-that names a bundled family loads its file. `weave::fonts::family(name,
-*ctx.fonts)` lists a bundled family's styles with the URI each came from.
+the family in it. The adoption belongs to the session: it holds a share in
+each face it loaded (`FontContext::holdAdoption`), and when it closes the
+share ends, so a host that shares one font context among the sessions it
+opens — Grimoire's sketches, the windows of one interpreter, the thumbnail
+workers — answers a bundled family only while a session that loaded it
+stands. Two sessions that load one file share one face, and the family
+stays until the last of them closes. A session opening lets go of the
+faces its hub decoded before, so a file it loads is read again for it and
+one it never loads stays out of its context; a sketch that names a bundled
+family loads its file. Weave's type catalogue, handed `*ctx.fonts`, lists
+a bundled family's styles with the URI each came from.
 
 | Name | Location |
 | --- | --- |

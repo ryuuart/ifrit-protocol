@@ -3,6 +3,7 @@
 #include <sigildata/read/Read.h>
 #include <sigilio/advanced/Network.h>
 #include <sigilio/advanced/Places.h>
+#include <sigilio/advanced/Residency.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/transport/Transport.h>
 #include <sigilmedia/advanced/Resource.h>
@@ -10,30 +11,34 @@
 #include <sigilweave/ports/Resource.h>
 
 #include <algorithm>
+#include <memory>
 #include <mutex>
 #include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace sigil::sketch {
 
-/** The faces a hub has read, by the URI each was read from, and the font
- *  contexts adopting them with the thread each belongs to. Shared by the
- *  assets, the hub's face decoder and every adoption standing, so none of
- *  them outlives what it reads. */
+/** ONE STANDING ADOPTION: the font context it adopts into, the thread
+ *  that context belongs to, and the share it holds in each face it
+ *  adopted, by the URI the face was read from. */
+struct Assets::FaceAdoption::Holder {
+  weave::FontContext* fonts = nullptr;
+  std::thread::id thread;
+  std::vector<std::pair<std::string, weave::FontContext::AdoptionHold>> holds;
+};
+
+/** The adoptions standing over one hub. Shared by the assets, the hub's
+ *  face decoder and every adoption standing, so none of them outlives
+ *  what it reads. */
 struct Assets::FaceAdoption::Faces {
-  struct Adopter {
-    weave::FontContext* fonts = nullptr;
-    std::thread::id thread;
-    int holds = 0;
-  };
   std::mutex guard;
-  std::vector<weave::AdoptedFace> read;
-  std::vector<Adopter> adopters;
+  std::vector<std::shared_ptr<Holder>> holders;
   /** Each mount's URI prefix and directory, so a path the decoder is
    *  handed is named by the URI a sketch would spell for it. */
   std::vector<std::pair<std::string, std::filesystem::path>> mounts;
@@ -67,53 +72,54 @@ struct Assets::FaceAdoption::Faces {
     return best;
   }
 
-  /** A face the decoder read from @p path: kept under its URI, replacing
-   *  what that URI held, and adopted by every context on this thread. */
+  /** A face the decoder read from @p path: adopted and held by every
+   *  adoption standing on this thread, in place of the face it held from
+   *  the same URI. The new share is taken before the old one ends, so the
+   *  family never leaves the context between them. */
   void arrived(const weave::Face& face, std::string_view path) {
-    std::vector<weave::FontContext*> here;
-    std::string uri;
-    {
-      const std::lock_guard lock(guard);
-      uri = uriOf(path);
-      const auto held =
-          std::ranges::find(read, uri, &weave::AdoptedFace::origin);
-      if (held != read.end())
-        held->face = face;
+    const std::lock_guard lock(guard);
+    const std::string uri = uriOf(path);
+    for (const std::shared_ptr<Holder>& holder : holders) {
+      if (holder->thread != std::this_thread::get_id()) continue;
+      weave::FontContext::AdoptionHold share =
+          holder->fonts->holdAdoption(face, uri);
+      const auto held = std::ranges::find(
+          holder->holds, uri,
+          &std::pair<std::string, weave::FontContext::AdoptionHold>::first);
+      if (held != holder->holds.end())
+        held->second = std::move(share);
       else
-        read.push_back({face, uri});
-      for (const Adopter& adopter : adopters)
-        if (adopter.thread == std::this_thread::get_id())
-          here.push_back(adopter.fonts);
+        holder->holds.emplace_back(uri, std::move(share));
     }
-    for (weave::FontContext* fonts : here) fonts->adopt(face, uri);
   }
 };
 
 Assets::FaceAdoption::FaceAdoption(std::shared_ptr<Faces> faces,
-                                   weave::FontContext* fonts)
-    : m_faces(std::move(faces)), m_fonts(fonts) {}
+                                   std::shared_ptr<Holder> holder)
+    : m_faces(std::move(faces)), m_holder(std::move(holder)) {}
 
 Assets::FaceAdoption::FaceAdoption(FaceAdoption&& other) noexcept
     : m_faces(std::move(other.m_faces)),
-      m_fonts(std::exchange(other.m_fonts, nullptr)) {}
+      m_holder(std::move(other.m_holder)) {}
 
 Assets::FaceAdoption& Assets::FaceAdoption::operator=(
     FaceAdoption&& other) noexcept {
   if (this == &other) return *this;
   FaceAdoption ended(std::move(*this));
   m_faces = std::move(other.m_faces);
-  m_fonts = std::exchange(other.m_fonts, nullptr);
+  m_holder = std::move(other.m_holder);
   return *this;
 }
 
 Assets::FaceAdoption::~FaceAdoption() {
-  if (!m_faces || !m_fonts) return;
-  const std::lock_guard lock(m_faces->guard);
-  auto& adopters = m_faces->adopters;
-  const auto standing =
-      std::ranges::find(adopters, m_fonts, &Faces::Adopter::fonts);
-  if (standing != adopters.end() && --standing->holds <= 0)
-    adopters.erase(standing);
+  if (!m_faces || !m_holder) return;
+  {
+    const std::lock_guard lock(m_faces->guard);
+    std::erase(m_faces->holders, m_holder);
+  }
+  // No face arrives for this adoption any more, so its shares end here,
+  // on the thread the session closes on, which is its context's.
+  m_holder->holds.clear();
 }
 
 namespace {
@@ -160,7 +166,8 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // it holds, cached, held and read again on an edit like any asset, and
   // a sketch in either language asks the same door for the same face.
   // Every face it reads is also handed to the font contexts the open
-  // sessions adopt faces into, so the face's family answers by name.
+  // sessions adopt faces into, so the face's family answers by name while
+  // a session that loaded it stands.
   sigil::weave::ports::registerDecoders(
       m_hub,
       [faces = m_faces](const sigil::weave::Face& face, std::string_view path) {
@@ -182,24 +189,20 @@ void Assets::mountSketch(std::string_view key,
 }
 
 Assets::FaceAdoption Assets::adoptFacesInto(weave::FontContext& fonts) {
-  std::vector<weave::AdoptedFace> read;
+  auto holder = std::make_shared<FaceAdoption::Holder>();
+  holder->fonts = &fonts;
+  holder->thread = std::this_thread::get_id();
   {
     const std::lock_guard lock(m_faces->guard);
-    auto& adopters = m_faces->adopters;
-    const auto standing = std::ranges::find(
-        adopters, &fonts, &FaceAdoption::Faces::Adopter::fonts);
-    if (standing != adopters.end()) {
-      ++standing->holds;
-      standing->thread = std::this_thread::get_id();
-    } else {
-      adopters.push_back({&fonts, std::this_thread::get_id(), 1});
-    }
-    read = m_faces->read;
+    m_faces->holders.push_back(holder);
   }
-  // What the hub read before this context was adopting, at once.
-  for (weave::AdoptedFace& face : read)
-    fonts.adopt(std::move(face.face), std::move(face.origin));
-  return FaceAdoption(m_faces, &fonts);
+  // A face the hub decoded for an earlier session is that session's: let
+  // go of, so a file this session loads is decoded again and arrives for
+  // it, and a file it never loads stays out of its context. The bytes the
+  // hub keeps are decoded from, so nothing is read from disk again.
+  io::discardDecoded(m_hub,
+                     meaningName(std::type_identity<weave::Face>{}));
+  return FaceAdoption(m_faces, std::move(holder));
 }
 
 bool Assets::poll() {
