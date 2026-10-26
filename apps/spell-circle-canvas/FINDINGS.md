@@ -219,11 +219,3 @@ meant to carry on the colour the property resolves to. A test should find
 an unset-ground well with a relief drawing the same as one whose ground
 states `palette-cell-ground`.
 
-## The Substance test can crash while exiting
-
-`Substance.SetsAnInputItHasAndRefusesOneItDoesNot` passes and then the
-process can fault on exit under a parallel run, while a case that passed
-is meant to exit cleanly. A test should find the suite exiting zero on
-every repetition of `ctest -R '^Substance\.' -j8 --repeat
-until-fail:20`.
-
