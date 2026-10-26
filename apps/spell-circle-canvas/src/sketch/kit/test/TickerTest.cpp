@@ -9,6 +9,8 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 
+#include <optional>
+
 #include "Drawn.h"
 
 namespace {
@@ -82,6 +84,26 @@ TEST(SketchKitTicker, TheInkColoursTheWordsAsWellAsTheTicks) {
   // The ticks are still the scale's, which is what makes the word's own
   // ink an exception rather than a second timeline ink.
   EXPECT_TRUE(amberIn(quieted, 0));
+}
+
+/** AN UNSET CRAWL GAP IS THE SHEET'S `spacing-ticker-gap`, read where the
+ *  strip lays out. */
+TEST(SketchKitTicker, AnUnsetGapIsTheSheets) {
+  kit::Theme wider = kit::houseTheme();
+  wider.spacing.tickerGap = 36;
+  const auto strip = [](std::optional<float> gap) {
+    return kit::ticker({.content = subject(),
+                        .contentWidth = 60,
+                        .phase = 0.0f,
+                        .gap = gap,
+                        .width = compose::Dimension(200)});
+  };
+  EXPECT_TRUE(sameDrawing(
+      sigil::sketch::kit::test::withProperties(strip(36.0f), wider),
+      sigil::sketch::kit::test::withProperties(strip(std::nullopt), wider)));
+  EXPECT_FALSE(sameDrawing(
+      strip(std::nullopt),
+      sigil::sketch::kit::test::withProperties(strip(std::nullopt), wider)));
 }
 
 }  // namespace

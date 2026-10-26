@@ -146,6 +146,21 @@ float StatedLength::in(float extent) const {
   return std::numeric_limits<float>::quiet_NaN();
 }
 
+float Arrangement::pixels(const Dimension& length, float extent) const {
+  switch (length.unit) {
+    case Dimension::Unit::Px:
+      return length.value;
+    case Dimension::Unit::Pt:
+      return length.value * sigil::weave::Length::kPointPx;
+    case Dimension::Unit::Percent:
+      return length.value * 0.01f * extent;
+    case Dimension::Unit::Auto:
+      return 0.0f;
+    default:
+      return lengthReader ? lengthReader(length, extent) : 0.0f;
+  }
+}
+
 bool StatedSize::anyFraction() const {
   for (const StatedLength* length :
        {&width, &height, &minWidth, &minHeight, &maxWidth, &maxHeight})

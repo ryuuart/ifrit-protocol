@@ -51,8 +51,8 @@ namespace {
 
 Element arrangement(std::vector<Element> children,
                     std::vector<layouts::Track> columns,
-                    std::vector<layouts::Track> rows, glm::vec2 gap, Align down,
-                    Align measuredAlign) {
+                    std::vector<layouts::Track> rows, layouts::Gap gap,
+                    Align down, Align measuredAlign) {
   Element grid = layout(layouts::Grid{.columns = std::move(columns),
                                       .rows = std::move(rows),
                                       .gap = gap,
@@ -115,7 +115,7 @@ Element cells(Cells run) {
 }
 
 Element panelGrid(PanelGrid grid) {
-  const float gap = grid.gap;
+  const Dimension gap = grid.gap;
   const Dimension measure = grid.measure;
   const auto measured = [measure](Element built) {
     if (measure.unit != Dimension::Unit::Auto) built.width(measure);
@@ -132,8 +132,8 @@ Element panelGrid(PanelGrid grid) {
         interleave(grid.cells, grid.divider, grid.dividerWidth,
                    std::max<size_t>(grid.cells.size(), 1));
     return measured(arrangement(std::move(grid.cells), std::move(tracks),
-                                {crossTrack(grid.align)}, {gap, 0}, grid.align,
-                                grid.align));
+                                {crossTrack(grid.align)}, {gap, 0.0f},
+                                grid.align, grid.align));
   }
   const size_t across = (size_t)grid.columns;
   // The wrap is the grid's own flow: the cells fill a row of equal shares

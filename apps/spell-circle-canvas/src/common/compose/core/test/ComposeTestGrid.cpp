@@ -405,6 +405,62 @@ TEST(ComposeGrid, AChildClaimsItsRegionByNameThroughTheComposer) {
             SkRect::MakeXYWH(100, 40, 300, 160));
 }
 
+TEST(ComposeGrid, AGapIsALengthReadThroughThePropertiesInForce) {
+  // The gutter is the sheet's: a grid whose gap names a custom property
+  // lays out at whatever the sheet in force states, and lays out again
+  // when the sheet states another.
+  Host host(400, 100);
+  const auto under = [](float gutter) {
+    return box()
+        .absolute()
+        .inset(0)
+        .applyStyleSheet(StyleSheet{
+            rule(":root").var("spacing-cell-gap", Dimension(gutter))})
+        .children(
+            {layout(Grid{.columns = {layouts::px(40), layouts::px(40)},
+                         .rows = {layouts::px(40), layouts::px(40)},
+                         .gap = layouts::Gap::both(var("spacing-cell-gap"))})
+                 .key("grid")
+                 .absolute()
+                 .inset(0)
+                 .children({box().key("first").fill(red()),
+                            box().key("second").fill(green()),
+                            box().key("third").fill(blue())})});
+  };
+  host.composer.render(under(10));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("second")),
+            SkRect::MakeXYWH(50, 0, 40, 40));
+  EXPECT_EQ(require(host.composer.bounds("third")),
+            SkRect::MakeXYWH(0, 50, 40, 40));
+  host.composer.render(under(30));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("second")),
+            SkRect::MakeXYWH(70, 0, 40, 40));
+  EXPECT_EQ(require(host.composer.bounds("third")),
+            SkRect::MakeXYWH(0, 70, 40, 40));
+}
+
+TEST(ComposeGrid, AGapIsReadInTheFontAndAsAShareOfTheBox) {
+  // An em is the grid node's own font size; a percentage is of the
+  // grid's extent along the gap's own axis; a bare number is pixels.
+  Host host(400, 200);
+  host.composer.render(
+      layout(Grid{.columns = {layouts::px(40), layouts::px(40)},
+                  .rows = {layouts::px(40), layouts::px(40)},
+                  .gap = {Dimension(sigil::weave::em(2)), percent(10)}})
+          .font({.size = 10})
+          .absolute()
+          .inset(0)
+          .children(
+              {box().key("first"), box().key("second"), box().key("third")}));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("second")),
+            SkRect::MakeXYWH(60, 0, 40, 40));
+  EXPECT_EQ(require(host.composer.bounds("third")),
+            SkRect::MakeXYWH(0, 60, 40, 40));
+}
+
 TEST(ComposeGrid, AGridEmbeddedInAColumnTakesItsHeightFromWhatItPlaced) {
   // Every child of a scheme is placed absolutely, so nothing under the
   // container contributes to its height and flex would collapse it to

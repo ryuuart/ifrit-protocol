@@ -3,6 +3,7 @@
  * node's content, and an element retained inside a pen's loop.
  */
 
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/Stack.h>
@@ -251,10 +252,15 @@ TEST(DrawNode, AWorldSpaceMaterialSpansTheRootInsideEachPen) {
         .height(40);
   };
   const auto describe = [&](float shift) {
-    return box().children(
-        {box().absolute().left(0).top(10).width(percent(100)).height(40).fill(
-             material::skia::base(field)),
-         penLeaf(20 + shift, 110, false), penLeaf(150 + shift, 40, true)});
+    return box().children({box()
+                               .absolute()
+                               .left(0)
+                               .top(10)
+                               .width(percent(100))
+                               .height(40)
+                               .fill(material::skia::base(field)),
+                           penLeaf(20 + shift, 110, false),
+                           penLeaf(150 + shift, 40, true)});
   };
   const auto matches = [](Host& host, int x) {
     const SkColor fill = host.pixel(x, 30);
@@ -468,21 +474,24 @@ TEST(RetainedElement, BakesIntoALayerAtTheLayersDensity) {
   }
   EXPECT_EQ(card.buffer().extent(), SkISize::Make(200, 200))
       << "formed at the stack's density floor";
-  EXPECT_EQ(card.pen().retained().size(), 1u) << "one call site, one kept guest";
+  EXPECT_EQ(card.pen().retained().size(), 1u)
+      << "one call site, one kept guest";
   const SkBitmap baked = [&] {
     SkBitmap bitmap;
     bitmap.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
     EXPECT_TRUE(card.image()->readPixels(bitmap.pixmap(), 0, 0));
     return bitmap;
   }();
-  EXPECT_EQ(baked.getColor(59, 59), SK_ColorRED) << "thirty units are sixty pixels";
+  EXPECT_EQ(baked.getColor(59, 59), SK_ColorRED)
+      << "thirty units are sixty pixels";
   EXPECT_EQ(SkColorGetA(baked.getColor(61, 61)), 0u);
 
   card.transform({.translation = {40, 40}});
   paper.begin(3, 3 / 60.0);
   stack.composite(paper.pen);
   paper.pen.end();
-  EXPECT_EQ(paper.pixel(55, 55), SK_ColorRED) << "the layer lands where it is placed";
+  EXPECT_EQ(paper.pixel(55, 55), SK_ColorRED)
+      << "the layer lands where it is placed";
   EXPECT_EQ(SkColorGetA(paper.pixel(20, 20)), 0u);
 }
 
@@ -541,6 +550,51 @@ TEST(RetainedElement, RetirementReleasesTheComposerAndLeavesItsPeerRunning) {
   EXPECT_NEAR(firstTime, 1.0 / 60.0, 1e-12);
   EXPECT_NEAR(peerTime, 3.0 / 60.0, 1e-12);
   EXPECT_EQ(paper.pen.retained().size(), 2u);
+}
+
+TEST(RetainedElement, AGuestReadsTheCustomPropertiesWhereItsPenStands) {
+  // Everything inherited crosses the guest boundary: a guest painted from
+  // a pen node, or from a graphics node's kept canvas, stands under the
+  // properties in force at that node as it stands in its ink and font.
+  for (const bool kept : {false, true}) {
+    Host host;
+    const auto program = [](Pen& pen) {
+      pen.element(box().fill(var("accent")), 0, 0, 20, 20);
+    };
+    host.composer.render(
+        stack()
+            .var("accent", material::Color{1, 0, 0, 1})
+            .children({(kept ? graphics(program) : pen(program))
+                           .width(40)
+                           .height(40)}));
+    host.frame();
+    EXPECT_EQ(host.pixel(5, 5), SK_ColorRED) << (kept ? "graphics" : "pen");
+    EXPECT_EQ(host.pixel(30, 30), SK_ColorBLACK) << (kept ? "graphics" : "pen");
+  }
+}
+
+TEST(RetainedElement, APenNobodyHandedPropertiesGivesItsGuestNone) {
+  // A pen outside any composer carries no properties, so the guest's
+  // reference names nothing and its box stays unfilled; and what a host
+  // carried for one frame does not outlive that frame.
+  Paper paper;
+  const sigil::compose::VarTable accent = [] {
+    sigil::compose::VarTable table;
+    table.set(var("accent"), material::Color{1, 0, 0, 1});
+    return table;
+  }();
+  paper.begin(1);
+  paper.pen.inheritForGuests(&accent);
+  EXPECT_EQ(paper.pen.guestInheritance<sigil::compose::VarTable>(), &accent);
+  paper.pen.element(box().fill(var("accent")), 0, 0, 20, 20);
+  paper.pen.end();
+  EXPECT_EQ(paper.pixel(5, 5), SK_ColorRED);
+  EXPECT_EQ(paper.pen.guestInheritance<sigil::compose::VarTable>(), nullptr);
+  paper.surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+  paper.begin(2);
+  paper.pen.element(box().fill(var("accent")), 0, 0, 20, 20);
+  paper.pen.end();
+  EXPECT_EQ(paper.pixel(5, 5), SK_ColorTRANSPARENT);
 }
 
 }  // namespace

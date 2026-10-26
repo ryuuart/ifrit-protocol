@@ -100,7 +100,7 @@ void Composer::Impl::runCascade() {
     }
   }
   const InkInForce noInkPaint;
-  resolveCascade(*root, rootFont, rootLineHeight, nullptr, rootBlock,
+  resolveCascade(*root, rootFont, rootLineHeight, rootVars, rootBlock,
                  rootSampling, chain, noInkPaint, rootFont.color);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
@@ -586,6 +586,12 @@ void Composer::Impl::resolveCascade(
     applyLayoutProps(inst);
     needsLayout = true;
   }
+  // An arranging operator reads its own distances — a grid's gaps — through
+  // the font and the properties in force here, which no layout prop of the
+  // node records, so a move in either lays the node out again.
+  if (!first && (shapeChanged || varsChanged || remMoved || lineHeightMoved) &&
+      node.arranges())
+    needsLayout = true;
   // An origin is a length too, read at paint instead of by the layout: one
   // in the font or on a property moves the node's matrix when either
   // moves, under recordings that hold the matrix it had. One on the canvas

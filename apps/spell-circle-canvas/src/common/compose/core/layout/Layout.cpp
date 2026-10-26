@@ -482,6 +482,12 @@ void Composer::Impl::applyCustomLayouts(Instance& inst,
     arrangement.box = geometry::path::Rect::of(
         {0, 0},
         {YGNodeLayoutGetWidth(inst.yoga), YGNodeLayoutGetHeight(inst.yoga)});
+    // The scheme's own distances are read where the node stands: through
+    // its font, the canvas and the custom properties in force there.
+    arrangement.lengthReader = [this, &inst](const Dimension& length,
+                                             float extent) {
+      return translateLength(inst, length, extent);
+    };
     arrangement.minSizesMeasured = operators.readsChildMinSizes();
     arrangement.percentagesResolved = operators.resolvesChildPercentages();
     // One stated length for a scheme that resolves percentages itself: a
@@ -694,9 +700,9 @@ void Composer::Impl::applyCustomLayouts(Instance& inst,
       if (percentageSum(declared)) declared = autoDimension();
       bool relative = false;
       float value = resolveLength(inst, declared, relative);
-      YGUnit unit = declared.unit == Dimension::Unit::Auto  ? YGUnitUndefined
+      YGUnit unit = declared.unit == Dimension::Unit::Auto ? YGUnitUndefined
                     : declared.unit == Dimension::Unit::Percent ? YGUnitPercent
-                                                            : YGUnitPoint;
+                                                                : YGUnitPoint;
       if (content) {
         if (unit == YGUnitPercent) {
           const float parentExtent =

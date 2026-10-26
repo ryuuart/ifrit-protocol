@@ -257,11 +257,28 @@ void bindLayouts(py::module_& compose) {
              py::arg("maximum"));
   module.def("repeatTrack", &layouts::repeatTrack, py::arg("count"),
              py::arg("track"));
+  auto gap = record<layouts::Gap>(module, "Gap");
+  field(gap, "across", &layouts::Gap::across);
+  field(gap, "down", &layouts::Gap::down);
+  gap.def(py::self == py::self);
   auto grid = record<layouts::Grid>(module, "Grid");
   field(grid, "columns", &layouts::Grid::columns);
   field(grid, "rows", &layouts::Grid::rows);
   field(grid, "areas", &layouts::Grid::areas);
-  field(grid, "gap", &layouts::Grid::gap);
+  // The air between tracks is a Gap or the two lengths it holds, across
+  // and then down, each a number, a length or a custom property.
+  grid.def_property(
+      "gap", [](const layouts::Grid& value) { return value.gap; },
+      [](layouts::Grid& value, py::handle input) {
+        if (py::isinstance<layouts::Gap>(input)) {
+          value.gap = input.cast<layouts::Gap>();
+          return;
+        }
+        const auto halves = kit::converted<
+            std::pair<sigil::compose::Dimension, sigil::compose::Dimension>>(
+            input);
+        value.gap = {halves.first, halves.second};
+      });
   field(grid, "dense", &layouts::Grid::dense);
   field(grid, "across", &layouts::Grid::across);
   field(grid, "down", &layouts::Grid::down);

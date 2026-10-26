@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "DocumentInk.h"
+#include "FallbackDistance.h"
 
 namespace sigil::sketch::kit {
 
@@ -19,13 +20,18 @@ using compose::Fill;
 using compose::Text;
 
 compose::Element ticker(Ticker strip) {
-  // A number rather than the sheet's property: the caller wraps the phase
-  // over the content's width and this gap, so it has to know the gap.
-  const float gap = strip.gap.value_or(10.0f);
+  // An unset gap is the sheet's, read where the strip lays out; the
+  // caller wraps the phase over the content and the gap it states or the
+  // sheet's ticker gap.
+  const Dimension gap =
+      strip.gap ? Dimension(*strip.gap) : compose::var("spacing-ticker-gap");
   Element window = compose::kit::marquee(strip.content,
                                          {.phase = std::move(strip.phase),
                                           .gap = gap,
                                           .contentWidth = strip.contentWidth});
+  if (!strip.gap)
+    window.varDefaults(
+        detail::fallbackDistance("spacing-ticker-gap", Spacing{}.tickerGap));
   if (strip.width.unit != Dimension::Unit::Auto) window.width(strip.width);
   if (strip.height.unit != Dimension::Unit::Auto) window.height(strip.height);
   return window;

@@ -130,6 +130,7 @@ compose::StyleSheet Theme::properties() const {
           .var("spacing-plate-padding-vertical", spacing.panelPadding * 0.6f)
           .var("spacing-swatch-side", spacing.swatchSide)
           .var("spacing-bar-height", spacing.barHeight)
+          .var("spacing-ticker-gap", spacing.tickerGap)
           .var("spacing-panel-corners", spacing.panelCorners)
           .var("spacing-screen-corners", spacing.screenCorners)
           .var("spacing-bezel", spacing.bezel)

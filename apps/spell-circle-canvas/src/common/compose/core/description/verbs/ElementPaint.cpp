@@ -142,6 +142,23 @@ Derived& PaintVerbs<Derived>::fill(Fill fill, PaintBox box) {
   return this->fill(motion::Animatable<Fill>{std::move(fill)});
 }
 
+template <class Derived>
+Derived& PaintVerbs<Derived>::fill(Fill fill, const material::Filter& effects,
+                                   PaintBox box) {
+  if (effects.isNone()) return this->fill(std::move(fill), box);
+  // In the Material overload's order: the effects are spliced onto the
+  // node first and the fill written after, which ends only what an
+  // earlier fill stated. A rule keeps them whole beside its fill.
+  if constexpr (std::is_same_v<Derived, Rule>) {
+    this->fill(std::move(fill), box);
+    declarations()->fxData.ensure().fillEffects = effects;
+  } else {
+    detail::applyEffects(*declarations(), effects);
+    this->fill(std::move(fill), box);
+  }
+  return self();
+}
+
 template class PaintVerbs<Element>;
 template class PaintVerbs<Text>;
 template class PaintVerbs<Image>;

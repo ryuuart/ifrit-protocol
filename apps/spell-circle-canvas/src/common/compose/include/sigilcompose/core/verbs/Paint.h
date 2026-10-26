@@ -62,6 +62,16 @@ class PaintVerbs {
    *  is applied whole. A text unit is refused and said once, whatever the
    *  fill. */
   Derived& fill(Fill fill, PaintBox box = PaintBox::Element);
+  /** A FILL DRESSED IN A MATERIAL'S EFFECTS: @p effects placed as the
+   *  Material overload places a material's — shadows and glows beneath the
+   *  fill, strokes, bevels and inner shadows over it, passes that read
+   *  pixels over the node and its subtree — while @p fill stays what it
+   *  was written as. It is the spelling for a fill no material can hold —
+   *  the ink in force, or a custom property such as
+   *  `var("palette-cell-ground")` — which resolves where the node paints,
+   *  so the effects carry on the colour the reference names there. */
+  Derived& fill(Fill fill, const material::Filter& effects,
+                PaintBox box = PaintBox::Element);
 
   /** NEITHER A TILE NOR A PATTERN IS A FILL: a pattern's bake is its
    *  identity, and one minted inside a describe has no bake in it and

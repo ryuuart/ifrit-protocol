@@ -3,16 +3,18 @@
 /** @file
  * Internal to the kernel — what the root of the cascade inherits from and
  * the state of the pass that resolves it: the root's font, line height,
- * rem, block and sampling, whether the resolved answers may be stale, and
- * which pass is running with the `:has()` names it met.
+ * rem, properties, block and sampling, whether the resolved answers may be
+ * stale, and which pass is running with the `:has()` names it met.
  */
 
 #include <include/core/SkSamplingOptions.h>
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/style/Type.h>
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "style/SelectorMatch.h"
@@ -39,6 +41,10 @@ struct CascadeRoot {
   // rewritten even where nothing about its own node moved.
   float remPx = sigil::weave::kInitialTypeSizePx;
   bool remMoved = false;
+  // The custom properties the root inherits — Composer::setInherited —
+  // in force under every name the tree or the root's sheet sets; null
+  // where none is inherited.
+  std::shared_ptr<const VarTable> rootVars;
   // What the root inherits as its block: nothing stated, so every block
   // under nothing is set in the layout's own answer.
   sigil::weave::ParagraphBlock rootBlock;

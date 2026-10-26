@@ -206,13 +206,27 @@ void Composer::Impl::warnPendingSlots() const {
 
 void Composer::setInherited(const sigil::weave::Type& font,
                             material::Color ink) {
+  setInherited(font, ink, VarTable{});
+}
+
+void Composer::setInherited(const sigil::weave::Type& font, material::Color ink,
+                            const VarTable& properties) {
   Impl& impl = *m_impl;
   sigil::weave::Type root =
       sigil::weave::overlay(sigil::weave::initialType(), font);
   root.color = ink;
-  if (root == impl.rootFont) return;
-  impl.rootFont = std::move(root);
-  impl.rootLineHeight = 0.0f;
+  const bool fontMoved = !(root == impl.rootFont);
+  const bool propertiesMoved =
+      impl.rootVars ? !(*impl.rootVars == properties) : !properties.empty();
+  if (!fontMoved && !propertiesMoved) return;
+  if (fontMoved) {
+    impl.rootFont = std::move(root);
+    impl.rootLineHeight = 0.0f;
+  }
+  if (propertiesMoved)
+    impl.rootVars = properties.empty()
+                        ? nullptr
+                        : std::make_shared<const VarTable>(properties);
   impl.cascadeDirty = true;
   impl.contentDirty = true;
   impl.changesUnknown = true;

@@ -48,7 +48,7 @@ float kept(Align align, float at, float offset, float extent, float room) {
   };
   const float stated = edge(align, at + offset, extent);
   if (fits(stated)) return stated;
-  const Align mirrored = align == Align::End     ? Align::Start
+  const Align mirrored = align == Align::End      ? Align::Start
                          : align == Align::Center ? Align::Center
                                                   : Align::End;
   const float flipped = edge(mirrored, at - offset, extent);
@@ -91,9 +91,18 @@ struct Anchored {
   /** Whether a child is kept inside the container's box, as `kept` keeps
    *  it; a polar frame places as stated. */
   bool inside = false;
+  /** A further reach along a unit direction, laid onto the anchor's
+   *  offset in pixels as the node reads it. */
+  compose::Dimension reach = 0.0f;
+  SkVector toward{0, 0};
 
   void arrange(Arrangement& arrangement) const {
     const SkSize container = geometry::path::toSkSize(arrangement.box.size());
+    Anchor anchor = this->anchor;
+    if (toward.fX != 0 || toward.fY != 0) {
+      const float pixels = arrangement.pixels(reach);
+      anchor.offset += {toward.fX * pixels, toward.fY * pixels};
+    }
     for (auto& child : arrangement.children) child.rect = {};
     for (std::size_t i = 0; i < arrangement.children.size() && i < data.size();
          ++i) {
@@ -102,12 +111,12 @@ struct Anchored {
           geometry::path::toSkSize(arrangement.children[i].size);
       SkRect placed;
       if (inside && !frame.polar) {
-        placed = SkRect::MakeXYWH(
-            kept(anchor.across, mapped.fX, anchor.offset.fX, size.width(),
-                 container.width()),
-            kept(anchor.down, mapped.fY, anchor.offset.fY, size.height(),
-                 container.height()),
-            size.width(), size.height());
+        placed =
+            SkRect::MakeXYWH(kept(anchor.across, mapped.fX, anchor.offset.fX,
+                                  size.width(), container.width()),
+                             kept(anchor.down, mapped.fY, anchor.offset.fY,
+                                  size.height(), container.height()),
+                             size.width(), size.height());
       } else {
         const SkPoint point = nudged(frame, mapped, data[i], anchor.offset);
         placed = SkRect::MakeXYWH(edge(anchor.across, point.fX, size.width()),
@@ -283,13 +292,22 @@ std::string named(std::string_view key, std::string_view word,
 Layer anchored(std::vector<Datum> data, std::vector<Element> children,
                const Anchor& anchor, std::string_view word,
                std::string_view styleClass, bool inside) {
-  return [data = std::move(data), children = std::move(children), anchor,
-          word = std::string(word), cls = std::string(styleClass), inside](
-             const Plot& frame, std::string_view key, std::size_t index) {
-    Element field = compose::layout(Anchored{frame, data, anchor, inside})
-                        .styleClass(cls)
-                        .absolute()
-                        .inset(0);
+  return anchored(std::move(data), std::move(children), anchor, 0.0f, {0, 0},
+                  word, styleClass, inside);
+}
+
+Layer anchored(std::vector<Datum> data, std::vector<Element> children,
+               const Anchor& anchor, compose::Dimension reach, SkVector toward,
+               std::string_view word, std::string_view styleClass,
+               bool inside) {
+  return [data = std::move(data), children = std::move(children), anchor, reach,
+          toward, word = std::string(word), cls = std::string(styleClass),
+          inside](const Plot& frame, std::string_view key, std::size_t index) {
+    Element field =
+        compose::layout(Anchored{frame, data, anchor, inside, reach, toward})
+            .styleClass(cls)
+            .absolute()
+            .inset(0);
     if (!key.empty()) field.key(named(key, word, index));
     if (!children.empty()) field.children({children});
     return field;
@@ -366,11 +384,12 @@ Layer banded(std::vector<Datum> data, double base, float corners, Axis along,
         // the wheel and not out of the middle of itself.
         const SkRect unit = wedge.unit;
         one.shape(wedge).transformOrigin(
-            compose::percent(100.0f * (unit.width() > 0 ? -unit.fLeft / unit.width()
-                                                    : 0.0f)),
+            compose::percent(100.0f * (unit.width() > 0
+                                           ? -unit.fLeft / unit.width()
+                                           : 0.0f)),
             compose::percent(100.0f * (unit.height() > 0
-                                       ? -unit.fTop / unit.height()
-                                       : 0.0f)));
+                                           ? -unit.fTop / unit.height()
+                                           : 0.0f)));
       }
       children.push_back(std::move(one.key(stem + "-" + std::to_string(i))));
     }

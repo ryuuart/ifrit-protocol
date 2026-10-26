@@ -46,6 +46,8 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <typeindex>
+#include <utility>
 #include <vector>
 
 namespace sigil::weave {
@@ -114,6 +116,27 @@ class Pen {
   [[nodiscard]] const weave::Type& inheritedFont() const {
     return m_inheritedFont;
   }
+  /** WHAT A GUEST'S OWN LIBRARY INHERITS BESIDE THE INK AND THE FONT —
+   *  Compose's custom properties — which a host hands over after `begin`
+   *  and the pen carries without reading, so a guest painted through
+   *  `element` begins under it as it begins in the ink and the font. One
+   *  value of each type: a later one replaces it and null clears it.
+   *  `end` drops every one, so the host keeps @p value alive for the frame
+   *  it is handed in and no longer. */
+  template <class T>
+  void inheritForGuests(const T* value) {
+    carryForGuests(std::type_index(typeid(T)), value);
+  }
+  /** What `inheritForGuests` carries of type T this frame; null where the
+   *  host handed none. */
+  template <class T>
+  [[nodiscard]] const T* guestInheritance() const {
+    return static_cast<const T*>(carriedForGuests(std::type_index(typeid(T))));
+  }
+  /** EVERYTHING @p host INHERITED THIS FRAME — its ink, its font and what
+   *  it carries for guests — handed to this pen, as a pen opened inside
+   *  another's frame inherits from it. */
+  void inheritFrom(const Pen& host);
   /** What this pen keeps between frames for its guests. */
   [[nodiscard]] Retained& retained() { return m_retained; }
   [[nodiscard]] const Retained& retained() const { return m_retained; }
@@ -646,6 +669,11 @@ class Pen {
   std::vector<int> m_keysDown;
   material::Color m_inheritedInk{0, 0, 0, 1};
   weave::Type m_inheritedFont = weave::initialType();
+  // What a host carries for its guests this frame, by type; dropped at
+  // the frame's end.
+  std::vector<std::pair<std::type_index, const void*>> m_guestInheritance;
+  void carryForGuests(std::type_index type, const void* value);
+  [[nodiscard]] const void* carriedForGuests(std::type_index type) const;
 
   Style m_style;
   std::vector<Style> m_stack;

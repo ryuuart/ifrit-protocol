@@ -162,6 +162,8 @@ struct Spacing {
   float swatchSide = 10;
   /** The thickness of a meter's bar and of a timeline's rail. */
   float barHeight = 6;
+  /** Between the two copies of a ticker's crawl. */
+  float tickerGap = 10;
   /** THE RADII AND THE REACHES A LOOK RATHER THAN A CALLER FIXES: how
    *  round a panel or a device's shell is, how round the screen inset
    *  into it is, how much shell stands around that screen, how round a

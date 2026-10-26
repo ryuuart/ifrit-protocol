@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 /** THE PLACEMENT SCHEMES a container may be given instead of flex —
@@ -113,6 +114,31 @@ struct Track {
   return std::vector<Track>(count > 0 ? (size_t)count : 0u, track);
 }
 
+/** THE AIR BETWEEN TRACKS: `across` between columns, `down` between rows,
+ *  each a length read where the grid lays out — pixels when bare, a
+ *  font-relative or viewport unit, a percentage of the grid's own extent
+ *  along that axis, or a custom property, so `{var("spacing-cell-gap"),
+ *  var("spacing-cell-gap")}` is the gutter the sheet in force states.
+ *
+ *      layouts::Grid{.columns = …, .gap = {12, 8}}
+ *      layouts::Grid{.columns = …, .gap = layouts::Gap::both(1_em)} */
+struct Gap {
+  Dimension across = 0.0f;
+  Dimension down = 0.0f;
+
+  Gap() = default;
+  Gap(Dimension acrossColumns, Dimension downRows)
+      : across(std::move(acrossColumns)), down(std::move(downRows)) {}
+  /** Two pixel distances, x across and y down. */
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  Gap(glm::vec2 pixels) : across(pixels.x), down(pixels.y) {}
+  /** One length both ways. */
+  [[nodiscard]] static Gap both(const Dimension& length) {
+    return {length, length};
+  }
+  bool operator==(const Gap&) const = default;
+};
+
 /** Track layout with named areas and child-owned spans.
  *
  *      layout(layouts::Grid{
@@ -142,8 +168,10 @@ struct Grid {
    *  is a cell no name claims, and an empty list leaves the grid
    *  addressed by number alone. */
   std::vector<std::string> areas;
-  /** Between tracks: x across, y down. */
-  glm::vec2 gap = {0.0f, 0.0f};
+  /** Between tracks: across between columns, down between rows — each a
+   *  length the grid reads where it lays out, so a sheet's property may
+   *  state it. */
+  Gap gap;
   /** Fill the earliest hole a flowing child fits rather than never
    *  backtracking past the cursor. */
   bool dense = false;

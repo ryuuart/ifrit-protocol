@@ -69,6 +69,7 @@ void bindTheme(py::module_& module) {
   SPACING(panelPadding);
   SPACING(swatchSide);
   SPACING(barHeight);
+  SPACING(tickerGap);
   SPACING(panelCorners);
   SPACING(screenCorners);
   SPACING(bezel);

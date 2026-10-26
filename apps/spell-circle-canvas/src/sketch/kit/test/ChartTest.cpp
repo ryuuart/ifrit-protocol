@@ -446,9 +446,8 @@ TEST(SketchKitChart, LargeTickNumbersPrintPlainlyInsideThePlot) {
   // inside, the numbers stand inside the plot's box although a y axis hangs
   // them off the left edge of its field.
   constexpr float kLeft = 100;
-  const kit::Plot frame{.x = {.domain = {0, 1}},
-                        .y = {.domain = {82790, 82820}},
-                        .pad = 8};
+  const kit::Plot frame{
+      .x = {.domain = {0, 1}}, .y = {.domain = {82790, 82820}}, .pad = 8};
   const auto drawnWith = [&](kit::Ruler ruler) {
     ruler.of = kit::Axis::Y;
     ruler.ticks = {82800, 82810};
@@ -461,10 +460,13 @@ TEST(SketchKitChart, LargeTickNumbersPrintPlainlyInsideThePlot) {
                        .height(kFieldTall)});
   };
   const Element plain = drawnWith({.inside = true});
-  EXPECT_TRUE(sameDrawing(
-      plain, drawnWith({.inside = true, .tickLine = [](double value) {
-               return kit::tickLabel(value < 82805 ? "82800" : "82810");
-             }})))
+  EXPECT_TRUE(sameDrawing(plain, drawnWith({.inside = true,
+                                            .tickLine =
+                                                [](double value) {
+                                                  return kit::tickLabel(
+                                                      value < 82805 ? "82800"
+                                                                    : "82810");
+                                                }})))
       << "a tick's number is not the plain number it stands at";
 
   // How many lit pixels a drawing has inside the plot's box and left of it.
@@ -538,6 +540,35 @@ TEST(SketchKitChart, EveryChartClassCarriesAColour) {
   ASSERT_NE(rule, nullptr);
   ASSERT_TRUE(rule->type().color.has_value());
   EXPECT_EQ(*rule->type().color, look.palette.rule);
+}
+
+/** AN UNSET TICK REACH IS THE SHEET'S: the ticks paint and their numbers
+ *  stand at the `spacing-tick-reach` in force, the same drawing as the
+ *  axis stating that number. */
+TEST(SketchKitChart, AnUnsetTickReachIsTheSheets) {
+  const kit::Plot frame{
+      .x = {.domain = {0, 10}}, .y = {.domain = {0, 1}}, .pad = 30};
+  const auto axes = [&](std::optional<float> reach) {
+    return kit::plot("reach", frame,
+                     {kit::axis({.of = kit::Axis::X, .reach = reach}),
+                      kit::axis({.of = kit::Axis::Y, .reach = reach})})
+        .width(kField)
+        .height(kFieldTall);
+  };
+  const kit::Theme& house = kit::houseTheme();
+  kit::Theme longer = house;
+  longer.spacing.tickReach = 11;
+  const auto under = [](const kit::Theme& look, Element tree) {
+    return compose::box()
+        .applyStyleSheet(look.styleSheet())
+        .children({std::move(tree)});
+  };
+  EXPECT_TRUE(sameDrawing(under(house, axes(house.spacing.tickReach)),
+                          under(house, axes(std::nullopt))));
+  EXPECT_TRUE(sameDrawing(under(longer, axes(11.0f)),
+                          under(longer, axes(std::nullopt))));
+  EXPECT_FALSE(sameDrawing(under(house, axes(std::nullopt)),
+                           under(longer, axes(std::nullopt))));
 }
 
 }  // namespace

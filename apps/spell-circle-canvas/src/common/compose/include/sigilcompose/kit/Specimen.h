@@ -393,9 +393,12 @@ struct PanelGrid {
   std::vector<Element> cells;
   /** Positive counts wrap; zero or negative puts every panel on one row. */
   int columns = 3;
-  float gap = 20.0f;
+  /** Across, and down where `rowGap` is unset: any length, so a custom
+   *  property such as `var("spacing-cell-gap")` states it, read where the
+   *  grid lays out. */
+  Dimension gap = 20.0f;
   /** Unset uses the horizontal gap. */
-  std::optional<float> rowGap;
+  std::optional<Dimension> rowGap;
   Fill divider;
   float dividerWidth = 1.0f;
   /** Cross-axis alignment for a single row. Wrapped rows stretch panels

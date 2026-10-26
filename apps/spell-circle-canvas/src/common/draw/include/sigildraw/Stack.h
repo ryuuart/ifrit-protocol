@@ -103,7 +103,8 @@ class Layer {
    *  painted through `Pen::element` at the layer's density onto a cleared
    *  layer. The guest is kept between bakes under the slot @p index and
    *  @p where name, so a baked tree keeps its layout, shaping and caches
-   *  from one bake to the next; it inherits the host's ink and font. A
+   *  from one bake to the next; it inherits everything the host inherited
+   *  — the ink, the font and what the host carries for guests. A
    *  helper wrapping this forwards its caller's location, as one wrapping
    *  `Pen::element` does. */
   template <Retainable G>
@@ -111,10 +112,9 @@ class Layer {
             std::source_location where = std::source_location::current()) {
     Pen& pen = begin(host);
     try {
-      pen.inherit(host.inheritedInk(), host.inheritedFont());
+      pen.inheritFrom(host);
       pen.clear();
-      pen.element(guest, 0.0f, 0.0f, size.width(), size.height(), index,
-                  where);
+      pen.element(guest, 0.0f, 0.0f, size.width(), size.height(), index, where);
     } catch (...) {
       end();
       throw;

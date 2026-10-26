@@ -17,7 +17,9 @@
 #include <sigilsketch/scene2d/Scene2D.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
+#include <vector>
 
 #include "Drawn.h"
 
@@ -32,6 +34,7 @@ using sigil::sketch::kit::test::kTall;
 using sigil::sketch::kit::test::kWide;
 using sigil::sketch::kit::test::sameDrawing;
 using sigil::sketch::kit::test::subject;
+using sigil::sketch::kit::test::withProperties;
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
 
@@ -207,6 +210,37 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
                                       .height = compose::Dimension(90),
                                       .ground = ground,
                                       .recess = hole})));
+}
+
+/** THE GROUND A RELIEF OR A RECESS CARRIES ON is the colour the sheet's
+ *  property resolves to where the ground is unset — the same drawing as a
+ *  well whose ground states that colour. */
+TEST(SketchKitCells, AReliefOrARecessCarriesOnTheSheetsGround) {
+  const kit::Theme& house = kit::houseTheme();
+  const kit::Well::Relief lift{};
+  const kit::Well::Recess hole{
+      .lipLight = sigil::material::Color{0.42f, 0.38f, 0.31f, 0.30f},
+      .lipDark = sigil::material::Color{0, 0, 0, 0.55f}};
+  const auto plate = [](std::optional<Fill> ground,
+                        std::optional<kit::Well::Relief> relief,
+                        std::optional<kit::Well::Recess> recess) {
+    return kit::well({.width = compose::Dimension(140),
+                      .height = compose::Dimension(90),
+                      .ground = std::move(ground),
+                      .corners = 6,
+                      .recess = std::move(recess),
+                      .relief = std::move(relief)});
+  };
+  const Fill stated = Fill::color(house.palette.cellGround);
+  EXPECT_TRUE(sameDrawing(plate(stated, lift, std::nullopt),
+                          plate(std::nullopt, lift, std::nullopt)));
+  EXPECT_TRUE(sameDrawing(plate(stated, std::nullopt, hole),
+                          plate(std::nullopt, std::nullopt, hole)));
+  EXPECT_TRUE(
+      sameDrawing(plate(stated, lift, hole), plate(std::nullopt, lift, hole)));
+  // …and the relief is drawn: it is not the flush plate.
+  EXPECT_FALSE(sameDrawing(plate(std::nullopt, std::nullopt, std::nullopt),
+                           plate(std::nullopt, lift, std::nullopt)));
 }
 
 /** A plate set tighter down than across, which one distance cannot say. */
@@ -446,6 +480,51 @@ TEST(SketchKitCells, AShortGridRowKeepsItsShare) {
                           .columns = 0})},
            .column = true,
            .align = compose::Align::Stretch})));
+}
+
+/** THE GUTTERS A GRID LEAVES UNSET ARE THE SHEET'S, read where it lays
+ *  out: a panel grid and a comparison under the stock sheet are the ones
+ *  stating its distances, and under a sheet whose cell gap differs they
+ *  are the ones stating that. */
+TEST(SketchKitCells, AnUnsetGutterIsTheSheetsDistance) {
+  const kit::Theme& house = kit::houseTheme();
+  kit::Theme wider = house;
+  wider.spacing.cellGap = 44;
+  wider.spacing.comparisonGap = 15;
+  const auto grid = [](std::optional<float> gap) {
+    return kit::panelGrid(
+        {.cells = {subject(), subject(), subject(), subject()},
+         .columns = 3,
+         .gap = gap});
+  };
+  EXPECT_TRUE(sameDrawing(grid(house.spacing.cellGap), grid(std::nullopt)));
+  EXPECT_TRUE(sameDrawing(withProperties(grid(44.0f), wider),
+                          withProperties(grid(std::nullopt), wider)));
+  EXPECT_FALSE(sameDrawing(grid(std::nullopt),
+                           withProperties(grid(std::nullopt), wider)));
+
+  const auto compared = [](std::optional<float> gap,
+                           std::optional<float> trackGap) {
+    std::vector<kit::ComparisonCase> cases;
+    for (const char* title : {"REFERENCE", "ROUNDED", "SHEARED"})
+      cases.push_back({.title = title,
+                       .control = "radius = 0",
+                       .figure = subject(),
+                       .note = "the outline"});
+    return kit::comparison({.cases = std::move(cases),
+                            .measure = 400,
+                            .gap = gap,
+                            .trackGap = trackGap});
+  };
+  EXPECT_TRUE(
+      sameDrawing(compared(house.spacing.cellGap, house.spacing.comparisonGap),
+                  compared(std::nullopt, std::nullopt)));
+  EXPECT_TRUE(
+      sameDrawing(withProperties(compared(44.0f, 15.0f), wider),
+                  withProperties(compared(std::nullopt, std::nullopt), wider)));
+  EXPECT_FALSE(
+      sameDrawing(compared(std::nullopt, std::nullopt),
+                  withProperties(compared(std::nullopt, std::nullopt), wider)));
 }
 
 }  // namespace

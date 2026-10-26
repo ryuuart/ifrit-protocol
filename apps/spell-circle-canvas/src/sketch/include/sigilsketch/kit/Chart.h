@@ -228,10 +228,9 @@ struct Ruler {
    *  ladder of ticks, which is what an inner axis usually is. */
   bool line = true;
   float width = 1.0f;
-  /** How far a tick reaches past the line, px; unset is 5. A number
-   *  rather than the sheet's property, because the numbers under the
-   *  ticks are placed by the chart's own layout, which measures in
-   *  pixels. */
+  /** How far a tick reaches past the line, px; unset is the sheet's
+   *  `spacing-tick-reach`, read where the axis paints and where its
+   *  numbers lay out, and 5 under a sheet that states none. */
   std::optional<float> reach;
   /** Between a tick's far end and its number, px. */
   float gap = 3.0f;
@@ -558,6 +557,16 @@ namespace detail {
 [[nodiscard]] Layer anchored(std::vector<Datum> data,
                              std::vector<compose::Element> children,
                              const Anchor& anchor, std::string_view word,
+                             std::string_view styleClass, bool inside = false);
+/** The same, each child carried a further @p reach along @p toward — a
+ *  unit direction read as the anchor's offset is, across and down or
+ *  across and outward. The reach is a length read where the layer lays
+ *  out, so a custom property states it: a tick's number stands past its
+ *  point by the tick's reach, which is the sheet's, and then its gap. */
+[[nodiscard]] Layer anchored(std::vector<Datum> data,
+                             std::vector<compose::Element> children,
+                             const Anchor& anchor, compose::Dimension reach,
+                             SkVector toward, std::string_view word,
                              std::string_view styleClass, bool inside = false);
 /** @p stated, or @p own where a layer named no class of its own. */
 [[nodiscard]] inline std::string_view classOf(const std::string& stated,

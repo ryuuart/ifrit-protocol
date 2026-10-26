@@ -12,5 +12,11 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
-    # The grid's gutters are a vector: the column gap in x, the row gap in y.
-    table.accessor("_sigil.compose.layouts.Grid", "gap", "_t.Vec2", "_t.Vec2Like")
+    # The grid's gutters are a Gap, written as one or as its two lengths:
+    # across between columns, down between rows.
+    table.accessor(
+        "_sigil.compose.layouts.Grid",
+        "gap",
+        "_sigil.compose.layouts.Gap",
+        "_sigil.compose.layouts.Gap | tuple[_t.DimensionLike, _t.DimensionLike]",
+    )

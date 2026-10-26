@@ -2,6 +2,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
@@ -19,7 +20,10 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
+
+#include "FallbackDistance.h"
 
 namespace sigil::sketch::kit {
 
@@ -215,11 +219,33 @@ Element plot(std::string_view key, const Plot& frame,
 // ---------------------------------------------------------------------------
 // The axis
 
+namespace {
+
+/** HOW FAR A TICK REACHES where it paints: the number a caller stated, or
+ *  the sheet's `spacing-tick-reach` in force there, which the axis falls
+ *  back to the stock sheet's under no sheet. */
+float tickReach(const Ruler& how, const PaintContext& pc) {
+  if (how.reach) return *how.reach;
+  const compose::VarValue* value =
+      pc.vars ? pc.vars->find(compose::var("spacing-tick-reach")) : nullptr;
+  const compose::Dimension* length =
+      value ? std::get_if<compose::Dimension>(value) : nullptr;
+  if (length && length->unit == compose::Dimension::Unit::Px)
+    return length->value;
+  return Spacing{}.tickReach;
+}
+
+}  // namespace
+
 Layer axis(const Ruler& how) {
   return [how](const Plot& frame, std::string_view key, std::size_t index) {
     const double other = standsAt(how, frame);
     const std::vector<double> ticks = tickValues(how, frame);
-    const float reach = how.reach.value_or(5.0f);
+    // The reach a caller states is a number; an unset one is the sheet's
+    // property, read where the ticks paint and where their numbers lay out.
+    const compose::Dimension reach = how.reach
+                                         ? compose::Dimension(*how.reach)
+                                         : compose::var("spacing-tick-reach");
     const bool polar = frame.polar.has_value();
     std::vector<Element> parts;
 
@@ -272,11 +298,13 @@ Layer axis(const Ruler& how) {
               canvas.drawLine({fixed, from}, {fixed, to}, pen);
           }));
 
-    if (reach > 0 && !ticks.empty())
+    if (how.reach.value_or(1.0f) > 0 && !ticks.empty())
       parts.push_back(recorded(
           named(key, "tick", index), "plotTick",
-          [how, frame, other, ticks, reach, polar](sigil::draw::Pen& drawingPen,
-                                                   const PaintContext& pc) {
+          [how, frame, other, ticks, polar](sigil::draw::Pen& drawingPen,
+                                            const PaintContext& pc) {
+            const float reach = tickReach(how, pc);
+            if (!(reach > 0)) return;
             SkCanvas& canvas = *drawingPen.canvas();
             SkPaint pen = strokePen(pc, how.width);
             if (polar) {
@@ -331,29 +359,33 @@ Layer axis(const Ruler& how) {
       // Where a number stands off its tick: below an x axis, before a y
       // one, and outward past a polar rim — which on a polar frame is what
       // the anchor's outward offset means.
+      // The tick's reach is carried as a length the layer reads where it
+      // lays out, along the direction the gap runs; a polar y axis numbers
+      // its rings beside the spoke, where no tick reaches.
       Anchor anchor;
+      SkVector toward{0, 0};
       if (how.of == Axis::X && !polar) {
-        anchor = {compose::Align::Center,
-                  compose::Align::Start,
-                  {0, reach + how.gap}};
+        anchor = {compose::Align::Center, compose::Align::Start, {0, how.gap}};
+        toward = {0, 1};
       } else if (how.of == Axis::X) {
-        anchor = {compose::Align::Center,
-                  compose::Align::Center,
-                  {0, reach + how.gap}};
+        anchor = {compose::Align::Center, compose::Align::Center, {0, how.gap}};
+        toward = {0, 1};
       } else if (!polar) {
-        anchor = {compose::Align::End,
-                  compose::Align::Center,
-                  {-(reach + how.gap), 0}};
+        anchor = {compose::Align::End, compose::Align::Center, {-how.gap, 0}};
+        toward = {-1, 0};
       } else {
         anchor = {compose::Align::Start, compose::Align::Center, {how.gap, 0}};
       }
       const Layer numbers =
-          detail::anchored(std::move(data), std::move(words), anchor, "tick",
-                           "plotTick", how.inside && !polar);
+          detail::anchored(std::move(data), std::move(words), anchor, reach,
+                           toward, "tick", "plotTick", how.inside && !polar);
       parts.push_back(numbers(frame, named(key, "number", index), 0));
     }
 
     Element stack = compose::box().absolute().inset(0);
+    if (!how.reach)
+      stack.varDefaults(
+          detail::fallbackDistance("spacing-tick-reach", Spacing{}.tickReach));
     if (!parts.empty()) stack.children({std::move(parts)});
     return stack;
   };

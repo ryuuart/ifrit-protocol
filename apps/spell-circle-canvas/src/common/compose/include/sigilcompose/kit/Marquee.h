@@ -29,7 +29,9 @@ struct MarqueeOptions {
   /** The caller-owned WRAPPING phase, in px. Step it over
    *  [-(width + gap), 0] and the loop is invisible. */
   motion::Animatable<float> phase;
-  float gap = 0.0f;
+  /** Between the two copies: any length, so a custom property may state
+   *  it. The phase wraps over the content and this gap in pixels. */
+  Dimension gap = 0.0f;
   float contentWidth = 0.0f;
 };
 

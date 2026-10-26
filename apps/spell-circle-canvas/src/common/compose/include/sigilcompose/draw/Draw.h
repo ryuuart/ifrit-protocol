@@ -99,7 +99,10 @@ Element graphics(std::string_view key, PenProgram program,
  *  THE GUEST CASCADES FROM THE PEN: the ink and the font the pen was told
  *  it inherits are what the composer's root inherits, so a tree painted
  *  inside a pen program begins in the same colour and the same type the
- *  pen's own verbs do. */
+ *  pen's own verbs do; and the custom properties a `pen()` or `graphics()`
+ *  node carries for its guests — those in force where the node stands —
+ *  are in force at the guest's root, so `var(name)` inside it reads what
+ *  it reads around the pen. */
 void paintRetained(draw::Pen& pen, const Element& element,
                    const geometry::path::Rect& box, draw::Slot slot);
 

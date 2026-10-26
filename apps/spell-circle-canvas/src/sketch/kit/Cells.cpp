@@ -13,20 +13,10 @@
 #include <utility>
 #include <vector>
 
+#include "FallbackDistance.h"
 #include "WellPlate.h"
 
 namespace sigil::sketch::kit {
-
-namespace {
-
-/** The air a comparison and a panel grid stand in where the caller states
- *  none. A grid's tracks are measured in pixels by its own layout, so
- *  these are numbers rather than the sheet's properties. */
-constexpr float kComparisonGap = 20.0f;
-constexpr float kComparisonTrackGap = 8.0f;
-constexpr float kPanelGridGap = 20.0f;
-
-}  // namespace
 
 namespace detail {
 
@@ -70,8 +60,10 @@ compose::Element plate(const Well& specification, compose::Element surface,
     plate.borderRadius(compose::Corners{*corners});
   // THE RELIEF AND THE RECESS ARE THE GROUND'S EFFECTS: the plate is
   // filled again with its ground carrying a bevel, an inner shadow or both,
-  // in that order. A ground written as a reference to the ink in force has
-  // no material to carry them, and is taken as the colour it holds.
+  // in that order. A ground written as a reference — the sheet's
+  // `palette-cell-ground` an unset ground reads, or the ink in force —
+  // has no material to carry them, so it keeps its reference and wears
+  // them beside it, and they carry on the colour it resolves to.
   material::Filter effects;
   const auto then = [&](const material::Filter& step) {
     effects = effects.isNone() ? step : effects.then(step);
@@ -93,9 +85,13 @@ compose::Element plate(const Well& specification, compose::Element surface,
          .inset = true}));
   }
   if (!effects.isNone()) {
-    const material::Material ground =
-        bed.material() ? *bed.material() : material::Material(bed.colorValue);
-    plate.fill(material::from(ground).effects(effects));
+    if (bed.references()) {
+      plate.fill(bed, effects);
+    } else {
+      const material::Material ground =
+          bed.material() ? *bed.material() : material::Material(bed.colorValue);
+      plate.fill(material::from(ground).effects(effects));
+    }
   }
   if (specification.recess) {
     const Well::Recess& hole = *specification.recess;
@@ -153,11 +149,27 @@ compose::Element cell(const Cell& sheet, compose::Utf8 label,
 compose::Element comparison(Comparison specification) {
   using namespace compose;
   if (specification.cases.empty()) return box();
-  const float gap = specification.gap.value_or(kComparisonGap);
-  const float columnWidth = std::max(
-      0.0f,
-      (specification.measure - gap * float(specification.cases.size() - 1)) /
-          float(specification.cases.size()));
+  // The air the caller leaves unset is the sheet's: between the cases its
+  // cell gap, between the tracks its comparison gap, each read where the
+  // grid lays out. A column's width is cut from the measure at that gap,
+  // so where the gap is the sheet's the width is a sum over it.
+  const float cases = float(specification.cases.size());
+  const compose::Dimension gap = specification.gap
+                                     ? compose::Dimension(*specification.gap)
+                                     : compose::var("spacing-cell-gap");
+  const compose::Dimension columnWidth =
+      specification.gap
+          ? compose::Dimension(std::max(
+                0.0f,
+                (specification.measure - *specification.gap * (cases - 1.0f)) /
+                    cases))
+          : (compose::Dimension(specification.measure) -
+             compose::Dimension(compose::var("spacing-cell-gap")) *
+                 (cases - 1.0f)) *
+                (1.0f / cases);
+  const compose::Dimension trackGap =
+      specification.trackGap ? compose::Dimension(*specification.trackGap)
+                             : compose::var("spacing-comparison-gap");
   const auto any = [&](auto member) {
     return std::any_of(
         specification.cases.begin(), specification.cases.end(),
@@ -205,18 +217,23 @@ compose::Element comparison(Comparison specification) {
   // Grid places already-measured children. Measure its tracks side by side
   // so Yoga cannot shrink the figures as a temporary vertical stack, and
   // give text its final column width before it reports a height.
-  return layout(layouts::Grid{
-                    .columns = layouts::repeatTrack(
-                        int(specification.cases.size()), layouts::fr()),
-                    .rows = layouts::repeatTrack(tracks, layouts::content()),
-                    .gap = {gap, specification.trackGap.value_or(
-                                     kComparisonTrackGap)},
-                    .down = Align::Start})
-      .row()
-      .width(specification.measure)
-      .flexShrink(0)
-      .alignItems(Align::Start)
-      .children(std::move(children));
+  Element grid =
+      layout(layouts::Grid{
+                 .columns = layouts::repeatTrack(
+                     int(specification.cases.size()), layouts::fr()),
+                 .rows = layouts::repeatTrack(tracks, layouts::content()),
+                 .gap = {gap, trackGap},
+                 .down = Align::Start})
+          .row()
+          .width(specification.measure)
+          .flexShrink(0)
+          .alignItems(Align::Start)
+          .children(std::move(children));
+  compose::VarTable fallback =
+      detail::fallbackDistance("spacing-cell-gap", Spacing{}.cellGap);
+  fallback.overlay(detail::fallbackDistance("spacing-comparison-gap",
+                                            Spacing{}.comparisonGap));
+  return grid.varDefaults(std::move(fallback));
 }
 
 compose::Element cells(Run run) {
@@ -230,14 +247,21 @@ compose::Element cells(Run run) {
 }
 
 compose::Element panelGrid(PanelGrid grid) {
+  // An unset gap is the sheet's cell gap, read where the grid lays out.
+  std::optional<compose::Dimension> rowGap;
+  if (grid.rowGap) rowGap = compose::Dimension(*grid.rowGap);
   return compose::kit::panelGrid(
-      {.cells = std::move(grid.cells),
-       .columns = grid.columns,
-       .gap = grid.gap.value_or(kPanelGridGap),
-       .rowGap = grid.rowGap,
-       .divider = grid.ruled ? compose::var("palette-rule") : compose::Fill{},
-       .align = grid.align,
-       .measure = grid.measure});
+             {.cells = std::move(grid.cells),
+              .columns = grid.columns,
+              .gap = grid.gap ? compose::Dimension(*grid.gap)
+                              : compose::var("spacing-cell-gap"),
+              .rowGap = rowGap,
+              .divider =
+                  grid.ruled ? compose::var("palette-rule") : compose::Fill{},
+              .align = grid.align,
+              .measure = grid.measure})
+      .varDefaults(
+          detail::fallbackDistance("spacing-cell-gap", Spacing{}.cellGap));
 }
 
 }  // namespace sigil::sketch::kit

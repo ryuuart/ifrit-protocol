@@ -97,11 +97,14 @@ AreaPicture readAreas(const std::vector<std::string>& rows) {
 }
 
 struct GridLayout {
-  explicit GridLayout(const Grid& grid)
+  /** The grid as @p in reads it: its gaps in pixels, each read where the
+   *  node lays out, a percentage of the box along its own axis. */
+  GridLayout(const Grid& grid, const Arrangement& in)
       : columns(grid.columns),
         rows(grid.rows),
         areas(grid.areas),
-        gap(grid.gap),
+        gap(in.pixels(grid.gap.across, in.box.size().x),
+            in.pixels(grid.gap.down, in.box.size().y)),
         dense(grid.dense),
         across(grid.across),
         down(grid.down) {}
@@ -420,9 +423,9 @@ struct GridLayout {
 }  // namespace
 
 Grid::Resolved Grid::solve(const Arrangement& in) const {
-  return GridLayout(*this).solve(in);
+  return GridLayout(*this, in).solve(in);
 }
 
-void Grid::arrange(Arrangement& in) const { GridLayout(*this).arrange(in); }
+void Grid::arrange(Arrangement& in) const { GridLayout(*this, in).arrange(in); }
 
 }  // namespace sigil::compose::layouts

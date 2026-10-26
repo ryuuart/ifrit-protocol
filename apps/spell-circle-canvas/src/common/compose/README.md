@@ -284,6 +284,11 @@ and facts. Write each child's `rect` with `place()` or `centreAt()`; use
 An operator declaring `readsChildMinSizes` receives content minima;
 `resolvesChildPercentages` supplies stated sizes. Each `Child` record
 resolves them with `sizeIn(box)` against the box the operator gives it.
+A scheme's own distances are lengths read where the node lays out:
+`Arrangement::pixels` resolves one against the node's font, the canvas and
+the custom properties in force there, so a `layouts::Grid` gap written
+`layouts::Gap::both(var("spacing-cell-gap"))` is the gutter the sheet in
+force states, and a change to that property lays the node out again.
 
 Each settlement round starts from authored flex placement at the current
 container size and no operator turn. Within a list, a modifier reads what

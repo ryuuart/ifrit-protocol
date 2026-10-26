@@ -189,8 +189,11 @@ an ink change repaints them and breaks no line again.
 and its text in the node's font — `PaintContext::ink` and
 `PaintContext::font` — restyles for its scope with the pen's own verbs,
 and a guest tree it paints through `paintRetained` inherits from the tree
-the pen stands in. `PaintContext::vars` is the same node's properties,
-for a decoration that resolves a fill by hand through `resolveRef`.
+the pen stands in: its root begins in the pen's ink and font and under the
+custom properties in force at the pen's node, which `Composer::setInherited`
+states for any composer whose picture stands inside another.
+`PaintContext::vars` is the same node's properties, for a decoration that
+resolves a fill by hand through `resolveRef`.
 
 **A rule a selector chose stands between the classes and the node's
 own verbs.** `Element::applyStyleSheet` puts a `compose::StyleSheet` in

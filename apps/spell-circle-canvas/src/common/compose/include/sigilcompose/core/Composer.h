@@ -131,6 +131,14 @@ class Composer {
    *  painted into a texture from the node that shows it. Every field of
    *  @p font counts; one it leaves unset takes the initial value. */
   void setInherited(const sigil::weave::Type& font, material::Color ink);
+  /** The same, with the CUSTOM PROPERTIES the root inherits: every name in
+   *  @p properties is in force at the root as though an ancestor above it
+   *  set it, so `var(name)` anywhere in the tree reads it unless the tree
+   *  or the root's sheet sets the name again. A pen's guest is seeded with
+   *  the properties in force where the pen stands; an empty table inherits
+   *  none, which is what the two-argument form says. */
+  void setInherited(const sigil::weave::Type& font, material::Color ink,
+                    const VarTable& properties);
   /** THE SHEET IN FORCE AT THE ROOT of whatever this composer renders:
    *  applied as though the root node applied it before any sheet of its
    *  own, so the root is its `:root`, its custom properties reach the

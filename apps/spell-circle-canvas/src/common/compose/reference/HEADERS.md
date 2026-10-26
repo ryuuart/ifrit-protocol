@@ -363,7 +363,10 @@ that neither grows nor shrinks; `layouts::content`, as wide as the widest
 thing in the track and no wider; `layouts::fr`, a weighted share of what
 is left over and no floor of its own; and `layouts::minmax`, one under
 the other. `layouts::repeatTrack` is n copies of one track, which is how "four
-equal columns" is spelled.
+equal columns" is spelled. `layouts::Gap` is the air between the tracks,
+across and down, each a length the grid reads through
+`Arrangement::pixels` where it lays out — a number, a font-relative unit
+or a custom property.
 
 The rule, per axis, is initialize from the floors, resolve the content
 narrowest-span-first, maximize toward the ceilings, and divide the

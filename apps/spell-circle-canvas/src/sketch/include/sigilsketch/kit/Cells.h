@@ -31,7 +31,9 @@ struct Well {
   /** Unset is the sheet's cell ground, `palette-cell-ground`. Set it to
    *  `Fill::none()` for a well that paints nothing, and to a material for
    *  a well grounded in something generated per pixel. A relief or a
-   *  recess carries on a ground stated as a colour or a material. */
+   *  recess carries on the ground whatever it is: a colour, a material,
+   *  or the colour a reference — the unset ground's property among them —
+   *  resolves to where the well paints. */
   std::optional<compose::Fill> ground;
   /** Across; unset is the sheet's well padding, `spacing-well-padding`. */
   std::optional<float> padding;

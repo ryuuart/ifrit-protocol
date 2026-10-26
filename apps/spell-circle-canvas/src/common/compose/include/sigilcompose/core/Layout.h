@@ -22,6 +22,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <glm/vec2.hpp>
 #include <limits>
 #include <optional>
@@ -78,17 +79,17 @@ void releaseCalc(float handle) noexcept;
 struct Dimension {
   /** What `value` is measured in. */
   enum class Unit : uint8_t {
-    Px,    ///< device-independent pixels
+    Px,       ///< device-independent pixels
     Percent,  ///< percent of the parent's corresponding extent
-    Auto,  ///< left for layout to decide; `value` unused
-    Em,    ///< multiples of the node's own resolved font size
-    Rem,   ///< multiples of the root's font size
-    Lh,    ///< multiples of the line height in force at the node
-    Var,   ///< a custom property, its id bit-cast into `value`
-    Vw,    ///< percent of the CANVAS's width
-    Vh,    ///< percent of the CANVAS's height
-    Ch,    ///< multiples of the advance of "0" in the font in force
-    Pt,    ///< printer's points, four pixels to every three
+    Auto,     ///< left for layout to decide; `value` unused
+    Em,       ///< multiples of the node's own resolved font size
+    Rem,      ///< multiples of the root's font size
+    Lh,       ///< multiples of the line height in force at the node
+    Var,      ///< a custom property, its id bit-cast into `value`
+    Vw,       ///< percent of the CANVAS's width
+    Vh,       ///< percent of the CANVAS's height
+    Ch,       ///< multiples of the advance of "0" in the font in force
+    Pt,       ///< printer's points, four pixels to every three
     Calc,  ///< a sum over several units, its interned id bit-cast into `value`
     Vmin,  ///< percent of the smaller of the CANVAS's width and height
     Vmax   ///< percent of the larger of the CANVAS's width and height
@@ -221,8 +222,8 @@ constexpr Dimension autoDimension() { return {}; }
 
 /** THE ONE PLACE A LENGTH WRITTEN AS TEXT IS READ — `"12"`, `"12px"`,
  *  `"1.5em"`, `"2rem"`, `".5lh"`, `"3ch"`, `"9pt"`, `"50%"`, `"10vw"`,
- *  `"10vh"`, `"10vmin"`, `"10vmax"`, `"auto"`, `var(name)` naming a custom property, and
- *  `calc(...)` over any of them with `+ - * /` and brackets — so a
+ *  `"10vh"`, `"10vmin"`, `"10vmax"`, `"auto"`, `var(name)` naming a custom
+ * property, and `calc(...)` over any of them with `+ - * /` and brackets — so a
  *  rule's text and a length handed in from Python are one grammar with
  *  one set of units.
  *
@@ -275,15 +276,17 @@ constexpr Dimension autoDimension() { return {}; }
 [[nodiscard]] Dimension operator/(Dimension length, float divisor);
 /** @} */
 
-/** `width(50_percent)`, `width(50_vw)`, `top(10_vh)`, `flexBasis(120_px)` — for the
- *  Dimension-valued setters; exposed by `using namespace sigil::compose` (or
+/** `width(50_percent)`, `width(50_vw)`, `top(10_vh)`, `flexBasis(120_px)` — for
+ * the Dimension-valued setters; exposed by `using namespace sigil::compose` (or
  *  `using namespace sigil::compose::literals`). */
 inline namespace literals {
 constexpr Dimension operator""_px(long double v) { return Dimension((float)v); }
 constexpr Dimension operator""_px(unsigned long long v) {
   return Dimension((float)v);
 }
-constexpr Dimension operator""_percent(long double v) { return percent((float)v); }
+constexpr Dimension operator""_percent(long double v) {
+  return percent((float)v);
+}
 constexpr Dimension operator""_percent(unsigned long long v) {
   return percent((float)v);
 }
@@ -620,6 +623,23 @@ struct Arrangement {
   /// Whether an operator in the list resolves the children's percentages
   /// against boxes of its own, so each child's `statedSize` was read.
   bool percentagesResolved = false;
+  /** WHAT THE NODE BEING ARRANGED READS ITS LENGTHS THROUGH, which the
+   *  composer sets for the node it arranges: a length in pixels, given the
+   *  extent a percentage is of. Empty on an arrangement built by hand,
+   *  where `pixels` answers what needs no node to read it. */
+  std::function<float(const Dimension&, float)> lengthReader;
+
+  /** A LENGTH AS THE NODE BEING ARRANGED READS IT, in pixels — what a
+   *  scheme's own distances, a gap or a reach, are written in. A bare
+   *  number is itself and a point is four thirds of a pixel; a percentage
+   *  is of @p extent; a font-relative unit is measured against the node's
+   *  font, a viewport unit against the canvas, and `var(name)` reads the
+   *  custom property in force at the node, so a gap written
+   *  `var("spacing-cell-gap")` is the distance the sheet in force states.
+   *  A length that needs the node, read on an arrangement built by hand,
+   *  is zero. */
+  [[nodiscard]] float pixels(const Dimension& length,
+                             float extent = 0.0f) const;
 };
 
 // ---------------------------------------------------------------------------

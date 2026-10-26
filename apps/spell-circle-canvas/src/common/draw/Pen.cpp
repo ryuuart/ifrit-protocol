@@ -75,6 +75,7 @@ void Pen::begin(SkCanvas& canvas, const Frame& frame) {
 }
 
 void Pen::end() {
+  m_guestInheritance.clear();
   if (!m_canvas) return;
   // A push left open at the end of a frame is closed here, back to the
   // style that stood when it opened, so one unbalanced frame cannot leak
@@ -129,6 +130,30 @@ void Pen::inherit(material::Color ink, const weave::Type& font) {
     // and a block of inherited text has to open at the inherited size.
     m_style.leading = sizePx(font) * 1.25f;
   }
+}
+
+void Pen::inheritFrom(const Pen& host) {
+  inherit(host.m_inheritedInk, host.m_inheritedFont);
+  m_guestInheritance = host.m_guestInheritance;
+}
+
+void Pen::carryForGuests(std::type_index type, const void* value) {
+  for (auto it = m_guestInheritance.begin(); it != m_guestInheritance.end();
+       ++it)
+    if (it->first == type) {
+      if (value)
+        it->second = value;
+      else
+        m_guestInheritance.erase(it);
+      return;
+    }
+  if (value) m_guestInheritance.emplace_back(type, value);
+}
+
+const void* Pen::carriedForGuests(std::type_index type) const {
+  for (const auto& [carried, value] : m_guestInheritance)
+    if (carried == type) return value;
+  return nullptr;
 }
 
 // ---- the style --------------------------------------------------------------

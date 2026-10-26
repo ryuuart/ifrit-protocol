@@ -4,6 +4,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/draw/Draw.h>
@@ -67,6 +68,7 @@ PaintProgram penPainter(PenProgram program) {
     held->pen.begin(canvas, held->nextFrame(ctx));
     const SkScopeExit endFrame([&] { held->pen.end(); });
     held->pen.inherit(ctx.ink, ctx.font);
+    held->pen.inheritForGuests(ctx.vars);
     program(held->pen, ctx);
   };
 }
@@ -113,8 +115,8 @@ PaintProgram graphicsPainter(PenProgram program) {
     held->sinceDraw += frame.deltaSeconds;
     held->host.pen.begin(canvas, frame);
     const SkScopeExit endHost([&] { held->host.pen.end(); });
-    const material::Color inheritedInk = ctx.ink;
-    held->host.pen.inherit(inheritedInk, ctx.font);
+    held->host.pen.inherit(ctx.ink, ctx.font);
+    held->host.pen.inheritForGuests(ctx.vars);
     // The buffer is the node's box. It is formed on its first `begin`, at
     // the host pen's own density, and a box that has changed resizes it
     // with what it holds carried over rather than cleared.
@@ -129,7 +131,7 @@ PaintProgram graphicsPainter(PenProgram program) {
     {
       draw::Pen& g = held->surface->begin(held->host.pen);
       const SkScopeExit endSurface([&] { held->surface->end(); });
-      g.inherit(inheritedInk, ctx.font);
+      g.inheritFrom(held->host.pen);
       if (shouldRun(g, *held)) {
         // The program's own clock, as p5 keeps it: the count counts runs,
         // and the step is the time since the last one, so a program under
@@ -240,8 +242,11 @@ void paintRetained(draw::Pen& pen, const Element& element,
   guest.composer->setSize({box.width(), box.height()});
   // THE TREE CASCADES FROM THE PEN: what the pen was told it inherits is
   // what this tree's root inherits, so a guest painted inside a pen
-  // program begins in the colour and the type the pen's own verbs do.
-  guest.composer->setInherited(pen.inheritedFont(), pen.inheritedInk());
+  // program begins in the colour and the type the pen's own verbs do, and
+  // under the custom properties in force where the pen stands.
+  const VarTable* properties = pen.guestInheritance<VarTable>();
+  guest.composer->setInherited(pen.inheritedFont(), pen.inheritedInk(),
+                               properties ? *properties : VarTable{});
   guest.composer->render(element);
   // The box is the guest's viewport, not a clip: what a node paints past
   // its box — a shadow, a stroke's outer half — paints past it here too.

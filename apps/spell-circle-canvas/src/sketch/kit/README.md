@@ -263,8 +263,12 @@ paint something else passes that.
 `title`, a secondary `control`, the authored `figure`, and a short `note`.
 The comparison keeps the figure's own extent inside its column and supplies no
 well or scaling. `Comparison::measure` states the available width in pixels,
-including gaps, so text wraps at its final column width before tracks are measured; `Comparison::gap` separates cases and `Comparison::trackGap`
-separates the semantic tracks, defaulting to `Spacing::comparisonGap`.
+including gaps, so text wraps at its final column width before tracks are measured; `Comparison::gap` separates cases, defaulting to the sheet's
+`spacing-cell-gap`, and `Comparison::trackGap` separates the semantic tracks,
+defaulting to `spacing-comparison-gap`; both are read where the comparison
+lays out, as `PanelGrid::gap` (the cell gap), `Ruler::reach`
+(`spacing-tick-reach`) and `Ticker::gap` (`spacing-ticker-gap`) are, and a
+tree under no sheet reads the stock sheet's distance.
 Controls carry the `.control` class, so the theme's control register or a
 nearer class rule can style every literal setting together. Empty text omits that track only when every case
 leaves it empty. A page can place several comparisons under different section
