@@ -144,42 +144,42 @@ Derived& BoxVerbs<Derived>::marginLeft(Dimension length) {
 // it can be, and the size said which.
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::width(Dimension d) {
+Derived& BoxVerbs<Derived>::width(Dimension length) {
   detail::DeclaredFields& fields = declarations()->fields;
-  fields.width() = d;
+  fields.width() = length;
   fields.leaveCover();
   return self();
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::height(Dimension d) {
+Derived& BoxVerbs<Derived>::height(Dimension length) {
   detail::DeclaredFields& fields = declarations()->fields;
-  fields.height() = d;
+  fields.height() = length;
   fields.leaveCover();
   return self();
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::minWidth(Dimension d) {
-  declarations()->fields.minWidth() = d;
+Derived& BoxVerbs<Derived>::minWidth(Dimension length) {
+  declarations()->fields.minWidth() = length;
   return self();
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::maxWidth(Dimension d) {
-  declarations()->fields.maxWidth() = d;
+Derived& BoxVerbs<Derived>::maxWidth(Dimension length) {
+  declarations()->fields.maxWidth() = length;
   return self();
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::minHeight(Dimension d) {
-  declarations()->fields.minHeight() = d;
+Derived& BoxVerbs<Derived>::minHeight(Dimension length) {
+  declarations()->fields.minHeight() = length;
   return self();
 }
 
 template <class Derived>
-Derived& BoxVerbs<Derived>::maxHeight(Dimension d) {
-  declarations()->fields.maxHeight() = d;
+Derived& BoxVerbs<Derived>::maxHeight(Dimension length) {
+  declarations()->fields.maxHeight() = length;
   return self();
 }
 

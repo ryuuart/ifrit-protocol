@@ -215,8 +215,8 @@ Type& merge(Type& into, const Type& over);
 
 /** Type{} → the TextStyle it names, every field it leaves unset taking its
  *  initial value. */
-[[nodiscard]] inline TextStyle textStyle(const Type& t) {
-  return toTextStyle(overlay(initialType(), t));
+[[nodiscard]] inline TextStyle textStyle(const Type& type) {
+  return toTextStyle(overlay(initialType(), type));
 }
 
 }  // namespace sigil::weave

@@ -57,7 +57,7 @@ struct SoftBoxes {
     gm::camera::Camera camera;
     camera.eye = {0, 640, 1800};
     camera.target = {0, 60, 0};
-    camera.fovYDegrees = 38.0f;
+    camera.verticalFieldOfViewDegrees = 38.0f;
     camera.nearPlane = 40;
     camera.farPlane = 6000;
     return camera;

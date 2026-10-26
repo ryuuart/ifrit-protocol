@@ -510,7 +510,7 @@ Answer<values::TimingResult> SessionAgent::timing() {
   for (const LaneCost& lane : session->lanes()) {
     values::LaneCost cost;
     cost.name = lane.name;
-    cost.milliseconds = lane.ms;
+    cost.milliseconds = lane.milliseconds;
     result.lanes.push_back(std::move(cost));
   }
   return result;

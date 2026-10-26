@@ -21,8 +21,8 @@ Derived& DepthVerbs<Derived>::rotateY(motion::Animatable<float> v) {
 }
 
 template <class Derived>
-Derived& DepthVerbs<Derived>::translateZ(motion::Animatable<float> v) {
-  declarations()->translateZ() = std::move(v);
+Derived& DepthVerbs<Derived>::translateZ(motion::Animatable<float> distance) {
+  declarations()->translateZ() = std::move(distance);
   return self();
 }
 

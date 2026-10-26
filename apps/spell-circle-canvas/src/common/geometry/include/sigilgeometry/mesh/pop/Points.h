@@ -94,9 +94,10 @@ namespace points {
 Cloud onSpline(const curve::Spline3& spline, int count,
                glm::vec3 up = {0, 1, 0});
 
-/** nu x nv lattice spanned by two edge vectors; writes "t" (row-major
- *  0..1) and "normal" (du x dv). */
-Cloud grid(glm::vec3 origin, glm::vec3 du, glm::vec3 dv, int nu, int nv);
+/** columns x rows lattice spanned by two edge vectors; writes "t" (row-major
+ *  0..1) and "normal" (uEdge x vEdge). */
+Cloud grid(glm::vec3 origin, glm::vec3 uEdge, glm::vec3 vEdge, int columns,
+           int rows);
 
 /** A ring of @p count points; writes "t" and "normal" (outward). */
 Cloud ring(glm::vec3 center, float radius, int count,
@@ -141,8 +142,8 @@ struct InstanceOptions {
   std::string orientLane;
   glm::vec3 up = {0, 1, 0};
   /** The lanes each instance carries as its named attributes, in order,
-   *  each by its first number — what a material reads per instance by name. Read by
-   *  `instances()` only: merged triangles have nowhere per instance to
+   *  each by its first number — what a material reads per instance by name.
+   * Read by `instances()` only: merged triangles have nowhere per instance to
    *  hold them. */
   std::vector<std::string> attributes;
   /** Who forms the stamped vertices. The default is the built-in host

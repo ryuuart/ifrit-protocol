@@ -15,14 +15,13 @@
  * back on top.
  */
 
-#include <glm/vec2.hpp>
-
 #include <algorithm>
 #include <any>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <glm/vec2.hpp>
 #include <initializer_list>
 #include <span>
 #include <utility>
@@ -165,11 +164,10 @@ class CrossingRule {
         }
         break;
       case Kind::AlternateAlong: {
-        const auto found = std::lower_bound(
-            m_walk.begin(), m_walk.end(), c.index,
-            [](const std::pair<size_t, Order>& walked, size_t index) {
-              return walked.first < index;
-            });
+        const auto found =
+            std::lower_bound(m_walk.begin(), m_walk.end(), c.index,
+                             [](const std::pair<size_t, Order>& walked,
+                                size_t index) { return walked.first < index; });
         if (found != m_walk.end() && found->first == c.index)
           return found->second;
         // Not prepared, or a crossing that was not in the set it was
@@ -187,13 +185,14 @@ class CrossingRule {
     return Order::Under;
   }
 
-  bool operator==(const CrossingRule& o) const {
-    if (m_kind != o.m_kind || m_pattern != o.m_pattern ||
-        m_dominance != o.m_dominance || m_pins != o.m_pins)
+  bool operator==(const CrossingRule& other) const {
+    if (m_kind != other.m_kind || m_pattern != other.m_pattern ||
+        m_dominance != other.m_dominance || m_pins != other.m_pins)
       return false;
     if (m_kind != Kind::Custom) return true;
-    if (!m_equals || !o.m_equals) return !m_equals && !o.m_equals;
-    return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
+    if (!m_equals || !other.m_equals) return !m_equals && !other.m_equals;
+    return m_held.type() == other.m_held.type() &&
+           m_equals(m_held, other.m_held);
   }
 
  private:
@@ -250,9 +249,7 @@ inline CrossingRule pairs(std::vector<std::pair<int, int>> dominance) {
  *  @trap Not `alternate()`, which alternates by DISCOVERED ORDINAL and
  *  so reads as a mistake on anything more braided than two strands.
  *  Where a diagram is not alternable, the lower-indexed strand decides. */
-inline CrossingRule alternateAlong() {
-  return CrossingRule::alternateAlong();
-}
+inline CrossingRule alternateAlong() { return CrossingRule::alternateAlong(); }
 }  // namespace crossing
 
 /** Every crossing among a set of strand paths, numbered along the
@@ -270,13 +267,13 @@ inline std::vector<Crossing> discoverCrossings(
 
 /** THE REGION WHERE TWO STRANDS' MARKS OVERLAP at one crossing: the
  *  intersection of the two paths stroked to their own reach, reduced to
- *  the component containing @p at and bounded by @p maxRadius px around
+ *  the component containing @p at and bounded by @p maximumRadius px around
  *  it. Exact at any angle, which a disc is not. Falls back to a disc
  *  when the intersection is empty.
- *  @trap @p maxRadius is REQUIRED for correctness, not a margin: pass
+ *  @trap @p maximumRadius is REQUIRED for correctness, not a margin: pass
  *  half the arc distance to the adjacent crossing, or touching lenses
  *  merge and one knot's patch owns the whole run. */
 Outline crossingPatch(const Outline& a, float reachA, const Outline& b,
-                      float reachB, glm::vec2 at, float maxRadius);
+                      float reachB, glm::vec2 at, float maximumRadius);
 
 }  // namespace sigil::geometry::path

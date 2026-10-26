@@ -32,14 +32,14 @@ struct Phase {
  *  bounded convergence loop rather than a single second pass: every
  *  writer in it is expected to be idempotent and to report `changed` only
  *  on an actual delta, so a stable tree costs one extra pass and exits,
- *  and a settling one converges within `maxRounds`. The cap is what
+ *  and a settling one converges within `maximumRounds`. The cap is what
  *  guarantees termination if two writers ever disagree permanently — the
  *  result is a slightly-off pass instead of a hang. `settle()` runs after
  *  every round that changed something, before the next round reads.
  *  Returns how many converging rounds ran. */
 template <class Impl, class Settle>
-int runPhases(Impl& impl, std::span<const Phase<Impl>> phases, int maxRounds,
-              Settle&& settle) {
+int runPhases(Impl& impl, std::span<const Phase<Impl>> phases,
+              int maximumRounds, Settle&& settle) {
   int rounds = 0;
   const size_t count = phases.size();
   for (size_t i = 0; i < count;) {
@@ -50,7 +50,7 @@ int runPhases(Impl& impl, std::span<const Phase<Impl>> phases, int maxRounds,
     }
     size_t groupEnd = i;
     while (groupEnd < count && phases[groupEnd].converging) ++groupEnd;
-    for (int round = 0; round < maxRounds; ++round) {
+    for (int round = 0; round < maximumRounds; ++round) {
       ++rounds;
       bool changed = false;
       for (size_t p = i; p < groupEnd; ++p) changed |= (impl.*phases[p].run)();

@@ -11,16 +11,16 @@
  *
  * `Where` names the three places worth a node — the axis extremes, the
  * inflections where a cubic changes which way it bends, and the points
- * of maximum curvature — and `minDepthPx` is the one dial that decides
+ * of maximum curvature — and `minimumDepthPixels` is the one dial that decides
  * how shallow a turn may be and still earn one. The drawn curve does not
  * move: a node is inserted by splitting a piece into two of its own
  * kind, which is exactly the same curve read in two halves.
  */
-#include "sigilgeometry/path/Outline.h"
-
 #include <cstdint>
 #include <glm/vec2.hpp>
 #include <vector>
+
+#include "sigilgeometry/path/Outline.h"
 
 namespace sigil::geometry::path {
 
@@ -35,10 +35,10 @@ enum class Where : uint8_t {
   MaxCurvature = 4,
 };
 /** The union of two turn selections. */
-constexpr Where operator|(Where a, Where b) {
+constexpr Where operator|(Where left, Where right) {
   // the type is a bit set; any union of enumerators is a valid value
   // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
-  return Where(uint8_t(a) | uint8_t(b));
+  return Where(uint8_t(left) | uint8_t(right));
 }
 /** Whether @p mask selects the turn @p one names. */
 constexpr bool has(Where mask, Where one) {
@@ -58,7 +58,7 @@ struct ExtremeOptions {
    *  wander; zero inserts one wherever the arithmetic finds a turn at
    *  all. Only the axis extremes are measured this way — an inflection
    *  and a curvature peak have no depth to measure. */
-  float minDepthPx = 1.0f;
+  float minimumDepthPixels = 1.0f;
   bool operator==(const ExtremeOptions&) const = default;
 };
 

@@ -154,16 +154,16 @@ class PlacementVerbs {
   // std::integral so a float call can never land here.
   /// @cond
   template <std::integral T>
-  Derived& translateX(T v) {
-    return translateX(motion::Animatable<float>((float)v));
+  Derived& translateX(T distance) {
+    return translateX(motion::Animatable<float>((float)distance));
   }
   template <std::integral T>
-  Derived& translateY(T v) {
-    return translateY(motion::Animatable<float>((float)v));
+  Derived& translateY(T distance) {
+    return translateY(motion::Animatable<float>((float)distance));
   }
   template <std::integral T>
-  Derived& translateZ(T v) {
-    return translateZ(motion::Animatable<float>((float)v));
+  Derived& translateZ(T distance) {
+    return translateZ(motion::Animatable<float>((float)distance));
   }
   template <std::integral T>
   Derived& rotateX(T degrees) {

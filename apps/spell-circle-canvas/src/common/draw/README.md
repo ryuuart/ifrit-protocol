@@ -154,7 +154,7 @@ default.
 | images | `image(img, x, y[, w, h])` and the nine-argument source-rect form, over an `sk_sp<SkImage>` or a `Graphics`; `image(frame, x, y, w, h, fit)` over a `media::Frame` — any picture source's frame at a time, an `Image`'s, a `Video`'s, a publication's — meeting its box under a `material::Fit`, a frame standing on a device bound for the pen's own canvas |
 | transform | `translate`, `rotate`, `scale(s \| sx, sy)`, `shearX`, `shearY`, `push`, `pop`, `resetMatrix`, `applyMatrix(a, b, c, d, e, f)` |
 | numbers | `random()`, `random(max)`, `random(min, max)`, `randomGaussian`, `randomSeed`, `noise(x[, y, z])`, `noiseSeed`, `noiseDetail` |
-| the loop | `frameCount`, `deltaTime` (milliseconds), `millis()`, `frameRate()`, `frameRate(fps)`, `noLoop`, `loop`, `redraw` |
+| the loop | `frameCount`, `deltaTime` (milliseconds), `millis()`, `frameRate()`, `frameRate(framesPerSecond)`, `noLoop`, `loop`, `redraw` |
 | constants | `PI`, `TWO_PI`, `TAU`, `HALF_PI`, `QUARTER_PI`, and every word above, in `sigil::draw` |
 
 These details affect a ported sketch:
@@ -244,7 +244,7 @@ The pen adds material, geometry and text overloads to the p5 verbs.
   output differs from p5's permutation table. Every pen starts on the
   same random seed; `randomSeed` selects another reproducible stream.
 * **Host clock.** `millis`, `deltaTime` and `frameRate()` read the supplied
-  frame. `frameRate(fps)` requests a draw rate from the host, which owns
+  frame. `frameRate(framesPerSecond)` requests a draw rate from the host, which owns
   scheduling.
 * **Small compatibility differences.** Colour strings accept hex in its
   four lengths and the supported named colours; unknown strings become

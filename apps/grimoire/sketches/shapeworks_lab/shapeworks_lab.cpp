@@ -97,7 +97,9 @@ namespace {
 /** Where the wire panel stands on the sheet and how large it is. */
 constexpr SkRect kFlight = SkRect::MakeXYWH(600, 116, 650, 690);
 mesh::camera::Camera flightCamera() {
-  return {.eye = {0, 620, 900}, .target = {0, 0, 0}, .fovYDegrees = 40};
+  return {.eye = {0, 620, 900},
+          .target = {0, 0, 0},
+          .verticalFieldOfViewDegrees = 40};
 }
 
 namespace pop = mesh::pop;

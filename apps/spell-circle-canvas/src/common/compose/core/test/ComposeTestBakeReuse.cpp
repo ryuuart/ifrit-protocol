@@ -216,7 +216,7 @@ TEST(ComposeCaching, BakesUnderAHiddenFadeAreTakenBeforeItShows) {
 namespace {
 
 /** The largest channel difference between two hosts' canvases. */
-int maxChannelDifference(Host& a, Host& b, int w, int h) {
+int maximumChannelDifference(Host& a, Host& b, int w, int h) {
   SkBitmap ba, bb;
   ba.allocPixels(SkImageInfo::MakeN32Premul(w, h));
   bb.allocPixels(SkImageInfo::MakeN32Premul(w, h));
@@ -283,7 +283,7 @@ TEST(ComposeCaching, ADeviceBakeUnderAStaticContainerIsExactAtEveryAngle) {
     EXPECT_EQ(cached.composer.stats().picturesRecorded, 0u) << degrees;
     plain.composer.render(turnedPill(degrees, Cache::None));
     plain.frame();
-    const int worst = maxChannelDifference(cached, plain, w, h);
+    const int worst = maximumChannelDifference(cached, plain, w, h);
     if (degrees == 0.0f || degrees == 180.0f)
       worstOnAxis = std::max(worstOnAxis, worst);
     else

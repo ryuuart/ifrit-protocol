@@ -126,8 +126,9 @@ struct GlowTrail {
         ctx, {.size = {640, 440},
               .captureAt = 1.3,
               .background = material::Color{0.03f, 0.035f, 0.05f, 1.0f}});
-    ctx.camera(
-        {.eye = kEye, .target = {0.0f, -30.0f, 0.0f}, .fovYDegrees = 42.0f});
+    ctx.camera({.eye = kEye,
+                .target = {0.0f, -30.0f, 0.0f},
+                .verticalFieldOfViewDegrees = 42.0f});
   }
 
   world::Frame describe(motion::Duration now) {

@@ -222,9 +222,10 @@ struct Scene2DContext {
    *  goes when it declares again. A tree that moves is a `textureScene()`'s.
    *
    *  Empty only where the host lent no fonts. */
-  [[nodiscard]] material::Texture texture(
-      const compose::Element& tree, SkISize size,
-      sigil::material::Color background = {0, 0, 0, 0});
+  [[nodiscard]] material::Texture texture(const compose::Element& tree,
+                                          SkISize size,
+                                          sigil::material::Color background = {
+                                              0, 0, 0, 0});
 
   /** A PAGE A BAKED 3D FRAME LIGHTS, @p size pixels across: a compose
    *  tree painted as the maps of a surface by a pass on the frame. It is
@@ -365,8 +366,8 @@ struct Scene2DContext {
   /** One-shot intrinsic measurement with the host's fonts: size marquee
    *  strips, tooltips and badges from their content. */
   SkSize measure(const compose::Element& element,
-                 SkSize maxSize = SkSize::MakeEmpty()) {
-    return fonts ? compose::intrinsicSize(element, *fonts, maxSize)
+                 SkSize maximumSize = SkSize::MakeEmpty()) {
+    return fonts ? compose::intrinsicSize(element, *fonts, maximumSize)
                  : SkSize::MakeEmpty();
   }
 

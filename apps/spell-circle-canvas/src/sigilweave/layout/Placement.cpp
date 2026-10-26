@@ -395,15 +395,14 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       // exactly that and no more. A tabbed line falls through to its gaps.
       if (justification.method == JustificationMethod::kInterCharacter &&
           extraWidth > 0 && !hasTab) {
-        const float clusters =
-            clustersOn(words, firstWordIndex, endWordIndex) -
-            lineEndOpportunities;
+        const float clusters = clustersOn(words, firstWordIndex, endWordIndex) -
+                               lineEndOpportunities;
         const float opportunities =
             std::max(0.0f, clusters) + static_cast<float>(spaceGapCount);
         if (opportunities > 0) {
           const float each =
               std::min(extraWidth / opportunities,
-                       justification.maxInterCharacterExpansion * em);
+                       justification.maximumInterCharacterExpansion * em);
           const float heldBack = extraWidth - each * opportunities;
           spaceAdjustment =
               spaceGapCount > 0
@@ -415,7 +414,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       }
       if (extraWidth > 0 && (spaceGapCount + ideographicGapCount) > 0) {
         const float ideographicExpansionLimit =
-            options.justification.maxIdeographicExpansion *
+            options.justification.maximumIdeographicExpansion *
             wordFontSize(words[firstWordIndex]);
         const float equalGapAdjustment =
             extraWidth /
@@ -580,8 +579,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
         GlyphFit segmentFit = fit;
         segmentFit.closesLine = segmentIndex == closingSegment;
         emitSegment(result, flatInterval, segment, wordIndex,
-                    penPosition + local, options, segmentFit,
-                    shiftOf(segment));
+                    penPosition + local, options, segmentFit, shiftOf(segment));
         local += advanceUnder(segmentFit, *segment.shaped);
       }
       if (!word.segments().empty()) wordAdvance = local;
@@ -592,7 +590,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       PositionedRun run;
       run.origin = flatInterval.interval.origin +
                    glm::vec2{flatInterval.interval.direction.x * penPosition,
-                            flatInterval.interval.direction.y * penPosition};
+                             flatInterval.interval.direction.y * penPosition};
       run.wordIndex = wordIndex;
       run.lineIndex = flatInterval.sourceLineIndex;
       run.intervalIndex = flatInterval.index;

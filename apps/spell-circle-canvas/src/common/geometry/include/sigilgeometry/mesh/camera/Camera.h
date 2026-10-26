@@ -33,7 +33,7 @@ struct Camera {
   glm::vec3 eye = {0, 0, 480};
   glm::vec3 target = {0, 0, 0};
   glm::vec3 up = {0, 1, 0};
-  float fovYDegrees = 40;
+  float verticalFieldOfViewDegrees = 40;
   float nearPlane = 4;
   float farPlane = 4096;
 

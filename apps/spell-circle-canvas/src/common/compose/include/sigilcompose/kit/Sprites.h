@@ -66,7 +66,7 @@ class Pen;
 
 namespace sigil::compose::kit {
 
-/** A WHITE ROUND DOT on transparency, @p px square — the stamp a point
+/** A WHITE ROUND DOT on transparency, @p pixels square — the stamp a point
  *  cloud is drawn with when each point is a soft blob rather than a
  *  square.
  *
@@ -82,7 +82,8 @@ namespace sigil::compose::kit {
  *
  *  Bake it once and hold the result — this allocates a surface and
  *  rasterises. */
-std::shared_ptr<const media::Image> dotSprite(int px = 32, float margin = 2.0f);
+std::shared_ptr<const media::Image> dotSprite(int pixels = 32,
+                                              float margin = 2.0f);
 
 // ---------------------------------------------------------------------------
 // The pen
@@ -100,9 +101,9 @@ struct PixelInk {
   /** Where the grid's origin sits on the canvas, in canvas pixels. */
   glm::vec2 at = {0, 0};
 
-  void rect(float x, float y, float w, float h,
+  void rect(float x, float y, float width, float height,
             const material::Color& colour) const;
-  void px(float x, float y, const material::Color& colour) const {
+  void pixel(float x, float y, const material::Color& colour) const {
     rect(x, y, 1, 1, colour);
   }
   /** A run of one row: [x, x + w) at row @p y. */
@@ -161,15 +162,16 @@ struct Sprite {
     return (int)colours.size() - 1;
   }
 
-  void rect(float x, float y, float w, float h, int index) {
-    if (w <= 0 || h <= 0 || index < 0) return;
-    runs.push_back({x, y, w, h, index});
+  void rect(float x, float y, float width, float height, int index) {
+    if (width <= 0 || height <= 0 || index < 0) return;
+    runs.push_back({x, y, width, height, index});
   }
-  void rect(float x, float y, float w, float h, const ColorTerm& colour) {
-    rect(x, y, w, h, entry(colour));
+  void rect(float x, float y, float width, float height,
+            const ColorTerm& colour) {
+    rect(x, y, width, height, entry(colour));
   }
-  void px(float x, float y, int index) { rect(x, y, 1, 1, index); }
-  void px(float x, float y, const ColorTerm& colour) {
+  void pixel(float x, float y, int index) { rect(x, y, 1, 1, index); }
+  void pixel(float x, float y, const ColorTerm& colour) {
     rect(x, y, 1, 1, colour);
   }
   /** A run of one row: [x, x + w) at row @p y. */

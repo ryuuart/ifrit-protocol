@@ -106,9 +106,9 @@ Element GenesisFire::dipper() {
 
   for (int i = 0; i < 8; ++i) {
     const SkPoint p = at(i);
-    const float rad = std::max(1.4f, 4.6f - 0.85f * kStars[i].mag);
+    const float radius = std::max(1.4f, 4.6f - 0.85f * kStars[i].mag);
     const bool sol = i == 7;
-    g.children({kit::disc(sigil::geometry::path::fromSk(p), rad * 2.0f)
+    g.children({kit::disc(sigil::geometry::path::fromSk(p), radius * 2.0f)
                     .fill(sigil::material::radialGradient(
                         {0.5f, 0.5f}, 0.707f,
                         {{0.0f, sol ? hexColor(0xFFFFFF) : hexColor(0xEFF3FF)},
@@ -123,7 +123,7 @@ Element GenesisFire::dipper() {
     g.children({text(kStars[i].name)
                     .font({.size = 7.0f, .track = 1.1f})
                     .ink(sol ? kCyan : hexColor(0x9FB0CC, 0.85f))
-                    .left(p.fX + rad + 5.0f)
+                    .left(p.fX + radius + 5.0f)
                     .top(p.fY - 5.0f)
                     .opacity(sigil::motion::animate({.from = 0.0f,
                                                      .to = 1.0f,

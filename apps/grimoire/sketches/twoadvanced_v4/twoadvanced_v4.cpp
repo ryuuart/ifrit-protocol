@@ -306,10 +306,10 @@ auto TwoAdvancedV4::update(double elapsed, sketch::Scene2DContext& ctx)
   // of the tree is untouched.
   if (booted) return;
   const double u = (elapsed - 0.55) / 0.80;
-  const int pct = (int)std::lround(std::clamp(u, 0.0, 1.0) * 100.0);
-  if (pct == bootPct) return;
-  bootPct = pct;
-  if (pct >= 100) booted = true;
+  const int percent = (int)std::lround(std::clamp(u, 0.0, 1.0) * 100.0);
+  if (percent == bootPercent) return;
+  bootPercent = percent;
+  if (percent >= 100) booted = true;
   ctx.composer.renderSlot("bootpct", bootReadout());
 }
 

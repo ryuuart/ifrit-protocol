@@ -46,8 +46,8 @@ class Band : public detail::Declaring,
              public BandVerbs<Band> {
  public:
   /** @private the factories' door */
-  explicit Band(std::shared_ptr<detail::ElementNode> n)
-      : detail::Declaring(std::move(n)) {}
+  explicit Band(std::shared_ptr<detail::ElementNode> node)
+      : detail::Declaring(std::move(node)) {}
 
   operator Element() const;  // NOLINT: implicit by design (a leaf is a node)
 

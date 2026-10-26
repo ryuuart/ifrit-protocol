@@ -448,7 +448,7 @@ void bindPen(py::module_& root) {
   penMethod(cls, "millis", &Pen::millis);
   penMethod(cls, "frameRate", py::overload_cast<>(&Pen::frameRate, py::const_));
   penMethod(cls, "frameRate", py::overload_cast<double>(&Pen::frameRate),
-            py::arg("fps"));
+            py::arg("framesPerSecond"));
   penMethod(cls, "noLoop", &Pen::noLoop);
   penMethod(cls, "loop", &Pen::loop);
   penMethod(cls, "redraw", &Pen::redraw);

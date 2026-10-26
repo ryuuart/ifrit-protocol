@@ -171,7 +171,9 @@ curve::Spline3 loop() {
 }
 
 camera::Camera view() {
-  return {.eye = {40, 190, 900}, .target = {0, 0, 0}, .fovYDegrees = 44};
+  return {.eye = {40, 190, 900},
+          .target = {0, 0, 0},
+          .verticalFieldOfViewDegrees = 44};
 }
 
 /** One panel's cloth: the band swept on @p rail wearing @p art, as a

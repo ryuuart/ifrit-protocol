@@ -4,8 +4,8 @@
 
 #include "HitmanVerlet.h"
 
-auto HitmanVerlet::stageChrome(Pen& pen, double ms) -> void {
-  const float a = cue(ms, 520, 400);
+auto HitmanVerlet::stageChrome(Pen& pen, double milliseconds) -> void {
+  const float a = cue(milliseconds, 520, 400);
   // The floor: a band from world y = 0 down out of frame is the bottom
   // edge of the cube, so the solid reads as a plinth under it plus the
   // surface line the paper's projection actually clamps to. The grain is
@@ -46,9 +46,9 @@ auto HitmanVerlet::stageChrome(Pen& pen, double ms) -> void {
   pen.noStroke();
 }
 
-auto HitmanVerlet::worldBox(Pen& pen, double ms) -> void {
+auto HitmanVerlet::worldBox(Pen& pen, double milliseconds) -> void {
   // The cube's bezel, and its top wall — real, just not interesting.
-  const float g = cue(ms, 240, 620, sigil::motion::ease::outCubic);
+  const float g = cue(milliseconds, 240, 620, sigil::motion::ease::outCubic);
   pen.noFill();
   pen.strokeCap(draw::SQUARE);
   pen.stroke(hexColor(0x6FA8DC, 0.45f));

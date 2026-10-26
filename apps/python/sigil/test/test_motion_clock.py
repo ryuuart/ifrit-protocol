@@ -106,7 +106,7 @@ class Frames(unittest.TestCase):
         engine.setSpeed(0.5)
         self.assertEqual(engine.speed(), 0.5)
         self.assertAlmostEqual(engine.advanceWall(20.1), 0.05)
-        wide = Engine(EngineOptions(maxWallStep=0.5))
+        wide = Engine(EngineOptions(maximumWallStep=0.5))
         wide.advanceWall(0.0)
         self.assertAlmostEqual(wide.advanceWall(10.0), 0.5)
 

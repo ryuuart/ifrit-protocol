@@ -40,10 +40,9 @@ concept Silhouette =
  *  generator that cannot compare (an unkeyed `parametric`), or a bare
  *  callable. What a wrapper can wrap. */
 template <typename S>
-concept OutlineSource =
-    requires(const S& s, glm::vec2 size) {
-      { s.outline(size) } -> std::convertible_to<path::Outline>;
-    } || std::is_invocable_r_v<path::Outline, const S&, glm::vec2>;
+concept OutlineSource = requires(const S& s, glm::vec2 size) {
+  { s.outline(size) } -> std::convertible_to<path::Outline>;
+} || std::is_invocable_r_v<path::Outline, const S&, glm::vec2>;
 
 /** The outline @p source answers for @p size, whichever way it answers. */
 template <OutlineSource S>
@@ -91,10 +90,11 @@ struct Cornered {
   Inner inner;
   float radius = 0.0f;
   CornerOptions options{};
-  bool operator==(const Cornered& o) const
+  bool operator==(const Cornered& other) const
     requires Silhouette<Inner>
   {
-    return inner == o.inner && radius == o.radius && options == o.options;
+    return inner == other.inner && radius == other.radius &&
+           options == other.options;
   }
   path::Outline outline(glm::vec2 size) const {
     return detail::cornerOutline(outlineOf(inner, size), radius, options);
@@ -103,7 +103,8 @@ struct Cornered {
 
 /** @p shape with every corner treated by @p radius. */
 template <OutlineSource Inner>
-Cornered<Inner> cornered(Inner shape, float radius, CornerOptions options = {}) {
+Cornered<Inner> cornered(Inner shape, float radius,
+                         CornerOptions options = {}) {
   return Cornered<Inner>{std::move(shape), radius, options};
 }
 
@@ -135,10 +136,10 @@ template <OutlineSource Inner, path::ShaperScheme S>
 struct Shaped {
   Inner inner;
   S shaper;
-  bool operator==(const Shaped& o) const
+  bool operator==(const Shaped& other) const
     requires Silhouette<Inner>
   {
-    return inner == o.inner && shaper == o.shaper;
+    return inner == other.inner && shaper == other.shaper;
   }
   path::Outline outline(glm::vec2 size) const {
     return detail::shape(outlineOf(inner, size), path::Shaper(shaper));
@@ -181,14 +182,14 @@ enum class Corner : uint8_t {
   AntiDiagonal = 10,  // TopRight | BottomLeft
 };
 /** The union of two corner selections. */
-constexpr Corner operator|(Corner a, Corner b) {
+constexpr Corner operator|(Corner left, Corner right) {
   // the type is a bit set; any union of enumerators is a valid value
   // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
-  return Corner(uint8_t(a) | uint8_t(b));
+  return Corner(uint8_t(left) | uint8_t(right));
 }
-/** Whether @p mask selects any corner @p c names. */
-constexpr bool has(Corner mask, Corner c) {
-  return (uint8_t(mask) & uint8_t(c)) != 0;
+/** Whether @p mask selects any corner @p corner names. */
+constexpr bool has(Corner mask, Corner corner) {
+  return (uint8_t(mask) & uint8_t(corner)) != 0;
 }
 
 /** The CHAMFERED box: each corner @p mask names replaced by a cut of

@@ -23,7 +23,7 @@ inline constexpr float kTau = 2.0f * kPi;
  *  is geometry's own word and a caller measuring one should not have to
  *  reach past this header for it; they carry no arithmetic, so a contour
  *  and a pen scale an angle by the same float. */
-inline constexpr float kDegToRad = core::angle::kDegToRad;
+inline constexpr float kDegreesToRadians = core::angle::kDegreesToRadians;
 /** Radians to degrees, the same single rounding. */
 inline constexpr float kRadiansToDegrees = core::angle::kRadiansToDegrees;
 
@@ -58,19 +58,23 @@ float bisect(float lo, float hi, Pred stillNear, int iterations = 8) {
  *  so it rounds exactly as Skia's own point length does — a polyline
  *  measured here and a contour Skia measures must agree to the bit, or
  *  the two disagree about where a resampled point lands. */
-inline float length(glm::vec2 v) { return std::sqrt(v.x * v.x + v.y * v.y); }
+inline float length(glm::vec2 vector) {
+  return std::sqrt(vector.x * vector.x + vector.y * vector.y);
+}
 
 /** Distance between two points, rounding as `length` does. */
-inline float distance(glm::vec2 a, glm::vec2 b) { return length(b - a); }
+inline float distance(glm::vec2 from, glm::vec2 to) {
+  return length(to - from);
+}
 
 /** The z of the 3D cross product of two planar vectors: positive when
  *  @p b turns clockwise from @p a in Skia's y-down space, and zero when
  *  the two are parallel. */
 inline float cross(glm::vec2 a, glm::vec2 b) { return a.x * b.y - a.y * b.x; }
 
-/** `t` wrapped into [0, period). */
-inline float wrap(float t, float period) {
-  const float r = std::fmod(t, period);
+/** `value` wrapped into [0, period). */
+inline float wrap(float value, float period) {
+  const float r = std::fmod(value, period);
   return r < 0 ? r + period : r;
 }
 

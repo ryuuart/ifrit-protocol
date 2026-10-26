@@ -46,16 +46,16 @@ glm::vec3 bezier(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3,
 
 }  // namespace
 
-glm::vec3 Spline3::position(float t) const {
+glm::vec3 Spline3::position(float along) const {
   const size_t n = points.size();
   if (n == 0) return {0, 0, 0};
   if (n == 1) return points[0];
-  t = std::clamp(t, 0.0f, 1.0f);
+  along = std::clamp(along, 0.0f, 1.0f);
 
   switch (type) {
     case Type::Linear: {
       const size_t segments = closed ? n : n - 1;
-      const float f = t * (float)segments;
+      const float f = along * (float)segments;
       const size_t i = std::min((size_t)f, segments - 1);
       const float local = f - (float)i;
       const glm::vec3 a = points[i % n];
@@ -65,7 +65,7 @@ glm::vec3 Spline3::position(float t) const {
     case Type::Bezier: {
       // 3n+1 layout: anchor, out-handle, in-handle, anchor, ...
       const size_t segments = std::max<size_t>(1, (n - 1) / 3);
-      const float f = t * (float)segments;
+      const float f = along * (float)segments;
       const size_t i = std::min((size_t)f, segments - 1);
       const float local = f - (float)i;
       const size_t base = i * 3;
@@ -75,7 +75,7 @@ glm::vec3 Spline3::position(float t) const {
     case Type::CatmullRom:
     default: {
       const size_t segments = closed ? n : n - 1;
-      const float f = t * (float)segments;
+      const float f = along * (float)segments;
       const size_t i = std::min((size_t)f, segments - 1);
       const float local = f - (float)i;
       auto at = [&](long k) -> glm::vec3 {
@@ -89,10 +89,10 @@ glm::vec3 Spline3::position(float t) const {
   }
 }
 
-glm::vec3 Spline3::tangent(float t) const {
+glm::vec3 Spline3::tangent(float along) const {
   const float eps = 1e-3f;
-  const glm::vec3 a = position(std::max(t - eps, 0.0f));
-  const glm::vec3 b = position(std::min(t + eps, 1.0f));
+  const glm::vec3 a = position(std::max(along - eps, 0.0f));
+  const glm::vec3 b = position(std::min(along + eps, 1.0f));
   return normalized(b - a, {0, 0, 1});
 }
 
@@ -261,9 +261,8 @@ std::vector<Frame3> hangFrames(const Spline3& spline, int sections, float head,
   return out;
 }
 
-static SkPath projectedPath(const Spline3& spline,
-                            const camera::Camera& camera, glm::vec2 viewport,
-                            int samples) {
+static SkPath projectedPath(const Spline3& spline, const camera::Camera& camera,
+                            glm::vec2 viewport, int samples) {
   SkPathBuilder out;
   samples = std::max(samples, 2);
   const glm::mat4 vp = camera.viewProjection(viewport);
@@ -291,8 +290,7 @@ static SkPath projectedPath(const Spline3& spline,
 
 path::Outline project(const Spline3& spline, const camera::Camera& camera,
                       glm::vec2 viewport, int samples) {
-  return path::fromSk(
-      projectedPath(spline, camera, viewport, samples));
+  return path::fromSk(projectedPath(spline, camera, viewport, samples));
 }
 
 }  // namespace sigil::geometry::mesh::curve

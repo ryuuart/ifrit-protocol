@@ -138,7 +138,7 @@ SIGIL_SKETCH(Orbit, "Draw", "A moving ball with a trail.")
 
 The node keeps its canvas between frames, so a translucent background leaves
 a trail. Set persistent pen style on the first frame.
-`pen.noLoop()`, `pen.redraw()` and `pen.frameRate(fps)` control when the program
+`pen.noLoop()`, `pen.redraw()` and `pen.frameRate(framesPerSecond)` control when the program
 runs; its last surface remains visible between runs. Resizing carries its
 pixels forward. The pen reads the host's current pointer and key state each
 frame; it has no separate event callback lifecycle. A body with no pen reads

@@ -50,7 +50,7 @@ struct LatticeOptions {
   /** The most lines one lattice lays down. A bound rather than a
    *  preference: a spacing far smaller than the rings it fills would
    *  otherwise answer with a vector nobody asked the size of. */
-  int maxLines = 10000;
+  int maximumLines = 10000;
   bool operator==(const LatticeOptions&) const = default;
 };
 
@@ -148,7 +148,7 @@ struct MultigridOptions {
   /** The most rhombs one tiling holds. A bound rather than a preference:
    *  a radius far larger than the spacing would otherwise answer with a
    *  vector nobody asked the size of. */
-  int maxRhombs = 500000;
+  int maximumRhombs = 500000;
   bool operator==(const MultigridOptions&) const = default;
 };
 

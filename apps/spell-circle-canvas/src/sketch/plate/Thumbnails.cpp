@@ -259,11 +259,11 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   }
   if (stopped(run.stop)) return ThumbnailOutcome::Stopped;
 
-  // The still, scaled so its larger side is maxDimension: a scene2d
+  // The still, scaled so its larger side is maximumDimension: a scene2d
   // sketch re-renders here at the smaller scale, a scene3d sketch or a pen
   // presents the frame just finished.
   const float longest = std::max(size.width(), size.height());
-  const float scale = std::min(1.0f, (float)run.maxDimension / longest);
+  const float scale = std::min(1.0f, (float)run.maximumDimension / longest);
   const SkImageInfo thumbInfo = SkImageInfo::MakeN32Premul(
       std::max(1, (int)std::lround(size.width() * scale)),
       std::max(1, (int)std::lround(size.height() * scale)));

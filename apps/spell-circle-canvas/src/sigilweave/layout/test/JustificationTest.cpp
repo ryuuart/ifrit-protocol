@@ -273,9 +273,7 @@ JustificationOptions under(JustificationMethod method,
 }
 
 /// Where a run ends as the line set it, its fit included.
-float fittedEnd(const PositionedRun& run) {
-  return run.origin.x + run.advance;
-}
+float fittedEnd(const PositionedRun& run) { return run.origin.x + run.advance; }
 
 /// Where a run's last glyph ends: its position under the fit plus its own
 /// scaled advance, and nothing the fit adds after it. This is the ink a
@@ -413,7 +411,7 @@ TEST(JustificationMethod, InterCharacterSpacingStopsAtItsCap) {
   // rest; the line's last letter still reaches the measure.
   JustificationOptions spec = under(JustificationMethod::kInterCharacter);
   spec.justifyLastLine = true;
-  spec.maxInterCharacterExpansion = 0.25f;
+  spec.maximumInterCharacterExpansion = 0.25f;
   const LaidOut set = justified(spec, u8"ab cd", 160.0f);
   ASSERT_EQ(set.layout.lineCount, 1);
   const auto runs = wordRuns(set.layout);

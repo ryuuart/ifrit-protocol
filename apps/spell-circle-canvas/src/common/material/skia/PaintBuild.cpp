@@ -308,7 +308,7 @@ sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
               "[material] sdf material: pad %.1f px >= half of the "
               "%.0fx%.0f box — the style's reserve (glow/shadow/border) "
               "eats the whole interior and the visible shape is ~%.1f px "
-              "across. Size the node with material::sdf::minBoxFor(style, "
+              "across. Size the node with material::sdf::minimumBoxFor(style, "
               "contentPx) = content + 2*material::sdf::pad(style). (warned "
               "once)\n",
               value, paintFrame->size.width(), paintFrame->size.height(),
@@ -430,7 +430,7 @@ sk_sp<SkShader> PaintAccess::buildBacked(const Paint& self,
             "[material] sdf material: pad %.1f px >= half of the "
             "%.0fx%.0f box — the style's reserve (glow/shadow/border) "
             "eats the whole interior and the visible shape is ~%.1f px "
-            "across. Size the node with material::sdf::minBoxFor(style, "
+            "across. Size the node with material::sdf::minimumBoxFor(style, "
             "contentPx) = content + 2*material::sdf::pad(style). (warned "
             "once)\n",
             pad, paintFrame->size.width(), paintFrame->size.height(),

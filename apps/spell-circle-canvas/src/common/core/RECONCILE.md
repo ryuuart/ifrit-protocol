@@ -162,6 +162,6 @@ no motion target.
 `Phase<Impl>` — a name, a member function answering whether it moved
 anything, and whether it converges. `runPhases` runs each non-converging
 phase once and the contiguous converging group until a round changes
-nothing or `maxRounds` is reached, calling `settle` after every round that
+nothing or `maximumRounds` is reached, calling `settle` after every round that
 changed something. The cap is what guarantees termination if two writers
 ever disagree permanently.

@@ -73,12 +73,13 @@ struct EvaMagiDefense {
       const bool hub = s.falls;
       const SkPoint tgt = hub ? kHub : centroid;
       const SkPoint at = unroll(s.centre);
-      const float bearing = deg(std::atan2(tgt.fY - at.fY, tgt.fX - at.fX));
+      const float bearing =
+          toDegrees(std::atan2(tgt.fY - at.fY, tgt.fX - at.fX));
       const float want = snap45(bearing - 90.0f);
       // the component's stem runs local +y; rotate it by the declared theta
-      const float th = rad(s.rotation);
+      const float th = toRadians(s.rotation);
       const SkVector stem{-std::sin(th), std::cos(th)};
-      const float stemDegrees = deg(std::atan2(stem.fY, stem.fX));
+      const float stemDegrees = toDegrees(std::atan2(stem.fY, stem.fX));
       const float err = std::fabs(wrap180(stemDegrees - bearing));
       // Two independent claims on one site: the declared angle IS the snap,
       // and the stem it turns actually points at the target. A single
@@ -102,7 +103,8 @@ struct EvaMagiDefense {
     {
       const float ax = kWallTop.fX - kWallBend.fX;  // authored run (leftward)
       const float ay = kWallBend.fY - kWallTop.fY;  // authored rise
-      const float c = std::cos(rad(kRoll)), sn = std::sin(rad(kRoll));
+      const float c = std::cos(toRadians(kRoll)),
+                  sn = std::sin(toRadians(kRoll));
       const float rx = -ax * c - ay * sn;  // rotated by the camera
       const float ry = -ax * sn + ay * c;
       const float rendered = std::fabs(rx / ry);

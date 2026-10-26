@@ -31,7 +31,7 @@ struct WindowCaptureOptions {
   std::chrono::milliseconds interval{16};
   /** How many frames the loop waits for readiness before going on
    *  anyway, so a window stuck loading is still photographed. */
-  int maxReadyFrames = 900;
+  int maximumReadyFrames = 900;
   /** Run at the top of every tick, for a caller that has to advance
    *  something of its own. Empty does nothing. */
   std::function<void()> prepareFrame;

@@ -117,8 +117,12 @@ path::Outline pressureLine(glm::vec2 face, float top, float scale) {
 /** The width the pressure line is laid at: thin at both ends, swelling
  *  twice along its run. */
 path::Profile pressureWidth(float scale) {
-  return path::Profile{{0, 1},          {.12f, 12 * scale}, {.35f, 26 * scale},
-                       {.61f, 8 * scale}, {.84f, 19 * scale}, {1, 1}};
+  return path::Profile{{0, 1},
+                       {.12f, 12 * scale},
+                       {.35f, 26 * scale},
+                       {.61f, 8 * scale},
+                       {.84f, 19 * scale},
+                       {1, 1}};
 }
 
 /** THE PRESSURE RIBBON AND ITS FIBRE PASSES, the die's under-stroke,
@@ -127,9 +131,9 @@ std::vector<Element> ribbon(glm::vec2 face, float top, float scale) {
   const auto fibre =
       path::Outline::svg("M18 24 C151 -16 220 70 325 21 C442 -30 509 45 608 -7")
           .transformed(underStroke(face, top, scale));
-  std::vector<Element> marks{swept(pressureLine(face, top, scale), face,
-                                   pressureWidth(scale), .8f)
-                                 .filter(material::Filter::blur(1.2f))};
+  std::vector<Element> marks{
+      swept(pressureLine(face, top, scale), face, pressureWidth(scale), .8f)
+          .filter(material::Filter::blur(1.2f))};
   const path::Profile strand{
       {0, .1f}, {.12f, .8f}, {.43f, 1.4f}, {.76f, .7f}, {1, .1f}};
   for (int pass = 0; pass < 9; ++pass)
@@ -146,9 +150,9 @@ Element depthMap(glm::vec2 face, std::vector<Element> marks) {
 }
 
 material::Material depthOf(const material::Texture& depth) {
-  return material::image(
-      material::Texture(depth).tile(material::Repeat::Pad).sampling(
-          material::Sampling::Linear));
+  return material::image(material::Texture(depth)
+                             .tile(material::Repeat::Pad)
+                             .sampling(material::Sampling::Linear));
 }
 
 /** A normal from @p depth, with a second, finer one laid over it. */
@@ -330,7 +334,7 @@ struct CarvedMarks {
     gm::camera::Camera camera;
     camera.eye = {0, 1040, 1360};
     camera.target = {90, 10, 60};
-    camera.fovYDegrees = 40;
+    camera.verticalFieldOfViewDegrees = 40;
     camera.nearPlane = 60;
     camera.farPlane = 6000;
     return camera;
@@ -466,25 +470,23 @@ struct CarvedMarks {
     const auto enamel = plain(hexColor(0x12382e), .14f);
     const auto brassPlate =
         slab(kBrassFace, 10)
-            .subtracted(stencil(brassLetters, kBrassFace,
-                                {brassCentre.y - 32, brassCentre.y,
-                                 brassCentre.y + 32},
-                                6));
-    const auto recess = path::band(pressureLine(kBrassFace, 176, .6f),
-                                   pressureWidth(.6f));
+            .subtracted(stencil(
+                brassLetters, kBrassFace,
+                {brassCentre.y - 32, brassCentre.y, brassCentre.y + 32}, 6));
+    const auto recess =
+        path::band(pressureLine(kBrassFace, 176, .6f), pressureWidth(.6f));
     const auto recessCentre = recess.bounds().centre();
     const float brassBody = kBrassThickness - kBrassRecess;
-    pierced =
-        world::group(
-            {lying("brass-body", brassPlate, brassBody, brass, brass)
-                 .at({0, brassBody / 2, 0}),
-             lying("brass-skin", brassPlate.subtracted(recess), kBrassRecess,
-                   brass, brass)
-                 .at({0, brassBody + kBrassRecess / 2, 0}),
-             lying("brass-enamel", recess, 1.6f, enamel, enamel)
-                 .at({recessCentre.x - kBrassFace.x / 2, brassBody + .8f,
-                      recessCentre.y - kBrassFace.y / 2})})
-            .key("brass");
+    pierced = world::group(
+                  {lying("brass-body", brassPlate, brassBody, brass, brass)
+                       .at({0, brassBody / 2, 0}),
+                   lying("brass-skin", brassPlate.subtracted(recess),
+                         kBrassRecess, brass, brass)
+                       .at({0, brassBody + kBrassRecess / 2, 0}),
+                   lying("brass-enamel", recess, 1.6f, enamel, enamel)
+                       .at({recessCentre.x - kBrassFace.x / 2, brassBody + .8f,
+                            recessCentre.y - kBrassFace.y / 2})})
+                  .key("brass");
 
     table = gm::quad(4200, 2800);
     room = world::kit::environmentMap(

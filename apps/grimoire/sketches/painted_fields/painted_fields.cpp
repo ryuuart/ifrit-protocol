@@ -293,9 +293,9 @@ Element glowMap() {
 }
 
 material::Material mapImage(const material::Texture& map) {
-  return material::image(
-      material::Texture(map).tile(material::Repeat::Pad).sampling(
-          material::Sampling::Linear));
+  return material::image(material::Texture(map)
+                             .tile(material::Repeat::Pad)
+                             .sampling(material::Sampling::Linear));
 }
 
 /** WHAT EVERY MARK ON THE PAGE SHARES: the normal of the one height, the
@@ -447,7 +447,7 @@ struct PaintedFields {
     gm::camera::Camera camera;
     camera.eye = {-420, 1000, 1120};
     camera.target = {0, -90, 70};
-    camera.fovYDegrees = 42;
+    camera.verticalFieldOfViewDegrees = 42;
     camera.nearPlane = 40;
     camera.farPlane = 8000;
     return camera;
@@ -458,12 +458,11 @@ struct PaintedFields {
                              .captureAt = 11.0,
                              .background = hexColor(0x0c0d0f)});
     const SkISize size{kPageWidth, kPageHeight};
-    const Maps maps{
-        .normal = material::surface::normalFromHeight(
-            mapImage(ctx.texture(heightMap(), size, kBlack)),
-            {.depth = 7, .step = .9f, .directX = true}),
-        .wet = mapImage(ctx.texture(wetMap(), size, kBlack)),
-        .glow = mapImage(ctx.texture(glowMap(), size, kBlack))};
+    const Maps maps{.normal = material::surface::normalFromHeight(
+                        mapImage(ctx.texture(heightMap(), size, kBlack)),
+                        {.depth = 7, .step = .9f, .directX = true}),
+                    .wet = mapImage(ctx.texture(wetMap(), size, kBlack)),
+                    .glow = mapImage(ctx.texture(glowMap(), size, kBlack))};
     page = ctx.page({kPageWidth, kPageHeight});
     tree = paintedPage(maps);
     room = studio();

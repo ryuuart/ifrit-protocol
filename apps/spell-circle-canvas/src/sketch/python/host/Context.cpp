@@ -188,7 +188,7 @@ void bindContext(py::module_& module) {
              SkSize maximum) {
             return ctx.state()->context().measure(element, maximum);
           },
-          py::arg("element"), py::arg("maxSize") = SkSize::MakeEmpty())
+          py::arg("element"), py::arg("maximumSize") = SkSize::MakeEmpty())
       .def(
           "snapshot",
           [](const Context& ctx, const compose::Element& element,
@@ -196,7 +196,7 @@ void bindContext(py::module_& module) {
             const auto state = ctx.state();
             return compose::snapshot(element, *state->fonts, maximum);
           },
-          py::arg("element"), py::arg("maxSize") = SkSize::MakeEmpty())
+          py::arg("element"), py::arg("maximumSize") = SkSize::MakeEmpty())
       .def(
           "bakeScene3D",
           [](const Context& ctx, const world::Frame& frame,
@@ -237,8 +237,8 @@ void bindContext(py::module_& module) {
              std::array<int, 2> size, material::Color background) {
             if (size[0] <= 0 || size[1] <= 0)
               throw py::value_error("A texture's size must be positive");
-            return ctx.state()->context().texture(
-                tree, {size[0], size[1]}, background);
+            return ctx.state()->context().texture(tree, {size[0], size[1]},
+                                                  background);
           },
           py::arg("tree"), py::arg("size"),
           py::arg("background") = material::Color{0, 0, 0, 0},

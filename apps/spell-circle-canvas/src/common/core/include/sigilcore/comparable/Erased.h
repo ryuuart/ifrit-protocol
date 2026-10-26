@@ -85,12 +85,12 @@ class Erased {
 
   /** Shared state is equal; comparable models of one type compare their
    *  values; anything else is conservative. */
-  bool operator==(const Erased& o) const {
-    if (m_state == o.m_state) return true;
-    if (!m_state || !o.m_state) return false;
-    if (!m_state->equals || !o.m_state->equals) return false;
-    return m_state->held.type() == o.m_state->held.type() &&
-           m_state->equals(m_state->held, o.m_state->held);
+  bool operator==(const Erased& other) const {
+    if (m_state == other.m_state) return true;
+    if (!m_state || !other.m_state) return false;
+    if (!m_state->equals || !other.m_state->equals) return false;
+    return m_state->held.type() == other.m_state->held.type() &&
+           m_state->equals(m_state->held, other.m_state->held);
   }
 
  private:

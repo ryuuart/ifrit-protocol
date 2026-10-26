@@ -99,9 +99,9 @@ enum class TextureUsage : uint32_t {
   RenderTarget = 1u << 2u,
 };
 /** The union of two usage selections. */
-constexpr TextureUsage operator|(TextureUsage a, TextureUsage b) {
-  return static_cast<TextureUsage>(static_cast<uint32_t>(a) |
-                                   static_cast<uint32_t>(b));
+constexpr TextureUsage operator|(TextureUsage left, TextureUsage right) {
+  return static_cast<TextureUsage>(static_cast<uint32_t>(left) |
+                                   static_cast<uint32_t>(right));
 }
 /** Whether @p set includes the usage @p flag names. */
 constexpr bool has(TextureUsage set, TextureUsage flag) {

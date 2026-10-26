@@ -303,9 +303,9 @@ struct OperatorData {
     return false;
   }
   /** Whether any operator asked for the children's content minima. */
-  bool readsChildMinSizes() const {
+  bool readsChildMinimumSizes() const {
     for (const Operator& op : operators)
-      if (op.readsChildMinSizes()) return true;
+      if (op.readsChildMinimumSizes()) return true;
     return false;
   }
   /** Whether any operator resolves the children's percentages against

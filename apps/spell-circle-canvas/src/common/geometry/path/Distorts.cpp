@@ -125,7 +125,7 @@ SkPath distort(const Twirl& twirl, const SkPath& path) {
     float rMax = 1e-3f;
     for (const glm::vec2& p : samples.points)
       rMax = std::max(rMax, distance(p, c));
-    const float full = angleDegrees * kDegToRad;
+    const float full = angleDegrees * kDegreesToRadians;
     for (glm::vec2& p : samples.points) {
       const glm::vec2 d = p - c;
       const float r = length(d);

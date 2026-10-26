@@ -213,7 +213,8 @@ TEST(ComposeChecks, WidthAlongMeasuresABandOfSevenHundredSteps) {
   const test::WidthAlong audit =
       test::widthAlong(bandAlong(spine, 40.0f, 719), spine, flat);
   EXPECT_EQ(audit.samples, 192);
-  EXPECT_LT(audit.maxError, 1.0f) << "worst " << audit.maxError << " px";
+  EXPECT_LT(audit.maximumError, 1.0f)
+      << "worst " << audit.maximumError << " px";
   ASSERT_FALSE(audit.worst.empty());
   EXPECT_FLOAT_EQ(audit.worst.front().intended, 40.0f);
 
@@ -221,7 +222,7 @@ TEST(ComposeChecks, WidthAlongMeasuresABandOfSevenHundredSteps) {
   // are the numbers the audit answers when every ray reads every edge of
   // the band, and culling the rays to their own lines is an arrangement
   // of that work rather than a different measurement.
-  EXPECT_NEAR(audit.maxError, 0.98236084f, 1e-3f);
+  EXPECT_NEAR(audit.maximumError, 0.98236084f, 1e-3f);
   EXPECT_NEAR(audit.rmsError, 0.605008721f, 1e-3f);
   EXPECT_NEAR(audit.worst.front().measured, 39.0176392f, 1e-3f);
   EXPECT_NEAR(audit.worst.front().along, 682.0f, 1e-3f);
@@ -247,7 +248,7 @@ TEST(ComposeChecks, WidthAlongFindsOneNarrowedStepInSevenHundred) {
 
   // Pinned, as the straight run is: the same stations, the same chords.
   EXPECT_EQ(audit.samples, 196);
-  EXPECT_NEAR(audit.maxError, 27.361721f, 1e-3f);
+  EXPECT_NEAR(audit.maximumError, 27.361721f, 1e-3f);
   EXPECT_NEAR(audit.rmsError, 3.6026628f, 1e-3f);
   EXPECT_NEAR(worst.measured, 12.6382799f, 1e-3f);
   EXPECT_NEAR(worst.along, 418.0f, 1e-3f);

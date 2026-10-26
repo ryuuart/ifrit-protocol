@@ -90,9 +90,10 @@ weave::TextStyle mono(float size, material::Color color) {
 }
 
 const camera::Camera kStageView{
-    .eye = {0, 96, 250}, .target = {0, 0, 0}, .fovYDegrees = 38};
-const camera::Camera kGridView{
-    .eye = {0, 380, 440}, .target = {0, 0, 0}, .fovYDegrees = 40};
+    .eye = {0, 96, 250}, .target = {0, 0, 0}, .verticalFieldOfViewDegrees = 38};
+const camera::Camera kGridView{.eye = {0, 380, 440},
+                               .target = {0, 0, 0},
+                               .verticalFieldOfViewDegrees = 40};
 
 /** The stage every mesh figure stands on: its lens, a warm key and a cool
  *  fill over a dim light from everywhere, and @p subject in a soft stone

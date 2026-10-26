@@ -34,14 +34,14 @@ namespace sigil::weave {
 struct Leading {
   /** How `value` is read. Each has a factory below that names it. */
   enum class Kind : uint8_t {
-    kFace,      ///< the first span's own line height; `value` unused
-    kMultiple,  ///< `value` times the face's own line height
-    kAbsolute,  ///< `value` px, whatever the face reports
-    kGrid,      ///< round the block's height up to a multiple of `value` px
+    kFace,         ///< the first span's own line height; `value` unused
+    kMultiple,     ///< `value` times the face's own line height
+    kAbsolute,     ///< `value` px, whatever the face reports
+    kGrid,         ///< round the block's height up to a multiple of `value` px
     kSizeMultiple  ///< `value` times the type size
   };
   Kind kind = Kind::kFace;  ///< how `value` is read
-  float value = 0;  ///< the factor, the px pitch, or the px grid step
+  float value = 0;          ///< the factor, the px pitch, or the px grid step
 
   /** The first span's own single-spaced line height. */
   [[nodiscard]] static Leading face() { return {}; }
@@ -49,12 +49,14 @@ struct Leading {
   [[nodiscard]] static Leading multiple(float factor) {
     return {Kind::kMultiple, factor};
   }
-  /** Exactly `px`, whatever the face reports. */
-  [[nodiscard]] static Leading absolute(float px) {
-    return {Kind::kAbsolute, px};
+  /** Exactly `pixels`, whatever the face reports. */
+  [[nodiscard]] static Leading absolute(float pixels) {
+    return {Kind::kAbsolute, pixels};
   }
-  /** The face's own height rounded up to a multiple of `px`. */
-  [[nodiscard]] static Leading grid(float px) { return {Kind::kGrid, px}; }
+  /** The face's own height rounded up to a multiple of `pixels`. */
+  [[nodiscard]] static Leading grid(float pixels) {
+    return {Kind::kGrid, pixels};
+  }
   /** `factor` times the type size, whatever the face reports — CSS's
    *  unitless `line-height`, so `sizeMultiple(2)` at 20 px is a 40 px
    *  pitch. */
@@ -162,6 +164,5 @@ struct ParagraphStyle {
 
   bool operator==(const ParagraphStyle&) const = default;
 };
-
 
 }  // namespace sigil::weave

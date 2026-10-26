@@ -370,7 +370,8 @@ class Filter {
   /** A LIVE parameter, read at every paint, so the node repaints every
    *  frame while the filter is attached. A program's float parameters, a
    *  directional blur's "sigma", "angle" and "across", a varying blur's
-   *  "maxSigma". A raw program requires one float, never an array or integer.
+   *  "maximumSigma". A raw program requires one float, never an array or
+   * integer.
    *  @trap A filter holds no instance, so a value carrying its own
    *  TRANSITION has nothing to run it and reads as its target. */
   Filter& bind(std::string name, motion::Animatable<float> value);

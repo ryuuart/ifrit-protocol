@@ -22,7 +22,7 @@ void GenesisFire::setup(sketch::Scene2DContext& ctx) {
   stepped = false;
   simSteps = 0;
   liveCount = 0;
-  buildUs = 0;
+  buildMicroseconds = 0;
   vertCount = 0;
   parts.clear();
   abParts.clear();
@@ -101,9 +101,11 @@ void GenesisFire::draw(Pen& pen) {
     const auto t0 = std::chrono::steady_clock::now();
     buildStreaks(parts, fieldChunks);
     const auto t1 = std::chrono::steady_clock::now();
-    const double us =
+    const double microseconds =
         std::chrono::duration<double, std::micro>(t1 - t0).count();
-    buildUs = buildUs > 0 ? buildUs * 0.85 + us * 0.15 : us;
+    buildMicroseconds = buildMicroseconds > 0
+                            ? buildMicroseconds * 0.85 + microseconds * 0.15
+                            : microseconds;
     vertCount = parts.size() * 8;
     buildStreaks(abParts, abChunks);
     writeBenchPool();
@@ -199,7 +201,7 @@ void GenesisFire::stageCaption(Pen& pen) {
                 // renders of the same frame. `measured` reads zero
                 // where the host is capturing for a diff, which is what
                 // makes a captured still comparable byte for byte.
-                measured(buildUs / 1000.0));
+                measured(buildMicroseconds / 1000.0));
   const float right = kStageX + kStageW;
   pen.textAlign(sigil::draw::RIGHT, sigil::draw::TOP);
   penMono(pen, 8.5f, fadeTo(hexColor(0xFFB672, 0.85f), a), 0.5f);

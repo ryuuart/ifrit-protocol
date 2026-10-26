@@ -45,7 +45,7 @@ struct Scrolled {
   float track = 0;
   /** The shortest the thumb may become, so a long document still has one
    *  to see and to grab. 0 lets it go as short as its share. */
-  float minLength = 0;
+  float minimumLength = 0;
 
   [[nodiscard]] Thumb thumb() const;
   bool operator==(const Scrolled&) const = default;

@@ -8,8 +8,8 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <simdjson.h>
 
 #include <algorithm>
@@ -257,7 +257,7 @@ std::expected<Atlas, core::Error> Atlas::fromAseprite(Texture sheet,
 
 Atlas Atlas::pack(
     std::span<const std::pair<std::string, media::PixelSource>> images,
-    int padding, int maxSide) {
+    int padding, int maximumSide) {
   padding = std::max(padding, 0);
   // Each source is read once, at time zero, back to host memory.
   std::vector<sk_sp<SkImage>> pictures;
@@ -280,8 +280,8 @@ Atlas Atlas::pack(
   // The smallest power-of-two square whose area holds every rect, grown
   // until the packer places them all or the side reaches the ceiling.
   int side = 16;
-  while ((long)side * side < area && side < maxSide) side *= 2;
-  side = std::min(side, std::max(maxSide, 16));
+  while ((long)side * side < area && side < maximumSide) side *= 2;
+  side = std::min(side, std::max(maximumSide, 16));
   std::vector<stbrp_node> nodes;
   for (;;) {
     nodes.assign((size_t)side + 16, stbrp_node{});
@@ -290,7 +290,7 @@ Atlas Atlas::pack(
     const int all = rects.empty() ? 1
                                   : stbrp_pack_rects(&context, rects.data(),
                                                      (int)rects.size());
-    if (all || side >= maxSide) break;
+    if (all || side >= maximumSide) break;
     side *= 2;
   }
 

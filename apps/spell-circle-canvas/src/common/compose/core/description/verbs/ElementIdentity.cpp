@@ -23,7 +23,7 @@ Derived& StructureVerbs<Derived>::hitTestable(bool enabled) {
 }
 
 template <class Derived>
-Derived& StructureVerbs<Derived>::key(std::string_view k) {
+Derived& StructureVerbs<Derived>::key(std::string_view name) {
   // A slot's NAME is its key — one field, two spellings — so this call
   // RENAMES the mount, and renderSlot() on the original name then finds
   // nothing and leaves the slot laying out at zero on its content axis.
@@ -31,17 +31,17 @@ Derived& StructureVerbs<Derived>::key(std::string_view k) {
   // fires where the caller still has BOTH names in hand, which is what
   // makes it actionable.
   detail::ElementNode* node = declarations();
-  if (node->kind == Kind::Slot && !node->key.empty() && node->key != k) {
+  if (node->kind == Kind::Slot && !node->key.empty() && node->key != name) {
     static thread_local boost::unordered_flat_set<std::string> warned;
-    if (warned.insert(node->key + "->" + std::string(k)).second)
+    if (warned.insert(node->key + "->" + std::string(name)).second)
       SkDebugf(
           "[compose] .key(\"%.*s\") on slot(\"%s\") RENAMES the slot: "
           "renderSlot(\"%s\") will no longer find it and the mount will "
           "lay out at zero on its content axis. A slot is named once, "
           "by slot().\n",
-          (int)k.size(), k.data(), node->key.c_str(), node->key.c_str());
+          (int)name.size(), name.data(), node->key.c_str(), node->key.c_str());
   }
-  node->key = std::string(k);
+  node->key = std::string(name);
   return self();
 }
 
@@ -52,8 +52,8 @@ Derived& StructureVerbs<Derived>::exit(bool enabled) {
 }
 
 template <class Derived>
-Derived& StructureVerbs<Derived>::cache(Cache c) {
-  declarations()->cacheMode = c;
+Derived& StructureVerbs<Derived>::cache(Cache policy) {
+  declarations()->cacheMode = policy;
   return self();
 }
 

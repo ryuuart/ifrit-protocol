@@ -168,17 +168,17 @@ struct WidthStation {
 };
 
 /** What a width-along audit found. A band that is the width it claims has
- *  `maxError` under whatever the caller's ink can show. */
+ *  `maximumError` under whatever the caller's ink can show. */
 struct WidthAlong {
-  int samples = 0;     ///< stations measured
-  float maxError = 0;  ///< the worst |measured − intended|, px
-  float rmsError = 0;  ///< the same error over the whole run
+  int samples = 0;         ///< stations measured
+  float maximumError = 0;  ///< the worst |measured − intended|, px
+  float rmsError = 0;      ///< the same error over the whole run
   /** The worst stations, most wrong first, so a caller can print or draw
    *  WHERE the band went wrong instead of only how far. */
   std::vector<WidthStation> worst;
 
   bool within(float tolerance) const {
-    return samples > 0 && maxError <= tolerance;
+    return samples > 0 && maximumError <= tolerance;
   }
 };
 
@@ -403,7 +403,7 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
                                  profile.acrossAt(len > 0 ? d / len : 0, len)};
       ++out.samples;
       squared += (double)station.error() * station.error();
-      out.maxError = std::max(out.maxError, station.error());
+      out.maximumError = std::max(out.maximumError, station.error());
       out.worst.push_back(station);
     }
   }
@@ -622,40 +622,42 @@ struct ReportStyles {
   int valueWidth = 8;
 };
 
-/** The style name @p c takes under @p styles. */
-inline const std::string& styleOf(const measure::Check& c,
+/** The style name @p check takes under @p styles. */
+inline const std::string& styleOf(const measure::Check& check,
                                   const ReportStyles& styles) {
-  switch (c.standing) {
+  switch (check.standing) {
     case measure::Standing::Heading:
       return styles.heading;
     case measure::Standing::Reading:
       return styles.reading;
     case measure::Standing::Finding:
-      return c.pass ? styles.pass : styles.finding;
+      return check.pass ? styles.pass : styles.finding;
     case measure::Standing::Claim:
       break;
   }
-  return c.pass ? styles.pass : styles.fail;
+  return check.pass ? styles.pass : styles.fail;
 }
 
 /** Append a check to a feed of text rows, the row's style name chosen by
  *  its standing and its verdict. The text is `measure::line()` at the
  *  styles' widths, so what the plate shows is what the table would
  *  print. */
-inline void report(feed::TextRing& ring, const measure::Check& c,
+inline void report(feed::TextRing& ring, const measure::Check& check,
                    const ReportStyles& styles) {
   const std::string text = measure::line(
-      c, {.labelWidth = styles.labelWidth, .valueWidth = styles.valueWidth});
-  ring.append({std::u8string(text.begin(), text.end()), styleOf(c, styles)});
+      check,
+      {.labelWidth = styles.labelWidth, .valueWidth = styles.valueWidth});
+  ring.append(
+      {std::u8string(text.begin(), text.end()), styleOf(check, styles)});
 }
 
 /** The same, with only the two verdict inks named — a claim's pass and
  *  fail — and every other standing in the default ink for it. */
-inline void report(feed::TextRing& ring, const measure::Check& c,
+inline void report(feed::TextRing& ring, const measure::Check& check,
                    std::string passStyle = "pass",
                    std::string failStyle = "fail", int labelWidth = 44,
                    int valueWidth = 8) {
-  report(ring, c,
+  report(ring, check,
          ReportStyles{.pass = std::move(passStyle),
                       .fail = std::move(failStyle),
                       .labelWidth = labelWidth,

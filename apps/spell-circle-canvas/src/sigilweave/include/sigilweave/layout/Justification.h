@@ -15,7 +15,7 @@ namespace sigil::weave {
  *  `kAuto` is the three passes below as they are tuned; `kInterWord`
  *  spends it in the word separators alone; `kInterCharacter` spends it
  *  after every grapheme cluster but the line's last and every word
- *  separator alike, each opening at most `maxInterCharacterExpansion` of
+ *  separator alike, each opening at most `maximumInterCharacterExpansion` of
  *  the size; `kNone` justifies nothing, and a justified line is set at
  *  its start. No method moves the space after a line's last glyph.
  *  @trap The optimizing breaker weighs the gaps' stretch alone, so under
@@ -48,12 +48,13 @@ struct JustificationOptions {
   /// The most one opportunity opens under `kInterCharacter`, as a
   /// fraction of the size; what the line needs beyond it goes to the word
   /// separators, and a line with none stays short of the measure.
-  float maxInterCharacterExpansion = 0.5f;
+  float maximumInterCharacterExpansion = 0.5f;
 
   /// CJK text has no spaces, so eligible zero-width ideographic gaps may be
-  /// expanded up to `maxIdeographicExpansion * fontSize` per gap.
+  /// expanded up to `maximumIdeographicExpansion * fontSize` per gap.
   bool expandIdeographicGaps = true;
-  float maxIdeographicExpansion = 0.5f;  ///< per-gap cap, fraction of fontSize
+  float maximumIdeographicExpansion =
+      0.5f;  ///< per-gap cap, fraction of fontSize
 
   // Every pass's DESIRED value widens the line before any of them is
   // fitted, and its two limits bound what it may add on top. The gaps are

@@ -90,8 +90,8 @@ TEST(PathExtremes, TheDepthDialSkipsAShallowTurnAndForcingItTakesIt) {
   b.moveTo(0, 0);
   b.cubicTo(0.7f, 0, 0.7f, 100, 0, 100);  // about half a pixel of bulge
   const SkPath shallow = b.detach();
-  EXPECT_EQ(extremeNodes(shallow, {.minDepthPx = 1.0f}).size(), 0u);
-  EXPECT_EQ(extremeNodes(shallow, {.minDepthPx = 0.0f}).size(), 1u);
+  EXPECT_EQ(extremeNodes(shallow, {.minimumDepthPixels = 1.0f}).size(), 0u);
+  EXPECT_EQ(extremeNodes(shallow, {.minimumDepthPixels = 0.0f}).size(), 1u);
 }
 
 // A quadratic's curvature peaks where it is tightest, which for a

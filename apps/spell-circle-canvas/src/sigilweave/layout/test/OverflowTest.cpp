@@ -45,7 +45,8 @@ TEST_P(OverflowedFrame, AFrameStopsAtItsGeometryAndNotAtTheLastWord) {
       u8"instead", u8"of",      u8"walking", u8"every", u8"word"};
   Paragraph paragraph;
   paragraph.appendText(makePooledText(kWordPool, 30000, 11), basicStyle());
-  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 320}));  // room for a small part of it
+  BlockFlow flow(sigil::geometry::path::Rect::of(
+      {0, 0}, {420, 320}));  // room for a small part of it
 
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
@@ -65,7 +66,8 @@ TEST(Overflow, EllipsisMarksOverflow) {
   Paragraph paragraph = makeParagraph(
       u8"far more text than a two line box can ever hope to hold so the "
       "marker has to step in and admit that the rest is missing");
-  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {260, 44}));  // ~2 lines
+  BlockFlow flow(
+      sigil::geometry::path::Rect::of({0, 0}, {260, 44}));  // ~2 lines
   ParagraphLayoutOptions options;
   options.overflow.ellipsis = u"…";
 
@@ -95,7 +97,8 @@ TEST(Overflow, TheMarkerIsAShapedWordTheLayoutOwns) {
   Paragraph paragraph = makeParagraph(
       u8"far more text than a two line box can ever hope to hold so the "
       "marker has to step in and admit that the rest is missing");
-  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {260, 44}));  // ~2 lines
+  BlockFlow flow(
+      sigil::geometry::path::Rect::of({0, 0}, {260, 44}));  // ~2 lines
   ParagraphLayoutOptions options;
   options.overflow.ellipsis = u"…";
 
@@ -175,7 +178,8 @@ TEST(LineClamp, ClampsWithEllipsisOnLastLine) {
   Paragraph paragraph = makeParagraph(
       u8"a paragraph long enough to fill five or six lines in this narrow "
       "measure keeps flowing and flowing until the clamp cuts it short");
-  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {220, 1000}));  // room for many lines
+  BlockFlow flow(sigil::geometry::path::Rect::of(
+      {0, 0}, {220, 1000}));  // room for many lines
   ParagraphLayoutOptions options;
   options.overflow.maxLines = 2;
   options.overflow.ellipsis = u"…";
@@ -185,10 +189,10 @@ TEST(LineClamp, ClampsWithEllipsisOnLastLine) {
   EXPECT_TRUE(layout.overflowed());
   EXPECT_TRUE(layout.ellipsized);
   EXPECT_LE(layout.lineCount, 2);
-  int maxLineIndex = 0;
+  int maximumLineIndex = 0;
   for (const PositionedRun& run : layout.runs)
-    maxLineIndex = std::max(maxLineIndex, run.lineIndex);
-  EXPECT_LT(maxLineIndex, 2) << "no run may land past the clamp";
+    maximumLineIndex = std::max(maximumLineIndex, run.lineIndex);
+  EXPECT_LT(maximumLineIndex, 2) << "no run may land past the clamp";
 
   // Without the clamp the same layout uses more lines.
   ParagraphLayoutOptions unclamped;
@@ -220,7 +224,8 @@ TEST(LineClamp, WorksUnderKnuthPlassAndExclusions) {
       "the exclusion geometry the paragraph is allowed to travel at all");
   ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 1000}));
   flow.exclusions().push_back(
-      {flowshape::circle(sigil::geometry::path::Rect::of({100, 20}, {90, 90})), 4});
+      {flowshape::circle(sigil::geometry::path::Rect::of({100, 20}, {90, 90})),
+       4});
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;

@@ -451,9 +451,9 @@ struct Cluster {
 };
 /** Filter: ATTRIBUTE TRANSFER — one lane carried over from ANOTHER cloud,
  *  each destination point taking a distance-weighted average of the
- *  nearest `maxSamples` source points within `radius`.
+ *  nearest `maximumSamples` source points within `radius`.
  *
- *  `maxSamples` of one is a plain nearest-neighbour lookup, which is what
+ *  `maximumSamples` of one is a plain nearest-neighbour lookup, which is what
  *  "give every scattered point the colour of the nearest sample" is.
  *  Above one the gather smooths across the sources, weighted by one over
  *  the distance, so a sparse source does not band. `blendWidth` is the
@@ -473,7 +473,7 @@ struct Transfer {
   std::string lane;
   /** How far a destination point looks. Zero looks nowhere. */
   float radius = 0;
-  int maxSamples = 1;
+  int maximumSamples = 1;
   /** The outer fraction of the radius the answer fades back over, 0 to
    *  1. Zero is a hard edge at the radius. */
   float blendWidth = 0;

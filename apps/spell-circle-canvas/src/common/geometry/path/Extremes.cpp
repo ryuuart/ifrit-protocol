@@ -22,8 +22,8 @@
 #include <optional>
 #include <vector>
 
-#include "sigilgeometry/path/Segments.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilgeometry/path/Segments.h"
 
 namespace sigil::geometry::path {
 
@@ -76,7 +76,8 @@ std::vector<float> turnsOf(const Segment& piece,
   std::vector<float> ts;
   const std::array<SkPoint, 4> p = skPoints(piece);
   const auto axis = [&](float value, float from, float to, float t) {
-    if (t > 0 && t < 1 && depthAt(value, from, to) >= options.minDepthPx)
+    if (t > 0 && t < 1 &&
+        depthAt(value, from, to) >= options.minimumDepthPixels)
       ts.push_back(t);
   };
 

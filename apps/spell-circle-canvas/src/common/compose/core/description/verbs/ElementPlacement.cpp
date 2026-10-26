@@ -60,42 +60,42 @@ Derived& PlacementVerbs<Derived>::inset(Edges edges) {
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::left(Dimension d) {
+Derived& PlacementVerbs<Derived>::left(Dimension length) {
   detail::DeclaredFields& fields = declarations()->fields;
   const detail::DeclaredFields::Absolute placed = fields.absolute();
   placed.absolute = true;
   placed.hasInsets = true;
-  fields.left() = d;
+  fields.left() = length;
   return self();
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::top(Dimension d) {
+Derived& PlacementVerbs<Derived>::top(Dimension length) {
   detail::DeclaredFields& fields = declarations()->fields;
   const detail::DeclaredFields::Absolute placed = fields.absolute();
   placed.absolute = true;
   placed.hasInsets = true;
-  fields.top() = d;
+  fields.top() = length;
   return self();
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::right(Dimension d) {
+Derived& PlacementVerbs<Derived>::right(Dimension length) {
   detail::DeclaredFields& fields = declarations()->fields;
   const detail::DeclaredFields::Absolute placed = fields.absolute();
   placed.absolute = true;
   placed.hasInsets = true;
-  fields.right() = d;
+  fields.right() = length;
   return self();
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::bottom(Dimension d) {
+Derived& PlacementVerbs<Derived>::bottom(Dimension length) {
   detail::DeclaredFields& fields = declarations()->fields;
   const detail::DeclaredFields::Absolute placed = fields.absolute();
   placed.absolute = true;
   placed.hasInsets = true;
-  fields.bottom() = d;
+  fields.bottom() = length;
   return self();
 }
 

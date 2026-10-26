@@ -75,18 +75,18 @@ Frame& Frame::cameraOverride(geometry::mesh::camera::Camera lens) {
   return *this;
 }
 
-Frame& Frame::pass(Pass p) {
-  m_passes.push_back(std::move(p));
+Frame& Frame::pass(Pass added) {
+  m_passes.push_back(std::move(added));
   return *this;
 }
 
-Frame& Frame::readback(Readback r) {
-  m_readbacks.push_back(std::move(r));
+Frame& Frame::readback(Readback request) {
+  m_readbacks.push_back(std::move(request));
   return *this;
 }
 
-Frame& Frame::runtime(Runtime r) {
-  m_runtime = std::move(r);
+Frame& Frame::runtime(Runtime chosen) {
+  m_runtime = std::move(chosen);
   return *this;
 }
 

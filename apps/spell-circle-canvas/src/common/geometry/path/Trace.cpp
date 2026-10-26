@@ -39,7 +39,7 @@ void walk(const VectorField& field, glm::vec2 from, float sign,
     const auto direction = [&](glm::vec2 p) {
       const glm::vec2 v = field(p);
       const float speed = glm::length(v);
-      return speed > options.minSpeed ? v / speed : glm::vec2{0, 0};
+      return speed > options.minimumSpeed ? v / speed : glm::vec2{0, 0};
     };
     const glm::vec2 k1 = direction(at);
     if (k1 == glm::vec2{0, 0}) return;
@@ -49,7 +49,7 @@ void walk(const VectorField& field, glm::vec2 from, float sign,
     const glm::vec2 move = (k1 + 2.0f * k2 + 2.0f * k3 + k4) / 6.0f;
     // `move` is an average of UNIT directions, so its length measures how
     // far the four samples agree and never the field's magnitude —
-    // `minSpeed`, which is a bound on that magnitude, says nothing about
+    // `minimumSpeed`, which is a bound on that magnitude, says nothing about
     // it. Samples that cancel mean the field turns faster than one step
     // resolves, and the walk stops rather than stepping into the middle
     // of the turn.

@@ -131,7 +131,11 @@ class WorldStudy:
         # heading and the captions, its centre a few pixels above the
         # canvas's.
         ctx.camera(
-            mesh.camera.Camera(eye=(0, 175, 510), target=(0, -9, 0), fovYDegrees=46.6)
+            mesh.camera.Camera(
+                eye=(0, 175, 510),
+                target=(0, -9, 0),
+                verticalFieldOfViewDegrees=46.6,
+            )
         )
         # The words stand on a screen laid over the finished frame, painted
         # once and kept while the tree is unchanged.

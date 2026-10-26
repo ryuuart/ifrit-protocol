@@ -114,12 +114,13 @@ struct Scrim {
  *  inside the text system: a band from ascent to descent drawn beneath
  *  every glyph pass, needing no extra node. It takes no padding, so reach
  *  for this one when the plate has to stand off the type. */
-inline Element scrim(Element run, const Scrim& s = {}) {
-  Element plate = box()
-                      .padding(s.paddingVertical, s.paddingHorizontal)
-                      .fill(s.fill)
-                      .children({std::move(run)});
-  if (s.radius > 0) plate.borderRadius({s.radius});
+inline Element scrim(Element run, const Scrim& options = {}) {
+  Element plate =
+      box()
+          .padding(options.paddingVertical, options.paddingHorizontal)
+          .fill(options.fill)
+          .children({std::move(run)});
+  if (options.radius > 0) plate.borderRadius({options.radius});
   return plate;
 }
 

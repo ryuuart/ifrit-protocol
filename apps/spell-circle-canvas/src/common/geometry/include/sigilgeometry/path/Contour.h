@@ -108,7 +108,7 @@ class Contour {
   Nearest nearest(glm::vec2 point, float step = 2.0f) const;
 
   /** Corners where the tangent turns by more than `angleDegrees`, at least
-   *  `minSpacing` apart, found by walking the contour in `step`-length
+   *  `minimumSpacing` apart, found by walking the contour in `step`-length
    *  strides and bisecting to the turn. The distance answered is the
    *  last one at which the incoming tangent still holds, which at a real
    *  vertex is the vertex itself when a sample lands on it and a
@@ -117,7 +117,7 @@ class Contour {
    *  `sharpestDegrees`, when given, receives the largest turn seen whether or
    *  not it crossed the threshold, so a caller can explain an empty
    *  result. */
-  std::vector<Corner> corners(float angleDegrees, float minSpacing = 3.0f,
+  std::vector<Corner> corners(float angleDegrees, float minimumSpacing = 3.0f,
                               float step = 2.0f,
                               float* sharpestDegrees = nullptr) const;
 

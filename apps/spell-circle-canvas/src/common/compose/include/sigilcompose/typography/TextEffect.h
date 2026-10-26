@@ -387,8 +387,9 @@ class TextEffect {
     return true;
   }
 
-  /** A phase of `textFx::sequence` ending at local `t` — `a.until(0.35f)`. */
-  [[nodiscard]] class Phase until(float t) const;
+  /** A phase of `textFx::sequence` ending at local `endsAt` — `a.until(0.35f)`.
+   */
+  [[nodiscard]] class Phase until(float endsAt) const;
 
   /** Builds a composite (`textFx::sequence`, `textFx::mix`) — the operands ride
    *  the value so the result compares by structure. `displaces` is the fact
@@ -521,10 +522,11 @@ class TextEffect {
  *  and how long it crossfades into whatever follows. */
 class Phase {
  public:
-  Phase(TextEffect e)  // NOLINT: implicit by design (sequence(a.until(…), b))
-      : m_effect(std::move(e)) {}
-  Phase(TextEffect e, float endsAt)
-      : m_effect(std::move(e)), m_endsAt(endsAt) {}
+  Phase(TextEffect
+            effect)  // NOLINT: implicit by design (sequence(a.until(…), b))
+      : m_effect(std::move(effect)) {}
+  Phase(TextEffect effect, float endsAt)
+      : m_effect(std::move(effect)), m_endsAt(endsAt) {}
   /** Lerp this phase's deviation into the next one's over the last
    *  `fraction` of local time before the joint. Default is a hard cut. */
   Phase& crossfade(float fraction) {
@@ -542,6 +544,8 @@ class Phase {
   float m_overlap = 0.0f;
 };
 
-inline Phase TextEffect::until(float t) const { return Phase(*this, t); }
+inline Phase TextEffect::until(float endsAt) const {
+  return Phase(*this, endsAt);
+}
 
 }  // namespace sigil::compose

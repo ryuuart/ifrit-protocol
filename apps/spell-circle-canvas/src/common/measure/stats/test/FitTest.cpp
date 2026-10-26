@@ -20,8 +20,8 @@ TEST(LineFit, APerfectLineIsFoundExactlyAndExplainsEverything) {
   EXPECT_NEAR(fit.slope, 2.25, 1e-12);
   EXPECT_NEAR(fit.intercept, 3.5, 1e-12);
   EXPECT_NEAR(fit.explained, 1.0, 1e-12);
-  EXPECT_NEAR(fit.maxResidual, 0.0, 1e-12);
-  EXPECT_NEAR(fit.rmsResidual, 0.0, 1e-12);
+  EXPECT_NEAR(fit.maximumResidual, 0.0, 1e-12);
+  EXPECT_NEAR(fit.rootMeanSquareResidual, 0.0, 1e-12);
   EXPECT_EQ(fit.samples, 5u);
   EXPECT_NEAR(fit.at(10.0), 26.0, 1e-12);
 }
@@ -34,10 +34,10 @@ TEST(LineFit, TheResidualIsWhatTurnsASlopeIntoEvidence) {
   ys[2] += 1.0;
   const LineFit<double> fit = lineFit<double>(xs, ys);
   EXPECT_NEAR(fit.slope, 1.0, 1e-12);
-  EXPECT_GT(fit.maxResidual, 0.5);
+  EXPECT_GT(fit.maximumResidual, 0.5);
   EXPECT_LT(fit.explained, 1.0);
   EXPECT_GT(fit.explained, 0.8) << "one lifted point still leaves a good line";
-  EXPECT_NEAR(fit.residual(2.0, ys[2]), fit.maxResidual, 1e-12);
+  EXPECT_NEAR(fit.residual(2.0, ys[2]), fit.maximumResidual, 1e-12);
 }
 
 TEST(LineFit, WhatIsNotALineAnswersNoSlopeRatherThanADivideByZero) {
@@ -47,18 +47,18 @@ TEST(LineFit, WhatIsNotALineAnswersNoSlopeRatherThanADivideByZero) {
   EXPECT_EQ(vertical.slope, 0.0);
   EXPECT_NEAR(vertical.intercept, 3.0, 1e-12) << "the mean of the ordinates";
   EXPECT_EQ(vertical.explained, 0.0);
-  EXPECT_NEAR(vertical.maxResidual, 6.0, 1e-12);
+  EXPECT_NEAR(vertical.maximumResidual, 6.0, 1e-12);
   // The residuals off that flat answer are the spread of the ordinates:
   // {1, 5, -3, 9} about 3 is {-2, 2, -6, 6}, so 80/4 under the root.
-  EXPECT_NEAR(vertical.rmsResidual, std::sqrt(20.0), 1e-12);
-  EXPECT_GT(vertical.rmsResidual, 0.0)
+  EXPECT_NEAR(vertical.rootMeanSquareResidual, std::sqrt(20.0), 1e-12);
+  EXPECT_GT(vertical.rootMeanSquareResidual, 0.0)
       << "a run with no slope still has ordinates that stand apart";
 
   const std::vector<double> one{7};
   const LineFit<double> single = lineFit<double>(one, one);
   EXPECT_EQ(single.slope, 0.0);
   EXPECT_NEAR(single.intercept, 7.0, 1e-12);
-  EXPECT_DOUBLE_EQ(single.rmsResidual, 0.0)
+  EXPECT_DOUBLE_EQ(single.rootMeanSquareResidual, 0.0)
       << "one point stands exactly on the answer through it";
   EXPECT_EQ(lineFit<double>({}, {}).samples, 0u);
 }

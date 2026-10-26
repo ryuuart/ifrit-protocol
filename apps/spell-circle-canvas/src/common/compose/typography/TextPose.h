@@ -40,7 +40,7 @@ inline std::span<const Track> paintedTracksOf(const detail::Instance& inst,
 }
 /** HOW MANY STEPS A SIZE-CUT LADDER OFFERS a glyph rendered at @p pixelSize:
  *  @p perPixel steps for each pixel of em, clamped to
- *  [@p minSteps, @p maxSteps].
+ *  [@p minimumSteps, @p maximumSteps].
  *
  *  Every distinct value a driven quantity takes is a distinct batch bucket
  *  AND a distinct glyph-atlas strike, so a smooth sweep left unsnapped
@@ -53,9 +53,10 @@ inline std::span<const Track> paintedTracksOf(const detail::Instance& inst,
  *  what bounds the retained population at all, which is the only reason a
  *  ladder exists rather than the raw value. How fine each ladder is, and
  *  where its ends sit, is the caller's — the two questions differ. */
-inline int ladderSteps(float pixelSize, float perPixel, int minSteps,
-                       int maxSteps) {
-  return std::clamp((int)std::lround(pixelSize * perPixel), minSteps, maxSteps);
+inline int ladderSteps(float pixelSize, float perPixel, int minimumSteps,
+                       int maximumSteps) {
+  return std::clamp((int)std::lround(pixelSize * perPixel), minimumSteps,
+                    maximumSteps);
 }
 
 /** How many directions the tangent ladder offers a glyph rendered at

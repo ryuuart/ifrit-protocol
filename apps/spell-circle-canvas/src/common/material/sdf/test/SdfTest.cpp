@@ -73,7 +73,7 @@ TEST(Sdf, ThePadReservesWhateverTheStyleReachesPastitsShape) {
   sdf::Style glow;
   glow.glowRadius = 5;
   EXPECT_FLOAT_EQ(sdf::pad(glow), 17.0f);
-  EXPECT_FLOAT_EQ(sdf::minBoxFor(glow, 20), 54.0f);
+  EXPECT_FLOAT_EQ(sdf::minimumBoxFor(glow, 20), 54.0f);
   sdf::Style shadow;
   shadow.shadowColor = {0, 0, 0, 1};
   shadow.shadowOffset = {3, -4};
@@ -112,10 +112,9 @@ TEST(Sdf, EveryStockBodyCompiles) {
   dressed.shadowOffset = {2, 3};
   dressed.shadowBlur = 4;
   dressed.shadowColor = {0, 0, 0, 0.5f};
-  for (const Material& m :
-       {sdf::material(sdf::roundBox(8), dressed),
-        sdf::material(sdf::circle(), dressed),
-        sdf::material(sdf::star(5, 3), dressed)}) {
+  for (const Material& m : {sdf::material(sdf::roundBox(8), dressed),
+                            sdf::material(sdf::circle(), dressed),
+                            sdf::material(sdf::star(5, 3), dressed)}) {
     if (!m.recipe().has(Target::SkSL)) continue;
     EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();
   }

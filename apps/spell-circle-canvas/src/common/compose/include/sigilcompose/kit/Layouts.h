@@ -148,23 +148,24 @@ struct Diagonal {
   enum class Anchor : uint8_t { Start, End } anchor = Anchor::Start;
 
   void arrange(Arrangement& arrangement) const {
-    const float k = std::tan(skewDegrees * geometry::path::kDegToRad);
-    float y = 0.0f, minX = 0.0f, maxRight = 0.0f;
+    const float k = std::tan(skewDegrees * geometry::path::kDegreesToRadians);
+    float y = 0.0f, minimumX = 0.0f, maximumRight = 0.0f;
     for (Arrangement::Child& child : arrangement.children) {
       const float x = k * y;
       child.place(geometry::path::Rect::of({x, y}, child.size));
-      minX = std::min(minX, x);
-      maxRight = std::max(maxRight, child.rect.max.x);
+      minimumX = std::min(minimumX, x);
+      maximumRight = std::max(maximumRight, child.rect.max.x);
       y += child.size.y + gap;
     }
     for (Arrangement::Child& child : arrangement.children) {
-      child.rect.min.x -= minX;
-      child.rect.max.x -= minX;
+      child.rect.min.x -= minimumX;
+      child.rect.max.x -= minimumX;
     }
     if (anchor == Anchor::End) {
       // Mirror horizontally: each row's right edge rides the shear line.
-      const float extent = arrangement.box.width() > 0 ? arrangement.box.width()
-                                                       : maxRight - minX;
+      const float extent = arrangement.box.width() > 0
+                               ? arrangement.box.width()
+                               : maximumRight - minimumX;
       for (Arrangement::Child& child : arrangement.children) {
         const float shift = extent - child.rect.max.x - child.rect.min.x;
         child.rect.min.x += shift;

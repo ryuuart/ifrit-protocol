@@ -1142,7 +1142,7 @@ The context exposes checked views of the native services:
   mounts, URI resolution, text, bytes, resource metadata, selection,
   live feeds and byte output.
   `ctx.local(name)` creates a URI for a file beside the sketch.
-- `ctx.measure(element, maxSize)` and `ctx.snapshot(element, maxSize)` use
+- `ctx.measure(element, maximumSize)` and `ctx.snapshot(element, maximumSize)` use
   the session's font context. `ctx.measured(value, pinned=0)` supplies the
   pinned value in a deterministic session.
 

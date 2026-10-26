@@ -71,35 +71,37 @@ class Neighbours {
   /** How many cells the grid spans on each axis. */
   [[nodiscard]] glm::ivec3 dimensions() const { return m_dimensions; }
 
-  /** THE INDICES WITHIN `radius` OF `p`, in no particular order,
+  /** THE INDICES WITHIN `radius` OF `point`, in no particular order,
    *  appended to `out` after clearing it. The vector is the caller's so
    *  a loop of queries allocates once. A radius of zero or less answers
    *  nothing. */
-  void within(glm::vec3 p, float radius, std::vector<uint32_t>& out) const;
+  void within(glm::vec3 point, float radius, std::vector<uint32_t>& out) const;
   /** The same, allocating its own answer. */
-  [[nodiscard]] std::vector<uint32_t> within(glm::vec3 p, float radius) const;
+  [[nodiscard]] std::vector<uint32_t> within(glm::vec3 point,
+                                             float radius) const;
   /** The same for a flat query point, at `z` of zero. */
-  [[nodiscard]] std::vector<uint32_t> within(glm::vec2 p, float radius) const;
+  [[nodiscard]] std::vector<uint32_t> within(glm::vec2 point,
+                                             float radius) const;
 
-  /** THE NEAREST INDEX TO `p`, or nothing when the index is empty.
-   *  Rings of cells are walked outward from the one `p` falls in and the
+  /** THE NEAREST INDEX TO `point`, or nothing when the index is empty.
+   *  Rings of cells are walked outward from the one `point` falls in and the
    *  walk stops when no unvisited ring can hold anything nearer, so the
    *  answer is exact rather than "nearest within the first cell". */
-  [[nodiscard]] std::optional<uint32_t> nearest(glm::vec3 p) const;
-  /** THE `k` NEAREST INDICES TO `p`, NEAREST FIRST. Fewer than `k` come
-   *  back when the index holds fewer points than that. */
-  [[nodiscard]] std::vector<uint32_t> nearest(glm::vec3 p, int k) const;
-  /** The nearest to `p` that is not `p` itself — the query every
+  [[nodiscard]] std::optional<uint32_t> nearest(glm::vec3 point) const;
+  /** THE `count` NEAREST INDICES TO `point`, NEAREST FIRST. Fewer than `count`
+   * come back when the index holds fewer points than that. */
+  [[nodiscard]] std::vector<uint32_t> nearest(glm::vec3 point, int count) const;
+  /** The nearest to `point` that is not `point` itself — the query every
    *  spacing measurement wants, since a point indexed with the set it is
    *  measured against is always its own nearest. */
-  [[nodiscard]] std::optional<uint32_t> nearestOther(glm::vec3 p,
+  [[nodiscard]] std::optional<uint32_t> nearestOther(glm::vec3 point,
                                                      uint32_t skip) const;
 
   /** The same three for a flat query point, at `z` of zero — the whole
    *  family takes one, since a 2D index is asked 2D questions. */
-  [[nodiscard]] std::optional<uint32_t> nearest(glm::vec2 p) const;
-  [[nodiscard]] std::vector<uint32_t> nearest(glm::vec2 p, int k) const;
-  [[nodiscard]] std::optional<uint32_t> nearestOther(glm::vec2 p,
+  [[nodiscard]] std::optional<uint32_t> nearest(glm::vec2 point) const;
+  [[nodiscard]] std::vector<uint32_t> nearest(glm::vec2 point, int count) const;
+  [[nodiscard]] std::optional<uint32_t> nearestOther(glm::vec2 point,
                                                      uint32_t skip) const;
 
   /** The indices stored in one cell, empty when the cell is outside the
@@ -111,23 +113,23 @@ class Neighbours {
    *  nothing at all. The order is cell order, which is not distance
    *  order; a caller that needs the nearest first asks `nearest`. */
   template <typename Visit>
-  void forEachWithin(glm::vec3 p, float radius, Visit&& visit) const {
+  void forEachWithin(glm::vec3 point, float radius, Visit&& visit) const {
     if (m_points.empty() || !(radius > 0)) return;
     const float squared = radius * radius;
-    const glm::ivec3 lo = cellOf(p - glm::vec3(radius));
-    const glm::ivec3 hi = cellOf(p + glm::vec3(radius));
+    const glm::ivec3 lo = cellOf(point - glm::vec3(radius));
+    const glm::ivec3 hi = cellOf(point + glm::vec3(radius));
     for (int z = lo.z; z <= hi.z; ++z)
       for (int y = lo.y; y <= hi.y; ++y)
         for (int x = lo.x; x <= hi.x; ++x)
           for (const uint32_t index : cellPoints(x, y, z)) {
-            const glm::vec3 delta = m_points[index] - p;
+            const glm::vec3 delta = m_points[index] - point;
             if (glm::dot(delta, delta) <= squared) visit(index);
           }
   }
 
  private:
   /** Which cell a position falls in, clamped to the grid. */
-  [[nodiscard]] glm::ivec3 cellOf(glm::vec3 p) const;
+  [[nodiscard]] glm::ivec3 cellOf(glm::vec3 point) const;
   /** The bucket offset of a cell already known to be inside the grid. */
   [[nodiscard]] size_t linear(int x, int y, int z) const {
     return (size_t)((z * m_dimensions.y + y) * m_dimensions.x + x);

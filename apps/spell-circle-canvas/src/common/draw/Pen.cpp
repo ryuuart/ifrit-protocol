@@ -288,11 +288,11 @@ material::Color Pen::color(std::string_view css) const {
   return parseColor(css);
 }
 
-material::Color Pen::lerpColor(material::Color a, material::Color b,
+material::Color Pen::lerpColor(material::Color from, material::Color to,
                                float amount) {
-  const float t = std::clamp(amount, 0.0f, 1.0f);
-  return {lerp(a.r, b.r, t), lerp(a.g, b.g, t), lerp(a.b, b.b, t),
-          lerp(a.a, b.a, t)};
+  const float share = std::clamp(amount, 0.0f, 1.0f);
+  return {lerp(from.r, to.r, share), lerp(from.g, to.g, share),
+          lerp(from.b, to.b, share), lerp(from.a, to.a, share)};
 }
 
 void Pen::background(float gray) { background(color(gray)); }

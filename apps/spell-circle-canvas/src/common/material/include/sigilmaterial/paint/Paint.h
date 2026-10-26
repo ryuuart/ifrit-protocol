@@ -190,7 +190,7 @@ class Paint {
    *  paint outside it is cut off. It moves no pixels itself, the default
    *  0 changes nothing, and it joins equality because a changed reserve
    *  has to force a re-record. */
-  Paint& bleed(float px);
+  Paint& bleed(float pixels);
   /** The declared reserve (0 unless bleed() was set). */
   float bleed() const { return m_bleed; }
 

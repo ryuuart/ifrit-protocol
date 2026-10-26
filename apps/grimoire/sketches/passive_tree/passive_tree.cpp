@@ -206,13 +206,13 @@ inline std::function<sigil::geometry::path::Outline(glm::vec2)> notchRing(
 }
 
 /** A socket well: SDF chrome sized by the VISIBLE diameter --
- *  sdf::minBoxFor grows the box by the style's reserved pad so glow never
+ *  sdf::minimumBoxFor grows the box by the style's reserved pad so glow never
  *  clips, and centerAt() pins the measured box on the tree position. */
 inline Element socket(
     const char* key, SkPoint at, float dia, const sdf::Style& st,
     std::optional<motion::Animatable<float>> breathingGlow = std::nullopt,
     int z = 3) {
-  const float boxSize = sdf::minBoxFor(st, dia);
+  const float boxSize = sdf::minimumBoxFor(st, dia);
   auto m = sdf::material(sdf::circle(), st);
   if (breathingGlow) m.bind("uGlowR", *breathingGlow);
   Element e = box()

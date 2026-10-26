@@ -29,9 +29,10 @@ struct Slot {
   static Slot at(const std::source_location& where, int index = 0) {
     return {where.file_name(), where.line(), where.column(), index};
   }
-  bool operator==(const Slot& o) const {
-    return line == o.line && column == o.column && index == o.index &&
-           std::string_view(file) == std::string_view(o.file);
+  bool operator==(const Slot& other) const {
+    return line == other.line && column == other.column &&
+           index == other.index &&
+           std::string_view(file) == std::string_view(other.file);
   }
 };
 
@@ -40,12 +41,12 @@ struct Slot {
  *  compiled from the same file may hold two copies of the name and a
  *  guest painted from either has to find the same entry. */
 struct SlotHash {
-  size_t operator()(const Slot& s) const {
+  size_t operator()(const Slot& slot) const {
     size_t hash = 0;
-    boost::hash_combine(hash, std::string_view(s.file));
-    boost::hash_combine(hash, s.line);
-    boost::hash_combine(hash, s.column);
-    boost::hash_combine(hash, s.index);
+    boost::hash_combine(hash, std::string_view(slot.file));
+    boost::hash_combine(hash, slot.line);
+    boost::hash_combine(hash, slot.column);
+    boost::hash_combine(hash, slot.index);
     return hash;
   }
 };

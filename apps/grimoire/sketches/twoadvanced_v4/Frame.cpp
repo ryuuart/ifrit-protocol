@@ -620,13 +620,13 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
 
 auto TwoAdvancedV4::bootReadout() -> Element {
   using namespace tav;
-  const std::string buf = kit::formatted("%03d", bootPct);
+  const std::string text = kit::formatted("%03d", bootPercent);
   return box()
       .row()
       .alignItems(Align::Baseline)
       .gap(6)
       .children(
-          {t(buf.c_str(), cut(blackFace(), 46, kCyan, 40, 0.9f)),
+          {t(text.c_str(), cut(blackFace(), 46, kCyan, 40, 0.9f)),
            t("%", cut(blackFace(), 20, sigil::material::withAlpha(kCyan, 0.6f),
                       40, 0.9f))});
 }

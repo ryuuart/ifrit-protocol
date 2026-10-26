@@ -57,20 +57,20 @@ class FlexVerbs {
   /** THE SIZE THE FLEX FACTORS START FROM along the parent's main axis
    *  — CSS `flex-basis`. Unstated, the node's own width or height on
    *  that axis is the basis. */
-  Derived& flexBasis(Dimension d);
+  Derived& flexBasis(Dimension basis);
   /** WHERE THIS NODE'S CHILDREN SIT ACROSS its main axis — CSS
    *  `align-items`. `Align::Stretch` when unstated, so a child with no
    *  cross-axis size fills. */
-  Derived& alignItems(Align a);
+  Derived& alignItems(Align alignment);
   /** WHERE THIS NODE SITS ACROSS its parent's main axis, overriding
    *  that parent's `alignItems()` for this child alone — CSS
    *  `align-self`. `Align::Auto` when unstated, which is to take the
    *  parent's. */
-  Derived& alignSelf(Align a);
+  Derived& alignSelf(Align alignment);
   /** HOW THIS NODE'S CHILDREN ARE DISTRIBUTED ALONG its main axis, and
    *  what becomes of the room left over — CSS `justify-content`.
    *  `Justify::Start` when unstated. */
-  Derived& justifyContent(Justify j);
+  Derived& justifyContent(Justify justification);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

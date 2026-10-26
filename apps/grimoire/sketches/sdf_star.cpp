@@ -15,7 +15,7 @@
  * whose falloff is exp(−d / glowRadius) rather than a blurred copy.
  *
  * `pad(style)` is the reserve those layers need INSIDE the box, and
- * `minBoxFor(style, contentPx)` is the box that leaves a stated visible
+ * `minimumBoxFor(style, contentPx)` is the box that leaves a stated visible
  * interior after it. Pad is layout reserve and never appearance: a
  * larger pad does not soften a glow, it only stops the box cropping it.
  *
@@ -185,7 +185,7 @@ struct SdfStar {
                      "glow needs a %.0f px box.",
                      (double)sdf::pad(glowing), (double)sdf::pad(wide),
                      (double)sdf::pad(dropped),
-                     (double)sdf::minBoxFor(wide, 120)))
+                     (double)sdf::minimumBoxFor(wide, 120)))
                  .width(1020)})));
   }
 };

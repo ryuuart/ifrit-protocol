@@ -47,11 +47,11 @@ class Builder {
   }
   explicit Builder(PointSet given) { m_chain.emplace_back(std::move(given)); }
   /** Loop and surface entries only: a point set's count is its own. */
-  Builder& count(int n) {
+  Builder& count(int count) {
     if (auto* s = std::get_if<SplineScatter>(&m_chain.front()))
-      s->count = n;
+      s->count = count;
     else if (auto* m = std::get_if<MeshScatter>(&m_chain.front()))
-      m->count = n;
+      m->count = count;
     return *this;
   }
   /** Loop entries only; a surface entry has no window. */
@@ -72,11 +72,11 @@ class Builder {
   /** Pins the entry scatter's seed. Loop and surface entries only —
    *  a point set was handed its points and randomizes nothing. The
    *  chained verbs keep their own auto-varied seeds either way. */
-  Builder& seed(uint32_t v) {
+  Builder& seed(uint32_t value) {
     if (auto* s = std::get_if<SplineScatter>(&m_chain.front()))
-      s->seed = v;
+      s->seed = value;
     else if (auto* m = std::get_if<MeshScatter>(&m_chain.front()))
-      m->seed = v;
+      m->seed = value;
     return *this;
   }
   Builder& jitter(float amplitude,
@@ -287,17 +287,17 @@ class Builder {
     return *this;
   }
   /** Blend two attributes into a third by a constant... */
-  Builder& mix(AttributeReference a, AttributeReference b,
+  Builder& mix(AttributeReference first, AttributeReference second,
                AttributeReference to, float factor = 0.5f) {
     m_chain.emplace_back(
-        Mix{std::move(a), std::move(b), std::move(to), factor, {}});
+        Mix{std::move(first), std::move(second), std::move(to), factor, {}});
     return *this;
   }
   /** ...or by a lane's .x — "fade toward white by heat". */
-  Builder& mixBy(AttributeReference a, AttributeReference b,
+  Builder& mixBy(AttributeReference first, AttributeReference second,
                  AttributeReference to, std::string factorLane) {
-    m_chain.emplace_back(Mix{std::move(a), std::move(b), std::move(to), 0,
-                             std::move(factorLane)});
+    m_chain.emplace_back(Mix{std::move(first), std::move(second), std::move(to),
+                             0, std::move(factorLane)});
     return *this;
   }
   /** Duplicate an attribute under another name. */
@@ -330,8 +330,8 @@ class Builder {
     return *this;
   }
   /** Escape hatch: any raw operation joins the chain. */
-  Builder& operation(Operation o) {
-    m_chain.push_back(std::move(o));
+  Builder& operation(Operation added) {
+    m_chain.push_back(std::move(added));
     return *this;
   }
 

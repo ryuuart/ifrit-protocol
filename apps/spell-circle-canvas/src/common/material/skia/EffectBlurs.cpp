@@ -59,7 +59,7 @@ namespace {
  *  parameter. Skia's Gaussian is separable and its cost is a function of
  *  sigma; a spatially-varying sigma is NOT separable, so an author-written
  *  kernel pays the worst radius at every pixel. Three fixed levels
- *  (0, maxSigma/2, maxSigma) plus one mix pass is a constant number of
+ *  (0, maximumSigma/2, maximumSigma) plus one mix pass is a constant number of
  *  full-resolution passes no matter how wide the range gets.
  *
  *  Branch-free because both nested mixes are exact at the level sigmas:
@@ -70,13 +70,13 @@ const sk_sp<SkRuntimeEffect>& parametricBlurMix() {
 }
 }  // namespace
 
-std::shared_ptr<const Effect::BlurLevels> makeBlurLevels(float maxSigma) {
-  if (!(maxSigma > 0)) return nullptr;
+std::shared_ptr<const Effect::BlurLevels> makeBlurLevels(float maximumSigma) {
+  if (!(maximumSigma > 0)) return nullptr;
   auto levels = std::make_shared<Effect::BlurLevels>();
-  levels->maxSigma = maxSigma;
+  levels->maximumSigma = maximumSigma;
   levels->half =
-      SkImageFilters::Blur(maxSigma * 0.5f, maxSigma * 0.5f, nullptr);
-  levels->full = SkImageFilters::Blur(maxSigma, maxSigma, nullptr);
+      SkImageFilters::Blur(maximumSigma * 0.5f, maximumSigma * 0.5f, nullptr);
+  levels->full = SkImageFilters::Blur(maximumSigma, maximumSigma, nullptr);
   return levels;
 }
 
@@ -103,7 +103,7 @@ sk_sp<SkImageFilter> makeParametricBlur(const Effect::BlurLevels* levels,
   }
   SkRuntimeShaderBuilder b(fx);
   b.child("param") = std::move(sigmaMap);
-  b.uniform("scale") = std::min(sigma / levels->maxSigma, 1.0f);
+  b.uniform("scale") = std::min(sigma / levels->maximumSigma, 1.0f);
   std::string_view names[3] = {"level0", "level1", "level2"};
   const sk_sp<SkImageFilter> inputs[3] = {
       nullptr,  // level 0 IS the layer, unblurred
@@ -118,16 +118,16 @@ sk_sp<SkImageFilter> makeParametricBlur(const Effect::BlurLevels* levels,
   // the furthest any of the three levels can carry a pixel. Stated only
   // where the box is known; without one the filter stays as Skia found it.
   if (box.isEmpty()) return mix;
-  const float reach = levels->maxSigma * 3.0f;
+  const float reach = levels->maximumSigma * 3.0f;
   return SkImageFilters::Crop(
       SkRect::MakeWH(box.width(), box.height()).makeOutset(reach, reach),
       std::move(mix));
 }
 
-Effect Effect::blur(Paint sigmaMap, float maxSigma) {
+Effect Effect::blur(Paint sigmaMap, float maximumSigma) {
   Effect e;
-  e.m_parametricBlur = ParametricBlur{maxSigma};
-  e.m_blurLevels = makeBlurLevels(maxSigma);
+  e.m_parametricBlur = ParametricBlur{maximumSigma};
+  e.m_blurLevels = makeBlurLevels(maximumSigma);
   e.m_slots.emplace_back("sigma",
                          std::make_shared<const Paint>(std::move(sigmaMap)));
   // The static snapshot, built context-free exactly as Material::slot

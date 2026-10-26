@@ -200,7 +200,7 @@ TEST(Pop, TransferAtOneSampleIsAPlainNearestNeighbourLookup) {
   operation.source = source;
   operation.lane = "heat";
   operation.radius = 1000.0f;
-  operation.maxSamples = 1;
+  operation.maximumSamples = 1;
   const Cloud out = pop::cook(pop::Chain{
       pop::PointSet{at({{-90, 0, 0}, {90, 0, 0}, {-1, 0, 0}})}, operation});
   const std::vector<glm::vec4>& answer = *out.colorIf("heat");
@@ -240,7 +240,7 @@ TEST(Pop, ConnectAdjacentBoundsHowManyEachPointReaches) {
   const Cloud row = at({{0, 0, 0}, {10, 0, 0}, {20, 0, 0}, {30, 0, 0}});
   pop::Connect connect;
   connect.radius = 100.0f;
-  connect.maxPerPoint = 1;
+  connect.maximumPerPoint = 1;
   const std::vector<glm::uvec2> pairs = pop::connectAdjacent(row, connect);
   // Each point keeps its single nearest, and the pairs both ends agreed on
   // are one entry: 0-1, 1-2 (from 2's side), 2-3.

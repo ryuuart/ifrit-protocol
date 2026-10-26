@@ -116,7 +116,7 @@ struct Given {
   geometry::path::Rect box;
   std::vector<Arrangement::Child> children;
   operator Arrangement() {
-    return {.box = box, .children = children, .minSizesMeasured = true};
+    return {.box = box, .children = children, .minimumSizesMeasured = true};
   }
 };
 
@@ -127,7 +127,7 @@ Given given(glm::vec2 container, std::vector<glm::vec2> sizes,
   for (size_t i = 0; i < sizes.size(); ++i) {
     Arrangement::Child child;
     child.size = sizes[i];
-    child.minSize = minima.empty() ? sizes[i] : minima[i];
+    child.minimumSize = minima.empty() ? sizes[i] : minima[i];
     if (i < cells.size()) child.cells = cells[i];
     in.children.push_back(std::move(child));
   }
@@ -144,7 +144,7 @@ CellSpan claims(int column, int row, int columns = 1, int rows = 1) {
 
 }  // namespace
 
-static_assert(sigil::compose::ReadsChildMinSizes<Table>,
+static_assert(sigil::compose::ReadsChildMinimumSizes<Table>,
               "the auto rule is solved from the content minima");
 
 TEST(ComposeTable, ItResolvesTheGridAPageOfTheTableEraWasSetOn) {
@@ -291,8 +291,10 @@ TEST(ComposeTable, APercentageColumnTakesItsShareOfTheRoomTheTableHas) {
   // The share is of the ROOM the columns divide and not of the table's
   // outer width: 500 less a 2 px gap at four places and 1 px of padding
   // either side of three columns is 486, and 30 % of that is 145.8.
-  const Table spaced{
-      .width = 500, .spacing = 2, .padding = 1, .declaredWidths = {percent(30)}};
+  const Table spaced{.width = 500,
+                     .spacing = 2,
+                     .padding = 1,
+                     .declaredWidths = {percent(30)}};
   const Table::Grid inset =
       spaced.solve(given({500, 100}, {{40, 20}, {30, 20}, {90, 20}},
                          {claims(0, 0), claims(1, 0), claims(2, 0)}));
@@ -303,7 +305,8 @@ TEST(ComposeTable, TwoPercentagesShareTheTableAndTheRestTakesWhatIsLeft) {
   // A quarter and a half of a 400-wide table, with one auto column
   // beside them: the stated pair take 100 and 200 and stand out of the
   // division, and the last column has the remaining 100 to itself.
-  const Table table{.width = 400, .declaredWidths = {percent(25), percent(50), {}}};
+  const Table table{.width = 400,
+                    .declaredWidths = {percent(25), percent(50), {}}};
   const Table::Grid grid =
       table.solve(given({400, 100}, {{20, 20}, {20, 20}, {40, 20}},
                         {claims(0, 0), claims(1, 0), claims(2, 0)}));

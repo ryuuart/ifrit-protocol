@@ -93,7 +93,8 @@ TEST(SketchKitScrollbar, EverythingShowingFillsTheTrack) {
  *  to run along. */
 TEST(SketchKitScrollbar, AShortThumbIsHeldAtItsMinimum) {
   const kit::Thumb held =
-      kit::Scrolled{.view = 10, .content = 4000, .track = 200, .minLength = 24}
+      kit::Scrolled{
+          .view = 10, .content = 4000, .track = 200, .minimumLength = 24}
           .thumb();
   EXPECT_FLOAT_EQ(held.length, 24);
   EXPECT_FLOAT_EQ(held.travel, 176);

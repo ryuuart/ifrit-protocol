@@ -83,16 +83,16 @@ void placePaint(detail::ElementNode* node, material::Paint m, PaintBox box) {
 }  // namespace
 
 template <class Derived>
-Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
+Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> paint) {
   // A paint written as a fill is the paint: it takes the paint's own
   // route, so a live or geometry-dependent one is resolved with the frame.
-  if (const Fill* plain = f.constant();
+  if (const Fill* plain = paint.constant();
       plain && plain->kind == Fill::Kind::Paint) {
     placePaint(declarations(), detail::paintOf(*plain), PaintBox::Element);
     return self();
   }
   detail::ElementNode* node = declarations();
-  node->fields.fill() = std::move(f);
+  node->fields.fill() = std::move(paint);
   if (node->fxData) node->fxData->fillEffects.reset();
   // The box is part of the fill's statement, so a fill with no picture to
   // place states the element's own and ends whatever an earlier one said.

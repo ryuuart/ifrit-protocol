@@ -160,7 +160,7 @@ struct SurfaceLobes {
     gm::camera::Camera camera;
     camera.eye = {0, 80, 1750};
     camera.target = {0, 0, 0};
-    camera.fovYDegrees = 24.5f;
+    camera.verticalFieldOfViewDegrees = 24.5f;
     camera.nearPlane = 40;
     camera.farPlane = 4000;
     return camera;

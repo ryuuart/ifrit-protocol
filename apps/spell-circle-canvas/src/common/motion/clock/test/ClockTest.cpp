@@ -7,8 +7,6 @@
  * stated frame is a number the test hands in.
  */
 
-#include "support/StandsAlone.h"
-
 #include <gtest/gtest.h>
 #include <sigilmotion/advanced/ClockPolicy.h>
 #include <sigilmotion/clock/Engine.h>
@@ -17,6 +15,8 @@
 
 #include <chrono>
 #include <optional>
+
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion;
 using namespace std::chrono_literals;
@@ -44,7 +44,7 @@ TEST(Clock, TheFirstWallReadingIsAZeroLengthFrameAndEveryOneAfterItIsADelta) {
 TEST(Clock, AStallIsClampedToTheLongestWallFrame) {
   // A suspended app comes back to one enormous reading; the engine moves
   // by the ceiling rather than by a delta every animation would jump on.
-  Engine engine({.maxWallStep = 250ms});
+  Engine engine({.maximumWallStep = 250ms});
   engine.advanceWall(0.0);
   EXPECT_NEAR(engine.advanceWall(5.0).count(), 0.25, 1e-9);
 }
@@ -123,7 +123,7 @@ TEST(Clock, TheFirstFrameAnEngineTakesOnTheWallIsAZeroLengthOne) {
 // Stated frames and a fixed step.
 
 TEST(Clock, AStatedFrameMovesByExactlyTheDifferenceUnscaledAndUnclamped) {
-  Engine engine({.maxWallStep = 250ms});
+  Engine engine({.maximumWallStep = 250ms});
   EXPECT_TRUE(engine.isWall());
   // Under the wall a stated frame moves too — the caller chose it.
   EXPECT_EQ(engine.advance(Duration(0.5)), Duration(0.5));

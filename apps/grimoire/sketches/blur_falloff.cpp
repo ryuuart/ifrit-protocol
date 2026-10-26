@@ -1,5 +1,5 @@
 /** @file
- * blur_falloff — `Effect::blur(Paint sigmaMap, float maxSigma)`: a blur
+ * blur_falloff — `Effect::blur(Paint sigmaMap, float maximumSigma)`: a blur
  * whose sigma is a FUNCTION OF POSITION.
  *
  * Every panel holds the same content and the same maximum sigma; only the
@@ -11,7 +11,7 @@
  *   2 DEPTH OF FIELD — a 3-stop box-unit linearGradient down the box.
  *   3 A LENS EDGE — a closest-side radialGradient from the centre: sharp
  *     on axis, soft at the rim.
- *   4 RACK FOCUS — the same map, maxSigma BOUND inside the declared
+ *   4 RACK FOCUS — the same map, maximumSigma BOUND inside the declared
  *     range: no re-describe, and the Gaussian passes are held while only
  *     the mix between them moves.
  *
@@ -20,7 +20,7 @@
  * `pattern::sequence` is the generator for a run of coloured bands.
  *
  * EDIT THESE FIRST
- *   kMaxSigma  — the blur radius the map's 1.0 end reaches. Every panel
+ *   kMaximumSigma  — the blur radius the map's 1.0 end reaches. Every panel
  *                shares it, so raising it separates the panels further and
  *                lowering it makes panel 1 and panel 2 converge.
  *   kFocal     — where the sharp line sits down panel 2's box, 0..1. At 0
@@ -32,7 +32,7 @@
  *
  * Of the three ways a scene can move, panel 4 is the driven one: nothing
  * re-describes, an Output does the moving. The bound Output IS the
- * volatility declaration — a live map or a live maxSigma lifts the whole
+ * volatility declaration — a live map or a live maximumSigma lifts the whole
  * effect to live, so no bake can sample the parameter once and freeze it.
  */
 
@@ -64,9 +64,9 @@ using namespace sigil::compose;
 namespace {
 
 constexpr float kPanel = 240.0f;
-constexpr float kMaxSigma = 14.0f;  // the map's 1.0 end, in px of sigma
-constexpr float kFocal = 0.42f;     // panel 2's sharp line, 0..1 down the box
-constexpr double kRackHz = 0.18;    // panel 4's breathing rate
+constexpr float kMaximumSigma = 14.0f;  // the map's 1.0 end, in px of sigma
+constexpr float kFocal = 0.42f;   // panel 2's sharp line, 0..1 down the box
+constexpr double kRackHz = 0.18;  // panel 4's breathing rate
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -129,7 +129,7 @@ sketch::kit::ComparisonCase panel(const char* caseTitle, const char* call,
 
 struct BlurFalloff {
   sigil::motion::Animatable<float> rack =
-      sigil::motion::animatable(0.0f);  // panel 4's bound maxSigma
+      sigil::motion::animatable(0.0f);  // panel 4's bound maximumSigma
 
   void setup(sketch::Scene2DContext& ctx) {
     // the top of panel 4's breath: 1 / (2 kRackHz)
@@ -185,25 +185,25 @@ struct BlurFalloff {
                              "Every position receives the same blur.",
                              material::Color{1, 1, 1, 1},
                              material::skia::filter(SkImageFilters::Blur(
-                                 kMaxSigma, kMaxSigma, nullptr)),
+                                 kMaximumSigma, kMaximumSigma, nullptr)),
                              "flat"),
                        panel("DEPTH OF FIELD", "blur(linearUnit 3 stops, 14)",
                              "The dark horizon stays sharp; distance from it "
                              "increases blur.",
                              dofMap(),
-                             material::Filter::blur(dofMap(), kMaxSigma),
+                             material::Filter::blur(dofMap(), kMaximumSigma),
                              "dof"),
                        panel("LENS EDGE", "blur(glowUnit, 14)",
                              "The centre stays sharp while the edge softens.",
                              lensMap(),
-                             material::Filter::blur(lensMap(), kMaxSigma),
+                             material::Filter::blur(lensMap(), kMaximumSigma),
                              "lens"),
                        panel("RACK FOCUS", "blur(dofMap, 14) · live",
                              "The depth map stays fixed. Its maximum blur "
                              "breathes with time.",
                              dofMap(),
-                             material::Filter::blur(dofMap(), kMaxSigma)
-                                 .bind("maxSigma", rack),
+                             material::Filter::blur(dofMap(), kMaximumSigma)
+                                 .bind("maximumSigma", rack),
                              "rack")},
                   .measure = 1020,
                   .gap = 20})})));
@@ -215,10 +215,10 @@ struct BlurFalloff {
     // is then the same still every run. No re-describe — the bound
     // parameter makes the effect live all by itself.
     const double phase = elapsed * kRackHz * 6.2831853;
-    rack = kMaxSigma * 0.5f * (float)(1.0 - std::cos(phase));
+    rack = kMaximumSigma * 0.5f * (float)(1.0 - std::cos(phase));
   }
 };
 
 SIGIL_SKETCH(BlurFalloff, "Kit · API",
-             "Effect::blur(Paint, maxSigma) — one effect, four "
+             "Effect::blur(Paint, maximumSigma) — one effect, four "
              "falloffs: constant, depth of field, a lens edge, a rack focus")

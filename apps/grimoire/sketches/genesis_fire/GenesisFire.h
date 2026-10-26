@@ -99,7 +99,7 @@ struct GenesisFire {
 
   // --- measured ------------------------------------------------------------
   size_t liveCount = 0;
-  double buildUs = 0;
+  double buildMicroseconds = 0;
   size_t vertCount = 0;
 
   // =========================================================================
@@ -334,12 +334,13 @@ struct GenesisFire {
   /** A part's entrance as time arithmetic: what a described tree spells
    *  as `sigil::motion::animate({.from = 0, .to = 1, .duration = duration,
    * .ease = delay})`, in a loop that has the clock in its hand. */
-  static float cue(double ms, float delayMilliseconds,
+  static float cue(double milliseconds, float delayMilliseconds,
                    float durationMilliseconds,
                    const sigil::motion::Easing& ease = nullptr) {
-    const float u = std::clamp((float)((ms - (double)delayMilliseconds) /
-                                       (double)durationMilliseconds),
-                               0.0f, 1.0f);
+    const float u =
+        std::clamp((float)((milliseconds - (double)delayMilliseconds) /
+                           (double)durationMilliseconds),
+                   0.0f, 1.0f);
     return ease ? ease(u) : u;
   }
 };

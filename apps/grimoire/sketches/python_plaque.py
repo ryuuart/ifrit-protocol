@@ -86,7 +86,9 @@ class Plaque:
         self.face = plaque_face()
         self.plate = mesh.quad(PLATE_WIDTH, PLATE_HEIGHT)
         ctx.camera(
-            mesh.camera.Camera(eye=(0, 150, 330), target=(0, 0, 0), fovYDegrees=36)
+            mesh.camera.Camera(
+                eye=(0, 150, 330), target=(0, 0, 0), verticalFieldOfViewDegrees=36
+            )
         )
 
     def describe(self, seconds: float) -> world.Frame:

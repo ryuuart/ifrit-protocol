@@ -24,7 +24,7 @@ namespace pop {
 
 /** WHICH POINTS ARE NEAR ENOUGH TO BE JOINED, and to what.
  *
- *  `radius` is how far a point looks. `maxPerPoint` bounds how many
+ *  `radius` is how far a point looks. `maximumPerPoint` bounds how many
  *  neighbours one point may reach — zero is every neighbour in range, and
  *  one is "join each point to whichever is nearest", which is what a
  *  constellation of a scatter is. `pieceLane` names a scalar lane whose
@@ -35,7 +35,7 @@ namespace pop {
  *  be off for any pair to be found at all. */
 struct Connect {
   float radius = 1;
-  int maxPerPoint = 0;
+  int maximumPerPoint = 0;
   std::string pieceLane;
   bool acrossPiecesOnly = false;
   bool operator==(const Connect&) const = default;
@@ -61,8 +61,8 @@ std::vector<glm::uvec2> connectAdjacent(const Cloud& cloud,
 
 /** The mesh-forming sink: cook @p chain and stamp @p stamp at every
  *  point into ONE Mesh (dir orients, size scales, tint colors) — a
- *  pop-DESCRIBED 3D model, placeable in a 3D set like any other mesh. The cook runs on @p runtime;
- *  the stamping stands on its cloud. */
+ *  pop-DESCRIBED 3D model, placeable in a 3D set like any other mesh. The cook
+ * runs on @p runtime; the stamping stands on its cloud. */
 Mesh cookMesh(const Chain& chain, const Mesh& stamp,
               const Runtime& runtime = Runtime::cpu());
 

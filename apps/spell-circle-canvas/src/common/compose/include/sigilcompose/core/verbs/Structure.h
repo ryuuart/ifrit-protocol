@@ -131,7 +131,7 @@ class StructureVerbs {
    *  across describes, what `Composer::bounds` and `hitTest` answer
    *  for, and what a connector, a rail or a `spans::fit` borrows
    *  geometry by. On a `slot()` it RENAMES the mount, and warns. */
-  Derived& key(std::string_view k);
+  Derived& key(std::string_view name);
   /** THIS NODE EXITS AS IT ENTERED. When a later description leaves this
    *  keyed node out, it is not dropped at once: it keeps its place in the
    *  layout, stops answering hits, and plays every entrance in its subtree
@@ -151,7 +151,7 @@ class StructureVerbs {
    *  sampled the time. See `Cache` for what each mode costs and refuses.
    *
    *  @see sigil::compose::Cache */
-  Derived& cache(Cache c);
+  Derived& cache(Cache policy);
   /** Texture-bake resolution multiplier, `Cache::Texture` only and
    *  clamped to 0.1–1: the bake rasterizes at @p factor times the
    *  device scale and every blit scales it back up. Almost always the

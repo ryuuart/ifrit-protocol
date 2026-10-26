@@ -381,9 +381,9 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilterAt(
 sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
   if (m_parametricBlur) {  // re-wrap the held pyramid with the parameter's
                            // scale
-    float sigma = m_parametricBlur->maxSigma;
+    float sigma = m_parametricBlur->maximumSigma;
     for (const auto& [name, out] : m_bound)
-      if (name == "maxSigma") sigma = out.value();
+      if (name == "maximumSigma") sigma = out.value();
     // A declared 0 holds no pyramid; a bound value then builds one at
     // the value, at every paint — the cost declaring the range avoids.
     const std::shared_ptr<const BlurLevels> levels =

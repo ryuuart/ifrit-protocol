@@ -34,7 +34,7 @@ sampling its own shadow through itself.
 `Shadow::bindOffsetX` and `Shadow::bindOffsetY` replace an axis of the
 offset with what an animatable reads as now, and declare the decoration
 animated — the hover-lift shadow slides without re-describing.
-`Shadow::maxBind` reserves the cull reach a bound range needs, because
+`Shadow::maximumBind` reserves the cull reach a bound range needs, because
 `Shadow::bleed` cannot read a future value and a shadow that escapes the
 reserved rect is simply cut off.
 
@@ -48,7 +48,7 @@ the decoration entry point the seam calls.
 | `.boxShadow({.offset = {0, 4}, .blur = 12, .color = Fill::color(colour)})` | C++ | CSS's verb, one shadow or a list with the first on top |
 | `.boxShadow(offset=(0, 4), blur=12, spread=0, color="#0006", inset=False)` | Python | the same, by keyword, or one `Shadow` or a list |
 | `Shadow{.blur = 18.0f, .color = Fill::color(colour)}` | C++ | designated initialisers |
-| `compose::shadow(color, offset, blur)` | C++ | the three-argument decoration, with `knockout` and `maxBind` beside it |
+| `compose::shadow(color, offset, blur)` | C++ | the three-argument decoration, with `knockout` and `maximumBind` beside it |
 | `compose.shadow(color, offset, blur)` | Python | the same, taking any colour spelling, a material or a fill |
 
 The colour is a `Fill`, as every other mark's ink is: `compose::shadow` takes a
@@ -87,7 +87,7 @@ shadowed node records once and replays.
 Bind an offset and that stops: the decoration answers `Shadow::isRunning`
 truthfully, the node is declared volatile, and the picture cache lets go
 of it for as long as the binding is attached. That is the trade a moving
-shadow makes, and the reason `Shadow::maxBind` exists — the cull rect is
+shadow makes, and the reason `Shadow::maximumBind` exists — the cull rect is
 computed once from what the value declares, and a bound offset is the one
 number the value cannot read ahead.
 

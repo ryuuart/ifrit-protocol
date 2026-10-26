@@ -42,23 +42,23 @@ void plot(SkCanvas& canvas, float cell, glm::vec2 at, float x, float y, float w,
 
 }  // namespace
 
-std::shared_ptr<const media::Image> dotSprite(int px, float margin) {
+std::shared_ptr<const media::Image> dotSprite(int pixels, float margin) {
   sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(px, px));
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(pixels, pixels));
   SkCanvas* canvas = surface->getCanvas();
   canvas->clear(SK_ColorTRANSPARENT);
   SkPaint paint;
   paint.setAntiAlias(true);
   paint.setColor(SK_ColorWHITE);
-  const float centre = (float)px * 0.5f;
+  const float centre = (float)pixels * 0.5f;
   canvas->drawCircle(centre, centre, centre - margin, paint);
   return media::Image::of(surface->makeImageSnapshot());
 }
 
-void PixelInk::rect(float x, float y, float w, float h,
+void PixelInk::rect(float x, float y, float width, float height,
                     const material::Color& colour) const {
   if (SkCanvas* canvas = pen.canvas())
-    plot(*canvas, cell, at, x, y, w, h, colour);
+    plot(*canvas, cell, at, x, y, width, height, colour);
 }
 
 std::optional<Sprite> pixelMap(std::span<const std::string> rows,

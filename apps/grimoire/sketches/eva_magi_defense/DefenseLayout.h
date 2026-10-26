@@ -719,9 +719,11 @@ inline float wrap180(float d) {
   while (d <= -180.0f) d += 360.0f;
   return d;
 }
-inline float snap45(float deg) { return std::round(deg / 45.0f) * 45.0f; }
-inline float deg(float rad) { return rad * 57.29577951f; }
-inline float rad(float d) { return d * 0.01745329252f; }
+inline float snap45(float degrees) {
+  return std::round(degrees / 45.0f) * 45.0f;
+}
+inline float toDegrees(float radians) { return radians * 57.29577951f; }
+inline float toRadians(float degrees) { return degrees * 0.01745329252f; }
 
 }  // namespace eva
 

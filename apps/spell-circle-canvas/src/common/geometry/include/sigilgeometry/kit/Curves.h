@@ -73,9 +73,9 @@ struct KeyedParametric {
   float t1 = 1.0f;
   int samples = 512;
   bool close = false;
-  bool operator==(const KeyedParametric& o) const {
-    return key == o.key && t0 == o.t0 && t1 == o.t1 && samples == o.samples &&
-           close == o.close;
+  bool operator==(const KeyedParametric& other) const {
+    return key == other.key && t0 == other.t0 && t1 == other.t1 &&
+           samples == other.samples && close == other.close;
   }
   path::Outline outline(glm::vec2 size) const {
     return detail::samplePolyline(f, t0, t1, samples, close, size);

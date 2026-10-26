@@ -31,9 +31,9 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmedia/core/ColorSpace.h>
 #include <sigilmedia/core/PixelSource.h>
-#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilworld/World.h>
 #include <sigilworld/advanced/Diligent.h>
@@ -102,9 +102,9 @@ void BM_ProgramFromRecipeBody(benchmark::State& state) {
         material::program(freshRecipe(), material::Target::Slang,
                           material::Variant{diligent::kVariantLit})
             .value_or(nullptr);
-    const double ms = measure::Milliseconds(watch.elapsed()).count();
+    const double milliseconds = measure::Milliseconds(watch.elapsed()).count();
     benchmark::DoNotOptimize(program);
-    return ms;
+    return milliseconds;
   }();
   state.counters["first_compile_milliseconds"] = firstCompileMilliseconds;
   for ([[maybe_unused]] auto iteration : state) {
@@ -302,12 +302,12 @@ void BM_ShadowShareOnDevice(benchmark::State& state) {
     draw(scene, canvas);
     const SceneStats& stats = scene.stats();
     if (stats.deviceTiming != DeviceTiming::Measured) return -1.0;
-    double ms = -1.0;
+    double milliseconds = -1.0;
     for (const DeviceStage& each : stats.deviceStages) {
-      if (counted) stages[each.stage + "_ms"] += each.ms;
-      if (each.stage == stage) ms = each.ms;
+      if (counted) stages[each.stage + "_ms"] += each.milliseconds;
+      if (each.stage == stage) milliseconds = each.milliseconds;
     }
-    return ms;
+    return milliseconds;
   };
   // The device raises its clocks over the first frames it is given.
   int warm = 0;
@@ -318,9 +318,10 @@ void BM_ShadowShareOnDevice(benchmark::State& state) {
     return;
   }
   for ([[maybe_unused]] auto iteration : state) {
-    double ms = frameOnce(true);
-    for (int k = 0; k < 12 && ms < 0.0; ++k) ms = frameOnce(true);
-    state.SetIterationTime(std::max(ms, 0.0) / 1000.0);
+    double milliseconds = frameOnce(true);
+    for (int k = 0; k < 12 && milliseconds < 0.0; ++k)
+      milliseconds = frameOnce(true);
+    state.SetIterationTime(std::max(milliseconds, 0.0) / 1000.0);
   }
   for (const auto& [name, total] : stages)
     state.counters[name] =
@@ -365,21 +366,20 @@ void BM_UnshadowedCardOnDevice(benchmark::State& state) {
   motion::Engine engine;
   Scene scene(engine);
   std::vector<Node> content;
-  content.push_back(mesh(gm::quad(400, 400))
-                        .key("card")
-                        .collection("card")
-                        .fill(material::surface::program(
-                            {.baseColor = {0.5f, 0.5f, 0.5f, 1},
-                             .roughness = 0.5f},
-                            material::surface::Reflection::SplitSum)));
+  content.push_back(
+      mesh(gm::quad(400, 400))
+          .key("card")
+          .collection("card")
+          .fill(material::surface::program(
+              {.baseColor = {0.5f, 0.5f, 0.5f, 1}, .roughness = 0.5f},
+              material::surface::Reflection::SplitSum)));
   content.push_back(
       directionalLight({-0.2f, -0.3f, -1}, {.castShadow = false}).key("sun"));
   if (terms)
-    content.push_back(
-        directionalLight({0.2f, -0.3f, -1}, {.castShadow = true})
-            .key("elsewhere")
-            .lightLink(Collection{.exclude = {"card"}})
-            .shadowLink(Collection{.exclude = {"card"}}));
+    content.push_back(directionalLight({0.2f, -0.3f, -1}, {.castShadow = true})
+                          .key("elsewhere")
+                          .lightLink(Collection{.exclude = {"card"}})
+                          .shadowLink(Collection{.exclude = {"card"}}));
   geometry::mesh::camera::Camera camera;
   camera.eye = {0, 0, 200};
   camera.target = {0, 0, 0};
@@ -399,7 +399,7 @@ void BM_UnshadowedCardOnDevice(benchmark::State& state) {
     const SceneStats& stats = scene.stats();
     if (stats.deviceTiming != DeviceTiming::Measured) return -1.0;
     for (const DeviceStage& each : stats.deviceStages)
-      if (each.stage == "colour.laid") return each.ms;
+      if (each.stage == "colour.laid") return each.milliseconds;
     return -1.0;
   };
   // The device raises its clocks over the first frames it is given.
@@ -411,9 +411,10 @@ void BM_UnshadowedCardOnDevice(benchmark::State& state) {
     return;
   }
   for ([[maybe_unused]] auto iteration : state) {
-    double ms = frameOnce();
-    for (int k = 0; k < 12 && ms < 0.0; ++k) ms = frameOnce();
-    state.SetIterationTime(std::max(ms, 0.0) / 1000.0);
+    double milliseconds = frameOnce();
+    for (int k = 0; k < 12 && milliseconds < 0.0; ++k)
+      milliseconds = frameOnce();
+    state.SetIterationTime(std::max(milliseconds, 0.0) / 1000.0);
   }
 }
 BENCHMARK(BM_UnshadowedCardOnDevice)
@@ -466,19 +467,18 @@ void BM_ShadowStageOnDevice(benchmark::State& state) {
     const float turn = motion == 1 ? (float)step * 3.0f : 0.0f;
     const float glide = motion == 2 ? std::sin((float)step * 0.05f) : 0.0f;
     std::vector<Node> content;
+    content.push_back(rectLight({0, -1, 0}, {.width = 120,
+                                             .height = 80,
+                                             .intensity = 20.0f,
+                                             .castShadow = true})
+                          .key("panel")
+                          .at({160.0f * glide, 300, 0}));
     content.push_back(
-        rectLight({0, -1, 0}, {.width = 120,
-                               .height = 80,
-                               .intensity = 20.0f,
-                               .castShadow = true})
-            .key("panel")
-            .at({160.0f * glide, 300, 0}));
-    content.push_back(mesh(gm::quad(800, 800))
-                          .key("slab")
-                          .rotateX(-90)
-                          .fill(material::surface::program(
-                              {.baseColor = {0.3f, 0.3f, 0.3f, 1},
-                               .roughness = 0.8f})));
+        mesh(gm::quad(800, 800))
+            .key("slab")
+            .rotateX(-90)
+            .fill(material::surface::program(
+                {.baseColor = {0.3f, 0.3f, 0.3f, 1}, .roughness = 0.8f})));
     for (int row = -1; row <= 1; ++row)
       for (int column = -1; column <= 1; ++column)
         content.push_back(
@@ -514,7 +514,7 @@ void BM_ShadowStageOnDevice(benchmark::State& state) {
     if (counted) mapsDrawn += (double)stats.shadowMapsDrawn;
     if (stats.deviceTiming != DeviceTiming::Measured) return -1.0;
     for (const DeviceStage& each : stats.deviceStages)
-      if (each.stage == "colour.shadow") return each.ms;
+      if (each.stage == "colour.shadow") return each.milliseconds;
     return -1.0;
   };
   // The device raises its clocks over the first frames it is given.
@@ -527,13 +527,13 @@ void BM_ShadowStageOnDevice(benchmark::State& state) {
   }
   int64_t frames = 0;
   for ([[maybe_unused]] auto iteration : state) {
-    double ms = frameOnce(true);
+    double milliseconds = frameOnce(true);
     ++frames;
-    for (int k = 0; k < 12 && ms < 0.0; ++k) {
-      ms = frameOnce(true);
+    for (int k = 0; k < 12 && milliseconds < 0.0; ++k) {
+      milliseconds = frameOnce(true);
       ++frames;
     }
-    state.SetIterationTime(std::max(ms, 0.0) / 1000.0);
+    state.SetIterationTime(std::max(milliseconds, 0.0) / 1000.0);
   }
   state.counters["maps_drawn"] = frames ? mapsDrawn / (double)frames : 0.0;
 }
@@ -642,12 +642,12 @@ void BM_TintStageOnDevice(benchmark::State& state) {
     content.push_back(
         directionalLight({1, -1, 0.3f}, {.intensity = 3.0f, .castShadow = true})
             .key("sun"));
-    content.push_back(mesh(gm::quad(800, 800))
-                          .key("ground")
-                          .rotateX(-90)
-                          .fill(material::surface::program(
-                              {.baseColor = {0.8f, 0.8f, 0.8f, 1},
-                               .roughness = 1.0f})));
+    content.push_back(
+        mesh(gm::quad(800, 800))
+            .key("ground")
+            .rotateX(-90)
+            .fill(material::surface::program(
+                {.baseColor = {0.8f, 0.8f, 0.8f, 1}, .roughness = 1.0f})));
     for (int row = -1; row <= 1; ++row)
       for (int column = -1; column <= 1; ++column)
         content.push_back(
@@ -691,7 +691,7 @@ void BM_TintStageOnDevice(benchmark::State& state) {
     if (counted) tintsDrawn += (double)stats.shadowMapsDrawn;
     if (stats.deviceTiming != DeviceTiming::Measured) return -1.0;
     for (const DeviceStage& each : stats.deviceStages)
-      if (each.stage == "colour.tint") return each.ms;
+      if (each.stage == "colour.tint") return each.milliseconds;
     return -1.0;
   };
   // The device raises its clocks over the first frames it is given.
@@ -704,13 +704,13 @@ void BM_TintStageOnDevice(benchmark::State& state) {
   }
   int64_t frames = 0;
   for ([[maybe_unused]] auto iteration : state) {
-    double ms = frameOnce(true);
+    double milliseconds = frameOnce(true);
     ++frames;
-    for (int k = 0; k < 12 && ms < 0.0; ++k) {
-      ms = frameOnce(true);
+    for (int k = 0; k < 12 && milliseconds < 0.0; ++k) {
+      milliseconds = frameOnce(true);
       ++frames;
     }
-    state.SetIterationTime(std::max(ms, 0.0) / 1000.0);
+    state.SetIterationTime(std::max(milliseconds, 0.0) / 1000.0);
   }
   state.counters["tints_drawn"] = frames ? tintsDrawn / (double)frames : 0.0;
 }
@@ -779,9 +779,9 @@ void BM_ChainOnDevice(benchmark::State& state) {
     const measure::Stopwatch watch;
     gm::Cloud cooked = gm::pop::cook(chain, runtime);
     benchmark::DoNotOptimize(cooked);
-    const double ms = measure::Milliseconds(watch.elapsed()).count();
-    fastest = std::min(fastest, ms);
-    slowest = std::max(slowest, ms);
+    const double milliseconds = measure::Milliseconds(watch.elapsed()).count();
+    fastest = std::min(fastest, milliseconds);
+    slowest = std::max(slowest, milliseconds);
   }
   state.counters["points/s"] = benchmark::Counter(
       (double)state.range(0), benchmark::Counter::kIsIterationInvariantRate);

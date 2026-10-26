@@ -24,10 +24,10 @@ namespace sigil::compose {
  *  channel — and the difference between the slots is invisible to the
  *  author. */
 template <class Derived>
-void DecorationVerbs<Derived>::claimBorrows(const Decoration& d) {
-  if (d.borrows().empty()) return;
+void DecorationVerbs<Derived>::claimBorrows(const Decoration& decoration) {
+  if (decoration.borrows().empty()) return;
   detail::DeriveData& derive = declarations()->deriveData.ensure();
-  for (const std::string& key : d.borrows()) {
+  for (const std::string& key : decoration.borrows()) {
     derive.borrowedPathKeys.push_back(key);
     // A borrowed strand is the target's own outline, not its box.
     derive.reads.push_back({key, sigil::core::Facet::Outline});
@@ -49,31 +49,34 @@ void DecorationVerbs<Derived>::labelMark(int slot, size_t index,
 }
 
 template <class Derived>
-Derived& DecorationVerbs<Derived>::overlay(Decoration d, std::string name) {
-  claimBorrows(d);
+Derived& DecorationVerbs<Derived>::overlay(Decoration decoration,
+                                           std::string name) {
+  claimBorrows(decoration);
   detail::ElementNode* node = declarations();
   const size_t index = node->fxData.ensure().overlays.size();
-  node->fxData->overlays.push_back(std::move(d));
+  node->fxData->overlays.push_back(std::move(decoration));
   labelMark((int)detail::MarkSlot::Overlay, index, std::move(name));
   return self();
 }
 
 template <class Derived>
-Derived& DecorationVerbs<Derived>::background(Decoration d, std::string name) {
-  claimBorrows(d);
+Derived& DecorationVerbs<Derived>::background(Decoration decoration,
+                                              std::string name) {
+  claimBorrows(decoration);
   detail::ElementNode* node = declarations();
   const size_t index = node->backgrounds.size();
-  node->backgrounds.push_back(std::move(d));
+  node->backgrounds.push_back(std::move(decoration));
   labelMark((int)detail::MarkSlot::Background, index, std::move(name));
   return self();
 }
 
 template <class Derived>
-Derived& DecorationVerbs<Derived>::foreground(Decoration d, std::string name) {
-  claimBorrows(d);
+Derived& DecorationVerbs<Derived>::foreground(Decoration decoration,
+                                              std::string name) {
+  claimBorrows(decoration);
   detail::ElementNode* node = declarations();
   const size_t index = node->foregrounds.size();
-  node->foregrounds.push_back(std::move(d));
+  node->foregrounds.push_back(std::move(decoration));
   labelMark((int)detail::MarkSlot::Foreground, index, std::move(name));
   return self();
 }

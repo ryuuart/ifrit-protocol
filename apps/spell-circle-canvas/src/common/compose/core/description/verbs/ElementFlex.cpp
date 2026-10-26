@@ -43,26 +43,26 @@ Derived& FlexVerbs<Derived>::flexShrink(float f) {
 }
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::flexBasis(Dimension d) {
-  declarations()->fields.flexBasis() = d;
+Derived& FlexVerbs<Derived>::flexBasis(Dimension basis) {
+  declarations()->fields.flexBasis() = basis;
   return self();
 }
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::alignItems(Align a) {
-  declarations()->fields.alignItems() = a;
+Derived& FlexVerbs<Derived>::alignItems(Align alignment) {
+  declarations()->fields.alignItems() = alignment;
   return self();
 }
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::alignSelf(Align a) {
-  declarations()->fields.alignSelf() = a;
+Derived& FlexVerbs<Derived>::alignSelf(Align alignment) {
+  declarations()->fields.alignSelf() = alignment;
   return self();
 }
 
 template <class Derived>
-Derived& FlexVerbs<Derived>::justifyContent(Justify j) {
-  declarations()->fields.justifyContent() = j;
+Derived& FlexVerbs<Derived>::justifyContent(Justify justification) {
+  declarations()->fields.justifyContent() = justification;
   return self();
 }
 

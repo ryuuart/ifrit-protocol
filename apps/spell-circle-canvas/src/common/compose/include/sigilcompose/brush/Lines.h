@@ -65,7 +65,7 @@ namespace sigil::compose::lines {
  *  This dashes the path as a hairline stroke, which the effect accepts.
  *  Returns the input unchanged when the pattern is empty or the renderer
  *  declines. */
-geometry::path::Outline dashGeometry(const geometry::path::Outline& src,
+geometry::path::Outline dashGeometry(const geometry::path::Outline& outline,
                                      std::span<const float> intervals,
                                      float phase);
 
@@ -79,7 +79,7 @@ geometry::path::Outline dashGeometry(const geometry::path::Outline& src,
  *  CLAIMS runs on the element's real boundary and leaves the rest of it
  *  free, where this returns a path that replaces the shape. Reach for this
  *  when you want the geometry itself. */
-geometry::path::Outline cornerBrackets(const geometry::path::Outline& src,
+geometry::path::Outline cornerBrackets(const geometry::path::Outline& outline,
                                        float arm, float angleDegrees = 30.0f);
 
 /** The complement: a rule that STOPS SHORT of every corner, leaving @p gap
@@ -88,7 +88,7 @@ geometry::path::Outline cornerBrackets(const geometry::path::Outline& src,
  *
  *  `spans::edges(gap)` is the same scan claimed on an element's own
  *  boundary; see cornerBrackets above for when to prefer which. */
-geometry::path::Outline cornerGaps(const geometry::path::Outline& src,
+geometry::path::Outline cornerGaps(const geometry::path::Outline& outline,
                                    float gap, float angleDegrees = 30.0f);
 
 /** How a line run terminates (per contour end). Heads are FILLED with the

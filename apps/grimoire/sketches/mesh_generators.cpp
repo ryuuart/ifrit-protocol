@@ -107,7 +107,9 @@ constexpr float kLineupAt = -400.0f;
 constexpr float kRailAt = 470.0f;
 
 camera::Camera lens() {
-  return {.eye = {0, 520, 1000}, .target = {0, 0, 0}, .fovYDegrees = 34};
+  return {.eye = {0, 520, 1000},
+          .target = {0, 0, 0},
+          .verticalFieldOfViewDegrees = 34};
 }
 
 /** The steel every body is made of, in its own colour. */

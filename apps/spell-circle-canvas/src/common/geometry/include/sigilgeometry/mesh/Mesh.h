@@ -101,9 +101,9 @@ struct Mesh {
    *  tangents none, so a side that carried none reads its own off the
    *  uvs. */
   void append(const Mesh& other);
-  /** Transform positions by @p m, normals by its inverse transpose and
+  /** Transform positions by @p matrix, normals by its inverse transpose and
    *  tangents by its own turn, their handedness flipped by a mirror. */
-  void transform(const glm::mat4& m);
+  void transform(const glm::mat4& matrix);
   /** Recompute vertex normals as area-weighted triangle-normal sums. */
   void computeNormals();
   /** Fill the tangent lane from the uvs: at each vertex, the direction u
@@ -167,7 +167,7 @@ struct GridOptions {
   std::optional<TextureRectangle> textureRectangle;
 };
 
-/** Evaluate a parametric sheet on an nu x nv vertex grid. UVs are the
+/** Evaluate a parametric sheet on an columns x rows vertex grid. UVs are the
  *  (u,v) parameters unless @p options places the texture another way.
  *
  *  WHAT THE FORMULA ANSWERS DECIDES WHERE THE NORMALS COME FROM. A formula
@@ -182,12 +182,13 @@ struct GridOptions {
  *  column's neighbour — takes the sheet's limit there: the area-weighted
  *  sum of the triangles meeting the point it collapses onto, which at a
  *  revolved apex is the axis. */
-Mesh grid(int nu, int nv, const core::Callable<glm::vec3(float u, float v)>& fn,
+Mesh grid(int columns, int rows,
+          const core::Callable<glm::vec3(float u, float v)>& fn,
           const GridOptions& options = {});
 /** The same sheet from a formula answering the position and its normal
  *  together, which is taken at its word rather than differenced. */
 Mesh grid(
-    int nu, int nv,
+    int columns, int rows,
     const core::Callable<std::pair<glm::vec3, glm::vec3>(float u, float v)>& fn,
     const GridOptions& options = {});
 

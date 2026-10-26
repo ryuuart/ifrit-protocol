@@ -179,13 +179,13 @@ Contour::Nearest Contour::nearest(glm::vec2 point, float step) const {
 }
 
 std::vector<Contour::Corner> Contour::corners(float angleDegrees,
-                                              float minSpacing, float step,
+                                              float minimumSpacing, float step,
                                               float* sharpestDegrees) const {
   std::vector<Corner> corners;
   const float len = length();
   if (len <= 0) return corners;
   const SkContourMeasure& m = *ContourAccess::measure(*this);
-  const float cosThresh = std::cos(angleDegrees * kDegToRad);
+  const float cosThresh = std::cos(angleDegrees * kDegreesToRadians);
   const float stride = std::max(step, 0.25f);
   float sharpestDot = 1.0f;
   glm::vec2 prev{0, 0}, atStart{0, 0};
@@ -223,7 +223,7 @@ std::vector<Contour::Corner> Contour::corners(float angleDegrees,
           at = mid;
           return true;
         });
-        if (corners.empty() || at - corners.back().distance > minSpacing)
+        if (corners.empty() || at - corners.back().distance > minimumSpacing)
           corners.push_back({at, inTan, outTan});
       }
     }
@@ -234,7 +234,7 @@ std::vector<Contour::Corner> Contour::corners(float angleDegrees,
     const float cosine = dot(prev, atStart);
     sharpestDot = std::min(sharpestDot, cosine);
     if (cosine < cosThresh &&
-        (corners.empty() || corners.front().distance > minSpacing))
+        (corners.empty() || corners.front().distance > minimumSpacing))
       corners.insert(corners.begin(), {0.0f, prev, atStart});
   }
   if (sharpestDegrees)

@@ -52,15 +52,16 @@ bool readFrame(std::vector<StageClock::Mark>& marks,
   if (whole) {
     for (size_t i = 1; i < marks.size(); ++i) {
       if (marks[i].stage.empty()) continue;
-      const double ms = std::max(0.0, (seconds[i] - seconds[i - 1]) * 1000.0);
+      const double milliseconds =
+          std::max(0.0, (seconds[i] - seconds[i - 1]) * 1000.0);
       auto same = std::find_if(stages.begin(), stages.end(),
                                [&](const DeviceStage& stage) {
                                  return stage.stage == marks[i].stage;
                                });
       if (same == stages.end())
-        stages.push_back(DeviceStage{marks[i].stage, ms});
+        stages.push_back(DeviceStage{marks[i].stage, milliseconds});
       else
-        same->ms += ms;
+        same->milliseconds += milliseconds;
     }
   }
   for (StageClock::Mark& mark : marks) spare.push_back(std::move(mark.query));

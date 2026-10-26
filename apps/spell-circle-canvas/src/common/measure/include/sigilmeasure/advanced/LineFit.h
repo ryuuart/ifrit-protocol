@@ -17,8 +17,8 @@ namespace sigil::measure {
 
 /** A LINE FITTED BY LEAST SQUARES, and the residuals that say whether
  *  the claim it makes is worth printing. The slope and the intercept
- *  are the answer; `explained`, `maxResidual` and `rmsResidual` are what turns
- *  a drawn line into evidence. */
+ *  are the answer; `explained`, `maximumResidual` and `rootMeanSquareResidual`
+ * are what turns a drawn line into evidence. */
 template <std::floating_point T>
 struct LineFit {
   T slope = 0;
@@ -28,9 +28,9 @@ struct LineFit {
    *  value has no line to fit and answers 0 with a zero slope. */
   T explained = 0;
   /** The largest |y − (a + b·x)| over the points, in y's own units. */
-  T maxResidual = 0;
+  T maximumResidual = 0;
   /** The root mean square of the same residuals. */
-  T rmsResidual = 0;
+  T rootMeanSquareResidual = 0;
   size_t samples = 0;
 
   /** HOW STRONGLY THE TWO RUN TOGETHER, -1 to 1: the square root of
@@ -79,9 +79,9 @@ template <std::floating_point T>
     for (size_t index = 0; index < count; ++index) {
       const T residual = ys[index] - fit.intercept;
       squaredResiduals += residual * residual;
-      fit.maxResidual = std::max(fit.maxResidual, std::abs(residual));
+      fit.maximumResidual = std::max(fit.maximumResidual, std::abs(residual));
     }
-    fit.rmsResidual = std::sqrt(squaredResiduals / (T)count);
+    fit.rootMeanSquareResidual = std::sqrt(squaredResiduals / (T)count);
     return fit;
   }
   fit.slope = spreadXY / spreadX;
@@ -92,12 +92,13 @@ template <std::floating_point T>
     const T residual = ys[index] - fit.at(xs[index]);
     squaredResiduals += residual * residual;
     squaredSpread += (ys[index] - meanY) * (ys[index] - meanY);
-    fit.maxResidual = std::max(fit.maxResidual, std::abs(residual));
+    fit.maximumResidual = std::max(fit.maximumResidual, std::abs(residual));
   }
-  fit.rmsResidual = std::sqrt(squaredResiduals / (T)count);
+  fit.rootMeanSquareResidual = std::sqrt(squaredResiduals / (T)count);
   // A run that is already one value has no variance to explain, and the
   // fit through it is exact — which reads as 1 rather than as 0/0.
-  fit.explained = squaredSpread > 0 ? (T)1 - squaredResiduals / squaredSpread : (T)1;
+  fit.explained =
+      squaredSpread > 0 ? (T)1 - squaredResiduals / squaredSpread : (T)1;
   return fit;
 }
 

@@ -9,9 +9,9 @@
 
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Operations.h"
-#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::shapes {
 
@@ -24,7 +24,7 @@ std::vector<path::LatticeMark> passes(std::span<const path::Polyline> rings,
                                .angle = hatch.angle,
                                .taper = hatch.taper,
                                .origin = hatch.origin,
-                               .maxLines = hatch.maxLines};
+                               .maximumLines = hatch.maximumLines};
   std::vector<path::LatticeMark> marks = path::lattice(rings, options);
   if (hatch.cross) {
     options.angle = hatch.angle + path::kTau * 0.25f;

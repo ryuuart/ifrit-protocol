@@ -100,8 +100,8 @@ struct CountingBake : BakeOperations<FakeNode> {
   [[nodiscard]] bool held(const FakeNode& n) const override {
     return n.artefact >= 0;
   }
-  bool operator==(const CountingBake& o) const {
-    return counters == o.counters;
+  bool operator==(const CountingBake& other) const {
+    return counters == other.counters;
   }
 };
 

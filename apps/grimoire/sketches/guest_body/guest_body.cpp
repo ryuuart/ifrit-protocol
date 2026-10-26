@@ -160,7 +160,7 @@ struct GuestBody {
     gm::camera::Camera lens;
     lens.eye = kEye;
     lens.target = {0.0f, 6.0f, 0.0f};
-    lens.fovYDegrees = 40.0f;
+    lens.verticalFieldOfViewDegrees = 40.0f;
     ctx.camera(lens);
 
     guest = std::make_shared<sketch::Guest>(ctx, kPublication, kApplication);

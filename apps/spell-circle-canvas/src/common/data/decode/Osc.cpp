@@ -154,7 +154,7 @@ std::optional<Json::Array> argumentsFrom(std::span<const std::byte> message,
     Json value;
     switch (tag) {
       case '[':
-        if (open.size() > static_cast<size_t>(maxOscBundleDepth))
+        if (open.size() > static_cast<size_t>(maximumOscBundleDepth))
           return std::nullopt;
         open.emplace_back();
         continue;
@@ -257,7 +257,7 @@ std::optional<Json> messageFrom(std::span<const std::byte> message) {
  *  nested inside it. @p depth is how many bundles stand above this one.
  */
 std::optional<Json> bundleFrom(std::span<const std::byte> bundle, int depth) {
-  if (depth >= maxOscBundleDepth) return std::nullopt;
+  if (depth >= maximumOscBundleDepth) return std::nullopt;
   size_t at = 0;
   const std::optional<std::string_view> mark = stringAt(bundle, at);
   if (!mark || *mark != bundleMark) return std::nullopt;
@@ -366,7 +366,7 @@ void writeRecord(const Json& record, std::string& tags,
  *  at all rather than a packet with its innermost list dropped. */
 bool writeArguments(std::span<const Json> arguments, int depth,
                     std::string& tags, std::vector<std::byte>& content) {
-  if (depth >= maxOscBundleDepth) return false;
+  if (depth >= maximumOscBundleDepth) return false;
   for (const Json& argument : arguments) {
     switch (argument.kind()) {
       case Json::Kind::Null:
@@ -426,7 +426,7 @@ std::vector<std::byte> wire::writeOsc(std::string_view address,
 
   const size_t size =
       paddedLength(address.size()) + paddedLength(tags.size()) + content.size();
-  if (size > maxOscPacketBytes) return {};
+  if (size > maximumOscPacketBytes) return {};
   std::vector<std::byte> packet;
   packet.reserve(size);
   appendString(packet, address);

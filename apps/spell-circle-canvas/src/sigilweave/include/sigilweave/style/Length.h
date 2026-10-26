@@ -45,7 +45,7 @@ struct Length {
   constexpr Length() = default;
   /** Pixels, implicitly: a plain number IS a length, so a call site that
    *  writes `13` needs no suffix and no cast. */
-  constexpr Length(float px) : value(px) {}
+  constexpr Length(float pixels) : value(pixels) {}
   /** A value in a named unit; `em()`, `rem()` and `lh()` spell the three
    *  relative ones more readably than the enumerator does. */
   constexpr Length(float amount, Unit in) : value(amount), unit(in) {}

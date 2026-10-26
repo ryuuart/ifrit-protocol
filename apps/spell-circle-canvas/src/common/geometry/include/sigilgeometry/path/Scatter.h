@@ -139,13 +139,13 @@ struct Distribution {
   int relaxIterations = 0;
   /** A BOUND, not a preference: a density over a large region would
    *  otherwise answer with a vector nobody asked the size of. */
-  int maxPoints = 1000000;
+  int maximumPoints = 1000000;
 
   friend bool operator==(const Distribution&, const Distribution&) = default;
 };
 
 /** THE POINTS. In the region's own coordinates, in the order they were
- *  placed. An empty region, a non-positive amount or a `maxPoints` of
+ *  placed. An empty region, a non-positive amount or a `maximumPoints` of
  *  zero all answer nothing. */
 [[nodiscard]] std::vector<glm::vec2> sample(const Region& region,
                                             const Distribution& distribution);

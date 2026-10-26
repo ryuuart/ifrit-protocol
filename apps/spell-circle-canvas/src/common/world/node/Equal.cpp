@@ -63,8 +63,8 @@ static_assert(core::kFieldCount<geometry::mesh::camera::Camera> == 6,
 bool lensEqual(const geometry::mesh::camera::Camera& a,
                const geometry::mesh::camera::Camera& b) {
   return a.eye == b.eye && a.target == b.target && a.up == b.up &&
-         a.fovYDegrees == b.fovYDegrees && a.nearPlane == b.nearPlane &&
-         a.farPlane == b.farPlane;
+         a.verticalFieldOfViewDegrees == b.verticalFieldOfViewDegrees &&
+         a.nearPlane == b.nearPlane && a.farPlane == b.farPlane;
 }
 
 static_assert(core::kFieldCount<CameraDescription> == 3,

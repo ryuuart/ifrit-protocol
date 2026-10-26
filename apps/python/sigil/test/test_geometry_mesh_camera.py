@@ -147,15 +147,19 @@ class Standpoint(unittest.TestCase):
             self.assertAlmostEqual(again.eye[index], lens.eye[index], delta=0.01)
         self.assertEqual(again.target, lens.target)
         self.assertEqual(again.up, lens.up)
-        self.assertEqual(again.fovYDegrees, lens.fovYDegrees)
+        self.assertEqual(
+            again.verticalFieldOfViewDegrees, lens.verticalFieldOfViewDegrees
+        )
 
     def test_a_camera_is_built_from_keywords_and_compares_by_value(self):
-        lens = camera.Camera(eye=(0, 10, 300), fovYDegrees=30)
+        lens = camera.Camera(eye=(0, 10, 300), verticalFieldOfViewDegrees=30)
         self.assertEqual(lens.eye, (0, 10, 300))
-        self.assertEqual(lens.fovYDegrees, 30)
+        self.assertEqual(lens.verticalFieldOfViewDegrees, 30)
         self.assertEqual(lens.target, camera.Camera().target)
         self.assertNotEqual(lens, camera.Camera())
-        self.assertEqual(lens, camera.Camera(eye=(0, 10, 300), fovYDegrees=30))
+        self.assertEqual(
+            lens, camera.Camera(eye=(0, 10, 300), verticalFieldOfViewDegrees=30)
+        )
         with self.assertRaises(TypeError):
             camera.Camera(elevation=3)
 

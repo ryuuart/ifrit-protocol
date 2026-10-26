@@ -91,8 +91,8 @@ Solid solid(float width, Fill fill,
 struct Strand {
   StrandPath path;
   Decoration brush;
-  bool operator==(const Strand& o) const {
-    return path == o.path && brush == o.brush;
+  bool operator==(const Strand& other) const {
+    return path == other.path && brush == other.brush;
   }
 };
 
@@ -173,8 +173,9 @@ struct Weave {
   std::shared_ptr<CrossingCache> crossingCache =
       std::make_shared<CrossingCache>();
 
-  bool operator==(const Weave& o) const {
-    return strands == o.strands && crossing == o.crossing && patch == o.patch;
+  bool operator==(const Weave& other) const {
+    return strands == other.strands && crossing == other.crossing &&
+           patch == other.patch;
   }
   bool isRunning() const {
     for (const Strand& s : strands)
@@ -271,8 +272,8 @@ struct Brush {
   struct Layer {
     Decoration decoration;
     std::vector<geometry::path::Shaper> shapers;
-    bool operator==(const Layer& o) const {
-      return decoration == o.decoration && shapers == o.shapers;
+    bool operator==(const Layer& other) const {
+      return decoration == other.decoration && shapers == other.shapers;
     }
   };
 
@@ -283,8 +284,8 @@ struct Brush {
    *  value with `Outline shape(const Outline &) const`; the stock ones
    *  (`geometry::shapes::wave/jitter/offset`) are peers of anything you
    *  write, which is why there is no shorthand for them here. */
-  Brush& shaped(geometry::path::Shaper s) {
-    pipeline.push_back(std::move(s));
+  Brush& shaped(geometry::path::Shaper shaper) {
+    pipeline.push_back(std::move(shaper));
     return *this;
   }
   /** One mark in the stack, bottom-up, with an optional shaper SUFFIX that
@@ -294,13 +295,14 @@ struct Brush {
    *  For a raw incomparable lambda, wrap this layer's decoration in
    *  `brush::restyle(operation, decoration)` instead — the one mechanism door,
    * at the cost of pruning. */
-  Brush& layer(Decoration d, std::vector<geometry::path::Shaper> suffix = {}) {
-    layers.push_back(Layer{std::move(d), std::move(suffix)});
+  Brush& layer(Decoration decoration,
+               std::vector<geometry::path::Shaper> suffix = {}) {
+    layers.push_back(Layer{std::move(decoration), std::move(suffix)});
     return *this;
   }
 
-  bool operator==(const Brush& o) const {
-    return pipeline == o.pipeline && layers == o.layers;
+  bool operator==(const Brush& other) const {
+    return pipeline == other.pipeline && layers == other.layers;
   }
   bool isRunning() const {
     for (const Layer& l : layers)

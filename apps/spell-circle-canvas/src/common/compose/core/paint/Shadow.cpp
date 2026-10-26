@@ -37,8 +37,8 @@ float Shadow::bleed() const {
     extent = std::max({-bounds.left(), -bounds.top(), bounds.right() - 1,
                        bounds.bottom() - 1});
   }
-  return std::max({std::abs(offset.x), std::abs(offset.y), maxBind}) + extent +
-         std::max(spread, 0.0f);
+  return std::max({std::abs(offset.x), std::abs(offset.y), maximumBind}) +
+         extent + std::max(spread, 0.0f);
 }
 
 namespace {

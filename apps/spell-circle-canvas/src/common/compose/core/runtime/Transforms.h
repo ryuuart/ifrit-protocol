@@ -180,7 +180,7 @@ inline SkRect projectRect(const SkMatrix& flat, const SkRect& local) {
  *  horizon (w ≤ 0) have no finite local scale and are skipped; if every
  *  sample is degenerate the diagonal stands, bounded by the callers'
  *  clamps. */
-inline float maxScaleOf(const SkMatrix& m, const SkRect& local) {
+inline float maximumScaleOf(const SkMatrix& m, const SkRect& local) {
   SkScalar s[2];
   if (m.getMinMaxScales(s) && s[1] > 0) return s[1];
   if (m.hasPerspective()) {

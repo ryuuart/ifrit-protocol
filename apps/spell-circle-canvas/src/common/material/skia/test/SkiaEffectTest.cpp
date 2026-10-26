@@ -430,13 +430,14 @@ TEST(SkiaEffect, ARawProgramStatesItsSamplingReachAsARecipeDoes) {
   // The raw program door takes a reach as `Filter::of` does: a program
   // that declares "_sampleRadius" reads the reach it was given, and a
   // reach that is no distance answers no filter.
-  auto [program, error] = SkRuntimeEffect::MakeForShader(SkString(
-      "uniform float _sampleRadius; uniform shader content; "
-      "half4 main(float2 p) { return half4(_sampleRadius, 0, 0, "
-      "content.eval(p).a); }"));
+  auto [program, error] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float _sampleRadius; uniform shader content; "
+               "half4 main(float2 p) { return half4(_sampleRadius, 0, 0, "
+               "content.eval(p).a); }"));
   ASSERT_TRUE(program) << error.c_str();
-  expectFilterCenter(skia::resolvedImageFilter(skia::program(program, {}, .75f)),
-                     {.75f, 0, 0, 1});
+  expectFilterCenter(
+      skia::resolvedImageFilter(skia::program(program, {}, .75f)),
+      {.75f, 0, 0, 1});
   expectFilterCenter(skia::resolvedImageFilter(skia::program(program, {})),
                      {0, 0, 0, 1});
   testing::internal::CaptureStderr();
@@ -569,7 +570,7 @@ TEST(SkiaEffect, ConstantBlurBindingsJoinEquality) {
     const auto make = [&](float sigma) {
       Filter filter = parametric ? Filter::blur(Paint::solid({1, 1, 1, 1}), 8)
                                  : Filter::directionalBlur(8, 0);
-      filter.bind(parametric ? "maxSigma" : "sigma", sigma);
+      filter.bind(parametric ? "maximumSigma" : "sigma", sigma);
       return filter;
     };
     const Filter low = make(2);

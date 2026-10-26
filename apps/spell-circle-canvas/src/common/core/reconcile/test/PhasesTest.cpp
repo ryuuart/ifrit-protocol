@@ -46,9 +46,9 @@ struct Layout {
       {"routes", &Layout::routes, true},
       {"sync", &Layout::sync, false},
   };
-  int run(int maxRounds) {
-    return runPhases(*this, std::span<const Phase<Layout>>(phases), maxRounds,
-                     [this] { settle(); });
+  int run(int maximumRounds) {
+    return runPhases(*this, std::span<const Phase<Layout>>(phases),
+                     maximumRounds, [this] { settle(); });
   }
 };
 

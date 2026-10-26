@@ -21,6 +21,6 @@ namespace sigil::geometry::path {
  *  A field rather than a mixer: it is read at a POSITION, and points
  *  near each other read near values, which is what a displacement wants
  *  and a per-index jitter does not. */
-float valueNoise(glm::vec3 p, uint32_t seed);
+float valueNoise(glm::vec3 point, uint32_t seed);
 
 }  // namespace sigil::geometry::path

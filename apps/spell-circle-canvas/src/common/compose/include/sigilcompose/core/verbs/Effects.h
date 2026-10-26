@@ -23,7 +23,7 @@ class EffectVerbs {
  public:
   /** HOW OPAQUE THE WHOLE NODE IS, 0 clear to 1 solid, multiplying
    *  everything it and its children paint. 1 when unstated. */
-  Derived& opacity(motion::Animatable<float> o);
+  Derived& opacity(motion::Animatable<float> amount);
   /** HOW THE NODE'S PAINT COMBINES with what is already beneath it —
    *  CSS `mix-blend-mode`, over any of the material's blend modes.
    *  `BlendMode::Normal` when unstated. */
@@ -31,14 +31,14 @@ class EffectVerbs {
   /** POST-PROCESSES THIS NODE'S RENDERED LAYER, its subtree included —
    *  CSS `filter`. None when unstated. Baked once under
    *  `Cache::Texture`. */
-  Derived& filter(material::Filter e);
+  Derived& filter(material::Filter effect);
   /** Filters what is already painted beneath this node's bounds before
    *  the node paints — CSS `backdrop-filter`. Incompatible with
    *  `Cache::Texture`, since the backdrop depends on the live
    *  destination; such nodes fall back to picture caching. Where the
    *  host holds its ground (`Composer::setGroundHeld`), the filtered
    *  pixels are kept and copied back while nothing beneath changes. */
-  Derived& backdropFilter(material::Filter e);
+  Derived& backdropFilter(material::Filter effect);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

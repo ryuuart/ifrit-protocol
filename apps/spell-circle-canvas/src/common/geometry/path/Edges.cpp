@@ -3,7 +3,6 @@
  * where the edge they face changes, and the concentric copy.
  */
 
-#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Edges.h"
 
 #include <include/core/SkContourMeasure.h>
@@ -16,6 +15,7 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Operations.h"
 
@@ -73,12 +73,11 @@ SkPath edges(const SkPath& outline, Edge mask, float step) {
   return out.detach();
 }
 
-SkPath insetOutline(const SkPath& outline, float px) {
+SkPath insetOutline(const SkPath& outline, float pixels) {
   // The mitred, butt-capped offset with the sign the other way round:
-  // positive px shrinks. The arithmetic is the operator's.
-  return operations::offset(
-      outline, -px,
-      {.join = Join::Miter, .cap = Cap::Butt});
+  // positive pixels shrinks. The arithmetic is the operator's.
+  return operations::offset(outline, -pixels,
+                            {.join = Join::Miter, .cap = Cap::Butt});
 }
 
 std::vector<glm::vec2> insetPolygon(std::span<const glm::vec2> polygon,
@@ -134,8 +133,8 @@ Outline edges(const Outline& outline, Edge mask, float step) {
   return fromSk(edges(toSk(outline), mask, step));
 }
 
-Outline insetOutline(const Outline& outline, float px) {
-  return fromSk(insetOutline(toSk(outline), px));
+Outline insetOutline(const Outline& outline, float pixels) {
+  return fromSk(insetOutline(toSk(outline), pixels));
 }
 
 }  // namespace sigil::geometry::path

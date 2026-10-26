@@ -257,12 +257,12 @@ void bindWeave(py::module_& module) {
                      &JustificationOptions::lastLineAlignment)
       .def_readwrite("justifyLastLine", &JustificationOptions::justifyLastLine)
       .def_readwrite("method", &JustificationOptions::method)
-      .def_readwrite("maxInterCharacterExpansion",
-                     &JustificationOptions::maxInterCharacterExpansion)
+      .def_readwrite("maximumInterCharacterExpansion",
+                     &JustificationOptions::maximumInterCharacterExpansion)
       .def_readwrite("expandIdeographicGaps",
                      &JustificationOptions::expandIdeographicGaps)
-      .def_readwrite("maxIdeographicExpansion",
-                     &JustificationOptions::maxIdeographicExpansion)
+      .def_readwrite("maximumIdeographicExpansion",
+                     &JustificationOptions::maximumIdeographicExpansion)
       .def_readwrite("wordSpacing", &JustificationOptions::wordSpacing)
       .def_readwrite("spaceStretch", &JustificationOptions::spaceStretch)
       .def_readwrite("spaceShrink", &JustificationOptions::spaceShrink)

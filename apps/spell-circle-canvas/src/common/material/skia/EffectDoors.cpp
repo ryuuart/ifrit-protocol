@@ -121,10 +121,10 @@ Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
     return *this;
   }
   if (m_parametricBlur) {
-    if (name != "maxSigma") {
+    if (name != "maximumSigma") {
       SkDebugf(
           "[material] Filter::bind(\"%s\") on a Filter::blur(map, …) — its one "
-          "parameter is \"maxSigma\" (the MAP is slot(\"sigma\", "
+          "parameter is \"maximumSigma\" (the MAP is slot(\"sigma\", "
           "Paint)); ignored\n",
           name.c_str());
       return *this;

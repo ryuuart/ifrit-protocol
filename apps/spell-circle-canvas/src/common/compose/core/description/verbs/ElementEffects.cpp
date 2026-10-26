@@ -26,8 +26,8 @@ void warnCoverageIsAMaterialsEffect(const material::Filter& filter) {
 }  // namespace
 
 template <class Derived>
-Derived& EffectVerbs<Derived>::opacity(motion::Animatable<float> o) {
-  declarations()->fields.opacity() = std::move(o);
+Derived& EffectVerbs<Derived>::opacity(motion::Animatable<float> amount) {
+  declarations()->fields.opacity() = std::move(amount);
   return self();
 }
 
@@ -38,15 +38,15 @@ Derived& EffectVerbs<Derived>::blendMode(material::BlendMode mode) {
 }
 
 template <class Derived>
-Derived& EffectVerbs<Derived>::filter(material::Filter e) {
-  warnCoverageIsAMaterialsEffect(e);
-  declarations()->fxData.ensure().layerEffect = std::move(e);
+Derived& EffectVerbs<Derived>::filter(material::Filter effect) {
+  warnCoverageIsAMaterialsEffect(effect);
+  declarations()->fxData.ensure().layerEffect = std::move(effect);
   return self();
 }
 
 template <class Derived>
-Derived& EffectVerbs<Derived>::backdropFilter(material::Filter e) {
-  declarations()->fxData.ensure().backdropEffect = std::move(e);
+Derived& EffectVerbs<Derived>::backdropFilter(material::Filter effect) {
+  declarations()->fxData.ensure().backdropEffect = std::move(effect);
   return self();
 }
 

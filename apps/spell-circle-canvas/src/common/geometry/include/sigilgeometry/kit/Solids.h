@@ -252,16 +252,17 @@ struct PlatonicOptions {
 Mesh platonic(Platonic solid, const PlatonicOptions& options = {});
 
 /** Torus around +y: major radius R in xz, tube radius r. */
-Mesh torus(float R, float r, int nu = 64, int nv = 32);
+Mesh torus(float R, float r, int columns = 64, int rows = 32);
 
 /** Superellipsoid (exponent 2 = sphere, higher = rounded box). */
-Mesh superellipsoid(glm::vec3 radii, float exponent, int nu = 48, int nv = 32);
+Mesh superellipsoid(glm::vec3 radii, float exponent, int columns = 48,
+                    int rows = 32);
 
 /** A width x height panel curved around a vertical cylinder of
  *  @p radius (0 or infinite radius = flat), facing +z, centered at the
  *  origin. The natural diegetic-UI surface. */
-Mesh cylinderPanel(float width, float height, float radius, int nu = 32,
-                   int nv = 8);
+Mesh cylinderPanel(float width, float height, float radius, int columns = 32,
+                   int rows = 8);
 
 }  // namespace sigil::geometry::mesh
 

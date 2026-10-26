@@ -9,11 +9,11 @@
  * in.
  */
 
-#include <glm/vec2.hpp>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilgeometry/path/Outline.h>
 
+#include <glm/vec2.hpp>
 #include <string_view>
 
 namespace sigil::compose {
@@ -49,18 +49,18 @@ class PlacementVerbs {
   /** The same insets, per side, each side saying which it is. A side
    *  left unnamed is unpinned. */
   Derived& inset(Edges edges);
-  /** Pin the node's LEFT edge @p d inside the parent's. The unpinned
+  /** Pin the node's LEFT edge @p length inside the parent's. The unpinned
    *  sides stay auto, which is what makes `.top(12).right(12)` a corner
    *  badge rather than a stretch. */
-  Derived& left(Dimension d);
-  /** Pin the node's TOP edge @p d below the parent's. */
-  Derived& top(Dimension d);
-  /** Pin the node's RIGHT edge @p d inside the parent's. Pinning left
+  Derived& left(Dimension length);
+  /** Pin the node's TOP edge @p length below the parent's. */
+  Derived& top(Dimension length);
+  /** Pin the node's RIGHT edge @p length inside the parent's. Pinning left
    *  and right both stretches the node between them. */
-  Derived& right(Dimension d);
-  /** Pin the node's BOTTOM edge @p d above the parent's. Pinning top
+  Derived& right(Dimension length);
+  /** Pin the node's BOTTOM edge @p length above the parent's. Pinning top
    *  and bottom both stretches the node between them. */
-  Derived& bottom(Dimension d);
+  Derived& bottom(Dimension length);
   /** CENTRE this node ON a parent-space point, resolved after
    *  measurement so an intrinsic-size node centres correctly. */
   Derived& centerAt(glm::vec2 point);

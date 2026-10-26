@@ -98,7 +98,7 @@ sound model; nothing below them changes kernel semantics.
   operator is handed — every settled node's key, facts, classes, bounds
   and outline, `find`, `having` and `withClass` to reach them, and
   `attach` on the scope or on a node to answer with; and
-  `ReadsChildMinSizes`, the opt-in that fills each child's content
+  `ReadsChildMinimumSizes`, the opt-in that fills each child's content
   minimum.
 - `core/Var.h` — `VarRef`, the reference a custom property's name
   interns to, with `var` to make one and `varName` to read it back.
@@ -410,8 +410,8 @@ placed width remeasures horizontal text before its content-sized rows settle;
 the placed depth does the same for vertical text and content-sized columns.
 The scheme does not re-describe children or infer a smaller intrinsic size
 for a box. The minimum is
-filled only for a scheme that declares `readsChildMinSizes` — the concept
-`ReadsChildMinSizes` — because the text minimum costs a measure per
+filled only for a scheme that declares `readsChildMinimumSizes` — the concept
+`ReadsChildMinimumSizes` — because the text minimum costs a measure per
 child. THE ONE THING A CONTENT TRACK NEEDS FROM ITS CONTAINER is that the
 container range its children at their own size: a container that stretches
 them measures every one at its own width, so the track would be sized by
@@ -454,7 +454,7 @@ which is what puts every column of a real page on a fractional pixel.
 A column is solved BETWEEN TWO WIDTHS and not from one. What its content
 wants is the widest thing in it; what its content needs is the narrowest
 that thing goes without spilling, which is `Arrangement::Child::minimumSize`
-and is why the scheme declares `readsChildMinSizes`. Given less room than
+and is why the scheme declares `readsChildMinimumSizes`. Given less room than
 the columns want, each gives up the same fraction of the distance between
 its two widths, so a column with nothing to give up gives nothing;
 narrower still and they stand at what they need and the table overflows,
@@ -790,7 +790,7 @@ repaints from nothing every frame, `graphics` keeps what earlier frames
 drew, which is what makes a trail, an accumulation and a picture drawn
 once possible. p5's loop words are therefore live on that program's own
 pen: `noLoop()` stops running it while the surface goes on being put
-down, `redraw()` runs it once more, `frameRate(fps)` runs it at most that
+down, `redraw()` runs it once more, `frameRate(framesPerSecond)` runs it at most that
 often. And `compose::paintRetained` is where the pen's `element(...)`
 lands, an `Element` painted inside an imperative loop and RETAINED —
 reconciled against what the composer kept for that call site, so its

@@ -202,7 +202,8 @@ inline RadialHatch concentric(Fill fill, std::vector<float> radiiPx,
 
 namespace kit {
 
-/** A BRAID: `n` wave strands at phase k/n, all sharing one brush.
+/** A BRAID: `strands` wave strands, each at its own share of the phase, all
+ * sharing one brush.
  *
  *  Crossings by CONSTRUCTION: n oscillations of equal amplitude and
  *  wavelength at evenly spread phases must trade sides, and where they
@@ -213,11 +214,11 @@ namespace kit {
  *  Pair it with a crossing rule to say who passes over whom:
  *  `crossing::alternate()` for a plain weave, `crossing::pairs(...)` with
  *  a cycle for an impossible braid. */
-inline std::vector<brush::Strand> braid(int n, float amplitude,
+inline std::vector<brush::Strand> braid(int strands, float amplitude,
                                         float wavelength,
                                         const Decoration& ink) {
   std::vector<brush::Strand> out;
-  const int count = std::max(1, n);
+  const int count = std::max(1, strands);
   out.reserve((size_t)count);
   for (int k = 0; k < count; ++k)
     out.push_back(brush::Strand{geometry::path::Profile(geometry::shapers::Wave{

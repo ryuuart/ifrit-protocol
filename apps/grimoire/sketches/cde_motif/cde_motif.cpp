@@ -110,8 +110,8 @@ struct CdeMotifSketch {
           .children({std::move(glyph)});
     };
     Element menuGlyph = box().width(12).height(4).fill(var("foreground"));
-    Element minGlyph = box().width(5).height(5).fill(var("foreground"));
-    Element maxGlyph = box().width(11).height(11).overlay(cde::bevelFg(1));
+    Element minimizeGlyph = box().width(5).height(5).fill(var("foreground"));
+    Element maximizeGlyph = box().width(11).height(11).overlay(cde::bevelFg(1));
     return cde::surface()
         .height(23)
         .overlay(cde::bevel(1, false, false))
@@ -123,8 +123,8 @@ struct CdeMotifSketch {
                        .flexGrow(1)
 
                        .children({cde::label(t)}),
-                   furniture(std::move(minGlyph)), box().width(2),
-                   furniture(std::move(maxGlyph))});
+                   furniture(std::move(minimizeGlyph)), box().width(2),
+                   furniture(std::move(maximizeGlyph))});
   }
 
   /** The 31 px menu bar [MEAS], in colour set 6, with Motif's mnemonic

@@ -335,10 +335,10 @@ const SceneStats& timedUntilRead(Scene& scene, Frame& frame,
     const auto began = std::chrono::steady_clock::now();
     scene.render(frame);
     draw(scene, canvas);
-    const double ms = std::chrono::duration<double, std::milli>(
-                          std::chrono::steady_clock::now() - began)
-                          .count();
-    *longestMilliseconds = std::max(*longestMilliseconds, ms);
+    const double milliseconds = std::chrono::duration<double, std::milli>(
+                                    std::chrono::steady_clock::now() - began)
+                                    .count();
+    *longestMilliseconds = std::max(*longestMilliseconds, milliseconds);
     if (scene.stats().deviceTiming != DeviceTiming::Pending) break;
   }
   return scene.stats();
@@ -375,7 +375,7 @@ TEST(PostChain, ATimedFrameNamesEveryStageAndTheyFitInsideTheFrame) {
   EXPECT_TRUE(hasStage(stats, "soft"));
   EXPECT_TRUE(hasStage(stats, "readback"));
   for (const DeviceStage& stage : stats.deviceStages)
-    EXPECT_GE(stage.ms, 0.0) << stage.stage;
+    EXPECT_GE(stage.milliseconds, 0.0) << stage.stage;
   EXPECT_GE(stats.deviceStagesFrame, 0);
   // THE STAGES ARE THE FRAME: together more than nothing, and no more
   // than the longest frame took on the host, which waited for the device
@@ -519,7 +519,8 @@ TEST(PostChain, TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn) {
       const SceneStats stats = timedUntilRead(scene, frame, &longest);
       measured = measured || stats.deviceTiming == DeviceTiming::Measured;
       for (const DeviceStage& stage : stats.deviceStages)
-        if (stage.stage == "colour.laid") least = std::min(least, stage.ms);
+        if (stage.stage == "colour.laid")
+          least = std::min(least, stage.milliseconds);
     }
     return measured ? least : -1.0;
   };
@@ -587,7 +588,7 @@ TEST(PostChain, TheSeenPhaseOfAPaneCostsASmallMultipleOfALaidCard) {
       const SceneStats stats = timedUntilRead(scene, frame, &longest);
       measured = measured || stats.deviceTiming == DeviceTiming::Measured;
       for (const DeviceStage& each : stats.deviceStages)
-        if (each.stage == stage) least = std::min(least, each.ms);
+        if (each.stage == stage) least = std::min(least, each.milliseconds);
     }
     return measured ? least : -1.0;
   };

@@ -136,7 +136,7 @@ struct ThumbnailRun {
    *  just put there. */
   std::string stem;
   /** The still's larger side in pixels. */
-  int maxDimension = kThumbnailWidth;
+  int maximumDimension = kThumbnailWidth;
   /** How long the frame walk may take. Zero waits for the walk however
    *  long it is. */
   std::chrono::milliseconds budget = kThumbnailBudget;
@@ -160,7 +160,7 @@ struct ThumbnailRun {
  *  It opens the sketch's kind, steps it from zero at the sweep's own
  *  fixed rate to its declared moment (or the sweep's derived default when
  *  it names none), takes the still the plate tier takes, and scales it so
- *  its larger side is `run.maxDimension` pixels before encoding a PNG.
+ *  its larger side is `run.maximumDimension` pixels before encoding a PNG.
  *  CPU ONLY, whatever the process holds — it allocates a raster surface
  *  and never a device one, and it opens the kind on empty runtimes rather
  *  than on the ones a host installed, so it can run on a worker that

@@ -6,9 +6,9 @@
  * The image leaf's own verb: which part of its source it draws.
  */
 
-#include <sigilgeometry/path/Outline.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/verbs/Node.h>
+#include <sigilgeometry/path/Outline.h>
 
 #include <memory>
 #include <utility>
@@ -42,8 +42,8 @@ class Image : public detail::Declaring,
               public ImageVerbs<Image> {
  public:
   /** @private the factories' door */
-  explicit Image(std::shared_ptr<detail::ElementNode> n)
-      : detail::Declaring(std::move(n)) {}
+  explicit Image(std::shared_ptr<detail::ElementNode> node)
+      : detail::Declaring(std::move(node)) {}
 
   operator Element() const;  // NOLINT: implicit by design (a leaf is a node)
 

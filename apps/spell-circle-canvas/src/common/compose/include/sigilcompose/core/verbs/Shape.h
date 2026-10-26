@@ -26,9 +26,10 @@ class ShapeVerbs {
   /** ROUND THE NODE'S CORNERS, per corner — CSS `border-radius`, each
    *  radius any length `Corners` holds: pixels when bare, `1_em`, or a
    *  `percent` of the node's own box. Square when unstated, and
-   *  overridden outright by `shape()`. It is the cheap path: a rounded box clips and strokes
-   *  as a round rect where a general shape has to build a path. */
-  Derived& borderRadius(Corners c);
+   *  overridden outright by `shape()`. It is the cheap path: a rounded box
+   * clips and strokes as a round rect where a general shape has to build a
+   * path. */
+  Derived& borderRadius(Corners corners);
   /** THE NODE'S SHAPE: a path generator over its laid-out size, in
    *  local coordinates. Overrides `borderRadius()`. Every `shapes::`
    *  generator is a comparable value, so a shaped node prunes exactly

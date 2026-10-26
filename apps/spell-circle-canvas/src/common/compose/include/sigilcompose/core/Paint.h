@@ -118,10 +118,10 @@ struct Fill {
    *  and surface response. */
   static Fill fromMaterial(const material::Material& material);
 
-  static Fill color(material::Color c) {
+  static Fill color(material::Color colour) {
     Fill f;
     f.kind = Kind::Color;
-    f.colorValue = c;
+    f.colorValue = colour;
     return f;
   }
   static Fill none() { return {}; }
@@ -156,7 +156,7 @@ struct Fill {
 
   /** A paint compares by its recipe, so the same paint described again is
    *  an equal fill. */
-  bool operator==(const Fill& o) const;
+  bool operator==(const Fill& other) const;
 
  private:
   friend struct detail::FillAccess;

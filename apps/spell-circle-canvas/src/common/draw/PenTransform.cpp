@@ -35,10 +35,10 @@ void Pen::rotate(float angle) {
   if (m_canvas) m_canvas->rotate(toDegrees(angle));
 }
 
-void Pen::scale(float s) { scale(s, s); }
+void Pen::scale(float factor) { scale(factor, factor); }
 
-void Pen::scale(float sx, float sy) {
-  if (m_canvas) m_canvas->scale(sx, sy);
+void Pen::scale(float factorX, float factorY) {
+  if (m_canvas) m_canvas->scale(factorX, factorY);
 }
 
 void Pen::shearX(float angle) {

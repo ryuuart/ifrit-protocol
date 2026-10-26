@@ -76,20 +76,20 @@ class BoxVerbs {
    *  room back when the line it is on overflows. `flexShrink(0)` is what
    *  makes a size exact. Unstated, the node is as wide as its
    *  content. */
-  Derived& width(Dimension d);
+  Derived& width(Dimension length);
   /** The node's height, the same basis rather than a guarantee, and the
    *  same forms. Unstated, the node is as tall as its content. */
-  Derived& height(Dimension d);
+  Derived& height(Dimension length);
   /** A FLOOR under the node's width that the flex factors may not take
    *  it below. None when unstated. */
-  Derived& minWidth(Dimension d);
+  Derived& minWidth(Dimension length);
   /** A CEILING over the node's width that `flexGrow()` may not take it
    *  above. None when unstated. */
-  Derived& maxWidth(Dimension d);
+  Derived& maxWidth(Dimension length);
   /** A FLOOR under the node's height. None when unstated. */
-  Derived& minHeight(Dimension d);
+  Derived& minHeight(Dimension length);
   /** A CEILING over the node's height. None when unstated. */
-  Derived& maxHeight(Dimension d);
+  Derived& maxHeight(Dimension length);
   /** WIDTH OVER HEIGHT, held while the other axis is free — CSS
    *  `aspect-ratio`. A `16f/9` box given only a width is sized down
    *  from it. Unstated, the two axes are independent. */

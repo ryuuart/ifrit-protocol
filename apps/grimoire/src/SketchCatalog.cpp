@@ -82,7 +82,7 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
             sketch::thumbnailFile(SketchCatalog::thumbnailDirectory, entry.name,
                                   sketch::thumbnailKey(file));
         run.stem = entry.name;
-        run.maxDimension = sketch::kThumbnailWidth;
+        run.maximumDimension = sketch::kThumbnailWidth;
         run.budget = SketchCatalog::thumbnailBudget;
         run.heavy = SketchCatalog::thumbnailHeavy;
         run.stop = &stop;

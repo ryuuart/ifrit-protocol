@@ -56,9 +56,8 @@ TEST(SkiaEffect, AParameterBlurReachesItsOwnBoxAndNotTheClip) {
   FrameData frame;
   frame.resolution = {120, 120};
   sigil::motion::Animatable<float> sigma = sigil::motion::animatable(5.0f);
-  Filter blur =
-      Filter::blur(Paint::solid({1, 1, 1, 1}), 8.0f);
-  blur.bind("maxSigma", sigma);
+  Filter blur = Filter::blur(Paint::solid({1, 1, 1, 1}), 8.0f);
+  blur.bind("maximumSigma", sigma);
   const sk_sp<SkImageFilter> filter = skia::resolvedImageFilter(blur, &frame);
   ASSERT_NE(filter, nullptr);
   const SkIRect small =
@@ -80,9 +79,8 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   // inputs by identity — which is what lets Skia's filter cache keep the
   // blurred layers between frames while the sigma breathes.
   sigil::motion::Animatable<float> sigma = sigil::motion::animatable(2.0f);
-  Filter blur =
-      Filter::blur(Paint::solid({1, 1, 1, 1}), 8.0f);
-  blur.bind("maxSigma", sigma);
+  Filter blur = Filter::blur(Paint::solid({1, 1, 1, 1}), 8.0f);
+  blur.bind("maximumSigma", sigma);
   EXPECT_TRUE(blur.isRunning());
   const sk_sp<SkImageFilter> at2 = skia::resolvedImageFilter(blur, nullptr);
   sigma = 6.0f;
@@ -99,9 +97,10 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   // IS the half-range pass, so it paints what a blur declared at that
   // sigma with no binding paints.
   sigma = 4.0f;
-  const SkBitmap ridden = squareThrough(skia::resolvedImageFilter(blur, nullptr));
-  const SkBitmap declared =
-      squareThrough(skia::resolvedImageFilter(Filter::blur(Paint::solid({1, 1, 1, 1}), 4.0f), nullptr));
+  const SkBitmap ridden =
+      squareThrough(skia::resolvedImageFilter(blur, nullptr));
+  const SkBitmap declared = squareThrough(skia::resolvedImageFilter(
+      Filter::blur(Paint::solid({1, 1, 1, 1}), 4.0f), nullptr));
   for (int y = 0; y < 32; ++y)
     for (int x = 0; x < 32; ++x)
       EXPECT_NEAR((int)SkColorGetR(ridden.getColor(x, y)),
@@ -114,13 +113,13 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   // Above the declared range the sigma clamps to it: the top of the
   // pyramid is the widest the effect ever paints.
   sigma = 40.0f;
-  const SkBitmap clamped = squareThrough(skia::resolvedImageFilter(blur, nullptr));
-  const SkBitmap top =
-      squareThrough(skia::resolvedImageFilter(Filter::blur(Paint::solid({1, 1, 1, 1}), 8.0f), nullptr));
+  const SkBitmap clamped =
+      squareThrough(skia::resolvedImageFilter(blur, nullptr));
+  const SkBitmap top = squareThrough(skia::resolvedImageFilter(
+      Filter::blur(Paint::solid({1, 1, 1, 1}), 8.0f), nullptr));
   for (int y = 0; y < 32; ++y)
     for (int x = 0; x < 32; ++x)
       EXPECT_NEAR((int)SkColorGetR(clamped.getColor(x, y)),
                   (int)SkColorGetR(top.getColor(x, y)), 1)
           << "at " << x << "," << y;
 }
-

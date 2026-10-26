@@ -93,8 +93,9 @@ mesh::Cloud grid() {
   return cloud;
 }
 
-const camera::Camera kGridView{
-    .eye = {0, 520, 620}, .target = {0, 0, 0}, .fovYDegrees = 40};
+const camera::Camera kGridView{.eye = {0, 520, 620},
+                               .target = {0, 0, 0},
+                               .verticalFieldOfViewDegrees = 40};
 
 // a literal table; only allocation could throw
 // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
@@ -140,8 +141,9 @@ struct MeshAttributes {
   /** One body under one light, matte and white so what shows is its
    *  colour, baked at the size its well will have. */
   static Element figure(sketch::Scene2DContext& ctx, world::Mesh body) {
-    const camera::Camera view{
-        .eye = {0, 400, 330}, .target = {0, -10, 0}, .fovYDegrees = 34};
+    const camera::Camera view{.eye = {0, 400, 330},
+                              .target = {0, -10, 0},
+                              .verticalFieldOfViewDegrees = 34};
     body.key("subject")
         .transform(camera::place({}, 0, -28))
         .fill(material::surface::program(

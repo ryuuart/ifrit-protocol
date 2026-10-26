@@ -243,9 +243,10 @@ struct Slice {
 
   /** Structural equality (asset by pointer identity) so a static nine-slice
    *  frame prunes without memo. */
-  bool operator==(const Slice& o) const {
-    return asset == o.asset && xDivs == o.xDivs && yDivs == o.yDivs &&
-           filter == o.filter && density == o.density;
+  bool operator==(const Slice& other) const {
+    return asset == other.asset && xDivs == other.xDivs &&
+           yDivs == other.yDivs && filter == other.filter &&
+           density == other.density;
   }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
@@ -373,9 +374,9 @@ struct Wash {
    *  colour a theme puts in the property. */
   std::optional<Fill> fill;
 
-  bool operator==(const Wash& o) const {
-    return material == o.material && blend == o.blend && amount == o.amount &&
-           fill == o.fill;
+  bool operator==(const Wash& other) const {
+    return material == other.material && blend == other.blend &&
+           amount == other.amount && fill == other.fill;
   }
   bool isRunning() const {
     if (material.isRunning()) return true;

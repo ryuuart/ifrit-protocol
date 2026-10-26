@@ -26,7 +26,7 @@ void bindGeometryShapes(pybind11::module_& module) {
       .def_readwrite("origin", &geometry::shapes::Hatch::origin)
       .def_readwrite("inset", &geometry::shapes::Hatch::inset)
       .def_readwrite("cross", &geometry::shapes::Hatch::cross)
-      .def_readwrite("maxLines", &geometry::shapes::Hatch::maxLines)
+      .def_readwrite("maximumLines", &geometry::shapes::Hatch::maximumLines)
       .def(py::self == py::self);
 
   namespace kit = geometry::shapes;
@@ -49,9 +49,10 @@ void bindGeometryShapes(pybind11::module_& module) {
       .value("Pie", kit::Close::Pie);
   auto options = bindRecord<kit::EllipseOptions>(shapes, "EllipseOptions",
                                                  "Unknown ellipse option: ");
-  options.def_property(
-      "fromDegrees", angleGetter(&kit::EllipseOptions::fromDegrees),
-      angleSetter<AngleInDegrees>(&kit::EllipseOptions::fromDegrees))
+  options
+      .def_property(
+          "fromDegrees", angleGetter(&kit::EllipseOptions::fromDegrees),
+          angleSetter<AngleInDegrees>(&kit::EllipseOptions::fromDegrees))
       .def_property(
           "sweepDegrees", angleGetter(&kit::EllipseOptions::sweepDegrees),
           angleSetter<AngleInDegrees>(&kit::EllipseOptions::sweepDegrees))
@@ -136,9 +137,10 @@ void bindGeometryShapes(pybind11::module_& module) {
       .def(py::self == py::self);
   copyProtocol(blob);
   py::class_<kit::Parallelogram> parallelogram(shapes, "Parallelogram");
-  parallelogram.def_property(
-      "skewDegrees", angleGetter(&kit::Parallelogram::skewDegrees),
-      angleSetter<AngleInDegrees>(&kit::Parallelogram::skewDegrees))
+  parallelogram
+      .def_property(
+          "skewDegrees", angleGetter(&kit::Parallelogram::skewDegrees),
+          angleSetter<AngleInDegrees>(&kit::Parallelogram::skewDegrees))
       .def("outline", &kit::Parallelogram::outline, py::arg("size"))
       .def(py::self == py::self);
   copyProtocol(parallelogram);

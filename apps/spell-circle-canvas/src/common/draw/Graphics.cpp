@@ -82,8 +82,8 @@ void Graphics::form(Pen& host) {
   if (!std::isfinite(density) || density < 0)
     throw std::invalid_argument(
         "Graphics host density must be finite and nonnegative");
-  form(host, {pixelDimension(m_width, density),
-              pixelDimension(m_height, density)});
+  form(host,
+       {pixelDimension(m_width, density), pixelDimension(m_height, density)});
 }
 
 void Graphics::form(Pen& host, SkISize extent) {
@@ -209,8 +209,9 @@ void Pen::image(const Graphics& buffer, float x, float y) {
   image(buffer.image(), x, y, buffer.width(), buffer.height());
 }
 
-void Pen::image(const Graphics& buffer, float x, float y, float w, float h) {
-  image(buffer.image(), x, y, w, h);
+void Pen::image(const Graphics& buffer, float x, float y, float width,
+                float height) {
+  image(buffer.image(), x, y, width, height);
 }
 
 }  // namespace sigil::draw

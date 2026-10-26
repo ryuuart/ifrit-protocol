@@ -210,15 +210,15 @@ TEST(ColumnDecorationInk, AColumnDrawsItsBandBesideTheType) {
   // column rather than across it.
   int redLeftOfAxis = 0;
   int topMost = pixmap.height(), bottomMost = -1;
-  float minX = 1e9f, maxX = -1e9f;
+  float minimumX = 1e9f, maximumX = -1e9f;
   for (int y = 0; y < pixmap.height(); ++y)
     for (int x = 0; x < pixmap.width(); ++x) {
       if (!isBandRed(pixmap.getColor(x, y))) continue;
       if ((float)x < first.origin.x) ++redLeftOfAxis;
       topMost = std::min(topMost, y);
       bottomMost = std::max(bottomMost, y);
-      minX = std::min(minX, (float)x);
-      maxX = std::max(maxX, (float)x);
+      minimumX = std::min(minimumX, (float)x);
+      maximumX = std::max(maximumX, (float)x);
     }
   EXPECT_EQ(redLeftOfAxis, 0)
       << "the band crossed to the wrong side of the column";

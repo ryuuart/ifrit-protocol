@@ -421,7 +421,7 @@ void GrimoireRenderer::publishMetrics() {
   for (const sketch::LaneCost& lane : session->lanes()) {
     QVariantMap row;
     row.insert(QStringLiteral("name"), QString::fromUtf8(lane.name));
-    row.insert(QStringLiteral("ms"), lane.ms);
+    row.insert(QStringLiteral("ms"), lane.milliseconds);
     lanes.push_back(row);
   }
   metrics.insert(QStringLiteral("lanes"), lanes);

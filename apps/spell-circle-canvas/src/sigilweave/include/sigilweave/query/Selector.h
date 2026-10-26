@@ -31,12 +31,12 @@ class Selector {
  public:
   Selector() = default;  ///< everything
 
-  /** Within EACH unit of a `selectors::each` selector, keep @p n glyphs
+  /** Within EACH unit of a `selectors::each` selector, keep @p count glyphs
    *  from wherever `drop` left off. The two on their own partition every
    *  unit exactly: no glyph is in both, none in neither. */
-  [[nodiscard]] Selector take(int n) const;
-  /** Within each unit, skip the first `n` glyphs and keep the rest. */
-  [[nodiscard]] Selector drop(int n) const;
+  [[nodiscard]] Selector take(int count) const;
+  /** Within each unit, skip the first `count` glyphs and keep the rest. */
+  [[nodiscard]] Selector drop(int count) const;
 
   [[nodiscard]] Selector operator|(const Selector& other) const;
   [[nodiscard]] Selector operator&(const Selector& other) const;
@@ -82,9 +82,9 @@ class Selector {
   };
   /** Null for a default-constructed (everything) selector. */
   [[nodiscard]] const State* state() const { return m_state.get(); }
-  static Selector of(State s) {
+  static Selector of(State state) {
     Selector out;
-    out.m_state = std::make_shared<const State>(std::move(s));
+    out.m_state = std::make_shared<const State>(std::move(state));
     return out;
   }
 
@@ -92,15 +92,15 @@ class Selector {
   std::shared_ptr<const State> m_state;
 };
 
-inline Selector Selector::take(int n) const {
+inline Selector Selector::take(int count) const {
   State s = m_state ? *m_state : State{};
-  s.take = n;
+  s.take = count;
   return of(std::move(s));
 }
 
-inline Selector Selector::drop(int n) const {
+inline Selector Selector::drop(int count) const {
   State s = m_state ? *m_state : State{};
-  s.drop = n;
+  s.drop = count;
   return of(std::move(s));
 }
 

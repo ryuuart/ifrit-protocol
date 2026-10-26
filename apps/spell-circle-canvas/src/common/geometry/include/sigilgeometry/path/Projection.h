@@ -87,11 +87,11 @@ struct Rotation {
   /** This rotation FOLLOWED BY @p next: `a.then(b)(v) == b(a(v))`. */
   Rotation then(const Rotation& next) const;
 
-  /** A turn of @p deg about an axis, counterclockwise seen from the
+  /** A turn of @p degrees about an axis, counterclockwise seen from the
    *  positive end of that axis. */
-  static Rotation aboutX(float deg);
-  static Rotation aboutY(float deg);
-  static Rotation aboutZ(float deg);
+  static Rotation aboutX(float degrees);
+  static Rotation aboutY(float degrees);
+  static Rotation aboutZ(float degrees);
 
   /** `Rz(alpha) · Ry(beta) · Rz(gamma)` — the three-angle form every rotation
    * of the sphere can be written in, and the one an epoch-to-epoch precession

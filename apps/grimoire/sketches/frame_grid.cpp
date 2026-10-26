@@ -92,11 +92,11 @@ void dial(draw::Pen& p, const path::PolarFrame& frame) {
 
 /** A reading at (deg, rNorm): a spoke out to it, a disc on it, and the
  *  unit direction the frame says runs outward there. */
-void reading(draw::Pen& p, const path::PolarFrame& frame, float deg,
+void reading(draw::Pen& p, const path::PolarFrame& frame, float degrees,
              material::Color colour) {
-  const glm::vec2 at = frame.at(deg, 0.78f);
-  const glm::vec2 out = frame.at(deg, 0.90f);
-  const glm::vec2 dir = frame.direction(deg);
+  const glm::vec2 at = frame.at(degrees, 0.78f);
+  const glm::vec2 out = frame.at(degrees, 0.90f);
+  const glm::vec2 dir = frame.direction(degrees);
   pen(p, colour, 1.3f);
   p.line(frame.centre.x, frame.centre.y, at.x, at.y);
   p.line(out.x, out.y, out.x + dir.x * 20, out.y + dir.y * 20);

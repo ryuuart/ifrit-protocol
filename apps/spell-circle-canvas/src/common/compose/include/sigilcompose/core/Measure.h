@@ -43,7 +43,7 @@ struct SnapshotOptions {
 };
 
 /** One-shot element render: reconciles, lays out, and records the
- *  paint into a picture. With an empty @p maxSize the tree takes its
+ *  paint into a picture. With an empty @p maximumSize the tree takes its
  *  intrinsic (content) size; a non-empty one bounds it (root max
  *  dims). Bindings are sampled at their current values; transitions
  *  don't run — there is no live timeline. This is the bake primitive
@@ -56,7 +56,7 @@ struct SnapshotOptions {
  *  sized tree in a plain `box().children({...})` and the dims are honoured,
  *  because they now belong to a child. */
 sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
-                          SkSize maxSize = SkSize::MakeEmpty(),
+                          SkSize maximumSize = SkSize::MakeEmpty(),
                           SnapshotOptions options = {});
 
 namespace detail {
@@ -195,16 +195,16 @@ std::vector<float> runPens(std::string_view utf8,
 struct RunFit {
   /** The largest size to try. 0 — the default — takes the style's own,
    *  so a style already set at its display size only ever shrinks. */
-  float maxSize = 0.0f;
+  float maximumSize = 0.0f;
   /** The smallest size to try. A run that still does not fit at this size
    *  and this condense comes back AT them, over-wide: a fit that silently
    *  went on shrinking would answer a size nothing can read, and a caller
    *  that must not overflow measures the result and decides. */
-  float minSize = 1.0f;
+  float minimumSize = 1.0f;
   /** The narrowest horizontal scale allowed once the size is at its
    *  floor. 1 — the default — refuses to condense at all, which is the
    *  right refusal for a face with a `wdth` axis to ask instead. */
-  float minCondense = 1.0f;
+  float minimumCondense = 1.0f;
 };
 
 /** @p style solved so @p utf8 lays out no wider than @p widthPx.
@@ -253,6 +253,6 @@ std::optional<sigil::weave::TextStyle> textStyleOf(
  *  then describe the real tree with the answer. Same sampling rules as
  *  snapshot() — bindings at current values, no transitions. */
 SkSize intrinsicSize(const Element& root, sigil::weave::FontContext& fonts,
-                     SkSize maxSize = SkSize::MakeEmpty());
+                     SkSize maximumSize = SkSize::MakeEmpty());
 
 }  // namespace sigil::compose

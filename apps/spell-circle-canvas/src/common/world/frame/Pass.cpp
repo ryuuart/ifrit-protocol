@@ -107,8 +107,8 @@ Pass& Pass::bloom(Bloom glow) {
   return *this;
 }
 
-Pass& Pass::body(PassBody b) {
-  m_body = std::move(b);
+Pass& Pass::body(PassBody passBody) {
+  m_body = std::move(passBody);
   return *this;
 }
 

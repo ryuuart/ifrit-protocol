@@ -68,14 +68,14 @@ struct PolarFrame {
    *  fraction of a turn.
    *  @{ */
 
-  /** This frame's @p deg as a SCREEN angle: degrees from +x, increasing
+  /** This frame's @p degrees as a SCREEN angle: degrees from +x, increasing
    *  in the direction that looks clockwise, which is exactly what a
    *  renderer's arc, `shapes::arc()` and `shapes::sector()` take — so a
    *  sector spelled through this reads in the plate's units and draws in
    *  the screen's. */
-  constexpr float screenDegrees(float deg) const {
+  constexpr float screenDegrees(float degrees) const {
     const float base = zero == Zero::North ? -90.0f : 0.0f;
-    return base + originDegrees + (sense == Sense::CW ? deg : -deg);
+    return base + originDegrees + (sense == Sense::CW ? degrees : -degrees);
   }
   /** A SWEEP in this frame's units as a screen sweep — sign only, no
    *  origin. Kept separate from screenDegrees() because adding the origin
@@ -84,23 +84,26 @@ struct PolarFrame {
   constexpr float screenSweep(float sweepDegrees) const {
     return sense == Sense::CW ? sweepDegrees : -sweepDegrees;
   }
-  /** This frame's @p deg AS A SCREEN ANGLE in radians about +x, ready
+  /** This frame's @p degrees AS A SCREEN ANGLE in radians about +x, ready
    *  for `std::cos`/`sin` against a screen-space point. Named apart from
    *  the free `radians()`, which is the unit conversion alone: this one
    *  carries the frame's zero and sense as well. */
-  float screenRadians(float deg) const { return radians(screenDegrees(deg)); }
+  float screenRadians(float degrees) const {
+    return radians(screenDegrees(degrees));
+  }
 
-  /** @p deg AS THE ARC-LENGTH FRACTION of a circular baseline, in
+  /** @p degrees AS THE ARC-LENGTH FRACTION of a circular baseline, in
    *  [0, 1) — the value a text path is addressed by. @p baseline is the
    *  direction of the PATH, not of this frame, and the two are
    *  independent: numbers running anticlockwise around a clockwise ring
    *  is an ordinary thing to want.
    *  @trap Only exact on a CIRCLE — an ellipse's arc length is not
    *  proportional to its angle, so an oblong box drifts. */
-  float fraction(float deg, Winding baseline = Winding::OutersClockwise) const {
+  float fraction(float degrees,
+                 Winding baseline = Winding::OutersClockwise) const {
     const float screen = baseline == Winding::OutersClockwise
-                             ? screenDegrees(deg)
-                             : -screenDegrees(deg);
+                             ? screenDegrees(degrees)
+                             : -screenDegrees(degrees);
     const float f = std::fmod(screen / 360.0f, 1.0f);
     return f < 0 ? f + 1.0f : f;
   }
@@ -125,18 +128,19 @@ struct PolarFrame {
 
   /** `(angle, NORMALISED radius)` → a point in the frame's parent space.
    *  `normalizedRadius = 1` is `radius`. */
-  glm::vec2 at(float deg, float normalizedRadius = 1.0f) const {
-    return atPixels(deg, normalizedRadius * radius);
+  glm::vec2 at(float degrees, float normalizedRadius = 1.0f) const {
+    return atPixels(degrees, normalizedRadius * radius);
   }
   /** `(angle, PX radius)` → a point, for a figure whose radii were
    *  measured in pixels rather than as fractions of one figure radius. */
-  glm::vec2 atPixels(float deg, float pixels) const {
-    return arrange::onEllipse(centre, glm::vec2(pixels), screenRadians(deg));
+  glm::vec2 atPixels(float degrees, float pixels) const {
+    return arrange::onEllipse(centre, glm::vec2(pixels),
+                              screenRadians(degrees));
   }
-  /** The unit vector pointing out along @p deg — the direction a tick, a
+  /** The unit vector pointing out along @p degrees — the direction a tick, a
    *  leader or a radial label runs. */
-  glm::vec2 direction(float deg) const {
-    return arrange::direction(screenRadians(deg));
+  glm::vec2 direction(float degrees) const {
+    return arrange::direction(screenRadians(degrees));
   }
 
   /** @} */
@@ -159,23 +163,23 @@ struct PolarFrame {
    *  dropped.
    *  @{ */
 
-  /** A concentric frame at @p k of this radius, same centre and
+  /** A concentric frame at @p factor of this radius, same centre and
    *  conventions — the inner limb, the cell band, the hub. Saves the
    *  four-field restatement, which is where a convention gets silently
    *  dropped. */
-  constexpr PolarFrame scaled(float k) const {
-    return {centre, radius * k, zero, sense, originDegrees};
+  constexpr PolarFrame scaled(float factor) const {
+    return {centre, radius * factor, zero, sense, originDegrees};
   }
   /** The same frame about a different centre — a satellite figure that
    *  inherits the plate's angle convention. */
   constexpr PolarFrame about(glm::vec2 c) const {
     return {c, radius, zero, sense, originDegrees};
   }
-  /** The same frame with its zero turned by @p deg IN THIS FRAME'S SENSE.
+  /** The same frame with its zero turned by @p degrees IN THIS FRAME'S SENSE.
    *  Composes: `f.turned(4.5f).turned(-4.5f) == f`. */
-  constexpr PolarFrame turned(float deg) const {
+  constexpr PolarFrame turned(float degrees) const {
     return {centre, radius, zero, sense,
-            originDegrees + (sense == Sense::CW ? deg : -deg)};
+            originDegrees + (sense == Sense::CW ? degrees : -degrees)};
   }
   /** @} */
 };
@@ -215,9 +219,9 @@ struct Grid {
    *  unit map typically feeds `constexpr` canvas constants (a canvas width
    *  declared as so many artefact units), and a helper that cannot run at
    *  compile time cannot be used for those. */
-  constexpr float snapped(float v) const {
-    if (!(snap > 0)) return v;
-    const float q = v / snap;
+  constexpr float snapped(float value) const {
+    if (!(snap > 0)) return value;
+    const float q = value / snap;
     return snap * (float)(long long)(q + (q < 0 ? -0.5f : 0.5f));
   }
   /** A LENGTH along x, in artefact units → px. */
@@ -268,11 +272,11 @@ struct Grid {
     return Transform::translate(origin) *
            Transform::scale({scale, scale * yScale});
   }
-  /** A grid at @p k of this one's scale, same origin, y axis and snap —
+  /** A grid at @p factor of this one's scale, same origin, y axis and snap —
    *  the nested unit system (a plate at 4 px/unit carrying a readout at
    *  2.5). */
-  constexpr Grid scaled(float k) const {
-    return {scale * k, yScale, origin, snap};
+  constexpr Grid scaled(float factor) const {
+    return {scale * factor, yScale, origin, snap};
   }
 
  private:

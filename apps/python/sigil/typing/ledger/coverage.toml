@@ -2401,14 +2401,14 @@ bound = "SQLite and DuckDB `Database` values with owned writes and query views t
 python = ["data.Database", "data.Engine"]
 
 [[section.surface.item]]
-bound = "`Schema` text and binary conversion; `decode` and `encode` over `Dialect` — JSON, OSC, MIDI, Art-Net, a FlatBuffer through its schema, CSV — `oscMessage` and `maxOscBundleDepth`"
+bound = "`Schema` text and binary conversion; `decode` and `encode` over `Dialect` — JSON, OSC, MIDI, Art-Net, a FlatBuffer through its schema, CSV — `oscMessage` and `maximumOscBundleDepth`"
 python = [
   "data.Schema",
   "data.decode",
   "data.encode",
   "data.Dialect",
   "data.oscMessage",
-  "data.maxOscBundleDepth",
+  "data.maximumOscBundleDepth",
 ]
 
 [[section.surface.item]]

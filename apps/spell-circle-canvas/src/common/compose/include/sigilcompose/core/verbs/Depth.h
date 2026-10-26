@@ -36,7 +36,7 @@ class DepthVerbs {
   /** Move along the viewing axis, in px: positive is toward the viewer.
    *  A plane needs perspective for this to change its projection. A light
    *  source uses the resolved depth as its height above the page. */
-  Derived& translateZ(motion::Animatable<float> px);
+  Derived& translateZ(motion::Animatable<float> distance);
   /** Scale along the viewing axis, about the transform origin. Nothing
    *  in the node's own plane moves; what it scales is the depth of the
    *  children it hosts in a shared space. */

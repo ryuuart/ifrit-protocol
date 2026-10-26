@@ -146,7 +146,7 @@ auto HitmanVerlet::applyBlast(Body& b, SkPoint c) -> void {
   }
 }
 
-auto HitmanVerlet::maxError(const Body& b) const -> float {
+auto HitmanVerlet::maximumError(const Body& b) const -> float {
   float e = 0;
   for (const physics::Constraint& s : b.sticks)
     e = std::max(
@@ -222,11 +222,11 @@ auto HitmanVerlet::stepPhysics() -> void {
   // The A/B: same gravity, same drag, same initial condition, three
   // iteration counts. Drive the pins together so they never settle.
   chainPhase += (float)(1.0 / kSimHz);
-  const float px = 26.0f * std::sin(chainPhase * 6.2831853f / 1.8f);
+  const float pull = 26.0f * std::sin(chainPhase * 6.2831853f / 1.8f);
   const SkPoint cg{0.0f, kChainG};
   const float xs[3] = {60.0f, 162.0f, 264.0f};
   for (int k = 0; k < 3; ++k) {
-    chains[(size_t)k].moveTo(0, {xs[k] + px, 16.0f});
+    chains[(size_t)k].moveTo(0, {xs[k] + pull, 16.0f});
     verlet(chains[(size_t)k], cg);
     satisfy(chains[(size_t)k], false);
     float mn = 0, mx = 0;
@@ -237,7 +237,7 @@ auto HitmanVerlet::stepPhysics() -> void {
     chainMax[(size_t)k] = std::max(chainMax[(size_t)k] * 0.967f, mx);
   }
 
-  stageMaxErr = maxError(rig);
+  stageMaxErr = maximumError(rig);
   contactCount = contacts.size();
   ++simSteps;
   blastPhase =

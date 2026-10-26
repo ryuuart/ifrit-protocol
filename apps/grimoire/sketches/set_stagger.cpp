@@ -128,7 +128,7 @@ struct SetStagger {
     lens.eye = {0, 190, 430};
     lens.target = {0, 26, -10};
     lens.up = {0, 1, 0};
-    lens.fovYDegrees = 40;
+    lens.verticalFieldOfViewDegrees = 40;
     lens.nearPlane = 4;
     lens.farPlane = 4000;
     ctx.camera(lens);

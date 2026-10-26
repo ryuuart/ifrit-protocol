@@ -205,7 +205,7 @@ class Pass {
    *  replacing any other post operation. */
   Pass& bloom(Bloom glow);
   /** THE ESCAPE, as a comparable seam value. */
-  Pass& body(PassBody b);
+  Pass& body(PassBody passBody);
   /** …and as a callable, which compares equal to nothing but its own
    *  copies, so a frame carrying one never prunes on it. The view and the
    *  targets are both offered and it names the ones it reads. */

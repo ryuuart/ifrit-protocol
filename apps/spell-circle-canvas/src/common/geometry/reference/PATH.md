@@ -77,7 +77,7 @@ in no header.
   change only which way the pen went and which node it went from.
 - **`path/Extremes.h`** — nodes put where a curve TURNS. `Where` names
   the three turns worth a node — the axis extremes, a cubic's
-  inflections, the points of maximum curvature — and `minDepthPx` is the
+  inflections, the points of maximum curvature — and `minimumDepthPixels` is the
   one dial that says how shallow a turn may be and still earn one, since
   a bulge of half a pixel is a rounding artefact rather than a feature of
   the drawing and a node there is a node that will wander. `extremes()`
@@ -215,7 +215,7 @@ in no header.
   `jitter` runs from an exact grid to anywhere in the cell, `Poisson` a
   minimum separation), a `Rate` saying whether `amount` is a count, a
   density or a spacing, a seed and a `core::chance::Source`,
-  `relaxIterations`, and `maxPoints` as a bound rather than a preference.
+  `relaxIterations`, and `maximumPoints` as a bound rather than a preference.
   `sample(region, distribution)` answers the points. The namespace
   `distribution` holds `uniform()`, `poisson()`, `blueNoise()`, `grid()`
   and `jittered()`, stock values over that one type, not five functions:
@@ -460,7 +460,7 @@ in no header.
 
   **`roundCorners(path, radius, CornerOptions)`** is Skia's corner effect
   with nothing set, and with any dial set it is the walk that effect
-  cannot do: `minTurnDegrees` leaves the shallow corners alone, `outwardOnly`
+  cannot do: `minimumTurnDegrees` leaves the shallow corners alone, `outwardOnly`
   reads the contour's own winding and leaves the reflex ones alone, and
   `visual` scales each radius by its corner's angle so every arc stands
   the same distance out from the vertex it replaced — an acute corner
@@ -487,7 +487,7 @@ in no header.
   fraction of it — which is what keeps a calligraphic pressure law from
   sliding along a mark as a reveal grows — and `acrossAt(along, lengthPx)`
   is the one call that converts. `path::profile::self()`,
-  `path::profile::offset(px)`, `path::profile::taper(startPx, endPx)` and
+  `path::profile::offset(pixels)`, `path::profile::taper(startPx, endPx)` and
   `path::profile::steps(upTo, widthsPx)` are the presets that read nothing but
   their own numbers — the boundary, the parallel, the linear run between
   two widths, and the stepped table, which does not interpolate across a
@@ -632,7 +632,7 @@ in no header.
   a function of the geometry rather than of the author. A {7/2}
   heptagram is the smallest figure that tells the two apart. `crossingPatch()` is
   the region two marks actually overlap at one knot, bounded by a
-  `maxRadius` that is required for correctness rather than a margin:
+  `maximumRadius` that is required for correctness rather than a margin:
   without it neighbouring lenses merge and one strand owns half the
   braid.
 

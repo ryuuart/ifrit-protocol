@@ -590,7 +590,9 @@ class MixedMaterials:
         )
         self.key_rail_length = self.key_rail.length()
         ctx.camera(
-            mesh.camera.Camera(eye=(0, 90, 520), target=(0, -6, 0), fovYDegrees=34)
+            mesh.camera.Camera(
+                eye=(0, 90, 520), target=(0, -6, 0), verticalFieldOfViewDegrees=34
+            )
         )
 
     def describe(self, seconds: float) -> world.Frame:

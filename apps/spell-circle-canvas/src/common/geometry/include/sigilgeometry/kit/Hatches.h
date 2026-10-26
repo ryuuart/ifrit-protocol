@@ -57,7 +57,7 @@ struct Hatch {
    *  crosshatch. */
   bool cross = false;
   /** The most lines one pass lays down — a bound, not a preference. */
-  int maxLines = 10000;
+  int maximumLines = 10000;
   bool operator==(const Hatch&) const = default;
 };
 

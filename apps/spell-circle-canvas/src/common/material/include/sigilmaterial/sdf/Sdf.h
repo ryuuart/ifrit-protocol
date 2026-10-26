@@ -12,9 +12,9 @@
  * stretched box.
  */
 
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/advanced/Recipe.h>
 
 #include <cstdint>
 #include <glm/vec2.hpp>
@@ -129,7 +129,7 @@ float pad(const Style& style);
 
 /** The box dimension that leaves @p contentPx of VISIBLE interior after
  *  the style's pad on both sides. */
-inline float minBoxFor(const Style& style, float contentPx) {
+inline float minimumBoxFor(const Style& style, float contentPx) {
   return contentPx + 2.0f * pad(style);
 }
 

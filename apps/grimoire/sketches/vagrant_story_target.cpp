@@ -522,7 +522,7 @@ struct VagrantStoryTarget {
     lens.eye = {-108.0f, 334.0f, 988.0f};
     lens.target = {-24.0f, 104.0f, 0.0f};
     lens.up = {0.0f, 1.0f, 0.0f};
-    lens.fovYDegrees = 38.0f;
+    lens.verticalFieldOfViewDegrees = 38.0f;
     lens.nearPlane = 4.0f;
     lens.farPlane = 4096.0f;
     ctx.camera(lens);

@@ -93,7 +93,8 @@ class TimelineState final : public PlaybackState {
   void placeGroup(Duration offset,
                   std::vector<std::shared_ptr<PlaybackState>> group,
                   Duration length) {
-    for (auto& member : group) m_items.push_back({offset, std::move(member), {}, false});
+    for (auto& member : group)
+      m_items.push_back({offset, std::move(member), {}, false});
     m_previousStart = offset;
     m_previousEnd = offset + length;
     m_end = std::max(m_end, m_previousEnd);
@@ -358,7 +359,8 @@ int Timer::stepsThisFrame() const {
 
 namespace {
 
-detail::TimelineState& timelineOf(const std::shared_ptr<detail::PlaybackState>& state) {
+detail::TimelineState& timelineOf(
+    const std::shared_ptr<detail::PlaybackState>& state) {
   return static_cast<detail::TimelineState&>(*state);
 }
 
@@ -410,7 +412,8 @@ Timeline Engine::timeline() {
 
 Timer Engine::startTimer(std::function<bool(Duration, Duration)> onUpdate,
                          TimerOptions options) {
-  auto state = std::make_shared<detail::TimerState>(std::move(onUpdate), options);
+  auto state =
+      std::make_shared<detail::TimerState>(std::move(onUpdate), options);
   state->timer = true;
   state->home = m_running;
   state->relist(state);
@@ -441,8 +444,9 @@ Duration Engine::advance() {
     // The fixed step stands in for the wall's movement, so it moves under
     // the policies the wall does and under no other.
     const bool moves =
-        !m_held && (m_policy == ClockPolicy::Wall ||
-                    (m_policy == ClockPolicy::PauseWhileLoading && !m_arriving));
+        !m_held &&
+        (m_policy == ClockPolicy::Wall ||
+         (m_policy == ClockPolicy::PauseWhileLoading && !m_arriving));
     return step(moves ? m_options.fixedStep : Duration{});
   }
   return advanceWall(std::chrono::duration<double>(
@@ -460,7 +464,8 @@ Duration Engine::advanceWall(double wallSeconds) {
       !m_held && (m_policy == ClockPolicy::Wall ||
                   (m_policy == ClockPolicy::PauseWhileLoading && !m_arriving));
   if (!moves) return step(Duration{});
-  delta = std::clamp(delta, 0.0, m_options.maxWallStep.count()) * m_options.speed;
+  delta = std::clamp(delta, 0.0, m_options.maximumWallStep.count()) *
+          m_options.speed;
   return step(Duration(delta));
 }
 
@@ -489,19 +494,21 @@ Duration Engine::step(Duration delta) {
   // in the order it was registered: a timer reading a moving value reads
   // this frame's number. What finished leaves.
   const double seconds = delta.count();
-  const auto stepAll = [seconds](std::vector<std::shared_ptr<detail::Stepped>>& list) {
-    // Indexed, not iterated: a callback may start a playback, which
-    // appends to this list while it is being walked.
-    for (size_t i = 0; i < list.size();) {
-      if (list[i]->advance(seconds)) {
-        ++i;
-        continue;
-      }
-      if (auto* playback = dynamic_cast<detail::PlaybackState*>(list[i].get()))
-        playback->listed = false;
-      list.erase(list.begin() + (long)i);
-    }
-  };
+  const auto stepAll =
+      [seconds](std::vector<std::shared_ptr<detail::Stepped>>& list) {
+        // Indexed, not iterated: a callback may start a playback, which
+        // appends to this list while it is being walked.
+        for (size_t i = 0; i < list.size();) {
+          if (list[i]->advance(seconds)) {
+            ++i;
+            continue;
+          }
+          if (auto* playback =
+                  dynamic_cast<detail::PlaybackState*>(list[i].get()))
+            playback->listed = false;
+          list.erase(list.begin() + (long)i);
+        }
+      };
   stepAll(m_running->motions);
   stepAll(m_running->timers);
   return delta;

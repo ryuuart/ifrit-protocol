@@ -19,7 +19,7 @@
 using namespace sigil::core;
 
 TEST(Angle, TheConstantsAreTheNearestFloatToTheExactRatio) {
-  EXPECT_EQ(angle::kDegToRad, (float)(std::numbers::pi / 180.0))
+  EXPECT_EQ(angle::kDegreesToRadians, (float)(std::numbers::pi / 180.0))
       << "degrees to radians is the exact ratio rounded once";
   EXPECT_EQ(angle::kRadiansToDegrees, (float)(180.0 / std::numbers::pi))
       << "radians to degrees is rounded independently, not inverted";
@@ -33,11 +33,11 @@ TEST(Angle, TheSpellingsACallerWritesByHandAnswerDifferently) {
   constexpr float kRoundedPi = std::numbers::pi_v<float>;
   EXPECT_NE(angle::kRadiansToDegrees, 180.0f / kRoundedPi);
   EXPECT_NE(angle::radians(22.5f), 22.5f / angle::kRadiansToDegrees);
-  EXPECT_NE(angle::degrees(1.17f), 1.17f / angle::kDegToRad);
+  EXPECT_NE(angle::degrees(1.17f), 1.17f / angle::kDegreesToRadians);
 }
 
 TEST(Angle, TheVerbsAreTheOneMultiplication) {
-  static_assert(angle::radians(180.0f) == 180.0f * angle::kDegToRad);
+  static_assert(angle::radians(180.0f) == 180.0f * angle::kDegreesToRadians);
   static_assert(angle::degrees(1.0f) == angle::kRadiansToDegrees);
   EXPECT_EQ(angle::radians(0.0f), 0.0f);
   EXPECT_EQ(angle::degrees(0.0f), 0.0f);
@@ -81,8 +81,7 @@ TEST(Angle, AnAngleReachesTheMeasureItWasWrittenInUnchanged) {
   EXPECT_EQ(angle::Angle::radians(0.6545).inRadians(), 0.6545f);
   // Between degrees and radians it is the one rounding.
   EXPECT_EQ(angle::Angle::degrees(37.5).inRadians(), angle::radians(37.5f));
-  EXPECT_EQ(angle::Angle::radians(0.6545).inDegrees(),
-            angle::degrees(0.6545f));
+  EXPECT_EQ(angle::Angle::radians(0.6545).inDegrees(), angle::degrees(0.6545f));
 }
 
 TEST(Angle, GradiansAndTurnsConvertByTheirShareOfAWholeTurn) {

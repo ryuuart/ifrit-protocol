@@ -31,8 +31,9 @@ SkIRect PaintPass::deviceRect() {
   const double right = std::ceil((double)f.right());
   const double bottom = std::ceil((double)f.bottom());
   const double span = std::max(right - left, bottom - top);
-  const double maxCoordinate = std::numeric_limits<int>::max();
-  const int m = Composer::Impl::bakeMargin((int)std::min(span, maxCoordinate));
+  const double maximumCoordinate = std::numeric_limits<int>::max();
+  const int m =
+      Composer::Impl::bakeMargin((int)std::min(span, maximumCoordinate));
   // Keep the paint and clip margins on the canvas's grid; negative
   // coordinates have no scratch pixels to read. Crop before narrowing:
   // finite transformed edges and their integer spans can still overflow.
@@ -41,9 +42,9 @@ SkIRect PaintPass::deviceRect() {
   const double croppedLeft = std::max({0.0, left - m, (double)clip.left() - m});
   const double croppedTop = std::max({0.0, top - m, (double)clip.top() - m});
   const double croppedRight =
-      std::min({maxCoordinate, right + m, (double)clip.right() + m});
+      std::min({maximumCoordinate, right + m, (double)clip.right() + m});
   const double croppedBottom =
-      std::min({maxCoordinate, bottom + m, (double)clip.bottom() + m});
+      std::min({maximumCoordinate, bottom + m, (double)clip.bottom() + m});
   if (croppedRight <= croppedLeft || croppedBottom <= croppedTop)
     return SkIRect::MakeEmpty();
   return SkIRect::MakeLTRB((int)croppedLeft, (int)croppedTop, (int)croppedRight,
@@ -133,14 +134,14 @@ PaintPass::BakeRung PaintPass::localBakeRung(const SkMatrix& total) {
                 .lowest = 0.0f,
                 .highest = std::numeric_limits<float>::infinity()};
   if (impl.bakeDensity > 0) return rung;
-  // maxScaleOf, NOT the matrix diagonal: a quarter-turned node's diagonal
+  // maximumScaleOf, NOT the matrix diagonal: a quarter-turned node's diagonal
   // is (0, 0) and would clamp to the floor, baking at a quarter resolution
   // to be upscaled by the blit. The paint bounds locate the Jacobian
   // samples when the matrix carries a host perspective. An underestimate
   // here means a stale, blurry bake rather than a wasted one.
   static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
                                          1.5f,  2.0f, 3.0f,  4.0f};
-  const float measured = maxScaleOf(total, localBounds());
+  const float measured = maximumScaleOf(total, localBounds());
   const float raw = std::clamp(measured, 0.25f, 4.0f);
   rung.scale = kBakeSteps[std::size(kBakeSteps) - 1];
   float below = 0.0f;
@@ -173,9 +174,9 @@ SkISize PaintPass::localBakeSize(const SkRect& bounds, float scale) {
     return SkISize::MakeEmpty();
   const double width = std::ceil((double)bounds.width() * scale);
   const double height = std::ceil((double)bounds.height() * scale);
-  constexpr double maxPixels = 16.0 * 1024 * 1024;
-  if (width < 1.0 || height < 1.0 || width > maxPixels || height > maxPixels ||
-      width * height > maxPixels)
+  constexpr double maximumPixels = 16.0 * 1024 * 1024;
+  if (width < 1.0 || height < 1.0 || width > maximumPixels ||
+      height > maximumPixels || width * height > maximumPixels)
     return SkISize::MakeEmpty();
   return SkISize::Make((int)width, (int)height);
 }

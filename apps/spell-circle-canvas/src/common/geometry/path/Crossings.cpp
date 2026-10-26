@@ -17,9 +17,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -31,11 +31,10 @@ void CrossingRule::prepare(std::span<const Crossing> all) const {
   // `m_walk` is read by binary search, so a pass puts its answer where
   // the ordinal belongs rather than at the end.
   const auto walked = [this](size_t crossing, Order order, bool overwrite) {
-    const auto at = std::lower_bound(
-        m_walk.begin(), m_walk.end(), crossing,
-        [](const std::pair<size_t, Order>& entry, size_t index) {
-          return entry.first < index;
-        });
+    const auto at =
+        std::lower_bound(m_walk.begin(), m_walk.end(), crossing,
+                         [](const std::pair<size_t, Order>& entry,
+                            size_t index) { return entry.first < index; });
     if (at != m_walk.end() && at->first == crossing) {
       if (overwrite) at->second = order;
       return;
@@ -362,7 +361,7 @@ std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands) {
 }
 
 SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
-                     float reachB, glm::vec2 point, float maxRadius) {
+                     float reachB, glm::vec2 point, float maximumRadius) {
   const SkPoint at = toSk(point);
   const auto tube = [](const SkPath& path, float reach) {
     SkPaint p;
@@ -372,7 +371,7 @@ SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
     // side of the path (Align::Inner/Outer), so a tube of exactly the mark
     // width, centred on the path, would miss half of it. The cost is a
     // lens up to 2x larger than the true overlap — harmless with opaque
-    // inks, and bounded by maxRadius either way.
+    // inks, and bounded by maximumRadius either way.
     p.setStrokeWidth(std::max(reach, 0.5f) * 2.0f);
     p.setStrokeCap(SkPaint::kRound_Cap);
     p.setStrokeJoin(SkPaint::kRound_Join);
@@ -382,7 +381,7 @@ SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
   // ordinary braid touch, pathops merges them into one contour, and the
   // first crossing's patch claims the entire run.
   SkPathBuilder territoryBuilder;
-  territoryBuilder.addCircle(at.fX, at.fY, std::max(maxRadius, 1.0f));
+  territoryBuilder.addCircle(at.fX, at.fY, std::max(maximumRadius, 1.0f));
   const SkPath territory = territoryBuilder.detach();
 
   SkPath overlap, lens;
@@ -447,7 +446,7 @@ SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
   SkPathBuilder disc;
   disc.addCircle(at.fX, at.fY,
                  std::min(std::max({reachA, reachB, 3.0f}) + 1.0f,
-                          std::max(maxRadius, 1.0f)));
+                          std::max(maximumRadius, 1.0f)));
   return disc.detach();
 }
 
@@ -457,8 +456,9 @@ std::vector<Crossing> discoverCrossings(std::span<const Outline> strands) {
 }
 
 Outline crossingPatch(const Outline& a, float reachA, const Outline& b,
-                      float reachB, glm::vec2 at, float maxRadius) {
-  return fromSk(crossingPatch(toSk(a), reachA, toSk(b), reachB, at, maxRadius));
+                      float reachB, glm::vec2 at, float maximumRadius) {
+  return fromSk(
+      crossingPatch(toSk(a), reachA, toSk(b), reachB, at, maximumRadius));
 }
 
 }  // namespace sigil::geometry::path

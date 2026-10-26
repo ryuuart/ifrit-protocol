@@ -407,7 +407,7 @@ namespace {
  *  it sits. */
 struct RingInk {
   int count = 0;
-  float minRadius = 1e9f, maxRadius = 0;
+  float minimumRadius = 1e9f, maximumRadius = 0;
   float centroidAngle = 0;  // radians, atan2 of the ink's mean position
 };
 
@@ -420,8 +420,8 @@ RingInk ringInk(Host& host, int size, SkPoint centre) {
       const float dx = (float)x + 0.5f - centre.x();
       const float dy = (float)y + 0.5f - centre.y();
       const float radius = std::hypot(dx, dy);
-      ink.minRadius = std::min(ink.minRadius, radius);
-      ink.maxRadius = std::max(ink.maxRadius, radius);
+      ink.minimumRadius = std::min(ink.minimumRadius, radius);
+      ink.maximumRadius = std::max(ink.maximumRadius, radius);
       sumX += dx;
       sumY += dy;
       ++ink.count;
@@ -480,8 +480,8 @@ TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {
   // …and it stayed ON the ring, with all of itself: a run that fell off the
   // baseline would spread its radii, and one clipped at the seam would lose
   // ink.
-  EXPECT_NEAR(atQuarter.minRadius, atZero.minRadius, 6.0f);
-  EXPECT_NEAR(atQuarter.maxRadius, atZero.maxRadius, 6.0f);
+  EXPECT_NEAR(atQuarter.minimumRadius, atZero.minimumRadius, 6.0f);
+  EXPECT_NEAR(atQuarter.maximumRadius, atZero.maximumRadius, 6.0f);
   EXPECT_NEAR((float)atQuarter.count, (float)atZero.count,
               (float)atZero.count * 0.25f);
 }
@@ -513,8 +513,8 @@ TEST(ComposeTextPath, ThePhaseWrapsAcrossTheSeamWithNothingLost) {
   EXPECT_NEAR((float)after.count, (float)before.count,
               (float)before.count * 0.25f)
       << "glyphs were dropped at the seam";
-  EXPECT_NEAR(after.minRadius, before.minRadius, 6.0f);
-  EXPECT_NEAR(after.maxRadius, before.maxRadius, 6.0f);
+  EXPECT_NEAR(after.minimumRadius, before.minimumRadius, 6.0f);
+  EXPECT_NEAR(after.maximumRadius, before.maximumRadius, 6.0f);
   EXPECT_GT(angleGap(before.centroidAngle, after.centroidAngle), 0.5f);
 }
 
@@ -662,5 +662,5 @@ TEST(ComposeTextPath, ATrackAndABaselineBothRunRatherThanOneWinning) {
   // Still on a ring — same angular place, so the baseline still placed it…
   EXPECT_LT(angleGap(resting.centroidAngle, lifted.centroidAngle), 0.4f);
   // …and off it by the track's own distance, so the track ran too.
-  EXPECT_GT(std::abs(lifted.maxRadius - resting.maxRadius), 8.0f);
+  EXPECT_GT(std::abs(lifted.maximumRadius - resting.maximumRadius), 8.0f);
 }

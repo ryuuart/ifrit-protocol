@@ -152,8 +152,7 @@ class Hub {
     using Options = LoadOptions<T>;
     if (options == Options{}) return load<T>(uri);
     return std::static_pointer_cast<const T>(loadConfiguredView(
-        uri, detail::meaningOf<T>(),
-        std::make_shared<const Options>(options),
+        uri, detail::meaningOf<T>(), std::make_shared<const Options>(options),
         [](const void* left, const void* right) {
           return *static_cast<const Options*>(left) ==
                  *static_cast<const Options*>(right);
@@ -242,7 +241,7 @@ class Hub {
 
   // What `sigilio/advanced/` reaches through HubAccess: each is
   // documented on the free function that spells it there.
-  void mount(std::string prefix, std::filesystem::path dir);
+  void mount(std::string prefix, std::filesystem::path directory);
   std::filesystem::path resolve(std::string_view uri) const;
   void setNetworkCacheDirectory(std::filesystem::path directory);
   void setNetworkPolicy(NetworkPolicy policy);
@@ -276,8 +275,8 @@ class Hub {
   /** Re-decodes bytes into a type-erased value, or the error that says
    *  why it could not. The decode a view was made with rides along with
    *  the view, so poll() can re-run exactly it. */
-  using Redecode = std::function<detail::Decoded(
-      const Bytes&, const std::filesystem::path&)>;
+  using Redecode = std::function<detail::Decoded(const Bytes&,
+                                                 const std::filesystem::path&)>;
 
   /** THE TABLES THIS HUB KEEPS — the entry cache, the decoder
    *  registry, the feed transports and the recordings replay() put in

@@ -484,16 +484,16 @@ Mesh revolve(const std::vector<glm::vec2>& profile,
              const RevolveOptions& options) {
   if (profile.size() < 2) return {};
   const float sweep = options.sweepDegrees * (float)M_PI / 180.0f;
-  const int nu = std::max(options.segments, 3) + (options.close ? 1 : 0);
-  const int nv = (int)profile.size();
+  const int columns = std::max(options.segments, 3) + (options.close ? 1 : 0);
+  const int rows = (int)profile.size();
   auto sample = [&](float v) -> glm::vec2 {
-    const float f = v * (float)(nv - 1);
-    const int i = std::clamp((int)f, 0, nv - 2);
+    const float f = v * (float)(rows - 1);
+    const int i = std::clamp((int)f, 0, rows - 2);
     const float t = f - (float)i;
     const glm::vec2 a = profile[(size_t)i], b = profile[(size_t)i + 1];
     return a + (b - a) * t;
   };
-  Mesh out = grid(nu, nv, [&](float u, float v) -> glm::vec3 {
+  Mesh out = grid(columns, rows, [&](float u, float v) -> glm::vec3 {
     const glm::vec2 p = sample(v);
     const float theta = u * sweep;
     return {p.x * std::cos(theta), p.y, -p.x * std::sin(theta)};
@@ -770,8 +770,8 @@ Mesh platonic(Platonic solid, const PlatonicOptions& options) {
   return out;
 }
 
-Mesh torus(float R, float r, int nu, int nv) {
-  return grid(nu, nv, [=](float u, float v) -> glm::vec3 {
+Mesh torus(float R, float r, int columns, int rows) {
+  return grid(columns, rows, [=](float u, float v) -> glm::vec3 {
     const float theta = u * 2.0f * (float)M_PI;
     const float phi = v * 2.0f * (float)M_PI;
     const float ring = R + r * std::cos(phi);
@@ -779,12 +779,12 @@ Mesh torus(float R, float r, int nu, int nv) {
   });
 }
 
-Mesh superellipsoid(glm::vec3 radii, float exponent, int nu, int nv) {
+Mesh superellipsoid(glm::vec3 radii, float exponent, int columns, int rows) {
   const float p = 2.0f / std::max(exponent, 0.01f);
   auto shaped = [p](float c) {
     return (c < 0 ? -1.0f : 1.0f) * std::pow(std::abs(c), p);
   };
-  return grid(nu, nv, [=](float u, float v) -> glm::vec3 {
+  return grid(columns, rows, [=](float u, float v) -> glm::vec3 {
     const float theta = u * 2.0f * (float)M_PI - (float)M_PI;
     // Full pole-to-pole sweep: shaped(cos(±pi/2)) = 0 closes the poles
     // to points, where grid() gives the sheet's limit normal.
@@ -796,10 +796,11 @@ Mesh superellipsoid(glm::vec3 radii, float exponent, int nu, int nv) {
   });
 }
 
-Mesh cylinderPanel(float width, float height, float radius, int nu, int nv) {
+Mesh cylinderPanel(float width, float height, float radius, int columns,
+                   int rows) {
   if (radius <= 0 || !std::isfinite(radius)) return quad(width, height);
   const float arc = width / radius;
-  return grid(nu, nv, [=](float u, float v) -> glm::vec3 {
+  return grid(columns, rows, [=](float u, float v) -> glm::vec3 {
     const float theta = (u - 0.5f) * arc;
     return {radius * std::sin(theta), (v - 0.5f) * height,
             radius * std::cos(theta) - radius};

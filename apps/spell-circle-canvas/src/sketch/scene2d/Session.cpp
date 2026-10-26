@@ -133,9 +133,7 @@ class Scene2DSession final : public Session {
     m_composer->setLive(!m_deterministic);
   }
 
-  [[nodiscard]] float oversample() const override {
-    return kScene2DOversample;
-  }
+  [[nodiscard]] float oversample() const override { return kScene2DOversample; }
 
   void redeclare() override {
     // The body declares everything again, its texture scenes and pages
@@ -177,8 +175,7 @@ class Scene2DSession final : public Session {
     // composer's own counters cannot see: a scene it asked for once is a
     // fixture, and a count that climbs frame by frame is a body asking
     // for one every frame.
-    const size_t scenes =
-        m_scenes.size() + m_pages.size() + m_textures.kept();
+    const size_t scenes = m_scenes.size() + m_pages.size() + m_textures.kept();
     if (scenes == 0) return line;
     char held[48];
     std::snprintf(held, sizeof held, "   scenes %zu", scenes);
@@ -263,8 +260,8 @@ class Scene2DSession final : public Session {
       m_timing.drawMilliseconds = 0;
       m_timing.totalMilliseconds =
           measure::Milliseconds(m_laps.total()).count();
-      m_lanes = {LaneCost{"recon", 0}, LaneCost{"layout", 0},
-                 LaneCost{"volat", 0}, LaneCost{"paint", 0}};
+      m_lanes = {LaneCost{"reconcile", 0}, LaneCost{"layout", 0},
+                 LaneCost{"volatile", 0}, LaneCost{"paint", 0}};
       return;
     }
     // The phase turns over where the sketch's own body ends and its
@@ -279,9 +276,9 @@ class Scene2DSession final : public Session {
         measure::Milliseconds(m_laps.mark("draw")).count();
     m_timing.totalMilliseconds = measure::Milliseconds(m_laps.total()).count();
     const compose::Composer::Stats& stats = m_composer->stats();
-    m_lanes = {LaneCost{"recon", stats.reconcileMilliseconds},
+    m_lanes = {LaneCost{"reconcile", stats.reconcileMilliseconds},
                LaneCost{"layout", stats.layoutMilliseconds},
-               LaneCost{"volat", stats.volatileMilliseconds},
+               LaneCost{"volatile", stats.volatileMilliseconds},
                LaneCost{"paint", stats.paintMilliseconds}};
   }
 

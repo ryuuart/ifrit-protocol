@@ -335,10 +335,10 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         laneTotals.resize(frameLanes.size(), 0.0);
         lanes.assign(frameLanes.begin(), frameLanes.end());
         for (size_t l = 0; l < frameLanes.size(); ++l)
-          laneTotals[l] += frameLanes[l].ms;
+          laneTotals[l] += frameLanes[l].milliseconds;
       }
       for (size_t l = 0; l < lanes.size(); ++l)
-        lanes[l].ms = laneTotals[l] / (double)sampleFrames;
+        lanes[l].milliseconds = laneTotals[l] / (double)sampleFrames;
       sample = stats.sample();
     }
 
@@ -417,7 +417,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
                  measure::Milliseconds(sample.frameTail).count(),
                  sample.headroomFps);
       for (const LaneCost& lane : lanes)
-        std::print(" {} {:.2f}", lane.name, lane.ms);
+        std::print(" {} {:.2f}", lane.name, lane.milliseconds);
       std::println("");
     }
 

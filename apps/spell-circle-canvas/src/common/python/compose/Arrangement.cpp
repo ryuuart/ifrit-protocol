@@ -88,12 +88,12 @@ void bindArrangement(py::module_& composition) {
           "The first-baseline offset from the child's top, and not a number "
           "for a child with none.")
       .def_property_readonly(
-          "minSize",
+          "minimumSize",
           [](const ArrangementChild& self) {
-            return geometry::path::toSkSize(self.get().minSize);
+            return geometry::path::toSkSize(self.get().minimumSize);
           },
           "The smallest the child can be without spilling its content, "
-          "filled only where an operator asked with readsChildMinSizes.")
+          "filled only where an operator asked with readsChildMinimumSizes.")
       .def_property_readonly(
           "cells",
           [](const ArrangementChild& self) { return self.get().cells; })
@@ -163,11 +163,11 @@ void bindArrangement(py::module_& composition) {
             return childrenOf(self);
           })
       .def_property_readonly(
-          "minSizesMeasured",
+          "minimumSizesMeasured",
           [](const BorrowedArrangement& self) {
-            return self.get().minSizesMeasured;
+            return self.get().minimumSizesMeasured;
           },
-          "Whether each child's minSize was measured, which is true only "
+          "Whether each child's minimumSize was measured, which is true only "
           "where an operator in the list asked for it.");
 }
 

@@ -43,11 +43,12 @@ namespace sigil::geometry::path {
  *  are ordinary kit values, peers of anything you write — which is what a
  *  seam is for. */
 template <typename S>
-concept ShaperScheme =
-    std::equality_comparable<S> &&
-    requires(const S& scheme, const Outline& outline) {
-      { scheme.shape(outline) } -> std::convertible_to<Outline>;
-    };
+concept ShaperScheme = std::equality_comparable<S> &&
+                       requires(const S& scheme, const Outline& outline) {
+                         {
+                           scheme.shape(outline)
+                         } -> std::convertible_to<Outline>;
+                       };
 
 /** Type-erased comparable shaper. */
 class Shaper {
@@ -96,10 +97,11 @@ class Shaper {
   /** Whether this shaper can ever compare equal — false only for one
    *  made by `incomparable`. */
   bool comparable() const { return !m_incomparable; }
-  bool operator==(const Shaper& o) const {
-    if (m_incomparable || o.m_incomparable) return false;
-    if (!m_equals || !o.m_equals) return !m_equals && !o.m_equals;
-    return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
+  bool operator==(const Shaper& other) const {
+    if (m_incomparable || other.m_incomparable) return false;
+    if (!m_equals || !other.m_equals) return !m_equals && !other.m_equals;
+    return m_held.type() == other.m_held.type() &&
+           m_equals(m_held, other.m_held);
   }
 
  private:

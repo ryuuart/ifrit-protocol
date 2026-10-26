@@ -116,7 +116,7 @@ Outline offset(const Outline& path, float distance,
 struct CornerOptions {
   /** Only corners that turn by more than this many degrees. Zero rounds
    *  every corner there is. */
-  float minTurnDegrees = 0.0f;
+  float minimumTurnDegrees = 0.0f;
   /** Round only the corners that turn OUTWARD, read off the contour's
    *  own winding — a reflex corner is left as it is. */
   bool outwardOnly = false;
@@ -153,7 +153,8 @@ Outline chamferCorners(const Outline& path, float cut);
  *  circuit trace. The wavelength is rounded so a whole number of periods
  *  fits the contour, which is what keeps a closed mark from meeting itself
  *  mid-step. */
-Outline displaceSquare(const Outline& src, float amplitude, float wavelength);
+Outline displaceSquare(const Outline& outline, float amplitude,
+                       float wavelength);
 
 // ---------------------------------------------------------------------------
 // Strip joinery: pieces of stock, and what happens where they meet.

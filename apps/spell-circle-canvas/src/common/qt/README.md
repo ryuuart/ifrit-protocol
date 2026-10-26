@@ -237,7 +237,7 @@ prints its path and dimensions, and exits the application. Each timer tick
 grabs a frame so covered windows still render. `sigil::qt::WindowCaptureOptions`
 sets the warmup frame count and timer interval; optional `prepareFrame` and
 `ready` callbacks let a host request scene updates and wait for content.
-Readiness waiting is bounded by `maxReadyFrames`, after which warmup and
+Readiness waiting is bounded by `maximumReadyFrames`, after which warmup and
 capture continue so loading and error states can also be inspected. Destroying
 the window cancels the capture. A failed grab or save exits with status 1.
 

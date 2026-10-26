@@ -195,7 +195,7 @@ struct HitmanVerlet {
 
   void applyBlast(Body& b, SkPoint c);
 
-  float maxError(const Body& b) const;
+  float maximumError(const Body& b) const;
   void chainStats(const Body& b, float* mean, float* mx) const;
 
   // =========================================================================
@@ -247,9 +247,9 @@ struct HitmanVerlet {
   // =========================================================================
   // The stage, in pen verbs
 
-  void stageChrome(Pen& pen, double ms);
+  void stageChrome(Pen& pen, double milliseconds);
 
-  void worldBox(Pen& pen, double ms);
+  void worldBox(Pen& pen, double milliseconds);
 
   /** The corpse, the cloth, the plants and every contact this frame. */
   void simulation(Pen& pen);

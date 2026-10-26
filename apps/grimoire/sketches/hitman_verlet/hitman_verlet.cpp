@@ -82,7 +82,7 @@ auto HitmanVerlet::draw(Pen& pen) -> void {
     pen.noStroke();
     pen.textAlign(draw::LEFT, draw::TOP);
   }
-  const double ms = pen.millis();
+  const double milliseconds = pen.millis();
   // The pools are written every frame, because what they carry is the
   // interpolated position and that moves between steps as well as
   // across them.
@@ -103,8 +103,8 @@ auto HitmanVerlet::draw(Pen& pen) -> void {
   const SkRect stageBox = SkRect::MakeXYWH(kStageX, kBodyY, kStage, kStage);
   pen.push();
   pen.translate(kStageX, kBodyY);
-  worldBox(pen, ms);
-  stageChrome(pen, ms);
+  worldBox(pen, milliseconds);
+  stageChrome(pen, milliseconds);
   simulation(pen);
   pen.pop();
   pen.element(overlayEl, stageBox.x(), stageBox.y(), stageBox.width(),
@@ -115,11 +115,11 @@ auto HitmanVerlet::draw(Pen& pen) -> void {
   stageLabels(pen);
   pen.pop();
 
-  const float insetA = cue(ms, 900, 340);
+  const float insetA = cue(milliseconds, 900, 340);
   figPenetration(pen, kStageX + 16, kBodyY + 16, insetA);
   figFriction(pen, kStageX + 512, kBodyY + 16, insetA);
-  instancingStrip(pen, kStageX + 16, kBodyY + 178, cue(ms, 980, 340));
-  errorLegend(pen, kStageX + 16, kBodyY + 302, cue(ms, 1440, 300));
+  instancingStrip(pen, kStageX + 16, kBodyY + 178, cue(milliseconds, 980, 340));
+  errorLegend(pen, kStageX + 16, kBodyY + 302, cue(milliseconds, 1440, 300));
 
   // --- the sidebar: six panels, three of them with a hole --------------
   pen.element(colAEl[0], kColAX, panelTop(kPanelAH, 0), kColW, kPanelAH[0]);

@@ -143,7 +143,7 @@ auto TwoAdvancedV4::bakeHero(int w, int h, sketch::Scene2DContext& ctx)
   lens.eye = {0.0f, 30.0f, 320.0f};
   lens.target = {0.0f, 57.0f, 0.0f};
   lens.up = {0.0f, 1.0f, 0.0f};
-  lens.fovYDegrees = 30.0f;
+  lens.verticalFieldOfViewDegrees = 30.0f;
   lens.nearPlane = 4.0f;
   lens.farPlane = 12000.0f;
 
@@ -189,7 +189,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .blendMode(material::BlendMode::PlusLighter)});
 
   // THE portal: one SDF circle. Its box must RESERVE sdf::pad() for the
-  // glow — sdf::minBoxFor() is the only honest way to size it, since
+  // glow — sdf::minimumBoxFor() is the only honest way to size it, since
   // pad eats into the half-size (a 300 box with glowRadius 54 leaves
   // almost no disc at all). 132 px of visible disc, reaching far.
   // The halo is a RING IN THE SCENE and the pods occlude it, so what
@@ -203,7 +203,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
           sigil::material::withAlpha({0.90f, 1.0f, 1.0f, 1.0f}, 0.35f),
       .glowRadius = 54,
       .glowColor = sigil::material::withAlpha(kGlow, 0.42f)};
-  const float pbox = material::sdf::minBoxFor(ps, 132);
+  const float pbox = material::sdf::minimumBoxFor(ps, 132);
   material::Paint pm = material::Paint::recipe(
       material::sdf::material(material::sdf::circle(), ps));
   if (!still) pm.bind("uGlowR", portalGlow);  // ±8 % sine, period 4 s

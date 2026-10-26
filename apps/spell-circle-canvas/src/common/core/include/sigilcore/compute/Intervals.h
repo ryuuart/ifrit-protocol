@@ -37,10 +37,10 @@ namespace sigil::core {
 template <class Interval>
 struct IntervalEnds {
   using Value = decltype(Interval{}.low);
-  static Value& low(Interval& i) { return i.low; }
-  static Value& high(Interval& i) { return i.high; }
-  static const Value& low(const Interval& i) { return i.low; }
-  static const Value& high(const Interval& i) { return i.high; }
+  static Value& low(Interval& interval) { return interval.low; }
+  static Value& high(Interval& interval) { return interval.high; }
+  static const Value& low(const Interval& interval) { return interval.low; }
+  static const Value& high(const Interval& interval) { return interval.high; }
 };
 
 /** What to do with an interval whose end precedes its start. */

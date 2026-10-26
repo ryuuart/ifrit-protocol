@@ -30,9 +30,9 @@ namespace {
 // first evaluation rather than part way through one.
 constexpr std::int64_t kMaximumGridVertices = 4000000;
 
-void checkGridExtent(int nu, int nv) {
-  if (nu < 2 || nv < 2 ||
-      static_cast<std::int64_t>(nu) * nv > kMaximumGridVertices)
+void checkGridExtent(int columns, int rows) {
+  if (columns < 2 || rows < 2 ||
+      static_cast<std::int64_t>(columns) * rows > kMaximumGridVertices)
     throw py::value_error(
         "A mesh grid needs at least two stations per axis and at most four "
         "million vertices.");
@@ -280,23 +280,23 @@ void bindGeometryMesh(py::module_& module) {
   // and is taken at its word.
   meshes.def(
       "grid",
-      [](int nu, int nv, const py::function& surface, bool normals) {
-        checkGridExtent(nu, nv);
+      [](int columns, int rows, const py::function& surface, bool normals) {
+        checkGridExtent(columns, rows);
         if (normals)
           return mesh::grid(
-              nu, nv,
+              columns, rows,
               core::Callable<std::pair<glm::vec3, glm::vec3>(float, float)>{
                   [surface](float u, float v) {
                     return surface(u, v)
                         .cast<std::pair<glm::vec3, glm::vec3>>();
                   }});
-        return mesh::grid(nu, nv,
+        return mesh::grid(columns, rows,
                           core::Callable<glm::vec3(float, float)>{
                               [surface](float u, float v) {
                                 return surface(u, v).cast<glm::vec3>();
                               }});
       },
-      py::arg("nu"), py::arg("nv"), py::arg("surface"),
+      py::arg("columns"), py::arg("rows"), py::arg("surface"),
       py::arg("normals") = false);
   meshes.def("quad", &mesh::quad, py::arg("width"), py::arg("height"));
   meshes.def("box", &mesh::box, py::arg("lo"), py::arg("hi"),
@@ -319,12 +319,13 @@ void bindGeometryMesh(py::module_& module) {
       py::arg("solid"), py::arg("radius") = 1,
       py::arg("sharedVertices") = false);
   meshes.def("torus", &mesh::torus, py::arg("radius"), py::arg("tube"),
-             py::arg("nu") = 64, py::arg("nv") = 32);
+             py::arg("columns") = 64, py::arg("rows") = 32);
   meshes.def("superellipsoid", &mesh::superellipsoid, py::arg("radii"),
-             py::arg("exponent"), py::arg("nu") = 48, py::arg("nv") = 32);
+             py::arg("exponent"), py::arg("columns") = 48,
+             py::arg("rows") = 32);
   meshes.def("cylinderPanel", &mesh::cylinderPanel, py::arg("width"),
-             py::arg("height"), py::arg("radius"), py::arg("nu") = 32,
-             py::arg("nv") = 8);
+             py::arg("height"), py::arg("radius"), py::arg("columns") = 32,
+             py::arg("rows") = 8);
   meshes.def(
       "extrude",
       [](const SkPath& path, const mesh::ExtrudeOptions& options) {

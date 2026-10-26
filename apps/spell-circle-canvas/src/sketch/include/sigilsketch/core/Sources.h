@@ -43,14 +43,14 @@ struct SourceMetadata {
  *  value. */
 [[nodiscard]] SourceMetadata sourceMetadata(const std::filesystem::path& file);
 
-/** THE FILE A KEY NAMES under @p dir.
+/** THE FILE A KEY NAMES under @p directory.
  *
  *  Entries are `<key>.cpp` or `<key>.py`, directly under the directory or
  *  inside `<key>/`. C++ takes precedence over Python, and a language's
  *  directory entry takes precedence over its bare file. If no regular entry
  *  exists, the answer remains the bare `<key>.cpp` path. */
-[[nodiscard]] std::filesystem::path sourceOf(const std::filesystem::path& dir,
-                                             std::string_view key);
+[[nodiscard]] std::filesystem::path sourceOf(
+    const std::filesystem::path& directory, std::string_view key);
 
 /** Whether @p entry is the entry of a DIRECTORY SKETCH: a source standing
  *  in a directory that carries its own stem. `rain/rain.cpp` is one;
@@ -61,7 +61,7 @@ struct SourceMetadata {
 /** Every `.cpp` directly under @p dir, in name order; nothing for a
  *  directory that is not there. */
 [[nodiscard]] std::vector<std::filesystem::path> sourcesUnder(
-    const std::filesystem::path& dir);
+    const std::filesystem::path& directory);
 
 /** EVERY TRANSLATION UNIT A SKETCH IS BUILT FROM: the entry alone for a
  *  bare sketch, and for a directory sketch the entry first and then

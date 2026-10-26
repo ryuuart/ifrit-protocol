@@ -99,10 +99,10 @@ class Profile {
     };
     m_across = [s = std::move(scheme)](float along) { return s.across(along); };
   }
-  /** A constant width of `px` on the whole spine — the parallel, and the
+  /** A constant width of `pixels` on the whole spine — the parallel, and the
    *  width a caller means by a bare number (`band(spine, 22)`). Positive
    *  is left of travel. */
-  Profile(float px);  // NOLINT: implicit by design (band(spine, 22))
+  Profile(float pixels);  // NOLINT: implicit by design (band(spine, 22))
   /** A law through @p stops, `{along, width}` in order along the spine:
    *  `Profile{{0, 14}, {1, 4}}` narrows from 14 px to 4. Before the first
    *  stop and after the last the width holds. */
@@ -130,12 +130,13 @@ class Profile {
   /** The widest this profile ever reaches — what bleed and cull are
    *  computed from, so nothing it draws is silently truncated. */
   float max() const { return m_max; }
-  bool operator==(const Profile& o) const {
+  bool operator==(const Profile& other) const {
     // Reflexive on the DEFAULT-CONSTRUCTED value too: two empty profiles
     // are the same nothing, and a value that does not compare equal to
     // itself makes every containing description patch forever.
-    if (!m_equals || !o.m_equals) return !m_equals && !o.m_equals;
-    return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
+    if (!m_equals || !other.m_equals) return !m_equals && !other.m_equals;
+    return m_held.type() == other.m_held.type() &&
+           m_equals(m_held, other.m_held);
   }
 
  private:
@@ -163,9 +164,9 @@ struct Self {
  *  **Positive is LEFT of travel**, which is outside a clockwise path —
  *  the same side `parallel` means. */
 struct Offset {
-  float px = 0.0f;
-  float across(float) const { return px; }
-  float max() const { return std::abs(px); }
+  float pixels = 0.0f;
+  float across(float) const { return pixels; }
+  float max() const { return std::abs(pixels); }
   bool operator==(const Offset&) const = default;
 };
 /** ACROSS RUNS LINEARLY from `startPx` to `endPx` along the spine — the
@@ -232,7 +233,8 @@ struct Stops {
   }
   float max() const {
     float widest = 0.0f;
-    for (const Stop& stop : stops) widest = std::max(widest, std::abs(stop.width));
+    for (const Stop& stop : stops)
+      widest = std::max(widest, std::abs(stop.width));
     return widest;
   }
   bool operator==(const Stops&) const = default;
@@ -247,9 +249,9 @@ struct StopsInPixels : Stops {
 /** The spine itself: a band of no width, which is the rail a stroke
  *  already draws. */
 inline Profile self() { return Profile(Self{}); }
-/** A constant width of @p px across the whole spine; positive is left
+/** A constant width of @p pixels across the whole spine; positive is left
  *  of travel. */
-inline Profile offset(float px) { return Profile(Offset{px}); }
+inline Profile offset(float pixels) { return Profile(Offset{pixels}); }
 /** A width running evenly from @p startPx at the start of the spine to
  *  @p endPx at its end. */
 inline Profile taper(float startPx, float endPx) {
@@ -262,13 +264,13 @@ inline Profile steps(std::vector<float> upTo, std::vector<float> widthsPx) {
 }
 }  // namespace profile
 
-inline Profile::Profile(float px) : Profile(profile::Offset{px}) {}
+inline Profile::Profile(float pixels) : Profile(profile::Offset{pixels}) {}
 
 inline Profile::Profile(std::vector<Stop> stops, ProfileOptions options)
-    : Profile(options.inPixels
-                  ? Profile(profile::StopsInPixels{
-                        {std::move(stops), options.between}})
-                  : Profile(profile::Stops{std::move(stops), options.between})) {}
+    : Profile(options.inPixels ? Profile(profile::StopsInPixels{
+                                     {std::move(stops), options.between}})
+                               : Profile(profile::Stops{std::move(stops),
+                                                        options.between})) {}
 
 inline Profile::Profile(std::initializer_list<Stop> stops,
                         ProfileOptions options)

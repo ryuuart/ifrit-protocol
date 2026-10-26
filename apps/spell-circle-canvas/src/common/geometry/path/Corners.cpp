@@ -98,11 +98,11 @@ SkPath selectedCorners(const SkPath& path, float radius,
       const float turnDegrees =
           std::acos(std::clamp(glm::dot(in, leaving), -1.0f, 1.0f)) *
           kRadiansToDegrees;
-      if (!(turnDegrees > options.minTurnDegrees)) continue;
+      if (!(turnDegrees > options.minimumTurnDegrees)) continue;
       const float cross = in.x * leaving.y - in.y * leaving.x;
       const bool outward = area == 0 || (cross > 0) == (area > 0);
       if (options.outwardOnly && !outward) continue;
-      const float halfAngle = (180.0f - turnDegrees) * 0.5f * kDegToRad;
+      const float halfAngle = (180.0f - turnDegrees) * 0.5f * kDegreesToRadians;
       float step = options.visual ? radius * reference /
                                         std::max(std::cos(halfAngle), 1e-2f)
                                   : radius;

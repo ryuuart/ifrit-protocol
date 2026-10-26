@@ -476,7 +476,8 @@ std::vector<Bead> scatterBeads() {
 /** THE RIVULET: the lane it runs down, its wander, and the top and bottom
  *  of its run on the pane. */
 constexpr float kRunLane = 40, kRunWander = 4.1f;
-constexpr float kRunTop = kWetPane.y / 2 - 30, kRunBottom = -kWetPane.y / 2 - 40;
+constexpr float kRunTop = kWetPane.y / 2 - 30,
+                kRunBottom = -kWetPane.y / 2 - 40;
 constexpr float kPaneBottom = -kWetPane.y / 2 + 6;
 
 /** Where the rivulet crosses height @p y. */
@@ -553,7 +554,7 @@ struct GlassForms {
     // through every glass.
     lensOfEye.eye = {110 * std::sin(phase), 310, 1350};
     lensOfEye.target = {0, 250, -80};
-    lensOfEye.fovYDegrees = 30;
+    lensOfEye.verticalFieldOfViewDegrees = 30;
     lensOfEye.nearPlane = 40;
     lensOfEye.farPlane = 5000;
     return lensOfEye;
@@ -885,9 +886,10 @@ struct GlassForms {
                         .at({x, kWetPane.y / 2, 0})
                         .fill(brass));
     for (world::Node& body : wetGlass(seconds)) wet.push_back(std::move(body));
-    nodes.push_back(world::group(std::move(wet))
-                        .key("wet glass")
-                        .at({kWetCentre.x, kWetCentre.y, kPageDepth + kWetGap}));
+    nodes.push_back(
+        world::group(std::move(wet))
+            .key("wet glass")
+            .at({kWetCentre.x, kWetCentre.y, kPageDepth + kWetGap}));
 
     return world::Frame(world::group(std::move(nodes)))
         .environment(room, {.intensity = 0.8f, .diffuse = 0.45f})

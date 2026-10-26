@@ -64,17 +64,17 @@ class Atlas {
                                                         std::string_view json);
   /** Packs @p images, each read once, into one sheet with @p padding
    *  pixels between them, the sheet a power of two no larger than
-   *  @p maxSide on a side. An image that does not fit is left out of the
+   *  @p maximumSide on a side. An image that does not fit is left out of the
    *  regions. */
   static Atlas pack(
       std::span<const std::pair<std::string, media::PixelSource>> images,
-      int padding = 1, int maxSide = 4096);
+      int padding = 1, int maximumSide = 4096);
   static Atlas pack(
       std::initializer_list<std::pair<std::string, media::PixelSource>> images,
-      int padding = 1, int maxSide = 4096) {
+      int padding = 1, int maximumSide = 4096) {
     return pack(std::span<const std::pair<std::string, media::PixelSource>>(
                     images.begin(), images.size()),
-                padding, maxSide);
+                padding, maximumSide);
   }
 
   const Texture& sheet() const { return m_sheet; }

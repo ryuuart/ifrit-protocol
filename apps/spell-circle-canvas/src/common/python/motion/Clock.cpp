@@ -322,7 +322,7 @@ void bindMotionClock(py::module_& root) {
       "its own moves (zero moves it by the wall clock), the most one wall "
       "frame moves, and engine time per wall time.";
   options.def_readwrite("fixedStep", &motion::EngineOptions::fixedStep)
-      .def_readwrite("maxWallStep", &motion::EngineOptions::maxWallStep)
+      .def_readwrite("maximumWallStep", &motion::EngineOptions::maximumWallStep)
       .def_readwrite("speed", &motion::EngineOptions::speed);
 
   auto position = py::class_<motion::Position>(

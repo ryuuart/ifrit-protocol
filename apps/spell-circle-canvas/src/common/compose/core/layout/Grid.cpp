@@ -250,12 +250,14 @@ struct GridLayout {
     std::vector<Track> tracks(n);
     for (size_t i = 0; i < n; ++i) {
       tracks[i] = trackAt(list, fallback, (int)i);
-      base[i] =
-          tracks[i].minKind == Track::Kind::Fixed ? tracks[i].minValue : 0.0f;
+      base[i] = tracks[i].minimumKind == Track::Kind::Fixed
+                    ? tracks[i].minimumValue
+                    : 0.0f;
       // A Fraction ceiling is the floor here: a share is dealt out in the
       // expansion step and must not be pre-spent by the maximize step.
-      limit[i] = tracks[i].maxKind == Track::Kind::Fixed ? tracks[i].maxValue
-                                                         : base[i];
+      limit[i] = tracks[i].maximumKind == Track::Kind::Fixed
+                     ? tracks[i].maximumValue
+                     : base[i];
     }
 
     // 2. The content, narrowest span first.
@@ -292,10 +294,10 @@ struct GridLayout {
       }
     };
     const auto flooredByContent = [](const Track& t) {
-      return t.minKind == Track::Kind::Content;
+      return t.minimumKind == Track::Kind::Content;
     };
     const auto ceilingedByContent = [](const Track& t) {
-      return t.maxKind == Track::Kind::Content;
+      return t.maximumKind == Track::Kind::Content;
     };
     for (int k = 1; k <= count; ++k)
       for (size_t i = 0; i < spans.size(); ++i) {
@@ -303,7 +305,8 @@ struct GridLayout {
         if (i >= in.children.size()) continue;
         const Arrangement::Child& child = in.children[i];
         float measured = axisOf(child.size);
-        float minimum = in.minSizesMeasured ? axisOf(child.minSize) : measured;
+        float minimum =
+            in.minimumSizesMeasured ? axisOf(child.minimumSize) : measured;
         // Once columns are known, resolve a child's percentage width and
         // proportions for row sizing without copying the child records.
         if (!horizontal && !columnWidths.empty()) {
@@ -348,8 +351,8 @@ struct GridLayout {
     std::vector<char> flexible(n, 0);
     bool anyFlexible = false;
     for (size_t i = 0; i < n; ++i)
-      if (tracks[i].maxKind == Track::Kind::Fraction &&
-          tracks[i].maxValue > 0) {
+      if (tracks[i].maximumKind == Track::Kind::Fraction &&
+          tracks[i].maximumValue > 0) {
         flexible[i] = 1;
         anyFlexible = true;
       }
@@ -358,7 +361,7 @@ struct GridLayout {
       float weights = 0.0f;
       for (size_t i = 0; i < n; ++i) {
         if (flexible[i])
-          weights += tracks[i].maxValue;
+          weights += tracks[i].maximumValue;
         else
           leftover -= base[i];
       }
@@ -368,7 +371,7 @@ struct GridLayout {
       const float unit = leftover / std::max(weights, 1.0f);
       bool froze = false;
       for (size_t i = 0; i < n; ++i)
-        if (flexible[i] && base[i] > unit * tracks[i].maxValue) {
+        if (flexible[i] && base[i] > unit * tracks[i].maximumValue) {
           flexible[i] = 0;  // freezes at its own floor and leaves the division
           froze = true;
         }
@@ -378,7 +381,7 @@ struct GridLayout {
         continue;
       }
       for (size_t i = 0; i < n; ++i)
-        if (flexible[i]) base[i] = unit * tracks[i].maxValue;
+        if (flexible[i]) base[i] = unit * tracks[i].maximumValue;
       break;
     }
     return base;

@@ -77,7 +77,7 @@ MultigridTiling multigrid(std::span<const MultigridFamily> families,
                           const MultigridOptions& options) {
   MultigridTiling out;
   const int n = (int)families.size();
-  if (n < 2 || options.radius <= 0 || options.maxRhombs <= 0) return out;
+  if (n < 2 || options.radius <= 0 || options.maximumRhombs <= 0) return out;
 
   std::vector<glm::dvec2> zeta((size_t)n);
   for (int j = 0; j < n; ++j) {
@@ -167,7 +167,7 @@ MultigridTiling multigrid(std::span<const MultigridFamily> families,
             z = z + zeta[(size_t)j] * (double)k;
           }
 
-          if ((int)out.rhombs.size() >= options.maxRhombs) return out;
+          if ((int)out.rhombs.size() >= options.maximumRhombs) return out;
 
           const glm::dvec2 c[4] = {z, z + zr, z + zr + zs, z + zs};
           bool near = false;

@@ -97,9 +97,9 @@ that is not a list being the one argument it is. A message with no
 is no message and answers no bytes, as do arguments that will not fit
 one packet; a bundle is read but not written.
 
-`sigil::data::maxOscPacketBytes` is the largest packet this writes —
+`sigil::data::maximumOscPacketBytes` is the largest packet this writes —
 one packet is one datagram, and a datagram carries what a UDP payload
-holds. `sigil::data::maxOscBundleDepth` is how deep a packet may nest, a
+holds. `sigil::data::maximumOscBundleDepth` is how deep a packet may nest, a
 bundle inside a bundle or an array inside an array: nesting is a
 schedule inside a schedule, which a few levels say everything a sender
 means by; past this a packet is walking its reader down a stack rather

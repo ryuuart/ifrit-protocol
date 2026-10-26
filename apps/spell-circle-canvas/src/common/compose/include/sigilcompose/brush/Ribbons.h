@@ -120,12 +120,13 @@ struct Ribbon {
   float bleed(glm::vec2 size) const;
   /** The band is swept along the outline it is handed and nowhere else. */
   bool staysOnOutline() const { return true; }
-  bool operator==(const Ribbon& o) const {
-    return fill == o.fill && fillMaterial == o.fillMaterial &&
-           widthStart == o.widthStart && widthEnd == o.widthEnd &&
-           nibAngleDegrees == o.nibAngleDegrees &&
-           nibContrast == o.nibContrast && step == o.step && width == o.width &&
-           join == o.join && miterLimit == o.miterLimit;
+  bool operator==(const Ribbon& other) const {
+    return fill == other.fill && fillMaterial == other.fillMaterial &&
+           widthStart == other.widthStart && widthEnd == other.widthEnd &&
+           nibAngleDegrees == other.nibAngleDegrees &&
+           nibContrast == other.nibContrast && step == other.step &&
+           width == other.width && join == other.join &&
+           miterLimit == other.miterLimit;
   }
 
   /** THE BAND THIS RIBBON FILLS over @p spine — the same geometry `paint`
@@ -181,9 +182,9 @@ struct Art {
   /** The art is bent along the outline it is handed, within the reserve
    *  `bleed()` states. */
   bool staysOnOutline() const { return true; }
-  bool operator==(const Art& o) const {
-    return art.node() == o.art.node() && height == o.height &&
-           stationPx == o.stationPx && bleedPx == o.bleedPx;
+  bool operator==(const Art& other) const {
+    return art.node() == other.art.node() && height == other.height &&
+           stationPx == other.stationPx && bleedPx == other.bleedPx;
   }
 
   /** The art's rastered strip, shared by every copy of the brush value

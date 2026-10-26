@@ -148,12 +148,12 @@ class Shape {
 
   /** Shared state (copies of one Shape) is equal; comparable schemes of
    *  one type compare their values; anything else is conservative. */
-  bool operator==(const Shape& o) const {
-    if (m_state == o.m_state) return true;
-    if (!m_state || !o.m_state) return false;
-    if (!m_state->equals || !o.m_state->equals) return false;
-    return m_state->held.type() == o.m_state->held.type() &&
-           m_state->equals(m_state->held, o.m_state->held);
+  bool operator==(const Shape& other) const {
+    if (m_state == other.m_state) return true;
+    if (!m_state || !other.m_state) return false;
+    if (!m_state->equals || !other.m_state->equals) return false;
+    return m_state->held.type() == other.m_state->held.type() &&
+           m_state->equals(m_state->held, other.m_state->held);
   }
 
  private:
@@ -191,7 +191,7 @@ class HeldPath {
       : m_cooked(std::move(cooked)) {}
   geometry::path::Outline outline(glm::vec2) const { return m_cooked; }
   const geometry::path::Outline& cooked() const { return m_cooked; }
-  bool operator==(const HeldPath& o) const = default;
+  bool operator==(const HeldPath& other) const = default;
 
  private:
   geometry::path::Outline m_cooked;
@@ -237,7 +237,9 @@ class KeyedShape {
     return core::callPrefix(m_fn, size);
   }
   const K& key() const { return m_key; }
-  bool operator==(const KeyedShape& o) const { return m_key == o.m_key; }
+  bool operator==(const KeyedShape& other) const {
+    return m_key == other.m_key;
+  }
 
  private:
   K m_key;
@@ -663,9 +665,10 @@ class Decoration {
    *  a callable is the same drawing — but it has a cost: such a node is
    *  re-patched and re-recorded on every describe, forever. Prefer a value
    *  scheme for static chrome, or wrap the node in memo(). */
-  bool operator==(const Decoration& o) const {
-    return m_equals && o.m_equals && m_scheme.type() == o.m_scheme.type() &&
-           m_equals(m_scheme, o.m_scheme);
+  bool operator==(const Decoration& other) const {
+    return m_equals && other.m_equals &&
+           m_scheme.type() == other.m_scheme.type() &&
+           m_equals(m_scheme, other.m_scheme);
   }
 
  private:

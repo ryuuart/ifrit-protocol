@@ -75,7 +75,8 @@ class Declaring {
 
  protected:
   Declaring();  ///< A fresh node of its own.
-  explicit Declaring(std::shared_ptr<ElementNode> n) : m_node(std::move(n)) {}
+  explicit Declaring(std::shared_ptr<ElementNode> node)
+      : m_node(std::move(node)) {}
 
   /** One more child at the end, which `children()` and every verb that
    *  takes a node go through. */

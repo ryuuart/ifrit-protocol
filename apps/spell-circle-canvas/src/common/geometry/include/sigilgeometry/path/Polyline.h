@@ -11,12 +11,12 @@
  * write one; the rest is plain vectors so it composes with any source of
  * points.
  */
-#include "sigilgeometry/path/Outline.h"
-
 #include <functional>
 #include <glm/vec2.hpp>
 #include <span>
 #include <vector>
+
+#include "sigilgeometry/path/Outline.h"
 
 namespace sigil::geometry::path {
 
@@ -86,8 +86,7 @@ std::vector<glm::vec2> edgeCrossings(const Polyline& line, glm::vec2 from,
 
 /** Every contour of `outline` as a polyline, curves subdivided until
  *  they deviate from the chord by at most `tolerance` pixels. */
-std::vector<Polyline> flatten(const Outline& outline,
-                              float tolerance = 0.25f);
+std::vector<Polyline> flatten(const Outline& outline, float tolerance = 0.25f);
 
 /** `count + 1` points spaced evenly IN THE PARAMETER along a parametric
  *  curve `f: [t0, t1] → point` — `count` of them when `closed`, since the
@@ -165,8 +164,7 @@ Outline toPath(const Polyline& line);
  *  the contract: its Catmull-Rom cubic PASSES THROUGH every point and may
  *  overshoot between two that turn sharply, while this one is bounded by
  *  the points and touches none of the interior ones. */
-Outline smoothThrough(std::span<const glm::vec2> points,
-                      bool closed = false);
+Outline smoothThrough(std::span<const glm::vec2> points, bool closed = false);
 /** The same, over a polyline: its points, closed when it is. */
 Outline smoothThrough(const Polyline& line);
 
@@ -206,6 +204,6 @@ Polyline catmullRom(const Polyline& controls, float spacing,
  *  two is shorter. Closure comes from `a`; the source length interpolates
  *  with the points, so a blend still knows how long the curve it stands
  *  for is. */
-Sampled lerp(const Sampled& a, const Sampled& b, float t);
+Sampled lerp(const Sampled& a, const Sampled& b, float amount);
 
 }  // namespace sigil::geometry::path

@@ -74,9 +74,9 @@ struct Wave {
 /** A hand-drawn wobble: the mark resampled into short segments, each
  *  pushed off true by a seeded amount (the rough.js line).
  *
- *  ONE pass of the renderer's discrete path effect. The sketchy double-line those tools
- *  draw is TWO passes — full and half deviation at different seeds — so it
- *  is two brush layers or two restyles here, never one call. */
+ *  ONE pass of the renderer's discrete path effect. The sketchy double-line
+ * those tools draw is TWO passes — full and half deviation at different seeds —
+ * so it is two brush layers or two restyles here, never one call. */
 struct Jitter {
   float segmentLength = 8.0f, deviation = 2.0f;
   uint32_t seed = 7;
@@ -91,15 +91,15 @@ struct Jitter {
  *
  *  **Positive is LEFT of travel.** That is the library-wide sign
  *  convention for an across-the-path offset, and it agrees exactly with
- *  `path::profile::offset(px)`; anything added here must match it,
+ *  `path::profile::offset(pixels)`; anything added here must match it,
  * because a disagreement mirrors a drawing rather than erroring. */
 struct Offset {
-  float px = 0.0f;
+  float pixels = 0.0f;
   float step = 4.0f;
   bool operator==(const Offset&) const = default;
-  float bleed() const { return std::abs(px); }
+  float bleed() const { return std::abs(pixels); }
   path::Outline shape(const path::Outline& outline) const {
-    return path::operations::offset(outline, px,
+    return path::operations::offset(outline, pixels,
                                     {.position = 0, .step = step});
   }
 };

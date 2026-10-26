@@ -13,12 +13,12 @@ status: stable
 
 A LINE FITTED BY LEAST SQUARES, and the residuals that say whether the
 claim it makes is worth printing. The slope and the intercept are the
-answer; `explained`, `maxResidual` and `rmsResidual` are what turns a drawn
+answer; `explained`, `maximumResidual` and `rootMeanSquareResidual` are what turns a drawn
 line into evidence. A study that quotes a slope without a residual has
 stated a preference, not a measurement.
 
-- `advanced/LineFit.h` — `LineFit`, `slope`, `intercept`, `explained`, `maxResidual`,
-  `rmsResidual`, `samples`, `correlation`, `at`, `residual`, `lineFit`
+- `advanced/LineFit.h` — `LineFit`, `slope`, `intercept`, `explained`, `maximumResidual`,
+  `rootMeanSquareResidual`, `samples`, `correlation`, `at`, `residual`, `lineFit`
 
 `correlation` is HOW STRONGLY THE TWO RUN TOGETHER, -1 to 1: the square
 root of `explained` carrying the slope's sign. It says the same thing `explained`
@@ -30,8 +30,8 @@ in the ordinate's own units.
 `explained` is the coefficient of determination, 0 to 1 — how much of
 the ordinates' spread the line accounts for; a run whose abscissae
 are all one value has no line to fit and answers 0 with a zero slope.
-`maxResidual` is the largest absolute deviation over the points, in the
-ordinate's own units, and `rmsResidual` the root mean square of the
+`maximumResidual` is the largest absolute deviation over the points, in the
+ordinate's own units, and `rootMeanSquareResidual` the root mean square of the
 same. `at` is the line evaluated at an abscissa, and `residual` how far
 a point stands off it, signed.
 

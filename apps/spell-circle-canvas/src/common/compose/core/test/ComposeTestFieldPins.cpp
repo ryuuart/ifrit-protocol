@@ -512,17 +512,18 @@ TEST(ComposeSlotPins, EveryPropertyRowReadsTheComputedStyleAndNotTheNode) {
          "leaves that property unable to ramp from a resolved value";
 }
 
-// ---- maxScaleOf's perspective fallback -------------------------------------
+// ---- maximumScaleOf's perspective fallback
+// -------------------------------------
 //
-// Skia's getMinMaxScales refuses a perspective matrix, so maxScaleOf needs a
-// fallback — and the matrix DIAGONAL is the wrong one twice over. A rotation
+// Skia's getMinMaxScales refuses a perspective matrix, so maximumScaleOf needs
+// a fallback — and the matrix DIAGONAL is the wrong one twice over. A rotation
 // moves the whole scale into the skew terms (at 90° the diagonal is exactly
 // zero), and perspective makes scale position-dependent while the diagonal
 // reads no position at all. The quantized bake ladder consumes this number,
 // so a wrong answer is a wrongly-stepped bake whenever the host CTM carries
 // perspective.
 //
-// What maxScaleOf does instead is local linearization: the Jacobian of the
+// What maximumScaleOf does instead is local linearization: the Jacobian of the
 // projective map, maxed over the centre and four corners of the node's local
 // bounds. This test holds it to a numerically derived ground truth — finite
 // differences of the mapped point at those same five samples.
@@ -561,7 +562,7 @@ TEST(ComposeMaxScale, PerspectiveFallbackTracksTheJacobianNotTheDiagonal) {
         SkPoint{rect.left(), rect.bottom()}})
     truth = std::max(truth, fdSigmaMax(p));
 
-  const float got = cd::maxScaleOf(m, rect);
+  const float got = cd::maximumScaleOf(m, rect);
   EXPECT_NEAR(got, truth, truth * 0.02f)
       << "the perspective fallback disagrees with the numerical Jacobian";
 
@@ -581,5 +582,5 @@ TEST(ComposeMaxScale, PerspectiveFallbackTracksTheJacobianNotTheDiagonal) {
   affine.setPerspX(0);
   affine.setPerspY(0);
   ASSERT_FALSE(affine.hasPerspective());
-  EXPECT_NEAR(cd::maxScaleOf(affine, rect), 1.0f, 1e-4f);
+  EXPECT_NEAR(cd::maximumScaleOf(affine, rect), 1.0f, 1e-4f);
 }

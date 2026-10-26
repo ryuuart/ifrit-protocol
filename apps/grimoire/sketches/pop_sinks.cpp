@@ -128,9 +128,9 @@ std::vector<glm::vec3> ringPoints() {
 
 const glm::vec3 kEye{0, 260, 980};
 const camera::Camera kFormedView{
-    .eye = kEye, .target = {0, 20, 0}, .fovYDegrees = 24};
+    .eye = kEye, .target = {0, 20, 0}, .verticalFieldOfViewDegrees = 24};
 const camera::Camera kSplatView{
-    .eye = {0, 74, 235}, .target = {0, 0, 0}, .fovYDegrees = 40};
+    .eye = {0, 74, 235}, .target = {0, 0, 0}, .verticalFieldOfViewDegrees = 40};
 
 /** The splatted subject: points scattered on a torus, sized and tinted by
  *  their own lanes so the sink has lanes to read. */

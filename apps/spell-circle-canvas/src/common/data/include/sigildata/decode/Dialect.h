@@ -65,12 +65,12 @@ enum class Dialect {
 /** THE LARGEST OSC PACKET `encode` WRITES. One packet is one datagram,
  *  and a datagram carries what a UDP payload holds; arguments needing
  *  more are not written at all, half a packet being no shorter message. */
-inline constexpr size_t maxOscPacketBytes = 65507;
+inline constexpr size_t maximumOscPacketBytes = 65507;
 
 /** HOW DEEP AN OSC PACKET MAY NEST — a bundle inside a bundle, an array
  *  inside an array. Past this a packet reads as no packet and writes as
  *  no bytes. */
-inline constexpr int maxOscBundleDepth = 32;
+inline constexpr int maximumOscBundleDepth = 32;
 
 /** @p bytes READ IN @p dialect, or nothing when they are no message in
  *  it. @p schema is what a `FlatBuffer` reads through; the other

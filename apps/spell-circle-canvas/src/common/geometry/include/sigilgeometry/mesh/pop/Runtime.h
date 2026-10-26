@@ -149,12 +149,12 @@ bool setField(Operation& operation, std::string_view field, float value);
 std::optional<float> getField(const Operation& operation,
                               std::string_view field);
 
-/** THE FIELD `Noise` DISPLACES BY, at @p p, in the units the operator
+/** THE FIELD `Noise` DISPLACES BY, at @p point, in the units the operator
  *  carries: a sum of library sines, returned before the amplitude
  *  multiplies it. One function, so the operator and
  *  `points::displaceNoise` — which is the same verb reached for
  *  without a chain — answer with one field rather than two. */
-glm::vec3 noiseField(glm::vec3 p, float frequency, float seed);
+glm::vec3 noiseField(glm::vec3 point, float frequency, float seed);
 
 /** THE COOK: evaluates @p chain into a Cloud with the conventional
  *  lanes — "t" (scalar), "dir" (vector), "tint" (color), "size"

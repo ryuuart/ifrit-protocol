@@ -169,11 +169,12 @@ material::Color fade(material::Color c, float a) {
  * a described tree spells as `sigil::motion::animate({.from = 0, .to = 1,
  * .duration = duration, .ease = delay})` is this in a loop, because a loop has
  * the clock in its hand. */
-float cue(double ms, float delayMilliseconds, float durationMilliseconds,
-          const motion::Easing& ease = nullptr) {
-  const float u = std::clamp(
-      (float)((ms - (double)delayMilliseconds) / (double)durationMilliseconds),
-      0.0f, 1.0f);
+float cue(double milliseconds, float delayMilliseconds,
+          float durationMilliseconds, const motion::Easing& ease = nullptr) {
+  const float u =
+      std::clamp((float)((milliseconds - (double)delayMilliseconds) /
+                         (double)durationMilliseconds),
+                 0.0f, 1.0f);
   return ease ? ease(u) : u;
 }
 
@@ -413,7 +414,7 @@ struct PsxDoomFire {
     pen.noStroke();
   }
 
-  void firePanel(Pen& pen, double ms) {
+  void firePanel(Pen& pen, double milliseconds) {
     const float x = kPadX, y = kBodyY;
     // ink under the flame — the fire's own alpha-0 cells reveal it
     pen.noStroke();
@@ -427,7 +428,7 @@ struct PsxDoomFire {
     // of the bitmap the last sim tick rasterized. No sim work happens on a
     // draw frame — that is what decouples 27 Hz from the render rate.
     if (frame) {
-      const float a = cue(ms, 480, 400);
+      const float a = cue(milliseconds, 480, 400);
       pen.noSmooth();
       pen.push();
       pen.fill(material::Color{1, 1, 1, a});
@@ -443,10 +444,10 @@ struct PsxDoomFire {
          "SEED ROW  y = 167  ·  HEAT 36  ·  "
          "WRITTEN ONCE, NEVER RE-RANDOMISED",
          x + 10, y + kPanelH - 12 - 22, 10, hexColor(0xEFEFC7), 1.0f, 0.72f,
-         cue(ms, 1000, 300));
+         cue(milliseconds, 1000, 300));
 
     // where the sidebar's inspector is looking
-    const float ia = cue(ms, 900, 300);
+    const float ia = cue(milliseconds, 900, 300);
     pen.noFill();
     pen.stroke(fade(kAmber, 0.85f * ia));
     pen.strokeWeight(1);
@@ -461,7 +462,7 @@ struct PsxDoomFire {
     // the panel's own placard line, and the live step counter beside it
     chip(pen,
          "BUFFER 320 × 168 CELLS  ·  BLIT ×3 NEAREST  ·  PANEL 960 × 504 PX",
-         x + 22, y + 24, 10, kSteel, 1.0f, 0.0f, cue(ms, 820, 300));
+         x + 22, y + 24, 10, kSteel, 1.0f, 0.0f, cue(milliseconds, 820, 300));
 
     const std::string step =
         compose::kit::formatted("STEP %06llu", (unsigned long long)simSteps);
@@ -473,7 +474,7 @@ struct PsxDoomFire {
     pen.rect(x + kPanelW - 20, y + 30, 6, 6);
 
     // the bezel, revealed on mount, and its four registration marks
-    const float ba = cue(ms, 280, 500, motion::ease::outCubic);
+    const float ba = cue(milliseconds, 280, 500, motion::ease::outCubic);
     pen.noFill();
     pen.stroke(fade(kKeyline, ba));
     pen.strokeWeight(1.5f);
@@ -495,9 +496,9 @@ struct PsxDoomFire {
                                          sigil::motion::Duration(0.02f));
   }
 
-  void paletteStrip(Pen& pen, double ms) {
+  void paletteStrip(Pen& pen, double milliseconds) {
     const float master =
-        std::clamp((float)ms / kSwatchSpanMilliseconds, 0.0f, 1.0f);
+        std::clamp((float)milliseconds / kSwatchSpanMilliseconds, 0.0f, 1.0f);
     pen.noStroke();
     for (int i = 0; i < kPaletteSize; ++i) {
       const float u = swatchCascade.localProgress(master, (uint32_t)i, 0);
@@ -686,7 +687,7 @@ struct PsxDoomFire {
    *  different crop and a bigger integer zoom, with the cell lattice
    *  drawn on top so it reads as a byte array rather than a second
    *  flame. */
-  void inspectorPanel(Pen& pen, double ms) {
+  void inspectorPanel(Pen& pen, double milliseconds) {
     const float x = kSideX, y = kInspectY, w = kSideW;
     mono(pen, 11, kBone, 1.6f);
     pen.textAlign(LEFT, TOP);
@@ -701,9 +702,9 @@ struct PsxDoomFire {
     const float bx = x, by = y + 20;
     const float bw = (float)(kInspectCells * kInspectZoom);
     const float bh = (float)(kInspectRows * kInspectZoom);
-    const float a = cue(ms, 700, 300);
-    const float s =
-        0.94f + 0.06f * sigil::motion::ease::outBack()(cue(ms, 700, 300));
+    const float a = cue(milliseconds, 700, 300);
+    const float s = 0.94f + 0.06f * sigil::motion::ease::outBack()(
+                                        cue(milliseconds, 700, 300));
     pen.push();
     pen.translate(bx + bw * 0.5f, by + bh * 0.5f);
     pen.scale(s);
@@ -820,15 +821,15 @@ struct PsxDoomFire {
       stepped = false;
       rasterize();
     }
-    const double ms = pen.millis();
+    const double milliseconds = pen.millis();
     pen.background(kInk);
     pen.element(header(), kPadX, kPadY, kCanvasW - 2 * kPadX, kHeaderH);
     rule(pen, kPadX, kPadY + kHeaderH - 4, kCanvasW - 2 * kPadX - 12,
-         cue(ms, 320, 400));
-    firePanel(pen, ms);
-    paletteStrip(pen, ms);
-    specPanel(pen, ms / 1000.0, pen.frameRate());
-    inspectorPanel(pen, ms);
+         cue(milliseconds, 320, 400));
+    firePanel(pen, milliseconds);
+    paletteStrip(pen, milliseconds);
+    specPanel(pen, milliseconds / 1000.0, pen.frameRate());
+    inspectorPanel(pen, milliseconds);
   }
 };
 

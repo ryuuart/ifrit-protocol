@@ -289,15 +289,16 @@ Element ladder(const Ladder& ladder) {
  *  is what makes a ring read as a mechanism rather than another circle. */
 Element brokenRing(float radius, int count, float span, float from, float width,
                    material::Color ink) {
-  const float px = radius * kRadius;
-  Element slabs =
-      haloed(kit::disc(sigil::geometry::path::fromSk(kEye), px + width * 0.5f)
-                 .shape(shapes::arcs(
-                     {.divisions = count,
-                      .from = from,
-                      .mark = {(px - width * 0.5f) / (px + width * 0.5f), 1.0f},
-                      .spanDegrees = span})),
-             width, 0.0f);
+  const float pixels = radius * kRadius;
+  Element slabs = haloed(
+      kit::disc(sigil::geometry::path::fromSk(kEye), pixels + width * 0.5f)
+          .shape(shapes::arcs(
+              {.divisions = count,
+               .from = from,
+               .mark = {(pixels - width * 0.5f) / (pixels + width * 0.5f),
+                        1.0f},
+               .spanDegrees = span})),
+      width, 0.0f);
   slabs.fill(Fill::color(ink));
   return slabs;
 }
@@ -416,32 +417,34 @@ struct RotaConvocationis {
   Element script(size_t index) {
     const Band& band = kBands[index];
     const float size = bandCuts[index].fittedSize;
-    const float px = band.radius * kRadius;
+    const float pixels = band.radius * kRadius;
     // The letters stand about half a size either side of the circle; the
     // names' glow reaches three sigmas further.
     const float reach = size * 0.62f + (band.turning == kNames ? 18.0f : 2.0f);
     const std::vector<float>& cuts = bandCuts[index].degrees;
-    return sheet().children(each(cuts.size(), [&, px, size, reach](int wedge) {
-      const float from = cuts[wedge];
-      const float to = wedge + 1 < int(cuts.size()) ? cuts[wedge + 1]
-                                                    : cuts.front() + 360.0f;
-      // Degrees from the wedge's own place round to twelve o'clock.
-      const float home = -90.0f - (from + to) * 0.5f;
-      const Standing piece = standing(to - from, px - reach, px + reach);
-      Text run = bandRun(band);
-      run.font({.size = kDeclaredSize}).ink(band.ink).rotate(home);
-      if (band.stop)
-        run.span(weave::selectors::text(band.stop),
-                 SpanStyle().ink(band.stopInk));
-      if (band.turning == kNames) run.filter(Filter::glow(kHalo, 6.0f));
-      return turning(piece, turn(band.turning, -home), kindle[band.turning],
-                     kit::at(std::move(run), piece.eye().x - px,
-                             piece.eye().y - px, 2 * px, 2 * px)
-                         .textOnPath({.path = shapes::circle(),
-                                      .offset = -kDeclaredSize * 0.34f,
-                                      .fit = TextPath::Fit::Size,
-                                      .fill = band.fill}));
-    }));
+    return sheet().children(
+        each(cuts.size(), [&, pixels, size, reach](int wedge) {
+          const float from = cuts[wedge];
+          const float to = wedge + 1 < int(cuts.size()) ? cuts[wedge + 1]
+                                                        : cuts.front() + 360.0f;
+          // Degrees from the wedge's own place round to twelve o'clock.
+          const float home = -90.0f - (from + to) * 0.5f;
+          const Standing piece =
+              standing(to - from, pixels - reach, pixels + reach);
+          Text run = bandRun(band);
+          run.font({.size = kDeclaredSize}).ink(band.ink).rotate(home);
+          if (band.stop)
+            run.span(weave::selectors::text(band.stop),
+                     SpanStyle().ink(band.stopInk));
+          if (band.turning == kNames) run.filter(Filter::glow(kHalo, 6.0f));
+          return turning(piece, turn(band.turning, -home), kindle[band.turning],
+                         kit::at(std::move(run), piece.eye().x - pixels,
+                                 piece.eye().y - pixels, 2 * pixels, 2 * pixels)
+                             .textOnPath({.path = shapes::circle(),
+                                          .offset = -kDeclaredSize * 0.34f,
+                                          .fit = TextPath::Fit::Size,
+                                          .fill = band.fill}));
+        }));
   }
 
   /** A SPARK running round the circle of @p radius the way its layer
@@ -450,15 +453,16 @@ struct RotaConvocationis {
    *  turning figure turns with it, so the spark is baked lit and only
    *  turned. */
   Element spark(float radius, Turning layer, float span) {
-    const float px = radius * kRadius;
-    const Standing piece = standing(span + 8, px - 22, px + 22);
+    const float pixels = radius * kRadius;
+    const Standing piece = standing(span + 8, pixels - 22, pixels + 22);
     const float ahead = kPeriod[layer] > 0 ? 1.0f : -1.0f;
     const float head = -90.0f + ahead * span * 0.5f;
     const auto trail = [&](float width, float strength) {
-      return kit::disc(piece.eye(), px + width * 0.5f)
+      return kit::disc(piece.eye(), pixels + width * 0.5f)
           .shape(shapes::arcs(
               {.divisions = 1,
-               .mark = {(px - width * 0.5f) / (px + width * 0.5f), 1.0f},
+               .mark = {(pixels - width * 0.5f) / (pixels + width * 0.5f),
+                        1.0f},
                .spanDegrees = span}))
           .fill(sigil::material::conicGradient(
               {0.5f, 0.5f},
@@ -469,7 +473,7 @@ struct RotaConvocationis {
     };
     const glm::vec2 tip =
         piece.eye() +
-        px * glm::vec2{std::cos(head * kDegree), std::sin(head * kDegree)};
+        pixels * glm::vec2{std::cos(head * kDegree), std::sin(head * kDegree)};
     return turning(piece, turn(layer), kindle[layer],
                    sheet()
                        .filter(Filter::glow(kHalo, 5.0f))
@@ -676,7 +680,7 @@ struct RotaConvocationis {
    *  (k + 0.5) / 12 of one arc-length coordinate. They do not turn: a
    *  caption is read, and the mechanism is what moves. */
   Element thresholds() {
-    const float px = rStar * kRadius;
+    const float pixels = rStar * kRadius;
     return sheet()
         .scale(kindle[kStar])
         .children(
@@ -686,7 +690,8 @@ struct RotaConvocationis {
                                       .styleClass("label")
                                       .font({.size = 11, .track = 2})
                                       .ink(kAsh),
-                                  kEye.fX - px, kEye.fY - px, 2 * px, 2 * px)
+                                  kEye.fX - pixels, kEye.fY - pixels,
+                                  2 * pixels, 2 * pixels)
                        .textOnPath(
                            {.path = shapes::chords(
                                 {.sides = kStations, .step = 3, .inset = 74}),
@@ -701,7 +706,7 @@ struct RotaConvocationis {
    *  inside it, and three letterforms set large at the centre, standing
    *  still — the brightest stable thing on the plate. */
   Element emblem() {
-    const float px = rHexagram * kRadius;
+    const float pixels = rHexagram * kRadius;
     return sheet()
         .scale(kindle[kHexagram])
         .children(
@@ -728,7 +733,7 @@ struct RotaConvocationis {
              sheet()
                  .rotate(turn(kHexagram))
                  .children(
-                     {lit(kit::disc(sigil::geometry::path::fromSk(kEye), px)
+                     {lit(kit::disc(sigil::geometry::path::fromSk(kEye), pixels)
                               .shape(shapes::chords(
                                   {.sides = 6, .step = 2, .closed = true})),
                           1.1f, kLine),

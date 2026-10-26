@@ -62,8 +62,8 @@ struct EdgeSlice {
    *  extraction — a contour walk with a binary search at each run boundary
    *  — for chrome that never changed. Any adaptor added beside this one
    *  needs the same operator for the same reason. */
-  bool operator==(const EdgeSlice& o) const {
-    return mask == o.mask && step == o.step && inner == o.inner;
+  bool operator==(const EdgeSlice& other) const {
+    return mask == other.mask && step == other.step && inner == other.inner;
   }
 };
 
@@ -84,39 +84,39 @@ inline EdgeSlice onEdges(geometry::path::Edge mask, Decoration inner,
  *  chrome, and without this every nested frame is either a second element
  *  or a bespoke decoration struct.
  *
- *  Positive `px` shrinks; negative grows. The offset follows any
+ *  Positive `pixels` shrinks; negative grows. The offset follows any
  *  silhouette — a chamfered panel, a star, a blob — not just rectangles. */
 struct Inset {
-  float px = 0;
+  float pixels = 0;
   Decoration inner{PaintProgram{}};
 
   /** Forwarded, or an inner weave's strand::from(key) would never be
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }
   float bleed(glm::vec2 size) const {
-    return inner.bleed(size) + std::max(0.0f, -px);
+    return inner.bleed(size) + std::max(0.0f, -pixels);
   }
   float reach(glm::vec2 size) const { return inner.reach(size); }
   /** Forwarded, for the reason EdgeSlice forwards it. */
   bool blends() const { return inner.blends(); }
   bool usesWorldSpace() const { return inner.usesWorldSpace(); }
   /** Forwarded for an inward copy, which stands inside the outline. An
-   *  outward one is mitred, so its corners stand further out than `px`
+   *  outward one is mitred, so its corners stand further out than `pixels`
    *  and the node keeps its box. */
-  bool staysOnOutline() const { return px >= 0 && inner.staysOnOutline(); }
+  bool staysOnOutline() const { return pixels >= 0 && inner.staysOnOutline(); }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
   bool isRunning() const { return inner.isRunning(); }
-  bool operator==(const Inset& o) const {
-    return px == o.px && inner == o.inner;
+  bool operator==(const Inset& other) const {
+    return pixels == other.pixels && inner == other.inner;
   }
 };
 
-/** Run @p inner against a copy of the node's outline moved @p px
+/** Run @p inner against a copy of the node's outline moved @p pixels
  *  inward — outward for a negative number — so a keyline sits clear of
  *  the edge without a second node. */
-inline Inset inset(float px, Decoration inner) {
-  return Inset{px, std::move(inner)};
+inline Inset inset(float pixels, Decoration inner) {
+  return Inset{pixels, std::move(inner)};
 }
 
 }  // namespace sigil::compose

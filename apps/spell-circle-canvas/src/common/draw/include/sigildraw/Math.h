@@ -32,9 +32,9 @@ inline float lerp(float start, float stop, float amount) {
   return start + (stop - start) * amount;
 }
 
-/** @p n held inside [low, high]. */
-inline float constrain(float n, float low, float high) {
-  return std::clamp(n, low, high);
+/** @p value held inside [low, high]. */
+inline float constrain(float value, float low, float high) {
+  return std::clamp(value, low, high);
 }
 
 /** The distance between two points. */
@@ -50,8 +50,8 @@ inline float norm(float value, float start, float stop) {
   return map(value, start, stop, 0.0f, 1.0f);
 }
 
-/** @p n squared. */
-inline float sq(float n) { return n * n; }
+/** @p value squared. */
+inline float sq(float value) { return value * value; }
 
 /** Degrees to radians. p5's spelling of the conversion every library
  *  here scales an angle by, which is `core::angle`'s: a quotient of a

@@ -245,10 +245,10 @@ void bindLayouts(py::module_& compose) {
       .value("Fixed", layouts::Track::Kind::Fixed)
       .value("Content", layouts::Track::Kind::Content)
       .value("Fraction", layouts::Track::Kind::Fraction);
-  field(track, "minKind", &layouts::Track::minKind);
-  field(track, "minValue", &layouts::Track::minValue);
-  field(track, "maxKind", &layouts::Track::maxKind);
-  field(track, "maxValue", &layouts::Track::maxValue);
+  field(track, "minimumKind", &layouts::Track::minimumKind);
+  field(track, "minimumValue", &layouts::Track::minimumValue);
+  field(track, "maximumKind", &layouts::Track::maximumKind);
+  field(track, "maximumValue", &layouts::Track::maximumValue);
   track.def(py::self == py::self);
   module.def("px", &layouts::px, py::arg("pixels"));
   module.def("content", &layouts::content);

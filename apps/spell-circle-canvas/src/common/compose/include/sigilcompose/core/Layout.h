@@ -101,8 +101,8 @@ struct Dimension {
   float value = 0.0f;
 
   constexpr Dimension() = default;
-  constexpr Dimension(float px)  // NOLINT: implicit by design
-      : unit(Unit::Px), value(px) {}
+  constexpr Dimension(float pixels)  // NOLINT: implicit by design
+      : unit(Unit::Px), value(pixels) {}
   constexpr Dimension(sigil::weave::Length length)  // NOLINT: implicit
       : unit(length.unit == sigil::weave::Length::Unit::Em    ? Unit::Em
              : length.unit == sigil::weave::Length::Unit::Rem ? Unit::Rem
@@ -174,43 +174,43 @@ struct Dimension {
   }
 };
 static_assert(sizeof(Dimension) == 8);
-/** @p v percent of the PARENT's corresponding extent — Yoga's own
+/** @p value percent of the PARENT's corresponding extent — Yoga's own
  *  percent, and the one CSS means by `%`. */
-constexpr Dimension percent(float v) {
+constexpr Dimension percent(float value) {
   Dimension d;
   d.unit = Dimension::Unit::Percent;
-  d.value = v;
+  d.value = value;
   return d;
 }
-/** @p v percent of the CANVAS's width — the root's box, not the parent's:
+/** @p value percent of the CANVAS's width — the root's box, not the parent's:
  *  CSS's `vw`, the canvas being the viewport. */
-constexpr Dimension vw(float v) {
+constexpr Dimension vw(float value) {
   Dimension d;
   d.unit = Dimension::Unit::Vw;
-  d.value = v;
+  d.value = value;
   return d;
 }
-/** @p v percent of the CANVAS's height — CSS's `vh`. */
-constexpr Dimension vh(float v) {
+/** @p value percent of the CANVAS's height — CSS's `vh`. */
+constexpr Dimension vh(float value) {
   Dimension d;
   d.unit = Dimension::Unit::Vh;
-  d.value = v;
+  d.value = value;
   return d;
 }
-/** @p v percent of the smaller of the CANVAS's width and height — CSS's
+/** @p value percent of the smaller of the CANVAS's width and height — CSS's
  *  `vmin`, so a mark sized in it fits a canvas of either orientation. */
-constexpr Dimension vmin(float v) {
+constexpr Dimension vmin(float value) {
   Dimension d;
   d.unit = Dimension::Unit::Vmin;
-  d.value = v;
+  d.value = value;
   return d;
 }
-/** @p v percent of the larger of the CANVAS's width and height — CSS's
+/** @p value percent of the larger of the CANVAS's width and height — CSS's
  *  `vmax`. */
-constexpr Dimension vmax(float v) {
+constexpr Dimension vmax(float value) {
   Dimension d;
   d.unit = Dimension::Unit::Vmax;
-  d.value = v;
+  d.value = value;
   return d;
 }
 /** THE CSS `auto`: this length is not stated, so layout decides it. It is
@@ -454,8 +454,8 @@ enum class Cache : uint8_t { Auto, Picture, Texture, Group, None };
  *  `Auto` leaves the decision to the proof, and `None` states volatility no
  *  declaration can see. The proof answers in those three terms and never
  *  learns what a picture, a texture or a group is. */
-constexpr core::Cache cachePolicy(Cache c) {
-  switch (c) {
+constexpr core::Cache cachePolicy(Cache cache) {
+  switch (cache) {
     case Cache::Auto:
       return core::Cache::Auto;
     case Cache::None:
@@ -577,8 +577,8 @@ struct Arrangement {
     /// First-baseline offset from the child's top; NaN for a child with none.
     float baseline = std::numeric_limits<float>::quiet_NaN();
     /// The smallest the child can be without spilling its content, filled
-    /// only for an operator that declares `readsChildMinSizes`.
-    glm::vec2 minSize{0, 0};
+    /// only for an operator that declares `readsChildMinimumSizes`.
+    glm::vec2 minimumSize{0, 0};
     /// What the child states of its size, filled only for an operator
     /// that declares `resolvesChildPercentages`.
     StatedSize statedSize;
@@ -616,10 +616,10 @@ struct Arrangement {
   /// Borrowed records, valid only during the call. Write placements in
   /// place; the child count and order belong to the composer.
   std::span<Child> children;
-  /// Whether each child's `minSize` was measured — true only when an
+  /// Whether each child's `minimumSize` was measured — true only when an
   /// operator in the list asked, since the measure costs one text layout
   /// per text child.
-  bool minSizesMeasured = false;
+  bool minimumSizesMeasured = false;
   /// Whether an operator in the list resolves the children's percentages
   /// against boxes of its own, so each child's `statedSize` was read.
   bool percentagesResolved = false;

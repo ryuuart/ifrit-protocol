@@ -15,12 +15,12 @@
  * what it is for.
  */
 
-#include "sigilgeometry/path/Outline.h"
-
 #include <cstdint>
 #include <glm/vec2.hpp>
 #include <span>
 #include <vector>
+
+#include "sigilgeometry/path/Outline.h"
 
 namespace sigil::geometry::path {
 
@@ -33,14 +33,14 @@ enum class Edge : uint8_t {
   All = 15,
 };
 /** The union of two edge selections. */
-constexpr Edge operator|(Edge a, Edge b) {
+constexpr Edge operator|(Edge left, Edge right) {
   // the type is a bit set; any union of enumerators is a valid value
   // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
-  return Edge(uint8_t(a) | uint8_t(b));
+  return Edge(uint8_t(left) | uint8_t(right));
 }
-/** Whether @p mask selects any edge @p e names. */
-constexpr bool has(Edge mask, Edge e) {
-  return (uint8_t(mask) & uint8_t(e)) != 0;
+/** Whether @p mask selects any edge @p edge names. */
+constexpr bool has(Edge mask, Edge edge) {
+  return (uint8_t(mask) & uint8_t(edge)) != 0;
 }
 
 /** Extracts the sub-contours of @p outline that face the selected box
@@ -48,10 +48,10 @@ constexpr bool has(Edge mask, Edge e) {
  *  (diagonal split, so rounded-rect corner arcs divide naturally
  *  between their two edges). Exact geometry via the contour measure
  *  segment extraction; @p step is the classification sampling length
- *  in px. */
+ *  in pixels. */
 Outline edges(const Outline& outline, Edge mask, float step = 3.0f);
 
-/** A concentric copy of @p outline: positive @p px shrinks, negative
+/** A concentric copy of @p outline: positive @p pixels shrinks, negative
  *  grows. Implemented as a stroke-and-fill offset, so it follows any
  *  silhouette — a chamfered panel, a star, a blob — not just rectangles,
  *  and MITRED, so a straight edge stays parallel to the one it came from.
@@ -59,7 +59,7 @@ Outline edges(const Outline& outline, Edge mask, float step = 3.0f);
  *  It is `operations::offset` mitred and butt-capped with the sign the other
  *  way round, and stands here rather than there because "the frame six
  *  pixels in" is the thing a caller asks for by name. */
-Outline insetOutline(const Outline& outline, float px);
+Outline insetOutline(const Outline& outline, float pixels);
 
 /** THE VERTICES OF A POLYGON MOVED INWARD by @p distance, one for one:
  *  every edge of the result is parallel to the edge it came from and

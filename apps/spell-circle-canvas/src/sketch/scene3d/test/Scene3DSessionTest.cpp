@@ -50,7 +50,7 @@ sigil::geometry::mesh::camera::Camera framedLens() {
   sigil::geometry::mesh::camera::Camera lens;
   lens.eye = {180, 150, 320};
   lens.target = {40, 30, -10};
-  lens.fovYDegrees = 52;
+  lens.verticalFieldOfViewDegrees = 52;
   return lens;
 }
 
@@ -182,7 +182,7 @@ TEST_F(Scene3DSession, DrawsThroughOnePassWhenTheScene3DDeclaresNone) {
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
   SkCanvas canvas(bitmap);
   performed->frame(canvas, 1.0 / 60.0);
-  EXPECT_EQ(performed->lanes()[3].ms, 1.0);
+  EXPECT_EQ(performed->lanes()[3].milliseconds, 1.0);
 }
 
 TEST_F(Scene3DSession, OffersAViewpointAHostCanTakeHoldOf) {

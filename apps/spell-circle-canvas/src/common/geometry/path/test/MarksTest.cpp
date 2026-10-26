@@ -114,7 +114,7 @@ TEST(Lattice, TheAngleTurnsTheLinesAndTheTaperOpensTheGaps) {
   EXPECT_LE(
       (int)lattice(
           rings,
-          {.spacing = 0.01f, .angle = 0.0f, .taper = 1.0f, .maxLines = 12})
+          {.spacing = 0.01f, .angle = 0.0f, .taper = 1.0f, .maximumLines = 12})
           .size(),
       12);
   // No rings with an area, no marks.

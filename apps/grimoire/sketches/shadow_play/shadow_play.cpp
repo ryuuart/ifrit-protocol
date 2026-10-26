@@ -81,7 +81,7 @@ struct ShadowPlay {
     gm::camera::Camera lens;
     lens.eye = {0, 430, 1020};
     lens.target = {0, 90, -40};
-    lens.fovYDegrees = 36;
+    lens.verticalFieldOfViewDegrees = 36;
     lens.nearPlane = 40;
     lens.farPlane = 5000;
 

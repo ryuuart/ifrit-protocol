@@ -393,13 +393,13 @@ void Composer::draw(SkCanvas& canvas) {
   // current transform (2.0 on a HiDPI-scaled canvas). Best effort: recordings
   // capture the scale current when they re-record.
   {
-    // maxScaleOf, not the matrix diagonal: a host that rotates its canvas
+    // maximumScaleOf, not the matrix diagonal: a host that rotates its canvas
     // reports getScaleX/Y == 0 at a quarter turn, and every material would
     // then be handed uContentScale = 1 no matter what the real zoom was.
     // The canvas rect is passed so the scale estimate samples the Jacobian
     // in the right place when the host matrix has perspective.
-    const float s = detail::maxScaleOf(canvas.getTotalMatrix(),
-                                       SkRect::MakeSize(impl.size));
+    const float s = detail::maximumScaleOf(canvas.getTotalMatrix(),
+                                           SkRect::MakeSize(impl.size));
     impl.hostScale = s > 0 ? s : 1.0f;
   }
 

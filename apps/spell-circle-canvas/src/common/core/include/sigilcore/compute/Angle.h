@@ -34,7 +34,7 @@ namespace sigil::core::angle {
  *  exact value and not as a quotient of a rounded pi: pi / 180 computed
  *  from a rounded pi lands an ulp away from the nearest float to the
  *  exact ratio, and an angle scaled by it drifts by that ulp. */
-inline constexpr float kDegToRad = 0.017453293f;
+inline constexpr float kDegreesToRadians = 0.017453293f;
 /** Radians to degrees, rounded independently for the same reason. */
 inline constexpr float kRadiansToDegrees = 57.29578f;
 
@@ -47,7 +47,9 @@ inline constexpr float kRadiansToDegrees = 57.29578f;
  *  hand-written `degrees / 57.29578f` is a divide by a rounded
  *  reciprocal, which is a third answer again. These are the one
  *  rounding. */
-inline constexpr float radians(float degrees) { return degrees * kDegToRad; }
+inline constexpr float radians(float degrees) {
+  return degrees * kDegreesToRadians;
+}
 /** Radians to degrees, through the same single rounding. */
 inline constexpr float degrees(float radians) {
   return radians * kRadiansToDegrees;

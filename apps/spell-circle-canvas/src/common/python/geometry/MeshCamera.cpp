@@ -190,9 +190,10 @@ void bindGeometryMeshCamera(py::module_& module) {
   cameraClass.def_readwrite("eye", &camera::Camera::eye)
       .def_readwrite("target", &camera::Camera::target)
       .def_readwrite("up", &camera::Camera::up)
-      .def_property(
-          "fovYDegrees", angleGetter(&camera::Camera::fovYDegrees),
-          angleSetter<AngleInDegrees>(&camera::Camera::fovYDegrees))
+      .def_property("verticalFieldOfViewDegrees",
+                    angleGetter(&camera::Camera::verticalFieldOfViewDegrees),
+                    angleSetter<AngleInDegrees>(
+                        &camera::Camera::verticalFieldOfViewDegrees))
       .def_readwrite("nearPlane", &camera::Camera::nearPlane)
       .def_readwrite("farPlane", &camera::Camera::farPlane)
       .def("view", &camera::Camera::view)
@@ -237,12 +238,10 @@ void bindGeometryMeshCamera(py::module_& module) {
            py::arg("yawDegrees") = AngleInDegrees{},
            py::arg("pitchDegrees") = AngleInDegrees{},
            py::arg("distance") = 480)
-      .def_property(
-          "yawDegrees", angleGetter(&camera::Orbit::yawDegrees),
-          angleSetter<AngleInDegrees>(&camera::Orbit::yawDegrees))
-      .def_property(
-          "pitchDegrees", angleGetter(&camera::Orbit::pitchDegrees),
-          angleSetter<AngleInDegrees>(&camera::Orbit::pitchDegrees))
+      .def_property("yawDegrees", angleGetter(&camera::Orbit::yawDegrees),
+                    angleSetter<AngleInDegrees>(&camera::Orbit::yawDegrees))
+      .def_property("pitchDegrees", angleGetter(&camera::Orbit::pitchDegrees),
+                    angleSetter<AngleInDegrees>(&camera::Orbit::pitchDegrees))
       .def_readwrite("distance", &camera::Orbit::distance)
       .def("copy", [](const camera::Orbit& value) { return value; })
       .def(

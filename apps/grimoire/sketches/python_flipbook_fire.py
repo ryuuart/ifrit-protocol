@@ -338,7 +338,7 @@ class PythonFlipbookFire:
             [(0, 0), (52, 0), (50, 4), (34, 12), (0, 16)], segments=64
         )
         self.lens = mesh.camera.Camera(
-            eye=(0, 175, 560), target=(0, 120, 0), fovYDegrees=40
+            eye=(0, 175, 560), target=(0, 120, 0), verticalFieldOfViewDegrees=40
         )
         ctx.camera(self.lens)
 

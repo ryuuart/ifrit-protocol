@@ -97,7 +97,7 @@ class Pool {
   size_t add(SkPoint position, int frame = 0, float rotateRadians = 0.0f,
              float scale = 1.0f, material::Color tint = {1, 1, 1, 1});
   void clear();
-  void resize(size_t n);
+  void resize(size_t count);
   size_t size() const { return m_positions.size(); }
 
   // Bulk mutation views, for filling the pool in one pass. Mutating

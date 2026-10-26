@@ -759,7 +759,7 @@ void bindData(py::module_& root) {
           py::arg("sql"));
   module.def("engineOf", &data::engineOf, py::arg("uri"));
 
-  module.attr("maxOscPacketBytes") = data::maxOscPacketBytes;
+  module.attr("maximumOscPacketBytes") = data::maximumOscPacketBytes;
   py::class_<data::Schema>(module, "Schema")
       .def(py::init<>())
       .def_static(
@@ -834,7 +834,7 @@ void bindData(py::module_& root) {
                                              : json(arguments));
       },
       py::arg("address"), py::arg("arguments") = py::none());
-  module.attr("maxOscBundleDepth") = data::maxOscBundleDepth;
+  module.attr("maximumOscBundleDepth") = data::maximumOscBundleDepth;
   module.def(
       "json",
       [](const HubHandle& value, const std::string& uri) {

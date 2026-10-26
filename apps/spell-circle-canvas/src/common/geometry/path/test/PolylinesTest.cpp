@@ -15,9 +15,9 @@
 #include <span>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/advanced/Skia.h"
 #include "support/Paths.h"
 
 using namespace sigil::geometry::path;
@@ -58,15 +58,15 @@ TEST(Polyline, ResampleUniformSpacing) {
   // resample() spaces its N points evenly along ARC LENGTH, not evenly in
   // the underlying segment parameter — the two differ on any curved path,
   // so a parameter-uniform sampler would show up here as an uneven spread.
-  float minD = 1e9f, maxD = 0;
+  float minimumDistance = 1e9f, maximumDistance = 0;
   for (size_t i = 0; i < 64; ++i) {
     const glm::vec2 a = sampled[0].points[i];
     const glm::vec2 b = sampled[0].points[(i + 1) % 64];
     const float d = glm::distance(a, b);
-    minD = std::min(minD, d);
-    maxD = std::max(maxD, d);
+    minimumDistance = std::min(minimumDistance, d);
+    maximumDistance = std::max(maximumDistance, d);
   }
-  EXPECT_LT(maxD - minD, 0.6f);
+  EXPECT_LT(maximumDistance - minimumDistance, 0.6f);
 }
 
 // bestAlignment searches for the index offset (and direction) that pairs two
@@ -120,7 +120,8 @@ TEST(Polyline, ToPathRoundTripsThroughFlatten) {
 
 TEST(Polyline, SmoothThroughTwoPointsIsALineAndFewerIsNothing) {
   EXPECT_TRUE(toSk(smoothThrough(std::vector<glm::vec2>{{3, 4}})).isEmpty());
-  const SkPath line = toSk(smoothThrough(std::vector<glm::vec2>{{0, 0}, {10, 0}}));
+  const SkPath line =
+      toSk(smoothThrough(std::vector<glm::vec2>{{0, 0}, {10, 0}}));
   EXPECT_EQ(line.countVerbs(), 2);
   EXPECT_EQ(line.getPoint(0), SkPoint::Make(0, 0));
   EXPECT_EQ(line.getPoint(1), SkPoint::Make(10, 0));

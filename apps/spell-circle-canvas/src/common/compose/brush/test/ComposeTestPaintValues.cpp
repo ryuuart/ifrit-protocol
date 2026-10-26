@@ -185,7 +185,7 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
 TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
   // material::sdf::pad() is reserved INSIDE the node's box, so a small box with
   // a large glow radius leaves almost no room for the shape and renders a
-  // speck. material::sdf::minBoxFor() gives the size that would fit, but an
+  // speck. material::sdf::minimumBoxFor() gives the size that would fit, but an
   // author who does not already know it exists has no way to find it — so the
   // warning fires where the two numbers first meet, at resolve, and names it.
   const material::sdf::Style style{
@@ -200,7 +200,8 @@ TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
     host.frame();
   }
   const std::string first = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(first.find("material::sdf::minBoxFor"), std::string::npos) << first;
+  EXPECT_NE(first.find("material::sdf::minimumBoxFor"), std::string::npos)
+      << first;
   // Warned ONCE, process-wide: a second offender stays silent — the house
   // diagnostic contract (renderSlot's unknown-name warning), not a
   // per-frame log.
@@ -211,9 +212,9 @@ TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
         material::sdf::material(material::sdf::circle(), style))}));
     host.frame();
   }
-  EXPECT_EQ(
-      ::testing::internal::GetCapturedStderr().find("material::sdf::minBoxFor"),
-      std::string::npos);
+  EXPECT_EQ(::testing::internal::GetCapturedStderr().find(
+                "material::sdf::minimumBoxFor"),
+            std::string::npos);
 }
 
 TEST(ComposePattern, CheckerTilesSeamlessly) {

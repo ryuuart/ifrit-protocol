@@ -54,11 +54,11 @@ struct Shadow {
   /** Bound offsets: when set, the live value's current number REPLACES that
    *  axis of `offset` each paint, and the decoration declares itself
    *  animated (per-frame volatility) — the hover-lift shadow slides
-   *  without re-describing. `maxBind` reserves cull reach for the bound
+   *  without re-describing. `maximumBind` reserves cull reach for the bound
    *  range (bleed() can't read a future value). */
   std::optional<motion::Animatable<float>> bindOffsetX;
   std::optional<motion::Animatable<float>> bindOffsetY;
-  float maxBind = 0.0f;
+  float maximumBind = 0.0f;
 
   /** CSS box-shadow semantics: knock the shape's own footprint OUT of the
    *  shadow, so nothing paints under the node. A translucent node over a
@@ -74,7 +74,7 @@ struct Shadow {
   /** Paint reach beyond the node's bounds; the recording's cull rect grows
    *  by this. Under-report it and a big soft shadow is clipped at the
    *  node's picture-cache bounds, which is why the bound range has to be
-   *  declared through `maxBind` — bleed() cannot read a future value. An
+   *  declared through `maximumBind` — bleed() cannot read a future value. An
    *  inset shadow is cut to the shape and reaches nothing past it. */
   float bleed() const;
   /** The shadow is the outline it is handed, moved by its offset, grown

@@ -241,24 +241,25 @@ struct Paint::Recipe {
   std::shared_ptr<skia::PixelBuffer> source;
   uint64_t revision = 0;
 
-  bool operator==(const Recipe& o) const {
-    if (kind != o.kind) return false;
+  bool operator==(const Recipe& other) const {
+    if (kind != other.kind) return false;
     switch (kind) {
       case Kind::Linear:
       case Kind::Radial:
       case Kind::Conical:
       case Kind::Sweep:
-        return p0 == o.p0 && p1 == o.p1 && f0 == o.f0 && f1 == o.f1 &&
-               stops == o.stops && tile == o.tile;
+        return p0 == other.p0 && p1 == other.p1 && f0 == other.f0 &&
+               f1 == other.f1 && stops == other.stops && tile == other.tile;
       case Kind::Image:
-        return image == o.image && tx == o.tx && ty == o.ty &&
-               local == o.local && sampling == o.sampling && fit == o.fit;
+        return image == other.image && tx == other.tx && ty == other.ty &&
+               local == other.local && sampling == other.sampling &&
+               fit == other.fit;
       case Kind::Blend:
-        return layers == o.layers;
+        return layers == other.layers;
       case Kind::Buffer:
-        return source == o.source && revision == o.revision && tx == o.tx &&
-               ty == o.ty && local == o.local && sampling == o.sampling &&
-               fit == o.fit;
+        return source == other.source && revision == other.revision &&
+               tx == other.tx && ty == other.ty && local == other.local &&
+               sampling == other.sampling && fit == other.fit;
     }
     return false;
   }

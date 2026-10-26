@@ -26,18 +26,18 @@ namespace sigil::compose {
 using namespace detail;
 
 sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
-                          SkSize maxSize, SnapshotOptions options) {
+                          SkSize maximumSize, SnapshotOptions options) {
   motion::Engine engine;  // inert: nothing steps it, transitions can't run
   Composer composer(engine, fonts);
   Composer::Impl& impl = *composer.m_impl;
   impl.liveOnly = true;  // one-shot: per-node caches would be pure waste
   composer.render(root);
   if (!impl.root) return nullptr;
-  if (!maxSize.isEmpty()) {
-    if (maxSize.width() > 0)
-      YGNodeStyleSetMaxWidth(impl.root->yoga, maxSize.width());
-    if (maxSize.height() > 0)
-      YGNodeStyleSetMaxHeight(impl.root->yoga, maxSize.height());
+  if (!maximumSize.isEmpty()) {
+    if (maximumSize.width() > 0)
+      YGNodeStyleSetMaxWidth(impl.root->yoga, maximumSize.width());
+    if (maximumSize.height() > 0)
+      YGNodeStyleSetMaxHeight(impl.root->yoga, maximumSize.height());
   }
   // A bake is a root: layout runs the cascade against the initial values
   // the fresh composer holds, so an inheriting leaf inside it is set in
@@ -176,9 +176,9 @@ sigil::weave::TextStyle fitRun(std::u8string_view utf8,
                                const RunFit& fit) {
   if (utf8.empty() || !(widthPx > 0.0f)) return style;
   const float ceiling =
-      fit.maxSize > 0.0f ? fit.maxSize : style.shaping.fontSize;
+      fit.maximumSize > 0.0f ? fit.maximumSize : style.shaping.fontSize;
   if (!(ceiling > 0.0f)) return style;
-  const float floorSize = std::clamp(fit.minSize, 0.01f, ceiling);
+  const float floorSize = std::clamp(fit.minimumSize, 0.01f, ceiling);
   const float widest =
       style.shaping.scaleX > 0.0f ? style.shaping.scaleX : 1.0f;
   style.shaping.scaleX = widest;
@@ -214,9 +214,9 @@ sigil::weave::TextStyle fitRun(std::u8string_view utf8,
 
   // The condense closes what the size floor left over, and only that: a
   // run that fitted by shrinking is never also squeezed.
-  if (width > widthPx && fit.minCondense < widest)
+  if (width > widthPx && fit.minimumCondense < widest)
     style.shaping.scaleX =
-        std::clamp(widest * widthPx / width, fit.minCondense, widest);
+        std::clamp(widest * widthPx / width, fit.minimumCondense, widest);
   return style;
 }
 
@@ -257,18 +257,18 @@ std::optional<sigil::weave::TextStyle> textStyleOf(
 }
 
 SkSize intrinsicSize(const Element& root, sigil::weave::FontContext& fonts,
-                     SkSize maxSize) {
+                     SkSize maximumSize) {
   motion::Engine engine;  // inert — same sampling rules as snapshot()
   Composer composer(engine, fonts);
   Composer::Impl& impl = *composer.m_impl;
   impl.liveOnly = true;
   composer.render(root);
   if (!impl.root) return SkSize::MakeEmpty();
-  if (!maxSize.isEmpty()) {
-    if (maxSize.width() > 0)
-      YGNodeStyleSetMaxWidth(impl.root->yoga, maxSize.width());
-    if (maxSize.height() > 0)
-      YGNodeStyleSetMaxHeight(impl.root->yoga, maxSize.height());
+  if (!maximumSize.isEmpty()) {
+    if (maximumSize.width() > 0)
+      YGNodeStyleSetMaxWidth(impl.root->yoga, maximumSize.width());
+    if (maximumSize.height() > 0)
+      YGNodeStyleSetMaxHeight(impl.root->yoga, maximumSize.height());
   }
   // A bake is a root: layout runs the cascade against the initial values
   // the fresh composer holds, so an inheriting leaf inside it is set in

@@ -76,7 +76,7 @@ void eachField(OpRef& operation, F&& f) {
           f("iterations", o.iterations);
         } else if constexpr (std::is_same_v<T, pop::Transfer>) {
           f("radius", o.radius);
-          f("maxSamples", o.maxSamples);
+          f("maximumSamples", o.maximumSamples);
           f("blendWidth", o.blendWidth);
         } else if constexpr (std::is_same_v<T, pop::MeshScatter>) {
           f("count", o.count);

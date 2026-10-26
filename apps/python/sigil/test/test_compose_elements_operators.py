@@ -273,13 +273,13 @@ class Values(unittest.TestCase):
 
     def test_an_operator_asks_for_the_content_minima_only_where_it_says_so(self):
         class Measuring:
-            readsChildMinSizes = True
+            readsChildMinimumSizes = True
 
             def arrange(self, arrangement):
                 pass
 
-        self.assertTrue(compose.Operator(Measuring()).readsChildMinSizes())
-        self.assertFalse(compose.Operator(Plain()).readsChildMinSizes())
+        self.assertTrue(compose.Operator(Measuring()).readsChildMinimumSizes())
+        self.assertFalse(compose.Operator(Plain()).readsChildMinimumSizes())
 
     def test_a_program_that_is_not_callable_is_refused(self):
         for value in (None, 3, "program"):
@@ -488,7 +488,7 @@ class Arranging(Session):
                     results['area'] = child.area
                     results['fact'] = child.attribute('hour')
                     results['turn'] = child.turnDegrees
-                    results['minSizesMeasured'] = arrangement.minSizesMeasured
+                    results['minimumSizesMeasured'] = arrangement.minimumSizesMeasured
                     results['facts'] = child.attributes.names()
             """,
         )
@@ -498,7 +498,7 @@ class Arranging(Session):
         self.assertEqual(self.results["area"], "")
         self.assertEqual(self.results["fact"], 1)
         self.assertEqual(self.results["turn"], 0.0)
-        self.assertFalse(self.results["minSizesMeasured"])
+        self.assertFalse(self.results["minimumSizesMeasured"])
         self.assertEqual(self.results["facts"], ["hour"])
 
     def test_an_operator_that_asks_is_handed_the_content_minima(self):
@@ -509,16 +509,16 @@ class Arranging(Session):
             """,
             """
             class Measuring:
-                readsChildMinSizes = True
+                readsChildMinimumSizes = True
 
                 def arrange(self, arrangement):
-                    results['minSizesMeasured'] = arrangement.minSizesMeasured
-                    results['minSize'] = (arrangement.children[0].minSize.width(),
-                                          arrangement.children[0].minSize.height())
+                    results['minimumSizesMeasured'] = arrangement.minimumSizesMeasured
+                    results['minimumSize'] = (arrangement.children[0].minimumSize.width(),
+                                          arrangement.children[0].minimumSize.height())
             """,
         )
-        self.assertTrue(self.results["minSizesMeasured"])
-        self.assertEqual(self.results["minSize"], (10.0, 10.0))
+        self.assertTrue(self.results["minimumSizesMeasured"])
+        self.assertEqual(self.results["minimumSize"], (10.0, 10.0))
 
     def test_an_arrangement_refuses_every_reading_once_its_call_has_returned(self):
         self.frame(

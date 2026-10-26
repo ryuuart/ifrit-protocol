@@ -15,7 +15,6 @@
  * whisker, which are one component at four thicknesses.
  */
 
-#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
@@ -25,6 +24,7 @@
 #include <sigilgeometry/path/Frame.h>
 
 #include <concepts>
+#include <glm/vec2.hpp>
 #include <optional>
 #include <type_traits>
 #include <utility>
@@ -46,7 +46,7 @@ inline Element disc(glm::vec2 centre, float radius) {
       .centerAt(centre);
 }
 
-/** THE PINNED BOX: a node at absolute `(x, y)` of size @p w × @p h.
+/** THE PINNED BOX: a node at absolute `(x, y)` of size @p width × @p height.
  *
  *  `box().left(Dimension(x)).top(Dimension(y)).width(Dimension(w)).height(Dimension(h))`
  * is the four-call spelling every plate that has no layout at all repeats — a
@@ -56,12 +56,12 @@ inline Element disc(glm::vec2 centre, float radius) {
  *
  *  It is a peer of `disc()` rather than a layout scheme: it decides
  *  nothing, and every number is the caller's. */
-inline Element at(float x, float y, float w, float h) {
+inline Element at(float x, float y, float width, float height) {
   return box()
       .left(Dimension(x))
       .top(Dimension(y))
-      .width(Dimension(w))
-      .height(Dimension(h));
+      .width(Dimension(width))
+      .height(Dimension(height));
 }
 /** The same, onto a node that already exists — the overload a caller
  *  reaches for when the node is built elsewhere and only its position is
@@ -69,23 +69,23 @@ inline Element at(float x, float y, float w, float h) {
  *  leaf pinned this way is still that leaf. */
 template <class Node>
   requires std::convertible_to<Node, Element>
-Node at(Node node, float x, float y, float w, float h) {
+Node at(Node node, float x, float y, float width, float height) {
   node.left(Dimension(x))
       .top(Dimension(y))
-      .width(Dimension(w))
-      .height(Dimension(h));
+      .width(Dimension(width))
+      .height(Dimension(height));
   return node;
 }
 /** The same two with the size stated as `Dimension`s — a height of
  *  `1.7_em` beside a width in px — for a pinned box measured in the font
  *  it will be set in. */
-inline Element at(float x, float y, Dimension w, Dimension h) {
-  return box().left(Dimension(x)).top(Dimension(y)).width(w).height(h);
+inline Element at(float x, float y, Dimension width, Dimension height) {
+  return box().left(Dimension(x)).top(Dimension(y)).width(width).height(height);
 }
 template <class Node>
   requires std::convertible_to<Node, Element>
-Node at(Node node, float x, float y, Dimension w, Dimension h) {
-  node.left(Dimension(x)).top(Dimension(y)).width(w).height(h);
+Node at(Node node, float x, float y, Dimension width, Dimension height) {
+  node.left(Dimension(x)).top(Dimension(y)).width(width).height(height);
   return node;
 }
 

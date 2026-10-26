@@ -115,8 +115,8 @@ class Text : public detail::Declaring,
              public TextContentVerbs<Text> {
  public:
   /** @private the factories' door */
-  explicit Text(std::shared_ptr<detail::ElementNode> n)
-      : detail::Declaring(std::move(n)) {}
+  explicit Text(std::shared_ptr<detail::ElementNode> node)
+      : detail::Declaring(std::move(node)) {}
 
   operator Element() const;  // NOLINT: implicit by design (a leaf is a node)
 

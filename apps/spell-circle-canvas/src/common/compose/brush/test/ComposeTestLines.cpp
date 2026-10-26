@@ -36,7 +36,7 @@ TEST(ComposeDecorations, BoundShadowOffsetSlides) {
   Shadow shadow;
   shadow.color = Fill::color({0, 1, 0, 1});
   shadow.bindOffsetX = lift;
-  shadow.maxBind = 40.0f;
+  shadow.maximumBind = 40.0f;
   host.composer.render(box().children(
       {box().absolute().inset(60, 80, 80, 60).background(shadow)}));
   host.frame();
@@ -378,8 +378,8 @@ TEST(ComposeLines, RailsDashesStayRegisteredThroughCurvature) {
   Host naive(300, 300);
   lines::Line dashed{.width = 3, .fill = green(), .dashIntervals = {8, 8}};
   Brush perLayer;
-  perLayer.layer(dashed, {geometry::shapers::Offset{.px = 8, .step = 2}})
-      .layer(dashed, {geometry::shapers::Offset{.px = -8, .step = 2}});
+  perLayer.layer(dashed, {geometry::shapers::Offset{.pixels = 8, .step = 2}})
+      .layer(dashed, {geometry::shapers::Offset{.pixels = -8, .step = 2}});
   naive.composer.render(circleRun(perLayer, 100));
   naive.frame();
   const RailScan sheared = scanRails(naive, 150, 150, 92, 108);

@@ -422,11 +422,11 @@ TEST(Solids, APolesNormalIsTheSheetsLimitOnTheAxis) {
   // A superellipsoid closes on both poles, round, pinched and boxed, and
   // with radii that differ across the axis.
   for (const float exponent : {0.5f, 1.0f, 2.0f, 3.0f})
-    for (const int nu : {24, 33}) {
-      const Mesh solid = superellipsoid({2, 3, 1.5f}, exponent, nu, 16);
+    for (const int columns : {24, 33}) {
+      const Mesh solid = superellipsoid({2, 3, 1.5f}, exponent, columns, 16);
       EXPECT_LT(poleLeanDegrees(solid, &poles), 0.5f)
-          << "exponent " << exponent << " across " << nu;
-      EXPECT_EQ(poles, 2 * nu);
+          << "exponent " << exponent << " across " << columns;
+      EXPECT_EQ(poles, 2 * columns);
       EXPECT_TRUE(normalsAreUnit(solid));
     }
 }

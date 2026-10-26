@@ -44,7 +44,7 @@ TEST(ComposeKitStrokes, ShapersSatisfyThePublicSeam) {
           .shape(straight));
   EXPECT_GT(jittered.getBounds().height(), 1.0f);
   const SkPath railed = geometry::path::toSk(
-      geometry::shapers::Offset{.px = -12}.shape(straight));
+      geometry::shapers::Offset{.pixels = -12}.shape(straight));
   EXPECT_NEAR(railed.getBounds().centerY(), 62.0f, 1.5f)
       << "positive offset is LEFT of travel — the one convention (R3's "
          "sign port), so travelling +x with y down a NEGATIVE offset goes "

@@ -110,8 +110,8 @@ class Element : public detail::Declaring, public NodeVerbs<Element> {
   Element();  ///< An empty box: no size, no fill, no children.
 
   /** @private the factories' door */
-  explicit Element(std::shared_ptr<detail::ElementNode> n)
-      : detail::Declaring(std::move(n)) {}
+  explicit Element(std::shared_ptr<detail::ElementNode> node)
+      : detail::Declaring(std::move(node)) {}
 
  private:
   friend struct detail::NodeAccess;
@@ -122,7 +122,7 @@ class Element : public detail::Declaring, public NodeVerbs<Element> {
  *  own comparison, over a whole description. What a value that carries
  *  an element compares by, so a fact holding one prunes as any other
  *  fact does. */
-[[nodiscard]] bool sameDescription(const Element& a, const Element& b);
+[[nodiscard]] bool sameDescription(const Element& first, const Element& second);
 
 /** ONE RUN OF A `children({…})` BLOCK: a node — an element or any typed
  *  leaf — or the list `each()` made, so the block mixes both. */

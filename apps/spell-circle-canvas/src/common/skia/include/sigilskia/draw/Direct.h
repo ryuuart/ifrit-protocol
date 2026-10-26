@@ -40,27 +40,27 @@
  *  anywhere a picture may be replayed on a device canvas. */
 namespace sigil::skia::draw {
 
-/** @p img ready for Graphite: the cached or freshly promoted texture,
+/** @p image ready for Graphite: the cached or freshly promoted texture,
  *  unchanged on a raster canvas and on an image already on a texture,
  *  with the recorder's image provider owning reuse. @p required is what
  *  the draw needs of the texture — a mip chain, above all.
  *  @trap A REQUIREMENT IS NEVER WORTH THE DRAW: a format that cannot
  *  carry a generated chain promotes without one, and a failed upload
- *  answers @p img rather than nothing. */
-inline sk_sp<SkImage> ready(SkCanvas& canvas, sk_sp<SkImage> img,
+ *  answers @p image rather than nothing. */
+inline sk_sp<SkImage> ready(SkCanvas& canvas, sk_sp<SkImage> image,
                             SkImage::RequiredProperties required = {}) {
   skgpu::graphite::Recorder* recorder = canvas.recorder();
-  if (!recorder || !img || img->isTextureBacked()) return img;
+  if (!recorder || !image || image->isTextureBacked()) return image;
   const auto promote = [&](SkImage::RequiredProperties properties) {
     sk_sp<SkImage> texture = recorder->clientImageProvider()->findOrCreate(
-        recorder, img.get(), properties);
+        recorder, image.get(), properties);
     if (!texture)
-      texture = SkImages::TextureFromImage(recorder, img.get(), properties);
+      texture = SkImages::TextureFromImage(recorder, image.get(), properties);
     return texture;
   };
   sk_sp<SkImage> texture = promote(required);
   if (!texture && required.fMipmapped) texture = promote({});
-  return texture ? std::move(texture) : std::move(img);
+  return texture ? std::move(texture) : std::move(image);
 }
 
 namespace detail {
@@ -117,37 +117,38 @@ inline void latticeEdges(const std::vector<int>& divisions, float sourceLength,
  *  alternating bands. Empty divisions stretch the whole image, which is
  *  a plain drawImageRect. @p density is the source's pixels per
  *  destination unit, and scales the fixed bands alone. */
-inline void drawLattice(SkCanvas& canvas, sk_sp<SkImage> img,
-                        const std::vector<int>& xDivs,
-                        const std::vector<int>& yDivs, const SkRect& dst,
-                        SkFilterMode filter, float density = 1.0f) {
-  if (!img) return;
+inline void drawLattice(SkCanvas& canvas, sk_sp<SkImage> image,
+                        const std::vector<int>& xDivisions,
+                        const std::vector<int>& yDivisions,
+                        const SkRect& destination, SkFilterMode filter,
+                        float density = 1.0f) {
+  if (!image) return;
   const SkSamplingOptions sampling(filter);
-  if (xDivs.empty() && yDivs.empty()) {
+  if (xDivisions.empty() && yDivisions.empty()) {
     // The same picture the band split would draw — one stretchable band on
     // each axis — as the one draw it is.
-    canvas.drawImageRect(img, dst, sampling);
+    canvas.drawImageRect(image, destination, sampling);
     return;
   }
   // ALWAYS decomposed — never the native op. Cached subtrees record on a
   // recording canvas, and a recorded native lattice op would still vanish
   // when the picture replays on Graphite; recorded drawImageRects replay
   // fine (the shader path consults the ImageProvider).
-  img = ready(canvas, std::move(img));
+  image = ready(canvas, std::move(image));
   std::vector<float> sx, dx, sy, dy;
-  detail::latticeEdges(xDivs, (float)img->width(), dst.width(), sx, dx,
-                       density);
-  detail::latticeEdges(yDivs, (float)img->height(), dst.height(), sy, dy,
-                       density);
+  detail::latticeEdges(xDivisions, (float)image->width(), destination.width(),
+                       sx, dx, density);
+  detail::latticeEdges(yDivisions, (float)image->height(), destination.height(),
+                       sy, dy, density);
   for (size_t iy = 0; iy + 1 < sy.size(); ++iy)
     for (size_t ix = 0; ix + 1 < sx.size(); ++ix) {
       const SkRect src =
           SkRect::MakeLTRB(sx[ix], sy[iy], sx[ix + 1], sy[iy + 1]);
-      const SkRect cell =
-          SkRect::MakeLTRB(dst.left() + dx[ix], dst.top() + dy[iy],
-                           dst.left() + dx[ix + 1], dst.top() + dy[iy + 1]);
+      const SkRect cell = SkRect::MakeLTRB(
+          destination.left() + dx[ix], destination.top() + dy[iy],
+          destination.left() + dx[ix + 1], destination.top() + dy[iy + 1]);
       if (src.isEmpty() || cell.isEmpty()) continue;
-      canvas.drawImageRect(img, src, cell, sampling, nullptr,
+      canvas.drawImageRect(image, src, cell, sampling, nullptr,
                            SkCanvas::kFast_SrcRectConstraint);
     }
 }
@@ -184,13 +185,13 @@ struct SpriteBatch {
            (sizes.empty() || sizes.size() >= transforms.size());
   }
 
-  /** @p n sprites from @p offset, every stated lane taken along. */
-  SpriteBatch slice(size_t offset, size_t n) const {
+  /** @p count sprites from @p offset, every stated lane taken along. */
+  SpriteBatch slice(size_t offset, size_t count) const {
     SpriteBatch out;
-    out.transforms = transforms.subspan(offset, n);
-    out.sourceRectangles = sourceRectangles.subspan(offset, n);
-    if (!colors.empty()) out.colors = colors.subspan(offset, n);
-    if (!sizes.empty()) out.sizes = sizes.subspan(offset, n);
+    out.transforms = transforms.subspan(offset, count);
+    out.sourceRectangles = sourceRectangles.subspan(offset, count);
+    if (!colors.empty()) out.colors = colors.subspan(offset, count);
+    if (!sizes.empty()) out.sizes = sizes.subspan(offset, count);
     return out;
   }
 };

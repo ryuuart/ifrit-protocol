@@ -105,7 +105,7 @@ TEST(Scatter, MaxPointsBoundsTheAnswer) {
   Distribution distribution;
   distribution.rate = Rate::Density;
   distribution.amount = 1.0f;  // a million points asked for
-  distribution.maxPoints = 250;
+  distribution.maximumPoints = 250;
   EXPECT_EQ(sample(region, distribution).size(), 250u);
 }
 

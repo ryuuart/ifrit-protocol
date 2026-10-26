@@ -45,23 +45,24 @@ Cloud onSpline(const Spline3& spline, int count, glm::vec3 up) {
   return out;
 }
 
-Cloud grid(glm::vec3 origin, glm::vec3 du, glm::vec3 dv, int nu, int nv) {
+Cloud grid(glm::vec3 origin, glm::vec3 uEdge, glm::vec3 vEdge, int columns,
+           int rows) {
   Cloud out;
-  nu = std::max(nu, 1);
-  nv = std::max(nv, 1);
-  const glm::vec3 n = normalized(cross(du, dv));
-  const size_t total = (size_t)nu * (size_t)nv;
+  columns = std::max(columns, 1);
+  rows = std::max(rows, 1);
+  const glm::vec3 normal = normalized(cross(uEdge, vEdge));
+  const size_t total = (size_t)columns * (size_t)rows;
   out.positions.reserve(total);
-  for (int j = 0; j < nv; ++j)
-    for (int i = 0; i < nu; ++i) {
-      const float fu = nu > 1 ? (float)i / (float)(nu - 1) : 0.0f;
-      const float fv = nv > 1 ? (float)j / (float)(nv - 1) : 0.0f;
-      out.positions.push_back(origin + du * fu + dv * fv);
+  for (int j = 0; j < rows; ++j)
+    for (int i = 0; i < columns; ++i) {
+      const float uShare = columns > 1 ? (float)i / (float)(columns - 1) : 0.0f;
+      const float vShare = rows > 1 ? (float)j / (float)(rows - 1) : 0.0f;
+      out.positions.push_back(origin + uEdge * uShare + vEdge * vShare);
     }
-  std::vector<float>& t = out.scalar("t");
+  std::vector<float>& progress = out.scalar("t");
   for (size_t i = 0; i < total; ++i)
-    t[i] = total > 1 ? (float)i / (float)(total - 1) : 0.0f;
-  out.vector("normal", n);
+    progress[i] = total > 1 ? (float)i / (float)(total - 1) : 0.0f;
+  out.vector("normal", normal);
   return out;
 }
 

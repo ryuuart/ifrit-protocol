@@ -12,10 +12,10 @@ using detail::Kind;
 
 Region Region::own() { return Region{}; }
 
-Region Region::rect(const geometry::path::Rect& r) {
+Region Region::rect(const geometry::path::Rect& bounds) {
   Region out;
   out.m_kind = Kind::Rect;
-  out.m_rect = r;
+  out.m_rect = bounds;
   return out;
 }
 

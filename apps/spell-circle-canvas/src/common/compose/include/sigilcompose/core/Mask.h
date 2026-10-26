@@ -85,7 +85,7 @@ class Region {
   /** The node's own silhouette — the region `overflow(Overflow::Clip)`
    *  cuts to, as a value. */
   static Region own();
-  static Region rect(const geometry::path::Rect& r);
+  static Region rect(const geometry::path::Rect& bounds);
   static Region oval(const geometry::path::Rect& bounds);
   /** An explicit outline in the node's LOCAL space. Comparable (an outline
    *  has structural equality), so this is the general escape hatch that
@@ -109,8 +109,8 @@ class Region {
    *  A Region rides inside a mask gate, which is read LIVE every frame —
    *  a region that compares equal when it isn't leaves a pruned node
    *  revealing to its first frame forever. */
-  static void fieldPin(Region& v) {
-    auto& [kind, rect, path] = v;
+  static void fieldPin(Region& region) {
+    auto& [kind, rect, path] = region;
     static_assert(
         std::tuple_size_v<decltype(std::tie(kind, rect, path))> == 3,
         "Region gained or lost a member — rule on it in Region::operator== "
@@ -171,10 +171,10 @@ class Parts {
 };
 
 /** Union: `parts::content() | parts::surface()`. */
-inline Parts operator|(Parts a, const Parts& b) {
-  a.bits = (uint8_t)(a.bits | b.bits);
-  a.names.insert(a.names.end(), b.names.begin(), b.names.end());
-  return a;
+inline Parts operator|(Parts left, const Parts& right) {
+  left.bits = (uint8_t)(left.bits | right.bits);
+  left.names.insert(left.names.end(), right.names.begin(), right.names.end());
+  return left;
 }
 
 /** The selection factories — the WHICH half of `mask(what, with)`. */
@@ -225,11 +225,11 @@ Gate spans(Spans where);
 Gate edge(float angleDegrees, motion::Animatable<float> fraction);
 /** A REGION of the node's local space, kept. `by::shape(Region::own())` is
  *  what `overflow(Overflow::Clip)` does. */
-Gate shape(Region r);
+Gate shape(Region region);
 /** …and its complement: everything OUTSIDE the region. Two masks
  *  intersect, so a set difference is `by::shape(a)` and `by::outside(b)`
  *  on one node. */
-Gate outside(Region r);
+Gate outside(Region region);
 /** A COVERAGE SOURCE: the selected paint keeps the coverage paint's ALPHA — the
  *  soft-edged mask (a gradient fade, a noise dissolve, a stencil sprite).
  *

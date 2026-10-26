@@ -65,10 +65,10 @@ void warnNoCornersFound(float sharpestDegrees, float angleDegrees) {
  *  once. */
 std::vector<geometry::path::Contour::Corner> cornersOrWarn(
     const geometry::path::Contour& contour, float angleDegrees,
-    float minSpacing, float step) {
+    float minimumSpacing, float step) {
   float sharpestDegrees = 0.0f;
   std::vector<geometry::path::Contour::Corner> corners =
-      contour.corners(angleDegrees, minSpacing, step, &sharpestDegrees);
+      contour.corners(angleDegrees, minimumSpacing, step, &sharpestDegrees);
   if (corners.empty() && sharpestDegrees >= 4.0f)
     warnNoCornersFound(sharpestDegrees, angleDegrees);
   return corners;

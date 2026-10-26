@@ -102,9 +102,9 @@ class Frame {
   Frame& camera(std::string key);
   /** Adds a pass. The order passes are added in is not the order they
    *  run in — that is derived from what each one reads and writes. */
-  Frame& pass(Pass p);
+  Frame& pass(Pass added);
   /** Asks for a resource back once the frame has made it. */
-  Frame& readback(Readback r);
+  Frame& readback(Readback request);
   /** A PICTURE LAID OVER THE FINISHED FRAME — a page about the picture, a
    *  heads-up display, a caption — rather than one standing in the scene:
    *  drawn over the whole of the picture when it is put on a canvas,
@@ -149,7 +149,7 @@ class Frame {
   Frame& cameraOverride(geometry::mesh::camera::Camera lens);
   /** The executor the passes run on. A frame that declares passes and
    *  names none runs none of them, and the scene says so. */
-  Frame& runtime(Runtime r);
+  Frame& runtime(Runtime chosen);
   /** The resource the finished picture is in. Unset means the last
    *  image any pass wrote. */
   Frame& present(std::string name);

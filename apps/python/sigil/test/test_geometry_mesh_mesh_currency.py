@@ -100,7 +100,7 @@ class MovedNames(unittest.TestCase):
     def test_the_generators_answer_what_they_answered(self):
         solid = native.platonic(native.Platonic.Dodecahedron, radius=63)
         self.assertEqual(solid.triangleCount(), 36)
-        ring = native.torus(188, 1.2, nu=180, nv=8)
+        ring = native.torus(188, 1.2, columns=180, rows=8)
         self.assertEqual(ring.vertexCount(), 180 * 8)
         panel = native.quad(20, 10)
         self.assertEqual(panel.triangleCount(), 2)
@@ -156,7 +156,7 @@ class PrimitiveLanes(unittest.TestCase):
         self.assertIn("1 given", message)
 
     def test_baking_a_lane_unshares_the_vertices(self):
-        ring = native.torus(30, 8, nu=12, nv=6)
+        ring = native.torus(30, 8, columns=12, rows=6)
         ring.setPrimitive("Color", [(0.5, 0.25, 0.125, 1)] * ring.triangleCount())
         baked = native.bakePrimitiveColor(ring)
         self.assertEqual(baked.triangleCount(), ring.triangleCount())
@@ -165,7 +165,7 @@ class PrimitiveLanes(unittest.TestCase):
         self.assertEqual(baked.primitiveNames(), ["Color"])
 
     def test_baking_a_lane_that_is_not_there_changes_nothing(self):
-        ring = native.torus(30, 8, nu=8, nv=6)
+        ring = native.torus(30, 8, columns=8, rows=6)
         self.assertEqual(native.bakePrimitiveColor(ring), ring)
 
 
@@ -193,9 +193,9 @@ class ParametricSheet(unittest.TestCase):
             self.assertAlmostEqual(differenced.normals[station][1], 1, places=4)
 
     def test_a_grid_too_small_or_too_large_is_refused(self):
-        for nu, nv in ((1, 5), (5, 1), (3000, 3000)):
+        for columns, rows in ((1, 5), (5, 1), (3000, 3000)):
             with self.assertRaises(ValueError):
-                native.grid(nu, nv, plane)
+                native.grid(columns, rows, plane)
 
     def test_a_formula_is_not_held_after_the_grid_is_built(self):
         released = []

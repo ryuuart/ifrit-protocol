@@ -168,7 +168,7 @@ int wantedCount(const Distribution& distribution, float area) {
     }
   }
   const double capped =
-      std::min(count, (double)std::max(distribution.maxPoints, 0));
+      std::min(count, (double)std::max(distribution.maximumPoints, 0));
   return capped > 0 ? (int)capped : 0;
 }
 
@@ -421,7 +421,7 @@ std::vector<glm::vec2> sample(const Region& region,
   // not answer MORE than the number requested.
   const int cap = distribution.rate == Rate::Count
                       ? count
-                      : std::max(distribution.maxPoints, 0);
+                      : std::max(distribution.maximumPoints, 0);
 
   const Inside inside(region);
   std::vector<glm::vec2> points;

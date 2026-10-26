@@ -34,21 +34,23 @@ struct Handle {
   /** True for a handle that was issued at some point — not proof the
    *  resource still lives; that is the table's answer. */
   explicit operator bool() const { return generation != 0; }
-  friend bool operator==(const Handle& a, const Handle& b) {
-    return a.index == b.index && a.generation == b.generation;
+  friend bool operator==(const Handle& left, const Handle& right) {
+    return left.index == right.index && left.generation == right.generation;
   }
-  friend bool operator!=(const Handle& a, const Handle& b) { return !(a == b); }
+  friend bool operator!=(const Handle& left, const Handle& right) {
+    return !(left == right);
+  }
 };
 
 /** A handle that can only name one kind of resource: a TextureHandle is
  *  not a BufferHandle even when the bits agree. */
 template <typename Tag>
 struct TypedHandle : Handle {
-  friend bool operator==(const TypedHandle& a, const TypedHandle& b) {
-    return a.index == b.index && a.generation == b.generation;
+  friend bool operator==(const TypedHandle& left, const TypedHandle& right) {
+    return left.index == right.index && left.generation == right.generation;
   }
-  friend bool operator!=(const TypedHandle& a, const TypedHandle& b) {
-    return !(a == b);
+  friend bool operator!=(const TypedHandle& left, const TypedHandle& right) {
+    return !(left == right);
   }
 };
 

@@ -113,7 +113,8 @@ std::vector<glm::uvec2> pop::connectAdjacent(const Cloud& cloud,
       }
       keep.push_back(other);
     }
-    if (connect.maxPerPoint > 0 && keep.size() > (size_t)connect.maxPerPoint) {
+    if (connect.maximumPerPoint > 0 &&
+        keep.size() > (size_t)connect.maximumPerPoint) {
       // Nearest first, and only as many as asked for. The whole list is
       // ordered rather than the head selected, so which neighbours a point
       // keeps does not depend on the order the grid answered in.
@@ -122,10 +123,10 @@ std::vector<glm::uvec2> pop::connectAdjacent(const Cloud& cloud,
         const float db = glm::length(cloud.positions[b] - here);
         return da != db ? da < db : a < b;
       });
-      keep.resize((size_t)connect.maxPerPoint);
+      keep.resize((size_t)connect.maximumPerPoint);
     }
     // Lower index first, so a pair found from both ends is one entry and
-    // a pair only one end kept — which `maxPerPoint` makes possible — is
+    // a pair only one end kept — which `maximumPerPoint` makes possible — is
     // still one edge rather than none.
     for (const uint32_t other : keep)
       pairs.push_back(i < other ? glm::uvec2{i, other} : glm::uvec2{other, i});

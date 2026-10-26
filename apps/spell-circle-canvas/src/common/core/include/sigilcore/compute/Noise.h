@@ -76,11 +76,11 @@ class Mix64Stream {
 };
 
 /** Hash of (seed, i) to [-1, 1): `mix64` over the pair, packed into one
- *  word. Successive `i` for one seed read as an uncorrelated sequence,
+ *  word. Successive `index` for one seed read as an uncorrelated sequence,
  *  which is what a per-stamp or per-vertex jitter wants. */
-inline constexpr float hash(uint32_t seed, uint32_t i) {
-  const uint64_t z =
-      mix64((uint64_t(seed) << 32u | uint64_t(i * 0x9e3779b9u)) + kMix64Gamma);
+inline constexpr float hash(uint32_t seed, uint32_t index) {
+  const uint64_t z = mix64(
+      (uint64_t(seed) << 32u | uint64_t(index * 0x9e3779b9u)) + kMix64Gamma);
   // Halved against 2^23 rather than 2^23 - 1: the divisor is exact as a
   // float, so the largest word lands just under 1 instead of a hair
   // above it, and the range the caller is promised is the range drawn.

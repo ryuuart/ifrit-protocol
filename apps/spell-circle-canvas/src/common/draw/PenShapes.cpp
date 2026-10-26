@@ -134,10 +134,9 @@ void Pen::paintSegments(std::span<const SkPoint> ends) {
   // do. Two things are per pair and keep the pair's own draw: a stroke
   // fitted to each segment's box, and a dash, which Skia lays out
   // differently for a lone segment.
-  const bool perPair =
-      (m_style.strokeFitted && !m_style.stroke.isSolid() &&
-       !m_style.stroke.isNone()) ||
-      m_style.dash != nullptr;
+  const bool perPair = (m_style.strokeFitted && !m_style.stroke.isSolid() &&
+                        !m_style.stroke.isNone()) ||
+                       m_style.dash != nullptr;
   if (perPair) {
     for (size_t i = 0; i < count; i += 2)
       line(ends[i].x(), ends[i].y(), ends[i + 1].x(), ends[i + 1].y());
@@ -157,20 +156,23 @@ void Pen::line(float x1, float y1, float x2, float y2) {
     m_canvas->drawLine(x1, y1, x2, y2, *stroke);
 }
 
-void Pen::rect(float x, float y, float w, float h) {
+void Pen::rect(float x, float y, float width, float height) {
   if (!m_canvas) return;
-  paintRect(rectBox(x, y, w, h));
+  paintRect(rectBox(x, y, width, height));
 }
 
-void Pen::rect(float x, float y, float w, float h, float radius) {
-  rect(x, y, w, h, radius, radius, radius, radius);
+void Pen::rect(float x, float y, float width, float height, float radius) {
+  rect(x, y, width, height, radius, radius, radius, radius);
 }
 
-void Pen::rect(float x, float y, float w, float h, float tl, float tr, float br,
-               float bl) {
+void Pen::rect(float x, float y, float width, float height, float topLeft,
+               float topRight, float bottomRight, float bottomLeft) {
   if (!m_canvas) return;
-  const SkRect box = rectBox(x, y, w, h);
-  const SkVector radii[4] = {{tl, tl}, {tr, tr}, {br, br}, {bl, bl}};
+  const SkRect box = rectBox(x, y, width, height);
+  const SkVector radii[4] = {{topLeft, topLeft},
+                             {topRight, topRight},
+                             {bottomRight, bottomRight},
+                             {bottomLeft, bottomLeft}};
   SkRRect rounded;
   rounded.setRectRadii(box, radii);
   if (recordShape(SkPath::RRect(rounded))) return;
@@ -180,31 +182,36 @@ void Pen::rect(float x, float y, float w, float h, float tl, float tr, float br,
     m_canvas->drawRRect(rounded, *stroke);
 }
 
-void Pen::square(float x, float y, float s) { rect(x, y, s, s); }
-void Pen::square(float x, float y, float s, float radius) {
-  rect(x, y, s, s, radius);
+void Pen::square(float x, float y, float size) { rect(x, y, size, size); }
+void Pen::square(float x, float y, float size, float radius) {
+  rect(x, y, size, size, radius);
 }
-void Pen::square(float x, float y, float s, float tl, float tr, float br,
-                 float bl) {
-  rect(x, y, s, s, tl, tr, br, bl);
+void Pen::square(float x, float y, float size, float topLeft, float topRight,
+                 float bottomRight, float bottomLeft) {
+  rect(x, y, size, size, topLeft, topRight, bottomRight, bottomLeft);
 }
 
-void Pen::ellipse(float x, float y, float w) { ellipse(x, y, w, w); }
+void Pen::ellipse(float x, float y, float width) {
+  ellipse(x, y, width, width);
+}
 
-void Pen::ellipse(float x, float y, float w, float h) {
+void Pen::ellipse(float x, float y, float width, float height) {
   if (!m_canvas) return;
-  paintOval(boxIn(m_style.ellipseMode, x, y, std::fabs(w), std::fabs(h)));
+  paintOval(
+      boxIn(m_style.ellipseMode, x, y, std::fabs(width), std::fabs(height)));
 }
 
-void Pen::circle(float x, float y, float d) { ellipse(x, y, d, d); }
+void Pen::circle(float x, float y, float diameter) {
+  ellipse(x, y, diameter, diameter);
+}
 
-void Pen::arc(float x, float y, float w, float h, float start, float stop,
-              Constant mode) {
+void Pen::arc(float x, float y, float width, float height, float start,
+              float stop, Constant mode) {
   if (!m_canvas) return;
-  w = std::fabs(w);
-  h = std::fabs(h);
-  if (!(w > 0.0f) || !(h > 0.0f)) return;
-  const SkRect oval = boxIn(m_style.ellipseMode, x, y, w, h);
+  width = std::fabs(width);
+  height = std::fabs(height);
+  if (!(width > 0.0f) || !(height > 0.0f)) return;
+  const SkRect oval = boxIn(m_style.ellipseMode, x, y, width, height);
   float from = toRadians(start);
   float to = toRadians(stop);
   bool samePoint = false;

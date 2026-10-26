@@ -294,13 +294,13 @@ signature: the author says "blur varying by this map".
 
 It rides the same rails as the directional blur — a comparable recipe,
 in which the sigma map's paint participates; the named parameter
-`maxSigma` accepts a bound uniform; and a LIVE sigma map makes the whole
+`maximumSigma` accepts a bound uniform; and a LIVE sigma map makes the whole
 effect animated by tier inheritance, so a bake can never sample the map
 once and freeze it. Filling the slot named `sigma` re-aims the map on an
 existing blur.
 
 THE DECLARED VALUE IS THE RANGE A BOUND SIGMA RIDES INSIDE. The passes
-are built once from the declared maximum and held; a bound `maxSigma`
+are built once from the declared maximum and held; a bound `maximumSigma`
 re-wraps only the final mix with a scale, so a sigma that breathes every
 frame costs the same fixed passes over the same held inputs and Skia's
 filter cache keeps hitting. The result is exact at the pass sigmas and
@@ -339,7 +339,7 @@ volatility exactly as a live material does, which is what lets a ripple
 phase or a bloom threshold animate without re-describing. It is
 meaningful on a shader effect (any declared float uniform), on a
 directional blur (`sigma`, `angle`, `across`) or on a parametric blur
-(`maxSigma`). A wrapped image filter has no uniform to receive the
+(`maximumSigma`). A wrapped image filter has no uniform to receive the
 value: the binding warns and is ignored there, and no volatility is
 declared, so nothing animates. Every other rejection behaves the same
 way — a name a shader effect does not declare as a float uniform, an

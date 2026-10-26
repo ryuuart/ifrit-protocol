@@ -107,13 +107,16 @@ struct Scatter {
   /** Every stamp is placed on the outline it is handed, within the
    *  reserve `bleed()` states. */
   bool staysOnOutline() const { return true; }
-  bool operator==(const Scatter& o) const {
-    return art.node() == o.art.node() && spacing == o.spacing &&
-           place == o.place && seed == o.seed && jitterAlong == o.jitterAlong &&
-           jitterNormal == o.jitterNormal && jitterScale == o.jitterScale &&
-           jitterRotateDegrees == o.jitterRotateDegrees &&
-           alignToPath == o.alignToPath && bleedPx == o.bleedPx && !modifier &&
-           !o.modifier && animatedModifier == o.animatedModifier;
+  bool operator==(const Scatter& other) const {
+    return art.node() == other.art.node() && spacing == other.spacing &&
+           place == other.place && seed == other.seed &&
+           jitterAlong == other.jitterAlong &&
+           jitterNormal == other.jitterNormal &&
+           jitterScale == other.jitterScale &&
+           jitterRotateDegrees == other.jitterRotateDegrees &&
+           alignToPath == other.alignToPath && bleedPx == other.bleedPx &&
+           !modifier && !other.modifier &&
+           animatedModifier == other.animatedModifier;
   }
 
   /** The scatter's baked stamp, shared by every copy of the brush
@@ -178,8 +181,8 @@ struct CornerArt {
   CornerAlign align;
   CornerArt(Element artIn, CornerAlign alignIn)
       : art(std::move(artIn)), align(alignIn) {}
-  bool operator==(const CornerArt& o) const {
-    return art.node() == o.art.node() && align == o.align;
+  bool operator==(const CornerArt& other) const {
+    return art.node() == other.art.node() && align == other.align;
   }
 };
 
@@ -232,16 +235,18 @@ struct Pattern {
   /** Every tile is laid along the outline it is handed, within the
    *  reserve `bleed()` states. */
   bool staysOnOutline() const { return true; }
-  bool operator==(const Pattern& o) const {
+  bool operator==(const Pattern& other) const {
     auto node = [](const std::optional<Element>& e) {
       return e ? e->node().get() : nullptr;
     };
-    return side.node() == o.side.node() && node(start) == node(o.start) &&
-           node(end) == node(o.end) && corner == o.corner &&
-           advance == o.advance && cornerAngleDegrees == o.cornerAngleDegrees &&
-           cornerLength == o.cornerLength && stretchToFit == o.stretchToFit &&
-           bleedPx == o.bleedPx && !modifier && !o.modifier &&
-           animatedModifier == o.animatedModifier;
+    return side.node() == other.side.node() &&
+           node(start) == node(other.start) && node(end) == node(other.end) &&
+           corner == other.corner && advance == other.advance &&
+           cornerAngleDegrees == other.cornerAngleDegrees &&
+           cornerLength == other.cornerLength &&
+           stretchToFit == other.stretchToFit && bleedPx == other.bleedPx &&
+           !modifier && !other.modifier &&
+           animatedModifier == other.animatedModifier;
   }
 
   /** The baked tile art, keyed on each art Element's NODE — which is what

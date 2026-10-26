@@ -235,9 +235,9 @@ sk_sp<SkRuntimeEffect> naiveVaryingBlur(int radius) {
   auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(
       ("uniform shader content;"
        "uniform shader param;"
-       "uniform float uMaxSigma;"
+       "uniform float uMaximumSigma;"
        "half4 main(float2 p) {"
-       "  float sigma = max(param.eval(p).r * uMaxSigma, 0.01);"
+       "  float sigma = max(param.eval(p).r * uMaximumSigma, 0.01);"
        "  float inv = -0.5 / (sigma * sigma);"
        "  half4 sum = half4(0);"
        "  float wsum = 0.0;"
@@ -281,7 +281,7 @@ sigil::material::Filter blurEffect(BlurArm arm, float sigma) {
       // pays it.
       const int radius = (int)std::lround(3.0f * sigma);
       return sigil::material::skia::program(naiveVaryingBlur(radius),
-                                            {{"uMaxSigma", sigma}})
+                                            {{"uMaximumSigma", sigma}})
           .slot("param", sigmaRamp());
     }
     case BlurArm::ConstantMax:
@@ -570,14 +570,10 @@ BENCHMARK(BM_Draw_CoverageSheet_TurningChild_Graphite)
 namespace {
 
 Element frostedDesktop(const sigil::motion::Animatable<float>& step) {
-  Element ground =
-      box()
-          .inset(0)
-          .fill(sigil::material::linearGradient(
-              {0, 0}, {800, 600},
-              {{0.0f, {0.05f, 0.10f, 0.30f, 1}},
-               {1.0f, {0.30f, 0.70f, 0.55f, 1}}},
-              {.units = sigil::material::GradientUnits::Pixels}));
+  Element ground = box().inset(0).fill(sigil::material::linearGradient(
+      {0, 0}, {800, 600},
+      {{0.0f, {0.05f, 0.10f, 0.30f, 1}}, {1.0f, {0.30f, 0.70f, 0.55f, 1}}},
+      {.units = sigil::material::GradientUnits::Pixels}));
   Element strip = box()
                       .absolute()
                       .left(0)
@@ -586,17 +582,16 @@ Element frostedDesktop(const sigil::motion::Animatable<float>& step) {
                       .height(600)
                       .fill(Fill::color({0.9f, 0.4f, 0.2f, 1}))
                       .translateX(step);
-  Element pane =
-      box()
-          .absolute()
-          .left(100)
-          .top(80)
-          .width(600)
-          .height(440)
-          .borderRadius({8, 8, 0, 0})
-          .backdropFilter(sigil::material::skia::filter(
-              SkImageFilters::Blur(6, 6, nullptr)))
-          .fill(Fill::color({1, 1, 1, 0.2f}));
+  Element pane = box()
+                     .absolute()
+                     .left(100)
+                     .top(80)
+                     .width(600)
+                     .height(440)
+                     .borderRadius({8, 8, 0, 0})
+                     .backdropFilter(sigil::material::skia::filter(
+                         SkImageFilters::Blur(6, 6, nullptr)))
+                     .fill(Fill::color({1, 1, 1, 0.2f}));
   return stack().children(
       {std::move(ground), std::move(strip), std::move(pane)});
 }
@@ -694,7 +689,8 @@ Element glowingReadouts(const sigil::motion::Animatable<float>& cursor,
             {std::move(readouts), std::move(pointer)})});
   return box().width(600).height(440).children(
       {box().absolute().inset(0).filter(glow()).children({std::move(readouts)}),
-       box().absolute().inset(0).filter(glow()).children({std::move(pointer)})});
+       box().absolute().inset(0).filter(glow()).children(
+           {std::move(pointer)})});
 }
 
 }  // namespace

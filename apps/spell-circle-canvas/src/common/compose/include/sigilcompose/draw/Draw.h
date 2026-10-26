@@ -68,7 +68,8 @@ Element pen(std::string_view key, PenProgram program,
  *  p5's LOOP WORDS THEREFORE MEAN SOMETHING, and the program's own pen is
  *  where they are read: `noLoop()` stops running the program while the
  *  surface goes on being put down, `redraw()` runs it once more, and
- *  `frameRate(fps)` runs it at most that often. The node is `custom()` at
+ *  `frameRate(framesPerSecond)` runs it at most that often. The node is
+ * `custom()` at
  *  @p caching like `pen()`, `Cache::None` by default, so the blit happens
  *  every frame whatever the program is doing; and like `pen()` it comes
  *  back covering the box it stands in.

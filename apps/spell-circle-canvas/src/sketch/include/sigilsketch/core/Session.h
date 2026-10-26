@@ -24,7 +24,7 @@ namespace sigil::sketch {
 /** What one LANE of a frame cost, named by the runtime that spent it. */
 struct LaneCost {
   const char* name = "";
-  double ms = 0;
+  double milliseconds = 0;
 };
 
 /** How a frame split at the seam the performance question always asks
@@ -84,22 +84,22 @@ class Session {
    *  new one mid-run, so a host re-reads it after every frame. */
   [[nodiscard]] virtual const CanvasSpecification& canvas() const = 0;
 
-  /** Advance the scene by @p dt seconds and draw the result into
-   *  @p canvas. A negative @p dt asks for wall time.
+  /** Advance the scene by @p seconds and draw the result into
+   *  @p canvas. A negative @p seconds asks for wall time.
    *
    *  Advancing and drawing are ONE call because in some runtimes the
    *  drawing is part of what advances the scene — a picture recorded, a
    *  texture baked, a volatile leaf run — so a sweep that stepped
    *  without painting would reach different pixels than the host it is
    *  standing in for. */
-  virtual void frame(SkCanvas& canvas, double dt) = 0;
+  virtual void frame(SkCanvas& canvas, double seconds) = 0;
 
   /** Advance a frame whose output will not be kept. The default paints
    *  through @p canvas because drawing may advance persistent state.
    *  A runtime may omit painting only when the sketch declares that its
    *  capture state advances completely without draw callbacks. */
-  virtual void discardedFrame(SkCanvas& canvas, double dt) {
-    frame(canvas, dt);
+  virtual void discardedFrame(SkCanvas& canvas, double seconds) {
+    frame(canvas, seconds);
   }
 
   /** Draw the state the last frame left, WITHOUT advancing it — what a

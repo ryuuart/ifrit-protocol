@@ -59,9 +59,9 @@ struct Table {
 
   /** THE WIDTH THE MARKUP GAVE A COLUMN, where it gave one, as ONE length
    *  per column: `Dimension` in pixels (`120`, `120_px`), in percent
-   *  (`30_percent`), or `autoDimension()` for a column sized by what is in it. A
-   *  width of no pixels is that same auto column, and a list shorter than
-   *  the grid leaves the columns past its end sized that way too.
+   *  (`30_percent`), or `autoDimension()` for a column sized by what is in it.
+   * A width of no pixels is that same auto column, and a list shorter than the
+   * grid leaves the columns past its end sized that way too.
    *
    *  A PERCENTAGE IS A SHARE OF THE ROOM THE COLUMNS DIVIDE — the table's
    *  own width less its padding and spacing — so it can only be resolved
@@ -87,10 +87,10 @@ struct Table {
   enum class ColumnSizing : uint8_t { Fill, Shrink };
   ColumnSizing fit = ColumnSizing::Fill;
 
-  /** This scheme reads each child's `minSize`: the narrowest a
+  /** This scheme reads each child's `minimumSize`: the narrowest a
    *  column's content can be set is the floor it is solved from, and no
    *  measured size carries it. */
-  static constexpr bool readsChildMinSizes = true;
+  static constexpr bool readsChildMinimumSizes = true;
 
   bool operator==(const Table&) const = default;
 
@@ -149,8 +149,8 @@ struct Table {
     // only where a child can be set narrower than it was measured.
     std::vector<float> least((size_t)cols, 0.0f);
     auto narrowest = [&](size_t i) {
-      return in.minSizesMeasured ? in.children[i].minSize.x
-                                 : in.children[i].size.x;
+      return in.minimumSizesMeasured ? in.children[i].minimumSize.x
+                                     : in.children[i].size.x;
     };
 
     // 1. Every column is at least as wide as the widest thing that sits
@@ -203,13 +203,13 @@ struct Table {
     std::vector<uint8_t> stated((size_t)cols, 0u);
     for (size_t c = 0; c < declaredWidths.size() && c < (size_t)cols; ++c) {
       const Dimension& asked = declaredWidths[c];
-      const float px = asked.unit == Dimension::Unit::Px ? asked.value
-                       : asked.unit == Dimension::Unit::Percent
-                           ? room * asked.value / 100.0f
-                           : 0.0f;
-      if (px <= 0) continue;  // auto, and a width of nothing with it
+      const float pixels = asked.unit == Dimension::Unit::Px ? asked.value
+                           : asked.unit == Dimension::Unit::Percent
+                               ? room * asked.value / 100.0f
+                               : 0.0f;
+      if (pixels <= 0) continue;  // auto, and a width of nothing with it
       stated[c] = 1u;
-      grid.columnWidths[c] = std::max(px, least[c]);
+      grid.columnWidths[c] = std::max(pixels, least[c]);
       least[c] = grid.columnWidths[c];
     }
 

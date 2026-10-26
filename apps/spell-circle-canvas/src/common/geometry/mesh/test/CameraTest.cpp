@@ -98,7 +98,7 @@ TEST(Camera, ReadsACameraBackAsTheOrbitThatMakesIt) {
   camera::Camera lens;
   lens.eye = {180, 120, -260};
   lens.target = {10, 30, 5};
-  lens.fovYDegrees = 32;
+  lens.verticalFieldOfViewDegrees = 32;
   const camera::Orbit orbit = camera::orbitOf(lens);
   EXPECT_NEAR(orbit.distance, glm::length(lens.eye - lens.target), 1e-3f);
   const camera::Camera back = camera::cameraAt(lens, orbit);
@@ -108,7 +108,8 @@ TEST(Camera, ReadsACameraBackAsTheOrbitThatMakesIt) {
   // Everything but where the eye stands is the pivot's own.
   EXPECT_EQ(back.target, lens.target);
   EXPECT_EQ(back.up, lens.up);
-  EXPECT_FLOAT_EQ(back.fovYDegrees, lens.fovYDegrees);
+  EXPECT_FLOAT_EQ(back.verticalFieldOfViewDegrees,
+                  lens.verticalFieldOfViewDegrees);
 }
 
 // An eye standing on its target names no direction, so there is no orbit
@@ -175,7 +176,7 @@ TEST(Camera, TheFrustumExtentIsWhatFillsTheFrameAtThatDistance) {
   camera::Camera cam;
   cam.eye = {0, 0, 0};
   cam.target = {0, 0, -1};
-  cam.fovYDegrees =
+  cam.verticalFieldOfViewDegrees =
       90.0f;  // half-angle 45 degrees: the height is twice the run
   const glm::vec2 at100 = cam.extentAt(100.0f, 2.0f);
   EXPECT_NEAR(at100.y, 202.0f, 1e-2f);
@@ -238,7 +239,7 @@ TEST(Camera, ACameraIsAValueAndAnOrbitMovesOnlyTheEye) {
   camera::Camera cam;
   cam.eye = {40, 25, 300};
   cam.target = {0, 10, 0};
-  cam.fovYDegrees = 55;
+  cam.verticalFieldOfViewDegrees = 55;
 
   camera::Camera same = cam;
   EXPECT_EQ(cam, same);
@@ -267,7 +268,7 @@ TEST(Camera, AProjectedPointAndAnExtentKeepTheirExactValues) {
   camera::Camera cam;
   cam.eye = {30, -20, 250};
   cam.target = {5, 10, -40};
-  cam.fovYDegrees = 52;
+  cam.verticalFieldOfViewDegrees = 52;
   const std::optional<glm::vec2> point =
       cam.project({40, 25, -60}, glm::vec2{800, 600});
   ASSERT_TRUE(point.has_value());

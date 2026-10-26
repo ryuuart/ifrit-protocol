@@ -26,8 +26,8 @@
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
-#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/mesh/curve/Frame.h"
+#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/path/Polyline.h"
 
 /** SPLINES THAT CROSS SPACE, HELD AS VALUES: control points, the rule
@@ -54,9 +54,9 @@ struct Spline3 {
   bool closed = false;
 
   /** Position at parameter t in [0,1] (uniform by segment). */
-  glm::vec3 position(float t) const;
+  glm::vec3 position(float along) const;
   /** Unit tangent at t (central difference). */
-  glm::vec3 tangent(float t) const;
+  glm::vec3 tangent(float along) const;
   /** Approximate length (chord sum over @p samples). */
   float length(int samples = 256) const;
   /** @p count positions, uniform in PARAMETER. */

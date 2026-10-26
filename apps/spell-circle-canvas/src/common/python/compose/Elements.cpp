@@ -622,7 +622,7 @@ void bindCompose(py::module_& module) {
             self.spread = pixels(value, "A shadow's spread");
           })
       .def_readwrite("inset", &Shadow::inset)
-      .def_readwrite("maxBind", &Shadow::maxBind)
+      .def_readwrite("maximumBind", &Shadow::maximumBind)
       .def_readwrite("knockout", &Shadow::knockout)
       .def(py::self == py::self);
   // The shadow each glyph casts: its colour is a colour term, read back

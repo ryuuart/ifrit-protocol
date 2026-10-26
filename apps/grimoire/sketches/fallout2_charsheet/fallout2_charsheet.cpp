@@ -60,13 +60,14 @@ namespace {
 
 /** One screen pixel, in canvas pixels. */
 constexpr float kPixel = 2.0f;
-constexpr float px(float length) { return length * kPixel; }
+constexpr float pixels(float length) { return length * kPixel; }
 
 Element screen(float x, float y, float width, float height) {
-  return kit::at(px(x), px(y), px(width), px(height));
+  return kit::at(pixels(x), pixels(y), pixels(width), pixels(height));
 }
 Element screen(Element node, float x, float y, float width, float height) {
-  return kit::at(std::move(node), px(x), px(y), px(width), px(height));
+  return kit::at(std::move(node), pixels(x), pixels(y), pixels(width),
+                 pixels(height));
 }
 
 // ---------------------------------------------------------------------------
@@ -110,9 +111,10 @@ const material::Material kBrass =
             {0, 0}, {0, 1},
             {hexColor(0xE0C070), hexColor(0xB08C3C), hexColor(0x6C5220)}))
         .effects(
-            Filter::shadow(hexColor(0x140C04, 0.9f), {.offset = {px(1), px(1)}})
-                .then(Filter::bevel({.depth = px(0.6f),
-                                     .size = px(0.8f),
+            Filter::shadow(hexColor(0x140C04, 0.9f),
+                           {.offset = {pixels(1), pixels(1)}})
+                .then(Filter::bevel({.depth = pixels(0.6f),
+                                     .size = pixels(0.8f),
                                      .highlight = hexColor(0xFFF0C0, 0.55f),
                                      .shadow = hexColor(0x2A1C08, 0.6f)})));
 
@@ -154,7 +156,7 @@ const material::Material kScreenGround = material::radialGradient(
 
 /** The raster the tube draws in: every other line a little darker. */
 const material::Material kScanLines = material::linearGradient(
-    {0, 0}, {0, px(1)},
+    {0, 0}, {0, pixels(1)},
     {{0.5f, hexColor(0x000000, 0.0f)}, {0.5f, hexColor(0x000000, 0.34f)}},
     {.units = material::GradientUnits::Pixels,
      .repeat = material::Repeat::Repeat});
@@ -167,7 +169,7 @@ const material::Material kSheen =
                               {0.36f, hexColor(0xE8FFE0, 0.0f)}});
 
 /** The light of the lit text, spilling onto the glass around it. */
-const Filter kGlow = Filter::glow(hexColor(0x3CF800, 0.55f), px(1.6f));
+const Filter kGlow = Filter::glow(hexColor(0x3CF800, 0.55f), pixels(1.6f));
 
 /** The parchment scrap the card is written on, browned at its edges. */
 const material::Material kParchment =
@@ -195,7 +197,7 @@ StyleSheet registers() {
           .var("selected", hexColor(0xFCFC7C))
           .var("card-ink", hexColor(0x1C1206))
           .font({.face = weave::ports::face({"Menlo", "Andale Mono"}, 700),
-                 .size = px(8.4f),
+                 .size = pixels(8.4f),
                  .condense = 0.86f})
           .ink(var("phosphor")),
       rule(".dead").ink(var("phosphor-dead")),
@@ -203,32 +205,32 @@ StyleSheet registers() {
       rule(".selected").ink(var("selected")),
       rule(".stamped")
           .font({.face = weave::ports::face({"Impact", "DIN Condensed"}, 400),
-                 .track = px(0.3f),
+                 .track = pixels(0.3f),
                  .condense = 0.88f})
           .ink(kBrass),
       rule(".card")
           .font({.face = weave::ports::face(
                      {"American Typewriter", "Courier New"}, 600),
-                 .size = px(7.6f),
+                 .size = pixels(7.6f),
                  .condense = 1.0f})
           .ink(var("card-ink")),
       // Steel standing proud of the plate: panels, plaques, keys, each
       // keylined where it meets the plate.
       rule(".raised")
           .fill(kRaisedSteel)
-          .borderRadius(Corners{px(2)})
-          .stroke(stroke(px(1), Fill::color(hexColor(0x100C08)),
+          .borderRadius(Corners{pixels(2)})
+          .stroke(stroke(pixels(1), Fill::color(hexColor(0x100C08)),
                          PathFormat::Align::Outer)),
       rule(".card-title")
           .font(
               {.face = weave::ports::face({"Superclarendon", "Rockwell"}, 900),
-               .size = px(19),
-               .track = px(-0.2f)})};
+               .size = pixels(19),
+               .track = pixels(-0.2f)})};
 }
 
 /** Lettering stamped into the plate, @p size screen pixels tall. */
 Element stamped(const std::string& words, float size) {
-  return text(words).styleClass("stamped").font({.size = px(size)});
+  return text(words).styleClass("stamped").font({.size = pixels(size)});
 }
 
 /** The same lettering centred in the rect at (@p x, @p y). */
@@ -243,9 +245,9 @@ Element stamped(const std::string& words, float size, float x, float y,
 /** A screw at (@p x, @p y), its slot turned by @p turn degrees. */
 Element screw(float x, float y, float turn) {
   return screen(x - 3, y - 3, 6, 6)
-      .borderRadius(Corners{px(3)})
+      .borderRadius(Corners{pixels(3)})
       .fill(kScrew)
-      .foreground(stroke(px(0.6f), Fill::color(hexColor(0x0C0804, 0.8f)),
+      .foreground(stroke(pixels(0.6f), Fill::color(hexColor(0x0C0804, 0.8f)),
                          PathFormat::Align::Outer))
       .children(
           {box()
@@ -260,9 +262,9 @@ Element screw(float x, float y, float turn) {
 Element raised(float x, float y, float width, float height,
                bool screwed = true) {
   Element plate = screen(x, y, width, height).styleClass("raised");
-  kit::bevelled(
-      plate, kit::bevels::plate(hexColor(0xE8D4A0, 0.5f),
-                                hexColor(0x080604, 0.75f), px(1.4f), px(1.6f)));
+  kit::bevelled(plate, kit::bevels::plate(hexColor(0xE8D4A0, 0.5f),
+                                          hexColor(0x080604, 0.75f),
+                                          pixels(1.4f), pixels(1.6f)));
   if (!screwed) return plate;
   return box().inset(0).children({plate, screw(x + 5, y + 5, 20),
                                   screw(x + width - 5, y + 5, 75),
@@ -273,21 +275,22 @@ Element raised(float x, float y, float width, float height,
 /** A display's recess in the plate at (@p x, @p y): the dark glass, its
  *  keyline, and the moulded edge of the hole it is sunk in. */
 Element recess(float x, float y, float width, float height) {
-  Element hole = screen(x, y, width, height)
-                     .fill(kScreenGround)
-                     .borderRadius(Corners{px(3)})
-                     .stroke(stroke(px(1.2f), Fill::color(hexColor(0x0A0804)),
-                                    PathFormat::Align::Outer));
+  Element hole =
+      screen(x, y, width, height)
+          .fill(kScreenGround)
+          .borderRadius(Corners{pixels(3)})
+          .stroke(stroke(pixels(1.2f), Fill::color(hexColor(0x0A0804)),
+                         PathFormat::Align::Outer));
   return kit::bevelled(hole, kit::bevels::plate(hexColor(0xE8D4A0, 0.45f),
                                                 hexColor(0x000000, 0.8f),
-                                                px(1.4f), px(2), true));
+                                                pixels(1.4f), pixels(2), true));
 }
 
 /** What a display shows at (@p x, @p y): @p content lit on the glass,
  *  glowing, and nothing outside the glass. */
 Element readout(float x, float y, float width, float height, Element content) {
   return screen(x, y, width, height)
-      .borderRadius(Corners{px(3)})
+      .borderRadius(Corners{pixels(3)})
       .overflow(Overflow::Clip)
       .children({content.filter(kGlow)});
 }
@@ -296,10 +299,10 @@ Element readout(float x, float y, float width, float height, Element content) {
  *  over whatever it shows, and the glass's sheen over that. */
 Element glass(float x, float y, float width, float height) {
   return screen(x, y, width, height)
-      .borderRadius(Corners{px(3)})
+      .borderRadius(Corners{pixels(3)})
       .fill(kScanLines)
       .hitTestable(false)
-      .children({box().inset(0).borderRadius(Corners{px(3)}).fill(kSheen)});
+      .children({box().inset(0).borderRadius(Corners{pixels(3)}).fill(kSheen)});
 }
 
 /** A whole display: the recess, what it shows, the glass. */
@@ -325,14 +328,15 @@ Element rows(float x, float y, float width, float pitch, float valueAt,
       .children({each(lines, [&](const Line& line) {
         return box()
             .row()
-            .height(px(pitch))
+            .height(pixels(pitch))
             .flexShrink(0)
             .alignItems(Align::Center)
             .styleClass(line.tone)
-            .children({line.value.empty()
-                           ? text(line.label)
-                           : text(line.label).width(px(valueAt)).flexShrink(0),
-                       text(line.value)});
+            .children(
+                {line.value.empty()
+                     ? text(line.label)
+                     : text(line.label).width(pixels(valueAt)).flexShrink(0),
+                 text(line.value)});
       })});
 }
 
@@ -425,8 +429,8 @@ struct Fallout2CharSheet {
   Element numeralStrip() const {
     return box().column().children({each(10, [this](int digit) {
       Element face = box()
-                         .width(px(13))
-                         .height(px(24))
+                         .width(pixels(13))
+                         .height(pixels(24))
                          .flexShrink(0)
                          .alignItems(Align::Center)
                          .justifyContent(Justify::Center);
@@ -444,20 +448,20 @@ struct Fallout2CharSheet {
   Element counter(float x, float y, float tens, Turn ones) const {
     const auto drum = [this](auto turn) {
       return box()
-          .width(px(13))
-          .height(px(24))
+          .width(pixels(13))
+          .height(pixels(24))
           .fill(hexColor(0x141414))
-          .borderRadius(Corners{px(1.5f)})
+          .borderRadius(Corners{pixels(1.5f)})
           .overflow(Overflow::Clip)
           .children({numeralStrip().cache(Cache::Texture).translateY(turn),
                      box().inset(0).fill(kDrumShade)});
     };
     return screen(x - 1, y - 1, 30, 26)
         .fill(hexColor(0x000000))
-        .borderRadius(Corners{px(2)})
+        .borderRadius(Corners{pixels(2)})
         .row()
-        .padding(px(1))
-        .gap(px(1))
+        .padding(pixels(1))
+        .gap(pixels(1))
         .children({drum(tens), drum(ones)});
   }
 
@@ -500,8 +504,8 @@ struct Fallout2CharSheet {
       panel.push_back(
           screen(stamped(std::string(stat["stat"].string()) + "-", 29), 17,
                  top - 4, 42, 30));
-      panel.push_back(counter(58, top, px(-24) * float(value / 10),
-                              px(-24) * float(value % 10)));
+      panel.push_back(counter(58, top, pixels(-24) * float(value / 10),
+                              pixels(-24) * float(value % 10)));
       panel.push_back(display(
           96, top + 3, 56, 19,
           screen(text(std::string(stat["grade"].string())), 4, 0, 52, 19)
@@ -536,17 +540,20 @@ struct Fallout2CharSheet {
     const auto heading = [](const char* words) {
       return box()
           .row()
-          .height(px(12))
+          .height(pixels(12))
           .flexShrink(0)
           .alignItems(Align::Center)
-          .gap(px(4))
-          .children({box().height(px(1)).flexGrow(1).fill(Fill::currentInk()),
-                     text(words),
-                     box().height(px(1)).flexGrow(1).fill(Fill::currentInk())});
+          .gap(pixels(4))
+          .children(
+              {box().height(pixels(1)).flexGrow(1).fill(Fill::currentInk()),
+               text(words),
+               box().height(pixels(1)).flexGrow(1).fill(Fill::currentInk())});
     };
     const auto entries = [](const Json& list) {
       return each(list.array(), [](const Json& entry) {
-        return text(std::string(entry.string())).height(px(12)).flexShrink(0);
+        return text(std::string(entry.string()))
+            .height(pixels(12))
+            .flexShrink(0);
       });
     };
     static constexpr std::array<const char*, 3> kTabs{"PERKS", "KARMA",
@@ -569,7 +576,7 @@ struct Fallout2CharSheet {
     const auto arrow = [](float y, const char* path) {
       return screen(318, y, 11, 12)
           .styleClass("raised")
-          .padding(px(3), px(2))
+          .padding(pixels(3), pixels(2))
           .children({box()
                          .flexGrow(1)
                          .fill(hexColor(0xC8A450))
@@ -596,12 +603,13 @@ struct Fallout2CharSheet {
          stamped("SKILL POINTS", 24, 392, 229, 124, 28),
          screen(345, 266, 279, 172)
              .fill(kParchment)
-             .borderRadius(Corners{px(1.5f)})
-             .stroke(stroke(px(1.2f), Fill::color(hexColor(0x2A1C08, 0.8f)),
+             .borderRadius(Corners{pixels(1.5f)})
+             .stroke(stroke(pixels(1.2f), Fill::color(hexColor(0x2A1C08, 0.8f)),
                             PathFormat::Align::Inner))
-             .background(Shadow{.offset = {px(1.5f), px(2)},
-                                .blur = px(3),
-                                .color = Fill::color(hexColor(0x000000, 0.7f))})});
+             .background(
+                 Shadow{.offset = {pixels(1.5f), pixels(2)},
+                        .blur = pixels(3),
+                        .color = Fill::color(hexColor(0x000000, 0.7f))})});
   }
 
   /** PRINT, DONE and CANCEL along the foot, each behind a red lamp. */
@@ -609,12 +617,12 @@ struct Fallout2CharSheet {
     return box().inset(0).children({each(kButtons, [](const auto& button) {
       return box().inset(0).children(
           {screen(button.second - 2, 453, 16, 16)
-               .borderRadius(Corners{px(8)})
+               .borderRadius(Corners{pixels(8)})
                .fill(hexColor(0x16100A))
-               .padding(px(2))
+               .padding(pixels(2))
                .children({box()
                               .flexGrow(1)
-                              .borderRadius(Corners{px(6)})
+                              .borderRadius(Corners{pixels(6)})
                               .fill(kLamp)}),
            screen(button.second + 18, 449, 80, 26)
                .children({stamped(button.first, 23)})});
@@ -651,7 +659,7 @@ struct Fallout2CharSheet {
             {screen(0, 0, 640, 480)
                  .fill(kSteel)
                  .overflow(Overflow::Clip)
-                 .foreground(stroke(px(3), Fill::color(hexColor(0x16120C)),
+                 .foreground(stroke(pixels(3), Fill::color(hexColor(0x16120C)),
                                     PathFormat::Align::Inner))
                  .children({chrome(), special(), statistics(), folder(),
                             skillFittings(), buttons()}),
@@ -694,12 +702,13 @@ struct Fallout2CharSheet {
   Element cursor() const {
     const auto key = [](const char* sign) {
       return box()
-          .width(px(12))
-          .height(px(9))
+          .width(pixels(12))
+          .height(pixels(9))
           .styleClass("raised")
           .alignItems(Align::Center)
           .justifyContent(Justify::Center)
-          .children({text(sign).font({.size = px(8)}).ink(hexColor(0xE0C070))});
+          .children(
+              {text(sign).font({.size = pixels(8)}).ink(hexColor(0xE0C070))});
     };
     return box()
         .inset(0)
@@ -721,17 +730,19 @@ struct Fallout2CharSheet {
                           .inset(0)
                           .styleClass("raised")
                           .row()
-                          .padding(px(2))
-                          .gap(px(2))
+                          .padding(pixels(2))
+                          .gap(pixels(2))
                           .alignItems(Align::Center)
-                          .children({box().width(px(16)).height(px(12)).fill(
-                                         hexColor(0x061004)),
-                                     box().column().gap(px(2)).children(
+                          .children({box()
+                                         .width(pixels(16))
+                                         .height(pixels(12))
+                                         .fill(hexColor(0x061004)),
+                                     box().column().gap(pixels(2)).children(
                                          {key("+"), key("-")})})
                           .cache(Cache::Texture),
                       // The + key lights under the finger.
                       screen(20, 2, 12, 9)
-                          .borderRadius(Corners{px(1.5f)})
+                          .borderRadius(Corners{pixels(1.5f)})
                           .fill(hexColor(0xFFE070, 0.55f))
                           .opacity(keyLit)})});
   }
@@ -739,7 +750,7 @@ struct Fallout2CharSheet {
   /** The beam's slow roll down the skill display. */
   Element beam() const {
     return screen(366, 22, 252, 204)
-        .borderRadius(Corners{px(3)})
+        .borderRadius(Corners{pixels(3)})
         .overflow(Overflow::Clip)
         .hitTestable(false)
         .children({screen(0, -40, 252, 40)
@@ -756,8 +767,8 @@ struct Fallout2CharSheet {
     if (!state.selection.stat) return box();
     const float top = 38 + 33 * (float)state.selection.index;
     return screen(12, top - 3, 142, 30)
-        .borderRadius(Corners{px(3)})
-        .stroke(stroke(px(1.2f), Fill::color(hexColor(0xFCFC7C, 0.8f))))
+        .borderRadius(Corners{pixels(3)})
+        .stroke(stroke(pixels(1.2f), Fill::color(hexColor(0xFCFC7C, 0.8f))))
         .hitTestable(false)
         .opacity(cardShown);
   }
@@ -780,7 +791,7 @@ struct Fallout2CharSheet {
     Element drawing = screen(176, 36, 96, 128);
     if (figure != sheet.figures.end())
       drawing.shape(figure->second).fill(Fill::none()).stroke([] {
-        PathFormat line = stroke(px(1.1f), Fill::color(hexColor(0x1C1206)));
+        PathFormat line = stroke(pixels(1.1f), Fill::color(hexColor(0x1C1206)));
         line.cap = sigil::geometry::path::Cap::Round;
         line.join = sigil::geometry::path::Join::Round;
         return line;
@@ -788,21 +799,22 @@ struct Fallout2CharSheet {
     return screen(345, 266, 279, 172)
         .styleClass("card")
         .column()
-        .padding(px(4), px(6))
+        .padding(pixels(4), pixels(6))
         .opacity(cardShown)
         .children(
             {box()
                  .row()
-                 .gap(px(8))
+                 .gap(pixels(8))
                  .alignItems(Align::Baseline)
                  .children({text(title).styleClass("card-title"),
-                            text(aside).font({.size = px(8.4f)})}),
-             kit::line({.length = Dimension(px(265)), .thickness = px(2)})
-                 .marginTop(px(1)),
+                            text(aside).font({.size = pixels(8.4f)})}),
+             kit::line(
+                 {.length = Dimension(pixels(265)), .thickness = pixels(2)})
+                 .marginTop(pixels(1)),
              text(std::string(entry["blurb"].string()))
-                 .width(px(172))
-                 .marginTop(px(10))
-                 .paragraph({.leading = weave::Leading::absolute(px(11))}),
+                 .width(pixels(172))
+                 .marginTop(pixels(10))
+                 .paragraph({.leading = weave::Leading::absolute(pixels(11))}),
              drawing})
         .cache(Cache::Texture)
         .key("fallout2_charsheet.card");
@@ -812,7 +824,7 @@ struct Fallout2CharSheet {
   Element skillPoints() const {
     return box().inset(0).children({screen(520, 229, 34, 28)
                                         .fill(hexColor(0x16100A))
-                                        .borderRadius(Corners{px(2)}),
+                                        .borderRadius(Corners{pixels(2)}),
                                     counter(523, 231, 0.0f, drumTurn)});
   }
 
@@ -849,7 +861,7 @@ struct Fallout2CharSheet {
   }
 
   void setup(sketch::Scene2DContext& context) {
-    context.canvas(px(640), px(580));
+    context.canvas(pixels(640), pixels(580));
     context.background(hexColor(0x050604));
     context.captureAt(6.0);
     context.oversample(2);
@@ -878,7 +890,7 @@ struct Fallout2CharSheet {
             ((float)selection.index - leaving) * rise(time - from, 0.22);
       shown = previous.stat ? rise(time - from, 0.2) : 1.0f;
     }
-    cursorTop = px((float)kSkillPitch * row);
+    cursorTop = pixels((float)kSkillPitch * row);
     cursorShown = shown;
     cardShown = rise(time - arrived, 0.3);
 
@@ -893,11 +905,11 @@ struct Fallout2CharSheet {
     }
     if (time >= kCancel) spent = 3.0f * (1.0f - rise(time - kCancel, 0.35));
     keyLit = lit;
-    drumTurn = px(-24) * ((float)points - spent);
+    drumTurn = pixels(-24) * ((float)points - spent);
     cancelLit = time < kCancel ? 0.0f : 1.0f - rise(time - kCancel - 0.25, 0.5);
 
     // The beam takes four seconds to cross the display.
-    beamTop = px(244) * float(std::fmod(elapsed, 4.0) / 4.0);
+    beamTop = pixels(244) * float(std::fmod(elapsed, 4.0) / 4.0);
 
     const State now = at(time);
     if (now == state) return;

@@ -220,7 +220,7 @@ bool paintGroupBake(PaintPass& pass) {
           inst.textureBakeRect = want;
           inst.textureBakeClip = pass.deviceClip();
           inst.textureBakeMatrix = pass.totalM;
-          inst.textureScale = maxScaleOf(totalM, pass.localBounds());
+          inst.textureScale = maximumScaleOf(totalM, pass.localBounds());
           inst.paintDirty = false;
           // A group root never replays a recording. It can have made one on
           // its very first frame — before it had a previous frame to compare

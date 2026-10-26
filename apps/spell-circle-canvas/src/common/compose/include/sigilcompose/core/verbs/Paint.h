@@ -38,7 +38,7 @@ class PaintVerbs {
   /** Paint the surface with a colour, a shader, a transition between
    *  colours, or a LIVE binding — `fill(&output)` where the output
    *  holds a `Fill`. */
-  Derived& fill(motion::Animatable<Fill> f);
+  Derived& fill(motion::Animatable<Fill> paint);
   /** FILL WITH A MATERIAL — a gradient, layers, an image, a program —
    *  its unit square stretched over @p box: the element's own box by
    *  default, `Padding` or `Content` to start it inside the border or the

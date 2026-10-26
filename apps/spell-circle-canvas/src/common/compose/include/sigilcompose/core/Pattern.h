@@ -26,11 +26,11 @@
  * fresh one each render re-renders the tile.
  */
 
-#include <glm/vec2.hpp>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Painted.h>
 
+#include <glm/vec2.hpp>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -77,8 +77,8 @@ class Pattern {
    *  cloned before it is edited. Holding the ONE Pattern and re-seeding it
    *  copies nothing. This and `retile()` are the only copy-on-write
    *  points; the mapping setters never touch the shared state. */
-  Pattern& seed(uint32_t s) {
-    m_tile.seed(s);
+  Pattern& seed(uint32_t value) {
+    m_tile.seed(value);
     return *this;
   }
   /** Swap the element tile (element-tile patterns' regeneration).
@@ -91,8 +91,8 @@ class Pattern {
     return *this;
   }
   /** Mapping only — no rebake; a rotated repeat stays seamless. */
-  Pattern& scale(float s) {
-    m_tile.scale(s);
+  Pattern& scale(float factor) {
+    m_tile.scale(factor);
     return *this;
   }
   Pattern& rotate(float degrees) {
@@ -106,8 +106,8 @@ class Pattern {
    *
    *  Describe-time: this form moves only when the element is re-described.
    *  The BOUND overload below is the live sibling. */
-  Pattern& offset(glm::vec2 px) {
-    m_tile.offset(px);
+  Pattern& offset(glm::vec2 pixels) {
+    m_tile.offset(pixels);
     return *this;
   }
   /** Pan the repeat LIVE — the bound form of the same word. Write the live

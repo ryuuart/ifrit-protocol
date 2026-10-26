@@ -14,8 +14,8 @@
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>
@@ -31,38 +31,44 @@ using detail::samplingFor;
 
 // ---- image ------------------------------------------------------------------
 
-void Pen::image(const sk_sp<SkImage>& img, float x, float y) {
-  if (!img) return;
-  image(img, x, y, (float)img->width(), (float)img->height());
+void Pen::image(const sk_sp<SkImage>& source, float x, float y) {
+  if (!source) return;
+  image(source, x, y, (float)source->width(), (float)source->height());
 }
 
-void Pen::image(const sk_sp<SkImage>& img, float x, float y, float w, float h) {
-  if (!m_canvas || !img || m_clipRecording) return;
-  const SkRect box = boxIn(m_style.imageMode, x, y, w, h);
+void Pen::image(const sk_sp<SkImage>& source, float x, float y, float width,
+                float height) {
+  if (!m_canvas || !source || m_clipRecording) return;
+  const SkRect box = boxIn(m_style.imageMode, x, y, width, height);
   SkPaint paint;
   blendInto(paint);
-  m_canvas->drawImageRect(img, box, samplingFor(m_style.antiAlias), &paint);
+  m_canvas->drawImageRect(source, box, samplingFor(m_style.antiAlias), &paint);
 }
 
-void Pen::image(const sk_sp<SkImage>& img, float dx, float dy, float dw,
-                float dh, float sx, float sy, float sw, float sh) {
-  if (!m_canvas || !img || m_clipRecording) return;
-  const SkRect box = boxIn(m_style.imageMode, dx, dy, dw, dh);
+void Pen::image(const sk_sp<SkImage>& source, float destinationX,
+                float destinationY, float destinationWidth,
+                float destinationHeight, float sourceX, float sourceY,
+                float sourceWidth, float sourceHeight) {
+  if (!m_canvas || !source || m_clipRecording) return;
+  const SkRect box = boxIn(m_style.imageMode, destinationX, destinationY,
+                           destinationWidth, destinationHeight);
   SkPaint paint;
   blendInto(paint);
-  m_canvas->drawImageRect(img, SkRect::MakeXYWH(sx, sy, sw, sh), box,
-                          samplingFor(m_style.antiAlias), &paint,
-                          SkCanvas::kStrict_SrcRectConstraint);
+  m_canvas->drawImageRect(
+      source, SkRect::MakeXYWH(sourceX, sourceY, sourceWidth, sourceHeight),
+      box, samplingFor(m_style.antiAlias), &paint,
+      SkCanvas::kStrict_SrcRectConstraint);
 }
 
-void Pen::image(const media::Frame& frame, float x, float y, float w, float h,
-                material::Fit fit) {
+void Pen::image(const media::Frame& frame, float x, float y, float width,
+                float height, material::Fit fit) {
   if (!m_canvas || m_clipRecording) return;
-  const sk_sp<SkImage> picture = media::deviceImage(frame, m_canvas->recorder());
+  const sk_sp<SkImage> picture =
+      media::deviceImage(frame, m_canvas->recorder());
   // Both sides are guarded: a picture with no extent divides by its own
   // height below exactly as an empty box divides by its own.
   if (!picture || picture->width() <= 0 || picture->height() <= 0) return;
-  const SkRect box = boxIn(m_style.imageMode, x, y, w, h);
+  const SkRect box = boxIn(m_style.imageMode, x, y, width, height);
   if (box.isEmpty()) return;
   const SkRect whole = SkRect::MakeIWH(picture->width(), picture->height());
   SkRect source = whole;
@@ -84,14 +90,13 @@ void Pen::image(const media::Frame& frame, float x, float y, float w, float h,
   } else if (fit == material::Fit::Contain) {
     if (sourceAspect > boxAspect) {
       const float height = box.width() / sourceAspect;
-      destination = SkRect::MakeXYWH(
-          box.left(), box.top() + (box.height() - height) * 0.5f, box.width(),
-          height);
+      destination = SkRect::MakeXYWH(box.left(),
+                                     box.top() + (box.height() - height) * 0.5f,
+                                     box.width(), height);
     } else {
       const float width = box.height() * sourceAspect;
-      destination = SkRect::MakeXYWH(
-          box.left() + (box.width() - width) * 0.5f, box.top(), width,
-          box.height());
+      destination = SkRect::MakeXYWH(box.left() + (box.width() - width) * 0.5f,
+                                     box.top(), width, box.height());
     }
   }
   SkPaint paint;

@@ -162,11 +162,11 @@ concept AddingOperator = Adding<O> && std::equality_comparable<O>;
 
 /** Whether a scheme or an operator asks for the children's content
  *  minima, which cost a measure per text child: it says so with
- *  `static constexpr bool readsChildMinSizes = true;`. */
+ *  `static constexpr bool readsChildMinimumSizes = true;`. */
 template <typename T>
-concept ReadsChildMinSizes = requires {
-  { T::readsChildMinSizes } -> std::convertible_to<bool>;
-} && T::readsChildMinSizes;
+concept ReadsChildMinimumSizes = requires {
+  { T::readsChildMinimumSizes } -> std::convertible_to<bool>;
+} && T::readsChildMinimumSizes;
 
 /** Whether a scheme or an operator gives each child a box of its own in
  *  which the child's percentages resolve — a grid's cell, as CSS resolves
@@ -187,8 +187,8 @@ concept ResolvesChildPercentages = requires {
  *  program; a comparison of trees built apart, which share no place, takes
  *  it for nothing. */
 template <typename O>
-concept VouchedForByItsAuthor = requires(const O& o) {
-  { o.equalityIsTheAuthorsWord() } -> std::convertible_to<bool>;
+concept VouchedForByItsAuthor = requires(const O& other) {
+  { other.equalityIsTheAuthorsWord() } -> std::convertible_to<bool>;
 };
 
 /** Whether an operator READS CLASSES: a value that picks the nodes of its
@@ -197,8 +197,8 @@ concept VouchedForByItsAuthor = requires(const O& o) {
  *  class named only for it is a selector the composer knows, as one a
  *  sheet's rule names is. */
 template <typename O>
-concept ReadsStyleClasses = requires(const O& o) {
-  { o.styleClassesRead() } -> std::convertible_to<std::vector<std::string>>;
+concept ReadsStyleClasses = requires(const O& other) {
+  { other.styleClassesRead() } -> std::convertible_to<std::vector<std::string>>;
 };
 
 namespace detail {
@@ -278,7 +278,8 @@ class Operator {
         m_classesRead(classesRead(operatorValue)),
         m_held(detail::ArrangingModel<std::remove_cvref_t<O>>(
             std::move(operatorValue))),
-        m_readsChildMinSizes(ReadsChildMinSizes<std::remove_cvref_t<O>>),
+        m_readsChildMinimumSizes(
+            ReadsChildMinimumSizes<std::remove_cvref_t<O>>),
         m_resolvesChildPercentages(
             ResolvesChildPercentages<std::remove_cvref_t<O>>) {}
 
@@ -306,7 +307,7 @@ class Operator {
     if (m_held) m_held->add(scope);
   }
   /** Whether the held value asked for the children's content minima. */
-  bool readsChildMinSizes() const { return m_readsChildMinSizes; }
+  bool readsChildMinimumSizes() const { return m_readsChildMinimumSizes; }
   /** Whether the held value resolves the children's percentages against
    *  boxes of its own. */
   bool resolvesChildPercentages() const { return m_resolvesChildPercentages; }
@@ -398,7 +399,7 @@ class Operator {
   bool m_authorsWord = false;
   std::vector<std::string> m_classesRead;
   core::Erased<detail::OperatorOperations> m_held;
-  bool m_readsChildMinSizes = false;
+  bool m_readsChildMinimumSizes = false;
   bool m_resolvesChildPercentages = false;
   std::optional<int> m_zIndex;
   std::string m_classes;

@@ -10,7 +10,9 @@ namespace sigil::geometry::path {
 namespace {
 
 /** An angle brought into (-180, 180]. */
-float signed180(float deg) { return wrap(deg + 180.0f, 360.0f) - 180.0f; }
+float signed180(float degrees) {
+  return wrap(degrees + 180.0f, 360.0f) - 180.0f;
+}
 
 /** Mercator's ordinate at a latitude, in units of the scale: the integral
  *  of the secant, which runs away at the poles. Held just short of them,
@@ -90,18 +92,18 @@ Rotation Rotation::then(const Rotation& next) const {
   return {next.basis * basis};
 }
 
-Rotation Rotation::aboutX(float deg) {
-  const float c = std::cos(radians(deg)), s = std::sin(radians(deg));
+Rotation Rotation::aboutX(float degrees) {
+  const float c = std::cos(radians(degrees)), s = std::sin(radians(degrees));
   return {glm::mat3{1, 0, 0, 0, c, s, 0, -s, c}};
 }
 
-Rotation Rotation::aboutY(float deg) {
-  const float c = std::cos(radians(deg)), s = std::sin(radians(deg));
+Rotation Rotation::aboutY(float degrees) {
+  const float c = std::cos(radians(degrees)), s = std::sin(radians(degrees));
   return {glm::mat3{c, 0, -s, 0, 1, 0, s, 0, c}};
 }
 
-Rotation Rotation::aboutZ(float deg) {
-  const float c = std::cos(radians(deg)), s = std::sin(radians(deg));
+Rotation Rotation::aboutZ(float degrees) {
+  const float c = std::cos(radians(degrees)), s = std::sin(radians(degrees));
   return {glm::mat3{c, s, 0, -s, c, 0, 0, 0, 1}};
 }
 

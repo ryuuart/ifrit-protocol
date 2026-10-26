@@ -103,7 +103,7 @@ def scrolling(seconds: float) -> Element:
         *(text(f"row {index:02}").styleClass("control") for index in range(7))
     )
     bar = kit.scrollbar(
-        scrolled=kit.Scrolled(view=150, content=600, track=150, minLength=16),
+        scrolled=kit.Scrolled(view=150, content=600, track=150, minimumLength=16),
         at=0.5 + 0.5 * math.sin(seconds),
         track="#2a3038",
     ).width(12).height(150).padding(2)

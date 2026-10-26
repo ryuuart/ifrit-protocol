@@ -506,7 +506,7 @@ either side of it and it is what every justified line is set at.
 
 `JustificationOptions::expandIdeographicGaps` is on because CJK text has
 no spaces, so eligible zero-width ideographic gaps may be expanded up to
-`JustificationOptions::maxIdeographicExpansion` times the font size per
+`JustificationOptions::maximumIdeographicExpansion` times the font size per
 gap.
 
 `JustificationOptions::letterSpacing` is applied to every justified line
@@ -534,7 +534,7 @@ the last, and every word separator, as one opportunity each and opens
 them all by the same amount — the cluster's share lands after it, which
 covers the gap to the next word as well, and the line's last glyph takes
 none, so its ink meets the measure — up to
-`JustificationOptions::maxInterCharacterExpansion` times the size; what
+`JustificationOptions::maximumInterCharacterExpansion` times the size; what
 that cap holds back goes to the word separators, and a line with none
 stays short. The optimizing breaker does not weigh the clusters: it
 scores each candidate line on its gaps' stretch, as `kAuto` does, and

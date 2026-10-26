@@ -140,7 +140,7 @@ ThumbnailRun runInto(const std::filesystem::path& out, std::string stem) {
   ThumbnailRun run;
   run.outputPath = out;
   run.stem = std::move(stem);
-  run.maxDimension = 64;
+  run.maximumDimension = 64;
   return run;
 }
 

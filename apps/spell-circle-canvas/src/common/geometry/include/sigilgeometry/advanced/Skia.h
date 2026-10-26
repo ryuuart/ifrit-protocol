@@ -68,24 +68,26 @@ namespace sigil::geometry::path {
 
 /** The vector as a Skia point: the same two numbers under the other
  *  type, no reinterpretation. */
-inline SkPoint toSk(glm::vec2 v) { return {v.x, v.y}; }
+inline SkPoint toSk(glm::vec2 vector) { return {vector.x, vector.y}; }
 /** The point back as a vector, on the same terms. */
-inline glm::vec2 fromSk(SkPoint p) { return {p.fX, p.fY}; }
+inline glm::vec2 fromSk(SkPoint point) { return {point.fX, point.fY}; }
 /** A size as a vector: width into x, height into y. */
-inline glm::vec2 fromSk(SkSize s) { return {s.width(), s.height()}; }
+inline glm::vec2 fromSk(SkSize size) { return {size.width(), size.height()}; }
 /** A size vector as a Skia size. */
 inline SkSize toSkSize(glm::vec2 size) { return {size.x, size.y}; }
 
 /** The rect's centre as a vector. */
-inline glm::vec2 centre(const SkRect& r) { return {r.centerX(), r.centerY()}; }
+inline glm::vec2 centre(const SkRect& rect) {
+  return {rect.centerX(), rect.centerY()};
+}
 
 /** The rectangle as a Skia rect. */
-inline SkRect toSk(const Rect& r) {
-  return SkRect::MakeLTRB(r.min.x, r.min.y, r.max.x, r.max.y);
+inline SkRect toSk(const Rect& rect) {
+  return SkRect::MakeLTRB(rect.min.x, rect.min.y, rect.max.x, rect.max.y);
 }
 /** A Skia rect as a rectangle. */
-inline Rect fromSk(const SkRect& r) {
-  return {{r.fLeft, r.fTop}, {r.fRight, r.fBottom}};
+inline Rect fromSk(const SkRect& rect) {
+  return {{rect.fLeft, rect.fTop}, {rect.fRight, rect.fBottom}};
 }
 
 /** The outline as the Skia path that stands behind it: the same verbs
@@ -202,18 +204,19 @@ inline std::vector<Crossing> discoverCrossings(
       std::span<const SkPath>(strands.begin(), strands.size()));
 }
 SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
-                     float reachB, glm::vec2 at, float maxRadius);
+                     float reachB, glm::vec2 at, float maximumRadius);
 /** @} */
 
 /** @name Node arithmetic over a Skia path
  *  @{ */
 SkPath direction(const SkPath& path, const DirectionOptions& options = {});
 SkPath edges(const SkPath& outline, Edge mask, float step = 3.0f);
-SkPath insetOutline(const SkPath& outline, float px);
+SkPath insetOutline(const SkPath& outline, float pixels);
 SkPath extremes(const SkPath& path, const ExtremeOptions& options = {});
 std::vector<glm::vec2> extremeNodes(const SkPath& path,
                                     const ExtremeOptions& options = {});
-std::optional<SkPath> interpolate(const SkPath& a, const SkPath& b, float t);
+std::optional<SkPath> interpolate(const SkPath& a, const SkPath& b,
+                                  float amount);
 SkPath tidy(const SkPath& path, float tolerance = 0.1f,
             const TidyOptions& options = {});
 std::vector<Polyline> flatten(const SkPath& path, float tolerance = 0.25f);
@@ -261,7 +264,7 @@ SkPath offset(const SkPath& path, float distance,
 SkPath roundCorners(const SkPath& path, float radius,
                     const CornerOptions& options = {});
 SkPath chamferCorners(const SkPath& path, float cut);
-SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength);
+SkPath displaceSquare(const SkPath& outline, float amplitude, float wavelength);
 /** Each distort applied to a Skia path, as its `apply` is to an outline. */
 SkPath distort(const Roughen& roughen, const SkPath& path);
 SkPath distort(const Zigzag& zigzag, const SkPath& path);

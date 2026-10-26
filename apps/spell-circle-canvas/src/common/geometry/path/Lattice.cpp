@@ -69,7 +69,7 @@ std::vector<LatticeMark> lattice(std::span<const Polyline> rings,
   }
   float gap = options.spacing;
   int lines = 0;
-  while (scan < highest && lines++ < options.maxLines) {
+  while (scan < highest && lines++ < options.maximumLines) {
     crossings.clear();
     for (const Edge& edge : edges) {
       // A half-open test on each edge: a vertex shared by two edges is

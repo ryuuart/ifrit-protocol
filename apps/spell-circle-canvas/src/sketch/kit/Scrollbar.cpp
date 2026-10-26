@@ -17,7 +17,7 @@ Thumb Scrolled::thumb() const {
   // division cannot give: a content of nothing has no share to take.
   if (content <= view || content <= 0) return {track, 0};
   const float share = track * view / content;
-  const float length = std::clamp(share, std::min(minLength, track), track);
+  const float length = std::clamp(share, std::min(minimumLength, track), track);
   return {length, track - length};
 }
 

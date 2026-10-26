@@ -34,7 +34,7 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
 
   struct Splat {
     SkPoint screen;
-    float px;  // half-size in pixels
+    float halfSizePixels;  // half-size in pixels
     float depth;
     glm::vec4 tint;
     /** The cell of the sprite this splat draws, in the unit square:
@@ -54,7 +54,7 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
 
   // Pixels per world unit at distance d: focal / d * (h/2).
   const float focal =
-      1.0f / std::tan(camera.fovYDegrees * (float)M_PI / 360.0f);
+      1.0f / std::tan(camera.verticalFieldOfViewDegrees * (float)M_PI / 360.0f);
   const float halfH = viewport.y * 0.5f;
 
   for (size_t i = 0; i < n; ++i) {
@@ -67,9 +67,10 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     splat.depth = eye.z;
     const float size =
         style.size * (sizeLane && i < sizeLane->size() ? (*sizeLane)[i] : 1.0f);
-    splat.px = style.perspective ? std::max(0.25f, size * 0.5f * focal * halfH /
-                                                       std::max(-eye.z, 1e-3f))
-                                 : size * 0.5f;
+    splat.halfSizePixels = style.perspective
+                               ? std::max(0.25f, size * 0.5f * focal * halfH /
+                                                     std::max(-eye.z, 1e-3f))
+                               : size * 0.5f;
     glm::vec4 tint = style.tint;
     if (tintLane && i < tintLane->size()) tint *= (*tintLane)[i];
     splat.tint = tint;
@@ -150,10 +151,10 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     if (cell.isEmpty()) continue;
     if (cell.width() != cell.height()) anyCellNotSquare = true;
 
-    // A splat is a SQUARE of 2 * px whatever its cell's aspect. The
+    // A splat is a SQUARE of 2 * halfSizePixels whatever its cell's aspect. The
     // uniform scale answers the cell's width; the size lane answers its
     // height, which is the one thing an SkRSXform cannot carry.
-    const float scale = 2.0f * splat.px / cell.width();
+    const float scale = 2.0f * splat.halfSizePixels / cell.width();
     transforms.push_back(SkRSXform::MakeFromRadians(
         scale, 0.0f, splat.screen.fX, splat.screen.fY, cell.width() * 0.5f,
         cell.height() * 0.5f));

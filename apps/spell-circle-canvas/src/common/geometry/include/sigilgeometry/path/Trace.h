@@ -87,7 +87,7 @@ struct TraceOptions {
   /** A field slower than this has no direction to follow and ends the
    *  walk, which is what stops a line spiralling on the spot at a
    *  stagnation point. */
-  float minSpeed = 1e-4f;
+  float minimumSpeed = 1e-4f;
   friend bool operator==(const TraceOptions&, const TraceOptions&) = default;
 };
 

@@ -175,9 +175,9 @@ class Spans {
 };
 
 /** Union. `spans::corners(18) | spans::at(0, 4)` is one pass. */
-inline Spans operator|(Spans a, const Spans& b) {
-  a.terms.insert(a.terms.end(), b.terms.begin(), b.terms.end());
-  return a;
+inline Spans operator|(Spans left, const Spans& right) {
+  left.terms.insert(left.terms.end(), right.terms.begin(), right.terms.end());
+  return left;
 }
 
 /** The span factories — the WHERE half of `.stroke(where, what)`. */
@@ -190,7 +190,7 @@ namespace detail {
  *  authoring mistake and draws nothing without it. */
 std::vector<geometry::path::Contour::Corner> cornersOrWarn(
     const geometry::path::Contour& contour, float angleDegrees,
-    float minSpacing = 3.0f, float step = 2.0f);
+    float minimumSpacing = 3.0f, float step = 2.0f);
 /** The same diagnostic for a whole path, ahead of a corner construction
  *  that reports nothing itself. */
 void warnIfNoCorners(const SkPath& path, float angleDegrees);
@@ -283,9 +283,9 @@ class SpanArithmeticOperations {
   /** Everything in [0,1] a normalized set does not cover. */
   virtual std::vector<Span> complement(
       const std::vector<Span>& spans) const = 0;
-  /** The sub-geometry of @p src covered by @p spans — fractions of the
+  /** The sub-geometry of @p outline covered by @p spans — fractions of the
    *  path's TOTAL arc length, a trim's coordinate. */
-  virtual SkPath spanPath(const SkPath& src,
+  virtual SkPath spanPath(const SkPath& outline,
                           const std::vector<Span>& spans) const = 0;
 };
 
@@ -322,7 +322,7 @@ using StrokeResolver = core::Erased<StrokeResolverOperations>;
  *  across) frame, **the same frame a band owns** (across positive to the
  *  LEFT of travel; see bandPointAt). Any Profile is one:
  * `geometry::path::profile::self()` rides the boundary,
- * `geometry::path::profile::offset(px)` runs parallel, and a custom profile
+ * `geometry::path::profile::offset(pixels)` runs parallel, and a custom profile
  * value is accepted here directly.
  *
  *  ABSOLUTE — `strand::from(key)` borrows a keyed element's resolved path
@@ -343,9 +343,10 @@ class StrandPath {
   };
 
   StrandPath() = default;
-  StrandPath(geometry::path::Profile p)  // NOLINT: implicit by design (.path =
-                                         // geometry::path::profile::self())
-      : m_source(Source::Relative), m_profile(std::move(p)) {}
+  StrandPath(
+      geometry::path::Profile profile)  // NOLINT: implicit by design (.path =
+                                        // geometry::path::profile::self())
+      : m_source(Source::Relative), m_profile(std::move(profile)) {}
   static StrandPath borrowed(std::string key) {
     StrandPath s;
     s.m_source = Source::Borrowed;
@@ -368,9 +369,9 @@ class StrandPath {
   float reach() const {
     return m_source == Source::Relative ? m_profile.max() : 0.0f;
   }
-  bool operator==(const StrandPath& o) const {
-    return m_source == o.m_source && m_profile == o.m_profile &&
-           m_key == o.m_key && m_path == o.m_path;
+  bool operator==(const StrandPath& other) const {
+    return m_source == other.m_source && m_profile == other.m_profile &&
+           m_key == other.m_key && m_path == other.m_path;
   }
 
  private:

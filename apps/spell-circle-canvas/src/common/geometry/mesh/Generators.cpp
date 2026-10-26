@@ -47,26 +47,26 @@ void placeTexture(Mesh& out, const GridOptions& options) {
  *  on its row's or its column's neighbour is a pole as well, whatever the
  *  difference there answered. */
 Mesh sheet(
-    int nu, int nv,
+    int columns, int rows,
     const core::Callable<std::pair<glm::vec3, glm::vec3>(float, float)>& sample,
     const GridOptions& options, bool differenced) {
   Mesh out;
-  nu = std::max(nu, 2);
-  nv = std::max(nv, 2);
-  out.positions.reserve((size_t)nu * nv);
-  out.uvs.reserve((size_t)nu * nv);
-  out.normals.reserve((size_t)nu * nv);
+  columns = std::max(columns, 2);
+  rows = std::max(rows, 2);
+  out.positions.reserve((size_t)columns * rows);
+  out.uvs.reserve((size_t)columns * rows);
+  out.normals.reserve((size_t)columns * rows);
   // A pole is where the sheet's two parameter directions collapse onto
   // one point: the cross product there has no length and so no direction
   // to normalize. Which entries those are has to be recorded while the
   // raw product is still in hand — once normalized, a pole is
   // indistinguishable from the unit fallback that replaced it.
   std::vector<bool> pole;
-  pole.reserve((size_t)nu * nv);
-  for (int j = 0; j < nv; ++j) {
-    const float v = (float)j / (float)(nv - 1);
-    for (int i = 0; i < nu; ++i) {
-      const float u = (float)i / (float)(nu - 1);
+  pole.reserve((size_t)columns * rows);
+  for (int j = 0; j < rows; ++j) {
+    const float v = (float)j / (float)(rows - 1);
+    for (int i = 0; i < columns; ++i) {
+      const float u = (float)i / (float)(columns - 1);
       const auto [position, raw] = sample(u, v);
       out.positions.push_back(position);
       // Image-convention UVs: (0,0) samples the texture's TOP-left, so
@@ -79,11 +79,11 @@ Mesh sheet(
     }
   }
   placeTexture(out, options);
-  for (int j = 0; j + 1 < nv; ++j) {
-    for (int i = 0; i + 1 < nu; ++i) {
-      const uint32_t a = (uint32_t)(j * nu + i);
+  for (int j = 0; j + 1 < rows; ++j) {
+    for (int i = 0; i + 1 < columns; ++i) {
+      const uint32_t a = (uint32_t)(j * columns + i);
       const uint32_t b = a + 1;
-      const uint32_t c = a + (uint32_t)nu;
+      const uint32_t c = a + (uint32_t)columns;
       const uint32_t d = c + 1;
       out.indices.insert(out.indices.end(), {a, b, d, a, d, c});
     }
@@ -111,14 +111,14 @@ Mesh sheet(
   // sliver, which may even face backwards. The row or column standing on
   // one point says it is a pole all the same.
   if (differenced)
-    for (int j = 0; j < nv; ++j)
-      for (int i = 0; i < nu; ++i) {
-        const size_t at = (size_t)j * nu + i;
+    for (int j = 0; j < rows; ++j)
+      for (int i = 0; i < columns; ++i) {
+        const size_t at = (size_t)j * columns + i;
         const glm::vec3 here = out.positions[at];
         const auto standsOn = [&](int column, int row) {
-          return column >= 0 && column < nu && row >= 0 && row < nv &&
-                 glm::length(out.positions[(size_t)row * nu + column] - here) <=
-                     coincident;
+          return column >= 0 && column < columns && row >= 0 && row < rows &&
+                 glm::length(out.positions[(size_t)row * columns + column] -
+                             here) <= coincident;
         };
         if (standsOn(i - 1, j) || standsOn(i + 1, j) || standsOn(i, j - 1) ||
             standsOn(i, j + 1))
@@ -143,14 +143,15 @@ Mesh sheet(
         const size_t at = stack.back();
         stack.pop_back();
         members.push_back(at);
-        const int column = (int)(at % (size_t)nu), row = (int)(at / (size_t)nu);
+        const int column = (int)(at % (size_t)columns),
+                  row = (int)(at / (size_t)columns);
         const int steps[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (const auto& step : steps) {
           const int nextColumn = column + step[0], nextRow = row + step[1];
-          if (nextColumn < 0 || nextColumn >= nu || nextRow < 0 ||
-              nextRow >= nv)
+          if (nextColumn < 0 || nextColumn >= columns || nextRow < 0 ||
+              nextRow >= rows)
             continue;
-          const size_t next = (size_t)nextRow * nu + nextColumn;
+          const size_t next = (size_t)nextRow * columns + nextColumn;
           if (!pole[next] || group[next] != count) continue;
           if (glm::length(out.positions[next] - out.positions[at]) > coincident)
             continue;
@@ -222,18 +223,18 @@ Mesh sheet(
   if (!placed) {
     out.tangents.assign(out.positions.size(), glm::vec4(0.0f));
     const auto at = [&](int i, int j) {
-      return out.positions[(size_t)j * nu + i];
+      return out.positions[(size_t)j * columns + i];
     };
-    for (int j = 0; j < nv; ++j)
-      for (int i = 0; i < nu; ++i) {
-        const glm::vec3 n = out.normals[(size_t)j * nu + i];
+    for (int j = 0; j < rows; ++j)
+      for (int i = 0; i < columns; ++i) {
+        const glm::vec3 n = out.normals[(size_t)j * columns + i];
         glm::vec3 across{0.0f};
         // The row itself, or the nearest row that has a length.
-        for (int reach = 0; reach < nv; ++reach) {
+        for (int reach = 0; reach < rows; ++reach) {
           for (const int row : {j - reach, j + reach}) {
-            if (row < 0 || row >= nv) continue;
-            across =
-                at(std::min(i + 1, nu - 1), row) - at(std::max(i - 1, 0), row);
+            if (row < 0 || row >= rows) continue;
+            across = at(std::min(i + 1, columns - 1), row) -
+                     at(std::max(i - 1, 0), row);
             across -= n * glm::dot(across, n);
             if (glm::dot(across, across) > 1e-12f) break;
           }
@@ -243,10 +244,10 @@ Mesh sheet(
         across = glm::normalize(across);
         // v in the uvs grows as the parameter falls.
         const glm::vec3 up =
-            at(i, std::max(j - 1, 0)) - at(i, std::min(j + 1, nv - 1));
+            at(i, std::max(j - 1, 0)) - at(i, std::min(j + 1, rows - 1));
         const float side =
             glm::dot(glm::cross(n, across), up) < 0.0f ? -1.0f : 1.0f;
-        out.tangents[(size_t)j * nu + i] = glm::vec4(across, side);
+        out.tangents[(size_t)j * columns + i] = glm::vec4(across, side);
       }
   }
   if (placed) out.computeTangents();
@@ -255,11 +256,12 @@ Mesh sheet(
 
 }  // namespace
 
-Mesh grid(int nu, int nv, const core::Callable<glm::vec3(float, float)>& fn,
+Mesh grid(int columns, int rows,
+          const core::Callable<glm::vec3(float, float)>& fn,
           const GridOptions& options) {
   const float eps = 1e-3f;
   return sheet(
-      nu, nv,
+      columns, rows,
       [&fn, eps](float u, float v) {
         const glm::vec3 du =
             fn(std::min(u + eps, 1.0f), v) - fn(std::max(u - eps, 0.0f), v);
@@ -271,10 +273,10 @@ Mesh grid(int nu, int nv, const core::Callable<glm::vec3(float, float)>& fn,
 }
 
 Mesh grid(
-    int nu, int nv,
+    int columns, int rows,
     const core::Callable<std::pair<glm::vec3, glm::vec3>(float, float)>& fn,
     const GridOptions& options) {
-  return sheet(nu, nv, fn, options, false);
+  return sheet(columns, rows, fn, options, false);
 }
 
 Mesh quad(float width, float height) {

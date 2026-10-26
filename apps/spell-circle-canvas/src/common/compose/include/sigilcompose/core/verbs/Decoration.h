@@ -61,17 +61,17 @@ class DecorationVerbs {
   /** A decoration painted OVER the fill and UNDER the content and
    *  children — hazard stripes over a surface but under the digit,
    *  scanlines under a readout, bevelled chrome. */
-  Derived& overlay(Decoration d, std::string name = {});
+  Derived& overlay(Decoration decoration, std::string name = {});
   /** A decoration painted BENEATH the fill, the CSS box-shadow
    *  ordering — shadows, ground textures, anything the surface sits on
    *  top of. An opaque fill covers it completely. */
-  Derived& background(Decoration d, std::string name = {});
+  Derived& background(Decoration decoration, std::string name = {});
   /** The background slot, span-qualified: the twin of
    *  `stroke(where, what)` in the other z-half. One list of passes, one
    *  claim ledger and one no-overlap rule across both halves. */
   Derived& background(Spans where, Decoration what, std::string name = {});
   /** A decoration painted OVER the children. */
-  Derived& foreground(Decoration d, std::string name = {});
+  Derived& foreground(Decoration decoration, std::string name = {});
   /** CSS's `box-shadow`: @p shadow laid where CSS paints it — an outer
    *  shadow beneath the fill, an inset one over the fill and under the
    *  content and children — following the node's outline:
@@ -111,7 +111,7 @@ class DecorationVerbs {
    *  resolves it. EVERY slot that accepts a Decoration must route
    *  through here: a borrow honoured on some slots and not others
    *  draws nothing and says why on no channel. */
-  void claimBorrows(const Decoration& d);
+  void claimBorrows(const Decoration& decoration);
   /** Bind the optional LOCAL label an unqualified slot took to the mark
    *  it just appended. `slot` is a detail::MarkSlot as an int, so the
    *  exported header does not have to name an internal enum. */

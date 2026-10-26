@@ -131,7 +131,7 @@ struct Bevel {
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
-/** @p e DRESSED in @p b — the whole bevel, each ring in the slot it
+/** @p element DRESSED in @p bevel — the whole bevel, each ring in the slot it
  *  belongs in, which is the one call a panel needs.
  *
  *  The two rings do NOT go in the same slot. The outer one is an OVERLAY:
@@ -144,7 +144,7 @@ struct Bevel {
  *
  *  Attaching the value yourself with `.overlay(b)` paints both rings in
  *  that one slot, which is what a node with no content wants. */
-Element& bevelled(Element& e, const Bevel& b);
+Element& bevelled(Element& element, const Bevel& bevel);
 
 /** THE ERA TOKEN SETS: the SHAPE of each toolkit's bevel, taking the two
  *  tones, because how a toolkit derived its tones from a face is that

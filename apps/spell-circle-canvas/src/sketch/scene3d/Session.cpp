@@ -154,9 +154,8 @@ class Scene3DSession final : public Session {
     m_specification.size = {900, 640};
     m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_specification.captureSeconds = 1.0;
-    Scene3DContext ctx{assets,    fonts,         &m_specification,
-                       &m_camera, &m_scenes,     &m_pages,
-                       deterministic, &m_textures};
+    Scene3DContext ctx{assets,    fonts,    &m_specification, &m_camera,
+                       &m_scenes, &m_pages, deterministic,    &m_textures};
     m_body->setup(ctx);
     m_declared = m_camera;
     m_window.whole = {(int)m_specification.size.width(),
@@ -288,9 +287,10 @@ class Scene3DSession final : public Session {
       std::string name(stage);
       for (char& c : name)
         if (c == ' ' || c == ',' || c == ':') c = '_';
-      char ms[32];
-      std::snprintf(ms, sizeof ms, ":%.2f", sum / (double)m_deviceFrames);
-      return name + ms;
+      char milliseconds[32];
+      std::snprintf(milliseconds, sizeof milliseconds, ":%.2f",
+                    sum / (double)m_deviceFrames);
+      return name + milliseconds;
     };
     std::string line = token("frame", whole);
     for (const auto& [stage, sum] : m_deviceSums)
@@ -309,8 +309,7 @@ class Scene3DSession final : public Session {
                   (long long)stats.readbacks);
     // …and the screens, pages and textures the sketch asked for at setup,
     // which no counter of the retained scene's can see.
-    const size_t screens =
-        m_scenes.size() + m_pages.size() + m_textures.kept();
+    const size_t screens = m_scenes.size() + m_pages.size() + m_textures.kept();
     if (screens == 0) return line;
     char held[48];
     std::snprintf(held, sizeof held, "   screens %zu", screens);
@@ -529,9 +528,9 @@ class Scene3DSession final : public Session {
           m_deviceSums.begin(), m_deviceSums.end(),
           [&](const auto& sum) { return sum.first == stage.stage; });
       if (same == m_deviceSums.end())
-        m_deviceSums.emplace_back(stage.stage, stage.ms);
+        m_deviceSums.emplace_back(stage.stage, stage.milliseconds);
       else
-        same->second += stage.ms;
+        same->second += stage.milliseconds;
     }
   }
 };

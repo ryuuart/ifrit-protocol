@@ -16,7 +16,7 @@ void captureWindow(QQuickWindow& window, QString output,
   auto* timer = new QTimer(&window);
   timer->setInterval(std::max(std::chrono::milliseconds{1}, options.interval));
   const int warmupFrames = std::max(1, options.warmupFrames);
-  const int readyFrames = std::max(0, options.maxReadyFrames);
+  const int readyFrames = std::max(0, options.maximumReadyFrames);
   QObject::connect(
       timer, &QTimer::timeout, timer,
       [&window, output = std::move(output), options = std::move(options), timer,

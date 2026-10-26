@@ -87,7 +87,7 @@ inline SkBitmap oneFrame(Session& session) {
  *  program's pipeline was still building. */
 inline double pendingPrograms(const Session& session) {
   for (const LaneCost& lane : session.lanes())
-    if (std::string_view(lane.name) == "pending") return lane.ms;
+    if (std::string_view(lane.name) == "pending") return lane.milliseconds;
   return 0;
 }
 

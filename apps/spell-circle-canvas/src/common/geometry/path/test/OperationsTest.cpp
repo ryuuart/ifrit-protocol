@@ -331,7 +331,7 @@ TEST(PathCorners, TheDefaultRoundingIsTheCornerEffectItReplaces) {
 TEST(PathCorners, RoundingCutsEveryCornerOfARectangle) {
   const SkPath source = rect(0, 0, 100, 60);
   const SkPath round =
-      operations::roundCorners(source, 10.0f, {.minTurnDegrees = 5.0f});
+      operations::roundCorners(source, 10.0f, {.minimumTurnDegrees = 5.0f});
   const std::vector<SegmentContour> read = segments(round);
   ASSERT_EQ(read.size(), 1u);
   // Four arcs, four straight runs between them.
@@ -348,13 +348,13 @@ TEST(PathCorners, RoundingCutsEveryCornerOfARectangle) {
 // and a right-angled one bulge by the same amount.
 TEST(PathCorners, VisualCorrectionHoldsTheArcsStandOffConstant) {
   const auto standOff = [](float turnDegrees, bool visual) {
-    const float turn = turnDegrees * kDegToRad;
+    const float turn = turnDegrees * kDegreesToRadians;
     SkPathBuilder b;
     b.moveTo(-200, 0);
     b.lineTo(0, 0);
     b.lineTo(200 * std::cos(turn), 200 * std::sin(turn));
     const SkPath corner = operations::roundCorners(
-        b.detach(), 20.0f, {.minTurnDegrees = 1.0f, .visual = visual});
+        b.detach(), 20.0f, {.minimumTurnDegrees = 1.0f, .visual = visual});
     // The arc's midpoint stands where the quadratic's middle is; how far
     // that is from the vertex is what the correction holds constant.
     const std::vector<SegmentContour> read = segments(corner);
@@ -377,8 +377,8 @@ TEST(PathCorners, ACornerShallowerThanTheThresholdIsLeftAlone) {
   b.lineTo(100, 0);
   b.lineTo(200, 6);  // a turn of about three degrees
   const SkPath source = b.detach();
-  EXPECT_TRUE(operations::roundCorners(source, 10.0f,
-                                       {.minTurnDegrees = 20.0f}) == source);
+  EXPECT_TRUE(operations::roundCorners(
+                  source, 10.0f, {.minimumTurnDegrees = 20.0f}) == source);
 }
 
 // A star's reflex corners stay sharp while its points round, which is
@@ -525,8 +525,8 @@ INSTANTIATE_TEST_SUITE_P(
             [](const SkPath& p) { return operations::roundCorners(p, 6); }},
         RebuildCase{"selectedCorners",
                     [](const SkPath& p) {
-                      return operations::roundCorners(p, 6,
-                                                      {.minTurnDegrees = 10});
+                      return operations::roundCorners(
+                          p, 6, {.minimumTurnDegrees = 10});
                     }},
         RebuildCase{
             "chamferCorners",

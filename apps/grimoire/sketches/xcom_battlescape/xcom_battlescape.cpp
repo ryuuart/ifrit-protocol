@@ -167,8 +167,8 @@ struct Artefact {
       for (size_t column = 0; column < drawing.rows[row].size(); ++column) {
         const auto named = drawing.key.find(drawing.rows[row][column]);
         if (named != drawing.key.end())
-          out.px((float)column, (float)row,
-                 colour(shaded(named->second, shade, ramp)));
+          out.pixel((float)column, (float)row,
+                    colour(shaded(named->second, shade, ramp)));
       }
     return out;
   }
@@ -199,7 +199,7 @@ struct Artefact {
     if (outline >= 0)
       for (const auto& [x, y] : lit)
         out.rect(float(x - 1), float(y - 1), 3, 3, colour(outline));
-    for (const auto& [x, y] : lit) out.px((float)x, (float)y, colour(entry));
+    for (const auto& [x, y] : lit) out.pixel((float)x, (float)y, colour(entry));
     return out;
   }
 };

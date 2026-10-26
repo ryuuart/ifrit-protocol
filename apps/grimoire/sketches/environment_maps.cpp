@@ -152,7 +152,7 @@ mesh::camera::Camera lens() {
   camera.eye = {0, 78, 250};
   camera.target = {0, 30, 0};
   camera.up = {0, 1, 0};
-  camera.fovYDegrees = 40;
+  camera.verticalFieldOfViewDegrees = 40;
   camera.nearPlane = 4;
   camera.farPlane = 4000;
   return camera;

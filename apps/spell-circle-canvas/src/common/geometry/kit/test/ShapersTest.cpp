@@ -9,8 +9,9 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
-#include "sigilgeometry/advanced/Skia.h"
 #include <sigilgeometry/kit/Shapers.h>
+
+#include "sigilgeometry/advanced/Skia.h"
 
 using namespace sigil::geometry;
 
@@ -31,7 +32,7 @@ TEST(Shapers, EveryStockShaperAnswersTheSeamAndComparesByItsDials) {
   EXPECT_FLOAT_EQ(wave.bleed(), 6.0f);
   EXPECT_FLOAT_EQ((shapers::Zigzag{.amplitude = 4, .wavelength = 24}).bleed(),
                   4.0f);
-  EXPECT_FLOAT_EQ((shapers::Offset{.px = -9}).bleed(), 9.0f);
+  EXPECT_FLOAT_EQ((shapers::Offset{.pixels = -9}).bleed(), 9.0f);
 }
 
 TEST(Shapers, EachOneActuallyMovesTheMarkItIsGiven) {
@@ -49,8 +50,9 @@ TEST(Shapers, EachOneActuallyMovesTheMarkItIsGiven) {
   EXPECT_GT(path::toSk(square.shape(outline)).getBounds().height(), 8.0f);
   // An offset moves it bodily, LEFT of travel, which on a west-to-east
   // run is upward on screen.
-  const shapers::Offset rail{.px = 10};
-  EXPECT_NEAR(path::toSk(rail.shape(outline)).getBounds().centerY(), 40.0f, 1.5f);
+  const shapers::Offset rail{.pixels = 10};
+  EXPECT_NEAR(path::toSk(rail.shape(outline)).getBounds().centerY(), 40.0f,
+              1.5f);
   // A corner treatment over a straight run has no corner to treat.
   const shapers::Rounded rounded{.radius = 6};
   EXPECT_EQ(path::toSk(rounded.shape(outline)).getBounds(), run.getBounds());
@@ -63,8 +65,8 @@ TEST(Shapers, AChamferCutsEveryCornerOfAClosedRun) {
   // the interior kept.
   SkPathBuilder sq;
   sq.moveTo(0, 0).lineTo(100, 0).lineTo(100, 100).lineTo(0, 100).close();
-  const SkPath oct = path::toSk(
-      shapers::Chamfer{.cut = 30}.shape(path::fromSk(sq.detach())));
+  const SkPath oct =
+      path::toSk(shapers::Chamfer{.cut = 30}.shape(path::fromSk(sq.detach())));
   int vertices = 0, closes = 0;
   SkPath::Iter iter(oct, false);
   SkPoint pts[4];

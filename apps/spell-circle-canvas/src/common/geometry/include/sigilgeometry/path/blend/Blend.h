@@ -32,7 +32,6 @@
  */
 
 #include <glm/vec4.hpp>
-
 #include <optional>
 #include <span>
 #include <vector>
@@ -141,7 +140,7 @@ void draw(SkCanvas& canvas, std::span<const Step> steps);
 
 namespace detail {
 /** OKLab round trip used for color interpolation — exposed for tests. */
-glm::vec4 lerpOklab(const glm::vec4& a, const glm::vec4& b, float t);
+glm::vec4 lerpOklab(const glm::vec4& a, const glm::vec4& b, float amount);
 }  // namespace detail
 
 }  // namespace sigil::geometry::path::blend

@@ -182,9 +182,10 @@ TEST(Crossings, ThePlaitedStarHoldsItsSevenKnotsWhereverItIsDrawn) {
   // at this scale, and it is the study's figure that is under test.
   const auto star = [](float radius, SkPoint centre) {
     const auto vertex = [&](int step) {
-      const float degToRad = 3.14159265358979f / 180.0f;
+      const float degreesToRadians = 3.14159265358979f / 180.0f;
       const float angle =
-          (float)((2 * step) % 7) * 360.0f / 7.0f * degToRad - 1.5707963f;
+          (float)((2 * step) % 7) * 360.0f / 7.0f * degreesToRadians -
+          1.5707963f;
       return SkPoint{centre.fX + radius * std::cos(angle),
                      centre.fY + radius * std::sin(angle)};
     };

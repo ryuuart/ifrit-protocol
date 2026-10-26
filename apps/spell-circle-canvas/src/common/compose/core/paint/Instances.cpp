@@ -66,22 +66,23 @@ void Pool::clear() {
   ++m_revision;
 }
 
-void Pool::resize(size_t n) {
-  m_positions.resize(n, {0, 0});
-  m_rotations.resize(n, 0.0f);
-  m_scales.resize(n, 1.0f);
-  m_tints.resize(n, {1, 1, 1, 1});
-  m_frames.resize(n, 0);
-  if (!m_sizes.empty()) m_sizes.resize(n, {1.0f, 1.0f});
-  if (!m_alphas.empty()) m_alphas.resize(n, 1.0f);
-  if (!m_texWindows.empty()) m_texWindows.resize(n, SkRect::MakeWH(1.0f, 1.0f));
+void Pool::resize(size_t count) {
+  m_positions.resize(count, {0, 0});
+  m_rotations.resize(count, 0.0f);
+  m_scales.resize(count, 1.0f);
+  m_tints.resize(count, {1, 1, 1, 1});
+  m_frames.resize(count, 0);
+  if (!m_sizes.empty()) m_sizes.resize(count, {1.0f, 1.0f});
+  if (!m_alphas.empty()) m_alphas.resize(count, 1.0f);
+  if (!m_texWindows.empty())
+    m_texWindows.resize(count, SkRect::MakeWH(1.0f, 1.0f));
   // The flight lane is TRUNCATED and never grown here: a flight
   // materialises at rest where its instance stands, and where an appended
   // instance stands is not known until the caller has placed it. The lane
   // is filled out for the new length at the first read or step after
   // that, which is what keeps a resize from flying every appended
   // instance in from the origin.
-  if (!m_flights.empty() && n < m_flights.size()) m_flights.resize(n);
+  if (!m_flights.empty() && count < m_flights.size()) m_flights.resize(count);
   ++m_revision;
 }
 

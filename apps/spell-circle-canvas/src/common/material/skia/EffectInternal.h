@@ -27,7 +27,7 @@ namespace sigil::material::skia {
 /** The two blurred levels of the pyramid at a declared range: the layer
  *  at half the range and at the range. Level 0 is the layer itself. */
 struct Effect::BlurLevels {
-  float maxSigma = 0;
+  float maximumSigma = 0;
   sk_sp<SkImageFilter> half, full;
 };
 
@@ -82,7 +82,7 @@ sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDegrees,
 
 /** The two blurred levels of blur()'s pyramid at a declared range, or
  *  nothing when no range was declared. */
-std::shared_ptr<const Effect::BlurLevels> makeBlurLevels(float maxSigma);
+std::shared_ptr<const Effect::BlurLevels> makeBlurLevels(float maximumSigma);
 
 /** blur()'s filter DAG over held levels: the layer, its two blurs, and
  *  the map that mixes between them, cropped to the reach the range

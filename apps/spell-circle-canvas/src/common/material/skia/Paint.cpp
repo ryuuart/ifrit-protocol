@@ -166,9 +166,9 @@ bool Paint::usesWorldSpace() const {
   return false;
 }
 
-Paint& Paint::bleed(float px) {
-  m_bleed = px;  // read by the recording cull (max-accumulated, so only a
-  return *this;  // positive reserve ever grows anything)
+Paint& Paint::bleed(float pixels) {
+  m_bleed = pixels;  // read by the recording cull (max-accumulated, so only a
+  return *this;      // positive reserve ever grows anything)
 }
 
 Paint& Paint::quantizeTime(float rate) {

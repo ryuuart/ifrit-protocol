@@ -782,7 +782,7 @@ TEST(ComposeRibbon, WidthAlongMeasuresTheBandTheRibbonDrew) {
 
   const test::WidthAlong audit = test::widthAlong(r.band(spine), spine, flat);
   EXPECT_GT(audit.samples, 10);
-  EXPECT_TRUE(audit.within(0.5f)) << "worst " << audit.maxError << " px";
+  EXPECT_TRUE(audit.within(0.5f)) << "worst " << audit.maximumError << " px";
   EXPECT_LT(audit.rmsError, 0.5f);
 
   // Point it at a band built to a DIFFERENT law and it says so, in px,
@@ -793,7 +793,7 @@ TEST(ComposeRibbon, WidthAlongMeasuresTheBandTheRibbonDrew) {
   thin.width = geometry::path::Profile(FlatWidth{16.0f});
   const test::WidthAlong wrong =
       test::widthAlong(thin.band(spine), spine, flat);
-  EXPECT_NEAR(wrong.maxError, 8.0f, 0.5f);
+  EXPECT_NEAR(wrong.maximumError, 8.0f, 0.5f);
   ASSERT_FALSE(wrong.worst.empty());
   EXPECT_NEAR(wrong.worst.front().measured, 16.0f, 0.5f);
   EXPECT_NEAR(wrong.worst.front().intended, 24.0f, 0.01f);
@@ -833,8 +833,8 @@ TEST(ComposeRibbon, WidthAlongMeasuresATrunkOfHundredsOfOverlappingSteps) {
   // band, which is a property of the measurement; every straight station
   // must be the width the law asked for.
   EXPECT_LT(audit.rmsError, 4.0f)
-      << "worst " << audit.maxError << " px at " << audit.worst.front().at.x()
-      << "," << audit.worst.front().at.y();
+      << "worst " << audit.maximumError << " px at "
+      << audit.worst.front().at.x() << "," << audit.worst.front().at.y();
   int badOnAStraightLeg = 0;
   for (const test::WidthStation& st : audit.worst) {
     const bool nearCorner =

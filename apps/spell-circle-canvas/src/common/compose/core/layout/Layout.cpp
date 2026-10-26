@@ -488,7 +488,7 @@ void Composer::Impl::applyCustomLayouts(Instance& inst,
                                              float extent) {
       return translateLength(inst, length, extent);
     };
-    arrangement.minSizesMeasured = operators.readsChildMinSizes();
+    arrangement.minimumSizesMeasured = operators.readsChildMinimumSizes();
     arrangement.percentagesResolved = operators.resolvesChildPercentages();
     // One stated length for a scheme that resolves percentages itself: a
     // percentage kept as a fraction of the box the scheme gives the child,
@@ -538,8 +538,8 @@ void Composer::Impl::applyCustomLayouts(Instance& inst,
         record.area = description.deriveData->cellArea;
       if (description.operatorData)
         record.attributes = description.operatorData->attributes;
-      if (arrangement.minSizesMeasured)
-        record.minSize = geometry::path::fromSk(minimumSizeOf(*child));
+      if (arrangement.minimumSizesMeasured)
+        record.minimumSize = geometry::path::fromSk(minimumSizeOf(*child));
       if (arrangement.percentagesResolved) {
         const LayoutProps& layout = child->computed.layout;
         record.statedSize = {
@@ -608,8 +608,9 @@ void Composer::Impl::applyCustomLayouts(Instance& inst,
         float& extent = vertical ? record.size.x : record.size.y;
         if (std::abs(extent - measured) <= 0.25f) continue;
         extent = measured;
-        if (arrangement.minSizesMeasured) {
-          float& minimum = vertical ? record.minSize.x : record.minSize.y;
+        if (arrangement.minimumSizesMeasured) {
+          float& minimum =
+              vertical ? record.minimumSize.x : record.minimumSize.y;
           minimum = measured;
         }
         reflowed = true;

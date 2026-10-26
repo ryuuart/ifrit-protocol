@@ -440,7 +440,7 @@ struct MetalInstrument {
     gm::camera::Camera camera;
     camera.eye = {110, 365, 1450};
     camera.target = {0, 50, 0};
-    camera.fovYDegrees = 40;
+    camera.verticalFieldOfViewDegrees = 40;
     camera.nearPlane = m.nearPlane;
     camera.farPlane = std::max(camera.nearPlane + 100,
                                bounded(kControls.farPlane, 100, 12000, 5000));

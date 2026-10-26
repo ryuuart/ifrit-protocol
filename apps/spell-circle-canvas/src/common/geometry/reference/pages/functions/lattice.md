@@ -45,7 +45,7 @@ is an even lattice, more spreads the lines as the scan advances and less
 crowds them. A gap never falls below an eighth of a unit, so a taper
 toward zero crowds rather than stalls.
 
-`maxLines` is the most lines one lattice lays down — a bound rather than
+`maximumLines` is the most lines one lattice lays down — a bound rather than
 a preference: a spacing far smaller than the rings it fills would
 otherwise answer with a vector nobody asked the size of.
 

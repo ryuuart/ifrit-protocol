@@ -58,7 +58,7 @@ struct WorldHud {
     lens.eye = wh::kEye;
     lens.target = wh::kLook;
     lens.up = {0.0f, 1.0f, 0.0f};
-    lens.fovYDegrees = 46.0f;
+    lens.verticalFieldOfViewDegrees = 46.0f;
     lens.nearPlane = 8.0f;
     lens.farPlane = 8192.0f;
     ctx.camera(lens);
@@ -118,9 +118,9 @@ struct WorldHud {
    *  THE EXTENT IS ASKED OF THE CAMERA, not of the field of view. The two
    *  do not agree: this projection's centre stands a unit behind the eye,
    *  so the frame at a distance is wider than the angle alone makes it,
-   *  and a quad sized from `2 d tan(fov/2)` is short of the frustum by
-   *  that unit — which is a resample of the whole overlay, the one thing
-   *  this quad exists to avoid. */
+   *  and a quad sized from `2 · distance · tan(fieldOfView / 2)` is short of
+   * the frustum by that unit — which is a resample of the whole overlay, the
+   * one thing this quad exists to avoid. */
   world::Mesh overlayQuad(sigil::material::Texture texture) {
     const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
     constexpr float kAt = 60.0f;
@@ -287,11 +287,12 @@ struct WorldHud {
                       box()
                           .rect(3, 20, 28.0f, 6.0f)
                           .fill(wh::kTrack)
-                          .children({box()
-                                         .rect(0, 0, 28.0f, 6.0f)
-                                         .transformOrigin(percent(0), percent(50))
-                                         .scaleX(xp)
-                                         .fill(wh::kXp)}),
+                          .children(
+                              {box()
+                                   .rect(0, 0, 28.0f, 6.0f)
+                                   .transformOrigin(percent(0), percent(50))
+                                   .scaleX(xp)
+                                   .fill(wh::kXp)}),
                       text("34").font(wh::line(13, 0.4f, 640)).at({9, 3})})});
   }
 

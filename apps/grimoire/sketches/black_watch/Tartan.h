@@ -162,7 +162,7 @@ struct Verdict {
   int total = 0;
   std::vector<int> mirrors;
   int mirrorGap = 0;
-  int maxWarpFloat = 0, maxWeftFloat = 0;
+  int maximumWarpFloat = 0, maximumWeftFloat = 0;
   std::array<int, kShadeCount> counts{};
   int solids = 0, blends = 0;
   int samples = 0, uncovered = 0, doubled = 0;
@@ -208,8 +208,8 @@ inline Verdict verify(const Sett& watch, const Sett& argyll) {
           material::pattern::warpUp(kTwill, line, along) ? warpRun + 1 : 0;
       weftRun =
           material::pattern::warpUp(kTwill, along, line) ? 0 : weftRun + 1;
-      verdict.maxWarpFloat = std::max(verdict.maxWarpFloat, warpRun);
-      verdict.maxWeftFloat = std::max(verdict.maxWeftFloat, weftRun);
+      verdict.maximumWarpFloat = std::max(verdict.maximumWarpFloat, warpRun);
+      verdict.maximumWeftFloat = std::max(verdict.maximumWeftFloat, weftRun);
     }
   }
 

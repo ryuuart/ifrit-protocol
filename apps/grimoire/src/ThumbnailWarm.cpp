@@ -64,7 +64,7 @@ int runThumbnails(int only, const std::string& kind,
     sketch::ThumbnailRun run;
     run.outputPath = sketch::thumbnailFile(directory, entry.name, key);
     run.stem = entry.name;
-    run.maxDimension = sketch::kThumbnailWidth;
+    run.maximumDimension = sketch::kThumbnailWidth;
     run.budget = budget;
     run.heavy = heavy;
     sketch::noteSketch(entry.name);

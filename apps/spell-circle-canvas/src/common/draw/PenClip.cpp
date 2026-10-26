@@ -59,8 +59,8 @@ void Pen::applyClip(ClipOptions options) {
       m_style.antiAlias);
 }
 
-SkRect Pen::rectBox(float x, float y, float w, float h) const {
-  return boxIn(m_style.rectMode, x, y, w, h);
+SkRect Pen::rectBox(float x, float y, float width, float height) const {
+  return boxIn(m_style.rectMode, x, y, width, height);
 }
 
 float Pen::toDegrees(float angle) const {

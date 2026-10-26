@@ -126,13 +126,13 @@ void callAdd(const PythonValue& held, Scope& scope) {
 
 /** A Python value with `arrange(arrangement)` as a native arranging
  *  operator. @p Measures is what the value asked for with
- *  `readsChildMinSizes`, and it is the model's TYPE that carries the
+ *  `readsChildMinimumSizes`, and it is the model's TYPE that carries the
  *  answer: the measure costs one text layout per text child, so a value
  *  that did not ask makes the model that does not pay for it. */
 template <bool Measures>
 struct PythonArranging {
   PythonOperatorValue value;
-  static constexpr bool readsChildMinSizes = Measures;
+  static constexpr bool readsChildMinimumSizes = Measures;
   bool operator==(const PythonArranging&) const = default;
   void arrange(Arrangement& arrangement) const {
     callArrange(value.held(), arrangement);
@@ -165,8 +165,8 @@ Operator pythonOperator(py::handle value) {
   PythonOperatorValue held{
       retainValue(py::reinterpret_borrow<py::object>(value))};
   if (adds) return Operator{PythonAdding{std::move(held)}};
-  const bool measures = py::hasattr(value, "readsChildMinSizes") &&
-                        value.attr("readsChildMinSizes").cast<bool>();
+  const bool measures = py::hasattr(value, "readsChildMinimumSizes") &&
+                        value.attr("readsChildMinimumSizes").cast<bool>();
   if (measures) return Operator{PythonArranging<true>{std::move(held)}};
   return Operator{PythonArranging<false>{std::move(held)}};
 }
@@ -227,7 +227,7 @@ void bindOperator(py::module_& composition) {
       .def("adds", &Operator::adds)
       .def("comparable", &Operator::comparable,
            "Whether this operator takes part in structural equality.")
-      .def("readsChildMinSizes", &Operator::readsChildMinSizes)
+      .def("readsChildMinimumSizes", &Operator::readsChildMinimumSizes)
       .def("__bool__", [](const Operator& self) { return (bool)self; })
       .def("copy", [](const Operator& self) { return self; })
       .def(py::self == py::self);

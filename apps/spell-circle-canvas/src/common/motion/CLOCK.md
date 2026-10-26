@@ -85,7 +85,7 @@ A sketch never moves its engine; the host that owns it does, one frame at
 a time. `Engine::advance()` is a frame the engine takes on its own — the
 `EngineOptions::fixedStep` a headless sweep states once, or the wall
 clock's movement since the last frame, held, scaled by the speed and
-clamped to `EngineOptions::maxWallStep` so a stalled frame does not jump
+clamped to `EngineOptions::maximumWallStep` so a stalled frame does not jump
 every motion forward. `Engine::advance(Duration to)` is a frame a caller
 states: it moves to that engine time by exactly the difference, and the
 next wall frame counts from its own reading rather than catching up on

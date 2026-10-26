@@ -75,7 +75,7 @@ struct TwoAdvancedV4 {
   /** The MAINFRAME hero, rendered once as a world scene and held. */
   sk_sp<SkImage> heroPlate;
 
-  int bootPct = 0;
+  int bootPercent = 0;
   bool booted = false;
 
   // --- the section cycle: the GLOBAL NAVIGATOR walked in order ----------

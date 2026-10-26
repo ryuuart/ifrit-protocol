@@ -281,7 +281,7 @@ Stock layouts and custom arrangers use the same `Arrangement`: a borrowed
 span of child records with measured sizes, baselines, cells, named areas
 and facts. Write each child's `rect` with `place()` or `centreAt()`; use
 `turn()` for a paint-only rotation. The records are valid during the call.
-An operator declaring `readsChildMinSizes` receives content minima;
+An operator declaring `readsChildMinimumSizes` receives content minima;
 `resolvesChildPercentages` supplies stated sizes. Each `Child` record
 resolves them with `sizeIn(box)` against the box the operator gives it.
 A scheme's own distances are lengths read where the node lays out:

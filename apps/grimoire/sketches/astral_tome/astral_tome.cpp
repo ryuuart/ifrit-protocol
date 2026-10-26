@@ -226,9 +226,9 @@ struct AstralTome {
   Element starEl(const at::Con& c, int si, int key) const {
     const SkPoint p = at::starAt(c, si);
     const sigil::material::Color col = paled(at::hexColor(c.color));
-    const int deg = at::degreeOf(c, si);
+    const int degree = at::degreeOf(c, si);
     const float base = at::g(at::kUlen * 2.0f);  // 18.39 canvas px
-    const float r = base * (0.74f + 0.15f * (float)std::min(deg, 4));
+    const float r = base * (0.74f + 0.15f * (float)std::min(degree, 4));
     const float side = r * 3.4f;
 
     // A TIGHT box, and it must stay one. The twinkle rides an .opacity()

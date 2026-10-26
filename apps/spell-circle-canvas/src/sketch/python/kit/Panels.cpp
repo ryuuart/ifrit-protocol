@@ -113,7 +113,7 @@ void bindScrolling(py::module_& module) {
   field(scrolled, "view", &sketchKit::Scrolled::view);
   field(scrolled, "content", &sketchKit::Scrolled::content);
   field(scrolled, "track", &sketchKit::Scrolled::track);
-  field(scrolled, "minLength", &sketchKit::Scrolled::minLength);
+  field(scrolled, "minimumLength", &sketchKit::Scrolled::minimumLength);
   scrolled.def("thumb", &sketchKit::Scrolled::thumb)
       .def(
           "__eq__",

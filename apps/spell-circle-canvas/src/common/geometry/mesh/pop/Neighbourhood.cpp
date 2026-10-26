@@ -203,7 +203,7 @@ void runTransfer(Attrs& attributes, const pop::Transfer& operation,
 
     if (colours || vectors || scalars) {
       const float blend = std::clamp(operation.blendWidth, 0.0f, 1.0f);
-      const int samples = std::max(operation.maxSamples, 1);
+      const int samples = std::max(operation.maximumSamples, 1);
       std::vector<uint32_t> found;
       for (size_t i = 0; i < count; ++i) {
         const glm::vec4 p = positions[i];

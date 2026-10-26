@@ -23,10 +23,10 @@ class TransformVerbs {
  public:
   /** SLIDE THE NODE ALONG X, in pixels, positive to the right — a lane
    *  that animates and binds. Zero when unstated. */
-  Derived& translateX(motion::Animatable<float> v);
+  Derived& translateX(motion::Animatable<float> distance);
   /** SLIDE THE NODE ALONG Y, in pixels, positive downward — a lane that
    *  animates and binds. Zero when unstated. */
-  Derived& translateY(motion::Animatable<float> v);
+  Derived& translateY(motion::Animatable<float> distance);
   /** SLIDE THE NODE ALONG X, LOOPING: the lane's pixels folded over
    *  @p period, a length read where the node lands — a `percent` of the
    *  node's own width, `em`, a viewport unit or a custom property — so a
@@ -34,10 +34,10 @@ class TransformVerbs {
    *  to know how long the loop is. A value within [-period, 0] is used as
    *  it stands; one outside it is folded into (-period, 0]. A period that
    *  resolves to zero or less folds nothing. */
-  Derived& translateX(motion::Animatable<float> v, Dimension period);
+  Derived& translateX(motion::Animatable<float> distance, Dimension period);
   /** SLIDE THE NODE ALONG Y, LOOPING: the same, folded over a period read
    *  against the node's own height. */
-  Derived& translateY(motion::Animatable<float> v, Dimension period);
+  Derived& translateY(motion::Animatable<float> distance, Dimension period);
   /** A number of pixels along X, the lane's own spelling. */
   Derived& translateX(float pixels);
   /** A number of pixels along Y, the lane's own spelling. */

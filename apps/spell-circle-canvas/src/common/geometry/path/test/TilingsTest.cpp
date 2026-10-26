@@ -225,7 +225,7 @@ TEST(Multigrid, FamiliesThatCannotCrossDualiseIntoNothing) {
 
 TEST(Multigrid, TheBoundOnRhombsIsTheOneThingThatStopsIt) {
   const MultigridTiling t = multigrid(multigridRing(5, kPenroseOffset),
-                                      {.radius = 12.0, .maxRhombs = 50});
+                                      {.radius = 12.0, .maximumRhombs = 50});
   EXPECT_EQ(t.rhombs.size(), 50u);
 }
 

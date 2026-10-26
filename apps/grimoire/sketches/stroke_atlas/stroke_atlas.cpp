@@ -46,7 +46,7 @@ struct StrokeAtlasSketch {
       const int n = (int)fan.size();
       for (int i = 0; i < n; ++i) {
         const float t = n > 1 ? (float)i / (float)(n - 1) : 0.5f;
-        const float deg = -54.0f + t * 108.0f;
+        const float degrees = -54.0f + t * 108.0f;
         // The spoke carries only a NUMERAL, and it sits at the OUTER end
         // where the twenty rules are maximally separated. Captions along
         // the spokes converge on the pivot — which is exactly where they are
@@ -57,12 +57,12 @@ struct StrokeAtlasSketch {
         plate.children({box()
                             .rect(originX, originY - 19, length, 38)
                             .transformOrigin(percent(0), percent(50))
-                            .rotate(deg)
+                            .rotate(degrees)
                             .shape(hline())
                             .stroke(fan[(size_t)i].dec)});
-        const float rad = deg * 0.0174532925f;
+        const float radians = degrees * 0.0174532925f;
         const SkPoint end = sigil::geometry::path::toSk(arrange::onEllipse(
-            {originX, originY}, {length + 9, length + 9}, rad));
+            {originX, originY}, {length + 9, length + 9}, radians));
         const float ex = end.fX, ey = end.fY;
         const std::string numeral = kit::formatted("%d", i + 1);
         plate.children({call(numeral.c_str(), 8.5f, kRed).at({ex, ey - 6})});
@@ -560,8 +560,8 @@ struct StrokeAtlasSketch {
           sigil::geometry::path::fromSk(SkPath::Circle(0, 0, 4.0f));
       rings.stampAdvance = 24.0f;
       Brush cable;
-      cable.layer(lines::Line{.width = 1.8f,
-                              .fill = Fill::color({0.66f, 0.68f, 0.74f, 0.95f})});
+      cable.layer(lines::Line{
+          .width = 1.8f, .fill = Fill::color({0.66f, 0.68f, 0.74f, 0.95f})});
       cable.layer(rings);
 
       // A NARROWING STREAM: drawn from its mouth to its source, wide to
@@ -586,16 +586,17 @@ struct StrokeAtlasSketch {
                     "Line{.midMarker=Arrow, .endMarker=Arrow} every 72 px"),
            specimen(628, 2004, 230, 70, route, cable,
                     "Line + PathFormat{stampPath = ring, stampAdvance 24}"),
-           specimen(914, 2004, 230, 70, route, narrowing,
-                    "brush::presets::taper(2.2, 9, stream) · mouth to source")});
+           specimen(
+               914, 2004, 230, 70, route, narrowing,
+               "brush::presets::taper(2.2, 9, stream) · mouth to source")});
       // A REED FILL: diagonal reeds hatched across a wetland's silhouette.
       plate.children(
           {box()
                .rect(1230, 1996, 160, 92)
                .shape(shapes::blob(7, 0.16f))
                .fill(Fill::color({0.10f, 0.20f, 0.20f, 0.55f}))
-               .background(lines::presets::hatch(Fill::color(reeds), 7, 1.1f,
-                                                 -32))
+               .background(
+                   lines::presets::hatch(Fill::color(reeds), 7, 1.1f, -32))
                .children({call("hatch(reeds, 7, 1.1, -32) in shapes::blob(7)")
                               .width(260)
                               .at({0, 104})})});

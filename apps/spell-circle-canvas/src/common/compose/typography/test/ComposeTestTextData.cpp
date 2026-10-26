@@ -206,16 +206,16 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
                           .orient = orient})});
   };
   auto footprint = [](Host& host) {
-    int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
+    int minimumX = 9999, maximumX = -1, minimumY = 9999, maximumY = -1;
     for (int y = 0; y < 240; ++y)
       for (int x = 0; x < 240; ++x)
         if (host.pixel(x, y) != SK_ColorBLACK) {
-          minX = std::min(minX, x);
-          maxX = std::max(maxX, x);
-          minY = std::min(minY, y);
-          maxY = std::max(maxY, y);
+          minimumX = std::min(minimumX, x);
+          maximumX = std::max(maximumX, x);
+          minimumY = std::min(minimumY, y);
+          maximumY = std::max(maximumY, y);
         }
-    return SkISize{maxX - minX, maxY - minY};
+    return SkISize{maximumX - minimumX, maximumY - minimumY};
   };
 
   Host tangent(240, 240), radial(240, 240);
@@ -259,16 +259,16 @@ TEST(ComposeText, OnPathCanLeaveEveryGlyphLevelForACalendarRing) {
                           .orient = orient})});
   };
   auto footprint = [](Host& host) {
-    int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
+    int minimumX = 9999, maximumX = -1, minimumY = 9999, maximumY = -1;
     for (int y = 0; y < 240; ++y)
       for (int x = 0; x < 240; ++x)
         if (host.pixel(x, y) != SK_ColorBLACK) {
-          minX = std::min(minX, x);
-          maxX = std::max(maxX, x);
-          minY = std::min(minY, y);
-          maxY = std::max(maxY, y);
+          minimumX = std::min(minimumX, x);
+          maximumX = std::max(maximumX, x);
+          minimumY = std::min(minimumY, y);
+          maximumY = std::max(maximumY, y);
         }
-    return SkISize{maxX - minX, maxY - minY};
+    return SkISize{maximumX - minimumX, maximumY - minimumY};
   };
 
   Host tangent(240, 240), upright(240, 240);
@@ -709,7 +709,7 @@ TEST(ComposeText, TheCondenseClosesOnlyWhatTheSizeFloorLeftOver) {
   // instead — and only by what the floor left over.
   const sigil::weave::TextStyle squeezed =
       fitRun(u8"CONDENSED TO FIT", whiteStyle(64), 300.0f, fonts(),
-             {.minSize = 48.0f, .minCondense = 0.5f});
+             {.minimumSize = 48.0f, .minimumCondense = 0.5f});
   EXPECT_FLOAT_EQ(squeezed.shaping.fontSize, 48.0f);
   EXPECT_LT(squeezed.shaping.scaleX, 1.0f);
   EXPECT_GE(squeezed.shaping.scaleX, 0.5f);
@@ -719,14 +719,15 @@ TEST(ComposeText, TheCondenseClosesOnlyWhatTheSizeFloorLeftOver) {
   // it was allowed to be.
   const sigil::weave::TextStyle shrunk =
       fitRun(u8"CONDENSED TO FIT", whiteStyle(64), 300.0f, fonts(),
-             {.minCondense = 0.5f});
+             {.minimumCondense = 0.5f});
   EXPECT_FLOAT_EQ(shrunk.shaping.scaleX, 1.0f);
 
   // Neither floor is a promise to fit: a run that cannot reach the width
   // comes back at the floors, over-wide, rather than at a size nothing
   // could read.
-  const sigil::weave::TextStyle refused = fitRun(
-      u8"CONDENSED TO FIT", whiteStyle(64), 10.0f, fonts(), {.minSize = 48.0f});
+  const sigil::weave::TextStyle refused =
+      fitRun(u8"CONDENSED TO FIT", whiteStyle(64), 10.0f, fonts(),
+             {.minimumSize = 48.0f});
   EXPECT_FLOAT_EQ(refused.shaping.fontSize, 48.0f);
   EXPECT_GT(widthOf(refused), 10.0f);
 }

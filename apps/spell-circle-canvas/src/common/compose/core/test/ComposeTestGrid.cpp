@@ -21,7 +21,7 @@ struct Given {
   geometry::path::Rect box;
   std::vector<Arrangement::Child> children;
   operator Arrangement() {
-    return {.box = box, .children = children, .minSizesMeasured = true};
+    return {.box = box, .children = children, .minimumSizesMeasured = true};
   }
 };
 
@@ -33,7 +33,7 @@ Given given(glm::vec2 container, std::vector<glm::vec2> sizes,
   for (size_t i = 0; i < sizes.size(); ++i) {
     Arrangement::Child child;
     child.size = sizes[i];
-    child.minSize = minima.empty() ? sizes[i] : minima[i];
+    child.minimumSize = minima.empty() ? sizes[i] : minima[i];
     if (i < cells.size()) child.cells = cells[i];
     if (i < areas.size()) child.area = areas[i];
     in.children.push_back(std::move(child));
@@ -294,7 +294,7 @@ TEST(ComposeGrid, PlacementUpdatesBorrowedRecordsAndKeepsMeasurements) {
   std::array<Arrangement::Child, 1> children;
   auto& child = children[0];
   child.size = {80, 20};
-  child.minSize = {40, 20};
+  child.minimumSize = {40, 20};
   child.cells = claims(0, 0);
   child.area = "main";
   child.attributes.set("tier", 2);
@@ -303,7 +303,7 @@ TEST(ComposeGrid, PlacementUpdatesBorrowedRecordsAndKeepsMeasurements) {
       .aspectRatio = 2};
   Arrangement arrangement{.box = geometry::path::Rect::of({0, 0}, {200, 100}),
                           .children = children,
-                          .minSizesMeasured = true,
+                          .minimumSizesMeasured = true,
                           .percentagesResolved = true};
   const Grid grid{.columns = {layouts::px(90), layouts::px(90)},
                   .areas = {"main main"},
@@ -316,7 +316,7 @@ TEST(ComposeGrid, PlacementUpdatesBorrowedRecordsAndKeepsMeasurements) {
   grid.arrange(arrangement);
   EXPECT_EQ(child.rect, geometry::path::Rect::of({0, 0}, {100, 50}));
   EXPECT_EQ(child.size, glm::vec2(80, 20));
-  EXPECT_EQ(child.minSize, glm::vec2(40, 20));
+  EXPECT_EQ(child.minimumSize, glm::vec2(40, 20));
   EXPECT_EQ(child.cells, claims(0, 0));
   EXPECT_EQ(child.area, "main");
   EXPECT_EQ(child.attribute<int>("tier"), 2);
@@ -332,15 +332,15 @@ namespace {
 struct Recorder {
   struct Seen {
     std::vector<Arrangement::Child> children;
-    bool minSizesMeasured = false;
+    bool minimumSizesMeasured = false;
   };
   std::shared_ptr<Seen> seen = std::make_shared<Seen>();
   bool operator==(const Recorder& o) const { return seen == o.seen; }
-  static constexpr bool readsChildMinSizes = true;
+  static constexpr bool readsChildMinimumSizes = true;
   void arrange(Arrangement& arrangement) const {
     seen->children.assign(arrangement.children.begin(),
                           arrangement.children.end());
-    seen->minSizesMeasured = arrangement.minSizesMeasured;
+    seen->minimumSizesMeasured = arrangement.minimumSizesMeasured;
     for (size_t i = 0; i < arrangement.children.size(); ++i) {
       auto& child = arrangement.children[i];
       child.place(geometry::path::Rect::of({0, (float)i * 20}, child.size));
@@ -359,11 +359,11 @@ TEST(ComposeGrid, ASchemeThatAsksIsToldHowNarrowItsTextChildrenCanGo) {
                .width(200.0f)})}));
   host.frame();
   ASSERT_EQ(recorder.seen->children.size(), 1u);
-  EXPECT_TRUE(recorder.seen->minSizesMeasured);
+  EXPECT_TRUE(recorder.seen->minimumSizesMeasured);
   // The narrowest the paragraph goes is one word, and it was measured at
   // two hundred — so the minimum is real and it is smaller.
-  EXPECT_GT(recorder.seen->children[0].minSize.x, 0.0f);
-  EXPECT_LT(recorder.seen->children[0].minSize.x,
+  EXPECT_GT(recorder.seen->children[0].minimumSize.x, 0.0f);
+  EXPECT_LT(recorder.seen->children[0].minimumSize.x,
             recorder.seen->children[0].size.x);
 }
 
@@ -378,8 +378,8 @@ TEST(ComposeGrid, ASchemeThatDoesNotAskIsToldNothingAndPaysForNothing) {
   };
   // The concept, not the runtime: a scheme without the declaration is not
   // one the composer measures minima for.
-  static_assert(!sigil::compose::ReadsChildMinSizes<Quiet>);
-  static_assert(sigil::compose::ReadsChildMinSizes<Grid>);
+  static_assert(!sigil::compose::ReadsChildMinimumSizes<Quiet>);
+  static_assert(sigil::compose::ReadsChildMinimumSizes<Grid>);
 }
 
 // ---------------------------------------------------------------------------

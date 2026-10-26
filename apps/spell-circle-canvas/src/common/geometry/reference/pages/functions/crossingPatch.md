@@ -12,7 +12,7 @@ status: stable
 The region where two strands' MARKS actually overlap at one crossing:
 the intersection of the two paths stroked to their own reach, reduced
 to the component containing the crossing point and bounded by
-`maxRadius` px around it.
+`maximumRadius` px around it.
 
 ## Description
 
@@ -21,7 +21,7 @@ overlap in a long lens whose extent along each strand goes as
 reach/sin(theta), and a disc sized for the perpendicular case leaves
 the under-strand showing straight across the over-strand's mark.
 
-`maxRadius` is not a safety margin, it is REQUIRED for correctness on
+`maximumRadius` is not a safety margin, it is REQUIRED for correctness on
 any ordinary braid. Once reach/sin(theta) approaches the spacing
 between knots, neighbouring lenses touch and path operations merge them
 into ONE contour — at which point the first crossing's patch owns the

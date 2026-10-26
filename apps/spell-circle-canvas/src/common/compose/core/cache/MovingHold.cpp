@@ -98,7 +98,7 @@ bool paintHeldWhileMoving(PaintPass& pass) {
   // THE LARGEST SCALE THE MOTION HAS SHOWN THE NODE AT: pixels formed for
   // a smaller one would be sampled up, so a node shown larger forms them
   // again, and one shown smaller keeps them and samples them down.
-  const float shown = maxScaleOf(pass.totalM, bounds);
+  const float shown = maximumScaleOf(pass.totalM, bounds);
   if (!(shown > 0.0f) || !std::isfinite(shown)) return false;
   const float needed = formingScale(shown);
   const bool held = inst.movingImage && !inst.movingInPlace;
@@ -143,10 +143,10 @@ bool paintHeldWhileMoving(PaintPass& pass) {
   // Through the rect the pixels ACTUALLY cover: their size was rounded up,
   // so stretching them across `bounds` alone would resample the node by up
   // to a texel's worth of scale. The overshoot is transparent.
-  const SkRect destination = SkRect::MakeXYWH(
-      bounds.left(), bounds.top(),
-      (float)inst.movingImage->width() / inst.movingScale,
-      (float)inst.movingImage->height() / inst.movingScale);
+  const SkRect destination =
+      SkRect::MakeXYWH(bounds.left(), bounds.top(),
+                       (float)inst.movingImage->width() / inst.movingScale,
+                       (float)inst.movingImage->height() / inst.movingScale);
   // The pixels were formed without the node's opacity, and no layer is
   // open for it: it rides the one draw they are composited by.
   SkPaint composite;

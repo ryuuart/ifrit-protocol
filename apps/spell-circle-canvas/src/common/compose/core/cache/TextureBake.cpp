@@ -147,7 +147,7 @@ bool paintTextureBake(PaintPass& pass) {
         inst.textureBakeRect = bakeRect;
         inst.textureBakeClip = pass.deviceClip();
         inst.textureBakeMatrix = totalM;
-        inst.textureScale = maxScaleOf(totalM, localBounds);
+        inst.textureScale = maximumScaleOf(totalM, localBounds);
         inst.bakedLiveShader = inst.hasPendingLiveFill
                                    ? material::skia::staticShader(
                                          detail::paintOf(inst.pendingLiveFill))

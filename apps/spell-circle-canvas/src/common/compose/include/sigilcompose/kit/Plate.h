@@ -104,43 +104,47 @@ struct Plate {
   float columnExtent = 0.0f;
 };
 
-[[nodiscard]] inline Element plate(Plate p) {
-  Element ground = box().fill(p.fill);
-  if (p.border.kind != Fill::Kind::None)
-    ground.stroke(stroke(p.borderWidth, p.border, p.borderAlign));
+[[nodiscard]] inline Element plate(Plate options) {
+  Element ground = box().fill(options.fill);
+  if (options.border.kind != Fill::Kind::None)
+    ground.stroke(
+        stroke(options.borderWidth, options.border, options.borderAlign));
 
   // flexGrow(1) so the padded interior fills whatever rect the caller gave the
   // plate, without the interior needing its own size.
-  Element inner = box()
-                      .padding(p.paddingVertical, p.paddingHorizontal)
-                      .gap(p.gap)
-                      .flexGrow(1);
-  if (p.column)
+  Element inner =
+      box()
+          .padding(options.paddingVertical, options.paddingHorizontal)
+          .gap(options.gap)
+          .flexGrow(1);
+  if (options.column)
     inner.column();
   else
     inner.row();
 
-  const bool dividers = p.divider.kind != Fill::Kind::None;
+  const bool dividers = options.divider.kind != Fill::Kind::None;
   bool first = true;
-  for (Element& col : p.columns) {
+  for (Element& col : options.columns) {
     if (!first && dividers)
-      inner.children({p.column ? box().height(p.dividerWidth).fill(p.divider)
-                               : box().width(p.dividerWidth).fill(p.divider)});
+      inner.children(
+          {options.column
+               ? box().height(options.dividerWidth).fill(options.divider)
+               : box().width(options.dividerWidth).fill(options.divider)});
     first = false;
     // Shared-space columns go in DIRECTLY with flexGrow(1) — no wrapper box.
     // The difference is not cosmetic: as a flex child of the row a feed also
     // stretches to the interior height, where inside a wrapper it would take
     // its content height and leave the rest of the cell empty.
-    if (p.columnExtent <= 0) {
+    if (options.columnExtent <= 0) {
       col.flexGrow(1);
       inner.children({std::move(col)});
       continue;
     }
     Element cell = box().children({std::move(col)});
-    if (p.column)
-      cell.height(p.columnExtent);
+    if (options.column)
+      cell.height(options.columnExtent);
     else
-      cell.width(p.columnExtent);
+      cell.width(options.columnExtent);
     inner.children({std::move(cell)});
   }
   ground.children({std::move(inner)});
@@ -182,23 +186,25 @@ struct Console {
   Plate plate;
 };
 
-[[nodiscard]] inline Element console(Console c) {
-  const size_t per = (size_t)std::max(c.stacked, 1);
+[[nodiscard]] inline Element console(Console options) {
+  const size_t per = (size_t)std::max(options.stacked, 1);
   std::vector<Element> columns;
-  for (size_t i = 0; i < c.feeds.size(); i += per) {
+  for (size_t i = 0; i < options.feeds.size(); i += per) {
     if (per == 1) {
-      if (c.feeds[i]) columns.push_back(feed::feed(*c.feeds[i], c.style));
+      if (options.feeds[i])
+        columns.push_back(feed::feed(*options.feeds[i], options.style));
       continue;
     }
-    Element stack = box().column().gap(c.stackGap);
-    const size_t end = std::min(i + per, c.feeds.size());
+    Element stack = box().column().gap(options.stackGap);
+    const size_t end = std::min(i + per, options.feeds.size());
     for (size_t j = i; j < end; ++j)
-      if (c.feeds[j])
-        stack.children({feed::feed(*c.feeds[j], c.style).flexGrow(1)});
+      if (options.feeds[j])
+        stack.children(
+            {feed::feed(*options.feeds[j], options.style).flexGrow(1)});
     columns.push_back(std::move(stack));
   }
-  c.plate.columns = std::move(columns);
-  return plate(std::move(c.plate));
+  options.plate.columns = std::move(columns);
+  return plate(std::move(options.plate));
 }
 
 }  // namespace sigil::compose::kit

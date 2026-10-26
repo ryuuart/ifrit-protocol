@@ -18,7 +18,7 @@ namespace sigil::geometry::mesh::camera {
 
 namespace {
 
-constexpr float kDegToRad = (float)M_PI / 180.0f;
+constexpr float kDegreesToRadians = (float)M_PI / 180.0f;
 
 /** The other direction of the seam: Skia's camera factories build the
  *  matrix, glm carries it. Both column-major — a straight pour. */
@@ -37,7 +37,8 @@ glm::mat4 Camera::view() const {
 }
 
 glm::mat4 Camera::projection(float aspect) const {
-  SkM44 m = SkM44::Perspective(nearPlane, farPlane, fovYDegrees * kDegToRad);
+  SkM44 m = SkM44::Perspective(nearPlane, farPlane,
+                               verticalFieldOfViewDegrees * kDegreesToRadians);
   if (aspect > 0) m.setRC(0, 0, m.rc(0, 0) / aspect);
   return toGlm(m);
 }
@@ -96,14 +97,15 @@ Orbit orbitOf(const Camera& camera) {
   if (!(distance > 0.0f)) return {};
   // Yaw from the +z axis toward +x and pitch off the ground plane, which
   // is the pair `cameraAt` puts the eye back at.
-  return {std::atan2(out.x, out.z) / kDegToRad,
-          std::asin(std::clamp(out.y / distance, -1.0f, 1.0f)) / kDegToRad,
-          distance};
+  return {
+      std::atan2(out.x, out.z) / kDegreesToRadians,
+      std::asin(std::clamp(out.y / distance, -1.0f, 1.0f)) / kDegreesToRadians,
+      distance};
 }
 
 Camera cameraAt(const Camera& pivot, Orbit orbit) {
-  const float yaw = orbit.yawDegrees * kDegToRad;
-  const float pitch = orbit.pitchDegrees * kDegToRad;
+  const float yaw = orbit.yawDegrees * kDegreesToRadians;
+  const float pitch = orbit.pitchDegrees * kDegreesToRadians;
   Camera out = pivot;
   out.eye = pivot.target +
             glm::vec3{orbit.distance * std::cos(pitch) * std::sin(yaw),
@@ -116,11 +118,11 @@ glm::mat4 place(glm::vec3 position, float yawDegrees, float pitchDegrees,
                 float rollDegrees, float scale) {
   SkM44 m = SkM44::Translate(position.x, position.y, position.z);
   if (yawDegrees != 0)
-    m.preConcat(SkM44::Rotate({0, 1, 0}, yawDegrees * kDegToRad));
+    m.preConcat(SkM44::Rotate({0, 1, 0}, yawDegrees * kDegreesToRadians));
   if (pitchDegrees != 0)
-    m.preConcat(SkM44::Rotate({1, 0, 0}, pitchDegrees * kDegToRad));
+    m.preConcat(SkM44::Rotate({1, 0, 0}, pitchDegrees * kDegreesToRadians));
   if (rollDegrees != 0)
-    m.preConcat(SkM44::Rotate({0, 0, 1}, rollDegrees * kDegToRad));
+    m.preConcat(SkM44::Rotate({0, 0, 1}, rollDegrees * kDegreesToRadians));
   if (scale != 1) m.preScale(scale, scale, scale);
   return toGlm(m);
 }

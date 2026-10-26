@@ -904,15 +904,16 @@ bool Host::frame(double fixedDt) {
   return true;
 }
 
-double Host::prepareCapture(std::optional<double> at, double fps,
+double Host::prepareCapture(std::optional<double> at, double framesPerSecond,
                             float density) {
   const double declared = captureSeconds();
   const double seconds = at.value_or(declared >= 0 ? declared : 1.5);
-  if (!std::isfinite(seconds) || seconds < 0 || !std::isfinite(fps) ||
-      fps <= 0 || !std::isfinite(1.0 / fps))
+  if (!std::isfinite(seconds) || seconds < 0 ||
+      !std::isfinite(framesPerSecond) || framesPerSecond <= 0 ||
+      !std::isfinite(1.0 / framesPerSecond))
     throw std::invalid_argument("Capture time or frame rate is invalid");
-  const double rate =
-      std::max(fps, 1.0 / motion::EngineOptions{}.maxWallStep.count());
+  const double rate = std::max(
+      framesPerSecond, 1.0 / motion::EngineOptions{}.maximumWallStep.count());
   if (seconds * rate > double(std::numeric_limits<int>::max()))
     throw std::invalid_argument("Capture time or frame rate is invalid");
   if (!std::isfinite(density) || density <= 0)

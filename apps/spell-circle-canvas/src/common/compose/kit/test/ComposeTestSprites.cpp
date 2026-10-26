@@ -134,7 +134,7 @@ TEST(KitSprites, MarksKeepTheirOrderSoAnOverlapCompositesAsAuthored) {
   Sprite sprite;
   sprite.grid = {2, 1};
   sprite.rect(0, 0, 2, 1, kRed);
-  sprite.px(1, 0, sigil::material::Color{0, 0, 1, 0.5f});
+  sprite.pixel(1, 0, sigil::material::Color{0, 0, 1, 0.5f});
   const sk_sp<SkImage> image = pictureOf(spriteImage(sprite));
   ASSERT_TRUE(image);
   EXPECT_EQ(pixelOf(image, 0, 0), SK_ColorRED);

@@ -54,10 +54,10 @@ struct Hatch {
     return angleBinding ? angleBinding->value() : pattern.angle;
   }
 
-  bool operator==(const Hatch& o) const {
-    return strokeFill == o.strokeFill && pattern == o.pattern &&
-           width == o.width && spacingBinding == o.spacingBinding &&
-           angleBinding == o.angleBinding;
+  bool operator==(const Hatch& other) const {
+    return strokeFill == other.strokeFill && pattern == other.pattern &&
+           width == other.width && spacingBinding == other.spacingBinding &&
+           angleBinding == other.angleBinding;
   }
 
   /** The rules are clipped to the outline they fill. */
@@ -95,11 +95,11 @@ struct RadialHatch {
    *  away entirely. Spokes keep their own reach either way. */
   std::vector<float> radiiPx;
 
-  bool operator==(const RadialHatch& o) const {
-    return strokeFill == o.strokeFill && spokes == o.spokes &&
-           rings == o.rings && width == o.width &&
-           holeFraction == o.holeFraction && centre == o.centre &&
-           rotateDegrees == o.rotateDegrees && radiiPx == o.radiiPx;
+  bool operator==(const RadialHatch& other) const {
+    return strokeFill == other.strokeFill && spokes == other.spokes &&
+           rings == other.rings && width == other.width &&
+           holeFraction == other.holeFraction && centre == other.centre &&
+           rotateDegrees == other.rotateDegrees && radiiPx == other.radiiPx;
   }
 
   /** The rules are clipped to the outline they fill. */

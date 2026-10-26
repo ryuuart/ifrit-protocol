@@ -10,35 +10,37 @@
 namespace sigil::compose {
 
 template <class Derived>
-Derived& TransformVerbs<Derived>::translateX(motion::Animatable<float> v) {
+Derived& TransformVerbs<Derived>::translateX(
+    motion::Animatable<float> distance) {
   detail::DeclaredFields& fields = declarations()->fields;
-  fields.translateX() = std::move(v);
+  fields.translateX() = std::move(distance);
   fields.translateXLength() = Dimension(0.0f);
   fields.translateXWrap() = Dimension(0.0f);
   return self();
 }
 
 template <class Derived>
-Derived& TransformVerbs<Derived>::translateX(motion::Animatable<float> v,
+Derived& TransformVerbs<Derived>::translateX(motion::Animatable<float> distance,
                                              Dimension period) {
-  translateX(std::move(v));
+  translateX(std::move(distance));
   declarations()->fields.translateXWrap() = std::move(period);
   return self();
 }
 
 template <class Derived>
-Derived& TransformVerbs<Derived>::translateY(motion::Animatable<float> v) {
+Derived& TransformVerbs<Derived>::translateY(
+    motion::Animatable<float> distance) {
   detail::DeclaredFields& fields = declarations()->fields;
-  fields.translateY() = std::move(v);
+  fields.translateY() = std::move(distance);
   fields.translateYLength() = Dimension(0.0f);
   fields.translateYWrap() = Dimension(0.0f);
   return self();
 }
 
 template <class Derived>
-Derived& TransformVerbs<Derived>::translateY(motion::Animatable<float> v,
+Derived& TransformVerbs<Derived>::translateY(motion::Animatable<float> distance,
                                              Dimension period) {
-  translateY(std::move(v));
+  translateY(std::move(distance));
   declarations()->fields.translateYWrap() = std::move(period);
   return self();
 }

@@ -16,20 +16,20 @@
 
 namespace sigil::geometry::mesh {
 
-/** Unit vector along @p v, or @p fallback when @p v is too short to have
- *  a direction — the case glm::normalize leaves undefined. */
-inline glm::vec3 normalized(glm::vec3 v, glm::vec3 fallback = {0, 0, 1}) {
-  const float len = glm::length(v);
-  return len < 1e-12f ? fallback : v * (1.0f / len);
+/** Unit vector along @p vector, or @p fallback when @p vector is too short to
+ * have a direction — the case glm::normalize leaves undefined. */
+inline glm::vec3 normalized(glm::vec3 vector, glm::vec3 fallback = {0, 0, 1}) {
+  const float length = glm::length(vector);
+  return length < 1e-12f ? fallback : vector * (1.0f / length);
 }
 
-/** Orientation basis with +z along @p dir — the construction
+/** Orientation basis with +z along @p direction — the construction
  *  points::instance() stamps with. World's instanced path calls this
  *  SAME function, so a Cloud renders identically merged, instanced,
  *  or GPU-drawn. */
-inline void basisFor(glm::vec3 dir, glm::vec3 up, glm::vec3* x, glm::vec3* y,
-                     glm::vec3* z) {
-  *z = normalized(dir);
+inline void basisFor(glm::vec3 direction, glm::vec3 up, glm::vec3* x,
+                     glm::vec3* y, glm::vec3* z) {
+  *z = normalized(direction);
   glm::vec3 side = glm::cross(up, *z);
   if (glm::dot(side, side) < 1e-8f) side = glm::cross(glm::vec3{1, 0, 0}, *z);
   *x = normalized(side);

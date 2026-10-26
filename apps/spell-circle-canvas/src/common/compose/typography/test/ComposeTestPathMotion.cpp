@@ -30,7 +30,7 @@ SkPoint inkCentroid(Host& host, int w, int h) {
 struct MotionStats {
   double rmsJerk = 0;   ///< RMS of |c[i+1] - 2c[i] + c[i-1]|, px
   double meanStep = 0;  ///< mean |c[i] - c[i-1]|, px
-  double minStep = 1e9;
+  double minimumStep = 1e9;
 };
 
 /// The track's steps and its second differences. True motion along a ring
@@ -52,7 +52,7 @@ MotionStats motionOf(const std::vector<SkPoint>& track) {
   for (size_t i = 1; i < track.size(); ++i) {
     const double d = std::hypot(track[i].x() - track[i - 1].x(),
                                 track[i].y() - track[i - 1].y());
-    s.minStep = std::min(s.minStep, d);
+    s.minimumStep = std::min(s.minimumStep, d);
     total += d;
   }
   if (track.size() > 1) s.meanStep = total / (double)(track.size() - 1);
@@ -248,7 +248,7 @@ class RunInMotion : public testing::TestWithParam<MovingRun> {};
 // in nothing else: the ladder a tangent snaps to, and the grid a glyph's
 // device origin lands on.
 //
-// Two bounds, because the two failures look different. `minStep` catches
+// Two bounds, because the two failures look different. `minimumStep` catches
 // the whole-pixel origin, whose signature is a letter that does not move AT
 // ALL for a frame or two and then hops a whole pixel -- the step goes
 // exactly to zero, the same mask drawn in the same place. `rmsJerk` catches
@@ -257,10 +257,12 @@ class RunInMotion : public testing::TestWithParam<MovingRun> {};
 // neither is a number fitted to this machine.
 TEST_P(RunInMotion, ItsLettersAdvanceWithoutStallingOrTicking) {
   const MotionStats s = motionOf(GetParam().track(GetParam().pixelSize));
-  SCOPED_TRACE(testing::Message() << "meanStep " << s.meanStep << " minStep "
-                                  << s.minStep << " rmsJerk " << s.rmsJerk);
+  SCOPED_TRACE(testing::Message()
+               << "meanStep " << s.meanStep << " minimumStep " << s.minimumStep
+               << " rmsJerk " << s.rmsJerk);
   ASSERT_GT(s.meanStep, 0.1) << "the run did not move at all";
-  EXPECT_GT(s.minStep, 0.25 * s.meanStep) << "a frame the letter stood still";
+  EXPECT_GT(s.minimumStep, 0.25 * s.meanStep)
+      << "a frame the letter stood still";
   if (GetParam().uniformAdvance)
     EXPECT_LT(s.rmsJerk, 0.5 * s.meanStep) << "the letter's advance ticks";
 }

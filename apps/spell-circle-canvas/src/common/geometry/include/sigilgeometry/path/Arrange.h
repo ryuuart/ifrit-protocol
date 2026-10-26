@@ -104,16 +104,17 @@ struct Ring {
 /** The screen angle, in radians, at which item `index` of `count` stands
  *  on `ring`. */
 inline float radiansOnRing(size_t index, size_t count, const Ring& ring) {
-  return along(ring.fromDegrees * path::kDegToRad,
-               ring.sweepDegrees * path::kDegToRad, index, count, ring.turn);
+  return along(ring.fromDegrees * path::kDegreesToRadians,
+               ring.sweepDegrees * path::kDegreesToRadians, index, count,
+               ring.turn);
 }
 
 /** The screen angle, in radians, `fraction` of the way through `ring`'s
  *  sweep from its start — for an item placed by a quantity of its own
  *  rather than by its index. */
 inline float radiansAt(float fraction, const Ring& ring) {
-  return ring.fromDegrees * path::kDegToRad +
-         ring.sweepDegrees * path::kDegToRad * fraction;
+  return ring.fromDegrees * path::kDegreesToRadians +
+         ring.sweepDegrees * path::kDegreesToRadians * fraction;
 }
 
 /** The centre of item `index` of `count` on `ring`. */

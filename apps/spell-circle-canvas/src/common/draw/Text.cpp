@@ -23,9 +23,9 @@
 #include <string_view>
 #include <vector>
 
-#include "sigilweave/advanced/Skia.h"
-#include "sigilgeometry/advanced/Skia.h"
 #include "PenInternal.h"
+#include "sigilgeometry/advanced/Skia.h"
+#include "sigilweave/advanced/Skia.h"
 
 namespace sigil::draw {
 
@@ -220,10 +220,10 @@ void Pen::textLine(std::string_view line, float x, float baseline) {
   layout.draw(m_canvas, paragraph, &over);
 }
 
-void Pen::text(std::string_view str, float x, float y) {
+void Pen::text(std::string_view content, float x, float y) {
   // A glyph adds nothing to a mask being recorded.
   if (!m_canvas || !m_fonts || m_clipRecording) return;
-  const std::vector<std::string_view> lines = linesOf(str);
+  const std::vector<std::string_view> lines = linesOf(content);
   const float ascent = textAscent();
   const float descent = textDescent();
   const float leading = m_style.leading;
@@ -253,11 +253,12 @@ void Pen::text(std::string_view str, float x, float y) {
     textLine(lines[i], x, baseline + (float)i * leading);
 }
 
-void Pen::text(std::string_view str, float x, float y, float w, float h) {
+void Pen::text(std::string_view content, float x, float y, float width,
+               float height) {
   if (!m_canvas || !m_fonts || m_clipRecording) return;
-  const SkRect box = rectBox(x, y, w, h);
+  const SkRect box = rectBox(x, y, width, height);
   weave::Paragraph paragraph;
-  paragraph.appendText(utf8(str), textStyleNow());
+  paragraph.appendText(utf8(content), textStyleNow());
   weave::BlockFlow flow(geometry::path::fromSk(box));
   weave::ParagraphLayoutOptions options;
   options.alignment =

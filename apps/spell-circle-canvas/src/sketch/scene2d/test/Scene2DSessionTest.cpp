@@ -107,7 +107,7 @@ gm::camera::Camera cardCamera(float eyeZ) {
  *  off a picture. */
 float pixelsPerUnit(const gm::camera::Camera& lens, SkISize size) {
   const float halfFov =
-      lens.fovYDegrees * 0.5f * (float)std::numbers::pi / 180.0f;
+      lens.verticalFieldOfViewDegrees * 0.5f * (float)std::numbers::pi / 180.0f;
   return (float)size.height() /
          (2.0f * std::abs(lens.eye.z) * std::tan(halfFov));
 }
@@ -391,7 +391,8 @@ TEST(Scene2DCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
     EXPECT_EQ(progress->updates, 38);
     EXPECT_EQ(progress->paints, painted);
     EXPECT_EQ(session->timing().drawMilliseconds, 0);
-    for (const LaneCost& lane : session->lanes()) EXPECT_EQ(lane.ms, 0);
+    for (const LaneCost& lane : session->lanes())
+      EXPECT_EQ(lane.milliseconds, 0);
     EXPECT_TRUE(session->costs(8).empty());
     session->repaint(*target->getCanvas());
     EXPECT_FALSE(session->costs(8).empty());
@@ -436,7 +437,7 @@ struct Scene2DTraits {
   static double captureSeconds() { return 2.5; }
   static const char* runtime() { return "scene2d"; }
   static std::vector<const char*> lanes() {
-    return {"recon", "layout", "volat", "paint"};
+    return {"reconcile", "layout", "volatile", "paint"};
   }
   /** A canvas is described again at the capture scale, so a still is
    *  worth taking larger than the canvas the body declared. */

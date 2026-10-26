@@ -110,8 +110,9 @@ pop::Builder torus() {
       .seed(3)
       .rampBy({{0.34f, 0.60f, 0.96f, 1}, {0.98f, 0.68f, 0.32f, 1}});
 }
-const camera::Camera kTorusView{
-    .eye = {0, 120, 330}, .target = {0, 0, 0}, .fovYDegrees = 40};
+const camera::Camera kTorusView{.eye = {0, 120, 330},
+                                .target = {0, 0, 0},
+                                .verticalFieldOfViewDegrees = 40};
 
 /** Row 03: a fuzzy column standing on the y axis, a band across its
  *  middle selected into "band" and feathered, and the colour reading the
@@ -133,8 +134,9 @@ pop::Builder column() {
                {0.85f, 0.35f, 0.30f, 1},
                {1.00f, 0.85f, 0.35f, 1}});
 }
-const camera::Camera kColumnView{
-    .eye = {300, 140, 820}, .target = {0, 0, 0}, .fovYDegrees = 38};
+const camera::Camera kColumnView{.eye = {300, 140, 820},
+                                 .target = {0, 0, 0},
+                                 .verticalFieldOfViewDegrees = 38};
 
 /** Row 04, left: a crown, a ring with a threefold wave, whose near and
  *  far arcs overlap on screen — the only condition under which draw
@@ -158,8 +160,9 @@ pop::Builder crown() {
                {0.95f, 0.98f, 1.00f, 1}},
               -230, 230);
 }
-const camera::Camera kCrownView{
-    .eye = {0, 180, 1160}, .target = {0, 0, 0}, .fovYDegrees = 34};
+const camera::Camera kCrownView{.eye = {0, 180, 1160},
+                                .target = {0, 0, 0},
+                                .verticalFieldOfViewDegrees = 34};
 
 /** Row 04, right: a ring pushed off its loop by Noise, the kink Relax
  *  exists to take out. */
@@ -177,7 +180,7 @@ pop::Builder kinked() {
       .rampBy({{0.98f, 0.84f, 0.42f, 1}, {0.42f, 0.86f, 0.72f, 1}});
 }
 const camera::Camera kLoopView{
-    .eye = {0, 74, 235}, .target = {0, 0, 0}, .fovYDegrees = 40};
+    .eye = {0, 74, 235}, .target = {0, 0, 0}, .verticalFieldOfViewDegrees = 40};
 
 // ---------------------------------------------------------------------------
 // The sink

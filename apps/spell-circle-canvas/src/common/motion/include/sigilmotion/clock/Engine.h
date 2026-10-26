@@ -33,7 +33,13 @@ namespace sigil::motion {
 
 /** WHERE A TIMELINE ITEM STARTS, relative to what is already on it. */
 struct Position {
-  enum class Kind : uint8_t { At, AfterEnd, AfterPrevious, WithPrevious, AtLabel };
+  enum class Kind : uint8_t {
+    At,
+    AfterEnd,
+    AfterPrevious,
+    WithPrevious,
+    AtLabel
+  };
   Kind kind = Kind::AfterEnd;
   Duration offset{};
   std::string label;
@@ -162,7 +168,7 @@ struct EngineOptions {
   Duration fixedStep{};
   /** The most the wall clock moves one frame: a stalled or suspended
    *  frame does not jump every motion forward by the length of the stall. */
-  Duration maxWallStep = std::chrono::milliseconds(250);
+  Duration maximumWallStep = std::chrono::milliseconds(250);
   /** Engine time per wall time: 1 is real time. */
   double speed = 1.0;
 };
@@ -197,7 +203,8 @@ class Engine {
    *  from where it stands. Any value an `Animatable` holds that has a line
    *  between two of its values — a number, a `glm::vec2`, a colour. */
   template <Interpolable T>
-  Animation animate(Animatable<T>& target, std::type_identity_t<Tween<T>> tween) {
+  Animation animate(Animatable<T>& target,
+                    std::type_identity_t<Tween<T>> tween) {
     detail::makeLive(target);
     const std::shared_ptr<detail::Cell<T>>& cell = target.cell();
     if constexpr (Additive<T>) {
@@ -335,7 +342,8 @@ class Engine {
   bool m_expired = false;
   bool m_held = false;
   bool m_arriving = false;
-  std::shared_ptr<detail::Running> m_running = std::make_shared<detail::Running>();
+  std::shared_ptr<detail::Running> m_running =
+      std::make_shared<detail::Running>();
 };
 
 }  // namespace sigil::motion

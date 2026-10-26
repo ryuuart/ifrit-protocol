@@ -146,7 +146,7 @@ class Pen {
    *  — the runtime reads both and clears the second. */
   [[nodiscard]] bool isLooping() const { return m_looping; }
   [[nodiscard]] bool takeRedraw();
-  /** The rate `frameRate(fps)` asked for, or zero for whatever the
+  /** The rate `frameRate(framesPerSecond)` asked for, or zero for whatever the
    *  runtime steps at. */
   [[nodiscard]] double targetFrameRate() const { return m_targetFrameRate; }
   /** @} */
@@ -180,10 +180,12 @@ class Pen {
   /** Frames per second the runtime is stepping at: one over the last
    *  step. */
   [[nodiscard]] double frameRate() const;
-  /** Asks the runtime to run `draw` at most @p fps times a second. The
-   *  runtime owns the clock, so this is a request it honours by skipping
+  /** Asks the runtime to run `draw` at most @p framesPerSecond times a second.
+   * The runtime owns the clock, so this is a request it honours by skipping
    *  draws, and zero asks for every frame. */
-  void frameRate(double fps) { m_targetFrameRate = fps < 0 ? 0 : fps; }
+  void frameRate(double framesPerSecond) {
+    m_targetFrameRate = framesPerSecond < 0 ? 0 : framesPerSecond;
+  }
   void noLoop() { m_looping = false; }
   void loop() { m_looping = true; }
   void redraw() { m_redraw = true; }
@@ -206,9 +208,11 @@ class Pen {
   [[nodiscard]] material::Color color(float v1, float v2, float v3,
                                       float alpha) const;
   [[nodiscard]] material::Color color(std::string_view css) const;
-  [[nodiscard]] material::Color color(material::Color c) const { return c; }
-  [[nodiscard]] static material::Color lerpColor(material::Color a,
-                                                 material::Color b,
+  [[nodiscard]] material::Color color(material::Color value) const {
+    return value;
+  }
+  [[nodiscard]] static material::Color lerpColor(material::Color from,
+                                                 material::Color to,
                                                  float amount);
 
   void background(float gray);
@@ -323,23 +327,25 @@ class Pen {
    *  found on a ring is drawn without being unpacked into four floats. */
   void line(SkPoint from, SkPoint to) { line(from.fX, from.fY, to.fX, to.fY); }
   void point(SkPoint at) { point(at.fX, at.fY); }
-  void rect(float x, float y, float w, float h);
-  void rect(float x, float y, float w, float h, float radius);
-  void rect(float x, float y, float w, float h, float tl, float tr, float br,
-            float bl);
-  void square(float x, float y, float s);
-  void square(float x, float y, float s, float radius);
-  void square(float x, float y, float s, float tl, float tr, float br,
-              float bl);
-  void ellipse(float x, float y, float w);
-  void ellipse(float x, float y, float w, float h);
-  void circle(float x, float y, float d);
-  void circle(SkPoint centre, float d) { circle(centre.fX, centre.fY, d); }
+  void rect(float x, float y, float width, float height);
+  void rect(float x, float y, float width, float height, float radius);
+  void rect(float x, float y, float width, float height, float topLeft,
+            float topRight, float bottomRight, float bottomLeft);
+  void square(float x, float y, float size);
+  void square(float x, float y, float size, float radius);
+  void square(float x, float y, float size, float topLeft, float topRight,
+              float bottomRight, float bottomLeft);
+  void ellipse(float x, float y, float width);
+  void ellipse(float x, float y, float width, float height);
+  void circle(float x, float y, float diameter);
+  void circle(SkPoint centre, float diameter) {
+    circle(centre.fX, centre.fY, diameter);
+  }
   /** p5's arc: from @p start to @p stop clockwise, in the current angle
    *  mode; the fill is the pie unless the mode is CHORD, and the stroke
    *  is the arc alone under OPEN, closed by its chord under CHORD, and
    *  closed through the centre under PIE. */
-  void arc(float x, float y, float w, float h, float start, float stop,
+  void arc(float x, float y, float width, float height, float start, float stop,
            Constant mode = OPEN);
   void triangle(float x1, float y1, float x2, float y2, float x3, float y3);
   void quad(float x1, float y1, float x2, float y2, float x3, float y3,
@@ -374,8 +380,8 @@ class Pen {
    *  rect is. The concept is the geometry kit's own, so a value written
    *  for `rounded` or `hatch` is a value this verb draws. */
   template <geometry::shapes::Silhouette S>
-  void shape(const S& silhouette, float x, float y, float w, float h) {
-    const SkRect box = rectBox(x, y, w, h);
+  void shape(const S& silhouette, float x, float y, float width, float height) {
+    const SkRect box = rectBox(x, y, width, height);
     shape(geometry::path::toSk(silhouette.outline({box.width(), box.height()}))
               .makeOffset(box.left(), box.top()));
   }
@@ -437,16 +443,17 @@ class Pen {
   void textLeading(float leading);
   [[nodiscard]] float textLeading() const;
   void textStyle(Constant style);
-  /** @p str at (@p x, @p y): the start of the baseline under the default
+  /** @p content at (@p x, @p y): the start of the baseline under the default
    *  alignment; `\n` breaks a line. Shaped and laid out by this
    *  repository's text engine, so what lands is real typography — kerned,
    *  with fallback fonts where the face lacks a glyph. */
-  void text(std::string_view str, float x, float y);
-  /** @p str wrapped inside the box the rect mode reads from the four
+  void text(std::string_view content, float x, float y);
+  /** @p content wrapped inside the box the rect mode reads from the four
    *  numbers, aligned inside it. */
-  void text(std::string_view str, float x, float y, float w, float h);
+  void text(std::string_view content, float x, float y, float width,
+            float height);
   void text(double value, float x, float y);
-  [[nodiscard]] float textWidth(std::string_view str);
+  [[nodiscard]] float textWidth(std::string_view content);
   [[nodiscard]] float textAscent();
   [[nodiscard]] float textDescent();
   /** @} */
@@ -454,27 +461,32 @@ class Pen {
   /** @name Images
    *  A picture or an offscreen buffer put down, whole or in part.
    *  @{ */
-  void image(const sk_sp<SkImage>& img, float x, float y);
-  void image(const sk_sp<SkImage>& img, float x, float y, float w, float h);
-  /** The part of @p img at (@p sx, @p sy, @p sw, @p sh) drawn into the
-   *  box (@p dx, @p dy, @p dw, @p dh). */
-  void image(const sk_sp<SkImage>& img, float dx, float dy, float dw, float dh,
-             float sx, float sy, float sw, float sh);
+  void image(const sk_sp<SkImage>& source, float x, float y);
+  void image(const sk_sp<SkImage>& source, float x, float y, float width,
+             float height);
+  /** The part of @p source at (@p sourceX, @p sourceY, @p sourceWidth, @p
+   * sourceHeight) drawn into the box (@p destinationX, @p destinationY, @p
+   * destinationWidth, @p destinationHeight). */
+  void image(const sk_sp<SkImage>& source, float destinationX,
+             float destinationY, float destinationWidth,
+             float destinationHeight, float sourceX, float sourceY,
+             float sourceWidth, float sourceHeight);
   /** An offscreen buffer put down, as p5 puts a Graphics down: placed
    *  and sized by the buffer's CANVAS size, not by the pixel count it
    *  was formed at. Its words are in `<sigildraw/Graphics.h>`. */
   void image(const Graphics& buffer, float x, float y);
-  void image(const Graphics& buffer, float x, float y, float w, float h);
+  void image(const Graphics& buffer, float x, float y, float width,
+             float height);
   /** A FRAME OF ANY PICTURE SOURCE — an `Image`'s, a `Video`'s, a
-   *  publication's — put down in the box (@p x, @p y, @p w, @p h) the
+   *  publication's — put down in the box (@p x, @p y, @p width, @p height) the
    *  image mode reads, meeting it under @p fit: `Stretch` fills both
    *  axes, `Contain` keeps the aspect and letterboxes the whole of it,
    *  `Cover` keeps it and crops what overflows, `Native` draws the
    *  frame's own pixels from the box's corner. A frame standing on a
    *  device is bound for the recorder this pen's canvas records on, and
    *  read back where the canvas has none; an empty frame draws nothing. */
-  void image(const media::Frame& frame, float x, float y, float w, float h,
-             material::Fit fit = material::Fit::Stretch);
+  void image(const media::Frame& frame, float x, float y, float width,
+             float height, material::Fit fit = material::Fit::Stretch);
   /** @} */
 
   /** @name The transform
@@ -484,7 +496,7 @@ class Pen {
   void translate(float x, float y);
   /** In the current angle mode. */
   void rotate(float angle);
-  void scale(float s);
+  void scale(float factor);
   void scale(float sx, float sy);
   void shearX(float angle);
   void shearY(float angle);
@@ -610,7 +622,8 @@ class Pen {
    *  answer is whether it was taken. */
   bool recordShape(const SkPath& path);
 
-  [[nodiscard]] SkRect rectBox(float x, float y, float w, float h) const;
+  [[nodiscard]] SkRect rectBox(float x, float y, float width,
+                               float height) const;
   [[nodiscard]] static SkRect boxIn(Constant mode, float x, float y, float w,
                                     float h);
   [[nodiscard]] float toDegrees(float angle) const;

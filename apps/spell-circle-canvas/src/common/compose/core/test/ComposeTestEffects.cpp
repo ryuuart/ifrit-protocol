@@ -91,17 +91,18 @@ TEST(ComposeEffects, ALiveLayerEffectOverStaticContentFiltersOneBake) {
   // re-rasterizing its content into a fresh layer every frame would look
   // identical in any still.
   Host host;
-  sigil::motion::Animatable<float> maxSigma = sigil::motion::animatable(1.0f);
+  sigil::motion::Animatable<float> maximumSigma =
+      sigil::motion::animatable(1.0f);
   host.composer.render(profiledUnder(
       box().key("racked").width(60).height(60).fill(green()).filter(
           material::Filter::blur(sigmaMap(), 14.0f)
-              .bind("maxSigma", maxSigma))));
+              .bind("maximumSigma", maximumSigma))));
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
       << "the content, baked once with the effect left out of it";
   const std::vector<SkColor> sharp = grab(host);
 
-  maxSigma = 14.0f;
+  maximumSigma = 14.0f;
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
       << "…and the parameter moving re-filters that bake rather than "
@@ -111,7 +112,7 @@ TEST(ComposeEffects, ALiveLayerEffectOverStaticContentFiltersOneBake) {
   EXPECT_NE(grab(host), sharp)
       << "the effect is live: the parameter moved and the picture did";
 
-  maxSigma = 3.0f;
+  maximumSigma = 3.0f;
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
       << "the bake is held across every value the parameter takes";
@@ -124,7 +125,8 @@ TEST(ComposeEffects, ALiveBackdropEffectIsNeverLiftedOffABake) {
   // own transparent black. So the node stays live however static its
   // content is.
   Host host;
-  sigil::motion::Animatable<float> maxSigma = sigil::motion::animatable(1.0f);
+  sigil::motion::Animatable<float> maximumSigma =
+      sigil::motion::animatable(1.0f);
   // A ground with an EDGE in it: blurring a flat field changes no pixel,
   // so the parameter would look dead however live it was.
   host.composer.render(stack().children(
@@ -142,11 +144,11 @@ TEST(ComposeEffects, ALiveBackdropEffectIsNeverLiftedOffABake) {
            .inset(60)
            .absolute()
            .backdropFilter(material::Filter::blur(sigmaMap(), 14.0f)
-                               .bind("maxSigma", maxSigma))}));
+                               .bind("maximumSigma", maximumSigma))}));
   host.frame();
   const unsigned baked = host.composer.stats().texturesBaked;
   const std::vector<SkColor> sharp = grab(host);
-  maxSigma = 14.0f;
+  maximumSigma = 14.0f;
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, baked)
       << "a backdrop effect holds no bake to be re-filtered";
@@ -446,9 +448,9 @@ TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
   // too: a parameter read live but excluded from the comparison leaves a
   // pruned node sampling last frame's map forever.
   Host host;
-  auto tree = [&](float maxSigma, material::Paint map) {
+  auto tree = [&](float maximumSigma, material::Paint map) {
     return box().children({box().width(60).height(60).fill(green()).filter(
-        material::Filter::blur(std::move(map), maxSigma))});
+        material::Filter::blur(std::move(map), maximumSigma))});
   };
   host.composer.render(tree(10, focalRamp()));
   host.frame();
@@ -501,8 +503,8 @@ TEST(ComposeEffects, ABoundMaxSigmaAnimatesOnTheExistingChannel) {
   // so there is exactly one way to animate a blur rather than one per knob.
   sigil::motion::Animatable<float> range = sigil::motion::animatable(0.0f);
   Host host;
-  stripePlate(host,
-              material::Filter::blur(focalRamp(), 0).bind("maxSigma", range));
+  stripePlate(
+      host, material::Filter::blur(focalRamp(), 0).bind("maximumSigma", range));
   EXPECT_GT(contrastAt(host, 139, 100), 150);  // range 0: no blur anywhere
   range = 16.0f;
   host.frame();
@@ -737,35 +739,34 @@ namespace {
  *  pane on @p beneath, a square above it on @p above. */
 Element frostedPane(const sigil::motion::Animatable<float>& beneath,
                     const sigil::motion::Animatable<float>& above) {
-  return stack().children(
-      {box().inset(0).fill(red()),
-       box()
-           .absolute()
-           .left(0)
-           .top(0)
-           .width(90)
-           .height(200)
-           .fill(green())
-           .translateY(beneath),
-       box()
-           .key("pane")
-           .absolute()
-           .left(40)
-           .top(40)
-           .width(120)
-           .height(120)
-           .borderRadius({18})
-           .backdropFilter(
-               material::skia::filter(SkImageFilters::Blur(6, 6, nullptr)))
-           .fill(Fill::color({1, 1, 1, 0.15f})),
-       box()
-           .absolute()
-           .left(150)
-           .top(10)
-           .width(30)
-           .height(30)
-           .fill(blue())
-           .translateY(above)});
+  return stack().children({box().inset(0).fill(red()),
+                           box()
+                               .absolute()
+                               .left(0)
+                               .top(0)
+                               .width(90)
+                               .height(200)
+                               .fill(green())
+                               .translateY(beneath),
+                           box()
+                               .key("pane")
+                               .absolute()
+                               .left(40)
+                               .top(40)
+                               .width(120)
+                               .height(120)
+                               .borderRadius({18})
+                               .backdropFilter(material::skia::filter(
+                                   SkImageFilters::Blur(6, 6, nullptr)))
+                               .fill(Fill::color({1, 1, 1, 0.15f})),
+                           box()
+                               .absolute()
+                               .left(150)
+                               .top(10)
+                               .width(30)
+                               .height(30)
+                               .fill(blue())
+                               .translateY(above)});
 }
 
 }  // namespace

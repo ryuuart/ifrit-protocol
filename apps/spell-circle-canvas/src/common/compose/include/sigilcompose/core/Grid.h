@@ -66,15 +66,15 @@ struct Track {
 
   /** The default is `fr(1)`, one equal share — what an unstated column of
    *  a page is. */
-  Kind minKind = Kind::Fixed;     ///< how the floor is stated
-  float minValue = 0.0f;          ///< the floor, read as `minKind` says
-  Kind maxKind = Kind::Fraction;  ///< how the ceiling is stated
-  float maxValue = 1.0f;          ///< the ceiling, read as `maxKind` says
+  Kind minimumKind = Kind::Fixed;     ///< how the floor is stated
+  float minimumValue = 0.0f;          ///< the floor, read as `minimumKind` says
+  Kind maximumKind = Kind::Fraction;  ///< how the ceiling is stated
+  float maximumValue = 1.0f;  ///< the ceiling, read as `maximumKind` says
 
   bool operator==(const Track&) const = default;
 
-  static constexpr Track px(float v) {
-    return {Kind::Fixed, v, Kind::Fixed, v};
+  static constexpr Track px(float value) {
+    return {Kind::Fixed, value, Kind::Fixed, value};
   }
   static constexpr Track content() {
     return {Kind::Content, 0.0f, Kind::Content, 0.0f};
@@ -87,10 +87,12 @@ struct Track {
    *  leftover is known — and reads as zero. */
   static constexpr Track minmax(Track low, Track high) {
     Track t;
-    t.minKind = low.minKind == Kind::Fraction ? Kind::Fixed : low.minKind;
-    t.minValue = low.minKind == Kind::Fraction ? 0.0f : low.minValue;
-    t.maxKind = high.maxKind;
-    t.maxValue = high.maxValue;
+    t.minimumKind =
+        low.minimumKind == Kind::Fraction ? Kind::Fixed : low.minimumKind;
+    t.minimumValue =
+        low.minimumKind == Kind::Fraction ? 0.0f : low.minimumValue;
+    t.maximumKind = high.maximumKind;
+    t.maximumValue = high.maximumValue;
     return t;
   }
 };
@@ -98,7 +100,7 @@ struct Track {
 /** The four sizing functions as free names, so a track list reads the way
  *  it is spoken: `{px(596), fr(1), minmax(px(180), fr(1))}`. They are the
  *  members above under a shorter name and nothing else. */
-[[nodiscard]] constexpr Track px(float v) { return Track::px(v); }
+[[nodiscard]] constexpr Track px(float value) { return Track::px(value); }
 [[nodiscard]] constexpr Track content() { return Track::content(); }
 [[nodiscard]] constexpr Track fr(float weight = 1.0f) {
   return Track::fr(weight);
@@ -181,9 +183,9 @@ struct Grid {
   Align across = Align::Stretch;
   Align down = Align::Stretch;
 
-  /** This scheme reads each child's `minSize`: a `Content` floor is
+  /** This scheme reads each child's `minimumSize`: a `Content` floor is
    *  a child's minimum, not its measured size. */
-  static constexpr bool readsChildMinSizes = true;
+  static constexpr bool readsChildMinimumSizes = true;
   /** A child's percentages are of the box its cells make, as CSS resolves
    *  a grid item's against its grid area: a column is sized first, with a
    *  percentage of it standing as the size the child was measured at; a

@@ -434,9 +434,9 @@ struct WinampBase {
       for (int x = 0; x < (int)width; ++x) {
         const float toss = coin(x + (int)at.x, y + (int)at.y);
         if (toss < 0.16f)
-          ink.px(at.x + (float)x, at.y + (float)y, palette("bodyLight"));
+          ink.pixel(at.x + (float)x, at.y + (float)y, palette("bodyLight"));
         else if (toss > 0.86f)
-          ink.px(at.x + (float)x, at.y + (float)y, palette("bodyDark"));
+          ink.pixel(at.x + (float)x, at.y + (float)y, palette("bodyDark"));
       }
     ink.rect(at.x, at.y, width, 1, palette("edgeLight"));
     ink.rect(at.x, at.y, 1, height, palette("edgeLight"));
@@ -479,8 +479,8 @@ struct WinampBase {
       }
       if (glyph == 3)  // close
         for (int step = 0; step < 5; ++step) {
-          ink.px(at.x + x + 2 + (float)step, top + 2 + (float)step, mark);
-          ink.px(at.x + x + 6 - (float)step, top + 2 + (float)step, mark);
+          ink.pixel(at.x + x + 2 + (float)step, top + 2 + (float)step, mark);
+          ink.pixel(at.x + x + 6 - (float)step, top + 2 + (float)step, mark);
         }
     };
     key(6, 0);
@@ -548,7 +548,7 @@ struct WinampBase {
     // the analyser's dot grid, VISCOLOR's second colour on every other pixel
     for (int y = 1; y < 16; y += 2)
       for (int x = 1; x < 76; x += 2)
-        ink.px(at.x + 24 + (float)x, at.y + 43 + (float)y, visual[1]);
+        ink.pixel(at.x + 24 + (float)x, at.y + 43 + (float)y, visual[1]);
 
     // the song title and the stream's numbers
     well(ink, at, 109, 23, 158, 11, palette("screen"));
@@ -614,8 +614,8 @@ struct WinampBase {
     well(ink, at, 86, 17, 113, 19, palette("graph"));
     for (int rule : {1, 9, 17})
       for (int x = 1; x < 112; x += 2)
-        ink.px(at.x + 86 + (float)x, at.y + 17 + (float)rule,
-               palette("graphRule"));
+        ink.pixel(at.x + 86 + (float)x, at.y + 17 + (float)rule,
+                  palette("graphRule"));
 
     for (int slider = 0; slider < 11; ++slider)
       well(ink, at, faderLeft(slider), 38, 14, 63, palette("screen"));
@@ -718,8 +718,8 @@ struct WinampBase {
     // the resize grip
     for (int step = 0; step < 4; ++step)
       for (int dot = 0; dot <= step; ++dot)
-        ink.px(at.x + 270 - 2 * (float)dot,
-               at.y + height - 10 + 2 * (float)step, palette("edgeLight"));
+        ink.pixel(at.x + 270 - 2 * (float)dot,
+                  at.y + height - 10 + 2 * (float)step, palette("edgeLight"));
   }
 
   // ---- the desktop -----------------------------------------------------
@@ -776,9 +776,9 @@ struct WinampBase {
         ink.row(x + 7 + inset, top, 18 - 2 * inset,
                 row % 3 == 2 ? shadow : face);
         for (float wire = x + 9 + inset; wire < x + 24 - inset; wire += 3)
-          ink.px(wire, top, shadow);
-        ink.px(x + 7 + inset, top, dark);
-        ink.px(x + 24 - inset, top, dark);
+          ink.pixel(wire, top, shadow);
+        ink.pixel(x + 7 + inset, top, dark);
+        ink.pixel(x + 24 - inset, top, dark);
       }
       ink.row(x + 10, y + 30, 12, dark);
     } else if (which == 2) {  // My Documents: a folder with paper in it
@@ -837,7 +837,7 @@ struct WinampBase {
     plate(ink, 65, bar + 4, 170, 22, true);
     for (int y = 2; y < 20; ++y)
       for (int x = 2 + y % 2; x < 168; x += 2)
-        ink.px(65 + (float)x, bar + 4 + (float)y, palette("desktop.light"));
+        ink.pixel(65 + (float)x, bar + 4 + (float)y, palette("desktop.light"));
     kit::drawSprite(ink.pen, bolt, {70, bar + 8});
     std::string task =
         std::to_string(playing + 1) + ". " + nowPlaying().title + " - Winamp";
@@ -904,7 +904,7 @@ struct WinampBase {
       const int from = std::min(previous, row), to = std::max(previous, row);
       for (int y = from; y <= to; ++y) {
         const int away = std::min(4, std::abs(y - 8) / 2);
-        ink.px((float)x, (float)y, visual[(size_t)(18 + away)]);
+        ink.pixel((float)x, (float)y, visual[(size_t)(18 + away)]);
       }
       previous = row;
     }
@@ -954,7 +954,7 @@ struct WinampBase {
       const int from = previous < 0 ? row : std::min(previous, row);
       const int to = previous < 0 ? row : std::max(previous, row);
       for (int y = from; y <= to; ++y)
-        ink.px((float)x, (float)y, visual[(size_t)(2 + y * 15 / 16)]);
+        ink.pixel((float)x, (float)y, visual[(size_t)(2 + y * 15 / 16)]);
       previous = row;
     }
   }

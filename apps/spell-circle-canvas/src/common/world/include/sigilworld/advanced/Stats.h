@@ -25,7 +25,7 @@ namespace sigil::world {
  *  the frame through. */
 struct DeviceStage {
   std::string stage;
-  double ms = 0.0;
+  double milliseconds = 0.0;
 };
 
 /** WHETHER A FRAME'S DEVICE STAGES WERE TIMED. */
@@ -90,7 +90,7 @@ struct SceneStats {
    *  stage to its last. */
   [[nodiscard]] double deviceMilliseconds() const {
     double total = 0.0;
-    for (const DeviceStage& stage : deviceStages) total += stage.ms;
+    for (const DeviceStage& stage : deviceStages) total += stage.milliseconds;
     return total;
   }
 

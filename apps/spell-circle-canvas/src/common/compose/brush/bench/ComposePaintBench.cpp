@@ -133,7 +133,7 @@ Element cardGrid(int count, float side, CardPaint paint) {
   style.borderColor = {0.9f, 0.8f, 0.5f, 1};
   style.glowRadius = 6;
   style.glowColor = {0.4f, 0.7f, 1.0f, 0.6f};
-  const float padded = material::sdf::minBoxFor(style, side);
+  const float padded = material::sdf::minimumBoxFor(style, side);
   for (int id = 0; id < count; ++id) {
     Element card = box().key("card" + std::to_string(id));
     if (paint == CardPaint::Sdf) {

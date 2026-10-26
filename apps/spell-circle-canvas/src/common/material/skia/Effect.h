@@ -158,13 +158,13 @@ class Effect {
                                 float across = 0);
   /** A blur whose SIGMA VARIES ACROSS THE NODE — a depth-of-field
    *  falloff, a lens edge, a tube's curvature. @p sigmaMap is a paint
-   *  read as a NUMBER: its RED channel at a pixel, times @p maxSigma, is
+   *  read as a NUMBER: its RED channel at a pixel, times @p maximumSigma, is
    *  the blur radius there. It carries a comparable RECIPE, the sigma
    *  map rides it, and `slot("sigma", …)` re-aims the map.
-   *  @trap @p maxSigma is the RANGE a bound sigma rides inside, not a
+   *  @trap @p maximumSigma is the RANGE a bound sigma rides inside, not a
    *  ceiling on one value: declare the largest the binding will reach,
    *  because a declared 0 rebuilds every pass at every paint. */
-  static Effect blur(Paint sigmaMap, float maxSigma);
+  static Effect blur(Paint sigmaMap, float maximumSigma);
   /** THE SLOT — `Material::slot` on the effect seam: the effect
    *  declares `uniform shader NAME;` and this fills it with a paint, so
    *  the SkSL reads a source the node has NOT painted. `shader()` fills
@@ -177,7 +177,7 @@ class Effect {
   /** A LIVE float uniform, read at every paint, so the node repaints
    *  every frame while the effect is attached. Meaningful on a shader()
    *  effect, a directionalBlur() ("sigma", "angle", "across") or a
-   *  blur() ("maxSigma").
+   *  blur() ("maximumSigma").
    *  @trap An effect holds no instance, so a value carrying its own
    *  TRANSITION has nothing to run it and reads as its target.
    *  @silent the declaration is not one non-array float, or this effect
@@ -258,7 +258,7 @@ class Effect {
    *  walk, one resolve loop, and `slot("sigma", …)` re-aims the map for
    *  free. */
   struct ParametricBlur {
-    float maxSigma = 0;
+    float maximumSigma = 0;
     bool operator==(const ParametricBlur&) const = default;
   };
 

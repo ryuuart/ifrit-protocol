@@ -267,9 +267,9 @@ Element heightPage() {
 }
 
 material::Material mapImage(const material::Texture& map) {
-  return material::image(
-      material::Texture(map).tile(material::Repeat::Pad).sampling(
-          material::Sampling::Linear));
+  return material::image(material::Texture(map)
+                             .tile(material::Repeat::Pad)
+                             .sampling(material::Sampling::Linear));
 }
 
 material::Color copperColour() { return hexColor(0xe08a5a); }
@@ -375,7 +375,7 @@ struct MetalLinework {
     gm::camera::Camera camera;
     camera.eye = {-30, 1180, 860};
     camera.target = {0, 0, 70};
-    camera.fovYDegrees = 46;
+    camera.verticalFieldOfViewDegrees = 46;
     camera.nearPlane = 40;
     camera.farPlane = 20000;
     return camera;

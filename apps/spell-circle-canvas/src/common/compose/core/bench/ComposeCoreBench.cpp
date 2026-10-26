@@ -244,7 +244,7 @@ static void BM_Layout_Table_Resolve(benchmark::State& state) {
       Arrangement::Child child;
       child.size = {30.0f + (float)((column * 7 + row * 3) % 40),
                     18.0f + (float)(row % 5) * 6.0f};
-      child.minSize = child.size;
+      child.minimumSize = child.size;
       child.cells = {.column = column,
                      .row = row,
                      .columns = columns,
@@ -254,7 +254,7 @@ static void BM_Layout_Table_Resolve(benchmark::State& state) {
     }
   Arrangement in{.box = sigil::geometry::path::Rect::of({0, 0}, {1200, 700}),
                  .children = children,
-                 .minSizesMeasured = true};
+                 .minimumSizesMeasured = true};
   const layouts::Table table{.columns = kColumns,
                              .rows = kRows,
                              .width = 1200,

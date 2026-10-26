@@ -72,18 +72,21 @@ namespace detail {
 
 /** The smoothstep every lattice-based kind eases a cell with: zero slope
  *  at both ends, so cells meet without a crease. */
-[[nodiscard]] inline float ease(float t) { return t * t * (3.0f - 2.0f * t); }
+[[nodiscard]] inline float ease(float progress) {
+  return progress * progress * (3.0f - 2.0f * progress);
+}
 
 /** Perlin's quintic fade: zero slope AND zero curvature at both ends,
  *  which a gradient field needs and a value field does not — a cell
  *  boundary in a gradient field shows as a visible line under the
  *  cubic. */
-[[nodiscard]] inline float fade(float t) {
-  return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+[[nodiscard]] inline float fade(float progress) {
+  return progress * progress * progress *
+         (progress * (progress * 6.0f - 15.0f) + 10.0f);
 }
 
-[[nodiscard]] inline float mix(float a, float b, float t) {
-  return a + (b - a) * t;
+[[nodiscard]] inline float mix(float from, float to, float amount) {
+  return from + (to - from) * amount;
 }
 
 /** The unit gradient a lattice cell pulls, in two dimensions: one of

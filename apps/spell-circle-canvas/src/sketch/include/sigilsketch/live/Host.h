@@ -315,7 +315,7 @@ class Host {
    *  formed on the way is drawn on the still's own grid rather than taken
    *  at one pixel per unit and magnified into it. */
   double prepareCapture(std::optional<double> at = std::nullopt,
-                        double fps = 60.0, float density = 1.0f);
+                        double framesPerSecond = 60.0, float density = 1.0f);
 
   /** THE STILL AS PIXELS IN HOST MEMORY: the CURRENT state (clock
    *  untouched) at @p scale times the sketch's canvas, repainted onto
