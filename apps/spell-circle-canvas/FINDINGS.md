@@ -196,26 +196,34 @@ in `currentcolor`. A test should find `.filter("drop-shadow(2px 2px
 ink named.
 
 
-## A pen's guest tree drops custom properties
+## A recess's shade written as a reference paints its stand-in
 
-`paintRetained` and `pen.element` seed a guest tree with the font and ink
-in force only, while everything inherited is meant to cross the guest
-boundary. A test should find a guest painted from a pen standing under
-`var("accent", red)` filling `var("accent")` red.
+The kit's plate builds a recess's inner shadow from the shade's colour
+value, so a shade written as `var(...)` or as the ink in force paints its
+clear stand-in, while the shadow is meant to carry the colour the
+reference resolves to. A test should find a recess whose shade is
+`var("x")` drawing the same as one stating x's colour.
 
-## A layout scheme cannot read custom properties
+## A pen's guest inherits only the font, the ink and the custom properties
 
-The arrangement carries no properties and `layouts::Grid` gaps are
-floats, so chart tick labels and the `panelGrid` and `comparison` gaps
-cannot take a theme's distances and stay numbers. Those gaps are meant to
-be length terms. A test should find a grid under a sheet whose
-`spacing-cell-gap` differs laying out differently.
+`paintRetained` seeds a guest root with those three, while the cascade
+also carries the paragraph block, the sheet in force and image sampling,
+and everything inherited is meant to cross the guest boundary. A test
+should find a guest under a pen standing under a centred paragraph
+centring its text, and a class rule from the host's sheet styling a guest
+leaf.
 
-## A well's relief has no colour to carry on an unset ground
+## timeline reads spacing-tick-reach with no fallback
 
-The default ground is a property, so a well whose ground is unset gives
-its relief or recess a clear colour to carry on, while the effects are
-meant to carry on the colour the property resolves to. A test should find
-an unset-ground well with a relief drawing the same as one whose ground
-states `palette-cell-ground`.
+Under no sheet a timeline's ticks have zero reach, while the stock
+distance is meant to stand in as it does for `axis`. A test should find a
+timeline under no sheet drawing the same as one under the stock sheet.
 
+## A ticker's caller cannot know the sheet's crawl gap it left unset
+
+The gap is read at layout from the properties in force, but the caller
+still wraps the phase over the content plus the gap it does not know, so
+an unset gap under a sheet that states another distance loops with a
+seam. The marquee is meant to own the wrap. A test should find an
+unset-gap ticker under a sheet with another `spacing-ticker-gap` looping
+without a seam.
