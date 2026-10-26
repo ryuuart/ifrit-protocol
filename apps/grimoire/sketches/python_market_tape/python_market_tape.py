@@ -234,7 +234,7 @@ def strip(trades: list[dict], seconds: float) -> Element:
     return kit.ticker(
         row().gap(28).children(*pieces),
         contentWidth=2600,
-        phase=seconds * 0.04,
+        phase=-seconds * 0.04,
         width=WIDTH - 96,
         height=22,
     )
