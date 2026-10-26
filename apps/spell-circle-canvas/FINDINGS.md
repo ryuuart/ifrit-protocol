@@ -218,6 +218,7 @@ its relief or recess a clear colour to carry on, while the effects are
 meant to carry on the colour the property resolves to. A test should find
 an unset-ground well with a relief drawing the same as one whose ground
 states `palette-cell-ground`.
+
 ## The Substance test can crash while exiting
 
 `Substance.SetsAnInputItHasAndRefusesOneItDoesNot` passes and then the
