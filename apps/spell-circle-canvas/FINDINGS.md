@@ -195,7 +195,6 @@ in `currentcolor`. A test should find `.filter("drop-shadow(2px 2px
 4px)")` on an element painting the same as the shadow with the element's
 ink named.
 
-
 ## A face adopted by hand through a session's context outlives the session
 
 `ctx.fonts.adopt(face, origin)` adopts into the context the host shares
@@ -212,6 +211,7 @@ cannot tell which session asked, and the family lives until the older
 session closes. A test should find a face loaded by one of two concurrent
 sessions over one hub leaving when that session closes, whatever the
 other did.
+
 ## The percentage indent in force does not reach a guest
 
 A guest inherits the paragraph block in pixels, but an indent stated as a
