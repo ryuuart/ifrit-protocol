@@ -227,3 +227,20 @@ an unset gap under a sheet that states another distance loops with a
 seam. The marquee is meant to own the wrap. A test should find an
 unset-gap ticker under a sheet with another `spacing-ticker-gap` looping
 without a seam.
+
+## A face adopted by hand through a session's context outlives the session
+
+`ctx.fonts.adopt(face, origin)` adopts into the context the host shares
+across sessions and stays for the context's life, while every adoption a
+session makes is meant to be released when it closes, as the ones its
+files make now are. A test should find a face a session adopts by hand
+through `ctx.fonts` not found by family after the session closes.
+
+## A face arriving while two sessions stand is held by both
+
+Sessions over one hub on one thread all receive a face that arrives, so a
+face decoded while two stand gets a share for each, because the decoder
+cannot tell which session asked, and the family lives until the older
+session closes. A test should find a face loaded by one of two concurrent
+sessions over one hub leaving when that session closes, whatever the
+other did.
