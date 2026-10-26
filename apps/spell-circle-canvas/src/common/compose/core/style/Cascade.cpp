@@ -75,10 +75,49 @@ void resolveShadowProperties(sigil::weave::Type& font, const VarTable* vars) {
   }
 }
 
+/** THE SHEETS IN FORCE AT @p inst, which applies @p applied, as one sheet:
+ *  @p above, the one in force over it, then each it applies. A pass that
+ *  finds the same sheets keeps the join it made, so a sheet is compiled
+ *  again only where one of them moved. */
+void joinSheetsInForce(Instance& inst, const StyleSheet* above,
+                       const std::vector<StyleSheet>& applied) {
+  const StyleSheet over = above != nullptr ? *above : StyleSheet{};
+  if (inst.joinedSheets) {
+    const std::vector<StyleSheet>& from = inst.joinedSheets->from;
+    bool same = from.size() == applied.size() + 1 && from.front() == over;
+    for (size_t at = 0; same && at < applied.size(); ++at)
+      same = from[at + 1] == applied[at];
+    if (same) {
+      inst.sheetInForce = &inst.joinedSheets->joined;
+      return;
+    }
+  }
+  auto joined = std::make_unique<JoinedSheets>();
+  joined->from.reserve(applied.size() + 1);
+  joined->from.push_back(over);
+  joined->joined = over;
+  for (const StyleSheet& one : applied) {
+    joined->from.push_back(one);
+    joined->joined = joined->joined + one;
+  }
+  inst.joinedSheets = std::move(joined);
+  inst.sheetInForce = &inst.joinedSheets->joined;
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
 // The pass
+
+void Composer::Impl::joinRootSheets() {
+  rootSheetsJoined.reset();
+  if (inheritedSheet && rootSheet)
+    rootSheetsJoined = *inheritedSheet + *rootSheet;
+  else if (inheritedSheet)
+    rootSheetsJoined = *inheritedSheet;
+  else if (rootSheet)
+    rootSheetsJoined = *rootSheet;
+}
 
 void Composer::Impl::runCascade() {
   if (!root) return;
@@ -90,15 +129,22 @@ void Composer::Impl::runCascade() {
   // The composer's own sheet stands first in the chain, scoped at the
   // root, so the root is its `:root` and every sheet the tree applies
   // stands after it.
+  // The sheets in force above the root stand ahead of it, scoped at no
+  // node, so their rules see this whole tree and none of its nodes is
+  // their `:root`.
   SheetChain chain;
-  if (rootSheet) {
-    chain.push_back(ScopedSheet{&*rootSheet, root.get()});
-    if (const SheetBody* body = SheetAccess::body(*rootSheet);
+  bool rootUsesHas = false;
+  const auto stand = [&](const StyleSheet& sheet, const Instance* scope) {
+    chain.push_back(ScopedSheet{&sheet, scope});
+    if (const SheetBody* body = SheetAccess::body(sheet);
         body != nullptr && body->usesHas) {
       hasNames.add(*body);
-      summariseForHas(*root, hasNames);
+      rootUsesHas = true;
     }
-  }
+  };
+  if (inheritedSheet) stand(*inheritedSheet, nullptr);
+  if (rootSheet) stand(*rootSheet, root.get());
+  if (rootUsesHas) summariseForHas(*root, hasNames);
   const InkInForce noInkPaint;
   resolveCascade(*root, rootFont, rootLineHeight, rootVars, rootBlock,
                  rootSampling, chain, noInkPaint, rootFont.color);
@@ -151,6 +197,17 @@ void Composer::Impl::resolveCascade(
   SheetChain extended;
   const RulesInForce rules =
       resolveRulesInForce(*this, inst, parentSheets, extended, first);
+  // …and the sheets in force here as one, for a guest painted from here.
+  const StyleSheet* const sheetAbove =
+      inst.parent != nullptr
+          ? inst.parent->sheetInForce
+          : (rootSheetsJoined ? &*rootSheetsJoined : nullptr);
+  if (cascade != nullptr && !cascade->appliedSheets.empty()) {
+    joinSheetsInForce(inst, sheetAbove, cascade->appliedSheets);
+  } else {
+    inst.joinedSheets.reset();
+    inst.sheetInForce = sheetAbove;
+  }
   const SheetChain* const sheets = rules.sheets;
   const std::vector<MatchedRule>& matched = rules.matched;
   const bool layerMoved = rules.layerMoved;

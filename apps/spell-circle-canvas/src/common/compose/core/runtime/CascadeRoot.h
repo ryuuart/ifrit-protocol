@@ -45,14 +45,24 @@ struct CascadeRoot {
   // in force under every name the tree or the root's sheet sets; null
   // where none is inherited.
   std::shared_ptr<const VarTable> rootVars;
-  // What the root inherits as its block: nothing stated, so every block
-  // under nothing is set in the layout's own answer.
+  // What the root inherits as its block and its sampling —
+  // Composer::setInherited — and by default nothing stated, so every block
+  // under nothing is set in the layout's own answer and every image
+  // samples linearly.
   sigil::weave::ParagraphBlock rootBlock;
   std::optional<SkSamplingOptions> rootSampling;
+  // The sheets in force ABOVE the root — Composer::setInherited — which
+  // stand ahead of the root's own and see this tree alone, with no node in
+  // it their `:root`.
+  std::optional<StyleSheet> inheritedSheet;
   // The sheet in force at the root of whatever is rendered —
   // Composer::setStyleSheet — applied as though the root node applied it
   // before its own.
   std::optional<StyleSheet> rootSheet;
+  // The two above as one sheet, the inherited first, which is the sheet in
+  // force at a node under no applied sheet; none where neither is set.
+  // Joined where either is set, so the cascade pass only reads it.
+  std::optional<StyleSheet> rootSheetsJoined;
   // Whether the resolved fonts, inks and properties on the instances may
   // be stale: set by every reconcile that changed anything and by
   // setInherited, and left set by a pass that found an ink transition

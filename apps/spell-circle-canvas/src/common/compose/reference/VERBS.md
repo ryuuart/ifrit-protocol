@@ -169,8 +169,8 @@ animating one never relayouts.
 
 | Verb | What it says |
 |---|---|
-| `translateX` | Move the plane across, in px, or by a length — a `percent` of the node's own width. |
-| `translateY` | Move it down, in px, or by a length — a `percent` of the node's own height. |
+| `translateX` | Move the plane across, in px, or by a length — a `percent` of the node's own width; a lane given a period loops, folded over a length read where the node lands. |
+| `translateY` | Move it down, in px, or by a length — a `percent` of the node's own height; a lane given a period loops as across does. |
 | [`travel`](pages/verbs/travel.md) | Ride a curve instead of two lanes — a motion path, with auto-orientation. |
 | `rotate` | Turn the plane about the transform origin, in degrees. |
 | `scale` | Scale both axes about the transform origin. |

@@ -29,13 +29,13 @@ struct Ticker {
    *  0 lets the copies size themselves, which a text strip must not do:
    *  unpinned, it resolves against the window and wraps to two lines. */
   float contentWidth = 0;
-  /** The offset in px, wrapped over [-(contentWidth + gap), 0] by
-   *  whoever owns it. Binding it is paint-only: the strip's recording
+  /** The offset in px, negative to the left, which the crawl folds over
+   *  the content and whichever gap stands, so a phase that keeps running
+   *  loops without a seam. Binding it is paint-only: the strip's recording
    *  replays and nothing re-records. */
   motion::Animatable<float> phase;
   /** Between the two copies, px; unset is the sheet's
-   *  `spacing-ticker-gap`, which the stock sheet sets at 10. The caller
-   *  wraps the phase over the content and whichever gap stands. */
+   *  `spacing-ticker-gap`, which the stock sheet sets at 10. */
   std::optional<float> gap;
   compose::Dimension width;
   compose::Dimension height;

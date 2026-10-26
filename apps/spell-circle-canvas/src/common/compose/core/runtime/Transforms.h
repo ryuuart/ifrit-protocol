@@ -265,7 +265,9 @@ inline bool originsFollowCascade(StyledNode styled) {
   if (follows(styled.style.paint.originX) ||
       follows(styled.style.paint.originY) ||
       follows(styled.style.paint.translateXLength) ||
-      follows(styled.style.paint.translateYLength))
+      follows(styled.style.paint.translateYLength) ||
+      follows(styled.style.paint.translateXWrap) ||
+      follows(styled.style.paint.translateYWrap))
     return true;
   if (!styled.node.depthData) return false;
   const DepthData& depth = *styled.node.depthData;
@@ -281,14 +283,15 @@ inline bool originsFollowCanvas(StyledNode styled) {
   if (follows(styled.style.paint.originX) ||
       follows(styled.style.paint.originY) ||
       follows(styled.style.paint.translateXLength) ||
-      follows(styled.style.paint.translateYLength))
+      follows(styled.style.paint.translateYLength) ||
+      follows(styled.style.paint.translateXWrap) ||
+      follows(styled.style.paint.translateYWrap))
     return true;
   if (!styled.node.depthData) return false;
   const DepthData& depth = *styled.node.depthData;
   return follows(depth.originZ) || follows(depth.perspectiveOriginX) ||
          follows(depth.perspectiveOriginY);
 }
-
 
 // Yoga's measure and baseline callbacks for a text leaf, installed on its
 // YGNode when the leaf is reconciled.

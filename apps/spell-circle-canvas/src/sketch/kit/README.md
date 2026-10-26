@@ -708,8 +708,8 @@ caption gaps, so a region and the cell beside it breathe alike.
 | | |
 | --- | --- |
 | `console(Console)` | N feeds of one monospaced voice on one bordered plate, over `compose::kit::plate` and `compose::feed` |
-| `ticker(Ticker)` | a strip crawling past a window, over `compose::kit::marquee` |
-| `timeline(Timeline)` | a rail marked off with ticks and the words that name them |
+| `ticker(Ticker)` | a strip crawling past a window, over `compose::kit::marquee`, which folds a phase that keeps running over the content and the gap in force, so its driver never needs the sheet's gap |
+| `timeline(Timeline)` | a rail marked off with ticks and the words that name them; its thickness, reach and colours are the sheet's, and the stock sheet's under none |
 
 ```cpp
 sketch::kit::console({.feeds = {&checks}, .levels = {{"fail", kAlarm}}})

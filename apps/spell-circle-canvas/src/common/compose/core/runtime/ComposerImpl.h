@@ -250,6 +250,9 @@ struct Composer::Impl : detail::CascadeRoot,
    *  colour moved is marked to repaint. Runs before layout whenever
    *  `cascadeDirty` says the answers may have moved. */
   void runCascade();
+  /** Joins the sheets in force above the root and the root's own into the
+   *  one sheet in force at the root, after either moves. */
+  void joinRootSheets();
   void resolveCascade(detail::Instance& inst,
                       const sigil::weave::Type& parentFont,
                       float parentLineHeight,

@@ -297,10 +297,12 @@ void copyProperty(Property property, const ComputedStyle& from,
     case Property::TranslateX:
       paint.translateX = paintSource.translateX;
       paint.translateXLength = paintSource.translateXLength;
+      paint.translateXWrap = paintSource.translateXWrap;
       return;
     case Property::TranslateY:
       paint.translateY = paintSource.translateY;
       paint.translateYLength = paintSource.translateYLength;
+      paint.translateYWrap = paintSource.translateYWrap;
       return;
     case Property::Rotate:
       paint.rotate = paintSource.rotate;
@@ -357,7 +359,7 @@ bool computedStyleEqual(const ComputedStyle& a, const ComputedStyle& b) {
                 "too. A field left out makes a re-fold that MOVED it read "
                 "as one that moved nothing, and the picture recorded from "
                 "the old value replays.");
-  static_assert(kFieldCount<PaintProps> == 17,
+  static_assert(kFieldCount<PaintProps> == 19,
                 "PaintProps gained or lost a field — compare it below.");
   if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
       a.clipContent != b.clipContent)
@@ -371,6 +373,8 @@ bool computedStyleEqual(const ComputedStyle& a, const ComputedStyle& b) {
          propertyEqual(pa.translateY, pb.translateY) &&
          pa.translateXLength == pb.translateXLength &&
          pa.translateYLength == pb.translateYLength &&
+         pa.translateXWrap == pb.translateXWrap &&
+         pa.translateYWrap == pb.translateYWrap &&
          propertyEqual(pa.rotate, pb.rotate) &&
          propertyEqual(pa.scale, pb.scale) &&
          propertyEqual(pa.scaleX, pb.scaleX) &&

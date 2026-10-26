@@ -72,7 +72,10 @@ struct Well {
    *  well's own edge, and the lip round that edge. Unset is flush, which
    *  is the specimen well. */
   struct Recess {
-    /** The shadow inside the edge, its offset and how far it reaches. */
+    /** The shadow inside the edge, its offset and how far it reaches.
+     *  The shade is any fill: a colour, or the ink in force or a custom
+     *  property, which resolves to the colour it names where the well
+     *  paints. */
     compose::Fill shade = compose::Fill::color({0, 0, 0, 0.75f});
     SkVector offset{0, 2};
     float blur = 3;

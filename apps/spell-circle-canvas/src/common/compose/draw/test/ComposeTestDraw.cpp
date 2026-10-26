@@ -573,6 +573,70 @@ TEST(RetainedElement, AGuestReadsTheCustomPropertiesWhereItsPenStands) {
   }
 }
 
+TEST(RetainedElement, AGuestSetsItsParagraphsInTheBlockWhereItsPenStands) {
+  // The paragraph setting crosses as the font does: a guest's text under a
+  // pen that stands under a centred paragraph is centred, the same drawing
+  // as the guest stating the centring itself, and not the ragged one.
+  const auto drawn = [](bool centredAbove, bool centredInside, bool kept) {
+    const auto program = [centredInside](Pen& pen) {
+      Element words = text(u8"mid");
+      if (centredInside)
+        words.paragraph({.alignment = sigil::weave::TextAlignment::kCenter});
+      pen.element(words, 0, 0, 180, 40);
+    };
+    Element host = stack()
+                       .ink(material::Color{1, 1, 1, 1})
+                       .children({(kept ? graphics(program) : pen(program))
+                                      .width(180)
+                                      .height(40)});
+    if (centredAbove)
+      host.paragraph({.alignment = sigil::weave::TextAlignment::kCenter});
+    Host scene;
+    scene.composer.render(host);
+    scene.frame();
+    return scene.pixels();
+  };
+  const auto same = [](const SkBitmap& left, const SkBitmap& right) {
+    for (int y = 0; y < left.height(); ++y)
+      for (int x = 0; x < left.width(); ++x)
+        if (left.getColor(x, y) != right.getColor(x, y)) return false;
+    return true;
+  };
+  for (const bool kept : {false, true}) {
+    const SkBitmap inherited = drawn(true, false, kept);
+    EXPECT_TRUE(same(inherited, drawn(false, true, kept)))
+        << (kept ? "graphics" : "pen");
+    EXPECT_FALSE(same(inherited, drawn(false, false, kept)))
+        << (kept ? "graphics" : "pen");
+  }
+}
+
+TEST(RetainedElement, AGuestStandsUnderTheSheetsWhereItsPenStands) {
+  // A class the host's sheet speaks about styles a node of the guest; and
+  // the guest's root is not the sheet's `:root`, so a property the root
+  // rule states does not override the one in force where the pen stands.
+  for (const bool kept : {false, true}) {
+    Host host;
+    host.composer.setStyleSheet(StyleSheet{sigil::compose::rule(":root").var(
+        "accent", material::Color{1, 0, 0, 1})});
+    const auto program = [](Pen& pen) {
+      pen.element(box().styleClass("hot"), 0, 0, 20, 20);
+      pen.element(box().fill(var("accent")), 20, 0, 20, 20);
+    };
+    host.composer.render(
+        stack()
+            .var("accent", material::Color{0, 1, 0, 1})
+            .applyStyleSheet(StyleSheet{
+                sigil::compose::rule(".hot").fill(Fill::color({0, 0, 1, 1}))})
+            .children({(kept ? graphics(program) : pen(program))
+                           .width(40)
+                           .height(40)}));
+    host.frame();
+    EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE) << (kept ? "graphics" : "pen");
+    EXPECT_EQ(host.pixel(25, 5), SK_ColorGREEN) << (kept ? "graphics" : "pen");
+  }
+}
+
 TEST(RetainedElement, APenNobodyHandedPropertiesGivesItsGuestNone) {
   // A pen outside any composer carries no properties, so the guest's
   // reference names nothing and its box stays unfilled; and what a host

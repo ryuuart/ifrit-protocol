@@ -262,7 +262,8 @@ The pen adds material, geometry and text overloads to the p5 verbs.
   their defaults are black and `weave::initialType()`. A pen with no
   inherited style keeps a white fill, black stroke and twelve-pixel text.
   What a guest's own library inherits beside the pair — Compose's custom
-  properties — rides with `inheritForGuests(value)` for one frame, read
+  properties, paragraph setting, image sampling and sheets in force, one
+  value of each type — rides with `inheritForGuests(value)` for one frame, read
   back by type through `guestInheritance<T>()`; the pen never reads it and
   `end` drops it. `inheritFrom(host)` hands a pen opened inside another's
   frame all of the host's inheritance.
@@ -508,7 +509,8 @@ guests. Draw itself depends on no guest library.
 A Compose guest advances by the pen's frame delta only when painted. It
 starts with `inheritedInk()` and `inheritedFont()`, which are black and
 the initial type when the host supplies neither, and under the custom
-properties a Compose host carried through `inheritForGuests`. Captures in a retained
+properties, the paragraph setting, the image sampling and the sheets in force
+a Compose host carried through `inheritForGuests`. Captures in a retained
 callback must remain valid for as long as that callback can run.
 
 ## Headers and implementation

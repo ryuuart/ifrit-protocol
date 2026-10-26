@@ -232,12 +232,38 @@ void Composer::setInherited(const sigil::weave::Type& font, material::Color ink,
   impl.changesUnknown = true;
 }
 
+void Composer::setInherited(const Inherited& inherited) {
+  setInherited(inherited.font, inherited.ink, inherited.properties);
+  Impl& impl = *m_impl;
+  bool moved = false;
+  if (!(inherited.block == impl.rootBlock)) {
+    impl.rootBlock = inherited.block;
+    moved = true;
+  }
+  if (!(inherited.sampling == impl.rootSampling)) {
+    impl.rootSampling = inherited.sampling;
+    moved = true;
+  }
+  std::optional<StyleSheet> sheet;
+  if (!inherited.sheet.empty()) sheet = inherited.sheet;
+  if (!(sheet == impl.inheritedSheet)) {
+    impl.inheritedSheet = std::move(sheet);
+    impl.joinRootSheets();
+    moved = true;
+  }
+  if (!moved) return;
+  impl.cascadeDirty = true;
+  impl.contentDirty = true;
+  impl.changesUnknown = true;
+}
+
 void Composer::setStyleSheet(StyleSheet sheet) {
   Impl& impl = *m_impl;
   std::optional<StyleSheet> held;
   if (!sheet.empty()) held = std::move(sheet);
   if (held == impl.rootSheet) return;
   impl.rootSheet = std::move(held);
+  impl.joinRootSheets();
   impl.cascadeDirty = true;
   impl.contentDirty = true;
   impl.changesUnknown = true;

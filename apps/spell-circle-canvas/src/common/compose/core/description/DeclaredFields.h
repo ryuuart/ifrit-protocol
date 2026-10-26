@@ -240,6 +240,13 @@ class DeclaredFields {
   Dimension& translateYLength() {
     return state(Property::TranslateY, m_storage.paint.translateYLength);
   }
+  /** The period each translate's lane folds over: the same statement. */
+  Dimension& translateXWrap() {
+    return state(Property::TranslateX, m_storage.paint.translateXWrap);
+  }
+  Dimension& translateYWrap() {
+    return state(Property::TranslateY, m_storage.paint.translateYWrap);
+  }
   motion::Animatable<float>& rotate() {
     return state(Property::Rotate, m_storage.paint.rotate);
   }

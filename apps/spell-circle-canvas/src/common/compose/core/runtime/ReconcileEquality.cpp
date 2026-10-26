@@ -417,7 +417,7 @@ bool operatorInputsEqual(const ElementNode& a, const ElementNode& b) {
  *  prunes still walks them. */
 static_assert(kFieldCount<ElementNode> == 26 &&
                   kFieldCount<DeclaredFields::Storage> == 6 &&
-                  kFieldCount<PaintProps> == 17 &&
+                  kFieldCount<PaintProps> == 19 &&
                   kFieldCount<ImageData> == 4 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
@@ -520,6 +520,8 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
       !propertyEqual(pa.translateY, pb.translateY) ||
       pa.translateXLength != pb.translateXLength ||
       pa.translateYLength != pb.translateYLength ||
+      pa.translateXWrap != pb.translateXWrap ||
+      pa.translateYWrap != pb.translateYWrap ||
       !propertyEqual(pa.rotate, pb.rotate) ||
       !propertyEqual(pa.scale, pb.scale) ||
       // Every transform lane appears in this list, including the per-axis
@@ -580,6 +582,8 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
       !propertyEqual(pa.translateY, pb.translateY) ||
       pa.translateXLength != pb.translateXLength ||
       pa.translateYLength != pb.translateYLength ||
+      pa.translateXWrap != pb.translateXWrap ||
+      pa.translateYWrap != pb.translateYWrap ||
       !propertyEqual(pa.rotate, pb.rotate) ||
       !propertyEqual(pa.scale, pb.scale) ||
       !propertyEqual(pa.scaleX, pb.scaleX) ||

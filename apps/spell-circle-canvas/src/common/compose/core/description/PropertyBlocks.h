@@ -99,6 +99,10 @@ struct PaintProps {
   // length statement leaves at zero. A percentage is of the node's own
   // box, as CSS's translate reads one.
   Dimension translateXLength = 0.0f, translateYLength = 0.0f;
+  // translateX(lane, period) / translateY(lane, period): the length the
+  // lane's pixels are folded over, read where the node lands; zero folds
+  // nothing, which every other translate statement leaves.
+  Dimension translateXWrap = 0.0f, translateYWrap = 0.0f;
   motion::Animatable<float> rotate = 0.0f, scale = 1.0f;
   // Per-axis scale, multiplied INTO `scale`. Bars, wipes, meters,
   // cooldown sweeps and drain rings are the most common animated

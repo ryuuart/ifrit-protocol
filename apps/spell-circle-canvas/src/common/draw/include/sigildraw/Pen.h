@@ -117,10 +117,11 @@ class Pen {
     return m_inheritedFont;
   }
   /** WHAT A GUEST'S OWN LIBRARY INHERITS BESIDE THE INK AND THE FONT —
-   *  Compose's custom properties — which a host hands over after `begin`
-   *  and the pen carries without reading, so a guest painted through
-   *  `element` begins under it as it begins in the ink and the font. One
-   *  value of each type: a later one replaces it and null clears it.
+   *  Compose's custom properties, paragraph setting, image sampling and
+   *  sheets in force — which a host hands over after `begin` and the pen
+   *  carries without reading, so a guest painted through `element` begins
+   *  under it as it begins in the ink and the font. One value of each
+   *  type: a later one replaces it and null clears it.
    *  `end` drops every one, so the host keeps @p value alive for the frame
    *  it is handed in and no longer. */
   template <class T>

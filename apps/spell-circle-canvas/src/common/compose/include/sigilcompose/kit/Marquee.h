@@ -26,11 +26,14 @@ namespace sigil::compose::kit {
  *  fonts).width()`, or `ctx.measure(strip).width()`) and pin it whenever
  *  the content is text. */
 struct MarqueeOptions {
-  /** The caller-owned WRAPPING phase, in px. Step it over
-   *  [-(width + gap), 0] and the loop is invisible. */
+  /** The phase, in px: how far the strip has slid, negative to the left.
+   *  The marquee folds it over the content and the gap as they resolve
+   *  where it lands, so a phase that keeps running loops without a seam
+   *  and its driver need not know how long the loop is; a phase the
+   *  driver keeps within [-(width + gap), 0] draws as it stands. */
   motion::Animatable<float> phase;
   /** Between the two copies: any length, so a custom property may state
-   *  it. The phase wraps over the content and this gap in pixels. */
+   *  it, which the loop's period reads where the marquee lands. */
   Dimension gap = 0.0f;
   float contentWidth = 0.0f;
 };
@@ -41,6 +44,11 @@ struct MarqueeOptions {
  *  nothing re-records. Keep `content` keyless (it mounts twice). */
 inline Element marquee(const Element& content, MarqueeOptions how) {
   const bool pin = how.contentWidth > 0;
+  // ONE LOOP IS ONE COPY AND THE GAP: the pinned width and the gap, or —
+  // where the copies size themselves — half the strip, which holds two
+  // copies and one gap, and half the gap more.
+  const Dimension period = pin ? Dimension(how.contentWidth) + how.gap
+                               : percent(50) + how.gap * 0.5f;
   auto copy = [&] {
     return pin ? box()
                      .width(Dimension(how.contentWidth))
@@ -55,7 +63,7 @@ inline Element marquee(const Element& content, MarqueeOptions how) {
                      .gap(how.gap)
                      .flexShrink(0)
                      .alignSelf(Align::Start)
-                     .translateX(std::move(how.phase))
+                     .translateX(std::move(how.phase), period)
                      .children({copy()})
                      .children({copy()})});
 }

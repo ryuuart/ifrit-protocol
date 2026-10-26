@@ -99,10 +99,16 @@ Element graphics(std::string_view key, PenProgram program,
  *  THE GUEST CASCADES FROM THE PEN: the ink and the font the pen was told
  *  it inherits are what the composer's root inherits, so a tree painted
  *  inside a pen program begins in the same colour and the same type the
- *  pen's own verbs do; and the custom properties a `pen()` or `graphics()`
- *  node carries for its guests — those in force where the node stands —
- *  are in force at the guest's root, so `var(name)` inside it reads what
- *  it reads around the pen. */
+ *  pen's own verbs do; and everything else the cascade carries that a
+ *  `pen()` or `graphics()` node hands its guests — the custom properties,
+ *  the paragraph setting, the image sampling and the sheets in force where
+ *  the node stands — is in force at the guest's root
+ *  (`Composer::Inherited`), so `var(name)` inside it reads what it reads
+ *  around the pen, a text leaf in it sets its paragraphs in the block in
+ *  force there, and a class the host's sheet speaks about styles a node
+ *  of it. The sheets see the guest's tree alone: none of its nodes is
+ *  their `:root`, and a selector naming a node of the host's tree matches
+ *  nothing in it. */
 void paintRetained(draw::Pen& pen, const Element& element,
                    const geometry::path::Rect& box, draw::Slot slot);
 

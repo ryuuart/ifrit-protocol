@@ -23,6 +23,7 @@ using sigil::sketch::kit::test::Drawn;
 using sigil::sketch::kit::test::kTall;
 using sigil::sketch::kit::test::kWide;
 using sigil::sketch::kit::test::sameDrawing;
+using sigil::sketch::kit::test::samePixels;
 using sigil::sketch::kit::test::subject;
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
@@ -86,6 +87,28 @@ TEST(SketchKitTicker, TheInkColoursTheWordsAsWellAsTheTicks) {
   EXPECT_TRUE(amberIn(quieted, 0));
 }
 
+/** A SCALE UNDER NO SHEET IS THE STOCK SHEET'S: its rail's thickness, its
+ *  ticks' reach and its colours fall back to the stock values, so it
+ *  draws as it does under the stock sheet rather than with ticks of no
+ *  reach on a rail of no thickness. */
+TEST(SketchKitTicker, AScaleUnderNoSheetIsTheStockSheets) {
+  const auto scale = [] {
+    return kit::timeline({.marks = {{0, u8"0 ms"},
+                                    {0.25f, {}, false},
+                                    {0.5f, u8"half"},
+                                    {1, u8"640 ms"}},
+                          .width = compose::Dimension(300)});
+  };
+  const compose::StyleSheet stock = kit::houseTheme().properties();
+  EXPECT_TRUE(samePixels(Drawn(scale(), compose::StyleSheet{}).pixels(),
+                         Drawn(scale(), stock).pixels()));
+  // …and a sheet stating another reach still moves it.
+  kit::Theme longer = kit::houseTheme();
+  longer.spacing.tickReach = 14;
+  EXPECT_FALSE(samePixels(Drawn(scale(), longer.properties()).pixels(),
+                          Drawn(scale(), stock).pixels()));
+}
+
 /** AN UNSET CRAWL GAP IS THE SHEET'S `spacing-ticker-gap`, read where the
  *  strip lays out. */
 TEST(SketchKitTicker, AnUnsetGapIsTheSheets) {
@@ -104,6 +127,27 @@ TEST(SketchKitTicker, AnUnsetGapIsTheSheets) {
   EXPECT_FALSE(sameDrawing(
       strip(std::nullopt),
       sigil::sketch::kit::test::withProperties(strip(std::nullopt), wider)));
+}
+
+/** AN UNSET-GAP CRAWL LOOPS WITHOUT A SEAM under a sheet stating another
+ *  `spacing-ticker-gap`: its driver runs the phase on without knowing the
+ *  sheet's gap, and the crawl folds it over the content and that gap, so a
+ *  phase laps on draws what its place within the first lap draws. */
+TEST(SketchKitTicker, AnUnsetGapCrawlLoopsWithoutASeamUnderAnySheet) {
+  kit::Theme wider = kit::houseTheme();
+  wider.spacing.tickerGap = 36;
+  const auto strip = [&](float phase) {
+    return sigil::sketch::kit::test::withProperties(
+        kit::ticker({.content = subject(),
+                     .contentWidth = 60,
+                     .phase = phase,
+                     .width = compose::Dimension(200)}),
+        wider);
+  };
+  // One loop is the strip's 60 and the sheet's 36.
+  EXPECT_TRUE(sameDrawing(strip(-20.0f), strip(-20.0f - 96.0f * 4)));
+  EXPECT_TRUE(sameDrawing(strip(-20.0f), strip(-20.0f + 96.0f)));
+  EXPECT_FALSE(sameDrawing(strip(-20.0f), strip(-30.0f)));
 }
 
 }  // namespace

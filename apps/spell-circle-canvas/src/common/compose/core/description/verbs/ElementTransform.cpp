@@ -14,6 +14,15 @@ Derived& TransformVerbs<Derived>::translateX(motion::Animatable<float> v) {
   detail::DeclaredFields& fields = declarations()->fields;
   fields.translateX() = std::move(v);
   fields.translateXLength() = Dimension(0.0f);
+  fields.translateXWrap() = Dimension(0.0f);
+  return self();
+}
+
+template <class Derived>
+Derived& TransformVerbs<Derived>::translateX(motion::Animatable<float> v,
+                                             Dimension period) {
+  translateX(std::move(v));
+  declarations()->fields.translateXWrap() = std::move(period);
   return self();
 }
 
@@ -22,6 +31,15 @@ Derived& TransformVerbs<Derived>::translateY(motion::Animatable<float> v) {
   detail::DeclaredFields& fields = declarations()->fields;
   fields.translateY() = std::move(v);
   fields.translateYLength() = Dimension(0.0f);
+  fields.translateYWrap() = Dimension(0.0f);
+  return self();
+}
+
+template <class Derived>
+Derived& TransformVerbs<Derived>::translateY(motion::Animatable<float> v,
+                                             Dimension period) {
+  translateY(std::move(v));
+  declarations()->fields.translateYWrap() = std::move(period);
   return self();
 }
 
@@ -43,6 +61,7 @@ Derived& TransformVerbs<Derived>::translateX(Dimension length) {
   detail::DeclaredFields& fields = declarations()->fields;
   fields.translateX() = 0.0f;
   fields.translateXLength() = std::move(length);
+  fields.translateXWrap() = Dimension(0.0f);
   return self();
 }
 
@@ -52,6 +71,7 @@ Derived& TransformVerbs<Derived>::translateY(Dimension length) {
   detail::DeclaredFields& fields = declarations()->fields;
   fields.translateY() = 0.0f;
   fields.translateYLength() = std::move(length);
+  fields.translateYWrap() = Dimension(0.0f);
   return self();
 }
 

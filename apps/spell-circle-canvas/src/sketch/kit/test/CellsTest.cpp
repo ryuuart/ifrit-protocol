@@ -243,6 +243,33 @@ TEST(SketchKitCells, AReliefOrARecessCarriesOnTheSheetsGround) {
                            plate(std::nullopt, lift, std::nullopt)));
 }
 
+/** A RECESS'S SHADE WRITTEN AS A REFERENCE is the colour the reference
+ *  names where the well paints — the same drawing as the recess stating
+ *  that colour — and so is a shade written as the ink in force. */
+TEST(SketchKitCells, ARecessShadeWrittenAsAReferenceIsTheColourItNames) {
+  const sigil::material::Color shade{0.55f, 0.12f, 0.08f, 0.85f};
+  const auto plate = [](Fill tint) {
+    kit::Well::Recess hole{.shade = std::move(tint), .blur = 5};
+    return kit::well({.width = compose::Dimension(140),
+                      .height = compose::Dimension(90),
+                      .ground = Fill::color({0.10f, 0.11f, 0.14f, 1}),
+                      .recess = std::move(hole)});
+  };
+  const auto holding = [&](Element tree) {
+    return compose::box()
+        .var("recess-shade", shade)
+        .ink(shade)
+        .children({std::move(tree)});
+  };
+  EXPECT_TRUE(sameDrawing(holding(plate(Fill::color(shade))),
+                          holding(plate(compose::var("recess-shade")))));
+  EXPECT_TRUE(sameDrawing(holding(plate(Fill::color(shade))),
+                          holding(plate(Fill::currentInk()))));
+  // …and the shade is drawn: a reference no longer paints a clear stand-in.
+  EXPECT_FALSE(sameDrawing(holding(plate(Fill::color({0, 0, 0, 0}))),
+                           holding(plate(compose::var("recess-shade")))));
+}
+
 /** A plate set tighter down than across, which one distance cannot say. */
 TEST(SketchKitCells, APaddingDownOfItsOwn) {
   const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});

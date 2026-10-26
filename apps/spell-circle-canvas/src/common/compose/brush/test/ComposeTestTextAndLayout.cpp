@@ -3,10 +3,10 @@
 // spared, and the text a run sets along a baseline of its own.
 
 #include <sigilcompose/kit/Marquee.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include "support/BrushTestSupport.h"
-#include <sigilmotion/ease/Ease.h>
-#include <sigilmaterial/paint/Bases.h>
 
 TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
   Host host(200, 100);
@@ -73,6 +73,41 @@ TEST(ComposeKitMarquee, TwoCopiesSlideUnderOneClip) {
   host.frame();
   EXPECT_EQ(host.pixel(85, 20), SK_ColorRED);     // second copy now 30..90
   EXPECT_EQ(host.pixel(105, 20), SK_ColorBLACK);  // past both copies, clipped
+}
+
+TEST(ComposeKitMarquee, APhaseThatKeepsRunningLoopsOverTheGapInForce) {
+  // The marquee folds the phase over one copy and the gap as they resolve
+  // where it lands — here a property its driver never reads — so a phase
+  // laps past the loop draws what the same place within the first lap
+  // draws, whether the copies are pinned or size themselves.
+  for (const float pinned : {60.0f, 0.0f}) {
+    const auto drawn = [pinned](float at) {
+      Host host(200, 60);
+      host.composer.render(
+          box()
+              .padding(10)
+              .var("crawl-gap", Dimension(15.0f))
+              .children({kit::marquee(box().width(60).height(20).fill(red()),
+                                      {.phase = at,
+                                       .gap = var("crawl-gap"),
+                                       .contentWidth = pinned})
+                             .width(Dimension(100.0f))
+                             .height(Dimension(20.0f))}));
+      host.frame();
+      return host.pixels();
+    };
+    const auto same = [](const SkBitmap& left, const SkBitmap& right) {
+      for (int y = 0; y < left.height(); ++y)
+        for (int x = 0; x < left.width(); ++x)
+          if (left.getColor(x, y) != right.getColor(x, y)) return false;
+      return true;
+    };
+    // One loop is the copy's 60 and the gap's 15.
+    const SkBitmap firstLap = drawn(-30.0f);
+    EXPECT_TRUE(same(firstLap, drawn(-30.0f - 75.0f * 3))) << pinned;
+    EXPECT_TRUE(same(firstLap, drawn(-30.0f + 75.0f))) << pinned;
+    EXPECT_FALSE(same(firstLap, drawn(-40.0f))) << pinned;
+  }
 }
 
 TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
@@ -264,8 +299,12 @@ TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
 TEST(ComposeMotion, DelayStaggersTheEntrance) {
   Host host;
   auto card = [](float delaySec) {
-    return box().width(60).height(30).fill(red()).opacity(
-        motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .delay = std::chrono::milliseconds((int)(delaySec * 1000)), .ease = motion::ease::linear}));
+    return box().width(60).height(30).fill(red()).opacity(motion::animate(
+        {.from = 0.0f,
+         .to = 1.0f,
+         .duration = 200ms,
+         .delay = std::chrono::milliseconds((int)(delaySec * 1000)),
+         .ease = motion::ease::linear}));
   };
   host.composer.render(
       box().column().gap(10).children({card(0.0f), card(0.4f)}));
@@ -299,12 +338,8 @@ TEST(ComposePaint, OverflowHiddenCutsAsClipDoes) {
   const auto drawn = [](Overflow overflow) {
     auto host = std::make_unique<Host>();
     host->composer.render(box().children(
-        {box()
-             .absolute()
-             .inset(60)
-             .overflow(overflow)
-             .fill(blue())
-             .children({box().width(200).height(10).fill(red())})}));
+        {box().absolute().inset(60).overflow(overflow).fill(blue()).children(
+            {box().width(200).height(10).fill(red())})}));
     host->frame();
     return host;
   };
@@ -357,8 +392,7 @@ TEST(ComposeMotion, AStaggeredDelayCascadesSiblingEntrances) {
                          .delay = motion::stagger(400ms),
                          .ease = motion::ease::linear}));
   };
-  host.composer.render(
-      box().column().gap(10).children({card(), card()}));
+  host.composer.render(box().column().gap(10).children({card(), card()}));
   host.frame(0.3);  // child 0 settled; child 1 still holding its `from`
   EXPECT_EQ(host.pixel(30, 15), SK_ColorRED);
   EXPECT_EQ(host.pixel(30, 55), SK_ColorBLACK);

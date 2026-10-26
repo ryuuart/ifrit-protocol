@@ -35,7 +35,9 @@ struct SiblingPlace {
 /** ONE SHEET IN FORCE, and the node that applied it. That node is the
  *  ROOT OF EVERYTHING THE SHEET SEES: every compound of every selector
  *  of the sheet must match it or an element below it, so nothing above
- *  it and nothing beside it can satisfy any part of one of its rules. */
+ *  it and nothing beside it can satisfy any part of one of its rules. A
+ *  sheet in force above the tree — a guest's host's — names no node: it
+ *  sees the whole tree, and no node of it is its `:root`. */
 struct ScopedSheet {
   const StyleSheet* sheet = nullptr;
   const Instance* scope = nullptr;

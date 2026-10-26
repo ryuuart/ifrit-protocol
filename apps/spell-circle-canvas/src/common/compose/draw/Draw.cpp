@@ -4,14 +4,17 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Graphics.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
+#include <sigilweave/layout/ParagraphBlock.h>
 #include <src/core/SkScopeExit.h>
 
 #include <algorithm>
@@ -60,6 +63,17 @@ struct PenState {
   }
 };
 
+/** EVERYTHING THE CASCADE CARRIES AT THE NODE @p ctx describes beside the
+ *  ink and the font, handed to @p pen for the guests it paints: the custom
+ *  properties, the paragraph setting, the image sampling and the sheets in
+ *  force. The context's own values stand for the frame the pen draws. */
+void carryForGuests(draw::Pen& pen, const PaintContext& ctx) {
+  pen.inheritForGuests(ctx.vars);
+  pen.inheritForGuests(ctx.block);
+  pen.inheritForGuests(ctx.sampling);
+  pen.inheritForGuests(ctx.sheet);
+}
+
 PaintProgram penPainter(PenProgram program) {
   auto held = std::make_shared<PenState>();
   return [held, program = std::move(program)](draw::Pen& pen,
@@ -68,7 +82,7 @@ PaintProgram penPainter(PenProgram program) {
     held->pen.begin(canvas, held->nextFrame(ctx));
     const SkScopeExit endFrame([&] { held->pen.end(); });
     held->pen.inherit(ctx.ink, ctx.font);
-    held->pen.inheritForGuests(ctx.vars);
+    carryForGuests(held->pen, ctx);
     program(held->pen, ctx);
   };
 }
@@ -116,7 +130,7 @@ PaintProgram graphicsPainter(PenProgram program) {
     held->host.pen.begin(canvas, frame);
     const SkScopeExit endHost([&] { held->host.pen.end(); });
     held->host.pen.inherit(ctx.ink, ctx.font);
-    held->host.pen.inheritForGuests(ctx.vars);
+    carryForGuests(held->host.pen, ctx);
     // The buffer is the node's box. It is formed on its first `begin`, at
     // the host pen's own density, and a box that has changed resizes it
     // with what it holds carried over rather than cleared.
@@ -154,6 +168,9 @@ struct RetainedGuest {
   /** A changed borrowed font context requires a new composer. */
   weave::FontContext* fonts = nullptr;
   std::unique_ptr<Composer> composer;
+  /** What the guest's root inherits, kept so a frame that hands the same
+   *  values copies none of them. */
+  Composer::Inherited inherited;
   explicit RetainedGuest(weave::FontContext& context) { adopt(context); }
   void adopt(weave::FontContext& context) {
     fonts = &context;
@@ -243,10 +260,29 @@ void paintRetained(draw::Pen& pen, const Element& element,
   // THE TREE CASCADES FROM THE PEN: what the pen was told it inherits is
   // what this tree's root inherits, so a guest painted inside a pen
   // program begins in the colour and the type the pen's own verbs do, and
-  // under the custom properties in force where the pen stands.
+  // under the custom properties, the paragraph setting, the image sampling
+  // and the sheets in force where the pen stands.
+  Composer::Inherited& inherited = guest.inherited;
+  const auto keep = [](auto& held, const auto& now) {
+    if (!(held == now)) held = now;
+  };
+  keep(inherited.font, pen.inheritedFont());
+  keep(inherited.ink, pen.inheritedInk());
+  // What the pen was handed nothing of, the guest inherits nothing of.
+  static const VarTable kNoProperties;
+  static const weave::ParagraphBlock kNoBlock;
+  static const StyleSheet kNoSheet;
   const VarTable* properties = pen.guestInheritance<VarTable>();
-  guest.composer->setInherited(pen.inheritedFont(), pen.inheritedInk(),
-                               properties ? *properties : VarTable{});
+  keep(inherited.properties, properties ? *properties : kNoProperties);
+  const weave::ParagraphBlock* block =
+      pen.guestInheritance<weave::ParagraphBlock>();
+  keep(inherited.block, block ? *block : kNoBlock);
+  const SkSamplingOptions* sampling = pen.guestInheritance<SkSamplingOptions>();
+  keep(inherited.sampling,
+       sampling ? std::optional<SkSamplingOptions>(*sampling) : std::nullopt);
+  const StyleSheet* sheet = pen.guestInheritance<StyleSheet>();
+  keep(inherited.sheet, sheet ? *sheet : kNoSheet);
+  guest.composer->setInherited(inherited);
   guest.composer->render(element);
   // The box is the guest's viewport, not a clip: what a node paints past
   // its box — a shadow, a stroke's outer half — paints past it here too.

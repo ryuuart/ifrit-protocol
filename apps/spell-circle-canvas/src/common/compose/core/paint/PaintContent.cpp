@@ -271,8 +271,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .rootSize = geometry::path::fromSk(
           rootLayoutSize),  // …and the canvas it maps into
       // The cascade as it resolved at this node: the ink every mark that
-      // names no colour takes, the font a pen program begins in, and the
-      // custom properties a fill or an ink may read.
+      // names no colour takes, the font a pen program begins in, the
+      // custom properties a fill or an ink may read, and the rest of what
+      // a guest painted from here inherits.
       .ink = inst.font.color.value_or(material::Color{0, 0, 0, 1}),
       .inkPaint = inst.inkPaint.paint ? &inst.inkPaint : nullptr,
       .inkAnchorSize = geometry::path::fromSk(inkAnchorSize),
@@ -282,6 +283,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .inkAnchorToRoot = geometry::path::fromSk(anchorSpace()),
       .font = inst.font,
       .vars = inst.vars.get(),
+      .block = &inst.block,
+      .sampling = inst.sampling ? &*inst.sampling : nullptr,
+      .sheet = inst.sheetInForce,
       .pointer = pointerHere,
       .keys = &keys,
       .bakeDensity = bakeDensity};

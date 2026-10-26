@@ -11,15 +11,20 @@
 
 #include <include/core/SkPicture.h>
 #include <include/core/SkRefCnt.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/TextureSet.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/time/Duration.h>
+#include <sigilweave/layout/ParagraphBlock.h>
+#include <sigilweave/style/Type.h>
 
 #include <functional>
 #include <glm/vec2.hpp>
@@ -139,6 +144,31 @@ class Composer {
    *  none, which is what the two-argument form says. */
   void setInherited(const sigil::weave::Type& font, material::Color ink,
                     const VarTable& properties);
+  /** EVERYTHING A ROOT INHERITS, which the cascade carries down a tree:
+   *  the font and the ink, the custom properties, the paragraph setting,
+   *  the image sampling and the sheets in force. A host whose picture
+   *  stands inside another seeds every one from where it stands, as a
+   *  pen's guest does from the node its pen stands at. */
+  struct Inherited {
+    sigil::weave::Type font = sigil::weave::initialType();
+    material::Color ink{0, 0, 0, 1};
+    VarTable properties;
+    /** The block every text leaf under the root sets its paragraphs in,
+     *  where nothing under it states a field. */
+    sigil::weave::ParagraphBlock block;
+    /** How image leaves under the root sample their source where nothing
+     *  under it states it; none is linear. */
+    std::optional<SkSamplingOptions> sampling;
+    /** THE SHEETS IN FORCE ABOVE THE ROOT, as one sheet: in force at the
+     *  root and everything under it ahead of the composer's own sheet,
+     *  their rules matched against this tree alone — no node in it is
+     *  their `:root`, and a compound naming a node above the root matches
+     *  nothing here, since the tree that held that node is not this one. */
+    StyleSheet sheet;
+  };
+  /** The same, with every field the cascade carries: the narrower forms
+   *  leave the block, the sampling and the sheet as they stand. */
+  void setInherited(const Inherited& inherited);
   /** THE SHEET IN FORCE AT THE ROOT of whatever this composer renders:
    *  applied as though the root node applied it before any sheet of its
    *  own, so the root is its `:root`, its custom properties reach the

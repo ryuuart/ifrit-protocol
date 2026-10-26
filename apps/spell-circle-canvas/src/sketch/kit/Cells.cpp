@@ -2,9 +2,9 @@
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Grid.h>
+#include <sigilcompose/core/Shadow.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilsketch/kit/Cells.h>
 
@@ -58,43 +58,44 @@ compose::Element plate(const Well& specification, compose::Element surface,
   }
   if (!specification.corners && corners)
     plate.borderRadius(compose::Corners{*corners});
-  // THE RELIEF AND THE RECESS ARE THE GROUND'S EFFECTS: the plate is
-  // filled again with its ground carrying a bevel, an inner shadow or both,
-  // in that order. A ground written as a reference — the sheet's
-  // `palette-cell-ground` an unset ground reads, or the ink in force —
-  // has no material to carry them, so it keeps its reference and wears
-  // them beside it, and they carry on the colour it resolves to.
+  // THE RELIEF AND THE RECESS DRESS THE GROUND: the plate is filled again
+  // with its ground carrying the relief's bevel, and the recess's inner
+  // shadow is laid over that, in that order. A ground written as a
+  // reference — the sheet's `palette-cell-ground` an unset ground reads,
+  // or the ink in force — has no material to carry the bevel, so it keeps
+  // its reference and wears the bevel beside it, on the colour it resolves
+  // to. The recess's shade is a fill of its own, and a shade written as a
+  // reference resolves where the plate paints, so the shadow is the
+  // node's inset shadow mark rather than a step of the ground's effects,
+  // which hold a colour value and nothing that resolves.
   material::Filter effects;
-  const auto then = [&](const material::Filter& step) {
-    effects = effects.isNone() ? step : effects.then(step);
-  };
   if (specification.relief) {
     const Well::Relief& lift = *specification.relief;
-    then(material::Filter::bevel({.depth = lift.depth,
-                                  .size = lift.blur,
-                                  .angleDegrees = lift.angleDegrees,
-                                  .highlight = lift.light,
-                                  .shadow = lift.shade}));
+    effects = material::Filter::bevel({.depth = lift.depth,
+                                       .size = lift.blur,
+                                       .angleDegrees = lift.angleDegrees,
+                                       .highlight = lift.light,
+                                       .shadow = lift.shade});
   }
-  if (specification.recess) {
-    const Well::Recess& hole = *specification.recess;
-    then(material::Filter::shadow(
-        hole.shade.colorValue,
-        {.blur = hole.blur,
-         .offset = sigil::geometry::path::fromSk(hole.offset),
-         .inset = true}));
-  }
-  if (!effects.isNone()) {
+  if (specification.relief || specification.recess) {
     if (bed.references()) {
       plate.fill(bed, effects);
     } else {
-      const material::Material ground =
+      material::Material ground =
           bed.material() ? *bed.material() : material::Material(bed.colorValue);
-      plate.fill(material::from(ground).effects(effects));
+      if (!effects.isNone()) ground.effects(effects);
+      plate.fill(std::move(ground));
     }
   }
   if (specification.recess) {
     const Well::Recess& hole = *specification.recess;
+    // Over the fill and its bevel, as the ground's effects lay an inner
+    // shadow: the marks over a node paint in the order they were laid.
+    plate.foreground(
+        compose::Shadow{.offset = {hole.offset.x(), hole.offset.y()},
+                        .blur = hole.blur,
+                        .color = hole.shade,
+                        .inset = true});
     if (hole.lipLight && hole.lipDark)
       plate.overlay(compose::styles::bevelPair(*hole.lipLight, *hole.lipDark,
                                                hole.lipWidth,

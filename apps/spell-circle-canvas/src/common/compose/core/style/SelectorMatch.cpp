@@ -88,8 +88,9 @@ bool anySiblingBefore(const Instance& inst, bool nearestOnly, Visit visit) {
 }
 
 /** WHAT A MATCH READS BESIDE THE TREE: the node that applied the sheet
- *  the selector stands in, past which no compound may reach, and the
- *  names a `:has()` summary is taken over. */
+ *  the selector stands in, past which no compound may reach — none for a
+ *  sheet in force above the tree, which sees all of it — and the names a
+ *  `:has()` summary is taken over. */
 struct MatchContext {
   const Instance* scope = nullptr;
   const HasNames* names = nullptr;
@@ -214,9 +215,10 @@ bool matchesSimple(const Simple& simple, const Instance& inst,
       return !inst.virtualRunChild && inst.children.empty() &&
              !holdsWords(*inst.description);
     case SimpleKind::Root:
-      // The root of the tree the sheet sees, which is the node that
-      // applied it where that node is not the tree's own root.
-      return inst.parent == nullptr || &inst == context.scope;
+      // The root of the tree the sheet sees: the node that applied it, the
+      // tree's own root for the composer's sheet. A sheet in force above
+      // the tree is scoped at no node, and nothing here is its root.
+      return &inst == context.scope;
     case SimpleKind::Is:
     case SimpleKind::Where:
       return matchesAny(simple.arguments, inst, context);

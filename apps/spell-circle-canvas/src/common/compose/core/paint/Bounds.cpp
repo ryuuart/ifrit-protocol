@@ -318,8 +318,8 @@ Pivot Composer::Impl::pivotOf(const Instance& inst, const Dimension& x,
 }
 
 float Composer::Impl::translateLength(const Instance& inst,
-                                     const Dimension& length,
-                                     float extent) const {
+                                      const Dimension& length,
+                                      float extent) const {
   if (length.unit == Dimension::Unit::Px) return length.value;
   const Dimension* stated = &length;
   if (length.unit == Dimension::Unit::Var) {
@@ -376,9 +376,22 @@ NodeTransform Composer::Impl::transformOf(Instance& inst) {
     out.rot += sample->second;
     return out;
   }
-  out.tx = inst.resolveFloat(Instance::kTx, style.paint.translateX) +
+  // A lane that loops is folded over its period, read here where the
+  // node's box, font and properties are known. A value already within
+  // [-period, 0] stands as it is, so a driver that folds its own lane
+  // draws exactly what it drew.
+  const auto looped = [&](float lane, const Dimension& period, float extent) {
+    if (period.unit == Dimension::Unit::Px && period.value == 0.0f) return lane;
+    const float length = translateLength(inst, period, extent);
+    if (!(length > 0.0f) || (lane <= 0.0f && lane >= -length)) return lane;
+    const float folded = std::fmod(lane, length);
+    return folded > 0.0f ? folded - length : folded;
+  };
+  out.tx = looped(inst.resolveFloat(Instance::kTx, style.paint.translateX),
+                  style.paint.translateXWrap, rect.width()) +
            translateLength(inst, style.paint.translateXLength, rect.width());
-  out.ty = inst.resolveFloat(Instance::kTy, style.paint.translateY) +
+  out.ty = looped(inst.resolveFloat(Instance::kTy, style.paint.translateY),
+                  style.paint.translateYWrap, rect.height()) +
            translateLength(inst, style.paint.translateYLength, rect.height());
   return out;
 }

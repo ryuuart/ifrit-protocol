@@ -404,7 +404,7 @@ a track nothing fills leaves no trace in the placed rects, so a study
 reproducing a printed page cannot read the grid back off them.
 
 A content floor is the second intrinsic contribution, and it is
-`Arrangement::Child::minSize`: a text leaf's longest unbreakable run,
+`Arrangement::Child::minimumSize`: a text leaf's longest unbreakable run,
 measured at a nil width, and everything else's measured size. A scheme's
 placed width remeasures horizontal text before its content-sized rows settle;
 the placed depth does the same for vertical text and content-sized columns.
@@ -453,7 +453,7 @@ which is what puts every column of a real page on a fractional pixel.
 
 A column is solved BETWEEN TWO WIDTHS and not from one. What its content
 wants is the widest thing in it; what its content needs is the narrowest
-that thing goes without spilling, which is `Arrangement::Child::minSize`
+that thing goes without spilling, which is `Arrangement::Child::minimumSize`
 and is why the scheme declares `readsChildMinSizes`. Given less room than
 the columns want, each gives up the same fraction of the distance between
 its two widths, so a column with nothing to give up gives nothing;
@@ -886,7 +886,8 @@ draw, and `kit::SpriteSheet` holds sprites under names and packs them onto one
 image, each handed the rectangle it occupies — `kit::Scrim` and the halo/shade
 legibility helpers —
 with `kit/Marquee.h`'s `kit::marquee`, the seamless ticker built from a clipped
-strip and a wrapping phase, whose every dial is one options struct,
+strip and a phase it folds over the content and the gap itself, whose every
+dial is one options struct,
 `kit/Board.h`'s `kit::board`, the ground a placed drawing stands on — a `stack`
 at its own size on its own ground, each child keeping the rect it was built
 with, which is the root of a plate that has no layout at all and names no

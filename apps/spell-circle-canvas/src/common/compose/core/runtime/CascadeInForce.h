@@ -8,6 +8,7 @@
  */
 
 #include <include/core/SkSamplingOptions.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilweave/style/Type.h>
@@ -34,6 +35,15 @@ struct NamedParagraphStyle {
   sigil::weave::ParagraphBlock block;
   std::optional<float> indentPercent;
   bool operator==(const NamedParagraphStyle&) const = default;
+};
+
+/** THE SHEETS IN FORCE AT A NODE THAT APPLIES ONE, joined into one sheet,
+ *  and what they were joined from — the sheet in force above the node,
+ *  then each one the node applies — so a pass that finds the same sheets
+ *  keeps the join it made. */
+struct JoinedSheets {
+  StyleSheet joined;
+  std::vector<StyleSheet> from;
 };
 
 /** THE CASCADE IN FORCE AT A NODE: one part of the retained node, written
@@ -100,6 +110,13 @@ struct CascadeInForce {
   // THE CUSTOM PROPERTIES IN FORCE: the parent's table shared when this
   // node sets none, or a copy of it with this node's own written over.
   std::shared_ptr<const VarTable> vars;
+  // THE SHEETS IN FORCE AS ONE SHEET, which a guest painted from this node
+  // stands under: the nearest node's that applies one, or the root's; null
+  // where none is in force. Written by the cascade pass, which writes every
+  // node under one whose join it replaced.
+  const StyleSheet* sheetInForce = nullptr;
+  // On a node that applies a sheet: the join `sheetInForce` points at.
+  std::unique_ptr<JoinedSheets> joinedSheets;
   // WHERE THIS NODE STANDS AMONG ITS SIBLINGS, by position and by role,
   // written by the cascade pass when its parent's children are resolved
   // and read by the structural pseudo-classes of a selector. The root
@@ -132,8 +149,8 @@ struct CascadeInForce {
   // in the properties, rewrites its Yoga style. Written with the style.
   bool relativeLengths = false;
   // Whether any length this node's layout declares is measured against the
-  // CANVAS — a vw, vh, vmin or vmax. Those are resolved into pixels before Yoga sees
-  // them, so a canvas that changes size has to have this style written
+  // CANVAS — a vw, vh, vmin or vmax. Those are resolved into pixels before Yoga
+  // sees them, so a canvas that changes size has to have this style written
   // again; nothing else notices a resize.
   bool canvasLengths = false;
   // On a text leaf that inherits: the font the paragraph was last

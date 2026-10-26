@@ -20,9 +20,8 @@ using compose::Fill;
 using compose::Text;
 
 compose::Element ticker(Ticker strip) {
-  // An unset gap is the sheet's, read where the strip lays out; the
-  // caller wraps the phase over the content and the gap it states or the
-  // sheet's ticker gap.
+  // An unset gap is the sheet's, read where the strip lays out, and the
+  // marquee folds the phase over the content and whichever gap stands.
   const Dimension gap =
       strip.gap ? Dimension(*strip.gap) : compose::var("spacing-ticker-gap");
   Element window = compose::kit::marquee(strip.content,
@@ -68,7 +67,11 @@ compose::Element timeline(const Timeline& scale) {
       tick.top(-reach);
     rail.children({std::move(tick)});
   }
-  Element column = box().column();
+  // Every property the scale reads falls back to the stock sheet's under
+  // no sheet, so a bare scale draws as it does under the stock sheet.
+  Element column = box().column().varDefaults(
+      detail::stockProperties({"spacing-bar-height", "spacing-tick-reach",
+                               "palette-rule", "palette-ash"}));
   if (scale.width.unit != Dimension::Unit::Auto) column.width(scale.width);
 
   // Each word rides in a ZERO-WIDTH box pinned at its tick and centred

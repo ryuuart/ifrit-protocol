@@ -61,8 +61,13 @@ struct Drawn {
   /** Under the house theme's properties, as a sketch under a stage that
    *  names no theme stands; a tree that applies another theme's sheet
    *  shadows them. */
-  explicit Drawn(compose::Element tree) {
-    composer.setStyleSheet(propertiesOf(kit::houseTheme()));
+  explicit Drawn(compose::Element tree)
+      : Drawn(std::move(tree), propertiesOf(kit::houseTheme())) {}
+
+  /** Under @p rootSheet alone; an empty sheet is a tree under no sheet,
+   *  where a component reads only the fallbacks it states itself. */
+  Drawn(compose::Element tree, compose::StyleSheet rootSheet) {
+    composer.setStyleSheet(std::move(rootSheet));
     composer.setSize({(float)kWide, (float)kTall});
     composer.render(std::move(tree));
     surface->getCanvas()->clear(SK_ColorBLACK);
@@ -77,15 +82,19 @@ struct Drawn {
   }
 };
 
-/** Every pixel of one tree against every pixel of the other. */
-inline bool sameDrawing(compose::Element left, compose::Element right) {
-  SkBitmap a = Drawn(std::move(left)).pixels();
-  SkBitmap b = Drawn(std::move(right)).pixels();
+/** Every pixel of one drawing against every pixel of the other. */
+inline bool samePixels(const SkBitmap& a, const SkBitmap& b) {
   for (int y = 0; y < kTall; ++y)
     if (std::memcmp(a.getAddr32(0, y), b.getAddr32(0, y), (size_t)kWide * 4) !=
         0)
       return false;
   return true;
+}
+
+/** Every pixel of one tree against every pixel of the other. */
+inline bool sameDrawing(compose::Element left, compose::Element right) {
+  return samePixels(Drawn(std::move(left)).pixels(),
+                    Drawn(std::move(right)).pixels());
 }
 
 /** A subject with nothing of the theme in it, so a difference between two

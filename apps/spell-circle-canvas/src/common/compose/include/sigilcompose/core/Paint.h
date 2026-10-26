@@ -41,9 +41,12 @@
 #include <utility>
 #include <vector>
 
+struct SkSamplingOptions;
+
 namespace sigil::weave {
 class FontContext;
-}
+struct ParagraphBlock;
+}  // namespace sigil::weave
 
 namespace sigil::draw {
 class Pen;
@@ -52,6 +55,7 @@ class Pen;
 namespace sigil::compose {
 
 class VarTable;
+class StyleSheet;
 
 struct Fill;
 
@@ -413,6 +417,18 @@ struct PaintContext {
   /** The custom properties in force here, or null outside a composer and
    *  where no ancestor set one. */
   const VarTable* vars = nullptr;
+  /** THE PARAGRAPH SETTING IN FORCE here — the partial every text leaf
+   *  under this node sets its paragraphs in — or null outside a composer.
+   *  With `font`, `ink`, `vars`, `sampling` and `sheet` it is everything
+   *  the cascade carries, which a guest tree painted from here inherits. */
+  const sigil::weave::ParagraphBlock* block = nullptr;
+  /** The image sampling in force here, or null outside a composer and
+   *  where no ancestor stated one, which an image reads as linear. */
+  const SkSamplingOptions* sampling = nullptr;
+  /** THE SHEETS IN FORCE here as one sheet, the earliest applied first —
+   *  the composer's own, then each one an ancestor applied — or null
+   *  outside a composer and where none is in force. */
+  const StyleSheet* sheet = nullptr;
 
   /** WHERE THE POINTER STANDS, in this node's own box, and whether its
    *  button is down — what the host fed `Composer::setPointer`, mapped
