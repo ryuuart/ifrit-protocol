@@ -14,6 +14,7 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcore/report/Report.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/skia/Filter.h>
@@ -26,6 +27,8 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "../Effect.h"
@@ -663,4 +666,25 @@ TEST(SkiaEffect, TheFourRemainingCssColourFunctionsMapAsCssDefinesThem) {
   // A proportion past one is held at one, as CSS's is.
   near(through(Filter::invert(3)), {0.2f, 0.6f, 0.8f, 1});
   EXPECT_FALSE(Filter::grayscale(1) == Filter::sepia(1));
+}
+
+TEST(SkiaEffect, AWarningIsSaidThroughTheReportingDoor) {
+  // A host that installs a reporter hears the library's warning there,
+  // named for the library, and nothing reaches the standard error.
+  std::vector<std::pair<std::string, std::string>> heard;
+  const sigil::core::Reporter previous = sigil::core::installReporter(
+      [&](std::string_view library, std::string_view message) {
+        heard.emplace_back(library, message);
+      });
+  testing::internal::CaptureStderr();
+  Filter blurred = Filter::blur(4);
+  blurred.bind("nothingDeclared", 1.0f);
+  const std::string said = testing::internal::GetCapturedStderr();
+  sigil::core::installReporter(previous);
+  EXPECT_TRUE(said.empty()) << said;
+  ASSERT_EQ(heard.size(), 1u);
+  EXPECT_EQ(heard[0].first, "SigilMaterial");
+  EXPECT_NE(heard[0].second.find("Filter::bind(\"nothingDeclared\")"),
+            std::string::npos)
+      << heard[0].second;
 }

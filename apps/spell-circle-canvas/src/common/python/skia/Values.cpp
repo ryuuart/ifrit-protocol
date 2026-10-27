@@ -15,6 +15,7 @@
 #include <sigilpython/skia/Registration.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Keywords.h>
+#include <sigilweave/fonts/FamilyName.h>
 #include <sigilweave/style/Type.h>
 
 namespace sigil::python {
@@ -378,9 +379,7 @@ void bindValues(py::module_& module) {
   auto weave = module.def_submodule("weave");
   py::class_<SkTypeface, sk_sp<SkTypeface>>(skia, "Typeface")
       .def("familyName", [](const SkTypeface& face) {
-        SkString name;
-        face.getFamilyName(&name);
-        return std::string(name.c_str());
+        return weave::fonts::familyName(face);
       });
   py::enum_<weave::Keyword>(weave, "Keyword")
       .value("Inherit", weave::Keyword::Inherit)

@@ -327,7 +327,106 @@ INSTANTIATE_TEST_SUITE_P(
 
 }  // namespace
 
+namespace {
+
+/** A half-float texel of 4 in every colour channel at full coverage: a
+ *  value past one, as an HDR decode stores it. */
+sk_sp<SkImage> halfFloatTexelOfFour() {
+  const auto info =
+      SkImageInfo::Make(1, 1, kRGBA_F16_SkColorType, kPremul_SkAlphaType);
+  auto source = SkSurfaces::Raster(info);
+  if (!source) return nullptr;
+  const std::array<float, 4> texel = {4, 4, 4, 1};
+  source->writePixels(SkPixmap(info.makeColorType(kRGBA_F32_SkColorType),
+                               texel.data(), sizeof(float) * 4),
+                      0, 0);
+  return source->makeImageSnapshot();
+}
+
+/** How a colour function reaches the pixels: on the draw's own paint, on
+ *  the paint of the layer the draw lands in, or as the image filter over
+ *  that layer. */
+enum class ColourFunctionRoute { DrawPaint, LayerPaint, LayerImageFilter };
+
+void drawThrough(SkCanvas& canvas, const sk_sp<SkImage>& image,
+                 const Filter& filter, ColourFunctionRoute route) {
+  canvas.clear(SK_ColorTRANSPARENT);
+  SkPaint paint;
+  SkPaint layer;
+  if (route == ColourFunctionRoute::DrawPaint)
+    paint.setColorFilter(skia::colorFilter(filter));
+  if (route == ColourFunctionRoute::LayerPaint)
+    layer.setColorFilter(skia::colorFilter(filter));
+  if (route == ColourFunctionRoute::LayerImageFilter)
+    layer.setImageFilter(skia::resolvedImageFilter(filter, nullptr));
+  const bool layered = route != ColourFunctionRoute::DrawPaint;
+  if (layered) canvas.saveLayer(nullptr, &layer);
+  canvas.drawImage(image, 0, 0, SkSamplingOptions(), &paint);
+  if (layered) canvas.restore();
+}
+
+void expectFourFifthsOfOne(const std::array<float, 4>& result) {
+  for (size_t channel = 0; channel < 3; ++channel)
+    EXPECT_NEAR(result[channel], 0.8f, 0.002f) << channel;
+  EXPECT_FLOAT_EQ(result[3], 1.0f);
+}
+
+}  // namespace
+
+TEST(SkiaColourFunction, BrightnessScalesAHalfFloatValuePastOne) {
+  // A texel of 4 at a fifth of its brightness is 0.8: the stored value is
+  // scaled, never held at one first. Skia's CPU rasterizer holds a layer's
+  // colour past one at one before any image filter over the layer reads
+  // it, so on the host a colour function reaches a value past one through
+  // a paint's colour filter, the form `skia::colorFilter` answers.
+  const sk_sp<SkImage> image = halfFloatTexelOfFour();
+  ASSERT_TRUE(image);
+  const auto info =
+      SkImageInfo::Make(1, 1, kRGBA_F16_SkColorType, kPremul_SkAlphaType);
+  for (const ColourFunctionRoute route :
+       {ColourFunctionRoute::DrawPaint, ColourFunctionRoute::LayerPaint}) {
+    SCOPED_TRACE(static_cast<int>(route));
+    auto target = SkSurfaces::Raster(info);
+    ASSERT_TRUE(target);
+    drawThrough(*target->getCanvas(), image, Filter::brightness(0.2f), route);
+    std::array<float, 4> result{};
+    ASSERT_TRUE(
+        target->readPixels(SkPixmap(info.makeColorType(kRGBA_F32_SkColorType),
+                                    result.data(), sizeof(float) * 4),
+                           0, 0));
+    expectFourFifthsOfOne(result);
+  }
+}
+
 #if defined(__APPLE__)
+TEST(MaterialGpu, BrightnessOverAHalfFloatLayerScalesTheStoredValue) {
+  // On the device every route scales the stored value, the image filter
+  // over a layer included, which is how a composed layer's filter runs.
+  auto device =
+      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  if (!device) GTEST_SKIP() << "no GPU device";
+  auto graphite = sigil::skia::GraphiteContext::create(*device);
+  if (!graphite) GTEST_SKIP() << "no Graphite context";
+  const sk_sp<SkImage> image = halfFloatTexelOfFour();
+  ASSERT_TRUE(image);
+  const auto info =
+      SkImageInfo::Make(1, 1, kRGBA_F16_SkColorType, kPremul_SkAlphaType);
+  for (const ColourFunctionRoute route :
+       {ColourFunctionRoute::DrawPaint, ColourFunctionRoute::LayerPaint,
+        ColourFunctionRoute::LayerImageFilter}) {
+    SCOPED_TRACE(static_cast<int>(route));
+    auto target = SkSurfaces::RenderTarget(graphite->recorder(), info);
+    ASSERT_TRUE(target);
+    drawThrough(*target->getCanvas(), image, Filter::brightness(0.2f), route);
+    std::array<float, 4> result{};
+    ASSERT_TRUE(sigil::skia::readbackPixels(
+        *graphite, *target,
+        SkPixmap(info.makeColorType(kRGBA_F32_SkColorType), result.data(),
+                 sizeof(float) * 4)));
+    expectFourFifthsOfOne(result);
+  }
+}
+
 TEST(MaterialGpu, HaloDeepeningPreservesFiniteSignedFloatChannelsAndCoverage) {
   auto device =
       sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);

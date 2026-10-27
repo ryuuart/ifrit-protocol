@@ -492,7 +492,10 @@ host acquires none of the three, and no other feature here reaches down into it.
 and Slang backend are named — it is the one place a geometry target names
 a material one other than `path/blend`'s private colour link, and it
 reads a texture and an environment map for one thing only: putting their
-pixels on the device.
+pixels on the device. A map painted from a material no device program
+plays, SigilMaterial's surface `PaintedMap`, is handed the device's own
+Graphite there, so it is painted on the device and worn where it stands,
+as a page is.
 
 **Nothing here draws, and nothing here has a colour.** A scatter answers
 points, a triangulation answers indices, a hull and a Voronoi cell and a

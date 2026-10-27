@@ -8,8 +8,8 @@
 #include <sigilmaterial/color/Ramp.h>
 #include <sigilmaterial/core/Gradient.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilpython/Bindings.h>
@@ -35,7 +35,8 @@ constexpr auto fluent = py::return_value_policy::reference_internal;
 
 /** Whether @p value is a plain number, which in a stop is its offset. */
 bool isNumber(py::handle value) {
-  return (py::isinstance<py::int_>(value) || py::isinstance<py::float_>(value)) &&
+  return (py::isinstance<py::int_>(value) ||
+          py::isinstance<py::float_>(value)) &&
          !py::isinstance<py::bool_>(value);
 }
 
@@ -100,7 +101,8 @@ material::Filter filterFromText(std::string_view text) {
       "another: blur(4px), brightness(), contrast(), saturate(), "
       "grayscale(), sepia(), invert() and opacity() of a number or a "
       "percentage, hue-rotate(90deg), and drop-shadow(2px 4px 6px colour) "
-      "with its colour named; or 'none'. A negative amount, url(), and a "
+      "with its colour named or in the ink in force; or 'none'. A negative "
+      "amount, url(), and a "
       "length against the font or the viewport are not read.");
 }
 
@@ -109,8 +111,8 @@ namespace {
 /** A gradient's stops as Python writes them: a `Ramp`, a list of
  *  `ColorStop`s, pairs in CSS's order `(colour, position)` — the position
  *  a fraction, percentage text or a length along the line — or in the
- *  offset-first order `(offset, colour)`, or plain colours spaced evenly. A pair is read by
- *  which of its two entries is the number. */
+ *  offset-first order `(offset, colour)`, or plain colours spaced evenly. A
+ * pair is read by which of its two entries is the number. */
 material::ColorStops colorStops(py::handle values) {
   if (py::isinstance<material::Ramp>(values))
     return material::ColorStops(py::cast<const material::Ramp&>(values));
@@ -162,24 +164,33 @@ material::Toward toward(py::handle value) {
   }
   if (!words.empty() && words.front() == "to") words.erase(words.begin());
   for (const std::string& name : words) {
-    if (name == "top") top = true;
-    else if (name == "bottom") bottom = true;
-    else if (name == "left") left = true;
-    else if (name == "right") right = true;
+    if (name == "top")
+      top = true;
+    else if (name == "bottom")
+      bottom = true;
+    else if (name == "left")
+      left = true;
+    else if (name == "right")
+      right = true;
     else
-      throw py::value_error("A gradient runs toward 'top', 'bottom', 'left', "
-                            "'right' or a corner such as 'top left', not '" +
-                            text + "'.");
+      throw py::value_error(
+          "A gradient runs toward 'top', 'bottom', 'left', "
+          "'right' or a corner such as 'top left', not '" +
+          text + "'.");
   }
   if (words.empty() || words.size() > 2 || (top && bottom) || (left && right))
-    throw py::value_error("A gradient runs toward one side or one corner, "
-                          "such as 'right' or 'top left', not '" + text + "'.");
-  if (top) return left ? material::Toward::TopLeft
-                       : right ? material::Toward::TopRight
-                               : material::Toward::Top;
-  if (bottom) return left ? material::Toward::BottomLeft
-                          : right ? material::Toward::BottomRight
-                                  : material::Toward::Bottom;
+    throw py::value_error(
+        "A gradient runs toward one side or one corner, "
+        "such as 'right' or 'top left', not '" +
+        text + "'.");
+  if (top)
+    return left    ? material::Toward::TopLeft
+           : right ? material::Toward::TopRight
+                   : material::Toward::Top;
+  if (bottom)
+    return left    ? material::Toward::BottomLeft
+           : right ? material::Toward::BottomRight
+                   : material::Toward::Bottom;
   return left ? material::Toward::Left : material::Toward::Right;
 }
 
@@ -204,14 +215,20 @@ glm::vec2 position(py::handle value) {
       continue;
     }
     if (word.empty()) continue;
-    if (word == "left") at.x = 0;
-    else if (word == "right") at.x = 1;
-    else if (word == "top") at.y = 0;
-    else if (word == "bottom") at.y = 1;
+    if (word == "left")
+      at.x = 0;
+    else if (word == "right")
+      at.x = 1;
+    else if (word == "top")
+      at.y = 0;
+    else if (word == "bottom")
+      at.y = 1;
     else if (word != "center")
-      throw py::value_error("A gradient's centre is 'center', 'top', "
-                            "'bottom', 'left', 'right' or two of them, or a "
-                            "pair of fractions, not '" + text + "'.");
+      throw py::value_error(
+          "A gradient's centre is 'center', 'top', "
+          "'bottom', 'left', 'right' or two of them, or a "
+          "pair of fractions, not '" +
+          text + "'.");
     word.clear();
   }
   return at;
@@ -224,8 +241,10 @@ material::RadialShape radialShape(py::handle value) {
   const std::string name = value.cast<std::string>();
   if (name == "ellipse") return material::RadialShape::Ellipse;
   if (name == "circle") return material::RadialShape::Circle;
-  throw py::value_error("A radial gradient's shape is 'circle' or "
-                        "'ellipse', not '" + name + "'.");
+  throw py::value_error(
+      "A radial gradient's shape is 'circle' or "
+      "'ellipse', not '" +
+      name + "'.");
 }
 
 /** CSS's four extent keywords. */
@@ -237,9 +256,11 @@ material::RadialExtent radialExtent(py::handle value) {
   if (name == "closest-side") return material::RadialExtent::ClosestSide;
   if (name == "closest-corner") return material::RadialExtent::ClosestCorner;
   if (name == "farthest-side") return material::RadialExtent::FarthestSide;
-  throw py::value_error("A radial gradient's extent is 'closest-side', "
-                        "'closest-corner', 'farthest-side' or "
-                        "'farthest-corner', not '" + name + "'.");
+  throw py::value_error(
+      "A radial gradient's extent is 'closest-side', "
+      "'closest-corner', 'farthest-side' or "
+      "'farthest-corner', not '" +
+      name + "'.");
 }
 
 /** A point as Python writes it, as the paint's own vector. */
@@ -394,7 +415,8 @@ void bindMaterialPaintEffect(py::module_& module) {
 
   py::class_<material::Filter>(nativePaint, "Filter")
       .def(py::init<>())
-      .def(py::init([](const std::string& text) { return filterFromText(text); }),
+      .def(py::init(
+               [](const std::string& text) { return filterFromText(text); }),
            py::arg("css"),
            "A filter from CSS's filter text: 'blur(4px) sepia(50%) "
            "drop-shadow(0 2px 4px #0008)', the functions chained in the "
@@ -457,6 +479,12 @@ void bindMaterialPaintEffect(py::module_& module) {
             return material::Filter::dropShadow(color(ink), options);
           },
           py::arg("color"), py::arg("options") = material::ShadowOptions{})
+      .def_static("dropShadowInCurrentColor",
+                  &material::Filter::dropShadowInCurrentColor,
+                  py::arg("options") = material::ShadowOptions{},
+                  "The layer's shadow in the ink the painter wearing the "
+                  "filter is set in: CSS drop-shadow() with no colour "
+                  "written. Painted opaque black until the ink is stated.")
       .def_static(
           "shadow",
           [](py::object ink, const material::ShadowOptions& options) {
@@ -589,6 +617,17 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def("emit", &material::Filter::emit, py::arg("light"),
            py::arg("mode") = material::BlendMode::Screen)
       .def("isNone", &material::Filter::isNone)
+      .def("namesCurrentColor", &material::Filter::namesCurrentColor,
+           "Whether any step, through its chains, paints in the ink in "
+           "force — currentcolor — rather than a colour of its own.")
+      .def(
+          "withCurrentColor",
+          [](const material::Filter& self, py::object ink) {
+            return self.withCurrentColor(color(ink));
+          },
+          py::arg("ink"),
+          "The filter with every step that paints in currentcolor painting "
+          "in the ink instead.")
       .def("isRunning", &material::Filter::isRunning)
       .def("usesWorldSpace", &material::Filter::usesWorldSpace)
       .def(py::self == py::self);
@@ -784,14 +823,13 @@ void bindMaterialPaintEffect(py::module_& module) {
       "a fraction, a percentage or a length along the line ('20px').");
   nativePaint.def(
       "radialGradient",
-      [](py::handle stops, py::handle shape, py::handle extent,
-         py::handle at, const material::GradientOptions& options) {
-        return material::radialGradient(
-            colorStops(stops),
-            {.shape = radialShape(shape),
-             .extent = radialExtent(extent),
-             .at = position(at)},
-            options);
+      [](py::handle stops, py::handle shape, py::handle extent, py::handle at,
+         const material::GradientOptions& options) {
+        return material::radialGradient(colorStops(stops),
+                                        {.shape = radialShape(shape),
+                                         .extent = radialExtent(extent),
+                                         .at = position(at)},
+                                        options);
       },
       py::arg("stops"), py::kw_only(), py::arg("shape") = "ellipse",
       py::arg("extent") = "farthest-corner", py::arg("at") = py::none(),

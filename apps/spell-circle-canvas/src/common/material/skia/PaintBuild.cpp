@@ -10,7 +10,6 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkM44.h>
 #include <include/core/SkShader.h>
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/advanced/Leaf.h>
 #include <sigilmaterial/advanced/Program.h>
@@ -23,6 +22,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <format>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -304,17 +304,16 @@ sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
       for (const auto& [name, value] : live.constants)
         if (name == "uPad" && value >= halfMin) {
           if (warnedPad.exchange(true, std::memory_order_relaxed)) break;
-          SkDebugf(
-              "[material] sdf material: pad %.1f px >= half of the "
-              "%.0fx%.0f box — the style's reserve (glow/shadow/border) "
-              "eats the whole interior and the visible shape is ~%.1f px "
-              "across. Size the node with material::sdf::minimumBoxFor(style, "
-              "contentPx) = content + 2*material::sdf::pad(style). (warned "
-              "once)\n",
+          material::report(std::format(
+              "sdf material: pad {:.1f} px >= half of the {:.0f}x{:.0f} box — "
+              "the style's reserve (glow/shadow/border) eats the whole "
+              "interior and the visible shape is ~{:.1f} px across. Size the "
+              "node with material::sdf::minimumBoxFor(style, contentPx) = "
+              "content + 2*material::sdf::pad(style). (warned once)",
               value, paintFrame->size.width(), paintFrame->size.height(),
               std::max(1.0f, std::min(paintFrame->size.width(),
                                       paintFrame->size.height()) -
-                                 2 * value));
+                                 2 * value)));
           break;
         }
     }
@@ -426,17 +425,16 @@ sk_sp<SkShader> PaintAccess::buildBacked(const Paint& self,
           0.5f * std::min(paintFrame->size.width(), paintFrame->size.height());
       if (pad >= halfMin &&
           !warnedPad.exchange(true, std::memory_order_relaxed)) {
-        SkDebugf(
-            "[material] sdf material: pad %.1f px >= half of the "
-            "%.0fx%.0f box — the style's reserve (glow/shadow/border) "
-            "eats the whole interior and the visible shape is ~%.1f px "
-            "across. Size the node with material::sdf::minimumBoxFor(style, "
-            "contentPx) = content + 2*material::sdf::pad(style). (warned "
-            "once)\n",
+        material::report(std::format(
+            "sdf material: pad {:.1f} px >= half of the {:.0f}x{:.0f} box — "
+            "the style's reserve (glow/shadow/border) eats the whole interior "
+            "and the visible shape is ~{:.1f} px across. Size the node with "
+            "material::sdf::minimumBoxFor(style, contentPx) = content + "
+            "2*material::sdf::pad(style). (warned once)",
             pad, paintFrame->size.width(), paintFrame->size.height(),
             std::max(1.0f, std::min(paintFrame->size.width(),
                                     paintFrame->size.height()) -
-                               2 * pad));
+                               2 * pad)));
       }
     }
   }

@@ -6,7 +6,7 @@
  * equality that decides whether a re-describe prunes.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf
+#include <sigilmaterial/advanced/Program.h>
 
 #include <algorithm>
 #include <string>
@@ -100,9 +100,9 @@ Paint& Paint::offset(std::optional<motion::Animatable<float>> x,
   const bool pannable = m_recipe && (m_recipe->kind == Recipe::Kind::Image ||
                                      m_recipe->kind == Recipe::Kind::Buffer);
   if (!pannable) {
-    SkDebugf(
-        "Paint::offset(&x, &y): ignored — only image()/buffer() "
-        "materials carry a local matrix to pan (Pattern's backend)\n");
+    material::report(
+        "Paint::offset(&x, &y): ignored — only image()/buffer() materials "
+        "carry a local matrix to pan (Pattern's backend)");
     return *this;
   }
   m_boundOffset = {std::move(x), std::move(y)};
@@ -124,9 +124,9 @@ bool Paint::hasFit() const { return m_recipe && m_recipe->fit != Fit::Native; }
 Paint& Paint::fit(Fit how) {
   if (!m_recipe || (m_recipe->kind != Recipe::Kind::Image &&
                     m_recipe->kind != Recipe::Kind::Buffer)) {
-    SkDebugf(
-        "Paint::fit(): ignored — only image()/buffer() materials have "
-        "a source with a size of its own to fit\n");
+    material::report(
+        "Paint::fit(): ignored — only image()/buffer() materials have a "
+        "source with a size of its own to fit");
     return *this;
   }
   // The recipe is held const and shared by every copy of the material, so
@@ -178,15 +178,14 @@ Paint& Paint::quantizeTime(float rate) {
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::quantizeTime: ignored — only sksl() materials carry "
-        "uTime\n");
+    material::report(
+        "Paint::quantizeTime: ignored — only sksl() materials carry uTime");
     return *this;
   }
   if (!validUniform(m_live->effect, "uTime", UniformType::kFloat)) {
-    SkDebugf(
+    material::report(
         "Paint::quantizeTime: ignored — the effect does not declare "
-        "`uniform float uTime`\n");
+        "`uniform float uTime`");
     return *this;
   }
   detachLive();

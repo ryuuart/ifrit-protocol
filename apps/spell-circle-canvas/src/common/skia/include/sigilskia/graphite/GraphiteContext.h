@@ -210,12 +210,19 @@ class GraphiteContext {
   /** The paint-order canvas reads whether this context's driver loses
    *  depth across a render-pass restart. */
   friend class PaintOrderCanvas;
+  /** A device signal on Vulkan submits to this context's queue. */
+  friend class DeviceSignal;
 
   std::unique_ptr<skgpu::graphite::Context> m_context;
   /** The device every recorder made here draws on. */
   void* m_device = nullptr;
   std::unique_ptr<skgpu::graphite::Recorder> m_recorder;
   mutable std::mutex m_contextMutex;
+  /** On Vulkan, the VkQueue the context submits to and the
+   *  PFN_vkGetDeviceProcAddr that answers the device's entry points, both
+   *  bridged to void*; null on Metal. */
+  void* m_vulkanQueue = nullptr;
+  void* m_vulkanGetDeviceProcAddr = nullptr;
   /** Whether the driver serves a destination read by restarting the
    *  render pass and loses the depth attachment across the restart:
    *  set by the Vulkan bring-up for MoltenVK, false everywhere else. */

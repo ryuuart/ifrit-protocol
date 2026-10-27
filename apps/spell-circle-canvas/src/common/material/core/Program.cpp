@@ -5,6 +5,7 @@
 
 #include "sigilmaterial/advanced/Program.h"
 
+#include <sigilcore/report/Report.h>
 #include <sigilcore/schedule/Parallel.h>
 
 #include <atomic>
@@ -15,9 +16,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
+#include <format>
 #include <future>
 #include <mutex>
-#include <print>
 #include <ranges>
 #include <thread>
 #include <vector>
@@ -57,12 +58,18 @@ struct ProgramCache::Impl {
 ProgramCache::ProgramCache() : m_impl(std::make_unique<Impl>()) {}
 ProgramCache::~ProgramCache() = default;
 
+void report(std::string_view message) {
+  sigil::core::report("SigilMaterial", message);
+}
+
 void reportOnce(const std::string& key, const std::string& message) {
   static std::mutex mutex;
   static boost::unordered_flat_set<std::string> seen;
-  std::lock_guard lock(mutex);
-  if (!seen.insert(key).second) return;
-  std::println(stderr, "[sigil::material] {}", message);
+  {
+    std::lock_guard lock(mutex);
+    if (!seen.insert(key).second) return;
+  }
+  report(message);
 }
 
 ProgramCache& ProgramCache::shared() {
@@ -147,8 +154,8 @@ std::expected<std::shared_ptr<Program>, core::Error> ProgramCache::program(
         said = what;
         std::lock_guard lock(m_impl->mutex);
         if (!m_impl->reported.insert({recipe.get(), target}).second) return;
-        std::println(stderr, "[sigil::material] recipe \"{}\": {}",
-                     recipe->name(), what);
+        material::report(
+            std::format("recipe \"{}\": {}", recipe->name(), what));
       };
       Compiler compiler;
       {
@@ -204,8 +211,8 @@ std::expected<std::shared_ptr<Program>, core::Error> ProgramCache::program(
           const std::string what =
               "the " + std::string(name(target)) + " body never reads " +
               unread + " — whatever is written to those fields has no effect";
-          std::println(stderr, "[sigil::material] recipe \"{}\": {}",
-                       recipe->name(), what);
+          material::report(
+              std::format("recipe \"{}\": {}", recipe->name(), what));
         }
       }
       return finish(std::move(built));

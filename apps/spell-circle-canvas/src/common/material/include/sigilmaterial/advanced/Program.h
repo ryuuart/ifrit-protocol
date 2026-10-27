@@ -156,8 +156,13 @@ std::expected<std::shared_ptr<Program>, core::Error> program(
 WarmupResult warmup(std::span<const Material> materials, Target target,
                     Variant variant = {});
 
-/** Writes @p message to the diagnostic stream the first time @p key is
- *  seen and never again, so a per-frame path can report a mistake once. */
+/** Says @p message on behalf of SigilMaterial through
+ *  `sigil::core::report`: to the reporter a host installed, or to the
+ *  standard error as `[SigilMaterial] message` when none is. */
+void report(std::string_view message);
+
+/** Says @p message as `report` does the first time @p key is seen and
+ *  never again, so a per-frame path can report a mistake once. */
 void reportOnce(const std::string& key, const std::string& message);
 
 }  // namespace sigil::material

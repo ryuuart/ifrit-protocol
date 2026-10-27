@@ -40,7 +40,7 @@ sigil_library(SigilMaterialCore
           ../advanced/Terms.h ../advanced/UniformBlock.h
   PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr
          Boost::container
-  PRIVATE Boost::unordered SigilCoreSchedule)
+  PRIVATE Boost::unordered SigilCoreReport SigilCoreSchedule)
 # The three stacking bodies are compiled into the archive, so the value
 # model carries them with no way to read a file.
 sigil_shader_sources(SigilMaterialCore

@@ -11,12 +11,13 @@
  * factories go on to use.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilshaders/MaterialSkia.h>
 
 #include <array>
 #include <cstddef>
+#include <format>
 #include <span>
 #include <vector>
 
@@ -68,8 +69,8 @@ struct Table {
                                   ? SkRuntimeEffect::MakeForColorFilter(source)
                                   : SkRuntimeEffect::MakeForShader(source);
       if (!program) {
-        SkDebugf("[material] skia::Effect: %s failed: %s\n", body.file,
-                 error.c_str());
+        material::report(std::format("skia::Effect: {} failed: {}", body.file,
+                                     error.c_str()));
         continue;
       }
       compiled.push_back(program);

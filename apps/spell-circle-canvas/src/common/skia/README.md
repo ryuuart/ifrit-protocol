@@ -106,9 +106,12 @@ Include `<sigilskia/graphite/Readback.h>` and call
 `sigil::skia::readbackPixels(*graphite, surface, pixmap)` on the context's
 recording thread. It submits pending draws and reads the whole surface into
 the caller's pixmap, holding the context lock to submit and to ask after
-completion but never across the wait; on Metal the device raises an event
-after the read, and the thread sleeps on it, so the call blocks for as long
-as the device takes and no longer. The pixmap's
+completion but never across the wait. The device raises a signal after
+the read and the thread sleeps on it, so the call blocks for as long as
+the device takes and no longer: on Metal a shared event, on Vulkan a fence
+a submit of the library's own raises once the read's submit has signalled
+a semaphore, which is why a caller sharing the queue holds the queue's
+lock around the call as it does around any submit. The pixmap's
 format and dimensions select the output; differing dimensions use nearest
 rescaling. Padding bytes are preserved. False means invalid output, failed
 submission or failed readback; no raster fallback is performed. Callback state

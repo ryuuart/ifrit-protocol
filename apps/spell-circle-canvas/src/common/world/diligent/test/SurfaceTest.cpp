@@ -23,6 +23,8 @@
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/surface/PaintedMap.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
@@ -35,8 +37,8 @@
 #include <cmath>
 #include <cstring>
 #include <functional>
-#include <glm/mat3x3.hpp>
 #include <glm/geometric.hpp>
+#include <glm/mat3x3.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -273,11 +275,11 @@ TEST(SurfaceSlots, AChannelOnlySkiaRunsIsPaintedForTheDevice) {
   const SkBitmap bare = cardOn(material::from(grey).surface({}), on.runtime);
   const SkBitmap painted =
       cardOn(material::from(grey).surface({.normal = pageOnly}), on.runtime);
-  const SkBitmap supplied = cardOn(
-      material::from(grey).surface(
-          {.normal = material::image(
-               flat("world.test.tilted-normal", {1, 0.5f, 0.5f, 1}))}),
-      on.runtime);
+  const SkBitmap supplied =
+      cardOn(material::from(grey).surface(
+                 {.normal = material::image(
+                      flat("world.test.tilted-normal", {1, 0.5f, 0.5f, 1}))}),
+             on.runtime);
 
   EXPECT_GT(luma(at(painted, 0.5f, 0.5f)), 0.05f) << "the card is drawn";
   EXPECT_GT(diligent::worstChannel(bare, painted), 8)
@@ -813,13 +815,13 @@ TEST(SurfaceSlots, AnEmissionMapKeepsItsOwnRepeatAndScale) {
   dots.tile(material::Repeat::Repeat)
       .uv(fifthBySeventh)
       .sampling(material::Sampling::Nearest);
-  const SkBitmap plate = cardOn(
-      material::from(material::Color{0, 0, 0, 1})
-          .surface({.roughness = 1.0f,
-                    .emission = {1, 1, 1, 1},
-                    .emissionStrength = 1,
-                    .emissionMap = material::image(dots)}),
-      on.runtime);
+  const SkBitmap plate =
+      cardOn(material::from(material::Color{0, 0, 0, 1})
+                 .surface({.roughness = 1.0f,
+                           .emission = {1, 1, 1, 1},
+                           .emissionStrength = 1,
+                           .emissionMap = material::image(dots)}),
+             on.runtime);
   const int middle = kExtent.x / 2;
   EXPECT_EQ(brightRuns(plate, {0, middle}, {kExtent.x - 1, middle}), 5)
       << "five dots across the card's middle row";
@@ -1016,4 +1018,49 @@ TEST(SurfaceSlots,
   EXPECT_LT(differs, relief * 0.15f)
       << "the derived normal shades as the supplied one: " << differs
       << " against a relief of " << relief;
+}
+
+TEST(SurfaceSlots, ARunningPaintedChannelIsPaintedOnTheDeviceEachFrame) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  if (!on.device->graphite())
+    GTEST_SKIP() << "the device carries no Graphite to paint with";
+
+  // A gradient under a layer that runs: no Slang body plays it, so it is
+  // painted into a map, and it runs, so it is painted again at each new
+  // time — on the device, never by Skia's CPU rasteriser.
+  const material::Material shimmer = material::shader(R"(
+half4 main(float2 p) { return half4(half(fract(uTime)), 0, 0, 1); })");
+  const material::Material channel =
+      material::linearGradient({0, 0}, {1, 0},
+                               {{0, {0, 0, 1, 1}}, {1, {0, 1, 0, 1}}})
+          .layer(shimmer, {.opacity = 0.5f});
+  ASSERT_TRUE(channel.isRunning());
+  const material::Material lowered = material::surface::lower(channel);
+  const material::Texture* map =
+      material::surface::map(lowered, material::surface::kBaseColorSlot);
+  ASSERT_NE(map, nullptr);
+  const auto* painted = map->source().as<material::surface::PaintedMap>();
+  ASSERT_NE(painted, nullptr);
+
+  Frame frame = diligent::card(lowered, kExtent);
+  frame.runtime(on.runtime);
+  motion::Engine engine;
+  Scene scene(engine);
+  const auto redAt = [&](double seconds) {
+    engine.advance(motion::Duration(seconds));
+    scene.render(frame);
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+    SkCanvas canvas(bitmap);
+    canvas.clear(SK_ColorBLACK);
+    draw(scene, canvas);
+    return bitmap.getColor4f(kExtent.x / 2, kExtent.y / 2).fR;
+  };
+  const float early = redAt(0.2);
+  const float late = redAt(0.8);
+  EXPECT_GT(late, early + 0.05f) << "the later time paints a redder layer";
+  EXPECT_GE(painted->revision(), 2u);
+  EXPECT_EQ(painted->hostPaintings(), 0u)
+      << "a running channel was painted by Skia's CPU rasteriser";
 }

@@ -14,18 +14,19 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
-#include <cmath>
-#include <glm/common.hpp>
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
+#include <format>
+#include <glm/common.hpp>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -146,12 +147,12 @@ Paint boxGradient(Paint unitGradient, const BoxPlacement& placement) {
     auto [built, error] = SkRuntimeEffect::MakeForShader(
         SkString(std::string(shaderSource("BoxGradient.sksl")).c_str()));
     if (!built)
-      SkDebugf("sigilmaterial box gradient shader: %s\n", error.c_str());
+      material::report(std::format("box gradient shader: {}", error.c_str()));
     return built;
   }();
   if (!effect) return unitGradient;
-  Paint box = PaintAccess::sksl(
-      effect, {{"uMode", (float)placement.mode}, {"uExtent", placement.extent}});
+  Paint box = PaintAccess::sksl(effect, {{"uMode", (float)placement.mode},
+                                         {"uExtent", placement.extent}});
   box.set("uCenter",
           std::array<float, 2>{placement.center.x(), placement.center.y()});
   box.set("uDirection", std::array<float, 2>{placement.direction.x(),
@@ -182,9 +183,8 @@ Paint boxGradient(Paint unitGradient, const BoxPlacement& placement) {
 
 /** Whether any of @p stops is written as a length along the line. */
 bool hasLengths(const ColorStops& stops) {
-  return std::ranges::any_of(stops.stops(), [](const ColorStop& stop) {
-    return stop.pixels != 0.0f;
-  });
+  return std::ranges::any_of(
+      stops.stops(), [](const ColorStop& stop) { return stop.pixels != 0.0f; });
 }
 
 /** The colours of @p stops spaced evenly — the child a box read places
@@ -200,10 +200,10 @@ std::pair<ColorStops, GradientOptions> evenlySpacedChild(
   if (stops.size() > kMostPlacedStops) {
     static std::atomic_bool warnedTooManyStops{false};
     if (!warnedTooManyStops.exchange(true, std::memory_order_relaxed))
-      SkDebugf(
-          "[material] a gradient with stops written as lengths places its "
-          "first %zu stops; the rest are left out. (warned once)\n",
-          kMostPlacedStops);
+      material::report(std::format(
+          "a gradient with stops written as lengths places its first {} "
+          "stops; the rest are left out. (warned once)",
+          kMostPlacedStops));
   }
   GradientOptions child;
   child.units = GradientUnits::Pixels;
@@ -212,11 +212,10 @@ std::pair<ColorStops, GradientOptions> evenlySpacedChild(
 }
 
 Paint boxGradient(Paint unitGradient, SkPoint center, bool conic) {
-  return boxGradient(
-      std::move(unitGradient),
-      {.mode = conic ? BoxPlacement::PixelsAroundCenter
-                     : BoxPlacement::UnitSquare,
-       .center = center});
+  return boxGradient(std::move(unitGradient),
+                     {.mode = conic ? BoxPlacement::PixelsAroundCenter
+                                    : BoxPlacement::UnitSquare,
+                      .center = center});
 }
 
 /** The point-to-point options a CSS-shaped gradient's child is built
@@ -363,12 +362,12 @@ Paint Paint::conicGradient(glm::vec2 centerPoint, ColorStops stops,
   if (sweepEnd > 360.0f) {
     static std::atomic_bool warnedSweepWindow{false};
     if (!warnedSweepWindow.exchange(true, std::memory_order_relaxed)) {
-      SkDebugf(
-          "[material] material::Paint::conicGradient(start %.1f, end %.1f): "
-          "a window wider than one turn CLAMPS, it does not wrap, so the "
-          "run past the turn paints in the nearest stop's flat colour. "
-          "(warned once)\n",
-          startDegrees, endDegrees);
+      material::report(std::format(
+          "material::Paint::conicGradient(start {:.1f}, end {:.1f}): a "
+          "window wider than one turn CLAMPS, it does not wrap, so the run "
+          "past the turn paints in the nearest stop's flat colour. (warned "
+          "once)",
+          startDegrees, endDegrees));
     }
   }
   const SkTileMode tile = toSkTileMode(options.repeat);
@@ -400,14 +399,30 @@ Paint cssLinearGradient(ColorStops stops, LinearDirection direction,
     float degrees = direction.angleDegrees;
     if (direction.toward) {
       switch (*direction.toward) {
-        case Toward::Top: degrees = 0; break;
-        case Toward::Right: degrees = 90; break;
-        case Toward::Bottom: degrees = 180; break;
-        case Toward::Left: degrees = 270; break;
-        case Toward::TopRight: placement.corner = {1, -1}; break;
-        case Toward::BottomRight: placement.corner = {1, 1}; break;
-        case Toward::BottomLeft: placement.corner = {-1, 1}; break;
-        case Toward::TopLeft: placement.corner = {-1, -1}; break;
+        case Toward::Top:
+          degrees = 0;
+          break;
+        case Toward::Right:
+          degrees = 90;
+          break;
+        case Toward::Bottom:
+          degrees = 180;
+          break;
+        case Toward::Left:
+          degrees = 270;
+          break;
+        case Toward::TopRight:
+          placement.corner = {1, -1};
+          break;
+        case Toward::BottomRight:
+          placement.corner = {1, 1};
+          break;
+        case Toward::BottomLeft:
+          placement.corner = {-1, 1};
+          break;
+        case Toward::TopLeft:
+          placement.corner = {-1, -1};
+          break;
       }
     }
     const float radians = degrees * 3.14159265358979f / 180.0f;
@@ -428,12 +443,11 @@ Paint cssLinearGradient(ColorStops stops, LinearDirection direction,
   // CSS's angle runs clockwise from straight up, and the canvas's y grows
   // downward, so 0 points along -y and 90 along +x.
   const float radians = direction.angleDegrees * 3.14159265358979f / 180.0f;
-  return boxGradient(
-      Paint::linearGradient({0, 0}, {1, 0}, std::move(stops),
-                            childOptions(options)),
-      {.mode = BoxPlacement::Along,
-       .center = {0.5f, 0.5f},
-       .direction = {std::sin(radians), -std::cos(radians)}});
+  return boxGradient(Paint::linearGradient({0, 0}, {1, 0}, std::move(stops),
+                                           childOptions(options)),
+                     {.mode = BoxPlacement::Along,
+                      .center = {0.5f, 0.5f},
+                      .direction = {std::sin(radians), -std::cos(radians)}});
 }
 
 Paint cssRadialGradient(ColorStops stops, RadialEndingShape shape,
@@ -582,8 +596,8 @@ sk_sp<SkRuntimeEffect> rampEffect(const std::string& declarations,
   auto [effect, error] =
       SkRuntimeEffect::MakeForShader(SkString(source.c_str()));
   if (!effect)
-    SkDebugf("sigilmaterial unitRamp shader (%zu stops): %s\n", count,
-             error.c_str());
+    material::report(
+        std::format("unitRamp shader ({} stops): {}", count, error.c_str()));
   return effect;
 }
 
@@ -724,10 +738,10 @@ Paint PaintAccess::unresolvedSksl(sk_sp<SkRuntimeEffect> effect) {
     // log by the time anyone looks. Say it at BUILD, where the mistake is.
     static std::atomic_bool warnedNullEffect{false};
     if (!warnedNullEffect.exchange(true, std::memory_order_relaxed)) {
-      SkDebugf(
-          "[material] material::skia::sksl(null effect): the paint is NONE "
-          "and its node will paint nothing. Check the error string "
-          "MakeForShader returned next to the effect. (warned once)\n");
+      material::report(
+          "material::skia::sksl(null effect): the paint is NONE and its node "
+          "will paint nothing. Check the error string MakeForShader returned "
+          "next to the effect. (warned once)");
     }
     return paint;
   }

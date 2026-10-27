@@ -19,8 +19,10 @@
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilmaterial/surface/PaintedMap.h>
 #include <sigilmedia/advanced/Device.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/Pixels.h>
 
 #include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
@@ -231,8 +233,8 @@ bool TextureResidency::fill(WrappedImage& held, uint64_t revision) {
   // between two frames with nothing to say so — on the first use of
   // every frame that wears it. The fill is recorded after the wait for
   // the painting, so it reads the page as painted.
-  const bool stale = revision == 0 ? held.filled != m_frame
-                                   : held.filledRevision != revision;
+  const bool stale =
+      revision == 0 ? held.filled != m_frame : held.filledRevision != revision;
   if (stale) {
     m_device->context()->GenerateMips(
         held.texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
@@ -259,10 +261,27 @@ dg::ITexture* TextureResidency::levelZeroOf(WrappedImage& held) {
   return held.levelZero ? held.levelZero.RawPtr() : held.texture.RawPtr();
 }
 
+media::DeviceFrame TextureResidency::deviceFrameOf(
+    const material::Texture& map, std::chrono::duration<double> time) {
+  // A MATERIAL NO DEVICE PROGRAM PLAYS is painted on this device rather
+  // than by Skia's CPU rasteriser: handed the device's Graphite, the map
+  // paints into a texture of the device's own. A painting made after this
+  // frame's queue waited for the paintings before it is waited for again.
+  if (const auto* painted = map.source().as<material::surface::PaintedMap>();
+      painted && m_device->gpu() && m_device->graphite() &&
+      painted->useDevice(*m_device->gpu(), *m_device->graphite())) {
+    const uint64_t before = painted->revision();
+    media::DeviceFrame where = map.source().frameAt(time).device;
+    if (painted->revision() != before) m_waited = UINT64_MAX;
+    return where;
+  }
+  return map.source().frameAt(time).device;
+}
+
 void TextureResidency::prepare(const material::Texture& map,
                                std::chrono::duration<double> time) {
   if (!m_device->renderDevice()) return;
-  const media::DeviceFrame where = map.source().frameAt(time).device;
+  const media::DeviceFrame where = deviceFrameOf(map, time);
   if (WrappedImage* held = wrap(where)) (void)fill(*held, where.revision);
 }
 
@@ -275,7 +294,7 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map,
   // draw needs is a name for them and not a second copy of them. The
   // source is asked at the frame's time, and a frame of it standing on a
   // device is named rather than read back.
-  const media::DeviceFrame where = map.source().frameAt(time).device;
+  const media::DeviceFrame where = deviceFrameOf(map, time);
   if (WrappedImage* held = wrap(where)) {
     if (form.mipmaps && fill(*held, where.revision)) return held->texture;
     return levelZeroOf(*held);

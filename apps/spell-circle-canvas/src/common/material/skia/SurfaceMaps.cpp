@@ -8,7 +8,6 @@
 #include "sigilmaterial/skia/SurfaceMaps.h"
 
 #include <include/core/SkString.h>
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/filter/Filter.h>
@@ -19,6 +18,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <format>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -47,7 +47,7 @@ const sk_sp<SkRuntimeEffect>& surfaceMapEffect(bool turnsNormals) {
         (std::string(world) + std::string(shaderSource("SurfaceMap.sksl")))
             .c_str()));
     if (!built)
-      SkDebugf("sigilmaterial surface map shader: %s\n", error.c_str());
+      material::report(std::format("surface map shader: {}", error.c_str()));
     return built;
   };
   static const sk_sp<SkRuntimeEffect> turning =

@@ -123,20 +123,35 @@ bool GraphiteContext::submit(skgpu::graphite::Recorder& recorder,
   return inserted;
 }
 
-#ifndef __APPLE__
-// No backend here offers an event a host can wait on, so every signal is
-// empty and a reader asks the context.
-struct DeviceSignal::State {};
-
-DeviceSignal::DeviceSignal(const skgpu::graphite::Recorder&) {}
+DeviceSignal::DeviceSignal(const skgpu::graphite::Recorder& recorder) {
+  switch (recorder.backend()) {
+#ifdef __APPLE__
+    case skgpu::BackendApi::kMetal:
+      m_form = metalSignal(recorder);
+      break;
+#endif
+    case skgpu::BackendApi::kVulkan:
+      if (const GraphiteContext* context = contextOf(recorder))
+        m_form = vulkanSignal(context->m_device, context->m_vulkanQueue,
+                              context->m_vulkanGetDeviceProcAddr);
+      break;
+    default:
+      break;
+  }
+}
 
 DeviceSignal::~DeviceSignal() = default;
 
-void DeviceSignal::attach(skgpu::graphite::InsertRecordingInfo&) {}
-
-bool DeviceSignal::wait(std::chrono::steady_clock::time_point) const {
-  return false;
+void DeviceSignal::attach(skgpu::graphite::InsertRecordingInfo& insert) {
+  if (m_form) m_form->attach(insert);
 }
-#endif
+
+void DeviceSignal::afterSubmit() {
+  if (m_form) m_form->afterSubmit();
+}
+
+bool DeviceSignal::wait(std::chrono::steady_clock::time_point deadline) const {
+  return m_form && m_form->wait(deadline);
+}
 
 }  // namespace sigil::skia

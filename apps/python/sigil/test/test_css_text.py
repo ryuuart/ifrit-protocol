@@ -96,8 +96,18 @@ class AFilterIsReadFromItsCssText(unittest.TestCase):
         )
         self.assertIsInstance(box().backdropFilter("blur(8px)"), compose.Element)
 
+    def test_a_drop_shadow_with_no_colour_is_in_the_ink_in_force(self):
+        shadow = Filter("drop-shadow(2px 2px 4px)")
+        self.assertTrue(shadow.namesCurrentColor())
+        options = material.ShadowOptions(offset=(2, 2), blur=4)
+        self.assertEqual(shadow, Filter.dropShadowInCurrentColor(options))
+        self.assertEqual(
+            shadow.withCurrentColor("blue"), Filter.dropShadow("blue", options)
+        )
+        self.assertFalse(Filter.blur(2).namesCurrentColor())
+
     def test_a_filter_the_reader_cannot_hold_raises_naming_it(self):
-        for written in ("blur(1em)", "drop-shadow(2px 2px)", "wobble(2)"):
+        for written in ("blur(1em)", "drop-shadow(2px)", "wobble(2)"):
             with self.subTest(written=written):
                 with self.assertRaisesRegex(ValueError, "no CSS filter") as raised:
                     box().filter(written)

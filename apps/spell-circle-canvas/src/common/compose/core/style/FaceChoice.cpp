@@ -19,6 +19,7 @@
 
 #include "FamilyList.h"
 #include "sigilweave/advanced/Skia.h"
+#include "sigilweave/fonts/FamilyName.h"
 
 namespace sigil::compose::detail {
 
@@ -64,10 +65,9 @@ void warnNoSuchStyle(const std::string& list, const std::string& styleName) {
 }
 
 void warnNoItalic(const SkTypeface& face) {
-  SkString name;
-  face.getFamilyName(&name);
+  const std::string name = sigil::weave::fonts::familyName(face);
   static thread_local boost::unordered_flat_set<std::string> warned;
-  if (!warned.insert(name.c_str()).second) return;
+  if (!warned.insert(name).second) return;
   SkDebugf(
       "[compose] fontStyle(Italic) over \"%s\", which has no italic face and "
       "no ital axis — it is set as an oblique of 14 degrees instead, which "
@@ -108,9 +108,9 @@ void setAxis(sigil::weave::Type& font, const char (&tag)[5], float value,
  *  an installed face — rather than a file's that happens to share an
  *  installed family's name. */
 bool isFamilyMember(sigil::weave::FontContext& fonts, const SkTypeface& face,
-                    const SkString& family) {
-  const sk_sp<SkTypeface> member = fonts.familyTypeface(
-      family.c_str(), sigil::weave::fromSk(face.fontStyle()));
+                    const std::string& family) {
+  const sk_sp<SkTypeface> member =
+      fonts.familyTypeface(family, sigil::weave::fromSk(face.fontStyle()));
   if (!member) return false;
   if (member.get() == &face) return true;
   SkString own, found;
@@ -150,11 +150,9 @@ void chooseFace(sigil::weave::FontContext& fonts, sigil::weave::Type& font,
   // A face that is not its family's own — a file's — has no other face.
   if (!chosen && inForce) {
     if (isItalicFace(*inForce) != italic) {
-      SkString name;
-      inForce->getFamilyName(&name);
+      const std::string name = sigil::weave::fonts::familyName(*inForce);
       if (isFamilyMember(fonts, *inForce, name))
-        chosen =
-            fonts.familyTypeface(name.c_str(), sigil::weave::fromSk(wanted));
+        chosen = fonts.familyTypeface(name, sigil::weave::fromSk(wanted));
     }
     if (!chosen) chosen = inForce;
   }

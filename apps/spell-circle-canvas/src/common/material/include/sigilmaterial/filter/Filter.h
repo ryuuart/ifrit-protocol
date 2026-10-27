@@ -246,6 +246,12 @@ class Filter {
   static Filter glass(GlassOptions options = {});
   /** The layer's shadow in @p color beneath it — CSS `drop-shadow()`. */
   static Filter dropShadow(Color color, ShadowOptions options = {});
+  /** The layer's shadow beneath it in the ink the painter wearing the
+   *  filter is set in — CSS `drop-shadow()` with its colour unstated,
+   *  which is `currentcolor`. The painter states the ink through
+   *  `withCurrentColor`.
+   *  @silent painted with no ink stated, the shadow is opaque black. */
+  static Filter dropShadowInCurrentColor(ShadowOptions options = {});
   /** The layer re-emitted blurred beneath itself in @p color — a drop
    *  shadow at zero offset, which keeps the content on top. */
   static Filter glow(Color color, float sigma);
@@ -394,6 +400,14 @@ class Filter {
 
   /** The filter that passes the layer through untouched. */
   bool isNone() const { return m_node == nullptr; }
+  /** Whether any step of this filter, through its `then` and `emit`
+   *  chains, paints in the ink in force — `currentcolor` — rather than a
+   *  colour of its own. */
+  [[nodiscard]] bool namesCurrentColor() const;
+  /** THIS FILTER WITH THE INK IN FORCE STATED: every step that paints in
+   *  `currentcolor` painting in @p ink instead, through its `then` and
+   *  `emit` chains. A filter that names no current colour is itself. */
+  [[nodiscard]] Filter withCurrentColor(Color ink) const;
   /** The steps that read the layer's coverage, in chain order. */
   std::span<const CoverageEffect> coverage() const;
   /** This filter without its coverage steps: the passes that read
@@ -431,13 +445,15 @@ class Filter {
  *    `invert()` and `opacity()`, each a number or a percentage, 1 where
  *    the brackets are empty;
  *  - `hue-rotate(<angle>)` in any of CSS's angle units;
- *  - `drop-shadow(<colour> <length>{2,3})`, the offset and a blur radius,
- *    the colour before or after them.
+ *  - `drop-shadow(<colour>? <length>{2,3})`, the offset and a blur
+ *    radius, the colour before or after them; with no colour written, the
+ *    shadow is in `currentcolor`, `Filter::dropShadowInCurrentColor`.
  *
- *  Nothing where any function is none of these, an amount is negative, a
- *  length is in a unit measured against the font or the viewport, or a
- *  drop shadow states no colour: CSS's unstated colour is the ink in
- *  force, which a filter read on its own does not know. */
+ *  Nothing where any function is none of these, an amount is negative, or
+ *  a length is in a unit measured against the font or the viewport.
+ *  @trap A shadow in `currentcolor` knows no ink until its painter states
+ *  one with `Filter::withCurrentColor`; painted before, it is opaque
+ *  black. */
 std::optional<Filter> readFilter(std::string_view text);
 
 }  // namespace sigil::material

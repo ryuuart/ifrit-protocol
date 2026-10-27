@@ -3,16 +3,18 @@
 # unlit recipe, the dressing of a decoded texture set — and the lowering
 # of a material's stated response (`Material::surface`) into that
 # program. The bodies are embedded, so the program travels with the
-# binary. It links the Skia backend privately for one reading: whether a
-# material carries an effects stage, which a surface cannot draw.
+# binary. It links the Skia backend privately to paint a material no
+# device program plays into a map — by Skia's CPU rasteriser, or by
+# Graphite on the device a renderer hands it, which is why the hardware
+# and Graphite features stand beside it.
 set(SIGIL_MATERIAL_SURFACE_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the material surface's shader modules")
 
 sigil_library(SigilMaterialSurface
-  SOURCES Lower.cpp Surface.cpp
-  HEADERS Surface.h
+  SOURCES Lower.cpp PaintedMap.cpp Surface.cpp
+  HEADERS PaintedMap.h Surface.h
   PUBLIC SigilMaterialTexture SigilMaterialColor
-  PRIVATE SigilMaterialSkia)
+  PRIVATE SigilMaterialSkia SigilSkiaGraphite SigilCoreHardware)
 sigil_shader_sources(SigilMaterialSurface
   DIR ${SIGIL_MATERIAL_SURFACE_SHADER_DIR}
   NAMESPACE sigil::material::surface)

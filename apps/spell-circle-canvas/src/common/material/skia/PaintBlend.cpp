@@ -7,11 +7,12 @@
 
 #include <include/core/SkBlender.h>
 #include <include/core/SkShader.h>
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilshaders/MaterialSkia.h>
 
 #include <cstddef>
+#include <format>
 #include <functional>
 #include <span>
 #include <utility>
@@ -37,8 +38,8 @@ sk_sp<SkShader> mixLayer(sk_sp<SkShader> under, sk_sp<SkShader> layer,
     auto [effect, err] =
         SkRuntimeEffect::MakeForShader(SkString(shaderSource("Mix.sksl")));
     if (!effect)
-      SkDebugf("[material] the blend mix body did not compile: %s\n",
-               err.c_str());
+      material::report(
+          std::format("the blend mix body did not compile: {}", err.c_str()));
     return effect;
   }();
   if (!fx) return SkShaders::Blend(mode, std::move(under), std::move(layer));

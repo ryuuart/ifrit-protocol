@@ -10,6 +10,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
+#include <sigilweave/fonts/FamilyName.h>
 #include <sigilweave/layout/Flow.h>
 #include <sigilweave/testing/Baseline.h>
 #include <sigilweave/testing/Passage.h>
@@ -20,8 +21,8 @@
 #include <string_view>
 #include <vector>
 
-#include "sigilweave/advanced/Skia.h"
 #include "ScratchDir.h"
+#include "sigilweave/advanced/Skia.h"
 #include "support/Paragraphs.h"
 
 using namespace sigil::weave;
@@ -123,6 +124,10 @@ TEST(WeaveBaseline, APlateListsTheFacesItWasDrawnIn) {
   const std::vector<std::string> faces = plate.faces();
   ASSERT_EQ(faces.size(), 1u);
   EXPECT_NE(faces.front().find("revision"), std::string::npos);
+  // The line opens with the family the font service answers for the face.
+  EXPECT_TRUE(faces.front().starts_with(
+      fonts::familyName(*sigil::test::instrument::sans()) + " | "))
+      << faces.front();
   EXPECT_EQ(plate.faces(), faces) << "asking twice answers the same faces";
   EXPECT_TRUE(weave::testing::Plate({0, 0}, SK_ColorWHITE).faces().empty());
 }

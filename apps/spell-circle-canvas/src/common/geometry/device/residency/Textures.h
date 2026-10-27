@@ -200,6 +200,12 @@ class TextureResidency {
   bool fill(WrappedImage& held, uint64_t revision);
   /** @p held as its one painted level; null when the device refused it. */
   Diligent::ITexture* levelZeroOf(WrappedImage& held);
+  /** WHERE @p map's PIXELS STAND AT @p time: a material painted into a map
+   *  is painted here, by this device's own Graphite, and the frame it
+   *  paints is waited for even when this frame's queue already waited for
+   *  every painting before it. */
+  media::DeviceFrame deviceFrameOf(const material::Texture& map,
+                                   std::chrono::duration<double> time);
 
   Device* m_device = nullptr;
   uint64_t m_frame = 0;

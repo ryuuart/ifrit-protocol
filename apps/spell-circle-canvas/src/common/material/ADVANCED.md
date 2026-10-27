@@ -135,8 +135,8 @@ that does nothing looks, from the call site, exactly like a dial set to
 the wrong value: the bytes go up and the picture does not change. So
 `Material::set(name, …)` asks the recipe — `Recipe::readsField(name)`,
 which is whether any body of it SPELLS the name as a whole identifier —
-and names the recipe and the field on stderr once per pair, beside the
-reports for an unknown field and a wrong float count. The value is still
+and names the recipe and the field through the reporting door once per
+pair, beside the reports for an unknown field and a wrong float count. The value is still
 written; the report is about the picture, not the bytes.
 
 It is asked at the WRITE and not at the compile because a parameter struct
@@ -186,10 +186,10 @@ complete body, and the four exist because a MAP that varies a surface
 across a face is a per-pixel answer no per-vertex shading can carry. A
 material resolved for a target its recipe has no body for — or one no
 compiler is registered for, or one whose body fails to compile — yields a
-null program, and the cache reports it to stderr exactly once per (recipe,
-target), naming both, so the mistake surfaces at the first describe rather
-than scrolling past every frame. A body that compiles but leaves a parameters
-field unread is reported the same way.
+null program, and the cache reports it through the reporting door exactly
+once per (recipe, target), naming both, so the mistake surfaces at the
+first describe rather than scrolling past every frame. A body that
+compiles but leaves a parameters field unread is reported the same way.
 
 **One program cache.** `ProgramCache::shared()` holds every compiled
 program in the process, keyed by (recipe identity, target, variant). A

@@ -9,7 +9,6 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the slot diagnostics
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/advanced/Program.h>  // reportOnce
@@ -277,9 +276,8 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> program,
                       std::vector<std::pair<std::string, float>> uniforms,
                       float sampleRadius) {
   if (!std::isfinite(sampleRadius) || sampleRadius < 0) {
-    SkDebugf(
-        "[material] Filter sampling radius must be finite and "
-        "nonnegative; ignored\n");
+    material::report(
+        "Filter sampling radius must be finite and nonnegative; ignored");
     return {};
   }
   Effect result = shader(std::move(program), std::move(uniforms));

@@ -164,7 +164,9 @@ TEST(SigilSkiaGraphite, ADeviceSignalRisesWhenTheDeviceReachesIt) {
     waits.attach(insert);
     signal.attach(insert);
     ASSERT_EQ(ctx->context()->insertRecording(insert), skgpu::graphite::InsertStatus::kSuccess);
-    ASSERT_TRUE(ctx->context()->submit(skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kNo)));
+    ASSERT_TRUE(
+        ctx->context()->submit(skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kNo)));
+    signal.afterSubmit();
   }
   EXPECT_FALSE(signal.wait(Clock::now() + std::chrono::milliseconds(100)))
       << "raised while the device still waits on the host";
@@ -176,4 +178,3 @@ TEST(SigilSkiaGraphite, ADeviceSignalRisesWhenTheDeviceReachesIt) {
   }
   dev->destroyFence(fence);
 }
-

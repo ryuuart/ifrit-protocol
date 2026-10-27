@@ -198,10 +198,35 @@ TEST(FilterText, ADropShadowReadsItsOffsetBlurAndColour) {
       Filter::dropShadow(*readColor("rgb(0 0 0 / 50%)"), {.offset = {-2, 3}}));
 }
 
+TEST(FilterText, ADropShadowWithNoColourIsInTheInkInForce) {
+  // CSS's unstated shadow colour is currentcolor: the filter names it, and
+  // the painter's ink stated over it is the shadow written in that ink.
+  const std::optional<Filter> read = readFilter("drop-shadow(2px 2px 4px)");
+  ASSERT_TRUE(read);
+  EXPECT_TRUE(read->namesCurrentColor());
+  EXPECT_NE(*read,
+            Filter::dropShadow({0, 0, 0, 1}, {.blur = 4, .offset = {2, 2}}));
+  EXPECT_EQ(read->withCurrentColor(kBlue),
+            Filter::dropShadow(kBlue, {.blur = 4, .offset = {2, 2}}));
+  EXPECT_FALSE(read->withCurrentColor(kBlue).namesCurrentColor());
+
+  // Through a chain, each side stated.
+  const std::optional<Filter> chained =
+      readFilter("blur(1px) drop-shadow(2px 2px)");
+  ASSERT_TRUE(chained);
+  EXPECT_TRUE(chained->namesCurrentColor());
+  EXPECT_EQ(
+      chained->withCurrentColor(kBlue),
+      Filter::blur(1.0f).then(Filter::dropShadow(kBlue, {.offset = {2, 2}})));
+  // A filter that names no current colour is itself.
+  EXPECT_FALSE(Filter::blur(2.0f).namesCurrentColor());
+  EXPECT_EQ(Filter::blur(2.0f).withCurrentColor(kBlue), Filter::blur(2.0f));
+}
+
 TEST(FilterText, TextNoFilterHoldsReadsAsNothing) {
   for (const char* text :
        {"blur(-1px)", "blur(1em)", "sepia(-50%)", "hue-rotate(90)",
-        "drop-shadow(2px 2px)", "drop-shadow(2px blue 2px)", "url(#shadow)",
+        "drop-shadow(2px)", "drop-shadow(2px blue 2px)", "url(#shadow)",
         "blur(4px), sepia(1)", "wobble(2)", ""}) {
     SCOPED_TRACE(text);
     EXPECT_FALSE(readFilter(text));

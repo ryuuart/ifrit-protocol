@@ -9,7 +9,6 @@
 
 #include <include/core/SkBlender.h>
 #include <include/core/SkString.h>
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/paint/Bases.h>
@@ -17,6 +16,7 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilshaders/MaterialSkia.h>
 
+#include <format>
 #include <string>
 #include <utility>
 #include <vector>
@@ -57,7 +57,7 @@ Paint maskedLayer(Paint under, Paint layer, SkBlendMode mode, Paint mask,
     auto [built, error] = SkRuntimeEffect::MakeForShader(
         SkString(std::string(shaderSource("MaskedLayer.sksl")).c_str()));
     if (!built)
-      SkDebugf("sigilmaterial masked layer shader: %s\n", error.c_str());
+      material::report(std::format("masked layer shader: {}", error.c_str()));
     return built;
   }();
   if (!effect) return under;
@@ -138,7 +138,7 @@ Paint PaintAccess::alphaCutout(Paint source, float cutoff, bool snapshot) {
     auto [built, error] = SkRuntimeEffect::MakeForShader(
         SkString(std::string(shaderSource("AlphaCutout.sksl")).c_str()));
     if (!built)
-      SkDebugf("sigilmaterial alpha cutoff shader: %s\n", error.c_str());
+      material::report(std::format("alpha cutoff shader: {}", error.c_str()));
     return built;
   }();
   if (!effect) return source;

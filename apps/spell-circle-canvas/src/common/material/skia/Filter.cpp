@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "EffectInternal.h"
@@ -27,6 +28,19 @@ struct Filter::Node {
   /** The steps that read coverage, which no image filter carries: a
    *  renderer that knows the layer's shape draws them. */
   std::vector<CoverageEffect> coverage;
+  /** Where this step is a shadow in `currentcolor`: how it falls. Its
+   *  effect paints it opaque black until the ink is stated. */
+  std::optional<ShadowOptions> currentColorShadow;
+  /** THE TWO FILTERS A CHAIN WAS MADE FROM, kept where either names
+   *  `currentcolor`, so the chain is made again once the ink is stated;
+   *  with the blend of an `emit`, none for a `then`. */
+  struct Sides {
+    Filter first;
+    Filter second;
+    std::optional<BlendMode> emitted;
+    bool operator==(const Sides&) const = default;
+  };
+  std::shared_ptr<const Sides> sides;
 };
 
 }  // namespace sigil::material
@@ -48,6 +62,7 @@ struct FilterAccess {
         Filter::Node{std::move(effect), std::move(coverage)}));
   }
   static Effect& edit(Filter& filter) { return filter.edit().effect; }
+  static Filter::Node& node(Filter& filter) { return filter.edit(); }
 };
 
 namespace {
@@ -80,8 +95,8 @@ Filter program(sk_sp<SkRuntimeEffect> effect,
 Filter program(sk_sp<SkRuntimeEffect> effect,
                std::vector<std::pair<std::string, float>> parameters,
                float sampleRadius) {
-  return FilterAccess::wrap(Effect::shader(
-      std::move(effect), std::move(parameters), sampleRadius));
+  return FilterAccess::wrap(
+      Effect::shader(std::move(effect), std::move(parameters), sampleRadius));
 }
 
 Filter lowered(const Material& program, SkColorType surface) {
@@ -164,6 +179,13 @@ Filter Filter::dropShadow(Color color, ShadowOptions options) {
   // The blur is CSS's radius, the Gaussian's standard deviation doubled.
   return FilterAccess::wrap(Effect::dropShadow(
       color, options.offset.x, options.offset.y, options.blur * 0.5f));
+}
+
+Filter Filter::dropShadowInCurrentColor(ShadowOptions options) {
+  // Painted opaque black until the painter states its ink.
+  Filter shadow = dropShadow(Color{0, 0, 0, 1}, options);
+  FilterAccess::node(shadow).currentColorShadow = options;
+  return shadow;
 }
 
 Filter Filter::glow(Color color, float sigma) {
@@ -310,17 +332,47 @@ Filter Filter::then(const Filter& next) const {
   std::vector<CoverageEffect> coverage = m_node->coverage;
   coverage.insert(coverage.end(), next.m_node->coverage.begin(),
                   next.m_node->coverage.end());
-  return FilterAccess::wrap(m_node->effect.then(next.m_node->effect),
-                            std::move(coverage));
+  Filter chain = FilterAccess::wrap(m_node->effect.then(next.m_node->effect),
+                                    std::move(coverage));
+  if ((namesCurrentColor() || next.namesCurrentColor()) && !chain.isNone())
+    FilterAccess::node(chain).sides = std::make_shared<const Node::Sides>(
+        Node::Sides{*this, next, std::nullopt});
+  return chain;
 }
 
 Filter Filter::emit(const Filter& light, BlendMode mode) const {
   if (!light.m_node) return *this;
   const Effect none;
   const Effect& self = m_node ? m_node->effect : none;
-  return FilterAccess::wrap(
+  Filter emitted = FilterAccess::wrap(
       self.emit(light.m_node->effect, mode),
       m_node ? m_node->coverage : std::vector<CoverageEffect>{});
+  if ((namesCurrentColor() || light.namesCurrentColor()) && !emitted.isNone())
+    FilterAccess::node(emitted).sides =
+        std::make_shared<const Node::Sides>(Node::Sides{*this, light, mode});
+  return emitted;
+}
+
+bool Filter::namesCurrentColor() const {
+  if (!m_node) return false;
+  if (m_node->currentColorShadow) return true;
+  return m_node->sides && (m_node->sides->first.namesCurrentColor() ||
+                           m_node->sides->second.namesCurrentColor());
+}
+
+Filter Filter::withCurrentColor(Color ink) const {
+  if (!namesCurrentColor()) return *this;
+  if (m_node->sides) {
+    const Node::Sides& sides = *m_node->sides;
+    const Filter first = sides.first.withCurrentColor(ink);
+    const Filter second = sides.second.withCurrentColor(ink);
+    return sides.emitted ? first.emit(second, *sides.emitted)
+                         : first.then(second);
+  }
+  Filter stated = dropShadow(ink, *m_node->currentColorShadow);
+  if (!m_node->coverage.empty() && !stated.isNone())
+    FilterAccess::node(stated).coverage = m_node->coverage;
+  return stated;
 }
 
 bool Filter::isRunning() const { return m_node && m_node->effect.isRunning(); }
@@ -333,8 +385,13 @@ bool Filter::operator==(const Filter& other) const {
   // The same node is not enough: a live filter never compares equal, even
   // to itself, so a node carrying one repaints every frame.
   if (!m_node || !other.m_node) return m_node == other.m_node;
+  const bool sameSides = m_node->sides == other.m_node->sides ||
+                         (m_node->sides && other.m_node->sides &&
+                          *m_node->sides == *other.m_node->sides);
   return m_node->effect == other.m_node->effect &&
-         m_node->coverage == other.m_node->coverage;
+         m_node->coverage == other.m_node->coverage &&
+         m_node->currentColorShadow == other.m_node->currentColorShadow &&
+         sameSides;
 }
 
 namespace {

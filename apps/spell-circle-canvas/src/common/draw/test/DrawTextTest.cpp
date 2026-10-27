@@ -4,13 +4,19 @@
  * capital's ink standing 0.7 em over the baseline and a lowercase
  * letter's 0.5, so a seat and a width are arithmetic here rather than a
  * property of the machine's installed families. The one case whose claim
- * IS that resolution takes the instrument back off.
+ * IS that resolution takes the instrument back off, and so does the one
+ * whose claim is the family a bold with no family names.
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkFontStyle.h>
 #include <sigildraw/Constants.h>
 #include <sigildraw/Pen.h>
+#include <sigilweave/fonts/FamilyName.h>
+#include <sigilweave/fonts/FontContext.h>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Paper.h"
 
 namespace {
@@ -133,6 +139,32 @@ TEST(PenMachineFace, TextIsSetInTheMachinesDefaultUntilAFaceIsNamed) {
   EXPECT_FALSE(paper.inked().isEmpty());
   EXPECT_GT(width, 0.0f);
   EXPECT_GT(ascent, 0.0f);
+}
+
+TEST(PenMachineFace, ABoldNamingNoFamilyIsTheBoldOfTheFamilyTheServiceNames) {
+  // No family named and a bold asked for: the pen matches the default
+  // face's family at bold through the manager, by the name the font
+  // service answers for that face.
+  sigil::weave::FontContext& context = sigil::test::fonts();
+  const sk_sp<SkTypeface> base = context.defaultTypeface();
+  SkFontMgr* manager = context.fontManager();
+  if (!base || !manager) GTEST_SKIP() << "the machine names no default face";
+  const sk_sp<SkTypeface> bold = manager->matchFamilyStyle(
+      sigil::weave::fonts::familyName(*base).c_str(), SkFontStyle::Bold());
+  if (!bold) GTEST_SKIP() << "the default family has no bold to match";
+
+  Paper paper;
+  paper.begin();
+  paper.useMachineFace();
+  paper.pen.textSize(40);
+  paper.pen.textStyle(BOLD);
+  const float unnamed = paper.pen.textWidth("Hamburgefonstiv");
+  paper.pen.textStyle(NORMAL);
+  paper.pen.textFont(bold);
+  const float named = paper.pen.textWidth("Hamburgefonstiv");
+  paper.end();
+  EXPECT_GT(unnamed, 0.0f);
+  EXPECT_FLOAT_EQ(unnamed, named);
 }
 
 }  // namespace

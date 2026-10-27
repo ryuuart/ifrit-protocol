@@ -1,4 +1,3 @@
-#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/testing/Plate.h"
 
 #include <include/core/SkCanvas.h>
@@ -19,6 +18,9 @@
 #include <cstdio>
 #include <set>
 #include <utility>
+
+#include "sigilweave/advanced/Skia.h"
+#include "sigilweave/fonts/FamilyName.h"
 
 namespace sigil::weave::testing {
 
@@ -61,13 +63,12 @@ std::string variationPosition(const SkTypeface& face) {
 
 /// One face as the line a plate lists it by.
 std::string identity(const SkTypeface& face) {
-  SkString family;
-  face.getFamilyName(&family);
+  const std::string family = fonts::familyName(face);
   SkString postScript;
   if (!face.getPostScriptName(&postScript)) postScript = "?";
   const SkFontStyle style = face.fontStyle();
-  std::string line = std::string(family.c_str()) + " | " + postScript.c_str() +
-                     " | weight " + std::to_string(style.weight()) + " width " +
+  std::string line = family + " | " + postScript.c_str() + " | weight " +
+                     std::to_string(style.weight()) + " width " +
                      std::to_string(style.width()) + " slant " +
                      std::to_string(int(style.slant())) + " | revision " +
                      headRevision(face);

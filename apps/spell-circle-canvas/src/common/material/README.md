@@ -154,8 +154,11 @@ a stop at 20 px stands twenty pixels in on any box.
 unwritten stops by CSS's colour stop fixup, and answers nothing for text
 none of them can hold. `readFilter(text)` reads CSS's `filter` text the
 same way, its functions chained in the order written:
-`readFilter("blur(4px) sepia(50%) drop-shadow(0 2px 4px #0008)")`. The
-pieces both cut the text into — commas and blank space outside brackets,
+`readFilter("blur(4px) sepia(50%) drop-shadow(0 2px 4px #0008)")`. A
+drop shadow with no colour written is CSS's `currentcolor`,
+`Filter::dropShadowInCurrentColor`: the filter says so with
+`namesCurrentColor()`, and its painter states the ink with
+`withCurrentColor(ink)`. The pieces both cut the text into — commas and blank space outside brackets,
 a function's name and body, numbers, percentages, `px` and `pt` lengths
 and angles — are `<sigilmaterial/color/CssText.h>`, under `material::css`,
 for any other reader of a CSS value.
@@ -378,8 +381,14 @@ program a device draws, filling each map slot the way a device can read
 it: an image as its texture, read through a child that applies the
 texture's own matrix and tiling where its matrix is not the identity; a
 material with a Slang body as a child the device plays; and anything else
-— a gradient, a colour stack, a program only Skia runs — painted once
-into a square map over the body's texture coordinates.
+— a gradient, a colour stack, a program only Skia runs — painted into a
+square map over the body's texture coordinates, a
+`material::surface::PaintedMap`, and painted again at each new time while
+it runs. A renderer standing on a device hands the map that device
+(`PaintedMap::useDevice`), and from then on Graphite paints it there, into
+a texture of the device's own the renderer samples where it stands, so a
+running channel costs the host no raster; Skia's CPU rasteriser paints it
+only where no device was handed over.
 
 The lights a surface is shaded under are the renderer's: a scene's are
 SigilWorld's, which names them itself.
@@ -637,6 +646,12 @@ be validated by that backend.
   program can be had at once, otherwise false with the compile started on
   a worker of its own, which a later ask finds held. `compiling()` counts
   the compiles under way; the process waits for them when it exits.
+- Every warning the library has — a slot or a uniform a program does not
+  declare, a body that does not compile, a stop list out of order — is
+  said through SigilCore's reporting door on behalf of `SigilMaterial`;
+  `material::report(message)` says one, and `material::reportOnce` says a
+  message the first time its key is seen. A host that installs a reporter
+  on that door hears them all there and none reach the standard error.
 
 ## Features and dependencies
 
@@ -652,7 +667,7 @@ library; smaller consumers can select these targets:
 | `SigilMaterialProgram` | Shader source and resource factories. |
 | `SigilMaterialSkia` | Skia paints, gradients, filters, shader compilation and surface maps. |
 | `SigilMaterialSlang` | Slang compilation and reflected uniform layouts. |
-| `SigilMaterialSurface` | Surface programs and lowering for lit renderers. |
+| `SigilMaterialSurface` | Surface programs, lowering for lit renderers, and the map a material no device program plays is painted into, on the device a renderer hands it. |
 | `SigilMaterialMask` | Mask generators and transformations. |
 | `SigilMaterialSdf` | Signed-distance shapes and their appearance. |
 | `SigilMaterialPattern` | Baked tiles and cloth generators. |

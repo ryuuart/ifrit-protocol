@@ -116,6 +116,8 @@ std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
   std::unique_ptr<GraphiteContext> made(
       new GraphiteContext(std::move(context), handles.device));
   if (!made->recorder()) return nullptr;
+  made->m_vulkanQueue = handles.queue;
+  made->m_vulkanGetDeviceProcAddr = reinterpret_cast<void*>(getDeviceProcAddr);
   made->m_restartLosesDepth = drivenByMoltenVk(
       instance, backendContext.fPhysicalDevice, getInstanceProcAddr);
   return made;

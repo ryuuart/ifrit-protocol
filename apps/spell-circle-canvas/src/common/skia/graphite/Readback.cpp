@@ -28,13 +28,12 @@ namespace {
 
 /** Asks the context to read what it holds into a result handed to
  *  @p callback with @p opaque: the surface's pixels or an image's. */
-using ReadRequest = std::function<void(skgpu::graphite::Context&,
-                                       SkImage::ReadPixelsCallback,
-                                       SkImage::ReadPixelsContext)>;
+using ReadRequest =
+    std::function<void(skgpu::graphite::Context&, SkImage::ReadPixelsCallback,
+                       SkImage::ReadPixelsContext)>;
 
-bool readThrough(GraphiteContext& context,
-                 skgpu::graphite::Recorder* recorder, const SkPixmap& pixels,
-                 const ReadRequest& request) {
+bool readThrough(GraphiteContext& context, skgpu::graphite::Recorder* recorder,
+                 const SkPixmap& pixels, const ReadRequest& request) {
   if (!context.context() || !recorder || !pixels.addr() ||
       pixels.width() <= 0 || pixels.height() <= 0 ||
       !pixels.info().validRowBytes(pixels.rowBytes()))
@@ -86,6 +85,7 @@ bool readThrough(GraphiteContext& context,
     if (!context.context()->submit(
             skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kNo)))
       return false;
+    if (signalled) signal.afterSubmit();
   }
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(5);
@@ -124,33 +124,31 @@ bool readThrough(GraphiteContext& context,
 
 bool readbackPixels(GraphiteContext& context, SkSurface& surface,
                     const SkPixmap& pixels) {
-  return readThrough(
-      context, context.recorder(), pixels,
-      [&](skgpu::graphite::Context& device,
-          SkImage::ReadPixelsCallback callback,
-          SkImage::ReadPixelsContext opaque) {
-        device.asyncRescaleAndReadPixels(
-            &surface, pixels.info(),
-            SkIRect::MakeWH(surface.width(), surface.height()),
-            SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
-            callback, opaque);
-      });
+  return readThrough(context, context.recorder(), pixels,
+                     [&](skgpu::graphite::Context& device,
+                         SkImage::ReadPixelsCallback callback,
+                         SkImage::ReadPixelsContext opaque) {
+                       device.asyncRescaleAndReadPixels(
+                           &surface, pixels.info(),
+                           SkIRect::MakeWH(surface.width(), surface.height()),
+                           SkImage::RescaleGamma::kSrc,
+                           SkImage::RescaleMode::kNearest, callback, opaque);
+                     });
 }
 
 bool readbackPixels(GraphiteContext& context,
                     skgpu::graphite::Recorder& recorder, const SkImage& image,
                     const SkPixmap& pixels) {
-  return readThrough(
-      context, &recorder, pixels,
-      [&](skgpu::graphite::Context& device,
-          SkImage::ReadPixelsCallback callback,
-          SkImage::ReadPixelsContext opaque) {
-        device.asyncRescaleAndReadPixels(
-            &image, pixels.info(),
-            SkIRect::MakeWH(image.width(), image.height()),
-            SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
-            callback, opaque);
-      });
+  return readThrough(context, &recorder, pixels,
+                     [&](skgpu::graphite::Context& device,
+                         SkImage::ReadPixelsCallback callback,
+                         SkImage::ReadPixelsContext opaque) {
+                       device.asyncRescaleAndReadPixels(
+                           &image, pixels.info(),
+                           SkIRect::MakeWH(image.width(), image.height()),
+                           SkImage::RescaleGamma::kSrc,
+                           SkImage::RescaleMode::kNearest, callback, opaque);
+                     });
 }
 
 }  // namespace sigil::skia

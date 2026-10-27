@@ -55,6 +55,7 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 # reason: a mesh, a map and a pipeline become device objects inside this
 # feature and in none of its headers.
 find_package(boost_container CONFIG REQUIRED)
+find_package(VulkanHeaders CONFIG REQUIRED)
 sigil_library(SigilWorldDiligent
   SOURCES Blending.cpp Body.cpp BodyPrograms.cpp BodyUniforms.cpp Clock.cpp
           Geometry.cpp GeometryPass.h Gpu.cpp Gpu.h Import.cpp Phases.cpp
@@ -91,14 +92,14 @@ sigil_test(world_test
           test/ShadowTest.cpp test/AreaLightTest.cpp test/PresentTest.cpp
           test/StandInTest.cpp test/PostChainTest.cpp
           test/PageAcrossQueuesTest.cpp test/PrimitiveColorTest.cpp
-          test/DeviceSeams.h
+          test/ReadbackOnQueueTest.cpp test/DeviceSeams.h
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   DEFINITIONS SIGIL_WORLD_SHADER_DIR="${_shaders}"
   LIBRARIES SigilWorldDiligent SigilMaterialSurface SigilMaterialPattern
-            SigilMaterialOcio SigilGeometryKit SigilSkiaGraphite
+            SigilMaterialOcio SigilGeometryKit SigilSkiaGraphite Vulkan::Headers
   SUITES AreaLight Blending Bloom DataTexture DepthFade DeviceFrame Environment Facing
-         FinalStage Flipbook GpuRuntime Lighting Lobes PageAcrossQueues PostChain PresentedPicture PrimitiveColor Programs Stack StandIn
+         FinalStage Flipbook GpuRuntime Lighting Lobes PageAcrossQueues PostChain PresentedPicture PrimitiveColor Programs ReadbackOnQueue Stack StandIn
          Shadow SurfaceProgram SurfaceSlots Transmission
   LABELS gpu)
 # What these assert is how long a frame takes on the device, so each runs

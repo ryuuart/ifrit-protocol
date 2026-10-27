@@ -16,6 +16,7 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
@@ -24,6 +25,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <format>
 #include <limits>
 #include <string>
 #include <vector>
@@ -159,7 +161,7 @@ const sk_sp<SkRuntimeEffect>& bevelFaceEffect() {
     auto [built, error] = SkRuntimeEffect::MakeForShader(
         SkString(std::string(shaderSource("BevelFace.sksl")).c_str()));
     if (!built)
-      SkDebugf("sigilmaterial bevel face shader: %s\n", error.c_str());
+      material::report(std::format("bevel face shader: {}", error.c_str()));
     return built;
   }();
   return effect;

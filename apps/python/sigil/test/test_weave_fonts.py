@@ -104,6 +104,12 @@ class Catalogue(unittest.TestCase):
         self.assertIn("Georgia", names)
         self.assertIsNone(weave.fonts.family("No Family Is Named This"))
 
+    def test_a_typeface_answers_the_family_the_catalogue_lists(self):
+        georgia = weave.fonts.family("Georgia")
+        face = weave.fonts.find("Georgia")
+        self.assertIsNotNone(face)
+        self.assertEqual(face.typeface().familyName(), georgia.name)
+
     def test_a_family_reads_as_its_styles_with_their_weight_names(self):
         georgia = weave.fonts.family("Georgia")
         self.assertIsInstance(georgia, weave.fonts.Family)

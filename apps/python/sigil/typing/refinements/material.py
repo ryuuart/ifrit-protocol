@@ -16,7 +16,9 @@ UNIFORM_VALUE = (
 
 def register(table: Table) -> None:
     table.erased(
-        "_sigil.material.skia.Filter", "glow dropShadow shadow stroke", "_t.ColorLike"
+        "_sigil.material.skia.Filter",
+        "glow dropShadow shadow stroke withCurrentColor",
+        "_t.ColorLike",
     )
     table.erased(
         "_sigil.material.Material",

@@ -28,9 +28,8 @@ std::optional<float> amountOf(std::string_view body, float unwritten) {
 }
 
 /** `drop-shadow(<colour>? && <length>{2,3})`: the offset, then a blur
- *  radius, with the colour before or after them.
- *  @trap The colour is required here: CSS's unstated colour is the ink in
- *  force, which a filter read on its own does not know. */
+ *  radius, with the colour before or after them; with none written, the
+ *  shadow is in `currentcolor`, which its painter states. */
 std::optional<Filter> dropShadowOf(std::string_view body) {
   std::optional<Color> color;
   std::vector<float> lengths;
@@ -46,13 +45,14 @@ std::optional<Filter> dropShadowOf(std::string_view body) {
     if (!color) return std::nullopt;
     lengthsEnded = !lengths.empty();
   }
-  if (!color || lengths.size() < 2 || lengths.size() > 3) return std::nullopt;
+  if (lengths.size() < 2 || lengths.size() > 3) return std::nullopt;
   ShadowOptions options;
   options.offset = {lengths[0], lengths[1]};
   if (lengths.size() == 3) {
     if (lengths[2] < 0.0f) return std::nullopt;
     options.blur = lengths[2];
   }
+  if (!color) return Filter::dropShadowInCurrentColor(options);
   return Filter::dropShadow(*color, options);
 }
 

@@ -4,29 +4,19 @@
  * slot, and what a surface cannot carry said once.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkColor.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkSurface.h>
-#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Instance.h>
 #include <sigilmaterial/filter/Filter.h>
-#include <sigilmaterial/paint/Paint.h>
-#include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/surface/PaintedMap.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilmedia/advanced/Skia.h>
 
-#include <chrono>
 #include <cstdint>
 #include <glm/mat3x3.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -42,85 +32,6 @@ const Texture* imageTexture(const Material& material) {
   if (!material.hasProgram() || material.isComposed()) return nullptr;
   return dynamic_cast<const Texture*>(material.leaf("image"));
 }
-
-/** HOW MANY PIXELS ACROSS a material with no device program is painted
- *  at to fill a slot: the square stands for the unit square a body's
- *  texture coordinates span, so a material laid out in box units covers
- *  the body once. A plain colour is one pixel. */
-constexpr int kPaintedSide = 512;
-
-/** A MATERIAL NO DEVICE PROGRAM PLAYS, AS PIXELS: painted by Skia over a
- *  square `kPaintedSide` across, kept, and painted again at a new time
- *  only while the material runs. Two equal materials are one source, so
- *  a renderer holds one map for both. */
-class PaintedMaterial {
- public:
-  explicit PaintedMaterial(Material material)
-      : m_material(std::move(material)),
-        m_side(solid(m_material) ? 1 : kPaintedSide),
-        m_kept(std::make_shared<Kept>()) {}
-
-  media::Frame frameAt(std::chrono::duration<double> time) const {
-    const std::lock_guard lock(m_kept->mutex);
-    const bool running = m_material.isRunning();
-    if (!m_kept->picture || (running && m_kept->paintedAt != time.count())) {
-      m_kept->picture = paintAt(time);
-      m_kept->paintedAt = time.count();
-      ++m_kept->revision;
-    }
-    media::Frame frame;
-    frame.image = m_kept->picture;
-    frame.time = time;
-    return frame;
-  }
-  bool isRunning() const { return m_material.isRunning(); }
-  glm::ivec2 size() const { return {m_side, m_side}; }
-  uint64_t revision() const {
-    const std::lock_guard lock(m_kept->mutex);
-    return m_kept->revision;
-  }
-  bool operator==(const PaintedMaterial& other) const {
-    return m_material == other.m_material;
-  }
-
- private:
-  /** The painted pixels, the paint they were painted at and how many
-   *  paints have stood: derived state, shared by copies of one source. */
-  struct Kept {
-    std::mutex mutex;
-    media::Picture picture;
-    double paintedAt = 0;
-    uint64_t revision = 0;
-  };
-
-  static bool solid(const Material& material) {
-    return material.color() && material.layers().empty();
-  }
-
-  media::Picture paintAt(std::chrono::duration<double> time) const {
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(m_side, m_side));
-    if (!surface) return {};
-    SkCanvas& canvas = *surface->getCanvas();
-    canvas.clear(SK_ColorTRANSPARENT);
-    const Paint paint = skia::paint(m_material);
-    if (paint.isSolid()) {
-      canvas.clear(skia::toSkColor(paint.solidColor()));
-    } else {
-      FrameData frame;
-      frame.seconds = time.count();
-      frame.resolution = {(float)m_side, (float)m_side};
-      SkPaint painting;
-      painting.setShader(skia::shader(paint, frame));
-      if (painting.getShader()) canvas.drawPaint(painting);
-    }
-    return surface->makeImageSnapshot();
-  }
-
-  Material m_material;
-  int m_side;
-  std::shared_ptr<Kept> m_kept;
-};
 
 /** Whether a device compiles @p material itself: a recipe with a Slang
  *  body, which a body inlines and plays. */
@@ -263,7 +174,8 @@ void place(Material& program, std::string_view slot, const Material& source) {
     program.slot(slot, source);
     return;
   }
-  program.slot(slot, Texture(media::PixelSource(PaintedMaterial(source))));
+  program.slot(
+      slot, Texture(media::PixelSource(PaintedMap(source, !colourSlot(slot)))));
 }
 
 /** The base with its layers and nothing else: what the base colour of a

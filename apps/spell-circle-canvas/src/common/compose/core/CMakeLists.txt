@@ -101,6 +101,7 @@ sigil_library(SigilComposeCore
     runtime/TransitionState.h
     runtime/TreeLists.h
     runtime/VolatilityState.h
+    runtime/Warning.h
     # measurement, arrangement and derived geometry
     layout/Additions.cpp
     layout/CellFlow.cpp
@@ -188,7 +189,7 @@ sigil_library(SigilComposeCore
          SigilSkiaDraw SigilWeaveStyle SigilWeaveFonts SigilWeaveParagraph
          SigilWeaveLayout SigilWeaveQuery SigilDraw
          unofficial::skia::skia
-  PRIVATE SigilWeaveUnicode SigilWeaveChoreograph SigilWeavePaint
+  PRIVATE SigilCoreReport SigilWeaveUnicode SigilWeaveChoreograph SigilWeavePaint
           SigilMaterialSurface Boost::container Boost::unordered yoga::yogacore)
 sigil_shader_sources(SigilComposeCore
   DIR ${CMAKE_CURRENT_LIST_DIR}/shaders NAMESPACE sigil::compose)
@@ -226,8 +227,10 @@ sigil_test(compose_test
           test/ComposeTestTypedLeaves.cpp test/ComposeTestRuleScope.cpp
           test/ComposeTestLonghandValues.cpp test/ComposeTestTextIndent.cpp
           test/ComposeTestMovingHold.cpp test/ComposeTestShadowText.cpp
+          test/ComposeTestFaceChoice.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
-  LIBRARIES SigilComposeCore SigilComposeTesting SigilMaterialField SigilWeavePorts
+  LIBRARIES SigilComposeCore SigilComposeTesting SigilCoreReport
+            SigilMaterialField SigilWeavePorts
             yoga::yogacore
   LABELS fonts
   SUITES ComposeFaces ComposeFontFamily ComposeFontStyle)

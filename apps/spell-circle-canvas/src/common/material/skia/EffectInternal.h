@@ -13,8 +13,10 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/filter/Filter.h>
 
+#include <format>
 #include <memory>
 #include <string>
 #include <vector>
@@ -106,10 +108,10 @@ inline void warnUndeclaredEffectUniform(const char* door,
   // program that mints names is told about each of them once per call
   // rather than once ever.
   if (seen.size() < 16) seen.push_back(name);
-  SkDebugf(
-      "[material] %s(\"%s\"): the uniform does not match this value's "
-      "floating type and complete float count — ignored (warned once)\n",
-      door, name.c_str());
+  material::report(std::format(
+      "{}(\"{}\"): the uniform does not match this value's floating type "
+      "and complete float count — ignored (warned once)",
+      door, name.c_str()));
 }
 
 }  // namespace sigil::material::skia

@@ -18,6 +18,7 @@
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/surface/PaintedMap.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -25,6 +26,7 @@
 #include <sigilshaders/MaterialSurface.h>
 
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <glm/vec4.hpp>
@@ -721,8 +723,8 @@ TEST(Surface, AnImageChannelWithItsOwnPlacingIsReadThroughAPlacedChild) {
   ASSERT_TRUE(inside->colorSpace());
   EXPECT_EQ(*inside->colorSpace(), media::ColorSpace::Srgb);
 
-  // An image read once across the body stays the slot's own texture; so does a placed base colour, which the renderer
-  // places itself.
+  // An image read once across the body stays the slot's own texture; so does a
+  // placed base colour, which the renderer places itself.
   const Material unplaced = surface::lower(
       from(Color{0, 0, 0, 1})
           .surface({.emissionMap = image(Texture(dots.source()))}));
@@ -874,4 +876,43 @@ TEST(Surface, ASetsLobeImagesAreCarriedAndPlaced) {
 TEST(SurfaceShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(
       surface::shaderSources(), SIGIL_MATERIAL_SURFACE_SHADER_DIR);
+}
+
+TEST(Surface, AChannelNoDeviceProgramPlaysIsAMapPaintedOnceUnlessItRuns) {
+  // A gradient has no Slang body, so the slot it fills holds it as a
+  // painted map — painted on the host here, where no device was handed
+  // over — and painted again only at a new time of a material that runs.
+  using std::chrono::duration;
+  const Material gradient =
+      linearGradient({0, 0}, {1, 0}, {{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}});
+  const Material lowered = surface::lower(gradient);
+  const Texture* map = surface::map(lowered, surface::kBaseColorSlot);
+  ASSERT_NE(map, nullptr);
+  const auto* painted = map->source().as<surface::PaintedMap>();
+  ASSERT_NE(painted, nullptr);
+  EXPECT_FALSE(painted->isRunning());
+  EXPECT_EQ(painted->size(),
+            glm::ivec2(surface::PaintedMap::kSide, surface::PaintedMap::kSide));
+  const media::Frame first = painted->frameAt(duration<double>(0));
+  const media::Frame later = painted->frameAt(duration<double>(1));
+  ASSERT_TRUE(first.image);
+  EXPECT_EQ(first.image, later.image);
+  EXPECT_EQ(painted->hostPaintings(), 1u);
+  EXPECT_EQ(painted->revision(), 1u);
+
+  Material running = gradient;
+  running.layer(shader(R"(
+half4 main(float2 p) { return half4(half(fract(uTime)), 0, 0, 1); })"),
+                {.opacity = 0.5f});
+  const surface::PaintedMap live(running);
+  ASSERT_TRUE(live.isRunning());
+  (void)live.frameAt(duration<double>(0.25));
+  (void)live.frameAt(duration<double>(0.25));
+  (void)live.frameAt(duration<double>(0.75));
+  EXPECT_EQ(live.hostPaintings(), 2u);
+  // A data slot reads its map with alpha straight, which makes it another
+  // map than the colour slot's of the same material.
+  EXPECT_FALSE(surface::PaintedMap(gradient) ==
+               surface::PaintedMap(gradient, true));
+  EXPECT_TRUE(surface::PaintedMap(gradient) == surface::PaintedMap(gradient));
 }

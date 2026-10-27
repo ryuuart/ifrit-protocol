@@ -49,6 +49,7 @@ emit adds a light of the layer, never a light of the first light.
 | `skia::lowered(material, surface)` | C++ | the same recipe LOWERED for the surface it will land on — a channelwise recipe on an eight-bit surface becomes a table and no program at all |
 | `skia::program(effect)` | C++ | an SkSL runtime effect whose content slot is the rendered layer |
 | `Filter::dropShadow(colour, {.blur, .offset})` | C++ | CSS `drop-shadow()`: the layer's shadow beneath it |
+| `Filter::dropShadowInCurrentColor({.blur, .offset})`, `filter.namesCurrentColor()`, `filter.withCurrentColor(ink)` | C++ | CSS `drop-shadow()` with no colour written: the shadow in `currentcolor`, which the painter states |
 | `Filter::bloom(options)` | C++ | optical bloom: bright colour extracted, spread by two Gaussians, laid back over the source |
 | `Filter::brightness(amount)`, `Filter::contrast(amount)`, `Filter::saturate(amount)`, `Filter::hueRotate(degrees)`, `Filter::grayscale(amount)`, `Filter::sepia(amount)`, `Filter::invert(amount)`, `Filter::opacity(amount)` | C++ | CSS's colour functions, each a per-pixel map; with `blur` and `dropShadow`, all ten of CSS's filter functions |
 | `Filter.grayscale("50%")`, `Filter.brightness(1.5)`, `Filter.blur("4px")` | Python | the same, an amount a number or percentage text and a blur a number of pixels or absolute length text |

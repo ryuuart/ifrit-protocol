@@ -12,12 +12,13 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
-#include <include/core/SkTypes.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <optional>
 #include <string>
 #include <vector>
@@ -213,24 +214,24 @@ Material viewTransform(std::string_view config, std::string_view displayName,
     t->setView(std::string(viewName).c_str());
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
-    SkDebugf(
-        "sigilmaterial ocio::viewTransform(\"%.*s\", \"%.*s\", \"%.*s\"): "
-        "%s\n",
-        (int)config.size(), config.data(), (int)displayName.size(),
-        displayName.data(), (int)viewName.size(), viewName.data(), e.what());
-    // Fail soft AND helpfully: list what the config actually offers.
+    // Fail soft AND helpfully: say what the config actually offers.
+    std::string said =
+        std::format("ocio::viewTransform(\"{}\", \"{}\", \"{}\"): {}", config,
+                    displayName, viewName, e.what());
     try {
       OCIO::ConstConfigRcPtr cfg = loadConfig(config);
-      for (int d = 0; d < cfg->getNumDisplays(); ++d) {
-        const char* disp = cfg->getDisplay(d);
-        SkDebugf("  display \"%s\": views:", disp);
-        for (int v = 0; v < cfg->getNumViews(disp); ++v)
-          SkDebugf(" \"%s\"", cfg->getView(disp, v));
-        SkDebugf("\n");
+      for (int displayIndex = 0; displayIndex < cfg->getNumDisplays();
+           ++displayIndex) {
+        const char* display = cfg->getDisplay(displayIndex);
+        said += std::format("\n  display \"{}\": views:", display);
+        for (int viewIndex = 0; viewIndex < cfg->getNumViews(display);
+             ++viewIndex)
+          said += std::format(" \"{}\"", cfg->getView(display, viewIndex));
       }
     } catch (...) {
-      SkDebugf("  (the config could not be listed)\n");
+      said += "\n  (the config could not be listed)";
     }
+    material::report(said);
     return Material(lutRecipe());
   }
 }
@@ -244,9 +245,8 @@ Material convert(std::string_view config, std::string_view source,
     t->setDst(std::string(destination).c_str());
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
-    SkDebugf("sigilmaterial ocio::convert(\"%.*s\" -> \"%.*s\"): %s\n",
-             (int)source.size(), source.data(), (int)destination.size(),
-             destination.data(), e.what());
+    material::report(std::format("ocio::convert(\"{}\" -> \"{}\"): {}", source,
+                                 destination, e.what()));
     return Material(lutRecipe());
   }
 }
@@ -259,7 +259,7 @@ Material exponent(float gamma, int lutSize) {
     t->setValue(v);
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
-    SkDebugf("sigilmaterial ocio::exponent(%f): %s\n", gamma, e.what());
+    material::report(std::format("ocio::exponent({:f}): {}", gamma, e.what()));
     return Material(lutRecipe());
   }
 }

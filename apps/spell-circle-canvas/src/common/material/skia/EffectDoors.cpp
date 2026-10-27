@@ -5,10 +5,11 @@
  * refreshes the snapshot a constant changed.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Program.h>
 
 #include <array>
+#include <format>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -24,32 +25,31 @@ Effect& Effect::slot(std::string name, Paint source) {
   // one branch per kind, warn-and-ignore everywhere else.
   if (m_parametricBlur) {
     if (name != "sigma") {
-      SkDebugf(
-          "[material] Filter::slot(\"%s\") on a Filter::blur(map, …) — its one "
-          "slot "
-          "is \"sigma\", the map; ignored\n",
-          name.c_str());
+      material::report(std::format(
+          "Filter::slot(\"{}\") on a Filter::blur(map, …) — its one slot is "
+          "\"sigma\", the map; ignored",
+          name.c_str()));
       return *this;
     }
   } else if (m_effect) {
     if (name == "content") {
-      SkDebugf(
-          "[material] Filter::slot(\"content\"): ignored — \"content\" "
-          "is the node's own rendered layer, filled by the library\n");
+      material::report(
+          "Filter::slot(\"content\"): ignored — \"content\" is the node's "
+          "own rendered layer, filled by the library");
       return *this;
     }
     if (!detail::declaresShaderChild(m_effect, name)) {
-      SkDebugf(
-          "[material] Filter::slot: \"%s\" is not declared by the "
-          "program as `uniform shader` — ignored\n",
-          name.c_str());
+      material::report(std::format(
+          "Filter::slot: \"{}\" is not declared by the program as `uniform "
+          "shader` — ignored",
+          name.c_str()));
       return *this;
     }
   } else {
-    SkDebugf(
-        "[material] Filter::slot(\"%s\"): ignored — this filter has no "
-        "slots to fill (only a program and Filter::blur(map, …) do)\n",
-        name.c_str());
+    material::report(std::format(
+        "Filter::slot(\"{}\"): ignored — this filter has no slots to fill "
+        "(only a program and Filter::blur(map, …) do)",
+        name.c_str()));
     return *this;
   }
   auto held = std::make_shared<const Paint>(std::move(source));
@@ -95,9 +95,8 @@ sk_sp<SkShader> Effect::childShaderFor(std::string_view name,
 
 bool Effect::writableUniform(std::string_view name) const {
   if (m_sampleRadius && name == "_sampleRadius") {
-    SkDebugf(
-        "[material] Filter sampling radius is fixed at construction; "
-        "ignored\n");
+    material::report(
+        "Filter sampling radius is fixed at construction; ignored");
     return false;
   }
   return true;
@@ -111,10 +110,10 @@ Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
   if (m_directionalBlur) {
     // The recipe's named parameters — anything else warns and is ignored.
     if (name != "sigma" && name != "angle" && name != "across") {
-      SkDebugf(
-          "[material] Filter::bind(\"%s\") on a Filter::directionalBlur() — "
-          "not one of \"sigma\"/\"angle\"/\"across\"; ignored\n",
-          name.c_str());
+      material::report(std::format(
+          "Filter::bind(\"{}\") on a Filter::directionalBlur() — not one of "
+          "\"sigma\"/\"angle\"/\"across\"; ignored",
+          name.c_str()));
       return *this;
     }
     putByName(m_bound, std::move(name), std::move(value));
@@ -122,11 +121,11 @@ Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
   }
   if (m_parametricBlur) {
     if (name != "maximumSigma") {
-      SkDebugf(
-          "[material] Filter::bind(\"%s\") on a Filter::blur(map, …) — its one "
+      material::report(std::format(
+          "Filter::bind(\"{}\") on a Filter::blur(map, …) — its one "
           "parameter is \"maximumSigma\" (the MAP is slot(\"sigma\", "
-          "Paint)); ignored\n",
-          name.c_str());
+          "Paint)); ignored",
+          name.c_str()));
       return *this;
     }
     putByName(m_bound, std::move(name), std::move(value));
@@ -145,12 +144,12 @@ Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
     putByName(m_bound, std::move(name), std::move(value));
     return *this;
   }
-  SkDebugf(
-      "[material] Filter::bind(\"%s\"): ignored — this filter has no "
-      "parameter to receive it (only a program, Filter::directionalBlur() "
-      "and Filter::blur(map, …) do; skia::filter() wraps an already-built "
-      "image filter)\n",
-      name.c_str());
+  material::report(std::format(
+      "Filter::bind(\"{}\"): ignored — this filter has no parameter to "
+      "receive it (only a program, Filter::directionalBlur() and "
+      "Filter::blur(map, …) do; skia::filter() wraps an already-built "
+      "image filter)",
+      name.c_str()));
   return *this;
 }
 
@@ -162,12 +161,11 @@ bool effectTakesConstant(const char* door, const sk_sp<SkRuntimeEffect>& effect,
                          const std::string& name, bool matches,
                          bool otherKind) {
   if (otherKind || !effect) {
-    SkDebugf(
-        "[material] %s(\"%s\"): ignored — only a program "
-        "filter has named declarations to fill (Filter::directionalBlur "
-        "and Filter::blur take their parameters at construction or bound "
-        "with Filter::bind)\n",
-        door, name.c_str());
+    material::report(std::format(
+        "{}(\"{}\"): ignored — only a program filter has named "
+        "declarations to fill (Filter::directionalBlur and Filter::blur "
+        "take their parameters at construction or bound with Filter::bind)",
+        door, name.c_str()));
     return false;
   }
   if (!matches) {
@@ -227,10 +225,10 @@ Effect& Effect::set(std::string name, std::vector<float> values) {
 Effect& Effect::bind(std::string name,
                      std::shared_ptr<const UniformBlock> block) {
   if (!block) {
-    SkDebugf(
-        "[material] Filter::bind(\"%s\", block): null UniformBlock — "
-        "there is nothing to read at paint time; ignored\n",
-        name.c_str());
+    material::report(std::format(
+        "Filter::bind(\"{}\", block): null UniformBlock — there is nothing "
+        "to read at paint time; ignored",
+        name.c_str()));
     return *this;
   }
   if (!writableUniform(name) ||

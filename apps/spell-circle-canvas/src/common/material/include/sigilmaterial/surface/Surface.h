@@ -360,9 +360,10 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base = {});
  *  maps keep the texture, which their readers place themselves); a
  *  material with a Slang body as the child the body plays; and any other
  *  material — a gradient, a colour stack, a program only Skia runs —
- *  painted once into a square map over the body's texture coordinates,
- *  and again at each new time while it runs. `.unlit` answers the unlit
- *  program, and a material that states no response at all is its base,
+ *  painted into a square map over the body's texture coordinates, a
+ *  `PaintedMap`, and again at each new time while it runs, on the device
+ *  a renderer hands the map and on the host until one does. `.unlit` answers
+ * the unlit program, and a material that states no response at all is its base,
  *  unlit.
  *
  *  A surface has no coverage for an effects stage to read, so effects on

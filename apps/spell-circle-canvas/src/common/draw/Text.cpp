@@ -7,8 +7,8 @@
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
-#include <include/core/SkString.h>
 #include <sigildraw/Pen.h>
+#include <sigilweave/fonts/FamilyName.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/Flow.h>
 #include <sigilweave/layout/LayoutOptions.h>
@@ -78,11 +78,7 @@ sk_sp<SkTypeface> Pen::face() {
   // matched through the manager and the answer kept until the family or
   // the style changes.
   std::string family = m_style.family;
-  if (family.empty() && base) {
-    SkString name;
-    base->getFamilyName(&name);
-    family = name.c_str();
-  }
+  if (family.empty() && base) family = weave::fonts::familyName(*base);
   sk_sp<SkTypeface> found;
   if (SkFontMgr* manager = m_fonts->fontManager())
     found = manager->matchFamilyStyle(family.c_str(),

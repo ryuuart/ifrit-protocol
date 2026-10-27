@@ -5,12 +5,13 @@
  * paint is a value, and refreshes the static snapshot a constant changed.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/skia/ShaderLeaf.h>
 
 #include <algorithm>
 #include <array>
+#include <format>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 #include <memory>
@@ -154,10 +155,10 @@ bool PaintAccess::storeBinding(Paint& paint, std::string name,
 bool PaintAccess::storeSlot(Paint& paint, std::string name, Paint source) {
   if (!paint.m_live) return false;
   if (!detail::declaresShaderChild(paint.m_live->effect, name)) {
-    SkDebugf(
-        "Paint::slot: \"%s\" is not declared by the effect as "
-        "`uniform shader` — ignored\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::slot: \"{}\" is not declared by the effect as `uniform "
+        "shader` — ignored",
+        name.c_str()));
     return false;
   }
   paint.detachLive();
@@ -170,10 +171,10 @@ bool PaintAccess::storeBlender(Paint& paint, std::string name,
   if (!paint.m_live) return false;
   const SkRuntimeEffect::Child* child = paint.m_live->effect->findChild(name);
   if (!child || child->type != SkRuntimeEffect::ChildType::kBlender) {
-    SkDebugf(
-        "Paint::blender: \"%s\" is not declared by the effect as "
-        "`uniform blender` — ignored\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::blender: \"{}\" is not declared by the effect as `uniform "
+        "blender` — ignored",
+        name.c_str()));
     return false;
   }
   paint.detachLive();
@@ -200,10 +201,10 @@ Paint& Paint::set(std::string name, float value) {
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::set(\"%s\", const): ignored — this material has no "
-        "named uniforms (only sksl() does)\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::set(\"{}\", const): ignored — this material has no named "
+        "uniforms (only sksl() does)",
+        name.c_str()));
     return *this;
   }
   if (PaintAccess::storeUniform(*this, std::move(name), value))
@@ -222,10 +223,10 @@ Paint& Paint::slot(std::string name, Paint source) {
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::slot(\"%s\"): ignored — this material declares no "
-        "slots (only sksl() does)\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::slot(\"{}\"): ignored — this material declares no slots "
+        "(only sksl() does)",
+        name.c_str()));
     return *this;
   }
   if (PaintAccess::storeSlot(*this, std::move(name), std::move(source)))
@@ -241,10 +242,10 @@ Paint& Paint::bind(std::string name, motion::Animatable<float> output) {
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::bind(\"%s\", value): ignored — this material has "
-        "no named uniforms (only sksl() does)\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::bind(\"{}\", value): ignored — this material has no named "
+        "uniforms (only sksl() does)",
+        name.c_str()));
     return *this;
   }
   const bool live = output.isRunning();
@@ -262,10 +263,10 @@ Paint& Paint::bind(std::string name, motion::Animatable<Color> output) {
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::bind(\"%s\", color): ignored — this material has "
-        "no named uniforms (only sksl() does)\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::bind(\"{}\", color): ignored — this material has no named "
+        "uniforms (only sksl() does)",
+        name.c_str()));
     return *this;
   }
   const bool live = output.isRunning();
@@ -283,10 +284,10 @@ Paint& Paint::set(std::string name, std::array<float, 2> value) {
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::set(\"%s\", float2): ignored — this material has "
-        "no named uniforms (only sksl() does)\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::set(\"{}\", float2): ignored — this material has no named "
+        "uniforms (only sksl() does)",
+        name.c_str()));
     return *this;
   }
   if (PaintAccess::storeUniform(*this, std::move(name), value))
@@ -303,10 +304,10 @@ Paint& Paint::set(std::string name, Color value) {
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::set(\"%s\", color): ignored — this material has "
-        "no named uniforms (only sksl() does)\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::set(\"{}\", color): ignored — this material has no named "
+        "uniforms (only sksl() does)",
+        name.c_str()));
     return *this;
   }
   if (PaintAccess::storeUniform(*this, std::move(name), value))
@@ -323,10 +324,10 @@ Paint& Paint::set(std::string name, std::array<float, 4> value) {
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::set(\"%s\", float4): ignored — this material has "
-        "no named uniforms (only sksl() does)\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::set(\"{}\", float4): ignored — this material has no named "
+        "uniforms (only sksl() does)",
+        name.c_str()));
     return *this;
   }
   if (PaintAccess::storeUniform(*this, std::move(name), value))
@@ -342,10 +343,10 @@ Paint& Paint::set(std::string name, std::vector<float> values) {
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::set(\"%s\", array): ignored — this material has "
-        "no named uniforms (only sksl() does)\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::set(\"{}\", array): ignored — this material has no named "
+        "uniforms (only sksl() does)",
+        name.c_str()));
     return *this;
   }
   if (PaintAccess::storeUniform(*this, std::move(name), std::move(values)))
@@ -362,10 +363,10 @@ Paint& Paint::bind(std::string name,
     return *this;
   }
   if (!m_live) {
-    SkDebugf(
-        "Paint::bind(\"%s\", block): ignored — this material has "
-        "no named uniforms (only sksl() does)\n",
-        name.c_str());
+    material::report(std::format(
+        "Paint::bind(\"{}\", block): ignored — this material has no named "
+        "uniforms (only sksl() does)",
+        name.c_str()));
     return *this;
   }
   if (!block) {

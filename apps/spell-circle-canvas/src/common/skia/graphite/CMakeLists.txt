@@ -35,7 +35,7 @@ sigil_library(SigilSkiaGraphite
   SOURCES GraphiteContext.cpp GraphiteContextVulkan.cpp GraphiteOnDevice.cpp
           OffscreenSurface.cpp OffscreenSurfaceOnDevice.cpp
           OffscreenSurfaceVulkan.cpp PaintOrder.cpp Pixels.cpp Readback.cpp
-          Waits.cpp Waits.h
+          SignalVulkan.cpp Waits.cpp Waits.h
           ${SIGIL_SKIA_GRAPHITE_METAL_SOURCES}
   HEADERS GraphiteContext.h OffscreenSurface.h PaintOrder.h
           Pixels.h Readback.h TextureImage.h

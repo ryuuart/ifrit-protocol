@@ -770,9 +770,14 @@ ripple, scanlines, the stipple and the OpenColorIO bakes each carry one. A body'
 unit across, so a field's frequency or a pattern's period, stated in pixels
 on a page, is per that unit on a body. A channel filled with a material
 that has no Slang body — a gradient, a colour stack, a base with layers —
-is painted once into a square map over that unit by
-`material::surface::lower`, and again at each new time while it runs, so
-it varies over the body as it does over a page. An image in any channel
+is a square map over that unit, the painted map SigilMaterial's surface
+feature names `PaintedMap`, which `material::surface::lower` puts in the
+slot, painted again at each new
+time while it runs, so it varies over the body as it does over a page.
+The device the World stands on paints it: handed the device's own
+Graphite, the map is painted into a texture of the device's and sampled
+where it stands, as a page is, so a running channel costs the host no
+raster. An image in any channel
 but the base colour is read at its own matrix and its own tiling per
 axis, as the base colour's map is.
 
@@ -1009,8 +1014,10 @@ every slot being the same picture as one dressed with nothing, a texture
 painted with the graphics API on this device coming in through
 `importNative` with no host image at all — so a picture carrying its
 colour cannot have come from a copy — standing where a raster one of the
-same colour would, and an import of nothing answering no texture rather
-than one that lies. `EffectsTest.cpp` is what an authored effect needs: a float, a sixteen-bit and an
+same colour would, an import of nothing answering no texture rather
+than one that lies, and a running painted channel painted on the device
+at each frame's time with no painting by Skia's CPU rasteriser.
+`EffectsTest.cpp` is what an authored effect needs: a float, a sixteen-bit and an
 eight-bit data texel reaching a shader as stored and a colour texel still
 premultiplied, a normal map's alpha saying nothing about its normal, an
 additive card adding over a grey plate in either order, a card that writes
@@ -1032,7 +1039,10 @@ would; a texture Metal made imported into the device and worn as it
 stands; and the painting order a page needs holding on Metal with a
 plain canvas. `PresentTest.cpp` is a picture presented where it was
 drawn, on a Metal canvas and on Graphite on the device's own queue.
-`StackTest.cpp` is what `material::over` composes
+`ReadbackOnQueueTest.cpp` is a read back from Graphite on the device's
+own Vulkan queue held behind work that waits on a semaphore only the host
+raises: it stays out while the host holds it and returns the drawn pixels
+once the host lets the work run. `StackTest.cpp` is what `material::over` composes
 for this target: that the composed recipe compiles, and that what it
 shades where the mask is half is a picture neither operand alone
 produces. `RuntimeTest.cpp` covers the frame: a pipeline off a recipe's

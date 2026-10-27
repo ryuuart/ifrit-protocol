@@ -16,8 +16,8 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <sigilmaterial/advanced/FrameData.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
@@ -25,6 +25,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -403,10 +404,10 @@ inline bool validWorldUniform(const sk_sp<SkRuntimeEffect>& effect) {
 }
 
 inline void warnUnknownUniform(const char* what, const std::string& name) {
-  SkDebugf(
-      "skia::Paint::%s: uniform \"%s\" does not match this value's "
-      "floating type and complete float count — ignored\n",
-      what, name.c_str());
+  material::report(
+      std::format("skia::Paint::{}: uniform \"{}\" does not match this value's "
+                  "floating type and complete float count — ignored",
+                  what, name.c_str()));
 }
 
 /** The full local-to-root matrix, fed into the varying-input digest.
