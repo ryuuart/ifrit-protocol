@@ -75,29 +75,6 @@ load although they run serially. A test should assert the two runs
 byte-equal under `-j8` with the bench running; the next step is to draw
 the interior with antialiasing off and a fixed path strategy and diff.
 
-## The reporting seam stops at Compose, Material and Weave
-
-Every warning in the core, geometry, motion, protocol, Scry, Skia and
-sketch libraries goes through `sigil::core::report(library, message)`,
-while Compose still prints through `SkDebugf` with its own prefixes,
-Material through `SkDebugf` and `fprintf`, and Weave as before. A
-reporter installed with `installReporter` should hear every library's
-warning and nothing should reach stderr. A test per library should
-install a reporter and find the warning there.
-
-## A filter over an ink-sized leaf takes the box, so a blurred stroke on a page-sized box pays a page-sized layer
-
-A node whose marks stay on its outline is bounded by its ink, except that a
-layer effect over it measures the box, because a device blur's result moves
-with the extent its layer is given: a layer at the ink grown by the filter's
-reach keeps the speed (`BM_Draw_BlurredStrokes` on a page-sized box with the
-layer at the ink runs as the fitted box does) but moves rota_convocationis by
-one level and painted_fields by three. The layer is meant to be the ink
-grown by the reach and the picture meant to be the box's; the way there is
-a layer whose origin stands on the grid the box's layer stands on. A test
-should blur a stroke on a page-sized box with the layer at the ink and at
-the box and find the pixels byte-equal at blur 12, 24 and 48.
-
 ## A buffer re-formed on another device's context starts transparent
 
 A `Graphics` buffer now follows the device its host draws on, but a
@@ -126,39 +103,6 @@ should say so. Editing the triplet changes every port's ABI hash and
 forces a full dependency rebuild, so the reword lands with the next
 intentional triplet change.
 
-## A filtered extent still moves when a bleed crosses a grid line
-
-A layer effect filters an extent grown out to a 64-unit grid laid from
-the node's origin, so a bleed that grows within one cell leaves the
-picture alone, but a bleed that pushes the extent's edge across a grid
-line still moves it. A filter's output is meant not to depend on how far
-the marks inside it reach. A test should find a blurred node whose box
-edge stands five units short of a grid line giving the same pixels at a
-stroke bleed of one and of ten.
-
-## The moving hold's bake lays its texels from its own bounds
-
-The live window's hold of a turning subtree bakes from the subtree's own
-bounds' origin, while every other local bake now lays its texels on the
-node's grid, so a bleed that grows moves the held pixels under the
-resampled blit. A test should find a held, turning node giving the same
-blit at a stroke bleed of one and of four.
-
-## The volatility walk runs every frame under a timer alone
-
-While the engine runs only timers, the composer walks the whole tree for
-volatile values every frame, though a frame with no motion lane running
-needs only a scan of released scalars. A test should find the walk's
-time falling to the scan's on a timer-only frame of a still tree.
-
-## A drop shadow read from CSS text has no currentcolor
-
-`readFilter("drop-shadow(2px 2px 4px)")` refuses the text because the
-reader has no ink to paint the unnamed colour with, while CSS paints it
-in `currentcolor`. A test should find `.filter("drop-shadow(2px 2px
-4px)")` on an element painting the same as the shadow with the element's
-ink named.
-
 ## A face adopted by hand through a session's context outlives the session
 
 `ctx.fonts.adopt(face, origin)` adopts into the context the host shares
@@ -175,14 +119,6 @@ cannot tell which session asked, and the family lives until the older
 session closes. A test should find a face loaded by one of two concurrent
 sessions over one hub leaving when that session closes, whatever the
 other did.
-
-## The percentage indent in force does not reach a guest
-
-A guest inherits the paragraph block in pixels, but an indent stated as a
-percentage of the measure is not carried across the guest boundary,
-while everything inherited is meant to cross. A test should find a guest
-under a pen standing under a paragraph with a percentage indent drawing
-the same as the guest stating that indent itself.
 
 ## vertigo_titles renders to more than one hash
 
@@ -220,3 +156,13 @@ converts on upload, so a translucent data map reads differently by route.
 One picture is meant whichever route paints the map. A test should find a
 translucent roughness channel painted on the device and on the host
 reading within one level per texel.
+## A filtered extent moves when content reaches past the anchor's reach
+
+A layer effect's extent is the node's anchor grown by the filter's reach,
+out on a 64-unit grid; content that reaches past that grows the extent by
+grid cells on that side only, so a bleed or a child larger than the slack
+still moves the picture, while a filter's picture is meant never to
+depend on how far the marks reach. Growing the extent symmetrically about
+the anchor still differs on the device, turned and under the device clip.
+A test should find a blurred panel at a stroke bleed of one and of seventy
+giving the same pixels on the device.
