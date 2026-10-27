@@ -98,25 +98,6 @@ a layer whose origin stands on the grid the box's layer stands on. A test
 should blur a stroke on a page-sized box with the layer at the ink and at
 the box and find the pixels byte-equal at blur 12, 24 and 48.
 
-## A colour function over half-float pixels clamps before it scales
-
-`Filter::brightness(0.2)` on an image element holding an F16 image made
-from `halfFloatPixels` draws the same picture as on the 8-bit readback,
-because the stored values past one are clamped before scaling. A colour
-function over float content is meant to scale the stored value. A test
-should apply brightness(0.2) over an F16 texel of 4.0 and read 0.8.
-
-## A family name is still read by hand in four places
-
-`src/sigilweave/testing/Plate.cpp`, `src/common/compose/core/style/FaceChoice.cpp`
-(twice), `src/common/draw/Text.cpp` and `src/common/python/skia/Values.cpp`
-each call Skia's `getFamilyName` themselves rather than
-`weave::fonts::familyName`, so a face adopted under another family answers
-its file's name there. Every reader is meant to answer the one name. A
-test per site should find it answering what `fonts::familyName` answers;
-`Face::familyName` in the style target below the fonts target stays as it
-is.
-
 ## A buffer re-formed on another device's context starts transparent
 
 A `Graphics` buffer now follows the device its host draws on, but a
@@ -135,23 +116,6 @@ The captions still read the sweep window from three o'clock while the
 code now states it from twelve, kept so the plate stays identical; a
 caption is meant to state what the code states. The sketch pass rewrites
 the captions and the plate moves with that cause.
-
-## A channel no device compiles is painted on the host every frame
-
-`surface::lower` paints a gradient or Skia-only channel with raster Skia
-at 512 by 512 and repaints it on the CPU each frame while the material
-runs. Under the GPU-first rule it is meant to be painted on the device the
-World has, or the gradients meant to carry a Slang body. A test should
-find a running gradient channel on a body costing no host raster per
-frame.
-
-## A readback on Vulkan still waits by polling
-
-On a Vulkan-backed Graphite context `readbackPixels` polls with a sleep
-that doubles up to a millisecond, while the Metal path now waits on a
-signal the device raises. A test should find a Vulkan readback of a
-surface whose device work waits on a host-raised semaphore returning only
-after the host raises it.
 
 ## The triplet comment still explains shared TBB by a port that is gone
 
@@ -228,3 +192,31 @@ text leaf whose ink is a clear material under stroke and underlay
 effects; a plate is meant to be the same bytes on every render of one
 tree. A test should find twenty renders of the sketch at its capture
 moment hashing alike, or name the effect whose output varies.
+## A layer's colour function on the CPU path clamps values past one
+
+Compose applies a layer's filter as an image filter, and on Skia's CPU
+rasteriser any image filter over a layer reads values past one held at
+one; a layer also takes the destination's format, so an 8-bit destination
+clamps before the filter on any backend. A colour function over float
+content is meant to scale the stored value. A test should find
+brightness(0.2) on an image element holding an F16 texel of 4.0 reading
+0.8 on a raster F16 target, which wants a pure colour function on the
+layer paint's colour filter rather than its image filter.
+
+## A painted map's device texture can outlive its device
+
+A PaintedMap handed a device destroys its texture through that device when
+its last copy goes, so a material lowered and kept past the device's life
+calls into a destroyed device; compose's TextureScene has the same shape.
+The painting is meant to be released while its device stands or forgotten
+once the device has gone. A test should find a lowered material worn by a
+World and destroyed after its device touching no device.
+
+## A device-painted data map rounds its straight alpha differently
+
+On the device a data slot's straight values are divided before the 8-bit
+quantisation, while the host route quantises premultiplied values and
+converts on upload, so a translucent data map reads differently by route.
+One picture is meant whichever route paints the map. A test should find a
+translucent roughness channel painted on the device and on the host
+reading within one level per texel.
