@@ -699,6 +699,14 @@ struct Composer::Impl : detail::CascadeRoot,
    *  clip a node's drawing is bounded by is the one it carries in, never
    *  the rect it was given room in. */
   SkRect declaredShapeBounds(detail::Instance& inst);
+  /** THE EXTENT A NODE'S LAYER EFFECT FILTERS, holding @p content: the
+   *  node's box — or, for a node sized to its ink that bakes nothing, the
+   *  shape its ink stands on — grown by the filter's reach, joined with
+   *  the content, out onto the filter grid. A wide blur's picture follows the
+   * middle of the extent it is given, so marks whose bleed stays inside the
+   * box's reach leave the extent, and the picture, where the box puts them;
+   * content reaching past it grows the extent by the cells it reaches into. */
+  SkRect filterExtent(detail::Instance& inst, const SkRect& content);
 
   // ---- hit testing / queries (Query.cpp) ----
   bool shapeContains(detail::Instance& inst, SkPoint local, SkSize size) const;

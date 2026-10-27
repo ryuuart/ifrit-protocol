@@ -434,6 +434,13 @@ bool Engine::isRunning() const {
                      declared);
 }
 
+bool Engine::isMotionRunning() const {
+  return std::any_of(m_running->motions.begin(), m_running->motions.end(),
+                     [](const std::shared_ptr<detail::Stepped>& stepped) {
+                       return stepped->isRunning();
+                     });
+}
+
 bool Engine::isPaused() const {
   return m_held || m_policy == ClockPolicy::Pause ||
          (m_policy == ClockPolicy::PauseWhileLoading && m_arriving);

@@ -9,7 +9,6 @@
 #include <include/core/SkFontParameters.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkString.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the face choice's diagnostics
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>
@@ -18,6 +17,7 @@
 #include <vector>
 
 #include "FamilyList.h"
+#include "runtime/Warning.h"
 #include "sigilweave/advanced/Skia.h"
 #include "sigilweave/fonts/FamilyName.h"
 
@@ -32,11 +32,11 @@ constexpr float kObliqueDegrees = 14.0f;
 void warnNoSuchFamily(const std::string& list) {
   static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(list).second) return;
-  SkDebugf(
-      "[compose] fontFamily(\"%s\") names no family the font context can "
+  sigil::compose::detail::reportWarning(
+      "fontFamily(\"%s\") names no family the font context can "
       "find — the face in force was left standing. Name a family installed "
       "where the composer runs, or end the list with serif, sans-serif, "
-      "monospace or system-ui. (warned once)\n",
+      "monospace or system-ui. (warned once)",
       list.c_str());
 }
 
@@ -56,11 +56,11 @@ sk_sp<SkTypeface> firstInstalledFamily(sigil::weave::FontContext& fonts,
 void warnNoSuchStyle(const std::string& list, const std::string& styleName) {
   static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(list + '\n' + styleName).second) return;
-  SkDebugf(
-      "[compose] fontFamily(\"%s\", \"%s\") names a style no family of the "
+  sigil::compose::detail::reportWarning(
+      "fontFamily(\"%s\", \"%s\") names a style no family of the "
       "list has — the family is set at the weight and style in force "
       "instead. A family's styles are the names weave::fonts::family() "
-      "lists. (warned once)\n",
+      "lists. (warned once)",
       list.c_str(), styleName.c_str());
 }
 
@@ -68,10 +68,10 @@ void warnNoItalic(const SkTypeface& face) {
   const std::string name = sigil::weave::fonts::familyName(face);
   static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(name).second) return;
-  SkDebugf(
-      "[compose] fontStyle(Italic) over \"%s\", which has no italic face and "
+  sigil::compose::detail::reportWarning(
+      "fontStyle(Italic) over \"%s\", which has no italic face and "
       "no ital axis — it is set as an oblique of 14 degrees instead, which "
-      "leans only a face with a slnt axis. (warned once)\n",
+      "leans only a face with a slnt axis. (warned once)",
       name.c_str());
 }
 

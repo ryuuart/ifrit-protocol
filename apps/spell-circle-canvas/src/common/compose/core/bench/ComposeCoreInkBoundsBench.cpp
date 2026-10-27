@@ -2,10 +2,9 @@
 // laid in page coordinates on page-sized boxes, each blurred and faded, as
 // a height map is drawn, against the same strokes on boxes fitted to them,
 // and against page-sized boxes whose node also carries a mark laid on its
-// box, which keeps the box as the node's size. The second opens layers at
-// each stroke's ink; the first and the third open them at the page, since
-// a blur is exact to the extent it is given and a stroke's own blur reads
-// the extent its box gives it. Each
+// box, which keeps the box as the node's size. The first and the second
+// open layers at each stroke's ink grown by the blur's reach; the third
+// opens them at the page. Each
 // set is run on a raster surface, and again on a Graphite Metal surface
 // when the binary carries one.
 
@@ -156,8 +155,7 @@ static void BM_Draw_BlurredStrokes_PageBox_Graphite(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_BlurredStrokes_PageBox_Graphite)->Arg(50)->Arg(250);
 
-static void BM_Draw_BlurredStrokes_FittedBox_Graphite(
-    benchmark::State& state) {
+static void BM_Draw_BlurredStrokes_FittedBox_Graphite(benchmark::State& state) {
   inkBoundsGraphiteArm(state, Placement::FittedBox);
 }
 BENCHMARK(BM_Draw_BlurredStrokes_FittedBox_Graphite)->Arg(50)->Arg(250);

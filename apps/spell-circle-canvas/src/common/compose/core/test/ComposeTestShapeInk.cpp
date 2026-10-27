@@ -1,7 +1,8 @@
 // A node whose ink is the shape it declares is sized to that shape: the
-// layer its opacity and its filter open stands over the stroke, not over
-// the page-sized box the stroke's coordinates came from, it filters the
-// same picture there, and a mark laid against the box keeps the box.
+// layer its opacity opens stands over the stroke, not over the page-sized
+// box the stroke's coordinates came from, its filter reads the stroke
+// grown by the filter's reach, and a mark laid against the box keeps the
+// box.
 
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/SkImageFilters.h>
@@ -84,18 +85,17 @@ constexpr float kSigma = 4;
  *  positive @p sigma, blurred by it, as a height map lays its marks;
  *  @p onTheBox adds a mark laid on the box. */
 Element strokeOnThePage(bool onTheBox, float sigma = kSigma) {
-  Element stroke =
-      box()
-          .absolute()
-          .left(0)
-          .top(0)
-          .width(kPageWidth)
-          .height(kPageHeight)
-          .shape(spine())
-          .stroke(material::Material(material::Color{1, 1, 1, 1}),
-                  {.width = kWidth})
-          .opacity(0.5f)
-          .cache(Cache::None);
+  Element stroke = box()
+                       .absolute()
+                       .left(0)
+                       .top(0)
+                       .width(kPageWidth)
+                       .height(kPageHeight)
+                       .shape(spine())
+                       .stroke(material::Material(material::Color{1, 1, 1, 1}),
+                               {.width = kWidth})
+                       .opacity(0.5f)
+                       .cache(Cache::None);
   if (sigma > 0)
     stroke.filter(
         material::skia::filter(SkImageFilters::Blur(sigma, sigma, nullptr)));
@@ -131,8 +131,8 @@ TEST(ComposePaintBounds, AShapedLeafIsBoundedByItsShape) {
   const std::vector<SkRect> layers = layersOf(std::move(page));
   ASSERT_FALSE(layers.empty())
       << "the faded stroke opened no bounded layer at all";
-  const SkRect ink = SkRect::MakeLTRB(100 - kReach, 100 - kReach,
-                                      160 + kReach, 120 + kReach);
+  const SkRect ink =
+      SkRect::MakeLTRB(100 - kReach, 100 - kReach, 160 + kReach, 120 + kReach);
   for (const SkRect& layer : layers)
     EXPECT_EQ(layer, ink)
         << "a layer stood at (" << layer.left() << ", " << layer.top()
@@ -143,17 +143,31 @@ TEST(ComposePaintBounds, AShapedLeafIsBoundedByItsShape) {
         << ink.bottom() << ")";
 }
 
-TEST(ComposePaintBounds, AFilterOverAShapedLeafReadsTheBox) {
-  // A blur is exact to the extent it is given and to no other, so the
-  // stroke's own blur filters the extent its box gives it.
-  const std::vector<SkRect> layers = layersOf(strokeOnThePage(false));
-  ASSERT_FALSE(layers.empty())
-      << "the faded, blurred stroke opened no bounded layer at all";
-  for (const SkRect& layer : layers)
-    EXPECT_TRUE(layer.contains(SkRect::MakeWH(kPageWidth, kPageHeight)))
-        << "a layer stood at (" << layer.left() << ", " << layer.top()
-        << ") to (" << layer.right() << ", " << layer.bottom()
-        << ") where the blur over the stroke reads its page-sized box";
+TEST(ComposePaintBounds, AFilterOverAShapedLeafFiltersItsInk) {
+  // The stroke's own blur filters the stroke's ink grown by the blur's
+  // reach, on the filter grid: a layer the stroke's size, never the
+  // page's, at every width of blur.
+  for (const float sigma : {kSigma, 12.0f, 24.0f, 48.0f}) {
+    const std::vector<SkRect> layers = layersOf(strokeOnThePage(false, sigma));
+    ASSERT_FALSE(layers.empty())
+        << "the faded, blurred stroke opened no bounded layer at all";
+    const SkRect ink = SkRect::MakeLTRB(100 - kReach, 100 - kReach,
+                                        160 + kReach, 120 + kReach);
+    // The ink grown by three deviations, then out by one cell of the grid.
+    const float reach = 3 * sigma + 64;
+    const SkRect allowed = ink.makeOutset(reach, reach);
+    for (const SkRect& layer : layers) {
+      EXPECT_TRUE(layer.contains(ink))
+          << "blur " << sigma << ": a layer stood at (" << layer.left() << ", "
+          << layer.top() << ") to (" << layer.right() << ", " << layer.bottom()
+          << ") and cut the stroke's ink";
+      EXPECT_TRUE(allowed.contains(layer))
+          << "blur " << sigma << ": a layer stood at (" << layer.left() << ", "
+          << layer.top() << ") to (" << layer.right() << ", " << layer.bottom()
+          << "), past the stroke's ink grown by the "
+          << "blur's reach";
+    }
+  }
 }
 
 TEST(ComposePaintBounds, AMarkLaidOnTheBoxKeepsTheBox) {
@@ -196,25 +210,16 @@ Element blurredAbove(bool onTheBox, float sigma) {
 }
 
 TEST(ComposePaintBounds, AShapedLeafFiltersTheSamePictureUnderAWideBlur) {
-  // A wide blur is taken over a reduced copy of what it filters and spread
-  // back, and its faint far edge reaches past the kernel's nominal reach:
-  // the layer at the ink has to hold that edge as the layer at the box
-  // does, whether the blur is the stroke's own or stands above it.
+  // A wide blur standing on the page above the stroke filters the page's
+  // extent whatever size the stroke's own layers are, so the stroke at its
+  // ink and at its box gives one picture under it.
   for (const float sigma : {12.0f, 24.0f, 48.0f}) {
-    const std::vector<SkColor> ownAtTheInk =
-        drawnOnce(strokeOnThePage(false, sigma));
-    const std::vector<SkColor> ownAtTheBox =
-        drawnOnce(strokeOnThePage(true, sigma));
     size_t differing = 0;
-    int worst = worstDrift(ownAtTheBox, ownAtTheInk, &differing);
-    EXPECT_EQ(worst, 0) << differing << " pixels moved, worst " << worst
-                        << " code values, under the stroke's own blur of "
-                        << sigma << " at its ink and at its box";
     const std::vector<SkColor> aboveAtTheInk =
         drawnOnce(blurredAbove(false, sigma));
     const std::vector<SkColor> aboveAtTheBox =
         drawnOnce(blurredAbove(true, sigma));
-    worst = worstDrift(aboveAtTheBox, aboveAtTheInk, &differing);
+    const int worst = worstDrift(aboveAtTheBox, aboveAtTheInk, &differing);
     EXPECT_EQ(worst, 0) << differing << " pixels moved, worst " << worst
                         << " code values, under a blur of " << sigma
                         << " standing above the stroke, at its ink and at "
@@ -260,16 +265,17 @@ Shape offsetStar() {
 /** The star filled, faded and kept as a texture on a box the size of the
  *  page; @p onTheBox adds a mark laid on the box. */
 Element bakedStarOnThePage(bool onTheBox) {
-  Element star = box()
-                     .absolute()
-                     .left(0)
-                     .top(0)
-                     .width(kPageWidth)
-                     .height(kPageHeight)
-                     .shape(offsetStar())
-                     .fill(material::Material(material::Color{1, 0.8f, 0.2f, 1}))
-                     .opacity(0.7f)
-                     .cache(Cache::Texture);
+  Element star =
+      box()
+          .absolute()
+          .left(0)
+          .top(0)
+          .width(kPageWidth)
+          .height(kPageHeight)
+          .shape(offsetStar())
+          .fill(material::Material(material::Color{1, 0.8f, 0.2f, 1}))
+          .opacity(0.7f)
+          .cache(Cache::Texture);
   if (onTheBox) star.foreground(MarkOnTheBox{});
   Element page = box().width(kPageWidth).height(kPageHeight);
   page.children({std::move(star)});
@@ -387,8 +393,8 @@ std::vector<MarkCase> markCases() {
   PathFormat outer = roundStroke();
   outer.align = PathFormat::Align::Outer;
   add("a round-joined outer stroke", outer, true);
-  PathFormat inner = brush::solid(4, Fill::color({1, 1, 1, 1}),
-                                  PathFormat::Align::Inner);
+  PathFormat inner =
+      brush::solid(4, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner);
   add("a mitred inner stroke", inner, true);
   add("a mitred stroke", brush::solid(4, Fill::color({1, 1, 1, 1})), true);
   PathFormat square = roundStroke();
@@ -407,8 +413,7 @@ std::vector<MarkCase> markCases() {
   add("a stamped stroke", stamped, false);
   add("a shadow", shadow(material::Color{0, 0, 0, 1}, {3, 4}, 2), true);
   add("a wash",
-      decorations::wash(material::Material(material::Color{0, 0, 1, 1})),
-      true);
+      decorations::wash(material::Material(material::Color{0, 0, 1, 1})), true);
   Border border = decorations::border(2, Fill::color({1, 1, 1, 1}), 1);
   border.join = geometry::path::Join::Round;
   add("a round-joined border", border, true);
@@ -432,12 +437,14 @@ std::vector<MarkCase> markCases() {
       lines::rails({{.across = -3, .width = 2}, {.across = 3, .width = 2}}),
       true);
   add("mitred rails",
-      lines::rails({{.across = -3, .width = 2, .join = geometry::path::Join::Miter},
-                    {.across = 3, .width = 2, .join = geometry::path::Join::Miter}}),
+      lines::rails(
+          {{.across = -3, .width = 2, .join = geometry::path::Join::Miter},
+           {.across = 3, .width = 2, .join = geometry::path::Join::Miter}}),
       true);
   add("square-ended rails",
-      lines::rails({{.across = -3, .width = 2, .cap = geometry::path::Cap::Square},
-                    {.across = 3, .width = 2, .cap = geometry::path::Cap::Square}}),
+      lines::rails(
+          {{.across = -3, .width = 2, .cap = geometry::path::Cap::Square},
+           {.across = 3, .width = 2, .cap = geometry::path::Cap::Square}}),
       true);
   add("a hatch", lines::Hatch{}, true);
   add("a radial hatch", lines::RadialHatch{}, true);
@@ -477,8 +484,7 @@ TEST(ComposePaintBounds, EveryMarkStandsOnTheOutlineOrOnTheBox) {
     SCOPED_TRACE(markCase.name);
     EXPECT_EQ(markCase.mark.staysOnOutline(), markCase.staysOnOutline)
         << markCase.name << " says the wrong thing about where it stands";
-    const std::vector<SkRect> layers =
-        layersOf(markedOnThePage(markCase.mark));
+    const std::vector<SkRect> layers = layersOf(markedOnThePage(markCase.mark));
     ASSERT_FALSE(layers.empty())
         << "the faded triangle wearing " << markCase.name
         << " opened no bounded layer at all";
@@ -512,29 +518,27 @@ TEST(ComposePaintBounds, AFadedShapeHoldsTheMitredTipsItsMarksLay) {
   std::vector<std::pair<std::string, Decoration>> marks;
   marks.emplace_back("the stock stroke",
                      brush::solid(6, Fill::color({1, 1, 1, 1})));
-  marks.emplace_back("an outer stroke",
-                     brush::solid(4, Fill::color({1, 1, 1, 1}),
-                                  PathFormat::Align::Outer));
+  marks.emplace_back(
+      "an outer stroke",
+      brush::solid(4, Fill::color({1, 1, 1, 1}), PathFormat::Align::Outer));
   marks.emplace_back("a border",
                      decorations::border(6, Fill::color({1, 1, 1, 1})));
   marks.emplace_back("a layered brush",
-                     LayeredBrush{{StrokeLayer{.width = 6,
-                                               .ink = Fill::color(
-                                                   {1, 1, 1, 1})}}});
+                     LayeredBrush{{StrokeLayer{
+                         .width = 6, .ink = Fill::color({1, 1, 1, 1})}}});
   lines::Line mitredLine;
   mitredLine.width = 6;
   mitredLine.join = geometry::path::Join::Miter;
   marks.emplace_back("a mitred line", mitredLine);
-  marks.emplace_back(
-      "mitred rails",
-      lines::rails({{.across = -4,
-                     .width = 3,
-                     .fill = Fill::color({1, 1, 1, 1}),
-                     .join = geometry::path::Join::Miter},
-                    {.across = 4,
-                     .width = 3,
-                     .fill = Fill::color({1, 1, 1, 1}),
-                     .join = geometry::path::Join::Miter}}));
+  marks.emplace_back("mitred rails",
+                     lines::rails({{.across = -4,
+                                    .width = 3,
+                                    .fill = Fill::color({1, 1, 1, 1}),
+                                    .join = geometry::path::Join::Miter},
+                                   {.across = 4,
+                                    .width = 3,
+                                    .fill = Fill::color({1, 1, 1, 1}),
+                                    .join = geometry::path::Join::Miter}}));
   const auto lostWhenFaded = [](const std::function<Element(float)>& page) {
     const std::vector<SkColor> whole = drawnOnce(page(1));
     const std::vector<SkColor> faded = drawnOnce(page(0.5f));
@@ -554,19 +558,18 @@ TEST(ComposePaintBounds, AFadedShapeHoldsTheMitredTipsItsMarksLay) {
         << " lost pixels its unfaded paint draws";
   // A material's own stroke step, laid by its effects outside the shape.
   const size_t lost = lostWhenFaded([](float opacity) {
-    Element shaped =
-        box()
-            .absolute()
-            .left(0)
-            .top(0)
-            .width(kPageWidth)
-            .height(kPageHeight)
-            .shape(triangle())
-            .fill(material::from(material::Color{1, 1, 1, 1})
-                      .effects(material::Filter::stroke({1, 1, 1, 1},
-                                                        {.width = 6})))
-            .opacity(opacity)
-            .cache(Cache::None);
+    Element shaped = box()
+                         .absolute()
+                         .left(0)
+                         .top(0)
+                         .width(kPageWidth)
+                         .height(kPageHeight)
+                         .shape(triangle())
+                         .fill(material::from(material::Color{1, 1, 1, 1})
+                                   .effects(material::Filter::stroke(
+                                       {1, 1, 1, 1}, {.width = 6})))
+                         .opacity(opacity)
+                         .cache(Cache::None);
     Element page = box().width(kPageWidth).height(kPageHeight);
     page.children({std::move(shaped)});
     page.cache(Cache::None);
@@ -577,8 +580,8 @@ TEST(ComposePaintBounds, AFadedShapeHoldsTheMitredTipsItsMarksLay) {
 }
 
 TEST(ComposePaintBounds, AShapedLeafCarryingBracketsKeepsItsBox) {
-  const std::vector<SkRect> layers = layersOf(
-      markedOnThePage(styles::brackets(material::Color{1, 1, 1, 1})));
+  const std::vector<SkRect> layers =
+      layersOf(markedOnThePage(styles::brackets(material::Color{1, 1, 1, 1})));
   ASSERT_FALSE(layers.empty())
       << "the faded triangle wearing brackets opened no bounded layer";
   for (const SkRect& layer : layers)

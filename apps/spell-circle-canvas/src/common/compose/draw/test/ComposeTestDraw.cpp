@@ -611,6 +611,47 @@ TEST(RetainedElement, AGuestSetsItsParagraphsInTheBlockWhereItsPenStands) {
   }
 }
 
+TEST(RetainedElement,
+     AGuestIndentsItsParagraphsByThePercentageWhereItsPenStands) {
+  // An indent stated as a percentage of the measure crosses with the
+  // paragraph setting: a guest's passage under a pen that stands under a
+  // ten percent indent is indented by a tenth of its own measure, the same
+  // drawing as the guest stating that indent itself, and not the flush one.
+  const auto drawn = [](bool indentedAbove, bool indentedInside, bool kept) {
+    const auto program = [indentedInside](Pen& pen) {
+      Element words =
+          text(u8"AAAA AAAA AAAA AAAA AAAA AAAA")
+              .font({.face = sigil::test::instrument::sans(), .size = 10});
+      if (indentedInside) words.textIndent(percent(10));
+      pen.element(words, 0, 0, 160, 60);
+    };
+    Element host = stack()
+                       .ink(material::Color{1, 1, 1, 1})
+                       .children({(kept ? graphics(program) : pen(program))
+                                      .width(160)
+                                      .height(60)});
+    if (indentedAbove) host.textIndent(percent(10));
+    Host scene;
+    scene.composer.render(host);
+    scene.frame();
+    return scene.pixels();
+  };
+  const auto same = [](const SkBitmap& left, const SkBitmap& right) {
+    for (int y = 0; y < left.height(); ++y)
+      for (int x = 0; x < left.width(); ++x)
+        if (left.getColor(x, y) != right.getColor(x, y)) return false;
+    return true;
+  };
+  for (const bool kept : {false, true}) {
+    const SkBitmap inherited = drawn(true, false, kept);
+    EXPECT_TRUE(same(inherited, drawn(false, true, kept)))
+        << (kept ? "graphics" : "pen")
+        << ": the guest did not take the percentage indent in force";
+    EXPECT_FALSE(same(inherited, drawn(false, false, kept)))
+        << (kept ? "graphics" : "pen");
+  }
+}
+
 TEST(RetainedElement, AGuestStandsUnderTheSheetsWhereItsPenStands) {
   // A class the host's sheet speaks about styles a node of the guest; and
   // the guest's root is not the sheet's `:root`, so a property the root

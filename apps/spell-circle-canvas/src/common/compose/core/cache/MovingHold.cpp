@@ -39,6 +39,14 @@ float formingScale(float shown) {
   return std::exp2(std::ceil(std::log2(bounded) * kSteps) / kSteps);
 }
 
+/** THE TEXEL A HOLD'S PIXELS BEGIN AT, in whole texels: the corner of
+ *  @p bounds laid out onto the grid of @p scale texels a unit that stands
+ *  on the node's own origin. */
+SkPoint texelCorner(const SkRect& bounds, float scale) {
+  return {(float)std::floor((double)bounds.left() * scale),
+          (float)std::floor((double)bounds.top() * scale)};
+}
+
 /** The node fading where it stands: its subtree painted once on the
  *  device grid, under the matrix and clip the draw has, exactly as a layer
  *  opened for the fade would hold it, and composited there at each draw's
@@ -108,7 +116,16 @@ bool paintHeldWhileMoving(PaintPass& pass) {
     const float scale =
         std::max(needed, held && !inst.paintDirty ? inst.movingScale : 0.0f);
     inst.movingImage.reset();
-    const SkISize dimensions = PaintPass::localBakeSize(bounds, scale);
+    // ON THE NODE'S TEXEL GRID, as every local bake is: the pixels are
+    // resampled under the node's matrix, so pixels laid from the bounds'
+    // own corner would move every texel of the picture when a mark's
+    // bleed grew.
+    const SkPoint corner = texelCorner(bounds, scale);
+    const SkRect laid = SkRect::MakeLTRB(
+        corner.x() / scale, corner.y() / scale,
+        (float)(std::ceil((double)bounds.right() * scale) / scale),
+        (float)(std::ceil((double)bounds.bottom() * scale) / scale));
+    const SkISize dimensions = PaintPass::localBakeSize(laid, scale);
     if (dimensions.isEmpty()) return false;
     // ON THE DEVICE THE DRAW IS ON, as every bake is: a surface the device
     // refuses is no hold, and the node paints as it would without one.
@@ -116,8 +133,11 @@ bool paintHeldWhileMoving(PaintPass& pass) {
         impl.localBakeSurface(canvas, impl.bakeInfo(dimensions));
     if (!layer) return false;
     SkCanvas& formed = *layer->getCanvas();
+    // The corner moved in whole texels, then the scale: every point lands
+    // at its own grid position less a whole number of texels, the same
+    // number however far the bounds reach.
+    formed.translate(-corner.x(), -corner.y());
     formed.scale(scale, scale);
-    formed.translate(-bounds.left(), -bounds.top());
     const bool outerRead = std::exchange(impl.contentScaleRead, false);
     {  // no leaf blend: the pixels isolate, as a bake's do
       const BakeLayerScope bakeLayer(&impl, formed);
@@ -140,19 +160,21 @@ bool paintHeldWhileMoving(PaintPass& pass) {
     impl.profileRows[pass.profile.row].cacheState =
         Composer::CacheState::Moving;
   ++impl.stats.nodesHeldWhileMoving;
-  // Through the rect the pixels ACTUALLY cover: their size was rounded up,
-  // so stretching them across `bounds` alone would resample the node by up
-  // to a texel's worth of scale. The overshoot is transparent.
-  const SkRect destination =
-      SkRect::MakeXYWH(bounds.left(), bounds.top(),
-                       (float)inst.movingImage->width() / inst.movingScale,
-                       (float)inst.movingImage->height() / inst.movingScale);
+  // Texel for texel, from the grid corner they were laid from, in the
+  // node's frame divided into texels: their size was rounded up, so
+  // stretching them across `bounds` alone would resample the node by up to
+  // a texel's worth of scale, and a corner spelled in units rather than
+  // texels would land each texel a rounding apart as the bounds grew. The
+  // overshoot is transparent.
+  const SkPoint corner = texelCorner(inst.movingBounds, inst.movingScale);
   // The pixels were formed without the node's opacity, and no layer is
   // open for it: it rides the one draw they are composited by.
   SkPaint composite;
   composite.setAlphaf(pass.opacity);
-  canvas.drawImageRect(inst.movingImage, destination,
-                       SkSamplingOptions(SkFilterMode::kLinear), &composite);
+  SkAutoCanvasRestore restore(&canvas, true);
+  canvas.scale(1.0f / inst.movingScale, 1.0f / inst.movingScale);
+  canvas.drawImage(inst.movingImage, corner.x(), corner.y(),
+                   SkSamplingOptions(SkFilterMode::kLinear), &composite);
   return true;
 }
 

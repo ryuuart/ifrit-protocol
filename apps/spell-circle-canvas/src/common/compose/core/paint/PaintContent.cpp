@@ -284,6 +284,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .font = inst.font,
       .vars = inst.vars.get(),
       .block = &inst.block,
+      .indentPercent = inst.indentPercent,
       .sampling = inst.sampling ? &*inst.sampling : nullptr,
       .sheet = inst.sheetInForce,
       .pointer = pointerHere,
@@ -306,15 +307,17 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // The layer's frame names what the layer holds, which may reach past
   // the box: a filter that crops to its reach crops to that.
   material::FrameData layerFrame = frameOf(paintCtx);
-  // The extent the filter reads stands on the node's filter grid, so a
-  // mark whose bleed grows within a cell moves none of its picture.
-  const SkRect filtered = layerFx ? onFilterGrid(recordBounds(inst)) : SkRect();
+  // The extent the filter reads stands about the node's anchor on its
+  // filter grid, so a mark whose bleed grows moves none of its picture.
+  const SkRect filtered =
+      layerFx ? filterExtent(inst, recordBounds(inst)) : SkRect();
   if (layerFx) {
     layerFrame.paintedMin = {filtered.left(), filtered.top()};
     layerFrame.paintedMax = {filtered.right(), filtered.bottom()};
   }
   const sk_sp<SkImageFilter> layerFilter =
-      layerFx ? material::skia::resolvedImageFilter(*layerFx, &layerFrame)
+      layerFx ? material::skia::resolvedImageFilter(effectInInk(inst, *layerFx),
+                                                    &layerFrame)
               : nullptr;
   const bool hasEffect = (bool)layerFilter;
   if (hasEffect) {

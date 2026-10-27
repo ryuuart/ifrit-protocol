@@ -7,7 +7,6 @@
 
 #include "Calc.h"
 
-#include <include/core/SkTypes.h>  // SkDebugf — the once-per-mixture warning
 #include <sigilweave/style/Length.h>
 
 #include <algorithm>
@@ -18,6 +17,8 @@
 #include <mutex>
 #include <string>
 #include <utility>
+
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 namespace detail {
@@ -65,9 +66,8 @@ std::string keyOf(const CalcLength& sum) {
     std::memcpy(bytes, &value, sizeof value);
     key.append(bytes, sizeof bytes);
   };
-  for (const float term :
-       {sum.px, sum.percent, sum.em, sum.rem, sum.lh, sum.ch, sum.vw, sum.vh,
-        sum.vmin, sum.vmax})
+  for (const float term : {sum.px, sum.percent, sum.em, sum.rem, sum.lh, sum.ch,
+                           sum.vw, sum.vh, sum.vmin, sum.vmax})
     put(term);
   for (const auto& [id, coefficient] : sum.vars) {
     put(std::bit_cast<float>(id));
@@ -116,11 +116,11 @@ void warnRefusedSum(Dimension::Unit left, Dimension::Unit right) {
   static thread_local boost::unordered_flat_map<uint16_t, bool> warned;
   const uint16_t pair = (uint16_t)(((uint16_t)left << 8) | (uint16_t)right);
   if (!warned.emplace(pair, true).second) return;
-  SkDebugf(
-      "[compose] a length in %s was combined with one in %s. Auto is no "
+  sigil::compose::detail::reportWarning(
+      "a length in %s was combined with one in %s. Auto is no "
       "length at all, and a percentage read through a custom property is "
       "a percentage of whatever reads that property, not a term a sum can "
-      "hold, so the result is REFUSED and stands as auto. (warned once)\n",
+      "hold, so the result is REFUSED and stands as auto. (warned once)",
       unitName(left), unitName(right));
 }
 
@@ -131,7 +131,8 @@ float percentOf(const Dimension& length) {
 }
 
 bool percentageSum(const Dimension& length) {
-  return length.unit == Dimension::Unit::Calc && calcLength(length).percent != 0;
+  return length.unit == Dimension::Unit::Calc &&
+         calcLength(length).percent != 0;
 }
 
 void warnPercentageSumUnresolved(const char* consumer, const char* instead) {
@@ -141,11 +142,11 @@ void warnPercentageSumUnresolved(const char* consumer, const char* instead) {
     const std::lock_guard<std::mutex> lock(guard);
     if (!warned.emplace(consumer, true).second) return;
   }
-  SkDebugf(
-      "[compose] a sum holding a percentage reached %s, which has no "
+  sigil::compose::detail::reportWarning(
+      "a sum holding a percentage reached %s, which has no "
       "extent to measure the percentage against, so %s. The sum is kept as "
       "written: a positioned child and a text mark resolve it against "
-      "their containing box. (warned once)\n",
+      "their containing box. (warned once)",
       consumer, instead);
 }
 
@@ -211,11 +212,16 @@ CalcLength termsOf(const Dimension& length, float factor) {
 Dimension fromSum(CalcLength sum) {
   std::erase_if(sum.vars, [](const auto& term) { return term.second == 0; });
   const std::pair<float, Dimension::Unit> units[] = {
-      {sum.px, Dimension::Unit::Px}, {sum.percent, Dimension::Unit::Percent},
-      {sum.em, Dimension::Unit::Em}, {sum.rem, Dimension::Unit::Rem},
-      {sum.lh, Dimension::Unit::Lh}, {sum.ch, Dimension::Unit::Ch},
-      {sum.vw, Dimension::Unit::Vw}, {sum.vh, Dimension::Unit::Vh},
-      {sum.vmin, Dimension::Unit::Vmin}, {sum.vmax, Dimension::Unit::Vmax}};
+      {sum.px, Dimension::Unit::Px},
+      {sum.percent, Dimension::Unit::Percent},
+      {sum.em, Dimension::Unit::Em},
+      {sum.rem, Dimension::Unit::Rem},
+      {sum.lh, Dimension::Unit::Lh},
+      {sum.ch, Dimension::Unit::Ch},
+      {sum.vw, Dimension::Unit::Vw},
+      {sum.vh, Dimension::Unit::Vh},
+      {sum.vmin, Dimension::Unit::Vmin},
+      {sum.vmax, Dimension::Unit::Vmax}};
   int stated = 0;
   Dimension single(0.0f);
   for (const auto& [value, unit] : units)
@@ -273,9 +279,9 @@ bool sameSimpleUnit(const Dimension& left, const Dimension& right) {
 void warnDividedByZero() {
   static thread_local bool warned = false;
   if (std::exchange(warned, true)) return;
-  SkDebugf(
-      "[compose] a length was divided by zero, which is no length, so the "
-      "result is REFUSED and stands as auto. (warned once)\n");
+  sigil::compose::detail::reportWarning(
+      "a length was divided by zero, which is no length, so the "
+      "result is REFUSED and stands as auto. (warned once)");
 }
 
 /** @p length times @p factor, or divided by it where @p dividing — a

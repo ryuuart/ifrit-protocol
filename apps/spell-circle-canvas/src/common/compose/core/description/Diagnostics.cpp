@@ -5,8 +5,6 @@
  * name no set in scope carries.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf
-
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>  // std::lround, on the angle a diagnostic reports
 #include <string>
@@ -14,6 +12,7 @@
 #include <vector>
 
 #include "ComposeInternal.h"
+#include "runtime/Warning.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Contour.h"
 
@@ -45,8 +44,8 @@ void warnNoCornersFound(float sharpestDegrees, float angleDegrees) {
     if (k == key) return;
   if (seen.size() >= 16) return;
   seen.push_back(key);
-  SkDebugf(
-      "compose: no corner cleared the %.1f\xc2\xb0 threshold, but the "
+  sigil::compose::detail::reportWarning(
+      "no corner cleared the %.1f\xc2\xb0 threshold, but the "
       "sharpest tangent break on this contour is %.1f\xc2\xb0 — so "
       "weightedCorners and spans::corners() will "
       "draw nothing here, and spans::edges() (their complement) will "
@@ -54,7 +53,7 @@ void warnNoCornersFound(float sharpestDegrees, float angleDegrees) {
       "anything. A "
       "regular n-gon turns 360/n per vertex, which puts EVERY polygon "
       "above 12 sides under the 30\xc2\xb0 default (a 20-gon turns "
-      "18\xc2\xb0). Pass a smaller angleDegrees, e.g. %.0ff.\n",
+      "18\xc2\xb0). Pass a smaller angleDegrees, e.g. %.0ff.",
       angleDegrees, sharpestDegrees, std::max(4.0f, sharpestDegrees * 0.6f));
 }
 
@@ -85,21 +84,21 @@ void warnWritingModeOnPath() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "compose: textOnPath() and writingMode() on one text leaf — a path run's "
+  sigil::compose::detail::reportWarning(
+      "textOnPath() and writingMode() on one text leaf — a path run's "
       "baseline IS its geometry and has no columns to advance, so the path "
-      "stands and the writing mode is dropped\n");
+      "stands and the writing mode is dropped");
 }
 
 void warnPercentOriginDepth() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "compose: transformOrigin() was given a percentage for its depth — a "
+  sigil::compose::detail::reportWarning(
+      "transformOrigin() was given a percentage for its depth — a "
       "depth has no box to be a percentage of, so the pivot stays in the "
       "node's plane. Write the depth as a length: pixels, an em, a custom "
-      "property\n");
+      "property");
 }
 
 void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
@@ -107,11 +106,11 @@ void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
   // that is wrong is wrong every time.
   static thread_local boost::unordered_flat_set<std::string> seen;
   if (!seen.insert(std::string(name)).second) return;
-  SkDebugf(
-      "compose: paragraphStyles(\"%.*s\") — %s, so this block is set in "
+  sigil::compose::detail::reportWarning(
+      "paragraphStyles(\"%.*s\") — %s, so this block is set in "
       "what it inherits and nothing more. State a rule for .%.*s in a sheet "
       "applied with applyStyleSheet() on this element or on a node above "
-      "it, or pass the style itself.\n",
+      "it, or pass the style itself.",
       (int)name.size(), name.data(),
       anySetInScope ? "no rule of the sheets in force speaks about it"
                     : "no sheet is in force here",

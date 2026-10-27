@@ -10,7 +10,6 @@
  * is done here; these are the ReconcileHost operations it drives.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the ignored-shell warning
 #include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <algorithm>
@@ -19,6 +18,7 @@
 #include <string>
 
 #include "ComposeRuntime.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -152,11 +152,11 @@ void detail::warnIgnoredMemoShellProps(const ElementNode& shell) {
   static thread_local boost::unordered_flat_set<std::string> warned;
   for (const Probe& probe : probes) {
     if (!probe.set || !warned.insert(probe.what).second) continue;
-    SkDebugf(
-        "[compose] memo(...) shell carries %s — ignored. A memo shell "
+    sigil::compose::detail::reportWarning(
+        "memo(...) shell carries %s — ignored. A memo shell "
         "takes .key(), .exit(), .cache() and .cacheScale() only; its look is "
         "what the deferred describe produces, so set this on the element "
-        "produced inside it. (warned once)\n",
+        "produced inside it. (warned once)",
         probe.what);
   }
 }

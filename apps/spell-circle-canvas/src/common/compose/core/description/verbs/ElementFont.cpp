@@ -6,7 +6,6 @@
 
 #include <include/core/SkBlurTypes.h>
 #include <include/core/SkMaskFilter.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the ink box's diagnostics
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/filter/Filter.h>
@@ -25,6 +24,7 @@
 #include "description/ComposeInternal.h"
 #include "paint/MaterialEffects.h"
 #include "paint/SurfaceMap.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -34,12 +34,12 @@ void warnInkTextUnitNeedsAPassage() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "[compose] ink() names a text unit (Glyph, Cluster, Word, Line or "
+  sigil::compose::detail::reportWarning(
+      "ink() names a text unit (Glyph, Cluster, Word, Line or "
       "Sentence) on a node that is no passage, whether by its own verb or "
       "a rule landing on it — the unit was dropped and the paint is "
       "stretched over PaintBox::Element. State the unit on the text leaf, a "
-      "span of it, or a rule that lands on the leaf. (warned once)\n");
+      "span of it, or a rule that lands on the leaf. (warned once)");
 }
 
 }  // namespace detail
@@ -53,10 +53,10 @@ void warnInkTakesNoFillBox() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "[compose] ink() was given PaintBox::Padding or PaintBox::Content, "
+  sigil::compose::detail::reportWarning(
+      "ink() was given PaintBox::Padding or PaintBox::Content, "
       "which place a fill inside its box — the paint is stretched over "
-      "PaintBox::Element. (warned once)\n");
+      "PaintBox::Element. (warned once)");
 }
 
 /** THE BLUR A GLYPH'S SHADOW IS SOFTENED BY, one object per sigma: a
@@ -205,10 +205,10 @@ void warnNoFontLength(const char* verb, const Dimension& length) {
     const std::lock_guard<std::mutex> lock(guard);
     if (!warned.emplace(verb, true).second) return;
   }
-  SkDebugf(
-      "[compose] %s() was given a length in a unit no font holds (unit %d) — "
+  sigil::compose::detail::reportWarning(
+      "%s() was given a length in a unit no font holds (unit %d) — "
       "a font is sized in pixels, pt, em, rem, lh, ch or a percentage of "
-      "the parent's size — so the value in force stands. (warned once)\n",
+      "the parent's size — so the value in force stands. (warned once)",
       verb, (int)length.unit);
 }
 

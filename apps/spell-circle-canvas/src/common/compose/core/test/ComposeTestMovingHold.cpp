@@ -13,18 +13,30 @@ namespace {
 
 using sigil::motion::Animatable;
 
+/** A MARK THAT RESERVES ROOM AND DRAWS NOTHING: the node's paint bounds
+ *  grow by what it states, and nothing it paints moves. */
+struct Reach {
+  float stated = 1;
+  bool operator==(const Reach&) const = default;
+  float bleed() const { return stated; }
+  void paint(sigil::draw::Pen&, const PaintContext&) const {}
+};
+
 /** A turning wheel of spokes and lettering about the host's centre: the
- *  node whose own transform moves, with nothing inside it moving. */
-Element turningWheel(const Animatable<float>& turn, Fill spokeFill = red()) {
-  Element wheel = box()
-                      .absolute()
-                      .left(40)
-                      .top(40)
-                      .width(120)
-                      .height(120)
-                      .key("wheel")
-                      .transformOrigin(percent(50), percent(50))
-                      .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}));
+ *  node whose own transform moves, with nothing inside it moving; a
+ *  positive @p reach adds a mark stating it. */
+Element turningWheel(const Animatable<float>& turn, Fill spokeFill = red(),
+                     float reach = 0) {
+  Element wheel =
+      box()
+          .absolute()
+          .left(40)
+          .top(40)
+          .width(120)
+          .height(120)
+          .key("wheel")
+          .transformOrigin(percent(50), percent(50))
+          .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}));
   std::vector<Element> spokes;
   for (int index = 0; index < 6; ++index)
     spokes.push_back(box()
@@ -38,6 +50,7 @@ Element turningWheel(const Animatable<float>& turn, Fill spokeFill = red()) {
                          .fill(spokeFill));
   spokes.push_back(text("ROTA").absolute().left(30).top(50));
   wheel.children(std::move(spokes));
+  if (reach > 0) wheel.foreground(Reach{reach});
   return box().width(200).height(200).children({std::move(wheel)});
 }
 
@@ -154,27 +167,26 @@ TEST(ComposeMovingHold, ANodeWhoseInsideMovesIsNotHeldButItsStillPartIs) {
   Host host;
   host.composer.setLive(true);
   host.composer.setProfiling(true);
-  host.composer.render(
-      box().width(200).height(200).children(
-          {box()
-               .absolute()
-               .left(40)
-               .top(40)
-               .width(120)
-               .height(120)
-               .key("outer")
-               .transformOrigin(percent(50), percent(50))
-               .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
-               .children({box()
-                              .absolute()
-                              .left(10)
-                              .top(10)
-                              .width(40)
-                              .height(40)
-                              .key("inner")
-                              .fill(red())
-                              .rotate(sigil::motion::bind(
-                                  inner, {.to = {0.0f, 360.0f}}))})}));
+  host.composer.render(box().width(200).height(200).children(
+      {box()
+           .absolute()
+           .left(40)
+           .top(40)
+           .width(120)
+           .height(120)
+           .key("outer")
+           .transformOrigin(percent(50), percent(50))
+           .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
+           .children({box()
+                          .absolute()
+                          .left(10)
+                          .top(10)
+                          .width(40)
+                          .height(40)
+                          .key("inner")
+                          .fill(red())
+                          .rotate(sigil::motion::bind(
+                              inner, {.to = {0.0f, 360.0f}}))})}));
   host.frame();
   for (int step = 1; step < 4; ++step) {
     turn = 0.05f * (float)step;
@@ -252,4 +264,53 @@ TEST(ComposeMovingHold, ALoneFillFadesLiveWithNoLayerToSpare) {
     EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
     EXPECT_GT(redInk(host), 0);
   }
+}
+
+namespace {
+
+/** The turning wheel stating a reach of @p reach, drawn live under a view
+ *  that magnifies it by a scale whose texels fall between whole units,
+ *  turned once and then held while it turns on. */
+SkBitmap heldWheel(float reach) {
+  Animatable<float> turn = sigil::motion::animatable(0.0f);
+  Element page = turningWheel(turn, red(), reach);
+  Host host(260, 260);
+  host.composer.setLive(true);
+  host.composer.render(page);
+  const auto draw = [&host] {
+    SkCanvas& canvas = *host.surface->getCanvas();
+    canvas.clear(SK_ColorBLACK);
+    canvas.save();
+    canvas.scale(1.3f, 1.3f);
+    host.composer.draw(canvas);
+    canvas.restore();
+  };
+  draw();
+  turn = 0.05f;
+  draw();
+  turn = 0.10f;
+  draw();
+  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u)
+      << "the turning wheel stating a reach of " << reach << " was not held";
+  SkBitmap pixels;
+  pixels.allocPixels(SkImageInfo::MakeN32Premul(260, 260));
+  host.surface->readPixels(pixels.pixmap(), 0, 0);
+  return pixels;
+}
+
+}  // namespace
+
+TEST(ComposeMovingHold, AHeldTurningNodeBlitsTheSamePixelsWhateverItsBleed) {
+  // The held pixels are laid on the node's texel grid, so a mark's bleed
+  // that grows the node's bounds grows the pixels with transparent texels
+  // and moves none of the picture under the resampled blit.
+  const SkBitmap narrow = heldWheel(1);
+  const SkBitmap wide = heldWheel(4);
+  size_t differing = 0;
+  for (int y = 0; y < 260; ++y)
+    for (int x = 0; x < 260; ++x)
+      if (narrow.getColor(x, y) != wide.getColor(x, y)) ++differing;
+  EXPECT_EQ(differing, 0u)
+      << "the held wheel blitted other pixels at a reach of four than at "
+         "a reach of one";
 }

@@ -8,8 +8,6 @@
  * frame is a stated one, so no wall clock is read.
  */
 
-#include "support/StandsAlone.h"
-
 #include <gtest/gtest.h>
 #include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/clock/Engine.h>
@@ -20,7 +18,10 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <utility>
 #include <vector>
+
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion;
 using namespace std::chrono_literals;
@@ -89,14 +90,14 @@ TEST(Engine, AnAnimationReadsTheSameNumberTheTweenReadsWithNoEngine) {
   // One tween, two readers: the engine stepping it frame by frame and
   // `Tween::at` asked at the same time. Keyframes with and without
   // durations, a delay, passes and an alternating pass all agree.
-  const Tween<float> path{.from = 0.0f,
-                          .keyframes = {{.to = 10.0f, .duration = 200ms},
-                                        {.to = 4.0f}},
-                          .duration = 1s,
-                          .delay = 100ms,
-                          .ease = ease::linear,
-                          .loop = 1,
-                          .alternate = true};
+  const Tween<float> path{
+      .from = 0.0f,
+      .keyframes = {{.to = 10.0f, .duration = 200ms}, {.to = 4.0f}},
+      .duration = 1s,
+      .delay = 100ms,
+      .ease = ease::linear,
+      .loop = 1,
+      .alternate = true};
   Engine engine;
   Animatable<float> value = animatable(0.0f);
   engine.animate(value, path);
@@ -229,7 +230,8 @@ TEST(Engine, AnAnimationPausesResumesSeeksReversesAndCompletes) {
   animation.pause();
   EXPECT_TRUE(animation.isPaused());
   EXPECT_FALSE(animation.isRunning());
-  EXPECT_FALSE(engine.isRunning());  // a paused playback is not declared to move
+  EXPECT_FALSE(
+      engine.isRunning());  // a paused playback is not declared to move
   stepBy(engine, 250ms);
   EXPECT_NEAR(value.value(), 2.5f, 1e-4f);
 
@@ -342,7 +344,7 @@ TEST(Engine, ATimelinePlacesEachItemWhereItsPositionSays) {
                     early = animatable(0.0f), last = animatable(0.0f);
   const Timeline timeline =
       engine.timeline()
-          .add(first, linearTo(1.0f))                       // afterEnd: 0
+          .add(first, linearTo(1.0f))                        // afterEnd: 0
           .add(after, linearTo(1.0f), afterPrevious(500ms))  // 1.5s
           .add(beside, linearTo(1.0f), withPrevious(250ms))  // 1.75s
           .label("late", at(4s))
@@ -376,9 +378,7 @@ TEST(Engine, ATimelinePlacesEachItemWhereItsPositionSays) {
 TEST(Engine, AnItemWithNoFromStartsFromWhereItsTargetStandsWhenItStarts) {
   Engine engine;
   Animatable<float> value = animatable(0.0f);
-  engine.timeline()
-      .add(value, linearTo(1.0f))
-      .add(value, linearTo(0.0f));
+  engine.timeline().add(value, linearTo(1.0f)).add(value, linearTo(0.0f));
   engine.advance(1500ms);
   EXPECT_NEAR(value.value(), 0.5f, 1e-4f);
   engine.advance(2s);
@@ -420,9 +420,8 @@ TEST(Engine, ATimelineCallFiresOnceGoingForwardsAndNeverGoingBack) {
 TEST(Engine, ATimelinePausesSeeksCompletesAndReverts) {
   Engine engine;
   Animatable<float> first = animatable(0.2f), second = animatable(0.0f);
-  Timeline timeline = engine.timeline()
-                          .add(first, linearTo(1.2f))
-                          .add(second, linearTo(1.0f));
+  Timeline timeline =
+      engine.timeline().add(first, linearTo(1.2f)).add(second, linearTo(1.0f));
   int completions = 0;
   timeline.onComplete([&completions] { ++completions; });
 
@@ -494,6 +493,27 @@ TEST(Engine, ATimerNamesOnlyWhatItReadsAndAVoidOneKeepsRunning) {
   EXPECT_TRUE(both.isRunning());
 }
 
+TEST(Engine, ATimerRunsWithoutAMotionAndWhatItStartsIsOne) {
+  // A timer holds the engine running and declares no motion; an animation
+  // it starts is a motion from the frame it is started.
+  Engine engine;
+  Animatable<float> glow = animatable(0.0f);
+  bool started = false;
+  engine.timer([&] {
+    if (std::exchange(started, true)) return;
+    engine.animate(glow, {.to = 1.0f, .duration = 1s});
+  });
+  EXPECT_TRUE(engine.isRunning());
+  EXPECT_FALSE(engine.isMotionRunning()) << "a timer is no motion";
+  stepBy(engine, 100ms);
+  EXPECT_TRUE(engine.isMotionRunning())
+      << "the animation the timer started is not counted as a motion";
+  stepBy(engine, 1s);
+  stepBy(engine, 100ms);
+  EXPECT_FALSE(engine.isMotionRunning()) << "the animation has landed";
+  EXPECT_TRUE(engine.isRunning()) << "the timer still runs";
+}
+
 TEST(Engine, ATimerRunsUntilItAnswersFalseAndIsThenDropped) {
   Engine engine;
   Duration accumulated{};
@@ -513,9 +533,9 @@ TEST(Engine, ATimerWaitsOutItsDelayAndStopsAtTheEndOfItsDuration) {
   Engine engine;
   std::vector<Duration> deltas;
   int completions = 0;
-  Timer timer = engine.timer(
-      [&deltas](Duration delta) { deltas.push_back(delta); },
-      {.duration = 1s, .delay = 500ms});
+  Timer timer =
+      engine.timer([&deltas](Duration delta) { deltas.push_back(delta); },
+                   {.duration = 1s, .delay = 500ms});
   timer.onComplete([&completions] { ++completions; });
   engine.advance(250ms);
   EXPECT_TRUE(deltas.empty());
@@ -576,11 +596,11 @@ TEST(Engine, AWiggleMovesOnlyWhenTheEngineAdvancesTheValueItReads) {
   engine.animate(seconds, linearTo(2.0f, 2s));  // one to one
 
   const Animatable<float> shakeAcross = bind(
-      seconds,
-      {.to = {0.0f, 0.0f}, .wiggle = {.amount = 12.0f, .frequency = 7.0f, .seed = 1}});
+      seconds, {.to = {0.0f, 0.0f},
+                .wiggle = {.amount = 12.0f, .frequency = 7.0f, .seed = 1}});
   const Animatable<float> shakeDown = bind(
-      seconds,
-      {.to = {0.0f, 0.0f}, .wiggle = {.amount = 12.0f, .frequency = 7.0f, .seed = 2}});
+      seconds, {.to = {0.0f, 0.0f},
+                .wiggle = {.amount = 12.0f, .frequency = 7.0f, .seed = 2}});
 
   const float atRest = shakeAcross.value();
   EXPECT_FLOAT_EQ(shakeAcross.value(), atRest)
@@ -592,7 +612,8 @@ TEST(Engine, AWiggleMovesOnlyWhenTheEngineAdvancesTheValueItReads) {
     across.push_back(shakeAcross.value());
     down.push_back(shakeDown.value());
   }
-  EXPECT_NE(std::count(across.begin(), across.end(), atRest), (long)across.size())
+  EXPECT_NE(std::count(across.begin(), across.end(), atRest),
+            (long)across.size())
       << "the rig never moved as the engine ran";
   EXPECT_NE(across, down) << "two seeds on one clock moved together";
 
@@ -720,6 +741,7 @@ TEST(Engine, AFrameRateThrottlesATimerToAtMostThatManyUpdates) {
   Engine slow;
   int updates = 0;
   slow.timer([&updates] { ++updates; }, {.frameRate = 100.0});
-  for (int frame = 1; frame <= 64; ++frame) slow.advance(Duration(frame / 64.0));
+  for (int frame = 1; frame <= 64; ++frame)
+    slow.advance(Duration(frame / 64.0));
   EXPECT_EQ(updates, 64);
 }

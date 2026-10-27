@@ -4,13 +4,12 @@
  * scale, the node transition, the child stagger, and the children themselves.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
-
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <iterator>
 
 #include "description/ComposeInternal.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -34,11 +33,11 @@ Derived& StructureVerbs<Derived>::key(std::string_view name) {
   if (node->kind == Kind::Slot && !node->key.empty() && node->key != name) {
     static thread_local boost::unordered_flat_set<std::string> warned;
     if (warned.insert(node->key + "->" + std::string(name)).second)
-      SkDebugf(
-          "[compose] .key(\"%.*s\") on slot(\"%s\") RENAMES the slot: "
+      sigil::compose::detail::reportWarning(
+          ".key(\"%.*s\") on slot(\"%s\") RENAMES the slot: "
           "renderSlot(\"%s\") will no longer find it and the mount will "
           "lay out at zero on its content axis. A slot is named once, "
-          "by slot().\n",
+          "by slot().",
           (int)name.size(), name.data(), node->key.c_str(), node->key.c_str());
   }
   node->key = std::string(name);

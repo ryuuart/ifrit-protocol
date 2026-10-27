@@ -4,14 +4,13 @@
  * weighs the result.
  */
 
-#include <include/core/SkTypes.h>
-
 #include <algorithm>
 #include <set>
 #include <string>
 #include <utility>
 
 #include "SelectorInternal.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 namespace detail {
@@ -22,13 +21,13 @@ namespace detail {
 void warnBadSelector(std::string_view cssText, std::string_view reason) {
   static thread_local std::set<std::string> warned;
   if (!warned.insert(std::string(cssText)).second) return;
-  SkDebugf(
-      "[compose] selector(\"%.*s\") is not a selector this library reads: "
+  sigil::compose::detail::reportWarning(
+      "selector(\"%.*s\") is not a selector this library reads: "
       "%.*s. It matches nothing. A bare word is a role, .name is a class, "
       "* is any element; the combinators are > + ~ and a space, and the "
       "pseudo-classes are the structural ones with :is, :where, :not and "
       ":has. "
-      "(warned once)\n",
+      "(warned once)",
       (int)cssText.size(), cssText.data(), (int)reason.size(), reason.data());
 }
 
@@ -36,21 +35,21 @@ void warnChainInCompound() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "[compose] a & b asks ONE element to match both sides, and b is a "
+  sigil::compose::detail::reportWarning(
+      "a & b asks ONE element to match both sides, and b is a "
       "chain of elements, which no one element can be. The compound "
       "matches nothing. Join chains with child/descendant/next/sibling "
-      "instead. (warned once)\n");
+      "instead. (warned once)");
 }
 
 void warnHasInsideHas() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "[compose] a :has() was given another :has() inside it, which CSS "
+  sigil::compose::detail::reportWarning(
+      "a :has() was given another :has() inside it, which CSS "
       "refuses too. It matches nothing. Chain the two instead — "
-      "a:has(b):has(c) asks for both. (warned once)\n");
+      "a:has(b):has(c) asks for both. (warned once)");
 }
 
 // ---------------------------------------------------------------------------

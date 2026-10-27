@@ -6,7 +6,6 @@
  * that install it on a description.
  */
 
-#include <include/core/SkTypes.h>
 #include <sigilgeometry/path/Band.h>
 
 #include <optional>
@@ -16,6 +15,7 @@
 
 #include "SpanArithmetic.h"
 #include "runtime/ComposeRuntime.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -46,15 +46,15 @@ void warnOverlappingClaims(const std::string& a, const std::string& b,
     if (k == key) return;
   if (seen.size() >= 16) return;
   seen.push_back(key);
-  SkDebugf(
-      "compose: span passes %s and %s both claim %.3f–%.3f of the "
+  sigil::compose::detail::reportWarning(
+      "span passes %s and %s both claim %.3f–%.3f of the "
       "same boundary. One boundary, one mark: spans partition it, they "
       "do not stack — and the law reads across BOTH z-halves, so a "
       "background(spans, ...) pass and a stroke(spans, ...) pass "
       "collide the same way two strokes do. To layer two marks on one "
       "run, make them ONE pass with a composite brush "
       "(Brush{}.layer(a).layer(b), or a LayeredBrush); to keep them apart, "
-      "give the second pass a disjoint span (or spans::rest()).\n",
+      "give the second pass a disjoint span (or spans::rest()).",
       a.c_str(), b.c_str(), shared.begin, shared.end);
 }
 

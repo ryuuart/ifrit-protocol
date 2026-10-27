@@ -385,13 +385,7 @@ TEST(ComposeGpu, AHeldBackdropIsCopiedBackOnGraphite) {
   const auto frostedPane = [] {
     return stack().children(
         {box().inset(0).fill(Fill::color({1, 0, 0, 1})),
-         box()
-             .absolute()
-             .left(0)
-             .top(0)
-             .width(90)
-             .height(200)
-             .fill(Fill::color({0, 1, 0, 1})),
+         box().absolute().left(0).top(0).width(90).height(200).fill(Fill::color({0, 1, 0, 1})),
          box()
              .absolute()
              .left(40)
@@ -399,13 +393,12 @@ TEST(ComposeGpu, AHeldBackdropIsCopiedBackOnGraphite) {
              .width(120)
              .height(120)
              .borderRadius({18})
-             .backdropFilter(sigil::material::skia::filter(
-                 SkImageFilters::Blur(6, 6, nullptr)))
+             .backdropFilter(sigil::material::skia::filter(SkImageFilters::Blur(6, 6, nullptr)))
              .fill(Fill::color({1, 1, 1, 0.15f}))});
   };
   sigil::motion::Engine heldEngine, liveEngine;
   Composer held(heldEngine, fonts()), live(liveEngine, fonts());
-  for (Composer* composer : {&held, &live}) {
+  for (Composer *composer : {&held, &live}) {
     composer->setSize({200, 200});
     composer->render(frostedPane());
   }
@@ -416,9 +409,7 @@ TEST(ComposeGpu, AHeldBackdropIsCopiedBackOnGraphite) {
     ASSERT_FALSE(heldPixels.empty());
     ASSERT_FALSE(livePixels.empty());
     for (int y = 0; y < 200; ++y)
-      ASSERT_EQ(std::memcmp(heldPixels.getAddr32(0, y),
-                            livePixels.getAddr32(0, y), 200 * 4),
-                0)
+      ASSERT_EQ(std::memcmp(heldPixels.getAddr32(0, y), livePixels.getAddr32(0, y), 200 * 4), 0)
           << "frame " << frame << ", row " << y;
   }
   EXPECT_EQ(held.stats().backdropsFiltered, 0u)
@@ -432,42 +423,35 @@ namespace {
  *  paint the same marks. */
 struct StatedKeyline {
   float statedBleed = 1;
-  bool operator==(const StatedKeyline&) const = default;
+  bool operator==(const StatedKeyline &) const = default;
   float bleed() const { return statedBleed; }
-  void paint(sigil::draw::Pen& pen, const PaintContext& context) const {
+  void paint(sigil::draw::Pen &pen, const PaintContext &context) const {
     SkPaint line;
     line.setAntiAlias(true);
     line.setStyle(SkPaint::kStroke_Style);
     line.setStrokeWidth(2);
     line.setColor(SK_ColorWHITE);
-    pen.canvas()->drawRect(SkRect::MakeWH(context.size.x, context.size.y),
-                           line);
+    pen.canvas()->drawRect(SkRect::MakeWH(context.size.x, context.size.y), line);
   }
 };
 
-/** A panel under @p filter, kept as @p cache and turned by @p degrees,
- *  holding a keyline that states @p bleed. */
-Element filteredPanel(const std::optional<sigil::material::Filter>& filter,
-                      float bleed, Cache cache, float degrees) {
+/** A panel @p size across and down under @p filter, kept as @p cache and
+ *  turned by @p degrees, holding a keyline that states @p bleed. */
+Element filteredPanel(const std::optional<sigil::material::Filter> &filter, float bleed,
+                      Cache cache, float degrees, SkSize size = {300, 200}) {
   Element panel = box()
                       .absolute()
                       .left(37)
                       .top(29)
-                      .width(300)
-                      .height(200)
+                      .width(size.width())
+                      .height(size.height())
                       .cache(cache)
                       .rotate(degrees)
                       .foreground(StatedKeyline{bleed})
-                      .children({box()
-                                     .absolute()
-                                     .left(20)
-                                     .top(16)
-                                     .width(180)
-                                     .height(120)
-                                     .fill(Fill::color({0.2f, 0.6f, 1, 1})),
+                      .children({box().absolute().left(20).top(16).width(180).height(120).fill(
+                                     Fill::color({0.2f, 0.6f, 1, 1})),
                                  text(u8"PANEL")
-                                     .font({.face = sigil::test::instrument::sans(),
-                                            .size = 23})
+                                     .font({.face = sigil::test::instrument::sans(), .size = 23})
                                      .ink(sigil::material::Color{1, 1, 1, 1})
                                      .absolute()
                                      .left(40)
@@ -477,18 +461,18 @@ Element filteredPanel(const std::optional<sigil::material::Filter>& filter,
 }
 
 /** The panel drawn on the device at @p scale device pixels a unit. */
-SkBitmap panelOnGpu(const std::optional<sigil::material::Filter>& filter,
-                    float bleed, float scale, Cache cache, float degrees) {
+SkBitmap panelOnGpu(const std::optional<sigil::material::Filter> &filter, float bleed, float scale,
+                    Cache cache, float degrees, SkSize size = {300, 200}) {
   sigil::motion::Engine engine;
   Composer composer(engine, fonts());
   composer.setSize({420, 320});
-  composer.render(filteredPanel(filter, bleed, cache, degrees));
-  sigil::skia::GraphiteContext& context = *graphite();
+  composer.render(filteredPanel(filter, bleed, cache, degrees, size));
+  sigil::skia::GraphiteContext &context = *graphite();
   const int width = (int)(420 * scale), height = (int)(320 * scale);
   const SkImageInfo info = SkImageInfo::MakeN32Premul(width, height);
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(context.recorder(), info);
   if (!surface) return {};
-  SkCanvas& canvas = *surface->getCanvas();
+  SkCanvas &canvas = *surface->getCanvas();
   canvas.clear(SK_ColorBLACK);
   canvas.scale(scale, scale);
   composer.draw(canvas);
@@ -500,7 +484,7 @@ SkBitmap panelOnGpu(const std::optional<sigil::material::Filter>& filter,
 TEST(ComposeGpu, AFilterGivesOnePictureWhateverTheBleedInsideIt) {
   REQUIRE_GPU();
   using sigil::material::Filter;
-  const std::pair<const char*, std::optional<Filter>> filters[] = {
+  const std::pair<const char *, std::optional<Filter>> filters[] = {
       {"no filter", std::nullopt},
       {"blur 3", Filter::blur(3)},
       {"blur 14", Filter::blur(14)},
@@ -518,27 +502,53 @@ TEST(ComposeGpu, AFilterGivesOnePictureWhateverTheBleedInsideIt) {
                                .dilation = 1.0f,
                                .deepening = 2.0f})},
       {"phosphor bloom", Filter::phosphorBloom(9)},
-      {"a program sampling the layer",
-       Filter::of(sigil::material::field::ripple(10, 60), 12)},
-      {"a bloom then a program",
-       Filter::bloom({.sigma = 2.5f, .spread = 2.2f})
-           .then(Filter::of(sigil::material::field::ripple(4, 90), 6))},
+      {"a program sampling the layer", Filter::of(sigil::material::field::ripple(10, 60), 12)},
+      {"a bloom then a program", Filter::bloom({.sigma = 2.5f, .spread = 2.2f})
+                                     .then(Filter::of(sigil::material::field::ripple(4, 90), 6))},
   };
   for (const Cache cache : {Cache::None, Cache::Texture})
     for (const float degrees : {0.0f, 7.0f})
       for (const float scale : {1.0f, 2.0f})
-        for (const auto& [name, filter] : filters) {
+        for (const auto &[name, filter] : filters) {
           const SkBitmap narrow = panelOnGpu(filter, 1, scale, cache, degrees);
           ASSERT_FALSE(narrow.empty());
           for (const float bleed : {4.2426f, 10.0f}) {
-            const SkBitmap wide =
-                panelOnGpu(filter, bleed, scale, cache, degrees);
+            const SkBitmap wide = panelOnGpu(filter, bleed, scale, cache, degrees);
             ASSERT_FALSE(wide.empty());
             EXPECT_EQ(mismatchedPixels(narrow, wide), 0u)
-                << name << (cache == Cache::Texture ? ", baked" : ", live")
-                << ", turned " << degrees << " degrees, at scale " << scale
-                << ": another picture over a keyline stating a bleed of "
-                << bleed << " than over one stating a bleed of one";
+                << name << (cache == Cache::Texture ? ", baked" : ", live") << ", turned "
+                << degrees << " degrees, at scale " << scale
+                << ": another picture over a keyline stating a bleed of " << bleed
+                << " than over one stating a bleed of one";
           }
         }
+}
+
+TEST(ComposeGpu, AFilterGivesOnePictureWhenTheBleedCrossesAGridLine) {
+  // The panel's edges stand five units short of a line of the filter
+  // grid, so a keyline stating a bleed of ten reaches past the line: the
+  // extent the filter reads stands about the panel's box grown by the
+  // filter's reach, whatever the keyline states inside that reach.
+  REQUIRE_GPU();
+  using sigil::material::Filter;
+  const SkSize shortOfALine{315, 187};
+  const std::pair<const char *, Filter> filters[] = {
+      {"blur 3", Filter::blur(3)},
+      {"blur 14", Filter::blur(14)},
+      {"blur 44", Filter::blur(44)},
+      {"glow 7", Filter::glow({1, 0.6f, 0.2f, 0.8f}, 7)},
+      {"directional blur", Filter::directionalBlur(18, 90, 12)},
+  };
+  for (const Cache cache : {Cache::None, Cache::Texture})
+    for (const float degrees : {0.0f, 7.0f})
+      for (const auto &[name, filter] : filters) {
+        const SkBitmap narrow = panelOnGpu(filter, 1, 1, cache, degrees, shortOfALine);
+        ASSERT_FALSE(narrow.empty());
+        const SkBitmap wide = panelOnGpu(filter, 10, 1, cache, degrees, shortOfALine);
+        ASSERT_FALSE(wide.empty());
+        EXPECT_EQ(mismatchedPixels(narrow, wide), 0u)
+            << name << (cache == Cache::Texture ? ", baked" : ", live") << ", turned " << degrees
+            << " degrees: another picture over a keyline stating a bleed of "
+               "ten than over one stating a bleed of one";
+      }
 }

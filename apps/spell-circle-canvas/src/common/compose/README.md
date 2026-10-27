@@ -721,5 +721,6 @@ Draw adapter cases reuse the pen's raster fixture and carry the
 Committed test fonts keep ordinary cases independent of the machine.
 Device and platform-font cases carry labels for their dependencies.
 Use the benchmark for scaling and `Composer::profile` for a costly node.
-Compose's warnings go through Skia's debug output and suppress repeated
-causes.
+Compose's warnings go through SigilCore's one reporting door under the
+name SigilCompose, so a reporter a host installs there hears them in
+place of the standard error; repeated causes are said once.

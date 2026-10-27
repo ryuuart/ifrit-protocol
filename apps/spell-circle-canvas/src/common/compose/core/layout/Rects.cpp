@@ -10,6 +10,7 @@
 #include <string>
 
 #include "runtime/ComposeRuntime.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -75,11 +76,11 @@ void warnUnknownTextSlot(const Instance& text, const std::string& key) {
   std::string have;
   for (const std::string& declared : text.textSlotKeys)
     have += (have.empty() ? "" : ", ") + declared;
-  SkDebugf(
-      "[compose] a child keyed \"%s\" sits on text that reserves no slot by "
+  sigil::compose::detail::reportWarning(
+      "a child keyed \"%s\" sits on text that reserves no slot by "
       "that name, so it lays out at zero and draws nothing. Slots this "
       "text DOES reserve: [%s]. Room for one is reserved in the CONTENT, "
-      "with rich(...).slot(name, size).\n",
+      "with rich(...).slot(name, size).",
       key.c_str(), have.empty() ? "none" : have.c_str());
 }
 
@@ -154,8 +155,9 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
     bool relative = false;
     const float value = resolveLength(inst, length, relative, parentExtent);
     if (!std::isfinite(value)) return std::nullopt;
-    return length.unit == Dimension::Unit::Percent ? parentExtent * value * 0.01f
-                                               : value;
+    return length.unit == Dimension::Unit::Percent
+               ? parentExtent * value * 0.01f
+               : value;
   };
   const auto left =
       l.hasInsets ? resolve(l.insets.left, parentW) : std::nullopt;

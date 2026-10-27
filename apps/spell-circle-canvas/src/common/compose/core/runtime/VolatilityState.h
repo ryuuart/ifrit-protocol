@@ -19,6 +19,8 @@ struct Instance;
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct VolatilityState {
   bool volatileDirty = true;  // recompute needed (render or animation)
+  // Whether a motion ran at the last settle, so the frame it lands on
+  // walks once more.
   bool engineWasRunning = false;
   // The root verdict's volatileAbove bit: unlike Instance::subtreeVolatile,
   // this includes the root's own opacity and transform, which can change the

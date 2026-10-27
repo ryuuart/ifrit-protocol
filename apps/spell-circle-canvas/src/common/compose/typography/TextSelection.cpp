@@ -9,7 +9,6 @@
  * for a selector that addresses nothing are here with them.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the library's one channel
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/query/Query.h>
 
@@ -23,6 +22,7 @@
 #include <vector>
 
 #include "TextEngine.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -55,11 +55,11 @@ void warnSelectionIsNotAGranularity() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "compose: weave::selectors::each(weave::Unit::Selection) would have to "
+  sigil::compose::detail::reportWarning(
+      "weave::selectors::each(weave::Unit::Selection) would have to "
       "resolve itself — a selection is the extent a selector names, not a "
       "size the text is divided into, so this selector addresses "
-      "everything\n");
+      "everything");
 }
 
 /** The extents a named-run table gives one name, in declaration order —
@@ -240,9 +240,9 @@ void warnBadSelectorPattern(const std::u8string& pattern) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)pattern.data(), pattern.size());
   if (!seen.insert(key).second) return;
-  SkDebugf(
-      "compose: weave::selectors::regex(\"%s\") does not compile — this track "
-      "selects no glyphs\n",
+  sigil::compose::detail::reportWarning(
+      "weave::selectors::regex(\"%s\") does not compile — this track "
+      "selects no glyphs",
       key.c_str());
 }
 
@@ -252,11 +252,11 @@ void warnNoSuchStyleName(const std::u8string& name) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)name.data(), name.size());
   if (!seen.insert(key).second) return;
-  SkDebugf(
-      "compose: selectors::style(\"%s\") — no run of this text was written "
+  sigil::compose::detail::reportWarning(
+      "selectors::style(\"%s\") — no run of this text was written "
       "under "
       "that name, so it addresses nothing (only a weave::rich() run added "
-      "with add(text, styleName) carries one)\n",
+      "with add(text, styleName) carries one)",
       key.c_str());
 }
 
@@ -264,10 +264,10 @@ void warnNoSuchFrameKey(const std::u8string& key) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   std::string name((const char*)key.data(), key.size());
   if (!seen.insert(name).second) return;
-  SkDebugf(
-      "compose: selectors::inFrame(\"%s\") on a text leaf with no key() of its "
+  sigil::compose::detail::reportWarning(
+      "selectors::inFrame(\"%s\") on a text leaf with no key() of its "
       "own — a frame-local address is matched against the leaf's own key, so "
-      "this one can never match and addresses nothing\n",
+      "this one can never match and addresses nothing",
       name.c_str());
 }
 
@@ -320,9 +320,9 @@ void warnSliceIgnored() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "compose: weave::Selector::take/drop slice GLYPHS inside a unit, which "
-      "a text range cannot express — this span restyle covers whole units\n");
+  sigil::compose::detail::reportWarning(
+      "weave::Selector::take/drop slice GLYPHS inside a unit, which "
+      "a text range cannot express — this span restyle covers whole units");
 }
 
 Ranges resolveTextRangesInto(

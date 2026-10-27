@@ -7,7 +7,6 @@
  * evaluates effects and links no engine to do it.
  */
 
-#include <include/core/SkTypes.h>
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
@@ -15,6 +14,7 @@
 #include <utility>
 
 #include "paint/FillLowering.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -28,11 +28,11 @@ TextEffect TextEffect::pass(material::Material material) {
     static thread_local bool warned = false;
     if (!warned) {
       warned = true;
-      SkDebugf(
-          "[compose] textFx::pass: the material carries no SkSL recipe — a "
+      sigil::compose::detail::reportWarning(
+          "textFx::pass: the material carries no SkSL recipe — a "
           "pass is compiled per unit count, which needs a recipe instance "
           "over a recipe with an SkSL body. The effect is empty and the "
-          "track draws its glyphs at rest.\n");
+          "track draws its glyphs at rest.");
     }
     return {};
   }
@@ -73,10 +73,10 @@ TextEffect TextEffect::withRests(std::initializer_list<float> phases) const {
     static thread_local bool warned = false;
     if (!warned) {
       warned = true;
-      SkDebugf(
-          "[compose] restsAt() declares where a PASS's shader is an exact "
+      sigil::compose::detail::reportWarning(
+          "restsAt() declares where a PASS's shader is an exact "
           "pass-through; this effect carries no pass material, so the "
-          "declaration says nothing and is dropped.\n");
+          "declaration says nothing and is dropped.");
     }
     return *this;
   }
@@ -102,10 +102,10 @@ TextEffect TextEffect::displacing(bool moves) const {
     static thread_local bool warned = false;
     if (!warned) {
       warned = true;
-      SkDebugf(
-          "[compose] displacing() declares whether a body moves glyphs off "
+      sigil::compose::detail::reportWarning(
+          "displacing() declares whether a body moves glyphs off "
           "their pen positions; a pass runs over pixels already rasterized "
-          "at the resting origins, so the declaration is dropped.\n");
+          "at the resting origins, so the declaration is dropped.");
     }
     return *this;
   }

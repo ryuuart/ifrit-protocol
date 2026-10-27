@@ -93,7 +93,8 @@ float declaredBleed(const Instance& inst, SkSize skiaSize) {
  *  This is what lets a stroke laid in page coordinates on a page-sized box
  *  be a stroke-sized layer under its opacity rather than a page-sized one:
  *  the box is where the coordinates come from, not where the ink goes. A
- *  filter over it and a bake of it still read the box (recordBounds). */
+ *  bake of it still reads the box (recordBounds); a filter over it filters
+ *  the ink grown by the filter's reach (filterExtent). */
 bool inkIsItsShape(const Instance& inst) {
   const ElementNode& node = inst.painted();
   if (!inst.description->shapeFn && !node.bandWidth()) return false;
@@ -469,23 +470,17 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
   const bool inkInside = boundedByInk;
   boundedByInk = outerInk || inkInside;
   if (!inkInside || boundsByBox) return local;
-  // TWO THINGS READ PAST THE INK they are handed, and are given the rect
-  // a box would have given them, so that sizing a node to its ink changes
-  // no pixel.
-  //
-  // A BAKE is blitted back with linear sampling, so under a turn or a
+  // A BAKE READS PAST THE INK it is handed, and is given the rect a box
+  // would have given it, so that sizing a node to its ink changes no
+  // pixel: it is blitted back with linear sampling, so under a turn or a
   // scale its texels spread past the ink it holds; it is allocated at the
   // box (bakeBounds), and a node that bakes covers what its bake covers.
-  //
-  // A FILTER reads the rect it is given as the extent of what it filters,
-  // and a wide blur is not exact to that extent: the same ink blurred over
-  // a different extent lands a level apart across the glow, and its faint
-  // far edge ends where the reach of the extent ends. A node whose effect
-  // filters ink-sized content filters the extent its box gives it.
+  // A filter over ink-sized content filters the ink grown by its reach
+  // (filterExtent), and stays ink-sized.
   const ElementNode& node = inst.painted();
   const bool baked =
       node.cacheMode == Cache::Texture || node.cacheMode == Cache::Group;
-  if (!baked && !layerEffectOf(node)) return local;
+  if (!baked) return local;
   // A second measure of nodes already counted, so it counts none.
   const size_t counted = stats.nodesBounded;
   const bool outerBox = std::exchange(boundsByBox, true);
@@ -578,6 +573,44 @@ SkRect onFilterGrid(const SkRect& local) {
   };
   return SkRect::MakeLTRB(out(local.left(), false), out(local.top(), false),
                           out(local.right(), true), out(local.bottom(), true));
+}
+
+SkRect Composer::Impl::filterExtent(Instance& inst, const SkRect& content) {
+  const material::Filter* effect = layerEffectOf(inst.painted());
+  if (!effect || content.isEmpty() || !content.isFinite())
+    return onFilterGrid(content);
+  const ElementNode& node = inst.painted();
+  const SkRect rect = instanceRect(inst);
+  SkRect anchor = SkRect::MakeWH(rect.width(), rect.height());
+  // A NODE SIZED TO ITS INK filters about the shape the ink stands on,
+  // without its marks' bleed, so its layer is the ink's size; a node that
+  // bakes is held at its box and filters about the box.
+  const bool baked =
+      node.cacheMode == Cache::Texture || node.cacheMode == Cache::Group;
+  if (!boundsByBox && !baked && inkIsItsShape(inst)) {
+    const SkPath shape =
+        inst.description->shapeFn
+            ? resolveOutline(inst, {rect.width(), rect.height()})
+            : SkPath();
+    anchor = shape.isEmpty() ? content : shape.getBounds();
+  }
+  if (anchor.isEmpty()) anchor = content;
+  // The reach the effect declares, resolved without a frame: the largest
+  // a bound parameter can ask for is already in the declaration.
+  const sk_sp<SkImageFilter> filter =
+      material::skia::resolvedImageFilter(*effect, nullptr);
+  // A filter that cannot bound its output answers a rect as large as an
+  // integer coordinate holds; no extent is laid from that.
+  constexpr float kUnboundedReach = 1 << 16;
+  SkRect reached = filter ? filter->computeFastBounds(anchor) : anchor;
+  if (!reached.isFinite() ||
+      !anchor.makeOutset(kUnboundedReach, kUnboundedReach).contains(reached))
+    reached = anchor;
+  // Content past the reach still has to stand inside what is filtered,
+  // and grows the extent by the cells it reaches into.
+  reached.join(anchor);
+  reached.join(content);
+  return onFilterGrid(reached);
 }
 
 SkRect onTexelGrid(const SkRect& local, float scale) {

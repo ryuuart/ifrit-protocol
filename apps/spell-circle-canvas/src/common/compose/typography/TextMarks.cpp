@@ -4,7 +4,6 @@
  * uses.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the empty-selector diagnostic
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilweave/choreograph/Choreograph.h>
 
@@ -18,6 +17,7 @@
 #include "TextPose.h"
 #include "paint/PaintInternal.h"
 #include "runtime/ComposeRuntime.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -43,11 +43,11 @@ namespace {
 void warnMarkSelectsNothing(const std::string& key) {
   static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(key).second) return;
-  SkDebugf(
-      "[compose] mark(\"%s\") selects no glyphs in this text, so it places "
+  sigil::compose::detail::reportWarning(
+      "mark(\"%s\") selects no glyphs in this text, so it places "
       "nothing and draws nothing. A selector naming a word, line or sentence "
       "the passage does not have, a style name no run was written with, and "
-      "a pattern that does not compile all resolve to nothing.\n",
+      "a pattern that does not compile all resolve to nothing.",
       key.c_str());
 }
 

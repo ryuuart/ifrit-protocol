@@ -177,7 +177,7 @@ void Composer::Impl::resolveCascade(
           : nullptr;
   LonghandFold longhands(
       parentFamily, parentItalic,
-      inst.parent != nullptr ? inst.parent->indentPercent : std::nullopt);
+      inst.parent != nullptr ? inst.parent->indentPercent : rootIndentPercent);
   // The ink's paint inherits exactly as the font's colour does, and the
   // node that STATED it is the box `PaintBox::Subtree` stretches it over.
   InkInForce inkPaint = parentInkPaint;

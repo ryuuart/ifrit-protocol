@@ -273,6 +273,12 @@ class Engine {
    *  or timer, or a motion a host started. The signal a host sleeps on —
    *  a declaration, never a proof that numbers change. */
   [[nodiscard]] bool isRunning() const;
+  /** WHETHER A MOTION IS DECLARED TO MOVE: a running animation, timeline
+   *  or motion a host started, and not a timer. A timer writes values by
+   *  hand and declares nothing about them, so a frame on which timers
+   *  alone run changes no value's declared state; whatever a timer starts
+   *  is a motion, and this answers for it from the frame it is started. */
+  [[nodiscard]] bool isMotionRunning() const;
 
   // ── the host ────────────────────────────────────────────────────────
 

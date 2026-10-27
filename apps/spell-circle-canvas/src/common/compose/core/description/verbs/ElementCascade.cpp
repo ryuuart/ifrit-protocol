@@ -4,7 +4,6 @@
  * and the three keywords — with the identity a node names in the cascade.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the once-only diagnostics
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Texture.h>
@@ -14,6 +13,7 @@
 #include <algorithm>
 
 #include "description/ComposeInternal.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -25,10 +25,10 @@ void warnTextIndentIsNeverAuto() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "[compose] textIndent() was given auto, which is no length — the "
+  sigil::compose::detail::reportWarning(
+      "textIndent() was given auto, which is no length — the "
       "indent in force was left standing. Give a length or a percentage of "
-      "the measure. (warned once)\n");
+      "the measure. (warned once)");
 }
 
 /** The once-per-process diagnostic behind `lineHeight(auto)`. */
@@ -36,10 +36,10 @@ void warnLineHeightIsNeverAuto() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "[compose] lineHeight() was given auto, which is no pitch — the line "
+  sigil::compose::detail::reportWarning(
+      "lineHeight() was given auto, which is no pitch — the line "
       "height in force was left standing. Give a number, a length or "
-      "Leading::face() for the face's own. (warned once)\n");
+      "Leading::face() for the face's own. (warned once)");
 }
 
 }  // namespace

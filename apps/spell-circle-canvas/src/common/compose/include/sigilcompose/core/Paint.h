@@ -422,6 +422,11 @@ struct PaintContext {
    *  With `font`, `ink`, `vars`, `sampling` and `sheet` it is everything
    *  the cascade carries, which a guest tree painted from here inherits. */
   const sigil::weave::ParagraphBlock* block = nullptr;
+  /** THE FIRST-LINE INDENT IN FORCE AS A PERCENTAGE of each passage's
+   *  measure, which `block` cannot hold in pixels until the measure is
+   *  known; none where the indent in force is pixels or none. A guest
+   *  tree painted from here inherits it beside the block. */
+  std::optional<float> indentPercent;
   /** The image sampling in force here, or null outside a composer and
    *  where no ancestor stated one, which an image reads as linear. */
   const SkSamplingOptions* sampling = nullptr;

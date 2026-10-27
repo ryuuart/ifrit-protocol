@@ -190,8 +190,9 @@ and its text in the node's font — `PaintContext::ink` and
 `PaintContext::font` — restyles for its scope with the pen's own verbs,
 and a guest tree it paints through `paintRetained` inherits from the tree
 the pen stands in: its root begins in the pen's ink and font and under the
-custom properties, the paragraph setting, the image sampling and the sheets
-in force at the pen's node — everything this chapter says inherits — which
+custom properties, the paragraph setting with an indent stated as a
+percentage of the measure, the image sampling and the sheets in force at
+the pen's node — everything this chapter says inherits — which
 `Composer::setInherited` states for any composer whose picture stands inside
 another, all of it at once through `Composer::Inherited`. The host's sheets
 see the guest's tree alone: a class rule styles a guest node, while no node

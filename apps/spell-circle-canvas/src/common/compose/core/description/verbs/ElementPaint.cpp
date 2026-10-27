@@ -3,7 +3,6 @@
  * fill collapses from.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the fill box's diagnostic
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -15,6 +14,7 @@
 #include "description/ComposeInternal.h"
 #include "paint/MaterialEffects.h"
 #include "paint/SurfaceMap.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -26,10 +26,10 @@ void warnFillTakesNoTextUnit() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "[compose] fill() was given a text unit (Glyph, Cluster, Word, Line or "
+  sigil::compose::detail::reportWarning(
+      "fill() was given a text unit (Glyph, Cluster, Word, Line or "
       "Sentence), which a box has none of — the paint is stretched over "
-      "PaintBox::Element. A unit restarts an ink. (warned once)\n");
+      "PaintBox::Element. A unit restarts an ink. (warned once)");
 }
 
 /** A paint placed as a node's fill over @p box: a static one collapses

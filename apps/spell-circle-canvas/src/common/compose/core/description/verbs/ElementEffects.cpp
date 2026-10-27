@@ -3,9 +3,8 @@
  * over a node's layer.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf
-
 #include "description/ComposeInternal.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -17,10 +16,10 @@ void warnCoverageIsAMaterialsEffect(const material::Filter& filter) {
   static thread_local bool warned = false;
   if (warned || filter.coverage().empty()) return;
   warned = true;
-  SkDebugf(
-      "[compose] filter() was given Filter::shadow, stroke or bevel, which "
+  sigil::compose::detail::reportWarning(
+      "filter() was given Filter::shadow, stroke or bevel, which "
       "read a layer's coverage and paint nothing over a subtree; state them "
-      "in a material's effects and fill() with it. (warned once)\n");
+      "in a material's effects and fill() with it. (warned once)");
 }
 
 }  // namespace

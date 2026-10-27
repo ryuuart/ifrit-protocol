@@ -195,8 +195,8 @@ sk_sp<SkImageFilter> PaintPass::resolveLayerFilter() {
       .toRoot = geometry::path::fromSk(impl.curToRoot),
       .rootSize = geometry::path::fromSk(impl.rootLayoutSize)};
   const material::FrameData effectFrame = frameOf(effectCtx);
-  return material::skia::resolvedImageFilter(*layerEffectOf(node),
-                                             &effectFrame);
+  return material::skia::resolvedImageFilter(
+      effectInInk(inst, *layerEffectOf(node)), &effectFrame);
 }
 
 }  // namespace sigil::compose

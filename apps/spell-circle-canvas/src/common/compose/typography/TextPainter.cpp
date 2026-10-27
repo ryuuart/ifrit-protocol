@@ -8,14 +8,13 @@
  * tracks lives here too, beside the axis gate it consults.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf — the span's paint diagnostic
-
 #include <algorithm>
 #include <cstdio>  // std::snprintf — variationDrive's effect key
 #include <cstring>
 
 #include "AxisGate.h"
 #include "TextEngine.h"
+#include "runtime/Warning.h"
 #include "sigilweave/advanced/Skia.h"
 
 namespace sigil::compose {
@@ -29,11 +28,11 @@ void warnUnsupportedSpanInk() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "[compose] span() requires static material inputs; geometry-dependent "
+  sigil::compose::detail::reportWarning(
+      "span() requires static material inputs; geometry-dependent "
       "ink also requires a text-unit PaintBox. The unsupported ink was "
       "omitted. Put animated material inputs on the text element's ink(). "
-      "(warned once)\n");
+      "(warned once)");
 }
 
 /** The engine as a TextPainterOperations: every operation forwards to the

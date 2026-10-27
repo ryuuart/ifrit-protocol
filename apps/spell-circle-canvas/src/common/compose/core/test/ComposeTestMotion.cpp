@@ -269,21 +269,23 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
   EXPECT_EQ(host.pixel(60, 20), SK_ColorRED)
       << "…and the stale picture replayed";
 
-  host.composer.render(bar(2.0f).children({box()
-                                               .key("y")
-                                               .absolute()
-                                               .rect(0, 60, 40, 40)
-                                               .transformOrigin(percent(0), percent(0))
-                                               .fill(green())
-                                               .scaleY(1.0f)}));
+  host.composer.render(
+      bar(2.0f).children({box()
+                              .key("y")
+                              .absolute()
+                              .rect(0, 60, 40, 40)
+                              .transformOrigin(percent(0), percent(0))
+                              .fill(green())
+                              .scaleY(1.0f)}));
   host.frame();
-  host.composer.render(bar(2.0f).children({box()
-                                               .key("y")
-                                               .absolute()
-                                               .rect(0, 60, 40, 40)
-                                               .transformOrigin(percent(0), percent(0))
-                                               .fill(green())
-                                               .scaleY(2.0f)}));
+  host.composer.render(
+      bar(2.0f).children({box()
+                              .key("y")
+                              .absolute()
+                              .rect(0, 60, 40, 40)
+                              .transformOrigin(percent(0), percent(0))
+                              .fill(green())
+                              .scaleY(2.0f)}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 130), SK_ColorGREEN)
       << "a CHANGED scaleY pruned into the old description";
@@ -600,14 +602,16 @@ Element turnedDial(int shape, const motion::Animatable<float>& turn) {
                      .height(160)
                      .fill(red())
                      .rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}));
-  if (shape == 0) return box().width(300).height(300).children({std::move(dial)});
+  if (shape == 0)
+    return box().width(300).height(300).children({std::move(dial)});
   dial.shape(geometry::shapes::circle())
       .overflow(Overflow::Clip)
       .transformOrigin(percent(50), percent(50))
       .children({text(u8"ANIMA", whiteStyle(18)).absolute().left(20).top(30),
                  box().absolute().left(70).top(0).width(20).height(160).fill(
                      green())});
-  if (shape == 1) return box().width(300).height(300).children({std::move(dial)});
+  if (shape == 1)
+    return box().width(300).height(300).children({std::move(dial)});
   return box()
       .width(300)
       .height(300)
@@ -650,12 +654,43 @@ TEST(ComposeTransitions, ABoundRotationLaysNothingOut) {
       EXPECT_EQ(host.composer.stats().layoutCalculations, 0u)
           << "dial " << shape << ", frame " << frame
           << ": only a bound rotation moved, and the tree was laid out";
-      // A running engine walks the tree's volatility every frame, and that
-      // walk is reported in its own lane rather than in the layout's.
+      // A timer is no motion: the dial's live value is volatile whatever
+      // the timer writes, so the verdicts stand and no walk is taken.
       if (shape == 3)
-        EXPECT_GT(host.composer.stats().volatileMilliseconds, 0.0)
+        EXPECT_EQ(host.composer.stats().volatileMilliseconds, 0.0)
             << "frame " << frame
-            << ": the engine ran and no volatility walk was reported";
+            << ": only a timer ran and the tree's volatility was walked";
     }
   }
+}
+
+TEST(ComposeTransitions, ATimerAloneWalksNoVolatilityOverAStillTree) {
+  // A frame on which only a timer runs changes no value's declared state,
+  // so a still tree is not walked for volatility: what the frame asks is
+  // only the scan of released scalars. An animation is a motion, and a
+  // frame it runs on walks the tree.
+  Host host(300, 300);
+  std::vector<Element> rows;
+  for (int row = 0; row < 40; ++row)
+    rows.push_back(box().width(200).height(5).fill(
+        Fill::color({0.2f, 0.4f, (float)row / 40, 1})));
+  host.composer.render(box().width(300).height(300).children(std::move(rows)));
+  int ticks = 0;
+  const motion::Timer clock = host.engine.timer([&] { ++ticks; });
+  host.frame();
+  host.frame(1.0 / 60.0);
+  for (int frame = 1; frame <= 4; ++frame) {
+    host.frame(1.0 / 60.0);
+    EXPECT_TRUE(host.engine.isRunning()) << "the timer stopped";
+    EXPECT_EQ(host.composer.stats().volatileMilliseconds, 0.0)
+        << "frame " << frame
+        << ": only a timer ran over a still tree and its volatility was "
+           "walked";
+  }
+  EXPECT_GT(ticks, 0) << "the timer never ran";
+  motion::Animatable<float> fade = motion::animatable(1.0f);
+  host.engine.animate(fade, {.to = 0.5f, .duration = std::chrono::seconds(1)});
+  host.frame(1.0 / 60.0);
+  EXPECT_GT(host.composer.stats().volatileMilliseconds, 0.0)
+      << "an animation ran and the tree's volatility was not walked";
 }

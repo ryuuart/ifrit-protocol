@@ -3,7 +3,6 @@
  * node hands its subtree, and the tiers a memo can hold across.
  */
 
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 
@@ -12,6 +11,7 @@
 
 #include "paint/PaintInternal.h"
 #include "runtime/ComposeRuntime.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -566,12 +566,12 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     // Loud, because the alternative is an author seeing a node they
     // explicitly asked to bake reported as live paint, with no way to learn
     // that one descendant several levels down declined it for them.
-    SkDebugf(
-        "sigilcompose Cache::Group: \"%s\" cannot bake — %s. A group is "
+    sigil::compose::detail::reportWarning(
+        "Cache::Group: \"%s\" cannot bake — %s. A group is "
         "held by comparing FLOATS, so live materials (uTime or a bound "
         "uniform), animated decorations, animated images, bound fill(), "
         "variable-font drives, Cache::None leaves and non-srcOver "
-        "blends below the root all refuse it.\n",
+        "blends below the root all refuse it.",
         node.key.empty() ? "(anon)" : node.key.c_str(),
         opaqueToTheMemo     ? "the group node itself carries volatility "
                               "the memo cannot see"

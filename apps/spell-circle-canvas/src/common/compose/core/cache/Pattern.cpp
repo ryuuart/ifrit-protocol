@@ -10,8 +10,9 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkSamplingOptions.h>
-#include <include/core/SkTypes.h>
 #include <sigilmaterial/skia/Texture.h>
+
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -21,9 +22,9 @@ material::Material Pattern::bake(sigil::weave::FontContext* fonts) const {
   if (!m_tile.valid()) return nothing;
   if (m_tree && !m_tile.baked()) {
     if (!fonts) {
-      SkDebugf(
+      sigil::compose::detail::reportWarning(
           "Pattern::material(): an element tile needs the "
-          "material(FontContext&) overload\n");
+          "material(FontContext&) overload");
       return nothing;
     }
     // The element tile is SHAPED HERE, while the fonts are in hand, and

@@ -84,6 +84,15 @@ inline const sigil::media::PixelSource* imageSourceOf(const ElementNode& n) {
 inline const material::Filter* layerEffectOf(const ElementNode& n) {
   return n.fxData && n.fxData->layerEffect ? &*n.fxData->layerEffect : nullptr;
 }
+/** THE LAYER EFFECT @p effect AS @p inst PAINTS IT: every step that
+ *  paints in `currentcolor` painted in the ink in force at the node, as a
+ *  mark that names no colour is, and any other effect as it stands. */
+inline material::Filter effectInInk(const Instance& inst,
+                                    const material::Filter& effect) {
+  if (!effect.namesCurrentColor()) return effect;
+  return effect.withCurrentColor(
+      inst.font.color.value_or(material::Color{0, 0, 0, 1}));
+}
 inline const material::Filter* backdropEffectOf(const ElementNode& n) {
   return n.fxData && n.fxData->backdropEffect ? &*n.fxData->backdropEffect
                                               : nullptr;
@@ -95,15 +104,14 @@ inline const std::vector<Echo>& echoesOf(const ElementNode& n) {
   return n.fxData ? n.fxData->echoes : kNoEchoes;
 }
 
-/** THE EXTENT A LAYER EFFECT FILTERS, @p local grown out onto a grid of
- *  `kFilterGrid` units laid from the node's own origin. A filter reads the
- *  extent it is given — a wide blur is taken over a reduced copy laid
- *  about that extent's middle, and its faint far edge ends where the reach
- *  of the extent ends — so an extent that followed the marks' bleeds would
- *  move the picture with them. On the grid, every extent whose edges fall
- *  in the same cells is one extent, and its middle stands on a step of
- *  half a cell, which is where every reduction by a power of two up to
- *  half a cell lays the same texels. */
+/** A RECT GROWN OUT ONTO THE FILTER GRID, cells of `kFilterGrid` units
+ *  laid from the node's own origin. A filter reads the extent it is given
+ *  — a wide blur is taken over a reduced copy laid about that extent's
+ *  middle at a reduction that need not be a power of two, and its faint
+ *  far edge ends where the reach of the extent ends — so an extent that
+ *  followed the marks' bleeds would move the picture with them. The
+ *  extent a layer effect filters (`Composer::Impl::filterExtent`) stands
+ *  on this grid about an anchor the bleeds do not move. */
 inline constexpr float kFilterGrid = 64.0f;
 SkRect onFilterGrid(const SkRect& local);
 

@@ -4,9 +4,11 @@
 // does not read does instead.
 
 #include <sigilcompose/core/Selector.h>
+#include <sigilcore/report/Report.h>
 
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "support/CoreTestSupport.h"
@@ -269,4 +271,31 @@ TEST(ComposeSelector, SelectorsAreValuesThatCompareByWhatTheySay) {
   EXPECT_FALSE(sigil::compose::selector(".row:nth-child(2n)") ==
                sigil::compose::selector(".row:nth-child(2n+1)"));
   EXPECT_FALSE(ElementSelector() == card);
+}
+
+TEST(ComposeSelector, ATextItCannotReadIsReportedThroughTheReportingDoor) {
+  // A warning goes out through the one reporting door under the library's
+  // own name: an installed reporter hears it, and nothing of it reaches
+  // the standard error.
+  std::vector<std::pair<std::string, std::string>> heard;
+  sigil::core::Reporter outer = sigil::core::installReporter(
+      [&heard](std::string_view library, std::string_view message) {
+        heard.emplace_back(std::string(library), std::string(message));
+      });
+  testing::internal::CaptureStderr();
+  const ElementSelector unread =
+      sigil::compose::selector(".card >> ::reported-through-the-door");
+  const std::string written = testing::internal::GetCapturedStderr();
+  sigil::core::installReporter(std::move(outer));
+  EXPECT_TRUE(unread.matchesNothing())
+      << "a text it cannot read matches nothing";
+  ASSERT_EQ(heard.size(), 1u) << "the reporter heard no warning, or several";
+  EXPECT_EQ(heard.front().first, "SigilCompose");
+  EXPECT_NE(heard.front().second.find("is not a selector this library reads"),
+            std::string::npos)
+      << heard.front().second;
+  EXPECT_EQ(heard.front().second.find("[compose]"), std::string::npos)
+      << "the door names the library; the message names it again: "
+      << heard.front().second;
+  EXPECT_TRUE(written.empty()) << "the standard error heard: " << written;
 }

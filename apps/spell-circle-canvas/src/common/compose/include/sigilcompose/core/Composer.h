@@ -156,6 +156,10 @@ class Composer {
     /** The block every text leaf under the root sets its paragraphs in,
      *  where nothing under it states a field. */
     sigil::weave::ParagraphBlock block;
+    /** The first-line indent those paragraphs take as a percentage of
+     *  each passage's measure, which the block cannot hold in pixels;
+     *  none where the indent in force is pixels or none. */
+    std::optional<float> indentPercent;
     /** How image leaves under the root sample their source where nothing
      *  under it states it; none is linear. */
     std::optional<SkSamplingOptions> sampling;

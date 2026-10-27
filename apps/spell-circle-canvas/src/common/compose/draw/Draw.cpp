@@ -65,11 +65,13 @@ struct PenState {
 
 /** EVERYTHING THE CASCADE CARRIES AT THE NODE @p ctx describes beside the
  *  ink and the font, handed to @p pen for the guests it paints: the custom
- *  properties, the paragraph setting, the image sampling and the sheets in
- *  force. The context's own values stand for the frame the pen draws. */
+ *  properties, the paragraph setting with an indent stated as a percentage
+ *  of the measure, the image sampling and the sheets in force. The
+ *  context's own values stand for the frame the pen draws. */
 void carryForGuests(draw::Pen& pen, const PaintContext& ctx) {
   pen.inheritForGuests(ctx.vars);
   pen.inheritForGuests(ctx.block);
+  pen.inheritForGuests(&ctx.indentPercent);
   pen.inheritForGuests(ctx.sampling);
   pen.inheritForGuests(ctx.sheet);
 }
@@ -277,6 +279,10 @@ void paintRetained(draw::Pen& pen, const Element& element,
   const weave::ParagraphBlock* block =
       pen.guestInheritance<weave::ParagraphBlock>();
   keep(inherited.block, block ? *block : kNoBlock);
+  const std::optional<float>* indentPercent =
+      pen.guestInheritance<std::optional<float>>();
+  keep(inherited.indentPercent,
+       indentPercent ? *indentPercent : std::optional<float>());
   const SkSamplingOptions* sampling = pen.guestInheritance<SkSamplingOptions>();
   keep(inherited.sampling,
        sampling ? std::optional<SkSamplingOptions>(*sampling) : std::nullopt);

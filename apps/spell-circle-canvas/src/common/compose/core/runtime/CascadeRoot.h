@@ -45,11 +45,13 @@ struct CascadeRoot {
   // in force under every name the tree or the root's sheet sets; null
   // where none is inherited.
   std::shared_ptr<const VarTable> rootVars;
-  // What the root inherits as its block and its sampling —
+  // What the root inherits as its block, the indent the block cannot hold
+  // as a percentage of the measure, and its sampling —
   // Composer::setInherited — and by default nothing stated, so every block
   // under nothing is set in the layout's own answer and every image
   // samples linearly.
   sigil::weave::ParagraphBlock rootBlock;
+  std::optional<float> rootIndentPercent;
   std::optional<SkSamplingOptions> rootSampling;
   // The sheets in force ABOVE the root — Composer::setInherited — which
   // stand ahead of the root's own and see this tree alone, with no node in

@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "ComposeRuntime.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -69,11 +70,11 @@ void reportOperatorOrder(const Instance& inst) {
     if (reported.size() >= 16) return;
     reported.push_back(place);
   }
-  SkDebugf(
-      "[compose] .operators() on %s: an arranging operator is listed after "
+  sigil::compose::detail::reportWarning(
+      ".operators() on %s: an arranging operator is listed after "
       "an adding one. Arranging operators run during layout and adding "
       "operators after it, so the list runs out of the order it is written "
-      "in; write the arranging operators first.\n",
+      "in; write the arranging operators first.",
       place.c_str());
 }
 

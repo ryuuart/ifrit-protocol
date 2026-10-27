@@ -3,10 +3,8 @@
  * TextSubstitution.h states what each answers and why it may refuse.
  */
 
-#include "sigilweave/advanced/Skia.h"
 #include "TextSubstitution.h"
 
-#include <include/core/SkTypes.h>  // SkDebugf — the library's one channel
 #include <sigilweave/fonts/FontContext.h>
 
 #include <boost/unordered/unordered_flat_set.hpp>
@@ -16,6 +14,8 @@
 
 #include "AxisGate.h"
 #include "TextPose.h"
+#include "runtime/Warning.h"
+#include "sigilweave/advanced/Skia.h"
 
 namespace sigil::compose::detail {
 
@@ -128,12 +128,12 @@ SkGlyphID substituteGlyph(sigil::weave::FontContext& fonts,
   // otherwise report every character of it, one line each.
   static thread_local boost::unordered_flat_set<uint64_t> warned;
   if (warned.insert(((uint64_t)face->uniqueID() << 1u) | (uint64_t)axis).second)
-    SkDebugf(
-        "sigilcompose textFx: a code-point substitution on this font is "
+    sigil::compose::detail::reportWarning(
+        "textFx: a code-point substitution on this font is "
         "proportional %s — refused (the replacement is drawn at the "
         "original's pen position, so a different advance would move every "
         "letter after it; substitute within an equal-advance charset, or "
-        "change the text and re-shape)\n",
+        "change the text and re-shape)",
         vertical ? "down a column" : "along a line");
   return 0;
 }

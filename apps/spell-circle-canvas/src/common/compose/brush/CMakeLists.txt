@@ -14,7 +14,7 @@ sigil_library(SigilComposeBrush
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilComposeTypography SigilGeometryKit SigilMediaCore
          SigilMaterial SigilSkiaDraw SigilWeave
-  PRIVATE SigilCoreCompute yoga::yogacore)
+  PRIVATE SigilCoreReport SigilCoreCompute yoga::yogacore)
 
 sigil_test(compose_test
   SOURCES test/ComposeTestLines.cpp test/ComposeTestBrushes.cpp

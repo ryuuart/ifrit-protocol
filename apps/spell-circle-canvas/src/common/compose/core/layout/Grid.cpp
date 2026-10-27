@@ -1,4 +1,3 @@
-#include <include/core/SkTypes.h>
 #include <sigilcompose/core/Grid.h>
 
 #include <algorithm>
@@ -6,6 +5,8 @@
 #include <optional>
 #include <span>
 #include <string_view>
+
+#include "runtime/Warning.h"
 
 namespace sigil::compose::layouts {
 
@@ -16,10 +17,10 @@ void warnAreaNotRectangular(const std::string& name) {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "compose: grid area \"%s\" does not cover a rectangle, so it is placed "
+  sigil::compose::detail::reportWarning(
+      "grid area \"%s\" does not cover a rectangle, so it is placed "
       "at the rectangle that bounds it. A name must claim one block of cells "
-      "to be addressable as one box.\n",
+      "to be addressable as one box.",
       name.c_str());
 }
 

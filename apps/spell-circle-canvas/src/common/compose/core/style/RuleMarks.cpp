@@ -7,7 +7,6 @@
 
 #include "RuleMarks.h"
 
-#include <include/core/SkTypes.h>  // SkDebugf
 #include <sigilcompose/core/StyleSheet.h>
 
 #include <cstdint>
@@ -16,6 +15,7 @@
 #include <vector>
 
 #include "paint/MaterialEffects.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose::detail {
 
@@ -28,11 +28,11 @@ void warnRuleMarkBorrows() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
-  SkDebugf(
-      "[compose] a rule states a mark that borrows another node's outline "
+  sigil::compose::detail::reportWarning(
+      "a rule states a mark that borrows another node's outline "
       "(strand::from), which only the element carrying the mark can "
       "declare — the mark is left out of the elements the rule matches. "
-      "State it on the element. (warned once)\n");
+      "State it on the element. (warned once)");
 }
 
 /** Whether @p stated says anything a painted node would wear. */

@@ -11,6 +11,7 @@
 #include <boost/container/map.hpp>
 
 #include "runtime/Instance.h"
+#include "runtime/Warning.h"
 #include "sigilweave/advanced/Skia.h"
 
 namespace sigil::compose::detail {
@@ -78,11 +79,11 @@ inline const AxisGate& axisGate(sigil::weave::FontContext& fonts,
     // variationDrive and a `TextEffect::variableAxis` track — because it is
     // one gate and they all fail it for the same reason. Naming a verb here
     // would send an author reading about the one they did not write.
-    SkDebugf(
-        "sigilcompose: axis \"%s\" is absent or moves advances on this font "
+    sigil::compose::detail::reportWarning(
+        "axis \"%s\" is absent or moves advances on this font "
         "— refused (the glyphs keep the pen positions shaping gave them, so "
         "the text draws at its shaped coordinates; GRAD is the "
-        "advance-invariant weight, or re-shape through a style)\n",
+        "advance-invariant weight, or re-shape through a style)",
         tag);
   }
   return gate;

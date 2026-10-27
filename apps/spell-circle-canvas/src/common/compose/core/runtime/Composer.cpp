@@ -9,7 +9,6 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the renderSlot diagnostic
 #include <include/gpu/graphite/Recorder.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/color/Color.h>
@@ -29,6 +28,7 @@
 
 #include "ComposeRuntime.h"
 #include "paint/SurfaceMap.h"
+#include "runtime/Warning.h"
 
 namespace sigil::compose {
 
@@ -194,12 +194,12 @@ void Composer::Impl::warnPendingSlots() const {
     std::string have;
     for (const auto& [key, inst] : bySlot)
       have += (have.empty() ? "" : ", ") + key;
-    SkDebugf(
-        "[compose] renderSlot(\"%s\") — no slot by that name in the "
+    sigil::compose::detail::reportWarning(
+        "renderSlot(\"%s\") — no slot by that name in the "
         "described tree, so its content waits unshown until a tree holding "
         "the slot is described. Slots that DO exist: [%s]. NOTE: "
         "slot(name) stores the name in key(), so slot(\"%s\")"
-        ".key(\"something\") RENAMES the slot to \"something\".\n",
+        ".key(\"something\") RENAMES the slot to \"something\".",
         name.c_str(), have.empty() ? "none" : have.c_str(), name.c_str());
   }
 }
@@ -238,6 +238,10 @@ void Composer::setInherited(const Inherited& inherited) {
   bool moved = false;
   if (!(inherited.block == impl.rootBlock)) {
     impl.rootBlock = inherited.block;
+    moved = true;
+  }
+  if (inherited.indentPercent != impl.rootIndentPercent) {
+    impl.rootIndentPercent = inherited.indentPercent;
     moved = true;
   }
   if (!(inherited.sampling == impl.rootSampling)) {
@@ -292,7 +296,11 @@ void Composer::Impl::settleForDraw() {
     cascadeDirty = true;
     volatileDirty = true;
   }
+  // A layout taken this frame can change what a passage reports of its
+  // own composing, which the walk reads, so a frame that lays out walks.
+  const size_t calculationsBefore = layoutCalculations;
   ensureLayout();
+  const bool laidOut = layoutCalculations != calculationsBefore;
   if (cascadeDirty) runCascade();
   // A track's progress over its span starts once its text is laid out,
   // which is now, before anything asks whether it moves.
@@ -300,14 +308,17 @@ void Composer::Impl::settleForDraw() {
     trackSpansOwed = startTrackSpans(*root);
     volatileDirty = true;
   }
-  // Volatility changes only on reconcile or while animations run (and once
-  // more on the frame they settle) — skip the walk otherwise. Bindings the
-  // host drives directly are the exception this scan covers: such a live value
-  // can start moving while no motion is running and the walk is asleep, so
-  // it has to re-declare its node volatile on the spot.
+  // Volatility changes only on reconcile or while motions run (and once
+  // more on the frame they settle) — skip the walk otherwise. A timer is no
+  // motion: it writes values by hand and declares nothing about them, so
+  // a frame on which timers alone run leaves every verdict standing, and
+  // whatever a timer starts is a motion from that frame. Bindings the host
+  // or a timer drives directly are what this scan covers: such a live
+  // value can start moving while the walk is asleep, so it has to
+  // re-declare its node volatile on the spot.
   scanReleasedScalars();
-  const bool active = engine.isRunning();
-  if (volatileDirty || active || engineWasRunning) {
+  const bool active = engine.isMotionRunning();
+  if (volatileDirty || active || engineWasRunning || laidOut) {
     const sigil::measure::Stopwatch walk;
     releasedScalars.clear();  // the walk re-registers what stays released
     rootVolatile = computeVolatile(*root).volatileAbove;

@@ -174,9 +174,9 @@ struct PaintPass {
       } else {
         localPaintBounds = impl.bakeBounds(inst);
         // A bake that holds a layer effect is the extent the effect
-        // filters, on the same grid its layer stands on.
+        // filters, about the box on the grid its layer stands on.
         if (layerEffectOf(node))
-          localPaintBounds = onFilterGrid(localPaintBounds);
+          localPaintBounds = impl.filterExtent(inst, localPaintBounds);
         inst.heldBakeBounds = localPaintBounds;
         inst.bakeBoundsHeld = true;
       }

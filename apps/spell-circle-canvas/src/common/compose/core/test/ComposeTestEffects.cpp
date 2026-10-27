@@ -7,9 +7,13 @@
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkStream.h>
 #include <include/effects/SkImageFilters.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
+
+#include <memory>
+#include <optional>
 
 #include "support/CoreTestSupport.h"
 
@@ -806,4 +810,44 @@ TEST(ComposeEffects, AHeldGroundKeepsTheFilteredBackdropUntilBeneathChanges) {
   ASSERT_TRUE(step());
   EXPECT_EQ(held.composer.stats().backdropsFiltered, 0u)
       << "…and held again once it stands still";
+}
+
+TEST(ComposeEffects, ADropShadowReadWithNoColourIsCastInTheInkInForce) {
+  // CSS paints a drop shadow that names no colour in `currentcolor`: the
+  // shadow read from that text is the shadow with the element's ink named,
+  // whether the element paints live or is kept as a texture.
+  const std::optional<material::Filter> unnamed =
+      material::readFilter("drop-shadow(2px 2px 4px)");
+  ASSERT_TRUE(unnamed.has_value()) << "the reader refused the text";
+  const material::Color ink{0.9f, 0.3f, 0.1f, 1};
+  const material::Filter named =
+      material::Filter::dropShadow(ink, {.blur = 4, .offset = {2, 2}});
+  for (const Cache cache : {Cache::None, Cache::Texture}) {
+    const auto drawn = [&](const material::Filter& filter) {
+      auto host = std::make_unique<Host>();
+      host->composer.render(box().width(200).height(200).children(
+          {box()
+               .absolute()
+               .left(40)
+               .top(40)
+               .width(80)
+               .height(60)
+               .ink(ink)
+               .cache(cache)
+               .filter(filter)
+               .children(
+                   {box().absolute().left(10).top(10).width(40).height(30).fill(
+                       Fill::color({1, 1, 1, 1}))})}));
+      host->frame();
+      host->frame();
+      return host;
+    };
+    const auto read = drawn(*unnamed);
+    const auto stated = drawn(named);
+    EXPECT_TRUE(identicalPixels(*read, *stated, 200, 200))
+        << (cache == Cache::Texture ? "baked" : "live")
+        << ": the shadow read with no colour is not the one in the ink";
+    EXPECT_NE(SkColorGetR(read->pixel(91, 72)), 0u)
+        << "no shadow was cast past the fill's corner";
+  }
 }
