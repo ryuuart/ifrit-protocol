@@ -26,7 +26,9 @@
 # Resources.h, which a binding is written through. The Vulkan headers are
 # here because a map whose pixels already stand on this device is wrapped
 # through the engine's Vulkan interface, which names Vulkan's handle
-# types without declaring them.
+# types without declaring them. SigilMaterial's surface feature is here
+# because a material painted into a map is handed this device's Graphite
+# to paint on.
 #
 # THE HEADERS ARE THIS FEATURE'S OWN, not the library's: each names the
 # engine's buffer, texture, pipeline or binding interfaces, so a consumer
@@ -40,7 +42,7 @@ sigil_library(SigilGeometryDeviceResidency
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR}
   PUBLIC SigilGeometryDevice SigilGeometryMesh SigilMaterialTexture
          SigilMaterialSlang
-  PRIVATE Vulkan::Headers)
+  PRIVATE SigilMaterialSurface Vulkan::Headers)
 
 set(SIGIL_GEOMETRY_DEVICE_RESIDENCY_PRIVATE_DIR ${CMAKE_CURRENT_LIST_DIR}
     CACHE INTERNAL "the residency feature's own headers, which spell Diligent")
