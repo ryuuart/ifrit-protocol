@@ -284,3 +284,25 @@ a device labelled gpu.
 timed label, so a loaded machine fails them for no defect. A time claim
 is meant to be a bench arm, or at least labelled timed. A test should find
 no unlabelled case asserting on a clock.
+
+## hangingPunctuation("allow-end") hangs as force-end does
+
+Weave hangs a mark wherever it ends a line, while CSS's `allow-end` hangs
+it only when the line would not otherwise fit. A test should find a line
+that fits with its stop inside the measure not hanging the stop under
+`allow-end`.
+
+## fontVariationSettings merges axes where CSS replaces the list
+
+The verb replaces only the axes it names, while CSS's
+`font-variation-settings` replaces the whole list. A test should find a
+later `fontVariationSettings("\"wdth\" 80")` under an inherited
+`"GRAD" 50` dropping GRAD, or the merge stated as the rule in the verb's
+own text.
+
+## Weave has no automatic optical sizing
+
+CSS's `font-optical-sizing: auto` sets a variable face's `opsz` to the
+type size; weave has no such door, so `fontOpticalSizing` does not exist.
+A test should find a face with an `opsz` axis set at 48 px shaping with
+`opsz` 48 under the automatic setting.
