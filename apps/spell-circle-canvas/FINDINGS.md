@@ -186,7 +186,7 @@ unchanged.
 that sets `palette-ink` recolours wells and fills but not headings or
 captions, and a sketch that wants another ink must stay its own theme. The
 role rules are meant to ink with `var("palette-…")`, so a palette variant
-is rules at the stage. A test should find a stage with `.sheet =
+is rules at the stage. A test should find a stage with `.styleSheet = houseStyleSheet() +
 rule(":root").var("palette-ink", red)` setting an `h1` under it in red.
 
 ## A scope program cannot read properties
@@ -206,7 +206,7 @@ reading whose ink is `var("x")` setting its lines in x where x is in force.
 
 ## A whole-canvas Python draw gets no paint context
 
-A sketch's `draw(self, pen)` under `@sketch(theme=…)` is handed no
+A sketch's `draw(self, pen)` under `@sketch(styleSheet=…)` is handed no
 context, so it rebuilds the theme each frame to colour the pen, while a
 pen program reads the stage's properties through `context.vars`. A test
 should find `draw(self, pen, context)` under a themed sketch finding
@@ -325,3 +325,11 @@ that writes what it read is reported once; the same holds for a memo
 whose own output moves the node its `beatsOf` query reads. A cycle
 between memos is meant to be said once. A test should find such a pair
 reported once and no longer re-describing.
+
+## Sketches reach compose names only through the page header
+
+About forty-six sketches reach `compose::kit::formatted`, `custom()`,
+`stack()` and other compose names only because `Page.h` includes the
+builder header, which includes the compose kit, while a sketch is meant
+to include what it uses. A test should find every sketch compiling with
+`Page.h` slimmed to the headers its own declarations need.
