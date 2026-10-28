@@ -350,3 +350,27 @@ programs, uniforms, blends, the kit stipple and dither) that belong in
 material's tests and README. A test is meant to pin a stated promise. A
 check should find every test named for a sentence its library's README
 holds.
+
+## A doc probe's generated source goes stale when a name moves library
+
+`sigil_doc_probes` regenerates a library's probe source only when its own
+READMEs, its own headers or its declared dependencies change, not the
+headers under the roots it scans, so a name that moves to another library
+leaves a probe spelling the old namespace until the generated files are
+deleted by hand. The probe is meant to track every root it scans. A test
+should find a touched header under a scanned root re-running the
+generator.
+
+## metroid_scan_visor renders to more than one hash
+
+The sketch's device plate has rendered one hash in a full sweep and its
+baseline's on a re-run of one tree, while a plate is meant to be the same
+bytes on every render. A test should find twenty renders at its capture
+moment hashing alike.
+
+## Two entries fail under a parallel ctest and pass alone
+
+`sketch.Scene3DSession` and `sigil_build_slot` fail under `ctest -j8` and
+pass when run alone, while an entry is meant to pass beside the others
+or carry the label or the serial mark that says what it needs. A test
+should find them passing under `-j8`, or marked.
