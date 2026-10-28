@@ -71,7 +71,7 @@ compose::Element console(const Console& panel) {
     compose::StyleSheet levels;
     for (const auto& [name, color] : panel.levels)
       levels = levels + compose::StyleSheet{
-                            compose::rule("." + name).font({.color = color})};
+                            compose::rule("." + name).font({.ink = color})};
     plate.applyStyleSheet(std::move(levels));
   }
   return plate;

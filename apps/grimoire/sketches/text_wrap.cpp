@@ -64,11 +64,12 @@ sigil::weave::Face serif() {
 Element specimen(const char* call, Text passage) {
   Element paper = sketch::kit::well(
       {.ground = Fill::color(kPaper), .padding = 10},
-      box().children({std::move(passage)
-                          .font({.face = serif(), .size = 14, .track = 0.2f})
-                          .ink(kInk)
-                          .width(kMeasure)
-                          .fill(Fill::color(kMeasureTint))}));
+      box().children(
+          {std::move(passage)
+               .font({.face = serif(), .size = 14, .letterSpacing = 0.2f})
+               .ink(kInk)
+               .width(kMeasure)
+               .fill(Fill::color(kMeasureTint))}));
   return box().column().gap(8).children(
       {document::code(call), std::move(paper)});
 }

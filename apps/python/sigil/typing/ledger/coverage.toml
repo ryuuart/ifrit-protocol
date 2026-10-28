@@ -865,12 +865,13 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, and `Theme.properties`"
+bound = "`houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, `darkTheme`, and `Theme.properties`"
 python = [
   "sketch.kit.houseFace",
   "sketch.kit.houseTheme",
   "sketch.kit.studyTheme",
   "sketch.kit.featureTheme",
+  "sketch.kit.darkTheme",
   "sketch.kit.Density",
   "sketch.kit.Theme.properties",
 ]
@@ -1005,11 +1006,11 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`ParagraphBlock` and `ParagraphStyle` with leading, justification and its method, hyphenation limits, tabs, indents, keeps, initial letters, reserved bands and the kinsoku, hanging and mojikumi tables"
+bound = "`ParagraphBlock` and `ParagraphStyle` with line height, justification and its method, hyphenation limits, tabs, indents, keeps, initial letters, reserved bands and the kinsoku, hanging and mojikumi tables"
 python = [
   "weave.ParagraphBlock",
   "weave.ParagraphStyle",
-  "weave.Leading",
+  "weave.LineHeight",
   "weave.JustificationOptions",
   "weave.JustificationMethod",
   "weave.HyphenationLimits",

@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
-#include "sigilweave/advanced/Skia.h"
 #include "BenchOptions.h"
+#include "sigilweave/advanced/Skia.h"
 #include "support/Corpus.h"
 #include "support/Layouts.h"
 
@@ -212,9 +212,9 @@ void BM_Layout_ParagraphStyles_600w(benchmark::State& state) {
   ParagraphLayoutOptions options;
   for (int blockIndex = 0; blockIndex < 12; ++blockIndex) {
     ParagraphStyle style;
-    style.leading = blockIndex % 3 == 0   ? Leading::multiple(1.4f)
-                    : blockIndex % 3 == 1 ? Leading::grid(24.0f)
-                                          : Leading::absolute(21.0f);
+    style.lineHeight = blockIndex % 3 == 0   ? LineHeight::multiple(1.4f)
+                       : blockIndex % 3 == 1 ? LineHeight::grid(24.0f)
+                                             : LineHeight::absolute(21.0f);
     style.spaceBefore = 6.0f;
     style.spaceAfter = 8.0f;
     style.indent.firstLine = blockIndex % 2 == 0 ? 18.0f : -12.0f;

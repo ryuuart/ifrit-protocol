@@ -403,7 +403,7 @@ struct RotaConvocationis {
   Text bandRun(const Band& band) const {
     return text(content[band.words].string())
         .styleClass(band.voice)
-        .font({.track = band.track});
+        .font({.letterSpacing = band.track});
   }
 
   /** One band of script: the text node IS the circle its baseline runs
@@ -494,9 +494,10 @@ struct RotaConvocationis {
   BandCuts cutsOf(sketch::Scene2DContext& context, const Band& band) const {
     const std::string words{content[band.words].string()};
     const auto width = [&](const std::string& run) {
-      Element probe = text(run)
-                          .styleClass(band.voice)
-                          .font({.size = kDeclaredSize, .track = band.track});
+      Element probe =
+          text(run)
+              .styleClass(band.voice)
+              .font({.size = kDeclaredSize, .letterSpacing = band.track});
       probe.applyStyleSheet(registers);
       return context.measure(probe).width();
     };
@@ -688,7 +689,7 @@ struct RotaConvocationis {
                  [&](const sigil::data::Json& name, size_t index) {
                    return kit::at(text(name.string())
                                       .styleClass("label")
-                                      .font({.size = 11, .track = 2})
+                                      .font({.size = 11, .letterSpacing = 2})
                                       .ink(kAsh),
                                   kEye.fX - pixels, kEye.fY - pixels,
                                   2 * pixels, 2 * pixels)
@@ -740,7 +741,7 @@ struct RotaConvocationis {
                       beads(6, rKern, 4, kPitch, 1.0f, kLine),
                       beads(6, rMote, 2.2f, kPitch * 0.5f, 0.9f, kHair)}),
              text(content["monogram"].string())
-                 .font({.size = 52, .track = 6})
+                 .font({.size = 52, .letterSpacing = 6})
                  .ink(kBone)
                  .filter(sigil::material::Filter::glow(kHalo, 7.0f))
                  .cache(Cache::Texture)
@@ -796,7 +797,7 @@ struct RotaConvocationis {
                   }),
              kit::at(text(seal["words"].string())
                          .styleClass("band")
-                         .font({.size = kDeclaredSize, .track = 1.4f})
+                         .font({.size = kDeclaredSize, .letterSpacing = 1.4f})
                          .ink(kBone),
                      kSealRadius - kSealBaseline, kSealRadius - kSealBaseline,
                      2 * kSealBaseline, 2 * kSealBaseline)
@@ -807,7 +808,7 @@ struct RotaConvocationis {
                               .fill = 0.97f}),
              text(seal["ordinal"].string())
                  .styleClass("mono")
-                 .font({.size = 12, .track = 1})
+                 .font({.size = 12, .letterSpacing = 1})
                  .ink(kGold)
                  .filter(sigil::material::Filter::glow(kHalo, 3.0f))
                  .centerAt(sigil::geometry::path::fromSk(centre))});
@@ -840,10 +841,10 @@ struct RotaConvocationis {
         .gap(7)
         .styleClass("label")
         .ink(kAsh)
-        .children(
-            {text(content["title"].string()).font({.size = 12, .track = 5.2f}),
-             text(content["colophon"].string())
-                 .font({.size = 11, .track = 0.3f})});
+        .children({text(content["title"].string())
+                       .font({.size = 12, .letterSpacing = 5.2f}),
+                   text(content["colophon"].string())
+                       .font({.size = 11, .letterSpacing = 0.3f})});
   }
 
   Element describe() {

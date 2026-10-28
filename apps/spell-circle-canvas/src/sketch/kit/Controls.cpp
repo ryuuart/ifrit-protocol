@@ -92,13 +92,15 @@ float lengthIn(const compose::PaintContext& context, std::string_view name) {
   return 0;
 }
 
-/** The face, the size and the tracking of the font in force where
- *  @p context paints — the register the node's role or class resolved to,
- *  as the pen takes it, with the colour left to the pen's fill. */
+/** The face, the size, the letter spacing and the OpenType features of the
+ *  font in force where @p context paints — the register the node's role or
+ *  class resolved to, as the pen takes it, with the colour left to the
+ *  pen's fill. */
 weave::Type registerIn(const compose::PaintContext& context) {
   return {.face = context.font.face,
           .size = context.font.size,
-          .track = context.font.track};
+          .letterSpacing = context.font.letterSpacing,
+          .features = context.font.features};
 }
 
 /** THE PROGRAM ONE ROW'S RAIL PAINTS WITH: the label and the control, and

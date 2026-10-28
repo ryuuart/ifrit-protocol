@@ -58,7 +58,7 @@ weave::TextStyle bakeFace(float size, bool proportional = false) {
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   return weave::textStyle({.face = proportional ? text : code,
                            .size = size,
-                           .color = material::Color{1, 1, 1, 1},
+                           .ink = material::Color{1, 1, 1, 1},
                            .aliased = true});
 }
 
@@ -131,7 +131,7 @@ struct PixFontDotSprite {
                                             sketch::kit::Density::Spacious)
                                             .type.mono,
                                 .size = 12,
-                                .track = 0})
+                                .letterSpacing = 0})
                          .ink(var("palette-ash")),
                      kit::masked(sweep[i], {.colour = kOn, .scale = 2})});
     };

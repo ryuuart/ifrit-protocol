@@ -200,8 +200,10 @@ inline sigil::compose::StyleSheet registers() {
       sketch::kit::houseTheme().properties() +
       sigil::compose::StyleSheet{
           sigil::compose::rule(".note").font({.size = 9.0f}),
-          sigil::compose::rule(".colhead").font({.size = 7.5f, .track = 0.9f}),
-          sigil::compose::rule(".cell").font({.size = 9.5f, .track = 0.4f}),
+          sigil::compose::rule(".colhead")
+              .font({.size = 7.5f, .letterSpacing = 0.9f}),
+          sigil::compose::rule(".cell").font(
+              {.size = 9.5f, .letterSpacing = 0.4f}),
           sigil::compose::rule("label, .label").font({.size = 7.0f}),
           sigil::compose::rule(".line").font({.size = 9.0f})};
   return classes;
@@ -246,7 +248,7 @@ inline Element panel(float height, int order) {
       .flexShrink(0)
       .padding(12)
       .borderRadius({5})
-      .font({.face = monoFace(), .track = 0.2f})
+      .font({.face = monoFace(), .letterSpacing = 0.2f})
       .ink(kSteel)
       .fill(kPanel)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
@@ -259,7 +261,7 @@ inline Element panel(float height, int order) {
 
 inline Element panelHead(const Utf8& s) {
   return document::h2(s)
-      .font({.face = uiFace(), .size = 9.5f, .track = 1.9f})
+      .font({.face = uiFace(), .size = 9.5f, .letterSpacing = 1.9f})
       .height(13)
       .flexShrink(0);
 }

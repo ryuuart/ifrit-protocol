@@ -112,7 +112,19 @@ def registerFont(table: _Returning, node: str) -> None:
     """The font and the ink, over the value that states them."""
     # Any length a font holds: px, pt, em, rem, lh, ch, or a percentage of
     # the type size.
-    table.erased(node, "fontSize letterSpacing", "_t.DimensionLike")
+    table.erased(node, "fontSize letterSpacing wordSpacing", "_t.DimensionLike")
+    # CSS's text, or the features or axes as values.
+    table.erased(
+        node,
+        "fontFeatureSettings",
+        "str | collections.abc.Iterable[_sigil.weave.FontFeature | tuple[str, int] | str]",
+    )
+    table.erased(
+        node,
+        "fontVariationSettings",
+        "str | dict[str, float] | collections.abc.Iterable[_sigil.weave.FontVariation | tuple[str, float]]",
+    )
+    table.erased(node, "baselineShift", "_t.DimensionLike")
     # A style, or an angle, which is the oblique of that lean.
     table.erased(node, "fontStyle", "FontStyle | _t.AngleLike")
     table.erased(node, "ink", "_t.ElementInkLike")
@@ -163,8 +175,10 @@ def inset(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike |
     # unit, a percentage being of the node's own box.
     table.erased(node, "translateX translateY", "_t.ScalarLike | _t.DimensionLike")
     # CSS's line-height: a number is a multiple, a length an absolute pitch,
-    # "normal" the face's own; a Leading says those and a baseline grid.
-    table.erased(node, "lineHeight", "_t.DimensionLike | _sigil.weave.Leading")
+    # "normal" the face's own; a LineHeight says those and a baseline grid.
+    table.erased(node, "lineHeight", "_t.DimensionLike | _sigil.weave.LineHeight")
+    # CSS's hanging-punctuation text, or a table of fractions of an advance.
+    table.erased(node, "hangingPunctuation", "str | _sigil.weave.HangingTable")
     # One radius for all four corners, or four clockwise from the top left,
     # each a length; a percentage is of the node's own box.
     table.declares(

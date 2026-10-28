@@ -64,12 +64,12 @@ Element relative(float size) {
 Element editorialCard(bool cooled) {
   compose::StyleSheet styles{
       compose::rule("label, .label")
-          .font(weave::Type{.size = 11, .track = 1.3f}),
+          .font(weave::Type{.size = 11, .letterSpacing = 1.3f}),
       compose::rule("figure, .figure")
-          .font(weave::Type{.size = 48, .track = -0.6f})};
+          .font(weave::Type{.size = 48, .letterSpacing = -0.6f})};
   return sketch::kit::well({.width = 660, .height = 328, .padding = 24})
       .key("cascade.card")
-      .font({.size = 14, .track = 0})
+      .font({.size = 14, .letterSpacing = 0})
       .ink(cooled ? kCool : kWarm)
       .transition(kFade)
       .applyStyleSheet(std::move(styles))
@@ -94,10 +94,10 @@ Element editorialCard(bool cooled) {
                weave::rich()
                    .add(u8"The base inherits. ")
                    .add(u8"This run changes only color. ",
-                        weave::Type{.color = kTeal})
+                        weave::Type{.ink = kTeal})
                    .add(u8"A whole style stands alone.",
                         weave::textStyle(
-                            {.size = 12, .color = kPale, .track = 0})))
+                            {.size = 12, .ink = kPale, .letterSpacing = 0})))
                .width(612),
            box().row().gap(22).children(
                {box()
@@ -123,7 +123,7 @@ Element adoption() {
   Element figure = box().width(38).height(38).fill(var("palette-figure"));
   return sketch::kit::well({.width = 501, .height = 152, .padding = 24})
       .var("palette-figure", kWarm)
-      .font({.size = 15, .track = 0})
+      .font({.size = 15, .letterSpacing = 0})
       .ink(kTeal)
       .column()
       .gap(22)
@@ -156,8 +156,8 @@ Element nesting() {
         .row()
         .gap(16)
         .alignItems(Align::Center)
-        .children(
-            {std::move(swatch), text(label).font({.size = 14, .track = 0})});
+        .children({std::move(swatch),
+                   text(label).font({.size = 14, .letterSpacing = 0})});
   };
   return sketch::kit::well({.width = 501, .height = 152, .padding = 20})
       .column()

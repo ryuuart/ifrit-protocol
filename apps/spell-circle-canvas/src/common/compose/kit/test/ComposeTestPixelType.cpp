@@ -40,13 +40,12 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
   int overhangs = 0;
   for (const char* family : {"Helvetica", "Times New Roman", "Zapfino",
                              "Apple Chancery", "Snell Roundhand"}) {
-    sk_sp<SkTypeface> face =
-        sigil::weave::ports::pickTypeface(
-            {family}, {.slant = sigil::weave::FaceSlant::Italic});
+    sk_sp<SkTypeface> face = sigil::weave::ports::pickTypeface(
+        {family}, {.slant = sigil::weave::FaceSlant::Italic});
     if (!face) continue;
     const auto style = sigil::weave::textStyle({.face = face,
                                                 .size = 12.0f,
-                                                .color = SkColor4f{1, 1, 1, 1},
+                                                .ink = SkColor4f{1, 1, 1, 1},
                                                 .aliased = true});
     for (const char8_t* s : {u8"Wf", u8"of", u8"lift", u8"Ay"}) {
       const kit::Coverage tight =
@@ -103,7 +102,8 @@ TEST(KitPixelType, TheMaskIsOneBit) {
   SkBitmap read;
   read.allocPixels(SkImageInfo::MakeA8(m.w, m.h));
   ASSERT_FALSE(m.image->frames().empty());
-  ASSERT_TRUE(sigil::media::toSk(m.image->frames().front().image)->readPixels(read.pixmap(), 0, 0));
+  ASSERT_TRUE(sigil::media::toSk(m.image->frames().front().image)
+                  ->readPixels(read.pixmap(), 0, 0));
   for (int y = 0; y < m.h; ++y)
     for (int x = 0; x < m.w; ++x) {
       const uint8_t v = *read.getAddr8(x, y);
@@ -132,13 +132,13 @@ TEST(KitPixelType, BlitAdvancesByTheMeasuredWidthAndSnaps) {
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 40));
   ASSERT_TRUE(s);
   const kit::Blit b{.track = 1.0f};
-  const float w =
-      kit::blit(PenOn(*s->getCanvas()).pen(), f, {4, 4}, "1234", {1, 1, 1, 1}, b);
+  const float w = kit::blit(PenOn(*s->getCanvas()).pen(), f, {4, 4}, "1234",
+                            {1, 1, 1, 1}, b);
   EXPECT_NEAR(w, kit::widthOf(f, "1234", b), 1e-3f);
 
   const kit::Blit snapped{.track = 1.0f, .snap = 4.0f};
-  const float ws =
-      kit::blit(PenOn(*s->getCanvas()).pen(), f, {4.9f, 4.1f}, "1", {1, 1, 1, 1}, snapped);
+  const float ws = kit::blit(PenOn(*s->getCanvas()).pen(), f, {4.9f, 4.1f}, "1",
+                             {1, 1, 1, 1}, snapped);
   EXPECT_NEAR(std::fmod(ws, 4.0f), 0.0f, 1e-3f);
 }
 
@@ -151,15 +151,15 @@ TEST(KitPixelType, ASnappedRunMeasuresTheWidthItDraws) {
   // width the drawing never uses, and a layout laid out on it overlaps the
   // next thing.
   const kit::Blit b{.track = 1.0f, .snap = 3.0f};
-  const float drawn =
-      kit::blit(PenOn(*s->getCanvas()).pen(), f, {3.0f, 3.0f}, "1234", {1, 1, 1, 1}, b);
+  const float drawn = kit::blit(PenOn(*s->getCanvas()).pen(), f, {3.0f, 3.0f},
+                                "1234", {1, 1, 1, 1}, b);
   EXPECT_FLOAT_EQ(drawn, kit::widthOf(f, "1234", b));
   EXPECT_NEAR(std::fmod(drawn, 3.0f), 0.0f, 1e-3f);
   // The origin's own fraction is not part of the run's width: it is snapped
   // once, before the walk.
-  EXPECT_FLOAT_EQ(
-      kit::blit(PenOn(*s->getCanvas()).pen(), f, {4.9f, 4.1f}, "1234", {1, 1, 1, 1}, b),
-      drawn);
+  EXPECT_FLOAT_EQ(kit::blit(PenOn(*s->getCanvas()).pen(), f, {4.9f, 4.1f},
+                            "1234", {1, 1, 1, 1}, b),
+                  drawn);
 }
 
 TEST(KitPixelType, ARunOfCellsStandsOnOneBaseline) {

@@ -84,7 +84,7 @@ struct P5MixedForms {
             .cover()
             // What the pen and its guest are set in. Nothing below names a
             // face, a size or a colour except where it means to change one.
-            .font({.size = kDisplay, .track = 1.5f})
+            .font({.size = kDisplay, .letterSpacing = 1.5f})
             .ink({1, 1, 1, 1})
             .children({compose::graphics("p5_mixed_forms.loop",
                                          [this](Pen& pen) { loop(pen); })}));

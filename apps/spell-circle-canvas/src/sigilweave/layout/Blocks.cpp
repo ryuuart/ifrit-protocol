@@ -18,9 +18,9 @@
 #include <optional>
 #include <vector>
 
-#include "sigilweave/advanced/Skia.h"
 #include "Blobs.h"
 #include "ParagraphLayoutInternal.h"
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/layout/ParagraphLayout.h"
@@ -177,9 +177,10 @@ std::vector<detail::Block> resolveBlocks(
       }
       faceHeight = std::max(faceHeight, faceAscent + faceDescent);
     }
-    const float pitch = style.leading.pitchFor(faceHeight, strut.size);
-    const float gridStep =
-        style.leading.kind == Leading::Kind::kGrid ? style.leading.value : 0;
+    const float pitch = style.lineHeight.pitchFor(faceHeight, strut.size);
+    const float gridStep = style.lineHeight.kind == LineHeight::Kind::kGrid
+                               ? style.lineHeight.value
+                               : 0;
     // The reserved band is a layout input: it opens the pitch before
     // anything is broken, and `before` carries the baseline down inside the
     // band so the type stays where a reader expects it.
@@ -192,7 +193,7 @@ std::vector<detail::Block> resolveBlocks(
     // that must sit optically centred in its own band wants that one.
     const float opened = pitch - faceHeight;
     block.ascent =
-        (style.leading.kind == Leading::Kind::kFace
+        (style.lineHeight.kind == LineHeight::Kind::kFace
              ? faceAscent
              : faceAscent + opened * (style.halfLeading ? 0.5f : 1.0f)) +
         reservedBefore;

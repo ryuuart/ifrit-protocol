@@ -303,7 +303,7 @@ TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {
   EXPECT_LT(m.xHeight, m.capHeight);
   EXPECT_LE(m.capHeight, m.ascent + 0.01f);
   EXPECT_GT(m.capSlack(), 0.0f);
-  EXPECT_NEAR(m.lineHeight, m.ascent + m.descent + m.leading, 1e-4f);
+  EXPECT_NEAR(m.lineHeight, m.ascent + m.descent + m.lineHeight, 1e-4f);
 
   // It scales with the size, which is what makes it usable as a constant
   // per style rather than per run.

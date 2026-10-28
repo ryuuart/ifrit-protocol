@@ -93,8 +93,8 @@ TEST(SketchKitVerdict, ASheetRuleRestylesTheVerdict) {
   Element restyled =
       compose::box()
           .applyStyleSheet(kit::houseTheme().styleSheet() +
-                           compose::StyleSheet{compose::rule(".checkFail")
-                                                   .font({.color = cyan})})
+                           compose::StyleSheet{
+                               compose::rule(".checkFail").font({.ink = cyan})})
           .children({kit::verdict(failed, {.swatches = false})});
   EXPECT_GT(pixelsNear(std::move(restyled), cyan), 0);
 }

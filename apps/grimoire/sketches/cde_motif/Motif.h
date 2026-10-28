@@ -468,7 +468,7 @@ constexpr float kTrack = 0.95f;
 inline sigil::weave::Type uiType() {
   return {.face = uiFace(),
           .size = kType,
-          .track = kTrack,
+          .letterSpacing = kTrack,
           .aliased = true,
           .antiAlias = false};
 }
@@ -488,7 +488,7 @@ inline Element label(const Utf8& t) { return text(t).flexShrink(0); }
  *  not in the set's: a calendar page's day under its month. */
 inline Element label(const Utf8& t, float size,
                      std::optional<material::Color> c = std::nullopt) {
-  return text(t).font({.size = size, .color = c}).flexShrink(0);
+  return text(t).font({.size = size, .ink = c}).flexShrink(0);
 }
 
 /** One run with Motif's mnemonic underline on exactly one character: a

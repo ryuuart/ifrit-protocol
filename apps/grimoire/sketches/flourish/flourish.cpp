@@ -323,7 +323,7 @@ struct Flourish {
 
     auto titleLayer = [this](material::Color color, bool bloom) {
       auto t = document::h1(u8"AURELIA")
-                   .font({.size = 34, .track = 5.0f})
+                   .font({.size = 34, .letterSpacing = 5.0f})
                    .ink(color)
                    .key(bloom ? "titleBloom" : "title")
                    .opacity(titleFade);

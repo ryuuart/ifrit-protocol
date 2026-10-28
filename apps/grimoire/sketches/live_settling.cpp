@@ -86,7 +86,7 @@ constexpr material::Color kBody{0.84f, 0.85f, 0.88f, 1};
 weave::TextStyle body() {
   const sigil::weave::Face face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return weave::textStyle({.face = face, .size = 11.5f, .color = kBody});
+  return weave::textStyle({.face = face, .size = 11.5f, .ink = kBody});
 }
 
 const char* kPassage =

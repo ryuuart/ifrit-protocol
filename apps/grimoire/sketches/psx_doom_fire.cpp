@@ -155,7 +155,8 @@ sigil::weave::Face uiFace() {
  *  fill, as p5 colours text. The header's voice is the retained tree's
  *  own, stated once on the header. */
 void mono(Pen& pen, float size, material::Color c, float track = 0.0f) {
-  pen.textFont(weave::Type{.face = monoFace(), .size = size, .track = track});
+  pen.textFont(
+      weave::Type{.face = monoFace(), .size = size, .letterSpacing = track});
   pen.fill(c);
 }
 
@@ -319,10 +320,10 @@ struct PsxDoomFire {
         // The header's voice: the eyebrow and the provenance line are set
         // in it and name only their size and tracking; the title names its
         // own face and colour over it.
-        .font({.face = uiFace(), .color = kSteel})
+        .font({.face = uiFace(), .ink = kSteel})
         .children(
             {compose::document::eyebrow("CELLULAR AUTOMATON")
-                 .font({.size = 12, .track = 2.6f})
+                 .font({.size = 12, .letterSpacing = 2.6f})
                  .opacity(motion::animate(
                      {.from = 0.0f, .to = 1.0f, .duration = 260ms}))
                  .translateY(motion::animate(
@@ -330,8 +331,8 @@ struct PsxDoomFire {
              compose::document::h1(kTitle)
                  .font({.face = heavyFace(),
                         .size = 50,
-                        .color = kBone,
-                        .track = -0.6f})
+                        .ink = kBone,
+                        .letterSpacing = -0.6f})
                  .key("title")
                  .textFx({.effect =
                               compose::textFx::enter(compose::textFx::rise(24)),
@@ -346,7 +347,7 @@ struct PsxDoomFire {
                  "id Software / Williams · PlayStation title screen, 1995\n"
                  "A 37-colour buffer advances at 27 Hz; its heat is shown "
                  "without interpolation.")
-                 .font({.size = 11.5f, .track = 0.2f})
+                 .font({.size = 11.5f, .letterSpacing = 0.2f})
                  .width(690)
                  .opacity(motion::animate({.from = 0.0f,
                                            .to = 1.0f,
@@ -362,8 +363,8 @@ struct PsxDoomFire {
   compose::Element doomWord() {
     weave::TextStyle s = weave::textStyle({.face = heavyFace(),
                                            .size = 186,
-                                           .color = hexColor(0xC23A1C),
-                                           .track = 34.0f});
+                                           .ink = hexColor(0xC23A1C),
+                                           .letterSpacing = 34.0f});
     return compose::text("DOOM", std::move(s))
         .decorationOutline(sigil::compose::Boundary::Glyphs)
         .ink(material::from(hexColor(0xC23A1C))

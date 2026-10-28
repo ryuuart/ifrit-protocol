@@ -51,7 +51,7 @@ sigil::weave::Type display(float size) {
   return {.face = sigil::weave::ports::face(
               {"Avenir Next Heavy", "Helvetica Neue Bold", "Arial Black"}),
           .size = size,
-          .track = size * 0.02f};
+          .letterSpacing = size * 0.02f};
 }
 
 /** A case whose figure is @p picture centred in a well @p width wide. */

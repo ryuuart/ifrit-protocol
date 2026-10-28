@@ -246,7 +246,7 @@ struct GenesisFire {
   Element eqn(const Utf8& s) {
     return document::code(s)
         .font({.face = monoFace()})
-        .font({.size = 11.0f, .track = 0.1f})
+        .font({.size = 11.0f, .letterSpacing = 0.1f})
         .ink(kBone)
         .height(16)
         .flexShrink(0);

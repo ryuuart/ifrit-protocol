@@ -61,18 +61,18 @@ class FontLengthTest(unittest.TestCase):
 class LineHeightTest(unittest.TestCase):
     def test_a_number_is_a_multiple_of_the_type_size(self):
         self.assertEqual(
-            rule().lineHeight(1.4), rule().lineHeight(weave.Leading.sizeMultiple(1.4))
+            rule().lineHeight(1.4), rule().lineHeight(weave.LineHeight.sizeMultiple(1.4))
         )
 
     def test_pixels_are_an_absolute_pitch(self):
-        absolute = rule().lineHeight(weave.Leading.absolute(24))
+        absolute = rule().lineHeight(weave.LineHeight.absolute(24))
         self.assertEqual(rule().lineHeight("24px"), absolute)
         self.assertEqual(rule().lineHeight(compose.Dimension(24)), absolute)
         self.assertEqual(rule().lineHeight("18pt"), absolute)
 
     def test_normal_is_the_faces_own(self):
-        self.assertEqual(rule().lineHeight("normal"), rule().lineHeight(weave.Leading.face()))
-        self.assertEqual(rule().lineHeight(" Normal "), rule().lineHeight(weave.Leading.face()))
+        self.assertEqual(rule().lineHeight("normal"), rule().lineHeight(weave.LineHeight.face()))
+        self.assertEqual(rule().lineHeight(" Normal "), rule().lineHeight(weave.LineHeight.face()))
 
     def test_a_relative_length_is_one_statement_in_any_spelling(self):
         self.assertEqual(rule().lineHeight("1.5em"), rule().lineHeight(compose.em(1.5)))

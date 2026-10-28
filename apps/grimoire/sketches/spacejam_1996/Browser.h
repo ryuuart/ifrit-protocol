@@ -62,7 +62,7 @@ inline StyleSheet chromeSheet() {
   const weave::Type system{
       .face = weave::ports::face({"Tahoma", "Verdana"}, 400),
       .size = 11,
-      .color = kDark,
+      .ink = kDark,
       .aliased = true};
   return StyleSheet{
       rule(":root").font(system),
@@ -71,7 +71,7 @@ inline StyleSheet chromeSheet() {
       rule("copy").font(
           {.face = weave::ports::face({"Times New Roman", "Times"}, 400),
            .size = 13.33f,
-           .color = material::hexColor(0xFF0000)}),
+           .ink = material::hexColor(0xFF0000)}),
   };
 }
 

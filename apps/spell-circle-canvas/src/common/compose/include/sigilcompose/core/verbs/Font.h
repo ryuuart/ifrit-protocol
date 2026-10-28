@@ -57,6 +57,40 @@ struct TextShadow {
  *  unit measured against the font or the viewport. */
 std::optional<std::vector<TextShadow>> readTextShadow(std::string_view text);
 
+/** CSS'S `font-kerning`: how the pairs of letters are spaced. `Auto` and
+ *  `Normal` are the face's own kerning table; `Optical` is the extension
+ *  CSS has no word for, every pair set as tight as the face's own even
+ *  pair by measuring the letters — the answer when a face has no table, or
+ *  a line mixes faces that never met. */
+enum class FontKerning : uint8_t { Auto, Normal, Optical };
+
+/** CSS'S `text-orientation`: how a run stands in a vertical column.
+ *  `Mixed` sets each character as its script asks — CJK upright, Latin
+ *  turned — `Upright` stands every character upright, `Sideways` turns
+ *  every one a quarter clockwise, as a book's spine is set. */
+enum class TextOrientation : uint8_t { Mixed, Upright, Sideways };
+
+/** CSS'S `text-combine-upright`: `All` sets the run across, upright inside
+ *  one cell of the column — tate-chu-yoko, two digits of a date set in
+ *  vertical prose — and `None` stands it as its orientation says. */
+enum class TextCombineUpright : uint8_t { None, All };
+
+/** CSS'S `font-feature-settings` READ FROM ITS TEXT: a comma-separated
+ *  list, each entry a four-letter OpenType tag — quoted as CSS writes it,
+ *  or bare — followed by a value, `on` (1), `off` (0), or nothing, which
+ *  is `on` — `readFontFeatureSettings("\"tnum\", \"liga\" 0, \"ss02\" 2")`.
+ *  `normal` is the empty list. Nothing where any entry does not read. */
+std::optional<std::vector<sigil::weave::FontFeature>> readFontFeatureSettings(
+    std::string_view text);
+
+/** CSS'S `font-variation-settings` READ FROM ITS TEXT: a comma-separated
+ *  list, each entry a four-letter OpenType axis tag, quoted or bare,
+ *  followed by a number in the axis's design space —
+ *  `readFontVariationSettings("\"wdth\" 75, \"GRAD\" 88")`. `normal` is
+ *  the empty list. Nothing where any entry does not read. */
+std::optional<std::vector<sigil::weave::FontVariation>>
+readFontVariationSettings(std::string_view text);
+
 /** THE FONT AND THE INK, which flow down the tree from the node that
  *  states them to every passage under it. `font()` is the shorthand over
  *  the whole partial; each longhand writes one field of it, so
@@ -130,10 +164,65 @@ class FontVerbs {
   /** THE TRACKING added after each cluster — CSS `letter-spacing`, in any
    *  length a font holds: pixels when bare; `em` is a fraction of the
    *  size the type resolves to, and a `percent` is of that size too, as
-   *  CSS reads one. The `track` field of `font()`.
+   *  CSS reads one. The `letterSpacing` field of `font()`.
    *  @trap A length a font cannot hold leaves the tracking in force
    *  standing and says so once. */
   Derived& letterSpacing(Dimension tracking);
+  /** THE EXTRA SPACE AT EACH WORD GAP — CSS `word-spacing`, in any length
+   *  a font holds: pixels when bare, `em` and a `percent` of the size the
+   *  type resolves to. Negative closes the gaps, which floor at nothing.
+   *  The `wordSpacing` field of `font()`.
+   *  @trap A length a font cannot hold leaves the spacing in force
+   *  standing and says so once. */
+  Derived& wordSpacing(Dimension spacing);
+  /** THE OPENTYPE FEATURES — CSS `font-feature-settings`: `{{"tnum", 1}}`
+   *  sets tabular numerals, `{{"liga", 0}}` turns the ligatures off. The
+   *  `features` field of `font()`. An empty list is CSS's `normal`.
+   *  @trap The list REPLACES the one in force whole, as CSS's does: a
+   *  feature stated above and not restated here is not asked for. */
+  Derived& fontFeatureSettings(std::vector<sigil::weave::FontFeature> features);
+  /** The same, read from CSS's text — `fontFeatureSettings("\"tnum\",
+   *  \"liga\" 0")` — as `readFontFeatureSettings` reads it.
+   *  @trap Text that does not read leaves the features in force standing
+   *  and says so once. */
+  Derived& fontFeatureSettings(std::string_view settings);
+  /** THE VARIATION AXES — CSS `font-variation-settings`: `{{"wdth", 75}}`
+   *  sets the face's width axis. The `variations` field of `font()`; an
+   *  axis named again replaces the one in force where it stands, and an
+   *  axis not named keeps its inherited value. `fontWeight` is the `wght`
+   *  axis and `fontStyle` an oblique's `slnt`. */
+  Derived& fontVariationSettings(
+      std::vector<sigil::weave::FontVariation> variations);
+  /** The same, read from CSS's text — `fontVariationSettings("\"wdth\"
+   *  75")` — as `readFontVariationSettings` reads it.
+   *  @trap Text that does not read leaves the axes in force standing and
+   *  says so once. */
+  Derived& fontVariationSettings(std::string_view settings);
+  /** HOW THE PAIRS ARE SPACED — CSS `font-kerning`, with `Optical` as
+   *  the extension it has no word for. The `opticalKerning` field of
+   *  `font()`. The face's own table when nothing states one. */
+  Derived& fontKerning(FontKerning kerning);
+  /** THE CASE THE TEXT IS SET IN — CSS `text-transform`: upper, lower or
+   *  capitalised, the stored text untouched. The `textTransform` field of
+   *  `font()`. As written when nothing states one. */
+  Derived& textTransform(sigil::weave::TextTransform transform);
+  /** HOW A RUN STANDS IN A VERTICAL COLUMN — CSS `text-orientation`. The
+   *  `verticalForm` field of `font()`, read only where `writingMode` runs
+   *  the lines in columns. `Mixed` when nothing states one. */
+  Derived& textOrientation(TextOrientation orientation);
+  /** A SHORT RUN SET ACROSS INSIDE ONE CELL OF A COLUMN — CSS
+   *  `text-combine-upright`.
+   *  @trap It is the `verticalForm` field `textOrientation` writes too, so
+   *  the later of the two stands, and `None` is the `Mixed` orientation. */
+  Derived& textCombineUpright(TextCombineUpright combine);
+  /** HOW FAR THE GLYPHS SIT ABOVE THEIR LINE'S BASELINE — CSS
+   *  `baseline-shift`, in pixels or `pt`; negative sinks them below it, as
+   *  a subscript sits. It places rather than shapes, so it never moves the
+   *  line's breaks. The `baselineShift` field of `font()`. Nothing when
+   *  nothing states one.
+   *  @trap Any other unit — one measured against the font, the canvas or a
+   *  property — leaves the shift in force standing and says so once. */
+  Derived& baselineShift(Dimension shift);
   /** THE SHADOWS EACH GLYPH CASTS — CSS `text-shadow`, the first entry
    *  drawn nearest the glyph. They are the `underlays` field of `font()`,
    *  so the later statement replaces the list and a passage with none of

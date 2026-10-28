@@ -85,7 +85,7 @@ TEST(ComposeParagraphs, ABlockStyleOpensThePitchTheLeafSetsIt) {
            .key("t")
            .width(200.0f)
            .paragraphStyles(
-               {{.leading = sigil::weave::Leading::multiple(2.0f)}})}));
+               {{.lineHeight = sigil::weave::LineHeight::multiple(2.0f)}})}));
   led.frame();
   const std::vector<float> loose = baselinesOf(led, "t");
 

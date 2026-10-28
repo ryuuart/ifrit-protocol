@@ -1514,6 +1514,25 @@ model. A changed closure alone does not
 invalidate the memo. Style the element the builder returns, rather than
 the memo's description shell.
 
+A memo follows the live values its builder reads. A value from
+`motion.animatable()` or `motion.bind()` whose `.value` the builder reads
+is one of the memo's inputs beside its model: when the number changes, the
+next draw calls the builder again and reconciles that memo's subtree
+alone, once however many changes landed before it, with no `render` from
+the sketch. `.peek()` reads the number as it stands without following it.
+A builder that sets a live value it has read keeps the number it read; the
+write is refused and reported once. Only a memo's builder follows: a value
+read in `draw`, a timer or a describe outside any memo is read once.
+
+```python
+from sigil.compose import memo, text
+from sigil.motion import animatable
+
+gold = animatable(0.0)
+purse = memo(0, lambda model: text(str(int(gold.value)))).key("purse")
+gold.set(120.0)  # the next draw shows 120
+```
+
 Stock layouts are native values from `sigil.compose.layouts`: `Grid`,
 `Radial`, `AlongPath`, `Diagonal`, `BaselineGrid` and `Jittered`. Pass one to
 `layout(scheme).children(...)`. Grid tracks use `px`, `content`,
@@ -1531,7 +1550,7 @@ into. What a percentage is of is the slot's, as in CSS:
 | --- | --- |
 | `width`, `padding`, `inset` and the other box lengths | `"50%"` of the parent |
 | `fontSize`, `letterSpacing` | px, pt, em, rem, lh, ch, and `"150%"` of the type size (`"1.5em"`) |
-| `lineHeight` | a number (a multiple of the type size, `1.4`, as CSS's unitless line-height), a length (`"24px"`, `"1.5em"`, `"150%"` of the type size), `"normal"`, or a `weave.Leading` |
+| `lineHeight` | a number (a multiple of the type size, `1.4`, as CSS's unitless line-height), a length (`"24px"`, `"1.5em"`, `"150%"` of the type size), `"normal"`, or a `weave.LineHeight` |
 | `borderRadius`, `compose.Corners` | any length; `"50%"` of the node's own box, across and down |
 | `translateX`, `translateY` | a number or a motion value, or a length; `"50%"` of the node's own box |
 | an opacity, a filter's amount, a gradient stop | a number, or `"50%"` for one half |
@@ -1680,7 +1699,7 @@ any extra `styleClass` names the author gives it.
 ```python
 from sigil.compose import StyleSheet, rule
 from sigil.compose import document
-from sigil.weave import ParagraphBlock, Leading, Type, em
+from sigil.weave import em
 
 content = document.article(
     document.eyebrow("FIELD JOURNAL"),
@@ -1690,9 +1709,9 @@ content = document.article(
     document.quote("Let the words find a comfortable measure."),
 )
 look = StyleSheet([
-    rule("h1").font(Type(size=34, color="#88492e")),
-    rule("paragraph").paragraph(ParagraphBlock(leading=Leading.multiple(1.45))),
-    rule("quote").font(Type(color="#687969")),
+    rule("h1").fontSize(34).ink("#88492e"),
+    rule("paragraph").lineHeight(1.45),
+    rule("quote").ink("#687969"),
 ])
 page = content.applyStyleSheet(look).var(document.measure, em(34))
 ```
@@ -1929,12 +1948,11 @@ a child by its key:
 
 ```python
 from sigil.compose import box, text
-from sigil.weave import ParagraphBlock, Leading, Type, rich
+from sigil.weave import Type, rich
 
-passage = (rich().add("A ").add("warm", Type(color="#e39a60"))
+passage = (rich().add("A ").add("warm", Type(ink="#e39a60"))
            .add(" signal ").slot("status", (12, 12)).add(" arrives."))
-label = (text(passage).width(320).font(Type(size=22, color="#d8e3e8"))
-         .paragraph(ParagraphBlock(leading=Leading.multiple(1.3)))
+label = (text(passage).width(320).fontSize(22).ink("#d8e3e8").lineHeight(1.3)
          .children(box().key("status").fill("#8bd0bd")))
 ```
 

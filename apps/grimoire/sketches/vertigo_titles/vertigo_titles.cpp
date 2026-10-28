@@ -452,15 +452,15 @@ struct VertigoTitles {
             ? text(credit.words,
                    weave::textStyle({.face = clarendon,
                                      .size = credit.size,
-                                     .color = Color{0, 0, 0, 0},
-                                     .track = credit.size * 0.03f}))
+                                     .ink = Color{0, 0, 0, 0},
+                                     .letterSpacing = credit.size * 0.03f}))
                   .decorationOutline(Boundary::Glyphs)
                   .ink(hollowInk(credit.ink, std::max(1.4f, credit.size / 70)))
                   .cache(Cache::Texture)
             : text(credit.words)
                   .font({.face = clarendonBody,
                          .size = credit.size,
-                         .track = credit.size * 0.16f})
+                         .letterSpacing = credit.size * 0.16f})
                   .ink(credit.ink);
     words = std::move(words).key(key).centerAt(credit.at);
     if (credit.grow > 0)

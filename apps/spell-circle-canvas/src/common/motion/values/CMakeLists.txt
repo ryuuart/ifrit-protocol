@@ -7,14 +7,16 @@
 # the clock's, above this feature: nothing here reads a clock.
 #
 # It links SigilCoreComparable for the field pin the comparators over
-# these values sit under, and SigilCoreCompute for the shaped curves.
-# Those are edges OUT of this library, and both targets are header-only
-# leaves over the standard library (Boost.PFR aside): no kernel, no
-# device, nothing that draws.
+# these values sit under, SigilCoreCompute for the shaped curves, and
+# SigilCoreFollow, which makes a live value's cell followable so a memo's
+# describe that reads one is described again when it changes. Those are
+# edges OUT of this library: the first two are header-only leaves over the
+# standard library (Boost.PFR aside) and the third a small leaf over the
+# reporting door — no kernel, no device, nothing that draws.
 sigil_library(SigilMotionValues
   HEADERS Animatable.h Interpolate.h Oscillator.h Spring.h Tween.h Time.h
   INTERFACE SigilMotionBind SigilMotionSchedule SigilMotionTime SigilCoreComparable
-         SigilCoreCompute)
+         SigilCoreCompute SigilCoreFollow)
 
 # Links the values alone, and nothing that
 # draws, so a link edge that pulled a drawing library in would show up

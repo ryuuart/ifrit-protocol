@@ -820,31 +820,32 @@ struct SigillumAemeth {
         rule(".hand").font({.face = hand, .size = 29}),
         rule(".numeral").font({.face = hand, .size = 15}),
         rule(".angle").font({.face = hand, .size = 27}),
-        rule(".god").font({.face = capitals, .size = 25, .track = 9}),
-        rule(".point").font({.face = capitals, .size = 24, .track = 1}),
-        rule(".strand").font({.face = capitals, .size = 21, .track = 2}),
-        rule(".heptagon").font({.face = capitals, .size = 17, .track = 1}),
+        rule(".god").font({.face = capitals, .size = 25, .letterSpacing = 9}),
+        rule(".point").font({.face = capitals, .size = 24, .letterSpacing = 1}),
+        rule(".strand").font(
+            {.face = capitals, .size = 21, .letterSpacing = 2}),
+        rule(".heptagon")
+            .font({.face = capitals, .size = 17, .letterSpacing = 1}),
         rule(".zabathiel").font({.face = capitals, .size = 24}),
         rule(".initial").font({.face = capitals, .size = 22}),
         rule(".tail").font({.face = hand, .size = 15}),
         rule(".syllable").font({.face = capitals, .size = 15}),
         // The leaf.
         rule("h1").font(
-            {.face = capitals, .size = 36, .color = kInk, .track = 2.5f}),
-        rule("lead").font({.face = italic, .size = 18, .color = kInk}),
-        rule("h2").font({.face = italic, .size = 19, .color = kRubric}),
-        rule(".plain").font({.face = book, .size = 13.5f, .color = kInk}),
-        rule(".note").font({.face = italic, .size = 14, .color = kFaded}),
-        rule(".quote").font({.face = italic, .size = 16, .color = kInk}),
-        rule(".hand-pointing")
-            .font({.face = book, .size = 18, .color = kRubric}),
-        rule(".index").font({.face = italic, .size = 15, .color = kRubric}),
-        rule(".letter").font({.face = hand, .size = 26, .color = kInk}),
-        rule(".step").font({.face = book, .size = 12, .color = kRubric}),
-        rule(".cell").font({.face = mono, .size = 9.5f, .color = kFaded}),
+            {.face = capitals, .size = 36, .ink = kInk, .letterSpacing = 2.5f}),
+        rule("lead").font({.face = italic, .size = 18, .ink = kInk}),
+        rule("h2").font({.face = italic, .size = 19, .ink = kRubric}),
+        rule(".plain").font({.face = book, .size = 13.5f, .ink = kInk}),
+        rule(".note").font({.face = italic, .size = 14, .ink = kFaded}),
+        rule(".quote").font({.face = italic, .size = 16, .ink = kInk}),
+        rule(".hand-pointing").font({.face = book, .size = 18, .ink = kRubric}),
+        rule(".index").font({.face = italic, .size = 15, .ink = kRubric}),
+        rule(".letter").font({.face = hand, .size = 26, .ink = kInk}),
+        rule(".step").font({.face = book, .size = 12, .ink = kRubric}),
+        rule(".cell").font({.face = mono, .size = 9.5f, .ink = kFaded}),
         rule(".name").font(
-            {.face = capitals, .size = 23, .color = kInk, .track = 0.5f}),
-        rule(".basket").font({.face = hand, .size = 23, .color = kInk})};
+            {.face = capitals, .size = 23, .ink = kInk, .letterSpacing = 0.5f}),
+        rule(".basket").font({.face = hand, .size = 23, .ink = kInk})};
   }
 
   /** WHEN THE LAMP LANDS on each cell of each Name, one Name after another,

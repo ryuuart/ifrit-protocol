@@ -18,7 +18,7 @@ from sigil.draw import CLOSE, Pen
 from sigil.material import shader
 from sigil.motion import animatable, bind
 from sigil.sketch import Scene2DContext, sketch
-from sigil.weave import FrameOptions, Leading, Type
+from sigil.weave import FrameOptions, LineHeight, Type
 
 SIZE = (1600, 1100)
 GROUND = "#171b19"
@@ -777,7 +777,7 @@ def label(
         .textFirstBaseline(FrameOptions.FirstBaseline.CapHeight)
     )
     if leading:
-        node.lineHeight(Leading.absolute(leading))
+        node.lineHeight(LineHeight.absolute(leading))
     return node
 
 

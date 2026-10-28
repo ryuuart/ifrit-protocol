@@ -89,8 +89,8 @@ Element shapePassage() {
                           .key("central-star")
                           .shape(shapes::star(10, 0.62f, 0.08f))
                           .fill(Fill::color(kGold))
-                          .children({text(u8"FLOW").font(
-                              sheetTheme().font({.size = 14, .track = 1.2f}))});
+                          .children({text(u8"FLOW").font(sheetTheme().font(
+                              {.size = 14, .letterSpacing = 1.2f}))});
 
   Element passage =
       document::paragraph(
@@ -116,7 +116,7 @@ Element droppedPassage() {
           .key("illuminated-h")
           .shape(shapes::rounded(shapes::star(8, 0.58f, 0.12f), 5))
           .fill(Fill::color(kCinnabar))
-          .children({text(u8"H").font({.size = 50, .color = kPaper})});
+          .children({text(u8"H").font({.size = 50, .ink = kPaper})});
 
   return box().width(kMeasure).height(350).children(
       {std::move(ornament),

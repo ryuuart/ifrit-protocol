@@ -39,7 +39,7 @@ assert_type(compose.box().overflow(compose.Overflow.Visible), compose.Element)
 # Every length slot reads a length as CSS writes one.
 assert_type(compose.text("a").fontSize("150%").letterSpacing(compose.em(0.1)), compose.Text)
 assert_type(compose.box().lineHeight(1.4).lineHeight("24px"), compose.Element)
-assert_type(compose.box().lineHeight(weave.Leading.grid(8)), compose.Element)
+assert_type(compose.box().lineHeight(weave.LineHeight.grid(8)), compose.Element)
 assert_type(compose.box().borderRadius("50%").borderRadius(compose.Corners("1em")), compose.Element)
 assert_type(compose.box().translateX("-50%").translateY(compose.vh(10)), compose.Element)
 assert_type(compose.box().opacity("50%").width(compose.vmin(40)), compose.Element)

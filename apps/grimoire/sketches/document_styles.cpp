@@ -34,7 +34,7 @@ Element article() {
   const weave::RichText passage =
       weave::rich()
           .add(u8"A paragraph is one shaped passage. ")
-          .add(u8"This phrase keeps its own ink", weave::Type{.color = kInline})
+          .add(u8"This phrase keeps its own ink", weave::Type{.ink = kInline})
           .add(
               u8", while the surrounding words follow the document. "
               u8"Changing the sheet changes its voice without rebuilding "
@@ -81,24 +81,24 @@ sigil::compose::StyleSheet voice(bool editorial) {
   const material::Color accent = editorial ? kWarm : kCool;
   sigil::compose::StyleSheet sheet{
       sigil::compose::rule("article")
-          .font({.face = body, .size = 17, .color = ink, .track = 0})
-          .paragraph({.leading = weave::Leading::multiple(1.4f)}),
+          .font({.face = body, .size = 17, .ink = ink, .letterSpacing = 0})
+          .paragraph({.lineHeight = weave::LineHeight::multiple(1.4f)}),
       sigil::compose::rule("h1").font({.face = body,
                                        .size = editorial ? 32.0f : 30.0f,
-                                       .color = accent,
-                                       .track = 0}),
+                                       .ink = accent,
+                                       .letterSpacing = 0}),
       sigil::compose::rule("h2").font(
-          {.face = body, .size = 22, .color = ink, .track = 0}),
+          {.face = body, .size = 22, .ink = ink, .letterSpacing = 0}),
       sigil::compose::rule("lead").font(
-          {.face = body, .size = 19, .color = muted, .track = 0}),
+          {.face = body, .size = 19, .ink = muted, .letterSpacing = 0}),
       sigil::compose::rule("eyebrow").font(
-          {.face = mono, .size = 10, .color = accent, .track = 1.1f}),
+          {.face = mono, .size = 10, .ink = accent, .letterSpacing = 1.1f}),
       sigil::compose::rule("caption, .caption")
-          .font({.face = body, .size = 13, .color = muted, .track = 0}),
+          .font({.face = body, .size = 13, .ink = muted, .letterSpacing = 0}),
       sigil::compose::rule("footer").font(
-          {.face = mono, .size = 10, .color = muted, .track = 0}),
-      sigil::compose::rule("quote, .quote").font({.color = accent}),
-      sigil::compose::rule(".accent").font({.color = accent})};
+          {.face = mono, .size = 10, .ink = muted, .letterSpacing = 0}),
+      sigil::compose::rule("quote, .quote").font({.ink = accent}),
+      sigil::compose::rule(".accent").font({.ink = accent})};
   return sheet;
 }
 

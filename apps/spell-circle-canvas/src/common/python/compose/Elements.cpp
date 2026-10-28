@@ -372,6 +372,17 @@ void bindCompose(py::module_& module) {
       .value("Balance", TextWrap::Balance)
       .value("Stable", TextWrap::Stable)
       .value("Pretty", TextWrap::Pretty);
+  py::enum_<compose::FontKerning>(composition, "FontKerning")
+      .value("Auto", compose::FontKerning::Auto)
+      .value("Normal", compose::FontKerning::Normal)
+      .value("Optical", compose::FontKerning::Optical);
+  py::enum_<compose::TextOrientation>(composition, "TextOrientation")
+      .value("Mixed", compose::TextOrientation::Mixed)
+      .value("Upright", compose::TextOrientation::Upright)
+      .value("Sideways", compose::TextOrientation::Sideways);
+  py::enum_<compose::TextCombineUpright>(composition, "TextCombineUpright")
+      .value("None_", compose::TextCombineUpright::None)
+      .value("All", compose::TextCombineUpright::All);
   py::enum_<TextJustify>(composition, "TextJustify")
       .value("Auto", TextJustify::Auto)
       .value("InterWord", TextJustify::InterWord)

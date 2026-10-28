@@ -75,20 +75,20 @@ inline StyleSheet drawingSheet() {
           .ink(var("ink")),
       rule("caption")
           .fontSize(0.95_rem)
-          .lineHeight(weave::Leading::absolute(16))
+          .lineHeight(weave::LineHeight::absolute(16))
           .ink(var("muted")),
       rule("label").fontSize(1.05_rem).textAlign(weave::TextAlignment::kCenter),
       rule("paragraph")
           .fontFamily(book)
           .fontSize(1.1_rem)
           .letterSpacing(0)
-          .lineHeight(weave::Leading::absolute(21))
+          .lineHeight(weave::LineHeight::absolute(21))
           .textWrap(TextWrap::Pretty)
           .paragraph({.hanging = weave::kit::hanging::latin()}),
       rule(".formula")
           .fontFamily(drafting)
           .fontSize(1_rem)
-          .lineHeight(weave::Leading::absolute(19))
+          .lineHeight(weave::LineHeight::absolute(19))
           .letterSpacing(0.02_em)
           .ink(var("muted")),
       rule("footer").fontSize(0.9_rem).letterSpacing(0.14_em).ink(var("muted")),

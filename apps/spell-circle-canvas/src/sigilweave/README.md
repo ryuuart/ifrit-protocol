@@ -363,7 +363,7 @@ catalogue of those values.
 |---|---|---|
 | **Break decision** | where lines end — the breaker, its demerits, which hyphenation points it takes, how far it may spend on justification, and the count of break candidates past which it gives up for a frame | `LineBreakStrategy`, `KnuthPlassOptions`, `HyphenationOptions`, `JustificationOptions` |
 | **Line placement** | where a line's words sit — the intervals a geometry hands back for a band, the indents that inset them, the tab stops inside them, the edge a character may hang past, and where a frame seats its first baseline | `FlowGeometry`, `IndentOptions`, `TabStop`, `HangingTable`, `FrameOptions` |
-| **Strut** | a block's pitch — its leading mode, and every band something set beside the type reserved | `Leading`, `ReservedBand` |
+| **Strut** | a block's pitch — its leading mode, and every band something set beside the type reserved | `LineHeight`, `ReservedBand` |
 | **Story** | the shaped-once text and where a fill stopped, so the next frame begins there | `Story`, `Paragraph`, `layoutParagraph`'s resume word, `ParagraphLayout::firstUnplacedWord` |
 | **Segmentation** | where a break may happen at all — the language's own tailoring, and a house's prohibitions on top of it | `Paragraph::setLineBreakLocale`, `KinsokuTable`, `Hyphenator` |
 
@@ -504,7 +504,7 @@ own.
 | Target | Contents | Beyond Skia |
 |---|---|---|
 | `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
-| `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `TypeSheet` of named partials | SigilMaterialColor (public: `Type::color` is a `material::Color`) |
+| `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `TypeSheet` of named partials | SigilMaterialColor (public: `Type::ink` is a `material::Color`) |
 | `SigilWeaveFonts` | the font service and the shaper; `fonts::familyName()` and `fonts::sameFamily()`, a face's family name and whether two names are one family | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
 | `SigilWeaveLayout` | flows and flow shapes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilMediaField (the distance field a flow shape measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |

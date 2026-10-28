@@ -13,7 +13,7 @@ using namespace sigil::weave::test;
 
 TEST(ParagraphBlock, APartialOverlaysAWholeStyleFieldByField) {
   ParagraphStyle base;
-  base.leading = Leading::multiple(1.2f);
+  base.lineHeight = LineHeight::multiple(1.2f);
   base.indent.start = 10;
   base.keep.widowLines = 2;
   ParagraphBlock over;
@@ -21,7 +21,8 @@ TEST(ParagraphBlock, APartialOverlaysAWholeStyleFieldByField) {
   over.firstLineIndent = 24;
   over.orphanLines = 3;
   const ParagraphStyle total = overlay(base, over);
-  EXPECT_EQ(total.leading, Leading::multiple(1.2f)) << "unset: the base's";
+  EXPECT_EQ(total.lineHeight, LineHeight::multiple(1.2f))
+      << "unset: the base's";
   EXPECT_FLOAT_EQ(total.indent.start, 10) << "not the partial's to change";
   EXPECT_EQ(total.keep.widowLines, 2);
   EXPECT_EQ(total.alignment, TextAlignment::kCenter);
@@ -33,7 +34,7 @@ TEST(ParagraphBlock, APartialOverlaysAWholeStyleFieldByField) {
 
 TEST(ParagraphBlock, MergeCopiesFieldsAndTheEmptyPartialChangesNothing) {
   ParagraphBlock into;
-  into.leading = Leading::absolute(20);
+  into.lineHeight = LineHeight::absolute(20);
   into.alignment = TextAlignment::kEnd;
   ParagraphBlock over;
   over.alignment = TextAlignment::kJustify;
@@ -41,7 +42,7 @@ TEST(ParagraphBlock, MergeCopiesFieldsAndTheEmptyPartialChangesNothing) {
   over.lineBreakLocale = "ja";
   over.baseDirection = unicode::BaseDirection::kRightToLeft;
   merge(into, over);
-  EXPECT_EQ(into.leading, Leading::absolute(20));
+  EXPECT_EQ(into.lineHeight, LineHeight::absolute(20));
   EXPECT_EQ(into.alignment, TextAlignment::kJustify) << "the second wins";
   EXPECT_EQ(into.writingMode, WritingMode::kVerticalRL);
   EXPECT_EQ(into.lineBreakLocale, "ja");

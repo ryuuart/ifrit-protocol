@@ -870,34 +870,34 @@ struct ThunderFulu {
     const auto italic = sketch::kit::houseFace(sketch::kit::Voice::Book, 400,
                                                sigil::weave::FaceSlant::Italic);
     const auto display = weave::ports::face({"Optima", "Baskerville"}, 700);
-    running = {.face = terminal, .size = 10.5f, .color = kUmber};
+    running = {.face = terminal, .size = 10.5f, .ink = kUmber};
     sheet = StyleSheet{
-        rule(".title").font(
-            {.face = display, .size = 22, .color = kChalk, .track = 2.6f}),
-        rule(".subtitle").font({.size = 10.5f, .color = kGoldDim}),
+        rule(".title").font({.face = display,
+                             .size = 22,
+                             .ink = kChalk,
+                             .letterSpacing = 2.6f}),
+        rule(".subtitle").font({.size = 10.5f, .ink = kGoldDim}),
         rule(".heading")
             .font({.face = display,
                    .size = 11.5f,
-                   .color = kGold,
-                   .track = 1.1f}),
+                   .ink = kGold,
+                   .letterSpacing = 1.1f}),
         rule(".rite").font(
-            {.face = display, .size = 17, .color = kGold, .track = 1.4f}),
-        rule(".chant").font({.face = italic, .size = 11.5f, .color = kChalk}),
+            {.face = display, .size = 17, .ink = kGold, .letterSpacing = 1.4f}),
+        rule(".chant").font({.face = italic, .size = 11.5f, .ink = kChalk}),
         rule(".lands").font(
-            {.face = italic, .size = 11.5f, .color = hexColor(0xe07a52)}),
+            {.face = italic, .size = 11.5f, .ink = hexColor(0xe07a52)}),
         rule(".gloss").font(
-            {.face = italic, .size = 10.5f, .color = hexColor(0x7d6f52)}),
+            {.face = italic, .size = 10.5f, .ink = hexColor(0x7d6f52)}),
         rule(".colophon")
-            .font({.face = italic, .size = 10.5f, .color = hexColor(0x8d7f60)}),
-        rule(".note").font({.size = 9.5f, .color = hexColor(0x5d5341)}),
-        rule(".lawMark").font({.size = 8.5f, .color = hexColor(0xa89778)}),
+            .font({.face = italic, .size = 10.5f, .ink = hexColor(0x8d7f60)}),
+        rule(".note").font({.size = 9.5f, .ink = hexColor(0x5d5341)}),
+        rule(".lawMark").font({.size = 8.5f, .ink = hexColor(0xa89778)}),
         rule(".register")
-            .font({.size = 8.5f, .color = hexColor(0x0b0a09, 0.60f)}),
-        rule(".station")
-            .font({.size = 9.5f, .color = hexColor(0xa48c5c, 0.9f)}),
-        rule(".bayer").font({.face = italic,
-                             .size = 9.0f,
-                             .color = hexColor(0x6f6047, 0.85f)})};
+            .font({.size = 8.5f, .ink = hexColor(0x0b0a09, 0.60f)}),
+        rule(".station").font({.size = 9.5f, .ink = hexColor(0xa48c5c, 0.9f)}),
+        rule(".bayer").font(
+            {.face = italic, .size = 9.0f, .ink = hexColor(0x6f6047, 0.85f)})};
     context.composer.render(describe());
   }
 

@@ -39,7 +39,7 @@ weave::TextStyle stated() {
 
 Element row(const char* caption, Element leaf) {
   return box().column().gap(6).children(
-      {text(caption).font({.size = 12, .color = kAsh}), std::move(leaf)});
+      {text(caption).font({.size = 12, .ink = kAsh}), std::move(leaf)});
 }
 
 }  // namespace
@@ -65,7 +65,7 @@ struct TextElement {
             row("text(rich)", text(weave::rich()
                                        .add("Mixed text as ")
                                        .add("one comparable value",
-                                            weave::Type{.color = kAccent}))),
+                                            weave::Type{.ink = kAccent}))),
         });
   }
 };

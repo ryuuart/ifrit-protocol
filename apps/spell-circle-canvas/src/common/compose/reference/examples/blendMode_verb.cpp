@@ -44,7 +44,7 @@ Element cell(const char* caption, material::BlendMode mode) {
                                                         .blendMode(mode)
                                                         .left(percent(30))
                                                         .top(18)}),
-           text(caption).font({.size = 12, .color = kAsh})});
+           text(caption).font({.size = 12, .ink = kAsh})});
 }
 
 }  // namespace

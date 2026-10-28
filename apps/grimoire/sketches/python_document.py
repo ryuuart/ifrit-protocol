@@ -5,7 +5,7 @@ TAGS: Typography/Documents, Typography/Styles, Runtime/Python
 
 from sigil.compose import Element, StyleSheet, document, row, rule
 from sigil.sketch import kit, sketch
-from sigil.weave import Face, Leading, ParagraphBlock, Type
+from sigil.weave import Face, LineHeight, ParagraphBlock, Type
 
 
 def passage() -> Element:
@@ -47,16 +47,16 @@ def voice(
     return StyleSheet(
         [
             rule("article")
-            .font(Type(face=face, size=size, color=ink))
-            .paragraph(ParagraphBlock(leading=Leading.multiple(1.45))),
+            .font(Type(face=face, size=size, ink=ink))
+            .paragraph(ParagraphBlock(lineHeight=LineHeight.multiple(1.45))),
             rule("h1").font(
-                Type(face=face, size=34, weight=600, track=0, color=accent)
+                Type(face=face, size=34, weight=600, letterSpacing=0, ink=accent)
             ),
-            rule("h2").font(Type(face=face, size=19, weight=600, track=0)),
-            rule("lead").font(Type(face=face, size=17, color=muted)),
-            rule("eyebrow").font(Type(size=10, track=1.1, color=muted)),
-            rule("quote, .quote").font(Type(color=accent)),
-            rule("footer").font(Type(size=10, color=muted)),
+            rule("h2").font(Type(face=face, size=19, weight=600, letterSpacing=0)),
+            rule("lead").font(Type(face=face, size=17, ink=muted)),
+            rule("eyebrow").font(Type(size=10, letterSpacing=1.1, ink=muted)),
+            rule("quote, .quote").font(Type(ink=accent)),
+            rule("footer").font(Type(size=10, ink=muted)),
         ]
     )
 

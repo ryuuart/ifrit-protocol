@@ -76,7 +76,7 @@ void resolveTextLeafCascade(Composer::Impl& impl, Instance& inst,
   // A whole-style leaf's own colour ink is set in its paragraph, so one
   // that moved is a new paragraph of the same words.
   const std::optional<material::Color> wholeStyleInk =
-      wholeStyleLeaf && statesOwnInk ? font.color : std::nullopt;
+      wholeStyleLeaf && statesOwnInk ? font.ink : std::nullopt;
   const bool wholeStyleInkMoved = !(wholeStyleInk == inst.wholeStyleInk);
   inst.wholeStyleInk = wholeStyleInk;
   const bool reshapes = (inherits && !sameFontButColour(font, inst.textFont)) ||
@@ -135,14 +135,14 @@ void resolveTextLeafCascade(Composer::Impl& impl, Instance& inst,
       if (inst.yoga) YGNodeMarkDirty(inst.yoga);
       impl.needsLayout = true;
     }
-    if (inherits && !(font.color == inst.textFont.color))
+    if (inherits && !(font.ink == inst.textFont.ink))
       impl.refreshInheritedInk(inst);
   }
 }
 
 void Composer::Impl::refreshInheritedInk(Instance& inst) {
   if (!inst.paragraph || inst.inheritedInkRanges.empty()) {
-    inst.textFont.color = inst.font.color;
+    inst.textFont.ink = inst.font.ink;
     return;
   }
   const TextData& text = *inst.description->textData;
@@ -193,7 +193,7 @@ void Composer::Impl::refreshInheritedInk(Instance& inst) {
       }
     }
   }
-  inst.textFont.color = inst.font.color;
+  inst.textFont.ink = inst.font.ink;
   inst.markPaintDirtyUp();
   contentDirty = true;
 }

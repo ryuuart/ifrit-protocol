@@ -121,7 +121,7 @@ Element GenesisFire::dipper() {
                                                      .duration = 500ms,
                                                      .delay = 1200ms}))});
     g.children({text(kStars[i].name)
-                    .font({.size = 7.0f, .track = 1.1f})
+                    .font({.size = 7.0f, .letterSpacing = 1.1f})
                     .ink(sol ? kCyan : hexColor(0x9FB0CC, 0.85f))
                     .left(p.fX + radius + 5.0f)
                     .top(p.fY - 5.0f)
@@ -140,7 +140,7 @@ Element GenesisFire::dipper() {
            .top(s.fY + 12)
            .column()
            .gap(1)
-           .font({.size = 7.0f, .track = 0.9f})
+           .font({.size = 7.0f, .letterSpacing = 0.9f})
            .opacity(sigil::motion::animate(
                {.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 1600ms}))
            .children({text("m = 2.63 FROM ε INDI (3.64 pc)")})
@@ -298,15 +298,15 @@ Element GenesisFire::planInset() {
           box().shape(shapes::circle()).fill(hexColor(0xFFFFFF, 0.95f)),
           12 + 34 - 2, 12 + 106 - 2, 4, 4)})
       // rim caption on a curved baseline
-      .children(
-          {kit::at(text("IMPACT · KETI BANDAR · ε INDI")
-                       .font({.face = monoFace(), .size = 8.0f, .track = 1.4f})
-                       .ink(kCyan)
-                       .textOnPath(TextPath{.path = shapes::circle(),
-                                            .at = 0.75f,
-                                            .align = TextPath::Align::Center,
-                                            .offset = 8.0f}),
-                   12, 12, 184, 184)});
+      .children({kit::at(
+          text("IMPACT · KETI BANDAR · ε INDI")
+              .font({.face = monoFace(), .size = 8.0f, .letterSpacing = 1.4f})
+              .ink(kCyan)
+              .textOnPath(TextPath{.path = shapes::circle(),
+                                   .at = 0.75f,
+                                   .align = TextPath::Align::Center,
+                                   .offset = 8.0f}),
+          12, 12, 184, 184)});
 }
 
 Element GenesisFire::stageAbove() {
@@ -314,18 +314,19 @@ Element GenesisFire::stageAbove() {
       .width(kStageW)
       .height(kStageH)
       .overflow(Overflow::Clip)
-      .children({planInset(),
-                 text("FIG. 2 — DISTRIBUTION OF PARTICLE SYSTEMS "
-                      "ON THE PLANET'S SURFACE")
-                     .font({.face = monoFace(), .size = 8.5f, .track = 0.6f})
-                     .ink(kSteel)
-                     .left(24)
-                     .top(236)
-                     .width(300)
-                     .opacity(sigil::motion::animate({.from = 0.0f,
-                                                      .to = 1.0f,
-                                                      .duration = 300ms,
-                                                      .delay = 1050ms}))});
+      .children(
+          {planInset(),
+           text("FIG. 2 — DISTRIBUTION OF PARTICLE SYSTEMS "
+                "ON THE PLANET'S SURFACE")
+               .font({.face = monoFace(), .size = 8.5f, .letterSpacing = 0.6f})
+               .ink(kSteel)
+               .left(24)
+               .top(236)
+               .width(300)
+               .opacity(sigil::motion::animate({.from = 0.0f,
+                                                .to = 1.0f,
+                                                .duration = 300ms,
+                                                .delay = 1050ms}))});
 }
 
 void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,
@@ -341,7 +342,8 @@ void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,
   pen.noStroke();
 
   float cy = y0 + 11;
-  pen.textFont(weave::Type{.face = uiFace(), .size = 8.5f, .track = 1.7f});
+  pen.textFont(
+      weave::Type{.face = uiFace(), .size = 8.5f, .letterSpacing = 1.7f});
   pen.fill(hexColor(0x4FB8D8, a));
   pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
   pen.text("MOTION BLUR — REEVES 1983 §3", x0 + 11, cy);

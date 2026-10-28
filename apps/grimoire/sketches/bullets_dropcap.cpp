@@ -38,8 +38,8 @@ constexpr const char* kPassage =
 weave::Type serif(float size, material::Color color, float tracking = 0) {
   return {.face = weave::ports::face({"Iowan Old Style", "Georgia", "serif"}),
           .size = size,
-          .color = color,
-          .track = tracking};
+          .ink = color,
+          .letterSpacing = tracking};
 }
 
 Element opening(std::optional<kit::NestedStyle> nested) {

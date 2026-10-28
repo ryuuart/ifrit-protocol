@@ -88,11 +88,11 @@ void applyKeyword(Type& total, const Type& base, TypeField field,
     case TypeField::Size:
       total.size = from.size;
       return;
-    case TypeField::Color:
-      total.color = from.color;
+    case TypeField::Ink:
+      total.ink = from.ink;
       return;
-    case TypeField::Track:
-      total.track = from.track;
+    case TypeField::LetterSpacing:
+      total.letterSpacing = from.letterSpacing;
       return;
     case TypeField::Condense:
       total.condense = from.condense;
@@ -165,8 +165,8 @@ Type initialType() {
   Type initial;
   initial.face = defaultFace();
   initial.size = Length(kInitialTypeSizePx);
-  initial.color = material::Color{0, 0, 0, 1};
-  initial.track = Length(0.0f);
+  initial.ink = material::Color{0, 0, 0, 1};
+  initial.letterSpacing = Length(0.0f);
   initial.condense = 1.0f;
   initial.weight = 0.0f;
   initial.slant = 0.0f;
@@ -189,8 +189,8 @@ Type initialType() {
 Type& merge(Type& into, const Type& over) {
   if (over.face) into.face = over.face;
   if (over.size) into.size = over.size;
-  if (over.color) into.color = over.color;
-  if (over.track) into.track = over.track;
+  if (over.ink) into.ink = over.ink;
+  if (over.letterSpacing) into.letterSpacing = over.letterSpacing;
   if (over.condense) into.condense = over.condense;
   if (over.weight) into.weight = over.weight;
   if (over.slant) into.slant = over.slant;
@@ -226,9 +226,9 @@ Type overlay(const Type& base, const Type& over, float rootSizePx,
   if (over.size && over.size->relative())
     total.size = Length(
         resolvePx(*over.size, sizeAgainst(base), rootSizePx, lineHeightPx));
-  if (total.track && total.track->relative())
-    total.track = Length(
-        resolvePx(*total.track, sizeAgainst(total), rootSizePx, lineHeightPx));
+  if (total.letterSpacing && total.letterSpacing->relative())
+    total.letterSpacing = Length(resolvePx(
+        *total.letterSpacing, sizeAgainst(total), rootSizePx, lineHeightPx));
   if (total.wordSpacing && total.wordSpacing->relative())
     total.wordSpacing = Length(resolvePx(*total.wordSpacing, sizeAgainst(total),
                                          rootSizePx, lineHeightPx));
@@ -251,13 +251,14 @@ TextStyle toTextStyle(const Type& total) {
           ? resolvePx(*total.size, kInitialTypeSizePx, kInitialTypeSizePx, 0.0f)
           : kInitialTypeSizePx;
   style.shaping.letterSpacing =
-      total.track ? resolvePx(*total.track, style.shaping.fontSize,
-                              kInitialTypeSizePx, 0.0f)
-                  : 0.0f;
+      total.letterSpacing
+          ? resolvePx(*total.letterSpacing, style.shaping.fontSize,
+                      kInitialTypeSizePx, 0.0f)
+          : 0.0f;
   style.shaping.scaleX = total.condense.value_or(1.0f);
   style.shaping.aliased = total.aliased.value_or(false);
   setInk(style.paint.foreground,
-         total.color.value_or(material::Color{0, 0, 0, 1}),
+         total.ink.value_or(material::Color{0, 0, 0, 1}),
          total.color8.value_or(false));
   style.paint.foreground.setAntiAlias(total.antiAlias.value_or(true));
   if (total.weight && *total.weight > 0) style.variation("wght", *total.weight);
@@ -288,13 +289,13 @@ TextStyle overlay(TextStyle base, const Type& over, float rootSizePx) {
         base.shaping.fontSize > 0 ? base.shaping.fontSize : kInitialTypeSizePx;
     base.shaping.fontSize = resolvePx(*over.size, against, rootSizePx, 0.0f);
   }
-  if (over.track)
+  if (over.letterSpacing)
     base.shaping.letterSpacing =
-        resolvePx(*over.track, base.shaping.fontSize, rootSizePx, 0.0f);
+        resolvePx(*over.letterSpacing, base.shaping.fontSize, rootSizePx, 0.0f);
   if (over.condense) base.shaping.scaleX = *over.condense;
   if (over.aliased) base.shaping.aliased = *over.aliased;
-  if (over.color) {
-    setInk(base.paint.foreground, *over.color, over.color8.value_or(false));
+  if (over.ink) {
+    setInk(base.paint.foreground, *over.ink, over.color8.value_or(false));
     base.paint.foregroundMaterial.reset();
   }
   if (over.antiAlias) base.paint.foreground.setAntiAlias(*over.antiAlias);
@@ -323,7 +324,7 @@ bool reshapes(const Type& partial) {
   // shaping field answers here exactly as a number would.
   for (const KeywordTable<TypeField>::Entry& entry : partial.keywords.entries())
     switch (entry.field) {
-      case TypeField::Color:
+      case TypeField::Ink:
       case TypeField::AntiAlias:
       case TypeField::Color8:
       case TypeField::Decorations:
@@ -335,7 +336,7 @@ bool reshapes(const Type& partial) {
       default:
         return true;
     }
-  return partial.face.has_value() || partial.size || partial.track ||
+  return partial.face.has_value() || partial.size || partial.letterSpacing ||
          partial.condense || partial.weight || partial.slant ||
          partial.aliased || !partial.variations.empty() || partial.language ||
          partial.features || partial.opticalKerning || partial.wordSpacing ||

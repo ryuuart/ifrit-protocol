@@ -90,7 +90,7 @@ class Ramp final : public detail::Stepped {
     if (!cell || cell->writer != m_writer) return false;
     m_time += deltaSeconds;
     if (m_end >= 0.0 && m_time >= m_end) {
-      cell->value = rest();
+      cell->write(rest());
       cell->moving = false;
       return false;
     }
@@ -103,7 +103,7 @@ class Ramp final : public detail::Stepped {
                              : 1.0f;
       value += layer.delta * (layer.ease ? layer.ease(unit) : unit);
     }
-    cell->value = value;
+    cell->write(value);
     return true;
   }
 

@@ -34,7 +34,7 @@ def register(context):
     """The face, size and tracking of the register the program's node is set
     in, with the colour left to the pen's fill."""
     font = context.font
-    return Type(face=font.face, size=font.size, track=font.track)
+    return Type(face=font.face, size=font.size, letterSpacing=font.letterSpacing)
 
 
 @sketch(size=(1000, 780), captureAt=0, theme=kit.featureTheme(kit.Density.Spacious))

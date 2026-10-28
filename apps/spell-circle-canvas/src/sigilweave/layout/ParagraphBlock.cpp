@@ -20,8 +20,8 @@ void applyKeyword(ParagraphBlock& total, const ParagraphBlock& base,
   const ParagraphBlock initial;
   const ParagraphBlock& from = keyword == Keyword::Initial ? initial : base;
   switch (field) {
-    case ParagraphField::Leading:
-      total.leading = from.leading;
+    case ParagraphField::LineHeight:
+      total.lineHeight = from.lineHeight;
       return;
     case ParagraphField::HalfLeading:
       total.halfLeading = from.halfLeading;
@@ -94,7 +94,7 @@ void applyKeyword(ParagraphBlock& total, const ParagraphBlock& base,
 }  // namespace
 
 ParagraphBlock& merge(ParagraphBlock& into, const ParagraphBlock& over) {
-  if (over.leading) into.leading = over.leading;
+  if (over.lineHeight) into.lineHeight = over.lineHeight;
   if (over.halfLeading) into.halfLeading = over.halfLeading;
   if (over.alignment) into.alignment = over.alignment;
   if (over.justification) into.justification = over.justification;
@@ -149,7 +149,7 @@ ParagraphStyle overlay(ParagraphStyle base, const ParagraphBlock& over) {
   // style's. State the field's value where a block must reset one.
   if (!over.keywords.empty())
     return overlay(base, overlay(ParagraphBlock{}, over));
-  if (over.leading) base.leading = *over.leading;
+  if (over.lineHeight) base.lineHeight = *over.lineHeight;
   if (over.halfLeading) base.halfLeading = *over.halfLeading;
   if (over.alignment) base.alignment = over.alignment;
   if (over.justification) base.justification = over.justification;

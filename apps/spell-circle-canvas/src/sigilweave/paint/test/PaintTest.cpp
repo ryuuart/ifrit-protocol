@@ -326,7 +326,7 @@ InitialInk initialInk(const Type& initial, bool batched) {
 TEST(PaintPasses, AnInitialLettersOwnColourPaintsTheCapAndNothingElse) {
   for (const bool batched : {false, true}) {
     const InitialInk ink =
-        initialInk(Type{.color = SkColor4f{1, 0, 0, 1}}, batched);
+        initialInk(Type{.ink = SkColor4f{1, 0, 0, 1}}, batched);
     EXPECT_GT(ink.redInNotch, 100) << "the cap took its own colour";
     EXPECT_EQ(ink.redPastNotch, 0) << "the body took the initial's colour";
     EXPECT_GT(ink.whitePastNotch, 100) << "the body lost its own colour";

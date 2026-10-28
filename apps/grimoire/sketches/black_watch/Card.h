@@ -171,7 +171,7 @@ StyleSheet cardSheet(const CardColours& colours, float draftCell) {
           .fontSize(1.3_rem)
           .ink(var("ink"))
           .font({.language = "en-GB"})
-          .lineHeight(weave::Leading::absolute(16))
+          .lineHeight(weave::LineHeight::absolute(16))
           .textAlign(weave::TextAlignment::kJustify)
           .textWrap(TextWrap::Pretty)
           .hyphens({.patterns = weave::kit::englishHyphenator()}),

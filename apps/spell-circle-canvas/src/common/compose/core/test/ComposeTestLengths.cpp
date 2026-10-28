@@ -74,14 +74,12 @@ TEST(ComposeLengths, ARelativeLengthUnderASizeInPointsMeasuresThePixels) {
   // pixels those points come to, not of the point count. Twelve points
   // are sixteen pixels, and an em is one of them.
   Host host(400, 200);
-  host.composer.render(box()
-                           .font({.face = sigil::test::instrument::sans(),
-                                  .size = sigil::weave::pt(12)})
-                           .children({box()
-                                          .key("measured")
-                                          .width(1_em)
-                                          .flexShrink(0)
-                                          .height(10)}));
+  host.composer.render(
+      box()
+          .font({.face = sigil::test::instrument::sans(),
+                 .size = sigil::weave::pt(12)})
+          .children(
+              {box().key("measured").width(1_em).flexShrink(0).height(10)}));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host), 16.0f);
 }
@@ -197,7 +195,8 @@ TEST(ComposeLengths, ASumLeavesTheTableWithItsLastHolder) {
     const Dimension copy = sum;
     Dimension moved = Dimension(3_em) + 17_px;
     const Dimension taken = std::move(moved);
-    EXPECT_EQ(sigil::compose::detail::calcEntries(), before + 1) << "one entry per sum";
+    EXPECT_EQ(sigil::compose::detail::calcEntries(), before + 1)
+        << "one entry per sum";
     EXPECT_EQ(copy, taken);
     Dimension replaced = Dimension(5_em) + 3_px;
     EXPECT_EQ(sigil::compose::detail::calcEntries(), before + 2);
@@ -242,11 +241,13 @@ TEST(ComposeLengths, AFractionIsANumberOrAPercentage) {
 
 TEST(ComposeLengths, ASumReadsACustomPropertyAndTheCanvas) {
   Host host(400, 200);
-  host.composer.render(box().var("gutter", 10_px).children(
-      {box()
-           .key("measured")
-           .width(Dimension(var("gutter")) * 3 + 10_vw)
-           .height(10)}));
+  host.composer.render(
+      box()
+          .var("gutter", 10_px)
+          .children({box()
+                         .key("measured")
+                         .width(Dimension(var("gutter")) * 3 + 10_vw)
+                         .height(10)}));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host), 3.0f * 10.0f + 0.1f * 400.0f);
 }
@@ -276,9 +277,8 @@ TEST(ComposeLengths, APercentageSumResolvesWhereItsExtentIsKnown) {
   // and the SAME declaration still resolves where the extent is known.
   const Dimension halfAndTen = percent(50) + Dimension(10);
   Host host(400, 200);
-  host.composer.render(
-      positioned().width(300).height(100).children(
-          {box().key("measured").left(0).top(0).width(halfAndTen).height(10)}));
+  host.composer.render(positioned().width(300).height(100).children(
+      {box().key("measured").left(0).top(0).width(halfAndTen).height(10)}));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host), 0.5f * 300.0f + 10.0f);
 
@@ -331,15 +331,14 @@ TEST(ComposeLengths, AFontSizeInPercentIsAMultipleOfTheParentsSize) {
   // measured on the node itself then reads.
   Host host(400, 200);
   host.composer.render(pageWith(
-      box().fontSize(150_percent).width(1_em).height(10).flexShrink(0),
-      40.0f));
+      box().fontSize(150_percent).width(1_em).height(10).flexShrink(0), 40.0f));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host), 60.0f);
 }
 
 TEST(ComposeLengths, ALineHeightInARelativeUnitIsAnAbsolutePitch) {
   // CSS's line-height as a length: 24 px, 1.5em and 150% of a 20 px type
-  // size are all a 30 px pitch, the same one Leading::absolute states.
+  // size are all a 30 px pitch, the same one LineHeight::absolute states.
   Host host(400, 400);
   const auto line = [](const char* key) {
     return text(u8"A").key(key).flexShrink(0);
@@ -352,7 +351,7 @@ TEST(ComposeLengths, ALineHeightInARelativeUnitIsAnAbsolutePitch) {
                      line("em").lineHeight(1.5_em),
                      line("percent").lineHeight(150_percent),
                      line("leading").lineHeight(
-                         sigil::weave::Leading::absolute(30))}));
+                         sigil::weave::LineHeight::absolute(30))}));
   host.frame();
   const float pitch = require(host.composer.bounds("leading")).height();
   EXPECT_FLOAT_EQ(require(host.composer.bounds("pixels")).height(), pitch);
@@ -373,7 +372,7 @@ TEST(ComposeLengths, ARelativeLineHeightIsInheritedAsThePitchItCameTo) {
                      text(u8"A")
                          .key("stated")
                          .fontSize(40)
-                         .lineHeight(sigil::weave::Leading::absolute(30))
+                         .lineHeight(sigil::weave::LineHeight::absolute(30))
                          .flexShrink(0)}));
   host.frame();
   EXPECT_FLOAT_EQ(require(host.composer.bounds("inherited")).height(),
@@ -394,11 +393,11 @@ TEST(ComposeLengths, ANumberLineHeightIsAMultipleOfTheTypeSize) {
           .column()
           .children(
               {line("number").lineHeight(2.0f),
-               line("forty").lineHeight(sigil::weave::Leading::absolute(40)),
+               line("forty").lineHeight(sigil::weave::LineHeight::absolute(40)),
                box().lineHeight(2.0f).flexShrink(0).children(
                    {line("smaller").fontSize(10)}),
                line("twenty").fontSize(10).lineHeight(
-                   sigil::weave::Leading::absolute(20))}));
+                   sigil::weave::LineHeight::absolute(20))}));
   host.frame();
   EXPECT_FLOAT_EQ(require(host.composer.bounds("number")).height(),
                   require(host.composer.bounds("forty")).height());

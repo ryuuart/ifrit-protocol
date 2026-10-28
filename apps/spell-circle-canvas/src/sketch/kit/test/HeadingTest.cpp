@@ -39,8 +39,8 @@ sigil::weave::TextStyle cardLine(const kit::Register& line,
                                  sigil::material::Color ink) {
   return sigil::weave::textStyle({.face = line.face,
                                   .size = line.size,
-                                  .color = ink,
-                                  .track = line.track});
+                                  .ink = ink,
+                                  .letterSpacing = line.letterSpacing});
 }
 
 /** The card is the header half of a page, standing alone: three lines in
@@ -154,10 +154,11 @@ TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
           .alignItems(compose::Align::Start)
           .children({compose::text(
               u8"THE STROKE ATLAS",
-              sigil::weave::textStyle({.face = paper.type.mono,
-                                       .size = paper.type.title.size,
-                                       .color = paper.palette.ink,
-                                       .track = paper.type.title.track}))});
+              sigil::weave::textStyle(
+                  {.face = paper.type.mono,
+                   .size = paper.type.title.size,
+                   .ink = paper.palette.ink,
+                   .letterSpacing = paper.type.title.letterSpacing}))});
   EXPECT_TRUE(
       sameDrawing(sheeted(std::move(byHand)),
                   sheeted(kit::titleCard({.title = {u8"THE STROKE ATLAS"}}))));
@@ -180,11 +181,12 @@ TEST(SketchKitHeading, AFamilyTheSheetSetsReachesTheCardsLines) {
         compose::box()
             .column()
             .alignItems(compose::Align::Start)
-            .children({compose::text(u8"T")
-                           .font({.size = house.type.title.size,
-                                  .color = feature.palette.ink,
-                                  .track = house.type.title.track})
-                           .fontWeight(weight)}));
+            .children(
+                {compose::text(u8"T")
+                     .font({.size = house.type.title.size,
+                            .ink = feature.palette.ink,
+                            .letterSpacing = house.type.title.letterSpacing})
+                     .fontWeight(weight)}));
   };
   const Element card = kit::titleCard({.title = {u8"T"}});
   EXPECT_TRUE(sameDrawing(underGeorgia(card), title(400)));
@@ -259,7 +261,7 @@ TEST(SketchKitHeading, AnAuthoredShaderKeepsDocumentTypography) {
   Drawn styled(
       compose::box()
           .applyStyleSheet(compose::StyleSheet{
-              compose::rule("h1").font({.size = 32, .color = SkColors::kRed})})
+              compose::rule("h1").font({.size = 32, .ink = SkColors::kRed})})
           .children({card}));
   const auto before = original.composer.bounds("card-title");
   const auto after = styled.composer.bounds("card-title");
@@ -300,9 +302,9 @@ TEST(SketchKitHeading, DocumentRulesSetASectionHeadingAndItsCaption) {
   EXPECT_TRUE(sameDrawing(
       compose::box()
           .applyStyleSheet(compose::StyleSheet{
-              compose::rule("h2").font({.size = 24, .color = SkColors::kRed}),
+              compose::rule("h2").font({.size = 24, .ink = SkColors::kRed}),
               compose::rule("caption, .caption")
-                  .font({.size = 18, .color = SkColors::kGreen})})
+                  .font({.size = 18, .ink = SkColors::kGreen})})
           .children({header}),
       compose::box().children({std::move(byHand)})));
 }

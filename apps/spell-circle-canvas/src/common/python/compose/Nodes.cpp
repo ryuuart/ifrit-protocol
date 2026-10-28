@@ -22,9 +22,11 @@
 #include <sigilpython/compose/Operators.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
+#include <sigilweave/paragraph/Hyphenation.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <cmath>
@@ -111,6 +113,52 @@ weave::Length fontLength(py::handle value, const char* verb) {
 }
 }  // namespace
 
+namespace {
+
+/** An OpenType tag written in Python: four bytes of text. */
+std::string openTypeTag(py::handle tag) {
+  const auto text = tag.cast<std::string>();
+  if (text.size() != 4)
+    throw py::value_error("An OpenType tag needs four bytes, not '" + text +
+                          "'.");
+  return text;
+}
+
+/** A feature written as a weave.FontFeature, a (tag, value) pair, or a
+ *  bare tag, which is on. */
+weave::FontFeature openTypeFeature(py::handle entry) {
+  if (py::isinstance<weave::FontFeature>(entry))
+    return entry.cast<weave::FontFeature>();
+  weave::FontFeature feature;
+  std::string tag;
+  if (py::isinstance<py::str>(entry)) {
+    tag = openTypeTag(entry);
+  } else {
+    const auto pair = entry.cast<py::tuple>();
+    if (pair.size() != 2)
+      throw py::value_error("A feature pair is (tag, value).");
+    tag = openTypeTag(pair[0]);
+    feature.value = pair[1].cast<uint32_t>();
+  }
+  std::copy_n(tag.begin(), 4, feature.tag);
+  return feature;
+}
+
+/** An axis written as a weave.FontVariation or a (tag, value) pair. */
+weave::FontVariation openTypeVariation(py::handle entry) {
+  if (py::isinstance<weave::FontVariation>(entry))
+    return entry.cast<weave::FontVariation>();
+  const auto pair = entry.cast<py::tuple>();
+  if (pair.size() != 2) throw py::value_error("An axis pair is (tag, value).");
+  const std::string tag = openTypeTag(pair[0]);
+  weave::FontVariation variation;
+  std::copy_n(tag.begin(), 4, variation.tag);
+  variation.value = pair[1].cast<float>();
+  return variation;
+}
+
+}  // namespace
+
 template <class Node>
 void bindFontVerbs(py::class_<Node>& element) {
   element.def("font", &Node::font, py::arg("type"), fluent)
@@ -160,7 +208,8 @@ void bindFontVerbs(py::class_<Node>& element) {
               throw py::type_error(
                   "fontStyle() takes a FontStyle or an angle, a number of "
                   "degrees or angle text such as '14deg'; '" +
-                  text + "' is neither. A style is written FontStyle.Italic "
+                  text +
+                  "' is neither. A style is written FontStyle.Italic "
                   "or FontStyle.Normal.");
             }
             if (const std::optional<core::angle::Angle> written =
@@ -183,6 +232,89 @@ void bindFontVerbs(py::class_<Node>& element) {
             return self.letterSpacing(fontLength(value, "letterSpacing"));
           },
           py::arg("tracking"), fluent)
+      .def(
+          "wordSpacing",
+          [](Node& self, py::object value) -> Node& {
+            return self.wordSpacing(fontLength(value, "wordSpacing"));
+          },
+          py::arg("spacing"), fluent)
+      .def(
+          "fontFeatureSettings",
+          [](Node& self, py::object settings) -> Node& {
+            // CSS's text, or the features as values: FontFeature, a
+            // (tag, value) pair, or a bare tag, which is on.
+            if (py::isinstance<py::str>(settings)) {
+              const auto text = settings.cast<std::string>();
+              if (std::optional<std::vector<weave::FontFeature>> read =
+                      compose::readFontFeatureSettings(text))
+                return self.fontFeatureSettings(std::move(*read));
+              throw py::value_error(
+                  "'" + text +
+                  "' is no CSS font-feature-settings this reads: a "
+                  "comma-separated list of four-letter tags, each followed "
+                  "by a number, on, off or nothing, such as '\"tnum\", "
+                  "\"liga\" 0'; or 'normal'.");
+            }
+            std::vector<weave::FontFeature> features;
+            for (py::handle entry : settings)
+              features.push_back(openTypeFeature(entry));
+            return self.fontFeatureSettings(std::move(features));
+          },
+          py::arg("settings"), fluent,
+          "The OpenType features, CSS's font-feature-settings: its text, "
+          "such as '\"tnum\", \"liga\" 0', or a list of weave.FontFeature, "
+          "(tag, value) pairs or bare tags. The list replaces the one in "
+          "force whole.")
+      .def(
+          "fontVariationSettings",
+          [](Node& self, py::object settings) -> Node& {
+            if (py::isinstance<py::str>(settings)) {
+              const auto text = settings.cast<std::string>();
+              if (std::optional<std::vector<weave::FontVariation>> read =
+                      compose::readFontVariationSettings(text))
+                return self.fontVariationSettings(std::move(*read));
+              throw py::value_error(
+                  "'" + text +
+                  "' is no CSS font-variation-settings this reads: a "
+                  "comma-separated list of four-letter axis tags, each "
+                  "followed by a number, such as '\"wdth\" 75'; or "
+                  "'normal'.");
+            }
+            std::vector<weave::FontVariation> variations;
+            if (py::isinstance<py::dict>(settings)) {
+              for (auto [tag, value] : settings.cast<py::dict>())
+                variations.push_back(
+                    openTypeVariation(py::make_tuple(tag, value)));
+            } else {
+              for (py::handle entry : settings)
+                variations.push_back(openTypeVariation(entry));
+            }
+            return self.fontVariationSettings(std::move(variations));
+          },
+          py::arg("settings"), fluent,
+          "The variation axes, CSS's font-variation-settings: its text, such "
+          "as '\"wdth\" 75', a dict from tag to value, or a list of "
+          "weave.FontVariation or (tag, value) pairs. An axis named again "
+          "replaces the one in force.")
+      .def("fontKerning", &Node::fontKerning, py::arg("kerning"), fluent)
+      .def("textTransform", &Node::textTransform, py::arg("transform"), fluent)
+      .def("textOrientation", &Node::textOrientation, py::arg("orientation"),
+           fluent)
+      .def("textCombineUpright", &Node::textCombineUpright, py::arg("combine"),
+           fluent)
+      .def(
+          "baselineShift",
+          [](Node& self, py::object shift) -> Node& {
+            const compose::Dimension length = dimension(shift);
+            if (length.unit != compose::Dimension::Unit::Px &&
+                length.unit != compose::Dimension::Unit::Pt)
+              throw py::value_error(
+                  "baselineShift() takes a length in pixels or pt, such as "
+                  "3, '3px' or '2pt'; negative sinks the glyphs below the "
+                  "baseline.");
+            return self.baselineShift(length);
+          },
+          py::arg("shift"), fluent)
       .def(
           "textShadow",
           [](Node& self, py::object shadows) -> Node& {
@@ -419,11 +551,11 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
           [](Node& self, py::object value) -> Node& {
             // CSS's four forms: a number is a multiple of the type size, a
             // length is an absolute pitch, "normal" is the face's own; a
-            // Leading says any of those and the baseline grid besides.
-            if (py::isinstance<weave::Leading>(value))
-              return self.lineHeight(value.cast<weave::Leading>());
+            // LineHeight says any of those and the baseline grid besides.
+            if (py::isinstance<weave::LineHeight>(value))
+              return self.lineHeight(value.cast<weave::LineHeight>());
             if (isWord(value, "normal"))
-              return self.lineHeight(weave::Leading::face());
+              return self.lineHeight(weave::LineHeight::face());
             if ((py::isinstance<py::int_>(value) &&
                  !py::isinstance<py::bool_>(value)) ||
                 py::isinstance<py::float_>(value))
@@ -433,12 +565,34 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
               throw py::value_error(
                   "lineHeight() takes a number (a multiple of the type "
                   "size), a length "
-                  "('24px', '1.5em', '150%'), 'normal' or a Leading; auto is "
+                  "('24px', '1.5em', '150%'), 'normal' or a LineHeight; auto "
+                  "is "
                   "no pitch.");
             return self.lineHeight(length);
           },
-          py::arg("leading"), fluent)
+          py::arg("pitch"), fluent)
       .def("textAlign", &Node::textAlign, py::arg("alignment"), fluent)
+      .def("textAlignLast", &Node::textAlignLast, py::arg("alignment"), fluent)
+      .def(
+          "hangingPunctuation",
+          [](Node& self, py::object value) -> Node& {
+            if (py::isinstance<weave::HangingTable>(value))
+              return self.hangingPunctuation(value.cast<weave::HangingTable>());
+            const auto text = value.cast<std::string>();
+            if (std::optional<weave::HangingTable> table =
+                    compose::readHangingPunctuation(text))
+              return self.hangingPunctuation(std::move(*table));
+            throw py::value_error(
+                "'" + text +
+                "' is no CSS hanging-punctuation: 'none', or any of 'first', "
+                "'last' and one of 'force-end' and 'allow-end'.");
+          },
+          py::arg("hanging"), fluent,
+          "What may hang past the measure, CSS's hanging-punctuation: its "
+          "text, such as 'first allow-end last', or a weave.HangingTable "
+          "of fractions of each mark's advance.")
+      .def("widows", &Node::widows, py::arg("lines"), fluent)
+      .def("orphans", &Node::orphans, py::arg("lines"), fluent)
       .def(
           "textIndent",
           [](Node& self, py::object indent) -> Node& {
@@ -660,8 +814,7 @@ void bindNodeVerbs(py::class_<Node>& element) {
         py::arg("value"), fluent);
   for (const auto& [name, setter] : std::initializer_list<
            std::pair<const char*, Node& (Node::*)(motion::Animatable<float>)>>{
-           {"rotateX", &Node::rotateX},
-           {"rotateY", &Node::rotateY}})
+           {"rotateX", &Node::rotateX}, {"rotateY", &Node::rotateY}})
     element.def(
         name,
         [setter](Node& self, py::object value) -> Node& {
@@ -673,8 +826,8 @@ void bindNodeVerbs(py::class_<Node>& element) {
       [](Node& self, const material::Material& material,
          const std::variant<float, std::string, compose::Dimension>& width,
          material::StrokePosition position) -> Node& {
-        return self.stroke(material, {pixels(py::cast(width), "A stroke's width"),
-                                      position});
+        return self.stroke(
+            material, {pixels(py::cast(width), "A stroke's width"), position});
       },
       py::arg("material"), py::arg("width") = 1.0f,
       py::arg("position") = material::StrokePosition::Outside, fluent);

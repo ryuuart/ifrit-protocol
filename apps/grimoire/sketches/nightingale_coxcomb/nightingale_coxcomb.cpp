@@ -321,7 +321,7 @@ struct NightingaleCoxcomb {
         rule("paragraph")
             .fontFamily(roundhand)
             .fontSize(1.3_rem)
-            .lineHeight(weave::Leading::absolute(30.5f))
+            .lineHeight(weave::LineHeight::absolute(30.5f))
             .textWrap(TextWrap::Pretty)
             .textIndent(-22)
             .paddingLeft(22),

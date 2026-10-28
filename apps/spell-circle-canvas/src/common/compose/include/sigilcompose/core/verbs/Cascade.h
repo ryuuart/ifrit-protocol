@@ -20,9 +20,21 @@
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/style/Style.h>
 
+#include <optional>
 #include <string_view>
 
 namespace sigil::compose {
+
+/** CSS'S `hanging-punctuation` READ FROM ITS TEXT, as the table of what
+ *  may hang past the measure: `first` hangs the opening quotes and
+ *  brackets wholly before the line's start, `last` the closing ones wholly
+ *  past its end, and `force-end` or `allow-end` the stops and commas past
+ *  its end — `readHangingPunctuation("first allow-end last")`. `none` is
+ *  the empty table. Nothing where a word does not read or is repeated.
+ *  @trap `allow-end` reads as `force-end`: a mark the table names hangs
+ *  wherever it ends a line, whether or not the line would have fitted. */
+std::optional<sigil::weave::HangingTable> readHangingPunctuation(
+    std::string_view text);
 
 /** WHAT FLOWS DOWN THE TREE, from a node to everything under it,
  *  wherever the code that built a child ran. A node that leaves one of
@@ -35,14 +47,14 @@ class CascadeVerbs {
   /** HOW EVERY PARAGRAPH under this node is set, as a PARTIAL, in the
    *  same way the font is: the fields it names override the inherited
    *  setting and the rest inherit. The one spelling of every paragraph
-   *  field — the leading, the alignment, the indents, the writing mode
+   *  field — the line height, the alignment, the indents, the writing mode
    *  and the rest; the longhands below each write one field of it, CSS's
    *  names for the fields CSS has. */
   Derived& paragraph(sigil::weave::ParagraphBlock partial);
   /** THE PITCH OF THE LINES — CSS `line-height` as a NUMBER: @p multiple
-   *  times the type size, `Leading::sizeMultiple`, inherited as the
+   *  times the type size, `LineHeight::sizeMultiple`, inherited as the
    *  multiple so a passage set at another size below takes the same
-   *  multiple of its own size. The `leading` field of `paragraph()`. The
+   *  multiple of its own size. The `lineHeight` field of `paragraph()`. The
    *  face's own when nothing states one. */
   Derived& lineHeight(float multiple);
   /** THE PITCH OF THE LINES AS A LENGTH — CSS `line-height: 24px`, `1.5em`
@@ -50,18 +62,44 @@ class CascadeVerbs {
    *  viewport unit, a custom property or a sum against the font, the
    *  canvas and the properties where it is stated, and a `percent` of the
    *  node's own type size, as CSS reads one. It is resolved into an
-   *  absolute pitch, `Leading::absolute`, where it is stated and
+   *  absolute pitch, `LineHeight::absolute`, where it is stated and
    *  inherited as that pitch, as CSS computes it.
    *  @trap `auto` is no pitch: it is refused, and said once. */
   Derived& lineHeight(Dimension length);
-  /** THE PITCH AS A LEADING — the face's own, a multiple, an absolute
-   *  pitch, or a baseline grid (`Leading::grid`, which no CSS form
+  /** THE PITCH AS A VALUE — the face's own, a multiple, an absolute
+   *  pitch, or a baseline grid (`LineHeight::grid`, which no CSS form
    *  spells). */
-  Derived& lineHeight(sigil::weave::Leading leading);
+  Derived& lineHeight(sigil::weave::LineHeight pitch);
   /** WHERE THE LINES SIT ACROSS THE MEASURE — CSS `text-align`: start,
    *  centre, end or justified. The `alignment` field of `paragraph()`. Start
    *  when nothing states one. */
   Derived& textAlign(sigil::weave::TextAlignment alignment);
+  /** WHERE THE LAST LINE OF A JUSTIFIED BLOCK SITS — CSS
+   *  `text-align-last`: start, centre or end, or justified to the measure
+   *  as every other line is. The `lastLineAlignment` and `justifyLastLine`
+   *  fields of `paragraph()`, written together. Start when nothing states
+   *  one.
+   *  @trap It is read only where `textAlign` justifies: a ragged block's
+   *  last line sits as its other lines do. */
+  Derived& textAlignLast(sigil::weave::TextAlignment alignment);
+  /** WHAT MAY HANG PAST THE MEASURE — CSS `hanging-punctuation`, read
+   *  from its text as `readHangingPunctuation` reads it:
+   *  `hangingPunctuation("first allow-end last")`. The `hanging` field of
+   *  `paragraph()`. Nothing hangs when nothing states it.
+   *  @trap Text that does not read leaves the table in force standing and
+   *  says so once. */
+  Derived& hangingPunctuation(std::string_view keywords);
+  /** THE SAME AS A TABLE of fractions of each mark's own advance —
+   *  `weave::kit::hanging::latin()`, the optical margin alignment CSS has
+   *  no word for, or a house's own. */
+  Derived& hangingPunctuation(sigil::weave::HangingTable table);
+  /** THE FEWEST LINES OF A BLOCK THAT MAY OPEN A FRAME OR A COLUMN —
+   *  CSS `widows`. The `widowLines` field of `paragraph()`; 0 leaves the
+   *  breaker free, which it is when nothing states one. */
+  Derived& widows(int lines);
+  /** THE FEWEST LINES OF A BLOCK THAT MAY CLOSE ONE — CSS `orphans`. The
+   *  `orphanLines` field of `paragraph()`. */
+  Derived& orphans(int lines);
   /** THE FIRST LINE OF EVERY BLOCK INDENTED — CSS `text-indent`, in any
    *  length: pixels when bare, `em`, `rem`, `lh`, `ch` and `pt` against
    *  the font where it is stated, `percent` of each passage's measure. Negative

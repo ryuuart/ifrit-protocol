@@ -379,23 +379,21 @@ struct DunhuangStarChart {
         .fill(Fill::color(kGround))
         .applyStyleSheet(StyleSheet{
             rule(".column").font(
-                weave::Type{.face = han, .size = 19.0f, .color = kInk}),
+                weave::Type{.face = han, .size = 19.0f, .ink = kInk}),
             rule(".name").font(
                 weave::Type{.face = han,
                             .size = 10.5f,
-                            .color = material::withAlpha(kInk, 0.9f)}),
+                            .ink = material::withAlpha(kInk, 0.9f)}),
             rule(".keyName")
-                .font(
-                    weave::Type{.face = han, .size = 15.0f, .color = kCaption}),
+                .font(weave::Type{.face = han, .size = 15.0f, .ink = kCaption}),
             rule(".caption")
-                .font(weave::Type{
-                    .face = latin, .size = 13.0f, .color = kCaption}),
-            rule(".key .caption, .key .keyName")
-                .font(weave::Type{.color = kInk}),
+                .font(
+                    weave::Type{.face = latin, .size = 13.0f, .ink = kCaption}),
+            rule(".key .caption, .key .keyName").font(weave::Type{.ink = kInk}),
             rule(".title").font(weave::Type{.face = latin,
                                             .size = 30.0f,
-                                            .color = hexColor(0xe7d6b0),
-                                            .track = 1.5f})})
+                                            .ink = hexColor(0xe7d6b0),
+                                            .letterSpacing = 1.5f})})
         .children(
             {kit::at(64, 64, 1600, 120)
                  .column()

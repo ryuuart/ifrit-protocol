@@ -36,9 +36,9 @@ class TextEffects(unittest.TestCase):
 class Scene:
     def setup(self, ctx):
         hub = ctx.assets.hub()
-        sans = Type(size=24, color="#ffffff",
+        sans = Type(size=24, ink="#ffffff",
                     face=hub.load(skia.Typeface, ctx.local("data/Sans.ttf")))
-        variable = Type(size=24, color="#ffffff",
+        variable = Type(size=24, ink="#ffffff",
                         face=hub.load(skia.Typeface, ctx.local("data/Variable.ttf")))
         ctx.render({body})
 """
@@ -244,7 +244,7 @@ class MountEntrance(unittest.TestCase):
 class Scene:
     def setup(self, ctx):
         hub = ctx.assets.hub()
-        sans = Type(size=24, color="#ffffff",
+        sans = Type(size=24, ink="#ffffff",
                     face=hub.load(skia.Typeface, ctx.local("data/Sans.ttf")))
         self.left = False
         ctx.render(box().children([{body}]))

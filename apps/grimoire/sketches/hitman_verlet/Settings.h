@@ -218,19 +218,18 @@ inline float cue(double milliseconds, float delayMilliseconds,
  *  one column of its five that the shipped code lands on. */
 inline sigil::compose::StyleSheet plotClasses() {
   sigil::compose::StyleSheet look{
-      sigil::compose::rule(".plotAxis").font({.color = hexColor(0x2A2E38)}),
-      sigil::compose::rule(".plotRule").font({.color = hexColor(0x2A2E38)}),
+      sigil::compose::rule(".plotAxis").font({.ink = hexColor(0x2A2E38)}),
+      sigil::compose::rule(".plotRule").font({.ink = hexColor(0x2A2E38)}),
       sigil::compose::rule(".plotTick")
-          .font({.face = monoFace(), .size = 7.0f, .color = kTick}),
+          .font({.face = monoFace(), .size = 7.0f, .ink = kTick}),
       sigil::compose::rule(".plotLabel")
-          .font({.face = monoFace(), .size = 7.0f, .color = kSteel}),
-      sigil::compose::rule(".plotBar")
-          .font({.color = hexColor(0x6FA8DC, 0.42f)}),
+          .font({.face = monoFace(), .size = 7.0f, .ink = kSteel}),
+      sigil::compose::rule(".plotBar").font({.ink = hexColor(0x6FA8DC, 0.42f)}),
       sigil::compose::rule(".exact").font(
-          {.face = monoFace(), .size = 7.0f, .color = kSteel}),
+          {.face = monoFace(), .size = 7.0f, .ink = kSteel}),
       sigil::compose::rule(".approx").font(
-          {.face = monoFace(), .size = 7.0f, .color = kBlue}),
-      sigil::compose::rule(".hit").font({.color = kBlue})};
+          {.face = monoFace(), .size = 7.0f, .ink = kBlue}),
+      sigil::compose::rule(".hit").font({.ink = kBlue})};
   return look;
 }
 
@@ -258,8 +257,8 @@ inline Element panel(float height, std::string_view heading, int order) {
       .children({document::h2(heading)
                      .font({.face = uiFace(),
                             .size = 9.5f,
-                            .color = kSteel,
-                            .track = 1.9f})
+                            .ink = kSteel,
+                            .letterSpacing = 1.9f})
                      .height(12)
                      .flexShrink(0)});
 }

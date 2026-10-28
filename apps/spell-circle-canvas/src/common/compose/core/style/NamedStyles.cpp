@@ -52,7 +52,7 @@ void Composer::Impl::namedStylesOf(
             leaf.vars ? leaf.vars->find(*reference) : nullptr;
         if (const material::Color* colour =
                 value ? std::get_if<material::Color>(value) : nullptr)
-          partial->color = *colour;
+          partial->ink = *colour;
         else
           warnNoSuchVar(*reference, true);
       }

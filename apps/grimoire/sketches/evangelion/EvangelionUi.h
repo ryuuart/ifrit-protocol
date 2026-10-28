@@ -241,11 +241,8 @@ inline sigil::material::Filter crt(float width, float height) {
 inline sigil::weave::TextStyle minchoDisplay(float size,
                                              sigil::material::Color color,
                                              float scaleX = 1.30f) {
-  sigil::weave::TextStyle style =
-      sigil::weave::textStyle({.face = minchoHeavy(),
-                               .size = size,
-                               .color = color,
-                               .condense = scaleX});
+  sigil::weave::TextStyle style = sigil::weave::textStyle(
+      {.face = minchoHeavy(), .size = size, .ink = color, .condense = scaleX});
   return style;
 }
 

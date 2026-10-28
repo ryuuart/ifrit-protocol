@@ -55,6 +55,7 @@ def register(table: Table) -> None:
         table.accessor(animatable, "value", reading, value)
         table.erased(animatable, "set", value)
         table.returns(animatable, "__call__", reading)
+        table.returns(animatable, "peek", reading)
         table.returns(animatable, "described", tween + " | None")
 
     table.erased(MOTION + ".Animatable", "__init__", "_t.ScalarLike")

@@ -1136,7 +1136,7 @@ struct WinampBase {
           *context.fonts,
           weave::Type{.face = weave::ports::face(families, weight),
                       .size = size,
-                      .color = Colour{1, 1, 1, 1},
+                      .ink = Colour{1, 1, 1, 1},
                       .aliased = true});
     };
     // The playlist is the one place the skin sets a system face — Arial,

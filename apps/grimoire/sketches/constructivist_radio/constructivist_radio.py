@@ -375,7 +375,7 @@ def words(
             Type(
                 size=size,
                 weight=900 if family == TITLE else 700,
-                track=track,
+                letterSpacing=track,
                 condense=condense,
                 language="ru",
             )

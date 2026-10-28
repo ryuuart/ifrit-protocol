@@ -62,8 +62,9 @@ Element panel(Slice frame, Utf8 caption, material::Color ink) {
       .background(std::move(frame))
       .padding(24)
 
-      .children(
-          {text(std::move(caption)).font({.size = 17, .track = 0}).ink(ink)});
+      .children({text(std::move(caption))
+                     .font({.size = 17, .letterSpacing = 0})
+                     .ink(ink)});
 }
 
 /** THE DIRECT DOOR, in a leaf of its own: `skia::draw::drawLattice`
@@ -92,7 +93,9 @@ Element directLattice(std::shared_ptr<const sigil::media::Image> asset) {
                               SkFilterMode::kLinear);
                         })
                      .cover(),
-                 text(u8"DIRECT").font({.size = 17, .track = 0}).ink(kQuest)});
+                 text(u8"DIRECT")
+                     .font({.size = 17, .letterSpacing = 0})
+                     .ink(kQuest)});
 }
 
 struct NineSlice {

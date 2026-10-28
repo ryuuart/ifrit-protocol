@@ -619,7 +619,7 @@ struct Minard1869 {
     almanacCount = {
         .face = weave::ports::face({"Didot", "Bodoni 72", "Baskerville"}),
         .size = 24,
-        .track = 1};
+        .letterSpacing = 1};
 
     rows(context, "march.csv", [this](const auto& table) {
       const auto group = table.template column<std::string>("group");

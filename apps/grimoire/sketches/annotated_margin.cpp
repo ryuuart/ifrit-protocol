@@ -89,8 +89,10 @@ sigil::weave::Face grotesque() {
 
 weave::TextStyle note(float size = 8.5f, material::Color colour = kFaint,
                       float track = 0.4f) {
-  return weave::textStyle(
-      {.face = grotesque(), .size = size, .color = colour, .track = track});
+  return weave::textStyle({.face = grotesque(),
+                           .size = size,
+                           .ink = colour,
+                           .letterSpacing = track});
 }
 
 /** The playhead and the text share one timing, resolved over twelve words. */
@@ -150,7 +152,7 @@ struct AnnotatedMargin {
                                            "the passage's layout.")
                                 .font({.face = m::grotesque(),
                                        .size = 12,
-                                       .color = m::kFaint})
+                                       .ink = m::kFaint})
                                 .width(570)}),
              // The passage itself: one leaf, keyed, and annotated by
              // nothing — everything below reads it from outside.
@@ -160,12 +162,12 @@ struct AnnotatedMargin {
                  .top(m::kTextTop)
                  .width(m::kMeasure)
                  .paragraphStyles(
-                     {{.leading = weave::Leading::multiple(1.55f)}}),
+                     {{.lineHeight = weave::LineHeight::multiple(1.55f)}}),
              document::h2("FOLLOWING THE ENTRANCE")
                  .font({.face = m::grotesque(),
                         .size = 10,
-                        .color = m::kHot,
-                        .track = 1.8f})
+                        .ink = m::kHot,
+                        .letterSpacing = 1.8f})
                  .left(m::kTextLeft)
                  .top(m::kH - 255),
              // The same text again, lower, under a cascade — the playhead
@@ -206,14 +208,14 @@ struct AnnotatedMargin {
                      document::h2("WORD RANGES")
                          .font({.face = m::grotesque(),
                                 .size = 10,
-                                .color = m::kMark,
-                                .track = 1.8f}),
+                                .ink = m::kMark,
+                                .letterSpacing = 1.8f}),
                      document::paragraph(
                          "Each marker follows its word. The range counts "
                          "UTF-16 units from the start of the passage.")
                          .font({.face = m::grotesque(),
                                 .size = 11,
-                                .color = m::kFaint}),
+                                .ink = m::kFaint}),
                      box().gap(7).children(each(
                          composer.units("passage",
                                         weave::selectors::words(0, 6),

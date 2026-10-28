@@ -30,7 +30,7 @@ from sigil.weave import (
     HyphenationOptions,
     InitialLetter,
     KeepOptions,
-    Leading,
+    LineHeight,
     ParagraphBlock,
     ParagraphStyle,
     RichText,
@@ -45,7 +45,7 @@ SIZE = (1100, 900)
 WIDTH = 328
 TEAL = "#8ccbbb"
 HIGHLIGHT = "#31584f"
-STORY_LEADING = Leading.absolute(24)
+STORY_LINE_HEIGHT = LineHeight.absolute(24)
 ARTICLE = (
     "A sentence is more than a string of letters. It is a small journey: "
     "the eye finds a beginning, gathers a rhythm, and follows a thought "
@@ -77,7 +77,7 @@ SHEET = StyleSheet(
         rule(".mark > *").absolute().inset(7).borderRadius(5).fill(var("ink")),
         rule(".story")
         .fontSize(17)
-        .lineHeight(STORY_LEADING)
+        .lineHeight(STORY_LINE_HEIGHT)
         .textAlign(TextAlignment.Justify)
         .textWrap(TextWrap.Pretty)
         # The marks a line ends on stand partly past the measure, so the
@@ -175,8 +175,8 @@ class TypeAtelier:
         # An initial letter's own style reaches its shaping and not its
         # paint, so the cap is drawn in the passage's ink, not in teal.
         opening = ParagraphStyle(
-            leading=STORY_LEADING,
-            initial=InitialLetter(lines=3, margin=6, style=Type(color=TEAL)),
+            lineHeight=STORY_LINE_HEIGHT,
+            initial=InitialLetter(lines=3, margin=6, style=Type(ink=TEAL)),
             keep=KeepOptions(widowLines=2, orphanLines=2),
             spaceAfter=12,
         )

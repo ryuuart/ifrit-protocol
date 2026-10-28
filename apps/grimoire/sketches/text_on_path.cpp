@@ -91,7 +91,7 @@ StyleSheet voices() {
           .font({.face = weave::ports::face({"Iowan Old Style", "Georgia",
                                              "Times New Roman", "serif"}),
                  .size = kLabel,
-                 .track = 0.0f})};
+                 .letterSpacing = 0.0f})};
 }
 
 /** A run on @p baseline, filling the ring's square. */
@@ -139,7 +139,7 @@ sketch::kit::ComparisonCase ring(const char* title, const char* call,
 Element letter(float size, bool exact, float at, float offset) {
   return text("R")
       .styleClass("inscription")
-      .font({.size = size, .color = material::Color{1, 1, 1, 1}})
+      .font({.size = size, .ink = material::Color{1, 1, 1, 1}})
       .textOnPath({.path = shapes::circle(),
                    .at = at,
                    .align = TextPath::Align::Center,

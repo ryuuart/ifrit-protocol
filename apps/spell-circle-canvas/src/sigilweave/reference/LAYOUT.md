@@ -349,17 +349,17 @@ reference metric spans the lines it is given, seated on the baseline it
 sinks to, with the lines under it wrapping the notch it cuts. Zero lines,
 the default, declares none and costs nothing.
 
-### Leading
+### Line height
 
 How far apart a block's lines stand — its PITCH, which in a vertical
 setting is the width of its columns.
 
-`Leading::face` takes the first span's own line height, which is what a
-text that says nothing has always used. `Leading::multiple` scales that.
-`Leading::sizeMultiple` scales the first span's type size instead, as
+`LineHeight::face` takes the first span's own line height, which is what a
+text that says nothing has always used. `LineHeight::multiple` scales that.
+`LineHeight::sizeMultiple` scales the first span's type size instead, as
 CSS's unitless `line-height` does, so `sizeMultiple(2)` at 20 px is a
-40 px pitch whatever the face reports. `Leading::absolute` states it
-outright in pixels. `Leading::grid` states
+40 px pitch whatever the face reports. `LineHeight::absolute` states it
+outright in pixels. `LineHeight::grid` states
 a rhythm rather than a pitch: the block's own height rounds UP to a
 multiple of it, so blocks set on the same grid share one rhythm however
 differently their faces are cut.

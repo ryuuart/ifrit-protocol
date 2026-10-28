@@ -47,8 +47,8 @@ Element cell(const char* caption, Element plate) {
                      .overflow(Overflow::Clip)
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
-                     .children({text("47").font({.size = 52, .color = kInk})}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+                     .children({text("47").font({.size = 52, .ink = kInk})}),
+                 text(caption).font({.size = 12, .ink = kAsh})});
 }
 
 }  // namespace

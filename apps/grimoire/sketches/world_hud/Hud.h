@@ -120,7 +120,7 @@ inline sigil::material::Material shadedInk(sigil::material::Color ink) {
  *  weight; its colour is the ink unless it names one. */
 inline sigil::weave::Type line(float size, float tracking = 0,
                                float weight = 0) {
-  return {.size = size, .track = tracking, .weight = weight};
+  return {.size = size, .letterSpacing = tracking, .weight = weight};
 }
 
 /** A sunk track: the black slot a bar's content sits in. */

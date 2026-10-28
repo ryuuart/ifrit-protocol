@@ -241,7 +241,7 @@ struct LootGrid {
             {document::h2("HOARD").styleClass("heading").at({16.0f, 492.0f}),
              text("10 ×"
                   " 4")
-                 .font({.size = 11, .track = 2.0f})
+                 .font({.size = 11, .letterSpacing = 2.0f})
                  .at({398.0f, 493.0f}),
              std::move(grid)});
   }
@@ -343,7 +343,7 @@ struct LootGrid {
                    {lt::artwork(s.ghost, w * 0.64f, h * 0.68f, lt::kParch)}),
            text(s.label)
                .font({.size = 7.0f,
-                      .track = narrow ? 0.4f : 1.3f,
+                      .letterSpacing = narrow ? 0.4f : 1.3f,
                       .condense = narrow ? 0.86f : 1.0f})
                .left(0)
                .right(0)
@@ -361,7 +361,7 @@ struct LootGrid {
           .row()
           .width(166.0f)
           .alignItems(Align::Center)
-          .children({text(label).font({.size = 10.5f, .track = 1.1f}),
+          .children({text(label).font({.size = 10.5f, .letterSpacing = 1.1f}),
                      box().flexGrow(1).height(1.0f).margin(0, 6).fill(
                          {0.42f, 0.38f, 0.31f, 0.28f}),
                      text(value).styleClass("value").ink(valueColor)});
@@ -435,7 +435,7 @@ struct LootGrid {
         .zIndex(9)
         // Every line under the name is set in this one size and tracking;
         // what each says for itself is its colour.
-        .font({.size = 11.5f, .track = 0.2f})
+        .font({.size = 11.5f, .letterSpacing = 0.2f})
         // THE NAME IS THE ONE PLACE QUALITY IS SPELLED OUT, so it is set
         // in a display face rather than in the sheet's grotesque: Diablo
         // II names items in a blackletter-derived display type and reads
@@ -445,11 +445,11 @@ struct LootGrid {
         .children({text("Doomslinger")
                        .font({.face = displayFace,
                               .size = 17,
-                              .color = rc,
-                              .track = 1.2f,
+                              .ink = rc,
+                              .letterSpacing = 1.2f,
                               .weight = 620}),
                    text("Colossus Blade")
-                       .font({.color = lt::kParch, .track = 0.8f})
+                       .font({.ink = lt::kParch, .letterSpacing = 0.8f})
                        .margin(0, 0, 6, 0),
                    text("189% Enhanced Damage").styleClass("affix"),
                    text("+2 to Fire Skills").styleClass("affix"),
@@ -499,7 +499,7 @@ struct LootGrid {
                                                           : hexColor(0xB9A06A),
                                                    potion)}),
                         text(std::to_string(i + 1))
-                            .font({.size = 8, .track = 0.4f})
+                            .font({.size = 8, .letterSpacing = 0.4f})
                             .at({3, 2})});
                  })})});
   }
@@ -560,13 +560,13 @@ struct LootGrid {
     sigil::compose::StyleSheet sheet = sigil::compose::StyleSheet{
         sigil::compose::rule(".heading")
             .font({.size = 12,
-                   .color = loot::kBronzeLit,
-                   .track = 4.5f,
+                   .ink = loot::kBronzeLit,
+                   .letterSpacing = 4.5f,
                    .weight = 650}),
         sigil::compose::rule(".value").font(
-            {.size = 12, .track = 0.5f, .weight = 620}),
+            {.size = 12, .letterSpacing = 0.5f, .weight = 620}),
         sigil::compose::rule(".affix").font(
-            {.color = loot::rarityColor(loot::Rarity::Magic)})};
+            {.ink = loot::rarityColor(loot::Rarity::Magic)})};
     return sheet;
   }
 
@@ -626,12 +626,12 @@ struct LootGrid {
          box().column().at({30, 34}).children(
              {text("HOARD OF THE HORADRIM")
                   .font({.size = 23,
-                         .color = lt::kParch,
-                         .track = 3.4f,
+                         .ink = lt::kParch,
+                         .letterSpacing = 3.4f,
                          .weight = 640}),
               text("grid inventory — generated "
                    "materials, no sprites")
-                  .font({.size = 12, .track = 1.0f})
+                  .font({.size = 12, .letterSpacing = 1.0f})
                   .margin(5, 0, 0, 0)}),
          paperdoll(), gridPanel(), tooltip(), beltRack(), cubePanel(),
          box()
@@ -655,10 +655,10 @@ struct LootGrid {
                            {1.0f, hexColor(0x7A5C15)}},
                           {.units = material::GradientUnits::Pixels})),
                   text(goldText).font({.size = 17,
-                                       .color = hexColor(0xD8B95C),
-                                       .track = 1.6f,
+                                       .ink = hexColor(0xD8B95C),
+                                       .letterSpacing = 1.6f,
                                        .weight = 620}),
-                  text("GOLD").font({.size = 10, .track = 2.2f})})});
+                  text("GOLD").font({.size = 10, .letterSpacing = 2.2f})})});
 
     // The two keys, bottom left and bottom right. Both are
     // `sketch::kit::legend` under the sheet's own theme: a dim body

@@ -91,7 +91,7 @@ inline material::Filter effectInInk(const Instance& inst,
                                     const material::Filter& effect) {
   if (!effect.namesCurrentColor()) return effect;
   return effect.withCurrentColor(
-      inst.font.color.value_or(material::Color{0, 0, 0, 1}));
+      inst.font.ink.value_or(material::Color{0, 0, 0, 1}));
 }
 inline const material::Filter* backdropEffectOf(const ElementNode& n) {
   return n.fxData && n.fxData->backdropEffect ? &*n.fxData->backdropEffect

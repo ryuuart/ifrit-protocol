@@ -84,7 +84,7 @@ Element horizontal(const Note& note, bool balanced) {
                        u8" can interrupt a sentence without leaving the line."))
                .font({.face = sketch::kit::houseFace(sketch::kit::Voice::Book),
                       .size = 23,
-                      .track = 0})
+                      .letterSpacing = 0})
                .width(453)
                .children(
                    {box()
@@ -110,15 +110,15 @@ struct WarichuPlaceholder {
     latin.measure(ctx, kNote,
                   {.face = sketch::kit::houseFace(sketch::kit::Voice::Book),
                    .size = 13,
-                   .color = sheet.palette.figure,
-                   .track = 0});
+                   .ink = sheet.palette.figure,
+                   .letterSpacing = 0});
     japanese.measure(
         ctx, u8"小さな文字で二行に組む",
         {.face = weave::ports::face(
              {"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP"}),
          .size = 13,
-         .color = sheet.palette.figure,
-         .track = 0,
+         .ink = sheet.palette.figure,
+         .letterSpacing = 0,
          .language = "ja"},
         true);
     Element construction =
@@ -144,7 +144,7 @@ struct WarichuPlaceholder {
                                 .add(u8"本文の途中に置く。"))
                            .font({.face = japanese.type.face,
                                   .size = 24,
-                                  .track = 0,
+                                  .letterSpacing = 0,
                                   .language = "ja"})
                            .width(284)
                            .height(190)

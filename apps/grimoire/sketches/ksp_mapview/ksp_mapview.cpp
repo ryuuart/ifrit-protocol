@@ -266,7 +266,7 @@ struct KspMapView {
     const Shape vessel = trajectory(orbit("vessel"), {0, 360, 360});
     return box()
         .inset(0)
-        .font({.size = 8.5f, .track = 1.3f})
+        .font({.size = 8.5f, .letterSpacing = 1.3f})
         .children({each(map["trajectories"].array(), crossing),
                    box().inset(0).shape(vessel).stroke(
                        spans::upTo(sigil::motion::animate(
@@ -278,7 +278,7 @@ struct KspMapView {
                                                 hexColor(0xDCF7F5), 0.26f)),
                    along(map["vessel"]["label"], vessel,
                          number(map["vessel"]["labelAt"]), 8)
-                       .font({.size = 9.5f, .track = 1.6f})
+                       .font({.size = 9.5f, .letterSpacing = 1.6f})
                        .ink(withAlpha(kOrbit, 0.9f))});
   }
 
@@ -321,7 +321,7 @@ struct KspMapView {
     const Json& craft = map["craft"];
     return box()
         .inset(0)
-        .font({.face = sans(700), .size = 9, .track = 0.6f})
+        .font({.face = sans(700), .size = 9, .letterSpacing = 0.6f})
         .children(
             {each(map["markers"].array(), marker),
              each(map["bodies"].array(), body),
@@ -457,10 +457,11 @@ struct KspMapView {
     };
     auto scale = [](const Json& mark) {
       return bezel(kBezelRadius * 0.94f)
-          .children({along(mark["words"], shapes::circle(), number(mark["at"]),
-                           number(mark["offset"]))
-                         .font({.size = number(mark["size"]), .track = 1.1f})
-                         .ink(colour(mark["colour"]))});
+          .children(
+              {along(mark["words"], shapes::circle(), number(mark["at"]),
+                     number(mark["offset"]))
+                   .font({.size = number(mark["size"]), .letterSpacing = 1.1f})
+                   .ink(colour(mark["colour"]))});
     };
     auto toggle = [](const char* label, material::Color ink, float x) {
       return kit::at(kit::centred(text(label))
@@ -514,7 +515,7 @@ struct KspMapView {
          // the heading letters inside the bezel turn with the ball
          kit::disc(sigil::geometry::path::fromSk(kBall), kBallRadius * 0.83f)
              .rotate(-yaw * 14.3239449f)
-             .font({.face = sans(700), .size = 9, .track = 0.6f})
+             .font({.face = sans(700), .size = 9, .letterSpacing = 0.6f})
              .ink(hexColor(0xEAF4F8, 0.85f))
              .children({each(ball["compass"].array(),
                              [](const Json& letter, std::size_t index) {
@@ -742,8 +743,9 @@ struct KspMapView {
                                                    hexColor(0xE8F4FA, 0.85f))}),
                                   2, 8, 234, 12),
                           text(gauge["tape"])
-                              .font(
-                                  {.face = sans(700), .size = 8, .track = 1.4f})
+                              .font({.face = sans(700),
+                                     .size = 8,
+                                     .letterSpacing = 1.4f})
                               .ink(hexColor(0xEAF4FA))
                               .left(6)
                               .top(1),
@@ -982,7 +984,7 @@ struct KspMapView {
         rule("caption, .caption").font({.face = sans(), .size = 11}),
         rule(".readout").font({.face = sans(700), .size = 11}).ink(kOrange),
         rule("h2")
-            .font({.face = sans(700), .size = 11, .track = 0.2f})
+            .font({.face = sans(700), .size = 11, .letterSpacing = 0.2f})
             .ink(kOrange),
         rule(".lcd")
             .font({.face = sketch::kit::houseFace(sketch::kit::Voice::Terminal),

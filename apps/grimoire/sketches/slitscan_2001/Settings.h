@@ -198,8 +198,8 @@ inline Element t(std::string_view line, weave::Type partial) {
 inline weave::Type quo(float s, material::Color c) {
   return {.face = uiFace(),
           .size = s,
-          .color = c,
-          .track = 0.4f,
+          .ink = c,
+          .letterSpacing = 0.4f,
           .condense = 0.94f};
 }
 

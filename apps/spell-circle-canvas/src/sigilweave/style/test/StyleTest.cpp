@@ -104,7 +104,7 @@ TEST(Type, ExplicitColorReplacesForegroundMaterialAndSilentFieldsKeepIt) {
   const auto owner = base.paint.foregroundMaterial;
   EXPECT_EQ(overlay(base, Type{}).paint.foregroundMaterial, owner);
   const TextStyle coloured =
-      overlay(base, {.color = sigil::material::Color{0, 1, 0, .5f}});
+      overlay(base, {.ink = sigil::material::Color{0, 1, 0, .5f}});
   EXPECT_FALSE(coloured.paint.foregroundMaterial);
   EXPECT_EQ(coloured.paint.foreground.getColor4f(), (SkColor4f{0, 1, 0, .5f}));
   EXPECT_EQ(coloured.shaping, base.shaping);
@@ -119,7 +119,7 @@ TEST(TypeSheet, AClassResolvesThroughTheSheetAndAnAbsentNameAnswersTheBase) {
   TypeSheet styles(base);
   // The class states only the colour — the size is the base's, which is the
   // whole point of an entry being a partial.
-  styles.set("alert", Type{.color = SkColor4f{1, 0, 0, 1}});
+  styles.set("alert", Type{.ink = SkColor4f{1, 0, 0, 1}});
 
   const TextStyle alert = styles["alert"];
   EXPECT_FLOAT_EQ(alert.shaping.fontSize, 12.0f)
@@ -127,7 +127,7 @@ TEST(TypeSheet, AClassResolvesThroughTheSheetAndAnAbsentNameAnswersTheBase) {
   EXPECT_EQ(alert.paint.foreground.getColor4f(), (SkColor4f{1, 0, 0, 1}));
   EXPECT_TRUE(styles.contains("alert"));
   ASSERT_NE(styles.find("alert"), nullptr);
-  EXPECT_EQ(styles.find("alert")->color, (SkColor4f{1, 0, 0, 1}))
+  EXPECT_EQ(styles.find("alert")->ink, (SkColor4f{1, 0, 0, 1}))
       << "find() hands back the partial, not the style it resolves to";
 
   // The unknown-name contract: a lookup ALWAYS returns a style, and the one
@@ -213,8 +213,8 @@ TEST(PaintStyle, PaintLayerMaterialComparesByIdentity) {
 
 TEST(Type, TheAggregatesNumbersLandOnTheStylesTwoHalves) {
   const TextStyle s = textStyle({.size = 10.5f,
-                                 .color = SkColor4f{1, 0, 0, 1},
-                                 .track = 1.2f,
+                                 .ink = SkColor4f{1, 0, 0, 1},
+                                 .letterSpacing = 1.2f,
                                  .condense = 0.8f,
                                  .aliased = true});
   EXPECT_FLOAT_EQ(s.shaping.fontSize, 10.5f);
@@ -247,9 +247,9 @@ TEST(Type, ABaselineShiftIsPlacementAndNeverReshapes) {
 
 TEST(Type, TheEightBitLadderQuantisesWhereTheFloatOneDoesNot) {
   const SkColor4f c{0.4f, 0.4f, 0.4f, 1};
-  EXPECT_EQ(textStyle({.color = c}).paint.foreground.getColor4f(), c);
-  EXPECT_NE(
-      textStyle({.color = c, .color8 = true}).paint.foreground.getColor4f(), c);
+  EXPECT_EQ(textStyle({.ink = c}).paint.foreground.getColor4f(), c);
+  EXPECT_NE(textStyle({.ink = c, .color8 = true}).paint.foreground.getColor4f(),
+            c);
 }
 
 TEST(Type, TextStyleOfATotalSpecIsTheStyleThatSpecHasAlwaysNamed) {
@@ -258,8 +258,8 @@ TEST(Type, TextStyleOfATotalSpecIsTheStyleThatSpecHasAlwaysNamed) {
   // LESS, never a way of meaning something else: a call site that states a
   // style in full gets that style and no resolution happens to it.
   const TextStyle s = textStyle({.size = 13.0f,
-                                 .color = SkColor4f{0.1f, 0.2f, 0.3f, 1},
-                                 .track = 1.25f,
+                                 .ink = SkColor4f{0.1f, 0.2f, 0.3f, 1},
+                                 .letterSpacing = 1.25f,
                                  .condense = 0.92f,
                                  .weight = 650.0f,
                                  .slant = -9.0f,
@@ -280,21 +280,21 @@ TEST(Type, TextStyleOfATotalSpecIsTheStyleThatSpecHasAlwaysNamed) {
 TEST(Type, APartialOverlaysATotalFieldByField) {
   Type base = initialType();
   base.size = 20.0f;
-  base.track = 2.0f;
+  base.letterSpacing = 2.0f;
   base.condense = 0.9f;
-  base.color = SkColor4f{1, 1, 1, 1};
+  base.ink = SkColor4f{1, 1, 1, 1};
 
   const Type total =
-      overlay(base, {.color = SkColor4f{1, 0, 0, 1}, .weight = 700.0f});
-  EXPECT_EQ(total.color, (SkColor4f{1, 0, 0, 1})) << "a named field wins";
+      overlay(base, {.ink = SkColor4f{1, 0, 0, 1}, .weight = 700.0f});
+  EXPECT_EQ(total.ink, (SkColor4f{1, 0, 0, 1})) << "a named field wins";
   EXPECT_EQ(total.weight, 700.0f);
   EXPECT_EQ(total.size, Length(20.0f)) << "a field it is silent about stands";
-  EXPECT_EQ(total.track, 2.0f);
+  EXPECT_EQ(total.letterSpacing, 2.0f);
   EXPECT_EQ(total.condense, 0.9f);
 
   // The partial that names nothing overlays onto anything as itself.
   EXPECT_TRUE(Type{}.empty());
-  EXPECT_FALSE(Type{.track = 0.0f}.empty())
+  EXPECT_FALSE(Type{.letterSpacing = 0.0f}.empty())
       << "a field set to zero is a field that was set";
   EXPECT_TRUE(overlay(base, Type{}) == base);
 }
@@ -302,8 +302,8 @@ TEST(Type, APartialOverlaysATotalFieldByField) {
 TEST(Type, AnUnsetFieldInheritsRightThroughToTheStyle) {
   const sk_sp<SkTypeface> none;
   const Type heading{.size = 32.0f, .weight = 800.0f};
-  const TextStyle inherited =
-      toTextStyle(overlay(overlay(initialType(), {.track = 3.0f}), heading));
+  const TextStyle inherited = toTextStyle(
+      overlay(overlay(initialType(), {.letterSpacing = 3.0f}), heading));
   EXPECT_FLOAT_EQ(inherited.shaping.fontSize, 32.0f);
   EXPECT_FLOAT_EQ(inherited.shaping.letterSpacing, 3.0f)
       << "the tracking nobody restated came down the cascade";
@@ -356,7 +356,8 @@ TEST(Type, ATextStyleMeasuresItsRemsAgainstTheRootItIsSetUnder) {
                   20.0f)
       << "the root's size, not the style's own";
   EXPECT_FLOAT_EQ(
-      overlay(built, {.track = 0.5_rem}, 10.0f).shaping.letterSpacing, 5.0f);
+      overlay(built, {.letterSpacing = 0.5_rem}, 10.0f).shaping.letterSpacing,
+      5.0f);
   EXPECT_FLOAT_EQ(
       overlay(built, {.wordSpacing = 1_rem}, 10.0f).shaping.wordSpacing, 10.0f);
   // Where the caller names no root, the initial type size stands for it.
@@ -422,7 +423,7 @@ TEST(Type, AKeywordWinsOverAValueStatedInTheSamePartial) {
   // And a partial that says only a keyword is not EMPTY: it states
   // something, so it does not overlay as itself.
   Type keywordOnly;
-  keywordOnly.keywords.set(TypeField::Track, Keyword::Initial);
+  keywordOnly.keywords.set(TypeField::LetterSpacing, Keyword::Initial);
   EXPECT_FALSE(keywordOnly.empty());
   EXPECT_TRUE(Type{}.empty());
 }
@@ -435,7 +436,7 @@ TEST(Type, AKeywordOnAShapingFieldReshapes) {
   shaping.keywords.set(TypeField::Size, Keyword::Initial);
   EXPECT_TRUE(reshapes(shaping));
   Type painting;
-  painting.keywords.set(TypeField::Color, Keyword::Initial);
+  painting.keywords.set(TypeField::Ink, Keyword::Initial);
   EXPECT_FALSE(reshapes(painting));
 }
 
@@ -466,21 +467,24 @@ TEST(Type, ARelativeTrackingResolvesAgainstTheSizeTheTypeComesTo) {
   // size after the same overlay resolved it — so one register states the
   // tracking a face wants and holds it at every size.
   const Type base{.size = 20.0f};
-  EXPECT_FLOAT_EQ(overlay(base, {.track = em(-0.08f)}).track->value, -1.6f);
   EXPECT_FLOAT_EQ(
-      overlay(base, {.size = 40.0f, .track = em(0.1f)}).track->value, 4.0f)
+      overlay(base, {.letterSpacing = em(-0.08f)}).letterSpacing->value, -1.6f);
+  EXPECT_FLOAT_EQ(overlay(base, {.size = 40.0f, .letterSpacing = em(0.1f)})
+                      .letterSpacing->value,
+                  4.0f)
       << "against the size stated in the same partial, not the base's";
-  EXPECT_FALSE(overlay(base, {.track = 0.1_em}).track->relative());
+  EXPECT_FALSE(
+      overlay(base, {.letterSpacing = 0.1_em}).letterSpacing->relative());
   // A pixel tracking is a pixel, whatever the size.
-  EXPECT_EQ(overlay(base, {.track = 1.2f}).track, Length(1.2f));
+  EXPECT_EQ(overlay(base, {.letterSpacing = 1.2f}).letterSpacing, Length(1.2f));
   // The TextStyle forms resolve against the size the style carries.
-  EXPECT_FLOAT_EQ(
-      textStyle({.size = 50.0f, .track = em(0.02f)}).shaping.letterSpacing,
-      1.0f);
+  EXPECT_FLOAT_EQ(textStyle({.size = 50.0f, .letterSpacing = em(0.02f)})
+                      .shaping.letterSpacing,
+                  1.0f);
   TextStyle built;
   built.shaping.fontSize = 30.0f;
-  EXPECT_FLOAT_EQ(overlay(built, {.track = em(0.1f)}).shaping.letterSpacing,
-                  3.0f);
+  EXPECT_FLOAT_EQ(
+      overlay(built, {.letterSpacing = em(0.1f)}).shaping.letterSpacing, 3.0f);
 }
 
 TEST(Type, MergeCopiesFieldsAndLeavesARelativeSizeRelative) {
@@ -488,15 +492,15 @@ TEST(Type, MergeCopiesFieldsAndLeavesARelativeSizeRelative) {
   // not yet resolved against anything: a relative size stays relative
   // because neither partial knows what it is relative to.
   Type folded{.size = 2_em,
-              .track = 1.0f,
+              .letterSpacing = 1.0f,
               .variations = {FontVariation("wght", 300.0f)}};
-  merge(folded, {.color = SkColor4f{0, 1, 0, 1},
-                 .track = 4.0f,
+  merge(folded, {.ink = SkColor4f{0, 1, 0, 1},
+                 .letterSpacing = 4.0f,
                  .variations = {FontVariation("wght", 700.0f),
                                 FontVariation("wdth", 80.0f)}});
   EXPECT_EQ(folded.size, 2_em) << "a relative size is copied, not resolved";
-  EXPECT_EQ(folded.track, 4.0f) << "a field the second names wins";
-  EXPECT_EQ(folded.color, (SkColor4f{0, 1, 0, 1}));
+  EXPECT_EQ(folded.letterSpacing, 4.0f) << "a field the second names wins";
+  EXPECT_EQ(folded.ink, (SkColor4f{0, 1, 0, 1}));
   ASSERT_EQ(folded.variations.size(), 2u);
   EXPECT_EQ(folded.variations[0], FontVariation("wght", 700))
       << "an axis already present is replaced where it stands";
@@ -611,13 +615,13 @@ TEST(Type, AStatedNullFaceIsTheDefaultFamilyAndAnUnsetOneInherits) {
 
 TEST(Type, OnlyAFieldThatChangesTheShapeReshapes) {
   EXPECT_FALSE(reshapes({}));
-  EXPECT_FALSE(reshapes({.color = SkColor4f{1, 0, 0, 1}}));
+  EXPECT_FALSE(reshapes({.ink = SkColor4f{1, 0, 0, 1}}));
   Type passes;
   passes.underlays = {PaintLayer(SK_ColorRED)};
   passes.decorations = {Decoration{}};
   EXPECT_FALSE(reshapes(passes)) << "paint around the glyphs: a repaint";
   EXPECT_TRUE(reshapes({.size = 12.0f}));
-  EXPECT_TRUE(reshapes({.track = 1.0f}));
+  EXPECT_TRUE(reshapes({.letterSpacing = 1.0f}));
   Type language;
   language.language = "ja";
   EXPECT_TRUE(reshapes(language));

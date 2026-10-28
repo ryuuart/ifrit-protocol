@@ -27,7 +27,7 @@ struct AstralTome {
   Element name(const char* s, float x, float y) const {
     return box().at({x, y}).children(
         {document::label(s)
-             .font({.face = serif, .size = 19.0f, .track = 2.4f})
+             .font({.face = serif, .size = 19.0f, .letterSpacing = 2.4f})
              .ink(sigil::material::scale(at::kInk, 1.0f, kInkAlphaOf()))});
   }
 
@@ -318,14 +318,14 @@ struct AstralTome {
                        .font({.face = mono});  // both lines are set in it
     band.children(
         {document::h1("ASTRAL SORCERY · THE CONSTELLATION JOURNAL")
-             .font({.size = 15.0f, .track = 1.8f})
+             .font({.size = 15.0f, .letterSpacing = 1.8f})
              .ink(sigil::material::Color{0.72f, 0.66f, 0.50f, 1.0f}),
          document::caption("Page 1 of 4 · Four square charts follow the "
                            "journal's staggered layout; each star keeps "
                            "its own twinkle rhythm.")
              .width(800)
-             .font({.size = 12.0f, .track = 0.1f})
-             .paragraph({.leading = weave::Leading::multiple(1.35f)})
+             .font({.size = 12.0f, .letterSpacing = 0.1f})
+             .paragraph({.lineHeight = weave::LineHeight::multiple(1.35f)})
              .ink(sigil::material::Color{0.68f, 0.65f, 0.57f, 1.0f})});
     return band;
   }

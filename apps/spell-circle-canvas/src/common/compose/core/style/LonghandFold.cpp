@@ -53,8 +53,8 @@ void LonghandFold::state(const sigil::weave::Type* font,
       m_indent.reset();
       m_indentPercent.reset();
     }
-    if (block->keywords.find(sigil::weave::ParagraphField::Leading) ||
-        block->leading)
+    if (block->keywords.find(sigil::weave::ParagraphField::LineHeight) ||
+        block->lineHeight)
       m_lineHeight.reset();
   }
   if (said != nullptr) stateCascade(*said);

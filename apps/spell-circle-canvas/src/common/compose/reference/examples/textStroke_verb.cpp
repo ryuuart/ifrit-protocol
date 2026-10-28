@@ -40,7 +40,7 @@ Element cell(const char* caption, Element label) {
                      .justifyContent(Justify::Center)
                      .alignItems(Align::Center)
                      .children({std::move(label)}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+                 text(caption).font({.size = 12, .ink = kAsh})});
 }
 
 }  // namespace
@@ -54,10 +54,11 @@ struct TextStrokeVerb {
   Element describe() const {
     return box().row().gap(18).padding(24).children({
         cell("the letterforms alone",
-             text("LEGIBLE").font({.size = 34, .color = kInk, .track = 1})),
+             text("LEGIBLE").font(
+                 {.size = 34, .ink = kInk, .letterSpacing = 1})),
         cell("textStroke(4, outline)",
              text("LEGIBLE")
-                 .font({.size = 34, .color = kInk, .track = 1})
+                 .font({.size = 34, .ink = kInk, .letterSpacing = 1})
                  .textStroke(4, Fill::color(kOutline))),
     });
   }

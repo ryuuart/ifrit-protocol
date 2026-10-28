@@ -270,7 +270,7 @@ a contour interval carries a `geometry::path::Contour`:
   `LineMetricsOptions`, `HyphenationOptions`, `KnuthPlassOptions`),
   `layout/Justification.h`, `layout/Overflow.h`, `layout/TabStops.h`,
   `layout/Frame.h` (`FrameOptions`, `ReservedBand`, `PathTextOptions`),
-  `layout/Mojikumi.h` and `layout/ParagraphStyle.h` (`Leading`,
+  `layout/Mojikumi.h` and `layout/ParagraphStyle.h` (`LineHeight`,
   `IndentOptions`, `KeepOptions`, `ParagraphStyle`).
 - **`layout/PositionedRun.h`** — `PositionedRun`, one draw call, and the
   `LineMetrics` and `ColumnMetrics` bands derived from placed runs. A run
@@ -400,12 +400,12 @@ layout stage about it, not by carrying anything on the text:
 
 ```cpp
 ParagraphStyle body;
-body.leading = Leading::multiple(1.45f);
+body.lineHeight = LineHeight::multiple(1.45f);
 body.spaceAfter = 10.0f;
 body.indent.firstLine = 18.0f;
 
 ParagraphStyle heading;
-heading.leading = Leading::grid(24.0f);   // shares a rhythm with the body
+heading.lineHeight = LineHeight::grid(24.0f);   // shares a rhythm with the body
 heading.spaceAfter = 16.0f;
 heading.alignment = TextAlignment::kCenter;
 heading.keep.withNext = true;
@@ -419,11 +419,11 @@ and `tabStops` are the WHOLE LAYOUT'S answer; a block states its own by
 setting the matching optional and inherits it otherwise. A layout with no
 `blocks` lays out exactly as one that never heard of them.
 
-**Pitch is per block.** `Leading::face()` takes that block's first span's
+**Pitch is per block.** `LineHeight::face()` takes that block's first span's
 own line height — which is what a text that says nothing has always used —
 and `multiple`, `absolute` and `grid` state it otherwise. The extra a
 leading opens goes ABOVE the line, where leading has always gone.
-`Leading::grid(24)` rounds the block's own height up to a whole number of
+`LineHeight::grid(24)` rounds the block's own height up to a whole number of
 grid steps and snaps each band's near edge to one, so two blocks on the
 same grid share one rhythm however differently their faces are cut. In a
 vertical setting the pitch is the width of the block's columns, so two

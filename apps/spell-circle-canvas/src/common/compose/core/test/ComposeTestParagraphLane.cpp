@@ -18,7 +18,7 @@
 
 namespace {
 
-using sigil::weave::Leading;
+using sigil::weave::LineHeight;
 using sigil::weave::ParagraphBlock;
 using sigil::weave::TextAlignment;
 
@@ -55,7 +55,7 @@ TEST(ComposeParagraphLane, ALeafIsSetInTheLeadingInForce) {
   Host plain, open;
   plain.composer.render(box().padding(10).children({box().children({leaf()})}));
   ParagraphBlock wide;
-  wide.leading = Leading::multiple(2.0f);
+  wide.lineHeight = LineHeight::multiple(2.0f);
   open.composer.render(
       box().padding(10).paragraph(wide).children({box().children({leaf()})}));
   const float single = boxOf(plain, "t").height();
@@ -68,7 +68,7 @@ TEST(ComposeParagraphLane, APartialOverlaysTheInheritedBlockFieldByField) {
   // The parent sets the leading, the child names the alignment: the
   // child's lines are centred AND double-leaded.
   ParagraphBlock wide;
-  wide.leading = Leading::multiple(2.0f);
+  wide.lineHeight = LineHeight::multiple(2.0f);
   ParagraphBlock centred;
   centred.alignment = TextAlignment::kCenter;
   Host start, both;
@@ -84,7 +84,7 @@ TEST(ComposeParagraphLane, APartialOverlaysTheInheritedBlockFieldByField) {
 
 TEST(ComposeParagraphLane, AWholeParagraphStyleInheritsNothing) {
   ParagraphBlock wide;
-  wide.leading = Leading::multiple(2.0f);
+  wide.lineHeight = LineHeight::multiple(2.0f);
   Host plain, whole;
   plain.composer.render(box().padding(10).children({leaf()}));
   whole.composer.render(box().padding(10).paragraph(wide).children(
@@ -96,7 +96,7 @@ TEST(ComposeParagraphLane, AClassCarriesBothHalves) {
   // One name in both sheets: the text half sets the size, the paragraph half
   // the leading, and styleClass folds both.
   ParagraphBlock wide;
-  wide.leading = Leading::multiple(2.0f);
+  wide.lineHeight = LineHeight::multiple(2.0f);
   // One class, both halves: the type half and the paragraph half under one
   // name.
   const sigil::compose::StyleSheet look{
@@ -127,7 +127,7 @@ TEST(ComposeParagraphLane, ANamedBlockIsLaidOverTheBlockInForce) {
   const sigil::compose::StyleSheet blocks{
       sigil::compose::rule(".lead").paragraph(centred)};
   ParagraphBlock wide;
-  wide.leading = Leading::multiple(2.0f);
+  wide.lineHeight = LineHeight::multiple(2.0f);
   Host start, named;
   start.composer.render(box().padding(10).paragraph(wide).children({leaf()}));
   const std::array<std::string_view, 1> names{"lead"};
@@ -216,7 +216,7 @@ TEST(ComposeParagraphLane, AChangedAncestorBlockRelaysOutTheLeavesUnderIt) {
   Host host;
   const auto page = [](float factor) {
     ParagraphBlock lead;
-    lead.leading = Leading::multiple(factor);
+    lead.lineHeight = LineHeight::multiple(factor);
     return box().padding(10).paragraph(lead).children(
         {box().children({leaf()})});
   };

@@ -17,7 +17,7 @@ ACCENT = "#e0a03c"
 def stated() -> weave.TextStyle:
     """A total style: a ``weave.TextStyle`` states every field itself, so
     a leaf set in one inherits nothing from the tree above it."""
-    return weave.textStyle(weave.Type(size=26, color=ACCENT))
+    return weave.textStyle(weave.Type(size=26, ink=ACCENT))
 
 
 def row(caption: str, leaf: compose.Element) -> compose.Element:
@@ -42,7 +42,7 @@ class TextElement:
                     compose.text(
                         weave.rich()
                         .add("Mixed text as ")
-                        .add("one comparable value", weave.Type(color=ACCENT))
+                        .add("one comparable value", weave.Type(ink=ACCENT))
                     ),
                 ),
             )

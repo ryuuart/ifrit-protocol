@@ -32,7 +32,7 @@ sigil_test(compose_test
           test/ComposeTestStory.cpp test/ComposeTestLiveText.cpp
           test/ComposeTestGlyphBoundary.cpp
           test/ComposeTestJustification.cpp test/ComposeTestLineSetting.cpp
-          test/ComposeTestVariationDrive.cpp
+          test/ComposeTestVariationDrive.cpp test/ComposeTestTypeVerbs.cpp
           test/ComposeTestTextFeed.cpp test/ComposeTestTextLeaf.cpp
           test/ComposeTestKinetic.cpp test/ComposeTestTextFx.cpp
           test/ComposeTestTextFxCombinators.cpp

@@ -146,7 +146,7 @@ Element content(float w, float h) {
                                       {0.5f, {0.95f, 0.32f, 0.42f, 1}},
                                       {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
       .children({text(u8"MATTE")
-                     .font({.size = 30, .track = 0})
+                     .font({.size = 30, .letterSpacing = 0})
                      .ink(material::Color{1, 1, 1, 0.92f})});
 }
 
@@ -165,12 +165,13 @@ Element cell(float w, float h, Element inner) {
  *  shares of the strip, one per band, so the words cannot drift off it. */
 Element bandLabels(float stripW) {
   return kit::panelGrid(
-      {.cells = each(
-           kBands,
-           [](const Band& band) {
-             return kit::centred(
-                 text(band.label).font({.size = 10, .track = 0}).ink(kDim));
-           }),
+      {.cells = each(kBands,
+                     [](const Band& band) {
+                       return kit::centred(
+                           text(band.label)
+                               .font({.size = 10, .letterSpacing = 0})
+                               .ink(kDim));
+                     }),
        .columns = (int)kBands.size(),
        .gap = 0,
        .measure = stripW});
@@ -219,12 +220,12 @@ struct MatteLuma {
         {text("Rec. 601 on ENCODED values · each "
               "colour paired with its 0.299 R + 0.587 G + "
               "0.114 B grey twin")
-             .font({.size = 13, .track = 0}),
+             .font({.size = 13, .letterSpacing = 0}),
          cell(stripW, 64, box().inset(0).fill(bands)), bandLabels(stripW),
          text("…"
               "the same eight bands as a by::luma "
               "matte ↓ each pair reads the SAME")
-             .font({.track = 0})
+             .font({.letterSpacing = 0})
              .ink(kDim)
              .margin(6, 0, 0, 0),
          cell(stripW, 64, std::move(bandMatted))});

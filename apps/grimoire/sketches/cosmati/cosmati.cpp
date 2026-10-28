@@ -329,7 +329,7 @@ struct Cosmati {
             .fontSize(1.2_rem)
             .letterSpacing(0)
             .ink(var("ink"))
-            .lineHeight(weave::Leading::absolute(19))
+            .lineHeight(weave::LineHeight::absolute(19))
             .textWrap(TextWrap::Pretty)
             .hyphens({.patterns = weave::kit::englishHyphenator()})
             .paragraph({.hanging = weave::kit::hanging::latin()}),

@@ -83,8 +83,8 @@ weave::TextStyle wordmark(material::Color colour = {0.7f, 0.73f, 0.78f, 1}) {
            {"Helvetica Neue", "Inter", "Arial Black", "Helvetica"},
            sigil::weave::FaceStyle{.weight = 700}),
        .size = kDisplay,
-       .color = colour,
-       .track = 1.5f,
+       .ink = colour,
+       .letterSpacing = 1.5f,
        .weight = 800.0f});
 }
 
@@ -97,11 +97,11 @@ sketch::kit::Theme sheetTheme() {
       .ground = kGround, .ink = kPale, .ash = kFaint, .rule = kFaint};
   look.type.sans =
       weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
-  look.type.title = {.size = 26, .track = 0.2f};
-  look.type.subtitle = {.size = 12, .track = 0.2f};
-  look.type.footer = {.size = 11, .track = 0.2f};
-  look.type.captionLabel = {.size = 10.5f, .track = 1.0f};
-  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.type.title = {.size = 26, .letterSpacing = 0.2f};
+  look.type.subtitle = {.size = 12, .letterSpacing = 0.2f};
+  look.type.footer = {.size = 11, .letterSpacing = 0.2f};
+  look.type.captionLabel = {.size = 10.5f, .letterSpacing = 1.0f};
+  look.type.captionNote = {.size = 10.5f, .letterSpacing = 0.2f};
   look.spacing.marginHorizontal = kMargin;
   look.spacing.marginTop = kMargin - 26;
   look.spacing.marginBottom = 30;

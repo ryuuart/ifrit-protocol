@@ -28,9 +28,9 @@ class Compose(unittest.TestCase):
         self.assertEqual(Dimension(weave.em(2)).unit, Dimension.Unit.Em)
         self.assertEqual(Dimension("45%"), percent(45))
         self.assertEqual(Dimension("auto").unit, Dimension.Unit.Auto)
-        font = weave.Type(size=24, color="#aa2211", track=weave.em(0.1))
+        font = weave.Type(size=24, ink="#aa2211", letterSpacing=weave.em(0.1))
         self.assertEqual(font.size.value, 24)
-        self.assertEqual(font.track.unit, weave.Length.Unit.Em)
+        self.assertEqual(font.letterSpacing.unit, weave.Length.Unit.Em)
         self.assertIsInstance(
             (box().width(percent(50)).padding(weave.em(1)).alignItems(Align.End)).stroke(
                 stroke(2)
@@ -497,44 +497,44 @@ class Measure:
     def test_rules_merge_native_partials_without_resetting_other_fields(self):
         title = (
             compose.rule(".title")
-            .font(weave.Type(size=32, color="#ff3300"))
-            .font(weave.Type(track=2))
+            .font(weave.Type(size=32, ink="#ff3300"))
+            .font(weave.Type(letterSpacing=2))
         )
         self.assertEqual(title.type().size.value, 32)
-        self.assertEqual(title.type().track.value, 2)
+        self.assertEqual(title.type().letterSpacing.value, 2)
         copy = title.copy()
         copy.font(weave.Type(size=50))
         self.assertEqual(title.type().size.value, 32)
         block = weave.ParagraphBlock(
-            leading=weave.Leading.multiple(1.5), alignment=weave.TextAlignment.Center
+            lineHeight=weave.LineHeight.multiple(1.5), alignment=weave.TextAlignment.Center
         )
-        self.assertEqual(block.leading.value, 1.5)
+        self.assertEqual(block.lineHeight.value, 1.5)
 
     def test_saved_optional_and_vector_style_values_survive_replacement(self):
         font = weave.Type(
             size=20,
-            track=2,
+            letterSpacing=2,
             wordSpacing=3,
             variations=[weave.FontVariation("wght", 600)],
             features=[weave.FontFeature("liga", 0)],
         )
-        size, track, space = font.size, font.track, font.wordSpacing
+        size, spacing, space = font.size, font.letterSpacing, font.wordSpacing
         axis, feature = font.variations[0], font.features[0]
         font.size = None
-        font.track = 7
+        font.letterSpacing = 7
         font.wordSpacing = None
         font.variations = []
         font.features = None
         del font
-        self.assertEqual((size.value, track.value, space.value), (20, 2, 3))
+        self.assertEqual((size.value, spacing.value, space.value), (20, 2, 3))
         self.assertEqual(
             (axis.tag, axis.value, feature.tag, feature.value), ("wght", 600, "liga", 0)
         )
-        block = weave.ParagraphBlock(leading=weave.Leading.multiple(1.5))
-        leading = block.leading
-        block.leading = None
+        block = weave.ParagraphBlock(lineHeight=weave.LineHeight.multiple(1.5))
+        pitch = block.lineHeight
+        block.lineHeight = None
         del block
-        self.assertEqual(leading.value, 1.5)
+        self.assertEqual(pitch.value, 1.5)
         style = weave.ShapingStyle(variations=[axis], fontFeatures=[feature])
         saved = style.variations[0]
         style.variations = []
@@ -697,7 +697,7 @@ from sigil.weave import Type, textStyle
 @sketch(size=(128, 48), background="#000000")
 class Scene:
     def setup(self, ctx):
-        style = Type(size=30, color="#ff0000")
+        style = Type(size=30, ink="#ff0000")
         sheet = StyleSheet([rule(".title").font(style)])
         children = [
             (text("HI").styleClass("title")),

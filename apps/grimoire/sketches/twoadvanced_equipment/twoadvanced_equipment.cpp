@@ -295,7 +295,7 @@ struct TwoAdvancedEquipment {
                   .row()
                   .alignItems(Align::Center)
                   .padding(0, 4)
-                  .children({t(p.name, {.color = kWhite})}),
+                  .children({t(p.name, {.ink = kWhite})}),
               kit::centred()
                   .width(17)
                   .fill(kMaroon)
@@ -306,7 +306,7 @@ struct TwoAdvancedEquipment {
              {box().width(13), img(p.thumb, 69, 52, hexColor(0xD8D0D0)),
               box().width(3),
               box().width(416).height(52).fill(kRose).column().children(
-                  {box().padding(7).children({t(p.copy, {.color = kMaroon})}),
+                  {box().padding(7).children({t(p.copy, {.ink = kMaroon})}),
                    box().flexGrow(1),
                    box()
                        .row()
@@ -362,7 +362,7 @@ struct TwoAdvancedEquipment {
                                      PathFormat::Align::Inner)))
 
           .children({t(up ? "▴" : "▾",
-                       {.face = verdanaFace(true), .color = kSbArrow})});
+                       {.face = verdanaFace(true), .ink = kSbArrow})});
     };
     const sketch::kit::Scrolled frame = scrolled();
     Element scrollbar =

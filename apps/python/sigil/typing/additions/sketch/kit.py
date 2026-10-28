@@ -23,6 +23,13 @@ def featureTheme(density=Density.Compact):
     return _native.featureTheme(density)
 
 
+def darkTheme():
+    """Return an editable copy of the dark theme in the terminal voice, whose
+    ``label`` class is an instrument's label: the terminal face at 12 px,
+    tracked 2 px, in the ash."""
+    return _native.darkTheme()
+
+
 def houseFace(voice, weight=400, slant=None, *, italic=False):
     """The house face for a voice at a weight, resolved once and held;
     ``italic=True`` is ``slant=weave.FaceSlant.Italic``."""

@@ -32,18 +32,19 @@ Element cell(const char* caption, Element plate) {
       .flexBasis(0)
       .flexGrow(1)
       .alignItems(Align::Center)
-      .children({plate.width(percent(100))
-                     .height(120)
-                     .borderRadius({10})
-                     .fill(kPlate)
-                     .column()
-                     .gap(8)
-                     .justifyContent(Justify::Center)
-                     .alignItems(Align::Center)
-                     .children({text("SIGNAL").font(
-                                    {.size = 26, .color = kInk, .track = 3}),
-                                box().width(58).height(4).fill(kInk)}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+      .children(
+          {plate.width(percent(100))
+               .height(120)
+               .borderRadius({10})
+               .fill(kPlate)
+               .column()
+               .gap(8)
+               .justifyContent(Justify::Center)
+               .alignItems(Align::Center)
+               .children({text("SIGNAL").font(
+                              {.size = 26, .ink = kInk, .letterSpacing = 3}),
+                          box().width(58).height(4).fill(kInk)}),
+           text(caption).font({.size = 12, .ink = kAsh})});
 }
 
 }  // namespace

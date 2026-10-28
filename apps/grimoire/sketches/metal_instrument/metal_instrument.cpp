@@ -142,7 +142,7 @@ compose::Element label(std::string text, float x, float y, float w, float size,
       .top(y)
       .width(w)
       .height(size * 1.65f)
-      .font({.size = size, .color = color});
+      .font({.size = size, .ink = color});
 }
 
 struct BrushMaps {

@@ -35,17 +35,20 @@ Element tile(const char* caption, Element plate) {
       .flexGrow(1)
       .alignItems(Align::Center)
       .children(
-          {plate.width(percent(100)).height(120).borderRadius({10}).children(
-               {box()
-                    .cover()
-                    .borderRadius({10})
-                    .fill(kPlate)
-                    .justifyContent(Justify::Center)
-                    .alignItems(Align::Center)
-                    .children(
-                        {text("A FULL-BLEED CHILD")
-                             .font({.size = 14, .color = kInk, .track = 2})})}),
-           text(caption).font({.size = 12, .color = kAsh})});
+          {plate.width(percent(100))
+               .height(120)
+               .borderRadius({10})
+               .children({box()
+                              .cover()
+                              .borderRadius({10})
+                              .fill(kPlate)
+                              .justifyContent(Justify::Center)
+                              .alignItems(Align::Center)
+                              .children({text("A FULL-BLEED CHILD")
+                                             .font({.size = 14,
+                                                    .ink = kInk,
+                                                    .letterSpacing = 2})})}),
+           text(caption).font({.size = 12, .ink = kAsh})});
 }
 
 }  // namespace

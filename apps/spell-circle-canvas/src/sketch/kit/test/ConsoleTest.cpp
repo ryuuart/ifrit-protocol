@@ -39,7 +39,7 @@ TEST(SketchKitConsole, DrawsTheHandSpelledPlate) {
                  .styles =
                      compose::kit::tinted({.face = house.type.mono,
                                            .size = house.type.captionLabel.size,
-                                           .color = house.palette.ink},
+                                           .ink = house.palette.ink},
                                           {})},
        .plate = {.paddingHorizontal = house.spacing.panelPadding,
                  .paddingVertical = house.spacing.panelPadding * 0.6f,

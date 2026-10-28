@@ -285,7 +285,7 @@ from sigil.sketch import sketch
 class ParagraphSketch:
     def setup(self):
         self.fonts = weave.FontContext()
-        style = weave.textStyle(weave.Type(size=28, color="#ffffff"))
+        style = weave.textStyle(weave.Type(size=28, ink="#ffffff"))
         style.paint.addUnderlay(weave.kit.glow("#00ffff", 2))
         self.paragraph = weave.Paragraph("Native Weave", style)
         self.layout = weave.layoutSingleLine(self.fonts, self.paragraph, (12, 50))

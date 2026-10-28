@@ -197,7 +197,7 @@ struct GuestPicture {
             {compose::document::h2(
                  compose::kit::formatted("WAITING FOR “%s”", kPublication))
                  .styleClass("caption")
-                 .font({.size = 26, .track = 6})
+                 .font({.size = 26, .letterSpacing = 6})
                  .ink(compose::var("palette-ink")),
              compose::document::paragraph(
                  deterministic ? "Live publications are shown in the window; "

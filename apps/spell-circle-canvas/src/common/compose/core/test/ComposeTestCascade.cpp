@@ -411,9 +411,9 @@ TEST(ComposeCascade, AnInkChangedThroughAClassEasesAsTheVerbsChangeDoes) {
   // spellings of one change cannot disagree.
   const sigil::compose::StyleSheet sheet{
       sigil::compose::rule(".hot").font(
-          sigil::weave::Type{.color = SkColor4f{1, 0, 0, 1}}),
+          sigil::weave::Type{.ink = SkColor4f{1, 0, 0, 1}}),
       sigil::compose::rule(".cold").font(
-          sigil::weave::Type{.color = SkColor4f{0, 0, 1, 1}})};
+          sigil::weave::Type{.ink = SkColor4f{0, 0, 1, 1}})};
   Host host;
   const auto page = [&](std::string_view name) {
     return box()
@@ -677,7 +677,7 @@ TEST(ComposeCascade,
   Host mixed, plain;
   mixed.composer.render(
       pageWith(text(sigil::weave::rich().add(u8"AA").add(
-                   u8"BB", sigil::weave::Type{.color = SkColor4f{1, 0, 0, 1}})),
+                   u8"BB", sigil::weave::Type{.ink = SkColor4f{1, 0, 0, 1}})),
                24));
   plain.composer.render(pageWith(text(u8"AABB"), 24));
   mixed.frame();

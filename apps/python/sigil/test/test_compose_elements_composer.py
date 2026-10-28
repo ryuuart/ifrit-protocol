@@ -349,6 +349,46 @@ class Frames(Session):
         self.assertEqual(pixel(picture, 4, 4), (255, 0, 0, 255))
         self.assertEqual(pixel(picture, 40, 28), (0, 0, 0, 255))
 
+    def test_a_memo_builds_again_when_a_live_value_its_builder_read_changes(self):
+        self.render("""
+            counter = motion.animatable(0.0)
+            built = []
+            def describe(model):
+                built.append(counter.value)
+                return box().width(10 + counter.value * 10).height(8).fill('#ff0000')
+            probe = Composer()
+            probe.setSize((48, 32))
+            probe.render(compose.memo(0, describe).key('counted'))
+            probe.draw(pen.canvas())
+            probe.draw(pen.canvas())
+            counter.set(2.0)
+            counter.set(3.0)
+            probe.draw(pen.canvas())
+            results['built'] = list(built)
+            results['width'] = probe.bounds('counted').width()
+        """)
+        self.assertEqual(self.results["built"], [0.0, 3.0])
+        self.assertEqual(self.results["width"], 40)
+
+    def test_a_memo_that_peeks_takes_the_value_once(self):
+        self.render("""
+            counter = motion.animatable(0.0)
+            built = []
+            def describe(model):
+                built.append(counter.peek())
+                return box().width(10 + counter.peek() * 10).height(8).fill('#ff0000')
+            probe = Composer()
+            probe.setSize((48, 32))
+            probe.render(compose.memo(0, describe).key('peeked'))
+            probe.draw(pen.canvas())
+            counter.set(3.0)
+            probe.draw(pen.canvas())
+            results['built'] = list(built)
+            results['width'] = probe.bounds('peeked').width()
+        """)
+        self.assertEqual(self.results["built"], [0.0])
+        self.assertEqual(self.results["width"], 10)
+
     def test_a_live_composer_holds_a_turning_node_and_says_so(self):
         self.render("""
             pen.background('#000000')

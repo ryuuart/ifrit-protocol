@@ -208,7 +208,7 @@ struct RubyKenten {
         .fill(sigil::material::linearGradient(
             {0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari},
             {.units = sigil::material::GradientUnits::Pixels}))
-        .font({.size = 10, .track = 0.2f})
+        .font({.size = 10, .letterSpacing = 0.2f})
         .ink(f::kUsu)
         .children(
             {box().left(52).top(44).column().gap(4).children(
@@ -217,7 +217,7 @@ struct RubyKenten {
                        f::body(30, f::kSumi)),
                   box().height(6),
                   document::eyebrow("A READING IS PART OF THE TEXT")
-                      .font({.size = 11, .color = f::kAi, .track = 3.0f}),
+                      .font({.size = 11, .ink = f::kAi, .letterSpacing = 3.0f}),
                   document::lead("Readings reserve their own band before "
                                  "the text is broken into columns. "
                                  "The column pitch makes room once.")

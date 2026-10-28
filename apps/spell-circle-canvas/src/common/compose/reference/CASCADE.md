@@ -106,8 +106,8 @@ its rules speak about.** `Element::applyStyleSheet` puts a
 subtree carries a look of its own; [the selectors chapter](SELECTORS.md) is the
 whole of how a rule is written and which one wins. A rule states what an
 element states, with the verbs a tree is written with:
-`rule("body").font({.size = 19.5f}).paragraph({.leading =
-Leading::multiple(1.35f)})`, and `rule(".card").padding(8)` as well.
+`rule("body").fontSize(19.5f).lineHeight(1.35f)`, and
+`rule(".card").padding(8)` as well.
 `Element::styleClass` names classes: several in one call, separated by spaces
 as CSS's class attribute lists them. The cascade pass matches the rules in
 force where the element LANDS, and the fields a matched rule sets inherit down
@@ -116,8 +116,8 @@ stand below every rule — a role's default ink may be a property,
 `role("eyebrow", font, var("palette-ash"))`, standing where a colour in
 its defaults would — a rule for a class stands over a rule for a role by its
 weight, rules of one weight fall to the nearer and later sheet and then to the
-later rule, and every rule loses to the node's own `font()` or `paragraph()`,
-so `styleClass("cell").font({.color = c})` is the cell class in this cell's
+later rule, and every rule loses to the node's own verbs,
+so `styleClass("cell").ink(c)` is the cell class in this cell's
 colour. A class no rule in force names, and no operator in the tree picks its
 nodes by (an operator says which classes it reads through
 `ReadsStyleClasses`, as `outline::Hull` does), warns once and sets

@@ -45,7 +45,7 @@ Text line(Utf8 words, std::string role, float scale) {
 
 Element article(std::initializer_list<Children> children) {
   return flow("article", children)
-      .role("article", {.leading = weave::Leading::multiple(1.45f)})
+      .role("article", {.lineHeight = weave::LineHeight::multiple(1.45f)})
       .width(percent(100))
       .maxWidth(var(measure));
 }
@@ -77,7 +77,8 @@ Text caption(Utf8 words) { return line(std::move(words), "caption", 0.875f); }
 Text label(Utf8 words) { return line(std::move(words), "label", 0.875f); }
 Text eyebrow(Utf8 words) {
   return text(std::move(words))
-      .role("eyebrow", {.size = weave::em(0.75f), .track = weave::em(0.08f)});
+      .role("eyebrow",
+            {.size = weave::em(0.75f), .letterSpacing = weave::em(0.08f)});
 }
 Text footer(Utf8 words) { return line(std::move(words), "footer", 0.875f); }
 Text code(Utf8 words) {
@@ -114,7 +115,11 @@ Element figure(Element body, Utf8 note) {
   return result;
 }
 Element rule() {
-  return box().role("rule").height(1).width(percent(100)).fill(Fill::currentInk());
+  return box()
+      .role("rule")
+      .height(1)
+      .width(percent(100))
+      .fill(Fill::currentInk());
 }
 
 }  // namespace sigil::compose::document

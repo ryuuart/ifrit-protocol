@@ -463,7 +463,7 @@ struct LainNavi {
                     {text(passage)
                          .styleClass("listing")
                          .width(720)
-                         .lineHeight(weave::Leading::absolute(kPitch))
+                         .lineHeight(weave::LineHeight::absolute(kPitch))
                          .filter(Filter::glow(hexColor(0x5fe0b0, 0.5f), 3))}),
         });
   }

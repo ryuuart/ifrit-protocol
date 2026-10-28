@@ -274,7 +274,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       // names no colour takes, the font a pen program begins in, the
       // custom properties a fill or an ink may read, and the rest of what
       // a guest painted from here inherits.
-      .ink = inst.font.color.value_or(material::Color{0, 0, 0, 1}),
+      .ink = inst.font.ink.value_or(material::Color{0, 0, 0, 1}),
       .inkPaint = inst.inkPaint.paint ? &inst.inkPaint : nullptr,
       .inkAnchorSize = geometry::path::fromSk(inkAnchorSize),
       // This node's own space mapped INTO the anchor box: the walk holds

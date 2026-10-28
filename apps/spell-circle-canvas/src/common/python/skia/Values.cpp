@@ -390,8 +390,8 @@ void bindValues(py::module_& module) {
   py::enum_<weave::TypeField>(weave, "TypeField")
       .value("Face", weave::TypeField::Face)
       .value("Size", weave::TypeField::Size)
-      .value("Color", weave::TypeField::Color)
-      .value("Track", weave::TypeField::Track)
+      .value("Ink", weave::TypeField::Ink)
+      .value("LetterSpacing", weave::TypeField::LetterSpacing)
       .value("Condense", weave::TypeField::Condense)
       .value("Weight", weave::TypeField::Weight)
       .value("Slant", weave::TypeField::Slant)
@@ -444,14 +444,15 @@ void bindValues(py::module_& module) {
             self.size = std::move(value);
           })
       .def_property(
-          "track", [](const weave::Type& self) { return self.track; },
+          "letterSpacing",
+          [](const weave::Type& self) { return self.letterSpacing; },
           [](weave::Type& self, std::optional<weave::Length> value) {
-            self.track = std::move(value);
+            self.letterSpacing = std::move(value);
           })
       .def_property(
-          "color", [](const weave::Type& self) { return self.color; },
+          "ink", [](const weave::Type& self) { return self.ink; },
           [](weave::Type& self, py::object value) {
-            self.color =
+            self.ink =
                 value.is_none() ? std::nullopt : std::optional{color(value)};
           })
       .def_readwrite("condense", &weave::Type::condense)

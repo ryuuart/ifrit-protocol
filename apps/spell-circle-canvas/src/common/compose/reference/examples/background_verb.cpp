@@ -33,7 +33,7 @@ Element cell(const char* caption, Element plate) {
       .alignItems(Align::Center)
       .justifyContent(Justify::Center)
       .children({plate.width(160).height(100).borderRadius({12}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+                 text(caption).font({.size = 12, .ink = kAsh})});
 }
 
 }  // namespace

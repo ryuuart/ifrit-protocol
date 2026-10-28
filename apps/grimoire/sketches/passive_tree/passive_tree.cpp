@@ -735,9 +735,10 @@ struct PassiveTree {
                 motion::animate({.from = 10.0f, .to = 0.0f, .duration = 520ms}))
             .children(
                 {document::h2(detail->name)
-                     .font({.size = 17, .color = pt::kHalo, .track = 2.4f}),
+                     .font(
+                         {.size = 17, .ink = pt::kHalo, .letterSpacing = 2.4f}),
                  document::label(detail->kind)
-                     .font({.size = 9.5f, .track = 3.2f})
+                     .font({.size = 9.5f, .letterSpacing = 3.2f})
                      .margin(3, 0, 0, 0),
                  box()
                      .width(kCardW - 32)
@@ -766,18 +767,17 @@ struct PassiveTree {
                    .fill({pt::kRimLit.r, pt::kRimLit.g, pt::kRimLit.b, 0.9f}),
                document::paragraph(line)
                    .font({.size = 12,
-                          .color = material::Color{0.62f, 0.68f, 0.90f, 1},
-                          .track = 0.2f})
+                          .ink = material::Color{0.62f, 0.68f, 0.90f, 1},
+                          .letterSpacing = 0.2f})
                    .flexGrow(1)});
     })});
     if (detail->flavour)
-      card.children(
-          {document::caption(detail->flavour)
-               .font({.size = 11.5f,
-                      .color = material::Color{0.42f, 0.38f, 0.32f, 1},
-                      .track = 0.3f,
-                      .slant = -10.0f})
-               .margin(9, 0, 0, 0)});
+      card.children({document::caption(detail->flavour)
+                         .font({.size = 11.5f,
+                                .ink = material::Color{0.42f, 0.38f, 0.32f, 1},
+                                .letterSpacing = 0.3f,
+                                .slant = -10.0f})
+                         .margin(9, 0, 0, 0)});
     // the leader from the card back to the node it describes
     root.operators(
         {Operator(
@@ -820,8 +820,9 @@ struct PassiveTree {
                                                 "geometry, four frame states"}})
                .applyStyleSheet(
                    mastheadTheme().properties() +
-                   StyleSheet{rule("h1").font({.size = 24, .track = 3}),
-                              rule("lead").font({.size = 12, .track = 1.0f})})
+                   StyleSheet{
+                       rule("h1").font({.size = 24, .letterSpacing = 3}),
+                       rule("lead").font({.size = 12, .letterSpacing = 1.0f})})
                .top(30)
                .left(38)
                .zIndex(8)});
@@ -835,9 +836,9 @@ struct PassiveTree {
              .right(36)
              .zIndex(8)
              .children({text(points).font(
-                            {.size = 21, .color = pt::kGold, .track = 2}),
+                            {.size = 21, .ink = pt::kGold, .letterSpacing = 2}),
                         text("passive points")
-                            .font({.size = 10.5f, .track = 1.5f})
+                            .font({.size = 10.5f, .letterSpacing = 1.5f})
                             .margin(4, 0, 0, 0)}),
          box()
              .row()
@@ -851,10 +852,11 @@ struct PassiveTree {
              .fill({0.075f, 0.063f, 0.051f, 0.9f})
              .foreground(stroke(1.0f, Fill::color({pt::kSearch.r, pt::kSearch.g,
                                                    pt::kSearch.b, 0.4f})))
-             .children({text("search").font({.size = 10, .track = 1.8f}),
-                        text("fire").font(
-                            {.size = 12, .color = pt::kSearch, .track = 0.6f}),
-                        text(found).font({.size = 10, .track = 1.2f})})});
+             .children(
+                 {text("search").font({.size = 10, .letterSpacing = 1.8f}),
+                  text("fire").font(
+                      {.size = 12, .ink = pt::kSearch, .letterSpacing = 0.6f}),
+                  text(found).font({.size = 10, .letterSpacing = 1.2f})})});
 
     // THE KEY TO THE THREE RAILS. Its mark is not a patch of colour but a
     // length of the rope itself, drawn by the same preset the tree's own

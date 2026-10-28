@@ -252,7 +252,7 @@ struct AeroDesktop {
         .children(
             {text("Aurora Borealis — Aero Glass")
                  .font({.size = 12.5f,
-                        .color = material::Color{0.05f, 0.05f, 0.05f, 1}})
+                        .ink = material::Color{0.05f, 0.05f, 0.05f, 1}})
                  .inset(0)
                  .filter(sigil::material::Filter::glow({1, 1, 1, 0.90f}, 2.2f)
                              .then(sigil::material::Filter::glow(
@@ -566,11 +566,11 @@ struct AeroDesktop {
                               1, Fill::color({0.55f, 0.40f, 0.10f, 0.8f})))}),
              // tray clock, pinned to the right edge (right-aligned for free)
              text("4:20 PM")
-                 .font({.size = 12, .color = material::Color{1, 1, 1, 0.92f}})
+                 .font({.size = 12, .ink = material::Color{1, 1, 1, 0.92f}})
                  .top(13)
                  .right(10),
              text("11/8/2006")
-                 .font({.size = 10, .color = material::Color{1, 1, 1, 0.65f}})
+                 .font({.size = 10, .ink = material::Color{1, 1, 1, 0.65f}})
                  .top(27)
                  .right(10)});
   }

@@ -59,7 +59,7 @@ struct DeviceImportProbe {
             .justifyContent(Justify::Center)
             .children({text(
                 imported ? u8"imported" : u8"no device",
-                weave::textStyle({.size = 22, .color = hexColor(0xd8e2f0)}))}));
+                weave::textStyle({.size = 22, .ink = hexColor(0xd8e2f0)}))}));
   }
 };
 

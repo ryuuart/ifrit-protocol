@@ -39,7 +39,7 @@ Element spoken(const Line& line, Text el, const std::string& key) {
  *  The ink is the sheet's palette property, standing where a colour here
  *  would. */
 weave::Type cardLine(const Register& line) {
-  weave::Type type{.size = line.size, .track = line.track};
+  weave::Type type{.size = line.size, .letterSpacing = line.letterSpacing};
   // Unset rather than null where the register names none: a stated null
   // face is the default family outright, which an inherited one would not
   // reach past.

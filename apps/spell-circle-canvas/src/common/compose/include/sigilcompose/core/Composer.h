@@ -203,13 +203,18 @@ class Composer {
    *  matching children by key and pruning where a memo hits or the
    *  description compares equal. Call it whenever your data changed —
    *  never per frame just to move a value, which is what a binding is
-   *  for. */
+   *  for, nor to follow a live value, which a memo whose describe reads
+   *  it does by itself: the draw after the value changes describes that
+   *  memo again. This is the manual door, for a change no live value
+   *  carries. */
   void render(const Element& root);
 
   /** Updates only the named slot() mount point. Layout and stacking still
    *  integrate normally and ancestors re-record their caches, but the rest
    *  of the tree is untouched — which is the point: two data domains
-   *  changing at different rates do not invalidate each other.
+   *  changing at different rates do not invalidate each other. Like
+   *  render(), a manual door: content that follows a live value is a memo
+   *  reading it, which the draw describes again by itself.
    *
    *  A name that matches no slot in the mounted tree keeps the content
    *  and mounts it when a described tree brings the slot, so a setup may
@@ -222,8 +227,9 @@ class Composer {
   bool dirty() const;
 
   /** Whether another draw can produce different pixels: a description or
-   *  layout is dirty, an engine motion is running, or a retained binding can
-   *  change without another render(). Unlike dirty(), this also polls
+   *  layout is dirty, an engine motion is running, a retained binding can
+   *  change without another render(), or a live value some memo's describe
+   *  read has changed since. Unlike dirty(), this also polls
    *  externally-driven bindings that previously settled. */
   bool isRunning() const;
 
@@ -389,7 +395,14 @@ class Composer {
    *  An unknown key, a node that is not text, a track index past the node's
    *  list, and a track carrying no effect all resolve to an EMPTY vector,
    *  silently, exactly as an unknown key resolves everywhere else in the
-   *  query family. Check your key first. */
+   *  query family. Check your key first.
+   *
+   *  ASKED INSIDE A MEMO'S COMPONENT, THE ANSWER IS FOLLOWED: the memo is
+   *  described again when a node first answers to a key that had none, when
+   *  a layout moves the node or sets its text again — in the same draw, laid
+   *  out again after it — and when the track's progress, read as a live
+   *  value, changes. A meter drawn from the beats is then a memo over this
+   *  query and needs no describe from the host every frame. */
   [[nodiscard]] std::vector<Beat> beatsOf(std::string_view key,
                                           size_t trackIndex) const;
   /** WHERE THE UNITS A SELECTOR ADDRESSES LANDED on the keyed text node —

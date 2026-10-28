@@ -210,11 +210,11 @@ inline sigil::weave::Type menuType(float size, material::Color fill,
                                    bool italic = true) {
   sigil::weave::Type t{.face = menuFace(italic),
                        .size = size,
-                       .color = fill,
+                       .ink = fill,
                        // The original tracks around -0.14em on Rodin; Avenir
                        // Condensed is already tighter, so it needs less
                        // taken out.
-                       .track = sigil::weave::em(-0.08f),
+                       .letterSpacing = sigil::weave::em(-0.08f),
                        // Condense the last of the way to Rodin's proportion
                        // (0.82 against its regular width); Avenir Condensed
                        // already carries most of that.
@@ -226,7 +226,7 @@ inline sigil::weave::Type menuType(float size, material::Color fill,
 /** The small caps-and-figures voice, in the default family. */
 inline sigil::weave::Type smallType(float size, material::Color c,
                                     float track = 1) {
-  return {.size = size, .color = c, .track = track, .color8 = true};
+  return {.size = size, .ink = c, .letterSpacing = track, .color8 = true};
 }
 
 }  // namespace persona_menu
@@ -621,7 +621,7 @@ struct PersonaMenu {
           .ink(color)
           .children(
               {text(label)
-                   .font({.size = 9, .track = 1.4f, .color8 = true})
+                   .font({.size = 9, .letterSpacing = 1.4f, .color8 = true})
                    .width(16),
                box()
                    .width(84)
@@ -701,7 +701,7 @@ struct PersonaMenu {
                          // 0.88 condensation with -0.05em is the deepest
                          // overlap that still reads as two digits.
                          s.condense = 0.88f;
-                         s.track = sigil::weave::em(-0.05f);
+                         s.letterSpacing = sigil::weave::em(-0.05f);
                          return s;
                        }())
                        .centerAt({450, 306})

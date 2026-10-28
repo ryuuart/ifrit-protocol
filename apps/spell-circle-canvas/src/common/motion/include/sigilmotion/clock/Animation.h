@@ -80,7 +80,7 @@ class AnimationState final : public PlaybackState {
     m_origin = cell->value;
     m_writer = ++cell->writer;
     cell->moving = true;
-    if (m_from) cell->value = *m_from;
+    if (m_from) cell->write(*m_from);
   }
 
   /** Rides @p delta on top of the running path, over @p duration after
@@ -88,7 +88,8 @@ class AnimationState final : public PlaybackState {
   void blend(T delta, Duration wait, Duration duration, Easing ease)
     requires Additive<T>
   {
-    m_layers.push_back({time + wait, duration, std::move(delta), std::move(ease)});
+    m_layers.push_back(
+        {time + wait, duration, std::move(delta), std::move(ease)});
     const Duration end = time + wait + duration;
     // A single pass runs on, holding its end, until the layer lands; the
     // path itself is unchanged, only when it completes.
@@ -112,7 +113,8 @@ class AnimationState final : public PlaybackState {
           const float unit = step.duration > Duration{}
                                  ? (float)(remaining / step.duration)
                                  : 1.0f;
-          value = interpolate(value, step.to, step.ease ? step.ease(unit) : unit);
+          value =
+              interpolate(value, step.to, step.ease ? step.ease(unit) : unit);
           break;
         }
         remaining -= step.duration;
@@ -129,7 +131,7 @@ class AnimationState final : public PlaybackState {
         value = value + layer.delta * (layer.ease ? layer.ease(unit) : unit);
       }
     }
-    cell->value = std::move(value);
+    cell->write(std::move(value));
   }
 
   void finished() override {
@@ -139,7 +141,7 @@ class AnimationState final : public PlaybackState {
 
   void revertTargets() override {
     if (const auto cell = m_cell.lock(); cell && cell->writer == m_writer) {
-      cell->value = m_origin;
+      cell->write(m_origin);
       cell->moving = false;
     }
   }

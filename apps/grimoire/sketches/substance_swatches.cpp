@@ -118,9 +118,9 @@ Element notice(Utf8 heading, Utf8 detail) {
       .column()
       .gap(10)
       .children({text(std::move(heading),
-                      weave::textStyle({.size = 22, .color = kInk})),
+                      weave::textStyle({.size = 22, .ink = kInk})),
                  text(std::move(detail),
-                      weave::textStyle({.size = 13, .color = kDim}))});
+                      weave::textStyle({.size = 13, .ink = kDim}))});
 }
 
 }  // namespace

@@ -19,7 +19,7 @@ bool anyGreenIn(Host& host, SkIRect region) {
 /** A partial of a stated size in a stated colour, over whatever the text
  *  it lands on is set in — the probe a span restyle is read back with. */
 sigil::weave::Type colouredType(float size, SkColor colour) {
-  return {.size = size, .color = SkColor4f::FromColor(colour)};
+  return {.size = size, .ink = SkColor4f::FromColor(colour)};
 }
 
 /** A passage long enough to wrap at the measures the cases set. */

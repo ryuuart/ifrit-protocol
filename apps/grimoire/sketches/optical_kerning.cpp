@@ -73,7 +73,7 @@ weave::TextStyle display(float size, material::Color color, bool optical) {
   const sigil::weave::Face face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   weave::TextStyle style =
-      weave::textStyle({.face = face, .size = size, .color = color});
+      weave::textStyle({.face = face, .size = size, .ink = color});
   style.shaping.opticalKerning = optical;
   return style;
 }

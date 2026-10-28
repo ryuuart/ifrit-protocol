@@ -8,7 +8,7 @@ a motion, the `Engine` animations, timelines and timers run on and that
 tells a host whether anything is still moving, `stagger()` and the
 schedule saying how a run of units shares one progress, and a point set
 that is stepped rather than read. It links
-two header-only SigilCore leaves and nothing else outside the tree but
+three small SigilCore leaves and nothing else outside the tree but
 glm, the vector type, and a private Boost table, so anything can use it without dragging in a
 graphics stack.
 
@@ -118,7 +118,7 @@ the motion that writes it are this library's own. `ease::` spells the
 standard curves itself, to the same numbers as Choreograph's, and only
 the ease feature's test links Choreograph, to hold them to those
 numbers. The
-only other edges out of this directory reach the two header-only leaves
+other edges out of this directory reach the two header-only leaves
 under SigilCore that depend on the standard library and nothing else:
 `SigilCoreComparable` for `kFieldCount`, the pin each comparator above
 sits under — so that a `static_assert` about `Binding`'s field count
@@ -134,7 +134,11 @@ position exactly as an easing does and the colour leaf links no
 animation runtime. The parameterised `ease::` curves are values of that
 leaf's type, so a shaped curve gets its equality from the leaf and reads
 the same wherever it is held.
-Both carry no kernel, no device and nothing that draws. Boost is
+The third is `SigilCoreFollow`, a leaf over the reporting door alone: a
+live value's cell is a `core::Followable`, so a memo's describe that
+reads a live value with `Animatable::value()` is described again when the
+number changes, and `Animatable::peek()` reads it without following.
+All three carry no kernel, no device and nothing that draws. Boost is
 private, in one place: the scheduler's own table — a Boost unordered map
 on `SigilMotionSchedule` — which no public header names.
 

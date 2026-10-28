@@ -206,7 +206,7 @@ void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
         text("1½ in = 4.5 px [T68] — AND [C85]’s TRACK\n"
              "STOPS 12 in SHORT: THE RED DASHES.")
             .font({.face = monoFace(), .size = 7.5f})
-            .lineHeight(sigil::weave::Leading::absolute(10))
+            .lineHeight(sigil::weave::LineHeight::absolute(10))
             .textFirstBaseline(
                 sigil::weave::FrameOptions::FirstBaseline::kFixed, 0)
             .decorationOutline(Boundary::Glyphs)

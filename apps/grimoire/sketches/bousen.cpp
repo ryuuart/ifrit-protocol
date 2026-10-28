@@ -248,19 +248,20 @@ struct Bousen {
                          // phrase's edge, so it lands where the anchor is
                          // rather than where a coordinate would have put
                          // it.
-                         .children({kit::at(box().key("leader").absolute().fill(
-                                                Fill::color(bs::kAka)),
-                                            0.0f, 42.0f, 168.0f, 1.0f),
-                                    document::paragraph(
-                                        weave::rich()
-                                            .add("mark() ",
-                                                 weave::Type{.size = 11,
-                                                             .color = bs::kAka,
-                                                             .track = 1})
-                                            .add("— anchored to "
-                                                 "the phrase,\nnot to a "
-                                                 "coordinate"))
-                                        .width(150.0f)})),
+                         .children(
+                             {kit::at(box().key("leader").absolute().fill(
+                                          Fill::color(bs::kAka)),
+                                      0.0f, 42.0f, 168.0f, 1.0f),
+                              document::paragraph(
+                                  weave::rich()
+                                      .add("mark() ",
+                                           weave::Type{.size = 11,
+                                                       .ink = bs::kAka,
+                                                       .letterSpacing = 1})
+                                      .add("— anchored to "
+                                           "the phrase,\nnot to a "
+                                           "coordinate"))
+                                  .width(150.0f)})),
              // The plate names itself in the other writing mode, so the two
              // stand side by side.
              box()
@@ -273,10 +274,13 @@ struct Bousen {
                       kit::line({.length = Dimension(120),
                                  .fill = Fill::color(bs::kAka)}),
                       document::eyebrow("THE COLUMN'S FURNITURE")
-                          .font({.size = 13, .color = bs::kAi, .track = 3}),
+                          .font(
+                              {.size = 13, .ink = bs::kAi, .letterSpacing = 3}),
                       document::lead("a band beside the column, not beneath a\n"
                                      "line · a mark on the phrase it names")
-                          .font({.size = 13, .color = bs::kSumi, .track = 0.4f})
+                          .font({.size = 13,
+                                 .ink = bs::kSumi,
+                                 .letterSpacing = 0.4f})
                           .width(260.0f),
                       box().height(20.0f),
                       box().row().gap(30).children(

@@ -108,7 +108,7 @@ Element panel(const char* caption, Element content) {
       .fill(var("palette-cell-ground"))
       .perspective(kViewDistance)
       .children({document::caption(caption)
-                     .font({.size = 14, .color = kAsh})
+                     .font({.size = 14, .ink = kAsh})
                      .absolute()
                      .left(18)
                      .right(18)
@@ -159,7 +159,7 @@ struct CardFlip {
           .justifyContent(Justify::SpaceBetween)
           .rotateY(turn)
           .backface(material::Backface::Hidden)
-          .font({.color = kPaper, .track = 1})
+          .font({.ink = kPaper, .letterSpacing = 1})
           .children({document::h2(title).font({.size = 30}),
                      document::paragraph(line)
                          .font({.size = 14})
@@ -219,7 +219,8 @@ struct CardFlip {
                          percent(100))  // hinged along its bottom edge
         .rotateX(kTilt)
         .rotateY(motion::bind(sway, {.from = {-1, 1}, .to = {-14.0f, 14.0f}}))
-        .children({document::h2("TILTED PLATE").font({.size = 18, .track = 3}),
+        .children({document::h2("TILTED PLATE")
+                       .font({.size = 18, .letterSpacing = 3}),
                    document::paragraph(passage)
                        .font({.size = 14})
                        .width(percent(100))});

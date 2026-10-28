@@ -191,7 +191,7 @@ TEST(ComposeConsole, StacksFeedsPerColumnInOneVoice) {
   for (feed::TextRing* ring : {&a, &b, &c, &d}) ring->append({u8"a row", ""});
   feed::TextOptions voice;
   voice.styles =
-      kit::tinted({.size = 12.0f, .color = material::Color{1, 1, 1, 1}},
+      kit::tinted({.size = 12.0f, .ink = material::Color{1, 1, 1, 1}},
                   {{"pass", {0, 1, 0, 1}}});
   voice.window.visible = 4;
   const float row = feed::height(voice, 1, fonts());
@@ -294,8 +294,8 @@ TEST(ComposeStudio, ATypedOptionsValueCarriesWhatPositionalArgumentsCannot) {
   // the same way its predecessor did.
   const sigil::weave::TextStyle s =
       weave::textStyle({.size = 18.0f,
-                        .color = SkColor4f{0.2f, 0.4f, 0.6f, 1},
-                        .track = 1.25f,
+                        .ink = SkColor4f{0.2f, 0.4f, 0.6f, 1},
+                        .letterSpacing = 1.25f,
                         .condense = 0.94f,
                         .weight = 650.0f,
                         .slant = -10.0f,
@@ -399,7 +399,7 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   // situation this replaces.
   Host host(200, 60);
   feed::TextOptions style;
-  style.styles = kit::tinted({.size = 9, .color = material::Color{1, 1, 1, 1}},
+  style.styles = kit::tinted({.size = 9, .ink = material::Color{1, 1, 1, 1}},
                              {{"pass", {0, 1, 0, 1}}, {"fail", {1, 0, 0, 1}}});
   host.composer.render(box()
                            .fill(Fill::color({0, 0, 0, 1}))

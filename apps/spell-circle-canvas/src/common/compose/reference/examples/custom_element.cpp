@@ -69,7 +69,7 @@ struct CustomElement {
                 .borderRadius({10})
                 .fill(kCell)
                 .overflow(Overflow::Clip),
-            text("custom(key, program)").font({.size = 12, .color = kAsh}),
+            text("custom(key, program)").font({.size = 12, .ink = kAsh}),
         });
   }
 };

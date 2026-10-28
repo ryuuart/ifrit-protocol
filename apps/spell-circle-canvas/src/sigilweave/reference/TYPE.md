@@ -286,7 +286,7 @@ per call site. A positional helper cannot grow another parameter without
 breaking every existing call; an aggregate can.
 
 ```cpp
-textStyle({.face = faceMono, .size = 10.5f, .color = kInk, .track = 1.2f})
+textStyle({.face = faceMono, .size = 10.5f, .ink = kInk, .letterSpacing = 1.2f})
 ```
 
 AND A PARTIAL: a field nobody set is not a field set to a default. A
@@ -310,6 +310,25 @@ own state beyond its colour: a shader, a mask-filter blur, a blend mode.
 Those are added to the RETURNED style at the call site, and a leaf that
 carries them is set in a whole `TextStyle`.
 
+### The fields are longhands
+
+A field is one property, named as CSS names it where CSS has the
+property, and each is the field one of compose's cascade verbs writes:
+
+| Field | CSS | Field | CSS |
+|---|---|---|---|
+| `face` | `font-family` | `features` | `font-feature-settings` |
+| `size` | `font-size` | `variations` | `font-variation-settings` |
+| `weight` | `font-weight` | `opticalKerning` | `font-kerning`, its optical extension |
+| `slant` | `font-style: oblique` | `wordSpacing` | `word-spacing` |
+| `ink` | `color` | `textTransform` | `text-transform` |
+| `letterSpacing` | `letter-spacing` | `verticalForm` | `text-orientation`, `text-combine-upright` |
+| `language` | the `lang` attribute | `baselineShift` | `baseline-shift` |
+| `decorations` | `text-decoration` | `underlays` | `text-shadow` |
+
+The rest — `condense`, `aliased`, `antiAlias`, `color8`, `overlays` — are
+this library's own, with no CSS property to name them.
+
 ### The fields that need saying
 
 `Type::face` unset is the face inherited, or the `FontContext`'s default
@@ -319,9 +338,10 @@ outright, whatever an ancestor named: the one way a passage under a faced
 ancestor returns to the context's own family, as CSS's `font-family:
 initial` is.
 
-`Type::track` is tracking added after each cluster. Pixels are implicit,
-so `.track = 1.2f` is that many; `em(-0.08f)` is a fraction of the SIZE
-THE TYPE RESOLVES TO, resolved as it is overlaid, so one register can
+`Type::letterSpacing` is tracking added after each cluster — CSS's
+`letter-spacing`. Pixels are implicit, so `.letterSpacing = 1.2f` is that
+many; `em(-0.08f)` is a fraction of the SIZE THE TYPE RESOLVES TO,
+resolved as it is overlaid, so one register can
 state the tracking a face is set at and hold it at every size. It is NOT
 per-mille: a reference that quotes tracking in per-mille is a thousandth
 of an em.
@@ -478,7 +498,7 @@ large enough for that to matter has stopped being a sheet of named
 classes and become a document's worth of formatting.
 
 A sheet may be spelled as a literal, an entry per class:
-`TypeSheet{{"ts", {.size = 11}}, {"dim", {.color = grey}}}`. A name
+`TypeSheet{{"ts", {.size = 11}}, {"dim", {.ink = grey}}}`. A name
 spelled twice keeps the later entry, in the earlier one's place.
 
 ## See also

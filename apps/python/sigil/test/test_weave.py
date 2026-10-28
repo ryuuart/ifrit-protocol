@@ -23,14 +23,14 @@ class Typography(unittest.TestCase):
 
     def test_rich_runs_keep_inheritance_and_resolve_names_by_value(self):
         self.assertIs(weave.RichText, native_weave.RichText)
-        base = weave.textStyle(weave.Type(size=24, color="#ffffff"))
+        base = weave.textStyle(weave.Type(size=24, ink="#ffffff"))
         passage = (
             weave.rich(base)
             .add("日本語 ")
             .add("accent", name="accent")
             .add(" superscript", type=weave.Type(size=weave.em(0.5)))
         )
-        sheet = weave.TypeSheet().set("accent", weave.Type(color="#ff0000"))
+        sheet = weave.TypeSheet().set("accent", weave.Type(ink="#ff0000"))
         self.assertIs(passage.styles(sheet), passage)
         self.assertTrue(passage.hasBase())
         self.assertTrue(passage.hasStyles())
@@ -210,7 +210,7 @@ class Scene:
     def setup(self, ctx):
         arch = path.curveThrough([(20, 100), (120, 30), (220, 100)])
         ctx.render(box().width(240).height(120).children(
-            text("MMMMMMMMMMMMMMMMMMMMMMMM").font(Type(size=16, color="#ffffff"))
+            text("MMMMMMMMMMMMMMMMMMMMMMMM").font(Type(size=16, ink="#ffffff"))
             .textOnPath(path=TextPath(path=arch, align=TextPath.Align.Center))))
 """)
         width = 240
@@ -245,7 +245,7 @@ class Scene:
     def setup(self, ctx):
         track = {track}
         ctx.render(box().width(240).height(40).children(
-            text("MMMMMMMMMMMM").font(Type(size=16, color="#ffffff")).textFx(track)))
+            text("MMMMMMMMMMMM").font(Type(size=16, ink="#ffffff")).textFx(track)))
 """,
                 at=at,
             )
@@ -292,7 +292,7 @@ from sigil.weave import Type, rich
 @sketch(size=(240, 72), background="#000000")
 class Scene:
     def setup(self, ctx):
-        passage = rich().add("RED", Type(color="#ff0000")).add(" ").slot("mark", (20, 20)).add(" GREEN", Type(color="#00ff00"))
+        passage = rich().add("RED", Type(ink="#ff0000")).add(" ").slot("mark", (20, 20)).add(" GREEN", Type(ink="#00ff00"))
         ctx.render(text(passage).width(240).font(Type(size=24)).children(box().key("mark").fill("#0000ff")))
 """)
         colors = list(zip(pixels[0::4], pixels[1::4], pixels[2::4]))
@@ -336,7 +336,7 @@ from sigil.weave import HyphenationOptions, TextAlignment, Type, kit
 @sketch(size=(70, 300), background="#000000")
 class Scene:
     def setup(self, ctx):
-        ctx.render(text("specimen " * 4).textAlign(TextAlignment.Justify).font(Type(size=20, color="#ffffff", language="en-US")).hyphens(HyphenationOptions(%s)))
+        ctx.render(text("specimen " * 4).textAlign(TextAlignment.Justify).font(Type(size=20, ink="#ffffff", language="en-US")).hyphens(HyphenationOptions(%s)))
 """
         self.assertTrue(
             self.aLineEndsInAHyphen(
@@ -393,7 +393,7 @@ from sigil.weave import Story, Type, rich, textStyle
 @sketch(size=(280, 100), background="#000000")
 class Scene:
     def setup(self, ctx):
-        article = Story(rich(textStyle(Type(size=20, color="#ffffff"))).add("One two three four five six seven eight nine ten eleven twelve thirteen fourteen."))
+        article = Story(rich(textStyle(Type(size=20, ink="#ffffff"))).add("One two three four five six seven eight nine ten eleven twelve thirteen fourteen."))
         ctx.render(box().row().gap(20).children(frame(article).key("a").textThreadTo("b").width(130).height(60), frame(article).key("b").width(130).height(100)))
 """)
 
@@ -437,7 +437,7 @@ class Scene:
         held = textFx.DisplacedTween(from_=textFx.Displaced(opacity={opacity}, fadeOver=0))
         track = textFx.entrance(held, compose.Track(progress=0))
         ctx.render(box().width(160).height(120).padding(30).children(
-            text("I").font(Type(size=64, color="#ffffff"))
+            text("I").font(Type(size=64, ink="#ffffff"))
             .textShadow(TextShadow(blur=12, color="#00ff00")).textFx(track)))
 """)
         width, row = 160, 70

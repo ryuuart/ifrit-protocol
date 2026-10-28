@@ -185,7 +185,8 @@ struct Zellige {
                   {0.58f, {0, 0, 0, 0.03f}},
                   {1.00f, {0, 0, 0, 0.10f}}},
                  {.units = material::GradientUnits::Pixels}))}),
-         document::caption(one.caption).font({.size = 12, .track = 0.3f})});
+         document::caption(one.caption)
+             .font({.size = 12, .letterSpacing = 0.3f})});
   }
 
   Element describe() {
@@ -199,18 +200,19 @@ struct Zellige {
         // Speckled plaster grain over the ground — its own full-bleed
         // layer (the root fill and the pattern can't share one slot).
         .children(
-            {box().inset(0).fill(
-                 Pattern(material::pattern::speckle(
-                             96, 60, 0.4f, 1.1f, {{0.35f, 0.30f, 0.24f, 0.25f}}))
-                     .material()),
+            {box().inset(0).fill(Pattern(material::pattern::speckle(
+                                             96, 60, 0.4f, 1.1f,
+                                             {{0.35f, 0.30f, 0.24f, 0.25f}}))
+                                     .material()),
              box().column().inset(44, 50).gap(14).children(
                  {box().column().gap(5).children(
-                      {document::h1("ZELLIJE").font({.size = 34, .track = 3}),
+                      {document::h1("ZELLIJE").font(
+                           {.size = 34, .letterSpacing = 3}),
                        document::lead("Three glazed wall courses · "
                                       "contact angles of 30°, 45° and 60°")
                            .font({.size = 13,
-                                  .color = zw::kSub,
-                                  .track = 0.2f})}),
+                                  .ink = zw::kSub,
+                                  .letterSpacing = 0.2f})}),
                   box().row().flexGrow(1).gap(22).children(
                       {each(panels, [this](const zellige_wall::Panel& one) {
                         return panel(one);

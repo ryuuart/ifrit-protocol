@@ -70,7 +70,8 @@ inline weave::Face display() {
 }
 
 inline weave::Type type(float size, material::Color color, float track = 0) {
-  return {.face = display(), .size = size, .color = color, .track = track};
+  return {
+      .face = display(), .size = size, .ink = color, .letterSpacing = track};
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +149,8 @@ inline Element ballFilmstrip(const sk_sp<SkRuntimeEffect>& program) {
             .fill(ballMaterial(program, 0.1f * (float)frame, C5(0xFF6B29),
                                C5(0xC64210), C5(0x521800), 0.05f));
     if (landing)
-      ball.scaleX(1.14f).scaleY(0.84f).transformOrigin(percent(50), percent(100));
+      ball.scaleX(1.14f).scaleY(0.84f).transformOrigin(percent(50),
+                                                       percent(100));
     strip.children({std::move(ball)});
   }
   return strip;
@@ -325,7 +327,8 @@ inline Element navLabel(weave::FontContext& fonts, const Label& label,
   Element run = text(label.text).font(styleAt(size));
   run.ink(material::from(label.ink).effects(keyline));
   run.left(left).top(top).width(measured.width() + 4.0f);
-  if (condense < 0.999f) run.scaleX(condense).transformOrigin(percent(0), percent(50));
+  if (condense < 0.999f)
+    run.scaleX(condense).transformOrigin(percent(0), percent(50));
   return run;
 }
 
@@ -351,7 +354,7 @@ inline Element artCounter(weave::FontContext&, const std::string& figures) {
          text(std::string(1, figures[index]))
              .font({.face = weave::ports::face({"Courier New"}, 700),
                     .size = 15,
-                    .color = C5(0xFFFFFF),
+                    .ink = C5(0xFFFFFF),
                     .aliased = true})
              .left((float)index * kCounterDigit + 1.5f)
              .top(-0.5f)});
@@ -818,7 +821,8 @@ inline Element wordmark(weave::FontContext& fonts, const Label& label,
       .top(-height * 0.22f)
       .width(natural.width() + 4.0f);
   if (natural.width() > measure)
-    run.scaleX(measure / natural.width()).transformOrigin(percent(0), percent(50));
+    run.scaleX(measure / natural.width())
+        .transformOrigin(percent(0), percent(50));
   return artBox(width, height).children({std::move(run)});
 }
 

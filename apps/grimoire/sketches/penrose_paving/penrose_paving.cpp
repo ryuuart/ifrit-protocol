@@ -522,8 +522,8 @@ struct PenrosePaving {
                   700, 18)
               .font({.face = engraved,
                      .size = 12.5f,
-                     .color = kLettering,
-                     .track = 1.6f})
+                     .ink = kLettering,
+                     .letterSpacing = 1.6f})
               .opacity(tallied(cuts)));
     return stack().inset(0).children({
         kit::at(
@@ -541,19 +541,19 @@ struct PenrosePaving {
             .children({text(words.phrase("title"))
                            .font({.face = engraved,
                                   .size = 24,
-                                  .color = kLettering,
-                                  .track = 6}),
+                                  .ink = kLettering,
+                                  .letterSpacing = 6}),
                        text(words.phrase("tiling"))
                            .font({.face = engraved,
                                   .size = 11.5f,
-                                  .color = kLetteringQuiet,
-                                  .track = 1.8f})}),
+                                  .ink = kLetteringQuiet,
+                                  .letterSpacing = 1.8f})}),
         tallies,
         kit::at(text(words.phrase("rules")), 80, 1127, 720, 16)
             .font({.face = engraved,
                    .size = 11.5f,
-                   .color = kGold,
-                   .track = 1.6f})
+                   .ink = kGold,
+                   .letterSpacing = 1.6f})
             .opacity(showingRules()),
     });
   }

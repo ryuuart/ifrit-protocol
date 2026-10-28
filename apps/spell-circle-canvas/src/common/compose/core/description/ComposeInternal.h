@@ -589,13 +589,13 @@ struct CascadeData {
   std::optional<Dimension> textIndent;
   /** lineHeight() in a unit the cascade resolves — against the font, the
    *  canvas or a property where it is stated — into an absolute leading.
-   *  A pitch in pixels is `block->leading`; the two exclude each other. */
+   *  A pitch in pixels is `block->lineHeight`; the two exclude each other. */
   std::optional<Dimension> lineHeight;
   /** How image leaves under this node sample their source
    *  (Element::imageRendering), inherited as CSS's image-rendering is. */
   std::optional<SkSamplingOptions> sampling;
   /** ink(var(...)): the property the ink reads. Exclusive with a colour in
-   *  `font->color` — whichever was written last stands. */
+   *  `font->ink` — whichever was written last stands. */
   std::optional<VarRef> inkVar;
   /** ink(paint): the ink as a WHOLE PAINT — a ramp, a recipe, SkSL —
    *  and the box its unit square is stretched over. Inherited exactly as

@@ -18,7 +18,7 @@ sigil::weave::TextStyle pixelStyle(float size) {
       {.face = sigil::weave::ports::pickTypeface(
            {"Menlo", "DejaVu Sans Mono", "Courier New"}),
        .size = size,
-       .color = SkColor4f{1, 1, 1, 1},
+       .ink = SkColor4f{1, 1, 1, 1},
        .aliased = true});
 }
 

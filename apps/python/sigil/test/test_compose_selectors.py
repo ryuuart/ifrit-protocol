@@ -251,9 +251,9 @@ class Rules(unittest.TestCase):
 
     def test_a_rule_folds_the_partials_a_verb_writes(self):
         stated = compose.rule(".card").font(weave.Type(size=18))
-        stated.font(weave.Type(color="#ff0000"))
+        stated.font(weave.Type(ink="#ff0000"))
         self.assertEqual(stated.type().size.value, 18)
-        self.assertEqual(stated.type().color, material.Color("#ff0000"))
+        self.assertEqual(stated.type().ink, material.Color("#ff0000"))
         stated.paragraph(weave.ParagraphBlock(widowLines=3))
         self.assertEqual(stated.paragraph().widowLines, 3)
         self.assertFalse(stated.paragraph().empty())
@@ -335,7 +335,7 @@ class Rules(unittest.TestCase):
         )
         self.assertEqual(
             compose.rule(".a").fontWeight(700).letterSpacing(2),
-            compose.rule(".a").font(weave.Type(weight=700, track=2)),
+            compose.rule(".a").font(weave.Type(weight=700, letterSpacing=2)),
         )
         self.assertEqual(
             compose.rule(".a").textAlign(weave.TextAlignment.Center),
@@ -475,12 +475,12 @@ class Scene:
         pass
 
     def update(self, elapsed, ctx):
-        sheet = StyleSheet([rule(".title").font(Type(size=30, color="#ff0000"))])
+        sheet = StyleSheet([rule(".title").font(Type(size=30, ink="#ff0000"))])
         cells = [
             text("HI").styleClass("title"),
-            text("HI").font(Type(size=30, color="#ff0000")),
+            text("HI").font(Type(size=30, ink="#ff0000")),
             text("HI").styleClass("title").font(Type(size=14)),
-            text("HI").font(Type(size=14, color="#ff0000")),
+            text("HI").font(Type(size=14, ink="#ff0000")),
         ]
         ctx.render(
             box()
@@ -558,7 +558,7 @@ class Scene:
 
     def update(self, elapsed, ctx):
         sheet = StyleSheet(
-            [rule(".page > .swatch").font(Type(size=30, color="#ff0000"))]
+            [rule(".page > .swatch").font(Type(size=30, ink="#ff0000"))]
         )
 
         def cell():
@@ -585,7 +585,7 @@ class Scene:
                     cell().children(
                         [
                             box()
-                            .font(Type(size=30, color="#ff0000"))
+                            .font(Type(size=30, ink="#ff0000"))
                             .children([text("HI")])
                         ]
                     ),
@@ -620,7 +620,7 @@ class Scene:
 
     def update(self, elapsed, ctx):
         sheet = StyleSheet(
-            [rule(".item:first-child").font(Type(size=30, color="#ff0000"))]
+            [rule(".item:first-child").font(Type(size=30, ink="#ff0000"))]
         )
 
         def half():
@@ -647,7 +647,7 @@ class Scene:
                     .children(
                         [
                             half()
-                            .font(Type(size=30, color="#ff0000"))
+                            .font(Type(size=30, ink="#ff0000"))
                             .children([text("HI")]),
                             half().children([text("HI")]),
                         ]

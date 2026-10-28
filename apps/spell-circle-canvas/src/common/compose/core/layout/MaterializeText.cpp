@@ -86,7 +86,7 @@ void Composer::Impl::materializeText(
       bool inksInherited = false;
       if (inherits && !run.total) {
         style = run.over ? sigil::weave::overlay(base, *run.over, remPx) : base;
-        inksInherited = !(run.over && run.over->color);
+        inksInherited = !(run.over && run.over->ink);
       }
       if (!run.slotName.empty()) {
         // A slot run reserves a box instead of setting glyphs. The names go
@@ -115,9 +115,9 @@ void Composer::Impl::materializeText(
         {{0, (uint32_t)inst.paragraph->text().size()}, std::nullopt});
   } else if (inst.wholeStyleInk) {
     sigil::weave::Type stated;
-    stated.color = *inst.wholeStyleInk;
-    inst.paragraph->appendText(text.utf8,
-                               sigil::weave::overlay(text.style, stated, remPx));
+    stated.ink = *inst.wholeStyleInk;
+    inst.paragraph->appendText(
+        text.utf8, sigil::weave::overlay(text.style, stated, remPx));
   } else {
     inst.paragraph->appendText(text.utf8, text.style);
   }
@@ -294,7 +294,7 @@ sigil::weave::TextStyle Composer::Impl::styleOfSpan(
     const material::Color* colour =
         value ? std::get_if<material::Color>(value) : nullptr;
     if (colour)
-      partial.color = *colour;
+      partial.ink = *colour;
     else
       warnNoSuchVar(*span.inkVar, true);
   }

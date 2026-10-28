@@ -18,9 +18,9 @@ using sigil::compose::rule;
 using sigil::compose::StyleSheet;
 
 sigil::weave::TextStyle white() {
-  return sigil::weave::textStyle(
-      {.face = sigil::test::instrument::sans(), .size = 20.0f,
-       .color = SkColor4f{1, 1, 1, 1}});
+  return sigil::weave::textStyle({.face = sigil::test::instrument::sans(),
+                                  .size = 20.0f,
+                                  .ink = SkColor4f{1, 1, 1, 1}});
 }
 
 /** The colour the first cluster of the run named @p name was set in. */
@@ -44,8 +44,8 @@ TEST(ComposeNamedStyles, AnAncestorCompoundNarrowsWhichRunsARuleReaches) {
   Host host(300, 200);
   host.composer.render(
       box()
-          .applyStyleSheet(StyleSheet{
-              rule(".log .ts").ink(SkColor4f{1, 0, 0, 1})})
+          .applyStyleSheet(
+              StyleSheet{rule(".log .ts").ink(SkColor4f{1, 0, 0, 1})})
           .children({logLine("inLog", "log"), logLine("outside", "other")}));
   host.frame();
   EXPECT_EQ(runColour(host, "inLog", "ts"), SK_ColorRED);
@@ -74,9 +74,9 @@ TEST(ComposeNamedStyles, ARunIsCountedAmongNoSiblings) {
   Host host(300, 200);
   host.composer.render(
       box()
-          .applyStyleSheet(StyleSheet{
-              rule(".ts:first-child").ink(SkColor4f{1, 0, 0, 1}),
-              rule(".ts:only-child").ink(SkColor4f{1, 0, 0, 1})})
+          .applyStyleSheet(
+              StyleSheet{rule(".ts:first-child").ink(SkColor4f{1, 0, 0, 1}),
+                         rule(".ts:only-child").ink(SkColor4f{1, 0, 0, 1})})
           .children({logLine("line", "log")}));
   host.frame();
   EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorWHITE);
@@ -86,11 +86,10 @@ TEST(ComposeNamedStyles, ARunIsNeverEmpty) {
   // A run stands for words, so :empty never matches the virtual child a
   // named run is matched as, and :not(:empty) always does.
   Host host(300, 200);
-  host.composer.render(
-      box()
-          .applyStyleSheet(
-              StyleSheet{rule(".ts:empty").ink(SkColor4f{1, 0, 0, 1})})
-          .children({logLine("line", "log")}));
+  host.composer.render(box()
+                           .applyStyleSheet(StyleSheet{
+                               rule(".ts:empty").ink(SkColor4f{1, 0, 0, 1})})
+                           .children({logLine("line", "log")}));
   host.frame();
   EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorWHITE);
   host.composer.render(
@@ -108,9 +107,7 @@ TEST(ComposeNamedStyles, ARoleDefaultStandsUnderEveryMatchingRule) {
     Element root = box().key("root");
     if (withRule)
       root.applyStyleSheet(StyleSheet{rule("heading").font({.size = 32})});
-    return root.children({text("AAAA")
-                              .role("heading", {.size = 16})
-                              .key("t")});
+    return root.children({text("AAAA").role("heading", {.size = 16}).key("t")});
   };
   host.composer.render(page(false));
   host.frame();

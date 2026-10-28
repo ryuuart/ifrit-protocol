@@ -205,7 +205,7 @@ StyleSheet registers() {
       rule(".selected").ink(var("selected")),
       rule(".stamped")
           .font({.face = weave::ports::face({"Impact", "DIN Condensed"}, 400),
-                 .track = pixels(0.3f),
+                 .letterSpacing = pixels(0.3f),
                  .condense = 0.88f})
           .ink(kBrass),
       rule(".card")
@@ -225,7 +225,7 @@ StyleSheet registers() {
           .font(
               {.face = weave::ports::face({"Superclarendon", "Rockwell"}, 900),
                .size = pixels(19),
-               .track = pixels(-0.2f)})};
+               .letterSpacing = pixels(-0.2f)})};
 }
 
 /** Lettering stamped into the plate, @p size screen pixels tall. */
@@ -642,12 +642,13 @@ struct Fallout2CharSheet {
         .children(
             {document::h1("FALLOUT 2 · THE CHARACTER SHEET")
                  .styleClass("card-title")
-                 .font(
-                     {.size = 21, .color = hexColor(0xC8A450), .track = 1.4f}),
+                 .font({.size = 21,
+                        .ink = hexColor(0xC8A450),
+                        .letterSpacing = 1.4f}),
              document::caption("Black Isle Studios, 1998 · 640×480 in indexed "
                                "colour, rebuilt at twice its size")
                  .font({.size = 13,
-                        .color = hexColor(0x6E8C60),
+                        .ink = hexColor(0x6E8C60),
                         .condense = 1.0f})});
   }
 
@@ -801,21 +802,21 @@ struct Fallout2CharSheet {
         .column()
         .padding(pixels(4), pixels(6))
         .opacity(cardShown)
-        .children(
-            {box()
-                 .row()
-                 .gap(pixels(8))
-                 .alignItems(Align::Baseline)
-                 .children({text(title).styleClass("card-title"),
-                            text(aside).font({.size = pixels(8.4f)})}),
-             kit::line(
-                 {.length = Dimension(pixels(265)), .thickness = pixels(2)})
-                 .marginTop(pixels(1)),
-             text(std::string(entry["blurb"].string()))
-                 .width(pixels(172))
-                 .marginTop(pixels(10))
-                 .paragraph({.leading = weave::Leading::absolute(pixels(11))}),
-             drawing})
+        .children({box()
+                       .row()
+                       .gap(pixels(8))
+                       .alignItems(Align::Baseline)
+                       .children({text(title).styleClass("card-title"),
+                                  text(aside).font({.size = pixels(8.4f)})}),
+                   kit::line({.length = Dimension(pixels(265)),
+                              .thickness = pixels(2)})
+                       .marginTop(pixels(1)),
+                   text(std::string(entry["blurb"].string()))
+                       .width(pixels(172))
+                       .marginTop(pixels(10))
+                       .paragraph({.lineHeight = weave::LineHeight::absolute(
+                                       pixels(11))}),
+                   drawing})
         .cache(Cache::Texture)
         .key("fallout2_charsheet.card");
   }

@@ -137,9 +137,7 @@ inline constexpr auto kRuns = std::to_array<Run>({
 inline constexpr auto kRings = std::to_array<int>({0, 0, 1, 1, 2, 2, 3, 4, 5});
 
 /** The registers: the poster's title over the sheet's own setting. */
-StyleSheet look() {
-  return StyleSheet{rule("h1").font({.size = 38 * kScale})};
-}
+StyleSheet look() { return StyleSheet{rule("h1").font({.size = 38 * kScale})}; }
 
 /** One arc run: a disc centred on the poster's arc centre, sized to the
  *  run's mid-radius circle, whose outline STARTS at the run's canvas start
@@ -153,20 +151,20 @@ Element arcRun(const Run& run, int ring) {
   const float sweep = run.endDegrees - run.startDegrees;
   const float span = std::min(sweep / 360.0f, 0.9995f);
 
-  Element arc = kit::disc(geometry::path::fromSk(centre), middleRadius)
-                    .shape(shapes::arc(-run.endDegrees))
-                    .stroke(PathFormat{.width = width,
-                                       .strokeFill = Fill::color(kInk)});
+  Element arc =
+      kit::disc(geometry::path::fromSk(centre), middleRadius)
+          .shape(shapes::arc(-run.endDegrees))
+          .stroke(PathFormat{.width = width, .strokeFill = Fill::color(kInk)});
   // A transition that starts from nothing needs a moment of nothing to
   // start from, and that moment is the mount delay.
   const auto duration = std::chrono::milliseconds(
       kRingBaseMilliseconds << (unsigned)std::min(ring, 5));
-  arc.mask(by::spans(
-      spans::upTo(motion::animate({.from = 0.0001f,
-                                   .to = span,
-                                   .duration = duration,
-                                   .delay = kRevealDelay,
-                                   .ease = motion::ease::linear}))));
+  arc.mask(
+      by::spans(spans::upTo(motion::animate({.from = 0.0001f,
+                                             .to = span,
+                                             .duration = duration,
+                                             .delay = kRevealDelay,
+                                             .ease = motion::ease::linear}))));
   return arc;
 }
 
@@ -206,9 +204,12 @@ Element imprint() {
                     .row()
                     .justifyContent(Justify::End)
                     .children({text(group.label)}),
-                box().column().gap(1 * kScale).children(
-                    each(group.lines,
-                         [](const char* line) { return text(line); })),
+                box()
+                    .column()
+                    .gap(1 * kScale)
+                    .children(
+                        each(group.lines,
+                             [](const char* line) { return text(line); })),
             });
       }));
 }
@@ -223,7 +224,9 @@ Element plate() {
       .overflow(Overflow::Clip)
       // Every line on the sheet sends its colour to the paint through the
       // 8-bit ladder the poster's palette was read in.
-      .font({.size = 11.5f * kScale, .track = 0.2f * kScale, .color8 = true})
+      .font({.size = 11.5f * kScale,
+             .letterSpacing = 0.2f * kScale,
+             .color8 = true})
       .ink(kInk)
       .children({
           each(kRuns,
@@ -259,13 +262,12 @@ Text type(std::string words, float size, material::Color colour = kPaper,
       .font({.face = weave::ports::face(
                  {"Helvetica Neue", "Helvetica", "Arial"}, heavy ? 700 : 400),
              .size = size,
-             .track = heavy ? -size * 0.045f : 0.1f})
+             .letterSpacing = heavy ? -size * 0.045f : 0.1f})
       .ink(colour);
 }
 
-Element strip(std::string words, float size, float left, float top,
-              float width, material::Color ground = kPaper,
-              material::Color ink = kBlack) {
+Element strip(std::string words, float size, float left, float top, float width,
+              material::Color ground = kPaper, material::Color ink = kBlack) {
   return kit::at(type(std::move(words), size, ink), left, top, width,
                  size * 1.17f)
       .fill(ground);
@@ -273,9 +275,7 @@ Element strip(std::string words, float size, float left, float top,
 
 Element polygon(const char* path, float left, float top, float width,
                 float height, const material::Material& fill) {
-  return kit::at(left, top, width, height)
-      .shape(shapes::svg(path))
-      .fill(fill);
+  return kit::at(left, top, width, height).shape(shapes::svg(path)).fill(fill);
 }
 
 Element disc(float left, float top, float size) {
@@ -293,9 +293,9 @@ Element printedSheet() {
       polygon("M0 0H850L940 104V760H640L610 1000H60L0 910Z", 153, 170, 847,
               1050, kPaper),
       kit::at(type("tonhalle\nzürich", 37), 35, 24, 510, 97),
-      kit::at(type("NEUE MUSIK\n18—20 OKTOBER\nKONZERTREIHE 04", 14, kPaper,
-                   false),
-              731, 33, 230, 66),
+      kit::at(
+          type("NEUE MUSIK\n18—20 OKTOBER\nKONZERTREIHE 04", 14, kPaper, false),
+          731, 33, 230, 66),
       kit::at(type("ZEIT WIRD FORM", 65), 309, 91, 664, 85),
       kit::at(type("FORM", 138, kBlack)
                   .textStroke(1.6f, Fill::color(kBlack))
@@ -363,12 +363,12 @@ Element printedSheet() {
     fixed.push_back(
         kit::at(type(titles[column], 21, kBlack), left, 1203, 194, 31));
     fixed.push_back(kit::at(left, 1239, 174, 3).fill(kRed));
-    fixed.push_back(kit::at(type(details[column], 14, kBlack, false), left,
-                            1256, 194, 99));
+    fixed.push_back(
+        kit::at(type(details[column], 14, kBlack, false), left, 1256, 194, 99));
   }
-  fixed.push_back(kit::at(
-      type("RHYTHMUS / EINE TYPOGRAFISCHE PARTITUR", 11, kPaper, false), 348,
-      1377, 617, 19));
+  fixed.push_back(
+      kit::at(type("RHYTHMUS / EINE TYPOGRAFISCHE PARTITUR", 11, kPaper, false),
+              348, 1377, 617, 19));
   return positioned()
       .width(kSheetWidth)
       .height(kSheetHeight)
@@ -391,12 +391,12 @@ struct Registers {
 Element poster(Registers& registers) {
   std::vector<Element> live{
       printedSheet(),
-      kit::at(type("PULS / IMPULS / RAUM / KLANG / ZEIT / KÖRPER / "
-                   "PULS / IMPULS / RAUM / KLANG / ZEIT / KÖRPER /",
-                   22)
-                  .textOnPath({.path = shapes::circle(),
-                               .at = registers.orbit}),
-              76, 540, 536, 536),
+      kit::at(
+          type("PULS / IMPULS / RAUM / KLANG / ZEIT / KÖRPER / "
+               "PULS / IMPULS / RAUM / KLANG / ZEIT / KÖRPER /",
+               22)
+              .textOnPath({.path = shapes::circle(), .at = registers.orbit}),
+          76, 540, 536, 536),
       kit::at(178, 268, 775, 74)
           .fill(material::field::halftoneRamp(6.5f, 1.8f, 2.9f, kRed, -15))
           .blendMode(material::BlendMode::Multiply)
@@ -439,9 +439,9 @@ void move(Registers& registers, float seconds) {
 /** A museum label under a plate: the maker, then two lines. */
 Element label(const char* maker, const char* title, const char* note) {
   return box().column().gap(4).ink(kLabel).children({
-      text(maker).font({.size = 14.0f, .track = 0.6f}),
-      text(title).font({.size = 12.0f, .track = 0.4f}),
-      text(note).font({.size = 12.0f, .track = 0.4f}),
+      text(maker).font({.size = 14.0f, .letterSpacing = 0.6f}),
+      text(title).font({.size = 12.0f, .letterSpacing = 0.4f}),
+      text(note).font({.size = 12.0f, .letterSpacing = 0.4f}),
   });
 }
 
@@ -456,32 +456,35 @@ struct TonhallePosters {
                              .captureAt = 4.5,
                              .background = material::Color{0, 0, 0, 1}});
     const float left =
-        (kWallWidth - arcs::kPlateWidth - collage::kPlateWidth - kPlateGap) /
-        2;
+        (kWallWidth - arcs::kPlateWidth - collage::kPlateWidth - kPlateGap) / 2;
     const float right = left + arcs::kPlateWidth + kPlateGap;
     const float labelTop = kPlateTop + kPlateHeight + 18;
-    ctx.composer.render(stack().fill(Fill::color(kWall)).children({
-        arcs::plate().key("arc table").rect(left, kPlateTop,
-                                            arcs::kPlateWidth, kPlateHeight),
-        kit::at(right, kPlateTop, collage::kPlateWidth, kPlateHeight)
-            .key("collage")
-            .fill(hung(collage::kBlack))
-            // The sheet's diagonal bands run off its edges and are trimmed
-            // there, as the print is.
-            .overflow(Overflow::Clip)
-            .children({collage::poster(registers)
-                           .scale(kPlateHeight / collage::kSheetHeight)
-                           .transformOrigin(Dimension(0.0f),
-                                            Dimension(0.0f))}),
-        kit::at(label("josef müller-brockmann",
-                      "beethoven — tonhalle zürich, 1955",
-                      "measured arc table · rings double 1:2:4:8:16"),
-                left, labelTop, arcs::kPlateWidth, 64),
-        kit::at(label("after wolfgang weingart",
-                      "rhythmus — kunstkredit basel 1976/77",
-                      "cut register strips · layered dot screens"),
-                right, labelTop, collage::kPlateWidth, 64),
-    }));
+    ctx.composer.render(
+        stack()
+            .fill(Fill::color(kWall))
+            .children({
+                arcs::plate()
+                    .key("arc table")
+                    .rect(left, kPlateTop, arcs::kPlateWidth, kPlateHeight),
+                kit::at(right, kPlateTop, collage::kPlateWidth, kPlateHeight)
+                    .key("collage")
+                    .fill(hung(collage::kBlack))
+                    // The sheet's diagonal bands run off its edges and are
+                    // trimmed there, as the print is.
+                    .overflow(Overflow::Clip)
+                    .children({collage::poster(registers)
+                                   .scale(kPlateHeight / collage::kSheetHeight)
+                                   .transformOrigin(Dimension(0.0f),
+                                                    Dimension(0.0f))}),
+                kit::at(label("josef müller-brockmann",
+                              "beethoven — tonhalle zürich, 1955",
+                              "measured arc table · rings double 1:2:4:8:16"),
+                        left, labelTop, arcs::kPlateWidth, 64),
+                kit::at(label("after wolfgang weingart",
+                              "rhythmus — kunstkredit basel 1976/77",
+                              "cut register strips · layered dot screens"),
+                        right, labelTop, collage::kPlateWidth, 64),
+            }));
   }
 
   void update(double elapsed) { collage::move(registers, float(elapsed)); }

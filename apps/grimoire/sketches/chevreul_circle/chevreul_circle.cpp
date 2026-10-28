@@ -234,26 +234,28 @@ struct ChevreulCircle {
              sigil::weave::FaceStyle{.slant = sigil::weave::FaceSlant::Italic});
     return StyleSheet{
         rule(".numeral").font({.face = didot, .size = 10.5f}),
-        rule(".scale").font({.face = didot, .size = 6.6f, .track = 0.3f}),
+        rule(".scale").font(
+            {.face = didot, .size = 6.6f, .letterSpacing = 0.3f}),
         rule(".ordinal").font({.face = didot, .size = 17}),
         rule(".circle").font(
             {.face = face({"Copperplate", "Gill Sans"},
                           sigil::weave::FaceStyle{.weight = 700}),
              .size = 19,
-             .track = 1.4f}),
-        rule(".small").font({.face = didot, .size = 12, .track = 1.5f}),
+             .letterSpacing = 1.4f}),
+        rule(".small").font({.face = didot, .size = 12, .letterSpacing = 1.5f}),
         rule(".author").font(
             {.face = face({"SuperClarendon", "Rockwell"},
                           sigil::weave::FaceStyle{.weight = 700}),
              .size = 29,
-             .track = 1.5f}),
+             .letterSpacing = 1.5f}),
         rule(".colours")
             .font({.face = face({"Avenir Next Condensed", "Gill Sans"}),
                    .size = 20,
-                   .track = 1}),
-        rule(".head").font({.face = didot, .size = 10, .track = 0.6f}),
+                   .letterSpacing = 1}),
+        rule(".head").font({.face = didot, .size = 10, .letterSpacing = 0.6f}),
         rule(".credit").font({.face = italic, .size = 10}),
-        rule(".imprint").font({.face = didot, .size = 11, .track = 0.3f})};
+        rule(".imprint")
+            .font({.face = didot, .size = 11, .letterSpacing = 0.3f})};
   }
 
   void setup(sketch::Scene2DContext& context) {

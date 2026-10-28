@@ -150,7 +150,7 @@ sigil::weave::Face graded() {
 sigil::compose::StyleSheet sheetClasses() {
   return sigil::compose::StyleSheet{
       sigil::compose::rule(".specimen")
-          .font({.face = display(), .size = kSpecimen, .track = 1.5f})};
+          .font({.face = display(), .size = kSpecimen, .letterSpacing = 1.5f})};
 }
 
 }  // namespace
@@ -257,7 +257,7 @@ struct KineticCard {
          "down to the origin",
          "TINT",
          textFx::tint({.from = kPale, .to = kAccent}),
-         {.color = kAccent}},
+         {.ink = kAccent}},
         {"wave", "textFx::waveLoop(0.10, 0.5)",
          "the one that never lands: a loop on the same wrapping phase, so "
          "its meter never fills",
@@ -273,7 +273,7 @@ struct KineticCard {
          "MIX",
          textFx::mix(textFx::enter(textFx::scatter(40, 24)),
                      textFx::tint({.from = kPale, .to = kAccent})),
-         {.color = kAccent}},
+         {.ink = kAccent}},
         {"last",
          "stagger(110, {.from = Last})",
          "the final glyph starts first; the cascade runs backward",

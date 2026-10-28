@@ -20,7 +20,7 @@ def register(table: Table) -> None:
         "_sigil.weave.GlyphOutlineOptions.__init__", at="_t.Vec2Like", face=face
     )
     table.parameters("_sigil.weave.glyphOutline", at="_t.Vec2Like")
-    table.erased("_sigil.weave.Type", "color", "_t.ColorLike | None")
+    table.erased("_sigil.weave.Type", "ink", "_t.ColorLike | None")
     table.attribute("_sigil.weave.Type.textTransform", "TextTransform | None")
     table.attribute("_sigil.weave.Type.verticalForm", "VerticalForm | None")
     # The base direction a paragraph's bidi resolves against lives in the
@@ -34,7 +34,7 @@ def register(table: Table) -> None:
     )
     table.returns("_sigil.weave.Type", "features", "list[FontFeature] | None")
     table.returns("_sigil.weave.Type", "variations", "list[FontVariation]")
-    for field in ("size", "track", "wordSpacing"):
+    for field in ("size", "letterSpacing", "wordSpacing"):
         table.declares(
             "_sigil.weave.Type",
             field,

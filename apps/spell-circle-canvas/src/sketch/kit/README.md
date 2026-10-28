@@ -26,6 +26,13 @@ comparisons a readable heading and brighter notes. Fixed specimen wells keep
 their measure, and each sketch supplies a short title with its explanation
 in the subtitle and captions.
 
+`darkTheme()` is the dark sheet in the terminal voice an instrument or a
+live demonstration stands on: a near-black ground, a warm off-white ink, a
+grey ash, interface headings, and the terminal face as the face a call is
+set in. Its `label` register is an instrument's label — the terminal face
+at 12 px, tracked 2 px, in the ash — so a dial's caption is
+`text(words).styleClass("label")`.
+
 `featureTheme()` is the shared presentation for feature demonstrations:
 slate grounds, ivory headings, pale gold readings, interface labels and
 terminal controls. `Density::Compact` keeps 24 px side margins and a 22 px
@@ -109,11 +116,18 @@ paint program reads the properties in force through
 `PaintContext::vars`. Everything resolves later from the retained tree, so
 a component built before its parent still lands in that parent's look.
 
-A `Register` says how one line is set: its size, its tracking, which of
-the theme's two faces it takes — and, for the line neither of those is,
-`Register::face`, the face that line names for itself. A masthead whose
+A `Register` says how one line is set, as a rule does: its size, its
+letter spacing, which of the theme's two faces it takes — and, for the line
+neither of those is, `Register::face`, the face that line names for
+itself — the OpenType features it asks for (`Register::features`, such as
+`{{"tnum", 1}}` for a count that must not twitch), and, where the line is
+not set in the colour its role names, `Register::ink`. A masthead whose
 title is a display cut standing over an eyebrow in a grotesque and a
-subtitle in the text face is three faces, and a theme carries two.
+subtitle in the text face is three faces, and a theme carries two. The
+theme's sheet writes each register with the CSS verbs — `fontFamily`,
+`fontSize`, `letterSpacing`, `fontFeatureSettings`, `ink` — so a paint
+program reads its features back from the font in force like any other
+field.
 
 **The document kit owns the text vocabulary.** Components use
 `compose::document::h1`, `compose::document::h2`,
@@ -132,7 +146,7 @@ label and the caption as classes too:
 | `TypeScale::title` | `h1` | `Palette::ink` |
 | `TypeScale::subtitle` | `lead` | `Palette::ash` |
 | `TypeScale::footer` | `footer` | `Palette::ash` |
-| `TypeScale::captionLabel` | `label` | `Palette::ink` |
+| `TypeScale::label`, else `captionLabel` | `label` | `Palette::ink` |
 | `TypeScale::captionNote` | `caption` | `Palette::ash` |
 | `TypeScale::eyebrow` | `eyebrow` | inherited ink |
 | `TypeScale::section` | `h2` | inherited ink |
@@ -144,8 +158,8 @@ label and the caption as classes too:
 sketch::kit::stage(
     ctx, {.theme = sketch::kit::featureTheme(),
           .sheet = compose::StyleSheet{
-              compose::rule("h1").font({.size = 30}),
-              compose::rule("caption").font({.size = 12})}});
+              compose::rule("h1").fontSize(30),
+              compose::rule("caption").fontSize(12)}});
 ctx.composer.render(sketch::kit::page(
     {.title = "THE STROKE ATLAS"},
     compose::document::section({
@@ -155,8 +169,8 @@ ctx.composer.render(sketch::kit::page(
 ```
 
 A role rule overrides the component's fallback fields. A rule for an
-authored `styleClass()` outweighs a rule for the role, and direct
-`font()` or `paragraph()` overrides both. A later or nearer sheet's rule of
+authored `styleClass()` outweighs a rule for the role, and the node's own
+verbs override both. A later or nearer sheet's rule of
 the same weight overrides the fields it names; other fields remain in
 force. A component's stock role is separate from its classes, so adding a
 class never removes its semantic identity.
@@ -189,9 +203,9 @@ again. Layout remains ordinary Compose layout;
 `compose::document::article` and other document groups additionally
 read inherited document variables for measure and spacing.
 
-The face a register takes comes from somewhere, and three fallback runs
-recur across this repository's sheets: the book face, the terminal face
-and the interface face. `houseFace(Voice, weight, slant)` answers each,
+The face a register takes comes from somewhere, and four fallback runs
+recur across this repository's sheets: the book face, the terminal face,
+the interface face and the serif text face. `houseFace(Voice, weight, slant)` answers each,
 resolved once and held, so two sheets asking for the same voice get the
 same face *pointer* — which is what a style, an inherited value and a
 memo key compare by. A sheet wanting a face no other sheet asks for
@@ -643,7 +657,7 @@ scale, and its line and its ticks are two classes already.
 ```cpp
 const compose::StyleSheet look =
     sketch::kit::houseTheme().styleSheet() +
-    compose::StyleSheet{compose::rule(".second").font({.color = kCool})};
+    compose::StyleSheet{compose::rule(".second").ink(kCool)};
 …
 sketch::kit::plot("decay", frame,
                   {sketch::kit::trace(fast),

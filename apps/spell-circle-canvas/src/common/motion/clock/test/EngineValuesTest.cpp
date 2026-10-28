@@ -2,14 +2,13 @@
  * One engine over every animated value: an animation, a timeline item and
  * a collective run on a float, a `glm::vec2`, a `glm::vec3`, a `Duration`
  * and a value that is not additive and states its own line — all through
- * `interpolate()`, with no path of their own. Every frame is a stated one.
+ * `interpolate()`, with no path of their own; and a describe that followed
+ * a value an animation writes, stale once the animation moves it. Every
+ * frame is a stated one.
  */
 
-#include "support/StandsAlone.h"
-
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
 #include <gtest/gtest.h>
+#include <sigilcore/follow/Follow.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/schedule/Stagger.h>
@@ -18,7 +17,11 @@
 #include <sigilmotion/values/Tween.h>
 
 #include <chrono>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 #include <vector>
+
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion;
 using namespace std::chrono_literals;
@@ -70,8 +73,10 @@ TEST(EngineValues, AVectorAnimatesOnTheEngineThroughTheSameBody) {
   EXPECT_FALSE(engine.isRunning());
 
   Animatable<glm::vec3> tint = glm::vec3(1, 1, 1);  // a constant, made live
-  engine.animate(tint, {.from = glm::vec3(0), .to = glm::vec3(1, 0.5f, 0),
-                        .duration = 1s, .ease = ease::linear});
+  engine.animate(tint, {.from = glm::vec3(0),
+                        .to = glm::vec3(1, 0.5f, 0),
+                        .duration = 1s,
+                        .ease = ease::linear});
   engine.advance(2500ms);
   EXPECT_NEAR(tint.value().y, 0.25f, 1e-4f);
 }
@@ -115,8 +120,10 @@ TEST(EngineValues, ATimelinePlacesAnyValueType) {
 TEST(EngineValues, ACollectiveResolvesAStaggerFromEachTargetsPlace) {
   Engine engine;
   std::vector<Animatable<float>> letters(3, Animatable<float>(0.0f));
-  engine.animate(letters, {.to = stagger({10.0f, 30.0f}), .duration = 1s,
-                           .delay = stagger(500ms), .ease = ease::linear});
+  engine.animate(letters, {.to = stagger({10.0f, 30.0f}),
+                           .duration = 1s,
+                           .delay = stagger(500ms),
+                           .ease = ease::linear});
   engine.advance(1s);
   EXPECT_NEAR(letters[0].value(), 10.0f, 1e-4f);  // done: its own `to`
   EXPECT_NEAR(letters[1].value(), 10.0f, 1e-4f);  // half of 20
@@ -128,12 +135,28 @@ TEST(EngineValues, ACollectiveResolvesAStaggerFromEachTargetsPlace) {
 
 TEST(EngineValues, AnItemAfterACollectiveFollowsItsLastMember) {
   Engine engine;
-  std::vector<Animatable<glm::vec2>> dots(2, Animatable<glm::vec2>(glm::vec2(0)));
+  std::vector<Animatable<glm::vec2>> dots(2,
+                                          Animatable<glm::vec2>(glm::vec2(0)));
   Animatable<float> rule = animatable(0.0f);
   engine.timeline()
-      .add(dots, {.to = glm::vec2(1), .duration = 1s, .delay = stagger(1s),
+      .add(dots, {.to = glm::vec2(1),
+                  .duration = 1s,
+                  .delay = stagger(1s),
                   .ease = ease::linear})
       .add(rule, linearTo(1.0f));
   engine.advance(2500ms);  // the second dot ends at 2s
   EXPECT_NEAR(rule.value(), 0.5f, 1e-4f);
+}
+
+TEST(EngineValues, AnAnimationWritingAFollowedValueMakesTheDescribeStale) {
+  Engine engine;
+  Animatable<float> value = animatable(0.0f);
+  sigil::core::FollowedReads reads;
+  {
+    const sigil::core::FollowScope scope(reads);
+    EXPECT_FLOAT_EQ(value.value(), 0.0f);
+  }
+  engine.animate(value, {.to = 1.0f, .duration = 1s});
+  engine.advance(500ms);
+  EXPECT_TRUE(reads.moved());
 }

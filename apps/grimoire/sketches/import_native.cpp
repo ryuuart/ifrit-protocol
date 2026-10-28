@@ -103,12 +103,12 @@ Element dial(float edge) {
       .fill(Fill::color({0.043f, 0.055f, 0.094f, 1}))
       .children({document::article().inset(34).gap(22).children(
           {document::h1("COMPOSE")
-               .font({.size = 30, .track = 6})
+               .font({.size = 30, .letterSpacing = 6})
                .ink(material::Color{1, 1, 1, 0.92f}),
            document::paragraph("a composer painting into a surface of "
                                "its own; texture() is the value a slot "
                                "holds")
-               .font({.size = 17, .track = 0.4f})
+               .font({.size = 17, .letterSpacing = 0.4f})
                .ink(material::Color{1, 1, 1, 0.45f})
                .width(edge - 68),
            box()

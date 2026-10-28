@@ -14,12 +14,17 @@
 #include <sigilweave/style/PaintLayer.h>
 #include <sigilweave/style/Type.h>
 
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <charconv>
 #include <map>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "description/ComposeInternal.h"
 #include "paint/MaterialEffects.h"
@@ -136,7 +141,7 @@ Derived& FontVerbs<Derived>::font(sigil::weave::Type partial) {
   // A colour written here IS the ink — one lane, one bit — so it states
   // the ink as `ink()` does: a keyword stated about the ink before ends,
   // and a property the ink was read from and a paint no longer stand.
-  if (partial.color) {
+  if (partial.ink) {
     declarations()->ink();
     cascade.inkVar.reset();
     cascade.inkPaint.reset();
@@ -196,6 +201,125 @@ Derived& FontVerbs<Derived>::fontFamily(sigil::weave::Face face) {
 
 namespace {
 
+/** The text with its leading and trailing spaces dropped. */
+std::string_view trimmed(std::string_view text) {
+  const size_t first = text.find_first_not_of(" \t\n\r");
+  if (first == std::string_view::npos) return {};
+  const size_t last = text.find_last_not_of(" \t\n\r");
+  return text.substr(first, last - first + 1);
+}
+
+/** The comma-separated entries of @p text, each trimmed. */
+std::vector<std::string_view> entriesOf(std::string_view text) {
+  std::vector<std::string_view> entries;
+  size_t start = 0;
+  while (start <= text.size()) {
+    const size_t comma = text.find(',', start);
+    const size_t end = comma == std::string_view::npos ? text.size() : comma;
+    entries.push_back(trimmed(text.substr(start, end - start)));
+    if (comma == std::string_view::npos) break;
+    start = comma + 1;
+  }
+  return entries;
+}
+
+/** An OpenType tag at the head of @p entry — four printable ASCII
+ *  characters, in single or double quotes as CSS writes it, or bare — with
+ *  @p rest left holding what follows it. */
+std::optional<std::array<char, 4>> tagAtHead(std::string_view entry,
+                                             std::string_view& rest) {
+  std::string_view tag;
+  if (!entry.empty() && (entry.front() == '"' || entry.front() == '\'')) {
+    const size_t close = entry.find(entry.front(), 1);
+    if (close == std::string_view::npos) return std::nullopt;
+    tag = entry.substr(1, close - 1);
+    rest = trimmed(entry.substr(close + 1));
+  } else {
+    const size_t space = entry.find_first_of(" \t");
+    tag = entry.substr(0, space);
+    rest = space == std::string_view::npos ? std::string_view{}
+                                           : trimmed(entry.substr(space));
+  }
+  if (tag.size() != 4) return std::nullopt;
+  std::array<char, 4> bytes{};
+  for (size_t index = 0; index < 4; ++index) {
+    if (tag[index] < 0x20 || tag[index] > 0x7e) return std::nullopt;
+    bytes[index] = tag[index];
+  }
+  return bytes;
+}
+
+/** A number written in full, and nothing after it. */
+std::optional<float> numberOf(std::string_view text) {
+  if (text.empty()) return std::nullopt;
+  float value = 0;
+  const auto [end, error] =
+      std::from_chars(text.data(), text.data() + text.size(), value);
+  if (error != std::errc{} || end != text.data() + text.size())
+    return std::nullopt;
+  return value;
+}
+
+/** Whether @p text is @p word, ASCII case aside. */
+bool isKeyword(std::string_view text, std::string_view word) {
+  return text.size() == word.size() &&
+         std::equal(text.begin(), text.end(), word.begin(),
+                    [](char left, char right) {
+                      return std::tolower((unsigned char)left) == right;
+                    });
+}
+
+}  // namespace
+
+std::optional<std::vector<sigil::weave::FontFeature>> readFontFeatureSettings(
+    std::string_view text) {
+  text = trimmed(text);
+  std::vector<sigil::weave::FontFeature> features;
+  if (isKeyword(text, "normal")) return features;
+  for (std::string_view entry : entriesOf(text)) {
+    std::string_view rest;
+    const std::optional<std::array<char, 4>> tag = tagAtHead(entry, rest);
+    if (!tag) return std::nullopt;
+    uint32_t value = 1;
+    if (rest.empty() || isKeyword(rest, "on")) {
+      value = 1;
+    } else if (isKeyword(rest, "off")) {
+      value = 0;
+    } else {
+      const std::optional<float> number = numberOf(rest);
+      if (!number || *number < 0 || *number != (float)(uint32_t)*number)
+        return std::nullopt;
+      value = (uint32_t)*number;
+    }
+    sigil::weave::FontFeature feature;
+    std::copy(tag->begin(), tag->end(), feature.tag);
+    feature.value = value;
+    features.push_back(feature);
+  }
+  return features;
+}
+
+std::optional<std::vector<sigil::weave::FontVariation>>
+readFontVariationSettings(std::string_view text) {
+  text = trimmed(text);
+  std::vector<sigil::weave::FontVariation> variations;
+  if (isKeyword(text, "normal")) return variations;
+  for (std::string_view entry : entriesOf(text)) {
+    std::string_view rest;
+    const std::optional<std::array<char, 4>> tag = tagAtHead(entry, rest);
+    if (!tag) return std::nullopt;
+    const std::optional<float> number = numberOf(rest);
+    if (!number) return std::nullopt;
+    sigil::weave::FontVariation variation;
+    std::copy(tag->begin(), tag->end(), variation.tag);
+    variation.value = *number;
+    variations.push_back(variation);
+  }
+  return variations;
+}
+
+namespace {
+
 /** Says once per verb that it was given a length no font holds, and that
  *  the value in force stands. */
 void warnNoFontLength(const char* verb, const Dimension& length) {
@@ -248,7 +372,117 @@ Derived& FontVerbs<Derived>::letterSpacing(Dimension tracking) {
     warnNoFontLength("letterSpacing", tracking);
     return self();
   }
-  return font({.track = *length});
+  return font({.letterSpacing = *length});
+}
+
+namespace {
+
+/** Says once per verb that its CSS text did not read, and that the value
+ *  in force stands. */
+void warnUnreadSettings(const char* verb, std::string_view text) {
+  static std::mutex guard;
+  static std::map<std::string, bool> warned;
+  {
+    const std::lock_guard<std::mutex> lock(guard);
+    if (!warned.emplace(verb, true).second) return;
+  }
+  sigil::compose::detail::reportWarning(
+      "%s() was given '%.*s', which is no CSS value this reads — the value "
+      "in force stands. (warned once)",
+      verb, (int)text.size(), text.data());
+}
+
+}  // namespace
+
+template <class Derived>
+Derived& FontVerbs<Derived>::wordSpacing(Dimension spacing) {
+  const std::optional<sigil::weave::Length> length = fontLength(spacing);
+  if (!length) {
+    warnNoFontLength("wordSpacing", spacing);
+    return self();
+  }
+  return font({.wordSpacing = *length});
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::fontFeatureSettings(
+    std::vector<sigil::weave::FontFeature> features) {
+  return font({.features = std::move(features)});
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::fontFeatureSettings(std::string_view settings) {
+  std::optional<std::vector<sigil::weave::FontFeature>> read =
+      readFontFeatureSettings(settings);
+  if (!read) {
+    warnUnreadSettings("fontFeatureSettings", settings);
+    return self();
+  }
+  return fontFeatureSettings(std::move(*read));
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::fontVariationSettings(
+    std::vector<sigil::weave::FontVariation> variations) {
+  return font({.variations = std::move(variations)});
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::fontVariationSettings(std::string_view settings) {
+  std::optional<std::vector<sigil::weave::FontVariation>> read =
+      readFontVariationSettings(settings);
+  if (!read) {
+    warnUnreadSettings("fontVariationSettings", settings);
+    return self();
+  }
+  return fontVariationSettings(std::move(*read));
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::fontKerning(FontKerning kerning) {
+  return font({.opticalKerning = kerning == FontKerning::Optical});
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::textTransform(
+    sigil::weave::TextTransform transform) {
+  return font({.textTransform = transform});
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::textOrientation(TextOrientation orientation) {
+  using sigil::weave::VerticalForm;
+  VerticalForm form = VerticalForm::kAuto;
+  switch (orientation) {
+    case TextOrientation::Mixed:
+      form = VerticalForm::kAuto;
+      break;
+    case TextOrientation::Upright:
+      form = VerticalForm::kUpright;
+      break;
+    case TextOrientation::Sideways:
+      form = VerticalForm::kRotated;
+      break;
+  }
+  return font({.verticalForm = form});
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::textCombineUpright(TextCombineUpright combine) {
+  return font({.verticalForm = combine == TextCombineUpright::All
+                                   ? sigil::weave::VerticalForm::kTateChuYoko
+                                   : sigil::weave::VerticalForm::kAuto});
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::baselineShift(Dimension shift) {
+  // A point is four pixels to every three, as everywhere a length reads.
+  if (shift.unit == Dimension::Unit::Px)
+    return font({.baselineShift = shift.value});
+  if (shift.unit == Dimension::Unit::Pt)
+    return font({.baselineShift = shift.value * 4.0f / 3.0f});
+  warnNoFontLength("baselineShift", shift);
+  return self();
 }
 
 template <class Derived>
@@ -290,7 +524,7 @@ template <class Derived>
 Derived& FontVerbs<Derived>::ink(material::Color colour) {
   detail::CascadeData& cascade = declarations()->ink();
   if (!cascade.font) cascade.font.emplace();
-  cascade.font->color = colour;
+  cascade.font->ink = colour;
   cascade.inkVar.reset();
   cascade.inkPaint.reset();
   cascade.inkSurfaced.reset();
@@ -303,7 +537,7 @@ template <class Derived>
 Derived& FontVerbs<Derived>::ink(VarRef reference) {
   detail::CascadeData& cascade = declarations()->ink();
   cascade.inkVar = reference;
-  if (cascade.font) cascade.font->color.reset();
+  if (cascade.font) cascade.font->ink.reset();
   cascade.inkPaint.reset();
   cascade.inkSurfaced.reset();
   cascade.inkBox = PaintBox::Element;
@@ -334,7 +568,7 @@ Derived& FontVerbs<Derived>::ink(material::Material material, PaintBox box) {
         box = PaintBox::Element;
       }
       detail::CascadeData& cascade = declarations()->ink();
-      if (cascade.font) cascade.font->color.reset();
+      if (cascade.font) cascade.font->ink.reset();
       cascade.inkVar.reset();
       cascade.inkPaint.reset();
       cascade.inkSurfaced = std::move(*surfaced);

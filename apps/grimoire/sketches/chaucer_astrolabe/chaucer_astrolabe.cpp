@@ -867,8 +867,8 @@ struct ChaucerAstrolabe {
                          material::Color color, float track = 0) {
       return weave::Type{.face = std::move(face),
                          .size = size,
-                         .color = color,
-                         .track = track};
+                         .ink = color,
+                         .letterSpacing = track};
     };
     return StyleSheet{
         rule(".masthead").font(type(engraver, 34, kInk, 2.4f)),
@@ -932,7 +932,7 @@ struct ChaucerAstrolabe {
         box()
             .inset(0)
             .fill(Fill::color(kVellum))
-            .font({.face = book, .size = 15, .color = kInk})
+            .font({.face = book, .size = 15, .ink = kInk})
             .applyStyleSheet(registers())
             .children({
                 kit::at(56, 140, 1132, 1416)

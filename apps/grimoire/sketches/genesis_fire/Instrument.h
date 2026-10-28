@@ -53,8 +53,10 @@ inline sigil::weave::Face heavyFace() {
 inline sigil::weave::TextStyle faced(sigil::weave::Face face, float size,
                                      sigil::material::Color color,
                                      float track = 0.0f) {
-  return sigil::weave::textStyle(
-      {.face = std::move(face), .size = size, .color = color, .track = track});
+  return sigil::weave::textStyle({.face = std::move(face),
+                                  .size = size,
+                                  .ink = color,
+                                  .letterSpacing = track});
 }
 
 /** The registers a panel is set in. */
@@ -87,7 +89,7 @@ inline sigil::compose::Element t(const sigil::compose::Utf8& line,
  *  register is set on it rather than handed to a node. */
 inline sigil::weave::Type penType(const sigil::weave::Face& face, float size,
                                   float track = 0.0f) {
-  return sigil::weave::Type{.face = face, .size = size, .track = track};
+  return sigil::weave::Type{.face = face, .size = size, .letterSpacing = track};
 }
 
 }  // namespace instrument

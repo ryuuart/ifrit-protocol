@@ -88,14 +88,12 @@ float Composer::Impl::resolveLength(const Instance& inst,
       relative = true;
       const CalcLength& sum = calcLength(length);
       const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
-      float total = sum.px + sum.em * fontSizePx(inst.font) + sum.rem * remPx +
-                    sum.lh * inst.lineHeight + sum.ch * inst.zeroAdvance +
-                    sum.vw * 0.01f * canvas.width() +
-                    sum.vh * 0.01f * canvas.height() +
-                    sum.vmin * 0.01f *
-                        viewportExtent(canvas, Dimension::Unit::Vmin) +
-                    sum.vmax * 0.01f *
-                        viewportExtent(canvas, Dimension::Unit::Vmax);
+      float total =
+          sum.px + sum.em * fontSizePx(inst.font) + sum.rem * remPx +
+          sum.lh * inst.lineHeight + sum.ch * inst.zeroAdvance +
+          sum.vw * 0.01f * canvas.width() + sum.vh * 0.01f * canvas.height() +
+          sum.vmin * 0.01f * viewportExtent(canvas, Dimension::Unit::Vmin) +
+          sum.vmax * 0.01f * viewportExtent(canvas, Dimension::Unit::Vmax);
       // The percentage is of the extent the property reading the sum
       // measures against, which only that property knows.
       if (sum.percent != 0.0f) {
@@ -223,7 +221,7 @@ void Composer::Impl::resolveLineHeight(
       stated->unit == Dimension::Unit::Percent
           ? stated->value / 100.0f * sizePx
           : resolveLength(inst, *stated, relative, /*percentBasis=*/sizePx);
-  block.leading = sigil::weave::Leading::absolute(pitch);
+  block.lineHeight = sigil::weave::LineHeight::absolute(pitch);
 }
 
 float Composer::Impl::lineHeightAt(const sigil::weave::Type& font) {

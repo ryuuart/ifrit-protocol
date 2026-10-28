@@ -134,21 +134,21 @@ inline material::Color dark(material::Color c, float k) {
 
 /** The chrome register: tracking quoted in 1/1000 em of @p size. */
 inline sigil::weave::Type micro(float size, material::Color c, float tr = 200) {
-  return {.size = size, .color = c, .track = size * tr / 1000.0f};
+  return {.size = size, .ink = c, .letterSpacing = size * tr / 1000.0f};
 }
 /** The chrome, condensed further: the section labels. */
 inline sigil::weave::Type label(float size, material::Color c, float tr = 100) {
   return {.size = size,
-          .color = c,
-          .track = size * tr / 1000.0f,
+          .ink = c,
+          .letterSpacing = size * tr / 1000.0f,
           .condense = 0.88f};
 }
 /** The headline weight. */
 inline sigil::weave::Type heavy(float size, material::Color c, float tr = 40) {
   return {.face = blackFace(),
           .size = size,
-          .color = c,
-          .track = size * tr / 1000.0f,
+          .ink = c,
+          .letterSpacing = size * tr / 1000.0f,
           .condense = 0.94f};
 }
 /** A CUT OF ITS OWN: the face, size, colour, tracking and condensation a
@@ -160,13 +160,13 @@ inline sigil::weave::Type cut(const sigil::weave::Face& face, float size,
                               float condense = 1.0f) {
   return {.face = face,
           .size = size,
-          .color = c,
-          .track = size * tr / 1000.0f,
+          .ink = c,
+          .letterSpacing = size * tr / 1000.0f,
           .condense = condense};
 }
 /** The prose register: untracked, uncondensed. */
 inline sigil::weave::Type prose(float size, material::Color c) {
-  return {.face = arial(), .size = size, .color = c, .condense = 1.0f};
+  return {.face = arial(), .size = size, .ink = c, .condense = 1.0f};
 }
 
 // ---------------------------------------------------------------------------

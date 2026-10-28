@@ -207,7 +207,8 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
            .height(300)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .textFx({.effect = textFx::enter(textFx::rise(30)),
-                    .tween = {.duration = 450ms, .delay = sigil::motion::stagger(90ms)},
+                    .tween = {.duration = 450ms,
+                              .delay = sigil::motion::stagger(90ms)},
                     .unit = sigil::weave::Unit::Cluster,
                     .progress = progress})
            .key("t")}));
@@ -400,14 +401,15 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
            .height(240)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .textFx({.effect = textFx::enter(textFx::rise(10)),
-                    .tween = {.duration = 450ms, .delay = sigil::motion::stagger(40ms)},
+                    .tween = {.duration = 450ms,
+                              .delay = sigil::motion::stagger(40ms)},
                     .unit = sigil::weave::Unit::Cluster})}));
   host.frame();
 
   const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
   ASSERT_GT(beats.size(), 12u);
-  const SkRect block =
-      geometry::path::toSk(host.composer.bounds("col").value_or(geometry::path::Rect{}));
+  const SkRect block = geometry::path::toSk(
+      host.composer.bounds("col").value_or(geometry::path::Rect{}));
   ASSERT_FALSE(block.isEmpty()) << "the column block was never laid out";
   for (const Beat& beat : beats) {
     EXPECT_FALSE(beat.rect.empty());
@@ -557,8 +559,8 @@ TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
-  const SkRect rule =
-      geometry::path::toSk(host.composer.bounds("rule").value_or(geometry::path::Rect{}));
+  const SkRect rule = geometry::path::toSk(
+      host.composer.bounds("rule").value_or(geometry::path::Rect{}));
   ASSERT_FALSE(rule.isEmpty()) << "the mark never resolved";
   EXPECT_GT(rule.height(), rule.width() * 3)
       << "three characters of a column make a TALL mark";
@@ -619,7 +621,8 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
            .height(200)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .textFx({.effect = textFx::enter(textFx::typeOn()),
-                    .tween = {.duration = 450ms, .delay = sigil::motion::stagger(400ms)},
+                    .tween = {.duration = 450ms,
+                              .delay = sigil::motion::stagger(400ms)},
                     .unit = sigil::weave::Unit::Line,
                     .progress = progress})
            .key("t")}));
@@ -664,7 +667,8 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
              .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
              .span(sigil::weave::selectors::text(u8"三四五六"), sidelined)
              .textFx({.effect = textFx::enter(textFx::rise(24)),
-                      .tween = {.duration = 450ms, .delay = sigil::motion::stagger(90ms)},
+                      .tween = {.duration = 450ms,
+                                .delay = sigil::motion::stagger(90ms)},
                       .unit = sigil::weave::Unit::Cluster,
                       .progress = progress})
              .key("t")});
@@ -793,8 +797,8 @@ TEST(TextVertical, AGroupReadingSplitsWithItsCompoundDownTheColumns) {
   // word, and one reading stands over the whole of it.
   const std::u8string compound = u8"国語辞典";
   const std::u8string prose = u8"国語辞典を買った";
-  const sigil::weave::Type furigana{
-      .size = 13.0f, .color = SkColor4f::FromColor(SK_ColorGREEN)};
+  const sigil::weave::Type furigana{.size = 13.0f,
+                                    .ink = SkColor4f::FromColor(SK_ColorGREEN)};
   const auto describe = [&](float columnLength) {
     return box().padding(10).children(
         {text(prose, jp(22, SK_ColorWHITE))

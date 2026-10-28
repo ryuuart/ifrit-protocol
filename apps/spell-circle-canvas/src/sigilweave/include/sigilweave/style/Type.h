@@ -31,8 +31,8 @@ namespace sigil::weave {
 enum class TypeField : uint8_t {
   Face,
   Size,
-  Color,
-  Track,
+  Ink,
+  LetterSpacing,
   Condense,
   Weight,
   Slant,
@@ -71,15 +71,16 @@ struct Type {
   /** The type size. Pixels are implicit, so `.size = 13` is thirteen of
    *  them; a relative length is resolved against what it is overlaid on. */
   std::optional<Length> size;
-  /** The ink the glyphs are filled with: four straight-alpha sRGB floats,
-   *  a channel above 1 kept. */
-  std::optional<material::Color> color;
-  /** Tracking added after each cluster. Pixels are implicit, so
-   *  `.track = 1.2f` is that many; `em(-0.08f)` is a fraction of the SIZE
-   *  THE TYPE RESOLVES TO, resolved as it is overlaid.
+  /** The ink the glyphs are filled with — CSS's `color` — as four
+   *  straight-alpha sRGB floats, a channel above 1 kept. */
+  std::optional<material::Color> ink;
+  /** The tracking added after each cluster — CSS's `letter-spacing`.
+   *  Pixels are implicit, so `.letterSpacing = 1.2f` is that many;
+   *  `em(-0.08f)` is a fraction of the SIZE THE TYPE RESOLVES TO, resolved
+   *  as it is overlaid.
    *  @trap Not per-mille: a reference quoting tracking in per-mille is
    *  quoting thousandths of an em. */
-  std::optional<Length> track;
+  std::optional<Length> letterSpacing;
   /** Horizontal condensation (ShapingStyle::scaleX) — how to condense a
    *  face that has no `wdth` axis to ask instead. */
   std::optional<float> condense;
@@ -97,7 +98,7 @@ struct Type {
   /** The glyph paint's own antialias flag (edges of strokes/decorations on
    *  the paint, not the glyph edging above). */
   std::optional<bool> antiAlias;
-  /** Send `color` to the paint through an 8-bit sRGB word instead of as
+  /** Send `ink` to the paint through an 8-bit sRGB word instead of as
    *  float. A palette taken from a reference's own ARGB words wants this
    *  ladder; a colour computed in float does not.
    *  @trap Not an equivalent spelling: the round trip quantises each
@@ -154,7 +155,7 @@ struct Type {
   /** Whether it states NOTHING — the partial that changes no field, which
    *  overlays onto anything as itself. */
   [[nodiscard]] bool empty() const {
-    return !face && !size && !color && !track && !condense && !weight &&
+    return !face && !size && !ink && !letterSpacing && !condense && !weight &&
            !slant && !aliased && !antiAlias && !color8 && variations.empty() &&
            !language && !features && !opticalKerning && !wordSpacing &&
            !textTransform && !verticalForm && !decorations && !underlays &&

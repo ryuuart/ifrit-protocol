@@ -41,7 +41,8 @@ TEST(ComposeDeclarations, StatingTheDefaultIsNotTheSameAsSayingNothing) {
   EXPECT_FALSE(last.has(Property::Display));
 }
 
-TEST(ComposeDeclarations, UnsetIsInheritWhereThePropertyInheritsAndInitialElse) {
+TEST(ComposeDeclarations,
+     UnsetIsInheritWhereThePropertyInheritsAndInitialElse) {
   // The whole of the inherited set, asked of the one table that holds it:
   // the type, the block, the ink, the custom properties and the image
   // sampling. Nothing about a box inherits — a padding taken from the
@@ -95,11 +96,13 @@ TEST(ComposeDeclarations, AnInheritedValueFollowsAParentThatMovedBehindAPrune) {
   // An answer filled in the patch alone would stand at 200 for good.
   Host host(400, 200);
   const auto tree = [](Dimension parentWidth) {
-    return box().width(parentWidth).children({box()
-                                                  .key("child")
-                                                  .inherit(Property::Width)
-                                                  .flexShrink(0)
-                                                  .height(10)});
+    return box()
+        .width(parentWidth)
+        .children({box()
+                       .key("child")
+                       .inherit(Property::Width)
+                       .flexShrink(0)
+                       .height(10)});
   };
   host.composer.render(tree(200.0f));
   host.frame();
@@ -116,11 +119,14 @@ TEST(ComposeDeclarations, InitialOnANonInheritingPropertyIsTheValueItStartsAt) {
   // whatever that comes to where it stands — so the sibling beside it is
   // what the answer is read against.
   Host host(400, 200);
-  host.composer.render(box().alignItems(Align::Start).children({
-      box().key("silent").height(10),
-      box().key("reset").width(120).initial(Property::Width).height(10),
-      box().key("stated").width(120).height(10),
-  }));
+  host.composer.render(
+      box()
+          .alignItems(Align::Start)
+          .children({
+              box().key("silent").height(10),
+              box().key("reset").width(120).initial(Property::Width).height(10),
+              box().key("stated").width(120).height(10),
+          }));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host, "reset"), widthOf(host, "silent"));
   EXPECT_FLOAT_EQ(widthOf(host, "stated"), 120.0f);
@@ -132,11 +138,18 @@ TEST(ComposeDeclarations, AValueWrittenAfterAKeywordIsTheLaterStatement) {
   // statement written second is the one that stands — here the width,
   // which the `initial` before it no longer covers.
   Host host(400, 200);
-  host.composer.render(box().alignItems(Align::Start).children({
-      box().key("restated").initial(Property::Width).width(120).height(10),
-      box().key("reset").width(120).initial(Property::Width).height(10),
-      box().key("silent").height(10),
-  }));
+  host.composer.render(
+      box()
+          .alignItems(Align::Start)
+          .children({
+              box()
+                  .key("restated")
+                  .initial(Property::Width)
+                  .width(120)
+                  .height(10),
+              box().key("reset").width(120).initial(Property::Width).height(10),
+              box().key("silent").height(10),
+          }));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host, "restated"), 120.0f);
   EXPECT_FLOAT_EQ(widthOf(host, "reset"), widthOf(host, "silent"));
@@ -149,17 +162,23 @@ TEST(ComposeDeclarations, InheritOnAnInheritingPropertyDropsWhatTheNodeSaid) {
   // at all. It means the value that ARRIVED: the layers folded over it
   // are dropped.
   Host host(200, 200);
-  host.composer.render(box().ink({1, 0, 0, 1}).children({
-      box().key("own").width(40).height(40).ink({0, 0, 1, 1}).fill(
-          Fill::currentInk()),
-      box()
-          .key("back")
-          .width(40)
-          .height(40)
-          .ink({0, 0, 1, 1})
-          .inherit(Property::Ink)
-          .fill(Fill::currentInk()),
-  }));
+  host.composer.render(box()
+                           .ink({1, 0, 0, 1})
+                           .children({
+                               box()
+                                   .key("own")
+                                   .width(40)
+                                   .height(40)
+                                   .ink({0, 0, 1, 1})
+                                   .fill(Fill::currentInk()),
+                               box()
+                                   .key("back")
+                                   .width(40)
+                                   .height(40)
+                                   .ink({0, 0, 1, 1})
+                                   .inherit(Property::Ink)
+                                   .fill(Fill::currentInk()),
+                           }));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLUE);
   EXPECT_EQ(host.pixel(20, 60), SK_ColorRED)
@@ -173,7 +192,7 @@ TEST(ComposeDeclarations, AKeywordOnAnInheritingPropertyStandsOverARule) {
   // ancestor's.
   Host host(200, 200);
   const sigil::compose::StyleSheet sheet{
-      sigil::compose::rule(".loud").font({.color = SkColors::kGreen})};
+      sigil::compose::rule(".loud").font({.ink = SkColors::kGreen})};
   const auto tree = [&](bool unsetInk) {
     Element child = box().key("ruled").styleClass("loud").width(40).height(40);
     if (unsetInk) child.unset(Property::Ink);
@@ -206,10 +225,13 @@ TEST(ComposeDeclarations, AKeywordNoFoldAnswersIsRefusedRatherThanDropped) {
   // Refused means the description is the one it would have been: the node
   // lays out and paints exactly as the sibling that never said it.
   Host host(400, 200);
-  host.composer.render(box().alignItems(Align::Start).children({
-      box().key("said").width(40).height(10).initial(Property::Shape),
-      box().key("silent").width(40).height(10),
-  }));
+  host.composer.render(
+      box()
+          .alignItems(Align::Start)
+          .children({
+              box().key("said").width(40).height(10).initial(Property::Shape),
+              box().key("silent").width(40).height(10),
+          }));
   host.frame();
   EXPECT_FLOAT_EQ(widthOf(host, "said"), widthOf(host, "silent"));
 }
@@ -242,11 +264,18 @@ TEST(ComposeDeclarations, InitialStopsAnInheritedInk) {
   // the colour the property has under no ancestor at all, which is
   // opaque black.
   Host host(200, 200);
-  host.composer.render(box().ink({1, 0, 0, 1}).children({
-      box().key("takes").width(40).height(40).fill(Fill::currentInk()),
-      box().key("stops").width(40).height(40).initial(Property::Ink).fill(
-          Fill::currentInk()),
-  }));
+  host.composer.render(
+      box()
+          .ink({1, 0, 0, 1})
+          .children({
+              box().key("takes").width(40).height(40).fill(Fill::currentInk()),
+              box()
+                  .key("stops")
+                  .width(40)
+                  .height(40)
+                  .initial(Property::Ink)
+                  .fill(Fill::currentInk()),
+          }));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
   EXPECT_EQ(host.pixel(20, 60), SK_ColorBLACK);
@@ -256,9 +285,14 @@ TEST(ComposeDeclarations, UnsetOnAnInheritingPropertyKeepsInheriting) {
   // `unset` asks the table, and the table says the ink inherits — so it
   // is the ancestor's colour, exactly as if nothing had been written.
   Host host(200, 200);
-  host.composer.render(box().ink({1, 0, 0, 1}).children(
-      {box().key("takes").width(40).height(40).unset(Property::Ink).fill(
-          Fill::currentInk())}));
+  host.composer.render(box()
+                           .ink({1, 0, 0, 1})
+                           .children({box()
+                                          .key("takes")
+                                          .width(40)
+                                          .height(40)
+                                          .unset(Property::Ink)
+                                          .fill(Fill::currentInk())}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
 }
@@ -276,13 +310,13 @@ TEST(ComposeDeclarations, AColourWrittenThroughTheFontIsTheInk) {
           .width(40)
           .height(40)
           .ink(red)
-          .font({.color = blue})
+          .font({.ink = blue})
           .fill(Fill::currentInk()),
       box()
           .key("ink")
           .width(40)
           .height(40)
-          .font({.color = blue})
+          .font({.ink = blue})
           .ink(red)
           .fill(Fill::currentInk()),
       box()
@@ -290,13 +324,13 @@ TEST(ComposeDeclarations, AColourWrittenThroughTheFontIsTheInk) {
           .width(40)
           .height(40)
           .initial(Property::Ink)
-          .font({.color = blue})
+          .font({.ink = blue})
           .fill(Fill::currentInk()),
       box()
           .key("before")
           .width(40)
           .height(40)
-          .font({.color = blue})
+          .font({.ink = blue})
           .initial(Property::Ink)
           .fill(Fill::currentInk()),
   }));
@@ -316,7 +350,7 @@ TEST(ComposeDeclarations, AFontColourAndAnInkAreOneLaneToEveryReader) {
   const auto scene = [&](bool throughTheFont) {
     Element parent = box().width(80).height(40).row();
     if (throughTheFont)
-      parent.font({.color = red});
+      parent.font({.ink = red});
     else
       parent.ink(red);
     return box().children({parent.children({
@@ -346,10 +380,10 @@ TEST(ComposeDeclarations, InitialOnTheInkOverridesARulesFontColour) {
   // a keyword and a font colour wins, as it does on a node.
   Host host(200, 200);
   const sigil::compose::StyleSheet sheet{
-      sigil::compose::rule(".loud").font({.color = SkColors::kGreen}),
+      sigil::compose::rule(".loud").font({.ink = SkColors::kGreen}),
       sigil::compose::rule(".restated")
           .initial(Property::Ink)
-          .font({.color = SkColors::kBlue})};
+          .font({.ink = SkColors::kBlue})};
   host.composer.render(
       box()
           .ink({1, 0, 0, 1})
@@ -409,14 +443,16 @@ TEST(ComposeDeclarations, AnInheritedPropertyThatMovedBehindAPruneEases) {
   // from above moved, and it eases wherever the movement was found.
   Host host(200, 200);
   const auto tree = [](material::Color fill) {
-    return box().fill(Fill::color(fill)).children({box()
-                                                       .key("child")
-                                                       .width(40)
-                                                       .height(40)
-                                                       .inherit(Property::Fill)
-                                                       .transition({
-                                                           .duration = 200ms,
-                                                       })});
+    return box()
+        .fill(Fill::color(fill))
+        .children({box()
+                       .key("child")
+                       .width(40)
+                       .height(40)
+                       .inherit(Property::Fill)
+                       .transition({
+                           .duration = 200ms,
+                       })});
   };
   host.composer.render(tree({1, 0, 0, 1}));
   host.frame();
@@ -443,16 +479,17 @@ TEST(ComposeDeclarations, ALonghandIsItsShorthandWithOneField) {
   EXPECT_TRUE(
       sameDescription(box().fontWeight(700), box().font({.weight = 700})));
   EXPECT_TRUE(sameDescription(box().fontStyle(12), box().font({.slant = -12})));
-  EXPECT_TRUE(
-      sameDescription(box().letterSpacing(2), box().font({.track = 2})));
+  EXPECT_TRUE(sameDescription(box().letterSpacing(2),
+                              box().font({.letterSpacing = 2})));
   EXPECT_TRUE(sameDescription(
       box().textAlign(sigil::weave::TextAlignment::kCenter),
       box().paragraph({.alignment = sigil::weave::TextAlignment::kCenter})));
   EXPECT_TRUE(sameDescription(box().textIndent(24),
                               box().paragraph({.firstLineIndent = 24})));
   EXPECT_TRUE(sameDescription(
-      box().lineHeight(sigil::weave::Leading::multiple(1.4f)),
-      box().paragraph({.leading = sigil::weave::Leading::multiple(1.4f)})));
+      box().lineHeight(sigil::weave::LineHeight::multiple(1.4f)),
+      box().paragraph(
+          {.lineHeight = sigil::weave::LineHeight::multiple(1.4f)})));
   EXPECT_TRUE(sameDescription(
       box().textWrap(TextWrap::Balance),
       box().paragraph(

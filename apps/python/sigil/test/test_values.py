@@ -50,9 +50,9 @@ class Values(unittest.TestCase):
     def test_native_type_accepts_relative_lengths(self):
         font = weave.Type()
         font.size = 20
-        font.track = weave.em(0.05)
+        font.letterSpacing = weave.em(0.05)
         self.assertEqual(font.size.value, 20)
-        self.assertAlmostEqual(font.track.value, 0.05)
+        self.assertAlmostEqual(font.letterSpacing.value, 0.05)
 
     def test_parametric_mesh_and_camera_use_native_geometry(self):
         plane = mesh.grid(5, 7, lambda u, v: (u * 10, v * 20, 0))

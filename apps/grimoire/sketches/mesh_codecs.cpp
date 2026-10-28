@@ -86,7 +86,7 @@ constexpr material::Color kFigure{0.98f, 0.78f, 0.36f, 1};
 weave::TextStyle mono(float size, material::Color color) {
   const weave::Face face =
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
+  return weave::textStyle({.face = face, .size = size, .ink = color});
 }
 
 const camera::Camera kStageView{

@@ -375,8 +375,7 @@ TEST(SketchKitChart, ACurveDrawsItselfOnAlongItsOwnLength) {
         kit::houseTheme().styleSheet() +
         compose::StyleSheet{
             compose::rule(".plotTrace")
-                .font(
-                    weave::Type{.color = sigil::material::Color{0, 1, 0, 1}})};
+                .font(weave::Type{.ink = sigil::material::Color{0, 1, 0, 1}})};
     return compose::box().applyStyleSheet(dressed).children(
         {kit::plot("g", plane(),
                    {kit::trace([](double x) { return x * 10.0; },
@@ -403,7 +402,7 @@ TEST(SketchKitChart, ARecordingIsPaintedInTheInkItsClassResolvesTo) {
       kit::houseTheme().styleSheet() +
       compose::StyleSheet{
           compose::rule(".plotRule")
-              .font(weave::Type{.color = sigil::material::Color{0, 1, 0, 1}})};
+              .font(weave::Type{.ink = sigil::material::Color{0, 1, 0, 1}})};
   Drawn drawn(compose::box().applyStyleSheet(dressed).children(
       {kit::plot("r", plane(), {kit::rules({.y = {50}, .pen = {.width = 3}})})
            .width(kField)
@@ -533,13 +532,13 @@ TEST(SketchKitChart, EveryChartClassCarriesAColour) {
   for (const char* name : {".plotTrace", ".plotMark", ".plotBar"}) {
     const compose::Rule* rule = ruleFor(dressed, name);
     ASSERT_NE(rule, nullptr) << name;
-    ASSERT_TRUE(rule->type().color.has_value()) << name;
-    EXPECT_EQ(*rule->type().color, look.palette.figure) << name;
+    ASSERT_TRUE(rule->type().ink.has_value()) << name;
+    EXPECT_EQ(*rule->type().ink, look.palette.figure) << name;
   }
   const compose::Rule* rule = ruleFor(dressed, ".plotRule");
   ASSERT_NE(rule, nullptr);
-  ASSERT_TRUE(rule->type().color.has_value());
-  EXPECT_EQ(*rule->type().color, look.palette.rule);
+  ASSERT_TRUE(rule->type().ink.has_value());
+  EXPECT_EQ(*rule->type().ink, look.palette.rule);
 }
 
 /** AN UNSET TICK REACH IS THE SHEET'S: the ticks paint and their numbers

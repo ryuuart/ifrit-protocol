@@ -31,7 +31,7 @@ namespace sigil::weave {
  * it in px, and `grid` states a rhythm instead: the block's own height
  * rounds UP to a multiple of it.
  */
-struct Leading {
+struct LineHeight {
   /** How `value` is read. Each has a factory below that names it. */
   enum class Kind : uint8_t {
     kFace,         ///< the first span's own line height; `value` unused
@@ -44,23 +44,23 @@ struct Leading {
   float value = 0;          ///< the factor, the px pitch, or the px grid step
 
   /** The first span's own single-spaced line height. */
-  [[nodiscard]] static Leading face() { return {}; }
+  [[nodiscard]] static LineHeight face() { return {}; }
   /** `factor` times the face's own line height. */
-  [[nodiscard]] static Leading multiple(float factor) {
+  [[nodiscard]] static LineHeight multiple(float factor) {
     return {Kind::kMultiple, factor};
   }
   /** Exactly `pixels`, whatever the face reports. */
-  [[nodiscard]] static Leading absolute(float pixels) {
+  [[nodiscard]] static LineHeight absolute(float pixels) {
     return {Kind::kAbsolute, pixels};
   }
   /** The face's own height rounded up to a multiple of `pixels`. */
-  [[nodiscard]] static Leading grid(float pixels) {
+  [[nodiscard]] static LineHeight grid(float pixels) {
     return {Kind::kGrid, pixels};
   }
   /** `factor` times the type size, whatever the face reports — CSS's
    *  unitless `line-height`, so `sizeMultiple(2)` at 20 px is a 40 px
    *  pitch. */
-  [[nodiscard]] static Leading sizeMultiple(float factor) {
+  [[nodiscard]] static LineHeight sizeMultiple(float factor) {
     return {Kind::kSizeMultiple, factor};
   }
 
@@ -82,7 +82,7 @@ struct Leading {
     return faceHeight;
   }
 
-  bool operator==(const Leading&) const = default;
+  bool operator==(const LineHeight&) const = default;
 };
 
 /** Where a block's lines start and end across the measure, in px, from
@@ -134,7 +134,7 @@ struct KeepOptions {
  * head of a frame included.
  */
 struct ParagraphStyle {
-  Leading leading;  ///< the block's pitch
+  LineHeight lineHeight;  ///< the block's pitch — CSS's `line-height`
   /// Where the room a leading opened goes: all of it ABOVE the line (the
   /// setting convention, and the default), or half above and half below,
   /// which sits the type optically centred in its own band.

@@ -167,8 +167,8 @@ struct EmberDecode {
     const auto burnt = [&](float size, float track) {
       return weave::Type{.face = face,
                          .size = size,
-                         .color = material::Color{1, 1, 1, 1},
-                         .track = track};
+                         .ink = material::Color{1, 1, 1, 1},
+                         .letterSpacing = track};
     };
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one

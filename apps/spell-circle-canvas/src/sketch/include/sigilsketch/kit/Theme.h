@@ -18,6 +18,9 @@
 #include <sigilweave/style/TextStyle.h>
 #include <sigilweave/style/Type.h>
 
+#include <optional>
+#include <vector>
+
 /** THE SHEET A SKETCH STANDS ON: the theme, the page, and the furniture
  *  a specimen is built out of — headings, passages, panels, rows, cells,
  *  charts, legends, meters, tickers, scrollbars and consoles.
@@ -64,14 +67,17 @@ struct Palette {
 };
 
 /** ONE LINE OF TYPE: which of the theme's two faces it is set in, how
- *  large, and how far apart its clusters stand.
+ *  large, how far apart its clusters stand, and the OpenType features it
+ *  asks the face for — a register is a RULE, written in the theme's sheet
+ *  with the CSS verbs `fontFamily`, `fontSize`, `letterSpacing` and
+ *  `fontFeatureSettings`.
  *
- *  `track` is px added after each cluster, which is what a text style
- *  takes; a reference quoting tracking per mille converts where the em
- *  size is known, which is the call site and not here. */
+ *  `letterSpacing` is px added after each cluster, which is what a text
+ *  style takes; a reference quoting tracking per mille converts where the
+ *  em size is known, which is the call site and not here. */
 struct Register {
   float size = 11;
-  float track = 0;
+  float letterSpacing = 0;
   /** Where the theme states the line's face — `Theme::font` and
    *  `Theme::style` — false sets it in the theme's first face and true in
    *  its second, the one a CALL is set in, which is monospaced on the
@@ -88,6 +94,15 @@ struct Register {
    *  faces asks for and is the common case. Resolved once and held, for
    *  the reason `TypeScale`'s two are. */
   weave::Face face;
+  /** THE OPENTYPE FEATURES the line is set with — CSS's
+   *  `font-feature-settings` — such as `{{"tnum", 1}}`, the tabular
+   *  numerals a count that changes every second is set in so its row does
+   *  not twitch. Empty states none, and the features in force stand. */
+  std::vector<weave::FontFeature> features;
+  /** THE COLOUR THE LINE IS SET IN where it is not the one its role
+   *  names — a sheet whose labels are set in the quiet ash rather than the
+   *  ink. Unset is the role's own: `Theme::styleSheet` says which. */
+  std::optional<material::Color> ink;
   bool operator==(const Register&) const = default;
 };
 
@@ -122,6 +137,10 @@ struct TypeScale {
   Register section{11.5f, 1.4f, true};
   /** The literal setting being compared, distinct from its human label. */
   Register control{10.5f, 0, true};
+  /** THE LABEL — the `label` role and class — where it is not the call a
+   *  cell names: an instrument's caption on a sheet that names its dials
+   *  and tracks in a voice of their own. Unset is `captionLabel`. */
+  std::optional<Register> label;
   weave::Face sans;
   weave::Face mono;
   bool operator==(const TypeScale&) const = default;
@@ -204,11 +223,11 @@ struct Theme {
   bool operator==(const Theme&) const = default;
 
   /** @p line AS THE PARTIAL TYPE the cascade inherits: the face it is
-   *  set in — its own, or whichever of the two it names — its size and
-   *  its track, and nothing else, so its colour is the ink in force where
-   *  it is read. `page()` seeds its root from one; a leaf under the page
-   *  set in another register says `.font(look.font(look.type.eyebrow))`,
-   *  or uses its document role. */
+   *  set in — its own, or whichever of the two it names — its size, its
+   *  letter spacing and its features, and nothing else, so its colour is the
+   * ink in force where it is read. `page()` seeds its root from one; a leaf
+   * under the page set in another register says
+   * `.font(look.font(look.type.eyebrow))`, or uses its document role. */
   [[nodiscard]] weave::Type font(const Register& line) const;
   /** The same register with a colour named — what a caption's label or a
    *  sheet's title is set in, as a partial over what the page inherits. */
@@ -268,10 +287,10 @@ struct Theme {
   /** A line in the sans face at an arbitrary size — for the text a sheet
    *  sets that none of the registers above covers. */
   [[nodiscard]] weave::TextStyle sans(float size, material::Color color,
-                                      float track = 0) const;
+                                      float letterSpacing = 0) const;
   /** The same in the mono face. */
   [[nodiscard]] weave::TextStyle mono(float size, material::Color color,
-                                      float track = 0) const;
+                                      float letterSpacing = 0) const;
 
   /** THE SHEET'S VOICE: how every cell on it is captioned — where the
    *  two lines stand and the air around them. What they are SET IN is the
@@ -302,6 +321,10 @@ enum class Voice {
   /** The interface face: the grotesque an operating system sets its own
    *  chrome in. */
   Interface,
+  /** The serif text face an essay, a story or a specimen's body copy is
+   *  set in: an old style cut for long reading, standing in for the
+   *  bookish serif a reference names. */
+  Serif,
 };
 
 /** THE HOUSE FACE for @p voice at @p weight, resolved once and held.
@@ -340,5 +363,12 @@ enum class Density { Compact, Spacious };
 /** A feature sheet in slate, ivory and pale gold, with interface headings
  *  and terminal settings. Both densities retain their resolved faces. */
 [[nodiscard]] const Theme& featureTheme(Density density = Density::Compact);
+
+/** A DARK SHEET IN THE TERMINAL VOICE: near-black ground, warm off-white
+ *  ink, a grey ash, interface headings, and the terminal face as the face
+ *  a call is set in. Its `label` class is the instrument's label — the
+ *  terminal face at 12 px, tracked 2 px, in the ash — so a dial's or a
+ *  track's caption is `text(words).styleClass("label")`. */
+[[nodiscard]] const Theme& darkTheme();
 
 }  // namespace sigil::sketch::kit

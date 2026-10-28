@@ -38,8 +38,8 @@ NAMES = (
 
 
 def sheet(size=12.0):
-    base = weave.textStyle(weave.Type(size=size, color="#ffffff"))
-    return weave.TypeSheet(base).set("dim", weave.Type(color="#808080"))
+    base = weave.textStyle(weave.Type(size=size, ink="#ffffff"))
+    return weave.TypeSheet(base).set("dim", weave.Type(ink="#808080"))
 
 
 def line(words, style=""):
@@ -128,12 +128,12 @@ class Records(unittest.TestCase):
         options.window.gap = 0.0
         self.assertEqual((options.window.visible, options.window.gap), (8, 0.0))
         options.styles = sheet()
-        options.styles.set("pass", weave.Type(color="#00ff00"))
+        options.styles.set("pass", weave.Type(ink="#00ff00"))
         self.assertTrue(options.styles.contains("dim"))
         self.assertTrue(options.styles.contains("pass"))
         built = feed.TextOptions(
             window=feed.Options(visible=8, gap=0.0),
-            styles=sheet().set("pass", weave.Type(color="#00ff00")),
+            styles=sheet().set("pass", weave.Type(ink="#00ff00")),
         )
         self.assertEqual(options, built)
         self.assertNotEqual(options, feed.TextOptions())
@@ -466,7 +466,7 @@ class Session(unittest.TestCase):
             "from sigil.sketch import sketch\n"
             "results = builtins._sigil_feed_results\n"
             "def sheet():\n"
-            "    base = weave.textStyle(weave.Type(size=8, color='#ffffff'))\n"
+            "    base = weave.textStyle(weave.Type(size=8, ink='#ffffff'))\n"
             "    return weave.TypeSheet(base)\n"
             "@sketch(size=(96, 96), captureAt=0)\n"
             "class Scene:\n"

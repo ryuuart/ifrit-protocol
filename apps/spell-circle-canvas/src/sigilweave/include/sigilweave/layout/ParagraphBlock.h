@@ -30,7 +30,7 @@ namespace sigil::weave {
  *  it. Every one of them inherits, as every field of a text style does,
  *  so `initial` is the keyword that says something new. */
 enum class ParagraphField : uint8_t {
-  Leading,
+  LineHeight,
   HalfLeading,
   Alignment,
   Justification,
@@ -63,7 +63,8 @@ enum class ParagraphField : uint8_t {
  *  reservation, its keeps with the next block, its initial letter, its
  *  every-line insets — is not here but on the whole `ParagraphStyle`. */
 struct ParagraphBlock {
-  std::optional<Leading> leading;
+  /** The pitch of the lines — CSS's `line-height`. */
+  std::optional<LineHeight> lineHeight;
   std::optional<bool> halfLeading;
   std::optional<TextAlignment> alignment;
   std::optional<JustificationOptions> justification;
@@ -112,7 +113,7 @@ struct ParagraphBlock {
 
   /** Whether it states NOTHING — the partial that changes no field. */
   [[nodiscard]] bool empty() const {
-    return !leading && !halfLeading && !alignment && !justification &&
+    return !lineHeight && !halfLeading && !alignment && !justification &&
            !hyphenation && !tabStops && !firstLineIndent && !lastLineIndent &&
            !widowLines && !orphanLines && !balanceRaggedLines && !writingMode &&
            !baseDirection && !lineBreakLocale && !lineBreak &&

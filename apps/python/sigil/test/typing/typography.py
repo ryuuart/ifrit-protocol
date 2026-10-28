@@ -12,7 +12,7 @@ from sigil.weave import (
     InitialLetter,
     JustificationOptions,
     KeepOptions,
-    Leading,
+    LineHeight,
     PaintLayer,
     ParagraphStyle,
     Story,
@@ -25,7 +25,7 @@ from sigil.weave import (
     selectors,
 )
 
-sheet = TypeSheet().set("accent", Type(color="#e7a466"))
+sheet = TypeSheet().set("accent", Type(ink="#e7a466"))
 passage = (
     rich()
     .styles(sheet)
@@ -35,7 +35,7 @@ passage = (
     .add(" text", type=Type(size=18))
 )
 layout = ParagraphBlock(
-    leading=Leading.multiple(1.3),
+    lineHeight=LineHeight.multiple(1.3),
     hyphenation=HyphenationOptions(consecutiveLimit=2),
     justification=JustificationOptions(spaceStretch=0.6),
     tabStops=TabStopOptions(stops=(TabStop(position=160),)),

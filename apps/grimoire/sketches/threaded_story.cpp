@@ -113,7 +113,8 @@ sigil::weave::Face grotesque() {
 
 /** A caption line: a partial over what the cell inherits. */
 weave::Type label(float size, material::Color colour, float track) {
-  return {.face = grotesque(), .size = size, .color = colour, .track = track};
+  return {
+      .face = grotesque(), .size = size, .ink = colour, .letterSpacing = track};
 }
 
 /** The one voice both chains are captioned in: the measure named over the
@@ -187,7 +188,7 @@ weave::Story keptArticle(bool shortBody, weave::KeepOptions keep,
                          bool startInNextFrame = false) {
   weave::Story built(
       weave::rich()
-          .add(u8"THE FIRST BLOCK\n", weave::Type{.color = kMark})
+          .add(u8"THE FIRST BLOCK\n", weave::Type{.ink = kMark})
           .add(shortBody
                    ? u8"A widow stands at the head of the next frame.\n"
                    : u8"A widow stands at the head of the next frame and an "
@@ -290,11 +291,13 @@ struct ThreadedStory {
                  .gap(5)
                  .children(
                      {document::h1("One story, three frames")
-                          .font({.size = 26, .color = s::kInk, .track = 0.2f}),
+                          .font({.size = 26,
+                                 .ink = s::kInk,
+                                 .letterSpacing = 0.2f}),
                       document::lead(
                           "Change the first frame's width. The same story "
                           "continues from a different word in each column.")
-                          .font({.size = 12, .track = 0.1f})
+                          .font({.size = 12, .letterSpacing = 0.1f})
                           .width(620.0f)}),
              box()
                  .inset(s::kMargin + 72, 0, 0, s::kMargin)
@@ -317,22 +320,24 @@ struct ThreadedStory {
                  .gap(14)
                  .children({
                      document::h2("READ THE CONTINUATION")
-                         .font({.size = 11, .color = s::kMark, .track = 1.4f}),
+                         .font({.size = 11,
+                                .ink = s::kMark,
+                                .letterSpacing = 1.4f}),
                      document::paragraph(
                          "Start at the top frame, then read down the left "
                          "column and down the right. Each frame receives "
                          "the words its predecessor could not hold.")
-                         .font({.size = 12, .color = s::kInk}),
+                         .font({.size = 12, .ink = s::kInk}),
                      document::paragraph(
                          "Compare the first word below each upper frame. "
                          "The wider frame holds more of the opening, so "
                          "its continuation begins later.")
-                         .font({.size = 12, .color = s::kInk}),
+                         .font({.size = 12, .ink = s::kInk}),
                      document::caption(
                          "Only the last column has an ellipsis. An "
                          "intermediate frame continues; it does not end "
                          "the story.")
-                         .font({.size = 11, .color = s::kFaint}),
+                         .font({.size = 11, .ink = s::kFaint}),
                  }),
              box()
                  .inset(s::kKeepsTop, 0, 0, s::kMargin)
@@ -344,27 +349,26 @@ struct ThreadedStory {
                      {document::h2("KEEPS AT THE CUT")
                           .font({.face = s::grotesque(),
                                  .size = 11,
-                                 .color = s::kMark,
-                                 .track = 1.4f}),
+                                 .ink = s::kMark,
+                                 .letterSpacing = 1.4f}),
                       box().row().gap(44).children(
                           {captioned("FILL TO THE FOOT", "No keep options.",
-                                     pair("free-",
-                                          s::keptArticle(false, {}),
+                                     pair("free-", s::keptArticle(false, {}),
                                           s::kKeepDepth)),
-                           captioned("CARRY A PAIR",
-                                     "widowLines = 2 · orphanLines = 2",
-                                     pair("kept-",
-                                          s::keptArticle(false,
-                                                         {.widowLines = 2,
-                                                          .orphanLines = 2}),
-                                          s::kKeepDepth))}),
+                           captioned(
+                               "CARRY A PAIR",
+                               "widowLines = 2 · orphanLines = 2",
+                               pair("kept-",
+                                    s::keptArticle(false, {.widowLines = 2,
+                                                           .orphanLines = 2}),
+                                    s::kKeepDepth))}),
                       box().row().gap(44).children(
-                          {captioned("CONTINUE IN PLACE",
-                                     "A shorter story; the close uses the "
-                                     "room left.",
-                                     pair("close-free-",
-                                          s::keptArticle(true, {}),
-                                          s::kCloseDepth)),
+                          {captioned(
+                               "CONTINUE IN PLACE",
+                               "A shorter story; the close uses the "
+                               "room left.",
+                               pair("close-free-", s::keptArticle(true, {}),
+                                    s::kCloseDepth)),
                            captioned("START A NEW FRAME",
                                      "The close: startInNextFrame = true",
                                      pair("close-new-",
@@ -373,7 +377,7 @@ struct ThreadedStory {
              document::footer(
                  "a Western column is a FRAME; the vertical writing "
                  "mode keeps the word for the thing it already meant")
-                 .font({.size = 9.5f, .track = 0.2f})
+                 .font({.size = 9.5f, .letterSpacing = 0.2f})
                  .inset(s::kH - 32, 0, 0, s::kMargin)});
   }
 };

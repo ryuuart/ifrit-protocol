@@ -22,14 +22,14 @@ TEST(ComposeStyleSheet, ARuleIsASelectorAndTheSamePartialsAVerbWrites) {
   const Rule stated =
       sigil::compose::rule(".card")
           .font({.size = 18})
-          .paragraph({.leading = sigil::weave::Leading::multiple(1.5f)})
+          .paragraph({.lineHeight = sigil::weave::LineHeight::multiple(1.5f)})
           .ink(kRed)
           .var("accent", kBlue)
           .var("gutter", sigil::compose::Dimension(12.0f));
   EXPECT_TRUE(stated.selector() == sigil::compose::selector(".card"));
   EXPECT_TRUE(stated.type().size.has_value());
-  EXPECT_TRUE(stated.paragraph().leading.has_value());
-  EXPECT_TRUE(stated.type().color == kRed);
+  EXPECT_TRUE(stated.paragraph().lineHeight.has_value());
+  EXPECT_TRUE(stated.type().ink == kRed);
   EXPECT_FALSE(stated.inkVar().has_value());
   EXPECT_EQ(stated.vars().entries().size(), 2u);
   // The same merge a verb uses: a second call wins field by field and
@@ -50,18 +50,18 @@ TEST(ComposeStyleSheet, AnInkIsEitherAColourOrAPropertyAndTheLaterOneStands) {
   const Rule fromProperty =
       sigil::compose::rule(".card").ink(kRed).ink(sigil::compose::var("brand"));
   EXPECT_TRUE(fromProperty.inkVar() == sigil::compose::var("brand"));
-  EXPECT_FALSE(fromProperty.type().color.has_value());
+  EXPECT_FALSE(fromProperty.type().ink.has_value());
   const Rule fromColour =
       sigil::compose::rule(".card").ink(sigil::compose::var("brand")).ink(kRed);
   EXPECT_FALSE(fromColour.inkVar().has_value());
-  EXPECT_TRUE(fromColour.type().color == kRed);
+  EXPECT_TRUE(fromColour.type().ink == kRed);
   // A colour written through font() is the ink too, so it displaces a
   // property the ink was read from just as ink() does.
   const Rule throughFont = sigil::compose::rule(".card")
                                .ink(sigil::compose::var("brand"))
-                               .font({.color = kBlue});
+                               .font({.ink = kBlue});
   EXPECT_FALSE(throughFont.inkVar().has_value());
-  EXPECT_TRUE(throughFont.type().color == kBlue);
+  EXPECT_TRUE(throughFont.type().ink == kBlue);
 }
 
 TEST(ComposeStyleSheet, TwoSheetsBuiltSeparatelyFromEqualRulesAreEqual) {

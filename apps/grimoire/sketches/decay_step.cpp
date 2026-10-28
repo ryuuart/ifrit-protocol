@@ -80,10 +80,10 @@ constexpr material::Color kThird{0.86f, 0.46f, 0.36f, 1};
 sigil::compose::StyleSheet plotSheet() {
   sigil::compose::StyleSheet dressed = sigil::compose::StyleSheet{
       sigil::compose::rule(".plotAxis").ink(var("palette-rule")),
-      sigil::compose::rule(".plotRule").font({.color = kGrid}),
+      sigil::compose::rule(".plotRule").font({.ink = kGrid}),
       sigil::compose::rule(".ramp").ink(var("palette-ash")),
-      sigil::compose::rule(".second").font({.color = kSecond}),
-      sigil::compose::rule(".third").font({.color = kThird})};
+      sigil::compose::rule(".second").font({.ink = kSecond}),
+      sigil::compose::rule(".third").font({.ink = kThird})};
   return dressed;
 }
 

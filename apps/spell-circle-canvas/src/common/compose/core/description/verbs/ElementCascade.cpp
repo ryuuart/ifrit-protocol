@@ -11,6 +11,8 @@
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
+#include <cctype>
+#include <string>
 
 #include "description/ComposeInternal.h"
 #include "runtime/Warning.h"
@@ -39,10 +41,76 @@ void warnLineHeightIsNeverAuto() {
   sigil::compose::detail::reportWarning(
       "lineHeight() was given auto, which is no pitch — the line "
       "height in force was left standing. Give a number, a length or "
-      "Leading::face() for the face's own. (warned once)");
+      "LineHeight::face() for the face's own. (warned once)");
+}
+
+/** The once-per-process diagnostic behind hanging-punctuation text that
+ *  does not read. */
+void warnUnreadHanging(std::string_view text) {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  sigil::compose::detail::reportWarning(
+      "hangingPunctuation() was given '%.*s', which is no CSS "
+      "hanging-punctuation — none, or any of first, last and one of "
+      "force-end and allow-end — so the table in force stands. (warned once)",
+      (int)text.size(), text.data());
 }
 
 }  // namespace
+
+std::optional<sigil::weave::HangingTable> readHangingPunctuation(
+    std::string_view text) {
+  // The marks each keyword hangs, wholly, as CSS hangs them: the opening
+  // quotes and brackets before the start, the closing ones past the end,
+  // and the stops and commas past the end, full-width ones included.
+  static constexpr std::u16string_view kOpening =
+      u"\"'([{\u00AB\u2018\u201C\u2039\u3008\u300A\u300C\u300E\u3010"
+      u"\u3014\uFF08\uFF3B";
+  static constexpr std::u16string_view kClosing =
+      u"\"')]}\u00BB\u2019\u201D\u203A\u3009\u300B\u300D\u300F\u3011"
+      u"\u3015\uFF09\uFF3D";
+  static constexpr std::u16string_view kStops = u".,\u3001\u3002\uFF0C\uFF0E";
+  bool first = false, last = false, end = false, none = false;
+  size_t start = 0;
+  int words = 0;
+  while (start < text.size()) {
+    const size_t begin = text.find_first_not_of(" \t\n\r", start);
+    if (begin == std::string_view::npos) break;
+    size_t finish = text.find_first_of(" \t\n\r", begin);
+    if (finish == std::string_view::npos) finish = text.size();
+    std::string word(text.substr(begin, finish - begin));
+    std::transform(word.begin(), word.end(), word.begin(),
+                   [](unsigned char letter) { return std::tolower(letter); });
+    bool* flag = word == "first"                              ? &first
+                 : word == "last"                             ? &last
+                 : word == "force-end" || word == "allow-end" ? &end
+                 : word == "none"                             ? &none
+                                                              : nullptr;
+    if (flag == nullptr || *flag) return std::nullopt;
+    *flag = true;
+    ++words;
+    start = finish;
+  }
+  if (words == 0 || (none && words > 1)) return std::nullopt;
+  sigil::weave::HangingTable table;
+  const auto hang = [&table](std::u16string_view marks, bool atStart) {
+    for (const char16_t mark : marks) {
+      sigil::weave::HangingEdge* edge = nullptr;
+      for (sigil::weave::HangingEdge& entry : table.entries)
+        if (entry.character == mark) edge = &entry;
+      if (edge == nullptr) {
+        table.entries.push_back({.character = mark});
+        edge = &table.entries.back();
+      }
+      (atStart ? edge->atStart : edge->atEnd) = 1.0f;
+    }
+  };
+  if (first) hang(kOpening, true);
+  if (last) hang(kClosing, false);
+  if (end) hang(kStops, false);
+  return table;
+}
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::paragraph(
@@ -55,8 +123,8 @@ Derived& CascadeVerbs<Derived>::paragraph(
       partial.keywords.find(sigil::weave::ParagraphField::FirstLineIndent))
     cascade.textIndent.reset();
   // So does a leading over a line height written in another unit.
-  if (partial.leading ||
-      partial.keywords.find(sigil::weave::ParagraphField::Leading))
+  if (partial.lineHeight ||
+      partial.keywords.find(sigil::weave::ParagraphField::LineHeight))
     cascade.lineHeight.reset();
   return self();
 }
@@ -65,13 +133,14 @@ Derived& CascadeVerbs<Derived>::paragraph(
 // spellings fold into one partial and the later statement wins.
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::lineHeight(sigil::weave::Leading leading) {
-  return paragraph({.leading = leading});
+Derived& CascadeVerbs<Derived>::lineHeight(sigil::weave::LineHeight pitch) {
+  return paragraph({.lineHeight = pitch});
 }
 
 template <class Derived>
 Derived& CascadeVerbs<Derived>::lineHeight(float multiple) {
-  return paragraph({.leading = sigil::weave::Leading::sizeMultiple(multiple)});
+  return paragraph(
+      {.lineHeight = sigil::weave::LineHeight::sizeMultiple(multiple)});
 }
 
 template <class Derived>
@@ -79,9 +148,9 @@ Derived& CascadeVerbs<Derived>::lineHeight(Dimension length) {
   switch (length.unit) {
     case Dimension::Unit::Px:
       return paragraph(
-          {.leading = sigil::weave::Leading::absolute(length.value)});
+          {.lineHeight = sigil::weave::LineHeight::absolute(length.value)});
     case Dimension::Unit::Pt:
-      return paragraph({.leading = sigil::weave::Leading::absolute(
+      return paragraph({.lineHeight = sigil::weave::LineHeight::absolute(
                             sigil::weave::pt(length.value).absolutePx())});
     case Dimension::Unit::Auto:
       warnLineHeightIsNeverAuto();
@@ -91,8 +160,8 @@ Derived& CascadeVerbs<Derived>::lineHeight(Dimension length) {
       // canvas and the properties are known.
       detail::CascadeData& cascade = declarations()->paragraph();
       if (cascade.block) {
-        cascade.block->leading.reset();
-        cascade.block->keywords.clear(sigil::weave::ParagraphField::Leading);
+        cascade.block->lineHeight.reset();
+        cascade.block->keywords.clear(sigil::weave::ParagraphField::LineHeight);
         if (cascade.block->empty()) cascade.block.reset();
       }
       cascade.lineHeight = std::move(length);
@@ -129,6 +198,41 @@ Derived& CascadeVerbs<Derived>::textIndent(Dimension indent) {
       return self();
     }
   }
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::textAlignLast(
+    sigil::weave::TextAlignment alignment) {
+  return paragraph(
+      {.lastLineAlignment = alignment,
+       .justifyLastLine = alignment == sigil::weave::TextAlignment::kJustify});
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::hangingPunctuation(std::string_view keywords) {
+  std::optional<sigil::weave::HangingTable> table =
+      readHangingPunctuation(keywords);
+  if (!table) {
+    warnUnreadHanging(keywords);
+    return self();
+  }
+  return hangingPunctuation(std::move(*table));
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::hangingPunctuation(
+    sigil::weave::HangingTable table) {
+  return paragraph({.hanging = std::move(table)});
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::widows(int lines) {
+  return paragraph({.widowLines = lines});
+}
+
+template <class Derived>
+Derived& CascadeVerbs<Derived>::orphans(int lines) {
+  return paragraph({.orphanLines = lines});
 }
 
 template <class Derived>
@@ -288,7 +392,7 @@ Derived& StructureVerbs<Derived>::role(std::string name,
                                        sigil::weave::Type font, VarRef ink) {
   // The property stands in for the colour, so a colour the font names
   // would only be overwritten by it.
-  font.color.reset();
+  font.ink.reset();
   declarations()->cascadeData.ensure().role = detail::RoleDefaults{
       std::move(name), std::move(font), sigil::weave::ParagraphBlock{}, ink};
   return self();

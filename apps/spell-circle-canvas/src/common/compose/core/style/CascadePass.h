@@ -28,7 +28,7 @@ inline float fontSizePx(const sigil::weave::Type& font) {
 /** Whether two fonts agree in every field but the colour. */
 inline bool sameFontButColour(sigil::weave::Type a,
                               const sigil::weave::Type& b) {
-  a.color = b.color;
+  a.ink = b.ink;
   return a == b;
 }
 

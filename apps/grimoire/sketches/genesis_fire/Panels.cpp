@@ -194,29 +194,30 @@ Element GenesisFire::header() {
       .gap(4)
       .font({.face = uiFace()})
       .ink(kSteel)
-      .children({document::eyebrow(head["eyebrow"])
-                     .font({.size = 11.5f, .track = 2.7f})
-                     .opacity(sigil::motion::animate(
-                         {.from = 0.0f, .to = 1.0f, .duration = 260ms}))
-                     .translateY(sigil::motion::animate(
-                         {.from = 8.0f, .to = 0.0f, .duration = 260ms})),
-                 document::h1(head["title"])
-                     .font({.face = heavyFace(), .size = 46, .track = -0.4f})
-                     .ink(kBone)
-                     .key("title")
-                     .textFx(std::move(rise)),
-                 document::lead(head["credit"])
-                     .width(670)
-                     .font({.size = 11.0f, .track = 0.1f})
-                     .opacity(sigil::motion::animate({.from = 0.0f,
-                                                      .to = 1.0f,
-                                                      .duration = 240ms,
-                                                      .delay = 420ms})),
-                 box().flexGrow(1),
-                 kit::line({.fill = Fill::color(kKeyline)})
-                     .flexShrink(0)
-                     .opacity(sigil::motion::animate({.from = 0.0f,
-                                                      .to = 1.0f,
-                                                      .duration = 400ms,
-                                                      .delay = 320ms}))});
+      .children(
+          {document::eyebrow(head["eyebrow"])
+               .font({.size = 11.5f, .letterSpacing = 2.7f})
+               .opacity(sigil::motion::animate(
+                   {.from = 0.0f, .to = 1.0f, .duration = 260ms}))
+               .translateY(sigil::motion::animate(
+                   {.from = 8.0f, .to = 0.0f, .duration = 260ms})),
+           document::h1(head["title"])
+               .font({.face = heavyFace(), .size = 46, .letterSpacing = -0.4f})
+               .ink(kBone)
+               .key("title")
+               .textFx(std::move(rise)),
+           document::lead(head["credit"])
+               .width(670)
+               .font({.size = 11.0f, .letterSpacing = 0.1f})
+               .opacity(sigil::motion::animate({.from = 0.0f,
+                                                .to = 1.0f,
+                                                .duration = 240ms,
+                                                .delay = 420ms})),
+           box().flexGrow(1),
+           kit::line({.fill = Fill::color(kKeyline)})
+               .flexShrink(0)
+               .opacity(sigil::motion::animate({.from = 0.0f,
+                                                .to = 1.0f,
+                                                .duration = 400ms,
+                                                .delay = 320ms}))});
 }

@@ -31,8 +31,8 @@ weave::Type mincho(float size = kSize) {
   return {.face = weave::ports::face(
               {"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP"}),
           .size = size,
-          .color = kInk,
-          .track = 0,
+          .ink = kInk,
+          .letterSpacing = 0,
           .language = "ja"};
 }
 

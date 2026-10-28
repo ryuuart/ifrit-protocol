@@ -67,8 +67,10 @@ constexpr float kTickerGap = 40;    // between the two marquee copies
 
 inline sigil::weave::TextStyle type(float size, material::Color color,
                                     float tracking = 0, float weight = 0) {
-  return sigil::weave::textStyle(
-      {.size = size, .color = color, .track = tracking, .weight = weight});
+  return sigil::weave::textStyle({.size = size,
+                                  .ink = color,
+                                  .letterSpacing = tracking,
+                                  .weight = weight});
 }
 
 /** A gel label's ink and the dark ground cast just below it. */
@@ -87,16 +89,16 @@ inline sigil::compose::StyleSheet classes() {
   return sigil::compose::StyleSheet{
       sigil::compose::rule(".gelLabel")
           .font({.size = 16,
-                 .color = material::Color{1, 1, 1, 0.98f},
-                 .track = 1.0f,
+                 .ink = material::Color{1, 1, 1, 0.98f},
+                 .letterSpacing = 1.0f,
                  .weight = 650}),
       sigil::compose::rule("caption, .caption")
           .font({.size = 10,
-                 .color = hexColor(0xAFC0DE),
-                 .track = 0.8f,
+                 .ink = hexColor(0xAFC0DE),
+                 .letterSpacing = 0.8f,
                  .weight = 600}),
       sigil::compose::rule(".note").font(
-          {.size = 10, .color = hexColor(0x8DA0C4), .track = 0.4f})};
+          {.size = 10, .ink = hexColor(0x8DA0C4), .letterSpacing = 0.4f})};
 }
 
 // ---------------------------------------------------------------------------
@@ -236,7 +238,7 @@ inline Element chromeControl(std::string_view mark, bool close = false) {
       .justifyContent(Justify::Center)
       .children({text(mark).font(
           {.size = 10,
-           .color = close ? hexColor(0xFFFFFF) : hexColor(0x101A25),
+           .ink = close ? hexColor(0xFFFFFF) : hexColor(0x101A25),
            .weight = 700})});
 }
 
@@ -317,8 +319,8 @@ struct Y2kChrome {
             .children(
                 {text("SIGILNET 2000 — hyperportal v4.2")
                      .font({.size = 12,
-                            .color = hexColor(0x172431),
-                            .track = 0.4f,
+                            .ink = hexColor(0x172431),
+                            .letterSpacing = 0.4f,
                             .weight = 600})
                      .decorationOutline(Boundary::Glyphs)
                      .ink(material::from(hexColor(0x172431))
@@ -343,8 +345,8 @@ struct Y2kChrome {
                      .font({.face = weave::ports::face(
                                 {"Helvetica Neue", "Arial"}, 800),
                             .size = 54,
-                            .color = hexColor(0xFFFFFF),
-                            .track = 3,
+                            .ink = hexColor(0xFFFFFF),
+                            .letterSpacing = 3,
                             .weight = 800})
                      .decorationOutline(Boundary::Glyphs)
                      .ink(y2k::silverChromeType().effects(

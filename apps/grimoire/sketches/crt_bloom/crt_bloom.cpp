@@ -87,8 +87,8 @@ Element headline(material::Color color) {
   return text(u8"PHOSPHOR")
       .font({.face = weave::defaultFace(),
              .size = 62,
-             .color = color,
-             .track = 1.5f});
+             .ink = color,
+             .letterSpacing = 1.5f});
 }
 
 /** THE TUBE, over whatever the panel drew: the library's own scanline

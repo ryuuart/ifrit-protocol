@@ -233,7 +233,7 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
     if (said.inkSurfaced &&
         (said.inkSurfaced->isRunning() ||
          (said.inkSurfaced->geometryDependent() && !restarts))) {
-      restyle.partial.color.reset();
+      restyle.partial.ink.reset();
       warnUnsupportedSpanInk();
     } else if (said.inkSurfaced) {
       restyle.inkMaterial = said.inkSurfaced;
@@ -244,11 +244,11 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
       // A paint stated after a colour supersedes that colour, so an
       // omitted paint leaves the range its own ink, not the colour the
       // paint replaced.
-      restyle.partial.color.reset();
+      restyle.partial.ink.reset();
       warnUnsupportedSpanInk();
     } else if (said.inkPaint) {
       if (said.inkPaint->isSolid()) {
-        restyle.partial.color = said.inkPaint->solidColor();
+        restyle.partial.ink = said.inkPaint->solidColor();
       } else if (!said.inkPaint->isNone()) {
         restyle.inkMaterial = material::skia::base(*said.inkPaint);
         if (restarts) restyle.inkBox = said.inkBox;

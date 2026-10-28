@@ -97,7 +97,7 @@ Text type(std::string words, float size, material::Color ink = black,
       .font({.face = weave::ports::face(
                  {"Helvetica Neue", "Helvetica", "Arial"}, heavy ? 700 : 400),
              .size = size,
-             .track = heavy ? -size * 0.03f : 0.2f})
+             .letterSpacing = heavy ? -size * 0.03f : 0.2f})
       .ink(ink);
 }
 

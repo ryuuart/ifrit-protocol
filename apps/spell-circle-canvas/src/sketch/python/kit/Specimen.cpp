@@ -31,9 +31,11 @@ void bindTheme(py::module_& module) {
 
   auto line = record<sketchKit::Register>(module, "Register");
   field(line, "size", &sketchKit::Register::size);
-  field(line, "track", &sketchKit::Register::track);
+  field(line, "letterSpacing", &sketchKit::Register::letterSpacing);
   field(line, "mono", &sketchKit::Register::mono);
   field(line, "face", &sketchKit::Register::face);
+  field(line, "features", &sketchKit::Register::features);
+  field(line, "ink", &sketchKit::Register::ink);
   line.def(py::self == py::self);
 
   auto type = record<sketchKit::TypeScale>(module, "TypeScale");
@@ -45,6 +47,7 @@ void bindTheme(py::module_& module) {
   field(type, "eyebrow", &sketchKit::TypeScale::eyebrow);
   field(type, "section", &sketchKit::TypeScale::section);
   field(type, "control", &sketchKit::TypeScale::control);
+  field(type, "label", &sketchKit::TypeScale::label);
   field(type, "sans", &sketchKit::TypeScale::sans);
   field(type, "mono", &sketchKit::TypeScale::mono);
   type.def(py::self == py::self);
@@ -102,19 +105,19 @@ void bindTheme(py::module_& module) {
       .def(
           "sans",
           [](const sketchKit::Theme& value, float size, py::handle color,
-             float track) {
-            return value.sans(size, sigil::python::color(color), track);
+             float letterSpacing) {
+            return value.sans(size, sigil::python::color(color), letterSpacing);
           },
-          py::arg("size"), py::arg("color"), py::arg("track") = 0.0f,
+          py::arg("size"), py::arg("color"), py::arg("letterSpacing") = 0.0f,
           "A line in the sheet's sans face at an arbitrary size, for the "
           "text none of the registers covers.")
       .def(
           "mono",
           [](const sketchKit::Theme& value, float size, py::handle color,
-             float track) {
-            return value.mono(size, sigil::python::color(color), track);
+             float letterSpacing) {
+            return value.mono(size, sigil::python::color(color), letterSpacing);
           },
-          py::arg("size"), py::arg("color"), py::arg("track") = 0.0f,
+          py::arg("size"), py::arg("color"), py::arg("letterSpacing") = 0.0f,
           "The same in the sheet's mono face.")
       .def("voice", &sketchKit::Theme::voice, py::arg("noteMeasure"))
       .def(
@@ -127,7 +130,8 @@ void bindTheme(py::module_& module) {
   py::enum_<sketchKit::Voice>(module, "Voice")
       .value("Book", sketchKit::Voice::Book)
       .value("Terminal", sketchKit::Voice::Terminal)
-      .value("Interface", sketchKit::Voice::Interface);
+      .value("Interface", sketchKit::Voice::Interface)
+      .value("Serif", sketchKit::Voice::Serif);
   module.def("houseFace", &sketchKit::houseFace, py::arg("voice"),
              py::arg("weight") = 400,
              py::arg("slant") = weave::FaceSlant::Upright);
@@ -143,6 +147,13 @@ void bindTheme(py::module_& module) {
         return sketchKit::featureTheme(density);
       },
       py::arg("density") = sketchKit::Density::Compact);
+  module.def(
+      "darkTheme", [] { return sketchKit::darkTheme(); },
+      "A dark sheet in the terminal voice: near-black ground, warm "
+      "off-white ink, a grey ash, interface headings and the terminal face "
+      "as the face a call is set in. Its label class is an instrument's "
+      "label, the terminal face at 12 px tracked 2 px in the ash: "
+      "text(words).styleClass('label').");
 }
 
 void bindSpecimens(py::module_& module) {

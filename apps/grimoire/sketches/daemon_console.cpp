@@ -326,14 +326,14 @@ struct DaemonConsole {
     // Every entry is a PARTIAL over the well's font: the payload voices
     // change the colour alone, the timestamp one size down with it, and
     // only the tags name a face of their own.
-    s.set("ts", weave::Type{.size = 11, .color = dc::kDim});
-    s.set("trace", weave::Type{.color = dc::kDim});
-    s.set("seal", weave::Type{.color = hexColor(0x8FE5C4)});
-    s.set("flux", weave::Type{.color = dc::kWarn});
-    s.set("breach", weave::Type{.color = dc::kCritText});
-    s.set("cipher", weave::Type{.color = dc::kAccent});
+    s.set("ts", weave::Type{.size = 11, .ink = dc::kDim});
+    s.set("trace", weave::Type{.ink = dc::kDim});
+    s.set("seal", weave::Type{.ink = hexColor(0x8FE5C4)});
+    s.set("flux", weave::Type{.ink = dc::kWarn});
+    s.set("breach", weave::Type{.ink = dc::kCritText});
+    s.set("cipher", weave::Type{.ink = dc::kAccent});
     auto tag = [&](material::Color color) {
-      return weave::Type{.face = faceMonoMed, .size = 11, .color = color};
+      return weave::Type{.face = faceMonoMed, .size = 11, .ink = color};
     };
     s.set("tag-trace", tag(material::withAlpha(dc::kDim, 0.8f)));
     s.set("tag-info", tag(dc::kChrome));
@@ -349,7 +349,7 @@ struct DaemonConsole {
    *  ticking clock or a counter never jitters sideways. */
   weave::Type chrome(float size, material::Color color, float track = 0,
                      bool medium = false, bool tabular = false) const {
-    weave::Type t{.size = size, .color = color, .track = track};
+    weave::Type t{.size = size, .ink = color, .letterSpacing = track};
     if (medium) t.face = faceChromeMed;
     if (tabular) t.features = {weave::features::tabularNumbers};
     return t;
@@ -368,13 +368,13 @@ struct DaemonConsole {
             sigil::compose::rule("label, .label")
                 .font({.face = faceChromeMed,
                        .size = 9.5f,
-                       .color = dc::kDim,
-                       .track = 2.4f}),
+                       .ink = dc::kDim,
+                       .letterSpacing = 2.4f}),
             sigil::compose::rule(".fine").font(
                 {.face = faceChrome,
                  .size = 9.5f,
-                 .color = dc::kDim,
-                 .track = 0.8f,
+                 .ink = dc::kDim,
+                 .letterSpacing = 0.8f,
                  .features = {{weave::features::tabularNumbers}}})};
     return s;
   }
@@ -416,7 +416,7 @@ struct DaemonConsole {
 
     look = sketch::kit::houseTheme();
     look.type.mono = faceMono;
-    look.type.captionNote = {.size = 10, .track = 0.6f, .mono = true};
+    look.type.captionNote = {.size = 10, .letterSpacing = 0.6f, .mono = true};
     look.palette.ash = dc::kChrome;
     look.palette.cellGround = dc::kMeterBed;
     look.palette.figure = dc::kAccent;
@@ -701,7 +701,7 @@ struct DaemonConsole {
             .overflow(Overflow::Clip)
             // The scrollback's voice, stated once: every row is set in it
             // and its named runs are partials over it.
-            .font({.face = faceMono, .size = 12.5f, .color = dc::kBody})
+            .font({.face = faceMono, .size = 12.5f, .ink = dc::kBody})
             .children({feed::feed(ring, window,
                                   [&](const dc::LogRow& r) {
                                     return logRow(r, styles);
@@ -787,13 +787,13 @@ struct DaemonConsole {
             .alignItems(Align::Center)
             // The prompt's own voice: the host name is set in it, the
             // sigil in the heavier cut, and the typed command a half size up.
-            .font({.face = faceMono, .size = 12, .color = dc::kDim})
+            .font({.face = faceMono, .size = 12, .ink = dc::kDim})
             .children(
                 {text(weave::rich().add("wardnet").add(
                      " $ ",
-                     weave::Type{.face = faceMonoMed, .color = dc::kAccent})),
+                     weave::Type{.face = faceMonoMed, .ink = dc::kAccent})),
                  text(std::string(command).substr(0, shown))
-                     .font({.size = 12.5f, .color = dc::kBone}),
+                     .font({.size = 12.5f, .ink = dc::kBone}),
                  box()
                      .width(7)
                      .height(13)

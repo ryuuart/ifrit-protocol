@@ -225,21 +225,21 @@ void bindWeave(py::module_& module) {
   py::enum_<WritingMode>(text, "WritingMode")
       .value("Horizontal", WritingMode::kHorizontal)
       .value("VerticalRL", WritingMode::kVerticalRL);
-  auto leading = py::class_<Leading>(text, "Leading");
-  py::enum_<Leading::Kind>(leading, "Kind")
-      .value("Face", Leading::Kind::kFace)
-      .value("Multiple", Leading::Kind::kMultiple)
-      .value("Absolute", Leading::Kind::kAbsolute)
-      .value("Grid", Leading::Kind::kGrid)
-      .value("SizeMultiple", Leading::Kind::kSizeMultiple);
-  leading.def(py::init<>())
-      .def_static("face", &Leading::face)
-      .def_static("multiple", &Leading::multiple, py::arg("factor"))
-      .def_static("absolute", &Leading::absolute, py::arg("pixels"))
-      .def_static("grid", &Leading::grid, py::arg("step"))
-      .def_static("sizeMultiple", &Leading::sizeMultiple, py::arg("factor"))
-      .def_readwrite("kind", &Leading::kind)
-      .def_readwrite("value", &Leading::value)
+  auto lineHeight = py::class_<LineHeight>(text, "LineHeight");
+  py::enum_<LineHeight::Kind>(lineHeight, "Kind")
+      .value("Face", LineHeight::Kind::kFace)
+      .value("Multiple", LineHeight::Kind::kMultiple)
+      .value("Absolute", LineHeight::Kind::kAbsolute)
+      .value("Grid", LineHeight::Kind::kGrid)
+      .value("SizeMultiple", LineHeight::Kind::kSizeMultiple);
+  lineHeight.def(py::init<>())
+      .def_static("face", &LineHeight::face)
+      .def_static("multiple", &LineHeight::multiple, py::arg("factor"))
+      .def_static("absolute", &LineHeight::absolute, py::arg("pixels"))
+      .def_static("grid", &LineHeight::grid, py::arg("step"))
+      .def_static("sizeMultiple", &LineHeight::sizeMultiple, py::arg("factor"))
+      .def_readwrite("kind", &LineHeight::kind)
+      .def_readwrite("value", &LineHeight::value)
       .def(py::self == py::self);
   py::enum_<JustificationMethod>(text, "JustificationMethod")
       .value("Auto", JustificationMethod::kAuto)
@@ -376,7 +376,7 @@ void bindWeave(py::module_& module) {
                      &FrameOptions::maximumInterlineSpacing)
       .def_readwrite("extent", &FrameOptions::extent);
   auto paragraphStyle = record<ParagraphStyle>(text, "ParagraphStyle");
-  paragraphStyle.def_readwrite("leading", &ParagraphStyle::leading)
+  paragraphStyle.def_readwrite("lineHeight", &ParagraphStyle::lineHeight)
       .def_readwrite("halfLeading", &ParagraphStyle::halfLeading)
       .def_readwrite("spaceBefore", &ParagraphStyle::spaceBefore)
       .def_readwrite("spaceAfter", &ParagraphStyle::spaceAfter)
@@ -430,7 +430,7 @@ void bindWeave(py::module_& module) {
   // Every field of a block inherits, as every field of a text style
   // does, so `Initial` is the keyword that says something new about one.
   py::enum_<ParagraphField>(text, "ParagraphField")
-      .value("Leading", ParagraphField::Leading)
+      .value("LineHeight", ParagraphField::LineHeight)
       .value("HalfLeading", ParagraphField::HalfLeading)
       .value("Alignment", ParagraphField::Alignment)
       .value("Justification", ParagraphField::Justification)
@@ -458,9 +458,10 @@ void bindWeave(py::module_& module) {
         return keywordValue<ParagraphBlock>(fields);
       }))
       .def_property(
-          "leading", [](const ParagraphBlock& self) { return self.leading; },
-          [](ParagraphBlock& self, std::optional<Leading> value) {
-            self.leading = std::move(value);
+          "lineHeight",
+          [](const ParagraphBlock& self) { return self.lineHeight; },
+          [](ParagraphBlock& self, std::optional<LineHeight> value) {
+            self.lineHeight = std::move(value);
           })
       .def_readwrite("halfLeading", &ParagraphBlock::halfLeading)
       .def_readwrite("alignment", &ParagraphBlock::alignment)

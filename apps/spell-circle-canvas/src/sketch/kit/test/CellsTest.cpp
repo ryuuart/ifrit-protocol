@@ -74,12 +74,12 @@ TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
   const compose::StyleSheet classes{compose::rule("label, .label")
                                         .font({.face = house.type.mono,
                                                .size = 10.5f,
-                                               .color = house.palette.ink}),
+                                               .ink = house.palette.ink}),
                                     compose::rule("caption, .caption")
                                         .font({.face = house.type.sans,
                                                .size = 10,
-                                               .color = house.palette.ash,
-                                               .track = 0.2f})};
+                                               .ink = house.palette.ash,
+                                               .letterSpacing = 0.2f})};
   Element byHand =
       compose::kit::cell(voice, "border(1.8, ink, inset 7)",
                          "an ordinary rule 7 px inside the outline", subject())

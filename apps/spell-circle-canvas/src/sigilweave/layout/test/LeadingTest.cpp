@@ -44,7 +44,7 @@ std::vector<float> baselinesByLine(const ParagraphLayout& layout) {
 
 }  // namespace
 
-// ── Leading ───────────────────────────────────────────────────────────────
+// ── LineHeight ───────────────────────────────────────────────────────────────
 
 TEST(ParagraphStyle, FaceLeadingIsWhatAnUnstyledTextGets) {
   FontContext& fonts = sigil::test::fonts();
@@ -84,7 +84,7 @@ TEST(ParagraphStyle, MultipleLeadingOpensThePitch) {
   BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 900}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
-  style.leading = Leading::multiple(2.0f);
+  style.lineHeight = LineHeight::multiple(2.0f);
   options.blocks = {style};
   const ParagraphLayout layout =
       layoutParagraph(fonts, paragraph, flow, options);
@@ -105,7 +105,7 @@ TEST(ParagraphStyle, AbsoluteLeadingStatesThePitchOutright) {
   BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 900}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
-  style.leading = Leading::absolute(40.0f);
+  style.lineHeight = LineHeight::absolute(40.0f);
   options.blocks = {style};
   const std::vector<float> lines =
       baselines(layoutParagraph(fonts, paragraph, flow, options));
@@ -128,7 +128,7 @@ TEST_P(BetweenBlocks, GridLeadingLandsTwoBlocksOnOneRhythm) {
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   ParagraphStyle grid;
-  grid.leading = Leading::grid(24.0f);
+  grid.lineHeight = LineHeight::grid(24.0f);
   ParagraphStyle gridWithAir = grid;
   gridWithAir.spaceBefore = 7.0f;
   options.blocks = {grid, gridWithAir};
@@ -190,9 +190,9 @@ TEST_P(BetweenBlocks, EachBlockStacksAtItsOwnPitch) {
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   ParagraphStyle tight;
-  tight.leading = Leading::absolute(20.0f);
+  tight.lineHeight = LineHeight::absolute(20.0f);
   ParagraphStyle open;
-  open.leading = Leading::absolute(40.0f);
+  open.lineHeight = LineHeight::absolute(40.0f);
   options.blocks = {tight, open};
   const ParagraphLayout layout =
       layoutParagraph(fonts, paragraph, flow, options);
@@ -210,8 +210,7 @@ TEST_P(BetweenBlocks, EachBlockStacksAtItsOwnPitch) {
         << "line " << line;
 }
 
-INSTANTIATE_TEST_SUITE_P(Breakers, BetweenBlocks, bothBreakers(),
-                         breakerName);
+INSTANTIATE_TEST_SUITE_P(Breakers, BetweenBlocks, bothBreakers(), breakerName);
 
 // ── Spacing ───────────────────────────────────────────────────────────────
 
@@ -268,10 +267,9 @@ TEST_P(EveryBlockIndent, EachBlockIndentsItsFirstLineAndNoOther) {
   ASSERT_GE(starts.size(), static_cast<size_t>(opening) + 2)
       << "the second block did not wrap";
   for (size_t line = 0; line < starts.size(); ++line)
-    EXPECT_NEAR(starts[line],
-                line == 0 || line == static_cast<size_t>(opening) ? 20.0f
-                                                                   : 0.0f,
-                0.01f)
+    EXPECT_NEAR(
+        starts[line],
+        line == 0 || line == static_cast<size_t>(opening) ? 20.0f : 0.0f, 0.01f)
         << "line " << line;
 }
 
@@ -348,7 +346,7 @@ TEST(ParagraphStyle, HalfLeadingPutsHalfTheOpenedRoomUnderTheLine) {
   BlockFlow flowA(sigil::geometry::path::Rect::of({0, 0}, {120, 900}));
   BlockFlow flowB(sigil::geometry::path::Rect::of({0, 0}, {120, 900}));
   ParagraphStyle style;
-  style.leading = Leading::multiple(2.0f);
+  style.lineHeight = LineHeight::multiple(2.0f);
   ParagraphLayoutOptions allAbove;
   allAbove.blocks = {style};
   ParagraphStyle halved = style;

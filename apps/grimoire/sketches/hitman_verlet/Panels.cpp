@@ -295,8 +295,8 @@ auto HitmanVerlet::header() -> Element {
       {document::eyebrow(head["eyebrow"])
            .font({.face = uiFace(),
                   .size = 10.0f,
-                  .color = kSteel,
-                  .track = 2.6f})
+                  .ink = kSteel,
+                  .letterSpacing = 2.6f})
            .opacity(sigil::motion::animate(
                {.from = 0.0f, .to = 1.0f, .duration = 260ms}))
            .translateY(sigil::motion::animate(
@@ -304,15 +304,15 @@ auto HitmanVerlet::header() -> Element {
        document::h1(head["title"])
            .font({.face = heavyFace(),
                   .size = 42,
-                  .color = kBone,
-                  .track = -0.3f})
+                  .ink = kBone,
+                  .letterSpacing = -0.3f})
            .key("title")
            .textFx(std::move(rise)),
        document::lead(head["credit"])
            .font({.face = uiFace(),
                   .size = 10.5f,
-                  .color = kSteel,
-                  .track = 0.1f})
+                  .ink = kSteel,
+                  .letterSpacing = 0.1f})
            .width(690)
            .opacity(sigil::motion::animate(
                {.from = 0.0f, .to = 1.0f, .duration = 240ms, .delay = 400ms})),

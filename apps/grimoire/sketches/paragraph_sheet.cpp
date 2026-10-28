@@ -103,7 +103,8 @@ sigil::weave::Face mono() {
 
 weave::Type label(float size = 9.0f, float track = 1.6f,
                   material::Color colour = kFaint) {
-  return {.face = grotesque(), .size = size, .color = colour, .track = track};
+  return {
+      .face = grotesque(), .size = size, .ink = colour, .letterSpacing = track};
 }
 
 /// THE SHEET'S TWO CLASSES beside the theme's registers: `body`, the story
@@ -112,10 +113,13 @@ weave::Type label(float size = 9.0f, float track = 1.6f,
 /// only the size it differs by.
 sigil::compose::StyleSheet classes() {
   sigil::compose::StyleSheet sheet = sigil::compose::StyleSheet{
-      sigil::compose::rule(".body").font(weave::Type{
-          .face = serif(), .size = 15.0f, .track = 0.0f, .language = "en-US"}),
+      sigil::compose::rule(".body").font(weave::Type{.face = serif(),
+                                                     .size = 15.0f,
+                                                     .letterSpacing = 0.0f,
+                                                     .language = "en-US"}),
       sigil::compose::rule(".figures")
-          .font(weave::Type{.face = mono(), .size = 12.0f, .track = 0.0f})};
+          .font(weave::Type{
+              .face = mono(), .size = 12.0f, .letterSpacing = 0.0f})};
   return sheet;
 }
 
@@ -168,9 +172,9 @@ constexpr const char8_t* kFourWays =
     u8"keeping each baseline on its rhythm.";
 
 /// The specimen the leading panel repeats, once per leading kind.
-Element leadingSpecimen(const char* caption, weave::Leading leading) {
+Element leadingSpecimen(const char* caption, weave::LineHeight leading) {
   weave::ParagraphStyle style;
-  style.leading = leading;
+  style.lineHeight = leading;
   return kit::cell(callVoice(kMeasure * 0.48f), caption, "",
                    document::paragraph(kFourWays)
                        .styleClass("body")
@@ -207,20 +211,19 @@ struct ParagraphSheet {
     // states the same specimen voice; the grid behind it is drawn, so a
     // baseline off the rhythm is a thing to see rather than to argue about.
     Element gridCell =
-        kit::cell(
-            s::callVoice(s::kMeasure * 0.48f), "Leading::grid(21)", "",
-            box()
-                .width(s::kMeasure * 0.48f)
-                .height(s::kGrid * 4)
-                .children(
-                    {gridRules(),
-                     document::paragraph(s::kFourWays)
-                         .styleClass("body")
-                         .font({.size = 13.5f})
-                         .inset(0)
-                         .width(s::kMeasure * 0.48f)
-                         .paragraphStyles({weave::ParagraphStyle{
-                             .leading = weave::Leading::grid(s::kGrid)}})}))
+        kit::cell(s::callVoice(s::kMeasure * 0.48f), "LineHeight::grid(21)", "",
+                  box()
+                      .width(s::kMeasure * 0.48f)
+                      .height(s::kGrid * 4)
+                      .children({gridRules(),
+                                 document::paragraph(s::kFourWays)
+                                     .styleClass("body")
+                                     .font({.size = 13.5f})
+                                     .inset(0)
+                                     .width(s::kMeasure * 0.48f)
+                                     .paragraphStyles({weave::ParagraphStyle{
+                                         .lineHeight = weave::LineHeight::grid(
+                                             s::kGrid)}})}))
             .applyStyleSheet(s::callClasses())
             .width(s::kMeasure * 0.48f);
     return s::panel(
@@ -228,12 +231,12 @@ struct ParagraphSheet {
         "face · multiple · absolute · grid. The rules "
         "under the fourth are the grid it lands on.",
         kit::panelGrid(
-            {.cells = {s::leadingSpecimen("Leading::face()",
-                                          weave::Leading::face()),
-                       s::leadingSpecimen("Leading::multiple(1.7)",
-                                          weave::Leading::multiple(1.7f)),
-                       s::leadingSpecimen("Leading::absolute(22)",
-                                          weave::Leading::absolute(22)),
+            {.cells = {s::leadingSpecimen("LineHeight::face()",
+                                          weave::LineHeight::face()),
+                       s::leadingSpecimen("LineHeight::multiple(1.7)",
+                                          weave::LineHeight::multiple(1.7f)),
+                       s::leadingSpecimen("LineHeight::absolute(22)",
+                                          weave::LineHeight::absolute(22)),
                        std::move(gridCell)},
              .columns = 2,
              .gap = 18,
@@ -422,7 +425,7 @@ struct ParagraphSheet {
                                 "lines sit changes.",
                                 weave::textStyle({.face = s::serif(),
                                                   .size = 12.5f,
-                                                  .color = s::kInk})))
+                                                  .ink = s::kInk})))
                           .key(key)
                           .width(kWidth)
                           .height(kDepth)
@@ -446,9 +449,9 @@ struct ParagraphSheet {
 
   Element columnPanel() {
     const weave::ParagraphStyle heading{
-        .leading = weave::Leading::multiple(1.35f), .spaceAfter = 18};
+        .lineHeight = weave::LineHeight::multiple(1.35f), .spaceAfter = 18};
     const weave::ParagraphStyle verse{
-        .leading = weave::Leading::multiple(1.05f),
+        .lineHeight = weave::LineHeight::multiple(1.05f),
         .indent = {.firstLine = 26}};
 
     return s::panel(

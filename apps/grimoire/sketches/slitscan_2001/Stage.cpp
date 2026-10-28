@@ -23,7 +23,7 @@ auto SlitScan2001::header() -> Element {
       .font({.face = uiFace()})
       .children(
           {document::eyebrow("TIME AS AN AXIS OF THE IMAGE")
-               .font({.size = 10, .color = kType2, .track = 2.6f})
+               .font({.size = 10, .ink = kType2, .letterSpacing = 2.6f})
                .key("eyebrow")
                .opacity(sigil::motion::animate(
                    {.from = 0.0f,
@@ -38,15 +38,15 @@ auto SlitScan2001::header() -> Element {
            document::h1("THE SLIT-SCAN MACHINE, 1966–68")
                .font({.face = uiBoldFace(),
                       .size = 40,
-                      .color = kType,
-                      .track = 0.4f})
+                      .ink = kType,
+                      .letterSpacing = 0.4f})
                .key("title")
                .textStroke(0.6f, Fill::color(kInk))
                .textFx(std::move(rise)),
            document::lead("Douglas Trumbull · 2001: A Space Odyssey\n"
                           "A moving camera integrates light through a slit "
                           "into two luminous planes.")
-               .font({.size = 11, .color = kType2})
+               .font({.size = 11, .ink = kType2})
                .width(690)
                .key("cite")
                .opacity(sigil::motion::animate(
@@ -113,7 +113,7 @@ auto SlitScan2001::filmFrame() -> Element {
 
   auto hud = [&](const std::string& str, float l, float tp, float r, float b,
                  sigil::material::Color col) {
-    Element e = t(str, {.color = col}).absolute();
+    Element e = t(str, {.ink = col}).absolute();
     if (l >= 0) e.left(l);
     if (r >= 0) e.right(r);
     if (tp >= 0) e.top(tp);
@@ -131,7 +131,7 @@ auto SlitScan2001::filmFrame() -> Element {
       .width(kFilmW)
       .height(kFilmH)
       .flexShrink(0)
-      .font({.face = monoFace(), .size = 8, .track = 0.6f})
+      .font({.face = monoFace(), .size = 8, .letterSpacing = 0.6f})
       .fill(kBlack)
       .overflow(Overflow::Clip)
       .stroke(stroke(1.0f, Fill::color(kRule)))
@@ -175,19 +175,19 @@ auto SlitScan2001::filmFrame() -> Element {
                             {t(kit::formatted("MACHINE TIME %lld h %02lld m  @ "
                                               "2880 : 1%s",
                                               mh, mm, everClamped ? "  *" : ""),
-                               {.color = al(kTick, 0.95f)}),
+                               {.ink = al(kTick, 0.95f)}),
                              t("2.20 : 1 · 65 mm 5-PERF · f/1.8",
-                               {.color = al(kTick, 0.95f)})}),
+                               {.ink = al(kTick, 0.95f)})}),
                     t("THE FRAME IS HELD, NOT TWEENED. addFixed’s "
                       "INTERPOLANT DRIVES THE SHUTTER BAR AND NOTHING "
                       "IN THE PICTURE.",
-                      {.color = al(kTick, 0.8f)}),
+                      {.ink = al(kTick, 0.8f)}),
                     t("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = "
                       "15 FEET FROM THE LENS, AND ENDS AT 600 px = 1½ "
                       "INCHES · THE FRAME IS THE SCAN, 120 : 1, DRAWN "
                       "TO ITS OWN SCALE — THE 5 px HOLE AT THE APEX IS "
                       "THAT FAR LIMIT, VISIBLE",
-                      {.color = al(kType2, 0.95f)})})});
+                      {.ink = al(kType2, 0.95f)})})});
 }
 
 auto SlitScan2001::rigStrip() -> Element {
@@ -230,13 +230,14 @@ auto SlitScan2001::rigStrip() -> Element {
                                        material::BlendMode::PlusLighter)})
                         .filter(sigil::material::skia::program(transfer,
                                                                {{"k", 2.4f}})),
-                    t("THIS EXPOSURE",
-                      {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
+                    t("THIS EXPOSURE", {.size = 8,
+                                        .ink = al(kCold, 0.85f),
+                                        .letterSpacing = 1.4f})
                         .at({8, 5}),
                     slot("expo").left(8).bottom(19),
                     t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
                       "[C85]. ×18.",
-                      {.size = 7, .color = al(kTick, 0.95f)})
+                      {.size = 7, .ink = al(kTick, 0.95f)})
                         .left(8)
                         .bottom(6)}),
            slot("readout").at({20, 130})});

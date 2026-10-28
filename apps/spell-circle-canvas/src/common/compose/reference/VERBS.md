@@ -231,9 +231,21 @@ the code that built a child ran.
 | `fontWeight` | The weight, as the face's `wght` axis — one field of `font`. |
 | [`fontStyle`](pages/verbs/fontStyle.md) | Upright, italic, or an oblique angle leaning right — the face and the slant of `font`. |
 | `letterSpacing` | The tracking after each cluster, in any length a font holds — one field of `font`. |
+| `wordSpacing` | The extra space at each word gap, in any length a font holds — one field of `font`. |
+| `fontFeatureSettings` | The OpenType features, as values or CSS's text (`"\"tnum\", \"liga\" 0"`), replacing the list in force — one field of `font`. |
+| `fontVariationSettings` | The variation axes, as values or CSS's text (`"\"wdth\" 75"`), each axis named replacing the one in force — one field of `font`. |
+| `fontKerning` | The face's own kerning table, or `Optical`, every pair measured from the letters — one field of `font`. |
+| `textTransform` | The case the text is set in, the stored text untouched — one field of `font`. |
+| `textOrientation` | How a run stands in a vertical column: `Mixed`, `Upright` or `Sideways` — one field of `font`. |
+| `textCombineUpright` | A short run set across inside one cell of a column, tate-chu-yoko — the field `textOrientation` writes. |
+| `baselineShift` | How far the glyphs sit above their baseline, in px or pt; negative sinks them — one field of `font`. |
 | [`paragraph`](pages/verbs/paragraph.md) | The paragraph settings everything under it is set in, as a partial in the same way. |
 | `lineHeight` | The pitch of the lines: a number is a multiple of the type size, a length an absolute pitch (`1.5_em`, `150_percent` of the type size) — one field of `paragraph`. |
 | `textAlign` | Where the lines sit across the measure — one field of `paragraph`. |
+| `textAlignLast` | Where a justified block's last line sits, or justified too — the last-line fields of `paragraph`. |
+| `hangingPunctuation` | What may hang past the measure, as CSS's text (`"first allow-end last"`) or a table of fractions of each mark's advance — one field of `paragraph`. |
+| `widows` | The fewest lines of a block that may open a frame or a column — one field of `paragraph`. |
+| `orphans` | The fewest lines of a block that may close one — one field of `paragraph`. |
 | [`textIndent`](pages/verbs/textIndent.md) | The first line of every block indented, by any length — one field of `paragraph`. |
 | `writingMode` | Which way the lines run — one field of `paragraph`. |
 | `hyphens` | Whether and where a word may break with a hyphen — one field of `paragraph`. |
@@ -321,7 +333,10 @@ stylesheet's vocabulary carries over as it is written, in camel case:
 `flexBasis`, `justifyContent`, `alignItems`, `alignSelf`, `aspectRatio`,
 `gridArea`, `borderRadius`, `overflow`, `opacity`, `blendMode`,
 `fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, `letterSpacing`,
-`lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
+`wordSpacing`, `fontFeatureSettings`, `fontVariationSettings`,
+`fontKerning`, `textTransform`, `textOrientation`, `textCombineUpright`,
+`baselineShift`, `lineHeight`, `textAlign`, `textAlignLast`, `textIndent`,
+`writingMode`, `hyphens`, `hangingPunctuation`, `widows`, `orphans`,
 `textJustify`, `filter`, `backdropFilter`, `imageRendering`, `zIndex`,
 `transformOrigin`, `perspectiveOrigin`, `transition` and
 `textOverflow`. The rest are named for what they act on, with no second
@@ -332,6 +347,7 @@ spelling:
 | `color` | `ink` — the colour, or a whole paint, everything under the node is set in |
 | `background` | `fill` — the node's own shape filled; `background` here is a decoration under it |
 | `-webkit-line-clamp` | `maxTextLines` on the text leaf |
+| `font-kerning` | `fontKerning`, with `Optical` beside `Auto` and `Normal`; CSS's `none` does not carry over |
 | `text-wrap-style` | `textWrap` — the style keywords `auto`, `balance`, `stable` and `pretty`; the `text-wrap` shorthand's `nowrap` does not carry over |
 | `pointer-events: none` | `hitTestable(false)` |
 | `shape-outside` | `contentFlowAround` on the text leaf |
@@ -371,12 +387,20 @@ spelling is the feature's.
   that has it.
 - `core/verbs/Mask.h` — `mask`.
 - `core/verbs/Font.h` — the font verbs `font`, `fontFamily`, `fontSize`,
-  `fontWeight`, `fontStyle`, `letterSpacing`, and `ink`.
+  `fontWeight`, `fontStyle`, `letterSpacing`, `wordSpacing`,
+  `fontFeatureSettings`, `fontVariationSettings`, `fontKerning`,
+  `textTransform`, `textOrientation`, `textCombineUpright`,
+  `baselineShift`, `textShadow`, and `ink`; the values they take,
+  `FontKerning`, `TextOrientation` and `TextCombineUpright`; and the readers
+  of CSS's text, `readFontFeatureSettings`, `readFontVariationSettings` and
+  `readTextShadow`.
 - `core/verbs/Cascade.h` — the cascade verbs `paragraph`, `lineHeight`,
-  `textAlign`, `textIndent`, `writingMode`, `hyphens`, `textWrap`,
+  `textAlign`, `textAlignLast`, `hangingPunctuation`, `widows`, `orphans`,
+  `textIndent`, `writingMode`, `hyphens`, `textWrap`,
   `textJustify`, `var`,
   `varDefaults`, `imageRendering`, and the three wide keywords
-  `inherit`, `initial`, `unset`.
+  `inherit`, `initial`, `unset`; and `readHangingPunctuation`, the reader
+  of CSS's `hanging-punctuation` text.
 - `core/verbs/Paint.h` — `fill`.
 - `core/verbs/Decoration.h` — the decoration slots `stroke`,
   `background`, `overlay`, `foreground`, what they

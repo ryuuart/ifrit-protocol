@@ -5,6 +5,7 @@
 // The text binary's share of the content suites, one file per subject.
 
 #include <sigilmaterial/paint/Bases.h>
+
 #include <memory>
 
 #include "DressedTypeProbes.h"
@@ -82,7 +83,7 @@ TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
   const sigil::compose::StyleSheet reds{
       sigil::compose::rule(".accent").ink(SkColor4f{1, 0, 0, 1})};
   weave::TypeSheet greens(base);
-  greens.set("accent", sigil::weave::Type{.color = SkColor4f{0, 1, 0, 1}});
+  greens.set("accent", sigil::weave::Type{.ink = SkColor4f{0, 1, 0, 1}});
 
   Host host(200, 120);
   const auto accentColor = [&](sigil::weave::RichText content,
@@ -281,7 +282,7 @@ namespace {
 sigil::weave::TypeSheet glossarySet(SkColor termColor, float termSize) {
   sigil::weave::TypeSheet set{coloredStyle(24, SK_ColorWHITE)};
   set.set("term", sigil::weave::Type{.size = termSize,
-                                     .color = SkColor4f::FromColor(termColor)});
+                                     .ink = SkColor4f::FromColor(termColor)});
   return set;
 }
 
@@ -309,11 +310,11 @@ TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
   // resolved, so the beat list IS the addressed word list — and each beat's
   // rect says which word it is.
   const auto wordsAddressed = [&](sigil::weave::Selector where) {
-    host.composer.render(box().padding(10).children(
-        {text(copy).key("t").textFx({.where = std::move(where),
-                                     .effect = textFx::enter(textFx::rise(0)),
-                                     .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)}, 
-                                     .unit = sigil::weave::Unit::Word})}));
+    host.composer.render(box().padding(10).children({text(copy).key("t").textFx(
+        {.where = std::move(where),
+         .effect = textFx::enter(textFx::rise(0)),
+         .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)},
+         .unit = sigil::weave::Unit::Word})}));
     host.frame();
     return host.composer.beatsOf("t", 0);
   };
@@ -338,11 +339,11 @@ TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
   // Beats at GLYPH granularity: one per addressed glyph, so the count is the
   // selection's size and the algebra can be checked as arithmetic.
   const auto glyphsAddressed = [&](sigil::weave::Selector where) {
-    host.composer.render(box().padding(10).children(
-        {text(copy).key("t").textFx({.where = std::move(where),
-                                     .effect = textFx::enter(textFx::rise(0)),
-                                     .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)}, 
-                                     .unit = sigil::weave::Unit::Glyph})}));
+    host.composer.render(box().padding(10).children({text(copy).key("t").textFx(
+        {.where = std::move(where),
+         .effect = textFx::enter(textFx::rise(0)),
+         .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)},
+         .unit = sigil::weave::Unit::Glyph})}));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
   };
@@ -376,7 +377,8 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
              .key("t")
              .textFx({.where = selectors::style("unregistered-register"),
                       .effect = textFx::enter(textFx::rise(0)),
-                      .tween = {.duration = 1ms, .delay = sigil::motion::stagger(30ms)},
+                      .tween = {.duration = 1ms,
+                                .delay = sigil::motion::stagger(30ms)},
                       .unit = sigil::weave::Unit::Glyph})});
   };
   host.composer.render(describe());
@@ -391,7 +393,8 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
            .key("t")
            .textFx({.where = selectors::style("unregistered-register"),
                     .effect = textFx::enter(textFx::rise(0)),
-                    .tween = {.duration = 1ms, .delay = sigil::motion::stagger(30ms)},
+                    .tween = {.duration = 1ms,
+                              .delay = sigil::motion::stagger(30ms)},
                     .unit = sigil::weave::Unit::Glyph})}));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -415,7 +418,7 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
   host.composer.render(box().padding(10).children({text(copy).key("t").textFx(
       {.where = sigil::weave::selectors::text(u8"beta"),
        .effect = textFx::enter(textFx::rise(0)),
-       .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)}, 
+       .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)},
        .unit = sigil::weave::Unit::Word})}));
   host.frame();
   const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
@@ -475,7 +478,8 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
              .key("t")
              .textFx({.where = selectors::style("term"),
                       .effect = textFx::enter(textFx::rise(0)),
-                      .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)}, 
+                      .tween = {.duration = 1ms,
+                                .delay = sigil::motion::stagger(1ms)},
                       .unit = sigil::weave::Unit::Glyph})}));
     host.frame();
     return host.composer.beatsOf("t", 0).size();

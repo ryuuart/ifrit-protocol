@@ -103,16 +103,16 @@ Element segment(glm::vec2 from, glm::vec2 to, float weight,
 StyleSheet registers() {
   const material::Color dim = material::withAlpha(kBone, 0.55f);
   return StyleSheet{
-      rule(".eyebrow").font({.size = 13, .track = 5}).ink(kGilt),
+      rule(".eyebrow").font({.size = 13, .letterSpacing = 5}).ink(kGilt),
       rule(".difficulty").font({.size = 52}).ink(kBone),
-      rule(".skill").font({.size = 30, .track = 7}).ink(kBone),
-      rule(".note").font({.size = 14, .track = 0.4f}).ink(dim),
+      rule(".skill").font({.size = 30, .letterSpacing = 7}).ink(kBone),
+      rule(".note").font({.size = 14, .letterSpacing = 0.4f}).ink(dim),
       rule(".chip").font({.size = 20}).ink(kBone),
-      rule(".chip-name").font({.size = 11, .track = 2.5f}).ink(kGilt),
-      rule(".bonus").font({.size = 21, .track = 0.6f}).ink(kBone),
+      rule(".chip-name").font({.size = 11, .letterSpacing = 2.5f}).ink(kGilt),
+      rule(".bonus").font({.size = 21, .letterSpacing = 0.6f}).ink(kBone),
       rule(".amount").font({.size = 22}).ink(kBone),
       rule(".total").font({.size = 48}).ink(kBone),
-      rule(".verdict").font({.size = 40, .track = 16}).ink(kPass),
+      rule(".verdict").font({.size = 40, .letterSpacing = 16}).ink(kPass),
   };
 }
 
@@ -399,7 +399,7 @@ struct Bg3DiceRoll {
         .fill(Fill::color(hexColor(0x050403)))
         .children({
             text("BALDUR’S GATE 3 · THE ABILITY CHECK")
-                .font({.size = 18, .track = 1.8f})
+                .font({.size = 18, .letterSpacing = 1.8f})
                 .ink(kGilt),
             text("The natural roll lands first; Charisma, proficiency and "
                  "Guidance then lift 12 to 20, clearing a difficulty of 15.")

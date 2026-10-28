@@ -22,7 +22,7 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
 
   feed::TextOptions style;
   style.styles.base(
-      weave::textStyle({.size = 9, .color = SkColor4f{1, 1, 1, 1}}));
+      weave::textStyle({.size = 9, .ink = SkColor4f{1, 1, 1, 1}}));
   style.window.gap = 1.0f;
 
   auto strip = [&] {
@@ -87,7 +87,7 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   // The names carry no meaning to it, deliberately: what a study calls its
   // passing ink is the study's convention, not the library's.
   const weave::TypeSheet mono =
-      kit::tinted({.size = 10.5f, .color = material::Color{1, 1, 1, 1}},
+      kit::tinted({.size = 10.5f, .ink = material::Color{1, 1, 1, 1}},
                   {{"dim", {0.5f, 0.5f, 0.5f, 1}},
                    {"pass", {0, 1, 0, 1}},
                    {"fail", {1, 0, 0, 1}}});
@@ -107,7 +107,7 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
   // from it with no slack at all.
   feed::TextOptions st;
   st.styles.base(
-      weave::textStyle({.size = 9.2f, .color = SkColor4f{1, 1, 1, 1}}));
+      weave::textStyle({.size = 9.2f, .ink = SkColor4f{1, 1, 1, 1}}));
   st.window.gap = 1.0f;
   st.window.visible = 12;
 
@@ -179,8 +179,8 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   // patched, and an author who needs something the options do not carry can
   // write that column themselves without losing the identity discipline.
   feed::TextOptions st;
-  st.styles.base(weave::textStyle({.size = 20, .color = SkColor4f{1, 1, 1, 1}}))
-      .set("alert", weave::Type{.color = SkColor4f{1, 0, 0, 1}});
+  st.styles.base(weave::textStyle({.size = 20, .ink = SkColor4f{1, 1, 1, 1}}))
+      .set("alert", weave::Type{.ink = SkColor4f{1, 0, 0, 1}});
   st.window.gap = 4.0f;
   feed::TextRing ring;
   ring.append({u8"AAAA"});

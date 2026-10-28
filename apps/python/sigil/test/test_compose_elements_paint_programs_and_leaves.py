@@ -478,7 +478,7 @@ class PaintProgramRenders(unittest.TestCase):
                 asset = media.decode(media.Image, media.encode(
                     media.fromRgba(bytes([255, 0, 0, 255]) * 64, 8, 8)))
                 paragraph = weave.Paragraph(
-                    'Held words', weave.Type(size=16, color='#ffffff'))
+                    'Held words', weave.Type(size=16, ink='#ffffff'))
                 results['paragraph'] = paragraph
                 ctx.render(
                     compose.box(

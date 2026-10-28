@@ -102,13 +102,13 @@ const material::Color kCurve{0.32f, 0.46f, 0.62f, 1};
  *  rails, which are the bound worth seeing and not a hairline. */
 sigil::compose::StyleSheet sheetClasses() {
   sigil::compose::StyleSheet classes = sigil::compose::StyleSheet{
-      sigil::compose::rule(".rail").font({.color = kRail})};
+      sigil::compose::rule(".rail").font({.ink = kRail})};
   // The two loci are the same curve in two inks: the split-seed shake and
   // the shared-seed slide, told apart by the class each names.
   classes = classes +
             sigil::compose::StyleSheet{
-                sigil::compose::rule(".locus").font({.color = kTrace}),
-                sigil::compose::rule(".locusShared").font({.color = kTraceB})};
+                sigil::compose::rule(".locus").font({.ink = kTrace}),
+                sigil::compose::rule(".locusShared").font({.ink = kTraceB})};
   return classes;
 }
 

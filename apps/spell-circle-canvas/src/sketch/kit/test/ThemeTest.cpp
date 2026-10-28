@@ -75,7 +75,7 @@ TEST(SketchKitTheme, ComparesExactly) {
   EXPECT_NE(spaced, two);
 
   kit::Theme quiet = kit::houseTheme();
-  quiet.type.title.track += 0.1f;
+  quiet.type.title.letterSpacing += 0.1f;
   EXPECT_NE(quiet, two);
 }
 
@@ -112,9 +112,10 @@ TEST(SketchKitTheme, ARegisterAsAFontIsItsFaceSizeAndTrackAndNoColour) {
   EXPECT_EQ(eyebrow.face, house.type.mono) << "a mono register, the mono face";
   ASSERT_TRUE(eyebrow.size.has_value());
   EXPECT_FLOAT_EQ(eyebrow.size->value, house.type.eyebrow.size);
-  ASSERT_TRUE(eyebrow.track.has_value());
-  EXPECT_FLOAT_EQ(eyebrow.track->value, house.type.eyebrow.track);
-  EXPECT_FALSE(eyebrow.color.has_value()) << "the ink in force paints it";
+  ASSERT_TRUE(eyebrow.letterSpacing.has_value());
+  EXPECT_FLOAT_EQ(eyebrow.letterSpacing->value,
+                  house.type.eyebrow.letterSpacing);
+  EXPECT_FALSE(eyebrow.ink.has_value()) << "the ink in force paints it";
   EXPECT_EQ(house.font(house.type.footer).face, house.type.sans);
 }
 
@@ -164,7 +165,7 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
     EXPECT_EQ(ruleFor(sheet, ".readout")->type(),
               house.font(house.type.captionLabel, house.palette.figure));
     ASSERT_NE(ruleFor(sheet, ".checkFail"), nullptr);
-    EXPECT_EQ(ruleFor(sheet, ".checkFail")->type().color, house.palette.fail);
+    EXPECT_EQ(ruleFor(sheet, ".checkFail")->type().ink, house.palette.fail);
 
     compose::StyleSheet own =
         house.styleSheet() +
@@ -236,7 +237,7 @@ TEST(SketchKitTheme, AFillReadsThePaletteOfTheSheetInForce) {
 TEST(SketchKitTheme, ARegisterIsTheStyleTheCallSiteWouldHaveWritten) {
   const kit::Theme& house = kit::houseTheme();
   const sigil::weave::TextStyle byHand = sigil::weave::textStyle(
-      {.size = 14, .color = house.palette.ink, .track = 2.4f});
+      {.size = 14, .ink = house.palette.ink, .letterSpacing = 2.4f});
   const sigil::weave::TextStyle byTheme =
       house.style(house.type.title, house.palette.ink);
   EXPECT_EQ(byTheme.shaping.fontSize, byHand.shaping.fontSize);

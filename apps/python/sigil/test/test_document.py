@@ -94,9 +94,9 @@ class Document:
     def setup(self, ctx):
         children = [doc.h2("HI"), doc.h2("HI").styleClass("special"),
                     doc.h2("HI").ink("#00ff00"), doc.paragraph("HI")]
-        theme = StyleSheet([rule("h2").font(Type(size=30, color="#ff0000")),
-                            rule(".special").font(Type(color="#0000ff")),
-                            rule("paragraph").font(Type(size=30, color="#ffffff"))])
+        theme = StyleSheet([rule("h2").font(Type(size=30, ink="#ff0000")),
+                            rule(".special").font(Type(ink="#0000ff")),
+                            rule("paragraph").font(Type(size=30, ink="#ffffff"))])
         ctx.render(row(box(child).width(64).height(64) for child in children)
                    .applyStyleSheet(theme))
 """)

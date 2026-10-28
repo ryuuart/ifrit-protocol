@@ -171,7 +171,7 @@ struct EvaMagiDeliberation {
          // The four data lines are one passage on a 32 px pitch.
          text(kReadout)
              .font(fit(evangelion::condensedBold(), kReadout, 22.0f, 286.0f))
-             .paragraph({.leading = weave::Leading::absolute(32.0f)})
+             .paragraph({.lineHeight = weave::LineHeight::absolute(32.0f)})
              .left(151.0f)
              .top(354.0f),
          text(u8"MAGI")

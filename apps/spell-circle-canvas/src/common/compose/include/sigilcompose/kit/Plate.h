@@ -46,7 +46,7 @@ namespace sigil::compose::kit {
   // Each level is an entry over the base: the colour alone, the face and
   // the size the base's.
   for (auto& [name, color] : named)
-    sheet.set(std::move(name), weave::Type{.color = color});
+    sheet.set(std::move(name), weave::Type{.ink = color});
   return sheet;
 }
 

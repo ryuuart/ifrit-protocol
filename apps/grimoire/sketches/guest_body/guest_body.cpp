@@ -130,7 +130,7 @@ Element waiting() {
                .children(
                    {document::h1(
                         kit::formatted("WAITING FOR “%s”", kPublication))
-                        .font(look.font({.size = 32, .track = 7}))
+                        .font(look.font({.size = 32, .letterSpacing = 7}))
                         .ink(look.palette.ink),
                     document::paragraph(
                         "nothing on this machine is publishing under that name")

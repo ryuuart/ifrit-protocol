@@ -147,7 +147,7 @@ void Composer::Impl::runCascade() {
   if (rootUsesHas) summariseForHas(*root, hasNames);
   const InkInForce noInkPaint;
   resolveCascade(*root, rootFont, rootLineHeight, rootVars, rootBlock,
-                 rootSampling, chain, noInkPaint, rootFont.color);
+                 rootSampling, chain, noInkPaint, rootFont.ink);
   // A running ink transition moves the colour every frame, so the next
   // frame resolves again; otherwise the answers stand until a reconcile
   // says otherwise.
@@ -291,8 +291,8 @@ void Composer::Impl::resolveCascade(
       sigil::weave::merge(ownBlock, rule.paragraph());
       if (rule.inkVar()) {
         inkVar = rule.inkVar();
-        ownFont.color.reset();
-      } else if (rule.type().color) {
+        ownFont.ink.reset();
+      } else if (rule.type().ink) {
         inkVar.reset();
       }
       if (rule.statesInk()) {
@@ -331,9 +331,9 @@ void Composer::Impl::resolveCascade(
                                 sigil::weave::Keyword::Inherit;
         switch (entry.field) {
           case Property::Font: {
-            const std::optional<material::Color> colour = ownFont.color;
+            const std::optional<material::Color> colour = ownFont.ink;
             ownFont = {};
-            ownFont.color = colour;
+            ownFont.ink = colour;
             fontFromInitial = !fromParent;
             longhands.fontKeyword(fromParent);
             break;
@@ -346,9 +346,9 @@ void Composer::Impl::resolveCascade(
           case Property::Ink:
             inkVar.reset();
             if (fromParent)
-              ownFont.color.reset();
+              ownFont.ink.reset();
             else
-              ownFont.color = sigil::weave::initialType().color;
+              ownFont.ink = sigil::weave::initialType().ink;
             inkPaint = fromParent ? parentInkPaint : InkInForce{};
             inkPaintOrigin = false;
             break;
@@ -371,7 +371,7 @@ void Composer::Impl::resolveCascade(
     if (cascade != nullptr) {
       if (cascade->font) {
         sigil::weave::merge(ownFont, *cascade->font);
-        if (cascade->font->color) inkVar.reset();
+        if (cascade->font->ink) inkVar.reset();
       }
       if (cascade->block) sigil::weave::merge(ownBlock, *cascade->block);
       longhands.state(cascade->font ? &*cascade->font : nullptr,
@@ -411,7 +411,7 @@ void Composer::Impl::resolveCascade(
     const float rem = isRoot ? fontSizePx(rootFont) : remPx;
     if (fontFromInitial) {
       sigil::weave::Type initial = sigil::weave::initialType();
-      initial.color = parentFont.color;
+      initial.ink = parentFont.ink;
       font = sigil::weave::overlay(initial, ownFont, rem, parentLineHeight);
     } else if (!ownFont.empty()) {
       font = sigil::weave::overlay(parentFont, ownFont, rem, parentLineHeight);
@@ -448,14 +448,14 @@ void Composer::Impl::resolveCascade(
          (longhands.faceStated() && italic) ||
          (family != nullptr && font.weight != parentFont.weight)))
       chooseFace(fonts, font, family, italic);
-    if (ownFont.color) statesOwnInk = true;
+    if (ownFont.ink) statesOwnInk = true;
     if (inkVar) {
       const VarValue* value = vars ? vars->find(*inkVar) : nullptr;
       const material::Color* colour =
           value ? std::get_if<material::Color>(value) : nullptr;
       const Fill* paint = value ? std::get_if<Fill>(value) : nullptr;
       if (colour) {
-        font.color = *colour;
+        font.ink = *colour;
         statesOwnInk = true;
       } else if (paint && paint->kind == Fill::Kind::Paint) {
         // A PAINT HELD BY A PROPERTY is the ink as a whole paint, exactly
@@ -485,15 +485,15 @@ void Composer::Impl::resolveCascade(
         case Property::Font: {
           // The colour is the INK, a property of its own, so a type
           // written as a keyword leaves it exactly as it stood.
-          const std::optional<material::Color> ink = font.color;
+          const std::optional<material::Color> ink = font.ink;
           font = fromParent ? parentFont : sigil::weave::initialType();
-          font.color = ink;
+          font.ink = ink;
           longhands.fontKeyword(fromParent);
           break;
         }
         case Property::Ink:
-          font.color =
-              fromParent ? parentFont.color : sigil::weave::initialType().color;
+          font.ink =
+              fromParent ? parentFont.ink : sigil::weave::initialType().ink;
           // `inherit` names the colour arriving from above and nothing
           // else; `initial` is a colour of this node's own choosing.
           statesOwnInk = !fromParent;
@@ -537,7 +537,7 @@ void Composer::Impl::resolveCascade(
   // each. So a node under its own `transition()` eases what it inherits
   // with a lane of its own, over its own duration, as it eases a fill.
   const std::optional<material::Color> inkTarget =
-      statesOwnInk ? font.color : parentInkTarget;
+      statesOwnInk ? font.ink : parentInkTarget;
   const std::optional<motion::Tween<float>>& inkTransition =
       inst.transitionInForce();
   retargetInk(inst, inkTarget, inkTransition, first);
@@ -548,10 +548,10 @@ void Composer::Impl::resolveCascade(
   // that ramp happens.
   if (const auto& anim = inst.anims[Instance::kInkLerp];
       anim && anim->started && anim->isRunning() && inst.inkTarget) {
-    font.color = lerpColour(inst.inkFrom, *inst.inkTarget, anim->value());
+    font.ink = lerpColour(inst.inkFrom, *inst.inkTarget, anim->value());
     inkAnimating = true;
   } else if (inkTransition && inst.inkTarget) {
-    font.color = *inst.inkTarget;
+    font.ink = *inst.inkTarget;
   }
 
   // THE ROOT ELEMENT'S SIZE IS WHAT A REM MEASURES from here down, the
@@ -585,7 +585,7 @@ void Composer::Impl::resolveCascade(
   resolveShadowProperties(font, vars.get());
   const bool shapeChanged = first || !sameFontButColour(font, inst.font);
   const bool inkChanged =
-      first || !(font.color == inst.font.color) || !(inkPaint == inst.inkPaint);
+      first || !(font.ink == inst.font.ink) || !(inkPaint == inst.inkPaint);
   const bool varsChanged = first || !sameVars(vars, inst.vars);
   const bool samplingChanged = first || !(sampling == inst.sampling);
   inst.font = font;
@@ -618,7 +618,7 @@ void Composer::Impl::resolveCascade(
   if (longhands.lineHeight())
     resolveLineHeight(inst, *longhands.lineHeight(), block);
   // THE LINE HEIGHT IN FORCE, which every other `lh` on this node reads.
-  inst.lineHeight = block.leading.value_or(sigil::weave::Leading{})
+  inst.lineHeight = block.lineHeight.value_or(sigil::weave::LineHeight{})
                         .pitchFor(inst.faceLineHeight, fontSizePx(font));
   const bool lineHeightMoved = !first && inst.lineHeight != lineHeightBefore;
   // AN INDENT IN A RELATIVE UNIT BECOMES PIXELS HERE, against this node's

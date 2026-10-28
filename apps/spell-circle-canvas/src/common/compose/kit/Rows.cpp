@@ -40,7 +40,7 @@ Element reading(const Reading& one, const Rows& how) {
   // A row's own ink stands over whatever its lines' classes name, field
   // by field, so a lit row keeps the register it was set in.
   const auto lit = [&one](Element line) {
-    if (one.ink) line.font({.color = *one.ink});
+    if (one.ink) line.font({.ink = *one.ink});
     return line;
   };
   Element row = box()
@@ -175,7 +175,7 @@ Element bars(std::span<const Utf8> labels, std::span<const double> values,
     const auto lit = [&ink](Element line) {
       if (!ink) return line;
       if (ink->kind == Fill::Kind::Color && ink->ref == Fill::Ref::None)
-        line.font({.color = ink->colorValue});
+        line.font({.ink = ink->colorValue});
       else if (ink->ref == Fill::Ref::Var)
         line.ink(VarRef{ink->varId});
       else

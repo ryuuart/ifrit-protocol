@@ -22,7 +22,7 @@ field is optional, inherited down the tree like a font.
 | Justification: single-word rule | done | `JustificationOptions::singleWord` | `Element::paragraph` (`ParagraphBlock::justification`) |
 | Left / right / first-line / last-line indent | done | `IndentOptions` | `ParagraphStyle::indent`, through `Text::paragraphStyles` |
 | Space before / after | done, larger-of | `ParagraphStyle::spaceBefore`, `spaceAfter` | through `Text::paragraphStyles` |
-| Leading: auto, multiple, absolute, baseline grid | done | `Leading` | `ParagraphStyle::leading`, through `Text::paragraphStyles` |
+| Leading: auto, multiple, absolute, baseline grid | done | `LineHeight` | `ParagraphStyle::lineHeight`, through `Text::paragraphStyles` |
 | Leading: all above the line, or half above and half below | done | `ParagraphStyle::halfLeading` | through `Text::paragraphStyles` |
 | Keep: widows, orphans, with next, all lines together, start in next frame | done — enforced at the frame boundary by retracting lines into the next fill, under both breakers | `KeepOptions` | `ParagraphStyle::keep`, through `Text::paragraphStyles` |
 | Hyphenation: pattern dictionary | done, for any language that has a pattern table — the engine matches letters of any script and a table declares the language it answers for; the kit carries English, loaded once and held as `kit::englishHyphenator()` so every passage shares one table, and a caller loads the rest | `HyphenationOptions::patterns`, `kit::englishHyphenator`, `kit::PatternHyphenator`, `kit::englishHyphenationPatterns` | `Element::paragraph` (`ParagraphBlock::hyphenation`) |
@@ -83,7 +83,7 @@ field is optional, inherited down the tree like a font.
 | CJK: mojikumi (per-class spacing) | done, as a table over the gaps between words — the class of each character is the table's, whether a character is full-width at all is Unicode's | `MojikumiTable`, `ParagraphLayoutOptions::mojikumi` | `Element::paragraph` (`ParagraphBlock::mojikumi`) |
 | CJK: tsume | done, as a fraction closed at every gap between two plain full-width characters. LIMIT: two characters shaped inside one word are set by the face and the shaper, and no fraction here moves them | `ParagraphLayoutOptions::tsume` | `Element::paragraph` (`ParagraphBlock::tsume`) |
 | CJK: warichu | done — the note is cut where its two lines come closest in length and stacked inside the slot the base reserved | `warichuSplit`, `layoutWarichu` | **weave only.** The slot has to be sized from the note's own split, which is a question for a font context, and a compose description is written before there is one — so no verb reserves it yet. A caller holding a `FontContext` calls the two functions directly |
-| Baseline grid | done | `Leading::grid` | `Leading::grid` through `Text::paragraphStyles` |
+| Baseline grid | done | `LineHeight::grid` | `LineHeight::grid` through `Text::paragraphStyles` |
 | Frame grid (CJK cell grid) | **not started** | — | — |
 | What a decoration dresses | done — the node's shape, its glyph contours, or the outline it actually drew | — (a compose seam; weave supplies the glyph outlines) | `Element::decorationOutline` |
 | Footnotes and endnotes | out of scope | — | — |

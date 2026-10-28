@@ -32,16 +32,19 @@ Element card(float value, const char* caption) {
       .flexBasis(0)
       .flexGrow(1)
       .alignItems(Align::Center)
-      .children({stack().width(percent(100)).height(120).opacity(value).children(
-                     {box().cover().borderRadius({10}).fill(kPlate),
-                      box()
-                          .width(64)
-                          .height(64)
-                          .borderRadius({32})
-                          .fill(kDisc)
-                          .left(20)
-                          .top(28)}),
-                 text(caption).font({.size = 12, .color = kAsh})});
+      .children({stack()
+                     .width(percent(100))
+                     .height(120)
+                     .opacity(value)
+                     .children({box().cover().borderRadius({10}).fill(kPlate),
+                                box()
+                                    .width(64)
+                                    .height(64)
+                                    .borderRadius({32})
+                                    .fill(kDisc)
+                                    .left(20)
+                                    .top(28)}),
+                 text(caption).font({.size = 12, .ink = kAsh})});
 }
 
 }  // namespace

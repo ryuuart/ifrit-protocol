@@ -87,7 +87,8 @@ sigil::weave::Face romanBoldFace() {
  *  the description, since a class is read where the leaf is written. */
 sigil::compose::StyleSheet voices() {
   sigil::compose::StyleSheet classes{
-      sigil::compose::rule(".call").font({.face = monoFace(), .track = 0.1f}),
+      sigil::compose::rule(".call").font(
+          {.face = monoFace(), .letterSpacing = 0.1f}),
       sigil::compose::rule(".roman").font({.face = romanFace()}),
       sigil::compose::rule(".romanBold").font({.face = romanBoldFace()})};
   return classes;
@@ -97,18 +98,18 @@ sigil::compose::StyleSheet voices() {
  *  the body unless a caller asks for a lighter one. */
 Element call(const char* words, float size = 9.5f, material::Color c = kInk) {
   return document::code(words).styleClass("call").font(
-      {.size = size, .color = c});
+      {.size = size, .ink = c});
 }
 Element roman(const char* words, float size, material::Color c = kInk,
               float tracking = 0) {
   return document::paragraph(words).styleClass("roman").font(
-      {.size = size, .color = c, .track = tracking});
+      {.size = size, .ink = c, .letterSpacing = tracking});
 }
 Element romanBold(const char* words, float size, material::Color c = kInk,
                   float tracking = 0) {
   return document::h2(words)
       .styleClass("romanBold")
-      .font({.size = size, .color = c, .track = tracking});
+      .font({.size = size, .ink = c, .letterSpacing = tracking});
 }
 
 // ---------------------------------------------------------------------------

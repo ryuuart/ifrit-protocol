@@ -13,9 +13,8 @@
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
 
-#include <string_view>
-
 #include <glm/vec2.hpp>
+#include <string_view>
 
 class SkCanvas;
 
@@ -23,23 +22,24 @@ namespace sigil::weave::kit {
 
 /** Creates a single-span TextStyle: size, flat foreground color, optional
  *  language tag and typeface (null → the context default). */
-[[nodiscard]] sigil::weave::TextStyle makeStyle(
-    float fontSize, material::Color color, const char* language = "",
-    Face typeface = nullptr);
+[[nodiscard]] sigil::weave::TextStyle makeStyle(float fontSize,
+                                                material::Color color,
+                                                const char* language = "",
+                                                Face typeface = nullptr);
 
 /** A STYLE WHOSE TRACKING IS QUOTED IN 1/1000 EM — the unit a type
  *  specimen states it in — converted to the px a text style takes. The
  *  conversion needs the em size, which is why it belongs beside the
  *  style rather than in the number. @p condense is horizontal scale, for
  *  a face with no `wdth` axis to ask instead. */
-[[nodiscard]] inline TextStyle tracked(const Face& face,
-                                       float size, material::Color color,
+[[nodiscard]] inline TextStyle tracked(const Face& face, float size,
+                                       material::Color color,
                                        float trackPerMille = 0,
                                        float condense = 1.0f) {
   return textStyle({.face = face,
                     .size = size,
-                    .color = color,
-                    .track = size * trackPerMille / 1000.0f,
+                    .ink = color,
+                    .letterSpacing = size * trackPerMille / 1000.0f,
                     .condense = condense});
 }
 

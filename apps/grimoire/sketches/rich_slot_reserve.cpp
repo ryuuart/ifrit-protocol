@@ -32,8 +32,8 @@ constexpr material::Color kBand{0.15f, 0.20f, 0.25f, 1};
 weave::Type voice() {
   return {.face = sketch::kit::houseFace(sketch::kit::Voice::Interface),
           .size = 14,
-          .color = kInk,
-          .track = 0};
+          .ink = kInk,
+          .letterSpacing = 0};
 }
 
 Element slotted(glm::vec2 extent, float drop) {
