@@ -12,6 +12,7 @@
  * what the host would print.
  */
 
+#include <sigilcore/follow/Follow.h>
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilcore/reconcile/Node.h>
 #include <sigilcore/reconcile/Reconciler.h>
@@ -56,6 +57,44 @@ inline Description description(std::string key, int value = 0,
   d->value = value;
   d->children = std::move(children);
   return d;
+}
+
+/** A number a memo's describe can follow: read through `read()`, which
+ *  records the read into the describe being followed, and written through
+ *  `write()`, which advances the revision on a change. */
+struct FakeCounter : Followable {
+  int number = 0;
+  void write(int next) {
+    if (!admitsWrite() || next == number) return;
+    number = next;
+    advance();
+  }
+};
+
+inline int read(const std::shared_ptr<FakeCounter>& counter) {
+  noteRead(counter);
+  return counter->number;
+}
+
+/** A memo whose describe reads @p counter and produces a keyed leaf holding
+ *  its number, counting its describes in @p calls. Its properties are
+ *  constant, so only the counter can make it describe again. */
+inline Description followingMemo(std::string key,
+                                 std::shared_ptr<FakeCounter> counter,
+                                 int* calls) {
+  auto shell = description(key);
+  Memo<Description> memo;
+  memo.properties = 0;
+  memo.equal = [](const std::any& a, const std::any& b) {
+    return std::any_cast<int>(a) == std::any_cast<int>(b);
+  };
+  memo.invoke = [key = std::move(key), counter = std::move(counter),
+                 calls](const std::any&) {
+    if (calls) ++*calls;
+    return description(key, read(counter));
+  };
+  shell->memo = std::move(memo);
+  return shell;
 }
 
 /** The retained node: the skeleton plus what this host keeps per node. */
@@ -185,6 +224,18 @@ struct FakeHost {
 
   // ---- conveniences ----
   void render(const Description& d) { reconciler.render(root, d); }
+  /** Every node whose memo followed something, in tree order — the list a
+   *  host keeps for `Reconciler::redescribeMoved`. */
+  std::vector<FakeNode*> following() const {
+    std::vector<FakeNode*> nodes;
+    const auto walk = [&nodes](const auto& self, FakeNode* node) -> void {
+      if (!node) return;
+      if (!node->followed.empty()) nodes.push_back(node);
+      for (const auto& child : node->children) self(self, child.get());
+    };
+    walk(walk, root.get());
+    return nodes;
+  }
   FakeNode* child(size_t i) { return root->children.at(i).get(); }
   std::vector<std::string> childKeys() const {
     std::vector<std::string> keys;

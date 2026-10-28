@@ -28,6 +28,7 @@
 
 #include "CascadeInForce.h"
 #include "Exclusion.h"
+#include "FollowedAnswers.h"
 #include "HeldBakes.h"
 #include "OutlineCaches.h"
 #include "PaintMemos.h"
@@ -101,6 +102,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>>,
   // again, so one standing overflow is said once.
   bool overflowReported = false;
   bool squashReported = false;
+  // Where this node landed, as a memo's describe that asked a placement
+  // query of it follows it: made by the first such query and advanced by
+  // the settle when a layout moves the node or sets its text again. Null
+  // on every node no followed query has asked about.
+  std::shared_ptr<FollowedPlacement> followedPlacement;
 
   /** The fill in force as the surface map the composer paints the page
    *  as, or null where the fill is not lit or no map is selected — where

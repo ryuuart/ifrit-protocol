@@ -151,6 +151,36 @@ every input the component reads in its properties; a value the sheet in
 force sets, such as a custom property `var()` names, is resolved by the
 cascade after the call and needs no place in them.
 
+A memo also follows the live values its component reads. A
+`motion::Animatable` made by `motion::animatable()` or `motion::bind()`
+whose `value()` the component reads becomes one of the memo's inputs
+beside its properties: when the number changes, the next draw calls the
+component again and reconciles that memo's subtree alone, so a readout, a
+count or a flag that changes at its own pace needs no dirty flag, no
+compared copy and no call to `render`. Several changes before one draw
+are one call, and a change made before a draw shows in that draw.
+`Animatable::peek()` reads the number as it stands without following it.
+A component that writes a live value it has read keeps the number it
+read: the write is refused and reported once, so the memo never calls
+itself again. Only a memo's component follows: a value read in a paint
+program, a timer or a describe outside any memo is read once.
+`Composer::beatsOf` asked inside a memo's component is followed the same
+way: the memo is described again when the queried node first appears,
+when a layout moves it or sets its text again, and when its track's
+progress changes.
+
+```cpp
+motion::Animatable<float> gold = motion::animatable(0.0f);
+
+compose::Element purse() {
+  return compose::memo(0, [](int) {
+    return compose::text(std::to_string((int)gold.value()));
+  }).key("purse");
+}
+
+gold = 120.0f;  // the next draw shows 120
+```
+
 An `Element` is a shared, copy-on-write description. Copying it is cheap;
 changing a shared copy clones its payload. It owns no Yoga node or paint
 cache. The composer owns the mutable retained instances behind those
@@ -158,12 +188,13 @@ values.
 
 ## Updating and drawing
 
-There are two update paths:
+There are three update paths:
 
 | Change | What the host does |
 |---|---|
 | Structure, text, layout or discrete model state | Build the next tree and call `Composer::render`. |
 | A paint value that changes between descriptions | Keep a `motion::Animatable` in the model and put its live value or binding in the description. |
+| A number, word or flag one part of the tree is described from | Keep a live value in the model and read it with `value()` inside a `memo`'s component; the draw after it changes describes that memo again. |
 
 Call `Composer::setSize` when the viewport changes. The root fills an axis
 on which it states no size; an explicit root size remains its own. An empty
@@ -215,10 +246,12 @@ Paint bindings do not run layout. Change text or dimensions by describing
 again. Make a live cell once: making a new one on every description gives
 it a new identity and defeats pruning.
 
-For independently updated content, declare `slot("name")` and call
-`Composer::renderSlot` with its content. The slot integrates into the same
-layout and cascade. Its name is its key, so a later `.key()` renames it.
-An unknown slot name leaves the tree unchanged and warns once.
+Content that changes with a live value is a memo reading it, which the
+draw describes again by itself. `Composer::render` and slots are the
+manual doors, for a change no live value carries: declare `slot("name")`
+and call `Composer::renderSlot` with its content. The slot integrates into
+the same layout and cascade. Its name is its key, so a later `.key()`
+renames it. An unknown slot name leaves the tree unchanged and warns once.
 
 The engine and font context must outlive the composer. Use the font
 context on its owning layout thread. On device loss, call

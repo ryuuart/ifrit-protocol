@@ -4,13 +4,16 @@
  * @ingroup core-reconcile
  *
  * The keyed reconciler — descriptions reconciled onto a retained tree:
- * memo resolution, the identity prune, matching children by key and then
- * by position, mounting what is new, retiring what is gone, and the key
- * index read back off the result.
+ * memo resolution and the describe a memo follows, the identity prune, matching
+ * children by key and then by position, mounting what is new, retiring what is
+ * gone, and the key index read back off the result.
  */
+
+#include <sigilcore/follow/Follow.h>
 
 #include <boost/container_hash/hash.hpp>
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -60,9 +63,10 @@ struct KeyHash {
  *  reached inside the member functions, which are instantiated where they
  *  are called.
  *
- *  One pass is one `render()` (the whole tree from the root) or one
- *  `replaceContent()` (one node's single child); each advances `frame()`,
- *  which is what a retired node is stamped with. */
+ *  One pass is one `render()` (the whole tree from the root), one
+ *  `replaceContent()` (one node's single child) or one `redescribe()` (one
+ *  memo's subtree); each advances `frame()`, which is what a retired node
+ *  is stamped with. */
 template <class Host, class NodeT, class DescriptionT>
 class Reconciler {
  public:
@@ -115,8 +119,7 @@ class Reconciler {
   void patch(Node& inst, const Description& node) {
     static_assert(ReconcileHost<Host, Node, Description>);
     bool described = true;
-    Description resolved =
-        resolveMemo(inst.description ? &inst : nullptr, node, described);
+    Description resolved = resolveMemo(inst, node, described);
     // What a memo hit skips is the DESCRIBE, so a hit is not counted as
     // one; the count and `memoHits` beside it then add up to the nodes
     // the pass visited.
@@ -125,28 +128,55 @@ class Reconciler {
       inst.memoShell = node;
     else
       inst.memoShell = Description{};
+    apply(inst, std::move(resolved));
+  }
 
-    if (resolved == inst.description)
-      return;  // payload identity: untouched subtree (memo hit)
+  /** DESCRIBES A MEMO NODE AGAIN from the shell it was last described
+   *  through — the same properties, a fresh describe — and patches the
+   *  result in as patch() would, reconciling the subtree under it. What a
+   *  host calls when a value the memo's describe read has changed since
+   *  (`Node::followed` answers `moved()`); a node no memo produced is left
+   *  alone. */
+  void redescribe(Node& inst) {
+    static_assert(ReconcileHost<Host, Node, Description>);
+    if (!inst.memoShell) return;
+    const auto* memo = m_host.memoOf(inst.memoShell);
+    if (!memo) return;
+    ++m_frame;
+    m_stats.describedNodes++;
+    apply(inst, produce(inst, *memo));
+  }
 
-    Description prev = std::move(inst.description);
-    inst.description = resolved;
-
-    // Structural prune (the no-memo path): a fresh description that is
-    // provably identical to the retained one patches nothing and — key
-    // property — dirties nothing; only its children keep reconciling.
-    const bool own = !prev || !m_host.equal(prev, resolved);
-    if (own) {
-      m_stats.patchedNodes++;
-      m_host.onPatched(inst, prev ? &*prev : nullptr, *resolved);
+  /** DESCRIBES AGAIN EVERY MEMO IN @p following WHOSE READS MOVED, once
+   *  each however many of its reads moved, and answers how many were
+   *  described. A memo under another that moved is described by that one's
+   *  patch when its own reads moved too, and is not described a second
+   *  time; the rest are disjoint subtrees, so describing one retires no
+   *  other. @p following is the host's list of nodes whose `followed` is
+   *  not empty, and is stale once this answers more than zero: a describe
+   *  can mount and retire nodes, so the host rebuilds the list before it
+   *  asks again. */
+  template <class Range>
+  size_t redescribeMoved(const Range& following) {
+    std::vector<Node*> moved;
+    for (Node* inst : following)
+      if (inst && inst->followed.moved()) moved.push_back(inst);
+    if (moved.empty()) return 0;
+    // A set, so the walk up from each moved node asks in constant time
+    // however many moved: a frame that moves every memo of a long list is
+    // the case this has to stay linear in.
+    const boost::unordered_flat_set<const Node*> movedSet(moved.begin(),
+                                                          moved.end());
+    std::vector<Node*> topmost;
+    for (Node* inst : moved) {
+      bool under = false;
+      for (const Node* above = inst->parent; above && !under;
+           above = above->parent)
+        under = movedSet.contains(above);
+      if (!under) topmost.push_back(inst);
     }
-
-    // The children are the host's answer for THIS node rather than the
-    // description's list alone: a host that keeps children of its own
-    // beside the described ones — content an operator built under the
-    // node — answers with both, so one pass reconciles them together.
-    if (m_host.reconcilesChildren(resolved))
-      patchChildren(inst, m_host.children(inst, resolved));
+    for (Node* inst : topmost) redescribe(*inst);
+    return topmost.size();
   }
 
   /** Matches `newChildren` against the node's children by key, then by
@@ -241,28 +271,32 @@ class Reconciler {
   }
 
   /** The description a memo resolves to: the retained payload on a hit
-   *  (properties of the same type and equal), else the memo's produce. A
-   *  non-memo resolves to itself. */
-  Description resolveMemo(Node* existing, const Description& node,
+   *  (properties of the same type and equal, and nothing the last describe
+   *  read changed since), else the memo's produce. A non-memo resolves to
+   *  itself. `inst` is the node the description lands on, before its first
+   *  patch or after any number. */
+  Description resolveMemo(Node& inst, const Description& node,
                           bool& described) {
     const auto* memo = m_host.memoOf(node);
     if (!memo) {
       described = true;
+      inst.followed.clear();
       return node;
     }
-    // A memo is a pure function of its properties, so equal properties
+    // A memo is a pure function of its properties and of the followable
+    // values its describe read, so equal properties over unmoved reads
     // reuse the payload the previous describe produced.
-    if (existing && existing->memoShell) {
-      const auto* previous = m_host.memoOf(existing->memoShell);
+    if (inst.description && inst.memoShell && !inst.followed.moved()) {
+      const auto* previous = m_host.memoOf(inst.memoShell);
       if (previous && previous->properties.type() == memo->properties.type() &&
           previous->equal(previous->properties, memo->properties)) {
         m_stats.memoHits++;
         described = false;
-        return existing->description;  // reuse the previously described payload
+        return inst.description;  // reuse the previously described payload
       }
     }
     described = true;
-    return m_host.produce(*memo);
+    return produce(inst, *memo);
   }
 
   /** The key a node is MATCHED by: its memo shell's when it has one, else
@@ -292,11 +326,53 @@ class Reconciler {
   }
 
   const ReconcileStats& stats() const { return m_stats; }
-  /** The pass counter: advanced by every render() and replaceContent(),
-   *  and what destroy() is stamped with. */
+  /** The pass counter: advanced by every render(), replaceContent() and
+   *  redescribe(), and what destroy() is stamped with. */
   uint64_t frame() const { return m_frame; }
 
  private:
+  /** The host's describe, followed: every followable value it reads lands
+   *  in the node's `followed`, replacing what the previous describe read. */
+  template <class MemoType>
+  Description produce(Node& inst, const MemoType& memo) {
+    FollowedReads reads;
+    Description produced;
+    {
+      const FollowScope scope(reads);
+      produced = m_host.produce(memo);
+    }
+    inst.followed = std::move(reads);
+    return produced;
+  }
+
+  /** Swaps @p resolved in as the node's description and patches what
+   *  changed: nothing when it is the payload already held (a memo hit), the
+   *  host's onPatched() when it is not provably equal, and the children
+   *  either way. */
+  void apply(Node& inst, Description resolved) {
+    if (resolved == inst.description)
+      return;  // payload identity: untouched subtree (memo hit)
+
+    Description prev = std::move(inst.description);
+    inst.description = resolved;
+
+    // Structural prune (the no-memo path): a fresh description that is
+    // provably identical to the retained one patches nothing and — key
+    // property — dirties nothing; only its children keep reconciling.
+    const bool own = !prev || !m_host.equal(prev, resolved);
+    if (own) {
+      m_stats.patchedNodes++;
+      m_host.onPatched(inst, prev ? &*prev : nullptr, *resolved);
+    }
+
+    // The children are the host's answer for THIS node rather than the
+    // description's list alone: a host that keeps children of its own
+    // beside the described ones — content an operator built under the
+    // node — answers with both, so one pass reconciles them together.
+    if (m_host.reconcilesChildren(resolved))
+      patchChildren(inst, m_host.children(inst, resolved));
+  }
+
   Host& m_host;
   ReconcileStats m_stats;
   uint64_t m_frame = 0;

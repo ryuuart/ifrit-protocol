@@ -3,7 +3,8 @@
 # properties, the identity prune and the counts are here; what a
 # node retains beyond that, and what a patch does to it, is the host's,
 # reached through the ReconcileHost operations. Links SigilCoreComparable
-# (the erased seam value a description carries) and SigilMeasure (the
+# (the erased seam value a description carries), SigilCoreFollow (what a
+# memo's describe read that can change after it) and SigilMeasure (the
 # published counts), and nothing that draws or lays out — and nothing
 # that animates either: the lanes a patch retargets and the comparators
 # over the values they carry are SigilMotion's, and a host reaches them
@@ -14,7 +15,7 @@ sigil_library(SigilCoreReconcile
   SOURCES Reads.cpp
   HEADERS Host.h Memo.h Node.h Phases.h Reads.h
           Reconciler.h Stats.h
-  PUBLIC SigilCoreComparable SigilMeasure
+  PUBLIC SigilCoreComparable SigilCoreFollow SigilMeasure
          Boost::container_hash Boost::unordered)
 
 # Over a fake host, so a link edge that pulled a drawing or layout

@@ -315,8 +315,17 @@ py::class_<motion::Animatable<T>> bindAnimatable(
           [](Animatable& value, py::handle next) {
             value = Family<T>::read(next);
           },
-          "The value now. Setting it writes a live value, which every "
-          "copy reads; any other form becomes that constant.")
+          "The value now. Read inside a memo's builder, a live or bound "
+          "value is followed: the memo is built again when it changes. "
+          "Setting it writes a live value, which every copy reads; any "
+          "other form becomes that constant.")
+      .def(
+          "peek",
+          [](const Animatable& value) {
+            return Family<T>::reading(value.peek());
+          },
+          "The value now, as it stands: read inside a memo's builder, it "
+          "is taken once and not followed.")
       .def(
           "set",
           [](Animatable& value, py::handle next) {

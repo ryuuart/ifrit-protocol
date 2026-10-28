@@ -3,8 +3,9 @@
 /** @file
  * Internal to the kernel — the flat lists rebuilt with the key index each
  * render: the nodes that borrow another's geometry, flow around it, apply
- * adding operators, anchor marks on a path-laid run or thread into another
- * frame, and what the rebuild found about the tree as a whole.
+ * adding operators, anchor marks on a path-laid run, thread into another
+ * frame or follow a live value their memo read, and what the rebuild found
+ * about the tree as a whole.
  */
 
 #include <vector>
@@ -43,6 +44,13 @@ struct TreeLists {
   // …and the frames THEY thread into, kept from the last walk so a frame
   // that stops being a target is unbounded again the moment it does.
   std::vector<Instance*> threadTargets;
+  // Memo nodes whose last describe read a live value, in tree order: the
+  // list the settle asks whether anything they read has changed since, so
+  // a tree whose memos follow nothing asks nothing.
+  std::vector<Instance*> followingInstances;
+  // Nodes a followed placement query asked about, whose placement the
+  // settle compares after each layout.
+  std::vector<Instance*> placementInstances;
   bool hasDerived() const {
     return !borrowInstances.empty() || !flowInstances.empty() ||
            !threadedInstances.empty();

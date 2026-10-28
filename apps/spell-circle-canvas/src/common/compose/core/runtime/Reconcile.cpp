@@ -60,6 +60,8 @@ void Composer::Impl::rebuildKeyIndex() {
   threadedInstances.clear();
   addingInstances.clear();
   additionOwners.clear();
+  followingInstances.clear();
+  placementInstances.clear();
   hasCustomLayout = false;
   hasCenterPins = false;
   hasLeaving = false;
@@ -104,6 +106,8 @@ void Composer::Impl::rebuildKeyIndex() {
         }
       }
       if (!inst.addedChildren.empty()) additionOwners.push_back(&inst);
+      if (!inst.followed.empty()) followingInstances.push_back(&inst);
+      if (inst.followedPlacement) placementInstances.push_back(&inst);
       if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
           !node.textData->marks.empty())
         pathMarkInstances.push_back(&inst);
@@ -114,6 +118,17 @@ void Composer::Impl::rebuildKeyIndex() {
       if (inst.leaving) hasLeaving = true;
     });
   orderDerivedByReads();
+  keyIndexCurrent = true;
+  // A key a followed describe asked about before any node answered to it
+  // has its answer now that one does.
+  for (auto it = awaitedKeys.begin(); it != awaitedKeys.end();) {
+    if (byKey.contains(it->first)) {
+      it->second->arrived();
+      it = awaitedKeys.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 /** THE ORDER THE DECLARED READS IMPLY.

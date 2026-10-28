@@ -383,11 +383,20 @@ Element makeMemo(std::any properties,
 }  // namespace detail
 
 /** Deferred description: `fn` runs only when `properties` changed (by
- *  operator==) since the last render on this position/key. A memo is a
- *  pure function of its properties, so everything `fn` reads belongs in
- *  them; a value the sheet in force sets — a custom property `var()`
- *  names, a rule a class takes — is resolved by the cascade after `fn`
- *  runs, so it needs no place in them.
+ *  operator==) since the last render on this position/key, or when a live
+ *  value `fn` read changed since it last ran. A memo is a pure function of
+ *  its properties and of the live values it reads, so everything else `fn`
+ *  reads belongs in the properties; a value the sheet in force sets — a
+ *  custom property `var()` names, a rule a class takes — is resolved by
+ *  the cascade after `fn` runs, so it needs no place in them.
+ *
+ *  FOLLOWING. A live or bound `motion::Animatable` whose `value()` `fn`
+ *  reads is followed: when the number changes, the next draw runs `fn`
+ *  again and reconciles this node's subtree alone — once however many
+ *  changes landed before that draw, with no render() from the host.
+ *  `peek()` reads the number as it stands without following it. A live
+ *  value `fn` reads and then writes keeps its number, and the refused
+ *  write is reported once.
  *
  *  THE SHELL. The element this returns is a shell; the element `fn`
  *  produces is the node's whole look. Four calls on the shell speak for

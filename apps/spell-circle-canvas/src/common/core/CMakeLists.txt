@@ -18,10 +18,14 @@
 #                                     and a fan-out of its own threads for
 #                                     calls that block on a disk or a
 #                                     server
+#   SigilCoreFollow      follow/      what a describe read that can change
+#                                     after it: a value that counts its
+#                                     changes, the record of the reads,
+#                                     and the scope that records them
 #   SigilCoreReconcile   reconcile/   descriptions reconciled onto a host's
 #                                     retained tree: keyed matching, the
-#                                     memo, the identity prune, the
-#                                     animation lanes and the phase runner
+#                                     memo and what it follows, the
+#                                     identity prune and the phase runner
 #   SigilCoreCache       cache/       what a host may keep between frames:
 #                                     the cache policy, the settled-subtree
 #                                     proof, the stability release and the
@@ -48,7 +52,7 @@
 # and two of them stand on the same one. Only a consumer that needs a
 # device links it.
 sigil_library_root(SigilCore
-  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over four leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, the one prefix search a callable is called with the parameters it named through, and the GPU device with its handles and fences, and the one door a library's warning is reported through"
+  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over four leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, the one prefix search a callable is called with the parameters it named through, and the GPU device with its handles and fences, the one door a library's warning is reported through, and the record of the shared values a memo's describe reads and follows"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
        ${CMAKE_CURRENT_SOURCE_DIR}/CACHE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/CALLABLE.md
@@ -62,6 +66,7 @@ add_subdirectory(comparable)
 add_subdirectory(compute)
 add_subdirectory(callable)
 add_subdirectory(schedule)
+add_subdirectory(follow)
 add_subdirectory(reconcile)
 add_subdirectory(cache)
 add_subdirectory(hardware)
@@ -100,5 +105,5 @@ sigil_doc_probes(core
            ${SIGIL_TEST_SUPPORT_DIR}
   FLOORS 72,8,3,20,0
   LIBRARIES SigilCoreCache SigilCoreCallable SigilCoreComparable
-            SigilCoreCompute SigilCoreHardware SigilCoreReconcile
+            SigilCoreCompute SigilCoreFollow SigilCoreHardware SigilCoreReconcile
             SigilCoreReport SigilCoreSchedule)

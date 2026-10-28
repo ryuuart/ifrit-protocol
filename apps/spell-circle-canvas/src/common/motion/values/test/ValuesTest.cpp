@@ -4,13 +4,14 @@
  * every copy, a bound value read lazily through its stages (and a bound
  * value followed in turn), the Tween a described motion is — read at a
  * time with no engine, through keyframes, passes and a stagger resolved
- * for a child — a tween read as a transition, the curve comparator, and the arithmetic
- * over a clock reading.
+ * for a child — a tween read as a transition, the curve comparator, the
+ * arithmetic over a clock reading, and which reads a followed describe records:
+ * a live or shaped value read through `value()`, never through `peek()`.
  */
 
-#include "support/StandsAlone.h"
-
 #include <gtest/gtest.h>
+#include <sigilcore/follow/Follow.h>
+#include <sigilcore/report/Report.h>
 #include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/schedule/Stagger.h>
@@ -22,9 +23,12 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion;
 using namespace std::chrono_literals;
@@ -275,11 +279,10 @@ TEST(Values, ATweenNamingFromIsAnEntranceAndToAloneEasesOnChange) {
   EXPECT_EQ(change.duration.value(), 250ms);
   EXPECT_EQ(change.delay.value(), 0ms);
 
-  const Tween<float> path{
-      .from = 40.0f,
-      .keyframes = {{.to = -20.0f, .duration = 200ms},
-                    {.to = 10.0f, .duration = 100ms},
-                    {.to = 0.0f, .duration = 100ms}}};
+  const Tween<float> path{.from = 40.0f,
+                          .keyframes = {{.to = -20.0f, .duration = 200ms},
+                                        {.to = 10.0f, .duration = 100ms},
+                                        {.to = 0.0f, .duration = 100ms}}};
   EXPECT_TRUE(path.isEntrance());
   EXPECT_FLOAT_EQ(path.rest(), 0.0f);  // the last keyframe is where it rests
 
@@ -317,11 +320,11 @@ TEST(Values, AKeyframeWithNoDurationTakesAnEqualShareOfTheTween) {
 
   // A stated duration is kept, and the share is still the tween's
   // duration over the number of keyframes — not what is left over.
-  const Tween<float> mixed{.from = 0.0f,
-                           .keyframes = {{.to = 10.0f, .duration = 200ms},
-                                         {.to = 0.0f}},
-                           .duration = 1s,
-                           .ease = ease::linear};
+  const Tween<float> mixed{
+      .from = 0.0f,
+      .keyframes = {{.to = 10.0f, .duration = 200ms}, {.to = 0.0f}},
+      .duration = 1s,
+      .ease = ease::linear};
   EXPECT_NEAR(mixed.at(100ms), 5.0f, 1e-4f);
   EXPECT_NEAR(mixed.at(200ms), 10.0f, 1e-4f);
   EXPECT_NEAR(mixed.at(450ms), 5.0f, 1e-4f);
@@ -377,8 +380,8 @@ TEST(Values, ATweenResolvesEveryStaggeredFieldForTheChildAtAPlace) {
 
 TEST(Values, TwoTweensAreEqualByEveryField) {
   const Tween<float> base{.from = 0.0f, .to = 1.0f, .duration = 300ms};
-  EXPECT_TRUE(tweenEqual(base, Tween<float>{.from = 0.0f, .to = 1.0f,
-                                            .duration = 300ms}));
+  EXPECT_TRUE(tweenEqual(
+      base, Tween<float>{.from = 0.0f, .to = 1.0f, .duration = 300ms}));
   Tween<float> moved = base;
   moved.composition = Composition::Blend;
   EXPECT_FALSE(tweenEqual(base, moved));
@@ -400,8 +403,12 @@ TEST(Values, TwoTweensAreEqualByEveryField) {
 TEST(Values, ATweenReadsAnyValueThatAddsAndScales) {
   struct Point {
     float x = 0.0f, y = 0.0f;
-    Point operator+(const Point& other) const { return {x + other.x, y + other.y}; }
-    Point operator-(const Point& other) const { return {x - other.x, y - other.y}; }
+    Point operator+(const Point& other) const {
+      return {x + other.x, y + other.y};
+    }
+    Point operator-(const Point& other) const {
+      return {x - other.x, y - other.y};
+    }
     Point operator*(float amount) const { return {x * amount, y * amount}; }
     bool operator==(const Point&) const = default;
   };
@@ -466,8 +473,8 @@ TEST(Values, ATransitionSurvivesAnEmptyEase) {
 // swallow several members.
 TEST(Values, TweenEqualRulesOnEveryMember) {
   Tween<float> tween{.from = 0.0f, .to = 1.0f};
-  auto& [from, to, keyframes, duration, delay, ease, loop, loopDelay,
-         alternate, composition] = tween;
+  auto& [from, to, keyframes, duration, delay, ease, loop, loopDelay, alternate,
+         composition] = tween;
   loop = 2;
   EXPECT_FALSE(tweenEqual(tween, Tween<float>{.from = 0.0f, .to = 1.0f}));
   loop = 0;
@@ -520,8 +527,8 @@ TEST(Values, AShapedCurveComparesEqualAtTheSameSettings) {
                          Tween<float>{.ease = ease::outBack(1.7f)}));
   EXPECT_FALSE(tweenEqual(Tween<float>{.ease = ease::outBack(1.7f)},
                           Tween<float>{.ease = ease::outBack(3.0f)}));
-  EXPECT_FALSE(
-      tweenEqual(Tween<float>{}, Tween<float>{.composition = Composition::Blend}));
+  EXPECT_FALSE(tweenEqual(Tween<float>{},
+                          Tween<float>{.composition = Composition::Blend}));
 }
 
 // ---------------------------------------------------------------------------
@@ -587,8 +594,11 @@ TEST(Values, TheStepIndexAndThePhaseReadADuration) {
 }
 
 TEST(Values, ALoopingTweenHoldsItsLoopDelayAtTheEndOfEveryPass) {
-  const Tween<float> pulse{.from = 0.0f, .to = 1.0f, .duration = 1s,
-                           .ease = ease::linear, .loop = -1,
+  const Tween<float> pulse{.from = 0.0f,
+                           .to = 1.0f,
+                           .duration = 1s,
+                           .ease = ease::linear,
+                           .loop = -1,
                            .loopDelay = 500ms};
   EXPECT_NEAR(pulse.at(500ms), 0.5f, 1e-5f);
   EXPECT_NEAR(pulse.at(1250ms), 1.0f, 1e-5f);  // held
@@ -596,8 +606,11 @@ TEST(Values, ALoopingTweenHoldsItsLoopDelayAtTheEndOfEveryPass) {
 }
 
 TEST(Values, ATweensTimingIsWhatACollectivesScheduleReads) {
-  const Tween<float> tween{.duration = 480ms, .delay = stagger(28ms),
-                           .loop = -1, .loopDelay = 120ms, .alternate = true};
+  const Tween<float> tween{.duration = 480ms,
+                           .delay = stagger(28ms),
+                           .loop = -1,
+                           .loopDelay = 120ms,
+                           .alternate = true};
   const Timing timing = timingOf(tween, stagger(10ms));
   EXPECT_EQ(timing.delay, tween.delay);
   EXPECT_EQ(timing.duration, Duration(480ms));
@@ -612,4 +625,69 @@ TEST(Values, AnEmptyCurveReadsAsTheDefault) {
   const Tween<float> tween{.to = 1.0f};
   EXPECT_FALSE((bool)tween.ease);
   EXPECT_TRUE(easeEqual(tween.easing(), ease::outQuad));
+}
+
+TEST(Following, AValueReadOfALiveValueIsRecordedAndAPeekIsNot) {
+  Animatable<float> live = animatable(2.0f);
+  sigil::core::FollowedReads reads;
+  {
+    const sigil::core::FollowScope scope(reads);
+    EXPECT_FLOAT_EQ(live.peek(), 2.0f);
+  }
+  EXPECT_TRUE(reads.empty());
+  {
+    const sigil::core::FollowScope scope(reads);
+    EXPECT_FLOAT_EQ(live.value(), 2.0f);
+    EXPECT_FLOAT_EQ(live.value(), 2.0f);
+  }
+  ASSERT_EQ(reads.size(), 1u);
+  EXPECT_TRUE(reads.contains(*live.cell()));
+  live = 2.0f;
+  EXPECT_FALSE(reads.moved()) << "writing the number it holds changes nothing";
+  live = 3.0f;
+  EXPECT_TRUE(reads.moved());
+}
+
+TEST(Following, AShapedValueFollowsTheCellItsSourceReads) {
+  Animatable<float> source = animatable(0.5f);
+  const Animatable<float> shaped = bind(bind(source, {.to = {0, 10}}));
+  sigil::core::FollowedReads reads;
+  {
+    const sigil::core::FollowScope scope(reads);
+    EXPECT_FLOAT_EQ(shaped.value(), 5.0f);
+  }
+  ASSERT_EQ(reads.size(), 1u);
+  EXPECT_TRUE(reads.contains(*source.cell()));
+  {
+    const sigil::core::FollowScope scope(reads);
+    EXPECT_FLOAT_EQ(shaped.peek(), 5.0f);
+  }
+  EXPECT_TRUE(reads.empty());
+}
+
+TEST(Following, AConstantAndADescribedMotionRecordNothing) {
+  const Animatable<float> constant = 4.0f;
+  const Animatable<float> described = animate({.from = 0.0f, .to = 1.0f});
+  sigil::core::FollowedReads reads;
+  {
+    const sigil::core::FollowScope scope(reads);
+    EXPECT_FLOAT_EQ(constant.value(), 4.0f);
+    EXPECT_FLOAT_EQ(described.value(), 1.0f);
+  }
+  EXPECT_TRUE(reads.empty());
+}
+
+TEST(Following, ALiveValueTheFollowedDescribeReadRefusesItsWrite) {
+  const sigil::core::Reporter previous =
+      sigil::core::installReporter([](std::string_view, std::string_view) {});
+  Animatable<float> live = animatable(1.0f);
+  sigil::core::FollowedReads reads;
+  {
+    const sigil::core::FollowScope scope(reads);
+    const float read = live.value();
+    live = read + 1.0f;
+  }
+  sigil::core::installReporter(previous);
+  EXPECT_FLOAT_EQ(live.peek(), 1.0f);
+  EXPECT_FALSE(reads.moved());
 }

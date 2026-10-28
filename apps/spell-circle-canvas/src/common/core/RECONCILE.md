@@ -5,16 +5,17 @@ reconciled onto a tree the host retains, so that only what changed is
 touched. It owns the shape of that tree — which retained node answers to
 which description (matched by key, then by position), the memo that skips a
 describe whose inputs did not change, the identity prune that leaves an
-unchanged node alone, and the counts of what a pass did. `README.md` beside
-this file is the library; `CACHE.md` is the other kernel, which decides
+unchanged node alone, the describe a memo follows, and the counts of what a
+pass did. `README.md` beside this file is the library; `CACHE.md` is the other kernel, which decides
 what a host may KEEP between the passes this one drives, and `COMPARABLE.md`
 is the leaf the erased seam value on a description comes from.
 
 | header | holds |
 |--------|-------|
-| `reconcile/Reconciler.h` | `Reconciler<Host, Node, Description>` — `render()`, `replaceContent()`, `patch()`, `patchChildren()`, `resolveMemo()`, `keyOf()`, `matchKeyOf()`, `indexKeys()`, `stats()`, `frame()`, and its `KeyIndex` |
+| `reconcile/Reconciler.h` | `Reconciler<Host, Node, Description>` — `render()`, `replaceContent()`, `patch()`, `redescribe()`, `redescribeMoved()`, `patchChildren()`, `resolveMemo()`, `keyOf()`, `matchKeyOf()`, `indexKeys()`, `stats()`, `frame()`, and its `KeyIndex` |
 | `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescriptionValue` |
-| `reconcile/Node.h` | `Node<Derived, Description>` — the tree skeleton a host's node derives from: `parent`, `description`, `memoShell`, `children` |
+| `reconcile/Node.h` | `Node<Derived, Description>` — the tree skeleton a host's node derives from: `parent`, `description`, `memoShell`, `followed`, `children` |
+| `follow/Follow.h` | `Followable`, `FollowedRead`, `FollowedReads`, `FollowScope`, `following()`, `noteRead()` — a shared value that counts its changes, and the record of which of them one describe read (the `SigilCoreFollow` leaf, which the reconciler links) |
 | `reconcile/Memo.h` | `Memo<Produced>` — a deferred describe and its key: `properties`, `equal`, `invoke` |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
 | `reconcile/Reads.h` | `Facet`, `Read`, `orderByReads` — what one node reads off another, and the order that puts every reader after what it read |
@@ -133,16 +134,47 @@ readers caught in one keep their declaration order — so a cyclic
 declaration is a slightly-off pass rather than a hang, which is the same
 bargain the convergence cap makes.
 
-**A memo is a pure function of its properties.** A description can be a
-memo shell: properties, a comparison over them, and a deferred describe.
-The reconciler compares the shell's properties against the shell the node
-was last described from — a different type is a miss before the comparison
-runs; on a hit the node's payload stands and the describe is skipped, on a
-miss the describe runs and the result becomes the payload. The properties
-are the whole key, so everything the describe reads belongs in them. The
-shell rides on the node as `memoShell`; the payload is `description`.
-Which of this library's own values are shaped to be a memo's properties is
-`COMPUTE.md`'s last section.
+**A memo is a pure function of its properties and of what it follows.** A
+description can be a memo shell: properties, a comparison over them, and a
+deferred describe. The reconciler compares the shell's properties against
+the shell the node was last described from — a different type is a miss
+before the comparison runs; on a hit the node's payload stands and the
+describe is skipped, on a miss the describe runs and the result becomes the
+payload. The shell rides on the node as `memoShell`; the payload is
+`description`. Which of this library's own values are shaped to be a
+memo's properties is `COMPUTE.md`'s last section.
+
+**A memo's describe declares the shared values it reads.** The properties
+are one half of a memo's key; the other half is every shared value its
+describe reads that can change after it — a live number a sketch or an
+engine writes. Such a value is a `Followable`: it counts its changing
+writes in `Followable::revision`. The reconciler runs every memo's
+describe inside a `FollowScope`, and every followable value read there
+lands in the node's `followed` as a `FollowedRead` — one entry per value
+however often it was read, at the revision it stood at. That record is a
+DECLARED READ of the memo, beside its properties: a memo whose properties
+compare equal still misses when `FollowedReads::moved` says one of its
+reads has changed since, and a describe that reads nothing followable
+records nothing and costs nothing.
+
+Nothing is pushed to the reconciler when such a value changes. A host
+keeps the nodes whose `followed` is not empty — the walk `indexKeys` takes
+is the place to collect them — and asks at its settle:
+`redescribeMoved()` describes again every one whose reads moved, once
+each however many of its reads moved, by `redescribe()`: the same shell, a
+fresh describe, patched in as `patch()` would and reconciling only that
+node's subtree. A memo under another that moved is described by that
+one's patch, never twice. Several changes before one settle are one
+describe, and a change that lands before the settle is described in it.
+
+A describe that WRITES a followable value it has already read would be
+stale the moment it finished, and describing it again would write again.
+`Followable::admitsWrite` refuses that write, and the first refusal of each
+value is reported through the reporting door; the describe stands as it
+read, and nothing loops. A read outside any memo's describe — a paint
+program, a timer, a host describing its root — records nothing: it is a
+snapshot, and a host that wants the subtree described again calls
+`render()` or `replaceContent()` itself.
 
 **The one upward signal is `invalidate`.** The reconciler never marks a
 host's caches by itself; a node whose content changed under it — a slot's

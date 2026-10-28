@@ -37,6 +37,19 @@ using namespace detail;
 namespace {
 
 /** Whether every rect of @p inner stands inside one rect of @p outer. */
+/** Where @p inst stands in the composer's space, by the walk up the tree
+ *  the bounds query takes; not finite while nothing has laid it out. */
+SkRect composerRectOf(const Composer::Impl& impl, const Instance& inst) {
+  SkPoint origin{0, 0};
+  for (const Instance* node = &inst; node; node = node->parent) {
+    const SkRect rect = impl.instanceRect(*node);
+    if (!rect.isFinite()) return SkRect::MakeLTRB(NAN, NAN, NAN, NAN);
+    origin.offset(rect.left(), rect.top());
+  }
+  const SkRect own = impl.instanceRect(inst);
+  return SkRect::MakeXYWH(origin.x(), origin.y(), own.width(), own.height());
+}
+
 bool covers(const std::vector<SkRect>& outer,
             const std::vector<SkRect>& inner) {
   for (const SkRect& part : inner) {
@@ -214,7 +227,7 @@ void Composer::setInherited(const sigil::weave::Type& font, material::Color ink,
   Impl& impl = *m_impl;
   sigil::weave::Type root =
       sigil::weave::overlay(sigil::weave::initialType(), font);
-  root.color = ink;
+  root.ink = ink;
   const bool fontMoved = !(root == impl.rootFont);
   const bool propertiesMoved =
       impl.rootVars ? !(*impl.rootVars == properties) : !properties.empty();
@@ -284,10 +297,80 @@ bool Composer::isRunning() const {
   // that drawing can be skipped.
   impl.scanReleasedScalars();
   return impl.contentDirty || impl.needsLayout || impl.volatileDirty ||
-         impl.engine.isRunning() || impl.rootVolatile;
+         impl.engine.isRunning() || impl.rootVolatile || impl.followedMoved();
+}
+
+bool Composer::Impl::followedMoved() const {
+  for (const Instance* inst : followingInstances)
+    if (inst->followed.moved()) return true;
+  return false;
+}
+
+bool Composer::Impl::advanceFollowedPlacements() {
+  bool moved = false;
+  for (Instance* inst : placementInstances) {
+    const SkRect rect = composerRectOf(*this, *inst);
+    if (!rect.isFinite()) continue;  // laid out by nothing yet
+    moved |= inst->followedPlacement->update(rect, inst->contentRev,
+                                             inst->measuredRev);
+  }
+  return moved;
+}
+
+Instance* Composer::Impl::queriedNode(std::string_view key) {
+  const bool followed = core::following() != nullptr;
+  const auto it = keyIndexCurrent ? byKey.find(key) : byKey.end();
+  if (it == byKey.end()) {
+    if (followed) {
+      auto& awaited = awaitedKeys[std::string(key)];
+      if (!awaited) awaited = std::make_shared<FollowedArrival>();
+      core::noteRead(awaited);
+    }
+    return nullptr;
+  }
+  Instance& inst = *it->second;
+  if (followed) {
+    if (!inst.followedPlacement) {
+      inst.followedPlacement = std::make_shared<FollowedPlacement>();
+      placementInstances.push_back(&inst);
+      // Taken now, so the describe reads the placement as it stands and is
+      // described again only when a later layout moves it.
+      const SkRect rect = composerRectOf(*this, inst);
+      if (rect.isFinite())
+        inst.followedPlacement->update(rect, inst.contentRev, inst.measuredRev);
+    }
+    core::noteRead(inst.followedPlacement);
+  }
+  return &inst;
+}
+
+bool Composer::Impl::redescribeFollowed() {
+  if (followingInstances.empty()) return false;
+  const sigil::measure::Stopwatch reconcile;
+  if (reconciler.redescribeMoved(followingInstances) == 0) return false;
+  // What a describe through render() leaves behind, for the subtrees
+  // described here: the volatility and the cascade asked again when a
+  // patch dirtied anything, the key index and the flat lists rebuilt over
+  // what was mounted and retired, and slot content waiting for a slot the
+  // new subtree brings mounted into it.
+  if (contentDirty || needsLayout) {
+    volatileDirty = true;
+    cascadeDirty = true;
+  }
+  rebuildKeyIndex();
+  if (!pendingSlots.empty()) mountPendingSlots();
+  if (cascadeDirty) runCascade();
+  reconcileAccumulatedMilliseconds +=
+      sigil::measure::Milliseconds(reconcile.elapsed()).count();
+  return true;
 }
 
 void Composer::Impl::settleForDraw() {
+  // A MEMO FOLLOWS THE LIVE VALUES ITS DESCRIBE READ: one whose value has
+  // changed since is described again here, once however many changes
+  // landed before this draw, so the draw shows the subtree that value
+  // describes.
+  redescribeFollowed();
   // AN EXIT NEVER OUTLIVES ITS RUN: a leaving node whose motions have all
   // landed goes on the frame they land, whether or not anything describes
   // the tree again, and its siblings take up its place in the same layout.
@@ -300,6 +383,12 @@ void Composer::Impl::settleForDraw() {
   // own composing, which the walk reads, so a frame that lays out walks.
   const size_t calculationsBefore = layoutCalculations;
   ensureLayout();
+  // A memo whose describe asked where a node landed is described again
+  // once the layout has moved it, and laid out again with what it says,
+  // so the draw shows the answer the layout it follows gives.
+  if (!placementInstances.empty() && advanceFollowedPlacements() &&
+      redescribeFollowed())
+    ensureLayout();
   const bool laidOut = layoutCalculations != calculationsBefore;
   if (cascadeDirty) runCascade();
   // A track's progress over its span starts once its text is laid out,
@@ -677,27 +766,30 @@ TextSettling Composer::settling(std::string_view key) const {
 
 std::vector<Beat> Composer::beatsOf(std::string_view key,
                                     size_t trackIndex) const {
-  auto it = m_impl->byKey.find(key);
-  if (it == m_impl->byKey.end()) return {};
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
   // The handle is a unique_ptr, so a const method still reaches a
   // non-const Impl through it.
   Impl& impl = *m_impl;
-  const TextPainterOperations* painter = Impl::textPainterOf(*it->second);
+  // Asked inside a memo's describe, the answer is followed: the node's
+  // placement, the track's progress, or the key's arrival while no node
+  // answers to it.
+  Instance* inst = impl.queriedNode(key);
+  if (!inst) return {};
+  if (inst->description && inst->description->textData &&
+      trackIndex < inst->description->textData->tracks.size())
+    (void)inst->description->textData->tracks[trackIndex].progress.value();
+  const TextPainterOperations* painter = Impl::textPainterOf(*inst);
   if (!painter) return {};  // text at rest runs no schedule
-  std::vector<Beat> beats = painter->beats(*it->second, trackIndex);
+  std::vector<Beat> beats = painter->beats(*inst, trackIndex);
   if (beats.empty()) return beats;
   // Rects come out in the node's own space. Lift them into the composer's,
   // by the same walk up the tree the bounds query takes — a beat is a place
   // on the SHEET, so it can be read beside `bounds()` and `hitTest()`
   // without the caller knowing which node the glyphs belong to.
-  SkPoint origin{0, 0};
-  for (Instance* node = it->second; node; node = node->parent) {
-    const SkRect rect = impl.instanceRect(*node);
-    if (!rect.isFinite()) return {};  // laid out by nothing yet
-    origin.offset(rect.left(), rect.top());
-  }
+  const SkRect placed = composerRectOf(impl, *inst);
+  if (!placed.isFinite()) return {};  // laid out by nothing yet
+  const SkPoint origin{placed.left(), placed.top()};
   for (Beat& beat : beats)
     beat.rect = beat.rect.translated(geometry::path::fromSk(origin));
   return beats;

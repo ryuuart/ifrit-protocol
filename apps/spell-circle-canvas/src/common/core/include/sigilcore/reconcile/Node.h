@@ -3,12 +3,15 @@
 /** @file
  * @ingroup core-reconcile
  *
- * The tree skeleton — the four fields every retained node carries for the
+ * The tree skeleton — the five fields every retained node carries for the
  * reconciler: its parent, the description it was resolved from, the memo
- * shell that produced that description when there was one, and its
- * children in tree order. A host's node type derives from this and adds
+ * shell that produced that description when there was one, what that
+ * memo's describe read that can change after it, and its children in tree
+ * order. A host's node type derives from this and adds
  * whatever its phases retain.
  */
+
+#include <sigilcore/follow/Follow.h>
 
 #include <memory>
 #include <vector>
@@ -24,6 +27,10 @@ struct Node {
   Derived* parent = nullptr;
   Description description;  ///< the resolved (post-memo) description
   Description memoShell;  ///< the memo element this node was described through
+  /** What the memo's last describe read that can change after it, at the
+   *  revisions it read; empty for a node no memo produced, and for a memo
+   *  that read nothing followable. */
+  FollowedReads followed;
   std::vector<std::unique_ptr<Derived>> children;
 
  private:

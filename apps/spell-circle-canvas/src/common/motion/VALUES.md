@@ -31,6 +31,19 @@ number now whatever the form — a described motion answers where it
 rests — and `Animatable::isRunning()` says whether the value is declared
 to move: a live value always is, a shaped one when its source is.
 
+**`value()` follows; `peek()` takes a snapshot.** Read inside a memo's
+describe, a live or shaped value's `value()` records the cell it reads as
+one of that describe's inputs, so the memo is described again when the
+number changes. `Animatable::peek()` answers the same number and records
+nothing: a describe that peeks says "as it stands now, do not follow".
+Outside a memo's describe the two read alike. A write that changes a live
+cell's number — the sketch assigning it, an engine animation moving it —
+is what a following describe sees; a write of the number it already holds
+changes nothing. A memo's describe that writes a live value it has
+already read is refused: the cell keeps its number and the refusal is
+reported once, because following it would describe the memo again on
+every describe.
+
 A LIVE value is shared, not copied: `animatable()` makes one cell, and
 every copy reads and writes it, so handing `c` to a property connects the
 property to the number rather than taking a snapshot of it. The cell

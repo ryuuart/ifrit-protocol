@@ -2,13 +2,17 @@
  * The reconciler timed over a fake host, so the numbers are the kernel's
  * own: a cold mount, a warm identical re-describe (every node prunes), one
  * changed leaf among many, a keyed rotation of the child list, a churn
- * that retires and mounts a slice each pass, and a memo hit — each at
- * several node counts.
+ * that retires and mounts a slice each pass, a memo hit, and memos that
+ * follow a counter each, asked at the settle whether it moved — once over
+ * counters that never change and once over counters that all change
+ * every frame — each at several node counts.
  */
 
 #include <benchmark/benchmark.h>
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "FakeHost.h"
 
@@ -123,6 +127,43 @@ void MemoHit(benchmark::State& state) {
   state.SetItemsProcessed(state.iterations() * count);
 }
 
+/** Memos each following its own counter, mounted once; every iteration is
+ *  one settle: the counters written when @p moving, then every memo whose
+ *  counter moved described again. */
+void followingSettle(benchmark::State& state, bool moving) {
+  const int count = (int)state.range(0);
+  std::vector<std::shared_ptr<FakeCounter>> counters;
+  std::vector<Description> children;
+  for (int i = 0; i < count; ++i) {
+    counters.push_back(std::make_shared<FakeCounter>());
+    children.push_back(
+        followingMemo("m" + std::to_string(i), counters.back(), nullptr));
+  }
+  FakeHost host;
+  host.render(description("root", 0, std::move(children)));
+  std::vector<FakeNode*> following = host.following();
+  int frame = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    if (moving) {
+      ++frame;
+      for (const auto& counter : counters) counter->write(frame);
+    }
+    if (host.reconciler.redescribeMoved(following) > 0)
+      following = host.following();
+    host.log.clear();
+    benchmark::DoNotOptimize(host.root);
+  }
+  state.SetItemsProcessed(state.iterations() * count);
+}
+
+void MemoFollowingStill(benchmark::State& state) {
+  followingSettle(state, false);
+}
+
+void MemoFollowingMoving(benchmark::State& state) {
+  followingSettle(state, true);
+}
+
 }  // namespace
 
 BENCHMARK(ColdMount)->Arg(100)->Arg(1000)->Arg(10000);
@@ -131,3 +172,5 @@ BENCHMARK(OneChangedLeaf)->Arg(1000)->Arg(10000);
 BENCHMARK(KeyedRotation)->Arg(1000)->Arg(10000);
 BENCHMARK(Churn)->Arg(1000)->Arg(10000);
 BENCHMARK(MemoHit)->Arg(1000)->Arg(10000);
+BENCHMARK(MemoFollowingStill)->Arg(1000)->Arg(10000);
+BENCHMARK(MemoFollowingMoving)->Arg(1000)->Arg(10000);

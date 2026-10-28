@@ -168,6 +168,10 @@ void Composer::Impl::invalidate(Instance& inst) {
 
 void Composer::Impl::destroy(std::unique_ptr<Instance> inst,
                              uint64_t /*frame*/) {
+  // The key index may name the node retired here until it is rebuilt, so a
+  // query a memo's describe asks before then finds no node rather than a
+  // freed one.
+  keyIndexCurrent = false;
   inst.reset();
 }
 

@@ -130,8 +130,33 @@ struct Composer::Impl : detail::CascadeRoot,
    *  touching another; none when it is the whole canvas. With @p commit
    *  the extents are kept. */
   std::optional<std::vector<SkRect>> changedRegion(bool commit);
-  /** Layout, the cascade and the volatility walk, as a draw runs them. */
+  /** Layout, the cascade and the volatility walk, as a draw runs them,
+   *  after every memo whose followed reads moved is described again. */
   void settleForDraw();
+  /** DESCRIBES AGAIN EVERY MEMO WHOSE DESCRIBE READ A LIVE VALUE THAT HAS
+   *  CHANGED SINCE, once each however many changes landed, and indexes the
+   *  tree it leaves. Answers whether anything was described. */
+  bool redescribeFollowed();
+  /** Whether a live value some memo's describe read has changed since. */
+  bool followedMoved() const;
+  /** Takes the placement of every node a followed query asked about, after
+   *  a layout. Answers whether any moved. */
+  bool advanceFollowedPlacements();
+  /** THE NODE A QUERY ASKS ABOUT, as a memo's describe follows it: the node
+   *  keyed @p key, its placement recorded as a read of the describe being
+   *  followed; or, while no node answers to the key, null, with the key's
+   *  arrival recorded instead. Outside a followed describe, the node or
+   *  null and nothing recorded. */
+  detail::Instance* queriedNode(std::string_view key);
+  // Keys a followed describe asked about while no node answered to them,
+  // each with the answer that advances when one first does.
+  boost::unordered_flat_map<std::string,
+                            std::shared_ptr<detail::FollowedArrival>,
+                            core::KeyHash, std::equal_to<>>
+      awaitedKeys;
+  // Whether the key index names only nodes that stand: lowered by a
+  // retirement, raised by the rebuild after it.
+  bool keyIndexCurrent = true;
 
   // ---- the pixel bakes' surfaces ----
   /** The device or raster layer that receives this canvas's commands. */

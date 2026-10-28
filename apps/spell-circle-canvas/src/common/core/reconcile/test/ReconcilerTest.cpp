@@ -2,7 +2,8 @@
  * The reconciler over a fake host: mount and patch, the identity prune,
  * keyed reorder keeping its handles, identity change keeping the handle and
  * its lanes, retirement stamped with the pass, the remount rule, the memo
- * keyed by its properties, slot content and the key index.
+ * keyed by its properties and by what its describe followed, a memo
+ * described again on its own, slot content and the key index.
  */
 
 #include <gtest/gtest.h>
@@ -314,4 +315,101 @@ TEST(Reconciler, EveryCountItKeepsIsPublishedUnderItsOwnName) {
   EXPECT_EQ(counters.get("reconcile.patched"), 3);
   EXPECT_EQ(counters.get("reconcile.memoHits"), 0);
   EXPECT_EQ(counters.get("reconcile.retired"), 0);
+}
+
+TEST(Reconciler, AMemoRecordsWhatItsDescribeReadAndNothingElse) {
+  FakeHost host;
+  auto counter = std::make_shared<FakeCounter>();
+  int calls = 0, plainCalls = 0;
+  host.render(description(
+      "root", 0,
+      {followingMemo("m", counter, &calls), memoOf("plain", 1, &plainCalls)}));
+  EXPECT_EQ(host.child(0)->followed.size(), 1u);
+  EXPECT_TRUE(host.child(1)->followed.empty());
+  EXPECT_TRUE(host.root->followed.empty());
+  EXPECT_EQ(host.following(), (std::vector<FakeNode*>{host.child(0)}));
+}
+
+TEST(Reconciler, AMemoWhoseReadMovedMissesUnderEqualProperties) {
+  FakeHost host;
+  auto counter = std::make_shared<FakeCounter>();
+  int calls = 0;
+  host.render(description("root", 0, {followingMemo("m", counter, &calls)}));
+  host.render(description("root", 0, {followingMemo("m", counter, &calls)}));
+  EXPECT_EQ(calls, 1) << "nothing it read moved, so the memo hits";
+  counter->write(4);
+  host.render(description("root", 0, {followingMemo("m", counter, &calls)}));
+  EXPECT_EQ(calls, 2);
+  EXPECT_EQ(host.child(0)->description->value, 4);
+  EXPECT_FALSE(host.child(0)->followed.moved());
+}
+
+TEST(Reconciler, RedescribeMovedDescribesOnlyTheMemoWhoseReadMoved) {
+  FakeHost host;
+  auto moving = std::make_shared<FakeCounter>();
+  auto still = std::make_shared<FakeCounter>();
+  int movingCalls = 0, stillCalls = 0;
+  host.render(description("root", 0,
+                          {followingMemo("moving", moving, &movingCalls),
+                           followingMemo("still", still, &stillCalls)}));
+  host.log.clear();
+  EXPECT_EQ(host.reconciler.redescribeMoved(host.following()), 0u);
+  moving->write(1);
+  moving->write(2);
+  EXPECT_EQ(host.reconciler.redescribeMoved(host.following()), 1u)
+      << "two changes before the settle describe once";
+  EXPECT_EQ(movingCalls, 2);
+  EXPECT_EQ(stillCalls, 1);
+  EXPECT_EQ(host.child(0)->description->value, 2);
+  EXPECT_EQ(host.timesAsked(Op::Patch, "moving"), 1u);
+  EXPECT_FALSE(host.asked(Op::Patch, "still"));
+  EXPECT_FALSE(host.asked(Op::Patch, "root"));
+  EXPECT_EQ(host.reconciler.redescribeMoved(host.following()), 0u);
+}
+
+TEST(Reconciler, AMemoUnderAMovedMemoIsDescribedByItsPatchAlone) {
+  FakeHost host;
+  auto counter = std::make_shared<FakeCounter>();
+  int outerCalls = 0, innerCalls = 0;
+  // Both read the one counter: the outer's describe produces the inner
+  // memo, whose own describe runs in the outer's patch.
+  auto outer = description("outer");
+  Memo<Description> memo;
+  memo.properties = 0;
+  memo.equal = [](const std::any&, const std::any&) { return true; };
+  memo.invoke = [&](const std::any&) {
+    ++outerCalls;
+    return description("outer", read(counter),
+                       {followingMemo("inner", counter, &innerCalls)});
+  };
+  outer->memo = std::move(memo);
+  host.render(description("root", 0, {outer}));
+  ASSERT_EQ(host.following().size(), 2u);
+  counter->write(9);
+  EXPECT_EQ(host.reconciler.redescribeMoved(host.following()), 1u);
+  EXPECT_EQ(outerCalls, 2);
+  EXPECT_EQ(innerCalls, 2) << "described once, by the outer's patch";
+  EXPECT_EQ(host.child(0)->children.front()->description->value, 9);
+}
+
+TEST(Reconciler, ARedescribeThatChangesNothingPatchesNothing) {
+  FakeHost host;
+  auto counter = std::make_shared<FakeCounter>();
+  int calls = 0;
+  auto shell = description("m");
+  Memo<Description> memo;
+  memo.properties = 0;
+  memo.equal = [](const std::any&, const std::any&) { return true; };
+  memo.invoke = [&](const std::any&) {
+    ++calls;
+    return description("m", read(counter) > 10 ? 1 : 0);
+  };
+  shell->memo = std::move(memo);
+  host.render(description("root", 0, {shell}));
+  host.log.clear();
+  counter->write(3);
+  EXPECT_EQ(host.reconciler.redescribeMoved(host.following()), 1u);
+  EXPECT_EQ(calls, 2);
+  EXPECT_FALSE(host.asked(Op::Patch, "m"))
+      << "an equal produce is pruned like any other description";
 }

@@ -13,8 +13,10 @@
  */
 
 #include <sigilcore/comparable/Fields.h>
+#include <sigilcore/follow/Follow.h>
 #include <sigilmotion/bind/Binding.h>
 
+#include <concepts>
 #include <cstdint>
 #include <memory>
 #include <tuple>
@@ -29,9 +31,23 @@ namespace detail {
 /** THE CELL a live value is: the number, and whether a motion is writing
  *  it. Every copy of a live `Animatable` shares one, which is what makes a
  *  live value live — the sketch writes it, the engine writes it, and every
- *  property holding a copy reads the same number. */
+ *  property holding a copy reads the same number. It is followable: a
+ *  write that changes the number advances its revision, which is how a
+ *  memo whose describe read it learns it is stale. */
 template <typename T>
-struct Cell {
+struct Cell : core::Followable {
+  /** Writes the number: every writer goes through here, so a change is
+   *  never missed by a describe that followed the cell. A write of the
+   *  number it holds changes nothing, and a write the describe being
+   *  followed would be stale by is refused. */
+  void write(T next) {
+    if (!admitsWrite()) return;
+    if constexpr (std::equality_comparable<T>)
+      if (value == next) return;
+    value = std::move(next);
+    advance();
+  }
+
   T value{};
   /** Which motion may write the cell: a motion started on it takes the
    *  next number, and one holding an older number has been replaced and
@@ -50,10 +66,10 @@ struct Cell {
  * move takes, and the one a sketch holds for a number it drives.
  *
  *     Animatable<float> opacity = 1.0f;                       // a constant
- *     Animatable<float> fade = animate({.from = 0.0f, .to = 1.0f});  // a described motion
- *     Animatable<float> wave = animatable(0.0f);              // a live value you write
- *     wave = std::sin(seconds);
- *     Animatable<float> tilt = bind(wave, {.to = {-8, 8}});   // a live value, shaped
+ *     Animatable<float> fade = animate({.from = 0.0f, .to = 1.0f});  // a
+ * described motion Animatable<float> wave = animatable(0.0f);              // a
+ * live value you write wave = std::sin(seconds); Animatable<float> tilt =
+ * bind(wave, {.to = {-8, 8}});   // a live value, shaped
  *
  * A constant is animatable too: the name says what the slot CAN hold, not
  * what it is doing.
@@ -97,7 +113,7 @@ class Animatable {
    *  other form becomes that constant. */
   Animatable& operator=(T value) {
     if (m_form == Form::Live) {
-      m_extra->cell->value = std::move(value);
+      m_extra->cell->write(std::move(value));
     } else {
       m_form = Form::Constant;
       m_constant = std::move(value);
@@ -108,8 +124,20 @@ class Animatable {
 
   /** THE VALUE NOW: a live value's number, a shaped one's source run
    *  through its stages, a constant, or a described motion's settled
-   *  value — where it rests when it is not moving. */
+   *  value — where it rests when it is not moving. Read inside a memo's
+   *  describe, a live or shaped value is FOLLOWED: the memo is described
+   *  again when the number changes. `peek()` reads it without following. */
   [[nodiscard]] T value() const {
+    if (m_form == Form::Live || m_form == Form::Bound)
+      if (core::FollowedReads* reads = core::following())
+        reads->note(followed());
+    return peek();
+  }
+
+  /** THE VALUE NOW, AS IT STANDS: `value()` without following — a memo's
+   *  describe that peeks takes the number once and is not described again
+   *  when it changes. Outside a memo's describe the two read alike. */
+  [[nodiscard]] T peek() const {
     switch (m_form) {
       case Form::Constant:
         return m_constant;
@@ -119,11 +147,20 @@ class Animatable {
         return m_extra->cell->value;
       case Form::Bound:
         if constexpr (std::is_same_v<T, float>)
-          return m_extra->binding.apply(m_extra->source->value());
+          return m_extra->binding.apply(m_extra->source->peek());
         else
           return m_constant;
     }
     return m_constant;
+  }
+
+  /** The cell a read of this value follows — its own, or, for a shaped
+   *  value, the one its source reads — and null for a constant or a
+   *  described motion. */
+  [[nodiscard]] std::shared_ptr<const core::Followable> followed() const {
+    if (m_form == Form::Live) return m_extra->cell;
+    if (m_form == Form::Bound) return m_extra->source->followed();
+    return nullptr;
   }
 
   /** WHETHER THE VALUE IS DECLARED TO MOVE: a live value always is — the
@@ -236,8 +273,8 @@ namespace detail {
  *  converts from anything its value does, which a counted pin cannot see
  *  past, so this one is spelled out. */
 inline auto fields(Tween<float>& tween) {
-  auto& [from, to, keyframes, duration, delay, ease, loop, loopDelay,
-         alternate, composition] = tween;
+  auto& [from, to, keyframes, duration, delay, ease, loop, loopDelay, alternate,
+         composition] = tween;
   return std::tie(from, to, keyframes, duration, delay, ease, loop, loopDelay,
                   alternate, composition);
 }

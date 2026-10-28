@@ -79,6 +79,7 @@ sigil_library(SigilComposeCore
     runtime/Exits.cpp
     runtime/ComposerImpl.h
     runtime/FillPath.h
+    runtime/FollowedAnswers.h
     runtime/HeldBakes.h
     runtime/Instance.h
     runtime/Lanes.h
@@ -202,7 +203,8 @@ sigil_shader_sources(SigilComposeCore
 sigil_test(compose_test
   SOURCES test/ComposeTestLayout.cpp test/ComposeTestGrid.cpp
           test/ComposeTestContent.cpp
-          test/ComposeTestReconcile.cpp test/ComposeTestCaching.cpp
+          test/ComposeTestReconcile.cpp test/ComposeTestFollowing.cpp
+          test/ComposeTestCaching.cpp
           test/ComposeTestMotion.cpp test/ComposeTestExits.cpp
           test/ComposeTestBakeReuse.cpp test/ComposeTestBakeFormat.cpp
           test/ComposeTestGroupSettling.cpp

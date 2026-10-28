@@ -6,8 +6,10 @@ The kernels a retained runtime is built on, and the leaves under them.
 a tree the host retains, so that only what changed is touched. It owns the
 shape of that tree: which retained node answers to which description
 (matched by key, then by position), the memo that skips a describe whose
-inputs did not change, the identity prune that leaves an unchanged node
-alone, and the counts of what a pass did.
+inputs did not change — its properties, and the shared values its describe
+read, which it follows and describes again when they change — the
+identity prune that leaves an unchanged node alone, and the counts of what
+a pass did.
 
 **The caching proof** — what a host may keep between frames. Given what a
 host declares about one node and what its children answered, it decides
@@ -20,7 +22,7 @@ paint caches, running motions — is the host's, reached through named
 operations the host implements on itself. That is the line both kernels
 draw: they own the DECISION, the host owns the THING.
 
-Under the kernels are six leaves, which libraries far from any reconciler
+Under the kernels are seven leaves, which libraries far from any reconciler
 link on their own.
 
 **Comparable** — what a value needs before anything can decide it did not
@@ -62,6 +64,16 @@ sits here: a 2D backend and a 3D engine can stand on one device, name the
 same texture and read the same fence, and neither has to link the other. A
 host that holds one never spells a graphics API.
 
+**Follow** — what a describe read that can change after it. A shared
+value a describe can read — a live number a sketch writes — derives from
+`sigil::core::Followable` and advances its revision on every write that
+changes it; a host opens a `sigil::core::FollowScope` around a describe,
+and every such value read inside lands in a `sigil::core::FollowedReads`
+with the revision it stood at, once per value. The describe is stale
+exactly when one of those revisions has moved. The reconciler follows every
+memo's describe through it, and SigilMotion makes a live value's cell
+followable through it, so both link this leaf and neither links the other.
+
 **Report** — the one door a library's warning goes out through. A library
 that has something to say and no caller to say it to calls
 `sigil::core::report` with its own name and the message; the line is
@@ -84,7 +96,8 @@ catalog. One target per directory:
 | `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form, the shaped curve, the degrees-to-radians rounding |
 | `SigilCoreCallable` | `callable/` | the prefix search, the concept over it, and the type-erased call a verb holds one in |
 | `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
-| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the phase runner, the order declared reads imply |
+| `SigilCoreFollow` | `follow/` | the followable value and its revision, the record of what one describe read, and the scope that records it |
+| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo and what the memo follows, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
 | `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
 | `SigilCoreReport` | `report/` | the reporting door: `report`, the installed `Reporter`, and the one line format; the `Error` a refusing door answers |
@@ -95,14 +108,17 @@ everything else is a static library. `SigilCoreComparable` takes the
 standard library and Boost.PFR, `SigilCoreCompute` and `SigilCoreCallable`
 the standard library alone, `SigilCoreSchedule` oneTBB
 privately, and `SigilCoreReconcile` Boost.Unordered with Boost.ContainerHash
-for its keyed indices, and `SigilCoreReport` the standard library alone. `SigilCoreHardware` takes the graphics API and
+for its keyed indices with `SigilCoreFollow` for what a memo follows,
+`SigilCoreFollow` the reporting door alone, and `SigilCoreReport` the
+standard library alone. `SigilCoreHardware` takes the graphics API and
 nothing else. Consumers still link only the feature they use, without
 pulling in a drawing or layout library.
 
 Every public header lives under `include/sigilcore/<feature>/` and is
 spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,
 `<sigilcore/callable/Callable.h>`,
-`<sigilcore/schedule/X.h>`, `<sigilcore/reconcile/X.h>` or
+`<sigilcore/schedule/X.h>`, `<sigilcore/follow/Follow.h>`,
+`<sigilcore/reconcile/X.h>` or
 `<sigilcore/cache/X.h>`; `<sigilcore/cache/Cache.h>` includes its own
 directory's headers. The hardware feature's are
 `<sigilcore/hardware/GpuDevice.h>`, `<sigilcore/hardware/Handle.h>` and
@@ -117,7 +133,7 @@ everything below is the library as a whole.
 
 | chapter | what it covers |
 |---------|----------------|
-| **[RECONCILE.md](RECONCILE.md)** | the reconciler over a host: the prune, keyed matching, the memo and its key, declared reads, and the phase runner |
+| **[RECONCILE.md](RECONCILE.md)** | the reconciler over a host: the prune, keyed matching, the memo and its key, the values a memo follows and the follow leaf under them, declared reads, and the phase runner |
 | **[CACHE.md](CACHE.md)** | the caching proof: the policy, the settled-subtree verdict, the stability release, the bake seam and the rebuild guard |
 | **[COMPARABLE.md](COMPARABLE.md)** | `Erased<Ops>` and `kFieldCount<T>`: what a value needs before anything can decide it did not change |
 | **[COMPUTE.md](COMPUTE.md)** | the mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form and the shaped curve |
@@ -160,9 +176,11 @@ pin. That is the
 whole point of them: a library anywhere in the tree can link one without
 acquiring a kernel, and SigilMotion is one of the libraries that does, for
 the pin its own comparators sit under. SigilCoreReconcile links
-SigilCoreComparable (the erased seam value and the field pin) and
+SigilCoreComparable (the erased seam value and the field pin),
+SigilCoreFollow (what a memo's describe read that can change after it) and
 SigilMeasure (the published counts), and nothing that draws, lays out,
-shapes text or animates. SigilCoreSchedule links nothing of this project's
+shapes text or animates. SigilCoreFollow links the reporting door alone,
+for the one report a refused write makes. SigilCoreSchedule links nothing of this project's
 either: a task runtime, privately, and the standard library's threads. That
 privacy is the feature — a consumer hands over a count, a grain and a body,
 so no header in this repository spells a task runtime, and the one that
@@ -203,7 +221,8 @@ what a label promises. What is only true of SigilCore:
 | `comparable/test/` | `Erased`, `Fields` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes |
 | `compute/test/` | `Angle`, `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `ChanceStream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field`, `NoiseField`, `Curve` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points; the curve, held to what makes it a value and to the character each house shape is chosen for; the angle conversion, pinned to the nearest float of each exact ratio and held against the two spellings that round twice; the angle that names its unit, read from CSS text in each of the four units and refused without one, reaching its own measure unchanged |
 | `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |
-| `reconcile/test/` | `Reconciler`, `Phases`, `Reads` | the reconciler over a fake host, the phase runner and the read ordering |
+| `follow/test/` | `CoreFollow` | a read inside a scope recorded once at its revision, a changing write making the record stale and an equal one not, nothing recorded outside a scope, nested scopes, and a write of a value the followed describe read refused and reported once |
+| `reconcile/test/` | `Reconciler`, `Phases`, `Reads` | the reconciler over a fake host — a memo keyed by its properties and by the counters its describe read, described again alone when one moved — the phase runner and the read ordering |
 | `cache/test/` | `CacheProof`, `Volatility`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |
 | `report/test/` | `CoreReport`, `CoreError` | the one line format, the standard error when no reporter is installed, and an installed reporter hearing a warning in its place; the error's line and code unset until stated, compared as a value and carried as the refusing side of an expected answer |
 | `hardware/test/` | `HardwareHandle`, `MipChain` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows |
@@ -250,4 +269,6 @@ they are spent; the schedule arms time a divided range over a body that
 does nothing but touch its item, at three sizes, so what is measured is
 the split rather than any consumer's arithmetic; the reconcile and cache
 arms time the reconciler and the proof over the fake hosts at several
-node counts; and the hardware arms time the device.
+node counts, with the memo that follows a counter timed at the settle once
+over counters that never change and once over counters that all change
+every frame, beside the memo hit; and the hardware arms time the device.
