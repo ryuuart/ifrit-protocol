@@ -219,3 +219,35 @@ one, so a bar at half the figure colour's alpha keeps a theme read; CSS's
 relative colour syntax says the same property at a stated alpha. A test
 should find a fill of property p at alpha 0.5 painting p's colour at half
 alpha where p is in force.
+
+## A text leaf in a column shrinks below its lines
+
+Yoga floors a flex item at zero and compose adds no automatic minimum, so
+a text leaf in an over-full column is laid out shorter than its lines
+unless it states `flexShrink(0)`, while CSS floors an item whose minimum
+is unstated at its content size. Giving a horizontal, non-clipping text
+leaf that floor moves twenty device plates, so it waits on that adoption.
+A test should find a leaf with its minimum unstated keeping its lines'
+height and only `minHeight(0)` letting it shrink.
+
+## A box in a column and text in a row shrink to nothing
+
+A box in an over-full column and a text leaf in an over-full row shrink
+to zero, while CSS floors a non-clipping item at its content, the longest
+unbreakable word for text. A test should find a box with stated height H
+in an over-full column keeping the smaller of H and its content height.
+
+## A text leaf's alignment goes stale when only its parent changes
+
+The rule that a text leaf aligned to stretch is laid out at its start
+reads the parent's `alignItems` only when the leaf's own style is
+written, so a describe that changes only the parent's alignment or
+direction leaves the child where it was. A test should find a parent
+changed from centred to stretched items moving its text child to the
+start edge.
+
+## The box page says a box's main axis is a row
+
+`reference/pages/elements/box.md` says a box lays out as a row unless it
+says otherwise, while `LayoutProps::direction` and the README say
+column. A test should keep the page saying column.
