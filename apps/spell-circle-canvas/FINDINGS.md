@@ -220,16 +220,6 @@ relative colour syntax says the same property at a stated alpha. A test
 should find a fill of property p at alpha 0.5 painting p's colour at half
 alpha where p is in force.
 
-## A text leaf in a column shrinks below its lines
-
-Yoga floors a flex item at zero and compose adds no automatic minimum, so
-a text leaf in an over-full column is laid out shorter than its lines
-unless it states `flexShrink(0)`, while CSS floors an item whose minimum
-is unstated at its content size. Giving a horizontal, non-clipping text
-leaf that floor moves twenty device plates, so it waits on that adoption.
-A test should find a leaf with its minimum unstated keeping its lines'
-height and only `minHeight(0)` letting it shrink.
-
 ## A box in a column and text in a row shrink to nothing
 
 A box in an over-full column and a text leaf in an over-full row shrink
@@ -333,3 +323,21 @@ About forty-six sketches reach `compose::kit::formatted`, `custom()`,
 builder header, which includes the compose kit, while a sketch is meant
 to include what it uses. A test should find every sketch compiling with
 `Page.h` slimmed to the headers its own declarations need.
+## A stamped plaque's line box crosses its plate's clip
+
+fallout2_charsheet's top plaques set 25-pixel stamped type whose 61-pixel
+line box is centred in a 52-pixel plate, so the line box crosses the
+plate's top clip and the over-full report names NARG, AGE 20 and MALE;
+the type is meant to fit its plaque. A test should find each plaque's
+column fitting its box with no report in a headless render.
+
+## Text keeping its lines overflows short boxes in nine sketches
+
+With a text leaf keeping its lines, the headless sweep reports a column
+too short for its text in crt_bloom (PHOSPHOR in a zero-height column),
+elastic_type (the rest columns and the caption column), genesis_fire's
+first panel, sigillum_aemeth's foot, twoadvanced_v4's aux row, and by
+two to six pixels in channel_bind, resource_hub, axis_ripple and
+lain_navi; each sketch's text is meant to fit the box it is set in. A
+test should find a headless sweep of these sketches saying no over-full
+report.
