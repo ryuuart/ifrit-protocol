@@ -127,7 +127,7 @@ struct CardFlip {
     // MID-TURN. At 2.2 s the card is past its quarter turn and the back
     // has just taken over, the cube shows three faces at an oblique, and
     // the plate is near the end of its sway.
-    sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(),
                              .size = kCanvas,
                              .captureAt = 2.2});
     flip = 0;

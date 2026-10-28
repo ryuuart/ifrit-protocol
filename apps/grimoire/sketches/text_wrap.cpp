@@ -85,15 +85,15 @@ Element row(const char* name, std::vector<Element> specimens) {
 struct TextWrapSpecimen {
   void setup(sketch::Scene2DContext& ctx) {
     // The feature sheet leaves the passages at their authored measure.
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", 48)
-                      .var("spacing-margin-top", 44)
-                      .var("spacing-margin-bottom", 28),
-         .size = kSceneSize,
-         .captureAt = 0.2});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-margin-horizontal", 48)
+                                          .var("spacing-margin-top", 44)
+                                          .var("spacing-margin-bottom", 28),
+                        .size = kSceneSize,
+                        .captureAt = 0.2});
     ctx.composer.render(describe());
   }
 

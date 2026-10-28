@@ -4,48 +4,48 @@ A specimen sheet in this repository is a page with a title, a subtitle
 and a footer, ruled off from a run of captioned cells, each cell a
 picture in a grounded well with the call over it and the remark under.
 **This library is that sheet, stated once.** The colours, the registers,
-the margins and the rules come from one theme value, and the arrangement
+the margins and the rules come from one stylesheet, and the arrangement
 from one call each, so the file someone opens to study `Border`'s four
 modes is a file about `Border`'s four modes and not about furniture.
 
-What it is not is a place a look is decided. `Theme` is a **seam** — a
-plain comparable struct — and `houseTheme()` is one **stock value** over
-it. A sketch's own theme is indistinguishable from the house one at every
-call site, and a sketch that names no theme on its stage is set in the
-house one.
+What it is not is a place a look is decided. A look is a
+`compose::StyleSheet`, and the stock looks are stock stylesheets — values
+among peers, each built once and held. A sketch's own stylesheet is
+indistinguishable from them at every call site, and a sketch that names
+none on its stage stands on the house custom properties alone.
 
-`studyTheme()` is a second stock value for comparative studies. It gives the
-page a larger heading, brighter notes and wider margins while keeping the
-house ground and specimen components. Name it on the stage; a specimen that
-wants one distance or one colour otherwise says so in rules the stage joins
-after it (`Stage::sheet`). The stock themes hold their resolved faces across
-calls.
+`<sigilsketch/kit/StyleSheets.h>` declares the stock stylesheets a stage
+names:
 
-`specimenTheme()` keeps the house sheet's compact margins while giving API
-comparisons a readable heading and brighter notes. Fixed specimen wells keep
-their measure, and each sketch supplies a short title with its explanation
-in the subtitle and captions.
+- `houseStyleSheet()` — the role rules, classes and custom properties
+  most of this repository's specimen sheets are set in.
+- `studyStyleSheet()` — for comparative studies: a larger heading,
+  brighter notes and wider margins over the house ground and specimen
+  components.
+- `specimenStyleSheet()` — the house sheet's compact margins with a
+  readable heading and brighter notes for API comparisons, so fixed
+  specimen wells keep their measure.
+- `featureStyleSheet(Density)` — the shared presentation for feature
+  demonstrations: slate grounds, ivory headings, pale gold readings,
+  interface labels and terminal controls. `Density::Compact` keeps 24 px
+  side margins and a 22 px title for fixed specimen grids;
+  `Density::Spacious` uses 40 px side margins and a 30 px title for pages
+  of comparisons and explanations. The figures keep their authored
+  dimensions in either density.
+- `darkStyleSheet()` — the dark sheet in the terminal voice an
+  instrument or a live demonstration stands on: a near-black ground, a
+  warm off-white ink, a grey ash, interface headings, and the terminal
+  face as the face a call is set in. Its `label` class is an
+  instrument's label — the terminal face at 12 px, tracked 2 px, in the
+  ash — so a dial's caption is `text(words).styleClass("label")`.
 
-`darkTheme()` is the dark sheet in the terminal voice an instrument or a
-live demonstration stands on: a near-black ground, a warm off-white ink, a
-grey ash, interface headings, and the terminal face as the face a call is
-set in. Its `label` register is an instrument's label — the terminal face
-at 12 px, tracked 2 px, in the ash — so a dial's caption is
-`text(words).styleClass("label")`.
-
-`featureTheme()` is the shared presentation for feature demonstrations:
-slate grounds, ivory headings, pale gold readings, interface labels and
-terminal controls. `Density::Compact` keeps 24 px side margins and a 22 px
-title for fixed specimen grids; `Density::Spacious` uses 40 px side margins
-and a 30 px title for pages of comparisons and explanations. The figures
-keep their authored dimensions in either density. The stage names the
-theme once, and every tree the sketch renders afterwards — an update that
-rebuilds it included — stands under it. Reference studies choose their own
-theme.
+The stage names the stylesheet once, and every tree the sketch renders
+afterwards — an update that rebuilds it included — stands under it.
+Reference studies choose their own.
 
 ```cpp
 sketch::kit::stage(
-    ctx, {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+    ctx, {.styleSheet = sketch::kit::featureStyleSheet(sketch::kit::Density::Spacious),
           .size = {1100, 640}});
 ctx.composer.render(sketch::kit::page(
     {.title = "Corner shapes", .subtitle = "One outline, three corner treatments"},
@@ -70,44 +70,44 @@ struct BorderWeave {
 };
 ```
 
-## The theme, and why it is inherited rather than passed
+## The stylesheet, and why it is inherited rather than passed
 
-`Theme` holds three values and one choice: a `Palette` of eight colours, a
-`TypeScale` of eight `Register`s and two faces, a `Spacing` of the
-distances a sheet is set by, and where the caption lines of its `voice()`
-stand.
+**The stylesheet flows downstream only.** `Stage::styleSheet` is the
+stage's one slot for the look. The stage applies it once, at the root of
+whatever the sketch renders, through `Composer::setStyleSheet`, and from
+there everything reaches a node as what the cascade carries: the spacing
+and the palette as custom properties, the registers as document roles
+and classes. Nothing under the stage reads a look back while it
+describes, and nothing applies the stage's stylesheet again on a subtree
+the stage already covers.
 
-**The theme flows downstream only.** The stage applies it once, at the
-root of whatever the sketch renders, and from there everything reaches a
-node as what the cascade carries: the spacing and the palette as custom
-properties, the registers as document roles and classes. Nothing under
-the stage reads the `Theme` value back while it describes, nothing applies
-the theme's sheet again on a subtree the stage already covers, and a
-variant of a stock look is rules joined at the stage, never a copied
-theme with a number changed.
+Under the stylesheet stand the house custom properties, so a stylesheet
+of a few rules still finds every spacing and palette property a
+component reads; a stock stylesheet sets every one of them again. A
+stage that names no stylesheet applies the house custom properties
+alone, and none of the house role rules, so a study that sets its own
+type keeps it.
 
-It arrives as one sheet, `Theme::styleSheet()`: rules for the document
-roles its registers style, and the spacing and the palette as custom
-properties on the node it is applied on. `stage()` applies it through
-`Composer::setStyleSheet`, followed by the stage's own `Stage::sheet`;
-a tree outside a sketch applies it on its own root with
-`applyStyleSheet()`:
+**A stylesheet plus a rule is a stylesheet.** A variant of a stock look
+is that look with rules joined after it by `+`, never a copied look
+with a number changed:
 
 ```cpp
 sketch::kit::stage(
-    ctx, {.theme = sketch::kit::houseTheme(),
-          .sheet = compose::StyleSheet{
-              compose::rule(":root")
-                  .var("palette-ground", material::Color{0.945f, 0.937f, 0.918f, 1})
-                  .var("palette-ink", material::Color{0.114f, 0.106f, 0.098f, 1})
-                  .var("spacing-caption-gap", 8)},
+    ctx, {.styleSheet = sketch::kit::houseStyleSheet() +
+                        compose::rule(":root")
+                            .var("palette-ground", material::Color{0.945f, 0.937f, 0.918f, 1})
+                            .var("palette-ink", material::Color{0.114f, 0.106f, 0.098f, 1})
+                            .var("spacing-caption-gap", 8),
           .size = {900, 640}});
-ctx.composer.render(sketch::kit::page({…}, content));  // under the sheet
+ctx.composer.render(sketch::kit::page({…}, content));  // under the stylesheet
 ```
 
-A `palette-ground` the stage's sheet sets on `:root` is the canvas's ground
-as well, where `Stage::background` names none. Python spells the same door
-`@sketch(theme=look, sheet=...)`.
+The last `palette-ground` colour a `:root` rule of the stage's
+stylesheet sets is the canvas's ground as well, where
+`Stage::background` names none. A tree outside a sketch applies a
+stylesheet on its own root with `applyStyleSheet()`. Python spells the
+same door `@sketch(styleSheet=...)` and `kit.stage(ctx, styleSheet=...)`.
 
 A component never reads a look while it is described: a distance is a
 length written `compose::var("spacing-…")`, a colour a fill written
@@ -116,30 +116,16 @@ paint program reads the properties in force through
 `PaintContext::vars`. Everything resolves later from the retained tree, so
 a component built before its parent still lands in that parent's look.
 
-A `Register` says how one line is set, as a rule does: its size, its
-letter spacing, which of the theme's two faces it takes — and, for the line
-neither of those is, `Register::face`, the face that line names for
-itself — the OpenType features it asks for (`Register::features`, such as
-`{{"tnum", 1}}` for a count that must not twitch), and, where the line is
-not set in the colour its role names, `Register::ink`. A masthead whose
-title is a display cut standing over an eyebrow in a grotesque and a
-subtitle in the text face is three faces, and a theme carries two. The
-theme's sheet writes each register with the CSS verbs — `fontFamily`,
-`fontSize`, `letterSpacing`, `fontFeatureSettings`, `ink` — so a paint
-program reads its features back from the font in force like any other
-field.
-
 **The document kit owns the text vocabulary.** Components use
 `compose::document::h1`, `compose::document::h2`,
 `compose::document::lead`, `compose::document::label`,
 `compose::document::caption`, `compose::document::eyebrow` and
 `compose::document::footer`. Each returns an ordinary Element with a
 semantic role. The role has useful fallback typography; a matching rule
-in the sheet where it lands styles every instance of that role.
+in the stylesheet where it lands styles every instance of that role.
 
-`Theme::font(line)` gives a register as a partial `weave::Type`.
-`Theme::styleSheet()` maps the theme's registers onto document roles, the
-label and the caption as classes too:
+Every stock stylesheet maps its registers onto document roles, the label
+and the caption as classes too:
 
 | Register | Document role | Colour |
 | --- | --- | --- |
@@ -156,10 +142,10 @@ label and the caption as classes too:
 #include <sigilcompose/kit/Document.h>
 
 sketch::kit::stage(
-    ctx, {.theme = sketch::kit::featureTheme(),
-          .sheet = compose::StyleSheet{
-              compose::rule("h1").fontSize(30),
-              compose::rule("caption").fontSize(12)}});
+    ctx, {.styleSheet = sketch::kit::featureStyleSheet() +
+                        compose::StyleSheet{
+                            compose::rule("h1").fontSize(30),
+                            compose::rule("caption").fontSize(12)}});
 ctx.composer.render(sketch::kit::page(
     {.title = "THE STROKE ATLAS"},
     compose::document::section({
@@ -170,7 +156,7 @@ ctx.composer.render(sketch::kit::page(
 
 A role rule overrides the component's fallback fields. A rule for an
 authored `styleClass()` outweighs a rule for the role, and the node's own
-verbs override both. A later or nearer sheet's rule of
+verbs override both. A later or nearer stylesheet's rule of
 the same weight overrides the fields it names; other fields remain in
 force. A component's stock role is separate from its classes, so adding a
 class never removes its semantic identity.
@@ -180,28 +166,82 @@ caption-label register in `Palette::figure`. Eight `.plot` classes dress
 chart marks and labels. These data treatments are separate from the
 heading and prose hierarchy.
 
-The sheet also sets the theme's numbers and colours as custom properties
+A stock stylesheet also sets its numbers and colours as custom properties
 on the node it is applied on (its `:root`), so a component reads one where
 it uses it and the cascade carries it down: a length written
-`compose::var("spacing-cell-gap")` lays out at the theme's `Spacing::cellGap`,
-and a fill written `compose::var("palette-figure")` fills in its
-`Palette::figure`.
+`compose::var("spacing-cell-gap")` lays out at the stylesheet's cell gap,
+and a fill written `compose::var("palette-figure")` fills in its figure
+colour.
 The names follow one scheme: the register, then the field in full words,
 hyphenated — `spacing-margin-horizontal`, `spacing-content-gap`,
 `spacing-chip-padding-horizontal`, `palette-cell-ground` — one for every
 field of `Spacing` and `Palette`. A value a component scales is its own
-property, computed by the sheet rather than at the use site:
+property, computed by the stylesheet rather than at the use site:
 `spacing-rule-gap` is half the content gap and
 `spacing-plate-padding-vertical` is six tenths of the panel padding, so a
 variant at the stage that sets `spacing-content-gap` or
 `spacing-panel-padding` states the scaled one beside it.
 
-A sketch's own rules join the theme's at the stage, through
-`Stage::sheet`. A panel can apply a nearer sheet of rules of its own when
-its content has a separate treatment; it does not apply the stage's theme
-again. Layout remains ordinary Compose layout;
-`compose::document::article` and other document groups additionally
-read inherited document variables for measure and spacing.
+A panel can apply a nearer stylesheet of its own when its content has a
+separate treatment; it does not apply the stage's stylesheet again.
+Layout remains ordinary Compose layout; `compose::document::article` and
+other document groups additionally read inherited document variables for
+measure and spacing.
+
+**It costs the prune nothing.** A component's description holds the
+property's NAME, never its value, so a description under one stylesheet
+is the description under another: the reconciler's structural comparison
+prunes it either way, and the cascade pass alone resolves the numbers and
+the colours where the node lands.
+
+**The stage names the stylesheet once.** The stylesheet stands on the
+composer, at the root of every tree the sketch renders, so a sketch that
+describes again — from `update()`, when its data changes — needs no
+second statement of it, and no root fill in its ground either: the
+canvas and the page already paint it. A subtree in a genuinely different
+look applies that look's stylesheet on its own root, which shadows the
+stage's for that subtree alone.
+
+**A paint program reads the properties in force.** A `custom()` program
+runs when the kernel paints, so it reads the palette and the spacing
+through `PaintContext::vars`, and text it sets in a register through the
+font in force on its node, whose role or class names the register.
+
+## The builder, for a look no stock stylesheet is
+
+`<sigilsketch/kit/Theme.h>` is the builder every stock stylesheet is made
+from, and the door to a look of a sketch's own. `Theme` holds three
+values and one choice: a `Palette` of eight colours, a `TypeScale` of
+eight `Register`s and two faces, a `Spacing` of the distances a sheet is
+set by, and where the caption lines of its `voice()` stand.
+`Theme::styleSheet()` is the stylesheet it makes — role rules, classes,
+and `Theme::properties()`, the spacing and the palette as custom
+properties alone — and `featureStyleSheet(density)` is exactly
+`featureTheme(density).styleSheet()`, built once and held; `houseTheme()`,
+`studyTheme()`, `specimenTheme()` and `darkTheme()` build the others. A
+sketch whose look no variant by `+` can reach — a whole palette of its
+own, a face a register is set in — copies a builder, writes its fields,
+and names what `styleSheet()` makes on its stage:
+
+```cpp
+sketch::kit::Theme paper = sketch::kit::houseTheme();
+paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
+paper.type.sans = sketch::kit::houseFace(sketch::kit::Voice::Book);
+sketch::kit::stage(ctx, {.styleSheet = paper.styleSheet()});
+```
+
+A `Register` says how one line is set, as a rule does: its size, its
+letter spacing, which of the builder's two faces it takes — and, for the
+line neither of those is, `Register::face`, the face that line names for
+itself — the OpenType features it asks for (`Register::features`, such as
+`{{"tnum", 1}}` for a count that must not twitch), and, where the line is
+not set in the colour its role names, `Register::ink`. A masthead whose
+title is a display cut standing over an eyebrow in a grotesque and a
+subtitle in the text face is three faces, and a builder carries two. The
+stylesheet writes each register with the CSS verbs — `fontFamily`,
+`fontSize`, `letterSpacing`, `fontFeatureSettings`, `ink` — so a paint
+program reads its features back from the font in force like any other
+field. `Theme::font(line)` gives a register as a partial `weave::Type`.
 
 The face a register takes comes from somewhere, and four fallback runs
 recur across this repository's sheets: the book face, the terminal face,
@@ -216,42 +256,24 @@ paper.type.sans = sketch::kit::houseFace(sketch::kit::Voice::Book);
 paper.type.mono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 ```
 
-**It costs the prune nothing.** A component's description holds the
-property's NAME, never its value, so a description under one theme is
-the description under another: the reconciler's structural comparison
-prunes it either way, and the cascade pass alone resolves the numbers and
-the colours where the node lands. `Theme` and everything in it still
-compares **exactly** — never perceptually, never epsilon'd — and the mono
-face is resolved once and held rather than per call, because a face is
-compared by pointer and two resolutions of one family never compare
-equal.
-
-**The stage names the theme once.** The sheet stands on the composer, at
-the root of every tree the sketch renders, so a sketch that describes
-again — from `update()`, when its data changes — needs no second
-statement of it, and no root fill in the theme's ground either: the
-canvas and the page already paint it. A subtree in a genuinely different
-look applies that look's sheet on its own root, which shadows the stage's
-for that subtree alone.
-
-**A paint program reads the properties in force.** A `custom()` program
-runs when the kernel paints, so it reads the palette and the spacing
-through `PaintContext::vars`, and text it sets in a register through the
-font in force on its node, whose role or class names the register.
+`Theme` and everything in it compares **exactly** — never perceptually,
+never epsilon'd — and the mono face is resolved once and held rather
+than per call, because a face is compared by pointer and two resolutions
+of one family never compare equal.
 
 ## The components
 
-Each takes a props struct, reads the theme, and returns an Element built
-by plain composition over `compose::kit`. Props are the caller's facts;
-the theme is the look. Children arrive as Elements and slots as props, so
+Each takes a props struct, reads the stylesheet in force, and returns an
+Element built by plain composition over `compose::kit`. Props are the
+caller's facts; the stylesheet is the look. Children arrive as Elements and slots as props, so
 a component nests inside another the way a box does — which is the point:
 a sketch is meant to read as its algorithm plus a run of these calls, not
 as a thousand lines of furniture.
 
-**A COMPONENT'S TYPE IS THE THEME'S, NEVER A PROP.** No props struct here
+**A COMPONENT'S TYPE IS THE STYLESHEET'S, NEVER A PROP.** No props struct here
 carries a face, a size or a colour for the words it sets: the register the
 line is set in is fixed by the component, and what that register looks
-like is the theme's. A line that must be a step quieter than its register
+like is the stylesheet's. A line that must be a step quieter than its register
 says so with an ink (`Line::ink`), which is a colour and not a type. **A
 text prop is a `compose::Utf8`** — it takes `"…"` and `u8"…"`, a
 `std::string` and a `std::u8string` alike — so a sketch writes
@@ -260,7 +282,7 @@ text prop is a `compose::Utf8`** — it takes `"…"` and `u8"…"`, a
 Every component field that paints an area uses `compose::Fill` from
 `<sigilcompose/core/Paint.h>`. It accepts a colour fill, a reference, a
 material paint or a recipe directly. Neutral Compose wells and sheets
-accept the same value. Theme wrappers resolve defaults, then pass
+accept the same value. The kit's wrappers resolve defaults, then pass
 that value through unchanged. Pass it to `compose::Element::fill` when
 painting an Element directly.
 
@@ -268,14 +290,14 @@ painting an Element directly.
 
 | | |
 | --- | --- |
-| `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpecification`, with the ground taken from the theme unless the stage names one. A SCENE3D SKETCH takes the same value through the `Scene3DContext` overload; the viewpoint is not on it, because a camera is a fact about the scene and `Scene3DContext::camera` is the fallback for the sketch that states none |
+| `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpecification`, with the ground taken from the stage's stylesheet unless the stage names one. A SCENE3D SKETCH takes the same value through the `Scene3DContext` overload; the viewpoint is not on it, because a camera is a fact about the scene and `Scene3DContext::camera` is the fallback for the sketch that states none |
 | `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer in document roles `h1`, `lead` and `footer`, its margins, its ground and its hairline |
-| `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on; with a `recess`, the hole punched in one; with a `relief`, the piece standing proud of one. THE SURFACE IS THE WELL: the spec is written onto the element handed in, which is what a drawing sized to its plate wants |
+| `well(Well, surface)` | the fixed surface a specimen is shown in, on the stylesheet's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on; with a `recess`, the hole punched in one; with a `relief`, the piece standing proud of one. THE SURFACE IS THE WELL: the spec is written onto the element handed in, which is what a drawing sized to its plate wants |
 | `well({…, .content = Well::Content{}}, picture)` | THE WELL THAT HOLDS: the plate is a surface of its own and the picture stands inside it at its own measure, ranged as `content` says and centred where it says nothing else — the specimen smaller than the plate it is shown on |
-| `caption(measure, label, note, body, where)` | one captioned specimen in the theme's voice — the label has document role `label`, the note has role `caption`, spaced by `spacing-caption-gap` and `spacing-caption-note-gap`; `measure` is the cell's own width, the one distance a caption cannot inherit; `where` stands the two lines over the body, under it, or one each side (the default) |
+| `caption(measure, label, note, body, where)` | one captioned specimen in the stylesheet's voice — the label has document role `label`, the note has role `caption`, spaced by `spacing-caption-gap` and `spacing-caption-note-gap`; `measure` is the cell's own width, the one distance a caption cannot inherit; `where` stands the two lines over the body, under it, or one each side (the default) |
 | `cell(Cell, label, note, picture)` | the same specimen with the sheet's plate, measure and placement stated ONCE: `Cell::plate` is the well the picture is HELD by — as a box holds a child, or ranged where `Well::content` says — `Cell::measure` unset is the plate's own width, and `Cell::where` is where the caption's lines stand |
 | `comparison(Comparison)` | equal columns with shared title, control, figure and note tracks; wrapping in one column moves every figure together, and notes begin below the tallest figure |
-| `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
+| `cells(Run)` | a run of cells along one axis at the stylesheet's gutter, each at its own width |
 | `panelGrid(PanelGrid)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is — on one row where `columns` is 0, wrapped every N above that, with a short last row keeping its share; `PanelGrid::measure` is the width the shares are cut from, for the grid whose parent sizes itself from its content and has none to divide |
 | `passage(ctx, name)` | the prose in the sketch's own files, `ctx.local(name)` (`"data/manuscript_1.txt"`), minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
 | `Document(ctx, name)` | the JSON document in the sketch's own files, read as the WORDS THE PLATE SETS: a record at a key, a sentence with its figures written in, a run of lines each in the class the document named, and a passage as one mixed-text value |
@@ -302,7 +324,7 @@ defaulting to `spacing-comparison-gap`; both are read where the comparison
 lays out, as `PanelGrid::gap` (the cell gap), `Ruler::reach`
 (`spacing-tick-reach`) and `Ticker::gap` (`spacing-ticker-gap`) are, and a
 tree under no sheet reads the stock sheet's distance.
-Controls carry the `.control` class, so the theme's control register or a
+Controls carry the `.control` class, so the stylesheet's control register or a
 nearer class rule can style every literal setting together. Empty text omits that track only when every case
 leaves it empty. A page can place several comparisons under different section
 headings, or place one beside a source image or a readout.
@@ -317,7 +339,7 @@ sketch::kit::comparison({
 ```
 
 **A PAGE IS THE ROOT OF THE CASCADE.** The sheet `page()` returns declares
-the font and the ink everything under it inherits: the theme's text face
+the font and the ink everything under it inherits: the stylesheet's text face
 at the `TypeScale::captionNote` register — the sheet's RUNNING TEXT, the
 one line a specimen sheet sets in sentences rather than as a label — in
 `Palette::ink`. So a leaf written as `compose::text(utf8)` with no style
@@ -329,16 +351,16 @@ which `Fill::currentInk()` also reads back; and a padding written as a
 `weave::TextStyle` — `compose::text(utf8, style)`, which is what
 `Theme::style` builds — inherits nothing and is set exactly as it was
 written. Shared presentation components instead use document roles with
-theme registers as fallback partials. Authored role rules can therefore
+the house registers as fallback partials. Authored role rules can therefore
 change their typography, while an explicit ink or shader supplied by a
 caller changes paint without freezing the font.
-The stage applies `Theme::styleSheet()` at the root, so a page's lines and
-every cell under it are in the theme's voice, and a rule of a sheet the
+The stage applies its stylesheet at the root, so a page's lines and
+every cell under it are in that stylesheet's voice, and a rule of a sheet the
 sketch applies nearer to a leaf stands over the root's of the same weight;
 a tree outside a sketch applies the sheet on its own root. A cell whose call must stand otherwise
 hands `Caption::label` its own leaf, and the cells under it keep the
-register. A register always states its face: one set in the theme's sans,
-which the house theme leaves as the font context's default family, says
+register. A register always states its face: one set in the builder's sans,
+which the house builder leaves as the font context's default family, says
 so, and a caption under an ancestor that named a face is still set in the
 register's own.
 
@@ -400,7 +422,7 @@ not arrive draws its furniture and none of its lettering. A figure is
 already formatted when it arrives, because how a number reads is the
 measurement's business.
 
-The content reader does not resolve a theme. `lineOf()` creates a document
+The content reader does not resolve a stylesheet. `lineOf()` creates a document
 paragraph and preserves only the class the content explicitly names.
 `compose::Utf8` accepts a JSON text value directly.
 
@@ -411,7 +433,7 @@ readings on a page. `Instrument::pictureSize` is the picture's authored extent;
 `Instrument::pictureWidth` fits it into the preview without changing those
 coordinates. `Instrument::pictureLabel`, `Instrument::readingsLabel` and
 `Instrument::note` name the two regions and explain the picture. Both headings,
-the page and the reading well take their look from the current theme.
+the page and the reading well take their look from the stylesheet in force.
 
 ### What announces something — `Heading.h`
 
@@ -445,9 +467,9 @@ does.
 line is its document role — `eyebrow`, `h1`, `lead`, `caption` — with a
 default under every rule that matches it: the register's size and
 tracking and the ink it is set in, and a face only where the register
-names one of its own (`Register::face`). Neither of the theme's two faces
-is stated there, because a family is the sheet's to say: a page's role
-rules state the theme's, a `fontFamily` on the root reaches every line
+names one of its own (`Register::face`). Neither of the builder's two faces
+is stated there, because a family is the stylesheet's to say: a page's role
+rules state the stylesheet's, a `fontFamily` on the root reaches every line
 of a card standing under it, and `rule("h1").fontWeight(700)` sets the
 title at that weight in whichever family that is.
 
@@ -466,9 +488,9 @@ sketch::kit::titleCard(
 The rows are the compose kit's — `compose::kit::reading`,
 `compose::kit::readout`, `compose::kit::table` and `compose::kit::bars` —
 and this kit adds none of its own. They take content and arrangement
-only; the theme's sheet sets their names and notes in the caption role,
+only; the stylesheet sets their names and notes in the caption role,
 their figures in the `.readout` class and a table's head in the `h2` role,
-so a readout under `Theme::styleSheet()` is in the theme's registers with
+so a readout under a stock stylesheet is in its registers with
 no prop naming them. A figure a sketch measured about its own execution
 goes through `ctx.measured` **before** it reaches a row.
 
@@ -478,7 +500,7 @@ goes through `ctx.measured` **before** it reaches a row.
 | --- | --- |
 | `legend(Legend)` | swatch-and-label rows, stacked or run along a line |
 | `swatchStrip(SwatchStrip)` | a ramp's steps in order at one size, with words under the ones that have them, each in the ink the strip names for it and each riding the entrance the strip carries |
-| `chip(Chip)` | one word on its own ground, in the theme's eyebrow register |
+| `chip(Chip)` | one word on its own ground, in the stylesheet's eyebrow register |
 
 ```cpp
 sketch::kit::legend({.entries = {{Fill::color(kWarm), u8"lit"},
@@ -622,7 +644,7 @@ origin of its own is overruled on a polar frame.
 #### The classes a chart draws
 
 Every part names a class and reads its look from the rules of the sheets
-in force where it lands. `Theme::styleSheet()` states all eight, so a plot
+in force where it lands. Every stock stylesheet states all eight, so a plot
 under a `page()` is dressed without the sketch saying anything, and a sketch
 that wants otherwise applies a sheet of its own on the plot or on its root —
 never a prop, because a colour is not content.
@@ -656,7 +678,7 @@ scale, and its line and its ticks are two classes already.
 
 ```cpp
 const compose::StyleSheet look =
-    sketch::kit::houseTheme().styleSheet() +
+    sketch::kit::houseStyleSheet() +
     compose::StyleSheet{compose::rule(".second").ink(kCool)};
 …
 sketch::kit::plot("decay", frame,
@@ -714,7 +736,7 @@ computed from anything states its `thumbLength` instead.
 
 | | |
 | --- | --- |
-| `backdrop(Backdrop)` | the theme's ground over the whole surface, shaded toward the corners and grained, as two materials: a radial gradient and a noise soft-lit over mid grey |
+| `backdrop(Backdrop)` | the stylesheet's ground over the whole surface, shaded toward the corners and grained, as two materials: a radial gradient and a noise soft-lit over mid grey |
 | `panel(Panel, content)` | a titled region of a page: an eyebrow over a title, a note ranged at the far edge of the head, and the content on the plate under it |
 | `frame(Frame, screen)` | a device's chrome: an outer shell, a screen inset into it by the bezel on every side, and the plate its word is engraved on |
 
@@ -725,15 +747,15 @@ sketch::kit::frame({.width = Dimension(275), .height = Dimension(116), .bezel = 
 
 `Backdrop::vignette` is measured out from the middle of the box the
 backdrop covers, so it needs no extent. `Frame::keyline` unset
-is the theme's rule and `Fill::none()` draws none, which is what a shell
+is the stylesheet's rule and `Fill::none()` draws none, which is what a shell
 whose only rule runs round its OUTER edge asks for.
 
 **A PANEL IS A PLATE, NOT A SPECIMEN WELL.** `Panel::body` is a `Well`
-whose unset padding is the theme's PANEL padding, whose unset radius is
+whose unset padding is the stylesheet's PANEL padding, whose unset radius is
 its panel corner and whose unset keyline is its rule — a piece of
 furniture is padded, rounded and ruled, where a picture's surface is
 grounded and flush. Its three lines have document roles `eyebrow`,
-`h1` and `caption`, and the two gaps of its head are the theme's
+`h1` and `caption`, and the two gaps of its head are the stylesheet's
 caption gaps, so a region and the cell beside it breathe alike.
 
 ### A log, and things along an axis — `Console.h`, `Ticker.h`
@@ -859,7 +881,7 @@ sketch::kit::verdict(table, {.rows = sketch::kit::VerdictRows::Failures})
 
 The kit words each verdict and never judges: pass or fail is the check's.
 The verdict cell names the class `checkPass` or `checkFail` and a heading
-`checkHeading`; `Theme::styleSheet()` colours them from `Palette::pass`,
+`checkHeading`; every stock stylesheet colours them from `Palette::pass`,
 `Palette::fail` and `Palette::ink`, so a plate restyles its verdict with a
 rule.
 
@@ -899,13 +921,13 @@ A leaf may not invent what an ancestor should own.
   puts values into those; it does not restate them.
 * A ground's vignette and its grain — a radial gradient, and a noise
   soft-lit over mid grey as a material's layer. `backdrop` puts the
-  theme's values into those; it does not build a shader.
+  stylesheet's values into those; it does not build a shader.
 * Ring and grid arithmetic — `geometry::arrange`. Do not respell it with
   `std::cos` and `std::sin`; the two round differently.
 * Entrances, loops and the stagger cascade — `compose::kit::textFx`, spelled
   in compose's own types.
 * A memoised typeface — `weave::ports::face()`. This library holds no
-  font cache; it holds the one face its own theme is set in.
+  font cache; it holds the faces its stock stylesheets are set in.
 * A resource that is not the sketch's own words — an image, a video, raw
   bytes, a probe, a table, a database — `ctx.assets.hub()`. `passage` and
   `Document` are the two readers here, and they are here because the words
@@ -948,7 +970,8 @@ that sets a card under a family the sheet names asks the machine's font
 manager for that family, so it carries `fonts`.
 
 `kit/test/` asserts the claim a migrated sketch's plate rests on:
-that the theme is a comparable value a scope binds and shadows, and that
+that the stylesheet is a value a stage sets at the root and a nearer one
+shadows, that a variant is a stock stylesheet plus rules, and that
 every component here draws — **in pixels** — exactly what the compose kit
 spelled by hand with the same values draws.
 

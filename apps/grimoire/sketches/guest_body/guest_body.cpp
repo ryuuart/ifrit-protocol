@@ -153,7 +153,7 @@ struct GuestBody {
   std::shared_ptr<TextureScene> card;
 
   void setup(sketch::Scene3DContext& ctx) {
-    sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(),
                              .size = kCanvas,
                              .captureAt = kCaptureAt,
                              .background = kGround});

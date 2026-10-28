@@ -73,6 +73,7 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/kit/Features.h>
 #include <sigilweave/paragraph/RichText.h>
@@ -355,7 +356,7 @@ struct DaemonConsole {
     return t;
   }
 
-  /** The theme's registers and the two lines the rail and the prompt name
+  /** The console's registers and the two lines the rail and the prompt name
    *  by class: `label`, the tracked small capitals a rail section is headed
    *  by, and `fine`, the print under a figure, with tabular numerals. Both
    *  name their face: `fine` also stands in the prompt row, which is rooted
@@ -363,19 +364,18 @@ struct DaemonConsole {
   sigil::compose::StyleSheet classes() const {
     namespace dc = daemon_console;
     sigil::compose::StyleSheet s =
-        look.styleSheet() +
-        sigil::compose::StyleSheet{
-            sigil::compose::rule("label, .label")
-                .font({.face = faceChromeMed,
-                       .size = 9.5f,
-                       .ink = dc::kDim,
-                       .letterSpacing = 2.4f}),
-            sigil::compose::rule(".fine").font(
-                {.face = faceChrome,
-                 .size = 9.5f,
-                 .ink = dc::kDim,
-                 .letterSpacing = 0.8f,
-                 .features = {{weave::features::tabularNumbers}}})};
+        look + sigil::compose::StyleSheet{
+                   sigil::compose::rule("label, .label")
+                       .font({.face = faceChromeMed,
+                              .size = 9.5f,
+                              .ink = dc::kDim,
+                              .letterSpacing = 2.4f}),
+                   sigil::compose::rule(".fine").font(
+                       {.face = faceChrome,
+                        .size = 9.5f,
+                        .ink = dc::kDim,
+                        .letterSpacing = 0.8f,
+                        .features = {{weave::features::tabularNumbers}}})};
     return s;
   }
 
@@ -414,13 +414,15 @@ struct DaemonConsole {
     // changes nothing.
     if (ocio::available()) composer.setView(ocio::exponent(dc::kGrade));
 
-    look = sketch::kit::houseTheme();
-    look.type.mono = faceMono;
-    look.type.captionNote = {.size = 10, .letterSpacing = 0.6f, .mono = true};
-    look.palette.ash = dc::kChrome;
-    look.palette.cellGround = dc::kMeterBed;
-    look.palette.figure = dc::kAccent;
-    look.spacing.captionNoteGap = 4;
+    sketch::kit::Theme console = sketch::kit::houseTheme();
+    console.type.mono = faceMono;
+    console.type.captionNote = {
+        .size = 10, .letterSpacing = 0.6f, .mono = true};
+    console.palette.ash = dc::kChrome;
+    console.palette.cellGround = dc::kMeterBed;
+    console.palette.figure = dc::kAccent;
+    console.spacing.captionNoteGap = 4;
+    look = console.styleSheet();
 
     for (int i = 0; i < 9; ++i)  // history at boot, timestamped in the past
       gen.emitRow(ring, mission(-4.5 + 0.5 * i));
@@ -651,11 +653,12 @@ struct DaemonConsole {
         .fill(Fill::color(daemon_console::kRule));
   }
 
-  /** THE CONSOLE'S OWN LOOK, for the components on its rail: the quiet
-   *  register a channel is named in, the bed a meter is drawn on and the
-   *  cyan its bar is filled with. Built in setup, because the register is
-   *  set in a face the port has to resolve first. */
-  sketch::kit::Theme look;
+  /** THE CONSOLE'S OWN STYLESHEET, for the components on its rail: the
+   *  quiet register a channel is named in, the bed a meter is drawn on and
+   *  the cyan its bar is filled with. Built in setup from the house
+   *  builder, because the register is set in a face the port has to
+   *  resolve first. */
+  sigil::compose::StyleSheet look;
 
   Element describe() {
     namespace dc = daemon_console;

@@ -137,12 +137,12 @@ struct StickerCollection {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = SkSize::Make(kWidth, kHeight),
-         .captureAt = 2.35,
-         .background = material::Color{0.97f, 0.97f, 0.95f, 1}});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                            sketch::kit::Density::Spacious),
+                        .size = SkSize::Make(kWidth, kHeight),
+                        .captureAt = 2.35,
+                        .background = material::Color{0.97f, 0.97f, 0.95f, 1}});
 
     io::Hub& hub = ctx.assets.hub();
     const Shelf shelf{

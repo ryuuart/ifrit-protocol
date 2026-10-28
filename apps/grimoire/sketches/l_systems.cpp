@@ -149,11 +149,10 @@ struct LSystems {
   Drawing curveWhole;
 
   void setup(sketch::Scene2DContext& context) {
-    sketch::kit::stage(
-        context,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 7.48});
+    sketch::kit::stage(context, {.styleSheet = sketch::kit::featureStyleSheet(
+                                     sketch::kit::Density::Spacious),
+                                 .size = kCanvas,
+                                 .captureAt = 7.48});
 
     curve = Grammar{.axiom = "A",
                     .rules = {{'A', "-BF+AFA+FB-"}, {'B', "+AF-BFB-FA+"}},

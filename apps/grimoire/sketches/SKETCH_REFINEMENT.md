@@ -277,10 +277,10 @@ Reference reconstructions and authored catalog treatments are outside its
 scope. Fifteen native entries retain their presentation: thirteen full-frame
 scene3d sketches, the Gerstner grid reconstruction and the `ui_particles` artwork.
 
-Feature sheets bind `featureTheme()` explicitly. Compact and spacious densities
+Feature sheets name `featureStyleSheet()` on their stage. Compact and spacious densities
 share slate grounds, ivory type and pale gold readings while retaining the
 space each composition needs. The shared `section()` component controls the
-heading-to-content gap; comparison controls use a theme register and class,
+heading-to-content gap; comparison controls use a stylesheet register and class,
 and each figure keeps its authored dimensions. The page and its furniture use
 Compose document roles so local sheets can style their content consistently.
 

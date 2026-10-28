@@ -22,8 +22,8 @@ struct Instrument {
 };
 
 /** A picture scaled from its authored coordinates, beside an ordinary flow
- *  of readings. The page and both column headings are set in the theme the
- *  page names. */
+ *  of readings. The page and both column headings are set in the stylesheet
+ *  in force where the page lands. */
 [[nodiscard]] compose::Element instrument(const Instrument& specification,
                                           compose::Element picture,
                                           compose::Element readings);

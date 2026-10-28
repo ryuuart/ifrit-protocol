@@ -32,7 +32,7 @@ Element spoken(const Line& line, Text el, const std::string& key) {
 }
 
 /** A CARD LINE'S ROLE DEFAULT: the house register's size and tracking,
- *  and a face only where the register names one of its own. The theme's
+ *  and a face only where the register names one of its own. The stylesheet's
  *  registers and faces are the sheet's to state — a page's role rules
  *  state them — so a family the sheet in force sets, on the root or in a
  *  rule, reaches the card's lines, and a rule's weight resolves in it.

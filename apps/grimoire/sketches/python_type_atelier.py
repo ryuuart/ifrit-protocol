@@ -183,7 +183,7 @@ class TypeAtelier:
         article = Story(rich().add(ARTICLE)).paragraphs((opening,))
         kit.stage(
             ctx,
-            theme=kit.featureTheme(kit.Density.Spacious),
+            styleSheet=kit.featureStyleSheet(kit.Density.Spacious),
             size=SIZE,
             captureAt=0.05,
         )

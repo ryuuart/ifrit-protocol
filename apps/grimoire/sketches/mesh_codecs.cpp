@@ -187,11 +187,10 @@ struct MeshCodecs {
 
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
 
     // THE SOURCE. Rows 01 and 02 are this mesh, or its points, after a
     // trip through a file.

@@ -100,7 +100,7 @@ class TypedSketch:
         look.type.title.size = 34
         progress = animatable(1)
         native: Element = raw.box().width(24).fill("#abcdef")
-        kit.stage(ctx, theme=look, size=(640, 360))
+        kit.stage(ctx, styleSheet=look.styleSheet(), size=(640, 360))
         body = (
             row()
             .opacity(bind(progress))

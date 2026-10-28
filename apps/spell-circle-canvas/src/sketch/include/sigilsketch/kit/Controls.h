@@ -135,7 +135,7 @@ class Controls {
   std::vector<std::shared_ptr<Row>> m_rows;
 };
 
-/** THE CONTROL SURFACE: @p surface's rows, grouped, in the theme in force.
+/** THE CONTROL SURFACE: @p surface's rows, grouped, in the stylesheet in force.
  *
  *      sketch::kit::Controls leavesControls(
  *          material::sbsar::describe(hub, "res://leaves.sbsar"));

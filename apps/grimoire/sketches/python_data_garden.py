@@ -37,7 +37,7 @@ def register(context):
     return Type(face=font.face, size=font.size, letterSpacing=font.letterSpacing)
 
 
-@sketch(size=(1000, 780), captureAt=0, theme=kit.featureTheme(kit.Density.Spacious))
+@sketch(size=(1000, 780), captureAt=0, styleSheet=kit.featureStyleSheet(kit.Density.Spacious))
 class DataGarden:
     def setup(self, ctx: Scene2DContext) -> None:
         self.table = decodeCsv(CSV)

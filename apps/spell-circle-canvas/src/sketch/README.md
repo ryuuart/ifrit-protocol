@@ -527,7 +527,7 @@ Feature demonstrations can use SigilSketchKit's headings, sections and wells:
 ```cpp
 #include <sigilsketch/kit/Kit.h>
 
-sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(),
                          .size = {1100, 424},
                          .captureAt = 0.05});
 ctx.composer.render(sketch::kit::page(
@@ -536,12 +536,14 @@ ctx.composer.render(sketch::kit::page(
                         sketch::kit::cells({.cells = {a, b, c}}))));
 ```
 
-The stage's theme stands at the root of every tree the sketch renders, and
-it flows downstream only: everything under the root reads it as the
-`spacing-…` and `palette-…` properties, roles and classes that reach it, and
-a sketch that wants a variant joins rules at the stage
-(`.sheet = compose::rule(":root").var("spacing-caption-gap", 8)`) rather
-than copying the theme or reading it back while it describes.
+The stage's one slot for the look is its stylesheet, which stands at the
+root of every tree the sketch renders and flows downstream only:
+everything under the root reads it as the `spacing-…` and `palette-…`
+properties, roles and classes that reach it. A stylesheet plus a rule is a
+stylesheet, so a sketch that wants a variant joins rules to a stock one
+(`.styleSheet = sketch::kit::featureStyleSheet() +
+compose::rule(":root").var("spacing-caption-gap", 8)`) rather than
+copying a look or reading it back while it describes.
 `sketch::kit::Density::Compact` preserves fixed specimen measures;
 `sketch::kit::Density::Spacious` gives explanations more room.
 Reference studies keep their subject's own typography and geometry.

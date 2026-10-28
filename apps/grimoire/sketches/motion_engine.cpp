@@ -177,11 +177,10 @@ Lane flight(Change change) {
 struct MotionEngine {
   void setup(sketch::Scene2DContext& ctx) {
     // every run has already happened, on tickers of the sketch's own
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
 
     // THE FOUR LANES, registered on one ticker and read every step.
     motion::Engine ticker;

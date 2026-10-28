@@ -89,7 +89,7 @@ class Recording:
             self.played += 1
 
 
-@sketch(size=(WIDTH, HEIGHT), captureAt=12.0, theme=kit.featureTheme(kit.Density.Compact))
+@sketch(size=(WIDTH, HEIGHT), captureAt=12.0, styleSheet=kit.featureStyleSheet(kit.Density.Compact))
 class MarketTape:
     loop: asyncio.AbstractEventLoop  # supplied by @sketch, turned once a frame
 

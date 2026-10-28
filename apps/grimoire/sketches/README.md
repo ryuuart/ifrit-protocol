@@ -89,13 +89,13 @@ Compose examples use native fluent properties and explicit `.children(...)`
 groups. `python_compose_stamps.py` places those trees with a Draw pen and
 repeats a composed mark through a custom brush tip.
 
-Feature demonstrations use the shared SketchKit feature theme, page,
+Feature demonstrations use the shared SketchKit feature stylesheet, page,
 section headings and comparison tracks. Compact density keeps fixed specimen
 grids at their authored measure; spacious density gives explanatory pages
-larger margins and headings. Bind the theme where each tree is described,
-including update functions that rebuild it; a Python sketch states it once
-as `@sketch(theme=kit.featureTheme(...))`, which provides it around every
-hook. Reference studies and authored
+larger margins and headings. The stage names the stylesheet once and every
+tree the sketch renders afterwards stands under it; a Python sketch states
+it once as `@sketch(styleSheet=kit.featureStyleSheet(...))`, which provides
+it around every hook. Reference studies and authored
 catalog reconstructions retain their source's visual language; an image whose
 drawing is the subject does not need specimen furniture around it.
 

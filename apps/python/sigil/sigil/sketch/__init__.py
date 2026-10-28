@@ -4,6 +4,7 @@
 """Sketch declarations and file rendering through the native sketch sessions."""
 
 import sys as _sys
+import warnings as _warnings
 from functools import wraps as _wraps
 from math import isfinite as _isfinite
 from numbers import Real as _Real
@@ -30,6 +31,7 @@ from _sigil.sketch import (
     requireCached,
 )
 
+from .._kit import stagedStyleSheet as _stagedStyleSheet
 from . import (
     kit,
     scry,
@@ -214,6 +216,7 @@ def sketch(
     size=(960, 640),
     background=None,
     captureAt=None,
+    styleSheet=None,
     theme=None,
     sheet=None,
 ):
@@ -239,29 +242,37 @@ def sketch(
     ``loop`` keeps it.
 
     ``size``, ``background`` and ``captureAt`` declare the canvas, what is
-    behind it and the moment a still is taken at. ``theme``, a kit theme, is
-    staged: its sheet stands at the root of every tree the sketch renders,
-    so every component in it reads the theme where it lands, and the canvas
-    takes the theme's ground where no background is given. ``sheet``, a
-    ``compose.StyleSheet``, is joined after the theme's at that root: a
-    variant of a stock look is rules there, such as
-    ``rule(":root").var("spacing-caption-gap", 8)``.
+    behind it and the moment a still is taken at. ``styleSheet``, a
+    ``compose.StyleSheet`` or one rule, is staged: it stands at the root of
+    every tree the sketch renders, so every component in it reads it where
+    it lands, and the canvas takes its ground where no background is given.
+    A variant of a stock look is that stylesheet plus rules, such as
+    ``kit.featureStyleSheet() + rule(":root").var("spacing-caption-gap", 8)``.
+    The deprecated ``theme=`` and ``sheet=`` stage a builder's stylesheet
+    with rules joined after it.
     """
     if not isinstance(size, (tuple, list)) or len(size) != 2:
         raise TypeError("size must contain a width and a height")
     width = _number(size[0], "canvas width", positive=True)
     height = _number(size[1], "canvas height", positive=True)
     moment = _number(1.0 if captureAt is None else captureAt, "captureAt")
-    if theme is None and sheet is None and background is None:
+    if theme is not None or sheet is not None:
+        _warnings.warn(
+            "theme= and sheet= give way to styleSheet=: a stock stylesheet "
+            "such as kit.featureStyleSheet(), or a builder's styleSheet(), "
+            "with rules joined by +",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    look = _stagedStyleSheet(styleSheet, theme, sheet)
+    if look is None and background is None:
         background = "#121720"
 
     def declare(ctx):
-        if theme is not None or sheet is not None:
+        if look is not None:
             from .kit import stage
 
-            properties = dict(size=(width, height), captureAt=moment, theme=theme)
-            if sheet is not None:
-                properties["sheet"] = sheet
+            properties = dict(size=(width, height), captureAt=moment, styleSheet=look)
             if background is not None:
                 properties["background"] = background
             stage(ctx, **properties)

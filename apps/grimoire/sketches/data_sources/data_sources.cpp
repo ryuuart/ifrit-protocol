@@ -69,11 +69,10 @@ struct DataSources {
   std::string sqliteNote, duckNote;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = {1100, 640},
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = {1100, 640},
+                             .captureAt = 0.05});
     // The CSV beside this sketch, decoded to a Table by the hub.
     csv =
         ctx.assets.hub().load<sigil::data::Table>(ctx.local("data/cities.csv"));

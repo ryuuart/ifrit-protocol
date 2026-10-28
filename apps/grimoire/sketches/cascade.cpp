@@ -208,11 +208,10 @@ struct Cascade {
   bool cooled = false;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = {1100, 1150},
-         .captureAt = kCapture});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = {1100, 1150},
+                             .captureAt = kCapture});
     trail = trailCell();
     ctx.composer.render(sheet());
   }

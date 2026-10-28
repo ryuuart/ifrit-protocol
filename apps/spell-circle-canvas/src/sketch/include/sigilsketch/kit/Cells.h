@@ -46,7 +46,7 @@ struct Well {
    *  reads an unset radius as the sheet's panel corners. */
   std::optional<float> corners;
   /** ONE HAIRLINE ROUND THE WELL, over its ground — what turns a patch of
-   *  ground into a PLATE. Unset draws none; unset is not the theme's rule,
+   *  ground into a PLATE. Unset draws none; unset is not the stylesheet's rule,
    *  because a specimen well is grounded and unruled and that is the
    *  common case. */
   std::optional<compose::Fill> keyline;
@@ -133,7 +133,7 @@ struct Well {
 [[nodiscard]] compose::Element well(const Well& specification);
 
 /** ONE CAPTIONED SPECIMEN: @p body with @p label over it and @p note
- *  under it, with document roles `label` and `caption` — the theme's
+ *  under it, with document roles `label` and `caption` — the stylesheet's
  *  registers, resolved where the two lines land — and spaced by the
  *  sheet's caption gaps, `spacing-caption-gap` and
  *  `spacing-caption-note-gap`. @p where stands the two lines over the

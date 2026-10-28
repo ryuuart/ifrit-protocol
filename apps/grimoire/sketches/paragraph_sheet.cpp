@@ -194,11 +194,12 @@ struct ParagraphSheet {
     // The feature sheet keeps the type specimens at their authored measure.
     sketch::kit::stage(
         ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = sigil::compose::rule(":root")
-                      .var("spacing-margin-horizontal", s::kMargin)
-                      .var("spacing-margin-top", s::kMargin)
-                      .var("spacing-margin-bottom", s::kMargin * 0.5f),
+        {.styleSheet =
+             sketch::kit::featureStyleSheet(sketch::kit::Density::Spacious) +
+             sigil::compose::rule(":root")
+                 .var("spacing-margin-horizontal", s::kMargin)
+                 .var("spacing-margin-top", s::kMargin)
+                 .var("spacing-margin-bottom", s::kMargin * 0.5f),
          .size = kSceneSize,
          .captureAt = 0.4});
     ctx.composer.render(describe());

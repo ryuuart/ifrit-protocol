@@ -133,11 +133,10 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 struct FrameGrid {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
 
     const path::Grid unit{.scale = kUnits, .origin = {30, 26}};
     const path::Grid snapped{

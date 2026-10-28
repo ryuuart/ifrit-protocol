@@ -34,15 +34,15 @@ struct Meter {
   std::optional<motion::Animatable<float>> level;
   /** Over the bar at the left; empty draws the bar alone. */
   compose::Utf8 label;
-  /** Over the bar at the right, in the theme's figure colour — what the
+  /** Over the bar at the right, in the stylesheet's figure colour — what the
    *  fraction came to, written out. */
   compose::Utf8 reading;
   compose::Dimension width;
-  /** Unset is the theme's bar height. */
+  /** Unset is the stylesheet's bar height. */
   std::optional<compose::Dimension> height;
-  /** The empty part; unset is the theme's cell ground. */
+  /** The empty part; unset is the stylesheet's cell ground. */
   std::optional<compose::Fill> track;
-  /** The filled part; unset is the theme's figure colour. */
+  /** The filled part; unset is the stylesheet's figure colour. */
   std::optional<compose::Fill> bar;
   float corners = 0;
   /** ONE HAIRLINE ROUND THE RAIL, over its track — the bezel a
@@ -94,11 +94,11 @@ struct Gauge {
    *  the default starts at the lower left and sweeps three quarters. */
   float startDegrees = 135;
   float sweepDegrees = 270;
-  /** The unswept part; unset is the theme's cell ground. */
+  /** The unswept part; unset is the stylesheet's cell ground. */
   std::optional<compose::Fill> track;
-  /** The swept part; unset is the theme's figure colour. */
+  /** The swept part; unset is the stylesheet's figure colour. */
   std::optional<compose::Fill> bar;
-  /** Inside the dial, in the theme's figure colour; empty draws none. */
+  /** Inside the dial, in the stylesheet's figure colour; empty draws none. */
   compose::Utf8 reading;
 };
 

@@ -120,17 +120,17 @@ struct HelloSketch {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", 48)
-                      .var("spacing-margin-top", 42)
-                      .var("spacing-margin-bottom", 32)
-                      .var("spacing-content-gap", 32)
-                      .var("spacing-rule-gap", 16),
-         .size = {1000, 700},
-         .captureAt = 1.0});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-margin-horizontal", 48)
+                                          .var("spacing-margin-top", 42)
+                                          .var("spacing-margin-bottom", 32)
+                                          .var("spacing-content-gap", 32)
+                                          .var("spacing-rule-gap", 16),
+                        .size = {1000, 700},
+                        .captureAt = 1.0});
     // The clock, followed: a sine of 1.6 radians a second. One value
     // animates a retained card and feeds the immediate wave.
     wave = motion::bind(ctx.engine.time(),

@@ -148,7 +148,7 @@ struct HorizontalFlow {
   void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Theme& sheet = sheetTheme();
     sketch::kit::stage(ctx,
-                       {.theme = sheetTheme(),
+                       {.styleSheet = sheetTheme().styleSheet(),
                         .size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 0.05});
 

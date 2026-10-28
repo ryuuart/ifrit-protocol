@@ -92,7 +92,7 @@ class SketchFunctions(unittest.TestCase):
     def test_the_star_import_brings_the_declarations_and_the_readings_alone(self):
         from sigil.sketch import globals as functionFile
 
-        declarations = {"size", "background", "captureAt", "theme"}
+        declarations = {"size", "background", "captureAt", "styleSheet", "theme"}
         self.assertEqual(
             set(functionFile.__all__), declarations | set(functionFile.READINGS)
         )

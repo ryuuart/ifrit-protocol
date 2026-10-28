@@ -78,19 +78,20 @@ constexpr material::Color kCasing{0.05f, 0.05f, 0.06f, 1};
 constexpr material::Color kCore{0.86f, 0.80f, 0.66f, 1};
 constexpr material::Color kPin{0.92f, 0.36f, 0.30f, 1};
 
-/** The specimen sheet, in this one's own look.
+/** The specimen sheet's stylesheet, in this one's own look, built from
+ *  the feature stylesheet's builder.
  *
  *  A hot-reload fixture grounds a copy of this file in a colour of its
- *  own by writing one into this theme's palette and reads the corner
+ *  own by writing one into the builder's palette and reads the corner
  *  pixel back, so the canvas and the page must both take their ground
- *  from here — which they do, because the theme is bound before
- *  `stage()` runs. */
-sketch::kit::Theme sheetTheme() {
+ *  from here — which they do, because the stage reads its ground from
+ *  the stylesheet it names. */
+sigil::compose::StyleSheet crossingStyleSheet() {
   sketch::kit::Theme look =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   // Behind one cell's specimen, a shade off the sheet's own ground.
   look.palette.cellGround = {0.11f, 0.11f, 0.13f, 1};
-  return look;
+  return look.styleSheet();
 }
 
 /** Seven chords of a regular heptagon, each joining a vertex to the one
@@ -233,8 +234,9 @@ sketch::kit::ComparisonCase woven(const char* title, path::CrossingRule rule,
 struct CrossingRuleSheet {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = crossingStyleSheet(),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
 
     const auto sevenCycle = [] {
       std::vector<std::pair<int, int>> dominance;

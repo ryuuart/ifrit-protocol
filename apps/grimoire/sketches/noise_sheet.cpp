@@ -126,11 +126,10 @@ compose::Element walkPanel() {
 
 struct NoiseSheet {
   void setup(sketch::Scene2DContext& context) {
-    sketch::kit::stage(
-        context,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 6.0});
+    sketch::kit::stage(context, {.styleSheet = sketch::kit::featureStyleSheet(
+                                     sketch::kit::Density::Spacious),
+                                 .size = kCanvas,
+                                 .captureAt = 6.0});
 
     const sketch::kit::Cell panel{
         .plate = {.width = kPanelWidth, .height = kPanelHeight}};

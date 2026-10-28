@@ -152,12 +152,11 @@ Element letter(float size, bool exact, float at, float offset) {
 struct TextOnPath {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = voices(),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                               sketch::kit::Density::Spacious) +
+                                           voices(),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
 
     // THE TWO SETTINGS DRAWN ONCE EACH and held against each other: the
     // difference names the pixel where they part most, and both are

@@ -1,13 +1,13 @@
 # SigilSketchKit — the sheet a sketch stands on: the furniture every
-# specimen sheet would otherwise retype, and one theme value that carries
+# specimen sheet would otherwise retype, and one stylesheet that carries
 # the look down the tree.
 #
 # IT COMPOSES AND DECIDES NOTHING. Every component is plain composition
-# over the compose kit's arrangement with the theme's values put in, and
-# the theme is a SEAM — a comparable struct a scope binds — over which
-# `houseTheme()` is one stock value among peers. A sketch's own theme is
-# indistinguishable from it at every call site, and a component with no
-# theme bound behaves correctly.
+# over the compose kit's arrangement, reading the look where it lands, and
+# the stock stylesheets — `houseStyleSheet()` among them — are values among
+# peers, each built from a comparable `Theme`. A sketch's own stylesheet is
+# indistinguishable from them at every call site, and a component under no
+# stylesheet behaves correctly.
 #
 # It stands above the scene2d runtime because `stage()` writes a
 # CanvasSpecification through a Scene2DContext, which is why SigilSketch is
@@ -19,11 +19,11 @@
 sigil_library(SigilSketchKit
   SOURCES Cells.cpp Channel.cpp Chart.cpp ChartMarks.cpp Connection.cpp Controls.cpp
           Console.cpp Document.cpp Heading.cpp Instrument.cpp Legend.cpp Meter.cpp Page.cpp Panel.cpp
-          Passage.cpp Scrollbar.cpp Theme.cpp Ticker.cpp Verdict.cpp
+          Passage.cpp Scrollbar.cpp StyleSheets.cpp Theme.cpp Ticker.cpp Verdict.cpp
   HEADERS Cells.h Channel.h Chart.h Connection.h Console.h Controls.h Document.h
           Heading.h Kit.h
           Instrument.h Legend.h Meter.h Page.h Panel.h Passage.h Scrollbar.h
-          Theme.h Ticker.h Verdict.h
+          StyleSheets.h Theme.h Ticker.h Verdict.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilComposeBrush
          SigilComposeTypography SigilCoreReconcile
          SigilDataConnection SigilDataDecode SigilDataScale SigilGeometryKit

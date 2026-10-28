@@ -14,8 +14,10 @@ import sigil.weave
 Column = sigil.compose.kit.Column
 
 class _StageProperties(typing.TypedDict, total=False):
+    styleSheet: sigil.compose.StyleSheet | sigil.compose.Rule | None
+    # Deprecated: a builder, and rules joined after its stylesheet.
     theme: Theme | None
-    sheet: sigil.compose.StyleSheet | None
+    sheet: sigil.compose.StyleSheet | sigil.compose.Rule | None
     size: _t.SizeLike
     captureAt: float
     background: _t.ColorLike | None

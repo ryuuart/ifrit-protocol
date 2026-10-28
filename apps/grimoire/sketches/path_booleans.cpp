@@ -167,11 +167,11 @@ struct PathBooleans {
 
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = {1240, 980},
-         .captureAt = 1.0,
-         .background = material::Color{0.063f, 0.063f, 0.078f, 1}});
+        ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                  sketch::kit::Density::Spacious),
+              .size = {1240, 980},
+              .captureAt = 1.0,
+              .background = material::Color{0.063f, 0.063f, 0.078f, 1}});
     Element labels = box().inset(0);
     const auto label = [&](const char* name, float x, float y, float width) {
       labels.children(

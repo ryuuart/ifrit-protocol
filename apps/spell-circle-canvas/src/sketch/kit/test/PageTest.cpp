@@ -48,7 +48,7 @@ TEST(SketchKitStage, DeclaresTheWholeCanvas) {
   EXPECT_EQ(ctx.size, (SkSize{1100, 424}));
 }
 
-TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
+TEST(SketchKitStage, TheGroundIsTheStyleSheetsUnlessTheStageSaysOtherwise) {
   sigil::motion::Engine engine;
   compose::Composer composer(engine, fonts());
   sigil::sketch::CanvasSpecification specification;
@@ -57,8 +57,10 @@ TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
 
   kit::Theme paper = kit::houseTheme();
   paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
-  kit::stage(ctx, {.theme = paper, .size = {100, 100}});
+  kit::stage(ctx, {.styleSheet = paper.styleSheet(), .size = {100, 100}});
   EXPECT_EQ(specification.background, paper.palette.ground);
+  kit::stage(ctx, {.styleSheet = kit::darkStyleSheet(), .size = {100, 100}});
+  EXPECT_EQ(specification.background, kit::darkTheme().palette.ground);
   kit::stage(ctx, {.size = {100, 100},
                    .background = sigil::material::Color{1, 0, 0, 1}});
   EXPECT_EQ(specification.background, (sigil::material::Color{1, 0, 0, 1}));
@@ -82,7 +84,7 @@ TEST(SketchKitStage, AScene3DDeclaresTheSameThreeThings) {
   EXPECT_EQ(specification.captureSeconds, 1.3);
   EXPECT_EQ(specification.background,
             (sigil::material::Color{0.03f, 0.035f, 0.05f, 1}));
-  // The ground falls back to the theme's, as a scene2d sketch's does.
+  // The ground falls back to the house ground, as a scene2d sketch's does.
   kit::stage(ctx, {.size = {10, 10}});
   EXPECT_EQ(specification.background, kit::houseTheme().palette.ground);
 }
@@ -128,21 +130,21 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
   EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
 }
 
-/** A STAGE NAMING A THEME SETS ITS WHOLE SHEET at the root of what the
- *  sketch renders, so a page under it is the page under that sheet; a
- *  stage naming none sets the house properties alone, and its role rules
- *  stay the sketch's own to state. */
-TEST(SketchKitStage, TheStageSetsItsThemeAtTheRoot) {
+/** THE STAGE HAS ONE SLOT, ITS STYLESHEET, set whole at the root of what
+ *  the sketch renders, so a page under it is the page under that
+ *  stylesheet; a bare stage sets the house properties alone, and its role
+ *  rules stay the sketch's own to state. */
+TEST(SketchKitStage, TheStageSetsItsStyleSheetAtTheRoot) {
   kit::Theme paper = kit::houseTheme();
   paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
-  const auto staged = [](std::optional<kit::Theme> look) {
+  const auto staged = [](std::optional<compose::StyleSheet> look) {
     sigil::motion::Engine engine;
     compose::Composer composer(engine, fonts());
     sigil::sketch::CanvasSpecification specification;
     sigil::sketch::Scene2DContext ctx(composer, engine, assets(), {0, 0},
                                       &specification, &fonts());
-    kit::stage(
-        ctx, {.theme = std::move(look), .size = {(float)kWide, (float)kTall}});
+    kit::stage(ctx, {.styleSheet = std::move(look),
+                     .size = {(float)kWide, (float)kTall}});
     composer.setSize({(float)kWide, (float)kTall});
     composer.render(kit::page({.title = "TITLE", .footer = "FOOT"}, subject()));
     const sk_sp<SkSurface> surface =
@@ -161,41 +163,101 @@ TEST(SketchKitStage, TheStageSetsItsThemeAtTheRoot) {
         return false;
     return true;
   };
-  const auto drawn = [](const kit::Theme* look) {
+  const auto drawn = [](const compose::StyleSheet* look) {
     Element page = kit::page({.title = "TITLE", .footer = "FOOT"}, subject());
-    if (look != nullptr) page.applyStyleSheet(look->styleSheet());
+    if (look != nullptr) page.applyStyleSheet(*look);
     return Drawn(std::move(page)).pixels();
   };
-  EXPECT_TRUE(same(staged(kit::houseTheme()), drawn(&kit::houseTheme())));
-  EXPECT_TRUE(same(staged(paper), drawn(&paper)));
+  const compose::StyleSheet paperSheet = paper.styleSheet();
+  EXPECT_TRUE(
+      same(staged(kit::houseStyleSheet()), drawn(&kit::houseStyleSheet())));
+  EXPECT_TRUE(same(staged(paperSheet), drawn(&paperSheet)));
+  EXPECT_TRUE(same(staged(kit::featureStyleSheet(kit::Density::Spacious)),
+                   drawn(&kit::featureStyleSheet(kit::Density::Spacious))));
   EXPECT_TRUE(same(staged(std::nullopt), drawn(nullptr)))
-      << "no theme named is the house properties and no role rules";
-  EXPECT_FALSE(same(staged(std::nullopt), staged(kit::houseTheme())));
+      << "a bare stage is the house properties and no role rules";
+  const compose::StyleSheet houseProperties = kit::houseTheme().properties();
+  EXPECT_TRUE(same(staged(std::nullopt), drawn(&houseProperties)))
+      << "a bare stage is the house properties and no role rules";
+  EXPECT_FALSE(same(staged(std::nullopt), staged(kit::houseStyleSheet())));
 }
 
-/** A VARIANT IS RULES JOINED AT THE STAGE: a stage naming a stock theme
- *  and a sheet that sets a few of its properties on `:root` draws the
- *  page a copied theme with those fields changed draws, and the canvas
- *  takes the ground the sheet states. */
+/** A STOCK STYLESHEET IS ITS BUILDER'S: each one is the stylesheet its
+ *  `Theme` makes, held, so two stages naming it hand the composer one
+ *  sheet. */
+TEST(SketchKitStage, AStockStyleSheetIsTheStyleSheetItsBuilderMakes) {
+  EXPECT_EQ(kit::houseStyleSheet(), kit::houseTheme().styleSheet());
+  EXPECT_EQ(kit::studyStyleSheet(), kit::studyTheme().styleSheet());
+  EXPECT_EQ(kit::specimenStyleSheet(), kit::specimenTheme().styleSheet());
+  EXPECT_EQ(kit::featureStyleSheet(),
+            kit::featureTheme(kit::Density::Compact).styleSheet());
+  EXPECT_EQ(kit::featureStyleSheet(kit::Density::Spacious),
+            kit::featureTheme(kit::Density::Spacious).styleSheet());
+  EXPECT_EQ(kit::darkStyleSheet(), kit::darkTheme().styleSheet());
+  EXPECT_EQ(&kit::featureStyleSheet(kit::Density::Spacious),
+            &kit::featureStyleSheet(kit::Density::Spacious));
+  EXPECT_NE(kit::featureStyleSheet(kit::Density::Compact),
+            kit::featureStyleSheet(kit::Density::Spacious));
+}
+
+/** A STYLESHEET OF A FEW RULES STANDS ON THE HOUSE PROPERTIES: a stage
+ *  whose stylesheet sets one property draws the page the house properties
+ *  with that one field changed draw. */
+TEST(SketchKitStage, AStyleSheetOfOneRuleStandsOnTheHouseProperties) {
+  kit::Theme copied = kit::houseTheme();
+  copied.spacing.contentGap = 30;
+  sigil::motion::Engine engine;
+  compose::Composer composer(engine, fonts());
+  sigil::sketch::CanvasSpecification specification;
+  sigil::sketch::Scene2DContext ctx(composer, engine, assets(), {0, 0},
+                                    &specification, &fonts());
+  kit::stage(ctx, {.styleSheet = compose::rule(":root").var(
+                       "spacing-content-gap", compose::Dimension(30.0f)),
+                   .size = {(float)kWide, (float)kTall}});
+  EXPECT_EQ(specification.background, kit::houseTheme().palette.ground);
+  composer.setSize({(float)kWide, (float)kTall});
+  composer.render(kit::page({.title = "TITLE", .footer = "FOOT"}, subject()));
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWide, kTall));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  composer.draw(*surface->getCanvas());
+  SkBitmap staged;
+  staged.allocPixels(SkImageInfo::MakeN32Premul(kWide, kTall));
+  ASSERT_TRUE(surface->readPixels(staged.pixmap(), 0, 0));
+
+  const SkBitmap byCopy =
+      Drawn(kit::page({.title = "TITLE", .footer = "FOOT"}, subject())
+                .applyStyleSheet(copied.properties()))
+          .pixels();
+  for (int y = 0; y < kTall; ++y)
+    ASSERT_EQ(std::memcmp(staged.getAddr32(0, y), byCopy.getAddr32(0, y),
+                          (size_t)kWide * 4),
+              0)
+        << "row " << y;
+}
+
+/** A VARIANT IS A STOCK STYLESHEET PLUS RULES: a stage naming a stock
+ *  stylesheet with a rule joined by `+` that sets a few of its properties
+ *  on `:root` draws the page a copied builder with those fields changed
+ *  draws, and the canvas takes the ground the rule states. */
 TEST(SketchKitStage, AVariantIsRulesJoinedAtTheStage) {
   const sigil::material::Color paperGround{0.945f, 0.937f, 0.918f, 1};
   kit::Theme copied = kit::houseTheme();
   copied.palette.ground = paperGround;
   copied.spacing.marginHorizontal = 40;
   copied.spacing.contentGap = 30;
-  const compose::StyleSheet variant{
+  const compose::Rule variant =
       compose::rule(":root")
           .var("palette-ground", paperGround)
           .var("spacing-margin-horizontal", compose::Dimension(40.0f))
-          .var("spacing-content-gap", compose::Dimension(30.0f))};
+          .var("spacing-content-gap", compose::Dimension(30.0f));
 
   sigil::motion::Engine engine;
   compose::Composer composer(engine, fonts());
   sigil::sketch::CanvasSpecification specification;
   sigil::sketch::Scene2DContext ctx(composer, engine, assets(), {0, 0},
                                     &specification, &fonts());
-  kit::stage(ctx, {.theme = kit::houseTheme(),
-                   .sheet = variant,
+  kit::stage(ctx, {.styleSheet = kit::houseStyleSheet() + variant,
                    .size = {(float)kWide, (float)kTall}});
   EXPECT_EQ(specification.background, paperGround);
   composer.setSize({(float)kWide, (float)kTall});
@@ -219,8 +281,7 @@ TEST(SketchKitStage, AVariantIsRulesJoinedAtTheStage) {
         << "row " << y;
 
   // An explicit background still stands over the sheet's ground.
-  kit::stage(ctx, {.theme = kit::houseTheme(),
-                   .sheet = variant,
+  kit::stage(ctx, {.styleSheet = kit::houseStyleSheet() + variant,
                    .size = {10, 10},
                    .background = sigil::material::Color{1, 0, 0, 1}});
   EXPECT_EQ(specification.background, (sigil::material::Color{1, 0, 0, 1}));

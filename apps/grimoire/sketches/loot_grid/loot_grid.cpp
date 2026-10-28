@@ -63,7 +63,7 @@ struct LootGrid {
   sigil::weave::Face displayFace;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.theme = sheetTheme(),
+    sketch::kit::stage(ctx, {.styleSheet = hoardStyleSheet(),
                              .size = kSceneSize,
                              .captureAt = 5.1,
                              .background = sigil::material::Color{0, 0, 0, 1}});
@@ -540,16 +540,15 @@ struct LootGrid {
                                     lt::kCell * 0.6f, hexColor(0xB9A06A))})})});
   }
 
-  /** THE SHEET'S OWN VOICE. The kit's components read a theme, and the
-   *  one register this hoard's keys are set in is its own: 10.5 px at
-   *  0.8 tracking, which is what was measured off the reference. Bound
-   *  where the tree is DESCRIBED, because that is the scope a component
-   *  four levels down reads. */
-  static sketch::kit::Theme sheetTheme() {
+  /** THE SHEET'S OWN VOICE, as the stylesheet the stage names, built
+   *  from the house builder: the one register this hoard's keys are set
+   *  in is its own, 10.5 px at 0.8 tracking, which is what was measured
+   *  off the reference, and its ink is the hoard's ash. */
+  static sigil::compose::StyleSheet hoardStyleSheet() {
     sketch::kit::Theme look = sketch::kit::houseTheme();
     look.type.captionNote = {10.5f, 0.8f};
     look.palette.ink = loot::kAsh;
-    return look;
+    return look.styleSheet();
   }
 
   /** THE CLASSES PAST THE REGISTERS: a panel's bronze heading, the figure

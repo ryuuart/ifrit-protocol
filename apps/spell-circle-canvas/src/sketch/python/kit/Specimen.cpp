@@ -154,6 +154,34 @@ void bindTheme(py::module_& module) {
       "as the face a call is set in. Its label class is an instrument's "
       "label, the terminal face at 12 px tracked 2 px in the ash: "
       "text(words).styleClass('label').");
+  module.def(
+      "houseStyleSheet", [] { return sketchKit::houseStyleSheet(); },
+      "The house stylesheet: the role rules, the classes and the custom "
+      "properties most specimen sheets are set in.");
+  module.def(
+      "studyStyleSheet", [] { return sketchKit::studyStyleSheet(); },
+      "The study stylesheet: a larger heading, brighter notes and wider "
+      "margins over the house ground and components.");
+  module.def(
+      "specimenStyleSheet", [] { return sketchKit::specimenStyleSheet(); },
+      "The specimen stylesheet: a readable title and notes with the house "
+      "sheet's compact margins, so fixed specimen wells keep their "
+      "measure.");
+  module.def(
+      "featureStyleSheet",
+      [](sketchKit::Density density) {
+        return sketchKit::featureStyleSheet(density);
+      },
+      py::arg("density") = sketchKit::Density::Compact,
+      "The feature stylesheet: slate grounds, ivory headings, pale gold "
+      "readings, interface labels and terminal controls, with compact or "
+      "spacious margins.");
+  module.def(
+      "darkStyleSheet", [] { return sketchKit::darkStyleSheet(); },
+      "The dark stylesheet in the terminal voice: near-black ground, warm "
+      "off-white ink, a grey ash, interface headings and the terminal face "
+      "as the face a call is set in. Its label class is an instrument's "
+      "label: text(words).styleClass('label').");
 }
 
 void bindSpecimens(py::module_& module) {
@@ -177,8 +205,7 @@ void bindSpecimens(py::module_& module) {
   field(well, "recess", &sketchKit::Well::recess);
   field(well, "relief", &sketchKit::Well::relief);
   auto stage = record<sketchKit::Stage>(module, "Stage");
-  field(stage, "theme", &sketchKit::Stage::theme);
-  field(stage, "sheet", &sketchKit::Stage::sheet);
+  field(stage, "styleSheet", &sketchKit::Stage::styleSheet);
   field(stage, "size", &sketchKit::Stage::size);
   field(stage, "captureAt", &sketchKit::Stage::captureAt);
   field(stage, "background", &sketchKit::Stage::background);

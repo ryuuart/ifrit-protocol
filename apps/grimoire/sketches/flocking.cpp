@@ -141,11 +141,10 @@ struct Flocking {
   std::array<std::unique_ptr<Flock>, 3> flocks;
 
   void setup(sketch::Scene2DContext& context) {
-    sketch::kit::stage(
-        context,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 6.0});
+    sketch::kit::stage(context, {.styleSheet = sketch::kit::featureStyleSheet(
+                                     sketch::kit::Density::Spacious),
+                                 .size = kCanvas,
+                                 .captureAt = 6.0});
 
     flocks = {std::make_unique<Flock>(physics::Flocking{
                   .separation = 3.0f, .alignment = 0.4f, .cohesion = 0.2f}),

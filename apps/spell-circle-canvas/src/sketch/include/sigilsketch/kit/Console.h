@@ -9,8 +9,8 @@
 
 #include <include/core/SkColor.h>
 #include <sigilcompose/core/Element.h>
-#include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/kit/Feed.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -36,14 +36,14 @@ struct Console {
    *  set in. The names are the caller's rows' — this library has no
    *  vocabulary of levels, because no two studies agree on one. */
   std::vector<std::pair<std::string, material::Color>> levels;
-  /** Unset is the theme's caption-label size, in the face a CALL is set
+  /** Unset is the stylesheet's caption-label size, in the face a CALL is set
    *  in. */
   std::optional<float> size;
-  /** Unset is the theme's ink. A shader shades the rows' glyphs. */
+  /** Unset is the stylesheet's ink. A shader shades the rows' glyphs. */
   std::optional<compose::Fill> ink;
-  /** Unset is the theme's cell ground. */
+  /** Unset is the stylesheet's cell ground. */
   std::optional<compose::Fill> ground;
-  /** Unset is the theme's rule. Both the keyline and the dividers between
+  /** Unset is the stylesheet's rule. Both the keyline and the dividers between
    *  columns. */
   std::optional<compose::Fill> border;
 };

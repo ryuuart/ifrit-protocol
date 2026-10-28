@@ -73,8 +73,8 @@ struct @NAME@ {
 
   void setup(sketch::Scene2DContext& ctx) {
     // The canvas this sketch wants, and the moment a still of it is
-    // worth taking, in the theme whose ground and sheet it stands on.
-    sketch::kit::stage(ctx, {.theme = sketch::kit::houseTheme(),
+    // worth taking, in the stylesheet whose ground and rules it stands on.
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::houseStyleSheet(),
                              .size = {960, 600},
                              .captureAt = 0.4});
     // Drop a reference.png into assets/ and it appears here.

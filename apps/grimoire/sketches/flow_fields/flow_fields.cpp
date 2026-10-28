@@ -188,11 +188,10 @@ struct FlowFields {
       .timeStep = std::chrono::duration<double>(1.0 / kStepRate)};
 
   void setup(sketch::Scene2DContext& context) {
-    sketch::kit::stage(
-        context,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 5.2});
+    sketch::kit::stage(context, {.styleSheet = sketch::kit::featureStyleSheet(
+                                     sketch::kit::Density::Spacious),
+                                 .size = kCanvas,
+                                 .captureAt = 5.2});
 
     ink = material::shader(context.assets.hub(), context.local("flow.sksl"),
                            {.textures = {{"uField", {}}}})

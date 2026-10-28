@@ -3,6 +3,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/scene3d/Scene3D.h>
 
@@ -13,14 +14,14 @@ namespace sigil::sketch::kit {
 
 namespace {
 
-/** The ground the stage's look states: the last `palette-ground` colour a
- *  `:root` rule of the stage's own sheet sets, else the theme's. */
-material::Color stagedGround(const Stage& surface, const Theme& look) {
-  material::Color ground = look.palette.ground;
-  if (!surface.sheet) return ground;
+/** The ground the stage's stylesheet states: the last `palette-ground`
+ *  colour a `:root` rule of it sets, else the house ground. */
+material::Color stagedGround(const Stage& surface) {
+  material::Color ground = houseTheme().palette.ground;
+  if (!surface.styleSheet) return ground;
   const compose::ElementSelector root = compose::rule(":root").selector();
   const compose::VarRef name = compose::var("palette-ground");
-  for (const compose::Rule& each : surface.sheet->rules()) {
+  for (const compose::Rule& each : surface.styleSheet->rules()) {
     if (!(each.selector() == root)) continue;
     if (const compose::VarValue* value = each.vars().find(name))
       if (const auto* colour = std::get_if<material::Color>(value))
@@ -29,35 +30,41 @@ material::Color stagedGround(const Stage& surface, const Theme& look) {
   return ground;
 }
 
+/** The house custom properties, built once and held: what a stage stands
+ *  on under any stylesheet it names. */
+const compose::StyleSheet& houseProperties() {
+  static const compose::StyleSheet properties = houseTheme().properties();
+  return properties;
+}
+
 }  // namespace
 
 void stage(Scene2DContext& ctx, const Stage& surface) {
-  const Theme& look = surface.theme ? *surface.theme : houseTheme();
   CanvasSpecification declared;
   declared.size = surface.size;
   declared.background = material::skia::toSkColor(
-      surface.background.value_or(stagedGround(surface, look)));
+      surface.background.value_or(stagedGround(surface)));
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;
   ctx.canvas(declared);
   // The look stands at the root of whatever the sketch renders, so a
-  // component anywhere in it reads the theme where it lands. A stage that
-  // names none states the house properties and no role rules, which a
-  // study setting its own type would otherwise have to undo. The stage's
-  // own rules follow the theme's, so a variant changes only what it names.
-  const compose::StyleSheet theme =
-      surface.theme ? look.styleSheet() : look.properties();
-  ctx.composer.setStyleSheet(surface.sheet ? theme + *surface.sheet : theme);
+  // component anywhere in it reads the stylesheet where it lands. Under it
+  // stand the house custom properties and no role rules, which a study
+  // setting its own type would otherwise have to undo: a stylesheet that
+  // names a few rules still finds every property a component reads, and a
+  // stock stylesheet sets every one of them again.
+  ctx.composer.setStyleSheet(surface.styleSheet
+                                 ? houseProperties() + *surface.styleSheet
+                                 : houseProperties());
 }
 
 void stage(Scene3DContext& ctx, const Stage& surface) {
   if (ctx.specification == nullptr) return;
-  const Theme& look = surface.theme ? *surface.theme : houseTheme();
   CanvasSpecification declared;
   declared.size = surface.size;
   declared.background = material::skia::toSkColor(
-      surface.background.value_or(stagedGround(surface, look)));
+      surface.background.value_or(stagedGround(surface)));
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;
@@ -88,7 +95,7 @@ compose::Element page(const Page& sheet, compose::Element content) {
   //
   // ITS RUNNING TEXT IS THE `page` ROLE'S: the remark register — the one
   // line on a specimen sheet set in sentences rather than as a label — in
-  // the theme's ink, so a leaf under a page that states no style of its
+  // the stylesheet's ink, so a leaf under a page that states no style of its
   // own is set in that. A leaf handed a whole `weave::TextStyle` inherits
   // nothing and is untouched.
   return compose::kit::sheet(specification, std::move(content))

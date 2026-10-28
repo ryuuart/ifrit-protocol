@@ -274,15 +274,15 @@ struct BlendOptions {
   void setup(sketch::Scene2DContext& ctx) {
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", 40)
-                      .var("spacing-margin-top", 40)
-                      .var("spacing-margin-bottom", 18),
-         .size = {1200, 1390},
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-margin-horizontal", 40)
+                                          .var("spacing-margin-top", 40)
+                                          .var("spacing-margin-bottom", 18),
+                        .size = {1200, 1390},
+                        .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Between two outlines",

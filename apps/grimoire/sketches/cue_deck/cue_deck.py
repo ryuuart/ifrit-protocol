@@ -159,7 +159,7 @@ def ruler(
 @sketch(
     size=(WIDTH, HEIGHT),
     captureAt=CAPTURE_AT,
-    theme=kit.featureTheme(kit.Density.Spacious),
+    styleSheet=kit.featureStyleSheet(kit.Density.Spacious),
 )
 class Deck:
     def setup(self, ctx: Scene2DContext) -> None:

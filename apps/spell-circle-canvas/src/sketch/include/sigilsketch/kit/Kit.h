@@ -23,6 +23,7 @@
 #include <sigilsketch/kit/Panel.h>
 #include <sigilsketch/kit/Passage.h>
 #include <sigilsketch/kit/Scrollbar.h>
+#include <sigilsketch/kit/StyleSheets.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/kit/Ticker.h>
 #include <sigilsketch/kit/Verdict.h>

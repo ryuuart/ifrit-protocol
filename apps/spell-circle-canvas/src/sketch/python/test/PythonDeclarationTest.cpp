@@ -97,11 +97,11 @@ TEST(SketchPython, ADescribedTreeIsRenderedAgainAtEveryStep) {
   EXPECT_EQ(late.getColor(32, 24), SK_ColorGREEN);
 }
 
-TEST(SketchPython, TheDecoratorsThemeStagesTheCanvasAndItsSheet) {
-  PythonSource source("sigil_python_decorator_theme");
-  // The theme's ground is the canvas's background where none is stated,
-  // and its sheet stands at the root of every tree the sketch renders, so
-  // a well the describe returns takes the theme's cell ground.
+TEST(SketchPython, TheDecoratorsStyleSheetStagesTheCanvasAndItsLook) {
+  PythonSource source("sigil_python_decorator_style_sheet");
+  // The stylesheet's ground is the canvas's background where none is
+  // stated, and the stylesheet stands at the root of every tree the sketch
+  // renders, so a well the describe returns takes its cell ground.
   source.write("entry.py",
                "from sigil.compose import Element\n"
                "from sigil.sketch import kit, sketch\n"
@@ -110,7 +110,8 @@ TEST(SketchPython, TheDecoratorsThemeStagesTheCanvasAndItsSheet) {
                "palette.ground = '#336699'\n"
                "palette.cellGround = '#00ff00'\n"
                "LOOK.palette = palette\n"
-               "@sketch(size=(96, 72), captureAt=0.25, theme=LOOK)\n"
+               "@sketch(size=(96, 72), captureAt=0.25, "
+               "styleSheet=LOOK.styleSheet())\n"
                "class Study:\n"
                "    def describe(self, seconds) -> Element:\n"
                "        return kit.well(width=96, height=72)\n");
@@ -125,7 +126,7 @@ TEST(SketchPython, TheDecoratorsThemeStagesTheCanvasAndItsSheet) {
   EXPECT_NEAR(ground.g, 0x66 / 255.0f, 1e-3f);
   EXPECT_NEAR(ground.b, 0x99 / 255.0f, 1e-3f);
   EXPECT_EQ(pixels.getColor(48, 36), SK_ColorGREEN)
-      << "the well reads the staged theme's cell ground";
+      << "the well reads the staged stylesheet's cell ground";
 }
 
 TEST(SketchPython, TheDecoratorStatesTheCaptureMomentAsCaptureAt) {

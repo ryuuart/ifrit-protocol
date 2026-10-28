@@ -984,7 +984,7 @@ struct BlackWatch {
     return box()
         .width(kCanvas.width())
         .height(kCanvas.height())
-        .applyStyleSheet(cardTheme(colours).properties())
+        .applyStyleSheet(cardProperties(colours))
         .applyStyleSheet(cardSheet(colours, kDraftCell))
         .padding(46, 64, 0, 64)
         .children({

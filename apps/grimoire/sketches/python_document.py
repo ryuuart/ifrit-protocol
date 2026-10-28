@@ -61,7 +61,7 @@ def voice(
     )
 
 
-@sketch(size=(1100, 800), captureAt=0.05, theme=kit.featureTheme(kit.Density.Spacious))
+@sketch(size=(1100, 800), captureAt=0.05, styleSheet=kit.featureStyleSheet(kit.Density.Spacious))
 class DocumentStudy:
     def setup(self) -> Element:
         first, second = passage(), passage()

@@ -219,11 +219,10 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 struct ServiceMap {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "Wired by a fact",
          .subtitle = "Five cards state their tier, their calls and their "

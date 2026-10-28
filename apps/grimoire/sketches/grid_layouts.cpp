@@ -154,11 +154,11 @@ struct GridLayouts {
     // Only the programme moves, a step at a time; the still is taken in
     // its opening configuration.
     sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root").var("spacing-caption-gap", 8),
-         .size = kCanvas,
-         .captureAt = 0.05});
+        ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                sketch::kit::Density::Spacious) +
+                            rule(":root").var("spacing-caption-gap", 8),
+              .size = kCanvas,
+              .captureAt = 0.05});
     show(ctx, kOpening);
   }
 

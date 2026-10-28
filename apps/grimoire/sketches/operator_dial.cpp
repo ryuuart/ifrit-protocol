@@ -186,11 +186,10 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 struct OperatorDial {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "Read off the children",
          .subtitle = "Every child states its hour. Only the operator list "

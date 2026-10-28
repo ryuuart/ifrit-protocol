@@ -184,12 +184,11 @@ struct ChannelBind {
   Shown shown;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = kCaptureAt,
-         .background = kBackdrop});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = kCaptureAt,
+                             .background = kBackdrop});
 
     io::Hub& hub = ctx.assets.hub();
     // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window listens on

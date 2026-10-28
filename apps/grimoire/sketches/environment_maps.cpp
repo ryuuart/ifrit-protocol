@@ -193,8 +193,9 @@ struct EnvironmentMaps {
     // every bake has already been taken
     sketch::kit::stage(
         ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root").var("palette-cell-ground", kCellGround),
+        {.styleSheet =
+             sketch::kit::featureStyleSheet(sketch::kit::Density::Spacious) +
+             rule(":root").var("palette-cell-ground", kCellGround),
          .size = kCanvas,
          .captureAt = 0.05});
 

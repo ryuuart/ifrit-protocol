@@ -133,7 +133,7 @@ struct DataScales {
          "Categories own positions, without width.",
          {.transform = Point, .steps = 5, .outerPadding = 0.5}},
     }};
-    sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(),
                              .size = {1100, 980},
                              .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(

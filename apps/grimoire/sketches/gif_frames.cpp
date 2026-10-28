@@ -76,11 +76,11 @@ struct GifFrames {
   void setup(sketch::Scene2DContext& ctx) {
     // every frame is on the sheet; nothing moves
     sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root").var("spacing-caption-gap", 6),
-         .size = kCanvas,
-         .captureAt = 0.05});
+        ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                sketch::kit::Density::Spacious) +
+                            rule(":root").var("spacing-caption-gap", 6),
+              .size = kCanvas,
+              .captureAt = 0.05});
 
     io::Hub& hub = ctx.assets.hub();
     const std::optional<io::ResourceInfo> bytes =

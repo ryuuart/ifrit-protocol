@@ -164,15 +164,15 @@ struct KineticCard {
   void setup(sketch::Scene2DContext& ctx) {
     // The feature sheet with room for the animated type specimens.
     sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", kMargin)
-                      .var("spacing-margin-top", kMargin - 12)
-                      .var("spacing-margin-bottom", 30)
-                      .var("spacing-caption-gap", 8),
-         .size = kSceneSize,
-         .captureAt = kPeriod * 0.5});
+        ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                sketch::kit::Density::Spacious) +
+                            rule(":root")
+                                .var("spacing-margin-horizontal", kMargin)
+                                .var("spacing-margin-top", kMargin - 12)
+                                .var("spacing-margin-bottom", 30)
+                                .var("spacing-caption-gap", 8),
+              .size = kSceneSize,
+              .captureAt = kPeriod * 0.5});
     // MID-CASCADE. The master maps onto each track's OWN span, so one
     // fraction of the period is the same fraction of every schedule
     // however many letters a word has. At half way the head of every word

@@ -161,7 +161,7 @@ def specimen(picture, index, label, note):
 class OrderSpecimen:
     def setup(self, ctx: Scene2DContext) -> None:
         look = kit.featureTheme(kit.Density.Spacious)
-        kit.stage(ctx, theme=look, size=(1200, 760), captureAt=1.1)
+        kit.stage(ctx, styleSheet=look.styleSheet(), size=(1200, 760), captureAt=1.1)
         inset = look.copy()
         inset.palette.ink = "#e9efda"
         inset.palette.figure = "#dab26a"

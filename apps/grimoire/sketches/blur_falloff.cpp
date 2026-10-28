@@ -123,15 +123,15 @@ struct BlurFalloff {
 
   void setup(sketch::Scene2DContext& ctx) {
     // the top of panel 4's breath: 1 / (2 kRackHz)
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", 40)
-                      .var("spacing-margin-top", 40)
-                      .var("spacing-caption-gap", 6),
-         .size = {1100, 960},
-         .captureAt = 2.78});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-margin-horizontal", 40)
+                                          .var("spacing-margin-top", 40)
+                                          .var("spacing-caption-gap", 6),
+                        .size = {1100, 960},
+                        .captureAt = 2.78});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Where does the blur fall?",

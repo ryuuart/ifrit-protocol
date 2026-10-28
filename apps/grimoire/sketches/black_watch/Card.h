@@ -181,10 +181,11 @@ StyleSheet cardSheet(const CardColours& colours, float draftCell) {
   };
 }
 
-/** The verification's own theme, which the kit's table reads its registers
- *  and colours from: the card's ink on the card's well, every register in
- *  the mono a machine-read line is set in. */
-sketch::kit::Theme cardTheme(const CardColours& colours) {
+/** The verification's own custom properties, which the kit's table reads
+ *  its distances and colours from: the card's ink on the card's well,
+ *  built from the feature builder with every register in the mono a
+ *  machine-read line is set in. */
+sigil::compose::StyleSheet cardProperties(const CardColours& colours) {
   sketch::kit::Theme look = sketch::kit::featureTheme();
   look.palette = {.ground = colours.ground,
                   .cellGround = colours.well,
@@ -197,7 +198,7 @@ sketch::kit::Theme cardTheme(const CardColours& colours) {
   look.spacing.rowGap = 2.4f;
   look.spacing.labelGap = 8;
   look.spacing.swatchSide = 5;
-  return look;
+  return look.properties();
 }
 
 }  // namespace

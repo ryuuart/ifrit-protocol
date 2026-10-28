@@ -53,7 +53,7 @@ PROBE = LOAD_SPECIMEN + """
 from sigil.sketch import sketch
 
 
-@sketch(size=specimen.SIZE, captureAt=0.0, theme=specimen.THEME)
+@sketch(size=specimen.SIZE, captureAt=0.0, styleSheet=specimen.STYLE_SHEET)
 class Probe:
     def setup(self):
         return specimen.page()

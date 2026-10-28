@@ -134,12 +134,11 @@ struct VideoCompose {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = SkSize::Make(kWidth, kHeight),
-         .captureAt = 4.25,
-         .background = material::Color{0, 0, 0, 1}});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = SkSize::Make(kWidth, kHeight),
+                             .captureAt = 4.25,
+                             .background = material::Color{0, 0, 0, 1}});
 
     std::shared_ptr<media::Playback> playback;
     if (!ctx.deterministic)

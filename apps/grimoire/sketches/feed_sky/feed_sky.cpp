@@ -202,11 +202,10 @@ struct FeedSky {
   double now = 0;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = kCaptureAt});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = kCaptureAt});
     ctx.engine.timer(
         [this, seconds = 0.0](sigil::motion::Duration stepDuration) mutable {
           seconds += stepDuration.count();

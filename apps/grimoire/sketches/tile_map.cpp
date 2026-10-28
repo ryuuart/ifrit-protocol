@@ -195,16 +195,16 @@ struct TileMap {
     // The header sits close to the map so the chunks keep their authored
     // width.
     sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", kPad)
-                      .var("spacing-margin-top", kPad * 0.6f)
-                      .var("spacing-margin-bottom", kPad * 0.5f)
-                      .var("spacing-content-gap", kGap)
-                      .var("spacing-rule-gap", kGap * 0.5f),
-         .size = {kCanvasW, kCanvasH},
-         .captureAt = 6.0});
+        ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                sketch::kit::Density::Spacious) +
+                            rule(":root")
+                                .var("spacing-margin-horizontal", kPad)
+                                .var("spacing-margin-top", kPad * 0.6f)
+                                .var("spacing-margin-bottom", kPad * 0.5f)
+                                .var("spacing-content-gap", kGap)
+                                .var("spacing-rule-gap", kGap * 0.5f),
+              .size = {kCanvasW, kCanvasH},
+              .captureAt = 6.0});
     revisions.fill(0);
     edits.fill(Edit{});
     editedAt.fill(-1000.0);

@@ -29,7 +29,7 @@ namespace sigil::sketch::kit {
  *  ground under it, and usually wants it shaded toward the corners and
  *  grained so a flat fill does not read as a flat fill. */
 struct Backdrop {
-  /** Unset is the theme's ground. */
+  /** Unset is the stylesheet's ground. */
   std::optional<compose::Fill> ground;
   /** How dark the corners go, 0 to 1, measured out from the middle of the
    *  box the backdrop covers. 0 shades nothing. */
@@ -58,11 +58,11 @@ struct Backdrop {
  *  first child of whatever a sketch renders. */
 [[nodiscard]] compose::Element backdrop(const Backdrop& ground);
 
-/** A TITLED REGION OF A PAGE, in the theme's voice: an eyebrow over a
+/** A TITLED REGION OF A PAGE, in the stylesheet's voice: an eyebrow over a
  *  title, a note ranged at the far edge of the head, and the content
  *  standing on the plate under it.
  *
- *  What it adds over `compose::kit::panel` is the theme's distances and
+ *  What it adds over `compose::kit::panel` is the stylesheet's distances and
  *  colours: the head's two gaps, the ground, the padding, the radius and
  *  the keyline a PLATE takes — which are not a specimen well's, because a
  *  panel is a piece of furniture and a well is a picture's surface. */
@@ -70,9 +70,9 @@ struct Panel {
   compose::Utf8 eyebrow;
   compose::Utf8 title;
   compose::Utf8 note;
-  /** A hairline under the head, in the theme's rule colour. */
+  /** A hairline under the head, in the stylesheet's rule colour. */
   bool ruled = false;
-  /** THE PLATE THE REGION STANDS ON. Unset padding is the theme's panel
+  /** THE PLATE THE REGION STANDS ON. Unset padding is the stylesheet's panel
    *  padding, an unset radius its panel corner and an unset keyline its
    *  rule; `Fill::none()` draws no keyline, and a recess or a relief
    *  under it reads the plate as sunk or raised. */
@@ -87,8 +87,8 @@ struct Panel {
  *                         slots())
  *
  *  The three lines have document roles `eyebrow`, `h1` and `caption`, so a
- * panel under a page — or under any root that states the theme's sheet — is in
- * the theme's voice. */
+ * panel under a page — or under any root that states a stylesheet — is in
+ * that stylesheet's voice. */
 [[nodiscard]] compose::Element panel(const Panel& region,
                                      compose::Element content);
 
@@ -102,23 +102,23 @@ struct Panel {
 struct Frame {
   compose::Dimension width;
   compose::Dimension height;
-  /** The body; unset is the theme's cell ground. */
+  /** The body; unset is the stylesheet's cell ground. */
   std::optional<compose::Fill> shell;
-  /** Unset is the theme's panel radius. */
+  /** Unset is the stylesheet's panel radius. */
   std::optional<float> corners;
   /** How much shell stands around the screen on every side; unset is the
-   *  theme's bezel. */
+   *  stylesheet's bezel. */
   std::optional<float> bezel;
-  /** The screen's own ground; unset is the theme's page ground, which is
-   *  the darker of the theme's two. */
+  /** The screen's own ground; unset is the stylesheet's page ground, which is
+   *  the darker of the stylesheet's two. */
   std::optional<compose::Fill> screen;
-  /** Unset is the theme's screen radius. */
+  /** Unset is the stylesheet's screen radius. */
   std::optional<float> screenCorners;
-  /** A keyline around the screen's opening; unset is the theme's rule.
+  /** A keyline around the screen's opening; unset is the stylesheet's rule.
    *  `Fill::none()` draws none — the same spelling `Well::ground` takes,
    *  for the shell whose only rule runs round its OUTER edge. */
   std::optional<compose::Fill> keyline;
-  /** Engraved under the screen in the theme's eyebrow register; empty
+  /** Engraved under the screen in the stylesheet's eyebrow register; empty
    *  leaves the shell blank and spends no room on a plate. */
   compose::Utf8 plate;
 };

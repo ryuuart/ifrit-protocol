@@ -183,7 +183,8 @@ class StyleSheet {
   StyleSheet() = default;
   StyleSheet(std::initializer_list<Statement> statements);
   /** A SHEET OF ONE RULE, so a slot that takes a sheet takes a rule as
-   *  it is written: `.sheet = rule(":root").var("spacing-caption-gap", 8)`. */
+   *  it is written — `.styleSheet = rule(":root").var("spacing-caption-gap",
+   *  8)` — and a sheet plus a rule is a sheet. */
   StyleSheet(Rule one);  // NOLINT: implicit by design (a sheet of one rule)
 
   /** Every rule the sheet states, an included sheet's rules standing
@@ -200,7 +201,8 @@ class StyleSheet {
 };
 
 /** THE TWO SHEETS AS ONE, @p later's rules after @p earlier's:
- *  `house + darkTheme + local`. Later is only a tiebreak, so a later
+ *  `house + dark + local`, or a stock stylesheet plus one rule, which
+ *  converts to a sheet of that rule. Later is only a tiebreak, so a later
  *  rule wins where the two weigh the same and loses where it weighs
  *  less. */
 [[nodiscard]] StyleSheet operator+(const StyleSheet& earlier,

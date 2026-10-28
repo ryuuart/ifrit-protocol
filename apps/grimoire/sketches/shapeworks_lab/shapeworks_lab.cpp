@@ -379,11 +379,10 @@ struct ShapeworksLab {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = {1280, 990},
-         .captureAt = 2.6});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = {1280, 990},
+                             .captureAt = 2.6});
 
     studio = shapeworks_lab::studioEnvironment();
 

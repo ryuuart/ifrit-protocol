@@ -184,11 +184,11 @@ struct PopSinks {
 
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 1.0,
-         .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
+        ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                  sketch::kit::Density::Spacious),
+              .size = kCanvas,
+              .captureAt = 1.0,
+              .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
 
     const material::Texture atlas = ctx.texture(atlasSheet(128), {256, 256});
     const std::vector<glm::vec3> ring = ringPoints();

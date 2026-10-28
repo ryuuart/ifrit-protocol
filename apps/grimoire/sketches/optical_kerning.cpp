@@ -92,12 +92,12 @@ struct OpticalKerning {
   std::string lineDelta;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root").var("spacing-row-gap", 8),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root").var("spacing-row-gap", 8),
+                        .size = kCanvas,
+                        .captureAt = 0.05});
 
     // THE DELTAS ARE MEASURED: each pair is set twice at the headline's
     // own size and the difference of the two advances is the answer. A

@@ -58,7 +58,7 @@ namespace sigil::sketch::kit {
  *  number reads is the measurement's business.
  *
  *  IT DECIDES NO LOOK. A class is a name the document wrote and the sheet
- *  in force resolves; nothing here reads a theme.
+ *  in force resolves; nothing here reads a stylesheet.
  *
  *  Copyable and cheap: the document itself is shared, and the figures are
  *  the copy's own. */

@@ -160,11 +160,11 @@ struct MeshAttributes {
 
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05,
-         .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
+        ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                  sketch::kit::Density::Spacious),
+              .size = kCanvas,
+              .captureAt = 0.05,
+              .background = material::Color{0.051f, 0.051f, 0.075f, 1}});
 
     // 01 — the point class.
     const mesh::Cloud source = grid();

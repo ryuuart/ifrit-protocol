@@ -181,11 +181,11 @@ struct ContourPoses {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root").var("spacing-caption-gap", 8),
-         .size = kCanvas,
-         .captureAt = 0.05});
+        ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                sketch::kit::Density::Spacious) +
+                            rule(":root").var("spacing-caption-gap", 8),
+              .size = kCanvas,
+              .captureAt = 0.05});
 
     const SkPath figure = subject();
     const std::vector<path::Contour> contours =

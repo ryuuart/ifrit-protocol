@@ -101,16 +101,16 @@ struct StockMaterialsSheet {
     // Nothing on the sheet moves: every generator is evaluated from its
     // parameters and the box, and the two that read the clock are pinned
     // by the moment their call names.
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", 30)
-                      .var("spacing-margin-top", 26)
-                      .var("spacing-margin-bottom", 20)
-                      .var("spacing-caption-note-gap", 3),
-         .size = {1150, 1000},
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-margin-horizontal", 30)
+                                          .var("spacing-margin-top", 26)
+                                          .var("spacing-margin-bottom", 20)
+                                          .var("spacing-caption-note-gap", 3),
+                        .size = {1150, 1000},
+                        .captureAt = 0.05});
 
     const std::vector<material::ColorStop> ramp = {
         {0.0f, {0.95f, 0.35f, 0.25f, 1}},

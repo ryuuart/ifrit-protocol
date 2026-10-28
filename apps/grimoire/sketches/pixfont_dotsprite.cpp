@@ -82,9 +82,10 @@ struct PixFontDotSprite {
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root").var("palette-cell-ground",
-                                    material::Color{0.055f, 0.065f, 0.06f, 1}),
+        {.styleSheet =
+             sketch::kit::featureStyleSheet(sketch::kit::Density::Spacious) +
+             rule(":root").var("palette-cell-ground",
+                               material::Color{0.055f, 0.065f, 0.06f, 1}),
          .size = kCanvas});
     // The readout is live, so the sheet is complete only once the number
     // has run far enough to have moved every column of it.

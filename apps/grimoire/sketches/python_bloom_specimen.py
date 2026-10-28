@@ -30,7 +30,7 @@ MONOSPACE = "Menlo, SF Mono, monospace"
 FINE_WORDS = "0417 9328 5562"
 FINE_SIZE = 22
 FINE_TRACKING = 2
-THEME = kit.featureTheme(kit.Density.Compact)
+STYLE_SHEET = kit.featureStyleSheet(kit.Density.Compact)
 
 # Each configuration is the whole parameter set, stated in BloomOptions'
 # own field names, so a value read from a caption can be typed back here.
@@ -216,7 +216,7 @@ def page() -> Element:
     )
 
 
-@sketch(size=SIZE, captureAt=0.0, theme=THEME)
+@sketch(size=SIZE, captureAt=0.0, styleSheet=STYLE_SHEET)
 class BloomSpecimen:
     def setup(self) -> Element:
         return page()

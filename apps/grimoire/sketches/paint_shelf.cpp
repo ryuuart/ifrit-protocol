@@ -98,11 +98,10 @@ sketch::kit::ComparisonCase swatch(const char* caseTitle, const char* call,
 struct PaintShelf {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
 
     // The caller-owned raster: drawn once here and published. A running
     // sketch would draw into it and commit() again; the node's picture

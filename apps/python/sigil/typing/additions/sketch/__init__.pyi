@@ -21,6 +21,7 @@ def sketch(
     size: tuple[float, float] | list[float] = ...,
     background: _t.ColorLike | None = ...,
     captureAt: float | None = ...,
+    styleSheet: sigil.compose.StyleSheet | sigil.compose.Rule | None = ...,
     theme: _kit.Theme | None = ...,
-    sheet: sigil.compose.StyleSheet | None = ...,
+    sheet: sigil.compose.StyleSheet | sigil.compose.Rule | None = ...,
 ) -> _SketchDecorator: ...

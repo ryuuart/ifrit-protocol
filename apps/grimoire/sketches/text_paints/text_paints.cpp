@@ -171,11 +171,10 @@ sketch::kit::ComparisonCase inkCase(const Ink& ink, const Passages& words) {
 
 struct TextPaints {
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = {1100, 1620},
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = {1100, 1620},
+                             .captureAt = 0.05});
     const std::vector<Ink> all = inks();
     const StyleSheet setting = sheet(all);
     const Passages words{

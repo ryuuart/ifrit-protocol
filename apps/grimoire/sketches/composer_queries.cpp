@@ -332,7 +332,7 @@ struct ComposerQueries {
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx,
-        {.theme = sketch::kit::featureTheme(),
+        {.styleSheet = sketch::kit::featureStyleSheet(),
          .size = SkSize::Make(kCanvas.width(), kCanvas.height()),
          .captureAt = stationTime(4),
          .background = material::Color{0, 0, 0, 1}});  // standing on target-4

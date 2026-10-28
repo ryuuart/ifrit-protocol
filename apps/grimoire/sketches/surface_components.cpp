@@ -94,7 +94,7 @@ struct SurfaceComponents {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(),
                              .size = {1020, 620},
                              .captureAt = 2.5});
     ctx.composer.render(describe(80));

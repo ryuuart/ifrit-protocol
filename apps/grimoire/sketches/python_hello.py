@@ -17,7 +17,7 @@ COLOR = "#efb87e"
 SPEED = 1.2
 
 
-@sketch(size=(640, 420), captureAt=1.0, theme=kit.featureTheme(kit.Density.Spacious))
+@sketch(size=(640, 420), captureAt=1.0, styleSheet=kit.featureStyleSheet(kit.Density.Spacious))
 class Hello:
     def draw(self, pen: Pen) -> None:
         look = kit.featureTheme(kit.Density.Spacious)

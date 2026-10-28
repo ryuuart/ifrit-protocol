@@ -37,7 +37,7 @@ struct LegendEntry {
   std::optional<compose::Fill> keyline;
   /** THE LABEL'S OWN INK — for a key whose words are set in what they
    *  name, which is how a ladder of tiers and a coloured plot's key read.
-   *  Unset is the theme's ink, which is what a key to a picture with one
+   *  Unset is the stylesheet's ink, which is what a key to a picture with one
    *  ink wants. A shader shades the glyphs as it shades a patch. The note
    *  beside it stays in the quiet ash either way: a gloss is not part of
    *  the naming. */
@@ -65,9 +65,9 @@ struct Legend {
   /** true (default) stacks the entries; false runs them along a line, for
    *  the key that stands under a plot rather than beside it. */
   bool column = true;
-  /** The side of each swatch; unset is the theme's. */
+  /** The side of each swatch; unset is the stylesheet's. */
   std::optional<float> swatchSide;
-  /** Between entries; unset is the theme's row gap down a column and its
+  /** Between entries; unset is the stylesheet's row gap down a column and its
    *  label gap along a line. */
   std::optional<float> gap;
   /** Rounds every swatch. 0 is the square a drafting key uses. */
@@ -78,7 +78,7 @@ struct Legend {
   float strokeWidth = 0;
   /** The width of an entry's `keyline`, where it has one. */
   float keylineWidth = 1;
-  /** Between a swatch and the words beside it; unset is the theme's
+  /** Between a swatch and the words beside it; unset is the stylesheet's
    *  caption-note gap. It is the caller's because two keys on one sheet
    *  can be set at two densities and still be the same look — the same
    *  reason `swatch` and `gap` are here. */
@@ -88,7 +88,7 @@ struct Legend {
   bool wrap = false;
 };
 
-/** THE KEY, in the theme's caption registers.
+/** THE KEY, in the stylesheet's caption registers.
  *
  *      sketch::kit::legend({.entries = {{Fill::color(kWarm), u8"lit"},
  *                                       {Fill::color(kCool), u8"shaded"}}})
@@ -106,11 +106,11 @@ struct SwatchStrip {
    *  allowed: the steps a ramp's reading is TAKEN AT are lit and the rest
    *  stand in the quiet ash, which is how a strip says which numbers are
    *  the measurement. `Fill::none()` and a label past the end are the
-   *  theme's own. */
+   *  stylesheet's own. */
   std::vector<compose::Fill> inks;
   compose::Dimension width;
   compose::Dimension height;
-  /** Between neighbours; unset is the theme's row gap. 0 butts the
+  /** Between neighbours; unset is the stylesheet's row gap. 0 butts the
    *  swatches, which is what a continuous ramp wants. */
   std::optional<float> gap;
   float corners = 0;
@@ -134,20 +134,20 @@ struct SwatchStrip {
 /** ONE WORD ON ITS OWN GROUND: a state, a tier, a tag. */
 struct Chip {
   compose::Utf8 label;
-  /** Unset is the theme's figure colour. */
+  /** Unset is the stylesheet's figure colour. */
   std::optional<compose::Fill> ground;
-  /** Unset is the theme's page ground, so the word is knocked out of the
+  /** Unset is the stylesheet's page ground, so the word is knocked out of the
    *  chip rather than laid over it. A shader shades the word. */
   std::optional<compose::Fill> ink;
-  /** Unset is the theme's chip radius. */
+  /** Unset is the stylesheet's chip radius. */
   std::optional<float> corners;
 };
 
-/** THE CHIP, set in the theme's eyebrow register.
+/** THE CHIP, set in the stylesheet's eyebrow register.
  *
  *      sketch::kit::chip({.label = "PINNED"})
  *
- *  It sizes itself to its word plus the theme's chip padding, so a run of
+ *  It sizes itself to its word plus the stylesheet's chip padding, so a run of
  *  chips in a row is a row of them at their own widths. */
 [[nodiscard]] compose::Element chip(const Chip& tag);
 

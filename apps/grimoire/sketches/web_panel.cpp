@@ -240,11 +240,11 @@ struct WebPanelSketch {
 
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root").var("spacing-caption-gap", 6),
-         .size = kCanvas,
-         .captureAt = 1.0});
+        ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                sketch::kit::Density::Spacious) +
+                            rule(":root").var("spacing-caption-gap", 6),
+              .size = kCanvas,
+              .captureAt = 1.0});
 
     // The settles go before the views they latched.
     m_pages.clear();

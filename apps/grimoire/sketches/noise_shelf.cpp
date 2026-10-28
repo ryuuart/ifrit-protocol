@@ -105,14 +105,14 @@ const sketch::kit::Cell kSpecimen{
 struct NoiseShelf {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the shelf is complete at once
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-caption-gap", 8)
-                      .var("spacing-caption-note-gap", 3),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-caption-gap", 8)
+                                          .var("spacing-caption-note-gap", 3),
+                        .size = kCanvas,
+                        .captureAt = 0.05});
 
     const int columns = (int)(kCell / kBlock);
 

@@ -121,11 +121,10 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> curves,
 struct DecayStep {
   void setup(sketch::Scene2DContext& ctx) {
     // the plots are functions of time, not of the clock
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
 
     // The spring is a STATE, so its curve is a walk rather than a
     // sampling: it is stepped at a fixed dt and remembers its velocity.

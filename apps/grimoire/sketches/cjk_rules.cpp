@@ -79,11 +79,10 @@ Element tracking(bool tightened) {
 
 struct CjkRules {
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = {1100, 810},
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = {1100, 810},
+                             .captureAt = 0.05});
     weave::KinsokuTable house = weave::kit::kinsoku::japanese();
     house.notLineStart += u"組";
     ctx.composer.render(sketch::kit::page(

@@ -160,11 +160,10 @@ struct PackingSheet {
   std::unique_ptr<Packing> starred;
 
   void setup(sketch::Scene2DContext& context) {
-    sketch::kit::stage(
-        context,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 5.0});
+    sketch::kit::stage(context, {.styleSheet = sketch::kit::featureStyleSheet(
+                                     sketch::kit::Density::Spacious),
+                                 .size = kCanvas,
+                                 .captureAt = 5.0});
 
     constexpr float kInset = 12;
     boxed = std::make_unique<Packing>(

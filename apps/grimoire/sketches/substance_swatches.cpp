@@ -146,12 +146,11 @@ struct SubstanceSwatchesSketch {
   /** A PIECE THIS MACHINE CANNOT SHOW: the plate is the reason, on a
    *  canvas sized for one notice rather than for cards that never came. */
   void refuse(sketch::Scene2DContext& ctx, Utf8 heading, Utf8 detail) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = sheetRules(),
-         .size = {940, 320},
-         .captureAt = 0.5});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                               sketch::kit::Density::Spacious) +
+                                           sheetRules(),
+                             .size = {940, 320},
+                             .captureAt = 0.5});
     ctx.composer.render(
         stack()
             .fill(Fill::color(hexColor(0x140f0a)))
@@ -195,14 +194,14 @@ struct SubstanceSwatchesSketch {
     // fixed module and its gaps, which is that function run backwards.
     const int rows = ((int)swatches.size() + kPerRow - 1) / kPerRow;
     const float cardHeight = kCard + 7 + 18 + 7 + 16;
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = sheetRules(),
-         .size = {kMargin * 2 + kGridWidth,
-                  kHeaderHeight + (float)rows * cardHeight +
-                      (float)(rows - 1) * kGap + kCaptionHeight},
-         .captureAt = 0.5});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      sheetRules(),
+                        .size = {kMargin * 2 + kGridWidth,
+                                 kHeaderHeight + (float)rows * cardHeight +
+                                     (float)(rows - 1) * kGap + kCaptionHeight},
+                        .captureAt = 0.5});
 
     // THE ENGINE'S VERSION GOES TO stderr, NOT ONTO THE PLATE. It is a
     // number this machine's SDK decides, so a plate carrying it would

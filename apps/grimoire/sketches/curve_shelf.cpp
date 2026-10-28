@@ -73,14 +73,14 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
 struct CurveShelf {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-caption-gap", 8)
-                      .var("spacing-caption-note-gap", 3),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-caption-gap", 8)
+                                          .var("spacing-caption-note-gap", 3),
+                        .size = kCanvas,
+                        .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "A small atlas of curves",

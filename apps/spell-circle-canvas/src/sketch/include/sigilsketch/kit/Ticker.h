@@ -66,14 +66,14 @@ struct Timeline {
   };
   std::vector<Mark> marks;
   compose::Dimension width;
-  /** Unset is the theme's bar height. */
+  /** Unset is the stylesheet's bar height. */
   std::optional<float> height;
-  /** How far a major tick reaches past the rail; unset is the theme's. */
+  /** How far a major tick reaches past the rail; unset is the stylesheet's. */
   std::optional<float> tick;
-  /** The rail; unset is the theme's rule colour. */
+  /** The rail; unset is the stylesheet's rule colour. */
   std::optional<compose::Fill> rail;
   /** THE INK EVERY MARK IS DRAWN IN — the ticks and the words alike,
-   *  except a word that states its own; unset is the theme's ash. A
+   *  except a word that states its own; unset is the stylesheet's ash. A
    *  shader shades the glyphs as it shades the ticks. */
   std::optional<compose::Fill> ink;
   /** true puts the ticks and words under the rail, false over it. */

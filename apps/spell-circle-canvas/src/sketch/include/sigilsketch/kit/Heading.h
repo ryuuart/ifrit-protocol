@@ -35,7 +35,7 @@ namespace sigil::sketch::kit {
  */
 struct Line {
   compose::Utf8 words;
-  /** THE LINE'S OWN INK; unset is whatever the theme's palette gives the
+  /** THE LINE'S OWN INK; unset is whatever the stylesheet's palette gives the
    *  register this line is set in. It is here rather than in the palette
    *  because a note ranged at the far edge is often a step quieter than
    *  the subtitle beside it, and one ash cannot say both. A shader shades
@@ -65,14 +65,14 @@ struct TitleCard {
   Line subtitle;
   /** THE STACK RANGED AT THE FAR EDGE — the issue time, the bounds a word
    *  in the bulletin stands for, the sources a study was read off — set in
-   *  the theme's caption-note register at its row gap, with the LAST note
+   *  the stylesheet's caption-note register at its row gap, with the LAST note
    *  on the card's last line. Empty leaves the card at its own width;
    *  anything here makes the card a row, and the lines take the rest of
    *  the width. */
   std::vector<Line> notes;
   /** How the lines range against each other. */
   compose::Align align = compose::Align::Start;
-  /** A hairline under the block, in the theme's rule colour. */
+  /** A hairline under the block, in the stylesheet's rule colour. */
   bool ruled = false;
   /** The prefix the lines are keyed under — `<key>-eyebrow`, `-title`,
    *  `-subtitle`, `-note0` and so on, so a query can read the card back
@@ -80,7 +80,7 @@ struct TitleCard {
   std::string key;
 };
 
-/** THE CARD, set in the theme's registers and spaced by its gaps.
+/** THE CARD, set in the stylesheet's registers and spaced by its gaps.
  *
  *      sketch::kit::titleCard({.eyebrow = {"SIGIL \xc2\xb7 COMPOSE"},
  *                              .title = {"THE STROKE ATLAS"},
@@ -109,7 +109,7 @@ struct SectionHeader {
  *  the remainder of the heading row. */
 [[nodiscard]] compose::Element sectionHeader(const SectionHeader& header);
 
-/** A section heading and its content at the theme's section gap. The
+/** A section heading and its content at the stylesheet's section gap. The
  *  content retains its authored height; an absent heading spends no gap. */
 [[nodiscard]] compose::Element section(const SectionHeader& header,
                                        compose::Element content);

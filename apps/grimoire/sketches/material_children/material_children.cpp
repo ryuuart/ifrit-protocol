@@ -277,11 +277,10 @@ struct MaterialChildren {
         ctx.assets.hub(), ctx.local("palette.sksl"), PaletteParameters{},
         {.textures = {{"uIndex", {}}, {"uPalette", {}}}});
     // the live panel is on the fire table here
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 1.0});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 1.0});
     ctx.composer.render(describe());
   }
 

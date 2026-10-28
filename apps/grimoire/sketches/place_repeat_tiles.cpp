@@ -94,11 +94,10 @@ struct PlaceRepeatTiles {
 
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
 
     atlas = std::make_shared<instancing::CellSheet>();
     atlas->cell(motif(sketch::kit::featureTheme(sketch::kit::Density::Spacious)

@@ -1,6 +1,6 @@
 """The shapes one @sketch decorator reads off a class: a scene3d sketch
 that describes a world frame, a scene2d sketch that describes a tree at
-every step, a setup that returns its tree, the theme and the capture
+every step, a setup that returns its tree, the stylesheet and the capture
 moment stated on the decorator."""
 
 import builtins
@@ -113,70 +113,85 @@ class SketchShapes(DecoratedModule, unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "world.Frame"):
             self.decorate(Body)().setup(Context())
 
-    def test_the_decorators_theme_is_staged_at_the_root(self):
+    def staged_corner(self, source):
+        """The top-left pixel of the sketch @p source declares, rendered
+        headless, after checking it was staged at its own size."""
+        builtins._sigil_shapes_seen = []
+        self.addCleanup(builtins.__dict__.pop, "_sigil_shapes_seen", None)
+        with tempfile.TemporaryDirectory() as directory:
+            entry = Path(directory) / "staged.py"
+            output = Path(directory) / "staged.png"
+            entry.write_text(textwrap.dedent(source))
+            renderFile(entry, output)
+            corner = media.load(output).frameAt(0).image.rgba()[0:4]
+        size, *_ = builtins._sigil_shapes_seen
+        self.assertEqual(size, (48, 36))
+        return corner
+
+    def test_the_decorators_stylesheet_is_staged_at_the_root(self):
         look = kit.featureTheme(kit.Density.Spacious)
         palette = look.palette
         palette.ground = "#336699"
         look.palette = palette
-        builtins._sigil_shapes_theme = look
-        self.addCleanup(builtins.__dict__.pop, "_sigil_shapes_theme", None)
-        builtins._sigil_shapes_seen = []
-        self.addCleanup(builtins.__dict__.pop, "_sigil_shapes_seen", None)
-        with tempfile.TemporaryDirectory() as directory:
-            entry = Path(directory) / "themed.py"
-            output = Path(directory) / "themed.png"
-            entry.write_text(
-                textwrap.dedent("""
-                    import builtins
-                    from sigil.sketch import kit, sketch
+        builtins._sigil_shapes_style_sheet = look.styleSheet()
+        self.addCleanup(builtins.__dict__.pop, "_sigil_shapes_style_sheet", None)
+        corner = self.staged_corner("""
+            import builtins
+            from sigil.sketch import kit, sketch
 
-                    @sketch(size=(48, 36), captureAt=0,
-                            theme=builtins._sigil_shapes_theme)
-                    class Themed:
-                        def setup(self, ctx):
-                            builtins._sigil_shapes_seen.append(ctx.size)
-                            return kit.page(kit.well(), title="Themed")
-                """)
-            )
-            renderFile(entry, output)
-            self.assertTrue(output.exists())
-            corner = media.load(output).frameAt(0).image.rgba()[0:4]
-        size, *_ = builtins._sigil_shapes_seen
-        self.assertEqual(size, (48, 36))
-        # The page's ground is the staged theme's, read where the page lands.
+            @sketch(size=(48, 36), captureAt=0,
+                    styleSheet=builtins._sigil_shapes_style_sheet)
+            class Staged:
+                def setup(self, ctx):
+                    builtins._sigil_shapes_seen.append(ctx.size)
+                    return kit.page(kit.well(), title="Staged")
+        """)
+        # The page's ground is the staged stylesheet's, read where the page
+        # lands.
         self.assertAlmostEqual(corner[0] / 255, 0x33 / 255, places=1)
         self.assertAlmostEqual(corner[2] / 255, 0x99 / 255, places=1)
 
+    def test_a_variant_is_a_stock_stylesheet_plus_a_rule(self):
+        corner = self.staged_corner("""
+            import builtins
+            from sigil.compose import rule
+            from sigil.sketch import kit, sketch
 
-    def test_the_decorators_sheet_is_joined_after_its_theme(self):
-        builtins._sigil_shapes_seen = []
-        self.addCleanup(builtins.__dict__.pop, "_sigil_shapes_seen", None)
-        with tempfile.TemporaryDirectory() as directory:
-            entry = Path(directory) / "variant.py"
-            output = Path(directory) / "variant.png"
-            entry.write_text(
-                textwrap.dedent("""
-                    import builtins
-                    from sigil.compose import StyleSheet, rule
-                    from sigil.sketch import kit, sketch
+            @sketch(size=(48, 36), captureAt=0,
+                    styleSheet=kit.featureStyleSheet(kit.Density.Spacious)
+                    + rule(":root").var("palette-ground", "#336699"))
+            class Variant:
+                def setup(self, ctx):
+                    builtins._sigil_shapes_seen.append(ctx.size)
+                    return kit.page(kit.well(), title="Variant")
+        """)
+        # The page and the canvas both take the ground the rule states over
+        # the stock stylesheet's.
+        self.assertAlmostEqual(corner[0] / 255, 0x33 / 255, places=1)
+        self.assertAlmostEqual(corner[2] / 255, 0x99 / 255, places=1)
 
-                    @sketch(size=(48, 36), captureAt=0,
-                            theme=kit.featureTheme(kit.Density.Spacious),
-                            sheet=StyleSheet([
-                                rule(":root").var("palette-ground", "#336699"),
-                            ]))
-                    class Variant:
-                        def setup(self, ctx):
-                            builtins._sigil_shapes_seen.append(ctx.size)
-                            return kit.page(kit.well(), title="Variant")
-                """)
-            )
-            renderFile(entry, output)
-            corner = media.load(output).frameAt(0).image.rgba()[0:4]
-        size, *_ = builtins._sigil_shapes_seen
-        self.assertEqual(size, (48, 36))
-        # A variant is rules joined at the stage: the page and the canvas
-        # both take the ground the sheet states over the theme's.
+    def test_the_deprecated_theme_and_sheet_keywords_still_stage(self):
+        with self.assertWarns(DeprecationWarning):
+            sketch(size=(48, 36), theme=kit.houseTheme())
+        corner = self.staged_corner("""
+            import builtins
+            import warnings
+            from sigil.compose import StyleSheet, rule
+            from sigil.sketch import kit, sketch
+
+            warnings.simplefilter("ignore", DeprecationWarning)
+
+            @sketch(size=(48, 36), captureAt=0,
+                    theme=kit.featureTheme(kit.Density.Spacious),
+                    sheet=StyleSheet([
+                        rule(":root").var("palette-ground", "#336699"),
+                    ]))
+            class Deprecated:
+                def setup(self, ctx):
+                    builtins._sigil_shapes_seen.append(ctx.size)
+                    return kit.page(kit.well(), title="Deprecated")
+        """)
+        # The builder's stylesheet, with the rules joined after it.
         self.assertAlmostEqual(corner[0] / 255, 0x33 / 255, places=1)
         self.assertAlmostEqual(corner[2] / 255, 0x99 / 255, places=1)
 

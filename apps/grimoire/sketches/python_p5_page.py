@@ -22,7 +22,7 @@ STEPS = [
 ]
 
 size(900, 460)
-theme(kit.featureTheme(kit.Density.Spacious))
+styleSheet(kit.featureStyleSheet(kit.Density.Spacious))
 captureAt(1.0)
 
 

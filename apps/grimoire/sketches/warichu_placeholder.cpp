@@ -100,11 +100,10 @@ struct WarichuPlaceholder {
   Note latin, japanese;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = {1100, 825},
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = {1100, 825},
+                             .captureAt = 0.05});
     const auto& sheet =
         sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     latin.measure(ctx, kNote,

@@ -116,7 +116,7 @@ class. The four functions it looks for are `setup()`, `draw(pen)`,
 `size(640, 360)` and `captureAt(2.0)` declare the canvas and the moment a
 still is taken. They can stand at the top of the file, as here, or inside
 `setup`, where p5 calls `createCanvas`. `background(color)` and
-`theme(look)` declare the rest. Inside `draw`, the pen paints the ground
+`styleSheet(sheet)` declare the rest. Inside `draw`, the pen paints the ground
 instead — `pen.background("#121720")` — and a declaration there is
 refused, because the canvas is already drawing.
 
@@ -187,7 +187,7 @@ STEPS = [
 ]
 
 size(900, 460)
-theme(kit.featureTheme(kit.Density.Spacious))
+styleSheet(kit.featureStyleSheet(kit.Density.Spacious))
 captureAt(1.0)
 
 
@@ -212,8 +212,9 @@ def describe(seconds: float) -> Element:
     )
 ```
 
-`theme(...)` is provided around every hook and stages the canvas with the
-theme's ground, so the kit's page reads its type and colours from it. The
+`styleSheet(...)` is provided around every hook and stages the canvas with
+the stylesheet's ground, so the kit's page reads its type and colours from
+it. The
 bar's width is the only thing that moves; the rest of the tree is the
 same at every step, and is kept.
 
@@ -224,7 +225,7 @@ annotation in the text, before the file is ever run.
 ## When to reach for a class
 
 The file of functions is the first tier. A class decorated with
-`@sketch(size=..., captureAt=..., theme=...)` holds the same hooks as
+`@sketch(size=..., captureAt=..., styleSheet=...)` holds the same hooks as
 methods, keeps its state on `self` rather than in module names, and is
 what to write when one file holds helpers that would otherwise be read as
 hooks. A file that has both runs its class, and the loader warns that the

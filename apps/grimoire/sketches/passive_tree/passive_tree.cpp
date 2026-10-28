@@ -789,14 +789,14 @@ struct PassiveTree {
     root.children({card.key("detail")});
   }
 
-  /** The sheet's own look, for the masthead: the two registers the title
-   *  and its line are set in, and the two inks. */
-  static sketch::kit::Theme mastheadTheme() {
+  /** The sheet's own custom properties, for the masthead: the two inks
+   *  and the gap under its title, built from the house builder. */
+  static StyleSheet mastheadProperties() {
     sketch::kit::Theme look = sketch::kit::houseTheme();
     look.palette.ink = skill_tree::kBone;
     look.palette.ash = skill_tree::kAsh;
     look.spacing.subtitleGap = 6;
-    return look;
+    return look.properties();
   }
 
   void hud(Element& root) {
@@ -819,7 +819,7 @@ struct PassiveTree {
                                    .subtitle = {"passive cluster — real orbit "
                                                 "geometry, four frame states"}})
                .applyStyleSheet(
-                   mastheadTheme().properties() +
+                   mastheadProperties() +
                    StyleSheet{
                        rule("h1").font({.size = 24, .letterSpacing = 3}),
                        rule("lead").font({.size = 12, .letterSpacing = 1.0f})})

@@ -56,10 +56,12 @@ struct Verdict {
   compose::Utf8 unjudged;
 };
 
-/** THE VERDICT — @p table's rows set as @p how says, in the theme in force.
+/** THE VERDICT — @p table's rows set as @p how says, in the stylesheet in
+ *  force.
  *
  *      sketch::kit::verdict(table)
- *      sketch::kit::verdict(table, {.rows = sketch::kit::VerdictRows::Failures})
+ *      sketch::kit::verdict(table, {.rows =
+ * sketch::kit::VerdictRows::Failures})
  *
  *  Every verdict is the check's own: the kit words it and does not judge. */
 [[nodiscard]] compose::Element verdict(const measure::CheckTable& table,

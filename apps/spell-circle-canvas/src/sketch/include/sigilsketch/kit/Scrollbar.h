@@ -68,7 +68,7 @@ struct Scrollbar {
    *  draws none and spends no room. */
   std::optional<compose::Element> leading;
   std::optional<compose::Element> trailing;
-  /** THE THUMB'S OWN CHROME. Unset is a flat patch in the theme's figure
+  /** THE THUMB'S OWN CHROME. Unset is a flat patch in the stylesheet's figure
    *  colour. Whatever it is, the bar gives it its length and its place
    *  along the track: a thumb that positioned itself would be the second
    *  opinion this component exists to remove. */
@@ -93,7 +93,7 @@ struct Scrollbar {
   std::optional<motion::Animatable<float>> position;
   /** How far the thumb stands in from the two long edges of the bar. */
   float thumbInset = 0;
-  /** The track the thumb runs in; unset is the theme's cell ground. */
+  /** The track the thumb runs in; unset is the stylesheet's cell ground. */
   std::optional<compose::Fill> track;
 };
 

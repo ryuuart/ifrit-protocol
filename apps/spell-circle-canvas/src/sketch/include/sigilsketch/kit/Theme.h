@@ -3,10 +3,11 @@
 /** @file
  * @ingroup sketch-kit
  *
- * The look a sheet is set in, as one comparable value: the colours, the
- * registers its lines are set in, and the distances between things. It
- * reaches the tree as a sheet of rules and custom properties applied on a
- * subtree, so a component four levels down obeys it without being handed it.
+ * The builder of a stylesheet: the colours, the registers its lines are
+ * set in, and the distances between things, as one comparable value whose
+ * `Theme::styleSheet()` is the stylesheet a stage names. A sketch names a
+ * stock stylesheet from `<sigilsketch/kit/StyleSheets.h>`; this header is
+ * for building another one from the same fields.
  */
 
 #include <include/core/SkColor.h>
@@ -15,22 +16,23 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilsketch/kit/StyleSheets.h>
 #include <sigilweave/style/TextStyle.h>
 #include <sigilweave/style/Type.h>
 
 #include <optional>
 #include <vector>
 
-/** THE SHEET A SKETCH STANDS ON: the theme, the page, and the furniture
- *  a specimen is built out of — headings, passages, panels, rows, cells,
- *  charts, legends, meters, tickers, scrollbars and consoles.
+/** THE SHEET A SKETCH STANDS ON: the stylesheet, the page, and the
+ *  furniture a specimen is built out of — headings, passages, panels,
+ *  rows, cells, charts, legends, meters, tickers, scrollbars and consoles.
  *
- *  The theme is one comparable value whose sheet — `Theme::styleSheet()`,
- *  rules for the document roles and custom properties for the spacing and
- *  the palette — is applied on a subtree, so a piece four levels down
- *  obeys it without being handed it. Every piece here therefore takes
- *  CONTENT and carries no colour of its own, and a study changes its
- *  whole look by changing the theme its page names.
+ *  The look is one stylesheet — rules for the document roles and custom
+ *  properties for the spacing and the palette — applied on a subtree, so
+ *  a piece four levels down obeys it without being handed it. Every piece
+ *  here therefore takes CONTENT and carries no colour of its own, and a
+ *  study changes its whole look by changing the stylesheet its stage
+ *  names.
  *
  *  These are the shapes a reference study keeps reaching for. Nothing
  *  here decides how a study looks, and a sketch that wants something
@@ -84,7 +86,7 @@ struct Register {
    *  house sheet and whatever a theme puts there on another. A title
    *  card's lines state neither: they take the family the sheet in force
    *  sets, so a mono eyebrow is set in the second face under the theme's
-   *  own sheet (`Theme::styleSheet`, which a page applies) and in the
+   *  own sheet (`Theme::styleSheet`, which a stage applies) and in the
    *  inherited family where no rule names one. */
   bool mono = false;
   /** THE LINE'S OWN FACE, for the line neither of the theme's two is set
@@ -201,15 +203,16 @@ struct Spacing {
   bool operator==(const Spacing&) const = default;
 };
 
-/** THE LOOK, as one value.
+/** THE BUILDER OF A STYLESHEET: the fields a look is made of, as one
+ *  comparable value, and `styleSheet()`, the stylesheet they make.
  *
- *  A SEAM, not a privilege: a sketch's own `Theme` is indistinguishable
- *  from the house one at every call site. A page names one, and falls
- *  back to `houseTheme()` where it names none, which is a value among
- *  peers rather than the value.
- *  Nothing in this library decides a look; it decides only the
- *  arrangement, and the house sheet is what most of this repository's
- *  sheets already happen to be set in. */
+ *  A stage names a stylesheet, never a `Theme`: every stock stylesheet
+ *  is one of these built — `featureStyleSheet(density)` is
+ *  `featureTheme(density).styleSheet()` — and a sketch that wants a look
+ *  no stock stylesheet is builds one here and names what it makes. A
+ *  variant of a stock look is rules joined to its stylesheet with `+`,
+ *  never a copied builder with a number changed. Nothing in this library
+ *  decides a look; it decides only the arrangement. */
 struct Theme {
   Palette palette;
   TypeScale type;
@@ -336,39 +339,33 @@ enum class Voice {
     Voice voice, int weight = 400,
     weave::FaceSlant slant = weave::FaceSlant::Upright);
 
-/** THE HOUSE SHEET — the values most of this repository's specimen
- *  sheets already carry, stated once. Its mono face is resolved on the
- *  first call and held, so every sheet under it shares one face and
- *  every memo keyed on a style below it keeps hitting.
+/** THE BUILDER OF `houseStyleSheet()` — the values most of this
+ *  repository's specimen sheets carry, stated once. Its mono face is
+ *  resolved on the first call and held, so every sheet under it shares
+ *  one face and every memo keyed on a style below it keeps hitting.
  *
- *  A sketch that wants another look builds its own `Theme` and names it
- *  on its page;
- *  a sketch that wants this one with two colours moved copies this and
- *  writes the two. */
+ *  A sketch that wants another look copies this, writes the fields it
+ *  changes, and names the copy's `styleSheet()` on its stage. */
 [[nodiscard]] const Theme& houseTheme();
 
-/** A stock sheet for comparative studies: larger headings, brighter notes
- *  and wider margins. Copy it to adjust the specimen's caption placement or
- *  measured readouts; its resolved faces are shared across calls. */
+/** THE BUILDER OF `studyStyleSheet()`: larger headings, brighter notes
+ *  and wider margins. Its resolved faces are shared across calls. */
 [[nodiscard]] const Theme& studyTheme();
 
-/** A compact comparison sheet with a readable title and notes, retaining
- *  the house sheet's margins so fixed specimen wells keep their measure. */
+/** THE BUILDER OF `specimenStyleSheet()`: a readable title and notes,
+ *  retaining the house sheet's margins so fixed specimen wells keep their
+ *  measure. */
 [[nodiscard]] const Theme& specimenTheme();
 
-/** The space around a feature's authored figures. Compact retains narrow
- *  specimen margins; Spacious gives multi-section explanations more air. */
-enum class Density { Compact, Spacious };
-
-/** A feature sheet in slate, ivory and pale gold, with interface headings
- *  and terminal settings. Both densities retain their resolved faces. */
+/** THE BUILDER OF `featureStyleSheet(density)`: slate, ivory and pale
+ *  gold, with interface headings and terminal settings. Both densities
+ *  retain their resolved faces. */
 [[nodiscard]] const Theme& featureTheme(Density density = Density::Compact);
 
-/** A DARK SHEET IN THE TERMINAL VOICE: near-black ground, warm off-white
+/** THE BUILDER OF `darkStyleSheet()`: near-black ground, warm off-white
  *  ink, a grey ash, interface headings, and the terminal face as the face
- *  a call is set in. Its `label` class is the instrument's label — the
- *  terminal face at 12 px, tracked 2 px, in the ash — so a dial's or a
- *  track's caption is `text(words).styleClass("label")`. */
+ *  a call is set in, with the instrument's `label` register — the
+ *  terminal face at 12 px, tracked 2 px, in the ash. */
 [[nodiscard]] const Theme& darkTheme();
 
 }  // namespace sigil::sketch::kit

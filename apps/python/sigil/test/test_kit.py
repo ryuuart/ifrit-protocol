@@ -8,7 +8,7 @@ from pathlib import Path
 
 from _sigil import sketch as raw
 from sigil import weave
-from sigil.compose import Element, box, text
+from sigil.compose import Element, StyleSheet, box, rule, text
 from sigil.compose import kit as neutral
 from sigil.compose.layouts import Grid, fr, px
 from sigil.sketch import kit, renderFile
@@ -211,7 +211,7 @@ class GridSheet:
         props[0].noteGap = 18
         self.assertEqual(voice.noteGap.value, 900)
 
-    def test_stage_uses_the_native_context_and_sets_its_theme_at_the_root(self):
+    def test_stage_uses_the_native_context_and_sets_its_stylesheet_at_the_root(self):
         builtins._sigil_kit_stage = []
         self.addCleanup(lambda: builtins.__dict__.pop("_sigil_kit_stage", None))
         self.render("""import builtins
@@ -224,19 +224,56 @@ class Sheet:
     def setup(self, ctx):
         look = kit.houseTheme()
         look.palette.ground = "#123456"
-        kit.stage(ctx, theme=look, size=(160, 100), captureAt=0, oversample=1)
+        kit.stage(ctx, styleSheet=look.styleSheet(), size=(160, 100), captureAt=0, oversample=1)
         assert ctx.width == 160 and ctx.height == 100
         ctx.render(kit.page(text("Stage"), title="Native page"))
         builtins._sigil_kit_stage.append((ctx.width, ctx.height))
 """)
         self.assertEqual(builtins._sigil_kit_stage, [(160, 100)])
 
+    def test_the_deprecated_theme_keyword_still_stages(self):
+        builtins._sigil_kit_stage = []
+        self.addCleanup(lambda: builtins.__dict__.pop("_sigil_kit_stage", None))
+        self.render("""import builtins
+import warnings
+from sigil.compose import text
+from sigil.sketch import kit, sketch
+
+
+@sketch(size=(8, 8), captureAt=0)
+class Sheet:
+    def setup(self, ctx):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            kit.stage(ctx, theme=kit.houseTheme(), size=(120, 90), captureAt=0)
+        assert any(each.category is DeprecationWarning for each in caught)
+        ctx.render(kit.page(text("Stage"), title="Native page"))
+        builtins._sigil_kit_stage.append((ctx.width, ctx.height))
+""")
+        self.assertEqual(builtins._sigil_kit_stage, [(120, 90)])
+
+    def test_a_stock_stylesheet_is_its_builders_and_takes_a_rule_by_plus(self):
+        self.assertEqual(
+            kit.featureStyleSheet(kit.Density.Spacious),
+            kit.featureTheme(kit.Density.Spacious).styleSheet(),
+        )
+        self.assertEqual(kit.houseStyleSheet(), kit.houseTheme().styleSheet())
+        self.assertEqual(kit.studyStyleSheet(), kit.studyTheme().styleSheet())
+        self.assertEqual(kit.darkStyleSheet(), kit.darkTheme().styleSheet())
+        self.assertEqual(kit.specimenStyleSheet(), kit.specimenTheme().styleSheet())
+        gap = rule(":root").var("spacing-caption-gap", 8)
+        variant = kit.featureStyleSheet() + gap
+        self.assertIsInstance(variant, StyleSheet)
+        self.assertEqual(len(variant), len(kit.featureStyleSheet()) + 1)
+        self.assertEqual(variant.rules()[-1], gap)
+        self.assertEqual(variant, kit.featureStyleSheet() + StyleSheet([gap]))
+
     def test_a_nearer_sheet_states_a_subtree_look(self):
         self.render("""from sigil.compose import box
 from sigil.sketch import kit, sketch
 
 
-@sketch(size=(64, 64), captureAt=0, theme=kit.houseTheme())
+@sketch(size=(64, 64), captureAt=0, styleSheet=kit.houseStyleSheet())
 class Nested:
     def setup(self, ctx):
         inset = kit.houseTheme()

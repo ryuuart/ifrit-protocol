@@ -78,6 +78,7 @@
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/paragraph/Unit.h>
@@ -251,12 +252,11 @@ struct EmberDecode {
         ctx.assets.hub(), ctx.local("burn.sksl"),
         BurnParameters{kInk, kEmber, {kSweep, kSpeckle, kPatch}},
         {.key = "ember.burn"});
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = SkSize::Make(kW, kH),
-         // mid-decode: resolved, burning and unlit at once
-         .captureAt = 2.4});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = SkSize::Make(kW, kH),
+                             // mid-decode: resolved, burning and unlit at once
+                             .captureAt = 2.4});
     ctx.composer.render(describe(ctx));
   }
 

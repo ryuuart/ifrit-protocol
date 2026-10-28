@@ -232,7 +232,9 @@ declared once, applied at as many subtrees as the author likes. Copies
 share one stored form and compare by pointer before they compare by
 value. A literal may hold another sheet where a rule would stand,
 whose rules then stand in its place in order, and `+` joins two sheets
-the same way — `house + darkTheme + local`.
+the same way — `house + dark + local`. A rule converts to a sheet of that
+one rule, so a sheet plus a rule is a sheet: a variant of a stock
+stylesheet is that stylesheet `+ rule(":root").var(...)`.
 
 `Element::applyStyleSheet` puts a sheet in force at a node and
 everything under it. Calling it again applies another, later in order;

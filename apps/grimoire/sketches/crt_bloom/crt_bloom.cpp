@@ -117,14 +117,14 @@ struct CrtBloom {
   void setup(sketch::Scene2DContext& ctx) {
     // Nothing on the sheet reads the clock: both halos are static and the
     // tube is a function of the box, so the plate is the first moment.
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", 40)
-                      .var("spacing-margin-top", 40),
-         .size = {1000, 740},
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-margin-horizontal", 40)
+                                          .var("spacing-margin-top", 40),
+                        .size = {1000, 740},
+                        .captureAt = 0.05});
 
     // LEFT — one node. The effect owns the whole construction.
     Element primitive =

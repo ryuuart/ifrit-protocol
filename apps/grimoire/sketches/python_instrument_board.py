@@ -104,7 +104,7 @@ def envelope() -> compose.Element:
     )
 
 
-@sketch(size=(1100, 680), captureAt=2.4, theme=kit.featureTheme(kit.Density.Spacious))
+@sketch(size=(1100, 680), captureAt=2.4, styleSheet=kit.featureStyleSheet(kit.Density.Spacious))
 class InstrumentBoard:
     def setup(self, ctx: Scene2DContext) -> None:
         self.composer = ctx.composer

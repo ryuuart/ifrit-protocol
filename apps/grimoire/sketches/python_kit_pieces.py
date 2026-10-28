@@ -162,7 +162,7 @@ def piece(label: str, note: str, picture: Element) -> Element:
     )
 
 
-@sketch(size=(WIDTH, HEIGHT), captureAt=1.2, theme=kit.featureTheme(kit.Density.Compact))
+@sketch(size=(WIDTH, HEIGHT), captureAt=1.2, styleSheet=kit.featureStyleSheet(kit.Density.Compact))
 class KitPieces:
     def describe(self, seconds: float) -> Element:
         return kit.page(

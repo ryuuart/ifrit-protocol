@@ -390,7 +390,8 @@ void bindRule(py::module_& composition) {
       .def("type", &Rule::type, py::return_value_policy::copy,
            "The font half of what it states.")
       .def("paragraph", py::overload_cast<>(&Rule::paragraph, py::const_),
-           py::return_value_policy::copy, "The paragraph half of what it states.")
+           py::return_value_policy::copy,
+           "The paragraph half of what it states.")
       .def("copy", [](const Rule& self) { return self; })
       .def(py::self == py::self)
       .def(py::self != py::self)
@@ -444,6 +445,15 @@ void bindStyleSheet(py::module_& composition) {
           "The two sheets as one, `later`'s rules after this one's. Later "
           "is only a tiebreak, so a later rule wins where the two weigh the "
           "same and loses where it weighs less.")
+      .def(
+          "__add__",
+          [](const StyleSheet& earlier, const Rule& later) {
+            return earlier + StyleSheet(later);
+          },
+          py::arg("later"), py::is_operator(),
+          "This sheet with `later` after its rules: a variant of a stock "
+          "stylesheet is that stylesheet plus a rule. Later is only a "
+          "tiebreak, as between two sheets.")
       .def("copy", [](const StyleSheet& self) { return self; })
       .def(py::self == py::self)
       .def(py::self != py::self)

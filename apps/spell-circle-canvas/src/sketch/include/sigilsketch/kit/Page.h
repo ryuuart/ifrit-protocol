@@ -4,7 +4,7 @@
  * @ingroup sketch-kit
  *
  * The surface a sketch stands on: the canvas it declares, and the titled,
- * footed page drawn over it in the theme's voice.
+ * footed page drawn over it in the voice of the stylesheet in force.
  */
 
 #include <include/core/SkColor.h>
@@ -14,6 +14,7 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilsketch/kit/StyleSheets.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -32,41 +33,40 @@ struct Scene3DContext;
 
 namespace sigil::sketch::kit {
 
-/** WHAT A SKETCH DECLARES ABOUT ITS SURFACE, in one value: the theme it
- *  is set in, how big, when a still of it is worth taking, and — where it
- *  wants something other than the theme's ground — what is behind it.
+/** WHAT A SKETCH DECLARES ABOUT ITS SURFACE, in one value: the
+ *  stylesheet it is set in, how big, when a still of it is worth taking,
+ *  and — where it wants something other than the stylesheet's ground —
+ *  what is behind it.
  *
  *  It is `CanvasSpecification` with the ground made optional, because the
- * ground is the one field of a canvas that is part of the LOOK, and a sheet set
- * under a theme has already said what it is. */
+ *  ground is the one field of a canvas that is part of the LOOK, and a
+ *  stylesheet has already said what it is. */
 struct Stage {
-  /** THE LOOK THE SKETCH IS SET IN. The stage applies its
-   *  `Theme::styleSheet()` at the root of whatever the sketch renders —
-   *  its role rules and its spacing and palette as custom properties —
-   *  and clears the canvas to its ground, so every component the sketch
-   *  describes reads that theme where it lands. Unset is the house
-   *  theme's ground and its `Theme::properties()` alone: a study that
-   *  sets its own type keeps it, and a component it uses still reads the
-   *  house distances and colours. */
-  std::optional<Theme> theme;
-  /** RULES JOINED AFTER THE THEME'S SHEET at the same root: the one door a
-   *  variant of a stock look comes through. A sketch that wants a wider
-   *  caption gap or another cell ground says so here, as properties the
-   *  components under it already read, rather than in a copied theme:
+  /** THE LOOK THE SKETCH IS SET IN, as one stylesheet. The stage applies
+   *  it at the root of whatever the sketch renders, over the house custom
+   *  properties, so every component the sketch describes reads it where
+   *  it lands and a stylesheet of a few rules still finds every spacing
+   *  and palette property a component reads. A variant of a stock look is
+   *  that look with rules joined after it:
    *
-   *      .sheet = compose::StyleSheet{
-   *          compose::rule(":root").var("spacing-caption-gap", 8)}
+   *      .styleSheet = featureStyleSheet(Density::Spacious) +
+   *                    compose::rule(":root").var("spacing-caption-gap", 8)
    *
-   *  A `palette-ground` it sets on `:root` is the canvas's ground too,
-   *  where `background` names none, so the canvas and the page agree. */
-  std::optional<compose::StyleSheet> sheet;
+   *  The last `palette-ground` colour a `:root` rule of it sets is the
+   *  canvas's ground too, where `background` names none, so the canvas
+   *  and the page agree. Unset is the house custom properties and ground
+   *  alone, with none of the house role rules: a study that sets its own
+   *  type keeps it, and a component it uses still reads the house
+   *  distances and colours. */
+  std::optional<compose::StyleSheet> styleSheet;
   SkSize size{900, 640};
   /** The scene time a still should be taken at. Negative states no
    *  preference and a sweep falls back to its own derived frame. */
   double captureAt = -1.0;
-  /** Unset is the ground the stage's look states — the `palette-ground`
-   *  its `sheet` sets on `:root`, else the theme's — which is what a sheet
-   *  wants, since the page paints the same colour over it. */
+  /** Unset is the ground the stage's stylesheet states — the last
+   *  `palette-ground` colour it sets on `:root`, else the house ground —
+   *  which is what a sheet wants, since the page paints the same colour
+   *  over it. */
   std::optional<material::Color> background;
   /** Device pixels per canvas pixel a PLATE is taken at; 0 lets the host
    *  pick. */
@@ -77,12 +77,12 @@ struct Stage {
 };
 
 /** DECLARE THE CANVAS, THE LOOK, THE GROUND AND THE MOMENT in one call:
- *  the theme the stage names, and after it the stage's own `sheet`, stand
- *  at the root of everything the sketch renders, through
- *  `Composer::setStyleSheet`. Everything under that root reads the look
- *  as the properties, roles and classes that reach it there.
+ *  the stylesheet the stage names stands at the root of everything the
+ *  sketch renders, through `Composer::setStyleSheet`. Everything under
+ *  that root reads the look as the properties, roles and classes that
+ *  reach it there.
  *
- *      sketch::kit::stage(ctx, {.theme = sketch::kit::studyTheme(),
+ *      sketch::kit::stage(ctx, {.styleSheet = sketch::kit::studyStyleSheet(),
  *                               .size = {1100, 424}, .captureAt = 0.05});
  *
  *  It writes the whole `CanvasSpecification`, defaults included, so what a host
@@ -91,8 +91,8 @@ void stage(Scene2DContext& ctx, const Stage& surface);
 
 /** THE SAME DECLARATION FOR A SCENE3D SKETCH, which says the same three things
  *  through three calls of its own. A scene3d sketch has no one composer
- *  root, so the theme names the ground alone here; a page the sketch
- *  paints into a texture applies the theme's sheet on its own root.
+ *  root, so the stylesheet names the ground alone here; a page the sketch
+ *  paints into a texture applies the stylesheet on its own root.
  *
  *      sketch::kit::stage(ctx, {.size = {640, 440}, .captureAt = 1.3,
  *                               .background = {0.03f, 0.035f, 0.05f, 1}});
@@ -104,18 +104,18 @@ void stage(Scene2DContext& ctx, const Stage& surface);
 void stage(Scene3DContext& ctx, const Stage& surface);
 
 /** THE PROSE A SHEET CARRIES. Only the prose: every face, size, colour,
- *  margin and rule the page is set in is the sheet's in force where the
- *  page lands — the theme the stage names — which is the whole of what
+ *  margin and rule the page is set in is the stylesheet's in force where
+ *  the page lands — the one the stage names — which is the whole of what
  *  this component adds over `compose::kit::sheet`. */
 struct Page {
   compose::Utf8 title;
   compose::Utf8 subtitle;
   compose::Utf8 footer;
   /** false rules neither the header nor the footer off from the content.
-   *  A rule is the sheet's own arrangement rather than the theme's
+   *  A rule is the sheet's own arrangement rather than the stylesheet's
    *  colour, so it is asked for here. */
   bool ruled = true;
-  /** Unset is the theme's ground. A page whose ground is not a flat
+  /** Unset is the stylesheet's ground. A page whose ground is not a flat
    *  colour — a gradient behind the whole sheet, a material under it —
    *  names that here, because a palette holds colours and neither of
    *  those is one. */
@@ -125,14 +125,14 @@ struct Page {
   std::string key;
 };
 
-/** THE SHEET, over the whole canvas, in the theme's voice: the title, the
- *  subtitle and the footer in document roles `h1`, `lead` and `footer`
- *  — the theme's registers, resolved where these lines land — the page
+/** THE SHEET, over the whole canvas, in the stylesheet's voice: the title,
+ *  the subtitle and the footer in document roles `h1`, `lead` and `footer`
+ *  — the stylesheet's registers, resolved where these lines land — the page
  *  margins and the content gap the sheet's `spacing-margin-…` and
  *  `spacing-content-gap`, the ground and the hairline its `palette-ground`
  *  and `palette-rule`, and the running text the `page` role's rule.
  *
- *      sketch::kit::stage(ctx, {.theme = sketch::kit::studyTheme(),
+ *      sketch::kit::stage(ctx, {.styleSheet = sketch::kit::studyStyleSheet(),
  *                               .size = {900, 640}});
  *      ctx.composer.render(sketch::kit::page(
  *          {.title = "THE RULE AND THE STRANDS",
@@ -142,7 +142,7 @@ struct Page {
  *
  *  A PAGE IS THE WHOLE SURFACE, so this one places itself over the
  *  canvas. A sheet that stands in a rect instead is
- *  `compose::kit::sheet` called directly with the theme's styles — this
+ *  `compose::kit::sheet` called directly under a stylesheet — this
  *  library adds a layer over that one and does not close it. */
 [[nodiscard]] compose::Element page(const Page& sheet,
                                     compose::Element content);

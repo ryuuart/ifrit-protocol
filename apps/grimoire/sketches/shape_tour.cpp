@@ -137,15 +137,15 @@ const char* kHeartD =
 struct ShapeShelf {
   void setup(sketch::Scene2DContext& ctx) {
     // A generator is a pure function of its parameters and the box.
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", 30)
-                      .var("spacing-margin-top", 22)
-                      .var("spacing-caption-note-gap", 3),
-         .size = {1120, 980},
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-margin-horizontal", 30)
+                                          .var("spacing-margin-top", 22)
+                                          .var("spacing-caption-note-gap", 3),
+                        .size = {1120, 980},
+                        .captureAt = 0.05});
 
     Element generators = kit::cells(
         {.cells =

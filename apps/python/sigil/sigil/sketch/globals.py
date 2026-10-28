@@ -18,7 +18,7 @@ clock beside them, and ``mousePressed()``, ``mouseReleased()``,
 ``mouseMoved()``, ``mouseDragged()``, ``keyPressed()`` and ``keyReleased()``
 are called when the pointer or the keyboard changes between two frames.
 
-``size``, ``background``, ``captureAt`` and ``theme`` declare the canvas, at
+``size``, ``background``, ``captureAt`` and ``styleSheet`` declare the canvas, at
 the top of the file or inside ``setup``; ``captureAt`` may also be a module
 constant. The readings below are written into the sketch module's own
 namespace before every hook runs, so a hook reads them as plain names:
@@ -37,11 +37,14 @@ is handed and ``captureAt(seconds)`` names.
 import inspect
 import sys
 import threading
+import warnings
 from contextlib import contextmanager
 from math import isfinite
 from numbers import Real
 from types import ModuleType
 from typing import Any
+
+from .._kit import stagedStyleSheet
 
 width: float = 0.0
 """The canvas width in canvas units."""
@@ -101,7 +104,7 @@ def _declaring_module(depth):
     """The namespace of the module whose code called a declaration."""
     if getattr(_running, "hook", None):
         raise RuntimeError(
-            "size, background, captureAt and theme declare the canvas at the "
+            "size, background, captureAt and styleSheet declare the canvas at the "
             "top of the sketch file or inside setup; a running hook paints "
             "its ground with pen.background(...)"
         )
@@ -146,11 +149,23 @@ def captureAt(seconds: float) -> None:
     _record("captureAt", _number(seconds, "captureAt"))
 
 
+def styleSheet(sheet: Any, /) -> None:
+    """Declare the sketch's stylesheet, a ``compose.StyleSheet`` or one rule:
+    staged, so it stands at the root of every tree the sketch renders and the
+    canvas takes its ground where no background is declared."""
+    _record("styleSheet", stagedStyleSheet(sheet))
+
+
 def theme(look: Any, /) -> None:
-    """Declare a kit theme: staged, so its sheet stands at the root of every
-    tree the sketch renders and the canvas takes the theme's ground where no
-    background is declared."""
-    _record("theme", look)
+    """Deprecated: declare the stylesheet a kit builder makes, which
+    ``styleSheet(look.styleSheet())`` says."""
+    warnings.warn(
+        "theme() gives way to styleSheet(): a stock stylesheet such as "
+        "kit.featureStyleSheet(), or a builder's styleSheet()",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    _record("styleSheet", stagedStyleSheet(theme=look))
 
 
 __all__ = [
@@ -167,6 +182,7 @@ __all__ = [
     "mouseY",
     "seconds",
     "size",
+    "styleSheet",
     "theme",
     "width",
 ]
@@ -439,7 +455,7 @@ def sketchOf(module: ModuleType) -> type:
     body = type(name if name.isidentifier() else "Sketch", (), namespace)
     options = {
         key: loaded[key]
-        for key in ("size", "background", "captureAt", "theme")
+        for key in ("size", "background", "captureAt", "styleSheet")
         if key in loaded
     }
     declared = sketch(**options)(body)
@@ -456,7 +472,7 @@ def _size(ctx):
 
 def _declare(ctx, declared):
     """Apply what setup declared to the canvas the decorator declared."""
-    look = declared.get("theme")
+    look = declared.get("styleSheet")
     if look is not None:
         from .kit import stage
 
@@ -465,7 +481,7 @@ def _declare(ctx, declared):
             for key in ("size", "captureAt", "background")
             if key in declared
         }
-        stage(ctx, theme=look, **properties)
+        stage(ctx, styleSheet=look, **properties)
         return
     if "size" in declared:
         ctx.canvas(*declared["size"])

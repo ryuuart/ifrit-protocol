@@ -172,11 +172,10 @@ Element answered(const std::shared_ptr<const media::Image>& result) {
 struct ResourceHub {
   void setup(sketch::Scene2DContext& ctx) {
     // every request has already been answered
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = 0.05});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = 0.05});
     const sketch::kit::Theme& look =
         sketch::kit::featureTheme(sketch::kit::Density::Spacious);
 

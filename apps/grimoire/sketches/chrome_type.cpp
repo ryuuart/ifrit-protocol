@@ -114,9 +114,9 @@ sketch::kit::Theme sheetTheme() {
 
 struct ChromeType {
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = chrome::sheetTheme(), .size = kSceneSize, .captureAt = 0.4});
+    sketch::kit::stage(ctx, {.styleSheet = chrome::sheetTheme().styleSheet(),
+                             .size = kSceneSize,
+                             .captureAt = 0.4});
     ctx.composer.render(describe());
   }
 

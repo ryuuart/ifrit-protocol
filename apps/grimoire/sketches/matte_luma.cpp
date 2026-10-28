@@ -181,14 +181,14 @@ Element bandLabels(float stripW) {
 
 struct MatteLuma {
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .sheet = rule(":root")
-                      .var("spacing-margin-horizontal", 40)
-                      .var("spacing-margin-top", 40)
-                      .var("spacing-caption-gap", 6),
-         .size = {1100, 1180}});
+    sketch::kit::stage(ctx,
+                       {.styleSheet = sketch::kit::featureStyleSheet(
+                                          sketch::kit::Density::Spacious) +
+                                      rule(":root")
+                                          .var("spacing-margin-horizontal", 40)
+                                          .var("spacing-margin-top", 40)
+                                          .var("spacing-caption-gap", 6),
+                        .size = {1100, 1180}});
     // Every gate is a constant: the sheet is complete on the first frame.
     ctx.captureAt(0.05);
 

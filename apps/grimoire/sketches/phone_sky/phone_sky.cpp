@@ -200,12 +200,11 @@ struct PhoneSky {
   Reading shown;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = kCanvas,
-         .captureAt = kCaptureAt,
-         .background = kGround});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = kCanvas,
+                             .captureAt = kCaptureAt,
+                             .background = kGround});
     ticker = &ctx.engine;
 
     pages = ctx.local(kPages);

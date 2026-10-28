@@ -187,7 +187,7 @@ Positional APIs, such as `.children(*children)`, declare that distinction in
 their overloads.
 
 Every name is the native one, camelCase as SigilSketch and the libraries
-spell it: `kit.featureTheme`, `kit.panelGrid`, `document.listGap`,
+spell it: `kit.featureStyleSheet`, `kit.panelGrid`, `document.listGap`,
 `Json.toPython`, and a kit record's fields, `paddingVertical=` and `rowGap=`. A
 native name that is a Python keyword takes a trailing underscore — `from_`,
 `pass_`, `with_`, `is_`, `in_`, and `None_` for an enumerator named `None` —
@@ -889,7 +889,7 @@ by the same rule:
 
 `setup`, `draw` and `update` may also take the context as their last
 argument, as the methods do. `size(width, height)`, `background(color)`,
-`captureAt(seconds)` and `theme(look)` declare the canvas, at the top of
+`captureAt(seconds)` and `styleSheet(sheet)` declare the canvas, at the top of
 the file or inside `setup`; `captureAt = 2.0` as a module constant says
 the same. A declaration inside any other hook is refused, because the
 canvas is already drawing: `pen.background(...)` paints the ground there.
@@ -930,7 +930,7 @@ from sigil.sketch import kit
 from sigil.sketch.globals import *
 
 size(480, 200)
-theme(kit.featureTheme(kit.Density.Spacious))
+styleSheet(kit.featureStyleSheet(kit.Density.Spacious))
 
 
 def describe(seconds: float) -> Element:
@@ -1005,19 +1005,23 @@ signature when the class is decorated. A drawing with two arguments
 receives the same checked session context as setup.
 
 `size`, `background` and `captureAt`, the scene time a still is taken
-at, declare the canvas. `theme=`, a kit theme, is staged: its sheet stands
-at the root of every tree the sketch renders, and the canvas takes the
-theme's ground where no background is given:
+at, declare the canvas. `styleSheet=`, a `compose.StyleSheet` such as a
+stock one from the kit, is staged: it stands at the root of every tree the
+sketch renders, and the canvas takes its ground where no background is
+given:
 
 ```python
 from sigil.sketch import kit, sketch
 
 
-@sketch(size=(640, 360), captureAt=0, theme=kit.featureTheme(kit.Density.Spacious))
+@sketch(size=(640, 360), captureAt=0, styleSheet=kit.featureStyleSheet(kit.Density.Spacious))
 class Sheet:
     def setup(self):
         return kit.page(kit.well(width=240, height=160), title="A specimen sheet")
 ```
+
+The deprecated `theme=` and `sheet=` keywords still stage a builder's
+stylesheet with rules joined after it, and give way to `styleSheet=`.
 
 The host owns scheduling and teardown. Keep model data freely on the
 sketch, and use a pen during the drawing callback that supplied it.
@@ -1611,34 +1615,38 @@ is the imperative door: one pen over the scope's box, handed the pen and
 the scope. Both the arrangement and the scope are lent for the one call
 and refuse every reading once it has returned.
 
-The specimen kit supplies the native page furniture and theme:
+The specimen kit supplies the native page furniture and its stock
+stylesheets:
 
 ```python
 from sigil.compose import StyleSheet, rule, text
 from sigil.sketch import kit
 from sigil.weave import Type
 
-paper = StyleSheet([
+paper = kit.houseStyleSheet() + StyleSheet([
     rule(":root").var("palette-ground", "#f4f0e6").var("spacing-caption-gap", 8),
     rule("h1").font(Type(size=28)),
 ])
 
-# Inside setup(self, ctx), where the decorator states no theme:
-kit.stage(ctx, theme=kit.houseTheme(), sheet=paper, size=(640, 360), captureAt=0)
+# Inside setup(self, ctx), where the decorator states no stylesheet:
+kit.stage(ctx, styleSheet=paper, size=(640, 360), captureAt=0)
 picture = kit.well(width=240, height=160).children(text("A specimen"))
-content = kit.caption(picture, label="Native type", note="One shared theme")
+content = kit.caption(picture, label="Native type", note="One shared stylesheet")
 ctx.render(kit.page(content, title="A specimen sheet", footer="Sigil"))
 ```
 
-`@sketch(theme=kit.houseTheme(), sheet=paper)` says the same in one place:
-the decorator stages the canvas with the theme and the sheet joined after
-it, so both stand at the root of every tree the sketch renders.
+`@sketch(styleSheet=paper)` says the same in one place: the decorator
+stages the canvas with the stylesheet, so it stands at the root of every
+tree the sketch renders.
 
-THE THEME FLOWS DOWNSTREAM ONLY. The stage applies it once; everything
-under the root reads it as properties, roles and classes, never as the
-`Theme` value read back while describing. A variant of a stock look is
-rules in `sheet=`, and a `palette-ground` set there on `:root` is the
-canvas's ground too.
+THE STYLESHEET FLOWS DOWNSTREAM ONLY. The stage applies it once, over the
+house custom properties; everything under the root reads it as
+properties, roles and classes, never as a look read back while
+describing. A stylesheet plus a rule is a stylesheet, so a variant of a
+stock look is `kit.featureStyleSheet() + rule(":root").var(...)`, and the
+last `palette-ground` a `:root` rule of it sets is the canvas's ground
+too. A stage that names no stylesheet stands on the house custom
+properties alone.
 
 `stage`, `page`, `well`, `caption`, `cell`, `cells` and `panelGrid` call
 SigilSketchKit. The neutral `sigil.compose.kit` supplies native wells,
@@ -1665,17 +1673,19 @@ number or a measured series), `area`, `path` and `label` take keywords;
 functions; and a Python function of the frame, the key and the index is a
 layer too. `python_kit_pieces` sets nine of them on one sheet.
 
-`houseTheme()` supplies the default stock theme; `studyTheme()` supplies
-the stock theme for typographic studies. Both factories return owned native
-values. Their embedded palette, type and spacing fields are editable parts
-of the value.
-A theme reaches the tree as a sheet: `look.styleSheet()` holds the rules
-its registers style the document roles with, and `look.properties()` its
-spacing and palette as custom properties (`spacing-row-gap`,
-`palette-figure`). The stage sets the sheet at the root, so every component
-reads the theme where it lands, a later update included; a subtree in a
-genuinely different look applies that look's sheet, or its properties alone,
-on its own root, and a tree outside a sketch does the same. A component
+`houseStyleSheet()`, `studyStyleSheet()`, `specimenStyleSheet()`,
+`featureStyleSheet(density)` and `darkStyleSheet()` are the stock
+stylesheets. Each is built from a `Theme`, the builder:
+`houseTheme()`, `studyTheme()`, `specimenTheme()`, `featureTheme(density)`
+and `darkTheme()` return owned native values whose palette, type and
+spacing fields are editable, and `look.styleSheet()` is the stylesheet a
+builder makes — the rules its registers style the document roles with,
+and `look.properties()`, its spacing and palette as custom properties
+(`spacing-row-gap`, `palette-figure`). The stage sets the stylesheet at
+the root, so every component reads it where it lands, a later update
+included; a subtree in a genuinely different look applies that look's
+stylesheet, or its properties alone, on its own root, and a tree outside a
+sketch does the same. A component
 reads a property where it uses it, so a tree reads a colour as
 `var("palette-figure")` in a fill, and a paint program that names its
 context, `def paint(pen, context):`, reads one as
@@ -1722,8 +1732,8 @@ component's fallback role, the matched rules by CSS's specificity — a class
 over a role — then direct `font`/`paragraph` declarations.
 Build the children before their parent if useful; role styling resolves where
 they land. A nested stylesheet can change one region's voice. The native
-specimen theme uses `h1`, `lead`, `h2`, `label`, `caption`, `eyebrow` and `footer`
-for its document lines; its editable type-register field names remain `title`,
+specimen stylesheets use `h1`, `lead`, `h2`, `label`, `caption`, `eyebrow` and `footer`
+for their document lines; the builder's editable type-register field names are `title`,
 `subtitle`, `captionLabel` and `captionNote`.
 
 `article` bounds the reading measure. The inherited properties `document.measure`,
@@ -1739,7 +1749,7 @@ lists, tuples and generators. `document.quote("words")` is also valid;
 `document.paragraph(rich_text)` retains a single native rich passage. `document.item`
 accepts words or an Element body and an optional marker. These are semantic
 components; arbitrary text does not become an implicit child of an article.
-`python_document.py` shows one description under two complete role themes.
+`python_document.py` shows one description under two complete role stylesheets.
 
 ## Authoring a Python kit
 
@@ -1806,8 +1816,9 @@ callback for every frame. Native motion and time-dependent shader paints
 continue running after description. A changed model submits another tree.
 
 For project-specific design data, ordinary arguments or dataclasses keep
-dependencies explicit. The bound specimen `Theme` has native inherited
-scope; arbitrary Python theme types do not automatically join that scope.
+dependencies explicit. A look reaches a tree only as a stylesheet in
+force; a Python value of design data reaches it through the rules and
+properties a stylesheet built from it states.
 Move reusable factories into a helper beside the sketch and import them
 normally; local helper changes participate in hot reload.
 
@@ -1883,7 +1894,7 @@ nothing that entered goes at once.
 
 `sigil.weave` supplies native `Type`, `TextStyle`, `ParagraphBlock` and `TypeSheet`
 values. A partial type inherits unspecified fields; a complete text style
-describes its own look. A page applies its theme's stylesheet on its root,
+describes its own look. A stage applies its stylesheet at the root,
 and `styleClass` on a native element names a class its rules speak about.
 Mixed runs and paragraph settings use the same native values.
 
@@ -2135,7 +2146,7 @@ the context adopted answers alone. `weave.fonts.weightName(600)` is
 #### Faces and styles
 
 Underneath a family name is a face, `weave.Face`, as in C++: the load
-above answers one, `kit.houseFace(kit.Voice.Book)` answers one, a theme's
+above answers one, `kit.houseFace(kit.Voice.Book)` answers one, a builder's
 `type.sans` and `type.mono` are its two (None is the default family), and
 `Theme.sans(size, color)` and `Theme.mono(...)` set a line in either. A
 face is taken wherever a Skia typeface is and the other way round, since
@@ -2501,10 +2512,10 @@ Render one with `sigil render --example NAME -o preview.png`.
 | Example | What it exercises |
 | --- | --- |
 | `python_hello` | A first drawing: a greeting, a moving circle and two constants to edit |
-| `python_hello_compose` | A first retained composition: Python component and paint factories, native themed page and entrance motion |
+| `python_hello_compose` | A first retained composition: Python component and paint factories, native page under a stock stylesheet and entrance motion |
 | `python_type_atelier` | Mixed runs and inline objects, selector styling, initial letters, a threaded story and curved lettering |
 | `python_document` | One semantic document under two inherited role stylesheets |
-| `python_kit_specimen` | Native page and captions, stock layouts, scoped theme and deferred memo |
+| `python_kit_specimen` | Native page and captions, stock layouts, scoped stylesheet and deferred memo |
 | `python_bindings` | One oscillator's live value read through every binding stage: range, wiggle, clamp, envelope, quantize, a fold and an ease |
 | `python_instrument_board` | Readings reported at a cadence and drawn through memo, beside an envelope entering on one stagger |
 | `python_data_garden` | Native CSV tables, sorting, and linear, band and square-root scales |

@@ -230,11 +230,10 @@ struct BoundLane {
   sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(
-        ctx,
-        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
-         .size = {1280, 1030},
-         .captureAt = 6.0});
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::featureStyleSheet(
+                                 sketch::kit::Density::Spacious),
+                             .size = {1280, 1030},
+                             .captureAt = 6.0});
 
     // `seconds` is the SCHEDULE the shake is phased off. It ramps forever
     // rather than wrapping, so `frequency` reads as plain Hz and the noise

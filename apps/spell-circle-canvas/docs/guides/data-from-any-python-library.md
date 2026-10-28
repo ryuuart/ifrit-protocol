@@ -39,7 +39,7 @@ first turn after its bytes arrive. Declaring the attribute in the class
 body tells a type checker what `@sketch` supplies:
 
 ```python
-@sketch(size=(WIDTH, HEIGHT), captureAt=12.0, theme=kit.featureTheme(kit.Density.Compact))
+@sketch(size=(WIDTH, HEIGHT), captureAt=12.0, styleSheet=kit.featureStyleSheet(kit.Density.Compact))
 class MarketTape:
     loop: asyncio.AbstractEventLoop  # supplied by @sketch, turned once a frame
 ```

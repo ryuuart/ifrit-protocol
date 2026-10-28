@@ -865,7 +865,19 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, `darkTheme`, and `Theme.properties`"
+bound = "the stock stylesheets `houseStyleSheet`, `studyStyleSheet`, `specimenStyleSheet`, `featureStyleSheet` with `Density` and `darkStyleSheet`, which a stage names, and a stylesheet plus a rule"
+python = [
+  "sketch.kit.houseStyleSheet",
+  "sketch.kit.studyStyleSheet",
+  "sketch.kit.specimenStyleSheet",
+  "sketch.kit.featureStyleSheet",
+  "sketch.kit.darkStyleSheet",
+  "sketch.kit.Density",
+  "compose.StyleSheet.__add__",
+]
+
+[[section.surface.item]]
+bound = "the builders of the stock stylesheets, `houseFace`, `houseTheme`, `studyTheme`, `featureTheme` with `Density`, `darkTheme`, and `Theme.properties`"
 python = [
   "sketch.kit.houseFace",
   "sketch.kit.houseTheme",

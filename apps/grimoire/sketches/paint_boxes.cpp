@@ -105,7 +105,7 @@ Element pair(bool rootAnchored) {
 
 struct PaintBoxes {
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.theme = sketch::kit::studyTheme(),
+    sketch::kit::stage(ctx, {.styleSheet = sketch::kit::studyStyleSheet(),
                              .size = kCanvas,
                              .captureAt = 0.05});
     const float third = (kMeasure - 36) / 3, quarter = (kMeasure - 54) / 4;
