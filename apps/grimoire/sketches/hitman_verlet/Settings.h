@@ -259,8 +259,7 @@ inline Element panel(float height, std::string_view heading, int order) {
                             .size = 9.5f,
                             .ink = kSteel,
                             .letterSpacing = 1.9f})
-                     .height(12)
-                     .flexShrink(0)});
+                     .height(12)});
 }
 
 }  // namespace hitman_verlet

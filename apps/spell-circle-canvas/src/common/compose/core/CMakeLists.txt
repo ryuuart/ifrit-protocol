@@ -109,6 +109,7 @@ sigil_library(SigilComposeCore
     layout/CellFlow.cpp
     layout/Derive.cpp
     layout/DeriveInternal.h
+    layout/FlexItems.cpp
     layout/FlexItems.h
     layout/FlowAround.cpp
     layout/Grid.cpp

@@ -97,9 +97,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>>,
   // pass and read wherever the node's transform is produced.
   float arrangedTurn = 0.0f;
   // Whether the layout pass has reported this node: a flex container whose
-  // children run past its box, a text leaf a column shrank below its
-  // lines. Raised when the report is said and lowered when the node fits
-  // again, so one standing overflow is said once.
+  // children run past its box, a text leaf a stated minimum let a column
+  // shrink below its lines. Raised when the report is said and lowered when the
+  // node fits again, so one standing overflow is said once.
   bool overflowReported = false;
   bool squashReported = false;
   // Where this node landed, as a memo's describe that asked a placement

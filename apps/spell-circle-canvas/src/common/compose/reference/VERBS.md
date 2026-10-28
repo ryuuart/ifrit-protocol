@@ -108,7 +108,7 @@ parent, and a font-relative length measures against the type in force.
 | `height` | The same down the other axis. |
 | `minWidth` | The floor under the resolved width. |
 | `maxWidth` | The ceiling over it. |
-| `minHeight` | The floor under the resolved height. |
+| `minHeight` | The floor under the resolved height; unstated on a text leaf in a column, the height of its lines. |
 | `maxHeight` | The ceiling over it. |
 | `aspectRatio` | Width over height, for a node whose other axis is free. |
 | `boxSizing` | What `width` and `height` measure: `BoxSizing::BorderBox`, the padding included, unless `ContentBox` is said. |

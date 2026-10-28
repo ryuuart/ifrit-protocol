@@ -490,20 +490,6 @@ void SlitScan2001::setup(sketch::Scene2DContext& ctx) {
     rebuildWalls();
   });
 
-  if (ctx.fonts) {
-    const SkSize a1 = intrinsicSize(s1Quote(), *ctx.fonts, {kSideW, 4000});
-    const SkSize a2 = intrinsicSize(s2Lens(), *ctx.fonts, {kSideW, 4000});
-    const SkSize a3 = intrinsicSize(s3Law(), *ctx.fonts, {kSideW, 4000});
-    const SkSize a4 = intrinsicSize(s4Sampling(), *ctx.fonts, {kSideW, 4000});
-    // A layout self-check, because a flex column silently overlaps its
-    // children rather than complaining when they do not fit.
-    const float total = a1.height() + a2.height() + a3.height() + a4.height();
-    std::fprintf(
-        stderr,
-        "[slitscan] sidebar %.0f + %.0f + %.0f + %.0f = %.0f / %.0f%s\n",
-        a1.height(), a2.height(), a3.height(), a4.height(), total, kBodyH,
-        total > kBodyH ? "   *** OVER BUDGET ***" : "");
-  }
   ctx.composer.render(describe(ctx));
   ctx.composer.renderSlot("readout", readoutEl());
   ctx.composer.renderSlot("expo", expoEl());

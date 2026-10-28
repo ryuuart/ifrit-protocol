@@ -224,6 +224,9 @@ void Composer::Impl::ensureLayout() {
     YGNodeStyleSetWidth(root->yoga, intrinsic ? YGUndefined : size.width());
   if (stated.height.unit == Dimension::Unit::Auto)
     YGNodeStyleSetHeight(root->yoga, intrinsic ? YGUndefined : size.height());
+  // A text leaf's floor reads its container and its paragraph, either of
+  // which can move while the leaf's own style stands.
+  floorTextAtItsLines(*root);
   // The runner walks `phases` in order: a non-converging phase runs once,
   // and the converging phases form one contiguous group that repeats until
   // a round changes nothing or the round cap is reached. Custom layout()

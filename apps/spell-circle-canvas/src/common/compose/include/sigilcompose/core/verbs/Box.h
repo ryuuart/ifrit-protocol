@@ -86,7 +86,10 @@ class BoxVerbs {
   /** A CEILING over the node's width that `flexGrow()` may not take it
    *  above. None when unstated. */
   Derived& maxWidth(Dimension length);
-  /** A FLOOR under the node's height. None when unstated. */
+  /** A FLOOR under the node's height. None when unstated, except on a
+   *  text leaf whose lines run across a column: unstated, its floor is
+   *  the height of its lines, as CSS's automatic minimum, and
+   *  `minHeight(0)` lets the column shrink it. */
   Derived& minHeight(Dimension length);
   /** A CEILING over the node's height. None when unstated. */
   Derived& maxHeight(Dimension length);

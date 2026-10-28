@@ -248,13 +248,12 @@ struct GenesisFire {
         .font({.face = monoFace()})
         .font({.size = 11.0f, .letterSpacing = 0.1f})
         .ink(kBone)
-        .height(16)
-        .flexShrink(0);
+        .height(16);
   }
 
   /** A PANEL'S CLOSING REMARK, in the class every panel sets one in. */
   static Element note(const Utf8& words) {
-    return document::paragraph(words).styleClass("note").flexShrink(0);
+    return document::paragraph(words).styleClass("note");
   }
 
   Element generationPanel();
@@ -303,11 +302,7 @@ struct GenesisFire {
   Element renderModelPanel();
 
   Element prodLine(const Utf8& s, sigil::material::Color c) {
-    return document::paragraph(s)
-        .styleClass("line")
-        .ink(c)
-        .height(12)
-        .flexShrink(0);
+    return document::paragraph(s).styleClass("line").ink(c).height(12);
   }
 
   Element productionPanel();

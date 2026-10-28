@@ -262,8 +262,7 @@ inline Element panel(float height, int order) {
 inline Element panelHead(const Utf8& s) {
   return document::h2(s)
       .font({.face = uiFace(), .size = 9.5f, .letterSpacing = 1.9f})
-      .height(13)
-      .flexShrink(0);
+      .height(13);
 }
 
 }  // namespace genesis

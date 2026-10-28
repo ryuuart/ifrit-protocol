@@ -148,11 +148,9 @@ struct SlitScan2001 {
 
   Element panelShell(const data::Json& said, int order);
 
-  /** THE LINES OF ONE PANEL. Every text child inside a panel is
-   *  shrink(0): a flex column will otherwise squash a text leaf below its
-   *  measured height and the run silently overlaps its neighbour. This is
-   *  the height-axis form of the same rule that lets a fixed width() flex
-   *  child still shrink. */
+  /** THE LINES OF ONE PANEL, as its record in the document lists them:
+   *  its prose, the rules between it and the slots live readings are
+   *  rendered into. */
   std::vector<Element> prose(const data::Json& said);
 
   Element s1Quote();

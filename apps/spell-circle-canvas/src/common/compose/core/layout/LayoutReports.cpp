@@ -1,9 +1,10 @@
 /** @file
  * What the settled layout says rather than keeps quiet about: a flex
- * container whose children run past its box, and a text leaf a column has
- * shrunk below its lines. Both are told through the reporting door, once
- * when they start and not again while they stand, so a still tree and a
- * relayout that leaves them as they were say nothing.
+ * container whose children run past its box where no clip answers for
+ * the spill, and a text leaf a stated minimum lets a column shrink below
+ * its lines. Both are told through the reporting door, once when they
+ * start and not again while they stand, so a still tree and a relayout
+ * that leaves them as they were say nothing.
  */
 
 #include <sigilweave/paragraph/Paragraph.h>
@@ -164,6 +165,37 @@ bool readsOverflow(const Instance& inst) {
          childrenCarryYoga(inst);
 }
 
+/** WHETHER A SPILL IS SAID: @p spill, in @p container's layout space, is
+ *  said unless a clipping ancestor answers for it. One whose box holds the
+ *  whole spill bounds it, so it stays inside the region its author closed;
+ *  and a spill the clips above it cut away entirely draws nothing. A spill
+ *  a clip cuts in part is said, as the cut shows. Each ancestor's box is
+ *  brought into the container's space by the offsets Yoga placed the boxes
+ *  between them at; a node with no box of its own sits at no offset and
+ *  clips nothing. */
+bool spillIsSaid(const Instance& container, const SkRect& spill) {
+  SkRect showing = spill;
+  float left = 0.0f;
+  float top = 0.0f;
+  for (const Instance* node = &container; node->parent && node->yoga;
+       node = node->parent) {
+    left -= YGNodeLayoutGetLeft(node->yoga);
+    top -= YGNodeLayoutGetTop(node->yoga);
+    const Instance& ancestor = *node->parent;
+    if (!ancestor.yoga) break;
+    if (!ancestor.computed.clipContent ||
+        ancestor.computed.layout.display == Display::Contents)
+      continue;
+    SkRect box =
+        SkRect::MakeXYWH(left, top, YGNodeLayoutGetWidth(ancestor.yoga),
+                         YGNodeLayoutGetHeight(ancestor.yoga));
+    if (box.makeOutset(kOverflowTolerance, kOverflowTolerance).contains(spill))
+      return false;
+    if (!showing.intersect(box)) return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 void Composer::Impl::reportLayoutOverflow(Instance& inst) {
@@ -186,6 +218,8 @@ void Composer::Impl::reportLayoutOverflow(Instance& inst) {
                             YGNodeLayoutGetBorder(inst.yoga, axis.end);
       float lineStart = INFINITY;
       float lineEnd = -INFINITY;
+      float crossStart = INFINITY;
+      float crossEnd = -INFINITY;
       const Instance* firstPast = nullptr;
       for (const Instance* item : items) {
         const float start = positionAlong(*item, axis) -
@@ -194,13 +228,29 @@ void Composer::Impl::reportLayoutOverflow(Instance& inst) {
                           YGNodeLayoutGetMargin(item->yoga, axis.end);
         lineStart = std::min(lineStart, start);
         lineEnd = std::max(lineEnd, end);
+        const float across = axis.down ? YGNodeLayoutGetLeft(item->yoga)
+                                       : YGNodeLayoutGetTop(item->yoga);
+        const float acrossSize = axis.down ? YGNodeLayoutGetWidth(item->yoga)
+                                           : YGNodeLayoutGetHeight(item->yoga);
+        crossStart = std::min(crossStart, across);
+        crossEnd = std::max(crossEnd, across + acrossSize);
         if (!firstPast && (start < roomStart - kOverflowTolerance ||
                            end > roomEnd + kOverflowTolerance))
           firstPast = item;
       }
       const float room = std::max(roomEnd - roomStart, 0.0f);
       const float line = lineEnd - lineStart;
-      overflowing = line > room + kOverflowTolerance;
+      // What the line holds past each end of the room, across the band
+      // its items stand in; a clipping ancestor may answer for it.
+      const auto said = [&](float from, float to) {
+        if (to - from <= kOverflowTolerance) return false;
+        return spillIsSaid(
+            inst, axis.down ? SkRect::MakeLTRB(crossStart, from, crossEnd, to)
+                            : SkRect::MakeLTRB(from, crossStart, to, crossEnd));
+      };
+      overflowing = line > room + kOverflowTolerance &&
+                    (said(lineStart, std::min(roomStart, lineEnd)) ||
+                     said(std::max(roomEnd, lineStart), lineEnd));
       if (overflowing && !inst.overflowReported) {
         const char* across = axis.down ? "tall" : "wide";
         const std::string container = (axis.down ? std::string("the column at ")
@@ -222,21 +272,15 @@ void Composer::Impl::reportLayoutOverflow(Instance& inst) {
   }
   inst.overflowReported = overflowing;
 
-  // A TEXT LEAF SHRUNK BELOW ITS LINES. CSS floors a flex item whose
-  // minimum is unstated at its content, so text there never shrinks below
-  // its lines; Yoga floors every item at zero, and a column short of room
-  // shrinks its text leaves with its boxes. The lines are drawn whole
-  // whatever box the leaf was given, so a shrunk leaf paints over what the
-  // column placed after it.
+  // A TEXT LEAF A STATED MINIMUM LETS A COLUMN SHRINK. Unstated, its
+  // minimum is CSS's automatic one, which holds the leaf at its lines; a
+  // stated minimum height or basis lets a column short of room shrink it
+  // below them. The lines are drawn whole whatever box the leaf was given,
+  // so a shrunk leaf paints over what the column placed after it.
   bool squashed = false;
-  const Instance* container = flexContainerOf(inst);
-  if (inst.yoga && inst.paragraph && container && container->yoga &&
-      inst.description->kind == Kind::Text && runsDown(*container) &&
-      !container->description->arranges() && !inst.computed.clipContent &&
-      YGNodeStyleGetPositionType(inst.yoga) != YGPositionTypeAbsolute &&
-      inst.paragraph->writingMode() == sigil::weave::WritingMode::kHorizontal &&
-      !(inst.description->textData && inst.description->textData->onPath) &&
+  if (linesRunAcrossAColumn(inst) && !keepsItsLines(inst) &&
       inst.measuredRev == inst.contentRev) {
+    const Instance& container = *flexContainerOf(inst);
     const Insets pad = paddingOf(inst);
     const float borderAcross = YGNodeLayoutGetBorder(inst.yoga, YGEdgeLeft) +
                                YGNodeLayoutGetBorder(inst.yoga, YGEdgeRight);
@@ -254,7 +298,7 @@ void Composer::Impl::reportLayoutOverflow(Instance& inst) {
       // A stated height or ceiling is the author's own floor: a leaf set
       // shorter than its lines on purpose has not been shrunk.
       float floor = inst.measuredSize.height + pad.down() + borderDown;
-      const float containerHeight = YGNodeLayoutGetHeight(container->yoga);
+      const float containerHeight = YGNodeLayoutGetHeight(container.yoga);
       const auto bound = [&](YGValue value) {
         if (value.unit == YGUnitPoint) floor = std::min(floor, value.value);
         if (value.unit == YGUnitPercent)
@@ -264,23 +308,18 @@ void Composer::Impl::reportLayoutOverflow(Instance& inst) {
       bound(YGNodeStyleGetMaxHeight(inst.yoga));
       squashed = height < floor - kOverflowTolerance;
       if (squashed && !inst.squashReported) {
-        const LayoutProps& layout = inst.computed.layout;
         const char* cause =
-            layout.minHeight.unit != Dimension::Unit::Auto
+            inst.computed.layout.minHeight.unit != Dimension::Unit::Auto
                 ? "its stated minimum height lets the column shrink it; "
                   "leave the minimum unstated and it keeps the height of "
                   "its lines"
-            : layout.basis.unit != Dimension::Unit::Auto
-                ? "its stated basis lets the column shrink it; leave the "
-                  "basis unstated and it keeps the height of its lines"
-                : "a flex line floors an item at zero where CSS floors it "
-                  "at its content, so the column shrank it; state "
-                  "flexShrink(0) on it to keep the height of its lines";
+                : "its stated basis lets the column shrink it; leave the "
+                  "basis unstated and it keeps the height of its lines";
         reportWarning(
             "%s is laid out %.0f pixels shorter than its lines in the column "
             "at %s, so they paint over what the column places after it: %s.",
             describe(inst).c_str(), std::round(floor - height),
-            placeOf(*container).c_str(), cause);
+            placeOf(container).c_str(), cause);
       }
     }
   }

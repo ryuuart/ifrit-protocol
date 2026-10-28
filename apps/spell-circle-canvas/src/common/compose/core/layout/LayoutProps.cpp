@@ -5,6 +5,7 @@
  */
 
 #include "description/Calc.h"
+#include "layout/FlexItems.h"
 #include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
@@ -225,7 +226,9 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
            &YGNodeStyleSetMaxHeightPercent);
   YGNodeStyleSetAspectRatio(n, l.aspect > 0 ? l.aspect : YGUndefined);
   YGNodeStyleSetFlexGrow(n, l.grow);
-  YGNodeStyleSetFlexShrink(n, l.shrink);
+  // A text leaf CSS floors at its lines declines to shrink; the layout
+  // pass settles the same floor again where only its container moved.
+  YGNodeStyleSetFlexShrink(n, keepsItsLines(inst) ? 0.0f : l.shrink);
   applyDim(l.basis, &YGNodeStyleSetFlexBasis, &YGNodeStyleSetFlexBasisPercent);
   YGNodeStyleSetAlignItems(n, toYogaAlign(l.alignItems));
   // Measured text must not stretch on the cross axis: a stretched text leaf

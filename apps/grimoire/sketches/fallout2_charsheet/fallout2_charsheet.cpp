@@ -551,9 +551,7 @@ struct Fallout2CharSheet {
     };
     const auto entries = [](const Json& list) {
       return each(list.array(), [](const Json& entry) {
-        return text(std::string(entry.string()))
-            .height(pixels(12))
-            .flexShrink(0);
+        return text(std::string(entry.string())).height(pixels(12));
       });
     };
     static constexpr std::array<const char*, 3> kTabs{"PERKS", "KARMA",

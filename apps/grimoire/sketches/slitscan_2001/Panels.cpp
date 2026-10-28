@@ -69,8 +69,7 @@ auto SlitScan2001::prose(const data::Json& said) -> std::vector<Element> {
           .flexShrink(0);
     Element line = document::paragraph(n["words"])
                        .font({.size = (float)n["size"].number(6.5)})
-                       .styleClass(std::string(n["style"].string()))
-                       .flexShrink(0);
+                       .styleClass(std::string(n["style"].string()));
     if (!n["marked"].boolean()) return line;
     return box().row().gap(5).flexShrink(0).children(
         {text("▸")
