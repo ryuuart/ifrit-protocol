@@ -269,3 +269,18 @@ only so `Stopwatch.h` can spell a chrono alias, so the three lowest
 libraries form a cycle and no one of them can be built or read alone. A
 duration is meant to be core's own word. A test should find the link
 graph acyclic, with `core::Duration` spelled by measure and motion alike.
+
+## Three world suites that need a device carry no gpu label
+
+`Instancing`, `PresentedOnQueue` and `SurfaceRefusals` open the device
+and are missing from world's gpu suite list, so a machine without one
+fails them instead of skipping. A test should find every suite that opens
+a device labelled gpu.
+
+## Two wall-clock cases run in every plain ctest pass
+
+`ComposeTextShadow.AChangingGlowCosts…` and
+`SkiaGradient.AManyStopRampMaskCosts…` assert a time ratio and carry no
+timed label, so a loaded machine fails them for no defect. A time claim
+is meant to be a bench arm, or at least labelled timed. A test should find
+no unlabelled case asserting on a clock.
