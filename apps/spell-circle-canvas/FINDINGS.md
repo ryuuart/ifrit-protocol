@@ -251,3 +251,21 @@ start edge.
 `reference/pages/elements/box.md` says a box lays out as a row unless it
 says otherwise, while `LayoutProps::direction` and the README say
 column. A test should keep the page saying column.
+
+## Three shader noises hash their lattice their own way
+
+`material/.../Grain.slang`, `Noise.slang` and the compose kit's
+`Sparkle.sksl` each carry a lattice hash of their own, while `Pop.slang`
+reads the mixers core holds so that one noise means one picture on every
+backend, which is the reason core holds them. A surface is meant to mean
+the same noise wherever it is sampled. A test should find the three
+bodies sampling the core mixer and a grained plate byte-identical across
+the host and device paths.
+
+## Core links measure, which links motion, which links core
+
+`SigilCoreReconcile` links `SigilMeasure`, which links `SigilMotionTime`
+only so `Stopwatch.h` can spell a chrono alias, so the three lowest
+libraries form a cycle and no one of them can be built or read alone. A
+duration is meant to be core's own word. A test should find the link
+graph acyclic, with `core::Duration` spelled by measure and motion alike.
