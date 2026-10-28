@@ -263,17 +263,10 @@ graph acyclic, with `core::Duration` spelled by measure and motion alike.
 ## Three world suites that need a device carry no gpu label
 
 `Instancing`, `PresentedOnQueue` and `SurfaceRefusals` open the device
-and are missing from world's gpu suite list, so a machine without one
+and are missing from world's gpu suite list, and compose's
+`ComposeRepaint` makes a device with no gpu label on its suite, so a machine without one
 fails them instead of skipping. A test should find every suite that opens
 a device labelled gpu.
-
-## Two wall-clock cases run in every plain ctest pass
-
-`ComposeTextShadow.AChangingGlowCosts…` and
-`SkiaGradient.AManyStopRampMaskCosts…` assert a time ratio and carry no
-timed label, so a loaded machine fails them for no defect. A time claim
-is meant to be a bench arm, or at least labelled timed. A test should find
-no unlabelled case asserting on a clock.
 
 ## hangingPunctuation("allow-end") hangs as force-end does
 
@@ -341,3 +334,19 @@ two to six pixels in channel_bind, resource_hub, axis_ripple and
 lain_navi; each sketch's text is meant to fit the box it is set in. A
 test should find a headless sweep of these sketches saying no over-full
 report.
+## The refused variation axis's warning is untested
+
+`ComposeVariationDrive.AdvanceVariantAxisIsRefused` checks the drawn
+coordinates only, while the docs promise a once-only warning as well. A
+test should find one warning on the first refused frame and none on the
+next.
+
+## Ninety-five promises the tests pin are not in the README
+
+Ninety-five compose cases pin promises the README and its pages do not
+state, kept as tests because the promises are real, with a sentence
+proposed for each; sixteen of them are material promises (paint-lane
+programs, uniforms, blends, the kit stipple and dither) that belong in
+material's tests and README. A test is meant to pin a stated promise. A
+check should find every test named for a sentence its library's README
+holds.
