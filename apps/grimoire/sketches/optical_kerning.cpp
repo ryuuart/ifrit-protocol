@@ -67,13 +67,6 @@ const char* kPairs[6] = {"AV", "VA", "To", "Y.", "WA", "av"};
 constexpr material::Color kTable{0.95f, 0.44f, 0.32f, 0.80f};
 constexpr material::Color kOptical{0.40f, 0.76f, 0.98f, 0.80f};
 
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.rowGap = 8;
-  return look;
-}
-
 /** The headline's register. `optical` is the whole difference between the
  *  two settings on this sheet. */
 weave::TextStyle display(float size, material::Color color, bool optical) {
@@ -100,12 +93,18 @@ struct OpticalKerning {
 
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root").var("spacing-row-gap", 8),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     // THE DELTAS ARE MEASURED: each pair is set twice at the headline's
     // own size and the difference of the two advances is the answer. A
     // pair the face already kerns has little left to give.
-    const material::Color figure = sheetTheme().palette.figure;
+    const material::Color figure =
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+            .palette.figure;
     const auto advance = [&](const char* text8, bool optical) {
       return ctx
           .measure(
@@ -161,30 +160,27 @@ struct OpticalKerning {
   }
 
   Element table() {
-    const sketch::kit::Theme& sheet = sheetTheme();
     return sketch::kit::caption(
         kReading, "MEASURED DIFFERENCE",
         "Optical advance minus font-table advance",
         sketch::kit::well({.width = kReading, .height = 368, .padding = 22})
             .column()
             .gap(24)
-            .children(
-                {sigil::compose::kit::readout(
-                     pairs, {.measure = kReading - 44,
-                             .gap = sheetTheme().spacing.rowGap,
-                             .labelGap = sheetTheme().spacing.labelGap,
-                             .divider = Fill::color(sheetTheme().palette.rule)})
-                     .flexShrink(0),
-                 box().column().gap(4).children(
-                     {document::eyebrow("WHOLE LINE"),
-                      text(lineDelta)
-                          .font(sheet.font({.size = 42, .mono = true}))
-                          .ink(sheet.palette.figure),
-                      document::caption("px in total advance")}),
-                 document::caption(
-                     "The reference is the face's own even pair. "
-                     "Each difference accumulates along the line.")
-                     .width(kReading - 44)}),
+            .children({sigil::compose::kit::readout(
+                           pairs, {.measure = kReading - 44,
+                                   .divider = var("palette-rule")})
+                           .flexShrink(0),
+                       box().column().gap(4).children(
+                           {document::eyebrow("WHOLE LINE"),
+                            text(lineDelta)
+                                .styleClass("control")
+                                .font({.size = 42})
+                                .ink(var("palette-figure")),
+                            document::caption("px in total advance")}),
+                       document::caption(
+                           "The reference is the face's own even pair. "
+                           "Each difference accumulates along the line.")
+                           .width(kReading - 44)}),
         sigil::compose::kit::Caption::Where::Above);
   }
 };

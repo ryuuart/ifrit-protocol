@@ -147,15 +147,13 @@ std::vector<std::byte> seed(material::Color ink) {
 Element clouds(const std::shared_ptr<const Cloud>& cloud) {
   const std::vector<SkPoint> points =
       cloud ? cloud->points : std::vector<SkPoint>{};
-  // A paint program runs after the describe scope has closed, so the ink
-  // is read here and carried in by value.
-  const material::Color figure =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious).palette.figure;
-  return pen("hub.clouds", [points, figure](draw::Pen& pen) {
-    pen.noStroke();
-    pen.fill(figure);
-    for (const SkPoint& point : points) pen.circle(point.fX, point.fY, 8);
-  });
+  return pen("hub.clouds",
+             [points](draw::Pen& pen, const PaintContext& context) {
+               pen.noStroke();
+               pen.fill(resolveColor(var("palette-figure"), context));
+               for (const SkPoint& point : points)
+                 pen.circle(point.fX, point.fY, 8);
+             });
 }
 
 /** What a request came back with: the image, or the absence of one. */

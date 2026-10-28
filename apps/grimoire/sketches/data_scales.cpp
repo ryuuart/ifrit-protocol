@@ -85,7 +85,7 @@ Element mapping(const Mapping& properties) {
       box()
           .width(kWidth)
           .height(kHeight)
-          .fill(Fill::color(sketch::kit::featureTheme().palette.cellGround))
+          .fill(var("palette-cell-ground"))
           .children({kit::at(
               sketch::kit::plot(properties.title, frame, std::move(layers)), 24,
               16, kWidth - 48, kHeight - 44)});

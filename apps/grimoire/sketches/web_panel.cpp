@@ -94,14 +94,6 @@ constexpr const char* kScript =
 
 constexpr material::Color kCellGround{0.12f, 0.12f, 0.14f, 1};
 
-/** The sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.captionGap = 6;
-  return look;
-}
-
 /** The page. Transparent, so what is behind it in the scene is part of
  *  the composite rather than covered by it, and static, so it settles to
  *  one picture and stays there. */
@@ -248,7 +240,11 @@ struct WebPanelSketch {
 
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 1.0});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root").var("spacing-caption-gap", 6),
+         .size = kCanvas,
+         .captureAt = 1.0});
 
     // The settles go before the views they latched.
     m_pages.clear();
@@ -460,17 +456,18 @@ struct WebPanelSketch {
    *  sweep never reaches it, having asked the registry first; the app
    *  opens whatever is selected, so it is drawn rather than left blank. */
   static Element missing(const std::string& why) {
-    const sketch::kit::Theme& sheet = sheetTheme();
     return box()
         .inset(0)
-        .fill(Fill::color(sheet.palette.ground))
+        .fill(var("palette-ground"))
         .column()
         .gap(10)
         .padding(40)
         .children({text("no web engine here")
-                       .font({.size = 20, .color = sheet.palette.ink}),
+                       .font({.size = 20})
+                       .ink(var("palette-ink")),
                    text(why)
-                       .font({.size = 12, .color = sheet.palette.ash})
+                       .font({.size = 12})
+                       .ink(var("palette-ash"))
                        .width(620.0f)});
   }
 

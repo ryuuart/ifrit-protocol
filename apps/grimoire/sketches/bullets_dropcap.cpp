@@ -66,7 +66,7 @@ Element ornament() {
                   .key("opening-star")
                   .absolute()
                   .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
-                  .fill(Fill::color(look.palette.figure))
+                  .fill(var("palette-figure"))
                   .children({text("W")
                                  .font(serif(31, look.palette.ground))
                                  .absolute()
@@ -93,7 +93,7 @@ Element hangingList() {
       u8"An inner level adds one more indent."};
   const std::vector<std::u8string> dashes = {u8"—"};
   Element guide = box().absolute().left(kHang).top(0).width(1).height(130).fill(
-      Fill::color(look.palette.rule));
+      var("palette-rule"));
   return sketch::kit::well({.width = 501, .height = 170, .padding = 20})
       .children({box().width(461).children(
           {std::move(guide),

@@ -106,30 +106,16 @@ weave::Type label(float size = 9.0f, float track = 1.6f,
   return {.face = grotesque(), .size = size, .color = colour, .track = track};
 }
 
-/// The feature sheet keeps the type specimens at their authored measure.
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = kMargin;
-  look.spacing.marginTop = kMargin;
-  look.spacing.marginBottom = kMargin * 0.5f;
-  return look;
-}
-
 /// THE SHEET'S TWO CLASSES beside the theme's registers: `body`, the story
 /// in the serif under an English tag, and `figures`, the table in the mono.
 /// Both inherit their paper panel's ink and use no tracking; a leaf says
 /// only the size it differs by.
 sigil::compose::StyleSheet classes() {
-  sigil::compose::StyleSheet sheet =
-      sheetTheme().styleSheet() +
-      sigil::compose::StyleSheet{
-          sigil::compose::rule(".body").font(weave::Type{.face = serif(),
-                                                         .size = 15.0f,
-                                                         .track = 0.0f,
-                                                         .language = "en-US"}),
-          sigil::compose::rule(".figures")
-              .font(weave::Type{.face = mono(), .size = 12.0f, .track = 0.0f})};
+  sigil::compose::StyleSheet sheet = sigil::compose::StyleSheet{
+      sigil::compose::rule(".body").font(weave::Type{
+          .face = serif(), .size = 15.0f, .track = 0.0f, .language = "en-US"}),
+      sigil::compose::rule(".figures")
+          .font(weave::Type{.face = mono(), .size = 12.0f, .track = 0.0f})};
   return sheet;
 }
 
@@ -201,8 +187,16 @@ namespace s = sheet;
 
 struct ParagraphSheet {
   void setup(sketch::Scene2DContext& ctx) {
+    // The feature sheet keeps the type specimens at their authored measure.
     sketch::kit::stage(
-        ctx, {.theme = s::sheetTheme(), .size = kSceneSize, .captureAt = 0.4});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = sigil::compose::rule(":root")
+                      .var("spacing-margin-horizontal", s::kMargin)
+                      .var("spacing-margin-top", s::kMargin)
+                      .var("spacing-margin-bottom", s::kMargin * 0.5f),
+         .size = kSceneSize,
+         .captureAt = 0.4});
     ctx.composer.render(describe());
   }
 

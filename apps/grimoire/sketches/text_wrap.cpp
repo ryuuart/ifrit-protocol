@@ -60,16 +60,6 @@ sigil::weave::Face serif() {
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
 }
 
-/// The feature sheet leaves the passages at their authored measure.
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 48;
-  look.spacing.marginTop = 44;
-  look.spacing.marginBottom = 28;
-  return look;
-}
-
 /// One specimen: the call that set it, over the passage in its measure.
 Element specimen(const char* call, Text passage) {
   Element paper = sketch::kit::well(
@@ -93,8 +83,16 @@ Element row(const char* name, std::vector<Element> specimens) {
 
 struct TextWrapSpecimen {
   void setup(sketch::Scene2DContext& ctx) {
+    // The feature sheet leaves the passages at their authored measure.
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kSceneSize, .captureAt = 0.2});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 48)
+                      .var("spacing-margin-top", 44)
+                      .var("spacing-margin-bottom", 28),
+         .size = kSceneSize,
+         .captureAt = 0.2});
     ctx.composer.render(describe());
   }
 

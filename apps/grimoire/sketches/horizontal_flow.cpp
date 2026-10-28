@@ -150,16 +150,14 @@ struct HorizontalFlow {
     sketch::kit::stage(ctx,
                        {.theme = sheetTheme(),
                         .size = SkSize::Make(kCanvas.width(), kCanvas.height()),
-                        .captureAt = 0.05,
-                        .background = sheet.palette.ground});
+                        .captureAt = 0.05});
 
-    // The root: the book face at the passages' size, in the sheet's ink,
-    // with the theme's registers stated for the two lines that name one.
+    // The root: the book face at the passages' size, in the sheet's ink;
+    // the stage's sheet states the registers for the lines that name one.
     ctx.composer.render(
         box()
             .font({.face = sheet.type.mono, .size = 15})
-            .ink(sheet.palette.ink)
-            .applyStyleSheet(sheet.styleSheet())
+            .ink(var("palette-ink"))
             .children(
                 {document::h1(u8"HORIZONTAL TEXT FLOW").at({42, 34}),
                  document::lead(

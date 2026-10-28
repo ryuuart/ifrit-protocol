@@ -194,7 +194,7 @@ sketch::kit::ComparisonCase cell(const char* title, std::string key,
                        })
                     .width(kCell)
                     .height(kCell)
-                    .fill(Fill::color(sheetTheme().palette.cellGround)),
+                    .fill(var("palette-cell-ground")),
       .note = note};
 }
 
@@ -209,7 +209,7 @@ sketch::kit::ComparisonCase woven(const char* title, path::CrossingRule rule,
           box()
               .width(kCell)
               .height(kCell)
-              .fill(Fill::color(sheetTheme().palette.cellGround))
+              .fill(var("palette-cell-ground"))
               .justifyContent(Justify::Center)
               .alignItems(Align::Center)
               .children(

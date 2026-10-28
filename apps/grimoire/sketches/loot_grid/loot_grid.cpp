@@ -556,38 +556,33 @@ struct LootGrid {
    *  a stat row answers with, and a tooltip's affix line, which is set in
    *  the magic colour. Every other line is the root's ink at a size of
    *  its own. */
-  static sigil::compose::StyleSheet classes(const sketch::kit::Theme& look) {
-    sigil::compose::StyleSheet sheet =
-        look.styleSheet() +
-        sigil::compose::StyleSheet{
-            sigil::compose::rule(".heading")
-                .font({.size = 12,
-                       .color = loot::kBronzeLit,
-                       .track = 4.5f,
-                       .weight = 650}),
-            sigil::compose::rule(".value").font(
-                {.size = 12, .track = 0.5f, .weight = 620}),
-            sigil::compose::rule(".affix").font(
-                {.color = loot::rarityColor(loot::Rarity::Magic)})};
+  static sigil::compose::StyleSheet classes() {
+    sigil::compose::StyleSheet sheet = sigil::compose::StyleSheet{
+        sigil::compose::rule(".heading")
+            .font({.size = 12,
+                   .color = loot::kBronzeLit,
+                   .track = 4.5f,
+                   .weight = 650}),
+        sigil::compose::rule(".value").font(
+            {.size = 12, .track = 0.5f, .weight = 620}),
+        sigil::compose::rule(".affix").font(
+            {.color = loot::rarityColor(loot::Rarity::Magic)})};
     return sheet;
   }
 
   Element describe() {
     namespace lt = loot;
-    const sketch::kit::Theme look = sheetTheme();
     const std::string goldText = kit::formatted("%d", gold);
 
     // THE ROOT OF THE CASCADE: ash is the ink every line that names no
     // colour of its own is set in — the keys, the labels, the remarks.
-    auto root = stack()
-                    .applyStyleSheet(classes(look))
-                    .ink(lt::kAsh)
-                    .fill(sigil::material::linearGradient(
-                        {0, 0}, {0, lt::kH},
-                        {{0.0f, hexColor(0x0D0C0A)},
-                         {0.5f, hexColor(0x14120F)},
-                         {1.0f, hexColor(0x080706)}},
-                        {.units = material::GradientUnits::Pixels}));
+    auto root = stack().applyStyleSheet(classes()).ink(lt::kAsh).fill(
+        sigil::material::linearGradient(
+            {0, 0}, {0, lt::kH},
+            {{0.0f, hexColor(0x0D0C0A)},
+             {0.5f, hexColor(0x14120F)},
+             {1.0f, hexColor(0x080706)}},
+            {.units = material::GradientUnits::Pixels}));
 
     // THE GROUND IS TOOLED LEATHER, and it is tiled rather than painted:
     // two patterns over one dark ramp, each a repeating tile the

@@ -37,15 +37,6 @@ namespace {
 
 constexpr float kTau = 2.0f * std::numbers::pi_v<float>;
 
-sketch::kit::Theme sheetTheme() {
-  auto look = sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 48;
-  look.spacing.marginTop = 42;
-  look.spacing.marginBottom = 32;
-  look.spacing.contentGap = 32;
-  return look;
-}
-
 Element card(Utf8 step, Utf8 title, Utf8 note, material::Color color) {
   return box()
       .column()
@@ -111,7 +102,7 @@ struct HelloSketch {
                            .fill(Fill::color(hexColor(0x253b40)))
                            .overflow(Overflow::Clip),
                        text("Draw every frame with the pen.")
-                           .ink(sheetTheme().palette.ash)}),
+                           .ink(var("palette-ash"))}),
                   box().column().width(240).gap(12).children(
                       {text("A value that changes.").font({.size = 20}),
                        kit::centred()
@@ -119,18 +110,27 @@ struct HelloSketch {
                            .gap(8)
                            .height(174)
                            .borderRadius({18})
-                           .fill(Fill::color(sheetTheme().palette.cellGround))
+                           .fill(var("palette-cell-ground"))
                            .children({text(std::to_string(score))
                                           .font({.size = 64})
                                           .key("score"),
                                       document::eyebrow("and counting")}),
                        text("Update only when data changes.")
-                           .ink(sheetTheme().palette.ash)})})}));
+                           .ink(var("palette-ash"))})})}));
   }
 
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = {1000, 700}, .captureAt = 1.0});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 48)
+                      .var("spacing-margin-top", 42)
+                      .var("spacing-margin-bottom", 32)
+                      .var("spacing-content-gap", 32)
+                      .var("spacing-rule-gap", 16),
+         .size = {1000, 700},
+         .captureAt = 1.0});
     // The clock, followed: a sine of 1.6 radians a second. One value
     // animates a retained card and feeds the immediate wave.
     wave = motion::bind(ctx.engine.time(),

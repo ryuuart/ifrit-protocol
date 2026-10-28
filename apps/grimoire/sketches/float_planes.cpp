@@ -67,14 +67,6 @@ constexpr SkSize kCanvas = {1100, 1060};
 
 constexpr material::Color kCellGround{0.12f, 0.12f, 0.14f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.captionGap = 6;
-  return look;
-}
-
 /** THE FIXTURE, as floats. Three fields that have nothing to do with one
  *  another, which is the whole reason a format keeps planes apart:
  *
@@ -151,7 +143,11 @@ struct FloatPlanes {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root").var("spacing-caption-gap", 6),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     const auto bytes = writeExr();
     if (bytes.empty()) {
@@ -291,17 +287,16 @@ struct FloatPlanes {
   }
 
   static Element missing(const std::string& why) {
-    const sketch::kit::Theme& sheet = sheetTheme();
     return box()
         .cover()
-        .fill(Fill::color(sheet.palette.ground))
         .column()
         .gap(10)
         .padding(40)
-        .ink(sheet.palette.ink)
+        .ink(var("palette-ink"))
         .children({text("no float source here").font({.size = 20}),
                    text(why)
-                       .font({.size = 12, .color = sheet.palette.ash})
+                       .font({.size = 12})
+                       .ink(var("palette-ash"))
                        .width(620.0f)});
   }
 };

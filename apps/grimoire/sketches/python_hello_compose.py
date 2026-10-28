@@ -45,11 +45,9 @@ def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
     )
 
 
-@sketch(size=(900, 360), captureAt=1.1)
+@sketch(size=(900, 360), captureAt=1.1, theme=kit.featureTheme(kit.Density.Spacious))
 class HelloCompose:
     def setup(self, ctx: Scene2DContext) -> None:
-        look = kit.featureTheme(kit.Density.Spacious)
-        kit.stage(ctx, theme=look, size=(900, 360), captureAt=1.1)
         ctx.render(
             kit.page(
                 (

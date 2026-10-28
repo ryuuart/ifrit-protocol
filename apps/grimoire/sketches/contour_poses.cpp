@@ -93,14 +93,6 @@ constexpr material::Color kWarm{0.95f, 0.62f, 0.30f, 1};
 constexpr material::Color kCool{0.44f, 0.70f, 0.95f, 1};
 constexpr material::Color kBand{0.95f, 0.62f, 0.30f, 0.34f};
 
-/** The specimen sheet, in this one's caption voice. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.captionGap = 8;
-  return look;
-}
-
 /** The subject: a five-pointed star with bowed arms, centred in the
  *  picture. Ten real corners, alternating sharp and shallow, which is
  *  what makes the corner threshold visible as a threshold. */
@@ -189,7 +181,11 @@ struct ContourPoses {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root").var("spacing-caption-gap", 8),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     const SkPath figure = subject();
     const std::vector<path::Contour> contours =

@@ -100,11 +100,9 @@ const material::Color kCurve{0.32f, 0.46f, 0.62f, 1};
 
 /** The sheet's one class past the registers and the chart's: the ±amount
  *  rails, which are the bound worth seeing and not a hairline. */
-sigil::compose::StyleSheet sheetClasses(const sketch::kit::Theme& look) {
-  sigil::compose::StyleSheet classes =
-      look.styleSheet() +
-      sigil::compose::StyleSheet{
-          sigil::compose::rule(".rail").font({.color = kRail})};
+sigil::compose::StyleSheet sheetClasses() {
+  sigil::compose::StyleSheet classes = sigil::compose::StyleSheet{
+      sigil::compose::rule(".rail").font({.color = kRail})};
   // The two loci are the same curve in two inks: the split-seed shake and
   // the shared-seed slide, told apart by the class each names.
   classes = classes +
@@ -352,17 +350,7 @@ struct BoundLane {
                             {.name = "Amplitude", .value = "±60 px"},
                             {.name = "Frequency", .value = "3 Hz"},
                             {.name = "Plotted window", .value = "2 seconds"}},
-                        {.measure = 282,
-                         .gap = sketch::kit::featureTheme(
-                                    sketch::kit::Density::Spacious)
-                                    .spacing.rowGap,
-                         .labelGap = sketch::kit::featureTheme(
-                                         sketch::kit::Density::Spacious)
-                                         .spacing.labelGap,
-                         .divider =
-                             Fill::color(sketch::kit::featureTheme(
-                                             sketch::kit::Density::Spacious)
-                                             .palette.rule)}),
+                        {.measure = 282, .divider = var("palette-rule")}),
                     document::caption(
                         "The red rails bound the displacement. Noise is "
                         "added in the property's own units; clamp runs last.")
@@ -421,8 +409,7 @@ struct BoundLane {
                  std::move(locusRow),
                  document::h2("03 / FOLLOW A PATH · ONE PHASE, FIVE READINGS"),
                  std::move(tracks)}))
-            .applyStyleSheet(sheetClasses(
-                sketch::kit::featureTheme(sketch::kit::Density::Spacious))));
+            .applyStyleSheet(sheetClasses()));
   }
 };
 

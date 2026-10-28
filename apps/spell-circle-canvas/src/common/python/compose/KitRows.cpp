@@ -56,7 +56,7 @@ struct HeldTable : composeKit::Table {
 /** Bars as Python holds them: the native record and the run of row inks
  *  it views. */
 struct HeldBars : composeKit::Bars {
-  std::vector<material::Color> inkRun;
+  std::vector<compose::Fill> inkRun;
 
   HeldBars() = default;
   explicit HeldBars(const composeKit::Bars& bars)
@@ -318,11 +318,11 @@ void bindComposeKitRows(py::module_& root) {
   bars.def_property(
       "inks", [](const HeldBars& self) { return self.inkRun; },
       [](HeldBars& self, py::handle value) {
-        self.inkRun = kit::converted<std::vector<material::Color>>(value);
+        self.inkRun = kit::converted<std::vector<compose::Fill>>(value);
         self.point();
       },
       "One ink per row, in the values' own order, over the bar and its two "
-      "lines.");
+      "lines: a colour, a paint or var(name).");
   partField(bars, "labelLine", &composeKit::Bars::labelLine);
   partField(bars, "figureLine", &composeKit::Bars::figureLine);
   module.def(

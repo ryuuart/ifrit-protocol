@@ -167,6 +167,7 @@ void bindSpecimens(py::module_& module) {
   field(well, "relief", &sketchKit::Well::relief);
   auto stage = record<sketchKit::Stage>(module, "Stage");
   field(stage, "theme", &sketchKit::Stage::theme);
+  field(stage, "sheet", &sketchKit::Stage::sheet);
   field(stage, "size", &sketchKit::Stage::size);
   field(stage, "captureAt", &sketchKit::Stage::captureAt);
   field(stage, "background", &sketchKit::Stage::background);

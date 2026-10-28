@@ -68,16 +68,6 @@ constexpr float kMaximumSigma = 14.0f;  // the map's 1.0 end, in px of sigma
 constexpr float kFocal = 0.42f;   // panel 2's sharp line, 0..1 down the box
 constexpr double kRackHz = 0.18;  // panel 4's breathing rate
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 40;
-  look.spacing.marginTop = 40;
-  look.spacing.captionGap = 6;
-  return look;
-}
-
 /** THE CONTENT, one function so every panel blurs the SAME picture: fine
  *  rules 7 px apart (detail a blur destroys visibly) under three discs.
  *  The tile is baked once and repeated; the rotation only remaps the
@@ -134,7 +124,14 @@ struct BlurFalloff {
   void setup(sketch::Scene2DContext& ctx) {
     // the top of panel 4's breath: 1 / (2 kRackHz)
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = {1100, 960}, .captureAt = 2.78});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 40)
+                      .var("spacing-margin-top", 40)
+                      .var("spacing-caption-gap", 6),
+         .size = {1100, 960},
+         .captureAt = 2.78});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Where does the blur fall?",

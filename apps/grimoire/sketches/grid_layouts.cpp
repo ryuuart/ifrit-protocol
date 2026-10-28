@@ -113,20 +113,13 @@ layouts::Grid programmeGrid(const Configuration& configuration) {
       .gap = {kGutterUnits * unit, kGutter}};
 }
 
-/** The specimen sheet, in this one's caption voice. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.captionGap = 8;
-  return look;
-}
-
 /** The twelve cards, identical in every cell. Each is a TEXT leaf, so
  *  every scheme is handed a real first baseline; the three sizes cycle so
  *  the baseline rhythm has something to correct. */
 std::vector<Element> cards() {
   static constexpr float kSizes[3] = {12, 16, 20};
-  const sketch::kit::Theme& look = sheetTheme();
+  const sketch::kit::Theme& look =
+      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   return each(12, [&look](int i) {
     return text((i < 9 ? "0" : "") + std::to_string(i + 1) + " Aa",
                 look.mono(kSizes[i % 3], look.palette.figure))
@@ -138,9 +131,8 @@ std::vector<Element> cards() {
 /** The rhythm the third cell snaps to, drawn so the reader can see which
  *  line each card's letters landed on. */
 Element rhythmLines() {
-  return kit::ladder({.count = 13,
-                      .pitch = kRhythm,
-                      .fill = Fill::color(sheetTheme().palette.rule)})
+  return kit::ladder(
+             {.count = 13, .pitch = kRhythm, .fill = var("palette-rule")})
       .absolute()
       .left(kInset)
       .top(kInset)
@@ -162,7 +154,11 @@ struct GridLayouts {
     // Only the programme moves, a step at a time; the still is taken in
     // its opening configuration.
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root").var("spacing-caption-gap", 8),
+         .size = kCanvas,
+         .captureAt = 0.05});
     show(ctx, kOpening);
   }
 
@@ -223,10 +219,7 @@ struct GridLayouts {
                       .value = "position + extent"},
                      {.name = "Diagonal / baseline change",
                       .value = "position only"}},
-                 {.measure = 501,
-                  .gap = sheetTheme().spacing.rowGap,
-                  .labelGap = sheetTheme().spacing.labelGap,
-                  .divider = Fill::color(sheetTheme().palette.rule)})})));
+                 {.measure = 501, .divider = var("palette-rule")})})));
   }
 };
 

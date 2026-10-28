@@ -188,6 +188,7 @@ def sketch(
     background=None,
     captureAt=None,
     theme=None,
+    sheet=None,
 ):
     """Declare a sketch class; what it defines decides its kind.
 
@@ -214,21 +215,26 @@ def sketch(
     behind it and the moment a still is taken at. ``theme``, a kit theme, is
     staged: its sheet stands at the root of every tree the sketch renders,
     so every component in it reads the theme where it lands, and the canvas
-    takes the theme's ground where no background is given.
+    takes the theme's ground where no background is given. ``sheet``, a
+    ``compose.StyleSheet``, is joined after the theme's at that root: a
+    variant of a stock look is rules there, such as
+    ``rule(":root").var("spacing-caption-gap", 8)``.
     """
     if not isinstance(size, (tuple, list)) or len(size) != 2:
         raise TypeError("size must contain a width and a height")
     width = _number(size[0], "canvas width", positive=True)
     height = _number(size[1], "canvas height", positive=True)
     moment = _number(1.0 if captureAt is None else captureAt, "captureAt")
-    if theme is None and background is None:
+    if theme is None and sheet is None and background is None:
         background = "#121720"
 
     def declare(ctx):
-        if theme is not None:
+        if theme is not None or sheet is not None:
             from .kit import stage
 
             properties = dict(size=(width, height), captureAt=moment, theme=theme)
+            if sheet is not None:
+                properties["sheet"] = sheet
             if background is not None:
                 properties["background"] = background
             stage(ctx, **properties)

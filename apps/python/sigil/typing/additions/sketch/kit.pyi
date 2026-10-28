@@ -15,6 +15,7 @@ Column = sigil.compose.kit.Column
 
 class _StageProperties(typing.TypedDict, total=False):
     theme: Theme | None
+    sheet: sigil.compose.StyleSheet | None
     size: _t.SizeLike
     captureAt: float
     background: _t.ColorLike | None

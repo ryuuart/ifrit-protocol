@@ -190,9 +190,6 @@ struct StickerCollection {
              sketch::kit::titleCard(
                  {.title = {"Moving pictures, transparent edges"},
                   .subtitle = {"GIF · WebP · AVIF sequences · alpha WebM"}}))
-             .applyStyleSheet(
-                 sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                     .styleSheet())
              .at({40, 38})}));
   }
 };

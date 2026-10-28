@@ -51,15 +51,6 @@ constexpr float kCell = 240;
 constexpr float kPicture = 190;
 constexpr float kWeight = 1.5f;  // every curve drawn at one width
 
-/** The specimen sheet, in this one's caption voice. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.captionGap = 8;
-  look.spacing.captionNoteGap = 3;
-  return look;
-}
-
 /** One specimen: the curve stroked inside a bordered plate, its call
  *  spelled under it and the rule it illustrates under that. */
 sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
@@ -73,8 +64,7 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
                   .absolute()
                   .inset(inset)
                   .shape(std::move(curve))
-                  .stroke(stroke(kWeight,
-                                 Fill::color(sheetTheme().palette.figure)))),
+                  .stroke(stroke(kWeight, var("palette-figure")))),
           .note = note};
 }
 
@@ -84,7 +74,13 @@ struct CurveShelf {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-caption-gap", 8)
+                      .var("spacing-caption-note-gap", 3),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "A small atlas of curves",

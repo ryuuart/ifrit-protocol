@@ -1595,24 +1595,31 @@ and refuse every reading once it has returned.
 The specimen kit supplies the native page furniture and theme:
 
 ```python
-from sigil.compose import text
+from sigil.compose import StyleSheet, rule, text
 from sigil.sketch import kit
+from sigil.weave import Type
 
-look = kit.houseTheme()
-look.palette.ground = "#f4f0e6"
-look.palette.ink = "#30372f"
-look.type.title.size = 28
+paper = StyleSheet([
+    rule(":root").var("palette-ground", "#f4f0e6").var("spacing-caption-gap", 8),
+    rule("h1").font(Type(size=28)),
+])
 
 # Inside setup(self, ctx), where the decorator states no theme:
-kit.stage(ctx, theme=look, size=(640, 360), captureAt=0)
+kit.stage(ctx, theme=kit.houseTheme(), sheet=paper, size=(640, 360), captureAt=0)
 picture = kit.well(width=240, height=160).children(text("A specimen"))
 content = kit.caption(picture, label="Native type", note="One shared theme")
 ctx.render(kit.page(content, title="A specimen sheet", footer="Sigil"))
 ```
 
-`@sketch(theme=look)` says the same in one place: the decorator stages the
-canvas with the theme, so its sheet stands at the root of every tree the
-sketch renders.
+`@sketch(theme=kit.houseTheme(), sheet=paper)` says the same in one place:
+the decorator stages the canvas with the theme and the sheet joined after
+it, so both stand at the root of every tree the sketch renders.
+
+THE THEME FLOWS DOWNSTREAM ONLY. The stage applies it once; everything
+under the root reads it as properties, roles and classes, never as the
+`Theme` value read back while describing. A variant of a stock look is
+rules in `sheet=`, and a `palette-ground` set there on `:root` is the
+canvas's ground too.
 
 `stage`, `page`, `well`, `caption`, `cell`, `cells` and `panelGrid` call
 SigilSketchKit. The neutral `sigil.compose.kit` supplies native wells,
@@ -1647,11 +1654,13 @@ A theme reaches the tree as a sheet: `look.styleSheet()` holds the rules
 its registers style the document roles with, and `look.properties()` its
 spacing and palette as custom properties (`spacing-row-gap`,
 `palette-figure`). The stage sets the sheet at the root, so every component
-reads the theme where it lands, a later update included; a subtree in
-another look applies that theme's sheet, or its properties alone, on its own
-root, and a tree outside a sketch does the same. A component reads a
-property where it uses it, so a drawing callback reads a colour as
-`var("palette-figure")` in a fill rather than capturing a value.
+reads the theme where it lands, a later update included; a subtree in a
+genuinely different look applies that look's sheet, or its properties alone,
+on its own root, and a tree outside a sketch does the same. A component
+reads a property where it uses it, so a tree reads a colour as
+`var("palette-figure")` in a fill, and a paint program that names its
+context, `def paint(pen, context):`, reads one as
+`context.vars.find("palette-figure")` rather than capturing a value.
 
 Optional nested records, such as `Well.content`, `recess` and `relief`,
 return owned copies. Edit the copy and reassign it to change its parent.

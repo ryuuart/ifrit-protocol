@@ -86,23 +86,20 @@ constexpr float kMagnification = 8;
  *  old-style serif, untracked — stated, because the page's running
  *  register is tracked and an inscription is not. */
 StyleSheet voices() {
-  return sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-             .styleSheet() +
-         StyleSheet{rule(".inscription")
-                        .font({.face = weave::ports::face(
-                                   {"Iowan Old Style", "Georgia",
-                                    "Times New Roman", "serif"}),
-                               .size = kLabel,
-                               .track = 0.0f})};
+  return StyleSheet{
+      rule(".inscription")
+          .font({.face = weave::ports::face({"Iowan Old Style", "Georgia",
+                                             "Times New Roman", "serif"}),
+                 .size = kLabel,
+                 .track = 0.0f})};
 }
 
 /** A run on @p baseline, filling the ring's square. */
 Element run(const char* words, TextPath baseline, float size = kLabel) {
   return text(words)
       .styleClass("inscription")
-      .font({.size = size,
-             .color = sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                          .palette.figure})
+      .font({.size = size})
+      .ink(var("palette-figure"))
       .textOnPath(std::move(baseline));
 }
 
@@ -115,10 +112,7 @@ Element plate(Shape guide, Element lettering) {
       .children({box()
                      .inset(down, across)
                      .shape(guide)
-                     .stroke(stroke(
-                         1.0f, Fill::color(sketch::kit::featureTheme(
-                                               sketch::kit::Density::Spacious)
-                                               .palette.rule))),
+                     .stroke(stroke(1.0f, var("palette-rule"))),
                  std::move(lettering).inset(down, across)});
 }
 
@@ -161,19 +155,23 @@ struct TextOnPath {
     sketch::kit::stage(
         ctx,
         {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = voices(),
          .size = kCanvas,
          .captureAt = 0.05});
-    const material::Color figure =
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-            .palette.figure;
 
     // THE TWO SETTINGS DRAWN ONCE EACH and held against each other: the
     // difference names the pixel where they part most, and both are
     // shown magnified around it.
     const auto drawn = [&](bool exact) {
       return ctx.texture(
-          box().applyStyleSheet(voices()).children(
-              {letter(kDetail, exact, 0.78f, -140).inset(4).translateY(110)}),
+          box()
+              .applyStyleSheet(
+                  sketch::kit::featureTheme(sketch::kit::Density::Spacious)
+                      .styleSheet() +
+                  voices())
+              .children({letter(kDetail, exact, 0.78f, -140)
+                             .inset(4)
+                             .translateY(110)}),
           kRaster);
     };
     const material::Texture snapped = drawn(false);
@@ -201,7 +199,8 @@ struct TextOnPath {
       return sketch::kit::well({.width = kCell, .height = kPicture})
           .children({text("Ravello")
                          .styleClass("inscription")
-                         .font({.size = kDisplay, .color = figure})
+                         .font({.size = kDisplay})
+                         .ink(var("palette-figure"))
                          .inset(14)
                          .textOnPath({.path = shapes::circle(),
                                       .at = 0.75f,
@@ -213,139 +212,132 @@ struct TextOnPath {
         kit::formatted("%d pixels differ · widest gap %d of 255",
                        apart.differingPixels, apart.worst);
 
-    ctx.composer.render(
-        sketch::kit::page(
-            {.title = "Type on a curve",
-             .subtitle = "One run, one baseline. Each option moves the run "
-                         "along it, off it, or round it.",
-             .footer = "The baseline resolves against the text node's own "
-                       "box; the faint guide is the same generator in the "
-                       "same box."},
-            box().column().gap(26).children(
-                {sketch::kit::section(
-                     {.label = "01  WHERE ALONG IT",
-                      .note = "at = 0.75 on a closed ring · what align pins "
-                              "there"},
-                     sketch::kit::comparison(
-                         {.cases = {ring("START", "at 0.75 · Align::Start",
-                                         "The run begins at the fraction.",
-                                         "BEGINS HERE AND RUNS ON",
-                                         {.at = 0.75f,
-                                          .align = TextPath::Align::Start}),
-                                    ring("CENTRE", "at 0.75 · Align::Center",
-                                         "The run straddles it.",
-                                         "BEGINS HERE AND RUNS ON",
-                                         {.at = 0.75f,
-                                          .align = TextPath::Align::Center}),
-                                    ring("END", "at 0.75 · Align::End",
-                                         "The run finishes at it.",
-                                         "BEGINS HERE AND RUNS ON",
-                                         {.at = 0.75f,
-                                          .align = TextPath::Align::End}),
-                                    ring(
-                                        "WRAPPED", "at 1.6 · Align::Center",
-                                        "A closed path wraps the fraction: 1.6 "
-                                        "is 0.6.",
-                                        "ROUND AND ROUND",
-                                        {.at = 1.6f,
-                                         .align = TextPath::Align::Center})},
-                          .measure = 1020,
-                          .gap = 20})),
-                 sketch::kit::section(
-                     {.label = "02  OFF THE BASELINE",
-                      .note = "Offset · the lower half, as engraved and "
-                              "flipped · the radius"},
-                     sketch::kit::comparison(
-                         {.cases =
-                              {ring("OUTWARD", "offset = 12",
-                                    "Positive is left of travel: outside a "
-                                    "clockwise ring.",
-                                    "RIDING OUTSIDE",
-                                    {.at = 0.75f,
-                                     .align = TextPath::Align::Center,
-                                     .offset = 12}),
-                               ring("AS ENGRAVED", "at 0.25 · autoFlip off",
-                                    "Glyph-up points outward everywhere, so "
-                                    "the lower half reads inverted.",
-                                    "UNDER THE RING",
-                                    {.at = 0.25f,
-                                     .align = TextPath::Align::Center}),
-                               ring("FLIPPED", "at 0.25 · autoFlip = true",
-                                    "The lower half turned to read right way "
-                                    "up, as signage sets it.",
-                                    "UNDER THE RING",
-                                    {.at = 0.25f,
-                                     .align = TextPath::Align::Center,
-                                     .autoFlip = true}),
-                               ring("ALONG THE RADIUS", "orient = Radial",
-                                    "Each glyph stands like a spoke, the way "
-                                    "a compass rose is lettered.",
-                                    "NORTH · EAST · SOUTH · WEST · ",
-                                    {.at = 0.0f,
-                                     .orient = TextPath::Orient::Radial,
-                                     .fit = TextPath::Fit::Spacing})},
-                          .measure = 1020,
-                          .gap = 20})),
-                 sketch::kit::section(
-                     {.label = "03  OPEN PATHS AND FIT",
-                      .note = "An arc and a spiral walked end to end · a run "
-                              "fitted to a ring"},
-                     sketch::kit::comparison(
-                         {.cases =
-                              {cell("AN OPEN ARC", "arc(200°, 340°) · Start",
-                                    "Walked from its own start; glyphs past "
-                                    "the end are dropped.",
-                                    plate(shapes::arc(200, 340),
-                                          run("OVER THE ARCH OF THE DOOR",
-                                              {.path = shapes::arc(200, 340),
-                                               .at = 0.0f}))),
-                               cell("A SPIRAL", "spiral(3.2) · at 0.42",
-                                    "Every turn is one coordinate; the run "
-                                    "winds in.",
-                                    plate(shapes::spiral(3.2f),
-                                          run("a tight spiral carries its "
-                                              "whole run",
-                                              {.path = shapes::spiral(3.2f),
-                                               .at = 0.42f,
-                                               .align =
-                                                   TextPath::Align::Center}))),
-                               ring("FITTED BY SIZE", "fit = Size",
-                                    "The type grows until the run closes on "
-                                    "its own seam.",
-                                    "ROUND THE WHOLE RING · ",
-                                    {.fit = TextPath::Fit::Size}),
-                               ring("FITTED BY SPACING", "fit = Spacing",
-                                    "The size holds; every advance stretches "
-                                    "to close the ring.",
-                                    "ROUND THE WHOLE RING · ",
-                                    {.fit = TextPath::Fit::Spacing})},
-                          .measure = 1020,
-                          .gap = 20})),
-                 sketch::kit::section(
-                     {.label = "04  EXACT TANGENT", .note = parted},
-                     sketch::kit::comparison(
-                         {.cases =
-                              {cell("SNAPPED", "64 px · exactTangent = false",
-                                    "The default: each turn on the rotation "
-                                    "ladder.",
-                                    display(false)),
-                               cell("EXACT", "64 px · exactTangent = true",
-                                    "The same letters on continuous "
-                                    "tangents.",
-                                    display(true)),
-                               cell("SNAPPED, ENLARGED",
-                                    "260 px · where they part most",
-                                    "The edge where the two differ most, "
-                                    "eight times.",
-                                    magnified(snapped)),
-                               cell("EXACT, ENLARGED",
-                                    "260 px · the same pixels",
-                                    "The same crop of the exact letter: its "
-                                    "edge stands a pixel over.",
-                                    magnified(exact))},
-                          .measure = 1020,
-                          .gap = 20}))}))
-            .applyStyleSheet(voices()));
+    ctx.composer.render(sketch::kit::page(
+        {.title = "Type on a curve",
+         .subtitle = "One run, one baseline. Each option moves the run "
+                     "along it, off it, or round it.",
+         .footer = "The baseline resolves against the text node's own "
+                   "box; the faint guide is the same generator in the "
+                   "same box."},
+        box().column().gap(26).children(
+            {sketch::kit::section(
+                 {.label = "01  WHERE ALONG IT",
+                  .note = "at = 0.75 on a closed ring · what align pins "
+                          "there"},
+                 sketch::kit::comparison(
+                     {.cases =
+                          {ring("START", "at 0.75 · Align::Start",
+                                "The run begins at the fraction.",
+                                "BEGINS HERE AND RUNS ON",
+                                {.at = 0.75f, .align = TextPath::Align::Start}),
+                           ring(
+                               "CENTRE", "at 0.75 · Align::Center",
+                               "The run straddles it.",
+                               "BEGINS HERE AND RUNS ON",
+                               {.at = 0.75f, .align = TextPath::Align::Center}),
+                           ring("END", "at 0.75 · Align::End",
+                                "The run finishes at it.",
+                                "BEGINS HERE AND RUNS ON",
+                                {.at = 0.75f, .align = TextPath::Align::End}),
+                           ring("WRAPPED", "at 1.6 · Align::Center",
+                                "A closed path wraps the fraction: 1.6 "
+                                "is 0.6.",
+                                "ROUND AND ROUND",
+                                {.at = 1.6f,
+                                 .align = TextPath::Align::Center})},
+                      .measure = 1020,
+                      .gap = 20})),
+             sketch::kit::section(
+                 {.label = "02  OFF THE BASELINE",
+                  .note = "Offset · the lower half, as engraved and "
+                          "flipped · the radius"},
+                 sketch::kit::comparison(
+                     {.cases = {ring("OUTWARD", "offset = 12",
+                                     "Positive is left of travel: outside a "
+                                     "clockwise ring.",
+                                     "RIDING OUTSIDE",
+                                     {.at = 0.75f,
+                                      .align = TextPath::Align::Center,
+                                      .offset = 12}),
+                                ring("AS ENGRAVED", "at 0.25 · autoFlip off",
+                                     "Glyph-up points outward everywhere, so "
+                                     "the lower half reads inverted.",
+                                     "UNDER THE RING",
+                                     {.at = 0.25f,
+                                      .align = TextPath::Align::Center}),
+                                ring("FLIPPED", "at 0.25 · autoFlip = true",
+                                     "The lower half turned to read right way "
+                                     "up, as signage sets it.",
+                                     "UNDER THE RING",
+                                     {.at = 0.25f,
+                                      .align = TextPath::Align::Center,
+                                      .autoFlip = true}),
+                                ring("ALONG THE RADIUS", "orient = Radial",
+                                     "Each glyph stands like a spoke, the way "
+                                     "a compass rose is lettered.",
+                                     "NORTH · EAST · SOUTH · WEST · ",
+                                     {.at = 0.0f,
+                                      .orient = TextPath::Orient::Radial,
+                                      .fit = TextPath::Fit::Spacing})},
+                      .measure = 1020,
+                      .gap = 20})),
+             sketch::kit::section(
+                 {.label = "03  OPEN PATHS AND FIT",
+                  .note = "An arc and a spiral walked end to end · a run "
+                          "fitted to a ring"},
+                 sketch::kit::comparison(
+                     {.cases = {cell("AN OPEN ARC", "arc(200°, 340°) · Start",
+                                     "Walked from its own start; glyphs past "
+                                     "the end are dropped.",
+                                     plate(shapes::arc(200, 340),
+                                           run("OVER THE ARCH OF THE DOOR",
+                                               {.path = shapes::arc(200, 340),
+                                                .at = 0.0f}))),
+                                cell("A SPIRAL", "spiral(3.2) · at 0.42",
+                                     "Every turn is one coordinate; the run "
+                                     "winds in.",
+                                     plate(shapes::spiral(3.2f),
+                                           run("a tight spiral carries its "
+                                               "whole run",
+                                               {.path = shapes::spiral(3.2f),
+                                                .at = 0.42f,
+                                                .align =
+                                                    TextPath::Align::Center}))),
+                                ring("FITTED BY SIZE", "fit = Size",
+                                     "The type grows until the run closes on "
+                                     "its own seam.",
+                                     "ROUND THE WHOLE RING · ",
+                                     {.fit = TextPath::Fit::Size}),
+                                ring("FITTED BY SPACING", "fit = Spacing",
+                                     "The size holds; every advance stretches "
+                                     "to close the ring.",
+                                     "ROUND THE WHOLE RING · ",
+                                     {.fit = TextPath::Fit::Spacing})},
+                      .measure = 1020,
+                      .gap = 20})),
+             sketch::kit::section(
+                 {.label = "04  EXACT TANGENT", .note = parted},
+                 sketch::kit::comparison(
+                     {.cases = {cell("SNAPPED", "64 px · exactTangent = false",
+                                     "The default: each turn on the rotation "
+                                     "ladder.",
+                                     display(false)),
+                                cell("EXACT", "64 px · exactTangent = true",
+                                     "The same letters on continuous "
+                                     "tangents.",
+                                     display(true)),
+                                cell("SNAPPED, ENLARGED",
+                                     "260 px · where they part most",
+                                     "The edge where the two differ most, "
+                                     "eight times.",
+                                     magnified(snapped)),
+                                cell("EXACT, ENLARGED",
+                                     "260 px · the same pixels",
+                                     "The same crop of the exact letter: its "
+                                     "edge stands a pixel over.",
+                                     magnified(exact))},
+                      .measure = 1020,
+                      .gap = 20}))})));
   }
 };
 

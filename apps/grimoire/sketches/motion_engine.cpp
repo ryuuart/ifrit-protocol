@@ -120,11 +120,8 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> lanes,
 /** The sheet's classes past the registers and the chart's: a plot's
  *  second lane, the lane it is read against, and the arrival rule. */
 StyleSheet sheetClasses() {
-  const sketch::kit::Theme& look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  return look.styleSheet() +
-         StyleSheet{rule(".second").font({.color = kSecondInk}),
-                    rule(".reference").font({.color = look.palette.ash}),
+  return StyleSheet{rule(".second").font({.color = kSecondInk}),
+                    rule(".reference").ink(var("palette-ash")),
                     rule(".arrival").font({.color = kArrivalInk})};
 }
 

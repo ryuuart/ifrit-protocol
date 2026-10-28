@@ -255,10 +255,8 @@ struct EmberDecode {
         ctx,
         {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
          .size = SkSize::Make(kW, kH),
-         .captureAt = 2.4,
-         .background = sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                           .palette.ground});  // mid-decode: resolved,
-                                               // burning and unlit at once
+         // mid-decode: resolved, burning and unlit at once
+         .captureAt = 2.4});
     ctx.composer.render(describe(ctx));
   }
 

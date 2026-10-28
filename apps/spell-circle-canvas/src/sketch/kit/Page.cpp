@@ -1,3 +1,4 @@
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/skia/Color.h>
@@ -6,15 +7,36 @@
 #include <sigilsketch/scene3d/Scene3D.h>
 
 #include <utility>
+#include <variant>
 
 namespace sigil::sketch::kit {
+
+namespace {
+
+/** The ground the stage's look states: the last `palette-ground` colour a
+ *  `:root` rule of the stage's own sheet sets, else the theme's. */
+material::Color stagedGround(const Stage& surface, const Theme& look) {
+  material::Color ground = look.palette.ground;
+  if (!surface.sheet) return ground;
+  const compose::ElementSelector root = compose::rule(":root").selector();
+  const compose::VarRef name = compose::var("palette-ground");
+  for (const compose::Rule& each : surface.sheet->rules()) {
+    if (!(each.selector() == root)) continue;
+    if (const compose::VarValue* value = each.vars().find(name))
+      if (const auto* colour = std::get_if<material::Color>(value))
+        ground = *colour;
+  }
+  return ground;
+}
+
+}  // namespace
 
 void stage(Scene2DContext& ctx, const Stage& surface) {
   const Theme& look = surface.theme ? *surface.theme : houseTheme();
   CanvasSpecification declared;
   declared.size = surface.size;
   declared.background = material::skia::toSkColor(
-      surface.background.value_or(look.palette.ground));
+      surface.background.value_or(stagedGround(surface, look)));
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;
@@ -22,9 +44,11 @@ void stage(Scene2DContext& ctx, const Stage& surface) {
   // The look stands at the root of whatever the sketch renders, so a
   // component anywhere in it reads the theme where it lands. A stage that
   // names none states the house properties and no role rules, which a
-  // study setting its own type would otherwise have to undo.
-  ctx.composer.setStyleSheet(surface.theme ? look.styleSheet()
-                                           : look.properties());
+  // study setting its own type would otherwise have to undo. The stage's
+  // own rules follow the theme's, so a variant changes only what it names.
+  const compose::StyleSheet theme =
+      surface.theme ? look.styleSheet() : look.properties();
+  ctx.composer.setStyleSheet(surface.sheet ? theme + *surface.sheet : theme);
 }
 
 void stage(Scene3DContext& ctx, const Stage& surface) {
@@ -33,7 +57,7 @@ void stage(Scene3DContext& ctx, const Stage& surface) {
   CanvasSpecification declared;
   declared.size = surface.size;
   declared.background = material::skia::toSkColor(
-      surface.background.value_or(look.palette.ground));
+      surface.background.value_or(stagedGround(surface, look)));
   declared.captureSeconds = surface.captureAt;
   declared.oversample = surface.oversample;
   declared.plateOnly = surface.plateOnly;

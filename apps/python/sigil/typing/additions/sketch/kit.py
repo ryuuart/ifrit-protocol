@@ -33,8 +33,9 @@ def houseFace(voice, weight=400, slant=None, *, italic=False):
 
 def stage(ctx, props=None, **properties):
     """Declare the native stage: the canvas, the moment, and the theme whose
-    sheet stands at the root of everything the sketch renders; an omitted
-    background is that theme's ground."""
+    sheet stands at the root of everything the sketch renders, with the
+    stage's own ``sheet`` joined after it; an omitted background is the
+    ground that look states."""
     return _native.stage(ctx, _specification(Stage, props, properties))
 
 

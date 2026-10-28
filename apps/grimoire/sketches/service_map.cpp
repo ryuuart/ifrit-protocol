@@ -110,15 +110,13 @@ struct Tiers {
 /** A card stating its tier, its calls and its load, and nothing about
  *  lines. */
 Element card(const Service& service) {
-  const sketch::kit::Theme& sheet =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   return box()
       .key(service.name)
       .width(kCardWidth)
       .height(kCardHeight)
       .borderRadius({6})
-      .fill(Fill::color(sheet.palette.cellGround))
-      .foreground(stroke(1.0f, Fill::color(sheet.palette.rule)))
+      .fill(var("palette-cell-ground"))
+      .foreground(stroke(1.0f, var("palette-rule")))
       .attribute("tier", service.tier)
       .attribute("calls", service.calls)
       .attribute("load", service.load)
@@ -127,12 +125,7 @@ Element card(const Service& service) {
       .children({text(service.name)});
 }
 
-Decoration wire() {
-  return stroke(
-      1.6f,
-      Fill::color(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                      .palette.figure));
-}
+Decoration wire() { return stroke(1.6f, var("palette-figure")); }
 
 /** The panel: the five cards under the operators given. */
 Element panel(std::vector<Operator> operators) {
@@ -153,9 +146,7 @@ Element district() {
       .width(212)
       .height(200)
       .borderRadius({8})
-      .foreground(stroke(1.0f, Fill::color(sketch::kit::featureTheme(
-                                               sketch::kit::Density::Spacious)
-                                               .palette.rule)))
+      .foreground(stroke(1.0f, var("palette-rule")))
       .operators(
           {layouts::Radial{.radiusFraction = 0.6f},
            Operator(connect::ByLane{.lane = "calls", .gap = 2, .wire = wire()})

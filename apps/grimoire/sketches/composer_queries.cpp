@@ -210,8 +210,7 @@ struct ComposerQueries {
     const auto stations = std::views::iota(0, kTargets);
 
     return stack()
-        .fill(Fill::color(sketch::kit::featureTheme().palette.ground))
-        .applyStyleSheet(sketch::kit::featureTheme().styleSheet())
+        .fill(var("palette-ground"))
         // The wires are operators of the scene: each is routed from where
         // its own two targets settled, and keyed by the pair it joins, so
         // the answer slot can ask for one by name. They let the pointer
@@ -307,9 +306,7 @@ struct ComposerQueries {
                   .ink = sketch::kit::featureTheme().palette.ink},
                  {.name = "bounds(\"" + hitLabel + "\")", .value = rect},
                  {.name = "wires at \"" + hitLabel + "\"", .value = routes}},
-             {.nameMeasure = 196,
-              .gap = sketch::kit::featureTheme().spacing.rowGap,
-              .labelGap = sketch::kit::featureTheme().spacing.labelGap})
+             {.nameMeasure = 196})
              .absolute()
              .left(20)
              .bottom(14)
@@ -325,11 +322,7 @@ struct ComposerQueries {
       readings.push_back({.name = targetKey(i) + " · " + cacheName(kAsked[i]),
                           .value = states[(size_t)i]});
     return stack().inset(0).hitTestable(false).children(
-        {sigil::compose::kit::readout(
-             std::move(readings),
-             {.nameMeasure = 170,
-              .gap = sketch::kit::featureTheme().spacing.rowGap,
-              .labelGap = sketch::kit::featureTheme().spacing.labelGap})
+        {sigil::compose::kit::readout(std::move(readings), {.nameMeasure = 170})
              .absolute()
              .right(20)
              .bottom(14)
@@ -357,10 +350,7 @@ struct ComposerQueries {
   }
 
   void update(double elapsed, sketch::Scene2DContext& ctx) {
-    // The answer is described AGAIN whenever it changes, and a describe
-    // outside the scope setup opened has no theme bound: the look must be
-    // in scope wherever the tree is built, not only where it is first
-    // built.
+    // The answer is described AGAIN whenever it changes.
     Composer& composer = ctx.composer;
     probe = walk(elapsed);
     // Per frame: the marker moved, so its content is different.

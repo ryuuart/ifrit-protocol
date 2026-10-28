@@ -25,6 +25,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilcompose/core/Var.h>
 #include <sigilcompose/kit/Part.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
@@ -82,11 +83,14 @@ struct Rows {
    *  which ranges the figures only when the names happen to be one
    *  length. */
   float nameMeasure = 0.0f;
-  /** Between the rows of a readout, px. */
-  float gap = 5.0f;
+  /** Between the rows of a readout: a length, so a sheet's property can
+   *  state it. Unset is the `spacing-row-gap` in force where the readout
+   *  lands, and 5 px where no sheet sets one. */
+  Dimension gap = var("spacing-row-gap");
   /** Between a name and the figure that answers it where the two stand
-   *  side by side rather than ranged to opposite edges, px. */
-  float labelGap = 10.0f;
+   *  side by side rather than ranged to opposite edges. Unset is the
+   *  `spacing-label-gap` in force, and 10 px where no sheet sets one. */
+  Dimension labelGap = var("spacing-label-gap");
   /** A line between neighbouring rows. Fill::none() (default) rules
    *  none. */
   Fill divider;
@@ -206,11 +210,13 @@ struct Bars {
   double largest = 0.0;
   /** The width the labels take, px. 0 lets each size itself. */
   float labelMeasure = 96.0f;
-  float barHeight = 11.0f;
-  /** Between the label, the bar and the figure, px. */
-  float gap = 8.0f;
-  /** Between rows, px. */
-  float rowGap = 4.0f;
+  /** The bar's thickness: a length, so a sheet's property can state it,
+   *  as `var("spacing-bar-height")`. */
+  Dimension barHeight = 11.0f;
+  /** Between the label, the bar and the figure. */
+  Dimension gap = 8.0f;
+  /** Between rows. */
+  Dimension rowGap = 4.0f;
   /** The bar itself. None (default) is the ink in force. */
   Fill bar;
   /** The track behind the bar — the room the longest bar takes, so a
@@ -223,9 +229,10 @@ struct Bars {
    *  paint and over whatever the row's two lines were set in — the row
    *  that IS the reading lit, the rest quiet. WHICH rows are lit is the
    *  data's business and a sheet cannot say it, which is why this is a
-   *  run beside the values rather than a look. A short run leaves the
-   *  rows past its end as the props say. */
-  std::span<const material::Color> inks;
+   *  run beside the values rather than a look; what each lit row is lit
+   *  IN may still be the sheet's, written `var("palette-figure")`. A short
+   *  run, or a row whose ink is none, leaves that row as the props say. */
+  std::span<const Fill> inks;
   /** THE FIGURE AFTER THE BAR, as a function of the VALUE, because how a
    *  number reads is the data's business and not the kit's. Empty is the
    *  value to the nearest whole number, in the class `readout`. */

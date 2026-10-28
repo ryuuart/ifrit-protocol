@@ -94,16 +94,6 @@ constexpr float kSpineCell = 551;  // (kBand - the gap between the two) / 2
 
 constexpr material::Color kCellGround{0.085f, 0.085f, 0.105f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 40;
-  look.spacing.marginTop = 40;
-  look.spacing.marginBottom = 18;
-  return look;
-}
-
 /** A generator's outline at a diameter, centred on a point. The shape
  *  kit inscribes its figures in a box at the origin; every figure on
  *  this sheet is placed by its centre instead. */
@@ -158,7 +148,6 @@ sketch::kit::ComparisonCase band(const char* caseTitle, std::string key,
 }
 
 Element explained(sketch::kit::ComparisonCase one) {
-  const auto& look = sheetTheme();
   return box()
       .row()
       .alignItems(Align::Start)
@@ -166,8 +155,9 @@ Element explained(sketch::kit::ComparisonCase one) {
       .children({box().column().width(240).gap(12).children(
                      {document::label(std::move(one.title)),
                       text(std::move(one.control))
-                          .font(look.font({.size = 10.5f, .mono = true}))
-                          .ink(look.palette.ash),
+                          .styleClass("control")
+                          .font({.size = 10.5f})
+                          .ink(var("palette-ash")),
                       document::caption(std::move(one.note))}),
                  std::move(one.figure)});
 }
@@ -285,7 +275,14 @@ struct BlendOptions {
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = {1200, 1390}, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 40)
+                      .var("spacing-margin-top", 40)
+                      .var("spacing-margin-bottom", 18),
+         .size = {1200, 1390},
+         .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Between two outlines",

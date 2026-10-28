@@ -16,9 +16,10 @@ house one.
 
 `studyTheme()` is a second stock value for comparative studies. It gives the
 page a larger heading, brighter notes and wider margins while keeping the
-house ground and specimen components. Name it on the stage, or copy it and
-change only the choices specific to a specimen, such as caption placement.
-The stock themes hold their resolved faces across calls.
+house ground and specimen components. Name it on the stage; a specimen that
+wants one distance or one colour otherwise says so in rules the stage joins
+after it (`Stage::sheet`). The stock themes hold their resolved faces across
+calls.
 
 `specimenTheme()` keeps the house sheet's compact margins while giving API
 comparisons a readable heading and brighter notes. Fixed specimen wells keep
@@ -64,36 +65,49 @@ struct BorderWeave {
 
 ## The theme, and why it is inherited rather than passed
 
-`Theme` holds three values and one choice: a `Palette` of six colours, a
+`Theme` holds three values and one choice: a `Palette` of eight colours, a
 `TypeScale` of eight `Register`s and two faces, a `Spacing` of the
 distances a sheet is set by, and where the caption lines of its `voice()`
 stand.
 
-It arrives at a component through **the cascade**, as one sheet,
-`Theme::styleSheet()`: rules for the document roles its registers style,
-and the spacing and the palette as custom properties on the node it is
-applied on. `stage()` applies it at the root of whatever the sketch
-renders, through `Composer::setStyleSheet`; a tree outside a sketch
-applies it on its own root with `applyStyleSheet()`:
+**The theme flows downstream only.** The stage applies it once, at the
+root of whatever the sketch renders, and from there everything reaches a
+node as what the cascade carries: the spacing and the palette as custom
+properties, the registers as document roles and classes. Nothing under
+the stage reads the `Theme` value back while it describes, nothing applies
+the theme's sheet again on a subtree the stage already covers, and a
+variant of a stock look is rules joined at the stage, never a copied
+theme with a number changed.
+
+It arrives as one sheet, `Theme::styleSheet()`: rules for the document
+roles its registers style, and the spacing and the palette as custom
+properties on the node it is applied on. `stage()` applies it through
+`Composer::setStyleSheet`, followed by the stage's own `Stage::sheet`;
+a tree outside a sketch applies it on its own root with
+`applyStyleSheet()`:
 
 ```cpp
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme paper = sketch::kit::houseTheme();
-  paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
-  paper.palette.ink = {0.114f, 0.106f, 0.098f, 1};
-  return paper;
-}
-
-sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = {900, 640}});
+sketch::kit::stage(
+    ctx, {.theme = sketch::kit::houseTheme(),
+          .sheet = compose::StyleSheet{
+              compose::rule(":root")
+                  .var("palette-ground", material::Color{0.945f, 0.937f, 0.918f, 1})
+                  .var("palette-ink", material::Color{0.114f, 0.106f, 0.098f, 1})
+                  .var("spacing-caption-gap", 8)},
+          .size = {900, 640}});
 ctx.composer.render(sketch::kit::page({…}, content));  // under the sheet
 ```
 
+A `palette-ground` the stage's sheet sets on `:root` is the canvas's ground
+as well, where `Stage::background` names none. Python spells the same door
+`@sketch(theme=look, sheet=...)`.
+
 A component never reads a look while it is described: a distance is a
 length written `compose::var("spacing-…")`, a colour a fill written
-`compose::var("palette-…")`, and a paint program reads the properties in
-force through `PaintContext::vars`. Everything resolves later from the
-retained tree, so a component built before its parent still lands in
-that parent's look.
+`compose::var("palette-…")`, a register a document role or a class, and a
+paint program reads the properties in force through
+`PaintContext::vars`. Everything resolves later from the retained tree, so
+a component built before its parent still lands in that parent's look.
 
 A `Register` says how one line is set: its size, its tracking, which of
 the theme's two faces it takes — and, for the line neither of those is,
@@ -127,17 +141,17 @@ label and the caption as classes too:
 ```cpp
 #include <sigilcompose/kit/Document.h>
 
-const compose::StyleSheet look =
-    sketch::kit::featureTheme().styleSheet() +
-    compose::StyleSheet{compose::rule("h1").font({.size = 30}),
-                        compose::rule("caption").font({.size = 12})};
-
-sketch::kit::page({.title = "THE STROKE ATLAS"},
-                 compose::document::section({
-                     compose::document::h2("A measured edge"),
-                     compose::document::paragraph("The shared content."),
-                 }))
-    .applyStyleSheet(look);
+sketch::kit::stage(
+    ctx, {.theme = sketch::kit::featureTheme(),
+          .sheet = compose::StyleSheet{
+              compose::rule("h1").font({.size = 30}),
+              compose::rule("caption").font({.size = 12})}});
+ctx.composer.render(sketch::kit::page(
+    {.title = "THE STROKE ATLAS"},
+    compose::document::section({
+        compose::document::h2("A measured edge"),
+        compose::document::paragraph("The shared content."),
+    })));
 ```
 
 A role rule overrides the component's fallback fields. A rule for an
@@ -164,11 +178,14 @@ hyphenated — `spacing-margin-horizontal`, `spacing-content-gap`,
 field of `Spacing` and `Palette`. A value a component scales is its own
 property, computed by the sheet rather than at the use site:
 `spacing-rule-gap` is half the content gap and
-`spacing-plate-padding-vertical` is six tenths of the panel padding.
+`spacing-plate-padding-vertical` is six tenths of the panel padding, so a
+variant at the stage that sets `spacing-content-gap` or
+`spacing-panel-padding` states the scaled one beside it.
 
-A sketch starts from `Theme::styleSheet()`, joins rules of its own to it
-with `+`, and applies the result on its root. A panel can apply a nearer
-sheet when its content has a separate treatment. Layout remains ordinary Compose layout;
+A sketch's own rules join the theme's at the stage, through
+`Stage::sheet`. A panel can apply a nearer sheet of rules of its own when
+its content has a separate treatment; it does not apply the stage's theme
+again. Layout remains ordinary Compose layout;
 `compose::document::article` and other document groups additionally
 read inherited document variables for measure and spacing.
 
@@ -198,8 +215,10 @@ equal.
 **The stage names the theme once.** The sheet stands on the composer, at
 the root of every tree the sketch renders, so a sketch that describes
 again — from `update()`, when its data changes — needs no second
-statement of it. A subtree in another look applies that theme's sheet on
-its own root, which shadows the stage's for that subtree alone.
+statement of it, and no root fill in the theme's ground either: the
+canvas and the page already paint it. A subtree in a genuinely different
+look applies that look's sheet on its own root, which shadows the stage's
+for that subtree alone.
 
 **A paint program reads the properties in force.** A `custom()` program
 runs when the kernel paints, so it reads the palette and the spacing

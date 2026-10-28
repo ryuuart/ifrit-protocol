@@ -95,11 +95,9 @@ struct BorderWeave {
         {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
          .size = kCanvas,
          .captureAt = 0.05});
-    const sketch::kit::Theme& sheet =
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
 
     const Border bracket{.width = kWidth,
-                         .fill = Fill::color(sheet.palette.figure),
+                         .fill = var("palette-figure"),
                          .inset = kInset,
                          .mode = Border::Mode::Bracket,
                          .corner = kArm};
@@ -119,28 +117,26 @@ struct BorderWeave {
                           {cell("CONTINUOUS", "width = 1.8 · inset = 7",
                                 "A continuous rule follows every chamfer.",
                                 plaque().foreground(decorations::border(
-                                    kWidth, Fill::color(sheet.palette.figure),
-                                    kInset))),
+                                    kWidth, var("palette-figure"), kInset))),
                            cell("CORNERS ONLY", "mode = Bracket · arm = 18",
                                 "Keep the first and last 18 px around each "
                                 "detected turn.",
                                 plaque().foreground(bracket)),
                            cell("BETWEEN CORNERS", "mode = Gapped · arm = 18",
                                 "Remove those same corner intervals.",
-                                plaque().foreground(Border{
-                                    .width = kWidth,
-                                    .fill = Fill::color(sheet.palette.figure),
-                                    .inset = kInset,
-                                    .mode = Border::Mode::Gapped,
-                                    .corner = kArm})),
+                                plaque().foreground(
+                                    Border{.width = kWidth,
+                                           .fill = var("palette-figure"),
+                                           .inset = kInset,
+                                           .mode = Border::Mode::Gapped,
+                                           .corner = kArm})),
                            cell("TWO RULES", "weightedCorners + border",
                                 "Weight the turns, then add a second inset "
                                 "rule.",
                                 plaque().foreground(decorations::doubleBorder(
                                     decorations::weightedCorners(
                                         kWidth, kWidth * 3,
-                                        Fill::color(sheet.palette.figure), kArm,
-                                        kInset),
+                                        var("palette-figure"), kArm, kInset),
                                     decorations::border(
                                         0.9f, Fill::color(kCool), 14))))},
                       .measure = 1020,

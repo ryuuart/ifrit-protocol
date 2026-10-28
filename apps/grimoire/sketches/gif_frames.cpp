@@ -52,14 +52,6 @@ constexpr double kSamples[] = {0, 150, 320, 480, 640, 900, 1150, 1420};
 
 constexpr material::Color kCellGround{0.12f, 0.12f, 0.14f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.captionGap = 6;
-  return look;
-}
-
 Element frameFigure(const sk_sp<SkImage>& frame, float w, float h,
                     float measure = 116) {
   return sketch::kit::well({.width = measure,
@@ -84,7 +76,11 @@ struct GifFrames {
   void setup(sketch::Scene2DContext& ctx) {
     // every frame is on the sheet; nothing moves
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root").var("spacing-caption-gap", 6),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     io::Hub& hub = ctx.assets.hub();
     const std::optional<io::ResourceInfo> bytes =
@@ -198,19 +194,18 @@ struct GifFrames {
    *  probe keeps a sweep away from this; the app opens whatever is
    *  selected, so it is drawn rather than left blank. */
   static Element missing() {
-    const sketch::kit::Theme& sheet = sheetTheme();
     return box()
         .cover()
-        .fill(Fill::color(sheet.palette.ground))
         .column()
         .gap(10)
         .padding(40)
-        .ink(sheet.palette.ink)
+        .ink(var("palette-ink"))
         .children({text("no animated document here").font({.size = 20}),
                    text(std::string(kSource) +
                         " did not decode: the hub reached neither the "
                         "network nor a cached copy of it")
-                       .font({.size = 12, .color = sheet.palette.ash})
+                       .font({.size = 12})
+                       .ink(var("palette-ash"))
                        .width(620.0f)});
   }
 };

@@ -113,15 +113,6 @@ constexpr material::Color kAccent{0.455f, 0.878f, 0.745f, 1};
 constexpr material::Color kNumeral{0.588f, 0.659f, 0.769f, 1};
 constexpr material::Color kTick{1.0f, 0.72f, 0.36f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 40;
-  look.spacing.marginTop = 32;
-  return look;
-}
-
 /** THE BANNER, as one column laid out at the full strip length. Sector
  *  spacing is `grow()` boxes rather than fixed gaps: the column is told
  *  how long it is and distributes the slack itself. The column is baked
@@ -300,7 +291,13 @@ struct YarnMarquee {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = {1200, 820}});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 40)
+                      .var("spacing-margin-top", 32),
+         .size = {1200, 820}});
     // Both rails are computed from the loop and nothing reads the clock.
     ctx.captureAt(0.05);
 

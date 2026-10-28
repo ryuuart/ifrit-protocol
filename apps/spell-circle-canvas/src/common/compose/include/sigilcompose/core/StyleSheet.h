@@ -12,10 +12,10 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Selector.h>
 #include <sigilcompose/core/Shape.h>
-#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcompose/core/verbs/Box.h>
 #include <sigilcompose/core/verbs/Cascade.h>
@@ -182,6 +182,9 @@ class StyleSheet {
 
   StyleSheet() = default;
   StyleSheet(std::initializer_list<Statement> statements);
+  /** A SHEET OF ONE RULE, so a slot that takes a sheet takes a rule as
+   *  it is written: `.sheet = rule(":root").var("spacing-caption-gap", 8)`. */
+  StyleSheet(Rule one);  // NOLINT: implicit by design (a sheet of one rule)
 
   /** Every rule the sheet states, an included sheet's rules standing
    *  where it stood. */

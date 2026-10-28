@@ -341,11 +341,7 @@ struct ShapeworksLab {
             .cache(Cache::None);
 
     return stack()
-        .applyStyleSheet(
-            sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                .styleSheet())
-        .ink(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                 .palette.ink)
+        .ink(var("palette-ink"))
         .children(
             {std::move(outlineLab), std::move(materialLab), std::move(flight),
              document::h1("Geometry wearing a material")
@@ -387,9 +383,7 @@ struct ShapeworksLab {
         ctx,
         {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
          .size = {1280, 990},
-         .captureAt = 2.6,
-         .background = sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                           .palette.ground});
+         .captureAt = 2.6});
 
     studio = shapeworks_lab::studioEnvironment();
 

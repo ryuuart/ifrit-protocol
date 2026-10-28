@@ -148,5 +148,38 @@ class SketchShapes(DecoratedModule, unittest.TestCase):
         self.assertAlmostEqual(corner[2] / 255, 0x99 / 255, places=1)
 
 
+    def test_the_decorators_sheet_is_joined_after_its_theme(self):
+        builtins._sigil_shapes_seen = []
+        self.addCleanup(builtins.__dict__.pop, "_sigil_shapes_seen", None)
+        with tempfile.TemporaryDirectory() as directory:
+            entry = Path(directory) / "variant.py"
+            output = Path(directory) / "variant.png"
+            entry.write_text(
+                textwrap.dedent("""
+                    import builtins
+                    from sigil.compose import StyleSheet, rule
+                    from sigil.sketch import kit, sketch
+
+                    @sketch(size=(48, 36), captureAt=0,
+                            theme=kit.featureTheme(kit.Density.Spacious),
+                            sheet=StyleSheet([
+                                rule(":root").var("palette-ground", "#336699"),
+                            ]))
+                    class Variant:
+                        def setup(self, ctx):
+                            builtins._sigil_shapes_seen.append(ctx.size)
+                            return kit.page(kit.well(), title="Variant")
+                """)
+            )
+            renderFile(entry, output)
+            corner = media.load(output).frameAt(0).image.rgba()[0:4]
+        size, *_ = builtins._sigil_shapes_seen
+        self.assertEqual(size, (48, 36))
+        # A variant is rules joined at the stage: the page and the canvas
+        # both take the ground the sheet states over the theme's.
+        self.assertAlmostEqual(corner[0] / 255, 0x33 / 255, places=1)
+        self.assertAlmostEqual(corner[2] / 255, 0x99 / 255, places=1)
+
+
 if __name__ == "__main__":
     unittest.main()

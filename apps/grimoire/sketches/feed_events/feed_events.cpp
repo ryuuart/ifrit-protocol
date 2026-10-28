@@ -295,20 +295,20 @@ struct FeedEvents {
   }
 
   void describe(sketch::Scene2DContext& ctx) {
-    // A paint program runs after the describe scope has closed, where
-    // the theme in force is no longer this page's, so the one colour a
-    // wave is drawn in is read here and carried in by value.
-    const material::Color crest =
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-            .palette.figure;
     compose::Element picture =
         compose::stack()
             .width(kCanvas.width())
             .height(kCanvas.height())
-            .children({compose::pen("feed_events.sky", [this, crest](Pen& pen) {
-                         sky(pen);
-                         crossings(pen, crest);
-                       }).cover()});
+            .children(
+                {compose::pen(
+                     "feed_events.sky",
+                     [this](Pen& pen, const compose::PaintContext& context) {
+                       sky(pen);
+                       crossings(pen,
+                                 compose::resolveColor(
+                                     compose::var("palette-figure"), context));
+                     })
+                     .cover()});
     ctx.composer.render(sketch::kit::instrument(
         {.page = {.title = "State meets an event.",
                   .subtitle = "UDP / EVENTS  /  A steady signal, with a moment "

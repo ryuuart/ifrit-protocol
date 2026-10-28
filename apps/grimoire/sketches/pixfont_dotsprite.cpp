@@ -47,14 +47,6 @@ constexpr float kBakeSizes[3] = {9, 12, 16};  // the sweep in the first cell
 constexpr float kScale = 3;                   // integer, always
 constexpr material::Color kOn{0.62f, 0.98f, 0.72f, 1};  // what a mask is tinted
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.palette.cellGround = {0.055f, 0.065f, 0.06f, 1};
-  return look;
-}
-
 /** The face the bake reads: aliased, so the coverage handed back is
  *  already 0 or 1 and the threshold has nothing left to decide. The
  *  96-cell font is baked from a PROPORTIONAL face on purpose — a `1` is
@@ -88,7 +80,12 @@ struct PixFontDotSprite {
   std::shared_ptr<const sigil::media::Image> dot;
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = kCanvas});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root").var("palette-cell-ground",
+                                    material::Color{0.055f, 0.065f, 0.06f, 1}),
+         .size = kCanvas});
     // The readout is live, so the sheet is complete only once the number
     // has run far enough to have moved every column of it.
     ctx.captureAt(1.28);
@@ -129,12 +126,14 @@ struct PixFontDotSprite {
           .row()
           .gap(10)
           .alignItems(Align::Center)
-          .children(
-              {text(kit::formatted("%2.0f", size))
-                   .font(
-                       {.face = sheetTheme().type.mono, .size = 12, .track = 0})
-                   .ink(sheetTheme().palette.ash),
-               kit::masked(sweep[i], {.colour = kOn, .scale = 2})});
+          .children({text(kit::formatted("%2.0f", size))
+                         .font({.face = sketch::kit::featureTheme(
+                                            sketch::kit::Density::Spacious)
+                                            .type.mono,
+                                .size = 12,
+                                .track = 0})
+                         .ink(var("palette-ash")),
+                     kit::masked(sweep[i], {.colour = kOn, .scale = 2})});
     };
     return example("CHOOSE THE BAKE SIZE", "9 / 12 / 16 px · shown at 2×",
                    "one run, three bake sizes, one present scale · at the "

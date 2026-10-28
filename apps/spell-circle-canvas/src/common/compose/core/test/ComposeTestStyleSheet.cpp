@@ -119,6 +119,15 @@ TEST(ComposeStyleSheet, ASheetLiteralMayIncludeSheetsWhereARuleWouldStand) {
                        StyleSheet{sigil::compose::rule(".badge").ink(kBlue)}));
 }
 
+TEST(ComposeStyleSheet, ARuleWhereASheetIsTakenIsASheetOfThatOneRule) {
+  const StyleSheet one = sigil::compose::rule(".card").ink(kRed);
+  EXPECT_EQ(one.size(), 1u);
+  EXPECT_TRUE(one == StyleSheet{sigil::compose::rule(".card").ink(kRed)});
+  const StyleSheet house{sigil::compose::rule(".card").font({.size = 18})};
+  EXPECT_TRUE((house + sigil::compose::rule(".card").ink(kRed)) ==
+              (house + one));
+}
+
 TEST(ComposeStyleSheet, TheSheetsANodeAppliesArePartOfWhatThatNodeIs) {
   // Nothing matches yet, so what is under test is only this: a node
   // that applies the same sheets is the same node and prunes, and one
@@ -167,10 +176,8 @@ TEST(ComposeStyleSheet, ApplyingASheetAgainAddsItAfterTheOneBefore) {
 
 TEST(ComposeStyleSheet, ARuleComparesTheTransitionItStates) {
   using sigil::compose::rule;
-  EXPECT_TRUE(rule(".a").transition(200ms) ==
-              rule(".a").transition(200ms));
+  EXPECT_TRUE(rule(".a").transition(200ms) == rule(".a").transition(200ms));
   EXPECT_FALSE(rule(".a").transition(200ms) == rule(".a"));
-  EXPECT_FALSE(rule(".a").transition(200ms) ==
-               rule(".a").transition(300ms));
+  EXPECT_FALSE(rule(".a").transition(200ms) == rule(".a").transition(300ms));
   EXPECT_FALSE(rule(".a").transition()) << "unstated until a call states it";
 }

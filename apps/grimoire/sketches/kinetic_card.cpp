@@ -145,26 +145,12 @@ sigil::weave::Face graded() {
   return sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
 }
 
-/** The feature sheet with room for the animated type specimens. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = kMargin;
-  look.spacing.marginTop = kMargin - 12;
-  look.spacing.marginBottom = 30;
-  look.spacing.captionGap = 8;
-  return look;
-}
-
-/** The theme's registers as classes, and the specimen's own: the display
- *  face at kSpecimen, tracked, in whatever ink is in force. */
+/** The specimen's own class: the display face at kSpecimen, tracked, in
+ *  whatever ink is in force. */
 sigil::compose::StyleSheet sheetClasses() {
-  sigil::compose::StyleSheet classes =
-      sheetTheme().styleSheet() +
-      sigil::compose::StyleSheet{
-          sigil::compose::rule(".specimen")
-              .font({.face = display(), .size = kSpecimen, .track = 1.5f})};
-  return classes;
+  return sigil::compose::StyleSheet{
+      sigil::compose::rule(".specimen")
+          .font({.face = display(), .size = kSpecimen, .track = 1.5f})};
 }
 
 }  // namespace
@@ -176,9 +162,17 @@ struct KineticCard {
   motion::Animatable<float> phase = motion::animatable(0.0f);
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.theme = sheetTheme(),
-                             .size = kSceneSize,
-                             .captureAt = kPeriod * 0.5});
+    // The feature sheet with room for the animated type specimens.
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", kMargin)
+                      .var("spacing-margin-top", kMargin - 12)
+                      .var("spacing-margin-bottom", 30)
+                      .var("spacing-caption-gap", 8),
+         .size = kSceneSize,
+         .captureAt = kPeriod * 0.5});
     // MID-CASCADE. The master maps onto each track's OWN span, so one
     // fraction of the period is the same fraction of every schedule
     // however many letters a word has. At half way the head of every word

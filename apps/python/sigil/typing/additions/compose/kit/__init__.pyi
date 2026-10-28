@@ -137,20 +137,20 @@ class _BarsProperties(typing.TypedDict, total=False):
     length: float
     largest: float
     labelMeasure: float
-    barHeight: float
-    gap: float
-    rowGap: float
+    barHeight: _t.DimensionLike
+    gap: _t.DimensionLike
+    rowGap: _t.DimensionLike
     bar: _t.FillLike
     rest: _t.FillLike
-    inks: collections.abc.Sequence[_t.ColorLike]
+    inks: collections.abc.Sequence[_t.FillLike]
     labelLine: _Part[Bars]
     figureLine: _FigurePart
 
 class _RowsProperties(typing.TypedDict, total=False):
     measure: float
     nameMeasure: float
-    gap: float
-    labelGap: float
+    gap: _t.DimensionLike
+    labelGap: _t.DimensionLike
     divider: _t.FillLike
     dividerWidth: float
     swatchSide: float

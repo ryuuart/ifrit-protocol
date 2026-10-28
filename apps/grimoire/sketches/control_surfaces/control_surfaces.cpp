@@ -485,24 +485,26 @@ struct ControlSurfaces {
   }
 
   void describe(sketch::Scene2DContext& ctx) {
-    // A paint program runs after the describe scope has closed, so the
-    // theme's colours are read here and carried in by value.
-    const sketch::kit::Theme& look =
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-    const material::Color rule = look.palette.rule;
-    const material::Color figure = look.palette.figure;
-    const material::Color ash = look.palette.ash;
     compose::Element picture =
         compose::stack()
             .width(kCanvas.width())
             .height(kCanvas.height())
-            .children({compose::pen("control_surfaces.sky", [this, rule, figure,
-                                                             ash](Pen& pen) {
-                         sky(pen);
-                         grid(pen, rule);
-                         faders(pen, rule, figure, ash);
-                         rack(pen, rule, figure, ash);
-                       }).cover()});
+            .children(
+                {compose::pen(
+                     "control_surfaces.sky",
+                     [this](Pen& pen, const compose::PaintContext& context) {
+                       const material::Color rule = compose::resolveColor(
+                           compose::var("palette-rule"), context);
+                       const material::Color figure = compose::resolveColor(
+                           compose::var("palette-figure"), context);
+                       const material::Color ash = compose::resolveColor(
+                           compose::var("palette-ash"), context);
+                       sky(pen);
+                       grid(pen, rule);
+                       faders(pen, rule, figure, ash);
+                       rack(pen, rule, figure, ash);
+                     })
+                     .cover()});
     ctx.composer.render(sketch::kit::instrument(
         {.page = {.title = "Three doors that answer back.",
                   .subtitle = "OSC  ·  MIDI  ·  ART-NET  /  The desk's fader "

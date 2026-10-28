@@ -90,11 +90,7 @@ Element plate(const std::string& tag, Operator route) {
 /** The mark every cell's wire is drawn with, so the router is the only
  *  thing that differs between them. */
 PathFormat wireMark() {
-  return PathFormat{
-      .width = 1.6f,
-      .strokeFill =
-          Fill::color(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                          .palette.figure)};
+  return PathFormat{.width = 1.6f, .strokeFill = var("palette-figure")};
 }
 
 sketch::kit::ComparisonCase cell(const char* title, const char* call,

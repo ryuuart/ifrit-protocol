@@ -224,8 +224,6 @@ struct Cascade {
   }
 
   Element sheet() const {
-    const sketch::kit::Theme& look =
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     Element reading =
         sketch::kit::well({.width = 332, .height = 328, .padding = 22})
             .column()
@@ -240,8 +238,6 @@ struct Cascade {
                                {.name = "Gutter property", .value = "12 px"},
                                {.name = "Relative type", .value = "21 px"}},
                            {.measure = 288,
-                            .gap = look.spacing.rowGap,
-                            .labelGap = look.spacing.labelGap,
                             .divider = sigil::compose::var("palette-rule")}),
                        document::caption(
                            "Watch the number, outline and filled square ease "

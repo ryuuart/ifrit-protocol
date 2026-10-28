@@ -390,14 +390,6 @@ struct EvaMagiDefense {
    *  holds shows the construction and nothing else; a violated rule gets the
    *  whole table dealt in magenta where nobody can miss it. */
   Element failureBanner() const {
-    sketch::kit::Theme look;
-    look.palette.ash = {0, 0, 0, 1};
-    look.palette.figure = {0.32f, 0, 0, 1};
-    look.type.sans = eva::boldFace();
-    look.type.mono = eva::boldFace();
-    look.type.captionNote = {23.0f, 0.2f};
-    look.type.captionLabel = {23.0f, 0.2f, true};
-    look.spacing.rowGap = 7;
     std::vector<std::array<Utf8, 3>> rows;
     std::vector<Fill> swatches;
     for (const measure::Check& c : verdict.rows) {
@@ -425,7 +417,7 @@ struct EvaMagiDefense {
                                          {.width = 180, .figure = true},
                                          {}},
                              .gap = 18,
-                             .rowGap = look.spacing.rowGap,
+                             .rowGap = 7,
                              .swatches = swatches,
                              .swatchSide = 15})});
   }

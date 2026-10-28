@@ -70,14 +70,12 @@ constexpr float kGridWidth = kPerRow * kCard + (kPerRow - 1) * kGap;
 constexpr material::Color kInk = hexColor(0xf0ece4);
 constexpr material::Color kDim = hexColor(0xb4a894);
 
-/** The archive's own look: warm ink on a cooled ground, and the card's
- *  two lines under its picture rather than around it. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.captionGap = 7;
-  look.spacing.captionNoteGap = 7;
-  return look;
+/** The archive's own look over the feature sheet: the card's two lines
+ *  under its picture rather than around it. */
+sigil::compose::StyleSheet sheetRules() {
+  return rule(":root")
+      .var("spacing-caption-gap", 7)
+      .var("spacing-caption-note-gap", 7);
 }
 
 std::string archive() {
@@ -148,7 +146,12 @@ struct SubstanceSwatchesSketch {
   /** A PIECE THIS MACHINE CANNOT SHOW: the plate is the reason, on a
    *  canvas sized for one notice rather than for cards that never came. */
   void refuse(sketch::Scene2DContext& ctx, Utf8 heading, Utf8 detail) {
-    ctx.canvas(940, 320);
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = sheetRules(),
+         .size = {940, 320},
+         .captureAt = 0.5});
     ctx.composer.render(
         stack()
             .fill(Fill::color(hexColor(0x140f0a)))
@@ -156,9 +159,6 @@ struct SubstanceSwatchesSketch {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    ctx.background(sketch::kit::featureTheme().palette.ground);
-    ctx.captureAt(0.5);
-
     sigil::io::Hub& hub = ctx.assets.hub();
     const sbsar::Description graph = sbsar::describe(hub, archive());
     if (graph.outputs.empty()) {
@@ -195,9 +195,14 @@ struct SubstanceSwatchesSketch {
     // fixed module and its gaps, which is that function run backwards.
     const int rows = ((int)swatches.size() + kPerRow - 1) / kPerRow;
     const float cardHeight = kCard + 7 + 18 + 7 + 16;
-    ctx.canvas(kMargin * 2 + kGridWidth,
-               kHeaderHeight + (float)rows * cardHeight +
-                   (float)(rows - 1) * kGap + kCaptionHeight);
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = sheetRules(),
+         .size = {kMargin * 2 + kGridWidth,
+                  kHeaderHeight + (float)rows * cardHeight +
+                      (float)(rows - 1) * kGap + kCaptionHeight},
+         .captureAt = 0.5});
 
     // THE ENGINE'S VERSION GOES TO stderr, NOT ONTO THE PLATE. It is a
     // number this machine's SDK decides, so a plate carrying it would
@@ -219,19 +224,13 @@ struct SubstanceSwatchesSketch {
                                                .columns = kPerRow,
                                                .gap = kGap})});
 
-    // No page stands here, so the root states the theme's registers.
-    ctx.composer.render(
-        stack()
-            .applyStyleSheet(sheetTheme().styleSheet())
-            .children(
-                {sketch::kit::backdrop(
-                     {.ground = Fill::color(sheetTheme().palette.ground)}),
-                 sketch::kit::titleCard(
-                     {.title = {u8"A procedural archive, cooked"},
-                      .subtitle = {caption}})
-                     .left(kMargin)
-                     .top(34),
-                 std::move(grid)}));
+    ctx.composer.render(stack().children(
+        {sketch::kit::backdrop({.ground = var("palette-ground")}),
+         sketch::kit::titleCard({.title = {u8"A procedural archive, cooked"},
+                                 .subtitle = {caption}})
+             .left(kMargin)
+             .top(34),
+         std::move(grid)}));
   }
 };
 

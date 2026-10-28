@@ -343,32 +343,27 @@ struct FeedSky {
   }
 
   Element rawPanel() const {
-    const sketch::kit::Theme& look =
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-    // A paint program runs after the describe scope has closed, where the
-    // theme in force is no longer this page's, so the strip's colours are
-    // read here and carried in by value.
-    const material::Color rule = look.palette.rule;
-    const material::Color figure = look.palette.figure;
     const data::Json& entry = words["raw"];
-    return panel(
-        entry,
-        pen("feed_sky.strip",
-            [this, rule, figure](Pen& pen) { strip(pen, rule, figure); })
-            .cover(),
-        kit::readout(
-            std::vector<kit::Reading>{
-                {.name = "door",
-                 .value = pulseShown.localAddress.empty()
-                              ? std::string(entry["address"].string())
-                              : pulseShown.localAddress},
-                {.name = "revision",
-                 .value =
-                     kit::formatted("%llu  ·  dropped %llu",
-                                    (unsigned long long)pulseShown.revision,
-                                    (unsigned long long)pulseShown.dropped)},
-                {.name = "newest", .value = bytes()}},
-            {.measure = kShownWidth}));
+    return panel(entry,
+                 pen("feed_sky.strip",
+                     [this](Pen& pen, const PaintContext& context) {
+                       strip(pen, resolveColor(var("palette-rule"), context),
+                             resolveColor(var("palette-figure"), context));
+                     })
+                     .cover(),
+                 kit::readout(
+                     std::vector<kit::Reading>{
+                         {.name = "door",
+                          .value = pulseShown.localAddress.empty()
+                                       ? std::string(entry["address"].string())
+                                       : pulseShown.localAddress},
+                         {.name = "revision",
+                          .value = kit::formatted(
+                              "%llu  ·  dropped %llu",
+                              (unsigned long long)pulseShown.revision,
+                              (unsigned long long)pulseShown.dropped)},
+                         {.name = "newest", .value = bytes()}},
+                     {.measure = kShownWidth}));
   }
 
   /** THE NIGHT the bands cross: darker overhead, lifting toward the

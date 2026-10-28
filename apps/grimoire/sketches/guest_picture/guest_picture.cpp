@@ -156,8 +156,7 @@ struct GuestPicture {
                                .height = kFrame.height(),
                                .padding = 0,
                                .corners = kCorner,
-                               .keyline = compose::Fill::color(
-                                   sketch::kit::featureTheme().palette.rule),
+                               .keyline = compose::var("palette-rule"),
                                .placed = true},
                               compose::stack().children(std::move(body))))));
   }
@@ -190,27 +189,29 @@ struct GuestPicture {
    *  nothing is publishing under, and the one line that would start
    *  somebody publishing under it. */
   compose::Element waiting(bool deterministic) {
-    const sketch::kit::Theme& look = sketch::kit::featureTheme();
     return compose::kit::centred()
         .cover()
         .column()
-        .gap(look.spacing.contentGap)
+        .gap(compose::var("spacing-content-gap"))
         .children(
             {compose::document::h2(
                  compose::kit::formatted("WAITING FOR “%s”", kPublication))
-                 .font(look.font({.size = 26, .track = 6}))
-                 .ink(look.palette.ink),
+                 .styleClass("caption")
+                 .font({.size = 26, .track = 6})
+                 .ink(compose::var("palette-ink")),
              compose::document::paragraph(
                  deterministic ? "Live publications are shown in the window; "
                                  "captures keep this waiting card."
                                : "No publisher is connected under that name.")
-                 .font(look.font({.size = 14}))
-                 .ink(look.palette.ash),
+                 .styleClass("caption")
+                 .font({.size = 14})
+                 .ink(compose::var("palette-ash")),
              compose::document::code(
                  compose::kit::formatted(
                      "Grimoire --sketch feed_sky --publish %s", kPublication))
-                 .font(look.font({.size = 13, .mono = true}))
-                 .ink(look.palette.ash)});
+                 .styleClass("control")
+                 .font({.size = 13})
+                 .ink(compose::var("palette-ash"))});
   }
 
   /** The publication, over the body. */

@@ -259,11 +259,7 @@ struct MeshGenerators {
     ctx.composer.render(
         box()
             .inset(0)
-            .applyStyleSheet(
-                sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                    .styleSheet())
-            .ink(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                     .palette.ink)
+            .ink(var("palette-ink"))
             .children(
                 {document::h1("Six ways to make a mesh")
                      .font({.size = 32})

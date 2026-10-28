@@ -208,20 +208,10 @@ struct VideoCompose {
                  {.title = {"One hundred video leaves"},
                   .subtitle = {"Shared playback · layered panel · additive "
                                "effects · native alpha"}}))
-             .applyStyleSheet(
-                 sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                     .styleSheet())
              .at({42, 42}),
          // The cover the scene waits behind until every source has
          // a frame.
-         kit::centred(
-             document::label("BUFFERING / 005 SOURCES")
-                 .font(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                           .font(sketch::kit::featureTheme(
-                                     sketch::kit::Density::Spacious)
-                                     .type.captionLabel))
-                 .ink(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                          .palette.ink))
+         kit::centred(document::label("BUFFERING / 005 SOURCES"))
              .cover()
              .fill(Fill::color({0, 0, 0, 1}))
              .opacity(loading)}));

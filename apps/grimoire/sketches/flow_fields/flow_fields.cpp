@@ -87,11 +87,6 @@ constexpr double kStepRate = 60.0;
  *  is exactly how `wind()` reads it. */
 float headingAt(float x, float y) { return kCurrent.at(x, y) * TAU; }
 
-/** The sheet's own voice: the house feature sheet. */
-sketch::kit::Theme sheetTheme() {
-  return sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-}
-
 const sketch::kit::Cell kPanel{
     .plate = {.width = kPanelWidth, .height = kPanelHeight}};
 
@@ -194,7 +189,10 @@ struct FlowFields {
 
   void setup(sketch::Scene2DContext& context) {
     sketch::kit::stage(
-        context, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 5.2});
+        context,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .size = kCanvas,
+         .captureAt = 5.2});
 
     ink = material::shader(context.assets.hub(), context.local("flow.sksl"),
                            {.textures = {{"uField", {}}}})

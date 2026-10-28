@@ -73,16 +73,6 @@ constexpr float kBed = 118;   // the drawn strip's height
 constexpr material::Color kBody{0.90f, 0.55f, 0.37f, 1};
 constexpr material::Color kLine{0.56f, 0.76f, 0.88f, 1};
 
-/** The house sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 30;
-  look.spacing.marginTop = 22;
-  look.spacing.captionNoteGap = 3;
-  return look;
-}
-
 /** ONE CELL: the generator drawn at both sizes on one baseline, then the
  *  call that made it and what it is. `closed` decides whether the figure
  *  is filled — an open path has no inside, and filling one closes it
@@ -104,7 +94,7 @@ Element cell(Outline outline, const char* call, const char* note,
       box()
           .width(kCell)
           .height(kBed)
-          .fill(Fill::color(sheetTheme().palette.cellGround))
+          .fill(var("palette-cell-ground"))
           .children({figure(kLarge, 8), figure(kSmall, kLarge + 22)}),
       sigil::compose::kit::Caption::Where::Below);
 }
@@ -119,7 +109,7 @@ Element wideCell(const char* d, bool preserveAspect, const char* call,
       box()
           .width(kCell)
           .height(kBed)
-          .fill(Fill::color(sheetTheme().palette.cellGround))
+          .fill(var("palette-cell-ground"))
           .children(
               {kit::at(box()
                            .stroke(stroke(1.0f, Fill::color(kLine)))
@@ -148,7 +138,14 @@ struct ShapeShelf {
   void setup(sketch::Scene2DContext& ctx) {
     // A generator is a pure function of its parameters and the box.
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = {1120, 980}, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 30)
+                      .var("spacing-margin-top", 22)
+                      .var("spacing-caption-note-gap", 3),
+         .size = {1120, 980},
+         .captureAt = 0.05});
 
     Element generators = kit::cells(
         {.cells =

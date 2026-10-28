@@ -60,18 +60,6 @@ constexpr float kCanvasH = 710;
 /** What a re-recorded chunk is washed in. */
 constexpr material::Color kFlash{1.0f, 0.58f, 0.20f, 0.55f};
 
-/** The feature sheet keeps the header close to the map so the chunks
- *  retain their authored width. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = kPad;
-  look.spacing.marginTop = kPad * 0.6f;
-  look.spacing.marginBottom = kPad * 0.5f;
-  look.spacing.contentGap = kGap;
-  return look;
-}
-
 /** ONE MARK inside a 16 px tile, in the tile's own coordinates. */
 struct Mark {
   float x, y, w, h;
@@ -204,9 +192,19 @@ struct TileMap {
   void setup(sketch::Scene2DContext& ctx) {
     for (auto& value : flash) value = sigil::motion::animatable(value.value());
 
-    sketch::kit::stage(ctx, {.theme = sheetTheme(),
-                             .size = {kCanvasW, kCanvasH},
-                             .captureAt = 6.0});
+    // The header sits close to the map so the chunks keep their authored
+    // width.
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", kPad)
+                      .var("spacing-margin-top", kPad * 0.6f)
+                      .var("spacing-margin-bottom", kPad * 0.5f)
+                      .var("spacing-content-gap", kGap)
+                      .var("spacing-rule-gap", kGap * 0.5f),
+         .size = {kCanvasW, kCanvasH},
+         .captureAt = 6.0});
     revisions.fill(0);
     edits.fill(Edit{});
     editedAt.fill(-1000.0);
@@ -326,27 +324,19 @@ struct TileMap {
                            kit::formatted("%zu", worked.describedNodes)},
                           {"Memo hits",
                            kit::formatted("%zu", worked.memoHits)}},
-                      {.measure = 250,
-                       .gap = sheetTheme().spacing.rowGap,
-                       .labelGap = sheetTheme().spacing.labelGap,
-                       .divider = Fill::color(sheetTheme().palette.rule)}),
+                      {.measure = 250, .divider = var("palette-rule")}),
                   sigil::compose::kit::readout(
                       std::vector<sigil::compose::kit::Reading>{
                           {"Patched instances",
                            kit::formatted("%zu", worked.patchedNodes)},
                           {"Recordings held",
                            kit::formatted("%zu", worked.picturesLive)}},
-                      {.measure = 250,
-                       .gap = sheetTheme().spacing.rowGap,
-                       .labelGap = sheetTheme().spacing.labelGap,
-                       .divider = Fill::color(sheetTheme().palette.rule)}),
+                      {.measure = 250, .divider = var("palette-rule")}),
                   sigil::compose::kit::readout(
                       std::vector<sigil::compose::kit::Reading>{
                           {"Painted live",
                            kit::formatted("%zu", worked.nodesPainted)}},
-                      {.measure = 250,
-                       .gap = sheetTheme().spacing.rowGap,
-                       .labelGap = sheetTheme().spacing.labelGap})})}));
+                      {.measure = 250})})}));
   }
 
   /** THE DATA PATH, and only when the data changes: one cell of one

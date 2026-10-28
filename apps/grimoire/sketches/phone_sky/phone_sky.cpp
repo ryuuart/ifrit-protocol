@@ -385,13 +385,12 @@ struct PhoneSky {
    *  this door is served by the door itself, so the whole of what a
    *  person needs is the address. */
   compose::Element invitation() {
-    const sketch::kit::Theme& look =
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     return compose::text(
                compose::kit::formatted(
                    "open this machine on port %d in a phone's browser", kPort))
-        .font(look.font({.size = 15, .mono = true}))
-        .ink(look.palette.ash)
+        .styleClass("control")
+        .font({.size = 15})
+        .ink(compose::var("palette-ash"))
         .centerAt({kCanvas.width() * 0.5f, kCanvas.height() - 96.0f});
   }
 

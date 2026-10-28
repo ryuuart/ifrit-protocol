@@ -79,15 +79,6 @@ constexpr material::Color kGround{0.02f, 0.03f, 0.05f, 1};
 constexpr material::Color kCore{0.616f, 0.949f, 1.0f, 1};
 constexpr material::Color kHalo{0.165f, 0.498f, 0.588f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 40;
-  look.spacing.marginTop = 40;
-  return look;
-}
-
 /** THE WORD, identical either side of the seam: one size, one tracking,
  *  and the colour the construction paints it in. The face is STATED as the
  *  font context's own family, because the word is not set in the sheet's
@@ -127,7 +118,13 @@ struct CrtBloom {
     // Nothing on the sheet reads the clock: both halos are static and the
     // tube is a function of the box, so the plate is the first moment.
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = {1000, 740}, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 40)
+                      .var("spacing-margin-top", 40),
+         .size = {1000, 740},
+         .captureAt = 0.05});
 
     // LEFT — one node. The effect owns the whole construction.
     Element primitive =

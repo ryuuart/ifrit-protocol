@@ -67,15 +67,6 @@ constexpr uint32_t kSeed = 20260903;  // the seed every field is drawn from
 constexpr float kBlock = 4;           // px one sample is drawn at
 constexpr int kCells = 6;             // the lattice cell, in samples
 
-/** The specimen sheet, in this one's caption voice. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.captionGap = 8;
-  look.spacing.captionNoteGap = 3;
-  return look;
-}
-
 /** A FIELD: one sample per block, the value read as a grey. The sampler
  *  is handed the sample's own grid position, so a mixer indexed by a
  *  counter and one indexed by a position are drawn the same way and
@@ -83,10 +74,9 @@ sketch::kit::Theme sheetTheme() {
 using Field = std::function<float(int, int)>;
 
 Element field(const char* key, Field sample) {
-  // A pen program runs after the describe scope has closed, so the
-  // field's ink is read here and carried in by value.
-  const material::Color ink = sheetTheme().palette.figure;
-  return pen(key, [sample = std::move(sample), ink](draw::Pen& pen) {
+  return pen(key, [sample = std::move(sample)](draw::Pen& pen,
+                                               const PaintContext& context) {
+    const material::Color ink = resolveColor(var("palette-figure"), context);
     pen.noStroke();
     pen.noSmooth();
     const int columns = (int)(pen.width / kBlock);
@@ -116,7 +106,13 @@ struct NoiseShelf {
   void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the shelf is complete at once
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = kCanvas, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-caption-gap", 8)
+                      .var("spacing-caption-note-gap", 3),
+         .size = kCanvas,
+         .captureAt = 0.05});
 
     const int columns = (int)(kCell / kBlock);
 

@@ -63,17 +63,6 @@ constexpr float kSwatch = 100;  // the painted square in it, px
 
 constexpr material::Color kEdge{1, 1, 1, 0.22f};
 
-/** The house sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 30;
-  look.spacing.marginTop = 26;
-  look.spacing.marginBottom = 20;
-  look.spacing.captionNoteGap = 3;
-  return look;
-}
-
 /** The one voice: the recipe's name under the swatch, the call that made
  *  it under that, both ranged left at the cell's width. */
 Element swatch(Utf8 name, const char* call, material::Material paint) {
@@ -113,7 +102,15 @@ struct StockMaterialsSheet {
     // parameters and the box, and the two that read the clock are pinned
     // by the moment their call names.
     sketch::kit::stage(
-        ctx, {.theme = sheetTheme(), .size = {1150, 1000}, .captureAt = 0.05});
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 30)
+                      .var("spacing-margin-top", 26)
+                      .var("spacing-margin-bottom", 20)
+                      .var("spacing-caption-note-gap", 3),
+         .size = {1150, 1000},
+         .captureAt = 0.05});
 
     const std::vector<material::ColorStop> ramp = {
         {0.0f, {0.95f, 0.35f, 0.25f, 1}},

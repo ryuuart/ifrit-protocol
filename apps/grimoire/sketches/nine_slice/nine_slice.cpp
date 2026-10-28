@@ -51,19 +51,6 @@ constexpr float kFrameDensity = 2.0f;
 constexpr material::Color kInk{0.86f, 0.88f, 0.94f, 1};
 constexpr material::Color kQuest{0.169f, 0.110f, 0.043f, 1};
 
-/** THIS SHEET'S LOOK, and its one voice: the call over the panel, what
- *  it did under it. The page's ground is a shade off the canvas's, which
- *  is black, so the margin around the sheet reads as a border. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 40;
-  look.spacing.marginTop = 34;
-  look.spacing.marginBottom = 22;
-  look.spacing.captionGap = 7;
-  return look;
-}
-
 /** The panel every cell shows: the frame stretched over a box of one
  *  size, with room inside it for a line of type. 24 clears the carved
  *  corner bosses, which reach 0.215 of the 96-unit band in from the
@@ -207,10 +194,20 @@ struct NineSlice {
   }
 
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.theme = sheetTheme(),
-                             .size = kSceneSize,
-                             .captureAt = 6.0,
-                             .background = material::Color{0, 0, 0, 1}});
+    // THIS SHEET'S LOOK, and its one voice: the call over the panel, what
+    // it did under it. The page's ground is a shade off the canvas's, which
+    // is black, so the margin around the sheet reads as a border.
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 40)
+                      .var("spacing-margin-top", 34)
+                      .var("spacing-margin-bottom", 22)
+                      .var("spacing-caption-gap", 7),
+         .size = kSceneSize,
+         .captureAt = 6.0,
+         .background = material::Color{0, 0, 0, 1}});
     oak = generate(oakPalette());
     crimson = generate(crimsonPalette());
     azurePlain = generate(azurePalette(), 1.0f);

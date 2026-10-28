@@ -171,6 +171,59 @@ TEST(SketchKitStage, TheStageSetsItsThemeAtTheRoot) {
   EXPECT_FALSE(same(staged(std::nullopt), staged(kit::houseTheme())));
 }
 
+/** A VARIANT IS RULES JOINED AT THE STAGE: a stage naming a stock theme
+ *  and a sheet that sets a few of its properties on `:root` draws the
+ *  page a copied theme with those fields changed draws, and the canvas
+ *  takes the ground the sheet states. */
+TEST(SketchKitStage, AVariantIsRulesJoinedAtTheStage) {
+  const sigil::material::Color paperGround{0.945f, 0.937f, 0.918f, 1};
+  kit::Theme copied = kit::houseTheme();
+  copied.palette.ground = paperGround;
+  copied.spacing.marginHorizontal = 40;
+  copied.spacing.contentGap = 30;
+  const compose::StyleSheet variant{
+      compose::rule(":root")
+          .var("palette-ground", paperGround)
+          .var("spacing-margin-horizontal", compose::Dimension(40.0f))
+          .var("spacing-content-gap", compose::Dimension(30.0f))};
+
+  sigil::motion::Engine engine;
+  compose::Composer composer(engine, fonts());
+  sigil::sketch::CanvasSpecification specification;
+  sigil::sketch::Scene2DContext ctx(composer, engine, assets(), {0, 0},
+                                    &specification, &fonts());
+  kit::stage(ctx, {.theme = kit::houseTheme(),
+                   .sheet = variant,
+                   .size = {(float)kWide, (float)kTall}});
+  EXPECT_EQ(specification.background, paperGround);
+  composer.setSize({(float)kWide, (float)kTall});
+  composer.render(kit::page({.title = "TITLE", .footer = "FOOT"}, subject()));
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWide, kTall));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  composer.draw(*surface->getCanvas());
+  SkBitmap staged;
+  staged.allocPixels(SkImageInfo::MakeN32Premul(kWide, kTall));
+  ASSERT_TRUE(surface->readPixels(staged.pixmap(), 0, 0));
+
+  const SkBitmap byCopy =
+      Drawn(kit::page({.title = "TITLE", .footer = "FOOT"}, subject())
+                .applyStyleSheet(copied.styleSheet()))
+          .pixels();
+  for (int y = 0; y < kTall; ++y)
+    ASSERT_EQ(std::memcmp(staged.getAddr32(0, y), byCopy.getAddr32(0, y),
+                          (size_t)kWide * 4),
+              0)
+        << "row " << y;
+
+  // An explicit background still stands over the sheet's ground.
+  kit::stage(ctx, {.theme = kit::houseTheme(),
+                   .sheet = variant,
+                   .size = {10, 10},
+                   .background = sigil::material::Color{1, 0, 0, 1}});
+  EXPECT_EQ(specification.background, (sigil::material::Color{1, 0, 0, 1}));
+}
+
 /** The theme a page names reaches a component four levels down without
  *  being handed to it — and moves what it draws. */
 TEST(SketchKitPage, AComponentUnderThePageReadsItsTheme) {

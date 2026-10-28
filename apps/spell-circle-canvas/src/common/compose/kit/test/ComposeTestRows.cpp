@@ -244,13 +244,75 @@ TEST(KitRows, SwatchesReserveOneColumnAcrossTheHeadAndEveryRow) {
   }
 }
 
+TEST(KitRows, AReadoutsGapsAreTheSheetsPropertiesWhereItLands) {
+  // A readout names its air as the properties a sheet states, so a sheet
+  // in force sets it, and where none does it stands at five and ten.
+  const std::vector<kit::Reading> two = {
+      {.name = u8"nodes", .value = u8"7"},
+      {.name = u8"instances", .value = u8"9"}};
+  const auto height = [&](const kit::Rows& how,
+                          const sigil::compose::StyleSheet& sheet) {
+    return intrinsicSize(box()
+                             .applyStyleSheet(rowClasses() + sheet)
+                             .children({kit::readout(two, how)}),
+                         fonts())
+        .height();
+  };
+  const auto width = [&](const kit::Rows& how,
+                         const sigil::compose::StyleSheet& sheet) {
+    return intrinsicSize(box()
+                             .applyStyleSheet(rowClasses() + sheet)
+                             .children({kit::reading(two[0], how)}),
+                         fonts())
+        .width();
+  };
+  const sigil::compose::StyleSheet none;
+  const sigil::compose::StyleSheet spaced{
+      sigil::compose::rule(":root")
+          .var("spacing-row-gap", Dimension(9.0f))
+          .var("spacing-label-gap", Dimension(17.0f))};
+  EXPECT_FLOAT_EQ(height({}, none), height({.gap = 5}, none));
+  EXPECT_FLOAT_EQ(width({}, none), width({.labelGap = 10}, none));
+  EXPECT_FLOAT_EQ(height({}, spaced), height({.gap = 9}, none));
+  EXPECT_FLOAT_EQ(width({}, spaced), width({.labelGap = 17}, none));
+  // A stated number stands over the sheet's.
+  EXPECT_FLOAT_EQ(height({.gap = 3}, spaced), height({.gap = 3}, none));
+}
+
+TEST(KitRows, ABarsDistancesAndInksMayBeTheSheetsProperties) {
+  const std::vector<sigil::compose::Utf8> labels = {u8"a", u8"b"};
+  const std::vector<double> values = {40.0, 40.0};
+  const std::array<Fill, 1> lit{sigil::compose::var("lit")};
+  Host host(400, 200);
+  host.composer.render(
+      box()
+          .width(400)
+          .height(200)
+          .applyStyleSheet(rowClasses())
+          .var("lit", sigil::material::Color{0, 1, 0, 1})
+          .var("bar-height", Dimension(10.0f))
+          .var("row-gap", Dimension(4.0f))
+          .children({kit::bars(labels, values,
+                               {.length = 100,
+                                .labelMeasure = 0,
+                                .barHeight = sigil::compose::var("bar-height"),
+                                .rowGap = sigil::compose::var("row-gap"),
+                                .bar = Fill::color({1, 0, 0, 1}),
+                                .inks = lit})}));
+  host.frame();
+  // The first row's bar is the property's colour; the second keeps the
+  // paint the props named, a property's bar height and row gap below.
+  EXPECT_EQ(host.pixel(60, 5), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(60, 19), SK_ColorRED);
+}
+
 TEST(KitRows, ABarsOwnInkStandsOverTheRowsPaintAndItsLines) {
   // WHICH row is lit is the data's business, so the inks are a run beside
   // the values; a short run leaves the rows past its end as the props
   // say.
   const std::vector<sigil::compose::Utf8> labels = {u8"a", u8"b"};
   const std::vector<double> values = {40.0, 40.0};
-  const std::array<sigil::material::Color, 1> lit{{{0, 1, 0, 1}}};
+  const std::array<Fill, 1> lit{Fill::color({0, 1, 0, 1})};
   Host host(400, 200);
   host.composer.render(
       box()
@@ -327,9 +389,8 @@ TEST(KitRows, AColumnsWidthIsItsOwnInEveryRowWhateverTheRowHolds) {
                                                       u8"12", u8""};
   const std::vector<std::span<const sigil::compose::Utf8>> rows = {judged,
                                                                    unjudged};
-  kit::Table how{
-      .columns = {{.width = 104}, {.width = 226}, {.width = 56}, {}},
-      .gap = 10};
+  kit::Table how{.columns = {{.width = 104}, {.width = 226}, {.width = 56}, {}},
+                 .gap = 10};
   how.cellLine = [](const Utf8& words, const kit::Table&, size_t column,
                     size_t row) {
     return text(words)

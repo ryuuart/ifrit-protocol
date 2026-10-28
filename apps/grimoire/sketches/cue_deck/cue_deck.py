@@ -30,7 +30,7 @@ TAGS: Data/Schema, Runtime/Live Input, Data/Sources
 from math import ceil
 
 from sigil import data
-from sigil.compose import Element, Overflow, box, column, row, text
+from sigil.compose import Element, Overflow, box, column, row, text, var
 from sigil.compose import document
 from sigil.compose import kit as neutral
 from sigil.io import ReadyState
@@ -85,7 +85,7 @@ def show_run(show: str, color: str) -> Element:
     )
 
 
-def meter(name: str, level: float, color: str, look: kit.Theme) -> Element:
+def meter(name: str, level: float, color: str) -> Element:
     """One channel: its level as a number, a bar filled to it, its name."""
     level = min(1.0, max(0.0, level))
     return (
@@ -100,7 +100,7 @@ def meter(name: str, level: float, color: str, look: kit.Theme) -> Element:
             .width(64)
             .height(METER_HEIGHT)
             .borderRadius(8)
-            .fill(look.palette.rule)
+            .fill(var("palette-rule"))
             .overflow(Overflow.Clip)
             .children(
                 box()
@@ -117,7 +117,7 @@ def meter(name: str, level: float, color: str, look: kit.Theme) -> Element:
 
 
 def ruler(
-    markers: list[data.Json], beat: float, color: str, look: kit.Theme
+    markers: list[data.Json], beat: float, color: str
 ) -> Element:
     """The bar: a tick a beat, every marker flagged, the playhead on the beat."""
     step = RULER / BAR
@@ -128,7 +128,7 @@ def ruler(
         .top(30 if index % 4 else 22)
         .width(1)
         .height(18 if index % 4 else 26)
-        .fill(look.palette.rule)
+        .fill(var("palette-rule"))
         for index in range(BAR + 1)
     ]
     flags = [
@@ -151,16 +151,18 @@ def ruler(
         .width(3)
         .height(50)
         .borderRadius(1.5)
-        .fill(look.palette.figure)
+        .fill(var("palette-figure"))
     )
     return box().width(RULER).height(64).children(*ticks, *flags, playhead)
 
 
-@sketch(size=(WIDTH, HEIGHT), captureAt=CAPTURE_AT)
+@sketch(
+    size=(WIDTH, HEIGHT),
+    captureAt=CAPTURE_AT,
+    theme=kit.featureTheme(kit.Density.Spacious),
+)
 class Deck:
     def setup(self, ctx: Scene2DContext) -> None:
-        self.look = kit.featureTheme(kit.Density.Spacious)
-        kit.stage(ctx, theme=self.look, size=(WIDTH, HEIGHT), captureAt=CAPTURE_AT)
         hub = ctx.assets.hub()
         # A CAPTURE OPENS NO SOCKET: every later ask for a door's URI
         # answers the recording replayed there instead.
@@ -312,7 +314,6 @@ class Deck:
                                 channel["name"].string(),
                                 channel["level"].number(),
                                 color,
-                                self.look,
                             )
                             for channel in channels
                         )
@@ -338,9 +339,7 @@ class Deck:
                             "control"
                         ),
                     ),
-                    ruler(
-                        cue["markers"].array(), cue["beat"].number(), color, self.look
-                    ),
+                    ruler(cue["markers"].array(), cue["beat"].number(), color),
                 ),
             )
         )

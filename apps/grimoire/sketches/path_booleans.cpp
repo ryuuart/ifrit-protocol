@@ -187,11 +187,7 @@ struct PathBooleans {
     ctx.composer.render(
         box()
             .inset(0)
-            .applyStyleSheet(
-                sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                    .styleSheet())
-            .ink(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                     .palette.ink)
+            .ink(var("palette-ink"))
             .children(
                 {pen("path.booleans", [this](draw::Pen& pen) { draw(pen); })
                      .rect(0, 60, 1240, 800),

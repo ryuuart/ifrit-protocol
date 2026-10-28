@@ -202,13 +202,7 @@ struct LiveSettling {
                         .value = kit::formatted("%d", report.reused)},
                        {.name = "Degraded",
                         .value = kit::formatted("%d", report.degraded)}},
-                   {.nameMeasure = 92,
-                    .gap = sketch::kit::featureTheme(
-                               sketch::kit::Density::Spacious)
-                               .spacing.rowGap,
-                    .labelGap = sketch::kit::featureTheme(
-                                    sketch::kit::Density::Spacious)
-                                    .spacing.labelGap})
+                   {.nameMeasure = 92})
                    .width(kCell)});
     }
     ctx.composer.render(sketch::kit::page(

@@ -44,21 +44,16 @@ Element answer(const data::Table* table, const char* names, const char* values,
   // query ordered to the top — so it is lit and the rest stand quiet.
   const material::Color figure =
       sketch::kit::featureTheme(sketch::kit::Density::Spacious).palette.figure;
-  const std::array<material::Color, 1> lit{figure};
+  const std::array<Fill, 1> lit{var("palette-figure")};
   std::vector<Utf8> labels;
   for (const auto& name : table->column<std::string>(names))
     labels.emplace_back(name);
   return kit::bars(
              labels, table->column<double>(values),
              {.length = kBars,
-              .barHeight =
-                  sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                      .spacing.barHeight,
-              .gap = sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                         .spacing.labelGap,
-              .rowGap =
-                  sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                      .spacing.rowGap,
+              .barHeight = var("spacing-bar-height"),
+              .gap = var("spacing-label-gap"),
+              .rowGap = var("spacing-row-gap"),
               .bar = Fill::color(sigil::material::withAlpha(figure, 0.5f)),
               .rest = Fill::color(material::withAlpha(figure, 0.25f)),
               .inks = lit})

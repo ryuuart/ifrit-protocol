@@ -49,10 +49,10 @@ namespace {
 // ---------------------------------------------------------------------------
 // the plate's ink
 
-const material::Color kPaper = sketch::kit::featureTheme().palette.ground;
-const material::Color kInk = sketch::kit::featureTheme().palette.ink;
+constexpr material::Color kPaper = {0.055f, 0.062f, 0.075f, 1};
+constexpr material::Color kInk = {0.93f, 0.916f, 0.878f, 1};
 const material::Color kInkSoft = material::withAlpha(kInk, 0.55f);
-const material::Color kCaptionInk = sketch::kit::featureTheme().palette.ash;
+constexpr material::Color kCaptionInk = {0.65f, 0.68f, 0.73f, 1};
 constexpr material::Color kRed = {0.90f, 0.55f, 0.37f, 1};
 constexpr material::Color kBlue = {0.56f, 0.76f, 0.88f, 1};
 constexpr material::Color kGreen = {0.54f, 0.75f, 0.59f, 1};
@@ -74,7 +74,9 @@ Fill soft() { return Fill::color(kInkSoft); }
 sigil::weave::Face monoFace() {
   return sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 }
-sigil::weave::Face romanFace() { return sketch::kit::featureTheme().type.sans; }
+sigil::weave::Face romanFace() {
+  return sketch::kit::houseFace(sketch::kit::Voice::Interface);
+}
 sigil::weave::Face romanBoldFace() {
   return sketch::kit::houseFace(sketch::kit::Voice::Interface, 700);
 }

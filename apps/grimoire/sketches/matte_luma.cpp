@@ -91,16 +91,6 @@ const std::array<Band, 8> kBands{{
 constexpr material::Color kDim{0.55f, 0.60f, 0.70f, 1};
 constexpr material::Color kFrame{0.24f, 0.28f, 0.36f, 1};
 
-/** The specimen sheet, in this one's own look. */
-sketch::kit::Theme sheetTheme() {
-  sketch::kit::Theme look =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
-  look.spacing.marginHorizontal = 40;
-  look.spacing.marginTop = 40;
-  look.spacing.captionGap = 6;
-  return look;
-}
-
 /** The "is it there?" backdrop — the stock checker tile, 8 px cells. */
 material::Material checker() {
   return material::skia::base(material::skia::paint(material::skia::shader(
@@ -190,7 +180,14 @@ Element bandLabels(float stripW) {
 
 struct MatteLuma {
   void setup(sketch::Scene2DContext& ctx) {
-    sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = {1100, 1180}});
+    sketch::kit::stage(
+        ctx,
+        {.theme = sketch::kit::featureTheme(sketch::kit::Density::Spacious),
+         .sheet = rule(":root")
+                      .var("spacing-margin-horizontal", 40)
+                      .var("spacing-margin-top", 40)
+                      .var("spacing-caption-gap", 6),
+         .size = {1100, 1180}});
     // Every gate is a constant: the sheet is complete on the first frame.
     ctx.captureAt(0.05);
 

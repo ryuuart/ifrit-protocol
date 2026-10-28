@@ -105,7 +105,7 @@ Element panel(const char* caption, Element content) {
   return kit::centred(std::move(content))
       .flexGrow(1)
       .borderRadius({10})
-      .fill(Fill::color(sketch::kit::featureTheme().palette.cellGround))
+      .fill(var("palette-cell-ground"))
       .perspective(kViewDistance)
       .children({document::caption(caption)
                      .font({.size = 14, .color = kAsh})
@@ -127,11 +127,9 @@ struct CardFlip {
     // MID-TURN. At 2.2 s the card is past its quarter turn and the back
     // has just taken over, the cube shows three faces at an oblique, and
     // the plate is near the end of its sway.
-    sketch::kit::stage(
-        ctx, {.theme = sketch::kit::featureTheme(),
-              .size = kCanvas,
-              .captureAt = 2.2,
-              .background = sketch::kit::featureTheme().palette.ground});
+    sketch::kit::stage(ctx, {.theme = sketch::kit::featureTheme(),
+                             .size = kCanvas,
+                             .captureAt = 2.2});
     flip = 0;
     spinX = 0;
     spinY = 0;

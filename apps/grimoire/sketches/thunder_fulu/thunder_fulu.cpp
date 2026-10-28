@@ -698,8 +698,6 @@ struct ThunderFulu {
                                      {.width = 44},
                                      {.width = 98},
                                      {}},
-                         .gap = sketch::kit::houseTheme().spacing.labelGap,
-                         .rowGap = sketch::kit::houseTheme().spacing.rowGap,
                          .cellLine =
                              [this, last = rows.size() - 1](
                                  const Utf8& words, const kit::Table& table,

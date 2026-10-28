@@ -952,7 +952,9 @@ sheet in force and its note in `captionNote`, a page's three lines in `title`,
 `compose::Utf8`, which takes `"…"` and `u8"…"` alike; `kit/Rows.h` — a name and
 the figure that answers it: `kit::reading`, one row of a `kit::Reading` set as
 a `kit::Rows` says (the name at the left, the figure at the far edge of
-`Rows::measure`, the swatch of a row that is also a key before both),
+`Rows::measure`, the swatch of a row that is also a key before both, the air
+between rows and between a name and its figure the `spacing-row-gap` and
+`spacing-label-gap` in force unless `Rows::gap` and `Rows::labelGap` say),
 `kit::readout`, a stack of them ruled between where `Rows::divider` names a
 fill, `kit::table`, N `kit::Column`s each at its own width — one head cell per
 column in the class `section`, a figure column's cells in `readout` and the
@@ -966,7 +968,8 @@ since a part may answer any element and not only a line, and `Reading::ink` is
 the colour a row is set in over whatever its lines' classes name, because WHICH
 rows are lit is the data's business and a sheet cannot say it — and
 `kit::bars`, one row per value against an extent DERIVED from the values
-(`Bars::largest` states it instead; `Bars::inks` is one colour per row, over
+(`Bars::largest` states it instead; `Bars::inks` is one fill per row — a
+colour or a property such as `var("palette-figure")` — over
 the bar's paint and over the two lines' classes, because WHICH row is lit is
 the data's business — the same door `Reading::ink` gave a readout's rows), each
 bar in `Bars::bar` on the track `Bars::rest` holds, with the figure after it as

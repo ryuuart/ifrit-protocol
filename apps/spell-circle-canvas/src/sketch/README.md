@@ -536,7 +536,12 @@ ctx.composer.render(sketch::kit::page(
                         sketch::kit::cells({.cells = {a, b, c}}))));
 ```
 
-The stage's theme stands at the root of every tree the sketch renders.
+The stage's theme stands at the root of every tree the sketch renders, and
+it flows downstream only: everything under the root reads it as the
+`spacing-…` and `palette-…` properties, roles and classes that reach it, and
+a sketch that wants a variant joins rules at the stage
+(`.sheet = compose::rule(":root").var("spacing-caption-gap", 8)`) rather
+than copying the theme or reading it back while it describes.
 `sketch::kit::Density::Compact` preserves fixed specimen measures;
 `sketch::kit::Density::Spacious` gives explanations more room.
 Reference studies keep their subject's own typography and geometry.

@@ -30,7 +30,7 @@ class ComposeStamps:
         self.look = kit.featureTheme()
         kit.stage(ctx, theme=self.look, size=(740, 370), captureAt=0)
         self.cards = [
-            card(label, accent).applyStyleSheet(self.look.styleSheet())
+            card(label, accent)
             for label, accent in (
                 ("One tree", "#356c69"),
                 ("Another", "#536b9c"),

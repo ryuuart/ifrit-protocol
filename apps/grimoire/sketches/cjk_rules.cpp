@@ -52,13 +52,12 @@ Element column(const char8_t* copy, float depth) {
 }
 
 Element paired(Element before, Element after, float depth) {
-  const auto& look = sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   const auto sample = [&](const char* label, Element body) {
     return box().column().gap(16).width(132).children(
         {document::caption(label),
          box().width(132).height(156).children(
              {box().absolute().left(8).top(depth).width(116).height(1).fill(
-                  Fill::color(look.palette.figure)),
+                  var("palette-figure")),
               std::move(body).absolute().left(10).top(0)})});
   };
   return sketch::kit::well({.width = 328, .height = 226, .padding = 20})

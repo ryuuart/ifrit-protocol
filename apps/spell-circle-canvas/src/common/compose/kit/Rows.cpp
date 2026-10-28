@@ -1,3 +1,4 @@
+#include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Rows.h>
@@ -21,6 +22,18 @@ Element mark(const Fill& paint, Dimension side, float corners) {
   return patch;
 }
 
+/** The air a readout falls back to where no sheet in force sets the
+ *  properties its gaps are written in. */
+const VarTable& rowDefaults() {
+  static const VarTable defaults = [] {
+    VarTable values;
+    values.set(var("spacing-row-gap"), Dimension(5.0f));
+    values.set(var("spacing-label-gap"), Dimension(10.0f));
+    return values;
+  }();
+  return defaults;
+}
+
 }  // namespace
 
 Element reading(const Reading& one, const Rows& how) {
@@ -30,8 +43,11 @@ Element reading(const Reading& one, const Rows& how) {
     if (one.ink) line.font({.color = *one.ink});
     return line;
   };
-  Element row =
-      box().row().alignItems(Align::Center).gap(Dimension(how.labelGap));
+  Element row = box()
+                    .row()
+                    .alignItems(Align::Center)
+                    .varDefaults(rowDefaults())
+                    .gap(how.labelGap);
   if (how.measure > 0.0f) row.width(Dimension(how.measure));
   if (one.swatch.kind != Fill::Kind::None)
     row.children({mark(one.swatch, how.swatchSide, how.swatchCorners)});
@@ -54,7 +70,7 @@ Element reading(const Reading& one, const Rows& how) {
 }
 
 Element readout(std::span<const Reading> rows, const Rows& how) {
-  Element column = box().column().gap(Dimension(how.gap));
+  Element column = box().column().varDefaults(rowDefaults()).gap(how.gap);
   if (how.measure > 0.0f) column.width(Dimension(how.measure));
   bool first = true;
   for (const Reading& one : rows) {
@@ -146,16 +162,24 @@ Element bars(std::span<const Utf8> labels, std::span<const double> values,
   double largest = how.largest;
   if (largest <= 0.0)
     for (const double value : values) largest = std::max(largest, value);
-  Element column = box().column().gap(Dimension(how.rowGap));
+  Element column = box().column().gap(how.rowGap);
   for (size_t index = 0; index < values.size(); ++index) {
-    Element row = box().row().alignItems(Align::Center).gap(Dimension(how.gap));
+    Element row = box().row().alignItems(Align::Center).gap(how.gap);
     // A row's own ink stands over the bar's paint and over whatever its
     // two lines' classes name, so a lit row keeps the registers it was
     // set in.
-    const std::optional<material::Color> ink =
-        index < how.inks.size() ? std::optional(how.inks[index]) : std::nullopt;
+    const std::optional<Fill> ink =
+        index < how.inks.size() && how.inks[index].kind != Fill::Kind::None
+            ? std::optional(how.inks[index])
+            : std::nullopt;
     const auto lit = [&ink](Element line) {
-      if (ink) line.font({.color = *ink});
+      if (!ink) return line;
+      if (ink->kind == Fill::Kind::Color && ink->ref == Fill::Ref::None)
+        line.font({.color = ink->colorValue});
+      else if (ink->ref == Fill::Ref::Var)
+        line.ink(VarRef{ink->varId});
+      else
+        line.ink(*ink);
       return line;
     };
     if (index < labels.size()) {
@@ -167,16 +191,15 @@ Element bars(std::span<const Utf8> labels, std::span<const double> values,
     const float run =
         largest > 0.0 ? (float)((double)how.length * values[index] / largest)
                       : 0.0f;
-    Element bar = box().width(Dimension(run)).height(Dimension(how.barHeight));
+    Element bar = box().width(Dimension(run)).height(how.barHeight);
     if (ink)
-      bar.fill(Fill::color(*ink));
+      bar.fill(*ink);
     else
       bar.fill(how.bar.kind == Fill::Kind::None ? Fill::currentInk() : how.bar);
     if (how.rest.kind == Fill::Kind::None) {
       row.children({std::move(bar)});
     } else {
-      Element track =
-          box().width(Dimension(how.length)).height(Dimension(how.barHeight));
+      Element track = box().width(Dimension(how.length)).height(how.barHeight);
       track.fill(how.rest);
       row.children({std::move(track.children({std::move(bar)}))});
     }

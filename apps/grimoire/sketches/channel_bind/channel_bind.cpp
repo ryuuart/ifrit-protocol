@@ -262,13 +262,11 @@ struct ChannelBind {
   }
 
   compose::Element figure() {
-    const sketch::kit::Theme& look =
-        sketch::kit::featureTheme(sketch::kit::Density::Spacious);
     const auto plate = [&](std::vector<compose::Element> parts) {
       parts.push_back(compose::box()
                           .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
                               26, kFloor, kFigureWidth - 26, kFloor + 1)))
-                          .fill(compose::Fill::color(look.palette.rule)));
+                          .fill(compose::var("palette-rule")));
       return sketch::kit::well(
           {.width = kFigureWidth, .height = kFigureHeight},
           compose::positioned().children(std::move(parts)));
@@ -276,17 +274,17 @@ struct ChannelBind {
     return sketch::kit::comparison(
         {.cases = {{.title = "01 / RISE",
                     .control = kChains[0],
-                    .figure = plate({blade(look)}),
+                    .figure = plate({blade()}),
                     .note = "A linear mapping scales the blade about its foot: "
                             "36–270 px tall."},
                    {.title = "02 / TURN",
                     .control = kChains[1],
-                    .figure = plate(wheel(look)),
+                    .figure = plate(wheel()),
                     .note = "Smoothstep shapes the turn. The fixed pointer "
                             "reads the rotating hue wheel."},
                    {.title = "03 / SWING",
                     .control = kChains[2],
-                    .figure = plate(plumb(look)),
+                    .figure = plate(plumb()),
                     .note = "Ping-pong folds the input into a return trip "
                             "between −16° and +16°."}},
          .measure = 1100,
@@ -294,11 +292,11 @@ struct ChannelBind {
   }
 
   /** A HEIGHT, as the scale of a blade about its own foot. */
-  compose::Element blade(const sketch::kit::Theme& look) {
+  compose::Element blade() {
     return compose::box()
         .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
             kBladeAt, kFloor - kBladeTall, kBladeAt + kBladeWide, kFloor)))
-        .fill(compose::Fill::color(look.palette.figure))
+        .fill(compose::var("palette-figure"))
         .borderRadius(4)
         .transformOrigin(compose::percent(50), compose::percent(100))
         .scaleY(rise());
@@ -308,7 +306,7 @@ struct ChannelBind {
    *  three pieces stand side by side rather than nested, because a
    *  placed plate positions the children it is handed and a group would
    *  put its own rect between them and it. */
-  std::vector<compose::Element> wheel(const sketch::kit::Theme& look) {
+  std::vector<compose::Element> wheel() {
     std::vector<compose::Element> pieces;
     pieces.push_back(compose::box()
                          .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
@@ -333,13 +331,13 @@ struct ChannelBind {
                                               kWheelMiddleX + kHubSide * 0.5f,
                                               kWheelMiddleY + kHubSide * 0.5f)))
                          .borderRadius(kHubSide * 0.5f)
-                         .fill(compose::Fill::color(look.palette.cellGround)));
+                         .fill(compose::var("palette-cell-ground")));
     pieces.push_back(compose::box()
                          .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
                              kWheelMiddleX - 5, kWheelTop - 16,
                              kWheelMiddleX + 5, kWheelTop + 14)))
                          .borderRadius(2)
-                         .fill(compose::Fill::color(look.palette.ink)));
+                         .fill(compose::var("palette-ink")));
     return pieces;
   }
 
@@ -347,7 +345,7 @@ struct ChannelBind {
    *  child of the cord — a child's rect stands inside its parent's — so
    *  one rotation carries both; the pivot stands outside it, because a
    *  pivot that turned would not be one. */
-  std::vector<compose::Element> plumb(const sketch::kit::Theme& look) {
+  std::vector<compose::Element> plumb() {
     std::vector<compose::Element> pieces;
     pieces.push_back(
         compose::box()
@@ -361,20 +359,20 @@ struct ChannelBind {
                      .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
                          kPlumbWide * 0.5f - 3, 0, kPlumbWide * 0.5f + 3,
                          kPlumbLong - kBobSide)))
-                     .fill(compose::Fill::color(look.palette.rule)),
+                     .fill(compose::var("palette-rule")),
                  compose::box()
                      .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
                          kPlumbWide * 0.5f - kBobSide * 0.5f,
                          kPlumbLong - kBobSide,
                          kPlumbWide * 0.5f + kBobSide * 0.5f, kPlumbLong)))
                      .borderRadius(kBobSide * 0.5f)
-                     .fill(compose::Fill::color(look.palette.figure))}));
+                     .fill(compose::var("palette-figure"))}));
     pieces.push_back(compose::box()
                          .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
                              kPlumbAt + kPlumbWide * 0.5f - 7, kPlumbTop - 7,
                              kPlumbAt + kPlumbWide * 0.5f + 7, kPlumbTop + 7)))
                          .borderRadius(7)
-                         .fill(compose::Fill::color(look.palette.ink)));
+                         .fill(compose::var("palette-ink")));
     return pieces;
   }
 
@@ -390,14 +388,7 @@ struct ChannelBind {
                    {.name = "LAST INPUT", .value = reading(index)},
                    {.name = kDriven[index], .value = standing(index)}},
                {.measure = kFigureWidth,
-                .gap = sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                           .spacing.rowGap,
-                .labelGap =
-                    sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                        .spacing.labelGap,
-                .divider = compose::Fill::color(
-                    sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                        .palette.rule)})});
+                .divider = compose::var("palette-rule")})});
     return sketch::kit::comparison(
         {.cases = std::move(cases), .measure = 1100, .gap = 19});
   }

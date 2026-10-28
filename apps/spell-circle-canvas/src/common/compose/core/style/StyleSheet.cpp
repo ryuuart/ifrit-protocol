@@ -185,6 +185,8 @@ StyleSheet::StyleSheet(std::initializer_list<Statement> statements) {
   m_body = std::make_shared<const detail::SheetBody>(std::move(flat));
 }
 
+StyleSheet::StyleSheet(Rule one) : StyleSheet{Statement(std::move(one))} {}
+
 const std::vector<Rule>& StyleSheet::rules() const {
   // A sheet stating nothing holds no storage at all, so the empty
   // answer is one every empty sheet shares.

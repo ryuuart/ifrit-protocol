@@ -170,16 +170,7 @@ struct WarichuPlaceholder {
                           .value = kit::formatted("%.1f px", latin.split.band)},
                          {.name = "Cut word",
                           .value = kit::formatted("%u", latin.split.cutWord)}},
-                     {.measure = 284,
-                      .gap = sketch::kit::featureTheme(
-                                 sketch::kit::Density::Spacious)
-                                 .spacing.rowGap,
-                      .labelGap = sketch::kit::featureTheme(
-                                      sketch::kit::Density::Spacious)
-                                      .spacing.labelGap,
-                      .divider = Fill::color(sketch::kit::featureTheme(
-                                                 sketch::kit::Density::Spacious)
-                                                 .palette.rule)}),
+                     {.measure = 284, .divider = var("palette-rule")}),
                  document::caption(
                      "Measured at 13 px. The note keeps its own size; the "
                      "base is 23 px.")

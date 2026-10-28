@@ -83,8 +83,6 @@ Element numeral(int hour) {
 /** A point that states its hour, and what else it asks for: a class the
  *  hull reads, a callout the pin reads. What stands on it is stamped. */
 Element point(int hour) {
-  const sketch::kit::Theme& sheet =
-      sketch::kit::featureTheme(sketch::kit::Density::Spacious);
   Element node = sigil::compose::point()
                      .key("hour-" + std::to_string(hour))
                      .attribute("hour", hour);
@@ -93,14 +91,13 @@ Element point(int hour) {
     node.attribute(
         "callout",
         pin::Request{
-            .element =
-                box()
-                    .borderRadius({4})
-                    .fill(Fill::color(sheet.palette.cellGround))
-                    .foreground(stroke(1.0f, Fill::color(sheet.palette.rule)))
-                    .padding({2, 6})
-                    .justifyContent(Justify::Center)
-                    .children({text(std::to_string(hour) + " o'clock")}),
+            .element = box()
+                           .borderRadius({4})
+                           .fill(var("palette-cell-ground"))
+                           .foreground(stroke(1.0f, var("palette-rule")))
+                           .padding({2, 6})
+                           .justifyContent(Justify::Center)
+                           .children({text(std::to_string(hour) + " o'clock")}),
             .size = {84, 22},
             .where = {
                 .on = {1, 0.5f},
@@ -139,13 +136,10 @@ Operator numerals() {
 }
 
 Operator band() {
-  return outline::Around{
-      .key = "dial",
-      .across = 6,
-      .formation = sigil::geometry::path::Formation::Inner,
-      .fill =
-          Fill::color(sketch::kit::featureTheme(sketch::kit::Density::Spacious)
-                          .palette.rule)};
+  return outline::Around{.key = "dial",
+                         .across = 6,
+                         .formation = sigil::geometry::path::Formation::Inner,
+                         .fill = var("palette-rule")};
 }
 
 Operator chosenHull() {
@@ -174,10 +168,7 @@ Element dial(std::vector<Element> children, std::vector<Operator> operators,
                .key("dial")
                .inset(0)
                .shape(shapes::circle())
-               .foreground(sigil::compose::stroke(
-                   1.0f, Fill::color(sketch::kit::featureTheme(
-                                         sketch::kit::Density::Spacious)
-                                         .palette.rule)))
+               .foreground(sigil::compose::stroke(1.0f, var("palette-rule")))
                .operators(std::move(operators))
                .children(std::move(children))}));
 }

@@ -11,6 +11,7 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>
@@ -48,12 +49,24 @@ struct Stage {
    *  sets its own type keeps it, and a component it uses still reads the
    *  house distances and colours. */
   std::optional<Theme> theme;
+  /** RULES JOINED AFTER THE THEME'S SHEET at the same root: the one door a
+   *  variant of a stock look comes through. A sketch that wants a wider
+   *  caption gap or another cell ground says so here, as properties the
+   *  components under it already read, rather than in a copied theme:
+   *
+   *      .sheet = compose::StyleSheet{
+   *          compose::rule(":root").var("spacing-caption-gap", 8)}
+   *
+   *  A `palette-ground` it sets on `:root` is the canvas's ground too,
+   *  where `background` names none, so the canvas and the page agree. */
+  std::optional<compose::StyleSheet> sheet;
   SkSize size{900, 640};
   /** The scene time a still should be taken at. Negative states no
    *  preference and a sweep falls back to its own derived frame. */
   double captureAt = -1.0;
-  /** Unset is the theme's ground — which is what a sheet wants, since
-   *  the page paints the same colour over it. */
+  /** Unset is the ground the stage's look states — the `palette-ground`
+   *  its `sheet` sets on `:root`, else the theme's — which is what a sheet
+   *  wants, since the page paints the same colour over it. */
   std::optional<material::Color> background;
   /** Device pixels per canvas pixel a PLATE is taken at; 0 lets the host
    *  pick. */
@@ -64,10 +77,12 @@ struct Stage {
 };
 
 /** DECLARE THE CANVAS, THE LOOK, THE GROUND AND THE MOMENT in one call:
- *  the theme the stage names stands at the root of everything the sketch
- *  renders, through `Composer::setStyleSheet`.
+ *  the theme the stage names, and after it the stage's own `sheet`, stand
+ *  at the root of everything the sketch renders, through
+ *  `Composer::setStyleSheet`. Everything under that root reads the look
+ *  as the properties, roles and classes that reach it there.
  *
- *      sketch::kit::stage(ctx, {.theme = sheetTheme(),
+ *      sketch::kit::stage(ctx, {.theme = sketch::kit::studyTheme(),
  *                               .size = {1100, 424}, .captureAt = 0.05});
  *
  *  It writes the whole `CanvasSpecification`, defaults included, so what a host
@@ -117,7 +132,8 @@ struct Page {
  *  `spacing-content-gap`, the ground and the hairline its `palette-ground`
  *  and `palette-rule`, and the running text the `page` role's rule.
  *
- *      sketch::kit::stage(ctx, {.theme = sheetTheme(), .size = {900, 640}});
+ *      sketch::kit::stage(ctx, {.theme = sketch::kit::studyTheme(),
+ *                               .size = {900, 640}});
  *      ctx.composer.render(sketch::kit::page(
  *          {.title = "THE RULE AND THE STRANDS",
  *           .subtitle = "dials · the width and the inset",
