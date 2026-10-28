@@ -13,12 +13,15 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/values/Oscillator.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
+#include <numbers>
 #include <string>
 #include <utility>
 
@@ -31,6 +34,8 @@ using namespace sigil::compose;
 using sigil::material::hexColor;
 
 namespace {
+
+constexpr float kTau = 2.0f * std::numbers::pi_v<float>;
 
 sketch::kit::Theme sheetTheme() {
   auto look = sketch::kit::featureTheme(sketch::kit::Density::Spacious);
@@ -59,7 +64,7 @@ Element card(Utf8 step, Utf8 title, Utf8 note, material::Color color) {
 }  // namespace
 
 struct HelloSketch {
-  motion::Animatable<float> wave = motion::animatable(0.0f);
+  motion::Animatable<float> wave;
   int score = 0;
   double nextScoreAt = 1.0;
 
@@ -126,12 +131,11 @@ struct HelloSketch {
   void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx, {.theme = sheetTheme(), .size = {1000, 700}, .captureAt = 1.0});
+    // The clock, followed: a sine of 1.6 radians a second. One value
+    // animates a retained card and feeds the immediate wave.
+    wave = motion::bind(ctx.engine.time(),
+                        {.ease = motion::Oscillator{.hertz = 1.6f / kTau}});
     ctx.composer.render(describe());
-
-    // One output animates a retained card and feeds the immediate wave.
-    ctx.engine.timer([this, &ticker = ctx.engine] {
-      wave = static_cast<float>(std::sin(ticker.elapsed().count() * 1.6));
-    });
   }
 
   void update(double elapsed, sketch::Scene2DContext& ctx) {

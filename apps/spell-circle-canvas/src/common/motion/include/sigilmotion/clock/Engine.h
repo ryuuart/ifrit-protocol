@@ -5,7 +5,8 @@
  *
  * THE ENGINE: the one clock animations, timelines and timers run on —
  * `engine.animate(target, tween)`, `engine.timeline()`, `engine.timer()`
- * — the playback every one of them answers to, and, for the host that
+ * — that clock as a live value a property follows (`engine.time()`), the
+ * playback every one of them answers to, and, for the host that
  * owns the engine, the frame that moves it: the wall clock or a stated
  * step, under a policy and a budget.
  */
@@ -185,7 +186,8 @@ struct EngineOptions {
  *         .add(title, {.to = 1.0f, .duration = 750ms}, motion::at(500ms))
  *         .add(rule, {.to = 1.0f}, motion::withPrevious())
  *         .call([&] { armed = true; });
- *     engine.timer([&] { wave = std::sin(engine.elapsed().count()); });
+ *     motion::Animatable<float> wave = motion::bind(
+ *         engine.time(), {.ease = motion::Oscillator{.hertz = 0.5f}});
  *
  * Not thread-safe: one engine per animation domain, touched only from its
  * thread. Everything under "The host" below is for whoever owns the engine
@@ -267,6 +269,14 @@ class Engine {
         options);
   }
 
+  /** THE CLOCK AS A VALUE: the seconds this engine has advanced, as a live
+   *  value the engine writes on every tick, so a property follows time the
+   *  way it follows any live value (`bind(engine.time(), …)`) and nothing
+   *  in a sketch runs per frame to copy it. Written after the clock moves
+   *  and before any motion or timer steps, so a timer that reads it reads
+   *  the tick it runs on; `elapsed()` is the same quantity as a number
+   *  now, for a timer's own arithmetic. */
+  [[nodiscard]] const Animatable<float>& time() const;
   /** Engine time so far: the sum of every frame's movement. */
   [[nodiscard]] Duration elapsed() const { return m_elapsed; }
   /** WHETHER ANYTHING IS DECLARED TO MOVE: a running animation, timeline
@@ -343,6 +353,8 @@ class Engine {
   ClockPolicy m_policy = ClockPolicy::Wall;
   std::optional<Duration> m_budgetEnds;
   Duration m_elapsed{};
+  /** `elapsed()` in seconds as the live value `time()` hands out. */
+  Animatable<float> m_time = animatable(0.0f);
   uint64_t m_frames = 0;
   double m_lastWall = -1.0;
   bool m_expired = false;

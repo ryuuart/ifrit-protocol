@@ -33,8 +33,8 @@ engine.animate(at, {.to = glm::vec2(120, 40)});
 std::vector<Animatable<float>> letters(5, animatable(0.0f));
 engine.animate(letters, {.to = 1.0f, .delay = stagger(40ms)});  // a collective
 
-Animatable<float> wave = animatable(0.0f);
-engine.timer([&] { wave = std::sin(engine.elapsed().count() * 1.6); });
+Animatable<float> wave = bind(engine.time(),                 // the clock, followed
+                              {.ease = Oscillator{.hertz = 0.25f}});
 engine.timer([&] { stepFire(); }, {.stepRate = 27.0});      // a fixed-rate simulation
 ```
 
@@ -77,7 +77,10 @@ playback runs or a held motion moves — so a host renders while it is true
 and sleeps when it is not. It is a declaration, never a proof that a
 number changes: a timer that writes the same value every frame is
 running. `Engine::elapsed()` is engine time, the sum of every frame's
-movement.
+movement, and `Engine::time()` is the same seconds as a live value the
+engine writes on each tick — after the clock moves and before any motion
+or timer steps, so a timer that reads it reads the tick it runs on — which
+a property follows through `bind()` with no timer copying the clock.
 
 ## The host: who moves the clock
 

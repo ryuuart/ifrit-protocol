@@ -1801,6 +1801,9 @@ quantize=..., reverse=..., to=(c, d), wrap=..., wiggle=Wiggle(...),
 clamp=(e, f))` follows a live number through those stages, which run in
 that order whatever order they are named in; `envelope.cosine()`,
 `square()`, `trapezoid()` and `shaped()` shape the phase.
+`ctx.engine.time()` is the clock itself as a live value the engine writes
+on every tick, so `bind(ctx.engine.time(), ease=Oscillator(hertz=0.5))`
+follows time with no timer copying the clock into a value each frame.
 
 A curve is part of a binding's identity, so a tree described again with an
 equal binding patches nothing. A native ease from `sigil.motion.ease` and an

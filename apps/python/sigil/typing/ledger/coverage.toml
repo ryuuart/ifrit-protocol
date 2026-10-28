@@ -199,12 +199,13 @@ python = [
 name = "Engine"
 
 [[section.surface.item]]
-bound = "Checked `ctx.engine`: `animate` over a live value, `timeline` with `add`, `call` and `label` at `at`, `afterEnd`, `afterPrevious`, `withPrevious` and `atLabel`, and `timer` with a callback of zero to two arguments that returns `False` to stop, a `stepRate` with its catch-up limit, `betweenSteps` and `droppedTime`, a `frameRate`, a `duration` and a `delay`; `elapsed` and `isRunning`"
+bound = "Checked `ctx.engine`: `animate` over a live value, `timeline` with `add`, `call` and `label` at `at`, `afterEnd`, `afterPrevious`, `withPrevious` and `atLabel`, and `timer` with a callback of zero to two arguments that returns `False` to stop, a `stepRate` with its catch-up limit, `betweenSteps` and `droppedTime`, a `frameRate`, a `duration` and a `delay`; `time`, the clock as a live value a `bind` follows, `elapsed` and `isRunning`"
 python = [
   "sketch.Scene2DContext.engine",
   "motion.Engine.animate",
   "motion.Engine.timeline",
   "motion.Engine.timer",
+  "motion.Engine.time",
   "motion.Engine.elapsed",
   "motion.Engine.isRunning",
   "motion.Timeline.add",

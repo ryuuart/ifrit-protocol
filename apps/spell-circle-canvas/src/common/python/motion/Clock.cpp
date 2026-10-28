@@ -521,9 +521,17 @@ void bindMotionClock(py::module_& root) {
           "many of the frame's delta and the timer's elapsed time, in "
           "seconds, as it names.")
       .def(
+          "time",
+          [](const EngineHandle& handle) { return handle.get().time(); },
+          "The clock as a value: the seconds this engine has advanced, as a "
+          "live value the engine writes on every tick, so a property follows "
+          "time through bind(engine.time(), ...) and nothing in a sketch runs "
+          "per frame to copy it. Every copy reads the engine's one value.")
+      .def(
           "elapsed",
           [](const EngineHandle& handle) { return handle.get().elapsed(); },
-          "Engine time so far, in seconds.")
+          "Engine time so far, in seconds: the same quantity as time(), as a "
+          "number now, for a timer's own arithmetic.")
       .def(
           "isRunning",
           [](const EngineHandle& handle) { return handle.get().isRunning(); },

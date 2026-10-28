@@ -487,8 +487,13 @@ Duration Engine::advance(Duration to) {
   return step(moves ? delta : Duration{});
 }
 
+const Animatable<float>& Engine::time() const { return m_time; }
+
 Duration Engine::step(Duration delta) {
   m_elapsed += delta;
+  // The clock's live value moves with the clock, before anything steps,
+  // so every motion and timer this frame reads the tick it runs on.
+  m_time = (float)m_elapsed.count();
   ++m_frames;
   m_expired = false;
   // A budget met by a sum of steps is met to within what the sum rounds
@@ -538,6 +543,7 @@ std::optional<Duration> Engine::budgetRemaining() const {
 void Engine::restart() {
   if (m_budgetEnds) *m_budgetEnds -= m_elapsed;
   m_elapsed = Duration{};
+  m_time = 0.0f;
   m_frames = 0;
   m_expired = false;
 }

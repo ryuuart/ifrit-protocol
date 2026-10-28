@@ -38,7 +38,7 @@ ease::linear · ease::{in,out,inOut}{Quad,Cubic,Quart,Quint,Sine,Expo,Circ} · e
 engine.animate(glow, {.to = 1.0f, .duration = 400ms});   // a float, a glm::vec2, a colour…
 engine.animate(letters, {.to = 1.0f, .delay = stagger(40ms)}); // a list: siblings
 engine.timeline().add(title, {.to = 1.0f}, at(500ms)).add(rule, {.to = 1.0f}, withPrevious());
-engine.timer([&] { wave = std::sin(engine.elapsed().count()); });
+wave = bind(engine.time(), {.ease = Oscillator{.hertz = 0.5f}});    // the clock as a value
 play() pause() resume() restart() reverse() seek(t) complete() cancel() revert() onComplete(f)
 float phase(Duration time, Duration period);             // wrapping [0, 1)        values/Time.h
 ```

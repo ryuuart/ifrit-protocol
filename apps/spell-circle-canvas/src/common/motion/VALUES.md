@@ -21,6 +21,7 @@ Animatable<float> c = animatable(0.0f);                      // live value
 c = std::sin(engine.elapsed().count());                      // …written
 Animatable<float> d = bind(c, {.from = {0.2f, 0.6f}, .clampFrom = true,
                                .ease = ease::outBack(), .to = {-70, 170}});
+Animatable<float> e = engine.time();                         // the clock, live
 ```
 
 Those are the four forms, read back by `Animatable::form()` — constant,
@@ -36,7 +37,10 @@ property to the number rather than taking a snapshot of it. The cell
 lives as long as any copy does. Assigning a number to a live value writes
 the cell; assigning one to any other form makes it that constant. Two
 live values compare by the cell they read (`Animatable::identity()`),
-never by the number behind it.
+never by the number behind it. `Engine::time()` is the clock itself as a
+live value the engine writes on every tick, so a property follows time
+through `bind(engine.time(), …)` with nothing in a sketch copying the
+clock each frame.
 
 ## The tween
 

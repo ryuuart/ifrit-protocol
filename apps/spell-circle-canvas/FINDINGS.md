@@ -166,3 +166,15 @@ depend on how far the marks reach. Growing the extent symmetrically about
 the anchor still differs on the device, turned and under the device clip.
 A test should find a blurred panel at a stroke bleed of one and of seventy
 giving the same pixels on the device.
+
+## The engine's clock can be written by any holder of a copy
+
+`Engine::time()` answers a const reference, but a copy of an `Animatable`
+shares its cell and is writable, so `Animatable<float> clock =
+engine.time(); clock = 5.0f;` writes the engine's own cell until the next
+tick, and an animation started on the copy writes the same cell the engine
+overwrites each frame; Python's `engine.time().set(3)` is the same. Only
+the engine is meant to write the clock; a holder reads it and binds over
+it. A test should find `engine.time().value()` equal to `elapsed()` after a
+copy is assigned, and an animation on a copy leaving what `time()` reads
+unchanged.

@@ -4,7 +4,8 @@
  * by every copy and every bound value the frame it moves; a timeline's
  * positions, its calls and its playback; a timer every frame, at an exact
  * step rate counted from total time, and throttled; the playback verbs
- * every one of them answers to; and the order a frame steps them in. Every
+ * every one of them answers to; the clock as a live value the engine
+ * writes each tick; and the order a frame steps them in. Every
  * frame is a stated one, so no wall clock is read.
  */
 
@@ -466,6 +467,47 @@ TEST(Engine, ACancelledTimelineStopsEveryItemWhereItStands) {
   stepBy(engine, 500ms);
   EXPECT_NEAR(value.value(), 0.25f, 1e-4f);
   EXPECT_FALSE(engine.isRunning());
+}
+
+// ---------------------------------------------------------------------------
+// The clock as a value.
+
+TEST(Engine, TheClockIsALiveValueTheEngineWrites) {
+  Engine engine;
+  EXPECT_TRUE(engine.time().isRunning()) << "the clock is a live value";
+  EXPECT_EQ(engine.time().value(), 0.0f);
+  engine.advance(1500ms);
+  EXPECT_FLOAT_EQ(engine.time().value(), 1.5f);
+  EXPECT_EQ(engine.time().value(), (float)engine.elapsed().count());
+  stepBy(engine, 250ms);
+  EXPECT_EQ(engine.time().value(), (float)engine.elapsed().count());
+  engine.restart();
+  EXPECT_EQ(engine.time().value(), 0.0f) << "a restart counts from zero";
+}
+
+TEST(Engine, ATimerReadsTheTickItRunsOn) {
+  // The clock's value is written before any timer runs, so a timer that
+  // reads it reads the frame it is called on and never the one before.
+  Engine engine;
+  std::vector<float> seen;
+  engine.timer([&] { seen.push_back(engine.time().value()); });
+  stepBy(engine, 250ms);
+  stepBy(engine, 250ms);
+  ASSERT_EQ(seen.size(), 2u);
+  EXPECT_FLOAT_EQ(seen[0], 0.25f);
+  EXPECT_FLOAT_EQ(seen[1], 0.5f);
+}
+
+TEST(Engine, AValueBoundToTheClockMovesWithNoTimerAnywhere) {
+  // An eight-second lap folded into one unit: two seconds in is a quarter
+  // of the way round, and nothing but the engine's own tick moved it.
+  Engine engine;
+  const Animatable<float> lap =
+      bind(engine.time(), {.from = {0, 8}, .wrap = 1});
+  EXPECT_FALSE(engine.isRunning()) << "no animation, timeline or timer";
+  engine.advance(2s);
+  EXPECT_FLOAT_EQ(lap.value(), 0.25f);
+  EXPECT_TRUE(lap.isRunning()) << "a value bound to the clock is live";
 }
 
 // ---------------------------------------------------------------------------

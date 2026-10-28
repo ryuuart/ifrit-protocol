@@ -38,6 +38,7 @@ from sigil.motion import (
     animatable,
     at,
     atLabel,
+    bind,
     ease,
     withPrevious,
 )
@@ -154,6 +155,35 @@ class Frames(unittest.TestCase):
             Engine().advanceWall(float("inf"))
         with self.assertRaisesRegex(ValueError, "speed"):
             Engine().setSpeed(-1)
+
+
+class TheClockAsAValue(unittest.TestCase):
+    def test_the_clock_is_a_live_value_the_engine_writes(self):
+        engine = Engine()
+        clock = engine.time()
+        self.assertIsInstance(clock, Animatable)
+        self.assertEqual(clock.form, AnimatableForm.Live)
+        self.assertTrue(clock.isRunning())
+        engine.advance(1.5)
+        self.assertEqual(clock.value, 1.5)
+        self.assertAlmostEqual(clock.value, engine.elapsed(), places=6)
+
+    def test_a_timer_reads_the_tick_it_runs_on(self):
+        engine = Engine()
+        seen = []
+        engine.timer(lambda: seen.append(engine.time().value))
+        engine.advance(0.25)
+        engine.advance(0.5)
+        self.assertEqual(seen, [0.25, 0.5])
+
+    def test_a_value_bound_to_the_clock_moves_without_a_timer(self):
+        # An eight-second lap folded into one unit: two seconds in is a
+        # quarter of the way round, and only the engine's tick moved it.
+        engine = Engine()
+        lap = bind(engine.time(), from_=(0, 8), wrap=1)
+        self.assertFalse(engine.isRunning())
+        engine.advance(2.0)
+        self.assertAlmostEqual(lap.value, 0.25, places=6)
 
 
 class Timers(unittest.TestCase):
@@ -401,6 +431,26 @@ class Sessions(unittest.TestCase):
         self.assertTrue(builtins._clock_timeline.isCompleted())
         with self.assertRaisesRegex(RuntimeError, "session"):
             builtins._clock_engine.timeline()
+
+    def test_a_sketch_follows_the_lent_clock_with_no_timer(self):
+        self.addCleanup(lambda: builtins.__dict__.pop("_clock_lap", None))
+        source = """
+            import builtins
+            from sigil.motion import bind
+            from sigil.sketch import sketch
+
+            @sketch(size=(64, 24), background="#000000", captureAt=0)
+            class Scene:
+                def setup(self, ctx):
+                    builtins._clock_lap = bind(
+                        ctx.engine.time(), from_=(0, 8), wrap=1
+                    )
+        """
+        with tempfile.TemporaryDirectory(prefix="sigil_clock_") as folder:
+            entry = Path(folder) / "scene.py"
+            entry.write_text(textwrap.dedent(source))
+            renderFile(entry, Path(folder) / "scene.png", at=2.0)
+        self.assertAlmostEqual(builtins._clock_lap.value, 0.25, places=4)
 
 
 if __name__ == "__main__":
