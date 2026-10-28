@@ -178,3 +178,44 @@ the engine is meant to write the clock; a holder reads it and binds over
 it. A test should find `engine.time().value()` equal to `elapsed()` after a
 copy is assigned, and an animation on a copy leaving what `time()` reads
 unchanged.
+
+## Role rules carry palette colours by value
+
+`Theme::styleSheet()` writes `palette.ink`, `ash` and `figure` into the
+`h1`, `label`, `caption` and `.readout` rules as values, so a stage sheet
+that sets `palette-ink` recolours wells and fills but not headings or
+captions, and a sketch that wants another ink must stay its own theme. The
+role rules are meant to ink with `var("palette-…")`, so a palette variant
+is rules at the stage. A test should find a stage with `.sheet =
+rule(":root").var("palette-ink", red)` setting an `h1` under it in red.
+
+## A scope program cannot read properties
+
+`compose::drawWith` takes `(Pen&, const Scope&)` with no paint context, so
+a program under the stage captures the figure colour by value where a pen
+program reads `PaintContext::vars`. A program under the stage is meant to
+read the properties in force. A test should find a `drawWith` program
+under a node that sets `var("x", red)` resolving `var("x")` to red.
+
+## A reading's ink is a colour value
+
+`compose::kit::Reading::ink` is an optional `material::Color`, so a lit
+row cannot name `var("palette-ink")` and a readout reads the theme at
+describe time, while `Bars::inks` takes a `Fill`. A test should find a
+reading whose ink is `var("x")` setting its lines in x where x is in force.
+
+## A whole-canvas Python draw gets no paint context
+
+A sketch's `draw(self, pen)` under `@sketch(theme=…)` is handed no
+context, so it rebuilds the theme each frame to colour the pen, while a
+pen program reads the stage's properties through `context.vars`. A test
+should find `draw(self, pen, context)` under a themed sketch finding
+`palette-ink` in `context.vars`.
+
+## No colour can be derived from a property
+
+A `Fill` or `ColorTerm` holds a `var` reference but nothing derives from
+one, so a bar at half the figure colour's alpha keeps a theme read; CSS's
+relative colour syntax says the same property at a stated alpha. A test
+should find a fill of property p at alpha 0.5 painting p's colour at half
+alpha where p is in force.
