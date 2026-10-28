@@ -16,6 +16,7 @@
 #include <variant>
 #include <vector>
 
+#include "layout/FlexItems.h"
 #include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
@@ -252,6 +253,9 @@ void Composer::Impl::ensureLayout() {
     if (!phaseAdditions()) break;
     runLayoutPhases();
   }
+  // What the settled layout spills is said once it has settled, so a
+  // round that only passed through an overflow says nothing.
+  reportLayoutOverflow(*root);
   needsLayout = false;
 }
 
@@ -368,16 +372,6 @@ SkSize Composer::Impl::minimumSizeOf(Instance& child) {
 }
 
 namespace {
-
-/** The node whose flex line @p inst is an item of: its parent, or the
- *  nearest ancestor above parents that have no box of their own. */
-const Instance* flexContainerOf(const Instance& inst) {
-  const Instance* container = inst.parent;
-  while (container && container->parent &&
-         container->computed.layout.display == Display::Contents)
-    container = container->parent;
-  return container;
-}
 
 bool constrainedAxis(const Instance& inst, bool horizontal) {
   const LayoutProps& layout = inst.computed.layout;

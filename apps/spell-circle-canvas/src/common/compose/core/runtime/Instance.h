@@ -95,6 +95,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>>,
   // over the rotation the description states, written by the layout
   // pass and read wherever the node's transform is produced.
   float arrangedTurn = 0.0f;
+  // Whether the layout pass has reported this node: a flex container whose
+  // children run past its box, a text leaf a column shrank below its
+  // lines. Raised when the report is said and lowered when the node fits
+  // again, so one standing overflow is said once.
+  bool overflowReported = false;
+  bool squashReported = false;
 
   /** The fill in force as the surface map the composer paints the page
    *  as, or null where the fill is not lit or no map is selected — where

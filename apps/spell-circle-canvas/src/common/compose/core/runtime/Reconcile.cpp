@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "ComposeRuntime.h"
+#include "runtime/Place.h"
 #include "runtime/Warning.h"
 
 namespace sigil::compose {
@@ -22,37 +23,6 @@ namespace sigil::compose {
 using namespace detail;
 
 namespace {
-
-/** The key a retained node answers to: its memo shell's when it was
- *  described through one, else its description's. */
-const std::string& keyOf(const Instance& inst) {
-  if (inst.memoShell && !inst.memoShell->key.empty())
-    return inst.memoShell->key;
-  return inst.description->key;
-}
-
-/** Where a node stands, for a report an author reads: its key when it has
- *  one, else the child indices that lead to it from its nearest keyed
- *  ancestor — or from the root, when no ancestor carries a key. */
-std::string placeOf(const Instance& inst) {
-  if (!keyOf(inst).empty()) return "\"" + keyOf(inst) + "\"";
-  std::vector<size_t> indices;
-  const Instance* node = &inst;
-  while (node->parent != nullptr && keyOf(*node).empty()) {
-    const auto& siblings = node->parent->children;
-    for (size_t index = 0; index < siblings.size(); ++index)
-      if (siblings[index].get() == node) {
-        indices.push_back(index);
-        break;
-      }
-    node = node->parent;
-  }
-  std::string place = keyOf(*node).empty() ? std::string("the root")
-                                           : "\"" + keyOf(*node) + "\"";
-  for (auto index = indices.rbegin(); index != indices.rend(); ++index)
-    place += " > child " + std::to_string(*index);
-  return place;
-}
 
 /** THE LIST NEVER LIES ABOUT ITS ORDER: the arranging operators run during
  *  layout and the adding ones after it, so an arranging one written after

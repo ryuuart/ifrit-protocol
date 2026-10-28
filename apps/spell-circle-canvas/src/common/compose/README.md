@@ -256,6 +256,21 @@ children interactive. Its keyless contents go with it, as CSS's
 `pointer-events: none` is inherited, so the point falls through them to
 what lies beneath.
 
+Layout reports what it would otherwise draw without a word, through the
+reporting door SigilCore keeps, so a host's installed reporter hears it.
+A single-line flex container whose in-flow children run past its
+box along its main axis is named with how far they run and the first
+child past its edge, unless it clips them with `Overflow::Clip` or an
+arranging operator places them. A horizontal text leaf that a column
+has shrunk below its lines is named too: a flex line floors an item at
+zero, where CSS floors one whose minimum is unstated at its content, so
+a column short of room shrinks text with its boxes and the lines paint
+over what follows. `flexShrink(0)` keeps a leaf at the height of its
+lines; a stated height or maximum is the leaf's own floor and is not
+reported. Each is said once when it starts, and again only after the
+node has fit; a redraw, or a layout that leaves it standing, says
+nothing.
+
 `intrinsicSize` measures a tree without a persistent composer. `snapshot`
 records one into an `SkPicture`; bindings are sampled and transitions do
 not run. These trees inherit only from their own roots. Set their font and

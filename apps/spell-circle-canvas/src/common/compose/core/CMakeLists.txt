@@ -87,6 +87,7 @@ sigil_library(SigilComposeCore
     runtime/PaintMemos.h
     runtime/PaintWalk.h
     runtime/PictureBake.h
+    runtime/Place.h
     runtime/Query.cpp
     runtime/Reconcile.cpp
     runtime/ReconcileEquality.cpp
@@ -107,10 +108,12 @@ sigil_library(SigilComposeCore
     layout/CellFlow.cpp
     layout/Derive.cpp
     layout/DeriveInternal.h
+    layout/FlexItems.h
     layout/FlowAround.cpp
     layout/Grid.cpp
     layout/Layout.cpp
     layout/LayoutProps.cpp
+    layout/LayoutReports.cpp
     layout/LayoutText.cpp
     layout/MaterializeText.cpp
     layout/Measure.cpp
@@ -216,6 +219,7 @@ sigil_test(compose_test
           test/ComposeTestShelf.cpp test/ComposeTestTable.cpp
           test/ComposeTestValues.cpp test/ComposeTestParagraphLane.cpp test/ComposeTestCascade.cpp
           test/ComposeTestRoles.cpp test/ComposeTestFlexBox.cpp
+          test/ComposeTestLayoutReports.cpp
           test/ComposeTestEdges.cpp test/ComposeTestLengths.cpp
           test/ComposeTestRem.cpp
           test/ComposeTestFillSurfaces.cpp

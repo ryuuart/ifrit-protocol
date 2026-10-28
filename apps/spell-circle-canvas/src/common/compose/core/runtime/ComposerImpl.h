@@ -468,6 +468,11 @@ struct Composer::Impl : detail::CascadeRoot,
    *  matrix moved with the ancestor even though this node's
    *  parent-relative rect did not. */
   void syncLayoutRects(detail::Instance& inst, bool movedAbove = false);
+  /** Says, through the reporting door, where the settled layout has a flex
+   *  container whose children run past its box or a text leaf a column
+   *  has shrunk below its lines: once when it starts, never again while it
+   *  stands, and anew only after the node has fit (LayoutReports.cpp). */
+  void reportLayoutOverflow(detail::Instance& inst);
   /** AN EXTENT THAT DOES NOT BOUND: the depth a leaf that grows down the
    *  page is laid out in, and the measure an unconstrained one is measured
    *  at. One value rather than a large number spelled per call site,
