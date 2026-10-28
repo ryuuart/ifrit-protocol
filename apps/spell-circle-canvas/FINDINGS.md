@@ -306,3 +306,22 @@ CSS's `font-optical-sizing: auto` sets a variable face's `opsz` to the
 type size; weave has no such door, so `fontOpticalSizing` does not exist.
 A test should find a face with an `opsz` axis set at 48 px shaping with
 `opsz` 48 under the automatic setting.
+
+## A key-index query inside a memo can read a freed node
+
+`Composer::bounds`, `paragraphLayout`, `units` and the lookups beside
+them read the key index directly, so a memo's component called during a
+reconcile can be handed a node retired earlier in the same pass; only
+`beatsOf` is guarded. A node that no longer stands is meant to answer
+nothing. A test should find a memo calling `bounds("x")` on a sibling
+retired in the same render getting nothing, clean under the address
+sanitizer.
+
+## Two memos that feed each other re-describe every frame
+
+A memo that reads x and writes y beside one that reads y and writes x
+re-describe once per frame for ever, bounded but unsaid, while a memo
+that writes what it read is reported once; the same holds for a memo
+whose own output moves the node its `beatsOf` query reads. A cycle
+between memos is meant to be said once. A test should find such a pair
+reported once and no longer re-describing.
