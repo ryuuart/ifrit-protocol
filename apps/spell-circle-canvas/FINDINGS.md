@@ -374,3 +374,13 @@ moment hashing alike.
 pass when run alone, while an entry is meant to pass beside the others
 or carry the label or the serial mark that says what it needs. A test
 should find them passing under `-j8`, or marked.
+
+## A flex grow under an indefinite main size grows nothing and says nothing
+
+A child's `flexGrow` grows into room its parent has along the main axis,
+and a box's main size defaults to its content, so a spacer under a
+column with no stated height, and no stretch or grow from above, stays at
+its content size with no word said; the layout reports are meant to say
+when a declaration can do nothing. A test should find a `flexGrow(1)`
+child under a content-sized column reported once, naming the parent, and
+nothing said once the parent has a definite height.
