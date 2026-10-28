@@ -146,6 +146,11 @@ and `-R 'Suite.Case'` one case with no target behind either, and a case
 that needs something a machine may not have carries a label (`gpu`,
 `fonts`, …) on its suite.
 
+A test states one promise of the library, at the lowest layer that can
+break it. A table is one case, never one case per row. Integration goes
+through the library's harness, one case per scenario, and the device
+plates are the end-to-end. Time belongs in a bench arm, not a test.
+
 Qt's moc runs only where Qt is: `CMAKE_AUTOMOC` is off, and a target
 that declares Qt types calls `sigil_qt_target()` right after it is
 created, before any `qt_add_qml_module()`. Use a Release build for any
