@@ -25,9 +25,9 @@ namespace sigil::weave {
 class FontContext;
 }
 
-namespace sigil::core::hardware {
+namespace sigil::gpu {
 class GpuDevice;
-}  // namespace sigil::core::hardware
+}  // namespace sigil::gpu
 
 namespace sigil::skia {
 class GraphiteContext;
@@ -100,7 +100,7 @@ class SurfaceScene {
 
   /** Adopt device surfaces for every map; see `TextureScene::useDevice`.
    *  False, with every map still where it stood, when any refuses. */
-  bool useDevice(sigil::core::hardware::GpuDevice& device,
+  bool useDevice(sigil::gpu::GpuDevice& device,
                  sigil::skia::GraphiteContext& context);
 
   /** Reconcile @p root into every map and paint those that need it. The
@@ -152,7 +152,7 @@ class SurfaceScene {
   uint64_t m_revision = 0;
   SkISize m_size = SkISize::MakeEmpty();
   sigil::weave::FontContext* m_fonts = nullptr;
-  sigil::core::hardware::GpuDevice* m_device = nullptr;
+  sigil::gpu::GpuDevice* m_device = nullptr;
   sigil::skia::GraphiteContext* m_context = nullptr;
   material::Lobes m_lobes;
   bool m_clearcoatNormal = false;

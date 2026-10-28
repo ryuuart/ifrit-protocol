@@ -1,17 +1,17 @@
 // GraphiteContext::create(GpuDevice&): the one factory that reads a
 // hardware device rather than raw handles. Graphite is what stands on a
-// device, so the bring-up over one lives here and the hardware feature
-// below stays free of Skia.
+// device, so the bring-up over one lives here and SigilGpu below stays
+// free of Skia.
 
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 namespace sigil::skia {
 
 std::unique_ptr<GraphiteContext> GraphiteContext::create(
-    core::hardware::GpuDevice& device) {
-  using core::hardware::Backend;
-  const core::hardware::NativeDevice& native = device.native();
+    gpu::GpuDevice& device) {
+  using gpu::Backend;
+  const gpu::NativeDevice& native = device.native();
   switch (native.backend) {
     case Backend::Metal:
 #ifdef __APPLE__

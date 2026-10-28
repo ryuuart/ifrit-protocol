@@ -55,6 +55,12 @@ its reasoning spaces, ramps, palettes, harmonies and dithering, with a
 colour chapter and a paint chapter on that site and
 [its own value pages](/reference/SigilMaterial/types/index.html) here.
 
+**[SigilGpu](doxygen:SigilGpu)** — the GPU device itself: one device
+and its queue, created here or adopted from an engine that made it, with
+textures and fences named by handles that go stale rather than dangle.
+It knows nothing of what draws, so a 2D backend and a 3D engine stand on
+the same one.
+
 **[SigilSkia](doxygen:SigilSkia)** — Skia's Graphite GPU backend brought
 up on a device someone else already owns: given a native device and
 queue, it builds a `Context` and `Recorder` and wraps the caller's
@@ -75,10 +81,15 @@ wraps a licensed SDK.
 
 ## Structure and motion
 
-**[SigilCore](doxygen:SigilCore)** — the kernels a retained runtime is
+**[SigilCore](doxygen:SigilCore)** — the vocabulary every other library
+shares: comparable type erasure and the field pin, the compute values a
+drawing is drawn from, the time unit, the keyed memo, where independent
+work runs, the record of what a describe read, and the one reporting
+door.
+
+**[SigilTree](doxygen:SigilTree)** — the kernels a retained runtime is
 built on: the reconciler and the shape of the tree it keeps, the memo
-that skips a describe, the caching proof, the device seam, and the
-compute values a drawing is drawn from.
+that skips a describe, and the caching proof.
 
 **[SigilMotion](doxygen:SigilMotion)** — animation timing and animation
 *values*, with no renderer in them: one engine that animations,

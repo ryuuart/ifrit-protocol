@@ -24,7 +24,7 @@ Derived& MaskVerbs<Derived>::mask(Parts what, Gate with) {
         detail::DeriveData& derive = node->deriveData.ensure();
         derive.spanFitKeys.push_back(t.key);
         // A gap sized from where a node LANDED is a read of its box.
-        derive.reads.push_back({t.key, sigil::core::Facet::Bounds});
+        derive.reads.push_back({t.key, sigil::tree::Facet::Bounds});
       }
   node->fxData.ensure().masks.push_back(Mask{std::move(what), std::move(with)});
   return self();

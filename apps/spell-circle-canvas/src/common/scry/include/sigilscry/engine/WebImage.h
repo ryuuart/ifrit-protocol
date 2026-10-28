@@ -9,7 +9,7 @@
 
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
-#include <sigilcore/hardware/Handle.h>
+#include <sigilgpu/Handle.h>
 
 #include <functional>
 #include <memory>
@@ -76,14 +76,14 @@ class WebImage {
    * from any thread. False on a CPU engine or for a stale handle.
    * @trap @p texture must stay alive until this returns.
    */
-  bool updateTexture(sigil::core::hardware::TextureHandle texture);
+  bool updateTexture(sigil::gpu::TextureHandle texture);
 
   /** GPU engines: the texture backing this image, named on the engine's
    *  GpuDevice and valid for the WebImage's lifetime; `exportNative`
    *  there hands the native object out. Null on CPU engines.
    *  @trap Rendering into it directly means submitting that work and
    *  then calling invalidate(), in that order. */
-  sigil::core::hardware::TextureHandle texture() const;
+  sigil::gpu::TextureHandle texture() const;
 
   /** Notifies pages displaying this image that it changed and should be
    *  redrawn (update() does this automatically). */

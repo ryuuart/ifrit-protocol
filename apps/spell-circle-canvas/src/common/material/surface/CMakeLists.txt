@@ -14,7 +14,7 @@ sigil_library(SigilMaterialSurface
   SOURCES Lower.cpp PaintedMap.cpp Surface.cpp
   HEADERS PaintedMap.h Surface.h
   PUBLIC SigilMaterialTexture SigilMaterialColor
-  PRIVATE SigilMaterialSkia SigilSkiaGraphite SigilCoreHardware)
+  PRIVATE SigilMaterialSkia SigilSkiaGraphite SigilGpu)
 sigil_shader_sources(SigilMaterialSurface
   DIR ${SIGIL_MATERIAL_SURFACE_SHADER_DIR}
   NAMESPACE sigil::material::surface)

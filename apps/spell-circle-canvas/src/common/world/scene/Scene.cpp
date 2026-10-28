@@ -3,7 +3,7 @@
  * the handful of readings a caller takes off the result.
  */
 
-#include <sigilcore/reconcile/Phases.h>
+#include <sigiltree/reconcile/Phases.h>
 #include <sigilworld/advanced/Skia.h>
 
 #include <span>
@@ -24,7 +24,7 @@ namespace {
  *  declarations into an order and gives its resources surfaces; and
  *  `execute` performs that order. The last two do nothing for a frame
  *  that declared no passes. */
-constexpr core::Phase<Scene::Impl> kPhases[] = {
+constexpr tree::Phase<Scene::Impl> kPhases[] = {
     {"describe", &Scene::Impl::phaseDescribe, false},
     {"lanes", &Scene::Impl::phaseLanes, false},
     {"derive", &Scene::Impl::phaseDerive, true},
@@ -46,8 +46,8 @@ std::expected<void, core::Error> Scene::render(const Frame& frame) {
   impl.error.clear();
   impl.frame = frame;
   impl.pending = frame.scene();
-  impl.stats.rounds = core::runPhases(
-      impl, std::span<const core::Phase<Impl>>(kPhases), kConvergeRounds,
+  impl.stats.rounds = tree::runPhases(
+      impl, std::span<const tree::Phase<Impl>>(kPhases), kConvergeRounds,
       // What settles between rounds is the stability hold: `derive` has
       // just written new placements, and a node whose placement moved
       // must re-declare here, while the phase list is still ahead of

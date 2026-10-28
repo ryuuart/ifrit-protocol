@@ -25,9 +25,9 @@
 #include <glm/vec2.hpp>
 #include <memory>
 
-namespace sigil::core::hardware {
+namespace sigil::gpu {
 class GpuDevice;
-}  // namespace sigil::core::hardware
+}  // namespace sigil::gpu
 
 namespace sigil::skia {
 class GraphiteContext;
@@ -71,7 +71,7 @@ class PaintedMap {
    *  already paints on, nothing changes. False where the device makes no
    *  texture the context can paint, which leaves the map painting on the
    *  host. */
-  bool useDevice(core::hardware::GpuDevice& device,
+  bool useDevice(gpu::GpuDevice& device,
                  sigil::skia::GraphiteContext& context) const;
 
   /** How many times the map was painted by Skia's CPU rasteriser: every

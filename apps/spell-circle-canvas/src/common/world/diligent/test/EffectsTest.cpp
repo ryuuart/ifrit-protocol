@@ -27,8 +27,8 @@
 
 #include <array>
 #include <cmath>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <utility>
@@ -214,7 +214,7 @@ TEST(DataTexture, AHalfFloatPageHoldsAValueAboveOneOnABody) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   const diligent::PaintedTexture painted = diligent::paintOnDevice(
-      *on.device, 8, core::hardware::TextureFormat::RGBA16Float,
+      *on.device, 8, gpu::TextureFormat::RGBA16Float,
       [](SkCanvas& canvas) { canvas.clear(SkColor4f{3.5f, 0.5f, 0.25f, 1}); });
   if (!painted.native) GTEST_SKIP() << "2D on the 3D device is unavailable";
   const material::Texture page =

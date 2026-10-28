@@ -62,7 +62,7 @@ ultralight::Matrix4x4 projectedTransform(const ultralight::GPUState &state) {
 
 }  // namespace
 
-std::unique_ptr<MetalDriver> MetalDriver::create(sigil::core::hardware::GpuDevice &device,
+std::unique_ptr<MetalDriver> MetalDriver::create(sigil::gpu::GpuDevice &device,
                                                  sigil::skia::GraphiteContext &graphite) {
   auto state = std::make_unique<State>();
   state->gpuDevice = &device;

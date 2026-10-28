@@ -1,7 +1,7 @@
 // Scene: extreme, "seen from across the room" SkSL shaders as glyph
 // foregrounds, alongside the brighter, twinkling sparkle overlay.
 #include <include/core/SkBlendMode.h>
-#include <sigilcore/cache/Rebuild.h>
+#include <sigilcore/memo/Rebuild.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 
@@ -9,10 +9,10 @@
 #include <array>
 #include <string>
 
-#include "sigilweave/advanced/Skia.h"
-#include "TextFields.h"
 #include "EffectsParts.h"
 #include "SceneSupport.h"
+#include "TextFields.h"
+#include "sigilweave/advanced/Skia.h"
 
 using namespace sigil::weave;
 
@@ -61,14 +61,17 @@ class LoudShadersPart final : public Scene {
         paragraph.clear();
         // Zero-copy: QString and Paragraph both store UTF-16.
         sigil::weave::qt::appendText(
-            paragraph, text, makeStyle(fontSize, SkColor4f::FromColor(SK_ColorWHITE), "", typeface));
+            paragraph, text,
+            makeStyle(fontSize, SkColor4f::FromColor(SK_ColorWHITE), "",
+                      typeface));
         m_textLengths[row] = static_cast<uint32_t>(text.size());
         m_layouts[row] = layoutSingleLine(
             fontContext, paragraph,
             {std::max(220.0f, static_cast<float>(size.width()) * 0.32f),
              top + rowHeight * (static_cast<float>(row) + 0.68f)});
       }
-      layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();
+      layoutMicroseconds =
+          sigil::measure::Microseconds(layoutTime.elapsed()).count();
     });
 
     // Bound to the whole canvas so every row's shader shares one coordinate
@@ -79,8 +82,10 @@ class LoudShadersPart final : public Scene {
     const float time = static_cast<float>(elapsedSeconds);
     m_paints[0].foreground.setShader(
         shade(text_fields::stars(shaderBounds, time)));
-    m_paints[1].foreground.setShader(shade(text_fields::clouds(shaderBounds, time)));
-    m_paints[2].foreground.setShader(shade(text_fields::tunnel(shaderBounds, time)));
+    m_paints[1].foreground.setShader(
+        shade(text_fields::clouds(shaderBounds, time)));
+    m_paints[2].foreground.setShader(
+        shade(text_fields::tunnel(shaderBounds, time)));
     m_paints[3].overlays[0].paint.setShader(
         shade(text_fields::sparkle(shaderBounds, time)));
 

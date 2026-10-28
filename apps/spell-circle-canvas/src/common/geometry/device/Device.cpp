@@ -3,9 +3,9 @@
 #include <Graphics/GraphicsEngine/interface/PipelineStateCache.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilcore/report/Report.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #ifdef __APPLE__
 #include <include/gpu/graphite/Recorder.h>
@@ -38,12 +38,12 @@ struct Device::Impl {
    *  after the Diligent objects so they are torn down first: they borrow
    *  the Vulkan device and queue those own. Both are null when the
    *  adoption failed, which leaves the 3D side whole. */
-  std::unique_ptr<core::hardware::GpuDevice> gpu;
+  std::unique_ptr<gpu::GpuDevice> gpu;
   /** WHERE 2D PAINTS ON APPLE: a Metal device and queue on the Metal
    *  device the Vulkan driver runs over, which `graphite` stands on in
    *  place of the Vulkan queue. Null elsewhere, where Graphite shares the
    *  Vulkan queue. */
-  std::unique_ptr<core::hardware::GpuDevice> painter;
+  std::unique_ptr<gpu::GpuDevice> painter;
   std::unique_ptr<skia::GraphiteContext> graphite;
   /** The two orders between the queues, where they are two. `painted` is
    *  raised on the painter's queue behind everything 2D submitted, and
@@ -51,18 +51,18 @@ struct Device::Impl {
    *  waits on it; `sampled` is raised on the Vulkan queue behind every
    *  pass, and `sampledEvent` is the Metal event behind it, which the
    *  painter's next submission waits on. */
-  core::hardware::FenceHandle painted;
-  core::hardware::FenceHandle paintedHere;
-  core::hardware::FenceHandle sampled;
+  gpu::FenceHandle painted;
+  gpu::FenceHandle paintedHere;
+  gpu::FenceHandle sampled;
   void* sampledEvent = nullptr;
   /** A HOST'S OWN METAL QUEUE AND GRAPHITE, painting in place of the two
    *  above while installed — a window's — with the fence raised on its
    *  queue and that fence brought over here. The host owns the device and
    *  the context; the fences are this device's. */
-  core::hardware::GpuDevice* hostPainter = nullptr;
+  gpu::GpuDevice* hostPainter = nullptr;
   skia::GraphiteContext* hostGraphite = nullptr;
-  core::hardware::FenceHandle hostPainted;
-  core::hardware::FenceHandle hostPaintedHere;
+  gpu::FenceHandle hostPainted;
+  gpu::FenceHandle hostPaintedHere;
 
   /** Lets go of the host's painter: its fence and the one brought over,
    *  once the Vulkan queue has passed every wait on it. */
@@ -276,10 +276,9 @@ void Device::paintOnTheDevice(std::string* error) {
     return;
   }
   std::string reason;
-  auto made = core::hardware::GpuDevice::createOwned();
+  auto made = gpu::GpuDevice::createOwned();
   if (!made) reason = std::move(made.error().message);
-  std::unique_ptr<core::hardware::GpuDevice> painter =
-      std::move(made).value_or(nullptr);
+  std::unique_ptr<gpu::GpuDevice> painter = std::move(made).value_or(nullptr);
   if (!painter || painter->native().mtlDevice != under) {
     *error = painter ? "the system's Metal device is not the one the Vulkan "
                        "driver runs over"
@@ -295,11 +294,11 @@ void Device::paintOnTheDevice(std::string* error) {
   // THE TWO FENCES, made once: the painter's, brought over to the Vulkan
   // device once and kept, since every import is a semaphore of its own;
   // and the Vulkan device's, whose Metal event the painter waits on.
-  const core::hardware::FenceHandle painted = painter->createFence();
-  const core::hardware::FenceHandle paintedHere =
+  const gpu::FenceHandle painted = painter->createFence();
+  const gpu::FenceHandle paintedHere =
       painted ? impl.gpu->importNative(painter->exportNative(painted))
-              : core::hardware::FenceHandle{};
-  const core::hardware::FenceHandle sampled = impl.gpu->createFence();
+              : gpu::FenceHandle{};
+  const gpu::FenceHandle sampled = impl.gpu->createFence();
   void* sampledEvent =
       sampled ? impl.gpu->exportNative(sampled).mtlSharedEvent : nullptr;
   if (!paintedHere || !sampledEvent) {
@@ -323,10 +322,10 @@ void Device::waitForPainting() {
   // there so far: one value covers every texture painted before it. The
   // device's own queue is waited for as well while a host paints, since a
   // texture adopted before the host came may still be painted there.
-  const core::hardware::FenceValue own = impl.painter->signal(impl.painted);
-  const core::hardware::FenceValue host =
-      impl.hostPainter ? impl.hostPainter->signal(impl.hostPainted)
-                       : core::hardware::kFenceInitialValue;
+  const gpu::FenceValue own = impl.painter->signal(impl.painted);
+  const gpu::FenceValue host = impl.hostPainter
+                                   ? impl.hostPainter->signal(impl.hostPainted)
+                                   : gpu::kFenceInitialValue;
   const QueueLock lock(*this);
   impl.gpu->waitGpu(impl.paintedHere, own);
   if (impl.hostPainter) impl.gpu->waitGpu(impl.hostPaintedHere, host);
@@ -338,7 +337,7 @@ void Device::holdPaintingUntilSampled() {
   // What was recorded is submitted first, so the signal stands behind it.
   // The context takes the queue's lock itself.
   impl.context->Flush();
-  core::hardware::FenceValue value;
+  gpu::FenceValue value;
   {
     const QueueLock lock(*this);
     value = impl.gpu->signal(impl.sampled);
@@ -350,7 +349,7 @@ void Device::holdPaintingUntilSampled() {
                              value);
 }
 
-bool Device::paintWith(core::hardware::GpuDevice* painter,
+bool Device::paintWith(gpu::GpuDevice* painter,
                        skia::GraphiteContext* graphite) {
   Impl& impl = *m_impl;
   if (!impl.painter || (painter == nullptr) != (graphite == nullptr))
@@ -360,7 +359,7 @@ bool Device::paintWith(core::hardware::GpuDevice* painter,
     // it could not paint what the Vulkan device made.
     void* under = impl.gpu->native().mtlDevice;
     const skgpu::graphite::Recorder* recorder = graphite->recorder();
-    if (painter->backend() != core::hardware::Backend::Metal ||
+    if (painter->backend() != gpu::Backend::Metal ||
         painter->native().mtlDevice != under || !recorder ||
         recorder->backend() != skgpu::BackendApi::kMetal ||
         skia::deviceOf(*recorder) != under)
@@ -371,10 +370,10 @@ bool Device::paintWith(core::hardware::GpuDevice* painter,
   waitForPainting();
   impl.withdrawHost();
   if (!painter) return true;
-  const core::hardware::FenceHandle painted = painter->createFence();
-  const core::hardware::FenceHandle paintedHere =
+  const gpu::FenceHandle painted = painter->createFence();
+  const gpu::FenceHandle paintedHere =
       painted ? impl.gpu->importNative(painter->exportNative(painted))
-              : core::hardware::FenceHandle{};
+              : gpu::FenceHandle{};
   if (!paintedHere) {
     if (painted) painter->destroyFence(painted);
     return false;
@@ -405,7 +404,7 @@ void Device::holdPaintingUntilSampled() {}
 
 // 2D paints on the Vulkan queue here, which no host's Metal queue
 // replaces.
-bool Device::paintWith(core::hardware::GpuDevice*, skia::GraphiteContext*) {
+bool Device::paintWith(gpu::GpuDevice*, skia::GraphiteContext*) {
   return false;
 }
 
@@ -413,7 +412,7 @@ bool Device::paintWith(core::hardware::GpuDevice*, skia::GraphiteContext*) {
 
 Diligent::IRenderDevice* Device::renderDevice() const { return m_impl->device; }
 Diligent::IDeviceContext* Device::context() const { return m_impl->context; }
-core::hardware::GpuDevice* Device::gpu() const { return m_impl->gpu.get(); }
+gpu::GpuDevice* Device::gpu() const { return m_impl->gpu.get(); }
 skia::GraphiteContext* Device::graphite() const {
   return m_impl->hostGraphite ? m_impl->hostGraphite : m_impl->graphite.get();
 }

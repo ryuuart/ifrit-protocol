@@ -16,9 +16,9 @@
 #include <memory>
 #include <string>
 
-namespace sigil::core::hardware {
+namespace sigil::gpu {
 class GpuDevice;
-}  // namespace sigil::core::hardware
+}  // namespace sigil::gpu
 
 namespace sigil::skia {
 class GraphiteContext;
@@ -75,7 +75,7 @@ struct WebEngineConfig {
    *  raster images. Driver bring-up that fails falls back to CPU with a
    *  logged warning.
    *  @trap The host keeps the device alive for the engine's lifetime. */
-  sigil::core::hardware::GpuDevice* gpuDevice = nullptr;
+  sigil::gpu::GpuDevice* gpuDevice = nullptr;
 
   /** The Graphite context the engine's own drawing shares with the
    *  host. Null makes the engine create one of its own over

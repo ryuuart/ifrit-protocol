@@ -21,7 +21,7 @@ class QRhiCommandBuffer;
 class QRhiTexture;
 class SkCanvas;
 
-namespace sigil::core::hardware {
+namespace sigil::gpu {
 class GpuDevice;
 }
 
@@ -86,7 +86,7 @@ class WindowPainter {
   /** The window's Metal device and queue, adopted, which the shared device
    *  paints its pages through while this painter stands. Declared before
    *  the context, so the context goes first. */
-  std::unique_ptr<core::hardware::GpuDevice> m_windowDevice;
+  std::unique_ptr<gpu::GpuDevice> m_windowDevice;
   std::unique_ptr<skia::GraphiteContext> m_graphiteContext;
   /** The process's own painter's context, drawn through and never let go
    *  here, where the QRhi renders on that painter's device and queue. */

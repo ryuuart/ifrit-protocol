@@ -328,10 +328,13 @@ function(_sigil_discover_tests target)
     endif()
     _sigil_discover_suites(${target} "${filter}" "${labels}")
   endforeach()
-  set(rest)
+  # Every case no labelled group claims: the whole binary less those
+  # groups, and the whole binary where no group is declared, since an empty
+  # filter names nothing.
+  set(rest "*")
   if(labelled)
-    list(JOIN labelled ":" rest)
-    set(rest "-${rest}")
+    list(JOIN labelled ":" excluded)
+    set(rest "*-${excluded}")
   endif()
   get_property(labels TARGET ${target} PROPERTY SIGIL_TEST_LABELS)
   list(REMOVE_DUPLICATES labels)

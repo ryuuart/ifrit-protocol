@@ -5,7 +5,7 @@
 
 #include "sigilsketch/window/Window.h"
 
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Painting.h>
@@ -81,8 +81,8 @@ void renderOnOwnPainter(QQuickWindow& window) {
   if (device() || qgetenv("QSG_RENDER_LOOP") != QByteArray("basic")) return;
   const Painter own = ownPainter();
   if (!own.graphite || hostlessGraphite() != own.graphite) return;
-  const core::hardware::NativeDevice& native = own.device->native();
-  if (native.backend != core::hardware::Backend::Metal || !native.mtlDevice ||
+  const gpu::NativeDevice& native = own.device->native();
+  if (native.backend != gpu::Backend::Metal || !native.mtlDevice ||
       !native.mtlCommandQueue)
     return;
   window.setGraphicsDevice(QQuickGraphicsDevice::fromDeviceAndCommandQueue(

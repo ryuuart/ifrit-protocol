@@ -10,7 +10,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
-#include <sigilcore/cache/Rebuild.h>
+#include <sigilcore/memo/Rebuild.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/kit/SigilWeaveKit.h>

@@ -1,16 +1,16 @@
 // Scene: vertical CJK with ruby, kenten, tate-chu-yoko.
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
-#include <sigilcore/cache/Rebuild.h>
+#include <sigilcore/memo/Rebuild.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/query/Query.h>
 
 #include <algorithm>
 #include <cmath>
 
-#include "sigilweave/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
+#include "sigilweave/advanced/Skia.h"
 
 using namespace sigil::weave;
 
@@ -40,7 +40,8 @@ class VerticalScene final : public Scene {
     canvas->clear(kPaper);
 
     // Vertical-rl block on the right.
-    VerticalBlockFlow verticalFlow(sigil::geometry::path::Rect::of({canvasWidth * 0.42f, 30}, {canvasWidth * 0.55f, canvasHeight - 90}));
+    VerticalBlockFlow verticalFlow(sigil::geometry::path::Rect::of(
+        {canvasWidth * 0.42f, 30}, {canvasWidth * 0.55f, canvasHeight - 90}));
     ParagraphLayoutOptions verticalOptions;
     verticalOptions.lineMetrics.height = fontSize * 1.9f;
     const auto layoutStartTime = Clock::now();
@@ -58,7 +59,9 @@ class VerticalScene final : public Scene {
         0.6f + 0.4f * static_cast<float>(std::sin(elapsedSeconds * 2.0)));
 
     // Horizontal comparison block on the left.
-    BlockFlow horizontalFlow(sigil::geometry::path::Rect::of({30, canvasHeight * 0.14f}, {canvasWidth * 0.34f, canvasHeight * 0.7f}));
+    BlockFlow horizontalFlow(sigil::geometry::path::Rect::of(
+        {30, canvasHeight * 0.14f},
+        {canvasWidth * 0.34f, canvasHeight * 0.7f}));
     ParagraphLayoutOptions horizontalOptions;
     horizontalOptions.lineMetrics.height = fontSize * 1.9f;
     ParagraphLayout horizontalLayout = layoutParagraph(
@@ -83,7 +86,8 @@ class VerticalScene final : public Scene {
   /// Creates a Japanese style with the requested vertical glyph behavior.
   TextStyle japaneseStyle(
       float fontSize, VerticalForm verticalForm = VerticalForm::kAuto) const {
-    TextStyle style = makeStyle(fontSize, SkColor4f::FromColor(kInk), "ja", m_mincho);
+    TextStyle style =
+        makeStyle(fontSize, SkColor4f::FromColor(kInk), "ja", m_mincho);
     style.shaping.verticalForm = verticalForm;
     return style;
   }

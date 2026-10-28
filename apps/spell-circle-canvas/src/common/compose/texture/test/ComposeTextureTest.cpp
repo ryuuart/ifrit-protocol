@@ -16,8 +16,8 @@
 #include <sigilcompose/texture/Texture.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Track.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -647,7 +647,7 @@ TEST(ComposeTexture, NoDeviceMeansNoDeviceImage) {
   EXPECT_FALSE((bool)scene->texture().deviceImage());
 }
 
-void expectDevicePrecision(sigil::core::hardware::GpuDevice& device,
+void expectDevicePrecision(sigil::gpu::GpuDevice& device,
                            sigil::skia::GraphiteContext& context) {
   for (const auto profile :
        {sk_sp<SkColorSpace>{}, SkColorSpace::MakeSRGBLinear()}) {
@@ -737,7 +737,7 @@ void expectDevicePrecision(sigil::core::hardware::GpuDevice& device,
 TEST(ComposeTexture,
      HalfFloatOnAnOwnedDeviceKeepsHdrProfilesAndRefusesF32WithoutStateLoss) {
   std::string error;
-  auto made = sigil::core::hardware::GpuDevice::createOwned();
+  auto made = sigil::gpu::GpuDevice::createOwned();
   if (!made) GTEST_SKIP() << made.error().message;
   const auto device = std::move(*made);
   const auto context = sigil::skia::GraphiteContext::create(*device);
@@ -775,7 +775,7 @@ TEST(ComposeTexture, ASceneOnTheSharedDeviceStandsInATextureWithItsOwnChain) {
   ASSERT_TRUE(where);
   EXPECT_EQ(where.device, device->gpu());
   EXPECT_NE(where.handle, 0u);
-  EXPECT_EQ(where.mipLevels, sigil::core::hardware::mipLevelsFor(48, 20));
+  EXPECT_EQ(where.mipLevels, sigil::gpu::mipLevelsFor(48, 20));
   const sigil::media::Frame frame = scene->texture().source().frameAt({});
   EXPECT_EQ(frame.device.mipLevels, where.mipLevels);
   EXPECT_EQ(frame.device.handle, where.handle);
@@ -871,9 +871,9 @@ TEST(ComposeTexture, ASceneOnADeviceHandsAForeignRecorderAHostCopy) {
   if (!device->gpu() || !device->graphite())
     GTEST_SKIP() << "no adopted Graphite context on this Vulkan device";
   std::string error;
-  auto made = core::hardware::GpuDevice::createOwned();
+  auto made = sigil::gpu::GpuDevice::createOwned();
   if (!made) GTEST_SKIP() << made.error().message;
-  const std::unique_ptr<core::hardware::GpuDevice> other = std::move(*made);
+  const std::unique_ptr<sigil::gpu::GpuDevice> other = std::move(*made);
   const std::unique_ptr<skia::GraphiteContext> foreign =
       skia::GraphiteContext::create(*other);
   if (!foreign) GTEST_SKIP() << "no second Graphite context on this machine";
@@ -918,9 +918,9 @@ TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   namespace skia = sigil::skia;
   namespace core = sigil::core;
   std::string error;
-  auto made = core::hardware::GpuDevice::createOwned();
+  auto made = sigil::gpu::GpuDevice::createOwned();
   if (!made) GTEST_SKIP() << made.error().message;
-  const std::unique_ptr<core::hardware::GpuDevice> device = std::move(*made);
+  const std::unique_ptr<sigil::gpu::GpuDevice> device = std::move(*made);
   const std::unique_ptr<skia::GraphiteContext> context =
       skia::GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context on this device";

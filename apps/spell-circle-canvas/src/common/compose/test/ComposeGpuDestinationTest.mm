@@ -378,7 +378,7 @@ TEST(ComposeGpu, ADeviceBoundFillOrInkRebindsAcrossDestinations) {
       {"AHeldPictureRebinds",
        [&] {
          REQUIRE_GPU();
-         auto replacementDevice = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+         auto replacementDevice = sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
          ASSERT_TRUE(replacementDevice);
          auto replacement = sigil::skia::GraphiteContext::create(*replacementDevice);
          ASSERT_TRUE(replacement);
@@ -474,7 +474,7 @@ TEST(ComposeGpu, ADeviceBoundFillOrInkRebindsAcrossDestinations) {
 TEST_P(ComposeGpuSpanInk, StaticSpanInkRebindsCachedParagraphsAcrossDestinations) {
   REQUIRE_GPU();
   ASSERT_TRUE(sigil::test::instrument::sans());
-  auto replacementDevice = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  auto replacementDevice = sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   ASSERT_TRUE(replacementDevice);
   auto replacement = sigil::skia::GraphiteContext::create(*replacementDevice);
   ASSERT_TRUE(replacement);
@@ -554,7 +554,7 @@ TEST_P(ComposeGpuSpanInk, StaticSpanInkRebindsCachedParagraphsAcrossDestinations
 TEST_P(ComposeGpuSpanInk, SpanInkWithoutRasterFallbackSurvivesRecorderReplacement) {
   REQUIRE_GPU();
   ASSERT_TRUE(sigil::test::instrument::sans());
-  auto replacementDevice = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  auto replacementDevice = sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   ASSERT_TRUE(replacementDevice);
   auto replacement = sigil::skia::GraphiteContext::create(*replacementDevice);
   ASSERT_TRUE(replacement);
@@ -617,7 +617,7 @@ INSTANTIATE_TEST_SUITE_P(Domains, ComposeGpuSpanInk,
 TEST(ComposeGpu, ASurfacedSpanInkPaintsItsColourFlatAndReadsNoNormal) {
   REQUIRE_GPU();
   ASSERT_TRUE(sigil::test::instrument::sans());
-  auto replacementDevice = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  auto replacementDevice = sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   ASSERT_TRUE(replacementDevice);
   auto replacement = sigil::skia::GraphiteContext::create(*replacementDevice);
   ASSERT_TRUE(replacement);

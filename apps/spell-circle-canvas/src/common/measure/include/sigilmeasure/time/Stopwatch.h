@@ -3,10 +3,10 @@
 /** @file
  * @ingroup measure-time
  * How long something took: a stopwatch on the steady clock, and a block
- * timed in one call, each answering SigilMotion's `motion::Duration`.
+ * timed in one call, each answering SigilMotion's `core::Duration`.
  */
 
-#include <sigilmotion/time/Duration.h>
+#include <sigilcore/compute/Duration.h>
 
 #include <chrono>
 #include <utility>
@@ -16,7 +16,7 @@
  *  summary, quantile and histogram of a run in hand; the window, smoothed
  *  reading and rate of a live stream; and the check whose printed verdict
  *  is computed from the values it reports. Reach for it wherever code
- *  measures itself — only SigilMotion's time unit stands under this one,
+ *  measures itself — only SigilCore's time unit stands under this one,
  *  so anything may. */
 namespace sigil::measure {
 
@@ -40,7 +40,7 @@ class Stopwatch {
   Stopwatch() : m_start(Clock::now()) {}
 
   /** The span since construction or the last restart. */
-  [[nodiscard]] motion::Duration elapsed() const {
+  [[nodiscard]] core::Duration elapsed() const {
     return Clock::now() - m_start;
   }
   /** Starts the span again from now. */
@@ -54,7 +54,7 @@ class Stopwatch {
  *  block returns is discarded; a caller that needs it keeps it from
  *  inside the block. */
 template <class Block>
-[[nodiscard]] motion::Duration timed(Block&& block) {
+[[nodiscard]] core::Duration timed(Block&& block) {
   const Stopwatch watch;
   std::forward<Block>(block)();
   return watch.elapsed();

@@ -209,7 +209,7 @@ forever. Each has its own word here:
 |---|---|---|
 | **declared** — `Animatable::isRunning()`: a value is live | *could* this move? | one value, from the description alone |
 | **running** — `isRunning(held, value)` | is it moving *now*? | one value plus the motion held for it |
-| **settled** — `core::Settle` in SigilCore | has it provably *held still*? | a node's values, observed across frames |
+| **settled** — `tree::Settle` in SigilTree | has it provably *held still*? | a node's values, observed across frames |
 
 The trap is that the first two can never say "it stopped". A live value
 stays live for the whole life of the value it drives, so a declaration is

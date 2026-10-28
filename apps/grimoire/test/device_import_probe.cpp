@@ -19,8 +19,8 @@
  */
 
 #include <sigilcompose/core/Factories.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
@@ -48,8 +48,8 @@ struct DeviceImportProbe {
     // at load whether or not the branch is ever taken. On a device it runs and
     // refuses an empty texture, which is the value's stated answer.
     if (auto* on = sketch::device()) {
-      const sigil::material::Texture texture = world::diligent::importNative(
-          *on, sigil::core::hardware::NativeTexture{});
+      const sigil::material::Texture texture =
+          world::diligent::importNative(*on, sigil::gpu::NativeTexture{});
       imported = texture.valid();
     }
 

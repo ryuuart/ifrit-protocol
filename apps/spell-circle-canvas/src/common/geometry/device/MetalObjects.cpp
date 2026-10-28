@@ -14,7 +14,7 @@
 #include <Graphics/GraphicsEngineVulkan/interface/TextureVk.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 // clang-format on
 
@@ -59,8 +59,8 @@ void* Device::metalTexture(Diligent::ITexture* texture) const {
   return (void*)wanted.mtlTexture;
 }
 
-void* Device::metalEvent(core::hardware::FenceHandle fence) const {
-  core::hardware::GpuDevice* const shared = gpu();
+void* Device::metalEvent(gpu::FenceHandle fence) const {
+  gpu::GpuDevice* const shared = gpu();
   return shared ? shared->exportNative(fence).mtlSharedEvent : nullptr;
 }
 

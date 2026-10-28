@@ -5,7 +5,7 @@
 
 #import <Metal/Metal.h>
 
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 
 #include <memory>
 #include <vector>
@@ -14,21 +14,21 @@
 
 namespace sigil::scry::bench {
 
-sigil::core::hardware::GpuDevice *gpuDevice() {
-  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+sigil::gpu::GpuDevice *gpuDevice() {
+  static std::unique_ptr<sigil::gpu::GpuDevice> device =
+      sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   return device.get();
 }
 
-sigil::core::hardware::TextureHandle makeSolidTexture(int width, int height) {
-  sigil::core::hardware::GpuDevice *device = gpuDevice();
+sigil::gpu::TextureHandle makeSolidTexture(int width, int height) {
+  sigil::gpu::GpuDevice *device = gpuDevice();
   if (!device) return {};
-  sigil::core::hardware::TextureDescription desc;
+  sigil::gpu::TextureDescription desc;
   desc.width = width;
   desc.height = height;
-  desc.format = sigil::core::hardware::TextureFormat::BGRA8Unorm;
+  desc.format = sigil::gpu::TextureFormat::BGRA8Unorm;
   desc.cpuAccessible = true;
-  const sigil::core::hardware::TextureHandle handle = device->createTexture(desc);
+  const sigil::gpu::TextureHandle handle = device->createTexture(desc);
   id<MTLTexture> texture = (__bridge id<MTLTexture>)device->exportNative(handle).mtlTexture;
   std::vector<uint32_t> pixels((size_t)width * height, 0xff2266aa);
   [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)

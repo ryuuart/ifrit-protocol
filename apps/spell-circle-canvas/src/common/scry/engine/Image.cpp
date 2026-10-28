@@ -132,7 +132,7 @@ bool WebImage::update(const sk_sp<SkImage>& image) {
   return update(bitmap.pixmap());
 }
 
-bool WebImage::updateTexture(sigil::core::hardware::TextureHandle texture) {
+bool WebImage::updateTexture(sigil::gpu::TextureHandle texture) {
   if (!texture || !m_impl->gpuTexture) return false;
   auto impl = m_impl;
   bool ok = false;
@@ -147,7 +147,7 @@ bool WebImage::updateTexture(sigil::core::hardware::TextureHandle texture) {
   return ok;
 }
 
-sigil::core::hardware::TextureHandle WebImage::texture() const {
+sigil::gpu::TextureHandle WebImage::texture() const {
   return m_impl->gpuTexture;
 }
 

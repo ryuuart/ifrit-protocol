@@ -12,7 +12,7 @@
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -25,14 +25,14 @@
 #include "GraphiteReadback.h"
 #include "MetalFixtures.h"
 
-using sigil::core::hardware::FenceHandle;
-using sigil::core::hardware::FenceValue;
-using sigil::core::hardware::FenceWait;
-using sigil::core::hardware::GpuDevice;
-using sigil::core::hardware::kFenceInitialValue;
-using sigil::core::hardware::TextureDescription;
-using sigil::core::hardware::TextureFormat;
-using sigil::core::hardware::TextureHandle;
+using sigil::gpu::FenceHandle;
+using sigil::gpu::FenceValue;
+using sigil::gpu::FenceWait;
+using sigil::gpu::GpuDevice;
+using sigil::gpu::kFenceInitialValue;
+using sigil::gpu::TextureDescription;
+using sigil::gpu::TextureFormat;
+using sigil::gpu::TextureHandle;
 using sigil::skia::GraphiteContext;
 using sigil::skia::OffscreenSurface;
 using namespace sigil::skia::test;

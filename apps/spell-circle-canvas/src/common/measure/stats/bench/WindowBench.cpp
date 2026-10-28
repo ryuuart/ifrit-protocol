@@ -35,7 +35,7 @@ static void BM_WindowAddOverSpan(benchmark::State& state) {
   Window<> window({.span = std::chrono::seconds(4)});
   double second = 0.0;
   for ([[maybe_unused]] auto iteration : state) {
-    window.add(second, sigil::motion::Duration(second));
+    window.add(second, sigil::core::Duration(second));
     second += 1.0 / 120.0;
     benchmark::DoNotOptimize(window);
   }
@@ -73,7 +73,7 @@ static void BM_RateMark(benchmark::State& state) {
   Rate rate{std::chrono::seconds(1)};
   double second = 0.0;
   for ([[maybe_unused]] auto iteration : state) {
-    rate.mark(sigil::motion::Duration(second));
+    rate.mark(sigil::core::Duration(second));
     second += 1.0 / 1000.0;
     benchmark::DoNotOptimize(rate.perSecond());
   }

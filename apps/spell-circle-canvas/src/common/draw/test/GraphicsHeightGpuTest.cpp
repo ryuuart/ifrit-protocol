@@ -18,11 +18,11 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigildraw/Graphics.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Tool.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -254,8 +254,7 @@ Difference difference(const Pixels& actual, const Pixels& expected) {
 
 TEST(GraphicsHeightGpu,
      EachBackendRepeatsItsHeightKeepsAnUploadAndDerivesUnitNormals) {
-  auto device =
-      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  auto device = sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto context = GraphiteContext::create(*device);
   if (!context) GTEST_SKIP() << "no Graphite context";

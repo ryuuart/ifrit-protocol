@@ -8,7 +8,7 @@
 #include <Ultralight/AppCore/Platform.h>
 #include <Ultralight/platform/Config.h>
 #include <Ultralight/platform/Platform.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 
 #include "EngineImpl.h"
 #include "ResourceDirectory.h"
@@ -45,8 +45,7 @@ bool WebEngine::Impl::setupPlatform() {
       graphite = m_ownedGraphite.get();
     }
 #ifdef __APPLE__
-    if (graphite &&
-        config.gpuDevice->backend() == sigil::core::hardware::Backend::Metal)
+    if (graphite && config.gpuDevice->backend() == sigil::gpu::Backend::Metal)
       m_gpuDriver = MetalDriver::create(*config.gpuDevice, *graphite);
 #endif
     if (m_gpuDriver)

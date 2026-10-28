@@ -29,7 +29,7 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #endif
 
@@ -106,7 +106,8 @@ sigil::skia::GraphiteContext& graphite() {
 }
 
 void submitGraphite() {
-  (void)graphite().submit(*graphite().recorder(), skgpu::graphite::SyncToCpu::kNo);
+  (void)graphite().submit(*graphite().recorder(),
+                          skgpu::graphite::SyncToCpu::kNo);
 }
 #endif
 
@@ -237,8 +238,7 @@ static void BM_Slot_UpdateTexture(benchmark::State& state) {
   }
   const int size = (int)state.range(0);
   static auto image = engine().createImage("bench_ext", 1024, 1024);
-  const sigil::core::hardware::TextureHandle texture =
-      bench::makeSolidTexture(size, size);
+  const sigil::gpu::TextureHandle texture = bench::makeSolidTexture(size, size);
   for ([[maybe_unused]] auto _ : state) image->updateTexture(texture);
   state.SetBytesProcessed(state.iterations() * (int64_t)size * size * 4);
 }

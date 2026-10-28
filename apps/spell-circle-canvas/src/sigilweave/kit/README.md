@@ -55,7 +55,7 @@ per call while reusing shaped words. Neither overload requires a cache object.
 The plain keyed guard the layout guard is built on knows nothing about
 text, so it is not here: `sigil::core::RebuildGuard`,
 `sigil::core::CachedValue` and `sigil::core::quantizeKey`, in
-`<sigilcore/cache/Rebuild.h>`, are what a scene declares its non-text
+`<sigilcore/memo/Rebuild.h>`, are what a scene declares its non-text
 derived values against.
 
 ## The guard's two orderings

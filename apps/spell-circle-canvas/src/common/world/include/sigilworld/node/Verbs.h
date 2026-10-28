@@ -8,12 +8,12 @@
  * inherits the families that mean something for it and adds its own.
  */
 
-#include <sigilcore/cache/Policy.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
+#include <sigiltree/cache/Policy.h>
 #include <sigilworld/advanced/Node.h>
 
 #include <algorithm>
@@ -221,7 +221,7 @@ class IdentityVerbs {
     return self();
   }
   /** What the author asked of this node's cache. */
-  Derived& cache(core::Cache policy) {
+  Derived& cache(tree::Cache policy) {
     self().edit().cachePolicy = policy;
     return self();
   }

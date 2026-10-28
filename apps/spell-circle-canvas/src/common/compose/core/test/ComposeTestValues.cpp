@@ -22,11 +22,11 @@ TEST(ComposeValues, ACacheModeSaysOneOfThreeThingsToTheProof) {
   // Five names, three answers: three of them ask for a bake and differ
   // only in which artefact the painter makes, which is not a question the
   // proof is asked.
-  EXPECT_EQ(cachePolicy(Cache::Auto), sigil::core::Cache::Auto);
-  EXPECT_EQ(cachePolicy(Cache::None), sigil::core::Cache::Never);
-  EXPECT_EQ(cachePolicy(Cache::Picture), sigil::core::Cache::Always);
-  EXPECT_EQ(cachePolicy(Cache::Texture), sigil::core::Cache::Always);
-  EXPECT_EQ(cachePolicy(Cache::Group), sigil::core::Cache::Always);
+  EXPECT_EQ(cachePolicy(Cache::Auto), sigil::tree::Cache::Auto);
+  EXPECT_EQ(cachePolicy(Cache::None), sigil::tree::Cache::Never);
+  EXPECT_EQ(cachePolicy(Cache::Picture), sigil::tree::Cache::Always);
+  EXPECT_EQ(cachePolicy(Cache::Texture), sigil::tree::Cache::Always);
+  EXPECT_EQ(cachePolicy(Cache::Group), sigil::tree::Cache::Always);
 }
 
 TEST(ComposeValues, AStaticPaintCollapsesToTheFillItResolvesTo) {

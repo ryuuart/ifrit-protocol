@@ -14,7 +14,7 @@ header lives under `include/sigilscry/<feature>/` and is spelled
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilScryPlatform` | `platform/LogLevel.h`, `platform/Runtime.h` | `LogLevel`, the severity every engine message carries; `available(why)`, whether the resource directory an engine would boot with holds the runtime data it needs. The rest of the feature — the `SkBitmap`-backed surface, the two-root file system, the logger bridge, the resource directory — is what Ultralight's `Platform` singleton is handed, and stays internal |
-| `SigilScryGpu`      | — | Ultralight's GPU command lists executed on a SigilCoreHardware `GpuDevice`, and the texture interop the engine needs beyond that; the graphics-API-neutral contract and its Metal implementation are internal |
+| `SigilScryGpu`      | — | Ultralight's GPU command lists executed on a SigilGpu `GpuDevice`, and the texture interop the engine needs beyond that; the graphics-API-neutral contract and its Metal implementation are internal |
 | `SigilScryEngine`   | `engine/WebEngine.h`, `engine/WebView.h`, `engine/WebImage.h` | `WebEngineConfig`, `ViewOptions` and `WebEngine`; `WebView` and its `Frame`; `WebImage` |
 
 `SigilScry` is the umbrella target over all three. A consumer links
@@ -119,7 +119,7 @@ public API beyond `LogLevel`.
 
 **Two backends behind one API.** Leave `WebEngineConfig::gpuDevice` null
 and the CPU renderer paints straight into the `SkBitmap`-backed surface
-per view. Set it to the `sigil::core::hardware::GpuDevice` your renderer draws with —
+per view. Set it to the `sigil::gpu::GpuDevice` your renderer draws with —
 owned or adopted, it is the one queue every draw rides — and Ultralight
 renders through its GPU pipeline instead: the Metal driver executes its
 command lists, blits each repaint into ping-pong publish textures named
@@ -224,9 +224,9 @@ and pass the handle to `updateTexture()`, or use `paint()`.
 
 ## Boundary
 
-Public dependencies: Skia, SigilCoreHardware, SigilSkia's graphite
+Public dependencies: Skia, SigilGpu, SigilSkia's graphite
 feature and Boost.Unordered — every texture the engine hands
-out is a `sigil::core::hardware::TextureHandle` on the host's `GpuDevice`, and the
+out is a `sigil::gpu::TextureHandle` on the host's `GpuDevice`, and the
 GPU driver draws over the host's `GraphiteContext`. Private:
 `Ultralight::Ultralight`, `Ultralight::AppCore` (the engine feature
 only), `SigilIOSource` (the platform feature only), and Metal on Apple.

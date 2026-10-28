@@ -1,6 +1,6 @@
 // Scene: a fully placed 2,000-word paragraph with four animated paint passes.
 #include <include/core/SkBlendMode.h>
-#include <sigilcore/cache/Rebuild.h>
+#include <sigilcore/memo/Rebuild.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
@@ -10,11 +10,11 @@
 #include <cmath>
 #include <string>
 
-#include "sigilweave/advanced/Skia.h"
-#include "sigilgeometry/advanced/Skia.h"
-#include "TextFields.h"
 #include "EffectsParts.h"
 #include "SceneSupport.h"
+#include "TextFields.h"
+#include "sigilgeometry/advanced/Skia.h"
+#include "sigilweave/advanced/Skia.h"
 
 using namespace sigil::weave;
 
@@ -73,8 +73,8 @@ class StressPart final : public Scene {
     double layoutMicroseconds = 0;
     m_layoutBuild.ensure({size, typeface.get(), stressFontSize}, [&] {
       m_paragraph.clear();
-      TextStyle textStyle =
-          makeStyle(stressFontSize, SkColor4f::FromColor(SK_ColorWHITE), "", typeface);
+      TextStyle textStyle = makeStyle(
+          stressFontSize, SkColor4f::FromColor(SK_ColorWHITE), "", typeface);
       m_paragraph.appendText(makeStressText(), textStyle);
       m_textLength = static_cast<uint32_t>(m_paragraph.text().size());
 
@@ -85,7 +85,8 @@ class StressPart final : public Scene {
       BlockFlow flow(sigil::geometry::path::fromSk(textBounds));
       const sigil::measure::Stopwatch layoutTime;
       m_layout = layoutParagraph(fontContext, m_paragraph, flow, options);
-      layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();
+      layoutMicroseconds =
+          sigil::measure::Microseconds(layoutTime.elapsed()).count();
       m_glyphCount = 0;
       for (const PositionedRun& run : m_layout.runs)
         if (run.shaped)
@@ -115,9 +116,10 @@ class StressPart final : public Scene {
             // opens up once the text is large enough to take it.
             const float cappedSpread =
                 std::min(m_glowSpread, stressFontSize * 0.06f);
-            m_effect.addUnderlay(sigil::weave::kit::glow(
-                SkColor4f::FromColor(0x882A77FF), std::max(1.2f, stressFontSize * 0.28f),
-                cappedSpread, m_glowIntensity));
+            m_effect.addUnderlay(
+                sigil::weave::kit::glow(SkColor4f::FromColor(0x882A77FF),
+                                        std::max(1.2f, stressFontSize * 0.28f),
+                                        cappedSpread, m_glowIntensity));
           }
           if (m_effectOutline)
             m_effect.addUnderlay(sigil::weave::kit::outline(

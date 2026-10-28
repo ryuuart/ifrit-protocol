@@ -252,7 +252,7 @@ target_link_libraries(Grimoire PRIVATE SigilWorldDiligent)
 # backends that do not. Single-source and module captures can own a native
 # hardware context independently of the World executor.
 target_link_libraries(Grimoire PRIVATE SigilSkiaQt SigilSkiaGraphite
-                                         SigilCoreHardware)
+                                         SigilGpu)
 target_compile_definitions(Grimoire PRIVATE SIGIL_GRIMOIRE_GPU)
 
 # THE DOOR A DRAWN FRAME LEAVES BY: `--publish` offers the texture this

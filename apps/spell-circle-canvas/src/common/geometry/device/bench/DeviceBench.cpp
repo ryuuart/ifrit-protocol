@@ -17,8 +17,8 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmeasure/Measure.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
@@ -33,9 +33,9 @@
 using namespace sigil;
 using namespace sigil::geometry::device;
 // The hardware device's own vocabulary — its texture and fence handles —
-// is SigilCoreHardware's, and the arms below spell it as its own library
+// is SigilGpu's, and the arms below spell it as its own library
 // does rather than through the one that adopts it.
-using namespace sigil::core::hardware;
+using namespace sigil::gpu;
 
 namespace {
 
@@ -55,7 +55,7 @@ Device* sharedDevice(std::string* why) {
   return device.get();
 }
 
-core::hardware::GpuDevice* adoptedDevice(std::string* why) {
+gpu::GpuDevice* adoptedDevice(std::string* why) {
   Device* made = sharedDevice(why);
   if (!made) return nullptr;
   if (!made->gpu() && why) *why = "the device was created but not adopted";
@@ -68,11 +68,11 @@ skia::GraphiteContext* adoptedGraphite() {
 }
 
 /** One render target of the size a frame actually wraps. */
-core::hardware::TextureHandle target(core::hardware::GpuDevice& dev) {
-  core::hardware::TextureDescription desc;
+gpu::TextureHandle target(gpu::GpuDevice& dev) {
+  gpu::TextureDescription desc;
   desc.width = 1024;
   desc.height = 1024;
-  desc.format = core::hardware::TextureFormat::BGRA8Unorm;
+  desc.format = gpu::TextureFormat::BGRA8Unorm;
   return dev.createTexture(desc);
 }
 
@@ -103,7 +103,7 @@ void BM_DeviceAdopt(benchmark::State& state) {
   state.counters["bringup_milliseconds"] = bringUpMilliseconds;
 
   for ([[maybe_unused]] auto iteration : state) {
-    std::unique_ptr<core::hardware::GpuDevice> gpu =
+    std::unique_ptr<gpu::GpuDevice> gpu =
         adoptVulkanDevice(device->renderDevice(), device->context(), &error);
     std::unique_ptr<skia::GraphiteContext> graphite;
     if (gpu) graphite = skia::GraphiteContext::create(*gpu);
@@ -122,7 +122,7 @@ BENCHMARK(BM_DeviceAdopt)->Unit(benchmark::kMillisecond);
  * with the frame advance that actually releases it. */
 void BM_Adopted_CreateDestroyTexture(benchmark::State& state) {
   std::string why;
-  core::hardware::GpuDevice* dev = adoptedDevice(&why);
+  gpu::GpuDevice* dev = adoptedDevice(&why);
   if (!dev) {
     state.SkipWithMessage("no adopted device: " + why);
     return;
@@ -143,7 +143,7 @@ BENCHMARK(BM_Adopted_CreateDestroyTexture);
  * retire. */
 void BM_Adopted_ImportExportRetire(benchmark::State& state) {
   std::string why;
-  core::hardware::GpuDevice* dev = adoptedDevice(&why);
+  gpu::GpuDevice* dev = adoptedDevice(&why);
   if (!dev) {
     state.SkipWithMessage("no adopted device: " + why);
     return;
@@ -168,7 +168,7 @@ BENCHMARK(BM_Adopted_ImportExportRetire);
  * on the CPU. */
 void BM_Adopted_FenceRoundTrip(benchmark::State& state) {
   std::string why;
-  core::hardware::GpuDevice* dev = adoptedDevice(&why);
+  gpu::GpuDevice* dev = adoptedDevice(&why);
   if (!dev) {
     state.SkipWithMessage("no adopted device: " + why);
     return;
@@ -188,13 +188,13 @@ BENCHMARK(BM_Adopted_FenceRoundTrip);
 
 void BM_Adopted_Wrap_Handle(benchmark::State& state) {
   std::string why;
-  core::hardware::GpuDevice* dev = adoptedDevice(&why);
+  gpu::GpuDevice* dev = adoptedDevice(&why);
   skia::GraphiteContext* ctx = adoptedGraphite();
   if (!dev || !ctx) {
     state.SkipWithMessage("no Graphite on the adopted device: " + why);
     return;
   }
-  const core::hardware::TextureHandle handle = target(*dev);
+  const gpu::TextureHandle handle = target(*dev);
   for ([[maybe_unused]] auto iteration : state) {
     skia::OffscreenSurface surface(*ctx, *dev, handle);
     benchmark::DoNotOptimize(surface.canvas());
@@ -214,13 +214,13 @@ BENCHMARK(BM_Adopted_Wrap_Handle);
 void BM_Adopted_PaintingOrderedBothWays(benchmark::State& state) {
   std::string why;
   Device* device = sharedDevice(&why);
-  core::hardware::GpuDevice* dev = device ? device->gpu() : nullptr;
+  gpu::GpuDevice* dev = device ? device->gpu() : nullptr;
   skia::GraphiteContext* ctx = device ? device->graphite() : nullptr;
   if (!dev || !ctx) {
     state.SkipWithMessage("no Graphite on the adopted device: " + why);
     return;
   }
-  const core::hardware::TextureHandle handle = target(*dev);
+  const gpu::TextureHandle handle = target(*dev);
   const FenceHandle drained = dev->createFence();
   for ([[maybe_unused]] auto iteration : state) {
     {

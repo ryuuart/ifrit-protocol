@@ -22,7 +22,7 @@
 
 #if defined(__APPLE__)
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/Readback.h>
 #endif
@@ -402,8 +402,7 @@ TEST(SkiaColourFunction, BrightnessScalesAHalfFloatValuePastOne) {
 TEST(MaterialGpu, BrightnessOverAHalfFloatLayerScalesTheStoredValue) {
   // On the device every route scales the stored value, the image filter
   // over a layer included, which is how a composed layer's filter runs.
-  auto device =
-      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  auto device = sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto graphite = sigil::skia::GraphiteContext::create(*device);
   if (!graphite) GTEST_SKIP() << "no Graphite context";
@@ -428,8 +427,7 @@ TEST(MaterialGpu, BrightnessOverAHalfFloatLayerScalesTheStoredValue) {
 }
 
 TEST(MaterialGpu, HaloDeepeningPreservesFiniteSignedFloatChannelsAndCoverage) {
-  auto device =
-      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  auto device = sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   if (!device) GTEST_SKIP() << "no GPU device";
   auto graphite = sigil::skia::GraphiteContext::create(*device);
   if (!graphite) GTEST_SKIP() << "no Graphite context";

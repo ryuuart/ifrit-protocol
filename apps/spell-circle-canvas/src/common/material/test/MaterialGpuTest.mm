@@ -22,7 +22,7 @@
  * where the refusal is written, in material_skia_test.
  */
 
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/advanced/Terms.h>
 #include <sigilmaterial/field/Field.h>
@@ -102,8 +102,8 @@ ErrorSink& sink() {
 /** Graphite on an owned device, with the error sink installed BEFORE the
  *  context is built — the options are read once, at creation. */
 sigil::skia::GraphiteContext* graphite() {
-  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  static std::unique_ptr<sigil::gpu::GpuDevice> device =
+      sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   static std::unique_ptr<sigil::skia::GraphiteContext> context = [] {
     sigil::skia::GraphiteContext::reportShaderErrorsTo(&sink());
     return device ? sigil::skia::GraphiteContext::create(*device)

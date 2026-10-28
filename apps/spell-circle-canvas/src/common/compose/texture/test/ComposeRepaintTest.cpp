@@ -8,7 +8,7 @@
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilcompose/texture/SurfaceScene.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
@@ -204,7 +204,7 @@ TEST(ComposeRepaint, APageRepaintedInRegionsIsThePageDrawnWhole) {
 
 TEST(ComposeRepaint, APageRepaintedInRegionsOnTheDeviceIsThePageDrawnWhole) {
   std::string error;
-  auto made = sigil::core::hardware::GpuDevice::createOwned();
+  auto made = sigil::gpu::GpuDevice::createOwned();
   if (!made) GTEST_SKIP() << made.error().message;
   const auto device = std::move(*made);
   const auto context = sigil::skia::GraphiteContext::create(*device);

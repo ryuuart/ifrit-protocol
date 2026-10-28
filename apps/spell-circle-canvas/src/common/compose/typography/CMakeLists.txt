@@ -19,7 +19,7 @@ sigil_library(SigilComposeTypography
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilCoreComparable SigilCoreCompute SigilMaterial
          SigilMotion SigilWeave
-  PRIVATE SigilCoreReport SigilCoreReconcile SigilGeometryPath SigilMediaCore Boost::container
+  PRIVATE SigilCoreReport SigilTreeReconcile SigilGeometryPath SigilMediaCore Boost::container
           Boost::unordered yoga::yogacore)
 
 # Vertical prose requires a system CJK face; other cases use instrument fonts.

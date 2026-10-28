@@ -4,7 +4,7 @@
 // and Tibetan clusters, rare-script fallback, bidi reordering, emoji ZWJ
 // sequences, and supplementary-plane symbols in one cached layout.
 #include <include/core/SkPaint.h>
-#include <sigilcore/cache/Rebuild.h>
+#include <sigilcore/memo/Rebuild.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 
@@ -13,10 +13,10 @@
 #include <boost/container/flat_set.hpp>
 #include <cmath>
 
-#include "sigilweave/advanced/Skia.h"
-#include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
+#include "sigilgeometry/advanced/Skia.h"
+#include "sigilweave/advanced/Skia.h"
 
 using namespace sigil::weave;
 
@@ -45,12 +45,12 @@ void includeCoverage(const ParagraphLayout& layout, Coverage& coverage) {
 template <typename TextView>
 void drawSceneLabel(SkCanvas* canvas, FontContext& fontContext, TextView text,
                     SkPoint origin, float width, SkColor color = 0xFF86D7FF) {
-  kit::drawLabel(
-      canvas, fontContext, text, sigil::geometry::path::fromSk(origin),
-      {.color = SkColor4f::FromColor(color),
-       .width = width,
-       .height = 28,
-       .language = "en"});
+  kit::drawLabel(canvas, fontContext, text,
+                 sigil::geometry::path::fromSk(origin),
+                 {.color = SkColor4f::FromColor(color),
+                  .width = width,
+                  .height = 28,
+                  .language = "en"});
 }
 
 class HyperScriptsScene final : public Scene {

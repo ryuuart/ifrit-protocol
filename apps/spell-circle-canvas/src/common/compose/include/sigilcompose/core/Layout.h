@@ -13,9 +13,9 @@
 
 #include <sigilcompose/core/Attributes.h>
 #include <sigilcompose/core/Var.h>
-#include <sigilcore/cache/Policy.h>
 #include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigiltree/cache/Policy.h>
 #include <sigilweave/style/Length.h>
 
 #include <bit>
@@ -454,18 +454,18 @@ enum class Cache : uint8_t { Auto, Picture, Texture, Group, None };
  *  `Auto` leaves the decision to the proof, and `None` states volatility no
  *  declaration can see. The proof answers in those three terms and never
  *  learns what a picture, a texture or a group is. */
-constexpr core::Cache cachePolicy(Cache cache) {
+constexpr tree::Cache cachePolicy(Cache cache) {
   switch (cache) {
     case Cache::Auto:
-      return core::Cache::Auto;
+      return tree::Cache::Auto;
     case Cache::None:
-      return core::Cache::Never;
+      return tree::Cache::Never;
     case Cache::Picture:
     case Cache::Texture:
     case Cache::Group:
       break;
   }
-  return core::Cache::Always;
+  return tree::Cache::Always;
 }
 
 // ---------------------------------------------------------------------------

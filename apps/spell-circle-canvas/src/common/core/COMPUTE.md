@@ -5,9 +5,11 @@ bit: the seeded mixers a jitter draws from, the stream a caller holds one
 of them as and the distributions drawn out of it, the noise field read at
 a point, the folds a cache key is accumulated with, the normal form a set
 of runs over one axis is put in, the shaped curve a unit position is
-reshaped by, and the one rounding between degrees and radians. `README.md` beside this file is the library; `COMPARABLE.md`
-is the other leaf that links nothing, and `RECONCILE.md` holds the memo
-whose key the last section here shapes two of these values for.
+reshaped by, the one rounding between degrees and radians, and the one
+unit a length of time is stated in. `README.md` beside this file is the
+library; `COMPARABLE.md` is the other leaf that links nothing, and
+SigilTree's reconciler holds the memo whose key the last section here
+shapes two of these values for.
 
 The standard library is the whole of its dependencies, so a shader's CPU
 twin, a point cook, a text cache and a resource store all reach the same
@@ -21,6 +23,7 @@ bodies.
 | `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
 | `compute/Curve.h` | `curve::Curve` — a shape as a captureless `float(float, const float*)` beside the four `parameters` it reads, with `at`, `operator()` and equality by both (a default-built one is the identity ramp, and a caller's own captureless body is the escape hatch); the plain `curve::smoothstep`; and the house shapes `curve::cubicBezier`, `curve::outBack`, `curve::inBack`, `curve::inOutBack`, `curve::outElastic`, `curve::inElastic`, `curve::outBounce` |
 | `compute/Angle.h` | `angle::kDegreesToRadians`, `angle::kRadiansToDegrees`, `angle::radians` and `angle::degrees` — the one rounding between the two measures of an angle, which the pen and the contour both scale by; and `angle::Angle`, an angle that names its own `angle::Unit` (`Degrees`, `Radians`, `Gradians`, `Turns`), made by `Angle::degrees`, `Angle::radians`, `Angle::gradians` and `Angle::turns` and read back by `inDegrees`, `inRadians` and `inTurns`, with `angle::read`, the reader of CSS angle text such as `"45deg"` or `"0.25turn"`, `angle::text`, its inverse, and the unit names `angle::unitName` and `angle::unitNamed` |
+| `compute/Duration.h` | `Duration`, the `std::chrono` duration in seconds as a double that every length, delay, step, period and measured span is stated in, and `readDuration`, the reader of CSS time text such as `"300ms"` or `"0.3s"`, which refuses text without a unit |
 | `compute/Intervals.h` | `IntervalEnds`, `Inverted`, `normalizeIntervals`, `complementIntervals`, `intersectIntervals` and `firstOverlap` — the sorted, disjoint normal form a set of runs is put in, and the three combinators over it, with the endpoint type and the epsilon the caller's |
 
 ## Why the curve is here

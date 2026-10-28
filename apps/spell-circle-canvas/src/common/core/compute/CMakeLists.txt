@@ -3,7 +3,8 @@
 # accumulated with, the interval algebra every consumer that answers
 # "where on this thing" in runs arrives at, and the shaped curve an
 # easing, a colour ramp and a keyed track all reshape a unit position
-# with, and the one rounding an angle in degrees is scaled by. The
+# with, the one rounding an angle in degrees is scaled by, and the one
+# time unit every span is stated in with the CSS text it is read from. The
 # standard library is the whole of its dependencies — no glm, no Skia,
 # no kernel, no animation runtime — so a shader's CPU twin, a point
 # cook, a text cache, a colour leaf and a resource store can all reach
@@ -17,6 +18,7 @@ sigil_library(SigilCoreCompute)
 # library it exercises.
 sigil_test(core_test
   SOURCES test/AngleTest.cpp test/ChanceTest.cpp test/CurveTest.cpp
+          test/DurationTest.cpp
           test/FieldTest.cpp test/HashTest.cpp test/IntervalsTest.cpp
           test/NoiseTest.cpp
   LIBRARIES SigilCoreCompute)

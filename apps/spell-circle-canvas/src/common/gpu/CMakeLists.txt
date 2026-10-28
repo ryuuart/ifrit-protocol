@@ -1,0 +1,79 @@
+# SigilGpu — the GPU device itself: one device and its one command queue,
+# owned or adopted, with the resources that live on it named by
+# generation-checked handles, a mip chain where a description asks for
+# one, a destruction queue that waits out the frames in flight, and fences
+# as timelines. README.md is the canon.
+#
+# NOTHING HERE KNOWS WHAT DRAWS. No Skia, no Diligent, no Qt: the value is
+# the device itself, so a drawing library stands on it rather than owning
+# it, and two of them can stand on the same one. It is the graphics API
+# and no more, beside SigilCore's reporting door for the error a refused
+# device answers, and only a consumer that needs a device links it.
+#
+# The API-independent translation unit owns the handle tables and the
+# queue; each backend implements the private interface in DeviceBackend.h
+# — Metal on Apple, Vulkan everywhere, resolving its entry points from the
+# loader at run time so nothing links Vulkan and a machine without a
+# driver only reports that. Vulkan's headers are private: every public
+# header spells a Vulkan handle as an opaque value, so no consumer needs
+# them.
+sigil_library_root(SigilGpu
+  BRIEF "The GPU device itself: one device and its queue, owned or adopted, textures and fences named by handles that go stale rather than dangle, destruction deferred past the frames in flight, and fences as timelines")
+
+if(APPLE)
+  set(SIGIL_GPU_NATIVE_SOURCES GpuDeviceMetal.mm)
+else()
+  set(SIGIL_GPU_NATIVE_SOURCES)
+endif()
+
+if(APPLE)
+  find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+  find_library(METAL_FRAMEWORK Metal REQUIRED)
+endif()
+find_package(VulkanHeaders CONFIG REQUIRED)
+sigil_library(SigilGpu
+  SOURCES DeviceBackend.h GpuDevice.cpp GpuDeviceVulkan.cpp
+          ${SIGIL_GPU_NATIVE_SOURCES}
+  HEADERS Fence.h GpuDevice.h Handle.h
+  PUBLIC SigilCoreReport
+  PRIVATE Vulkan::Headers ${CMAKE_DL_LIBS})
+if(APPLE)
+  target_link_libraries(SigilGpu PRIVATE ${METAL_FRAMEWORK}
+    ${FOUNDATION_FRAMEWORK})
+endif()
+
+# Two groups of cases, split by what a runner has to supply rather than by
+# what they link. These need no GPU: a handle table is arithmetic over
+# indices and the mip depth is a closed form, so both stand on any
+# machine and run everywhere with no label.
+sigil_test(gpu_test
+  SOURCES test/HandleTest.cpp test/MipChainTest.cpp
+  LIBRARIES SigilGpu)
+
+# …and these are every claim that needs a real device, so each case skips
+# where there is none and the suites carry the `gpu` label. They compile
+# without ARC: they count retains to prove ownership, and ARC would hide
+# the counts they assert on. The Vulkan backend's doors to the Metal
+# objects under a driver that runs over Metal are asked of a Vulkan device
+# the test brings up from the loader itself; the rest of the Vulkan
+# backend's claims are asked in `geometry_test`, of the device a renderer
+# made.
+if(APPLE)
+  sigil_test(gpu_test
+    SOURCES test/DeviceTest.mm test/VulkanOverMetalTest.mm
+    LIBRARIES SigilGpu Vulkan::Headers ${METAL_FRAMEWORK}
+    SUITES HardwareDevice HardwareVulkanOverMetal LABELS gpu)
+
+  sigil_bench(gpu_bench
+    SOURCES bench/DeviceBench.mm
+    LIBRARIES SigilGpu ${METAL_FRAMEWORK})
+endif()
+
+# Every API name the prose spells, compiled against the headers that own
+# it. SigilCore's reporting door is scanned for the error a refused device
+# answers.
+sigil_doc_probes(gpu
+  READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include/sigilcore/report
+  FLOORS 3,1,1,0,0
+  LIBRARIES SigilGpu)

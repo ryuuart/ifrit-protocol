@@ -8,7 +8,7 @@
 
 #include <Ultralight/platform/GPUDriver.h>
 #include <include/core/SkRefCnt.h>
-#include <sigilcore/hardware/Handle.h>
+#include <sigilgpu/Handle.h>
 
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cstdint>
@@ -46,40 +46,39 @@ class GpuDriver : public ultralight::GPUDriver {
 
   /** Creates a shader-readable texture for per-view frame publishing,
    *  owned by the driver; free with releaseTexture(). */
-  virtual sigil::core::hardware::TextureHandle createPublishTexture(
-      int width, int height) = 0;
+  virtual sigil::gpu::TextureHandle createPublishTexture(int width,
+                                                         int height) = 0;
 
   /** Creates a texture usable both as a Skia render target and as a
    *  sampled page image (WebImage slots), CPU-uploadable, owned by the
    *  driver; free with releaseTexture(). */
-  virtual sigil::core::hardware::TextureHandle createImageTexture(
-      int width, int height) = 0;
+  virtual sigil::gpu::TextureHandle createImageTexture(int width,
+                                                       int height) = 0;
 
   /** Forgets the handle on the device and drops the driver's own
    *  reference; a wrap that still holds the texture keeps it alive.
    *  Safe from any thread. */
-  virtual void releaseTexture(sigil::core::hardware::TextureHandle texture) = 0;
+  virtual void releaseTexture(sigil::gpu::TextureHandle texture) = 0;
 
   /** Copies the top-left region of the texture registered under
    *  @p srcTextureId into @p dst. */
-  virtual void copyTexture(uint32_t srcTextureId,
-                           sigil::core::hardware::TextureHandle dst, int width,
-                           int height) = 0;
+  virtual void copyTexture(uint32_t srcTextureId, sigil::gpu::TextureHandle dst,
+                           int width, int height) = 0;
 
   /** Copies between two device textures (clamped to the smaller size).
    *  False when either handle is stale. */
-  virtual bool copyDeviceTexture(sigil::core::hardware::TextureHandle src,
-                                 sigil::core::hardware::TextureHandle dst,
-                                 int width, int height) = 0;
+  virtual bool copyDeviceTexture(sigil::gpu::TextureHandle src,
+                                 sigil::gpu::TextureHandle dst, int width,
+                                 int height) = 0;
 
   /** Registers a device texture under a fresh Ultralight texture id so
    *  page draw commands can bind it. */
   virtual uint32_t registerExternalTexture(
-      sigil::core::hardware::TextureHandle texture) = 0;
+      sigil::gpu::TextureHandle texture) = 0;
   virtual void unregisterExternalTexture(uint32_t textureId) = 0;
 
   /** Copies raster pixels (premultiplied BGRA) into an image texture. */
-  virtual void uploadToTexture(sigil::core::hardware::TextureHandle texture,
+  virtual void uploadToTexture(sigil::gpu::TextureHandle texture,
                                const void* pixels, int width, int height,
                                size_t rowBytes) = 0;
 
@@ -88,15 +87,15 @@ class GpuDriver : public ultralight::GPUDriver {
    *  and submits that work under the context's lock. Returns false if
    *  the frame did not render (no surface, empty recording, or a failed
    *  Graphite insert). */
-  virtual bool paintTexture(sigil::core::hardware::TextureHandle texture,
-                            int width, int height,
+  virtual bool paintTexture(sigil::gpu::TextureHandle texture, int width,
+                            int height,
                             const std::function<void(SkCanvas&)>& painter) = 0;
 
   /** Wraps @p texture as an SkImage for @p recorder. The image keeps the
    *  native texture alive past the handle. Any thread. */
-  virtual sk_sp<SkImage> wrapTexture(
-      skgpu::graphite::Recorder* recorder,
-      sigil::core::hardware::TextureHandle texture, int width, int height) = 0;
+  virtual sk_sp<SkImage> wrapTexture(skgpu::graphite::Recorder* recorder,
+                                     sigil::gpu::TextureHandle texture,
+                                     int width, int height) = 0;
 };
 
 }  // namespace sigil::scry

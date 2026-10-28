@@ -24,7 +24,7 @@
 #include <include/gpu/graphite/vk/VulkanGraphiteTypes.h>
 #include <include/gpu/vk/VulkanTypes.h>
 #endif
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/TextureImage.h>
 #include <sigilworld/advanced/Skia.h>
 
@@ -361,7 +361,7 @@ PresentedImage* freePresented(Gpu& gpu) {
 sk_sp<SkImage> presentOnQueue(Gpu& gpu, std::string_view name,
                               skgpu::graphite::Recorder& recorder) {
 #ifdef SK_VULKAN
-  ::sigil::core::hardware::GpuDevice* shared = gpu.device->gpu();
+  ::sigil::gpu::GpuDevice* shared = gpu.device->gpu();
   if (gpu.presentRefused || !shared || !gpu.device->graphite() ||
       !shared->native().vulkan.device ||
       skia::deviceOf(recorder) != shared->native().vulkan.device)
@@ -434,7 +434,7 @@ sk_sp<SkImage> Gpu::present(std::string_view name, SkCanvas& canvas) {
     return presentOnQueue(*this, name, *own);
 #ifdef __APPLE__
   skgpu::graphite::Recorder* recorder = canvas.recorder();
-  ::sigil::core::hardware::GpuDevice* shared = device->gpu();
+  ::sigil::gpu::GpuDevice* shared = device->gpu();
   if (presentRefused || !recorder || !shared ||
       recorder->backend() != skgpu::BackendApi::kMetal)
     return nullptr;
@@ -486,7 +486,7 @@ sk_sp<SkImage> Gpu::present(std::string_view name, SkCanvas& canvas) {
   // canvas's next submission is made to wait for that value before it
   // samples. Neither queue waits on this thread.
   context->Flush();
-  ::sigil::core::hardware::FenceValue value;
+  ::sigil::gpu::FenceValue value;
   {
     ::sigil::geometry::device::Device::QueueLock lock(*device);
     value = shared->signal(presentedFence);

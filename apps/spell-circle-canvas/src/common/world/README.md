@@ -243,11 +243,11 @@ the clip-space view a device draws with, which is
 `camera::Camera::clipProjection()` — and the residency that puts a mesh's
 buffers and a map's texture on a device are SigilGeometry's; materials,
 recipes, programs and the panorama type itself are SigilMaterial's; the
-reconciler, its phases and the caching proof are SigilCore's, as are the
-erased value a `Generator`, a `PassBody` and a `TextureProducer` take, the
+reconciler, its phases and the caching proof are SigilTree's; SigilCore's
+are the erased value a `Generator`, a `PassBody` and a `TextureProducer` take, the
 field pin every hand-written comparator here sits under, and the fold a
 geometry signature accumulates with; the device and its handles are
-SigilCoreHardware's, and Graphite is SigilSkia's; animation is
+SigilGpu's, and Graphite is SigilSkia's; animation is
 SigilMotion's; counters and timers are SigilMeasure's.
 
 A frame's colours and blends are Material's (`material::Color`,
@@ -830,10 +830,10 @@ queue neither waits at all.
 
 ## The host contract
 
-`Scene::Impl` implements SigilCore's `ReconcileHost` operations on
+`Scene::Impl` implements SigilTree's `ReconcileHost` operations on
 itself. Operation by operation:
 
-| core operation | what this host does |
+| tree operation | what this host does |
 |---|---|
 | `keyOf` | the description's `key` |
 | `equal` | `propertiesEqual` — every field of `NodeDescription`, with the geometry slot's variant equality standing in for a kind comparison |
@@ -867,7 +867,7 @@ library names the FAMILY (`LaneFamily::Slot`), the 16 rows, and what each
 row's standing value is when a description does not carry the block that
 holds it.
 
-**Phases** are declared through `core::Phase` and run by `core::runPhases`:
+**Phases** are declared through `tree::Phase` and run by `tree::runPhases`:
 `describe` → `lanes` → `derive` (converging) → `extract` → `graph` →
 `execute`. Describe reconciles the tree the author handed over; lanes
 sample every binding once; derive resolves placements top-down and
@@ -881,8 +881,8 @@ nothing for a frame that declared no passes.
 a bound or ramping placement lane is composite motion, a live material
 rebuilds the surface, and a
 generator that cannot say whether it is the same generator is volatility
-no value comparison can see — and `core::foldSubtree` answers what the
-subtree promises. A `core::Settle` over the node's sixteen placement
+no value comparison can see — and `tree::foldSubtree` answers what the
+subtree promises. A `tree::Settle` over the node's sixteen placement
 floats is what separates "a binding is connected" from "the value is
 moving": once a placement resolves identically for three frames the node
 stops declaring the motion, and the frame it moves again it re-declares

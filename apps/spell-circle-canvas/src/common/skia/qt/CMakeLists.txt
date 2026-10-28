@@ -2,7 +2,7 @@
 # translation unit per graphics API unwraps a QRhi's native handles and
 # forwards to the graphite feature — Metal on Apple, Vulkan elsewhere —
 # so exactly one API is served per build and any other QRhi backend gets
-# null. Links the graphite feature (and through it SigilCoreHardware,
+# null. Links the graphite feature (and through it SigilGpu,
 # whose Vulkan handle set the adapter fills) and Qt6::Core publicly,
 # Qt6::GuiPrivate for the QRhi API.
 find_package(Qt6 REQUIRED COMPONENTS Core GuiPrivate)

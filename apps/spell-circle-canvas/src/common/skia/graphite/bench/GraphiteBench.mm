@@ -15,7 +15,7 @@
 
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -23,7 +23,7 @@
 #include <string>
 
 using namespace sigil::skia;
-using namespace sigil::core::hardware;
+using namespace sigil::gpu;
 
 namespace {
 

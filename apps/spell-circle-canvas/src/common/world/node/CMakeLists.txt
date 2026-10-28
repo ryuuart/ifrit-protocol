@@ -12,8 +12,8 @@ sigil_library(SigilWorldNode
   HEADERS Camera.h Collection.h Group.h Light.h Mesh.h Null.h Transform.h
           Verbs.h ../advanced/Geometry.h ../advanced/Lanes.h
           ../advanced/Light.h ../advanced/Node.h
-  PUBLIC SigilCoreComparable SigilCoreCompute SigilCoreReconcile
-         SigilCoreCache SigilGeometryMesh SigilGeometryMeshCamera
+  PUBLIC SigilCoreComparable SigilCoreCompute SigilTreeReconcile
+         SigilTreeCache SigilGeometryMesh SigilGeometryMeshCamera
          SigilGeometryMeshCurve SigilGeometryMeshPop SigilMaterialCore
          SigilMaterialTexture SigilMaterialSurface SigilMotionValues
          SigilMotionSchedule glm::glm)

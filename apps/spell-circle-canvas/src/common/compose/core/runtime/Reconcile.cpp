@@ -6,7 +6,7 @@
  * in ReconcileHost.cpp.
  */
 
-#include <sigilcore/reconcile/Reads.h>
+#include <sigiltree/reconcile/Reads.h>
 
 #include <algorithm>
 #include <mutex>
@@ -141,7 +141,7 @@ void Composer::Impl::rebuildKeyIndex() {
  *  written in.
  *
  *  Every derivation DECLARES what it reads, in the statement that writes
- *  it, and this hands those declarations to `core::orderByReads`. Nothing
+ *  it, and this hands those declarations to `tree::orderByReads`. Nothing
  *  here infers an edge from which fields a node happens to carry: a
  *  derivation added tomorrow is ordered correctly by the same lines,
  *  because the only thing they know about it is its own declaration.
@@ -152,7 +152,7 @@ void Composer::Impl::orderDerivedByReads() {
   const auto reorder = [](std::vector<Instance*>& list) {
     if (list.size() < 2) return;
     std::vector<std::string> keys;
-    std::vector<std::vector<sigil::core::Read>> reads;
+    std::vector<std::vector<sigil::tree::Read>> reads;
     keys.reserve(list.size());
     reads.reserve(list.size());
     for (const Instance* inst : list) {
@@ -163,7 +163,7 @@ void Composer::Impl::orderDerivedByReads() {
       else
         reads.emplace_back();  // a node that declares nothing reads nothing
     }
-    const std::vector<uint32_t> order = sigil::core::orderByReads(keys, reads);
+    const std::vector<uint32_t> order = sigil::tree::orderByReads(keys, reads);
     std::vector<Instance*> sorted;
     sorted.reserve(list.size());
     for (const uint32_t index : order) sorted.push_back(list[index]);

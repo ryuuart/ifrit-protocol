@@ -861,7 +861,7 @@ const Composer::Stats& Composer::stats() const {
     for (const auto& child : i.children) tally(*child);
   };
   if (m_impl->root) tally(*m_impl->root);
-  const core::ReconcileStats& reconcile = m_impl->reconciler.stats();
+  const tree::ReconcileStats& reconcile = m_impl->reconciler.stats();
   m_impl->stats.describedNodes = (size_t)reconcile.describedNodes;
   m_impl->stats.memoHits = (size_t)reconcile.memoHits;
   m_impl->stats.patchedNodes = (size_t)reconcile.patchedNodes;

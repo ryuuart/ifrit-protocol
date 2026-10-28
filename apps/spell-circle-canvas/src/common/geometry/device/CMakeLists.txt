@@ -16,7 +16,7 @@
 # a Diligent device cannot be handed one made elsewhere. That is why the
 # bring-up lives here, under the point operators and the frame runtime
 # alike, rather than in whichever of them happened to
-# need it first. SigilCoreHardware adopts what Diligent made, so there is
+# need it first. SigilGpu adopts what Diligent made, so there is
 # one device, one queue and one handle table under both APIs, and
 # Graphite records onto that same queue.
 #
@@ -43,7 +43,7 @@
 #
 # Diligent is PUBLIC all the same, because Device.h's two doors hand out
 # objects the caller then makes engine calls on, and because of the link
-# order below. SigilCoreHardware and SigilSkiaGraphite are PUBLIC because
+# order below. SigilGpu and SigilSkiaGraphite are PUBLIC because
 # Device.h hands out the adopted device and the Graphite context standing
 # on it. volk and the Vulkan headers are PRIVATE — no header here spells
 # a Vulkan type at all.
@@ -67,7 +67,7 @@ sigil_library(SigilGeometryDevice
           VolkShim.c
   HEADERS Device.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
-  PUBLIC unofficial::diligent-engine::DiligentCore SigilCoreHardware
+  PUBLIC unofficial::diligent-engine::DiligentCore SigilGpu
          SigilSkiaGraphite
   PRIVATE unofficial::diligent-engine::volk Vulkan::Headers SigilCoreReport)
 

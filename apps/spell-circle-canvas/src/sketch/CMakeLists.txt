@@ -79,7 +79,7 @@ set(SIGIL_SKETCH_PRIVATE
   # A sketch opens network feeds through its assets, so the host is the
   # consumer that links the transports.
   SigilIOTransport
-  SigilGeometryDevice SigilSkiaGraphite SigilCoreHardware SigilDraw
+  SigilGeometryDevice SigilSkiaGraphite SigilGpu SigilDraw
   SigilMediaVideoDecode
   SigilMediaImageEncode SigilMediaVideoEncode SigilWeaveFonts
   # A font file read as a face is a resource the host's hub answers.

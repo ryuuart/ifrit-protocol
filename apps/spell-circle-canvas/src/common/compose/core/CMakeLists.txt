@@ -185,8 +185,8 @@ sigil_library(SigilComposeCore
           verbs/Transform.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   # Public links supply the types named by the authoring vocabulary.
-  PUBLIC SigilCoreCache SigilCoreCallable SigilCoreComparable SigilCoreCompute
-         SigilCoreReconcile SigilGeometryPath SigilMediaCore
+  PUBLIC SigilTreeCache SigilCoreCallable SigilCoreComparable SigilCoreCompute
+         SigilTreeReconcile SigilGeometryPath SigilMediaCore
          SigilMaterialColor SigilMaterialCore SigilMaterialTexture
          SigilMaterialPattern SigilMaterialSkia
          SigilMeasure SigilMotionClock SigilMotionValues SigilMotionEase

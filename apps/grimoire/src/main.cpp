@@ -89,7 +89,7 @@
  * `assets/` beside its own file.
  */
 
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
@@ -594,7 +594,7 @@ int main(int argc, char* argv[]) {
     }
     SharedWebEngineScope sharedWebEngine;
     // Sessions release their retained GPU resources before their context.
-    std::unique_ptr<sigil::core::hardware::GpuDevice> canvasDevice;
+    std::unique_ptr<sigil::gpu::GpuDevice> canvasDevice;
     std::unique_ptr<sigil::skia::GraphiteContext> canvasGraphite;
     int result = 0;
     {
@@ -602,7 +602,7 @@ int main(int argc, char* argv[]) {
       if (!awaitFirstBuild(host)) result = 1;
 #ifdef __APPLE__
       if (!result && args.gpu && !host.needsDevice()) {
-        auto made = sigil::core::hardware::GpuDevice::createOwned();
+        auto made = sigil::gpu::GpuDevice::createOwned();
         if (made) canvasDevice = std::move(*made);
         if (!canvasDevice) {
           std::println(stderr, "capture: no canvas GPU device ({})",

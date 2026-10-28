@@ -57,7 +57,7 @@ flowchart LR
 Descriptions are copy-on-write values. Reconciliation may replace an
 instance's description, but it must not mutate a value held by an author
 or another composer. Identity matching and memo comparison belong to
-SigilCore's reconciler; Yoga attachment, text state and paint invalidation
+SigilTree's reconciler; Yoga attachment, text state and paint invalidation
 belong to its Compose host.
 
 The cascade resolves typography, layout lengths and paint declarations
@@ -83,7 +83,7 @@ its surface from inputs the retained runtime prepares once per material.
 The stacking painter owns traversal and compositing. Cache tiers answer
 whether they painted a node; declining a bake returns to live paint. A
 failed replacement cannot reuse pixels taken under different geometry.
-Cache policy and stability proofs come from SigilCore; Skia recordings,
+Cache policy and stability proofs come from SigilTree; Skia recordings,
 surfaces and sampling are Compose's executor policy.
 Static sampled paints retain their source until the drawing destination is
 known. Changing its pixel format, GPU recorder or recording context drops

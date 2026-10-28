@@ -1,12 +1,8 @@
 # The time unit: `Duration`, the std::chrono duration every length, delay,
-# step and period in the library is stated in. Header-only and over the
-# standard library alone, so every feature — physics included, which must
-# not link a clock — can state a time without linking anything that
-# reads one.
+# step and period in the library is stated in, and the CSS time reader.
+# Both are SigilCore's compute leaf, named in this library's namespace, so
+# every feature — physics included, which must not link a clock — can
+# state a time without linking anything that reads one.
 sigil_library(SigilMotionTime
-  HEADERS Duration.h)
-
-# The CSS time reader, held to each unit, each case and each refusal.
-sigil_test(motion_test
-  SOURCES test/DurationTest.cpp
-  LIBRARIES SigilMotionTime)
+  HEADERS Duration.h
+  INTERFACE SigilCoreCompute)

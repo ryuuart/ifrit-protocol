@@ -84,7 +84,7 @@ target_link_libraries(WeaveGallery
     SigilMaterialSkia # the Skia backend that shades the effect scenes' fields
     SigilWeavePorts # systemFontManager()
     SigilMeasure # the stopwatch each scene times its layout with
-    SigilCoreCache # the rebuild guard each scene keys its derived values on
+    SigilCoreMemo # the rebuild guard each scene keys its derived values on
     Boost::container
 )
 

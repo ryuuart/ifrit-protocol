@@ -5,7 +5,8 @@
 # writes, and shared sample content.
 # They make the invisible parts of fast usage — cache invalidation keys,
 # draw-call batching — explicit and reusable. The rebuild guard those keys
-# are declared to is SigilCore's, since nothing in it is about text.
+# are declared to is SigilCore's, since nothing in it is about text, and
+# the layout guard is that guard with the paragraph's own inputs folded in.
 # Qt-free; a label draws, so the kit rests on the paint feature, and it
 # asks the Unicode leaf the character questions its tables are derived from
 # rather than holding a copy of the answers. An outline turns its corners
@@ -17,7 +18,8 @@ sigil_library(SigilWeaveKit
           PaintLayers.cpp SampleText.cpp
   HEADERS SigilWeaveKit.h Features.h GlyphBuckets.h Hyphenation.h
           Labels.h LayoutGuard.h LineTables.h PaintLayers.h SampleText.h
-  PUBLIC SigilWeavePaint SigilGeometryPath unofficial::skia::skia
+  PUBLIC SigilWeavePaint SigilGeometryPath SigilCoreMemo
+         unofficial::skia::skia
   PRIVATE SigilWeaveUnicode Boost::unordered)
 
 # The invalidation semantics the kit exists to make explicit.

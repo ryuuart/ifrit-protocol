@@ -30,7 +30,7 @@ void DecorationVerbs<Derived>::claimBorrows(const Decoration& decoration) {
   for (const std::string& key : decoration.borrows()) {
     derive.borrowedPathKeys.push_back(key);
     // A borrowed strand is the target's own outline, not its box.
-    derive.reads.push_back({key, sigil::core::Facet::Outline});
+    derive.reads.push_back({key, sigil::tree::Facet::Outline});
   }
 }
 

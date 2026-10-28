@@ -5,7 +5,6 @@
  * bake that records a still subtree's draw order once.
  */
 
-#include <sigilcore/cache/Cache.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/advanced/Program.h>  // reportOnce
@@ -13,6 +12,7 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/advanced/Held.h>
 #include <sigilmotion/clock/Engine.h>
+#include <sigiltree/cache/Cache.h>
 #include <sigilworld/advanced/Light.h>
 
 #include <cstring>
@@ -127,7 +127,7 @@ geometry::mesh::camera::Camera placeCamera(
  *  subtree is provably standing still and replayed until something in it
  *  moves. The order is entities, not pixels — the components those
  *  entities carry are exactly what a settled subtree does not change. */
-struct DrawOrderBake : core::BakeOperations<Scene::Impl::BakeTarget> {
+struct DrawOrderBake : tree::BakeOperations<Scene::Impl::BakeTarget> {
   void take(Scene::Impl::BakeTarget& target) const override {
     target.node->baked.clear();
     target.impl->extractInto(*target.node, target.node->baked,
@@ -347,7 +347,7 @@ const Instance* Scene::Impl::findKeyed(std::string_view key) const {
 
 // ---- extract ---------------------------------------------------------------
 
-core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst, bool hidden) {
+tree::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst, bool hidden) {
   const NodeDescription& node = *inst.description;
   hidden = hidden || !node.visible;
   // THE CAMERAS IN TREE ORDER, a node's own before its children's: the
@@ -373,7 +373,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst, bool hidden) {
                        .lens = lens});
   }
 
-  core::ChildVolatility childVolatility;
+  tree::ChildVolatility childVolatility;
   for (std::unique_ptr<Instance>& child : inst.children)
     childVolatility.add(foldVolatility(*child, hidden));
 
@@ -416,13 +416,13 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst, bool hidden) {
   inst.released =
       inst.settle.release(kSettleHold, [&scalars] { return scalars; });
 
-  core::NodeVolatility self;
+  tree::NodeVolatility self;
   self.policy = node.cachePolicy;
   self.ownPaint = movingPlacement && !inst.released;
   self.ownContent = movingContent;
   self.memoOpaque = opaque;
   inst.declaration = self;
-  inst.verdict = core::foldSubtree(self, childVolatility);
+  inst.verdict = tree::foldSubtree(self, childVolatility);
 
   // Lights are gathered on this walk, which visits every node every
   // frame — a bake replays a draw order, and a light inside one must not
@@ -494,8 +494,7 @@ void Scene::Impl::writeComponents(Instance& inst) {
   if (mesh)
     registry.emplace_or_replace<component::Body>(
         inst.entity, mesh, instances, inst.resource->id, node.backface,
-        node.primitiveColor, node.facing, node.castShadow,
-        node.receiveShadow);
+        node.primitiveColor, node.facing, node.castShadow, node.receiveShadow);
   else
     registry.remove<component::Body>(inst.entity);
   const material::Material* worn = surfaceOf(node);
@@ -548,7 +547,7 @@ void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
       continue;
     }
     BakeTarget target{this, child.get(), &into};
-    const core::BakeState state{
+    const tree::BakeState state{
         // `volatileAbove` and not `subtreeVolatile`, because THIS
         // artefact contains the node's own composite: a draw order
         // carries each entity's placement, so a node whose placement
@@ -557,14 +556,14 @@ void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
         .held = child->bakeHeld,
         .stale = child->bakeStale,
     };
-    switch (core::runBake(bake, target, state)) {
-      case core::BakeAction::Live:
+    switch (tree::runBake(bake, target, state)) {
+      case tree::BakeAction::Live:
         extractInto(*child, into);
         break;
-      case core::BakeAction::Take:
+      case tree::BakeAction::Take:
         ++stats.baked;
         break;
-      case core::BakeAction::Replay:
+      case tree::BakeAction::Replay:
         ++stats.replayed;
         break;
     }
@@ -582,19 +581,19 @@ bool Scene::Impl::phaseExtract() {
   foldVolatility(*root, false);
   chooseCamera();
   BakeTarget target{this, root.get(), &order};
-  const core::BakeState state{
+  const tree::BakeState state{
       .cacheable = !root->verdict.volatileAbove,
       .held = root->bakeHeld,
       .stale = root->bakeStale,
   };
-  switch (core::runBake(bake, target, state)) {
-    case core::BakeAction::Live:
+  switch (tree::runBake(bake, target, state)) {
+    case tree::BakeAction::Live:
       extractInto(*root, order);
       break;
-    case core::BakeAction::Take:
+    case tree::BakeAction::Take:
       ++stats.baked;
       break;
-    case core::BakeAction::Replay:
+    case tree::BakeAction::Replay:
       ++stats.replayed;
       break;
   }

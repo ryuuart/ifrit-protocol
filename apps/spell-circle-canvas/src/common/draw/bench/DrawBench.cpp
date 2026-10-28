@@ -15,17 +15,16 @@
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/PenTypes.h>
 #include <sigildraw/Stack.h>
+#include <sigilgpu/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <sigilskia/graphite/GraphiteContext.h>
 
 #include "Fonts.h"
 
@@ -305,7 +304,7 @@ BENCHMARK(StackComposite)
  *  and waited for, so a frame's time is the device's work as well as the
  *  recording. Skipped where the machine has no device of its own. */
 void StackCompositeDevice(benchmark::State& state) {
-  static auto device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  static auto device = sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   static auto context = device
                             ? sigil::skia::GraphiteContext::create(*device)
                             : std::unique_ptr<sigil::skia::GraphiteContext>();

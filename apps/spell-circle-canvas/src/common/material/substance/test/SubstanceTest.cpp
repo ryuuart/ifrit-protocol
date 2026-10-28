@@ -17,7 +17,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/substance/Substance.h>
@@ -138,8 +138,8 @@ TEST(Substance, AGpuCookReachesATextureWithNoCopyBack) {
   SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
   if (!sbsar::available(sbsar::Engine::Metal))
     GTEST_SKIP() << "the Substance Metal engine does not start here";
-  const std::unique_ptr<core::hardware::GpuDevice> gpu =
-      core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  const std::unique_ptr<gpu::GpuDevice> gpu =
+      gpu::GpuDevice::createOwned().value_or(nullptr);
   const std::unique_ptr<sigil::skia::GraphiteContext> graphite =
       gpu ? sigil::skia::GraphiteContext::create(*gpu) : nullptr;
   if (!graphite) GTEST_SKIP() << "no Metal device for Graphite";

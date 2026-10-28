@@ -1,7 +1,7 @@
 # SigilMeasure — timing, statistics and check reporting in one library.
 #
 # Every other library measures itself with this one, so it stands on no
-# domain library but SigilMotionTime, the header-only unit every span it
+# domain library but SigilCoreCompute, the header-only unit every span it
 # reads and answers is stated in; its only outside link is Boost.Container,
 # which the compact, ordered counter table is built on behind its
 # implementation and which no public header includes.
@@ -38,7 +38,7 @@ sigil_library(SigilMeasure
           advanced/CheckFormat.h advanced/Counters.h advanced/FrameTimer.h
           advanced/Laps.h advanced/LineFit.h advanced/Moments.h
           advanced/Quantiles.h advanced/Rescale.h
-  PUBLIC SigilMotionTime
+  PUBLIC SigilCoreCompute
   PRIVATE Boost::container)
 
 sigil_test(measure_test
@@ -53,11 +53,11 @@ sigil_bench(measure_bench
   LIBRARIES SigilMeasure)
 
 # Every API name the prose spells, compiled against the headers that own
-# it. SigilMotion's time header is scanned for the span every reading
+# it. SigilCore's time header is scanned for the span every reading
 # answers.
 sigil_doc_probes(measure
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md ${SIGIL_MEASURE_REFERENCE}
-  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include/sigilmotion
-  PRELUDES "<sigilmotion/time/Duration.h>"
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include/sigilcore/compute
+  PRELUDES "<sigilcore/compute/Duration.h>"
   FLOORS 20,10,40,8,0
   LIBRARIES SigilMeasure)

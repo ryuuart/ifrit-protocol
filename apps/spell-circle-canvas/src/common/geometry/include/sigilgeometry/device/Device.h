@@ -7,8 +7,8 @@
  * submissions in one stream.
  */
 
-#include <sigilcore/hardware/Handle.h>
 #include <sigilcore/report/Error.h>
+#include <sigilgpu/Handle.h>
 
 #include <expected>
 #include <filesystem>
@@ -22,9 +22,9 @@ struct ITexture;
 struct IPipelineStateCache;
 }  // namespace Diligent
 
-namespace sigil::core::hardware {
+namespace sigil::gpu {
 class GpuDevice;
-}  // namespace sigil::core::hardware
+}  // namespace sigil::gpu
 
 namespace sigil::skia {
 class GraphiteContext;
@@ -103,7 +103,7 @@ class Device {
    *  on Apple a Metal context, the device's own or the one a host handed
    *  `paintWith`, elsewhere one on the Vulkan queue. Both null
    *  together. */
-  core::hardware::GpuDevice* gpu() const;
+  gpu::GpuDevice* gpu() const;
   skia::GraphiteContext* graphite() const;
 
   /** THE 3D QUEUE WAITS FOR THE 2D PAINTING: nothing submitted to the
@@ -139,8 +139,7 @@ class Device {
    *  here: a host withdraws them before either goes, and the device
    *  waits for its queue to drain when one is withdrawn. Call it from the
    *  thread that paints, without the queue lock held. */
-  bool paintWith(core::hardware::GpuDevice* painter,
-                 skia::GraphiteContext* graphite);
+  bool paintWith(gpu::GpuDevice* painter, skia::GraphiteContext* graphite);
 
   /** The driver's cache every pipeline built on this device is made
    *  through, kept where `DeviceConfig::pipelineStore` says; null when the
@@ -168,7 +167,7 @@ class Device {
    *  @silent Null where the driver is not one over Metal or cannot say,
    *  which a caller answers by taking the long way round. */
   void* metalTexture(Diligent::ITexture* texture) const;
-  void* metalEvent(core::hardware::FenceHandle fence) const;
+  void* metalEvent(gpu::FenceHandle fence) const;
 
   /** Holds the one Vulkan command queue for as long as it lives.
    *

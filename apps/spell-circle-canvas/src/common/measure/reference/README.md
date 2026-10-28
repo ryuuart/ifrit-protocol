@@ -45,7 +45,7 @@ apart in what "the median" means.
 
 `sigil::measure::Stopwatch` reads the steady clock rather than system
 time, so a clock adjustment mid-measure cannot produce a negative or
-absurd reading, and answers a `sigil::motion::Duration` — seconds held
+absurd reading, and answers a `sigil::core::Duration` — seconds held
 as a double — which a printout turns into the unit it wants with
 `sigil::measure::Milliseconds` or `sigil::measure::Microseconds`.
 `sigil::measure::timed` is the same reading over one block.

@@ -1,12 +1,14 @@
 # Source tree layout:
 #
 #   common/      libraries shared across products, in the order they are
-#                added below: core/ (SigilCore), skia/ (SigilSkia,
+#                added below: core/ (SigilCore), gpu/ (SigilGpu, the
+#                device), skia/ (SigilSkia,
 #                Graphite bring-up), qt/ (Sigil.Qt desktop components and services),
 #                media/ (SigilMedia), io/ (SigilIO),
 #                data/ (SigilData), protocol/ (SigilProtocol), scry/
 #                (SigilScry), measure/
-#                (SigilMeasure), motion/ (SigilMotion), geometry/
+#                (SigilMeasure), tree/ (SigilTree, the reconciler and the
+#                caching proof), motion/ (SigilMotion), geometry/
 #                (SigilGeometry), material/ (SigilMaterial), draw/
 #                (SigilDraw), world/ (SigilWorldNode, SigilWorldFrame,
 #                SigilWorldGraph, SigilWorldScene,
@@ -32,9 +34,10 @@
 # reaches the faces through SIGIL_TEST_INSTRUMENT_DIR.
 set(SIGIL_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 
-# Core first: its hardware feature is the device every drawing library
-# below stands on.
+# Core first: the vocabulary every library below shares. Then the GPU
+# device every drawing library below stands on.
 add_subdirectory(common/core)
+add_subdirectory(common/gpu)
 add_subdirectory(common/skia)
 if(SIGIL_BUILD_APPS)
   add_subdirectory(common/qt)
@@ -51,6 +54,9 @@ add_subdirectory(common/data)
 add_subdirectory(common/protocol)
 add_subdirectory(common/scry)
 add_subdirectory(common/measure)
+# The retained-tree kernels: the reconciler publishes its counts into
+# measure, so it stands after it.
+add_subdirectory(common/tree)
 add_subdirectory(common/motion)
 add_subdirectory(common/geometry)
 add_subdirectory(common/material)

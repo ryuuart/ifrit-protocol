@@ -12,8 +12,8 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -26,13 +26,13 @@ using namespace sigil::geometry::device::test;
 
 namespace {
 
-using core::hardware::FenceHandle;
-using core::hardware::FenceValue;
-using core::hardware::FenceWait;
-using core::hardware::GpuDevice;
-using core::hardware::kFenceInitialValue;
-using core::hardware::TextureDescription;
-using core::hardware::TextureHandle;
+using gpu::FenceHandle;
+using gpu::FenceValue;
+using gpu::FenceWait;
+using gpu::GpuDevice;
+using gpu::kFenceInitialValue;
+using gpu::TextureDescription;
+using gpu::TextureHandle;
 
 }  // namespace
 

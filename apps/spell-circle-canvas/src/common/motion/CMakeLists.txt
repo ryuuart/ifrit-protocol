@@ -40,7 +40,7 @@ sigil_library(SigilMotion
 
 # Every API name the prose spells, compiled against the headers that own
 # it — README.md and all five chapters, because a chapter is the same
-# canon as the page that links it. SigilCore is scanned for the settle
+# canon as the page that links it. SigilTree is scanned for the settle
 # policy the values chapter names, glm for the vectors the engine moves, and `ch` is the alias the prose writes
 # choreograph's own names through.
 sigil_doc_probes(motion
@@ -51,8 +51,9 @@ sigil_doc_probes(motion
           ${CMAKE_CURRENT_SOURCE_DIR}/SCHEDULE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/VALUES.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
-  PRELUDES "<sigilcore/cache/Settle.h>" "<glm/vec2.hpp>" "<glm/vec3.hpp>"
+           ${CMAKE_CURRENT_SOURCE_DIR}/../tree/include
+  PRELUDES "<sigiltree/cache/Settle.h>" "<glm/vec2.hpp>" "<glm/vec3.hpp>"
   EXCLUDE "material::Color=a value the engine animates, declared by SigilMaterial, which this library does not link"
           "material::interpolate=a colour's own line, declared by SigilMaterial beside the colour, which this library does not link"
   FLOORS 6,6,8,0,0
-  LIBRARIES SigilMotion SigilCoreCompute glm::glm)
+  LIBRARIES SigilMotion SigilCoreCompute SigilTreeCache glm::glm)

@@ -7,7 +7,7 @@
  */
 
 #include <include/core/SkRefCnt.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 
 #include <cstdint>
 #include <memory>
@@ -54,8 +54,7 @@ class GraphiteContext {
    *  is: the one entry point a host holding a device needs. Returns
    *  null when the device's API has no bring-up in this build or
    *  Context creation fails. */
-  static std::unique_ptr<GraphiteContext> create(
-      core::hardware::GpuDevice& device);
+  static std::unique_ptr<GraphiteContext> create(gpu::GpuDevice& device);
 
 #ifdef __APPLE__
   /** Metal bring-up: @p mtlDevice / @p mtlCommandQueue are id<MTLDevice> /
@@ -71,7 +70,7 @@ class GraphiteContext {
    *  this build's Skia carries no Vulkan backend, or when Context
    *  creation fails. */
   static std::unique_ptr<GraphiteContext> createVulkan(
-      const core::hardware::VulkanHandles& handles);
+      const gpu::VulkanHandles& handles);
 
   ~GraphiteContext();
 

@@ -483,8 +483,8 @@ answer `std::expected<Model, core::Error>`: the model, or the error naming
 the format the bytes were read as and that they did not read as it.
 
 `device` is the exception to all of that, and the one feature that
-brings a renderer's dependencies with it: Diligent Engine, SigilCore's
-hardware device and SigilSkia's Graphite. What links it is the device
+brings a renderer's dependencies with it: Diligent Engine, SigilGpu's
+device and SigilSkia's Graphite. What links it is the device
 executors alone — `mesh/pop/device`, its own target beside the CPU
 executor of the seam it serves — so a consumer that cooks a chain on the
 host acquires none of the three, and no other feature here reaches down into it.

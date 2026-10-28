@@ -48,7 +48,7 @@ sigil_library(SigilPython
     pybind11::headers unofficial::skia::skia SigilComposeCore SigilComposeKit
     SigilMotionValues SigilComposeBrush SigilGeometryPath SigilGeometryKit
   PRIVATE
-    SigilCoreCompute SigilCoreHardware SigilCoreReconcile SigilComposeDraw
+    SigilCoreCompute SigilGpu SigilTreeReconcile SigilComposeDraw
     SigilComposeTexture SigilComposeTypography
     SigilDataConnection SigilDataDecode SigilDataQuery SigilDataRead SigilDataScale
     SigilDataTable SigilDataValues SigilDraw SigilDrawBrush

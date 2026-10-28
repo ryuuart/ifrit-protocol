@@ -12,8 +12,8 @@
 // plain values with no device code behind them; the entry points here
 // that read one are defined by the device feature, so a caller of those
 // links it.
-#include <sigilcore/hardware/Fence.h>
-#include <sigilcore/hardware/Handle.h>
+#include <sigilgpu/Fence.h>
+#include <sigilgpu/Handle.h>
 
 #include <cstdint>
 #include <memory>
@@ -74,13 +74,13 @@ class OffscreenSurface {
    *  device made is painted on Metal where the context is Metal's — and
    *  any other context paints the texture in its own API. `canvas()` is
    *  null when the handle is stale, when the context cannot reach the
-   *  texture, or when the wrap failed. Defined by the hardware feature's
-   *  device value.
+   *  texture, or when the wrap failed. Defined by SigilGpu's device
+   *  value.
    *  @trap A Vulkan image is wrapped in the layout the device last knew,
    *  undefined for one nothing has drawn into, so its contents before
    *  the first draw are not preserved. */
-  OffscreenSurface(GraphiteContext& context, core::hardware::GpuDevice& device,
-                   core::hardware::TextureHandle texture,
+  OffscreenSurface(GraphiteContext& context, gpu::GpuDevice& device,
+                   gpu::TextureHandle texture,
                    sk_sp<SkColorSpace> colorSpace = nullptr);
 
   /** Moves the wrap. A moved-from surface holds neither the surface nor
@@ -116,8 +116,7 @@ class OffscreenSurface {
    *  which submits nothing to signal. Defined by the device feature.
    *  @trap The wait belongs on another queue or on the CPU: Graphite
    *  shares this one, so a wait queued ahead of the signal never passes. */
-  core::hardware::FenceValue submit(core::hardware::GpuDevice& device,
-                                    core::hardware::FenceHandle fence);
+  gpu::FenceValue submit(gpu::GpuDevice& device, gpu::FenceHandle fence);
 
  private:
   GraphiteContext* m_context;

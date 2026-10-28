@@ -13,7 +13,7 @@
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <cstdint>
@@ -57,24 +57,24 @@ namespace sigil::skia::test {
 /** A GpuDevice over the very device and queue the context above was
  *  stood up on, so a texture it names is drawn into by that context and
  *  ordered by that one queue. Adopted, so it frees neither. */
-inline core::hardware::GpuDevice *adoptedDevice() {
-  static std::unique_ptr<core::hardware::GpuDevice> d = [] {
-    core::hardware::NativeDevice native;
-    native.backend = core::hardware::Backend::Metal;
+inline gpu::GpuDevice *adoptedDevice() {
+  static std::unique_ptr<gpu::GpuDevice> d = [] {
+    gpu::NativeDevice native;
+    native.backend = gpu::Backend::Metal;
     native.mtlDevice = (__bridge void *)device();
     native.mtlCommandQueue = (__bridge void *)queue();
-    return core::hardware::GpuDevice::adopt(native).value_or(nullptr);
+    return gpu::GpuDevice::adopt(native).value_or(nullptr);
   }();
   return d.get();
 }
 
 /** An 8x8 BGRA render target the device owns, readable by the CPU so the
  *  Metal arms can check the bytes without a copy. */
-inline core::hardware::TextureDescription smallTarget() {
-  core::hardware::TextureDescription desc;
+inline gpu::TextureDescription smallTarget() {
+  gpu::TextureDescription desc;
   desc.width = 8;
   desc.height = 8;
-  desc.format = core::hardware::TextureFormat::BGRA8Unorm;
+  desc.format = gpu::TextureFormat::BGRA8Unorm;
   desc.cpuAccessible = true;
   return desc;
 }
@@ -82,8 +82,8 @@ inline core::hardware::TextureDescription smallTarget() {
 /** The bytes of a Metal texture the device names, after a command buffer
  *  committed behind Graphite's own work has completed — the queue
  *  ordering an asynchronous submit relies on, and nothing more. */
-inline std::vector<uint8_t> readMetalBytes(core::hardware::GpuDevice &dev,
-                                           core::hardware::TextureHandle handle, int size) {
+inline std::vector<uint8_t> readMetalBytes(gpu::GpuDevice &dev, gpu::TextureHandle handle,
+                                           int size) {
   id<MTLCommandBuffer> barrier = [queue() commandBuffer];
   [barrier commit];
   [barrier waitUntilCompleted];

@@ -69,14 +69,15 @@ sigil_doc_probes(world
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/PRESETS.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../tree/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial
            ${CMAKE_CURRENT_SOURCE_DIR}/../media/include/sigilmedia
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
   PRELUDES "<sigilmotion/schedule/Stagger.h>"
-           "<sigilcore/reconcile/Phases.h>"
-           "<sigilcore/cache/Settle.h>"
-           "<sigilcore/cache/Cache.h>"
-           "<sigilcore/cache/Volatility.h>"
+           "<sigiltree/reconcile/Phases.h>"
+           "<sigiltree/cache/Settle.h>"
+           "<sigiltree/cache/Cache.h>"
+           "<sigiltree/cache/Volatility.h>"
            "<sigilmaterial/advanced/Combine.h>"
            "<sigilmaterial/advanced/Terms.h>"
            "<sigilmaterial/slang/SlangCompiler.h>"
@@ -90,5 +91,6 @@ sigil_doc_probes(world
           "entt::entity=EnTT's own, named as the dependency the entity store is: its headers are not scanned"
           "entt::registry=EnTT's own, named as the dependency the entity store is: its headers are not scanned"
   FLOORS 44,34,40,0,0
-  LIBRARIES SigilWorld SigilGeometry SigilCoreReconcile SigilMotionSchedule
+  LIBRARIES SigilWorld SigilGeometry SigilTreeReconcile SigilTreeCache
+            SigilMotionSchedule
             SigilMaterial)

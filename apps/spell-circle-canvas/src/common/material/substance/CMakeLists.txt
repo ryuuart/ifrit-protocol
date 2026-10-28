@@ -111,7 +111,7 @@ endif()
 sigil_test(material_test
   SOURCES test/SubstanceTest.cpp
   LIBRARIES SigilMaterialSubstance SigilIOHub SigilMaterialTexture
-            SigilMaterialSkia SigilSkiaGraphite SigilCoreHardware
+            SigilMaterialSkia SigilSkiaGraphite SigilGpu
   SUPPORT_DIRS ${CMAKE_CURRENT_BINARY_DIR}/generated
   DEFINITIONS SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
 if(_generated)

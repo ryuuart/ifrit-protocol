@@ -19,10 +19,10 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Recorder.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/core/PixelSource.h>
@@ -205,8 +205,8 @@ using geometry::device::test::vulkanGraphite;
  *  are empty when the device carries no adopted 2D side. The caller owns
  *  the handle and destroys it. */
 struct PaintedTexture {
-  core::hardware::TextureHandle handle;
-  core::hardware::NativeTexture native;
+  gpu::TextureHandle handle;
+  gpu::NativeTexture native;
 };
 
 /** Paint a page of @p side in @p format, with @p levels levels, on
@@ -216,14 +216,14 @@ struct PaintedTexture {
  *  has had its queue wait for the painting. */
 template <class Paint>
 inline PaintedTexture paintOnDevice(geometry::device::Device& device, int side,
-                                    core::hardware::TextureFormat format,
+                                    gpu::TextureFormat format,
                                     const Paint& paint, int levels = 1) {
   PaintedTexture out;
-  core::hardware::GpuDevice* gpu = device.gpu();
+  gpu::GpuDevice* gpu = device.gpu();
   skia::GraphiteContext* graphite = device.graphite();
   if (!gpu || !graphite) return out;
 
-  core::hardware::TextureDescription desc;
+  gpu::TextureDescription desc;
   desc.width = desc.height = side;
   desc.format = format;
   desc.mipLevels = levels;
@@ -246,7 +246,7 @@ inline PaintedTexture paintOnDevice(geometry::device::Device& device, int side,
 /** …a square of @p colour, eight bits a channel. */
 inline PaintedTexture paintOnDevice(geometry::device::Device& device,
                                     SkColor4f colour, int side = 16) {
-  return paintOnDevice(device, side, core::hardware::TextureFormat::RGBA8Unorm,
+  return paintOnDevice(device, side, gpu::TextureFormat::RGBA8Unorm,
                        [colour](SkCanvas& canvas) { canvas.clear(colour); });
 }
 

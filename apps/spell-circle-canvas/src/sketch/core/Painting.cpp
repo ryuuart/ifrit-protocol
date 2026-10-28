@@ -12,8 +12,8 @@
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigildraw/Hostless.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilsketch/plate/Graphite.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/Readback.h>
@@ -31,7 +31,7 @@ namespace {
  *  image formed on it may be held by a value Python or a static keeps
  *  until the process ends, and the device must outlive every one. */
 struct OwnPainter {
-  std::unique_ptr<core::hardware::GpuDevice> device;
+  std::unique_ptr<gpu::GpuDevice> device;
   std::unique_ptr<skia::GraphiteContext> graphite;
   std::thread::id thread;
 };
@@ -44,7 +44,7 @@ std::atomic<bool>& stood() {
 OwnPainter& standUp() {
   static OwnPainter* painter = [] {
     auto* made = new OwnPainter;
-    made->device = core::hardware::GpuDevice::createOwned().value_or(nullptr);
+    made->device = gpu::GpuDevice::createOwned().value_or(nullptr);
     if (made->device)
       made->graphite = skia::GraphiteContext::create(*made->device);
     made->thread = std::this_thread::get_id();

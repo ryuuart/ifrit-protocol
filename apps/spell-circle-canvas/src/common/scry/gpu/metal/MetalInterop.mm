@@ -57,7 +57,7 @@ void copyMetalTextures(id<MTLCommandQueue> queue, id<MTLTexture> src, id<MTLText
 
 }  // namespace
 
-sigil::core::hardware::TextureHandle MetalDriver::createPublishTexture(int width, int height) {
+sigil::gpu::TextureHandle MetalDriver::createPublishTexture(int width, int height) {
   MTLTextureDescriptor *desc =
       [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
                                                          width:width
@@ -68,18 +68,18 @@ sigil::core::hardware::TextureHandle MetalDriver::createPublishTexture(int width
   return m_state->import([m_state->device newTextureWithDescriptor:desc], width, height);
 }
 
-void MetalDriver::releaseTexture(sigil::core::hardware::TextureHandle handle) {
+void MetalDriver::releaseTexture(sigil::gpu::TextureHandle handle) {
   // The device forgets the borrowed handle at once; the driver's own +1
   // from import() goes with it. Command buffers in flight and wraps hold
   // their own references, so the texture lives as long as anything draws
   // it.
-  const sigil::core::hardware::NativeTexture native = m_state->gpuDevice->exportNative(handle);
+  const sigil::gpu::NativeTexture native = m_state->gpuDevice->exportNative(handle);
   if (!native) return;
   m_state->gpuDevice->destroy(handle);
   CFRelease(native.mtlTexture);
 }
 
-sigil::core::hardware::TextureHandle MetalDriver::createImageTexture(int width, int height) {
+sigil::gpu::TextureHandle MetalDriver::createImageTexture(int width, int height) {
   MTLTextureDescriptor *desc =
       [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
                                                          width:width
@@ -92,7 +92,7 @@ sigil::core::hardware::TextureHandle MetalDriver::createImageTexture(int width, 
   return m_state->import([m_state->device newTextureWithDescriptor:desc], width, height);
 }
 
-uint32_t MetalDriver::registerExternalTexture(sigil::core::hardware::TextureHandle handle) {
+uint32_t MetalDriver::registerExternalTexture(sigil::gpu::TextureHandle handle) {
   uint32_t textureId = m_state->nextTextureId++;
   m_state->textures[textureId] = m_state->texture(handle);
   return textureId;
@@ -102,7 +102,7 @@ void MetalDriver::unregisterExternalTexture(uint32_t textureId) {
   m_state->textures.erase(textureId);
 }
 
-bool MetalDriver::paintTexture(sigil::core::hardware::TextureHandle handle, int width, int height,
+bool MetalDriver::paintTexture(sigil::gpu::TextureHandle handle, int width, int height,
                                const std::function<void(SkCanvas &)> &painter) {
   id<MTLTexture> mtlTexture = m_state->texture(handle);
   skgpu::graphite::Recorder *recorder = m_state->webRecorder.get();
@@ -141,8 +141,8 @@ bool MetalDriver::paintTexture(sigil::core::hardware::TextureHandle handle, int 
   return true;
 }
 
-void MetalDriver::uploadToTexture(sigil::core::hardware::TextureHandle handle, const void *pixels,
-                                  int width, int height, size_t rowBytes) {
+void MetalDriver::uploadToTexture(sigil::gpu::TextureHandle handle, const void *pixels, int width,
+                                  int height, size_t rowBytes) {
   id<MTLTexture> texture = m_state->texture(handle);
   if (!texture) return;
   [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
@@ -151,9 +151,8 @@ void MetalDriver::uploadToTexture(sigil::core::hardware::TextureHandle handle, c
              bytesPerRow:rowBytes];
 }
 
-bool MetalDriver::copyDeviceTexture(sigil::core::hardware::TextureHandle src,
-                                    sigil::core::hardware::TextureHandle dst, int width,
-                                    int height) {
+bool MetalDriver::copyDeviceTexture(sigil::gpu::TextureHandle src, sigil::gpu::TextureHandle dst,
+                                    int width, int height) {
   id<MTLTexture> srcTexture = m_state->texture(src);
   id<MTLTexture> dstTexture = m_state->texture(dst);
   if (!srcTexture || !dstTexture) return false;
@@ -161,8 +160,8 @@ bool MetalDriver::copyDeviceTexture(sigil::core::hardware::TextureHandle src,
   return true;
 }
 
-void MetalDriver::copyTexture(uint32_t srcTextureId, sigil::core::hardware::TextureHandle dst,
-                              int width, int height) {
+void MetalDriver::copyTexture(uint32_t srcTextureId, sigil::gpu::TextureHandle dst, int width,
+                              int height) {
   auto it = m_state->textures.find(srcTextureId);
   id<MTLTexture> dstTexture = m_state->texture(dst);
   if (it == m_state->textures.end() || !dstTexture) return;
@@ -170,8 +169,7 @@ void MetalDriver::copyTexture(uint32_t srcTextureId, sigil::core::hardware::Text
 }
 
 sk_sp<SkImage> MetalDriver::wrapTexture(skgpu::graphite::Recorder *recorder,
-                                        sigil::core::hardware::TextureHandle handle, int width,
-                                        int height) {
+                                        sigil::gpu::TextureHandle handle, int width, int height) {
   id<MTLTexture> texture = m_state->texture(handle);
   if (!recorder || !texture) return nullptr;
   // The wrap retains the texture for the image's life, so an image

@@ -17,8 +17,8 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -410,9 +410,9 @@ float spreadAtTheMiddle(const SkBitmap& plate) {
 TEST(SurfaceSlots, APageWornAtADistanceIsReadFromASmallerLevel) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
-  const diligent::PaintedTexture painted = diligent::paintOnDevice(
-      *on.device, 64, core::hardware::TextureFormat::RGBA8Unorm, checkerboard,
-      core::hardware::mipLevelsFor(64, 64));
+  const diligent::PaintedTexture painted =
+      diligent::paintOnDevice(*on.device, 64, gpu::TextureFormat::RGBA8Unorm,
+                              checkerboard, gpu::mipLevelsFor(64, 64));
   if (!painted.native) GTEST_SKIP() << "2D on the 3D device is unavailable";
   const material::Texture page =
       world::diligent::importNative(*on.device, painted.native);
@@ -445,8 +445,7 @@ TEST(SurfaceSlots, AnImportOfNothingIsNoTextureRatherThanOneThatLies) {
   // refuses, answers an empty value: a body wearing it is undressed
   // rather than wearing something the renderer invented.
   EXPECT_FALSE(
-      world::diligent::importNative(*on.device, core::hardware::NativeTexture{})
-          .valid());
+      world::diligent::importNative(*on.device, gpu::NativeTexture{}).valid());
 }
 
 // ---- the environment map -------------------------------------------

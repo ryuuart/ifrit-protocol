@@ -28,7 +28,7 @@ struct WindowOptions {
    *  span. Time is whatever clock the caller stamps with — the scene's
    *  seconds, a feed's arrival times — so a window over scene time is
    *  deterministic. */
-  motion::Duration span{};
+  core::Duration span{};
 };
 
 /** THE LAST FEW VALUES OF A STREAM, oldest first. `Window last{180}` holds
@@ -58,18 +58,17 @@ class Window {
    *  behind. Values are held in the order they are added; a stamp
    *  earlier than one already seen does not move the window's time back,
    *  and one already beyond the span's reach is not added at all. */
-  void add(Value value, motion::Duration at) {
-    if (m_options.span > motion::Duration::zero() &&
-        at < m_now - m_options.span)
+  void add(Value value, core::Duration at) {
+    if (m_options.span > core::Duration::zero() && at < m_now - m_options.span)
       return;
     m_now = std::max(m_now, at);
     m_values.push_back(value);
-    if (m_options.span > motion::Duration::zero()) m_times.push_back(at);
+    if (m_options.span > core::Duration::zero()) m_times.push_back(at);
     trim();
   }
   /** Moves the window's time to @p now with nothing added: what the span
    *  leaves behind is dropped, so a stream that fell silent empties. */
-  void advance(motion::Duration now) {
+  void advance(core::Duration now) {
     m_now = std::max(m_now, now);
     trim();
   }
@@ -78,7 +77,7 @@ class Window {
     m_values.clear();
     m_times.clear();
     m_head = 0;
-    m_now = motion::Duration::zero();
+    m_now = core::Duration::zero();
   }
 
   /** How many values are held. */
@@ -95,9 +94,9 @@ class Window {
   }
   /** When each held value was stamped, oldest first; empty for a window
    *  with no span, which keeps no stamps. */
-  [[nodiscard]] std::span<const motion::Duration> times() const {
+  [[nodiscard]] std::span<const core::Duration> times() const {
     if (m_times.empty()) return {};
-    return std::span<const motion::Duration>(m_times).subspan(m_head);
+    return std::span<const core::Duration>(m_times).subspan(m_head);
   }
 
   /** The mean of the held values; zero when empty. */
@@ -130,8 +129,8 @@ class Window {
   void trim() {
     if (m_options.count > 0 && size() > m_options.count)
       m_head += size() - m_options.count;
-    if (m_options.span > motion::Duration::zero()) {
-      const motion::Duration oldest = m_now - m_options.span;
+    if (m_options.span > core::Duration::zero()) {
+      const core::Duration oldest = m_now - m_options.span;
       while (!empty() && m_times[m_head] < oldest) ++m_head;
     }
     // The dropped front is released once it outweighs what is held, so a
@@ -147,10 +146,10 @@ class Window {
 
   WindowOptions m_options;
   std::vector<Value> m_values;
-  std::vector<motion::Duration> m_times;
+  std::vector<core::Duration> m_times;
   /** Where the held run starts in the two vectors. */
   std::size_t m_head = 0;
-  motion::Duration m_now{};
+  core::Duration m_now{};
 };
 
 }  // namespace sigil::measure

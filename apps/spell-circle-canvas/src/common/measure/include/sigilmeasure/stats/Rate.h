@@ -17,7 +17,7 @@ namespace sigil::measure {
 /** HOW FAR BACK A `Rate` COUNTS. */
 struct RateOptions {
   /** The events counted are the ones marked in the last `span`. */
-  motion::Duration span = std::chrono::seconds(1);
+  core::Duration span = std::chrono::seconds(1);
 };
 
 /** EVENTS PER SECOND, over the last span of time. `Rate arrivals{4s}`
@@ -30,16 +30,15 @@ struct RateOptions {
 class Rate {
  public:
   /** Events over the last @p span. */
-  explicit Rate(motion::Duration span)
-      : m_times({.span = span}), m_span(span) {}
+  explicit Rate(core::Duration span) : m_times({.span = span}), m_span(span) {}
   /** Events over the span @p options says. */
   explicit Rate(RateOptions options = {}) : Rate(options.span) {}
 
   /** One event, at @p at. */
-  void mark(motion::Duration at) { m_times.add(at, at); }
+  void mark(core::Duration at) { m_times.add(at, at); }
   /** Moves the rate's time to @p now; the events older than the span
    *  are dropped. */
-  void advance(motion::Duration now) { m_times.advance(now); }
+  void advance(core::Duration now) { m_times.advance(now); }
   /** Forgets every event. */
   void clear() { m_times.clear(); }
 
@@ -47,18 +46,18 @@ class Rate {
   [[nodiscard]] std::size_t count() const { return m_times.size(); }
   /** The events inside the span, per second of the span. */
   [[nodiscard]] double perSecond() const {
-    return m_span > motion::Duration::zero() ? (double)count() / m_span.count()
-                                             : 0.0;
+    return m_span > core::Duration::zero() ? (double)count() / m_span.count()
+                                           : 0.0;
   }
   /** When each event inside the span was marked, oldest first — a strip
    *  of ticks draws them. */
-  [[nodiscard]] std::span<const motion::Duration> times() const {
+  [[nodiscard]] std::span<const core::Duration> times() const {
     return m_times.values();
   }
 
  private:
-  Window<motion::Duration> m_times;
-  motion::Duration m_span;
+  Window<core::Duration> m_times;
+  core::Duration m_span;
 };
 
 }  // namespace sigil::measure

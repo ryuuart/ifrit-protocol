@@ -23,10 +23,10 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
-#include <sigilcore/hardware/Handle.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgpu/Handle.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -244,7 +244,7 @@ struct Gpu {
   /** The fence a presented picture is signalled on once the device has
    *  drawn it, and the same fence as the other queue's API names it:
    *  what that queue's sampling waits for on the GPU. */
-  ::sigil::core::hardware::FenceHandle presentedFence;
+  ::sigil::gpu::FenceHandle presentedFence;
   void* presentedEvent = nullptr;
   /** The device cannot hand its pictures to a canvas's queue at this
    *  extent; asked again once the extent changes. */

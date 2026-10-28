@@ -12,8 +12,8 @@ bring-up through an adapter over its `QRhi`. There is no scene, product,
 or drawing logic here: nothing in this library knows what is being drawn.
 
 **The device is not here.** `GpuDevice`, its handles and its fences are
-SigilCoreHardware's — `<sigilcore/hardware/GpuDevice.h>`, namespace
-`sigil::core::hardware` — because a device knows nothing about what draws
+SigilGpu's — `<sigilgpu/GpuDevice.h>`, namespace
+`sigil::gpu` — because a device knows nothing about what draws
 on it, and a Diligent renderer adopts the same one. This library stands
 Graphite on whatever device it is handed and reads it through the entry
 points below.
@@ -35,7 +35,7 @@ directory, and links only what it needs.
 
 `SigilSkia` is the umbrella over the Qt-free features. Dependencies point
 one way: Graphite stands on the hardware device, so the graphite feature
-links `SigilCoreHardware` — the qt feature links graphite — and nothing
+links `SigilGpu` — the qt feature links graphite — and nothing
 there knows Skia exists.
 The draw feature is header-only over Skia and links neither. A Qt host links `SigilSkiaQt`, which carries the
 umbrella with it. A consumer that owns its own Metal device (the native
@@ -56,7 +56,7 @@ std::unique_ptr<sigil::skia::GraphiteContext> graphite =
     sigil::skia::GraphiteContext::createMetal(device, queue);
 
 // …or from Vulkan handles, every one an opaque value:
-sigil::core::hardware::VulkanHandles handles;
+sigil::gpu::VulkanHandles handles;
 handles.instance = instance;
 handles.physicalDevice = physicalDevice;
 handles.device = device;
@@ -217,10 +217,10 @@ handle over and names no API at all. The wrap, the submit and the fence
 signal are the same three calls whichever backend the device is:
 
 ```cpp
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
-using namespace sigil::core::hardware;
+using namespace sigil::gpu;
 using sigil::skia::GraphiteContext;
 using sigil::skia::OffscreenSurface;
 
@@ -250,7 +250,7 @@ and a texture on another Metal device wraps nothing. The signalling
 submit signals on the device it is handed, which must be the one the
 context was made on: a signal on another queue stands behind nothing
 the context submitted. What a device is, how a
-handle goes stale and what a fence promises are SigilCoreHardware's;
+handle goes stale and what a fence promises are SigilGpu's;
 what is here is only what Graphite does over one.
 
 **A float image needs a half-float copy to be sampled.** A decoded HDR
@@ -262,7 +262,7 @@ with `bytePixels(image)` beside it for the ordinary path and
 `isFloatImage(image)` to choose between them. The conversion lives here
 rather than beside the decoder because it is a property of the hardware
 the pixels are going to and not of the file they came from — and here
-rather than in the hardware feature because reading an `SkImage` is
+rather than in SigilGpu because reading an `SkImage` is
 Skia's business.
 
 ## The mental model
@@ -287,7 +287,7 @@ handles it by drawing another way, never by assuming an API.
 Graphite shares the device's one command queue, so a signal queued behind
 `submit()` is reached only once the work has run. What a fence is, how a
 handle goes stale and when a destroyed texture is actually released are
-SigilCoreHardware's.
+SigilGpu's.
 
 **One recorder per thread, one context under a lock.** A Graphite
 `Recorder` belongs to the thread that records on it; the `Context` may be
@@ -354,7 +354,7 @@ device's business, not this library's.
 picks between them off the device it is handed. The Vulkan path is live
 only where the linked Skia carries the backend, and a device with no
 Vulkan runtime behind it never reaches this library at all — what each
-backend a device can be actually supports is SigilCoreHardware's.
+backend a device can be actually supports is SigilGpu's.
 
 **A null canvas means the wrap failed.** `OffscreenSurface::canvas()`
 returns null in that case — check it before drawing. A wrap by handle
@@ -539,7 +539,7 @@ rather than rasterised into an atlas on the CPU.
 ## Boundary
 
 Public dependencies: Skia and, for the two features that bring Graphite
-up, SigilCoreHardware — the device this stands Graphite on, which knows
+up, SigilGpu — the device this stands Graphite on, which knows
 nothing of Skia in return. `SigilSkiaQt` adds
 `Qt6::Core` publicly and uses `Qt6::GuiPrivate` for the `QRhi` API; on
 Apple, `SigilSkiaGraphite` links Foundation privately. The graphite

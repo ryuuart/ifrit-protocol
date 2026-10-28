@@ -21,8 +21,8 @@ namespace {
  *  owns the handle is shared state behind it: the last copy to go is
  *  what tells the device to let go. */
 struct Held {
-  core::hardware::GpuDevice* device = nullptr;
-  core::hardware::TextureHandle handle;
+  gpu::GpuDevice* device = nullptr;
+  gpu::TextureHandle handle;
 
   ~Held() {
     if (device && handle) device->destroy(handle);
@@ -40,7 +40,7 @@ class NativeSource {
   media::Frame frameAt(std::chrono::duration<double>) const {
     media::Frame frame;
     if (!m_held || !m_held->device || !m_held->handle) return frame;
-    const core::hardware::NativeTexture native =
+    const gpu::NativeTexture native =
         m_held->device->exportNative(m_held->handle);
     if (!native) return frame;
     frame.device.kind = media::DeviceFrame::Kind::Texture;
@@ -69,13 +69,11 @@ class NativeSource {
 
 }  // namespace
 
-material::Texture importNative(Device& device,
-                               const core::hardware::NativeTexture& native,
+material::Texture importNative(Device& device, const gpu::NativeTexture& native,
                                bool takeOwnership) {
-  core::hardware::GpuDevice* gpu = device.gpu();
+  gpu::GpuDevice* gpu = device.gpu();
   if (!gpu) return {};
-  const core::hardware::TextureHandle handle =
-      gpu->importNative(native, takeOwnership);
+  const gpu::TextureHandle handle = gpu->importNative(native, takeOwnership);
   if (!handle) return {};
   auto held = std::make_shared<Held>();
   held->device = gpu;

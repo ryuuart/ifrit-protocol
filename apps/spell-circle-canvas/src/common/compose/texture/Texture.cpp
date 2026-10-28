@@ -15,8 +15,8 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Composer.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
@@ -55,8 +55,8 @@ bool supportedRaster(const SkImageInfo& info) {
 }
 
 struct CandidateTexture {
-  core::hardware::GpuDevice& device;
-  core::hardware::TextureHandle handle;
+  gpu::GpuDevice& device;
+  gpu::TextureHandle handle;
   ~CandidateTexture() {
     if (handle) device.destroy(handle);
   }
@@ -83,9 +83,9 @@ struct TextureScene::Impl {
 
   /** The device side: the texture the scene paints into and the context
    *  that wraps it. Both null on the raster path. */
-  core::hardware::GpuDevice* device = nullptr;
+  gpu::GpuDevice* device = nullptr;
   skia::GraphiteContext* context = nullptr;
-  core::hardware::TextureHandle handle;
+  gpu::TextureHandle handle;
 
   sk_sp<SkImage> image;
   uint64_t version = 0;
@@ -231,7 +231,7 @@ std::optional<material::PixelRect> TextureScene::cutRect() const {
                              impl.cutRect.width(), impl.cutRect.height()};
 }
 
-bool TextureScene::useDevice(core::hardware::GpuDevice& device,
+bool TextureScene::useDevice(gpu::GpuDevice& device,
                              skia::GraphiteContext& context) {
   Impl& impl = *m_impl;
   // The usage left at its default is the one a scene needs: a shader
@@ -239,19 +239,19 @@ bool TextureScene::useDevice(core::hardware::GpuDevice& device,
   // ITS OWN CHAIN: a body wearing the scene smaller than it is reads a
   // level its size calls for, and whoever wears it fills the levels below
   // the one painted here in place, so no second texture is kept for them.
-  core::hardware::TextureDescription desc;
+  gpu::TextureDescription desc;
   desc.width = impl.info.width();
   desc.height = impl.info.height();
-  desc.mipLevels = core::hardware::mipLevelsFor(desc.width, desc.height);
+  desc.mipLevels = gpu::mipLevelsFor(desc.width, desc.height);
   switch (impl.info.colorType()) {
     case kRGBA_8888_SkColorType:
-      desc.format = core::hardware::TextureFormat::RGBA8Unorm;
+      desc.format = gpu::TextureFormat::RGBA8Unorm;
       break;
     case kBGRA_8888_SkColorType:
-      desc.format = core::hardware::TextureFormat::BGRA8Unorm;
+      desc.format = gpu::TextureFormat::BGRA8Unorm;
       break;
     case kRGBA_F16_SkColorType:
-      desc.format = core::hardware::TextureFormat::RGBA16Float;
+      desc.format = gpu::TextureFormat::RGBA16Float;
       break;
     default:
       return false;
@@ -417,8 +417,7 @@ sk_sp<SkImage> TextureScene::hostImage() const {
 material::DeviceImage TextureScene::deviceImage() const {
   const Impl& impl = *m_impl;
   if (!impl.painted || !impl.device || !impl.handle) return {};
-  const core::hardware::NativeTexture native =
-      impl.device->exportNative(impl.handle);
+  const gpu::NativeTexture native = impl.device->exportNative(impl.handle);
   if (!native) return {};
   material::DeviceImage out;
   out.device = impl.device;
@@ -473,7 +472,7 @@ struct Textures::Impl {
   };
 
   weave::FontContext& fonts;
-  core::hardware::GpuDevice* device = nullptr;
+  gpu::GpuDevice* device = nullptr;
   skia::GraphiteContext* context = nullptr;
   std::vector<Entry> entries;
   uint64_t paints = 0;
@@ -484,7 +483,7 @@ Textures::Textures(weave::FontContext& fonts)
 
 Textures::~Textures() = default;
 
-void Textures::useDevice(core::hardware::GpuDevice& device,
+void Textures::useDevice(gpu::GpuDevice& device,
                          skia::GraphiteContext& context) {
   m_impl->device = &device;
   m_impl->context = &context;
@@ -560,8 +559,7 @@ size_t Textures::kept() const { return m_impl->entries.size(); }
 
 void Textures::sweep() {
   std::vector<Impl::Entry>& entries = m_impl->entries;
-  std::erase_if(entries,
-                [](const Impl::Entry& entry) { return !entry.asked; });
+  std::erase_if(entries, [](const Impl::Entry& entry) { return !entry.asked; });
   for (Impl::Entry& entry : entries) entry.asked = false;
 }
 

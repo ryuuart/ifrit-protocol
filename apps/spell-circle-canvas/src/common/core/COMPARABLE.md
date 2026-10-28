@@ -5,8 +5,8 @@ change: type erasure that keeps its equality, so a set of operations can
 ride on a value and two holders can still ask whether they carry the same
 one; and the field pin, which fails the build when a struct grows a member
 a hand-written comparator does not mention. `README.md` beside this file
-is the library; `RECONCILE.md` and `CACHE.md` are the two kernels that ask
-the question this leaf answers, and `COMPUTE.md` is the other leaf that
+is the library; SigilTree's reconciler and caching proof are the two
+kernels that ask the question this leaf answers, and `COMPUTE.md` is the other leaf that
 links nothing at all.
 
 | header | holds |

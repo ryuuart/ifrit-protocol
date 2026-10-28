@@ -6,7 +6,7 @@
 # draws is the device's, supplied as a value by the feature that owns a
 # device, so nothing here links one and every dependency points down.
 # SigilMaterialTexture because a body's view carries the map its surface
-# is dressed with; SigilCoreReconcile because a pass body and a generator
+# is dressed with; SigilTreeReconcile because a pass body and a generator
 # are its erased value. A texture is read into a picture through the Skia
 # executor, privately.
 find_package(boost_container CONFIG REQUIRED)
@@ -16,7 +16,7 @@ sigil_library(SigilWorldFrame
           ../advanced/TextureProducer.h ../advanced/View.h ../advanced/Skia.h
   PUBLIC SigilWorldNode SigilMaterialTexture SigilGeometryMeshCamera
          SigilMediaCore
-         SigilCoreCallable SigilCoreReconcile Boost::container
+         SigilCoreCallable SigilTreeReconcile Boost::container
   PRIVATE SigilMaterialSkia)
 
 # Links only the library it exercises, so a link edge that pulled the

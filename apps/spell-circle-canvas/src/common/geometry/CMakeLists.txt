@@ -48,8 +48,8 @@ sigil_header_self_test(geometry_header_self_test
 # live there, and a page carries the prose a brief in the header cannot.
 # SigilCore is scanned beside this library's own root for the chance
 # source, the noise field and the PCG words the path tier agrees with,
-# and SigilSkia for the offscreen surface the device walkthrough paints
-# into; the hardware and surface headers are named as preludes because
+# SigilGpu for the device the walkthrough adopts, and SigilSkia for the offscreen surface the device walkthrough paints
+# into; the device and surface headers are named as preludes because
 # this library's own only forward-declare what they hold.
 #
 # The device residency values are named on purpose without being
@@ -87,10 +87,11 @@ sigil_doc_probes(geometry
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/ply.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/roundCorners.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../media/include
-  PRELUDES "<sigilcore/hardware/GpuDevice.h>"
-           "<sigilcore/hardware/Handle.h>"
+  PRELUDES "<sigilgpu/GpuDevice.h>"
+           "<sigilgpu/Handle.h>"
            "<sigilskia/graphite/OffscreenSurface.h>"
   EXCLUDE "glm::vec3::length=glm's own static member, named to warn against it: the vector maths library's headers are not scanned"
           "device::MeshResidency=declared in the device residency feature's private headers, which no consumer include path carries"
@@ -99,4 +100,4 @@ sigil_doc_probes(geometry
           "device::Resources=declared in the device residency feature's private headers, which no consumer include path carries"
           "device::PipelineCache=declared in the device residency feature's private headers, which no consumer include path carries"
   FLOORS 168,36,40,72,3
-  LIBRARIES SigilGeometry SigilCoreHardware SigilSkiaGraphite)
+  LIBRARIES SigilGeometry SigilGpu SigilSkiaGraphite)

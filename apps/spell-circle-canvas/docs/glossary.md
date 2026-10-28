@@ -13,7 +13,7 @@ about those two is the commonest way to read a signature backwards.
 | **connection** | SigilData | A named live source read as data — the front door a drawing binds to, over a feed. |
 | **decoration** | SigilCompose | A value with a paint entry point, attached to a node with `background`, `foreground`, `overlay` or `stroke`. It reads only the outline it is handed, so the same value dresses geometry you built yourself. |
 | **derivation** | SigilCompose | Anything that cannot be resolved until a neighbour's box exists — a connector between two keyed nodes, a rail, a thread, text flowing around a target. Each declares what it reads, and the derive phase resolves them in that order. |
-| **describe** | SigilCore | Building the description: a value-typed tree, made fresh and thrown away, that says what the frame should look like. Not draw calls. |
+| **describe** | SigilTree | Building the description: a value-typed tree, made fresh and thrown away, that says what the frame should look like. Not draw calls. |
 | **element** | SigilCompose | Two things, deliberately: the node value the whole library is built on, and — in this reference — the kind of page for a factory that starts a tree. A library with no node type has no elements; SigilDraw's equivalent is a pen verb. |
 | **feed** | SigilIO | A named stream on the hub: messages arriving on a wire, delivered to whoever asked, recordable and replayable. |
 | **fill** | SigilCompose | What one surface is painted with, as the reconciler stores it: nothing, a colour, a shader, or a reference the tree resolves where the mark lands. |
@@ -24,14 +24,14 @@ about those two is the commonest way to read a signature backwards.
 | **lane** | SigilCompose, SigilGeometry, SigilMeasure | A named channel of values carried beside others: a transform lane on a node, a named attribute lane on a point cloud, one of the three lanes a frame timer feeds. |
 | **leaf** | SigilMaterial, SigilCompose | In SigilMaterial, what fills a recipe slot when it is an image and its sampling rather than another material — bound by the backend rather than compiled. In SigilCompose, a node with content and no children, of which a text leaf is the common one. |
 | **material** | SigilMaterial | One instance of a recipe: the field values as upload bytes, the live bindings, the materials filling its slots, and the instance settings. One KIND of paint, not the top of the colouring lattice. |
-| **memo** | SigilCore | The skip that avoids a describe whose inputs compare equal to last frame's. |
+| **memo** | SigilTree | The skip that avoids a describe whose inputs compare equal to last frame's. |
 | **paint** | SigilMaterial | What a surface is shaded with, as a comparable value that compiles to one shader. Distinct from Skia's own draw paint, which carries a style, a stroke width and a blend mode for one draw. |
 | **pen** | SigilDraw | The immediate-mode drawing object: p5's verbs with p5's names, argument orders and defaults, over a canvas. |
 | **plate** | SigilSketch | A rendered still of a sketch, taken headless and compared against the recorded one. The plate ledger is what judges a change: a moved plate is a fact to be explained, not a failure. |
 | **primitive** | every library | Something irreducible, which lives in a library's core. If a consumer needs one that does not exist, the library that owns that domain grows — the consumer does not invent its own. |
-| **prune** | SigilCore | Skipping the repaint of a node whose description compares equal to the retained one. Everything in the tree that compares by value exists so that this is cheap and provable. |
+| **prune** | SigilTree | Skipping the repaint of a node whose description compares equal to the retained one. Everything in the tree that compares by value exists so that this is cheap and provable. |
 | **recipe** | SigilMaterial | A material's definition: a struct of uniform-typed fields that is its ABI, one shader body per language, the slots it samples, and the per-frame values it reads. |
-| **reconciler** | SigilCore | The kernel that matches a fresh description onto the retained tree — by key, then by position — so only what changed is touched. |
+| **reconciler** | SigilTree | The kernel that matches a fresh description onto the retained tree — by key, then by position — so only what changed is touched. |
 | **seam** | every library | The boundary a thing is stated across: one CPU executor, and a device executor beside it serving the same seam. A value over a seam is a kit value; the seam itself is core. |
 | **sheet** | SigilCompose, SigilSketch | In SigilCompose, the stylesheet a node's classes resolve through, which is one of the five things that cascade. In the sketch kit, the specimen sheet a study is laid out on: a title, a subtitle, a footer and a run of captioned cells. |
 | **sketch** | SigilSketch | One file — or one directory named for that file — that declares a scene, addressed by its stem in one registry. Everything renderable in this repository is one, in C++ or in Python. |

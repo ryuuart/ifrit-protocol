@@ -24,7 +24,7 @@ struct SmoothedOptions {
    *  each value added with `add(value, elapsed)` weighs
    *  1 − e^(−elapsed / timeConstant), so the reading follows at the same
    *  speed whatever the frame rate. */
-  motion::Duration timeConstant{};
+  core::Duration timeConstant{};
   /** Or the new value's weight stated directly, between 0 and 1 — what
    *  keeps a reading that was written as `old · 0.85 + new · 0.15`
    *  exactly the number it was. */
@@ -53,8 +53,8 @@ class Smoothed {
   /** Folds in @p value, @p elapsed after the value before it. With a
    *  time constant the weight is read off the time that passed; without
    *  one, this is `add(value)`. */
-  void add(double value, motion::Duration elapsed) {
-    if (m_options.timeConstant > motion::Duration::zero()) {
+  void add(double value, core::Duration elapsed) {
+    if (m_options.timeConstant > core::Duration::zero()) {
       const double ratio = elapsed / m_options.timeConstant;
       fold(value, ratio > 0 ? 1.0 - std::exp(-ratio) : 0.0);
       return;

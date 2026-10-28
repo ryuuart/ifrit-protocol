@@ -17,7 +17,7 @@ namespace sigil::compose {
 
 using namespace detail;
 
-core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
+tree::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                                                      Above above) {
   const ElementNode& node = inst.painted();
   const ComputedStyle& style = inst.computed;
@@ -451,7 +451,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       sharedOpaque || fillLerp || inkLerp || scalarDeclared;
   const bool ownContent = otherThanScalar || scalarContent;
 
-  core::ChildVolatility kids;
+  tree::ChildVolatility kids;
   // A connected transform HERE moves every descendant's world matrix; a
   // host's motion moves the space its children stand in; and the view this
   // node declares is the children's projection.
@@ -521,7 +521,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     inst.stillInOwnFrame = still;
   }
 
-  // THE PROOF ITSELF is SigilCoreCache's: everything above resolves this
+  // THE PROOF ITSELF is SigilTreeCache's: everything above resolves this
   // library's own lanes, materials, gates and text into the six
   // declarations the kernel folds, and the kernel decides what the subtree
   // promises. The terms are compose's because they are about Skia paint and
@@ -536,7 +536,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // static chain — no connected transform anywhere above — keeps its group:
   // description changes reach it through markPaintDirtyUp and layout moves
   // through syncLayoutRects.
-  const core::SubtreeVerdict verdict = core::foldSubtree(
+  const tree::SubtreeVerdict verdict = tree::foldSubtree(
       {
           .policy = cachePolicy(node.cacheMode),
           .holdSubtree = node.cacheMode == Cache::Group,

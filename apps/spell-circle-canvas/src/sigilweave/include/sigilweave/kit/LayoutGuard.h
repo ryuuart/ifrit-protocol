@@ -11,6 +11,7 @@
  * both in and callers declare only the inputs it cannot see.
  */
 
+#include <sigilcore/memo/Rebuild.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
 #include <concepts>
@@ -29,10 +30,12 @@
 namespace sigil::weave::kit {
 
 /** Fires a relayout callable when a paragraph's content or the declared
- * layout inputs change. The guard owns no layout storage: the callable
- * writes wherever the caller keeps its layouts, which is what lets one
- * guard cover a multi-layout rebuild. The paragraph's revision is
- * recorded AFTER the callable runs.
+ * layout inputs change. It is SigilCore's rebuild guard over the declared
+ * keys, invalidated whenever the paragraph was edited or needs shaping,
+ * so the paragraph's two inputs are never a key a caller can forget. The
+ * guard owns no layout storage: the callable writes wherever the caller
+ * keeps its layouts, which is what lets one guard cover a multi-layout
+ * rebuild. The paragraph's revision is recorded AFTER the callable runs.
  * @trap A callable that never lays this paragraph out leaves
  * `Paragraph::needsShaping` set, and the guard then fires every call.
  */
@@ -45,23 +48,19 @@ class LayoutGuard {
     requires std::invocable<RelayoutFunction&>
   bool ensure(const sigil::weave::Paragraph& paragraph,
               std::tuple<Keys...> keys, RelayoutFunction&& relayoutFunction) {
-    if (m_valid && !paragraph.needsShaping() &&
-        paragraph.revision() == m_revision && keys == m_keys)
-      return false;
-    relayoutFunction();
-    m_keys = std::move(keys);
+    if (paragraph.needsShaping() || paragraph.revision() != m_revision)
+      m_guard.invalidate();
+    if (!m_guard.ensure(std::move(keys), relayoutFunction)) return false;
     m_revision = paragraph.revision();
-    m_valid = true;
     return true;
   }
 
   /** Forces the next ensure() to relayout regardless of its inputs. */
-  void invalidate() { m_valid = false; }
+  void invalidate() { m_guard.invalidate(); }
 
  private:
-  std::tuple<Keys...> m_keys;
+  core::RebuildGuard<Keys...> m_guard;
   uint64_t m_revision = 0;
-  bool m_valid = false;
 };
 
 }  // namespace sigil::weave::kit

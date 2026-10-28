@@ -18,7 +18,7 @@
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <include/gpu/graphite/vk/VulkanGraphiteTypes.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/Readback.h>
 #include <vulkan/vulkan_core.h>
@@ -50,7 +50,7 @@ struct HostCalls {
   }
 };
 
-HostCalls hostCalls(const core::hardware::VulkanHandles& handles) {
+HostCalls hostCalls(const gpu::VulkanHandles& handles) {
   HostCalls calls;
   const auto getDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
       handles.getInstanceProcAddr(handles.instance, "vkGetDeviceProcAddr"));
@@ -82,9 +82,9 @@ TEST(ReadbackOnQueue, AVulkanReadReturnsOnlyOnceTheHostLetsTheDeviceRun) {
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
   skia::GraphiteContext* own = world::diligent::vulkanGraphite(*on.device);
   if (!own) GTEST_SKIP() << "the device carries no Graphite on its own queue";
-  const core::hardware::NativeDevice& native = on.device->gpu()->native();
-  ASSERT_EQ(native.backend, core::hardware::Backend::Vulkan);
-  const core::hardware::VulkanHandles& handles = native.vulkan;
+  const gpu::NativeDevice& native = on.device->gpu()->native();
+  ASSERT_EQ(native.backend, gpu::Backend::Vulkan);
+  const gpu::VulkanHandles& handles = native.vulkan;
   const HostCalls calls = hostCalls(handles);
   if (!calls.complete()) GTEST_SKIP() << "the device answers no host signal";
   const auto device = static_cast<VkDevice>(handles.device);

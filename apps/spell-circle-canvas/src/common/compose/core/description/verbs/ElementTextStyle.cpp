@@ -130,7 +130,7 @@ Derived& TextStyleVerbs<Derived>::contentFlowAround(std::string_view key,
   derive.flowAroundMargin = margin;
   // An exclusion subtracts the target's SILHOUETTE where it declares one,
   // which is a read of its outline and not merely of its box.
-  derive.reads.push_back({std::string(key), sigil::core::Facet::Outline});
+  derive.reads.push_back({std::string(key), sigil::tree::Facet::Outline});
   return self();
 }
 

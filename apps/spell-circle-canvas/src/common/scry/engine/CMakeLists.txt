@@ -15,7 +15,7 @@ sigil_library(SigilScryEngine
   HEADERS WebEngine.h WebImage.h WebView.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../platform
                   ${CMAKE_CURRENT_LIST_DIR}/../gpu
-  PUBLIC SigilScryPlatform SigilScryGpu SigilSkiaGraphite SigilCoreHardware
+  PUBLIC SigilScryPlatform SigilScryGpu SigilSkiaGraphite SigilGpu
          unofficial::skia::skia
   PRIVATE Ultralight::Ultralight Ultralight::AppCore Boost::unordered
           SigilCoreReport)

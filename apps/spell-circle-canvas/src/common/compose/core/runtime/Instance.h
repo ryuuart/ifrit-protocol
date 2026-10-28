@@ -11,10 +11,10 @@
  */
 
 #include <include/core/SkRect.h>
-#include <sigilcore/reconcile/Node.h>
 #include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/advanced/Held.h>
+#include <sigiltree/reconcile/Node.h>
 #include <sigilweave/style/Type.h>
 #include <yoga/Yoga.h>
 
@@ -63,7 +63,7 @@ inline bool childrenCarryYoga(const Instance& inst);
  *  subject and the rest below. The skeleton stays the first base. */
 // fields are grouped by what they belong to, not by size
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
-struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>>,
+struct Instance : tree::Node<Instance, std::shared_ptr<ElementNode>>,
                   RetainedText,
                   CascadeInForce,
                   TransitionState,

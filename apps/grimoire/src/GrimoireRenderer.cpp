@@ -18,8 +18,8 @@
 #include <sigilskia/qt/QtInterop.h>
 #endif
 #ifdef SIGIL_GRIMOIRE_GPU
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilsketch/core/Device.h>
 #ifdef __APPLE__
 #include <rhi/qrhi_platform.h>

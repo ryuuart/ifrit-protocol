@@ -237,7 +237,7 @@ void Composer::Impl::ensureLayout() {
   // through. Writers must report actual geometry changes so a settled
   // round exits before reaching the cap.
   const auto runLayoutPhases = [this] {
-    core::runPhases(*this, std::span<const core::Phase<Impl>>(phases),
+    tree::runPhases(*this, std::span<const tree::Phase<Impl>>(phases),
                     kConvergeRounds, [this] {
                       // The canvas is fixed for the whole run, so a clean
                       // tree already holds this answer.

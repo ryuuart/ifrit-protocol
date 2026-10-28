@@ -13,7 +13,7 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
-#include <sigilcore/cache/Settle.h>
+#include <sigiltree/cache/Settle.h>
 
 #include <array>
 #include <cstdint>
@@ -171,9 +171,9 @@ struct PaintMemos {
   // stale replays.
   // The three sides of that release — the count kept where paint() runs,
   // the release the volatility walk performs, and the per-draw scan over
-  // what it released — are SigilCoreCache's protocol, held here over this
+  // what it released — are SigilTreeCache's protocol, held here over this
   // library's own scalars.
-  core::Settle<ContentScalars> settle;
+  tree::Settle<ContentScalars> settle;
   /** Consecutive stable paints before the release. Long enough that a value
    *  pausing between two keyframes does not count as settled. */
   static constexpr int kScalarSettleFrames = 8;

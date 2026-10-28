@@ -11,7 +11,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilmaterial/texture/Image.h>
@@ -175,7 +175,7 @@ Paint heldDevicePaint(const std::shared_ptr<DeviceSourceBinding>& binding,
 class SkiaPaintGpu : public testing::Test {
  protected:
   void SetUp() override {
-    device = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+    device = sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
     if (!device) GTEST_SKIP() << "no GPU device";
     first = sigil::skia::GraphiteContext::create(*device);
     second = sigil::skia::GraphiteContext::create(*device);
@@ -241,7 +241,7 @@ class SkiaPaintGpu : public testing::Test {
     EXPECT_EQ(pixels.getColor4f(12, 4).fA, 0);
   }
 
-  std::unique_ptr<sigil::core::hardware::GpuDevice> device;
+  std::unique_ptr<sigil::gpu::GpuDevice> device;
   std::unique_ptr<sigil::skia::GraphiteContext> first, second;
   std::shared_ptr<DeviceSourceBinding> binding;
 };

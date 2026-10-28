@@ -20,8 +20,8 @@ sigil_library(SigilWorldScene
           Resources.h SceneImpl.h
   HEADERS Scene.h ../advanced/Stats.h
   PUBLIC SigilWorldGraph SigilMotionClock
-         SigilMotionSchedule SigilCoreReconcile SigilMeasure
-  PRIVATE EnTT::EnTT SigilMaterialSurface SigilCoreCache SigilGeometryMeshCurve
+         SigilMotionSchedule SigilTreeReconcile SigilMeasure
+  PRIVATE EnTT::EnTT SigilMaterialSurface SigilTreeCache SigilGeometryMeshCurve
           SigilMotionValues)
 
 sigil_test(world_test

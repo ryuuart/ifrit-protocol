@@ -10,10 +10,10 @@
  * the reconciler or a bound value.
  */
 
-#include <sigilcore/cache/Cache.h>
-#include <sigilcore/reconcile/Memo.h>
-#include <sigilcore/reconcile/Node.h>
-#include <sigilcore/reconcile/Reconciler.h>
+#include <sigiltree/cache/Cache.h>
+#include <sigiltree/reconcile/Memo.h>
+#include <sigiltree/reconcile/Node.h>
+#include <sigiltree/reconcile/Reconciler.h>
 #include <sigilworld/advanced/Lanes.h>
 #include <sigilworld/advanced/Light.h>
 #include <sigilworld/advanced/Node.h>
@@ -110,7 +110,7 @@ struct Named {
 /** ONE RETAINED NODE. The key, the lanes and their motions, the entity
  *  and the resource reference — the three lifetimes, met in one place
  *  and each free of the others. */
-struct Instance : core::Node<Instance, std::shared_ptr<NodeDescription>> {
+struct Instance : tree::Node<Instance, std::shared_ptr<NodeDescription>> {
   entt::entity entity = entt::null;
   /** One motion slot per fixed lane row, so a lane keeps its meaning
    *  across a patch that changed what the node holds. */
@@ -131,11 +131,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<NodeDescription>> {
 
   glm::mat4 world{1.0f};
 
-  core::NodeVolatility declaration;
-  core::SubtreeVerdict verdict;
+  tree::NodeVolatility declaration;
+  tree::SubtreeVerdict verdict;
   /** The proof that a node DECLARING motion is nevertheless holding
    *  still: sixteen floats of placement, observed once per frame. */
-  core::Settle<std::array<float, 16>> settle;
+  tree::Settle<std::array<float, 16>> settle;
   bool released = false;
   /** The previous frame's placement, which is what makes "this node's
    *  reading stayed exact" answerable at all: a Settle only remembers
@@ -179,7 +179,7 @@ struct Scene::Impl {
   explicit Impl(motion::Engine& t);
 
   motion::Engine& engine;
-  core::Reconciler<Impl, Instance, Description> reconciler;
+  tree::Reconciler<Impl, Instance, Description> reconciler;
   std::unique_ptr<Instance> root;
   entt::registry registry;
   ResourceStore store;
@@ -190,7 +190,7 @@ struct Scene::Impl {
    *  argument describe needs. */
   Node pending;
 
-  core::Reconciler<Impl, Instance, Description>::KeyIndex byKey;
+  tree::Reconciler<Impl, Instance, Description>::KeyIndex byKey;
   /** The extracted draw order, in tree order. */
   std::vector<entt::entity> order;
   std::vector<PlacedLight> lights;
@@ -235,7 +235,7 @@ struct Scene::Impl {
 
   /** The bake seam's one tier: the decision is SigilCore's, and these
    *  are the operations that carry it out. */
-  core::Bake<BakeTarget> bake;
+  tree::Bake<BakeTarget> bake;
 
   // ---- the reconciler's host (Host.cpp) ----
   static const std::string& keyOf(const Description& description) {
@@ -313,7 +313,7 @@ struct Scene::Impl {
   void deriveInto(Instance& inst, const glm::mat4& parentWorld, bool* changed);
   /** @p hidden is whether a node above @p inst is hidden, which hides
    *  its lights and cameras as well as its bodies. */
-  core::SubtreeVerdict foldVolatility(Instance& inst, bool hidden);
+  tree::SubtreeVerdict foldVolatility(Instance& inst, bool hidden);
   /** The camera the frame looks through, by the rule: the one the frame
    *  names, else the only one the tree holds. Writes what stops the frame
    *  when the rule cannot choose. */

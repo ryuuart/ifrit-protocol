@@ -36,7 +36,7 @@
 #include <include/gpu/graphite/Surface.h>
 #include <objc/message.h>
 #include <objc/runtime.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -71,7 +71,7 @@ using namespace sigil::world;
 
 namespace {
 
-namespace hardware = ::sigil::core::hardware;
+namespace gpu = ::sigil::gpu;
 
 /** A frame wide enough that the card wears the page larger than the page
  *  is: a magnified page reads level zero alone, so a page uploaded with a
@@ -156,8 +156,8 @@ struct StandingSource {
 
 /** The texture @p image names on @p device, as a map a body wears, with
  *  the levels it was made with. */
-material::Texture standingOn(hardware::GpuDevice* device,
-                             const hardware::NativeTexture& image) {
+material::Texture standingOn(gpu::GpuDevice* device,
+                             const gpu::NativeTexture& image) {
   material::DeviceImage where;
   where.device = device;
   where.handle = image.vkImage;
@@ -248,11 +248,11 @@ class PageAcrossQueues : public testing::Test {
     if (!device) GTEST_SKIP() << "the device was created but not adopted";
     std::string error;
     metal = [&error] {
-      auto made = hardware::GpuDevice::createOwned();
+      auto made = gpu::GpuDevice::createOwned();
       if (!made) error = made.error().message;
       return std::move(made).value_or(nullptr);
     }();
-    if (!metal || metal->backend() != hardware::Backend::Metal)
+    if (!metal || metal->backend() != gpu::Backend::Metal)
       GTEST_SKIP() << "no Metal device: " << error;
     painter = skia::GraphiteContext::create(*metal);
     if (!painter) GTEST_SKIP() << "no Graphite on the Metal device";
@@ -264,7 +264,7 @@ class PageAcrossQueues : public testing::Test {
   }
 
   /** The texture @p image names on the device, as a map a body wears. */
-  material::Texture standing(const hardware::NativeTexture& image) const {
+  material::Texture standing(const gpu::NativeTexture& image) const {
     material::DeviceImage where;
     where.device = device;
     where.handle = image.vkImage;
@@ -282,31 +282,30 @@ class PageAcrossQueues : public testing::Test {
    *  @p surface, the Metal queue raises @p painted behind it, and the
    *  wait lets the device's queue through. False when the driver cannot
    *  bring the event over. */
-  bool paintAcross(skia::OffscreenSurface& surface,
-                   hardware::FenceHandle painted) {
+  bool paintAcross(skia::OffscreenSurface& surface, gpu::FenceHandle painted) {
     // The Metal queue's fence, brought over to the device's queue once.
-    const hardware::FenceHandle brought =
+    const gpu::FenceHandle brought =
         device->importNative(metal->exportNative(painted));
     if (!brought) return false;
-    const hardware::FenceHandle behind = device->createFence();
+    const gpu::FenceHandle behind = device->createFence();
     // A fence's first signal raises it to one, so that is the value the
     // page will stand at.
-    constexpr hardware::FenceValue kPainted = 1;
-    hardware::FenceValue queued = hardware::kFenceInitialValue;
+    constexpr gpu::FenceValue kPainted = 1;
+    gpu::FenceValue queued = gpu::kFenceInitialValue;
     {
       const geometry::device::Device::QueueLock lock(*on.device);
       device->waitGpu(brought, kPainted);
       queued = device->signal(behind);
     }
     EXPECT_EQ(device->waitCpu(behind, queued, std::chrono::milliseconds(50)),
-              hardware::FenceWait::TimedOut)
+              gpu::FenceWait::TimedOut)
         << "the device's queue ran before the page was painted";
 
     // A PLAIN CANVAS: the surface's own, with nothing standing between
     // the page and Graphite.
     paintPage(*surface.surface()->getCanvas());
     EXPECT_EQ(surface.submit(*metal, painted), kPainted);
-    EXPECT_EQ(device->waitCpu(behind, queued), hardware::FenceWait::Reached);
+    EXPECT_EQ(device->waitCpu(behind, queued), gpu::FenceWait::Reached);
     // The wait has run, so nothing waits on the semaphore any more.
     device->destroyFence(behind);
     device->destroyFence(brought);
@@ -314,8 +313,8 @@ class PageAcrossQueues : public testing::Test {
   }
 
   diligent::OnDevice on;
-  hardware::GpuDevice* device = nullptr;
-  std::unique_ptr<hardware::GpuDevice> metal;
+  gpu::GpuDevice* device = nullptr;
+  std::unique_ptr<gpu::GpuDevice> metal;
   std::unique_ptr<skia::GraphiteContext> painter;
 };
 
@@ -364,14 +363,14 @@ TEST_F(PageAcrossQueues, APagePaintedOnMetalIsWornByABodyWithNoUpload) {
   if (!pagesOnMetal(*on.device))
     GTEST_SKIP() << "the device paints its 2D somewhere other than Metal";
   const diligent::PaintedTexture page = diligent::paintOnDevice(
-      *on.device, kPage, hardware::TextureFormat::RGBA8Unorm,
+      *on.device, kPage, gpu::TextureFormat::RGBA8Unorm,
       [](SkCanvas& canvas) { paintPage(canvas); },
-      hardware::mipLevelsFor(kPage, kPage));
+      gpu::mipLevelsFor(kPage, kPage));
   ASSERT_TRUE(page.native);
   // THE PAGE IS THE DEVICE'S, painted where Metal names it.
   EXPECT_NE(page.native.vkImage, 0u);
   EXPECT_NE(page.native.mtlTexture, nullptr);
-  EXPECT_EQ(page.native.mipLevels, hardware::mipLevelsFor(kPage, kPage));
+  EXPECT_EQ(page.native.mipLevels, gpu::mipLevelsFor(kPage, kPage));
 
   const Photographed worn =
       photograph(wearing(standingOn(device, page.native)), on.runtime);
@@ -397,9 +396,9 @@ TEST_F(PageAcrossQueues,
   } withdraw{*on.device};
   ASSERT_EQ(on.device->graphite(), painter.get());
   const diligent::PaintedTexture page = diligent::paintOnDevice(
-      *on.device, kPage, hardware::TextureFormat::RGBA8Unorm,
+      *on.device, kPage, gpu::TextureFormat::RGBA8Unorm,
       [](SkCanvas& canvas) { paintPage(canvas); },
-      hardware::mipLevelsFor(kPage, kPage));
+      gpu::mipLevelsFor(kPage, kPage));
   ASSERT_TRUE(page.native);
   const Photographed worn =
       photograph(wearing(standingOn(device, page.native)), on.runtime);
@@ -418,9 +417,9 @@ TEST_F(PageAcrossQueues, ASecondFrameShowsThePageRepaintedInPartSinceTheFirst) {
   if (!pages)
     GTEST_SKIP() << "the device paints its 2D somewhere other than Metal";
   const diligent::PaintedTexture page = diligent::paintOnDevice(
-      *on.device, kPage, hardware::TextureFormat::RGBA8Unorm,
+      *on.device, kPage, gpu::TextureFormat::RGBA8Unorm,
       [](SkCanvas& canvas) { paintPage(canvas); },
-      hardware::mipLevelsFor(kPage, kPage));
+      gpu::mipLevelsFor(kPage, kPage));
   ASSERT_TRUE(page.native);
   const material::Texture map = standingOn(device, page.native);
 
@@ -459,10 +458,10 @@ TEST_F(PageAcrossQueues, APageWornSmallerThanItIsReadsTheChainFilledFromIt) {
   constexpr glm::ivec2 kSmall{64, 48};
   const auto stripes = [](SkCanvas& canvas) { paintStripes(canvas); };
   const diligent::PaintedTexture chained = diligent::paintOnDevice(
-      *on.device, kFinePage, hardware::TextureFormat::RGBA8Unorm, stripes,
-      hardware::mipLevelsFor(kFinePage, kFinePage));
+      *on.device, kFinePage, gpu::TextureFormat::RGBA8Unorm, stripes,
+      gpu::mipLevelsFor(kFinePage, kFinePage));
   const diligent::PaintedTexture flat = diligent::paintOnDevice(
-      *on.device, kFinePage, hardware::TextureFormat::RGBA8Unorm, stripes);
+      *on.device, kFinePage, gpu::TextureFormat::RGBA8Unorm, stripes);
   ASSERT_TRUE(chained.native);
   ASSERT_TRUE(flat.native);
 
@@ -489,18 +488,18 @@ TEST_F(PageAcrossQueues, APageWornSmallerThanItIsReadsTheChainFilledFromIt) {
 TEST_F(PageAcrossQueues, AMetalTextureImportedIntoTheDeviceIsWornAsItStands) {
   // METAL MAKES THE TEXTURE, with the whole chain a map wants, and the
   // device names it over the same memory.
-  hardware::TextureDescription description;
+  gpu::TextureDescription description;
   description.width = description.height = kPage;
-  description.format = hardware::TextureFormat::RGBA8Unorm;
-  description.mipLevels = hardware::mipLevelsFor(kPage, kPage);
-  const hardware::TextureHandle made = metal->createTexture(description);
+  description.format = gpu::TextureFormat::RGBA8Unorm;
+  description.mipLevels = gpu::mipLevelsFor(kPage, kPage);
+  const gpu::TextureHandle made = metal->createTexture(description);
   ASSERT_TRUE(metal->isValid(made));
   void* texture = metal->exportNative(made).mtlTexture;
   ASSERT_NE(texture, nullptr);
-  hardware::NativeTexture given;
-  given.backend = hardware::Backend::Metal;
+  gpu::NativeTexture given;
+  given.backend = gpu::Backend::Metal;
   given.mtlTexture = texture;
-  const hardware::TextureHandle page = device->importNative(given);
+  const gpu::TextureHandle page = device->importNative(given);
   if (!page) {
     metal->destroy(made);
     GTEST_SKIP() << "this driver does not import a Metal texture";
@@ -513,11 +512,11 @@ TEST_F(PageAcrossQueues, AMetalTextureImportedIntoTheDeviceIsWornAsItStands) {
   // THE CHAIN IS PRESENT ON BOTH SIDES, level for level. Graphite paints
   // level zero; a body wearing the page reads the residency's chain, whose
   // level zero is copied from this one on the device.
-  const hardware::NativeTexture image = device->exportNative(page);
+  const gpu::NativeTexture image = device->exportNative(page);
   EXPECT_EQ(image.mipLevels, description.mipLevels);
   EXPECT_EQ(mipmapLevelsOf(texture), (unsigned long)description.mipLevels);
 
-  const hardware::FenceHandle painted = metal->createFence();
+  const gpu::FenceHandle painted = metal->createFence();
   {
     skia::OffscreenSurface surface(*painter, *metal, made);
     ASSERT_NE(surface.surface(), nullptr);
@@ -535,8 +534,7 @@ TEST_F(PageAcrossQueues, AMetalTextureImportedIntoTheDeviceIsWornAsItStands) {
 
   metal->destroyFence(painted);
   device->destroy(page);
-  for (uint64_t frame = 0; frame < hardware::GpuDevice::kFramesInFlight;
-       ++frame)
+  for (uint64_t frame = 0; frame < gpu::GpuDevice::kFramesInFlight; ++frame)
     device->beginFrame();
   metal->destroy(made);
 }

@@ -1,29 +1,12 @@
 # SigilCore
 
-The kernels a retained runtime is built on, and the leaves under them.
-
-**The reconciler** — descriptions built fresh every frame, reconciled onto
-a tree the host retains, so that only what changed is touched. It owns the
-shape of that tree: which retained node answers to which description
-(matched by key, then by position), the memo that skips a describe whose
-inputs did not change — its properties, and the shared values its describe
-read, which it follows and describes again when they change — the
-identity prune that leaves an unchanged node alone, and the counts of what
-a pass did.
-
-**The caching proof** — what a host may keep between frames. Given what a
-host declares about one node and what its children answered, it decides
-whether a subtree is provably static for the frame, whether a value memo
-may hold it, and whether the artefact in hand should be baked, replayed or
-thrown away.
-
-Everything a node retains beyond its place in the tree — layout state,
-paint caches, running motions — is the host's, reached through named
-operations the host implements on itself. That is the line both kernels
-draw: they own the DECISION, the host owns the THING.
-
-Under the kernels are seven leaves, which libraries far from any reconciler
-link on their own.
+The vocabulary every other Sigil library shares: the leaves a library far
+from any renderer, any device and any retained tree links on its own. A
+leaf here earns its place by being needed identically by two libraries,
+and depends on the standard library and on nothing of this project's but
+another leaf here. The kernels a retained runtime is built on — the
+reconciler and the caching proof — are SigilTree's, and the GPU device is
+SigilGpu's; both stand on this library and neither is part of it.
 
 **Comparable** — what a value needs before anything can decide it did not
 change: type erasure that keeps its equality, so a set of operations can
@@ -55,24 +38,28 @@ file of this repository and in no header of it; and beside it a fan-out of
 its own threads for calls that BLOCK on a disk or a server, which must not
 sit on the workers a compute range shares.
 
-**Hardware** — the GPU device itself: one device and its one command queue,
-created here or adopted from a host that owns them, with the textures and
-fences living on it named by handles that go stale rather than dangle, and
-destruction that waits out the frames still in flight. It knows nothing
-about what draws — no Skia, no Diligent, no Qt — which is exactly why it
-sits here: a 2D backend and a 3D engine can stand on one device, name the
-same texture and read the same fence, and neither has to link the other. A
-host that holds one never spells a graphics API.
-
 **Follow** — what a describe read that can change after it. A shared
 value a describe can read — a live number a sketch writes — derives from
 `sigil::core::Followable` and advances its revision on every write that
 changes it; a host opens a `sigil::core::FollowScope` around a describe,
 and every such value read inside lands in a `sigil::core::FollowedReads`
 with the revision it stood at, once per value. The describe is stale
-exactly when one of those revisions has moved. The reconciler follows every
-memo's describe through it, and SigilMotion makes a live value's cell
-followable through it, so both link this leaf and neither links the other.
+exactly when one of those revisions has moved. SigilTree's reconciler
+follows every memo's describe through it, and SigilMotion makes a live
+value's cell followable through it, so both link this leaf and neither
+links the other.
+
+**Memo** — rebuild on change. `sigil::core::RebuildGuard` takes the
+"compare the inputs, rebuild when they differ" cache an animated consumer
+otherwise hand-rolls, with the key one declared tuple rather than a row of
+`m_last*` members and an if-condition that has to stay in step with them;
+`sigil::core::CachedValue` holds the value the last build answered beside
+its guard; and `sigil::core::quantizeKey` is the one arithmetic such a key
+wants: an input that drifts by a fraction per frame is snapped, so most
+frames pose the same problem and hit. Nothing here knows what is being
+rebuilt, which is why it is a leaf here and not part of a tree's cache: a
+text kit's layout guard is this guard with a paragraph's own inputs folded
+in.
 
 **Report** — the one door a library's warning goes out through. A library
 that has something to say and no caller to say it to calls
@@ -87,42 +74,33 @@ until stated. Every library's refusing door answers
 `std::expected<T, core::Error>`; a library whose own error carries more
 converts to this one.
 
-Namespace `sigil::core`, with `sigil::core::hardware` for the device
-catalog. One target per directory:
+Namespace `sigil::core`. One target per directory:
 
 | target | directory | holds |
 |--------|-----------|-------|
 | `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
-| `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form, the shaped curve, the degrees-to-radians rounding |
+| `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form, the shaped curve, the degrees-to-radians rounding, the time unit and its CSS reader |
 | `SigilCoreCallable` | `callable/` | the prefix search, the concept over it, and the type-erased call a verb holds one in |
 | `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
 | `SigilCoreFollow` | `follow/` | the followable value and its revision, the record of what one describe read, and the scope that records it |
-| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo and what the memo follows, the phase runner, the order declared reads imply |
-| `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
-| `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
+| `SigilCoreMemo` | `memo/` | the keyed rebuild guard, the value held with its guard, and the snap a drifting key is taken through |
 | `SigilCoreReport` | `report/` | the reporting door: `report`, the installed `Reporter`, and the one line format; the `Error` a refusing door answers |
 
-`SigilCoreComparable`, `SigilCoreCompute` and `SigilCoreCallable` are
-header-only, so they are INTERFACE targets and produce no archive;
-everything else is a static library. `SigilCoreComparable` takes the
-standard library and Boost.PFR, `SigilCoreCompute` and `SigilCoreCallable`
-the standard library alone, `SigilCoreSchedule` oneTBB
-privately, and `SigilCoreReconcile` Boost.Unordered with Boost.ContainerHash
-for its keyed indices with `SigilCoreFollow` for what a memo follows,
-`SigilCoreFollow` the reporting door alone, and `SigilCoreReport` the
-standard library alone. `SigilCoreHardware` takes the graphics API and
-nothing else. Consumers still link only the feature they use, without
+`SigilCoreComparable`, `SigilCoreCompute`, `SigilCoreCallable` and
+`SigilCoreMemo` are header-only, so they are INTERFACE targets and produce
+no archive; everything else is a static library. `SigilCoreComparable`
+takes the standard library and Boost.PFR, `SigilCoreCompute`,
+`SigilCoreCallable` and `SigilCoreMemo` the standard library alone,
+`SigilCoreSchedule` oneTBB privately, `SigilCoreFollow` the reporting door
+alone, and `SigilCoreReport` the standard library alone. Consumers still link only the feature they use, without
 pulling in a drawing or layout library.
 
 Every public header lives under `include/sigilcore/<feature>/` and is
 spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,
 `<sigilcore/callable/Callable.h>`,
-`<sigilcore/schedule/X.h>`, `<sigilcore/follow/Follow.h>`,
-`<sigilcore/reconcile/X.h>` or
-`<sigilcore/cache/X.h>`; `<sigilcore/cache/Cache.h>` includes its own
-directory's headers. The hardware feature's are
-`<sigilcore/hardware/GpuDevice.h>`, `<sigilcore/hardware/Handle.h>` and
-`<sigilcore/hardware/Fence.h>`, and the reporting door's are
+`<sigilcore/schedule/X.h>`, `<sigilcore/follow/Follow.h>` or
+`<sigilcore/memo/Rebuild.h>`. The time unit is
+`<sigilcore/compute/Duration.h>`, and the reporting door's headers are
 `<sigilcore/report/Report.h>` and `<sigilcore/report/Error.h>`.
 
 ## The chapters
@@ -133,17 +111,14 @@ everything below is the library as a whole.
 
 | chapter | what it covers |
 |---------|----------------|
-| **[RECONCILE.md](RECONCILE.md)** | the reconciler over a host: the prune, keyed matching, the memo and its key, the values a memo follows and the follow leaf under them, declared reads, and the phase runner |
-| **[CACHE.md](CACHE.md)** | the caching proof: the policy, the settled-subtree verdict, the stability release, the bake seam and the rebuild guard |
 | **[COMPARABLE.md](COMPARABLE.md)** | `Erased<Ops>` and `kFieldCount<T>`: what a value needs before anything can decide it did not change |
-| **[COMPUTE.md](COMPUTE.md)** | the mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form and the shaped curve |
+| **[COMPUTE.md](COMPUTE.md)** | the mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form, the shaped curve, the angle and the time unit |
 | **[CALLABLE.md](CALLABLE.md)** | `Callable<Signature>`, `callPrefix` and `PrefixCallable`: a callable called with the parameters it named |
 | **[SCHEDULE.md](SCHEDULE.md)** | the parallel for and its grain, and the fan-out a call that blocks runs on instead |
-| **[HARDWARE.md](HARDWARE.md)** | `GpuDevice`: owning or adopting one, handles that go stale, deferred destruction, fences as timelines, and the two backends |
 
 ## What belongs here
 
-A function earns a place in one of the three header-only leaves when three
+A function earns a place in one of the header-only leaves when three
 things hold:
 
 - **Two libraries need it identically.** Not "could share it" — actually
@@ -153,8 +128,9 @@ things hold:
 - **The contract can be stated.** What it answers, what is fixed about it,
   and what breaks if it changes — in the header, evaluable by someone who
   has opened nothing else.
-- **It brings its own test.** For the kernels that means behaviour over a
-  fake host; for the leaves it means the outputs themselves, pinned.
+- **It brings its own test.** For a computing leaf that means the outputs
+  themselves, pinned; for a holding one, behaviour over a value with
+  nothing behind it.
 
 Worked both ways: `Erased` qualifies because a reconciler's descriptions, a
 mesh runtime and a point-operator runtime all carry a comparable erased
@@ -164,48 +140,35 @@ writes its own and one gets it subtly wrong. The seeded mixers qualify
 because a stored render and a GPU kernel have to agree to the bit. An
 easing curve does NOT qualify: it is animation's, and SigilMotion owns it —
 which is why the comparator over that curve lives there too, beside the
-curve, rather than in the kernel that happens to prune with it. Neither
+curve, rather than in the reconciler that happens to prune with it. Neither
 does a numeric constant a single library reaches for — those stay with the
 library that spells them.
 
 ## Boundary
 
-SigilCoreComparable, SigilCoreCompute and SigilCoreCallable link nothing of
-this project's at all — the standard library, and Boost.PFR for the field
-pin. That is the
-whole point of them: a library anywhere in the tree can link one without
-acquiring a kernel, and SigilMotion is one of the libraries that does, for
-the pin its own comparators sit under. SigilCoreReconcile links
-SigilCoreComparable (the erased seam value and the field pin),
-SigilCoreFollow (what a memo's describe read that can change after it) and
-SigilMeasure (the published counts), and nothing that draws, lays out,
-shapes text or animates. SigilCoreFollow links the reporting door alone,
-for the one report a refused write makes. SigilCoreSchedule links nothing of this project's
-either: a task runtime, privately, and the standard library's threads. That
-privacy is the feature — a consumer hands over a count, a grain and a body,
-so no header in this repository spells a task runtime, and the one that
-runs every divided range in the process is chosen in one file.
-SigilCoreCache links SigilCoreComparable alone — the header-only pair the
-bake seam's erased value needs, not the reconciler beside it.
-SigilCoreHardware links nothing of this project's either: the platform's
-graphics API — Metal where there is one, the Vulkan loader resolved at run
-time everywhere — and no Skia, no Diligent, no Qt. That is what makes one
-device serviceable by two drawing libraries at once: SigilSkia stands
-Graphite on it, a Diligent renderer adopts it, and neither knows the other
-is there. What stays with a host: what a node retains, what a patch does to
-it, how children are ordered for drawing, which descriptions compare equal,
-which of its own values are volatile, and every artefact.
+SigilCoreComparable, SigilCoreCompute, SigilCoreCallable and
+SigilCoreMemo link nothing of this project's at all — the standard
+library, and Boost.PFR for the field pin. That is the whole point of them:
+a library anywhere in the tree can link one without acquiring a kernel, a
+device or a drawing library, and SigilMotion is one of the libraries that
+does, for the pin its own comparators sit under and the time unit every
+length it animates over is stated in. SigilCoreFollow links the reporting
+door alone, for the one report a refused write makes. SigilCoreSchedule
+links nothing of this project's either: a task runtime, privately, and the
+standard library's threads. That privacy is the feature — a consumer hands
+over a count, a grain and a body, so no header in this repository spells a
+task runtime, and the one that runs every divided range in the process is
+chosen in one file. SigilCoreReport is the standard library alone.
 
-The leaves are linked from well outside this library: SigilGeometry's path
-leaf builds its value-noise field on the mixers, its mesh and
-point-operator runtimes are erased values, SigilWorld's geometry signature
-is an FNV fold and its element comparator sits under the pin, and
-SigilWeave's intercept cache keys with the stir. SigilCompose is one host —
-its `Composer` holds a `Reconciler` over its `Instance` and `ElementNode`,
-folds its Skia lanes, materials, gates and text into the proof's
-declarations, holds a `Settle` over its own content scalars, and implements
-`BakeOperations` over its picture recordings. Yoga, text, paint and the meaning of
-every term stay on its side of the seam.
+The leaves are linked from well outside this library: SigilTree's
+reconciler carries the erased value on every description and follows a
+memo's describe through the follow leaf, SigilGpu answers the reporting
+door's error when it refuses a device, SigilMeasure states every span in
+the time unit, SigilGeometry's path leaf builds its value-noise field on
+the mixers, its mesh and point-operator runtimes are erased values,
+SigilWorld's geometry signature is an FNV fold and its element comparator
+sits under the pin, and SigilWeave's intercept cache keys with the stir
+and its layout guard is the memo with a paragraph's inputs folded in.
 
 ## Build and test
 
@@ -219,21 +182,13 @@ what a label promises. What is only true of SigilCore:
 |---|---|---|
 | `callable/test/` | `CoreCallable` | which callables a signature accepts and which it refuses, answered at compile time; that the parameters a callable did not name are still evaluated and dropped; that every accepted spelling of one drawing answers the same; and that an empty holder is false |
 | `comparable/test/` | `Erased`, `Fields` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes |
-| `compute/test/` | `Angle`, `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `ChanceStream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field`, `NoiseField`, `Curve` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points; the curve, held to what makes it a value and to the character each house shape is chosen for; the angle conversion, pinned to the nearest float of each exact ratio and held against the two spellings that round twice; the angle that names its unit, read from CSS text in each of the four units and refused without one, reaching its own measure unchanged |
+| `compute/test/` | `Angle`, `Duration`, `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `ChanceStream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field`, `NoiseField`, `Curve` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points; the curve, held to what makes it a value and to the character each house shape is chosen for; the angle conversion, pinned to the nearest float of each exact ratio and held against the two spellings that round twice; the angle that names its unit, read from CSS text in each of the four units and refused without one, reaching its own measure unchanged; the time unit read from CSS text in seconds and milliseconds and refused without a unit |
 | `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |
 | `follow/test/` | `CoreFollow` | a read inside a scope recorded once at its revision, a changing write making the record stale and an equal one not, nothing recorded outside a scope, nested scopes, and a write of a value the followed describe read refused and reported once |
-| `reconcile/test/` | `Reconciler`, `Phases`, `Reads` | the reconciler over a fake host — a memo keyed by its properties and by the counters its describe read, described again alone when one moved — the phase runner and the read ordering |
-| `cache/test/` | `CacheProof`, `Volatility`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |
+| `memo/test/` | `RebuildGuard`, `CachedValue`, `QuantizeKey` | the keyed rebuild guard — when a build fires, what a throw leaves behind — the value held with it, and the quantized key a continuous input is bucketed by |
 | `report/test/` | `CoreReport`, `CoreError` | the one line format, the standard error when no reporter is installed, and an installed reporter hearing a warning in its place; the error's line and code unset until stated, compared as a value and carried as the refusing side of an expected answer |
-| `hardware/test/` | `HardwareHandle`, `MipChain` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows |
-| `hardware/test/DeviceTest.mm` | `HardwareDevice` (`gpu`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, an imported event waited on and left its maker's, and the levels a texture is built with |
-| `hardware/test/VulkanOverMetalTest.mm` | `HardwareVulkanOverMetal` (`gpu`) | a Vulkan device over Metal, brought up from the loader and adopted — the Metal device it names, a texture made here reached on Metal, a Metal texture named by an image over its own memory and refused in a format no texture here has, a Metal event holding the queue until Metal raises it, a fence made here holding a Metal queue, and the device going away only once a queued wait has run |
 
-Both suites exist on Apple alone and every case in them skips where
-there is no GPU, no Vulkan runtime or no driver over Metal. The rest of
-the Vulkan backend's questions are asked in SigilGeometry's `Device`
-suite, of the device a renderer made. Nothing else here needs a device, a
-font or a network.
+Nothing here needs a device, a font or a network.
 
 **The exact words and floats in `compute/test/` are the one place this
 library pins a number rather than a property.** These bodies exist so a
@@ -244,22 +199,6 @@ and no property catches a drifted mixer, because "in range", "the same
 twice" and "different for different seeds" are all still true of the
 wrong stream.
 
-Each kernel is exercised over a fake host: `reconcile/test/FakeHost.h`, a
-host with nothing behind it that records every operation the reconciler
-asks of it as a structured event — the operation, whose key, and that
-operation's own arguments — so a claim about what was asked and in what
-order survives any rewording of what a host would print; and
-`cache/test/FakeCacheHost.h`, whose nodes declare volatility, hold a
-numbered artefact instead of pixels and count every operation asked of
-them. A fake host is the subject of a measurement as much as of a test,
-so each feature's benchmark compiles with its own `test/` on its include
-path and drives the host defined there — one definition, and the two
-binaries cannot disagree about what they are exercising. Each fake lives
-in its own `sigil::core::test` namespace under the feature it serves,
-which is what lets every one of them spell the plainest name for what it
-is — `FakeHost`, `FakeNode` — with no feature's test reaching into
-another's directory to find out.
-
 The benchmark arms are shaped so each one's cost is read as a difference
 against its neighbour: the comparable arms time each erased comparison
 against the same question asked of the model directly, so what erasure
@@ -267,8 +206,4 @@ costs is one arm beside another; the compute arms time each mixer, the
 stream, its distributions and the field one call at a time, which is how
 they are spent; the schedule arms time a divided range over a body that
 does nothing but touch its item, at three sizes, so what is measured is
-the split rather than any consumer's arithmetic; the reconcile and cache
-arms time the reconciler and the proof over the fake hosts at several
-node counts, with the memo that follows a counter timed at the settle once
-over counters that never change and once over counters that all change
-every frame, beside the memo hit; and the hardware arms time the device.
+the split rather than any consumer's arithmetic.

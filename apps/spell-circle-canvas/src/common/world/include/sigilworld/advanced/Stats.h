@@ -6,8 +6,8 @@
  * tallies beside the retained side's.
  */
 
-#include <sigilcore/reconcile/Stats.h>
 #include <sigilmeasure/advanced/Counters.h>
+#include <sigiltree/reconcile/Stats.h>
 
 #include <cstdint>
 #include <string>
@@ -46,7 +46,7 @@ enum class DeviceTiming : uint8_t {
 struct SceneStats {
   /** What the reconcile pass did — described, memo hits, patched,
    *  mounted, retired. */
-  core::ReconcileStats reconcile;
+  tree::ReconcileStats reconcile;
   int64_t nodes = 0;            ///< nodes standing in the retained tree
   int64_t extracted = 0;        ///< nodes extract wrote components for
   int64_t cooked = 0;           ///< geometry slots cooked this frame

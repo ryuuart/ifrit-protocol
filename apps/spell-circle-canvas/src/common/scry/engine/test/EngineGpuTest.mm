@@ -13,7 +13,7 @@
 #include <sigilscry/engine/WebImage.h>
 #include <sigilscry/engine/WebView.h>
 
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/TextureImage.h>
 
@@ -80,7 +80,7 @@ void submit(sigil::skia::GraphiteContext &graphite) {
  *  own recorder: the handle named it, the device handed the object out. */
 void fillByGraphiteRender(WebImage &image) {
   ASSERT_TRUE(image.texture());
-  const sigil::core::hardware::NativeTexture slot = sharedDevice()->exportNative(image.texture());
+  const sigil::gpu::NativeTexture slot = sharedDevice()->exportNative(image.texture());
   ASSERT_TRUE(slot);
   sigil::skia::GraphiteContext &graphite = *sharedGraphite();
   skgpu::graphite::BackendTexture backendTexture = skgpu::graphite::BackendTextures::MakeMetal(
@@ -128,12 +128,12 @@ void fillByNativeTexture(WebImage &image) {
                 withBytes:pixels.data()
               bytesPerRow:static_cast<NSUInteger>(16 * 4)];
 
-  sigil::core::hardware::NativeTexture native;
-  native.backend = sigil::core::hardware::Backend::Metal;
+  sigil::gpu::NativeTexture native;
+  native.backend = sigil::gpu::Backend::Metal;
   native.mtlTexture = (__bridge void *)external;
   native.width = 16;
   native.height = 16;
-  const sigil::core::hardware::TextureHandle handle = sharedDevice()->importNative(native);
+  const sigil::gpu::TextureHandle handle = sharedDevice()->importNative(native);
   ASSERT_TRUE(handle);
   ASSERT_TRUE(image.updateTexture(handle));
 }
@@ -217,7 +217,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(WebViewGpuTest, ASlotRefusesANullTextureHandle) {
   auto image = gpuEngine().createImage("gpu_null_handle", 8, 8);
   ASSERT_NE(image, nullptr);
-  EXPECT_FALSE(image->updateTexture(sigil::core::hardware::TextureHandle{}));
+  EXPECT_FALSE(image->updateTexture(sigil::gpu::TextureHandle{}));
 }
 
 TEST(WebViewGpuTest, WrapsOnePublishedTextureOncePerVersion) {

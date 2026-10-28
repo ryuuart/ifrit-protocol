@@ -16,10 +16,10 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkSurface.h>
-#include <sigilcore/cache/Bake.h>
-#include <sigilcore/cache/Volatility.h>
-#include <sigilcore/reconcile/Phases.h>
-#include <sigilcore/reconcile/Reconciler.h>
+#include <sigiltree/cache/Bake.h>
+#include <sigiltree/cache/Volatility.h>
+#include <sigiltree/reconcile/Phases.h>
+#include <sigiltree/reconcile/Reconciler.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/style/Type.h>
 
@@ -87,7 +87,7 @@ struct Composer::Impl : detail::CascadeRoot,
   /** The reconciler, with this composer as its host: it owns the shape of
    *  the tree — matching, memo, the identity prune, the counts — and
    *  reaches everything else through the host operations below. */
-  using Reconciler = core::Reconciler<Impl, detail::Instance,
+  using Reconciler = tree::Reconciler<Impl, detail::Instance,
                                       std::shared_ptr<detail::ElementNode>>;
   Reconciler reconciler;
   YGConfigRef yogaConfig = nullptr;
@@ -100,18 +100,18 @@ struct Composer::Impl : detail::CascadeRoot,
   // indexed after its parent, so in a single shared map the content would
   // overwrite the slot's entry and every later renderSlot() would silently
   // find the wrong instance. Two namespaces, no collision.
-  boost::unordered_flat_map<std::string, detail::Instance*, core::KeyHash,
+  boost::unordered_flat_map<std::string, detail::Instance*, tree::KeyHash,
                             std::equal_to<>>
       bySlot;
   // Every class an operator in the tree picks its nodes by: a selector
   // the composer knows as surely as one a sheet's rule names.
-  boost::unordered_flat_set<std::string, core::KeyHash, std::equal_to<>>
+  boost::unordered_flat_set<std::string, tree::KeyHash, std::equal_to<>>
       operatorClasses;
   // Content given to a slot no mounted tree holds yet, newest per name,
   // mounted when a described tree brings the slot: a setup may fill a
   // slot before it returns the tree that holds it.
   boost::unordered_flat_map<std::string, std::shared_ptr<detail::ElementNode>,
-                            core::KeyHash, std::equal_to<>>
+                            tree::KeyHash, std::equal_to<>>
       pendingSlots;
   /** Mounts every held content whose slot now stands in the tree. */
   void mountPendingSlots();
@@ -152,7 +152,7 @@ struct Composer::Impl : detail::CascadeRoot,
   // each with the answer that advances when one first does.
   boost::unordered_flat_map<std::string,
                             std::shared_ptr<detail::FollowedArrival>,
-                            core::KeyHash, std::equal_to<>>
+                            tree::KeyHash, std::equal_to<>>
       awaitedKeys;
   // Whether the key index names only nodes that stand: lowered by a
   // retirement, raised by the rebuild after it.
@@ -405,9 +405,9 @@ struct Composer::Impl : detail::CascadeRoot,
 
   // ---- volatility & caching (Volatility.cpp) ----
   void scanReleasedScalars();  // defined in Volatility.cpp beside the memos
-  core::SubtreeVerdict computeVolatile(detail::Instance& inst, Above above);
+  tree::SubtreeVerdict computeVolatile(detail::Instance& inst, Above above);
   /** The root's walk: nothing stands above it. */
-  core::SubtreeVerdict computeVolatile(detail::Instance& inst) {
+  tree::SubtreeVerdict computeVolatile(detail::Instance& inst) {
     return computeVolatile(inst, Above{});
   }
   /** The node→root matrix, recomputed OUTSIDE paint by walking the ancestor
@@ -422,7 +422,7 @@ struct Composer::Impl : detail::CascadeRoot,
   std::array<float, 6> worldScalarsOf(detail::Instance& inst);
   /** The picture tier's seam value: the kernel decides bake, replay or
    *  live, and these are the operations that carry the decision out. */
-  core::Bake<PictureBakeTarget> pictureBake{PictureBake{}};
+  tree::Bake<PictureBakeTarget> pictureBake{PictureBake{}};
   /** Record the node's own paint into a replayable picture, freezing the
    *  leaf blend and opacity into it and stamping the values it was
    *  recorded from. The bake half of the picture tier. */
@@ -472,7 +472,7 @@ struct Composer::Impl : detail::CascadeRoot,
    * the registration IS its seam — and the runner's settle step re-runs it
    *  after every relayout so a routed plate is drawn against settled
    *  geometry. */
-  static constexpr core::Phase<Impl> phases[] = {
+  static constexpr tree::Phase<Impl> phases[] = {
       {"yoga", &Impl::phaseYoga, false},
       {"customLayouts", &Impl::phaseCustomLayouts, true},
       {"centerPins", &Impl::phaseCenterPins, true},

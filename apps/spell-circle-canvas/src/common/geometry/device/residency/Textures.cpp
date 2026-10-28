@@ -18,7 +18,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/surface/PaintedMap.h>
 #include <sigilmedia/advanced/Device.h>
 #include <sigilmedia/advanced/Skia.h>

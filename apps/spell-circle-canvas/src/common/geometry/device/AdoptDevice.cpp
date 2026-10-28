@@ -22,12 +22,12 @@
 #include <Graphics/GraphicsEngineVulkan/interface/RenderDeviceVk.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 // clang-format on
 
 namespace sigil::geometry::device {
 
-std::unique_ptr<core::hardware::GpuDevice> adoptVulkanDevice(
+std::unique_ptr<gpu::GpuDevice> adoptVulkanDevice(
     Diligent::IRenderDevice* device, Diligent::IDeviceContext* context,
     std::string* error) {
   using namespace Diligent;
@@ -50,8 +50,8 @@ std::unique_ptr<core::hardware::GpuDevice> adoptVulkanDevice(
     return nullptr;
   }
 
-  core::hardware::NativeDevice native;
-  native.backend = core::hardware::Backend::Vulkan;
+  gpu::NativeDevice native;
+  native.backend = gpu::Backend::Vulkan;
   native.vulkan.instance = deviceVk->GetVkInstance();
   native.vulkan.physicalDevice = deviceVk->GetVkPhysicalDevice();
   native.vulkan.device = deviceVk->GetVkDevice();
@@ -80,10 +80,10 @@ std::unique_ptr<core::hardware::GpuDevice> adoptVulkanDevice(
   // APIs would dispatch through separately opened copies.
   if (vkGetInstanceProcAddr)
     native.vulkan.getInstanceProcAddr =
-        reinterpret_cast<core::hardware::VulkanHandles::GetInstanceProcAddr>(
+        reinterpret_cast<gpu::VulkanHandles::GetInstanceProcAddr>(
             vkGetInstanceProcAddr);
 
-  auto adopted = core::hardware::GpuDevice::adopt(native);
+  auto adopted = gpu::GpuDevice::adopt(native);
   if (!adopted) {
     if (error) *error = std::move(adopted.error().message);
     return nullptr;

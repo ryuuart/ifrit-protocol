@@ -19,8 +19,8 @@
 // …and the one SigilCore header in the same position: a derivation
 // declares what it reads in core's vocabulary, and the declaration is
 // carried on a block only the library's own translation units see.
-#include <sigilcore/reconcile/Reads.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigiltree/reconcile/Reads.h>
 
 #include "BrushTestSupport.h"

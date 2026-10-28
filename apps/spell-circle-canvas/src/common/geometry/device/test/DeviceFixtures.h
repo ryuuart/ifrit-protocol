@@ -10,8 +10,8 @@
 
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 
@@ -50,8 +50,8 @@ inline bool clearThroughDiligent(geometry::device::Device& device) {
 }
 
 /** An 8x8 texture description the adopted-device cases make and destroy. */
-inline core::hardware::TextureDescription smallTexture() {
-  core::hardware::TextureDescription desc;
+inline gpu::TextureDescription smallTexture() {
+  gpu::TextureDescription desc;
   desc.width = 8;
   desc.height = 8;
   desc.label = "geometry_device_test";

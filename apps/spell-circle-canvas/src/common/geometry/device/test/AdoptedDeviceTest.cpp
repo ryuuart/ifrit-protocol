@@ -8,8 +8,8 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 
 #include <chrono>
 #include <cstdint>
@@ -24,18 +24,18 @@ using namespace sigil::geometry::device::test;
 
 namespace {
 
-using core::hardware::Backend;
-using core::hardware::FenceHandle;
-using core::hardware::FenceValue;
-using core::hardware::FenceWait;
-using core::hardware::GpuDevice;
-using core::hardware::kFenceInitialValue;
-using core::hardware::NativeFence;
-using core::hardware::NativeTexture;
-using core::hardware::TextureDescription;
-using core::hardware::TextureFormat;
-using core::hardware::TextureHandle;
-using core::hardware::VulkanHandles;
+using gpu::Backend;
+using gpu::FenceHandle;
+using gpu::FenceValue;
+using gpu::FenceWait;
+using gpu::GpuDevice;
+using gpu::kFenceInitialValue;
+using gpu::NativeFence;
+using gpu::NativeTexture;
+using gpu::TextureDescription;
+using gpu::TextureFormat;
+using gpu::TextureHandle;
+using gpu::VulkanHandles;
 
 }  // namespace
 

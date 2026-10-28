@@ -30,7 +30,7 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #endif
 
@@ -44,7 +44,6 @@ auto skiaShape(Draw draw) {
     return sigil::geometry::path::fromSk(draw(SkSize{size.x, size.y}));
   };
 }
-
 
 /** One font context for the process: shaping caches warm once and every
  *  arm measures the library rather than the system font manager. */
@@ -96,9 +95,9 @@ inline Fill cellFill(int id, int changed = -1, int phase = 0) {
 
 /** The process's GPU device, created on first use; null where there is
  *  none. */
-inline sigil::core::hardware::GpuDevice* gpuDevice() {
-  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+inline sigil::gpu::GpuDevice* gpuDevice() {
+  static std::unique_ptr<sigil::gpu::GpuDevice> device =
+      sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   return device.get();
 }
 
@@ -107,7 +106,7 @@ inline sigil::core::hardware::GpuDevice* gpuDevice() {
  *  skip. */
 inline sigil::skia::GraphiteContext* graphite() {
   static std::unique_ptr<sigil::skia::GraphiteContext> ctx = [] {
-    sigil::core::hardware::GpuDevice* device = gpuDevice();
+    sigil::gpu::GpuDevice* device = gpuDevice();
     return device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
   }();
   return ctx.get();

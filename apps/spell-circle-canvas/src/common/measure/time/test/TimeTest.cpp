@@ -22,7 +22,7 @@
 #include <vector>
 
 using namespace sigil::measure;
-namespace motion = sigil::motion;
+namespace core = sigil::core;
 using namespace std::chrono_literals;
 
 // The one case in this file that reads the wall clock. It is here so
@@ -32,12 +32,12 @@ using namespace std::chrono_literals;
 TEST(Timing, TheClocksAdvanceWithRealTimeAndResetSendsThemBack) {
   Stopwatch watch;
   Laps laps;
-  motion::Duration scoped = -1s;
+  core::Duration scoped = -1s;
   {
     ScopedDuration timing(scoped);
     std::this_thread::sleep_for(2ms);
   }
-  const motion::Duration slept = watch.elapsed();
+  const core::Duration slept = watch.elapsed();
   EXPECT_GE(slept, 1ms);
   EXPECT_GE(laps.mark("slept"), 1ms);
   EXPECT_GE(scoped, 1ms);
@@ -56,11 +56,11 @@ TEST(Laps, MarksAreNamedInOrderAndSumToTheTotal) {
   // of the next — so their sum IS the total, whatever the durations turn
   // out to be.
   Laps laps;
-  const motion::Duration layout = laps.mark("layout");
-  const motion::Duration paint = laps.mark("paint");
+  const core::Duration layout = laps.mark("layout");
+  const core::Duration paint = laps.mark("paint");
   std::vector<std::string> names;
-  motion::Duration sum{};
-  laps.each([&](std::string_view name, motion::Duration lap) {
+  core::Duration sum{};
+  laps.each([&](std::string_view name, core::Duration lap) {
     names.emplace_back(name);
     sum += lap;
   });
@@ -97,7 +97,7 @@ TEST(Laps, RefuseANameThatWouldBeGoneBeforeItIsReadBack) {
   laps.mark(phase);
   phase[0] = 'L';
   std::string seen;
-  laps.each([&](std::string_view name, motion::Duration) { seen = name; });
+  laps.each([&](std::string_view name, core::Duration) { seen = name; });
   EXPECT_EQ(seen, "Layout");
 }
 
@@ -115,7 +115,7 @@ TEST(Laps, ResetForgetsTheMarksAndStartsThePhaseThere) {
 TEST(ScopedDuration, LeavesItsTargetUntouchedUntilScopeExit) {
   // The target is assigned at destruction, not accumulated as the block
   // runs, so a caller may read the previous run's number until then.
-  motion::Duration spent = -1s;
+  core::Duration spent = -1s;
   {
     ScopedDuration timing(spent);
     EXPECT_EQ(spent, -1s);

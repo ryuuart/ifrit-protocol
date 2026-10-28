@@ -46,9 +46,9 @@ class GraphiteContext;
 class PaintOrderCanvas;
 }  // namespace sigil::skia
 
-namespace sigil::core::hardware {
+namespace sigil::gpu {
 class GpuDevice;
-}  // namespace sigil::core::hardware
+}  // namespace sigil::gpu
 
 class GrimoireRenderer final : public QQuickRhiItemRenderer {
  public:

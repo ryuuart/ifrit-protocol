@@ -45,7 +45,7 @@ sigil_test(draw_test
 
 sigil_bench(draw_bench
   SOURCES bench/DrawBench.cpp
-  LIBRARIES SigilDraw SigilWeavePorts SigilSkiaGraphite SigilCoreHardware)
+  LIBRARIES SigilDraw SigilWeavePorts SigilSkiaGraphite SigilGpu)
 
 # Probe borrowed names against their originating headers. Names belonging
 # to consumers above this library are excluded to keep dependency direction.

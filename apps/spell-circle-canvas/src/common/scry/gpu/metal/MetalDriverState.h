@@ -9,7 +9,7 @@
 
 #import <Metal/Metal.h>
 #include <include/gpu/graphite/Recorder.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -52,22 +52,22 @@ struct MetalDriver::State {
   // context, which the host uses from its own thread, so both happen under
   // the context's lock; the one queue underneath orders this work against
   // the driver's own render passes and the host's frames alike.
-  sigil::core::hardware::GpuDevice* gpuDevice = nullptr;
+  sigil::gpu::GpuDevice* gpuDevice = nullptr;
   sigil::skia::GraphiteContext* graphite = nullptr;
   std::unique_ptr<skgpu::graphite::Recorder> webRecorder;
 
   /** The MTLTexture behind a live handle, or nil for a stale one. */
-  id<MTLTexture> texture(sigil::core::hardware::TextureHandle handle) const {
+  id<MTLTexture> texture(sigil::gpu::TextureHandle handle) const {
     return (__bridge id<MTLTexture>)gpuDevice->exportNative(handle).mtlTexture;
   }
 
   /** Imports a driver-created (+1) texture borrowed: the driver keeps the
    *  reference and drops it in releaseTexture(). */
-  sigil::core::hardware::TextureHandle import(id<MTLTexture> mtlTexture,
-                                              int width, int height) {
+  sigil::gpu::TextureHandle import(id<MTLTexture> mtlTexture, int width,
+                                   int height) {
     if (!mtlTexture) return {};
-    sigil::core::hardware::NativeTexture native;
-    native.backend = sigil::core::hardware::Backend::Metal;
+    sigil::gpu::NativeTexture native;
+    native.backend = sigil::gpu::Backend::Metal;
     native.mtlTexture = (__bridge_retained void*)mtlTexture;
     native.width = width;
     native.height = height;

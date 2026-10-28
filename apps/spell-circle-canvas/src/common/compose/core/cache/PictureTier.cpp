@@ -8,7 +8,7 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkRect.h>
-#include <sigilcore/cache/Bake.h>
+#include <sigiltree/cache/Bake.h>
 #include <src/core/SkScopeExit.h>
 
 #include <algorithm>
@@ -175,14 +175,14 @@ void paintThroughPicture(PaintPass& pass) {
   const bool scalePinMoved = impl.hostScale < inst.pictureScaleLo ||
                              impl.hostScale > inst.pictureScaleHi;
   const bool deferredDue = inst.pictureDeviceDeferred && pass.matrixStable;
-  if (core::decideBake({.cacheable = true,
+  if (tree::decideBake({.cacheable = true,
                         .held = impl.pictureBake->held(target),
                         .stale = inst.paintDirty || pass.memoStale ||
                                  inst.bakedLeafOpacity != leafOpacity ||
                                  inst.bakedLeafBlend != leafBlend || pinMoved ||
                                  scalePinMoved || deferredDue ||
                                  inst.pictureGroupPending}) ==
-      core::BakeAction::Take)
+      tree::BakeAction::Take)
     impl.pictureBake->take(target);
   if (pass.profile.row != SIZE_MAX)
     impl.profileRows[pass.profile.row].cacheState =

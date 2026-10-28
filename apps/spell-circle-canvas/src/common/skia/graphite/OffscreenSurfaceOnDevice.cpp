@@ -4,7 +4,7 @@
 
 #include <include/gpu/GpuTypes.h>
 #include <include/gpu/graphite/Recorder.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilskia/graphite/TextureImage.h>
@@ -25,7 +25,7 @@ namespace {
  *  export — what a stale or null handle yields — has no texture in it, so
  *  the wrap fails and `canvas()` stays null. */
 OffscreenSurface wrapNative(GraphiteContext& context,
-                            const core::hardware::NativeTexture& native,
+                            const gpu::NativeTexture& native,
                             sk_sp<SkColorSpace> colorSpace) {
 #ifdef __APPLE__
   const skgpu::graphite::Recorder* recorder = context.recorder();
@@ -38,7 +38,7 @@ OffscreenSurface wrapNative(GraphiteContext& context,
                             std::move(colorSpace));
   }
 #endif
-  if (native.backend == core::hardware::Backend::Vulkan) {
+  if (native.backend == gpu::Backend::Vulkan) {
     VulkanImage image;
     image.image = native.vkImage;
     image.layout = native.vkLayout;
@@ -57,17 +57,17 @@ OffscreenSurface wrapNative(GraphiteContext& context,
 }  // namespace
 
 OffscreenSurface::OffscreenSurface(GraphiteContext& context,
-                                   core::hardware::GpuDevice& device,
-                                   core::hardware::TextureHandle texture,
+                                   gpu::GpuDevice& device,
+                                   gpu::TextureHandle texture,
                                    sk_sp<SkColorSpace> colorSpace)
     : OffscreenSurface(wrapNative(context, device.exportNative(texture),
                                   std::move(colorSpace))) {}
 
-core::hardware::FenceValue OffscreenSurface::submit(
-    core::hardware::GpuDevice& device, core::hardware::FenceHandle fence) {
+gpu::FenceValue OffscreenSurface::submit(gpu::GpuDevice& device,
+                                         gpu::FenceHandle fence) {
   // A moved-from surface submits nothing, so there is nothing for a
   // signal to stand behind and the fence keeps the value it has.
-  if (!m_context) return core::hardware::kFenceInitialValue;
+  if (!m_context) return gpu::kFenceInitialValue;
   submit();
   return device.signal(fence);
 }

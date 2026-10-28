@@ -18,7 +18,7 @@
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilskia/graphite/PaintOrder.h>
@@ -35,11 +35,11 @@
 #include "GraphiteReadback.h"
 #include "MetalFixtures.h"
 
-using sigil::core::hardware::FenceHandle;
-using sigil::core::hardware::FenceValue;
-using sigil::core::hardware::FenceWait;
-using sigil::core::hardware::GpuDevice;
-using sigil::core::hardware::TextureHandle;
+using sigil::gpu::FenceHandle;
+using sigil::gpu::FenceValue;
+using sigil::gpu::FenceWait;
+using sigil::gpu::GpuDevice;
+using sigil::gpu::TextureHandle;
 using sigil::skia::GraphiteContext;
 using sigil::skia::OffscreenSurface;
 using namespace sigil::skia::test;

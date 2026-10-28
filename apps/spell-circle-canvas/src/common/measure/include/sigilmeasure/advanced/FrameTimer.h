@@ -23,12 +23,12 @@ namespace sigil::measure {
 struct FrameSample {
   /** Mean end-to-end frame time, backend flush included: what the
    *  machine actually spent per frame. */
-  motion::Duration frame{};
+  core::Duration frame{};
   /** Mean of the frame's own work, the backend flush taken out — the
    *  same window as `frame` on a backend with no flush. */
-  motion::Duration work{};
+  core::Duration work{};
   /** The tail of the end-to-end lane: its 0.99 quantile. */
-  motion::Duration frameTail{};
+  core::Duration frameTail{};
   /** The rate the frame's work alone would allow. A ceiling, not a frame
    *  rate: it says nothing about presenting the frame or flushing it,
    *  and it stays high exactly when a stutter comes from outside the
@@ -43,7 +43,7 @@ struct FrameTimerOptions {
   /** A presented interval at least this long is a pause — a window drag,
    *  a sleep, a debugger stop — and not a frame: it seeds the cadence
    *  again and adds no sample. Zero reads every interval as a frame. */
-  motion::Duration pause{};
+  core::Duration pause{};
 };
 
 /** Four marks a render loop lays, three windows they feed. `begin()` at
@@ -83,26 +83,23 @@ class FrameTimer {
   }
 
   /** Adds an end-to-end span a caller timed itself. */
-  void addFrame(motion::Duration span) { m_frame.add(span); }
+  void addFrame(core::Duration span) { m_frame.add(span); }
   /** Adds a work span a caller timed itself. */
-  void addWork(motion::Duration span) { m_work.add(span); }
+  void addWork(core::Duration span) { m_work.add(span); }
   /** Adds a presentation interval a caller timed itself; one the options
    *  read as a pause is dropped. */
-  void addPresent(motion::Duration interval) {
-    if (m_options.pause > motion::Duration::zero() &&
-        interval >= m_options.pause)
+  void addPresent(core::Duration interval) {
+    if (m_options.pause > core::Duration::zero() && interval >= m_options.pause)
       return;
     m_present.add(interval);
   }
 
   /** The end-to-end lane: begin to finished. */
-  [[nodiscard]] const Window<motion::Duration>& frame() const {
-    return m_frame;
-  }
+  [[nodiscard]] const Window<core::Duration>& frame() const { return m_frame; }
   /** The work lane: begin to composed. */
-  [[nodiscard]] const Window<motion::Duration>& work() const { return m_work; }
+  [[nodiscard]] const Window<core::Duration>& work() const { return m_work; }
   /** The presentation lane: the interval between presented frames. */
-  [[nodiscard]] const Window<motion::Duration>& present() const {
+  [[nodiscard]] const Window<core::Duration>& present() const {
     return m_present;
   }
 
@@ -143,13 +140,13 @@ class FrameTimer {
   void resume() { m_lastPresent = {}; }
 
  private:
-  [[nodiscard]] static double perSecond(const Window<motion::Duration>& lane) {
-    const motion::Duration mean = lane.mean();
-    return mean > motion::Duration::zero() ? 1.0 / mean.count() : 0.0;
+  [[nodiscard]] static double perSecond(const Window<core::Duration>& lane) {
+    const core::Duration mean = lane.mean();
+    return mean > core::Duration::zero() ? 1.0 / mean.count() : 0.0;
   }
 
   FrameTimerOptions m_options;
-  Window<motion::Duration> m_frame, m_work, m_present;
+  Window<core::Duration> m_frame, m_work, m_present;
   Clock::time_point m_begin;
   Clock::time_point m_lastPresent;
 };

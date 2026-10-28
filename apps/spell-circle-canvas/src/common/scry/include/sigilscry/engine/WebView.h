@@ -11,7 +11,7 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
-#include <sigilcore/hardware/Handle.h>
+#include <sigilgpu/Handle.h>
 
 #include <cstdint>
 #include <functional>
@@ -56,7 +56,7 @@ class WebView {
      *  GpuDevice; `exportNative` there hands the native object out.
      *  @trap Stale once the view republishes at a new size — the wrap
      *  in `image` is what keeps a frame's texture alive. */
-    sigil::core::hardware::TextureHandle texture;
+    sigil::gpu::TextureHandle texture;
     int width = 0;
     int height = 0;
     SkIRect dirtyBounds = SkIRect::MakeEmpty();

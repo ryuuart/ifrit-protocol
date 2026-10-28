@@ -9,7 +9,7 @@ library is the front page.
 `device::Device::create(config)` brings the one GPU device up, or answers
 the `core::Error` that says why it could not:
 Diligent creates a Vulkan device and its immediate context, and
-SigilCore's hardware device adopts the Vulkan device, queue and loader
+SigilGpu's device adopts the Vulkan device, queue and loader
 entry points it made. A texture named on `gpu()` is then an image both
 APIs reach — 2D drawing through `graphite()` lands in it and a 3D pass
 samples it, with no copy in either direction and one handle table naming
@@ -30,10 +30,10 @@ auto created = geometry::device::Device::create(config);
 if (!created) return;  // no Vulkan runtime, for instance; `created.error()` says why
 std::unique_ptr<geometry::device::Device> device = std::move(*created);
 
-core::hardware::GpuDevice& gpu = *device->gpu();
-core::hardware::TextureDescription desc;
+gpu::GpuDevice& gpu = *device->gpu();
+gpu::TextureDescription desc;
 desc.width = desc.height = 512;
-const core::hardware::TextureHandle texture = gpu.createTexture(desc);
+const gpu::TextureHandle texture = gpu.createTexture(desc);
 
 // Paint 2D into a texture a 3D pass will sample, and have the device's
 // queue wait on the GPU for the painting before the pass is submitted.
@@ -98,13 +98,13 @@ context goes.
 **A queue made on Metal itself reaches the device through its Metal
 objects.** Where the driver runs Vulkan over Metal, every texture and
 fence named on `gpu()` is also the Metal object the driver keeps behind
-it: `core::hardware::GpuDevice::exportNative` answers the id<MTLTexture>
+it: `gpu::GpuDevice::exportNative` answers the id<MTLTexture>
 behind a texture and the id<MTLSharedEvent> behind a fence, so a queue on
 Metal paints into a texture this device made, or samples one drawn here,
 and waits for the drawing on the GPU. `metalEvent()` is that event for a
 fence on `gpu()`, and `metalTexture()` the same texture for one the
 engine made rather than `gpu()`. The other way round,
-`core::hardware::GpuDevice::importNative` names a texture Metal made as a
+`gpu::GpuDevice::importNative` names a texture Metal made as a
 Vulkan image over the same memory — the handle owns the image and the
 texture stays its maker's — and brings a Metal event over as a fence the
 queue waits on with `waitGpu`, under a `QueueLock` like every wait on

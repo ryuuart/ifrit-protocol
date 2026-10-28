@@ -11,7 +11,7 @@
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <gtest/gtest.h>
 #include <include/core/SkCanvas.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmedia/advanced/Device.h>
 #include <sigilmedia/core/Frame.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
@@ -22,22 +22,22 @@
 #include <vector>
 
 #include "Meshes.h"
-#include "Pipelines.h"
 #include "OnDevice.h"
+#include "Pipelines.h"
 #include "Textures.h"
 
 using namespace sigil::geometry;
 
 namespace {
 
-namespace hardware = ::sigil::core::hardware;
+namespace gpu = ::sigil::gpu;
 
 /** A SOURCE WHOSE PIXELS STAND ON THE DEVICE AND NOWHERE ELSE: its frame
  *  names the texture and carries no image, so a map sampled from it is
  *  the texture wrapped or nothing. */
 struct StandingSource {
   const void* device = nullptr;
-  hardware::NativeTexture image;
+  gpu::NativeTexture image;
   /** How many times the page has been painted, as its painter counts;
    *  zero for a painter that does not count. */
   uint64_t revision = 0;
@@ -64,16 +64,15 @@ struct StandingSource {
 /** A page of @p side in @p format, with @p levels levels, painted one
  *  colour at level zero on @p on's device, or an empty handle where the
  *  device carries no 2D side. */
-hardware::TextureHandle paintedPage(device::Device& on,
-                                    hardware::TextureFormat format, int side,
-                                    int levels = 1) {
-  hardware::GpuDevice* gpu = on.gpu();
+gpu::TextureHandle paintedPage(device::Device& on, gpu::TextureFormat format,
+                               int side, int levels = 1) {
+  gpu::GpuDevice* gpu = on.gpu();
   if (!gpu || !on.graphite()) return {};
-  hardware::TextureDescription description;
+  gpu::TextureDescription description;
   description.width = description.height = side;
   description.format = format;
   description.mipLevels = levels;
-  const hardware::TextureHandle page = gpu->createTexture(description);
+  const gpu::TextureHandle page = gpu->createTexture(description);
   if (!page) return {};
   const device::Device::QueueLock lock(on);
   sigil::skia::OffscreenSurface surface(*on.graphite(), *gpu, page);
@@ -124,7 +123,8 @@ TEST(PipelineCache, AProgramThatCannotBeBuiltIsRefusedAndRemembered) {
   while (cache.building() > 0 && std::chrono::steady_clock::now() < deadline)
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
   EXPECT_EQ(cache.ready(key), nullptr);
-  EXPECT_EQ(cache.pipeline(key), nullptr) << "a refused build answered a pipeline";
+  EXPECT_EQ(cache.pipeline(key), nullptr)
+      << "a refused build answered a pipeline";
   EXPECT_EQ(cache.building(), 0u);
   EXPECT_EQ(cache.pipeline(key), nullptr) << "the refusal was not remembered";
 }
@@ -241,7 +241,8 @@ TEST(MeshResidency, HoldsBothPackingsOfAMeshDrawnTintedAndUntinted) {
   // …and the SECOND FRAME, drawing the same two, is answered by the
   // buffers already held for each rather than a repack of either.
   const device::MeshBuffers* untintedSecond = resident.upload(13, tinted);
-  const device::MeshBuffers* tintedSecond = resident.upload(13, tinted, "Color");
+  const device::MeshBuffers* tintedSecond =
+      resident.upload(13, tinted, "Color");
   ASSERT_NE(untintedSecond, nullptr);
   ASSERT_NE(tintedSecond, nullptr);
   EXPECT_EQ(untintedSecond->vertices.RawPtr(), untintedVertices);
@@ -305,19 +306,19 @@ TEST(TextureResidency, ReadsNothingFromAMapThatYieldsNoImage) {
 // level it was painted at.
 TEST(TextureResidency, APageIsWornInTheFormatItWasPaintedIn) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  hardware::GpuDevice* gpu = on->gpu();
+  gpu::GpuDevice* gpu = on->gpu();
   if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
   const struct {
-    hardware::TextureFormat made;
+    gpu::TextureFormat made;
     Diligent::TEXTURE_FORMAT described;
   } formats[] = {
-      {hardware::TextureFormat::RGBA8Unorm, Diligent::TEX_FORMAT_RGBA8_UNORM},
-      {hardware::TextureFormat::BGRA8Unorm, Diligent::TEX_FORMAT_BGRA8_UNORM},
-      {hardware::TextureFormat::RGBA16Float, Diligent::TEX_FORMAT_RGBA16_FLOAT},
+      {gpu::TextureFormat::RGBA8Unorm, Diligent::TEX_FORMAT_RGBA8_UNORM},
+      {gpu::TextureFormat::BGRA8Unorm, Diligent::TEX_FORMAT_BGRA8_UNORM},
+      {gpu::TextureFormat::RGBA16Float, Diligent::TEX_FORMAT_RGBA16_FLOAT},
   };
   device::TextureResidency resident(*on);
   for (const auto& format : formats) {
-    const hardware::TextureHandle page = paintedPage(*on, format.made, 32);
+    const gpu::TextureHandle page = paintedPage(*on, format.made, 32);
     ASSERT_TRUE(gpu->isValid(page));
     const sigil::material::Texture map(sigil::media::PixelSource(
         StandingSource{gpu, gpu->exportNative(page)}));
@@ -337,13 +338,12 @@ TEST(TextureResidency, APageIsWornInTheFormatItWasPaintedIn) {
 // copies, a draw reads its level zero alone.
 TEST(TextureResidency, APageMadeWithAChainIsWornThroughItsOwnChain) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  hardware::GpuDevice* gpu = on->gpu();
+  gpu::GpuDevice* gpu = on->gpu();
   if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
-  const hardware::TextureHandle page =
-      paintedPage(*on, hardware::TextureFormat::RGBA16Float, 64,
-                  device::mapMipLevels(64, 64));
+  const gpu::TextureHandle page = paintedPage(
+      *on, gpu::TextureFormat::RGBA16Float, 64, device::mapMipLevels(64, 64));
   ASSERT_TRUE(gpu->isValid(page));
-  const hardware::NativeTexture image = gpu->exportNative(page);
+  const gpu::NativeTexture image = gpu->exportNative(page);
   ASSERT_EQ(image.mipLevels, device::mapMipLevels(64, 64));
   const sigil::material::Texture map(
       sigil::media::PixelSource(StandingSource{gpu, image}));
@@ -376,13 +376,12 @@ TEST(TextureResidency, APageMadeWithAChainIsWornThroughItsOwnChain) {
 // frame that wears it, since nothing says it was not painted again.
 TEST(TextureResidency, APageNotPaintedAgainIsNeitherWaitedForNorFilledAgain) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  hardware::GpuDevice* gpu = on->gpu();
+  gpu::GpuDevice* gpu = on->gpu();
   if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
-  const hardware::TextureHandle page =
-      paintedPage(*on, hardware::TextureFormat::RGBA8Unorm, 64,
-                  device::mapMipLevels(64, 64));
+  const gpu::TextureHandle page = paintedPage(
+      *on, gpu::TextureFormat::RGBA8Unorm, 64, device::mapMipLevels(64, 64));
   ASSERT_TRUE(gpu->isValid(page));
-  const hardware::NativeTexture image = gpu->exportNative(page);
+  const gpu::NativeTexture image = gpu->exportNative(page);
   device::TextureResidency resident(*on);
   const auto wearFrame = [&](uint64_t revision) {
     const sigil::material::Texture map(
@@ -418,10 +417,10 @@ TEST(TextureResidency, APageNotPaintedAgainIsNeitherWaitedForNorFilledAgain) {
 // one.
 TEST(TextureResidency, APageMadeWithNoChainIsWornAsItStands) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  hardware::GpuDevice* gpu = on->gpu();
+  gpu::GpuDevice* gpu = on->gpu();
   if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
-  const hardware::TextureHandle page =
-      paintedPage(*on, hardware::TextureFormat::RGBA8Unorm, 64);
+  const gpu::TextureHandle page =
+      paintedPage(*on, gpu::TextureFormat::RGBA8Unorm, 64);
   ASSERT_TRUE(gpu->isValid(page));
   const sigil::material::Texture map(
       sigil::media::PixelSource(StandingSource{gpu, gpu->exportNative(page)}));
@@ -441,12 +440,12 @@ TEST(TextureResidency, APageMadeWithNoChainIsWornAsItStands) {
 // sampled.
 TEST(TextureResidency, AFrameInAFormatNoPageHasIsNotWrapped) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  hardware::GpuDevice* gpu = on->gpu();
+  gpu::GpuDevice* gpu = on->gpu();
   if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
-  const hardware::TextureHandle page =
-      paintedPage(*on, hardware::TextureFormat::RGBA8Unorm, 16);
+  const gpu::TextureHandle page =
+      paintedPage(*on, gpu::TextureFormat::RGBA8Unorm, 16);
   ASSERT_TRUE(gpu->isValid(page));
-  hardware::NativeTexture image = gpu->exportNative(page);
+  gpu::NativeTexture image = gpu->exportNative(page);
   image.vkFormat = 9; /* R8_UNORM */
   const sigil::material::Texture map(
       sigil::media::PixelSource(StandingSource{gpu, image}));

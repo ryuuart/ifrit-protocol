@@ -1,6 +1,6 @@
 /** @file
  * The one device 2D and 3D share: Diligent creates the Vulkan device and
- * SigilCoreHardware adopts it, so Graphite draws on the very queue
+ * SigilGpu adopts it, so Graphite draws on the very queue
  * Diligent submits through, the adopted device names every handle, and
  * Diligent still drives it afterwards.
  */
@@ -9,8 +9,8 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -35,21 +35,21 @@ using namespace sigil::geometry::device::test;
 TEST(Device, GraphiteDrawsOnTheDeviceDiligentMade) {
   SIGIL_ON_DEVICE_OR_SKIP(d);
 
-  core::hardware::GpuDevice* gpu = d->gpu();
+  gpu::GpuDevice* gpu = d->gpu();
   ASSERT_NE(gpu, nullptr) << "the Diligent device was not adopted";
   skia::GraphiteContext* graphite = vulkanGraphite(*d);
   ASSERT_NE(graphite, nullptr);
-  EXPECT_EQ(gpu->backend(), core::hardware::Backend::Vulkan);
+  EXPECT_EQ(gpu->backend(), gpu::Backend::Vulkan);
   EXPECT_NE(gpu->native().vulkan.device, nullptr);
   EXPECT_NE(gpu->native().vulkan.queue, nullptr);
 
-  core::hardware::TextureDescription desc;
+  gpu::TextureDescription desc;
   desc.width = 8;
   desc.height = 8;
-  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
-  const core::hardware::TextureHandle texture = gpu->createTexture(desc);
+  desc.format = gpu::TextureFormat::RGBA8Unorm;
+  const gpu::TextureHandle texture = gpu->createTexture(desc);
   ASSERT_TRUE(gpu->isValid(texture));
-  const core::hardware::FenceHandle fence = gpu->createFence();
+  const gpu::FenceHandle fence = gpu->createFence();
   ASSERT_TRUE(gpu->isValid(fence));
 
   const SkColor painted = SkColorSetARGB(255, 0, 0, 255);
@@ -60,9 +60,9 @@ TEST(Device, GraphiteDrawsOnTheDeviceDiligentMade) {
     skia::OffscreenSurface surface(*graphite, *gpu, texture);
     ASSERT_NE(surface.canvas(), nullptr);
     surface.canvas()->clear(painted);
-    const core::hardware::FenceValue done = surface.submit(*gpu, fence);
-    EXPECT_GT(done, core::hardware::kFenceInitialValue);
-    EXPECT_EQ(gpu->waitCpu(fence, done), core::hardware::FenceWait::Reached);
+    const gpu::FenceValue done = surface.submit(*gpu, fence);
+    EXPECT_GT(done, gpu::kFenceInitialValue);
+    EXPECT_EQ(gpu->waitCpu(fence, done), gpu::FenceWait::Reached);
     EXPECT_EQ(gpu->completedValue(fence), done);
     pixels = skia::test::readGraphiteSurface(*graphite, surface.surface());
   }

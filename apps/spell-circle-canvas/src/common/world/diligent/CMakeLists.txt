@@ -67,7 +67,7 @@ sigil_library(SigilWorldDiligent
                   ${SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR}
                   ${SIGIL_GEOMETRY_DEVICE_RESIDENCY_PRIVATE_DIR}
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
-         SigilGeometryMeshPop SigilGeometryMeshPopDevice SigilCoreHardware
+         SigilGeometryMeshPop SigilGeometryMeshPopDevice SigilGpu
   PRIVATE SigilGeometryDeviceResidency SigilMaterialSurface SigilSkiaGraphite
           Boost::container)
 sigil_shader_sources(SigilWorldDiligent

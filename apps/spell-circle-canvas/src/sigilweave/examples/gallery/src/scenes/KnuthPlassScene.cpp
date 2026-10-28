@@ -1,14 +1,14 @@
 // Scene: Knuth-Plass vs greedy, hyphenation, last-line modes.
 #include <include/core/SkPaint.h>
-#include <sigilcore/cache/Rebuild.h>
+#include <sigilcore/memo/Rebuild.h>
 #include <sigilmeasure/time/Stopwatch.h>
 
 #include <array>
 #include <cmath>
 
-#include "sigilweave/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
+#include "sigilweave/advanced/Skia.h"
 
 using namespace sigil::weave;
 
@@ -66,12 +66,13 @@ class KnuthPlassScene final : public Scene {
                                             : LineBreakStrategy::kKnuthPlass;
             const float left =
                 pass == 0 ? canvasWidth * 0.07f : canvasWidth * 0.55f;
-            BlockFlow flow(
-                sigil::geometry::path::Rect::of({left, 48}, {measure, canvasHeight - 80}));
+            BlockFlow flow(sigil::geometry::path::Rect::of(
+                {left, 48}, {measure, canvasHeight - 80}));
             m_layouts[pass] =
                 layoutParagraph(fontContext, m_body.paragraph, flow, options);
           }
-          layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();
+          layoutMicroseconds =
+              sigil::measure::Microseconds(layoutTime.elapsed()).count();
         });
 
     canvas->clear(kPaper);

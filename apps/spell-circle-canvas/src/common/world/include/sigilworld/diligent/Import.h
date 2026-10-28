@@ -6,7 +6,7 @@
  * material vocabulary through the device's handle table.
  */
 
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/texture/Texture.h>
 
 namespace sigil::geometry::device {
@@ -32,7 +32,7 @@ namespace sigil::world::diligent {
  * level zero by its wearer.
  */
 ::sigil::material::Texture importNative(
-    ::sigil::geometry::device::Device& device,
-    const core::hardware::NativeTexture& native, bool takeOwnership = false);
+    ::sigil::geometry::device::Device& device, const gpu::NativeTexture& native,
+    bool takeOwnership = false);
 
 }  // namespace sigil::world::diligent

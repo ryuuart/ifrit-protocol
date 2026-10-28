@@ -215,7 +215,7 @@ Derived& DecorationVerbs<Derived>::addSpanPass(Spans where, Decoration what,
       detail::DeriveData& derive = node->deriveData.ensure();
       derive.spanFitKeys.push_back(t.key);
       // A gap sized from where a node LANDED is a read of its box.
-      derive.reads.push_back({t.key, sigil::core::Facet::Bounds});
+      derive.reads.push_back({t.key, sigil::tree::Facet::Bounds});
     }
   claimBorrows(what);
   detail::StrokeData& strokes = node->strokeData.ensure();

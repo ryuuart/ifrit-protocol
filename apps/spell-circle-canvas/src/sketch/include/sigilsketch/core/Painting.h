@@ -8,9 +8,9 @@
  * painter of the process's own stood up when first asked for.
  */
 
-namespace sigil::core::hardware {
+namespace sigil::gpu {
 class GpuDevice;
-}  // namespace sigil::core::hardware
+}  // namespace sigil::gpu
 
 namespace sigil::skia {
 class GraphiteContext;
@@ -24,7 +24,7 @@ namespace sigil::sketch {
 
 /** A Metal or Vulkan device and Graphite standing on it. */
 struct Painter {
-  core::hardware::GpuDevice* device = nullptr;
+  gpu::GpuDevice* device = nullptr;
   skia::GraphiteContext* graphite = nullptr;
 };
 

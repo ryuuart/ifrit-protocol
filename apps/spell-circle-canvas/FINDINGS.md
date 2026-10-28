@@ -254,7 +254,7 @@ the host and device paths.
 
 ## Core links measure, which links motion, which links core
 
-`SigilCoreReconcile` links `SigilMeasure`, which links `SigilMotionTime`
+`SigilTreeReconcile` links `SigilMeasure`, which links `SigilMotionTime`
 only so `Stopwatch.h` can spell a chrono alias, so the three lowest
 libraries form a cycle and no one of them can be built or read alone. A
 duration is meant to be core's own word. A test should find the link

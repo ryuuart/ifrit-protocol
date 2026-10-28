@@ -13,10 +13,10 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/path/Outline.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/slang/SlangCompiler.h>

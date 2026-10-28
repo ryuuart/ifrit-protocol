@@ -25,7 +25,7 @@ sigil_library(SigilSketchKit
           Instrument.h Legend.h Meter.h Page.h Panel.h Passage.h Scrollbar.h
           StyleSheets.h Theme.h Ticker.h Verdict.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilComposeBrush
-         SigilComposeTypography SigilCoreReconcile
+         SigilComposeTypography SigilTreeReconcile
          SigilDataConnection SigilDataDecode SigilDataScale SigilGeometryKit
          SigilMaterial SigilMeasure SigilWeave
   PRIVATE SigilWeavePorts SigilIO SigilDraw

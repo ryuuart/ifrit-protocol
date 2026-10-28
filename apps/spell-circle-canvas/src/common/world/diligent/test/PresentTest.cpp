@@ -18,8 +18,8 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/kit/Solids.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/Readback.h>
 #include <sigilworld/World.h>
@@ -71,10 +71,10 @@ class PresentedPicture : public testing::Test {
   void SetUp() override {
     on = diligent::onDevice();
     if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-    auto made = core::hardware::GpuDevice::createOwned();
+    auto made = gpu::GpuDevice::createOwned();
     if (!made) GTEST_SKIP() << "no Metal device: " << made.error().message;
     metal = std::move(*made);
-    if (metal->backend() != core::hardware::Backend::Metal)
+    if (metal->backend() != gpu::Backend::Metal)
       GTEST_SKIP() << "no Metal device";
     window = skia::GraphiteContext::create(*metal);
     if (!window) GTEST_SKIP() << "no Graphite on the Metal device";
@@ -101,7 +101,7 @@ class PresentedPicture : public testing::Test {
   }
 
   diligent::OnDevice on;
-  std::unique_ptr<core::hardware::GpuDevice> metal;
+  std::unique_ptr<gpu::GpuDevice> metal;
   std::unique_ptr<skia::GraphiteContext> window;
 };
 

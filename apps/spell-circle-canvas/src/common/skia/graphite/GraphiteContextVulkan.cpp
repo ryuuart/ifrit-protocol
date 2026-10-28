@@ -36,7 +36,7 @@ namespace {
  *  Metal, and as not MoltenVK elsewhere. */
 bool drivenByMoltenVk(
     VkInstance instance, VkPhysicalDevice physicalDevice,
-    core::hardware::VulkanHandles::GetInstanceProcAddr getInstanceProcAddr) {
+    gpu::VulkanHandles::GetInstanceProcAddr getInstanceProcAddr) {
   auto getProperties = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2>(
       getInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2"));
   if (!getProperties)
@@ -61,7 +61,7 @@ bool drivenByMoltenVk(
 }  // namespace
 
 std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
-    const core::hardware::VulkanHandles& handles) {
+    const gpu::VulkanHandles& handles) {
   if (!handles.instance || !handles.physicalDevice || !handles.device ||
       !handles.queue || !handles.getInstanceProcAddr)
     return nullptr;
@@ -131,7 +131,7 @@ namespace sigil::skia {
 
 // A Skia without the Vulkan backend: nothing to stand up.
 std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
-    const core::hardware::VulkanHandles&) {
+    const gpu::VulkanHandles&) {
   return nullptr;
 }
 

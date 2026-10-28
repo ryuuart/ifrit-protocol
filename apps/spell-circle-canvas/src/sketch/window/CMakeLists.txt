@@ -24,7 +24,7 @@ qt_add_library(SigilSketchWindow STATIC
 sigil_qt_target(SigilSketchWindow)
 target_link_libraries(SigilSketchWindow
   PUBLIC SigilSketch SigilSkiaGraphite
-  PRIVATE SigilSkiaQt SigilCoreHardware SigilGeometryDevice SigilMaterialSkia
+  PRIVATE SigilSkiaQt SigilGpu SigilGeometryDevice SigilMaterialSkia
           SigilMotionClock Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Quick)
 
 # THE SAME WINDOW FOR AN ORDINARY PYTHON PROCESS, loaded by the extension
@@ -48,7 +48,7 @@ if(SIGIL_BUILD_PYTHON)
   sigil_qt_target(sigil_window)
   target_link_libraries(sigil_window PRIVATE
     $<COMPILE_ONLY:SigilSketchWindow> $<COMPILE_ONLY:SigilSkiaQt>
-    $<COMPILE_ONLY:SigilCoreHardware> $<COMPILE_ONLY:SigilGeometryDevice>
+    $<COMPILE_ONLY:SigilGpu> $<COMPILE_ONLY:SigilGeometryDevice>
     $<COMPILE_ONLY:SigilMaterialSkia> $<COMPILE_ONLY:SigilMotionClock>
     Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Quick)
   set_target_properties(sigil_window PROPERTIES

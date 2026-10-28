@@ -24,9 +24,9 @@ namespace sigil::weave {
 class FontContext;
 }
 
-namespace sigil::core::hardware {
+namespace sigil::gpu {
 class GpuDevice;
-}  // namespace sigil::core::hardware
+}  // namespace sigil::gpu
 
 namespace sigil::skia {
 class GraphiteContext;
@@ -82,7 +82,7 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
    *  levels below zero. F32 remains raster-only. Failure keeps the
    *  current surface and pixels; success drops pixels and cache contents
    *  so the next render paints the retained tree on the new surface. */
-  bool useDevice(sigil::core::hardware::GpuDevice& device,
+  bool useDevice(sigil::gpu::GpuDevice& device,
                  sigil::skia::GraphiteContext& context);
 
   /** Reconcile @p root and paint when needed. The scene clock advances to
@@ -209,7 +209,7 @@ class Textures {
    *  as `TextureScene::useDevice` does; a scene the device refuses stays on
    *  the CPU and paints there. What was painted before stands where it was
    *  painted. */
-  void useDevice(sigil::core::hardware::GpuDevice& device,
+  void useDevice(sigil::gpu::GpuDevice& device,
                  sigil::skia::GraphiteContext& context);
 
   /** @p tree painted at @p size over @p background — or the texture an

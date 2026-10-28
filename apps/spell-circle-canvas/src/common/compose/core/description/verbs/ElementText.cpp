@@ -48,10 +48,10 @@ Derived& TextContentVerbs<Derived>::textThreadTo(std::string_view key) {
   // frame threads into exactly one frame, and a chain that named another
   // one first no longer waits for it.
   detail::DeriveData& derive = node->deriveData.ensure();
-  std::erase_if(derive.reads, [](const sigil::core::Read& read) {
-    return read.facet == sigil::core::Facet::Units;
+  std::erase_if(derive.reads, [](const sigil::tree::Read& read) {
+    return read.facet == sigil::tree::Facet::Units;
   });
-  derive.reads.push_back({std::string(key), sigil::core::Facet::Units});
+  derive.reads.push_back({std::string(key), sigil::tree::Facet::Units});
   return self();
 }
 

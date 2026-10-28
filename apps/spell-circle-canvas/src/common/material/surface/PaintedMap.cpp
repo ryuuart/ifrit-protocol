@@ -13,7 +13,7 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/paint/Paint.h>
 #include <sigilmaterial/skia/Color.h>
@@ -99,9 +99,9 @@ struct PaintedMap::Kept {
   std::shared_ptr<std::atomic<uint64_t>> hostPaintings =
       std::make_shared<std::atomic<uint64_t>>(0);
 
-  core::hardware::GpuDevice* device = nullptr;
+  gpu::GpuDevice* device = nullptr;
   sigil::skia::GraphiteContext* context = nullptr;
-  core::hardware::TextureHandle handle;
+  gpu::TextureHandle handle;
   /** The snapshot of the last painting on the device, which only a
    *  recorder of `context` may draw. */
   sk_sp<SkImage> painting;
@@ -181,8 +181,7 @@ media::Frame PaintedMap::frameAt(std::chrono::duration<double> time) const {
         ++kept.revision;
       }
     }
-    const core::hardware::NativeTexture native =
-        kept.device->exportNative(kept.handle);
+    const gpu::NativeTexture native = kept.device->exportNative(kept.handle);
     if (kept.painted && native) {
       frame.device.kind = media::DeviceFrame::Kind::Texture;
       frame.device.device = kept.device;
@@ -229,7 +228,7 @@ bool PaintedMap::operator==(const PaintedMap& other) const {
          m_material == other.m_material;
 }
 
-bool PaintedMap::useDevice(core::hardware::GpuDevice& device,
+bool PaintedMap::useDevice(gpu::GpuDevice& device,
                            sigil::skia::GraphiteContext& context) const {
   Kept& kept = *m_kept;
   const std::lock_guard lock(kept.mutex);
@@ -238,13 +237,13 @@ bool PaintedMap::useDevice(core::hardware::GpuDevice& device,
   // THE TEXTURE CARRIES ITS OWN CHAIN: a body wearing the map smaller than
   // it is reads the level its size calls for, and whoever wears it fills
   // the levels below the one painted here.
-  core::hardware::TextureDescription description;
+  gpu::TextureDescription description;
   description.width = m_side;
   description.height = m_side;
-  description.format = core::hardware::TextureFormat::RGBA8Unorm;
-  description.mipLevels = core::hardware::mipLevelsFor(m_side, m_side);
+  description.format = gpu::TextureFormat::RGBA8Unorm;
+  description.mipLevels = gpu::mipLevelsFor(m_side, m_side);
   description.label = "painted material map";
-  core::hardware::TextureHandle handle = device.createTexture(description);
+  gpu::TextureHandle handle = device.createTexture(description);
   if (!handle) return false;
   {
     const sigil::skia::OffscreenSurface probe(context, device, handle);

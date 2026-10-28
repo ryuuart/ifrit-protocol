@@ -28,7 +28,8 @@ and `src/sketch/`, each of which has its own README:
 
 | Library | What it does |
 | --- | --- |
-| [SigilCore](src/common/core/README.md) | The kernels a retained runtime hosts: the reconciler, the caching proof, the hardware device seam, and the compute values a drawing is drawn from |
+| [SigilCore](src/common/core/README.md) | The vocabulary every library shares: comparable erasure, the compute values a drawing is drawn from, the time unit, the keyed memo, where work runs, and the reporting door |
+| [SigilGpu](src/common/gpu/README.md) | The GPU device itself: one device and its queue, owned or adopted, textures and fences named by handles |
 | [SigilSkia](src/common/skia/README.md) | Skia Graphite on a device someone else owns |
 | [Sigil.Qt](src/common/qt/README.md) | Reusable Qt Quick controls |
 | [SigilMedia](src/common/media/README.md) | Pictures, still and moving: image and animation decoding and encoding, streaming video decoding with GPU composition and MP4 encoding, distance fields and pixel differences |
@@ -37,6 +38,7 @@ and `src/sketch/`, each of which has its own README:
 | [SigilData](src/common/data/README.md) | Tabular data and scales: typed columns, and the one value that maps a domain onto a range |
 | [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |
 | [SigilMeasure](src/common/measure/README.md) | Timing, statistics and check reporting |
+| [SigilTree](src/common/tree/README.md) | The kernels a retained runtime hosts: the reconciler and the caching proof |
 | [SigilMotion](src/common/motion/README.md) | Animation: the clock, animatable values, bindings, and the physics steppers |
 | [SigilGeometry](src/common/geometry/README.md) | Higher-level drawing over Skia: paths, contours, meshes, splines, point operators |
 | [SigilMaterial](src/common/material/README.md) | Recipes, textures, environment maps, and colour: ramps, palettes, harmonies, dithering |

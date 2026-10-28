@@ -8,8 +8,8 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #ifdef __APPLE__
@@ -38,18 +38,18 @@ using namespace sigil::geometry::device::test;
 // queue — with neither wait left standing.
 TEST(Device, OnAppleTwoDimensionsPaintOnMetalOverTheDevicesTextures) {
   SIGIL_ON_DEVICE_OR_SKIP(d);
-  core::hardware::GpuDevice* gpu = d->gpu();
+  gpu::GpuDevice* gpu = d->gpu();
   skia::GraphiteContext* graphite = d->graphite();
   if (!gpu || !graphite) GTEST_SKIP() << "2D on the 3D device is unavailable";
   ASSERT_NE(graphite->recorder(), nullptr);
   EXPECT_EQ(graphite->recorder()->backend(), skgpu::BackendApi::kMetal);
   EXPECT_EQ(skia::deviceOf(*graphite->recorder()), gpu->native().mtlDevice);
 
-  core::hardware::TextureDescription desc;
+  gpu::TextureDescription desc;
   desc.width = desc.height = 16;
-  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
-  desc.mipLevels = core::hardware::mipLevelsFor(16, 16);
-  const core::hardware::TextureHandle texture = gpu->createTexture(desc);
+  desc.format = gpu::TextureFormat::RGBA8Unorm;
+  desc.mipLevels = gpu::mipLevelsFor(16, 16);
+  const gpu::TextureHandle texture = gpu->createTexture(desc);
   ASSERT_TRUE(gpu->isValid(texture));
   const SkColor painted = SkColorSetARGB(255, 200, 40, 0);
   {
@@ -84,22 +84,22 @@ TEST(Device, OnAppleTwoDimensionsPaintOnMetalOverTheDevicesTextures) {
 // does.
 TEST(Device, OnAppleTheDevicesQueueWaitsForThePaintingSubmittedBeforeIt) {
   SIGIL_ON_DEVICE_OR_SKIP(d);
-  core::hardware::GpuDevice* gpu = d->gpu();
+  gpu::GpuDevice* gpu = d->gpu();
   skia::GraphiteContext* graphite = d->graphite();
   if (!gpu || !graphite) GTEST_SKIP() << "2D on the 3D device is unavailable";
   std::string error;
-  const std::unique_ptr<core::hardware::GpuDevice> gate = [&error] {
-    auto made = core::hardware::GpuDevice::createOwned();
+  const std::unique_ptr<gpu::GpuDevice> gate = [&error] {
+    auto made = gpu::GpuDevice::createOwned();
     if (!made) error = made.error().message;
     return std::move(made).value_or(nullptr);
   }();
   if (!gate) GTEST_SKIP() << error;
-  const core::hardware::FenceHandle shut = gate->createFence();
+  const gpu::FenceHandle shut = gate->createFence();
   ASSERT_TRUE(gate->isValid(shut));
 
-  core::hardware::TextureDescription desc;
+  gpu::TextureDescription desc;
   desc.width = desc.height = 16;
-  const core::hardware::TextureHandle texture = gpu->createTexture(desc);
+  const gpu::TextureHandle texture = gpu->createTexture(desc);
   ASSERT_TRUE(gpu->isValid(texture));
   // The painting waits for the gate on its own queue.
   skia::waitBeforeSampling(*graphite->recorder(),
@@ -111,18 +111,18 @@ TEST(Device, OnAppleTheDevicesQueueWaitsForThePaintingSubmittedBeforeIt) {
     surface.submit();
   }
   d->waitForPainting();
-  const core::hardware::FenceHandle behind = gpu->createFence();
-  core::hardware::FenceValue queued = core::hardware::kFenceInitialValue;
+  const gpu::FenceHandle behind = gpu->createFence();
+  gpu::FenceValue queued = gpu::kFenceInitialValue;
   {
     const geometry::device::Device::QueueLock lock(*d);
     queued = gpu->signal(behind);
   }
   EXPECT_EQ(gpu->waitCpu(behind, queued, std::chrono::milliseconds(100)),
-            core::hardware::FenceWait::TimedOut)
+            gpu::FenceWait::TimedOut)
       << "the device's queue ran before the painting finished";
   // The gate is raised on the case's own queue, which nothing holds.
   (void)gate->signal(shut);
-  EXPECT_EQ(gpu->waitCpu(behind, queued), core::hardware::FenceWait::Reached);
+  EXPECT_EQ(gpu->waitCpu(behind, queued), gpu::FenceWait::Reached);
   gpu->destroyFence(behind);
   gpu->destroy(texture);
 }
@@ -133,24 +133,23 @@ TEST(Device, OnAppleTheDevicesQueueWaitsForThePaintingSubmittedBeforeIt) {
 // and the queue drains, it does — with the pixels it painted.
 TEST(Device, OnAppleTheNextPaintingWaitsForTheDevicesQueue) {
   SIGIL_ON_DEVICE_OR_SKIP(d);
-  core::hardware::GpuDevice* gpu = d->gpu();
+  gpu::GpuDevice* gpu = d->gpu();
   skia::GraphiteContext* graphite = d->graphite();
   if (!gpu || !graphite) GTEST_SKIP() << "2D on the 3D device is unavailable";
   std::string error;
-  const std::unique_ptr<core::hardware::GpuDevice> gate = [&error] {
-    auto made = core::hardware::GpuDevice::createOwned();
+  const std::unique_ptr<gpu::GpuDevice> gate = [&error] {
+    auto made = gpu::GpuDevice::createOwned();
     if (!made) error = made.error().message;
     return std::move(made).value_or(nullptr);
   }();
   if (!gate) GTEST_SKIP() << error;
-  const core::hardware::FenceHandle shut = gate->createFence();
-  const core::hardware::FenceHandle brought =
-      gpu->importNative(gate->exportNative(shut));
+  const gpu::FenceHandle shut = gate->createFence();
+  const gpu::FenceHandle brought = gpu->importNative(gate->exportNative(shut));
   if (!brought) GTEST_SKIP() << "this driver does not bring a Metal event over";
 
-  core::hardware::TextureDescription desc;
+  gpu::TextureDescription desc;
   desc.width = desc.height = 16;
-  const core::hardware::TextureHandle texture = gpu->createTexture(desc);
+  const gpu::TextureHandle texture = gpu->createTexture(desc);
   ASSERT_TRUE(gpu->isValid(texture));
   // The device's queue waits for the gate, and the next painting for the
   // device's queue.
@@ -195,12 +194,12 @@ TEST(Device, OnAppleTheNextPaintingWaitsForTheDevicesQueue) {
 // again. Half a pair is refused with nothing changed.
 TEST(Device, OnAppleAHostsOwnMetalQueuePaintsInPlaceOfTheDevicesOwn) {
   SIGIL_ON_DEVICE_OR_SKIP(d);
-  core::hardware::GpuDevice* gpu = d->gpu();
+  gpu::GpuDevice* gpu = d->gpu();
   skia::GraphiteContext* own = d->graphite();
   if (!gpu || !own) GTEST_SKIP() << "2D on the 3D device is unavailable";
   std::string error;
-  const std::unique_ptr<core::hardware::GpuDevice> window = [&error] {
-    auto made = core::hardware::GpuDevice::createOwned();
+  const std::unique_ptr<gpu::GpuDevice> window = [&error] {
+    auto made = gpu::GpuDevice::createOwned();
     if (!made) error = made.error().message;
     return std::move(made).value_or(nullptr);
   }();
@@ -210,22 +209,22 @@ TEST(Device, OnAppleAHostsOwnMetalQueuePaintsInPlaceOfTheDevicesOwn) {
   const std::unique_ptr<skia::GraphiteContext> windowGraphite =
       skia::GraphiteContext::create(*window);
   ASSERT_NE(windowGraphite, nullptr);
-  const std::unique_ptr<core::hardware::GpuDevice> gate = [&error] {
-    auto made = core::hardware::GpuDevice::createOwned();
+  const std::unique_ptr<gpu::GpuDevice> gate = [&error] {
+    auto made = gpu::GpuDevice::createOwned();
     if (!made) error = made.error().message;
     return std::move(made).value_or(nullptr);
   }();
   ASSERT_NE(gate, nullptr) << error;
-  const core::hardware::FenceHandle shut = gate->createFence();
+  const gpu::FenceHandle shut = gate->createFence();
 
   EXPECT_FALSE(d->paintWith(window.get(), nullptr));
   EXPECT_EQ(d->graphite(), own);
   ASSERT_TRUE(d->paintWith(window.get(), windowGraphite.get()));
   EXPECT_EQ(d->graphite(), windowGraphite.get());
 
-  core::hardware::TextureDescription desc;
+  gpu::TextureDescription desc;
   desc.width = desc.height = 16;
-  const core::hardware::TextureHandle texture = gpu->createTexture(desc);
+  const gpu::TextureHandle texture = gpu->createTexture(desc);
   ASSERT_TRUE(gpu->isValid(texture));
   skia::waitBeforeSampling(*windowGraphite->recorder(),
                            gate->exportNative(shut).mtlSharedEvent, 1);
@@ -236,17 +235,17 @@ TEST(Device, OnAppleAHostsOwnMetalQueuePaintsInPlaceOfTheDevicesOwn) {
     surface.submit();
   }
   d->waitForPainting();
-  const core::hardware::FenceHandle behind = gpu->createFence();
-  core::hardware::FenceValue queued = core::hardware::kFenceInitialValue;
+  const gpu::FenceHandle behind = gpu->createFence();
+  gpu::FenceValue queued = gpu::kFenceInitialValue;
   {
     const geometry::device::Device::QueueLock lock(*d);
     queued = gpu->signal(behind);
   }
   EXPECT_EQ(gpu->waitCpu(behind, queued, std::chrono::milliseconds(100)),
-            core::hardware::FenceWait::TimedOut)
+            gpu::FenceWait::TimedOut)
       << "the device's queue ran before the host's painting finished";
   (void)gate->signal(shut);
-  EXPECT_EQ(gpu->waitCpu(behind, queued), core::hardware::FenceWait::Reached);
+  EXPECT_EQ(gpu->waitCpu(behind, queued), gpu::FenceWait::Reached);
 
   EXPECT_TRUE(d->paintWith(nullptr, nullptr));
   EXPECT_EQ(d->graphite(), own);

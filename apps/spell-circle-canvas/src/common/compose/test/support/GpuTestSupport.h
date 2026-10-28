@@ -18,9 +18,9 @@
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
@@ -63,8 +63,8 @@ using sigil::test::fonts;
 /** The one Graphite context every case draws on, or null on a machine
  *  without a device. */
 inline sigil::skia::GraphiteContext* graphite() {
-  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+  static std::unique_ptr<sigil::gpu::GpuDevice> device =
+      sigil::gpu::GpuDevice::createOwned().value_or(nullptr);
   static std::unique_ptr<sigil::skia::GraphiteContext> context =
       device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
   return context.get();

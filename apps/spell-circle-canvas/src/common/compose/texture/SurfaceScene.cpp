@@ -85,7 +85,7 @@ bool SurfaceScene::add(Role role) {
   return true;
 }
 
-bool SurfaceScene::useDevice(core::hardware::GpuDevice& device,
+bool SurfaceScene::useDevice(gpu::GpuDevice& device,
                              skia::GraphiteContext& context) {
   // Every map stands on the device or none does: a set split across two
   // places would be sampled from both. The cuts stand where the maps do.

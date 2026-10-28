@@ -15,14 +15,14 @@
  * resource all live on the other side of the seam, in the Scene.
  */
 
-#include <sigilcore/cache/Policy.h>
-#include <sigilcore/reconcile/Memo.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
+#include <sigiltree/cache/Policy.h>
+#include <sigiltree/reconcile/Memo.h>
 #include <sigilworld/advanced/Geometry.h>
 #include <sigilworld/advanced/Light.h>
 #include <sigilworld/node/Transform.h>
@@ -120,7 +120,7 @@ struct CameraDescription {
 
 /** A deferred describe and its key — SigilCore's, over this library's
  *  node. */
-using Memo = core::Memo<Node>;
+using Memo = tree::Memo<Node>;
 
 /** ONE NODE'S DESCRIPTION, field by field. Which factory made the node
  *  decides which fields it ever writes: only a group has children, only
@@ -165,7 +165,7 @@ struct NodeDescription {
   std::vector<std::string> collections;
   std::optional<LightDescription> light;
   std::optional<CameraDescription> camera;
-  core::Cache cachePolicy = core::Cache::Auto;
+  tree::Cache cachePolicy = tree::Cache::Auto;
   std::optional<motion::Tween<float>> nodeTransition;
   std::vector<Node> children;
   std::optional<Memo> memo;

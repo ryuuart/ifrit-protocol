@@ -1,5 +1,5 @@
 # The gpu feature: Ultralight's GPU command lists executed on the
-# device behind a SigilCoreHardware GpuDevice, and the texture interop the
+# device behind a SigilGpu GpuDevice, and the texture interop the
 # engine needs beyond that — publish and slot textures named by handle,
 # blits, uploads, painting through a Graphite recorder, and wrapping a
 # texture as an SkImage. GpuDriver.h is the graphics-API-neutral
@@ -7,7 +7,7 @@
 # beside it without the engine noticing. Both headers name
 # Ultralight and stay beside the sources.
 #
-# Textures and fences are named on SigilCoreHardware's device and the
+# Textures and fences are named on SigilGpu's device and the
 # driver paints through SigilSkia's Graphite context: both PUBLIC, because
 # the driver contract spells the handle and the context.
 if(APPLE)
@@ -33,7 +33,7 @@ endif()
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilScryGpu
   SOURCES GpuDriver.h ${SIGIL_SCRY_GPU_NATIVE_SOURCES}
-  PUBLIC SigilSkiaGraphite SigilCoreHardware Boost::unordered
+  PUBLIC SigilSkiaGraphite SigilGpu Boost::unordered
   PRIVATE Ultralight::Ultralight SigilCoreReport)
 if(APPLE)
   set_source_files_properties(metal/MetalDriver.mm metal/MetalInterop.mm

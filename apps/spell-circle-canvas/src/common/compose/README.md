@@ -700,7 +700,7 @@ accepted values, with examples beside each entry.
 Values retain their library of origin: outlines and geometry are
 SigilGeometry's, paints and surfaces SigilMaterial's, pixels SigilMedia's,
 text and paragraphs SigilWeave's, clocks and animated values SigilMotion's.
-SigilCore owns generic reconciliation and cache decisions. Compose owns
+SigilTree owns generic reconciliation and cache decisions. Compose owns
 their execution over Yoga, text state and Skia. It does not re-export
 those libraries' namespaces.
 

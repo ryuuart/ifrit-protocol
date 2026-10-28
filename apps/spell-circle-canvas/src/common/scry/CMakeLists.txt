@@ -3,7 +3,7 @@
 # library per directory. The platform feature is what Ultralight's
 # Platform singleton is handed: an SkBitmap-backed surface, the two-root
 # file system, the logger bridge and the resource directory. The gpu
-# feature executes Ultralight's GPU command lists on a SigilCoreHardware
+# feature executes Ultralight's GPU command lists on a SigilGpu
 # GpuDevice and gives the engine its texture interop — Metal, with a Vulkan
 # driver slotting in beside it. The engine feature is the web thread,
 # the views that publish frames and the image slots pages display.
@@ -14,7 +14,7 @@
 # private to the library, so those stay beside their sources and the
 # engine feature reaches them by directory rather than the include root.
 #
-# Textures are named on SigilCoreHardware's GpuDevice and the GPU driver
+# Textures are named on SigilGpu's GpuDevice and the GPU driver
 # draws over a shared Graphite context.
 #
 # The SDK is a licensed download that is never vendored, and it has no
@@ -52,9 +52,10 @@ sigil_doc_probes(scry
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/WebView.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
-  PRELUDES "<sigilcore/hardware/GpuDevice.h>"
+           ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+  PRELUDES "<sigilgpu/GpuDevice.h>"
            "<sigilskia/graphite/OffscreenSurface.h>"
   EXCLUDE "Ultralight::Ultralight=a CMake target name, not a C++ name"
           "Ultralight::AppCore=a CMake target name, not a C++ name"
   FLOORS 2,18,22,7,0
-  LIBRARIES SigilScry SigilSkiaGraphite SigilCoreHardware)
+  LIBRARIES SigilScry SigilSkiaGraphite SigilGpu)

@@ -9,7 +9,7 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkRect.h>
-#include <sigilcore/cache/Bake.h>
+#include <sigiltree/cache/Bake.h>
 
 #include "Instance.h"
 
@@ -55,7 +55,7 @@ struct PictureBakeTarget {
  *  exactly the same words.
  *
  *  Stateless, so every instance of it is the same value. */
-struct PictureBake : core::BakeOperations<PictureBakeTarget> {
+struct PictureBake : tree::BakeOperations<PictureBakeTarget> {
   void take(PictureBakeTarget& t) const override;
   void replay(PictureBakeTarget& t) const override;
   void drop(PictureBakeTarget& t) const override;

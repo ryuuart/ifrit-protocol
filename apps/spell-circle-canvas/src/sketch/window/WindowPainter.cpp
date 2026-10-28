@@ -11,8 +11,8 @@
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
 #include <rhi/qrhi.h>
-#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Painting.h>
 #include <sigilsketch/live/Host.h>
@@ -66,12 +66,11 @@ bool WindowPainter::initialize(QRhi* rhi) {
   if (shared && m_graphiteContext) {
     if (const auto* handles =
             static_cast<const QRhiMetalNativeHandles*>(rhi->nativeHandles())) {
-      core::hardware::NativeDevice native;
-      native.backend = core::hardware::Backend::Metal;
+      gpu::NativeDevice native;
+      native.backend = gpu::Backend::Metal;
       native.mtlDevice = handles->dev;
       native.mtlCommandQueue = handles->cmdQueue;
-      m_windowDevice =
-          core::hardware::GpuDevice::adopt(native).value_or(nullptr);
+      m_windowDevice = gpu::GpuDevice::adopt(native).value_or(nullptr);
       if (!m_windowDevice ||
           !shared->paintWith(m_windowDevice.get(), m_graphiteContext.get()))
         m_windowDevice.reset();

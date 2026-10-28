@@ -28,14 +28,14 @@ the same device the context was built from. The Vulkan wrap takes a
 `sigil::skia::VulkanImage` created on that same device, and leaves
 `canvas()` null when the build's Skia carries no Vulkan backend.
 
-The third takes a `core::hardware::TextureHandle` on a
-`core::hardware::GpuDevice`, whichever API that device is: the wrap a host
+The third takes a `gpu::TextureHandle` on a
+`gpu::GpuDevice`, whichever API that device is: the wrap a host
 holding a GpuDevice reaches for, in place of the native handle its API
 spells. `canvas()` is null when the handle is stale or the wrap failed. A
 Vulkan image is wrapped in the layout the device last knew it to be in —
 undefined for one the device made and nothing has drawn into, which is to
 say its contents before the first draw are not preserved. That
-constructor is defined by the hardware feature's device value.
+constructor is defined by SigilGpu's device value.
 
 A `sigil::skia::VulkanImage` is a Vulkan image to draw into, as opaque
 values so the header pulls in no Vulkan header: `image` is the VkImage (a

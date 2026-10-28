@@ -13,7 +13,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
-#include <sigilcore/hardware/Handle.h>
+#include <sigilgpu/Handle.h>
 
 #include <atomic>
 #include <boost/unordered/unordered_flat_set.hpp>
@@ -48,8 +48,8 @@ class WebView::Impl final : public ultralight::LoadListener,
   // expose publishedGpuTexture.
   mutable std::mutex frameMutex;
   sk_sp<SkImage> latestImage;
-  sigil::core::hardware::TextureHandle publishedGpuTexture;
-  sigil::core::hardware::TextureHandle spareGpuTexture;
+  sigil::gpu::TextureHandle publishedGpuTexture;
+  sigil::gpu::TextureHandle spareGpuTexture;
   int gpuTextureWidth = 0;
   int gpuTextureHeight = 0;
   SkIRect lastDirtyBounds = SkIRect::MakeEmpty();

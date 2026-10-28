@@ -71,7 +71,7 @@ TEST(Window, ASpanDropsWhatIsOlderThanItsReach) {
   recent.add(4.0, 5s);  // 0 s is now more than four seconds back
   EXPECT_EQ(held(recent), (std::vector<double>{2, 3, 4}));
   ASSERT_EQ(recent.times().size(), 3u);
-  EXPECT_EQ(recent.times().front(), sigil::motion::Duration(1s));
+  EXPECT_EQ(recent.times().front(), sigil::core::Duration(1s));
   recent.advance(8s);  // a silent stream empties as its time moves on
   EXPECT_EQ(held(recent), (std::vector<double>{4}));
   recent.advance(20s);
@@ -86,7 +86,7 @@ TEST(Window, AStampFromThePastDoesNotWindTheWindowBack) {
 }
 
 TEST(Window, OfSpansOfTimeReadsInTheirUnit) {
-  Window<sigil::motion::Duration> frames(4);
+  Window<sigil::core::Duration> frames(4);
   frames.add(10ms);
   frames.add(20ms);
   EXPECT_DOUBLE_EQ(Milliseconds(frames.mean()).count(), 15.0);
@@ -148,11 +148,11 @@ TEST(Smoothed, APeakRisesAtOnceAndFallsSlowly) {
 TEST(Rate, CountsTheEventsOfTheLastSpanPerSecond) {
   Rate arrivals{4s};
   for (int second = 0; second < 8; ++second)
-    arrivals.mark(sigil::motion::Duration(second * 1.0));
+    arrivals.mark(sigil::core::Duration(second * 1.0));
   // At 7 s the span reaches back to 3 s: 3, 4, 5, 6 and 7.
   EXPECT_EQ(arrivals.count(), 5u);
   EXPECT_DOUBLE_EQ(arrivals.perSecond(), 5.0 / 4.0);
-  EXPECT_EQ(arrivals.times().front(), sigil::motion::Duration(3s));
+  EXPECT_EQ(arrivals.times().front(), sigil::core::Duration(3s));
   arrivals.advance(30s);
   EXPECT_EQ(arrivals.count(), 0u);
   EXPECT_DOUBLE_EQ(arrivals.perSecond(), 0.0);

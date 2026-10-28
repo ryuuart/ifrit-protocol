@@ -7,13 +7,13 @@
  */
 
 #include <sigilcore/compute/Noise.h>
-#include <sigilcore/reconcile/Memo.h>
-#include <sigilcore/reconcile/Reads.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmedia/core/PixelSource.h>
 #include <sigilmotion/advanced/Held.h>
+#include <sigiltree/reconcile/Memo.h>
+#include <sigiltree/reconcile/Reads.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -368,7 +368,7 @@ struct DeriveData {
    *  Excluded from structural equality on purpose — every entry is a
    *  function of fields the comparator already compares, so a description
    *  that differs in a read differs in the field that produced it. */
-  std::vector<sigil::core::Read> reads;
+  std::vector<sigil::tree::Read> reads;
 };
 
 /** One span-qualified pass — Element::stroke(where, what, name) or
@@ -622,7 +622,7 @@ struct CascadeData {
 /** The memo shell's payload: SigilCore's Memo, producing an Element. The
  *  reconciler compares its properties against the memo the node was last
  *  described from, and runs `invoke` on a miss. */
-using MemoData = core::Memo<Element>;
+using MemoData = tree::Memo<Element>;
 
 struct ElementNode {
   Kind kind = Kind::Box;

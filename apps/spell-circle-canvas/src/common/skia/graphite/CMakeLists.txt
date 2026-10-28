@@ -9,9 +9,9 @@
 #
 # The `OnDevice` units are the entry points that name a texture or a fence
 # by hardware handle: Graphite is what stands on a device, so the bring-up
-# over one lives here and SigilCoreHardware below stays free of Skia.
+# over one lives here and SigilGpu below stays free of Skia.
 #
-# Links Skia and SigilCoreHardware, the Vulkan headers privately (the
+# Links Skia and SigilGpu, the Vulkan headers privately (the
 # public headers spell every Vulkan handle as an opaque value, so no
 # consumer needs them) and, on Apple, Foundation — no Qt.
 if(APPLE)
@@ -39,7 +39,7 @@ sigil_library(SigilSkiaGraphite
           ${SIGIL_SKIA_GRAPHITE_METAL_SOURCES}
   HEADERS GraphiteContext.h OffscreenSurface.h PaintOrder.h
           Pixels.h Readback.h TextureImage.h
-  PUBLIC unofficial::skia::skia SigilCoreHardware
+  PUBLIC unofficial::skia::skia SigilGpu
   PRIVATE Vulkan::Headers Boost::unordered SigilCoreReport)
 if(APPLE)
   target_link_libraries(SigilSkiaGraphite PRIVATE ${FOUNDATION_FRAMEWORK})

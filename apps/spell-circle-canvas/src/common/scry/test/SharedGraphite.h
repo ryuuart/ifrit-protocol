@@ -8,7 +8,7 @@
  * context it turns — "GraphiteReadback.h".
  */
 
-#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgpu/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <memory>
@@ -17,9 +17,9 @@ namespace sigil::scry::test {
 
 /** The device this process owns, shared by whatever is under test and
  *  every case in the binary. */
-inline core::hardware::GpuDevice* sharedDevice() {
-  static std::unique_ptr<core::hardware::GpuDevice> device =
-      core::hardware::GpuDevice::createOwned().value_or(nullptr);
+inline gpu::GpuDevice* sharedDevice() {
+  static std::unique_ptr<gpu::GpuDevice> device =
+      gpu::GpuDevice::createOwned().value_or(nullptr);
   return device.get();
 }
 
